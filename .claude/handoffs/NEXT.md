@@ -10,7 +10,7 @@ Check free disk first (`df -g /System/Volumes/Data`); the standing floor is 50 G
 
 ## Goal
 
-Finish the spec: every requested production fix, the Astra overhaul, the owner reports, deferred asset and email work, verified releases and an empty board, in `## The order`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: open 91, placed 91 (`#1634` newly placed in Batch 0c), unplaced 0, placed twice 0, placed closed 0. Newly filed scope gets exactly one order bullet in the session it arrives. An external interruption is the only earlier ending.
+Finish the spec: every requested production fix, the Astra overhaul, the owner reports, deferred asset and email work, verified releases and an empty board, in `## The order`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: open 87, placed 87 (`#1634` was filed, placed in Batch 0c, shipped and closed this session; `#1631`, `#1632` and `#222` shipped and closed), unplaced 0, placed twice 0, placed closed 0. Newly filed scope gets exactly one order bullet in the session it arrives. An external interruption is the only earlier ending.
 
 ## In flight
 
@@ -19,7 +19,7 @@ The relay tool stops this session's CI waiters, so re-arm `tools/wait-ci.mjs` fo
 | Item | Disposition |
 | --- | --- |
 | Production web `a2a0afb5` | Live (`#1629`, run 39873429002, health serves `a2a0afb5`, post-deploy smoke passed 6 of 6). `#1629` stays open for its Android half. UI `main` is now `ac2b8010` (ui#1896 `#222` merged); the next production web release carries `#222` with ui#1962 and ui#1956. |
-| Production API `b8a9846c` | Staging Healthy at `b8a9846c` (`#1632` api#856, `#1634` api#857, `#1631` api#855, all merged). Production release run 39877831781 was dispatched during the drain: read it with `wait-release.mjs`, confirm `/health` serves `b8a9846c`, then close `#1632` and `#1634` with the evidence (each has no other half). |
+| Production API `b8a9846c` | Live and Healthy on production and staging (run 39877831781). `#1631`, `#1632` and `#1634` shipped and closed. `#1619` (ui#1958) still has to call `POST /api/chat/gamification/refresh` for level-only and achievement-only reads before it closes. |
 | ui#1946 `#1607`, ui#1897 `#1564` | Both APPROVED at their heads with 0 threads but red: ui#1946 on Upgrade layout geometry and Layout shard 1 at `7db0ae1e`; ui#1897 on Web unit chromium 4/8, 5/8, 8/8 at `080a07d5`. Read each failing log, then a review batch per PR. |
 | ui#1962 `#1633` | `6441504e`; root proof in the body (fixed adapter 4 of 4 pass, main's adapter 4 of 4 fail at `smoke-adapters.ts:57`). Merge on the bar, release production web, rerun the post-deploy smoke, record the result, close `#1633`. |
 | ui#1956 `#1630` | `023f284b`, all green except Android release build (transient NDK download); failed job rerun on run 39867729346. Needs a fresh exact-head review, then merge and release with the next production web release. |

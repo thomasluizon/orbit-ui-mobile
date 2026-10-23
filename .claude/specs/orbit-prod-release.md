@@ -193,20 +193,17 @@ The Astra block-first overhaul leads this batch (owner order): every Astra answe
 - `#1629` Make session refresh single-flight so concurrent requests stop signing people out (Sentry `ORBIT-WEB-10`; web and Android, API reuse handling if it revokes the family). Owner report; first.
 - `#1630` Fix the production profile response that fails the web schema (Sentry `ORBIT-WEB-V`, escalating since go-live); log the failing Zod path.
 - `#1633` Fix the production smoke log case: after `547ff309` deployed, logging a habit succeeded but the completed row's status toggle was not found. Reproduce first; fix the product on both platforms or the stale smoke adapter, and add a pull request check for the smoke selectors. First, ahead of the Sentry pair's publication.
-- `#1634` Stop the date interpreter from failing with a regex timeout under load (`orbit-api`; the per-call month-name patterns ran with a 50 ms limit and threw a server error for ordinary phrases; delivered as orbit-api#857 on a linear-time engine). Live defect in the shipped local date parser.
 - `#1627` Make Astra the expert on Orbit's own habit model: one-time Tasks for dated events, bounded preparation items, avoid form versus commitment form chosen from intent and never mixed, corrections keep unchanged fields, one batch preview, and the root cause of the failed batch item (owner report; ticket comments carry the bar). Coordinate composition with `#1617`.
 - `#1628` Astra preview items: drop the chevron that collapses nothing, rename the title in place, keep Editar for the rest, natural icon label (web and Android).
 - `#1622` MCP connector and OAuth page icons: merged as `orbit-api` `5d6c05d1` and live on staging; production release, then a Search Console recrawl of `useorbit.org` and `api.useorbit.org`, then re-check the Google favicon cache and the connector list.
 - `#1623` Frame the Google Play screenshots like the old set, in the redesign, in both locales, including tablet frames and a pt-BR feature graphic (owner order, previously carried without a ticket).
 - `#1624` Replace or delete every old-design brand asset and write the next social drafts (owner order).
-- `#1632` Redesign the email unsubscribe pages the API serves (old navy page, wrong `lang`; reuse the OAuth styled page shell; found by the `#1624` inventory).
 - `#1625` Make Gmail show Copy code on the sign-in code email.
 - `#1626` Settle the `redesign` flag after the production go-live (runbook step 7).
 - `#1615` Return complete completion-count rankings as negotiated blocks (`orbit-api`; blocks `#1617` and `#1618`).
 - `#1616` Bind dated reads, totals, comparisons and refresh to the actual query (`orbit-api`; blocks `#1617` and `#1619`).
 - `#1617` Enforce block-first composition across every Astra answer family (`orbit-api`; blocked by `#1615` and `#1616`; the legacy text FORMAT rule stays for clients without parts support).
 - `#1618` Render complete interactive habit rankings on web and Android (blocked by `#1615`).
-- `#1631` Provide read blocks for level-only and achievement-only gamification results (`orbit-api`; the API gap `#1619`'s worker found; `#1619` closes only after it deploys and its UI consumer lands).
 - `#1619` Show focused, query-faithful read blocks on web and Android (blocked by `#1616`; delivered as `ui#1958`; level-only and achievement-only reads wait on `#1631`).
 - `#1620` Make every completed Astra answer lean on web and Android (blocked by `#1617`, `#1618`, `#1619` and `#24`; rollout waits on `#26`'s composition gate).
 - `#1612` Preserve inferred-icon preparation failures through Astra preview/execution and diagnose the real all-habit inference failure; actual live failure is initial preparation, not stale user approval. Keep held writes and spend limits; do not close on diagnostic/error reporting alone.
@@ -271,7 +268,6 @@ Includes the packaging changes (milestone "Packaging: caps, quotas and tiers"), 
 - `#181` Bulk-move selected habits, and open the move picker at the habit's current position (after the bulk reparent endpoint deploys).
 - `#386` Show the billed charge on the subscription screen once the API returns it.
 - `#395` Anchor habit history on the stable recurrence origin once the API exposes it.
-- `#222` Linking a habit becomes the primary route into creating a goal.
 - `#213` Define the retention cohort and stand up the recurring read.
 - `#1355` Keep the Progresso streak section the same height for every freeze bank state while it loads.
 - `#1564` Keep the Progresso bar column fill clear of its own bar, both platforms, and extend the hermetic clearance fixtures to a chart with points and the Calendário week header.
@@ -553,7 +549,7 @@ Current operational rules above take precedence when a record conflicts.
 - A Linux replay of a Chromium test runs in Docker on the `mcr.microsoft.com/playwright` image with its bundled Chromium (Google Chrome stable does not install on Linux arm64); it reproduced a Linux-only raster red exactly.
 ## Current state
 
-Latest handoff: a relay with the chain open. The board has 91 open tickets, each placed once. Live builds: staging API `b8a9846c` Healthy (`#1627`, `#1631`, `#1632`, `#1634`); production API was `014d33b5` with the `b8a9846c` release dispatched as run 39877831781. Production web is `a2a0afb5` (`#1629` single-flight session refresh) with a green post-deploy smoke; UI `main` is `ac2b8010` (adds `#222`). ui#1962 (`#1633`, the stale smoke adapter, red and green proven at root) still fixes the latency race. Android `1.3.90` (`149`) on Open, availability unverified; `main` has unreleased Android changes. Every open pull request was published once this session on the `547ff309` base and waits on CI and a fresh exact-head Pullfrog review. Worker orders ask for focused suites and type checks, never the serialized full `turbo run test --concurrency=1`: four workers hit the 45-minute ceiling inside it, and CI owns the complete suites. Read review state with `list-bot-threads.mjs --no-request --wait-seconds 0`; without `--no-request` it posts a review request. An owner order gets its ticket in the session it arrives; a Current state line is never its only record.
+Latest handoff: a relay with the chain open. The board has 87 open tickets, each placed once. Live builds: production and staging API `b8a9846c`, both Healthy (`#1627`; `#1631`, `#1632` and `#1634` shipped and closed). `#222` merged as `ac2b8010` and closed; its production web release is pending. Production web is `a2a0afb5` (`#1629` single-flight session refresh) with a green post-deploy smoke; UI `main` is `ac2b8010` (adds `#222`). ui#1962 (`#1633`, the stale smoke adapter, red and green proven at root) still fixes the latency race. Android `1.3.90` (`149`) on Open, availability unverified; `main` has unreleased Android changes. Every open pull request was published once this session on the `547ff309` base and waits on CI and a fresh exact-head Pullfrog review. Worker orders ask for focused suites and type checks, never the serialized full `turbo run test --concurrency=1`: four workers hit the 45-minute ceiling inside it, and CI owns the complete suites. Read review state with `list-bot-threads.mjs --no-request --wait-seconds 0`; without `--no-request` it posts a review request. An owner order gets its ticket in the session it arrives; a Current state line is never its only record.
 
 The disk floor matters: clean detached scratch worktrees in old session scratch directories are removable after pinning each HEAD under `refs/orbit-scratch-archive/<session>/<name>`; never remove a dirty tree, a branch checkout or a live session's tree. A hermetic layout build for a root run bakes its port at build time: run `LAYOUT_PORT=3100 npm run build:hermetic -w apps/web`, then the layout project with `PORT=3100 LAYOUT_PORT=3100`.
 
@@ -1023,7 +1019,6 @@ analytics work.
 - `#386` Show the billed charge on the subscription screen once the API returns it (after `#385` deploys)
 - `#181` Bulk-move selected habits, and open the move picker at the habit's current position (after `#179` deploys)
 - `#62` Show and explain the Pro-days referral reward on the surfaces users actually see (after `#28` deploys)
-- `#222` Linking a habit becomes the primary route into creating a goal
 - `#195` Habit-limit paywall copy removed; new at-capacity state
 - `#196` AI quota copy becomes daily across web and mobile
 - `#197` Retrospective unlocks on any Pro plan; remove the yearlyPro entitlement
