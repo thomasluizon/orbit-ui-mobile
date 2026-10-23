@@ -76,18 +76,26 @@ export function Content({ id, items = [], onSelect, title, shortTitle, titleMode
   const { open, close, triggerRef, canRestoreFocus } = useMenu()
   const wide = useWidePresentation(wideFrom)
   const firstItemRef = useRef<HTMLButtonElement>(null)
+  const selected = useRef(false)
   const restoreFocus = useRef(true)
-  useEffect(() => { if (open) restoreFocus.current = true }, [open])
+  useEffect(() => { if (open) { restoreFocus.current = true; selected.current = false } }, [open])
   const onClose = close
   const rows = [...items.filter((item) => !item.destructive), ...items.filter((item) => item.destructive)]
-  const activate = (id: string) => { restoreFocus.current = restoreFocusOnSelect; onClose(); onSelect?.(id) }
+  const activate = (id: string) => { selected.current = true; restoreFocus.current = restoreFocusOnSelect; onClose(); onSelect?.(id) }
+  const focusDestination = () => {
+    const target = returnFocus?.() ?? triggerRef.current
+    const active = target?.ownerDocument.activeElement
+    const actionMovedFocus = selected.current && active != null && !active.isSameNode(target?.ownerDocument.body ?? null)
+      && !active.isSameNode(target ?? null) && !firstItemRef.current?.closest('[role="menu"]')?.contains(active)
+    return canRestoreFocus() && restoreFocus.current && !actionMovedFocus && (target ?? true)
+  }
   if (!open || items.length === 0) return null
   if (presentation === 'sheet' || (presentation === 'auto' && !wide)) {
-    return <MenuSheet id={id} items={rows} onSelect={activate} onClose={onClose} title={title} shortTitle={shortTitle} titleMode={titleMode} firstItemRef={firstItemRef} onSelectStart={() => { restoreFocus.current = restoreFocusOnSelect }} finalFocus={() => canRestoreFocus() && restoreFocus.current && (returnFocus?.() ?? triggerRef.current ?? true)} />
+    return <MenuSheet id={id} items={rows} onSelect={activate} onClose={onClose} title={title} shortTitle={shortTitle} titleMode={titleMode} firstItemRef={firstItemRef} onSelectStart={() => { selected.current = true; restoreFocus.current = restoreFocusOnSelect }} finalFocus={focusDestination} />
   }
   return <Portal><div>
     <div className="orbit-menu-catcher" aria-hidden="true" />
-    <Primitive.Content {...(id ? { id } : {})} aria-label={title} aria-labelledby={undefined} align={align} sideOffset={8} collisionPadding={8} loop className="orbit-menu-panel" data-positioned="" {...{ onOpenAutoFocus: (event: Event) => { event.preventDefault(); firstItemRef.current?.focus() } }} onKeyDown={(event) => {
+    <Primitive.Content {...(id ? { id } : {})} aria-label={title} aria-labelledby={undefined} align={align} sideOffset={8} collisionPadding={8} loop className="orbit-menu-panel" data-positioned="" onFocus={(event) => { if (event.target === event.currentTarget) firstItemRef.current?.focus() }} onKeyDown={(event) => {
       if (event.key !== 'Tab') return
       event.preventDefault()
       const trigger = triggerRef.current
@@ -99,8 +107,8 @@ export function Content({ id, items = [], onSelect, title, shortTitle, titleMode
       candidates[index + (event.shiftKey ? -1 : 1)]?.focus()
     }} onCloseAutoFocus={(event) => {
       event.preventDefault()
-      const target = returnFocus?.() ?? triggerRef.current
-      if (target && canRestoreFocus() && restoreFocus.current && !target.ownerDocument.querySelector('[role="menu"]')) target.focus()
+      const target = focusDestination()
+      if (typeof target !== 'boolean' && !target.ownerDocument.querySelector('[role="menu"]')) target.focus()
     }}>
       <div className="orbit-menu-items">{rows.map((item) => <Item key={item.id} item={item} buttonRef={item === rows.find((row) => !row.disabled || row.badge) ? firstItemRef : undefined} onActivate={activate} />)}</div>
     </Primitive.Content>
@@ -111,8 +119,8 @@ function MenuSheet({ id, items, onSelect, onClose, title, shortTitle, titleMode,
   const { sheetRef, closeSheet } = useSheetHost()
   return <div className="contents" onKeyDownCapture={(event) => {
     if (event.key === 'Tab') event.stopPropagation()
-  }}><Sheet ref={sheetRef} initialFocus={firstItemRef} open title={titleMode === 'typed' ? title : shortTitle ?? title} titleMode={titleMode} accessibleTitle={title} onClose={() => { const target = finalFocus(); if (target instanceof HTMLElement) target.focus(); onClose() }} finalFocus={finalFocus}>
-    <Primitive.Content {...(id ? { id } : {})} aria-label={title} aria-labelledby={undefined} loop className="orbit-menu-items" {...{ onOpenAutoFocus: (event: Event) => { event.preventDefault(); firstItemRef.current?.focus() } }} onEscapeKeyDown={(event) => { event.preventDefault(); closeSheet() }} onInteractOutside={(event) => event.preventDefault()} onCloseAutoFocus={(event) => event.preventDefault()}>
+  }}><Sheet ref={sheetRef} initialFocus={firstItemRef} open title={titleMode === 'typed' ? title : shortTitle ?? title} titleMode={titleMode} accessibleTitle={title} onClose={() => { const target = finalFocus(); if (typeof target !== 'boolean') target.focus(); onClose() }} finalFocus={finalFocus}>
+    <Primitive.Content {...(id ? { id } : {})} aria-label={title} aria-labelledby={undefined} loop className="orbit-menu-items" onFocus={(event) => { if (event.target === event.currentTarget) firstItemRef.current?.focus() }} onEscapeKeyDown={(event) => { event.preventDefault(); closeSheet() }} onInteractOutside={(event) => event.preventDefault()} onCloseAutoFocus={(event) => event.preventDefault()}>
       {items?.map((item) => <Item key={item.id} item={item} buttonRef={item === items.find((row) => !row.disabled || row.badge) ? firstItemRef : undefined} onActivate={(id) => { onSelectStart(); closeSheet(() => onSelect?.(id)) }} />)}
     </Primitive.Content>
   </Sheet></div>

@@ -185,4 +185,12 @@ describe('headless Menu', () => {
     expect(screen.getByRole('button', { name: 'Visible' })).toHaveFocus()
   })
 
+  it('keeps focus moved by the selected action', async () => {
+    render(<><input aria-label="Editor" /><Example onSelect={() => screen.getByRole('textbox').focus()} /></>)
+    await openMenu()
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Edit' }))
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveFocus())
+  })
+
 })
