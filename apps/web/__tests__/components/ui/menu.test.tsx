@@ -2,6 +2,7 @@ import { useState, type ComponentProps } from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useUIStore } from '@/stores/ui-store'
 import { Button } from '@/components/ui/pill-button'
 import * as Menu from '@/components/ui/dropdown-menu'
 
@@ -26,10 +27,30 @@ function Example({ onSelect, ...props }: ComponentProps<typeof Menu.Content>) {
   </Menu.Root><button>After</button></>
 }
 
-async function openMenu() { await userEvent.click(screen.getByRole('button', { name: 'More' })) }
+async function openMenu(waitForContent = true) {
+  await userEvent.click(screen.getByRole('button', { name: 'More' }))
+  if (waitForContent) await screen.findByRole('menu')
+}
 
 describe('headless Menu', () => {
   beforeEach(() => { vi.restoreAllMocks(); setWide(true) })
+
+  it('opens directly as an anchored menu by keyboard without presenting a modal sheet', async () => {
+    const overlays: string[] = []
+    const unsubscribe = useUIStore.subscribe((state) => { overlays.push(...state.openOverlayIds) })
+    try {
+      render(<Example />)
+      const trigger = screen.getByRole('button', { name: 'More' })
+      await userEvent.tab()
+      await userEvent.tab()
+      await userEvent.keyboard('{ArrowDown}')
+      await screen.findByRole('menu', { name: 'Habit actions' })
+      await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Edit' })).toHaveFocus())
+      expect(overlays.filter((id) => id.startsWith('modal:'))).toEqual([])
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'More' })).toBe(trigger)
+    } finally { unsubscribe() }
+  })
 
   it('uses typeahead to move focus to the matching action', async () => {
     render(<Example />)
@@ -124,7 +145,7 @@ describe('headless Menu', () => {
     expect(onSelect).toHaveBeenCalledWith('pro')
     view.unmount()
     render(<Example items={[]} />)
-    await openMenu()
+    await openMenu(false)
     expect(screen.queryByRole('menu')).toBeNull()
   })
 

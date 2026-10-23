@@ -14,17 +14,21 @@ import { FieldWell } from '@/components/goals/field-well'
 import { GoalDeadlineField } from '../habits/create-goal-from-habit/goal-deadline-field'
 import { GoalTargetFields } from '../habits/create-goal-from-habit/goal-target-fields'
 import { GoalTypeSelector } from '../habits/create-goal-from-habit/goal-type-selector'
-import { useId } from 'react'
+import { useId, useRef } from 'react'
 import type { CreateGoalSheetProps } from '@orbit/shared/hooks'
 import { MAX_GOAL_TITLE_LENGTH } from '@orbit/shared/validation'
 import { useGoalCreation } from '@/hooks/use-goal-creation'
 
-export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {
+export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps & { restoreFocusOnCreate?: boolean }>) {
   const { open, onClose } = props
   const t = useTranslations()
   const { sheetRef, closeSheet } = useSheetHost()
   const { showError } = useAppToast()
-  const form = useGoalCreation({ ...props, translate: t, showError, closeSheet })
+  const restoreTriggerFocus = useRef(true)
+  const form = useGoalCreation({ ...props, translate: t, showError, closeSheet: (finish, automatic) => {
+    restoreTriggerFocus.current = !automatic || props.restoreFocusOnCreate !== false
+    closeSheet(finish)
+  } })
   const formId = useId()
 
   const { goalType, description, targetValue, unit, deadline, habitIds, selectingHabits, setSelectingHabits,
@@ -35,6 +39,7 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {
     <>
       {open && !selectingHabits ? (<Sheet
         ref={sheetRef}
+        finalFocus={() => restoreTriggerFocus.current}
         open
         onClose={!isSubmitting && dismissGuard.canDismiss ? onClose : undefined}
         onAttemptDismiss={isSubmitting ? undefined : dismissGuard.requestDismiss}

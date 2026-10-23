@@ -243,15 +243,15 @@ function ComposerControls({ props, tokens, onPaste, onClear }: Readonly<{ props:
   const showMenu = menuOpen && !disabled && !voiceActive
   if (!voiceActive && items.length === 0) return null
   return <Menu.Root open={showMenu} onOpenChange={setMenuOpen}><View testID="composer-controls" style={styles.controls}>
-    {voiceActive ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={props.onVoice} style={({ pressed }) => composerActionStyle(tokens, isRecording, disabled, pressed)}><ComposerActionIcon state={props.state} tokens={tokens} /></InsetFocusPressable> : <Menu.Trigger asChild>
+    <Menu.Trigger asChild disabled={disabled || voiceActive}>
       <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label}
         focusColor={tokens.primary}
         focusContrastColor={isRecording ? tokens.bg : undefined}
-        accessibilityState={{ disabled, expanded: menuOpen }} disabled={disabled}
+        accessibilityState={{ disabled, ...(!voiceActive ? { expanded: showMenu } : {}) }} aria-disabled={disabled} aria-expanded={voiceActive ? undefined : showMenu} disabled={disabled} onPress={voiceActive ? props.onVoice : undefined}
         style={({ pressed }) => composerActionStyle(tokens, isRecording, disabled, pressed)}>
         <ComposerActionIcon state={props.state} tokens={tokens} />
       </InsetFocusPressable>
-    </Menu.Trigger>}
+    </Menu.Trigger>
     <Menu.Content title={props.words.actions} items={items} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
   </View></Menu.Root>
 }

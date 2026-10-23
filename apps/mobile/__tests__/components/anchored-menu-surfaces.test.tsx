@@ -148,6 +148,22 @@ describe('redesign menu ownership on Android', () => {
     }
   })
 
+  it('keeps frequency choices open and resets options after native dismissal', async () => {
+    __setWindowDimensions({ width: 1280, height: 915, scale: 1, fontScale: 1 })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<><TodayControls /><PortalHost /></>) })
+    try {
+      const more = () => tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'List options')[0]!
+      await TestRenderer.act(() => (more().props.onPress as () => void)())
+      const frequency = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'menuitem' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === 'habits.frequencyFilter').length > 0)[0]!
+      await TestRenderer.act(() => (frequency.props.onPress as () => void)())
+      expect(tree.root.findAll((node) => node.type === Menu.Content)[0]!.props.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'Day' })]))
+      await TestRenderer.act(() => { BackHandler.emitBackPress() })
+      await TestRenderer.act(() => (more().props.onPress as () => void)())
+      expect(tree.root.findAll((node) => node.type === Menu.Content)[0]!.props.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'refresh' })]))
+    } finally { await TestRenderer.act(() => tree.update(<></>)) }
+  })
+
   it('ignores native dismissal from a replaced sheet after the same row reopens', async () => {
     __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
     let tree!: RenderedTree

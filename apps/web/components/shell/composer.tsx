@@ -202,18 +202,15 @@ function ComposerControls({ props, onPaste, onClear }: Readonly<{ props: WebComp
   const textAction = onClear ? { id: 'clear', label: props.words.clear, icon: 'x' }
     : onPaste ? { id: 'paste', label: props.words.paste, icon: 'clipboard' } : null
   const items = textAction ? [textAction, ...defaultItems] : defaultItems
-  if (voiceActive) return <div data-composer-controls className="flex shrink-0 items-center">
-    <button type="button" aria-label={label} data-focus-on-primary={props.state === 'recording' ? '' : undefined} disabled={props.state === 'transcribing'} onClick={props.onVoice}
-      className={`flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-40 ${props.state === 'recording' ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-transparent text-[var(--fg-3)]'}`}>
-      <Square size={16} fill="currentColor" aria-hidden="true" />
-    </button>
-  </div>
-  if (items.length === 0) return null
-  return <Menu.Root open={open && !disabled} onOpenChange={setOpen}><div data-composer-controls className="flex shrink-0 items-center">
-    <Menu.Trigger asChild><button ref={anchorRef} type="button" aria-label={label} aria-haspopup="menu" aria-controls={open && !disabled ? menuId : undefined} aria-expanded={open && !disabled}
-      disabled={disabled}
-      className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40">
-      <Plus size={20} strokeWidth={2} aria-hidden="true" />
+  if (!voiceActive && items.length === 0) return null
+  const isRecording = props.state === 'recording'
+  return <Menu.Root open={open && !disabled && !voiceActive} onOpenChange={setOpen}><div data-composer-controls className="flex shrink-0 items-center">
+    <Menu.Trigger asChild disabled={disabled || voiceActive}><button ref={anchorRef} type="button" aria-label={label}
+      aria-haspopup={voiceActive ? undefined : 'menu'} aria-controls={open && !disabled && !voiceActive ? menuId : undefined}
+      aria-expanded={voiceActive ? undefined : open && !disabled} data-focus-on-primary={isRecording ? '' : undefined}
+      disabled={disabled} onClick={voiceActive ? props.onVoice : undefined}
+      className={`flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-40 ${isRecording ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-transparent text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)]'}`}>
+      {voiceActive ? <Square size={16} fill="currentColor" aria-hidden="true" /> : <Plus size={20} strokeWidth={2} aria-hidden="true" />}
     </button></Menu.Trigger>
     <Menu.Content id={menuId} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
   </div></Menu.Root>

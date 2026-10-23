@@ -28,14 +28,14 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
   const [frequencyMenu, setFrequencyMenu] = useState(false)
   const menuId = useId()
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
-  return <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}><DestinationHeaderRow data-today-header-actions="" gap={4} className="flex-wrap">
+  return <Menu.Root open={menuOpen} onOpenChange={(nextOpen) => { if (nextOpen) setFrequencyMenu(false); setMenuOpen(nextOpen) }}><DestinationHeaderRow data-today-header-actions="" gap={4} className="flex-wrap">
 
     <div className="flex-1" />
     <div className="flex shrink-0 items-center gap-[4px]">
       <button type="button" aria-label={props.searchLabel} aria-expanded={props.searchOpen} aria-controls={props.searchControlsId} onClick={props.onSearch}
         className={DATE_ICON_BUTTON_CLASS_NAME}><Search size={20} aria-hidden="true" /></button>
       <Menu.Trigger asChild><button ref={menuAnchorRef} type="button" aria-label={props.moreLabel} aria-expanded={menuOpen}
-        aria-controls={menuId} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={() => { setFrequencyMenu(false) }}>
+        aria-controls={menuId} className={DATE_ICON_BUTTON_CLASS_NAME}>
         <MoreVertical size={20} strokeWidth={1.8} aria-hidden="true" />
       </button></Menu.Trigger>
       <div className="lg:hidden"><NotificationBell /></div>

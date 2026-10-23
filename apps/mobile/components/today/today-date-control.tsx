@@ -28,7 +28,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [menuOpen, setMenuOpen] = useState(false)
-  return <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}><DestinationHeaderRow testID="today-header-actions" gap={4} wrap>
+  return <Menu.Root open={menuOpen} onOpenChange={(nextOpen) => { if (nextOpen) setFrequencyMenu(false); setMenuOpen(nextOpen) }}><DestinationHeaderRow testID="today-header-actions" gap={4} wrap>
 
     <View style={styles.spacer} />
     <View style={styles.actions}>
@@ -38,7 +38,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
       </Pressable>
       <Menu.Trigger asChild>
         <Pressable accessibilityRole="button" accessibilityLabel={props.moreLabel}
-          accessibilityState={{ expanded: menuOpen }} onPress={() => { setFrequencyMenu(false) }}
+          accessibilityState={{ expanded: menuOpen }}
           style={({ pressed }) => [styles.iconButton, pressed && { backgroundColor: tokens.bgHover }]}>
           <MoreVertical size={20} strokeWidth={1.8} color={tokens.fg2} />
         </Pressable>

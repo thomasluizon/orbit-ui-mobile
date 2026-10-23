@@ -75,7 +75,7 @@ function AnchoredContent({ items, title, align, onSelect }: Readonly<{ items: re
     animation.start()
     return () => animation.stop()
   }, [motion.enterDuration, motion.enterEasing, opacity])
-  const overlayId = useId()
+  const overlayId = `menu:${useId()}`
   const register = useUIStore((state) => state.registerOpenOverlay)
   const unregister = useUIStore((state) => state.unregisterOpenOverlay)
   useEffect(() => { register(overlayId); return () => unregister(overlayId) }, [overlayId, register, unregister])

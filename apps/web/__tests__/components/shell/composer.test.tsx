@@ -309,7 +309,7 @@ describe('Composer', () => {
     expect(screen.getByRole('button', { name: voiceWords.stop })).toHaveFocus()
   })
 
-  it.each(['', 'Draft'])('keeps the focused Add control mounted as recording starts with %j', value => {
+  it.each(['', 'Draft'])('keeps the focused Add control mounted as recording starts with %j', async value => {
     const capability = { onVoice: vi.fn(), voiceWords, value }
     const view = render(<Composer {...props(capability)} />)
     const add = screen.getByRole('button', { name: words.actions })
@@ -318,6 +318,11 @@ describe('Composer', () => {
     const stop = screen.getByRole('button', { name: voiceWords.stop })
     expect(stop).toBe(add)
     expect(stop).toHaveFocus()
+    expect(stop).toBeEnabled()
+    expect(stop).not.toHaveAttribute('aria-haspopup')
+    await userEvent.keyboard('{Enter}')
+    expect(capability.onVoice).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
   it('runs the recording clock, freezes it for transcription, and restores the transcript', async () => {

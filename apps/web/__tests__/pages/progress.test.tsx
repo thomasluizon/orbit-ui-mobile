@@ -232,7 +232,7 @@ function getStreakDetailsScope(locked: boolean, catalog: typeof en | typeof ptBR
 
 async function selectGoalFilter(view: string) {
   fireEvent.click(screen.getByRole('button', { name: /^progressScreen.goals.filter:/ }))
-  fireEvent.click(screen.getByRole('menuitemcheckbox', { name: `progressScreen.goals.${view}` }))
+  fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: `progressScreen.goals.${view}` }))
   if (vi.isFakeTimers()) await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
   await waitFor(() => expect(screen.getByRole('button', { name: `progressScreen.goals.filter: progressScreen.goals.${view}` })).toBeInTheDocument())
 }

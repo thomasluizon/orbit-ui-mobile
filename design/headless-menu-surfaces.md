@@ -24,6 +24,12 @@ The composer recording control remains a voice action.
 The native adapter bridges controlled open state through the headless Trigger because its Root
 is uncontrolled. Menu ownership remains exclusive, including replacements during a sheet exit.
 Native menu panels render through the root PortalHost without React Native Modal.
+The root host isolates its screen siblings while an anchored menu is registered. Native sheet
+owners and screen reservations retain their own presentation and remain reachable.
+
+Web triggers retain their focus and identity while menu content loads on pointer intent or focus.
+The content module is cached, and a failed prefetch can retry when the menu opens. Its first
+presentation uses the current breakpoint, so a wide menu never briefly mounts a compact sheet.
 
 The web positioning helper remains for the select family. Its former menu-only anchored wrapper
 is removed. There is no separate popover component sharing the migrated menu callers.

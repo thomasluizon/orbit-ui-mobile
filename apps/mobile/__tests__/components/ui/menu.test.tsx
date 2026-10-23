@@ -10,6 +10,9 @@ import { PortalHost } from '@rn-primitives/portal'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { HabitRow } from '@/components/habits/habit-row'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { HABIT_CREATE_OVERLAY_ID } from '@orbit/shared/utils'
+import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
+import { OverlayHost } from '@/components/ui/overlay-host'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { BackHandler, __setWindowDimensions } from '@/test-mocks/react-native'
 import { Checkbox } from '@/components/ui/icons'
@@ -191,6 +194,43 @@ describe('Menu (mobile)', () => {
       await TestRenderer.act(() => (more.props.onPress as () => void)())
       expect(tree.root.findAll((node) => String(node.type) === 'Modal')).toHaveLength(0)
       expect(menuItemLabels(tree)).toContain('common.edit')
+    } finally { await TestRenderer.act(() => tree.update(<></>)) }
+  })
+
+  it('keeps the active habit creation screen reachable while its overlay reservation is registered', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<OverlayHost><HabitCreateFrame open presentation="screen" fromConversation={false} leaving={false} title="Create"><Text>Active form</Text></HabitCreateFrame></OverlayHost>)
+    })
+    try {
+      expect(useUIStore.getState().openOverlayIds).toContain(HABIT_CREATE_OVERLAY_ID)
+      const background = tree.root.findAll((node) => String(node.type) === 'View' && node.findAll((child) => child.type === Text && child.props.children === 'Active form').length > 0)[0]!
+      expect(background.props.pointerEvents).not.toBe('none')
+      expect(background.props.importantForAccessibility).not.toBe('no-hide-descendants')
+    } finally { await TestRenderer.act(() => tree.update(<></>)) }
+  })
+
+  it('isolates the portalled Android menu from background touch and accessibility until dismissal', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<OverlayHost><Menu.Root><Menu.Trigger accessibilityLabel="Actions" /><Menu.Content presentation="anchored" title="Actions" items={items} /></Menu.Root><Text>Background</Text></OverlayHost>)
+    })
+    try {
+      const background = () => tree.root.findAll((node) => String(node.type) === 'View' && node.findAll((child) => child.type === Text && child.props.children === 'Background').length > 0)[0]!
+      expect(background().props.importantForAccessibility).not.toBe('no-hide-descendants')
+      const trigger = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Actions')[0]!
+      await TestRenderer.act(() => (trigger.props.onPress as () => void)())
+      expect(menuItemLabels(tree)).toEqual(['Edit', 'Delete'])
+      expect(background().props.importantForAccessibility).toBe('no-hide-descendants')
+      expect(background().props.pointerEvents).toBe('none')
+      const panel = tree.root.findAll((node) => String(node.type) === 'View' && node.props.accessibilityViewIsModal === true)[0]!
+      expect(panel).toBeDefined()
+      expect(panel.props.importantForAccessibility).not.toBe('no-hide-descendants')
+      expect(panel.findAll((node) => node.props.children === 'Background')).toHaveLength(0)
+      await TestRenderer.act(() => BackHandler.emitBackPress())
+      expect(menuItemLabels(tree)).toEqual([])
+      expect(background().props.importantForAccessibility).not.toBe('no-hide-descendants')
+      expect(background().props.pointerEvents).not.toBe('none')
     } finally { await TestRenderer.act(() => tree.update(<></>)) }
   })
 
