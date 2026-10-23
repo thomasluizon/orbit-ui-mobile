@@ -40,7 +40,7 @@ import {
   hasHabitFormProposal,
   rebaseSelectedIds,
 } from '@orbit/shared/utils'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import type { HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildUpdateHabitRequest } from '@/lib/habit-request-builders'
 import { MAX_GOALS_PER_HABIT, habitFormSchema } from '@orbit/shared/validation'
 import { useHabitGoalSelection, createSuggestionRequestCoordinator } from '@orbit/shared/hooks'
@@ -309,7 +309,7 @@ function EditHabitDraft({
     applyHabitFormMode(prefill.mode, formHelpers)
   }, [formHelpers, habit, habitDetail, open, relationshipFieldsLoaded, sessionDetailId, sessionHabitId, tags])
 
-  async function prepareSave() {
+  async function prepareSave(parentBaseline: HabitDetail['parentId']) {
     if (!formHelpers.form.getValues('itemType')) { formHelpers.validateAll(); return null }
     if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return null
     const error = formHelpers.validateAll({
@@ -323,8 +323,8 @@ function EditHabitDraft({
       return null
     }
     const data = habitFormSchema.parse(formHelpers.form.getValues())
-    const parentError = parent.validate(data.isGeneral)
-    if (parentError) { setSaveError(parentError); return null }
+    const parentDraft = parent.prepare(data.isGeneral, parentBaseline)
+    if (parentDraft.error) { setSaveError(parentDraft.error); return null }
     if (data.reminderEnabled) requestReminderPermission()
 
     const request = buildUpdateHabitRequest(
@@ -342,15 +342,15 @@ function EditHabitDraft({
     if (!relationshipFieldsHydratedRef.current && !slipAlertChanged) delete request.slipAlertEnabled
 
     if (relationshipFieldsHydratedRef.current || tagIdsChanged) request.tagIds = [...tags.selectedTagIds]
-    return { ...request, ...parent.change }
+    return { ...request, ...parentDraft.change }
   }
 
   async function verifyUncertainSave(isCurrent: () => boolean) {
-    if (!uncertain) return true
+    if (!uncertain) return { parentId: parent.baseline }
     const readback = await refetchDetail()
-    if (!isCurrent() || !readback.isSuccess || readback.data.parentId === undefined) return false
+    if (!isCurrent() || !readback.isSuccess || readback.data.parentId === undefined) return null
     setUncertain(false)
-    return true
+    return { parentId: readback.data.parentId }
   }
 
   async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
@@ -360,8 +360,9 @@ function EditHabitDraft({
     const generation = getAccountGeneration()
     const isCurrent = () => mountedRef.current && getAccountGeneration() === generation
     try {
-      if (!await verifyUncertainSave(isCurrent)) return
-      const request = await prepareSave()
+      const verified = await verifyUncertainSave(isCurrent)
+      if (!verified) return
+      const request = await prepareSave(verified.parentId)
       if (!request || !isCurrent()) return
       suggestionRevision.advance()
       setSaving(true)

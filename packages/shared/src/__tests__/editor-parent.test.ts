@@ -124,3 +124,68 @@ it('moves old/new parent detail and full-detail membership in the same reversibl
   expect(client.getQueryData(habitKeys.fullDetail(parentId))).toEqual(full)
   client.clear()
 })
+
+import { getMoveParentPickerRows } from '../utils/move-parent'
+import { findCachedHabitDetail, invalidateHabitParentDetails } from '../query/habit-cache'
+
+it('keeps root available while searching a large destination inventory', () => {
+  const child = createMockHabit({ id: 'child', parentId: target.id, title: 'Nested destination' })
+  const siblings = Array.from({ length: 8 }, (_, index) => createMockHabit({ id: `sibling-${index}`, title: `Other ${index}` }))
+  const inventory = getMoveParentInventory(query([source, target, child, ...siblings]), query([general]))
+  expect(inventory.getChildren(target.id)).toEqual([child])
+  expect(inventory.getChildren('missing')).toEqual([])
+  const options = buildMoveParentOptions({ ...inventory, t, validateMoveTarget: () => ({ valid: true, reason: null }) }, source.id)
+  expect(options.find((option) => option.id === target.id)).toMatchObject({ childCount: 1 })
+  expect(options.find((option) => option.id === child.id)).toMatchObject({ depth: 1 })
+  const matching = getMoveParentPickerRows(options, 'Nested')
+  expect(matching.rootOption?.id).toBeNull()
+  expect(matching.showSearch).toBe(true)
+  expect(matching.treeRows.map((row) => row.id)).toContain(child.id)
+  expect(matching.treeRows.some((row) => row.id === null)).toBe(false)
+  expect(matching.isSearchEmpty).toBe(false)
+  expect(getMoveParentPickerRows(options, 'missing destination')).toMatchObject({ treeRows: [], isSearchEmpty: true })
+  expect(getMoveParentPickerRows(options.slice(1, 3), 'missing destination')).toMatchObject({ rootOption: null, showSearch: false, treeRows: options.slice(1, 3), isSearchEmpty: false })
+  expect(getMoveParentPickerRows(options, '  ').isSearchEmpty).toBe(false)
+})
+
+it('moves a whole nested draft under another branch, preserving checked order and unrelated siblings', () => {
+  const checklistItems = [{ text: 'Same', isChecked: true }, { text: 'Same', isChecked: false }]
+  const child = makeHabitScheduleItem({ id: 'child', checklistItems, children: [] })
+  const moving = makeHabitScheduleItem({ id: 'moving', children: [child], hasSubHabits: true })
+  const sibling = makeHabitScheduleItem({ id: 'sibling', children: [] })
+  const oldParent = makeHabitScheduleItem({ id: 'old', children: [moving, sibling], hasSubHabits: true })
+  const destination = makeHabitScheduleItem({ id: 'destination', children: [] })
+  const branch = makeHabitScheduleItem({ id: 'branch', children: [destination], hasSubHabits: true })
+  const original = [oldParent, branch]
+  const moved = optimisticMoveHabitParent(original, moving.id, destination.id)
+  const normalized = normalizeHabitQueryData(moved)
+  expect(normalized.habitsById.get(moving.id)?.parentId).toBe(destination.id)
+  expect(normalized.habitsById.get(child.id)?.checklistItems).toEqual(checklistItems)
+  expect(normalized.habitsById.get(sibling.id)?.parentId).toBe(oldParent.id)
+  expect(original[0]!.children.map((habit) => habit.id)).toEqual([moving.id, sibling.id])
+  expect(optimisticMoveHabitParent(original, moving.id, oldParent.id)).toBe(original)
+  expect(optimisticMoveHabitParent(original, 'missing', destination.id)).toBe(original)
+  expect(optimisticMoveHabitParent(original, moving.id, 'missing')).toBe(original)
+  const withoutDestination = optimisticMoveHabitParent(original, moving.id, 'missing', true)
+  expect(normalizeHabitQueryData(withoutDestination).habitsById.has(moving.id)).toBe(false)
+})
+
+it('finds parent names through cached detail branches, full detail and filtered lists and refreshes affected parents', () => {
+  const client = new QueryClient()
+  const nested = { ...makeHabitDetail(), id: 'nested', children: [] }
+  const parent = { ...makeHabitDetail(), id: 'parent', children: [nested] }
+  const other = { ...makeHabitDetail(), id: 'other', children: [] }
+  client.setQueryData(habitKeys.detail(parent.id), parent)
+  client.setQueryData(habitKeys.fullDetail(other.id), { habit: other, metrics: {}, logs: [] })
+  client.setQueryData(habitKeys.list({ search: 'filtered' }), [makeHabitScheduleItem({ id: 'filtered', children: [] })])
+  expect(findCachedHabitDetail(client, nested.id)).toEqual(nested)
+  expect(findCachedHabitDetail(client, other.id)).toEqual(other)
+  expect(findCachedHabitDetail(client, 'filtered')?.id).toBe('filtered')
+  expect(findCachedHabitDetail(client, 'missing')).toBeUndefined()
+  const updates = updateCachedHabitDetails(client, () => ({}), { habitId: nested.id, parentId: other.id })
+  invalidateHabitParentDetails(client, updates, nested.id)
+  expect(client.getQueryState(habitKeys.detail(parent.id))?.isInvalidated).toBe(true)
+  expect(client.getQueryState(habitKeys.fullDetail(other.id))?.isInvalidated).toBe(true)
+  invalidateHabitParentDetails(client, undefined, nested.id)
+  client.clear()
+})

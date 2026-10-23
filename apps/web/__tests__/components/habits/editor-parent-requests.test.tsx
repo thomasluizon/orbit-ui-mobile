@@ -23,7 +23,7 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 
 afterEach(() => { vi.unstubAllGlobals() })
 
-it('journals every attempted write through the complete editor: selection, dismissal and Cancel write nothing; Save writes once', async () => {
+it.each([false, true])('journals complete editor writes and retries against fresh authority: uncertain retry %s', async (retryUncertain) => {
   const parentId = '22222222-2222-4222-8222-222222222222'
   const source = createMockHabit({
     id: '11111111-1111-4111-8111-111111111111', title: 'Read', frequencyUnit: 'Day',
@@ -79,6 +79,45 @@ it('journals every attempted write through the complete editor: selection, dismi
     expect(screen.getAllByRole('textbox', { name: 'habits.form.checklistItemLabel' })).toHaveLength(2)
     await choose()
     expect(field()).toHaveTextContent('Off-day destination')
+    if (retryUncertain) {
+      let persistedParent: string | null = null
+      let readsFail = true
+      transport.read.mockImplementation(async (endpoint: string, options?: RequestInit) => {
+        record(endpoint, options)
+        if (endpoint === API.habits.get(source.id)) {
+          if (readsFail) throw new Error('Readback unavailable')
+          return { ...detail, parentId: persistedParent }
+        }
+        if (endpoint.startsWith(API.habits.list)) return { items: endpoint.includes('isGeneral=true') ? [] : items, page: 1, pageSize: 200, totalCount: 2, totalPages: 1 }
+        return []
+      })
+      transport.mutate.mockImplementation(async (endpoint: string, options?: RequestInit) => {
+        record(endpoint, options)
+        const request = JSON.parse(options!.body as string)
+        if (request.clearParent) persistedParent = null
+        else if (request.parentId) persistedParent = request.parentId
+        if (transport.attempted.length === 1) throw new Error('Response lost')
+      })
+      await act(async () => fireEvent.click(screen.getByRole('button', { name: 'common.save' })))
+      expect(await screen.findByText('habits.form.saveUncertain')).toBeVisible()
+      expect(persistedParent).toBe(parentId)
+      expect(onSaved).not.toHaveBeenCalled()
+      expect(client.getQueryData(habitKeys.detail(source.id))).toMatchObject({ parentId: null })
+      fireEvent.click(field())
+      const picker = await screen.findByRole('dialog', { name: 'habits.form.parentHabit' })
+      await act(async () => fireEvent.click(within(picker).getByRole('radio', { name: /habits.moveParent.toRoot/ })))
+      await act(async () => fireEvent.click(within(picker).getByRole('button', { name: 'close-overlay' })))
+      expect(field()).toHaveTextContent('habits.moveParent.toRoot')
+      expect(transport.attempted).toHaveLength(1)
+      readsFail = false
+      await act(async () => fireEvent.click(screen.getByRole('button', { name: 'common.save' })))
+      await waitFor(() => expect(onSaved).toHaveBeenCalledOnce())
+      expect(transport.attempted).toHaveLength(2)
+      expect(transport.attempted.every((write) => write.method === 'PUT' && write.endpoint === API.habits.update(source.id))).toBe(true)
+      expect(JSON.parse(transport.attempted[1]!.body as string)).toMatchObject({ clearParent: true, checklistItems: source.checklistItems, tagIds: [], goalIds: [] })
+      expect(persistedParent).toBeNull()
+      return
+    }
     fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
     fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
     expect(onClose).toHaveBeenCalledExactlyOnceWith(false)

@@ -40,10 +40,11 @@ export function useEditorParent(habit: NormalizedHabit | null, detail: HabitDeta
       if (option) setChosen({ id, label: option.label, isGeneral: id === null ? null : inventory.habitsById.get(id)!.isGeneral })
     },
     retry: () => Promise.all([scheduled.refetch(), general.refetch()]),
-    validate: (finalIsGeneral: boolean) => {
-      if (!dirty) return null
-      if (state || selected === undefined || !habit) return t('habits.loadError')
-      return validateEditorParent(deps, selected, habit.id, finalIsGeneral).reason
+    prepare: (finalIsGeneral: boolean, currentBaseline: HabitDetail['parentId']) => {
+      const change = buildEditorParentChange(currentBaseline, chosen?.id)
+      if (Object.keys(change).length === 0) return { change, error: null }
+      if (inventory.state || currentBaseline === undefined || chosen === undefined || !habit) return { change, error: t('habits.loadError') }
+      return { change, error: validateEditorParent(deps, chosen.id, habit.id, finalIsGeneral).reason }
     },
   }
 }
