@@ -165,7 +165,37 @@ function promotionRegressions(catalog) {
   put(route, legacy)
   T('restoring the original legacy control satisfies its relocation', check(legacyRevision, restoredBase).status === 0)
   put(route, current)
+  postlegacyRelocation(fixture)
   invalidPromotionInputs(fixture)
+}
+
+function postlegacyRelocation({ directory, put, git, route, current, promoted, rules, check }) {
+  const relocated = current.replace("t('chat.attachFile')", "t('common.save')")
+  const retainedRules = {
+    ...rules,
+    provenance: { ...rules.provenance, productionSnapshots: [promoted] },
+    mappings: { ...rules.mappings, 'web:control:chat.attachFile': { targets: ['web:control:common.save'], reason: 'Relocated postlegacy control' } },
+  }
+  put(route, relocated)
+  put('tools/feature-parity-rules.json', JSON.stringify(retainedRules))
+  git(['add', route, 'tools/feature-parity-rules.json'])
+  git(['commit', '-q', '-m', 'Promote a relocated postlegacy control'])
+  const relocatedProduction = git(['rev-parse', 'HEAD'])
+  const retained = check(relocatedProduction, relocatedProduction)
+  T('a postlegacy relocation keeps its source obligation after production promotion', retained.status === 0, retained.stdout + retained.stderr)
+  if (retained.status === 0) {
+    const inventory = JSON.parse(readFileSync(join(directory, manifestPath), 'utf8'))
+    T('the inventory records immutable intermediate production evidence', inventory.productionSnapshots?.[0] === promoted && inventory.entries.some(entry => entry.id === 'web:control:chat.attachFile' && entry.disposition === 'retained'))
+  }
+  put(route, relocated.replace("<button onClick={open}>{t('common.save')}</button>", ''))
+  const lost = check(relocatedProduction, relocatedProduction)
+  T('losing a promoted postlegacy relocation target remains blocking', lost.status === 1 && lost.stdout.includes('web:control:chat.attachFile |'), lost.stdout + lost.stderr)
+  for (const snapshots of [['main'], ['f'.repeat(40)], [git(['rev-parse', `${promoted}^{tree}`])], promoted, null]) {
+    put('tools/feature-parity-rules.json', JSON.stringify({ ...retainedRules, provenance: { ...rules.provenance, productionSnapshots: snapshots } }))
+    T('intermediate production evidence rejects mutable, missing, noncommit and malformed snapshots', check(relocatedProduction, relocatedProduction).status === 2)
+  }
+  put(route, current)
+  put('tools/feature-parity-rules.json', JSON.stringify(rules))
 }
 
 function invalidPromotionInputs({ put, git, check, rules, legacyRevision, promoted }) {

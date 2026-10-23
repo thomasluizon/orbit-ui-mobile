@@ -24,11 +24,26 @@ it('subscribes to a log on Hoje through the real habit query cache', async () =>
   let tree!: GeometryTree
   await act(() => { tree = create(<QueryClientProvider client={client}><DaySummaryCard daySummary={inPlaceDayFixture} /></QueryClientProvider>) as GeometryTree })
   expect(tree.root.findAll(node => node.props.accessibilityLabel === 'chat.habitList.log:Habit 1').length).toBeGreaterThan(0)
+  expect(tree.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]?.props).toMatchObject({ accessibilityLabel: 'chat.daySummary.ring', accessibilityValue: { now: 0, min: 0, max: 100 } })
   await act(async () => {
     client.setQueryData(key, occurrences.map(item => item.id === 'habit-1' ? { ...item, isLoggedInRange: true } : item))
     await new Promise(resolve => setTimeout(resolve, 10))
   })
   expect(tree.root.findAll(node => node.props.accessibilityLabel === 'chat.habitList.unlog:Habit 1').length).toBeGreaterThan(0)
+  expect(tree.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]?.props.accessibilityValue).toMatchObject({ now: 0 })
+  await act(() => tree.unmount())
+  client.clear()
+})
+
+it('retains the nothing-due state without a completion ring', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })
+  const filters = { dateFrom: inPlaceDayFixture.date, dateTo: inPlaceDayFixture.date, includeGeneral: true, includeOverdue: true }
+  client.setQueryData(habitKeys.list(habitListQueryFilters(filters, true)), [])
+  let tree!: GeometryTree
+  await act(() => { tree = create(<QueryClientProvider client={client}><DaySummaryCard daySummary={{ ...inPlaceDayFixture, due: 0, done: 0, completionRate: null, rows: [], totalRows: 0 }} /></QueryClientProvider>) as GeometryTree })
+  expect(tree.root.findAll(node => node.props.children === 'chat.daySummary.nothingDue').length).toBeGreaterThan(0)
+  expect(tree.root.findAll(node => node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
+  expect(tree.root.findAll(node => node.props.children === 'chat.daySummary.open' && typeof node.props.onClick === 'function').length).toBeGreaterThan(0)
   await act(() => tree.unmount())
   client.clear()
 })

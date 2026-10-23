@@ -191,10 +191,13 @@ The production feature parity inventory is generated locally and never committed
 on every pull request to `main` and `redesign/main`; each run uploads its evidence. The immutable
 `provenance.legacyProduction` commit preserves the rules' original source obligations. Its
 capabilities are deduplicated with active production, protecting controls added after that snapshot.
+When a later production capability moves to a new owner, `provenance.productionSnapshots` retains
+its immutable source commit so that the relocation remains verifiable after promotion. These
+snapshots add source obligations to the union; they cannot exempt a missing relocation target.
 Main pull requests select the queued merge's `HEAD^1` for both active production and debt comparison;
 redesign pull requests select `origin/main` for production and `HEAD^1` for debt. Later main changes
 cannot turn a queued main comparison into a false loss. The inventory records both source revisions
-and the comparison base. The rules carry exact relocations, cited owner removals and restoration tickets. A ticket exempts only a gap already present on the pull request base. Once
+and the comparison base, including any retained production snapshots. The rules carry exact relocations, cited owner removals and restoration tickets. A ticket exempts only a gap already present on the pull request base. Once
 that capability is restored, deleting it blocks even while its ticket remains in the rules.
 
 The scanner follows named imports, local references, re-exports and dynamic imports, and ignores

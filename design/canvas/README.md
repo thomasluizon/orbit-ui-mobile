@@ -80,6 +80,9 @@ are independent. Signed refresh replaces that query's snapshot; signed paging re
 One compact state carries stale, partial or failed recovery. Recap detail opens through Show more,
 including saved stale recaps. Read-only disclosure and valid navigation share the existing footer
 action row with Refresh; signed paging waits for refresh. Write-preview execution stays withheld.
+Recap disclosure retains the supplied current and longest streak figures with its narrative and
+habit rows. Show less returns to the focused figures. Expanded state and a card-local polite live
+region announce disclosure on web and Android, replacing the former page-position announcement.
 The paired owners and verification boundaries are in `design/astra-preview-surfaces.md`.
 
 ## The authority

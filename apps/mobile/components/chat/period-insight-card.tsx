@@ -25,6 +25,10 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
   const figures = [
     { id: 'completionRate', value: `${periodInsight.completionRate}%` },
     { id: 'daysLogged', value: String(periodInsight.activeDays) },
+    ...(expanded ? [
+      { id: 'currentStreak', value: String(periodInsight.currentStreak) },
+      { id: 'bestStreak', value: String(periodInsight.bestStreak) },
+    ] : []),
   ]
   const rows: BlockFrameItem[] = figures.map((figure) => ({
     id: figure.id,
@@ -53,7 +57,7 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
         title={t('chat.insight.title')}
         count={null}
         items={rows}
-        body={<View style={{ minWidth: 0, gap: 12 }}>
+        body={<View accessibilityLiveRegion="polite" testID="insight-detail-announcement" style={{ minWidth: 0, gap: 12 }}>
           <Text style={{ color: tokens.fg3, fontSize: 14 }}>{formatReadWindow({ from: periodInsight.dateFrom, to: periodInsight.dateTo }, i18n.language)}</Text>
           {points.some(point => point.scheduled > 0) ? <BarChart points={points} label={t('chat.insight.chartLabel')} /> : null}
           {expanded ? pages.slice(1).map(page => <View key={page.titleKey} style={{ gap: 8 }}><Text style={{ color: tokens.fg1, fontSize: 14 }}>{t(page.titleKey)}</Text><Text style={{ color: tokens.fg2, fontSize: 14 }}>{page.text}</Text></View>) : null}

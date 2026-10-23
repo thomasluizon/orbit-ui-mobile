@@ -444,6 +444,8 @@ Refresh and paging use the API's signed absolute query identity. A changed page 
 refresh before paging. Useful snapshot content stays visible through failed reads and offline
 recovery. One compact state owns stale, partial or failed recovery, with no freshness box.
 Recap figures and dates lead; Show more discloses its supplied narrative and habit detail.
+Current and longest streak figures remain reachable in that disclosure. Show less returns to the
+focused figures, and a card-local polite live region announces the disclosed narrative sections.
 Stale reads retain disclosure and valid navigation beside Refresh in the footer; signed paging
 waits for a refreshed revision. Stale write previews keep withholding their execution actions.
 The focused read amendment in the canvas README and active Astra drawing defines these compositions

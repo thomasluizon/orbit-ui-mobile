@@ -21,6 +21,10 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
   const figures = [
     { id: 'completionRate', value: `${periodInsight.completionRate}%` },
     { id: 'daysLogged', value: String(periodInsight.activeDays) },
+    ...(expanded ? [
+      { id: 'currentStreak', value: String(periodInsight.currentStreak) },
+      { id: 'bestStreak', value: String(periodInsight.bestStreak) },
+    ] : []),
   ]
   const rows: BlockFrameItem[] = figures.map((figure) => ({
     id: figure.id,
@@ -41,7 +45,7 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
       control: <span className="text-base tabular-nums text-[var(--fg-1)]">{habit.completionRate}%</span>,
     }))
   }
-  const body = <div className="flex min-w-0 flex-col gap-3">
+  const body = <div aria-live="polite" className="flex min-w-0 flex-col gap-3">
     <p className="text-sm text-[var(--fg-3)]">{formatReadWindow({ from: periodInsight.dateFrom, to: periodInsight.dateTo }, locale)}</p>
     {points.some(point => point.scheduled > 0) ? <BarChart points={points} label={t('chat.insight.chartLabel')} /> : null}
     {expanded ? pages.slice(1).map(page => <div key={page.titleKey} className="flex flex-col gap-2"><h4 className="text-sm font-medium text-[var(--fg-1)]">{t(page.titleKey)}</h4><p className="text-sm text-[var(--fg-2)] [overflow-wrap:anywhere]">{page.text}</p></div>) : null}
@@ -56,7 +60,7 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
         items={rows}
         body={body}
         actions={<>
-          <Button variant="ghost" size="sm" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{t(expanded ? 'chat.readBlock.less' : 'chat.habitList.more')}</Button>
+          <Button variant="ghost" size="sm" expanded={expanded} hasPopup={false} onClick={() => setExpanded(!expanded)}>{t(expanded ? 'chat.readBlock.less' : 'chat.habitList.more')}</Button>
           <PillLink variant="ghost" size="sm" href="/progress">{t('chat.insight.progressLink')}</PillLink>
         </>}
       />
