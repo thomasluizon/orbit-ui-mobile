@@ -11,7 +11,7 @@ interface HabitCheckProps {
 
 export function HabitCheck({ status, label, unavailable = false, progress }: Readonly<HabitCheckProps>) {
   if (unavailable) return (
-    <span data-habit-check="" data-focus-perimeter="" data-status="unavailable"
+    <span data-habit-check="" data-focus-ring-owner="" data-status="unavailable"
       role={label ? 'img' : undefined} aria-label={label}
       className="relative inline-flex shrink-0 items-center justify-center rounded-[12px]"
       style={{ width: 28, height: 28, background: 'var(--bg-well)', boxShadow: 'none' }} />
@@ -22,7 +22,7 @@ export function HabitCheck({ status, label, unavailable = false, progress }: Rea
     empty: { graphic: 'var(--status-empty)' }, done: { graphic: 'var(--fg-1)' }, overdue: { graphic: 'var(--status-overdue)' }, bad: { graphic: 'var(--status-bad)' },
   }[status].graphic
   return (
-    <span data-habit-check="" data-focus-perimeter="" data-status={status}
+    <span data-habit-check="" data-focus-ring-owner="" data-status={status}
       role={label ? 'img' : undefined} aria-label={label}
       className="relative inline-flex shrink-0 items-center justify-center rounded-[12px]"
       style={{ width: 28, height: 28, background: done ? 'var(--fg-1)' : 'var(--habit-check-feedback, transparent)', boxShadow: done ? 'none' : `inset 0 0 0 1px ${color}` }}>

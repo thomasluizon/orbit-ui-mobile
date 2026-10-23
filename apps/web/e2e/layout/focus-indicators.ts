@@ -4,7 +4,7 @@ export async function readOutlineVisibility(target: Locator, pseudo?: '::before'
   return target.evaluate(async (element, settings) => {
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
     const hasOutline = (style: CSSStyleDeclaration) => style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0
-    const owners = [element, ...element.querySelectorAll('[data-press-fill], [data-focus-perimeter]')]
+    const owners = [element, ...element.querySelectorAll('[data-press-fill], [data-focus-ring-owner]')]
     const owner = settings.pseudo ? { element, pseudo: settings.pseudo } : owners.flatMap((candidate) => [null, '::before', '::after'].map((pseudo) => ({ element: candidate, pseudo })))
       .find((candidate) => {
         const style = getComputedStyle(candidate.element, candidate.pseudo)
