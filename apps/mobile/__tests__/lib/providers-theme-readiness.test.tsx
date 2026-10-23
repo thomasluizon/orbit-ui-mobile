@@ -2,6 +2,7 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { onlineManager, QueryClient } from '@tanstack/react-query'
 import { View } from 'react-native'
+import * as SecureStore from 'expo-secure-store'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
@@ -25,7 +26,7 @@ vi.mock('@/lib/query-client', () => ({
   clearPersistedQueryCache: vi.fn().mockResolvedValue(undefined),
 }))
 vi.mock('@/stores/auth-store', () => {
-  const state = { isAuthenticated: true, initialize: async () => {} }
+  const state = { isAuthenticated: true, user: { userId: 'a' }, initialize: async () => {} }
   const useAuthStore = (select: (snapshot: typeof state) => unknown) => select(state)
   useAuthStore.getState = () => state
   return {
@@ -82,6 +83,26 @@ afterEach(async () => {
 })
 
 describe('native profile theme readiness', () => {
+  it.each([null, 'legacy', 'redesign'])('renders the embedded app with saved choice %s', async (choice) => {
+    const key = 'design_bundle_000061'
+    await SecureStore.deleteItemAsync(key)
+    if (choice) await SecureStore.setItemAsync(key, choice)
+    const read = vi.spyOn(SecureStore, 'getItemAsync')
+    const write = vi.spyOn(SecureStore, 'setItemAsync')
+    vi.mocked(apiClient).mockResolvedValue(createMockProfile({ themePreference: 'light' }))
+    try {
+      const tree = await mountProviders()
+      expect(tree.root.findByProps({ testID: 'theme-destination' }).props.accessibilityLabel).toBe('light')
+      expect(hideAsync).toHaveBeenCalledOnce()
+      expect(read).not.toHaveBeenCalledWith(key)
+      expect(write.mock.calls.some(([writtenKey]) => writtenKey.startsWith('design_bundle_'))).toBe(false)
+    } finally {
+      read.mockRestore()
+      write.mockRestore()
+      await SecureStore.deleteItemAsync(key)
+    }
+  })
+
   it('holds the destination and splash until a cold light profile is loaded', async () => {
     const profile = createMockProfile({ themePreference: 'light' })
     let resolveProfile: (value: typeof profile) => void = () => {}

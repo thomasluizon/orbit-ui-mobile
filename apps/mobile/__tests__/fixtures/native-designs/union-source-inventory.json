@@ -3,10 +3,6 @@
   "apps/mobile/modules/orbit-app-update/android/src/main/AndroidManifest.xml": "343d5be1ac17cdd45d1a2f2ddc616c509290e655869125a9422a96d88aa66066",
   "apps/mobile/modules/orbit-app-update/android/src/main/java/org/useorbit/app/update/OrbitAppUpdateModule.kt": "63295439b6cb272c599eb3e95fa6983a3b70e25d72563351cf97ec1c1a6e19fa",
   "apps/mobile/modules/orbit-app-update/expo-module.config.json": "3dc5b3bc9ae422b858b75f4a65da68c15885eee874fd97d3a51705e1e512c337",
-  "apps/mobile/modules/orbit-design-bundle/android/build.gradle": "3d1beac16ebdef57d6b4c09b5923163d96a3e522fe0e14b937727ed33979621b",
-  "apps/mobile/modules/orbit-design-bundle/android/src/main/AndroidManifest.xml": "343d5be1ac17cdd45d1a2f2ddc616c509290e655869125a9422a96d88aa66066",
-  "apps/mobile/modules/orbit-design-bundle/android/src/main/java/org/useorbit/app/bundle/OrbitDesignBundleModule.kt": "0ebaf36b97bf229444be1c8d5e71977f9131fd47ea96a19e80ca58c72e3d57c5",
-  "apps/mobile/modules/orbit-design-bundle/expo-module.config.json": "f0016214299a6321cdc25bd19189d6988aacb3b8c9ffebdaa47469445b2fa07f",
   "apps/mobile/modules/orbit-widget/android/build.gradle": "5249b84f027c8b26cf403332259184b665072701529cb7e516f543ff77d83dce",
   "apps/mobile/modules/orbit-widget/android/consumer-rules.pro": "334088bd2ba0f11aa9b06a092beec8698a6f5efd39032c5d1cf9f1cfb594d1d7",
   "apps/mobile/modules/orbit-widget/android/src/main/AndroidManifest.xml": "f588aaef81c6d027ea5fe62129dd221dde74f65452f924bc6e1940504fb07138",
@@ -14,6 +10,5 @@
   "apps/mobile/modules/orbit-widget/expo-module.config.json": "e161183eb074b7b3641eb82b0fbb110a66191cd105bd0ae0f7bcf9f55ed7a25f",
   "apps/mobile/modules/orbit-widget/src/OrbitWidget.types.ts": "7f08018f89e009da43c8a299b3d4a8185bb5a456fafbd897a40ee4fc5926bba3",
   "apps/mobile/plugins/with-android-release-build-fixes.js": "756baf0813356d915b153bf4cd85b61f48be4d5430800e2f0d56c675053bea2e",
-  "apps/mobile/plugins/with-react-native-imperative-focus.js": "d230450d790d54a2c4680672982f0109b84571d21bd0a6554981b380c3d604a4",
-  "apps/mobile/plugins/with-design-bundle-launch.js": "3fa8c0618567b38f47e3d8dbcfe72c906c79002f1ab82cca0827eb30ef8b3180"
+  "apps/mobile/plugins/with-react-native-imperative-focus.js": "d230450d790d54a2c4680672982f0109b84571d21bd0a6554981b380c3d604a4"
 }

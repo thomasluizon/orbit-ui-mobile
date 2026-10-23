@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, render, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { StrictMode } from 'react'
-import { createMockConfigResponse } from '@orbit/shared/__tests__/factories'
 import { installWebLocks } from '../helpers/web-locks'
 
 const mocks = vi.hoisted(() => ({ fetch: vi.fn(), reload: vi.fn() }))
@@ -13,32 +12,19 @@ vi.mock('@/components/service-worker-bridge', () => ({ ServiceWorkerBridge: () =
 vi.mock('@/lib/posthog', () => ({ identifyPostHogUser: vi.fn(), resetPostHogUser: vi.fn() }))
 vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }))
 
-function respond(enabled: boolean) {
-  mocks.fetch.mockImplementation(async () => Response.json(createMockConfigResponse({
-    redesign: { enabled, planRequirement: null },
-  })))
-}
-
 async function mount() {
   const { Providers } = await import('@/lib/providers')
-  const { getQueryClient } = await import('@/lib/query-client')
-  const { useAuthStore } = await import('@/stores/auth-store')
-  getQueryClient().setDefaultOptions({ queries: { retry: false } })
   const view = render(<StrictMode><Providers><div>Account</div></Providers></StrictMode>)
-  return { ...view, useAuthStore, queryClient: getQueryClient(), Providers }
-}
-
-function signIn(store: Awaited<ReturnType<typeof mount>>['useAuthStore']) {
-  act(() => store.getState().setAuth({ userId: 'account-a', name: 'Account', email: 'account@example.com' }))
+  return { ...view, Providers }
 }
 
 beforeEach(() => {
   vi.resetModules()
   vi.clearAllMocks()
-  mocks.fetch.mockReset()
   installWebLocks()
   localStorage.clear()
   document.cookie = 'orbit_design=; Max-Age=0; Path=/; Secure; SameSite=Lax'
+  document.cookie = 'unrelated=; Max-Age=0; Path=/'
   vi.stubGlobal('location', { href: '/', reload: mocks.reload })
 })
 
@@ -50,116 +36,45 @@ afterEach(async () => {
   vi.unstubAllGlobals()
   Reflect.deleteProperty(navigator, 'locks')
   document.cookie = 'orbit_design=; Max-Age=0; Path=/; Secure; SameSite=Lax'
+  document.cookie = 'unrelated=; Max-Age=0; Path=/'
 })
 
-describe('design routing through Providers and the account config query', () => {
-  it('clears the host-only secure cookie after sign-in before reloading once', async () => {
-    respond(false)
+describe('stale design cookie cleanup through Providers', () => {
+  it('clears the stale cookie on the next visit without account config or a reload', async () => {
     document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
+    document.cookie = 'unrelated=retained; Path=/'
     const cookieWrites = vi.spyOn(document, 'cookie', 'set')
-    mocks.reload.mockImplementation(() => expect(document.cookie).not.toContain('orbit_design='))
-    const { useAuthStore } = await mount()
+    await mount()
+
+    expect(document.cookie).not.toContain('orbit_design=')
+    expect(document.cookie).toContain('unrelated=retained')
+    expect(cookieWrites).toHaveBeenCalledExactlyOnceWith('orbit_design=; Max-Age=0; Path=/; Secure; SameSite=Lax')
+    expect(screen.getByText('Account')).toBeInTheDocument()
     expect(mocks.fetch).not.toHaveBeenCalled()
-
-    signIn(useAuthStore)
-
-    await waitFor(() => expect(mocks.reload).toHaveBeenCalledOnce())
-    expect(cookieWrites).toHaveBeenCalledWith('orbit_design=; Max-Age=0; Path=/; Secure; SameSite=Lax')
-  })
-
-  it('keeps the current design when the flag is off', async () => {
-    respond(false)
-    const { useAuthStore, queryClient } = await mount()
-    signIn(useAuthStore)
-    await act(async () => { await queryClient.refetchQueries() })
-    expect(mocks.fetch).toHaveBeenCalled()
-    expect(document.cookie).not.toContain('orbit_design=')
     expect(mocks.reload).not.toHaveBeenCalled()
   })
 
-  it('does nothing when the enabled flag already matches the cookie', async () => {
-    respond(true)
-    document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
+  it('leaves a browser without the cookie unchanged across renders and remounts', async () => {
     const cookieWrites = vi.spyOn(document, 'cookie', 'set')
-    const { useAuthStore, queryClient } = await mount()
-    signIn(useAuthStore)
-    await act(async () => { await queryClient.refetchQueries() })
-    expect(mocks.fetch).toHaveBeenCalled()
-    expect(cookieWrites).not.toHaveBeenCalled()
-    expect(mocks.reload).not.toHaveBeenCalled()
-  })
-
-  it('switches designs when a flag refresh disables redesign', async () => {
-    respond(true)
-    document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
-    const { useAuthStore, queryClient } = await mount()
-    signIn(useAuthStore)
-    await act(async () => { await queryClient.refetchQueries() })
-    expect(mocks.reload).not.toHaveBeenCalled()
-
-    respond(false)
-    await act(async () => { await queryClient.refetchQueries() })
-
-    await waitFor(() => expect(mocks.reload).toHaveBeenCalledOnce())
-    expect(document.cookie).not.toContain('orbit_design=')
-  })
-
-  it('bounds reloads across refreshes, flag toggles and provider remounts in one page load', async () => {
-    respond(false)
-    document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
-    const { useAuthStore, queryClient, unmount, Providers } = await mount()
-    signIn(useAuthStore)
-    await waitFor(() => expect(mocks.reload).toHaveBeenCalledOnce())
-    respond(true)
-    await act(async () => { await queryClient.refetchQueries() })
-    document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
-    respond(false)
-    await act(async () => { await queryClient.refetchQueries() })
+    const { rerender, unmount, Providers } = await mount()
+    rerender(<Providers><div>Updated</div></Providers>)
     unmount()
-    document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
-    render(<StrictMode><Providers><div>Remounted</div></Providers></StrictMode>)
-    await act(async () => { await queryClient.refetchQueries() })
-    expect(document.cookie).not.toContain('orbit_design=')
-    expect(mocks.reload).toHaveBeenCalledOnce()
-  })
+    render(<Providers><div>Remounted</div></Providers>)
 
-  it('rechecks a stale cookie on refresh even when the disabled flag has not changed', async () => {
-    respond(false)
-    const { useAuthStore, queryClient } = await mount()
-    signIn(useAuthStore)
-    await act(async () => { await queryClient.refetchQueries() })
-    expect(mocks.reload).not.toHaveBeenCalled()
-
-    document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
-    await act(async () => { await queryClient.refetchQueries() })
-
-    await waitFor(() => expect(mocks.reload).toHaveBeenCalledOnce())
-    expect(document.cookie).not.toContain('orbit_design=')
-  })
-
-  it.each(['pending', 'offline'])('leaves the cookie untouched while account flags are %s', async (state) => {
-    document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
-    if (state === 'pending') mocks.fetch.mockImplementation(() => new Promise<Response>(() => {}))
-    else mocks.fetch.mockRejectedValue(new Error('offline'))
-    const cookieWrites = vi.spyOn(document, 'cookie', 'set')
-    const { useAuthStore } = await mount()
-    signIn(useAuthStore)
-    await waitFor(() => expect(mocks.fetch).toHaveBeenCalled())
+    expect(screen.getByText('Remounted')).toBeInTheDocument()
     expect(cookieWrites).not.toHaveBeenCalled()
-    expect(document.cookie).toContain('orbit_design=redesign')
+    expect(mocks.fetch).not.toHaveBeenCalled()
     expect(mocks.reload).not.toHaveBeenCalled()
   })
 
-  it.each(['success', 'network failure'])('clears the cookie on sign-out after a BFF %s', async (outcome) => {
-    respond(true)
+  it.each(['success', 'network failure'])('keeps account-reset cleanup after a BFF %s', async (outcome) => {
     vi.stubGlobal('fetch', outcome === 'success'
       ? vi.fn(async () => new Response(null, { status: 204 }))
       : vi.fn(async () => { throw new TypeError('offline') }))
+    await mount()
+    const { useAuthStore } = await import('@/stores/auth-store')
+    act(() => useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Account', email: 'account@example.com' }))
     document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
-    const { useAuthStore, queryClient } = await mount()
-    signIn(useAuthStore)
-    await act(async () => { await queryClient.refetchQueries() })
-    expect(document.cookie).toContain('orbit_design=redesign')
 
     await act(async () => { await useAuthStore.getState().logout() })
 
