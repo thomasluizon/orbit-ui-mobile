@@ -59,8 +59,7 @@ export function getMessageBubbleView(props: MessageBubbleProps, dismissedBreakdo
   const operationBlocks = selectMessageOperationBlocks(message)
   const previewIds = new Set(canRenderPendingOperations(props)
     ? [...(props.earlierMessages ?? []), message].flatMap(entry => messageOperationIds(entry, true)) : [])
-  const outcomes = operationBlocks.outcomes.filter(outcome => !message.operations?.some(operation =>
-    operation.operationId === outcome.id && operation.pendingOperationId && previewIds.has(operation.pendingOperationId)))
+  const outcomes = operationBlocks.outcomes.filter(outcome => !outcome.pendingOperationId || !previewIds.has(outcome.pendingOperationId))
   const actions = partitionMessageActions(operationBlocks.actions, message.policyDenials)
   const parts = (isUser ? [{ type: 'text' as const, text: message.content }] : getChatMessageParts(message, isStreaming)).flatMap<MessageBubblePart>((part, key) => {
     if (!part) return []

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { habitListCardFixture } from '../test-support/chat-fixtures'
 import { buildRecentChatHistory } from '../utils/chat-history'
+import { buildChatFinalMessageFields } from '../chat/final-message'
+import { chatResponseSchema } from '../types/chat'
+import partsFixture from '../test-support/chat-parts.fixture.json'
+import { habitRankingCardFixture } from '../test-support/habit-ranking-fixtures'
 
 describe('buildRecentChatHistory', () => {
   it('returns the most recent history entries before the latest message', () => {
@@ -42,6 +46,31 @@ describe('buildRecentChatHistory', () => {
 
     expect(history).toEqual([{ role: 'user', content: 'one' }])
   })
+})
+
+it.each([...partsFixture.blocks, { type: 'block', kind: 'habitRanking', block: habitRankingCardFixture }])(
+  'serializes a block-only $kind final turn as accepted history without invented prose', part => {
+    const response = chatResponseSchema.parse({ actions: [], parts: [part] })
+    const history = buildRecentChatHistory([
+      { id: 'answer', role: 'ai', ...buildChatFinalMessageFields(response, []) },
+      { role: 'user', content: 'Continue' },
+    ])
+    expect(history).toHaveLength(1)
+    expect(history[0]!.role).toBe('assistant')
+    expect(history[0]!.content.trim().length).toBeGreaterThan(0)
+    expect(history[0]!.content.length).toBeLessThanOrEqual(4000)
+    expect(JSON.parse(history[0]!.content)).toMatchObject([{ kind: part.kind }])
+    expect(history[0]!.content).not.toContain('signed-query')
+    expect(history[0]!.content).not.toContain('signed-page-two')
+  },
+)
+
+it('never sends empty or whitespace-only entries to history validation', () => {
+  expect(buildRecentChatHistory([
+    { role: 'ai', content: '' },
+    { role: 'ai', content: '   ' },
+    { role: 'user', content: 'Continue' },
+  ])).toEqual([])
 })
 
 it('preserves absolute query scope and identity in block-only history for follow-up requests', () => {

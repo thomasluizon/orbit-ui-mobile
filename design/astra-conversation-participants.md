@@ -56,3 +56,9 @@ Block-only completion receives one localized polite turn announcement. The annou
 visible parts rather than duplicate legacy prose. Legacy history retains its supported fallback;
 malformed or missing sole answers recover visibly. Code copying remains governed by
 `astra-block-copy-surfaces.md`. API composition owns short-text exceptions and grounded proactive results; data-backed entries require their corresponding typed blocks.
+
+History stores block-only replies as structured answer context within the API's message length
+limit. Read queries retain absolute scope and identity without refresh or paging credentials;
+choice and pick-list context retains the question and options without adding unseen prose.
+Repeated operation states coalesce only by their supplied pending-operation identity. Catalog
+tool names are reusable; outcomes without an execution identity remain separate, including failures.

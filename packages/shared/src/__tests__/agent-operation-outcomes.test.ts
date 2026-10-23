@@ -32,7 +32,7 @@ describe('coalesceAgentOperationOutcomes', () => {
 
     expect(coalesceAgentOperationOutcomes([operation, successfulOperation], [])).toEqual([
       {
-        id: 'operation-1',
+        id: 'operation-1:0',
         source: 'DeleteHabit',
         target: undefined,
         riskClass: 'High',
@@ -40,7 +40,7 @@ describe('coalesceAgentOperationOutcomes', () => {
         policyReason: 'step_up_required',
       },
       {
-        id: 'operation-2',
+        id: 'operation-2:1',
         source: 'CreateHabit',
         target: 'Morning walk',
         riskClass: 'Low',
@@ -52,7 +52,7 @@ describe('coalesceAgentOperationOutcomes', () => {
 
   it('keeps one policy outcome and its reason when both API records share an id', () => {
     expect(coalesceAgentOperationOutcomes([operation], [denial])).toEqual([{
-      id: 'operation-1',
+      id: 'operation-1:0',
       source: 'DeleteHabit',
       target: null,
       riskClass: 'High',
@@ -63,5 +63,27 @@ describe('coalesceAgentOperationOutcomes', () => {
 
   it('retains denials that do not have a matching operation record', () => {
     expect(coalesceAgentOperationOutcomes([], [denial])).toHaveLength(1)
+  })
+
+  it('does not apply one catalog denial to another execution of the same tool', () => {
+    const denied = { ...operation, pendingOperationId: '11111111-1111-4111-8111-111111111111' }
+    const failed = { ...operation, pendingOperationId: '22222222-2222-4222-8222-222222222222', status: 'Failed' as const }
+    const outcomes = coalesceAgentOperationOutcomes([denied, failed], [{ ...denial, pendingOperationId: denied.pendingOperationId }])
+    expect(outcomes.map(outcome => outcome.status)).toEqual(['UnsupportedByPolicy', 'Failed'])
+    expect(new Set(outcomes.map(outcome => outcome.id)).size).toBe(2)
+  })
+
+  it('pairs identity-free policy denials once without replacing independent failures', () => {
+    const outcomes = coalesceAgentOperationOutcomes([{ ...operation, status: 'Failed' }, operation], [denial])
+    expect(outcomes.map(outcome => outcome.status)).toEqual(['Failed', 'UnsupportedByPolicy'])
+  })
+
+  it('keeps the latest failed state once when its own earlier denial is replayed', () => {
+    const pendingOperationId = '11111111-1111-4111-8111-111111111111'
+    const outcomes = coalesceAgentOperationOutcomes(
+      [{ ...operation, pendingOperationId, status: 'Failed' }], [{ ...denial, pendingOperationId }],
+    )
+    expect(outcomes).toMatchObject([{ id: pendingOperationId, status: 'Failed' }])
+    expect(outcomes).toHaveLength(1)
   })
 })

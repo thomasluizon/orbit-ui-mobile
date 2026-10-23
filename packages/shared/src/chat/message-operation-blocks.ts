@@ -11,7 +11,7 @@ function sameOperation(actionType: string, sourceName: string): boolean {
 }
 
 export function selectMessageOperationBlocks(message: ChatMessage): MessageOperationBlocks {
-  const operations = [...new Map((message.operations ?? []).map(operation => [operation.operationId, operation])).values()]
+  const operations = [...new Map((message.operations ?? []).map((operation, index) => [operation.pendingOperationId ?? index, operation])).values()]
   const outcomes = coalesceAgentOperationOutcomes(operations, message.policyDenials ?? [])
     .filter((outcome) => outcome.status === 'Failed' || outcome.status === 'Denied' || outcome.status === 'UnsupportedByPolicy')
   const representedFailures = [...outcomes]

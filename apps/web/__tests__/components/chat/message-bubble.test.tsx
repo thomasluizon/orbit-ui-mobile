@@ -296,7 +296,8 @@ describe('MessageBubble', () => {
       />,
     )
 
-    expect(screen.getByText('chat.related.title')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'chat.related.title' })).toBeInTheDocument()
+    expect(screen.queryByText('chat.related.title')).not.toBeInTheDocument()
     const link = screen.getByRole('button', { name: 'chat.related.surface.gamification' })
     fireEvent.click(link)
     expect(push).toHaveBeenCalledWith('/progress/achievements')
@@ -310,7 +311,7 @@ describe('MessageBubble', () => {
         message={makeMessage({ role: 'user', relatedSurfaces: ['gamification'] })}
       />,
     )
-    expect(screen.queryByText('chat.related.title')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'chat.related.title' })).not.toBeInTheDocument()
   })
 
   it('never renders a trace footer, even when the AI message has a correlationId', () => {

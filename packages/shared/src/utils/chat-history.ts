@@ -33,18 +33,28 @@ export function buildRecentChatHistory(
     recentMessages.push(openedItem)
   }
   return recentMessages
-    .filter((message): message is ChatHistoryEntry & { content: string } => message.content !== null)
     .map((message) => ({
       role: toChatHistoryRole(message.role),
       content: historyContent(message),
     }))
+    .filter(message => message.content.trim().length > 0)
 }
 
-function historyContent(message: ChatHistoryEntry & { content: string }): string {
-  if (message.role !== 'ai' || !message.parts) return message.content
-  const queries = getChatMessageParts({ ...message, id: message.id ?? '', timestamp: new Date(0) })
-    .flatMap(part => part?.type === 'block' && 'read' in part.block && part.block.read
-      ? [{ kind: part.kind, queryId: part.block.read.queryId, queryFamily: part.block.read.queryFamily, scope: part.block.read.scope }]
-      : [])
-  return queries.length ? [message.content, JSON.stringify(queries)].filter(Boolean).join('\n') : message.content
+function historyContent(message: ChatHistoryEntry): string {
+  if (message.role !== 'ai' || !message.parts) return message.content ?? ''
+  const parts = getChatMessageParts({ ...message, content: message.content ?? '', id: message.id ?? '', timestamp: new Date(0) })
+  const text = parts.flatMap(part => part?.type === 'text' ? [part.text] : []).join('\n')
+  const blocks = parts.flatMap<unknown>(part => {
+    if (part?.type !== 'block') return []
+    if ('read' in part.block && part.block.read) {
+      const { queryId, queryFamily, scope } = part.block.read
+      return [{ kind: part.kind, queryId, queryFamily, scope }]
+    }
+    if (part.kind === 'habitRanking') {
+      const { queryId, query } = part.block.ranking
+      return [{ kind: part.kind, queryId, query }]
+    }
+    return [{ kind: part.kind, block: part.block }]
+  })
+  return [text, blocks.length ? JSON.stringify(blocks) : ''].filter(Boolean).join('\n').slice(0, 4000)
 }
