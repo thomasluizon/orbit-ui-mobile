@@ -163,9 +163,9 @@ function assertPillActions(measured: PillGeometry, { withOpener, scenario, messa
   const names = measured.controls.map(control => control.name)
   const voiceActive = scenario === 'recording' || scenario === 'transcribing'
   const expected = [
-    ...(withOpener ? [`${messages.todayAstra.openConversation}, Astra`] : []),
+    ...(withOpener ? [messages.todayAstra.openConversation] : []),
     voiceActive ? messages.shell.composer.voice.stop : messages.shell.composer.actions,
-    `${messages.shell.composer.send}, ${messages.habits.form.askDate}`,
+    messages.shell.composer.send,
   ]
   const textAction = ['oneLine', 'typing', 'longText'].includes(scenario) ? messages.shell.composer.clear : messages.shell.composer.paste
   const possibleNames = [...expected, ...names.includes(textAction) ? [textAction] : []]
@@ -256,7 +256,7 @@ it.each([
   const onOpenConversation = vi.fn()
   const view = render(<Composer {...geometryProps('idle', messages, true)} onOpenConversation={onOpenConversation} />)
   try {
-    fireEvent.click(screen.getByRole('button', { name: `${name}, Astra` }))
+    fireEvent.click(screen.getByRole('button', { name: name }))
     expect(onOpenConversation).toHaveBeenCalledOnce()
     expect(screen.queryByRole('button', { name: 'Abrir a conversa' })).not.toBeInTheDocument()
   } finally { view.unmount() }
@@ -686,7 +686,7 @@ describe('Composer compact geometry in Chromium', () => {
             expect(control.bottom).toBeLessThanOrEqual(geometry.fieldBottom - 4)
             expect(control.right <= geometry.left || control.left >= geometry.right || control.bottom <= geometry.top || control.top >= geometry.bottom).toBe(true)
           }
-          expect(geometry.controls.filter(control => control.name === `${ptBR.shell.composer.send}, ${ptBR.habits.form.askDate}`)).toHaveLength(1)
+          expect(geometry.controls.filter(control => control.name === ptBR.shell.composer.send)).toHaveLength(1)
           expect(await input.inputValue()).toBe(value)
           expect(await input.evaluate(element => element === document.activeElement)).toBe(true)
           expect(await input.evaluate((element: HTMLTextAreaElement) => [element.selectionStart, element.selectionEnd])).toEqual([value.length, value.length])
@@ -1081,8 +1081,8 @@ describe('Composer compact geometry in Chromium', () => {
           }
           for (const control of measured.controls) {
             expect(control.textFits, evidence).toBe(true)
-            expect(control.accessibleName, evidence).toBe(`${control.label}, ${messages.nav.astra}`)
-            expect(control.attribution, evidence).toEqual([messages.nav.astra])
+            expect(control.accessibleName, evidence).toBe(control.label)
+            expect(control.attribution, evidence).toEqual([])
             expect(control.attributionFits, evidence).toBe(true)
             expect(control.marks, evidence).toBe(1)
             expect(control.decorative, evidence).toBe(true)
@@ -1120,7 +1120,7 @@ describe('Composer compact geometry in Chromium', () => {
         expect(await readFieldIndicators(field, '[data-composer-input-row]', { forcedColors })).toHaveLength(1)
         for (const name of [en.shell.composer.clear, en.shell.composer.actions, en.shell.composer.send]) {
           await page.keyboard.press('Tab')
-          const control = page.getByRole('button', { name: name === en.shell.composer.send ? `${name}, Ask Astra` : name, exact: true })
+          const control = page.getByRole('button', { name, exact: true })
           expect(await control.evaluate((element) => element === document.activeElement)).toBe(true)
           expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
           const outline = await control.evaluate((element) => {
@@ -1224,8 +1224,8 @@ describe('Composer compact geometry in Chromium', () => {
       const bounds = (await target.boundingBox())!
       expect(bounds.width).toBeGreaterThanOrEqual(48)
       expect(bounds.height).toBeGreaterThanOrEqual(48)
-      expect(await target.getAttribute('aria-label')).toBe(`${en.todayAstra.openConversation}, ${en.nav.astra}`)
-      expect(await target.locator('[translate="no"]').allTextContents()).toEqual([en.nav.astra])
+      expect(await target.getAttribute('aria-label')).toBe(en.todayAstra.openConversation)
+      expect(await target.locator('[translate="no"]').allTextContents()).toEqual([])
       expect(await target.locator('[data-asset="astra-mark"][aria-hidden="true"]').count()).toBe(1)
       expect((await target.locator('svg').boundingBox())!.width).toBe(20)
       await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)

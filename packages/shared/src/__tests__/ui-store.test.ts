@@ -235,9 +235,20 @@ describe("shared ui store", () => {
       activeFilters: {},
       activeView: "all",
       calendarShowRecurring: true,
+      habitComposerCollapsed: false,
       dailyStreakMomentDate: "",
       setupChecklistDismissed: false,
     });
+  });
+
+  it("persists the habit composer disclosure and defaults invalid values to expanded", () => {
+    const store = createStoreHarness();
+    expect(store.getState().habitComposerCollapsed).toBe(false);
+    store.getState().setHabitComposerCollapsed(true);
+    expect(migratePersistedUIState(getPersistedUIState(store.getState())).habitComposerCollapsed).toBe(true);
+    for (const value of [undefined, null, "true", 1, false]) {
+      expect(migratePersistedUIState({ habitComposerCollapsed: value }).habitComposerCollapsed).toBe(false);
+    }
   });
 
   it("persists the recurring calendar filter and defaults invalid stored values", () => {

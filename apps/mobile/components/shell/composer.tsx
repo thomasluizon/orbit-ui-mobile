@@ -11,7 +11,7 @@ import {
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { ActivityIndicator, AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, type TextInput, type LayoutChangeEvent, View, useWindowDimensions } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import { captureError } from '@/lib/sentry'
@@ -20,7 +20,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
-import { Clipboard as ClipboardIcon, FileText, Image, Plus, Square, X } from '@/components/ui/icons'
+import { ChevronDown, Clipboard as ClipboardIcon, FileText, Image, Plus, Square, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -546,7 +546,26 @@ function RetryControl({ props, tokens }: Readonly<{ props: ComposerProps; tokens
   )
 }
 
+function ComposerDisclosure({ collapsed, tokens, children }: Readonly<{ collapsed: boolean; tokens: AppTokensV2; children: React.ReactNode }>) {
+  const { t } = useTranslation()
+  const contentId = useId()
+  const toggleLabel = t(collapsed ? 'shell.composer.expand' : 'shell.composer.collapse')
+  return <>
+      <InsetFocusPressable testID="composer-collapse-row" accessibilityRole="button"
+        accessibilityLabel={toggleLabel} accessibilityState={{ expanded: !collapsed }}
+        onPress={() => useUIStore.getState().setHabitComposerCollapsed(!collapsed)}
+        style={({ pressed }) => [styles.collapseRow, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>
+        {collapsed ? <AstraGlyph size={20} color={tokens.fg2} /> : <View />}
+        <ChevronDown size={20} color={tokens.fg2} style={collapsed ? { transform: [{ rotate: '180deg' }] } : undefined} />
+      </InsetFocusPressable>
+      <View nativeID={contentId} accessibilityElementsHidden={collapsed} importantForAccessibility={collapsed ? 'no-hide-descendants' : 'auto'}
+        style={{ display: collapsed ? 'none' : 'flex', gap: 12 }}>{children}</View>
+  </>
+}
+
 export function Composer(props: Readonly<MobileComposerProps>) {
+  const savedCollapsed = useUIStore(state => state.habitComposerCollapsed)
+  const collapsed = Boolean(props.collapsible && savedCollapsed)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const inputDisabled = props.state !== 'idle'
@@ -586,21 +605,7 @@ export function Composer(props: Readonly<MobileComposerProps>) {
     canRetry ? 'retry' : null,
   ].filter(Boolean).join('-')
 
-  return (
-    <View
-      ref={composerRef}
-      focusable={props.autoFocus}
-      onFocus={(event) => {
-        const target = event.nativeEvent.target
-        focusedTarget.current = target === findNodeHandle(composerRef.current)
-          ? 'container'
-          : target === findNodeHandle(focusTarget.current) ? 'input' : null
-      }}
-      onBlur={() => { focusedTarget.current = null }}
-      testID={testID}
-      accessibilityState={{ busy: props.state === 'sending' }}
-      style={[styles.root, { backgroundColor: tokens.bg, borderTopColor: tokens.hairline }]}
-    >
+  const content = <>
       {hasAttachments && props.attachWords && props.onAttachRemove ? (
         <AttachmentTray
           attachments={attachments}
@@ -615,6 +620,23 @@ export function Composer(props: Readonly<MobileComposerProps>) {
       <ComposerInputRow props={props} tokens={tokens} inputRef={focusTarget} />
       {!showAllowanceStatus && props.usageMessage ? <Text testID="composer-usage" style={[styles.usage, { color: tokens.fg3 }]}>{props.usageMessage}</Text> : null}
       <RetryControl props={props} tokens={tokens} />
+  </>
+  return (
+    <View
+      ref={composerRef}
+      focusable={props.autoFocus}
+      onFocus={(event) => {
+        const target = event.nativeEvent.target
+        focusedTarget.current = target === findNodeHandle(composerRef.current)
+          ? 'container'
+          : target === findNodeHandle(focusTarget.current) ? 'input' : null
+      }}
+      onBlur={() => { focusedTarget.current = null }}
+      testID={testID}
+      accessibilityState={{ busy: props.state === 'sending' }}
+      style={[styles.root, collapsed ? styles.collapsed : null, { backgroundColor: tokens.bg, borderTopColor: tokens.hairline }]}
+    >
+      {props.collapsible ? <ComposerDisclosure collapsed={collapsed} tokens={tokens}>{content}</ComposerDisclosure> : content}
     </View>
   )
 }
@@ -626,6 +648,8 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: SPACING.s16,
   },
+  collapsed: { paddingVertical: SPACING.s4, gap: 0 },
+  collapseRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.s8, borderRadius: 12, overflow: 'hidden' },
   tray: {
     gap: 8,
   },

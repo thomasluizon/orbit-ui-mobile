@@ -28,7 +28,7 @@ describe('mobile habit row on an old day', () => {
     await i18n.changeLanguage('en')
   })
 
-  it.each([['en', 'Reschedule with Astra'], ['pt-BR', 'Reagendar com a Astra']])('shows the %s reschedule label on an overdue row', async (locale, label) => {
+  it.each([['en', 'Reschedule'], ['pt-BR', 'Reagendar']])('shows the %s reschedule label on an overdue row', async (locale, label) => {
     await i18n.changeLanguage(locale)
     const onReschedule = vi.fn()
     let tree: ReturnType<typeof TestRenderer.create>

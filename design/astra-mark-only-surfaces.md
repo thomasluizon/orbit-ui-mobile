@@ -1,0 +1,42 @@
+# Astra action marks and composer disclosure
+
+> **At a glance** - assistant action owners, localized prompts, accessible action names and the habit-detail composer disclosure on web and Android.
+
+An assistant action carries the canonical Astra mark without repeating the brand name. Action text
+describes the request. A mark-only entry or submit has one accessible name describing its action.
+Suggestion names contain the suggestion once. The mark is decorative within a named control.
+
+| Surface | Web owner | Android owner |
+|---|---|---|
+| Suggestion strip, conversation entry, submit and retry | `components/shell/composer.tsx` | `components/shell/composer.tsx` |
+| Wide sidebar conversation entry, including onboarding | `components/shell/shell-wide.tsx` | Shell composer entry |
+| Habit-detail disclosure registration | `app/(app)/layout.tsx` | `app/_layout.tsx` |
+| Complete ideas and live requests | `components/chat/prompt-idea.tsx` | `components/chat/prompt-idea.tsx` |
+| Deferred complete idea above the composer | `components/chat/conversation.tsx` | `components/chat/conversation.tsx` |
+| Follow-up requests | `components/chat/follow-up-chips.tsx` | `components/chat/follow-up-chips.tsx` |
+| Proactive requests | `components/chat/proactive-action.tsx` | `components/chat/proactive-action.tsx` |
+| Habit interpretation fallback | `components/habits/habit-form-fields.tsx` | `components/habits/habit-form-fields.tsx` |
+| Date interpretation | `components/habits/habit-form-fields/habit-date-field.tsx` | `components/habits/habit-form-fields/habit-date-field.tsx` |
+| Emoji and tag suggestions | `components/habits/habit-form-fields/habit-emoji-selector.tsx`, `tag-suggestions.tsx` | Same relative owners |
+| Habit analysis and rescue retry | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` |
+| Reschedule retry | `components/habits/reschedule-sheet.tsx` | `components/habits/reschedule-sheet.tsx` |
+| Overdue reschedule menu item | `components/habits/habit-row-trailing.tsx` | `components/habits/habit-row.tsx` |
+| Goal analysis | `components/goals/goal-detail-drawer.tsx` | `components/goals/goal-detail-drawer.tsx` |
+| Empty habit list conversation entry | `components/habits/habit-list/empty-state.tsx` | `components/habit-list/empty-state.tsx` |
+| Conversation empty heading | `components/chat/chat-empty-state.tsx` | `components/chat/chat-empty-state.tsx` |
+
+Shared copy lives in both `packages/shared/src/i18n/en.json` and `pt-BR.json`. The composer asks
+what the person wants to do. Interpretation, date, emoji, tag, reschedule, habit, goal, summary and
+import actions use contextual verbs. Explanatory prose, AI disclosures, conversation participant
+names and settings that name the assistant retain their meaning.
+
+Habit detail adds one disclosure control. Collapsed, it occupies one compact row with the mark.
+Expanded, the same control collapses the composer. The input, attachments and requests remain
+mounted. The local UI preference persists through the existing device storage adapter. Other
+composer surfaces stay expanded. The shell continues to allocate the pinned content outside the
+habit scroller, preserving the final content row in narrow and short viewports.
+
+Vitest covers mark-only controls, localized action names, retained callbacks, disclosure state,
+draft retention and device persistence. Native geometry covers the Fold cover width. Hermetic
+Chromium composition covers the shell allocation, compact disclosure and mark-only actions.
+Device font rendering and production web and Android Open rollout remain release verification.

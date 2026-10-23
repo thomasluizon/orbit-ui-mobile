@@ -234,6 +234,8 @@
     "closeRail": "Fechar painel",
     "openPalette": "Abrir paleta de comandos",
     "composer": {
+      "collapse": "Recolher campo de mensagem",
+      "expand": "Expandir campo de mensagem",
       "usage": "Mensagens hoje: {used} de {limit}",
       "placeholder": "O que você quer fazer?",
       "send": "Enviar",

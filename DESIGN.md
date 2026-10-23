@@ -190,19 +190,25 @@ the lockup at the start and the Avisos bell with its neutral count pill followed
 control at the trailing edge, then the search control, the Astra row directly above Hoje, the four
 destinations in tab order, one filled create action, and the account row.
 The Astra row uses destination geometry: minimum height 48, radius 12, 12 inline padding,
-12 gap, a 20 Astra glyph and a 14/500 `Astra` label with `translate="no"` in both locales.
+12 gap and a 20 Astra glyph with a localized accessible conversation-entry name. No visible brand label accompanies the glyph.
 The list gap is 4. While the conversation is open, only the Astra row draws the current-position
-treatment: `--primary` glyph and `--primary-soft` label. The destination retains
+treatment: `--primary` glyph. The destination retains
 `aria-current="page"` because the route stays unchanged, but draws no current-position treatment.
 
 **The way in must be visible.** In the compact shell the Astra glyph at the leading edge inside
 the composer pill is a real button with a hit area at the touch floor, a padded hover and press
-fill and a focus ring, labelled `Abrir conversa`, with visible `Astra` beside the glyph (#1607). On wide web the sidebar Astra row opens the
+fill and a focus ring, labelled `Abrir conversa`, with no visible brand word (#1668). On wide web the sidebar Astra row opens the
 conversation. Habit detail's own composer glyph remains an entry at every width.
 
-**Astra invocation and conversation-entry controls pair the canonical glyph with visible Astra wording in the same target (#1607).** Keep useful action context, disabled reasons and request guards. Deterministic saves, accepting an existing proposal, static attribution, section headings and plan facts gain no mark. The wide sidebar, compact composer, habit-detail composer and Hoje slot retain their existing owners. Conversation headers, participant avatars and conversation-owned empty states keep
+**Astra invocation and conversation-entry controls retain the canonical glyph without visible Astra wording (#1668).** Useful action text remains; mark-only entry and send controls have one accessible action name. Input prompts do not repeat the brand. Keep useful action context, disabled reasons and request guards. Deterministic saves, accepting an existing proposal, static attribution, section headings and plan facts gain no mark. The wide sidebar, compact composer, habit-detail composer and Hoje slot retain their existing owners. Conversation headers, participant avatars and conversation-owned empty states keep
 their own rules. The Perfil Astra settings row uses the neutral `MessageCircle` icon, keeping the
 shared row anatomy without repeating Astra's glyph.
+
+Habit detail's composer has one named disclosure control. Collapsing leaves one compact row with
+its mark, retains the mounted draft and attachments, and persists the choice in device preferences.
+The same control expands it again. Both states remain in the shell's pinned allocation outside the
+habit scroller. Other composer surfaces stay expanded. The owner inventory lives in
+`design/astra-mark-only-surfaces.md`.
 
 The composer's text composition reserves one inert text-action slot across inline and Add-menu
 routing, clipboard availability and allowance states. Its persistent input label has an intrinsic
@@ -1309,7 +1315,7 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 Hoje starts with its habit-view switch. In the Hoje view, its single Astra slot follows the switch,
 then the date and habits. The slot chooses an unread
 check-in, then returning guidance, then the daily summary, including its loading, retry and free-plan
-states. No second insight block belongs below the date. Request actions and conversation entries also pair Astra's glyph with visible Astra wording under #1607.
+states. No second insight block belongs below the date. Request actions and conversation entries retain Astra's glyph without repeating the brand name under #1668.
 
 - **Translucency ladder on dark:** 0.04 card / 0.06 field / 0.08 well / 0.12 elev-2, white-alpha over the canvas. Surfaces stack by alpha, not by lighter hexes.
 - **Opaque white cards on light.** Never translucent.

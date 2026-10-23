@@ -234,6 +234,8 @@
     "closeRail": "Close panel",
     "openPalette": "Open command palette",
     "composer": {
+      "collapse": "Collapse message composer",
+      "expand": "Expand message composer",
       "usage": "Messages today: {used} of {limit}",
       "placeholder": "What would you like to do?",
       "send": "Send",

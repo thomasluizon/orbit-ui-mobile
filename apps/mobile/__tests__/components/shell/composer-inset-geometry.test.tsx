@@ -84,7 +84,7 @@ function build(host: Host, nodes: Map<string, YogaNode>, fontScale = 1, inField 
   }
   if (host.props.testID) nodes.set(host.props.testID, node)
   if (insideField && host.props.accessibilityRole === 'button') nodes.set(`button:${host.props.accessibilityLabel}`, node)
-  if (host.props.accessibilityLabel === `${en.todayAstra.openConversation}, nav.astra`) nodes.set('open-conversation', node)
+  if (host.props.accessibilityLabel === `${en.todayAstra.openConversation}`) nodes.set('open-conversation', node)
   if (host.type === 'TextInput') {
     nodes.set('input', node)
     node.setMeasureFunc(() => ({ width: 80, height: (style.lineHeight ?? 24) * fontScale }))
@@ -264,11 +264,11 @@ function assertMountedActions(tree: Tree, messages: typeof en, state: 'idle' | '
   const names = controls.map(node => String(node.props.accessibilityLabel))
   const menu = field.findAll(node => node.type === Menu)[0]!
   const items = menu.props.items as { id: string }[]
-  const expected = [`${messages.todayAstra.openConversation}, ${messages.nav.astra}`, messages.shell.composer.actions,
-    `${messages.shell.composer.send}, ${messages.habits.form.askDate}`]
+  const expected = [messages.todayAstra.openConversation, messages.shell.composer.actions,
+    messages.shell.composer.send]
   if (state === 'idle' && !items.some(item => item.id === 'paste')) expected.push(messages.shell.composer.paste)
   expect([...names].sort((left, right) => left.localeCompare(right))).toEqual(expected.sort((left, right) => left.localeCompare(right)))
-  const send = controls.find(node => node.props.accessibilityLabel === `${messages.shell.composer.send}, ${messages.habits.form.askDate}`)!
+  const send = controls.find(node => node.props.accessibilityLabel === messages.shell.composer.send)!
   expect(send.props.disabled).toBe(true)
 }
 

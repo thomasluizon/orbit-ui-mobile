@@ -42,7 +42,7 @@ describe('HabitRow overflow menus', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Run', isOverdue: true })} state="overdue" actions={{ onReschedule }} />)
     fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
     const item = screen.getByRole('menuitem', { name: label })
-    expect(label).toBe(_locale === 'en' ? 'Reschedule with Astra' : 'Reagendar com a Astra')
+    expect(label).toBe(_locale === 'en' ? 'Reschedule' : 'Reagendar')
     fireEvent.click(item)
     expect(onReschedule).toHaveBeenCalledOnce()
   })

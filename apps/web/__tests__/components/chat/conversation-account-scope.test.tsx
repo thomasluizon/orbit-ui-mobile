@@ -172,7 +172,7 @@ it('shows follow-ups only under the latest AI message and sends their origin', (
   chat.canShowFollowUps = true
   render(<AstraConversation chat={chat} />)
   expect(screen.queryByText('Old one')).not.toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Check goals, nav.astra' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Check goals' }))
   expect(chat.sendMessage).toHaveBeenCalledWith('Check goals', 'followUp')
 })
 

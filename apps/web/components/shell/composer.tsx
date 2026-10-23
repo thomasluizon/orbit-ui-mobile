@@ -1,5 +1,8 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
+import { useUIStore } from '@/stores/ui-store'
+
 import { TypedTextarea } from '@/components/ui/typed-textarea'
 import { PersonalText } from '@/components/ui/personal-text'
 
@@ -13,7 +16,7 @@ import {
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
-import { Clipboard, FileText, Image as ImageIcon, Loader2, Plus, Square, X } from '@/components/ui/icons'
+import { ChevronDown, Clipboard, FileText, Image as ImageIcon, Loader2, Plus, Square, X } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
 import { Sheet } from '@/components/ui/sheet'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -434,7 +437,24 @@ function RetryControl({ props }: Readonly<{ props: ComposerProps }>) {
   )
 }
 
+function ComposerDisclosure({ collapsed, children }: Readonly<{ collapsed: boolean; children: React.ReactNode }>) {
+  const t = useTranslations()
+  const contentId = useId()
+  const toggleLabel = t(collapsed ? 'shell.composer.expand' : 'shell.composer.collapse')
+  return <>
+      <button type="button" aria-label={toggleLabel} aria-expanded={!collapsed} aria-controls={contentId}
+        data-composer-collapse-row onClick={() => useUIStore.getState().setHabitComposerCollapsed(!collapsed)}
+        className="flex min-h-12 w-full items-center justify-between rounded-xl border-0 bg-transparent px-2 text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]">
+        {collapsed ? <AstraGlyph size={20} /> : <span />}
+        <ChevronDown size={20} aria-hidden="true" className={collapsed ? 'rotate-180' : undefined} />
+      </button>
+      <div id={contentId} hidden={collapsed} className={collapsed ? 'hidden' : 'flex min-w-0 flex-col gap-3'}>{children}</div>
+  </>
+}
+
 export function Composer(props: Readonly<WebComposerProps>) {
+  const savedCollapsed = useUIStore(state => state.habitComposerCollapsed)
+  const collapsed = Boolean(props.collapsible && savedCollapsed)
   const composerRef = useRef<HTMLDivElement>(null)
   const inputDisabled = props.state !== 'idle'
   useEffect(() => {
@@ -457,6 +477,17 @@ export function Composer(props: Readonly<WebComposerProps>) {
   const showAllowanceStatus = Boolean(props.allowanceReason && props.renewalHint)
     && (props.state === 'idle' || props.state === 'sending' || props.state === 'atLimit')
 
+  const content = <>
+      {hasAttachments && props.attachWords && props.onAttachRemove ? (
+        <AttachmentTray attachments={attachments} words={props.attachWords} onRemove={props.onAttachRemove} />
+      ) : null}
+
+      <ComposerError props={props} />
+      {showAllowanceStatus ? <AllowanceStatus props={props} /> : <ComposerStatus props={props} />}
+      <ComposerInputRow props={props} />
+      {!showAllowanceStatus && props.usageMessage ? <p data-composer-usage className="m-0 t-meta leading-[1.4]">{props.usageMessage}</p> : null}
+      <RetryControl props={props} />
+  </>
   return (
     <div
       ref={composerRef}
@@ -468,17 +499,10 @@ export function Composer(props: Readonly<WebComposerProps>) {
       tabIndex={-1}
       data-has-attachments={hasAttachments ? '' : undefined}
       data-can-retry={canRetry ? '' : undefined}
-      className="@container flex shrink-0 flex-col gap-3 border-t border-[var(--hairline)] bg-[var(--bg)] p-4"
+      data-collapsed={props.collapsible ? collapsed : undefined}
+      className={`@container flex shrink-0 flex-col border-t border-[var(--hairline)] bg-[var(--bg)] ${collapsed ? 'gap-0 px-4 py-1' : 'gap-3 p-4'}`}
     >
-      {hasAttachments && props.attachWords && props.onAttachRemove ? (
-        <AttachmentTray attachments={attachments} words={props.attachWords} onRemove={props.onAttachRemove} />
-      ) : null}
-
-      <ComposerError props={props} />
-      {showAllowanceStatus ? <AllowanceStatus props={props} /> : <ComposerStatus props={props} />}
-      <ComposerInputRow props={props} />
-      {!showAllowanceStatus && props.usageMessage ? <p data-composer-usage className="m-0 t-meta leading-[1.4]">{props.usageMessage}</p> : null}
-      <RetryControl props={props} />
+      {props.collapsible ? <ComposerDisclosure collapsed={collapsed}>{content}</ComposerDisclosure> : content}
     </div>
   )
 }

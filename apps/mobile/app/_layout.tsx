@@ -278,6 +278,7 @@ function RootLayoutNav() {
             composer={!isNotFound && shellChrome.composer ? (
               <Composer
                 {...chat.composerProps}
+                collapsible={/^\/habits\/[^/]+$/.test(pathname) && pathname !== '/habits/new'}
                 suggestions={resolveComposerDockSuggestions(pathname, chat.composerProps.suggestions)}
                 onOpenConversation={() => setAstraConversationOpen(true)}
                 conversationLabel={t('todayAstra.openConversation')}
