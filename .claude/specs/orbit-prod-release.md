@@ -179,6 +179,7 @@ These are the gates every later batch runs through. Re-read each ticket against 
 - `#556` The standing `orbit-ui-mobile` `main` into `redesign/main` sync (cherry-pick with `-x` only the `main` commits added since the last carry).
 - `#746` The standing `orbit-api` `main` into `redesign/main` sync (same rule).
 - `#1647` Pin the pull request mutation comparison to the test merge commit's base (`orbit-api#869`; a moved base made the application shard test another pull request's mutants and time out).
+- `#1655` Keep the domain user mutation shard inside its job limit: mutate only the changed text spans on a pull request and split the nightly `User.cs` scope into measured span shards (`orbit-api#876` waits on it).
 
 ### Batch 0c: live defects in the shipped product, on `main`
 
