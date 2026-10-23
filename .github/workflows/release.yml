@@ -23,6 +23,15 @@ on:
         required: true
         default: main
         type: string
+      sha:
+        description: Full commit SHA (required outside production; production defaults to the dispatch commit)
+        required: false
+        type: string
+      force_unstaged:
+        description: Release production without a matching healthy staging commit
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -44,9 +53,12 @@ jobs:
       digest: ${{ steps.image.outputs.digest }}
     steps:
       - name: Validate release selection
+        id: selection
         env:
           RELEASE_ENVIRONMENT: ${{ inputs.environment }}
           SOURCE_BRANCH: ${{ inputs.branch }}
+          SOURCE_SHA: ${{ inputs.sha }}
+          DISPATCH_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           if [ "$GITHUB_REF_NAME" != main ]; then echo "::error::Dispatch release.yml from main"; exit 1; fi
@@ -56,18 +68,39 @@ jobs:
           if [ "$RELEASE_ENVIRONMENT" = production-redesign ] && [ "$SOURCE_BRANCH" != redesign/main ]; then
             echo "::error::Production redesign must build redesign/main"; exit 1
           fi
-          git check-ref-format --branch "$SOURCE_BRANCH" >/dev/null
+          if [ -z "$SOURCE_BRANCH" ] || [[ "$SOURCE_BRANCH" == refs/* ]]; then
+            echo "::error::Select a branch name"; exit 1
+          fi
+          git check-ref-format "refs/heads/$SOURCE_BRANCH" >/dev/null
+          if [ "$RELEASE_ENVIRONMENT" = production ] && [ -z "$SOURCE_SHA" ]; then SOURCE_SHA="$DISPATCH_SHA"; fi
+          if [[ ! "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]; then
+            echo "::error::Select a full 40-character commit SHA; staging and redesign require an explicit SHA"; exit 1
+          fi
+          echo "sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v7
         with:
-          ref: refs/heads/${{ inputs.branch }}
+          ref: ${{ steps.selection.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
       - uses: docker/setup-buildx-action@v4
         with:
           # Use the engine's BuildKit so setup needs no Docker Hub driver image.
           driver: docker
       - name: Resolve source
         id: source
+        env:
+          SOURCE_SHA: ${{ steps.selection.outputs.sha }}
+          SOURCE_BRANCH: ${{ inputs.branch }}
         run: |
-          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          sha=$(git rev-parse HEAD)
+          if [ "$sha" != "$SOURCE_SHA" ]; then
+            echo "::error::Checkout does not match the selected release SHA"; exit 1
+          fi
+          if ! git merge-base --is-ancestor "$SOURCE_SHA" "refs/remotes/origin/$SOURCE_BRANCH"; then
+            echo "::error::The selected release SHA is not reachable from $SOURCE_BRANCH"; exit 1
+          fi
+          echo "sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
       - uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -148,6 +181,35 @@ jobs:
     outputs:
       smoke_base_url: ${{ steps.health.outputs.smoke_base_url }}
     steps:
+      - name: Require healthy staging commit
+        if: inputs.environment == 'production'
+        env:
+          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
+          FORCE_UNSTAGED: ${{ inputs.force_unstaged }}
+          STAGING_SERVICE_ID: ${{ vars.RENDER_WEB_STAGING_SERVICE_ID }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          set -euo pipefail
+          {
+            echo '## Production staging admission'
+            echo "Selected SHA: $SOURCE_SHA"
+            echo "force_unstaged: $FORCE_UNSTAGED"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$FORCE_UNSTAGED" = true ]; then
+            echo "::notice::Operator override force_unstaged permits production release of $SOURCE_SHA without staging admission"
+            exit 0
+          fi
+          if [ -z "$STAGING_SERVICE_ID" ]; then echo "::error::Missing RENDER_WEB_STAGING_SERVICE_ID"; exit 1; fi
+          if [ -z "$RENDER_API_KEY" ]; then echo "::error::Missing production RENDER_API_KEY"; exit 1; fi
+          origin=$(curl --fail-with-body --silent --show-error --max-time 30 \
+            "https://api.render.com/v1/services/${STAGING_SERVICE_ID}" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -er '.serviceDetails.url')
+          health=$(curl --fail-with-body --silent --show-error --max-time 30 "${origin%/}/api/health")
+          if ! jq -e --arg sha "$SOURCE_SHA" '.status == "ok" and .commit == $sha' <<< "$health" >/dev/null; then
+            echo "::error::Staging must serve $SOURCE_SHA with status ok before production release; force_unstaged is the explicit override"
+            exit 1
+          fi
+          echo "Staging served $SOURCE_SHA with status ok" >> "$GITHUB_STEP_SUMMARY"
       - name: Deploy web digest
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -248,6 +310,7 @@ jobs:
           fi
           echo "deployment_url=${deployment_url}" >> "$GITHUB_OUTPUT"
           echo "Verified ${RELEASE_ENVIRONMENT} ${origin} at ${SOURCE_SHA}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Deployed SHA: $SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
       - name: Record GitHub deployment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -337,6 +400,7 @@ jobs:
           done
           echo "deployment_url=${origin}" >> "$GITHUB_OUTPUT"
           echo "Verified staging ${origin} at ${SOURCE_SHA}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Deployed SHA: $SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
       - name: Record GitHub deployment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
