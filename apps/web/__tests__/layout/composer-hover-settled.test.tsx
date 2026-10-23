@@ -34,7 +34,7 @@ beforeAll(async () => {
           ] }));
       }
       createRoot(document.getElementById('root')).render(React.createElement(MenuProbe));`, resolveDir: process.cwd(), loader: 'tsx' },
-    bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
+    bundle: true, write: false, format: 'iife', platform: 'browser', conditions: ['browser'], alias: { '@sentry/nextjs': '@sentry/react' }, jsx: 'automatic',
     define: { 'process.env.NODE_ENV': '"production"' },
   }
   menuScript = execFileSync(process.execPath, ['--input-type=module', '-e', `

@@ -246,32 +246,32 @@ describe('Hoje date control', () => {
     motionTestState.renderedStyles.clear()
   })
 
-  it.each([['en', en], ['pt-BR', ptBr]] as const)('restores every frequency choice in %s', (locale, messages) => {
+  it.each([['en', en], ['pt-BR', ptBr]] as const)('restores every frequency choice in %s', async (locale, messages) => {
     render(<NextIntlClientProvider locale={locale} messages={messages}><TodayDateControl {...baseProps} /></NextIntlClientProvider>)
-    const openFrequencies = () => {
+    const openFrequencies = async () => {
       fireEvent.click(screen.getByRole('button', { name: baseProps.moreLabel }))
-      fireEvent.click(screen.getByRole('menuitem', { name: messages.habits.frequencyFilter }))
+      fireEvent.click(await screen.findByRole('menuitem', { name: messages.habits.frequencyFilter }))
     }
     for (const [unit, label] of [
       ['Day', messages.habits.filter.daily], ['Week', messages.habits.filter.weekly],
       ['Month', messages.habits.filter.monthly], ['Year', messages.habits.filter.yearly],
       ['none', messages.habits.filter.oneTime],
     ]) {
-      openFrequencies()
+      await openFrequencies()
       expect(screen.getAllByRole('menuitemcheckbox')).toHaveLength(6)
       fireEvent.click(screen.getByRole('menuitemcheckbox', { name: label }))
       expect(useUIStore.getState().activeFilters.frequencyUnit).toBe(unit)
-      openFrequencies()
+      await openFrequencies()
       expect(screen.getByRole('menuitemcheckbox', { name: label })).toBeChecked()
       fireEvent.click(screen.getByRole('menuitemcheckbox', { name: messages.common.all }))
       expect(useUIStore.getState().activeFilters.frequencyUnit).toBeUndefined()
     }
   })
 
-  it('keeps frequency choices usable while refresh is disabled', () => {
+  it('keeps frequency choices usable while refresh is disabled', async () => {
     render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} isFetching /></NextIntlClientProvider>)
     fireEvent.click(screen.getByRole('button', { name: baseProps.moreLabel }))
-    expect(screen.getByRole('menuitem', { name: baseProps.refreshLabel })).toBeDisabled()
+    expect(await screen.findByRole('menuitem', { name: baseProps.refreshLabel })).toBeDisabled()
     fireEvent.click(screen.getByRole('menuitem', { name: en.habits.frequencyFilter }))
     fireEvent.click(screen.getByRole('menuitemcheckbox', { name: en.habits.filter.weekly }))
     expect(useUIStore.getState().activeFilters.frequencyUnit).toBe('Week')

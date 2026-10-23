@@ -38,7 +38,7 @@ beforeAll(async () => {
       import { HabitTextScaleFixture } from './__tests__/support/habit-text-scale-fixture';
       hydrateRoot(document.getElementById('habit-root'), React.createElement(HabitTextScaleFixture));`,
     resolveDir: process.cwd(), loader: 'tsx' },
-    bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
+    bundle: true, write: false, format: 'iife', platform: 'browser', conditions: ['browser'], alias: { '@sentry/nextjs': '@sentry/react' }, jsx: 'automatic',
     define: { 'process.env.NODE_ENV': '"production"', __dirname: '"/"' },
   }
   const scripts = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', `

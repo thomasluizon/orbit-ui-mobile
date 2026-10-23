@@ -1,11 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react'
+import { useCallback, useContext, useEffect, useRef, useState, type ComponentProps, type ReactNode, type RefObject } from 'react'
 import * as Primitive from '@radix-ui/react-dropdown-menu'
 import { useMenuState } from '@/hooks/use-menu-state'
 import { captureException } from '@sentry/nextjs'
-import { MenuContext, useMenu } from './dropdown-menu-context'
+import { MenuContext, MenuItemsContext, useMenu } from './dropdown-menu-context'
+import type { MenuItem } from '@orbit/shared/contracts/overlay'
 import type { ContentProps } from './dropdown-menu-content'
+import { ItemLabel } from './dropdown-menu-item'
 
 type ContentModule = typeof import('./dropdown-menu-content')
 let loadedContent: ContentModule | undefined
@@ -72,12 +74,25 @@ export function Trigger({ ref, onClick, onPointerDown, onPointerEnter, onFocus, 
 export const Portal = Primitive.Portal
 
 export function Content(props: Readonly<ContentProps>) {
-  const { open } = useMenu()
+  const { open, canRestoreFocus, triggerRef } = useMenu()
+  const firstItemRef = useRef<HTMLButtonElement>(null)
   const MenuContent = useContentModule(open)?.Content
-  return MenuContent ? <MenuContent {...props} /> : null
+  const items = props.items ?? []
+  const rows = [...items.filter((item) => !item.destructive), ...items.filter((item) => item.destructive)]
+  return MenuContent ? <MenuContent {...props} firstItemRef={firstItemRef}><MenuItems items={rows} firstItemRef={firstItemRef} /></MenuContent> : <Primitive.Content hidden onCloseAutoFocus={(event) => {
+      if (open || !canRestoreFocus()) { event.preventDefault(); return }
+      const target = props.returnFocus?.() ?? triggerRef.current
+      if (target) { event.preventDefault(); target.focus() }
+    }} />
 }
 
-export function Item(props: ComponentProps<ContentModule['Item']>) {
+function MenuItems({ items, firstItemRef }: Readonly<{ items: readonly MenuItem[]; firstItemRef: RefObject<HTMLButtonElement | null> }>) {
+  const activate = useContext(MenuItemsContext)
+  if (!activate) throw new Error('Menu items require Content')
+  return items.map((item) => <Item key={item.id} item={item} buttonRef={item === items.find((row) => !row.disabled || row.badge) ? firstItemRef : undefined} onActivate={activate} />)
+}
+
+export function Item(props: Omit<ComponentProps<ContentModule['Item']>, 'children'>) {
   const MenuItem = useContentModule(true)?.Item
-  return MenuItem ? <MenuItem {...props} /> : null
+  return MenuItem ? <MenuItem {...props}><ItemLabel item={props.item} /></MenuItem> : null
 }

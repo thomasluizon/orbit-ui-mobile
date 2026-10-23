@@ -30,6 +30,10 @@ owners and screen reservations retain their own presentation and remain reachabl
 Web triggers retain their focus and identity while menu content loads on pointer intent or focus.
 The content module is cached, and a failed prefetch can retry when the menu opens. Its first
 presentation uses the current breakpoint, so a wide menu never briefly mounts a compact sheet.
+Escape and outside presses cancel a pending opening before the content arrives. A canceled load
+never opens the menu or moves focus; the next opening can use the cached module. The rendered
+item labels remain statically connected to their callers while the headless item behavior loads
+with the content. Menus and shell breakpoints share the same server-safe viewport subscription.
 
 The web positioning helper remains for the select family. Its former menu-only anchored wrapper
 is removed. There is no separate popover component sharing the migrated menu callers.

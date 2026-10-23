@@ -148,6 +148,7 @@ it.each([
     expect(pager?.textContent).toBe(pagerText)
     expect(boundary.date).toBe(view === 'today' ? selectedDay : null)
     fireEvent.click(screen.getByRole('button', { name: en.habits.listOptions }))
+    await act(async () => { await vi.dynamicImportSettled() })
     fireEvent.click(screen.getByRole('menuitem', { name: en.common.select }))
     const row = rows().find((row) => row.textContent.includes(query))!
     fireEvent.click(within(row).getByRole('button', { name: `${query}, ${en.habits.form.typeHabit}`, pressed: false }))

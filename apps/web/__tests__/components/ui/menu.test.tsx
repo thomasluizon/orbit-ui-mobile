@@ -1,10 +1,12 @@
-import { useState, type ComponentProps } from 'react'
+import { createRef, useState, type ComponentProps } from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useUIStore } from '@/stores/ui-store'
 import { Button } from '@/components/ui/pill-button'
 import * as Menu from '@/components/ui/dropdown-menu'
+import { Content as LoadedContent } from '@/components/ui/dropdown-menu-content'
+import { renderToString } from 'react-dom/server'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
@@ -34,6 +36,12 @@ async function openMenu(waitForContent = true) {
 
 describe('headless Menu', () => {
   beforeEach(() => { vi.restoreAllMocks(); setWide(true) })
+
+  it('renders open content on the server without reading the browser viewport', () => {
+    const viewport = vi.spyOn(window, 'matchMedia').mockImplementation(() => { throw new Error('Browser viewport is unavailable during server rendering') })
+    expect(() => renderToString(<Menu.Root open><Menu.Trigger>More</Menu.Trigger><LoadedContent title="Habit actions" items={items} firstItemRef={createRef()}>{null}</LoadedContent></Menu.Root>)).not.toThrow()
+    expect(viewport).not.toHaveBeenCalled()
+  })
 
   it('opens directly as an anchored menu by keyboard without presenting a modal sheet', async () => {
     const overlays: string[] = []

@@ -102,7 +102,7 @@ describe('alerts', () => {
   })
 
   it.each(['/social?tab=buddies', '/public-profile/123', '/u/example'])(
-    'hides retired %s from the inbox and badge while preserving active rows', (url) => {
+    'hides retired %s from the inbox and badge while preserving active rows', async (url) => {
       state.notifications = [
         createMockNotification({ id: 'streak', title: 'Streak saved', url: '/streak' }),
         createMockNotification({ id: 'retired', title: 'Retired notification', url }),
@@ -117,6 +117,7 @@ describe('alerts', () => {
         expect(screen.getByRole('button', { name: new RegExp(`^${title}\\.`) })).toBeInTheDocument()
       }
       fireEvent.click(screen.getByRole('button', { name: en.notifications.options }))
+      await act(async () => { await vi.dynamicImportSettled() })
       fireEvent.click(screen.getByRole('menuitem', { name: en.notifications.markAllReadMenu }))
       expect(state.markAll).toHaveBeenCalledOnce()
     },
@@ -221,11 +222,12 @@ describe('alerts', () => {
     expect(glyph).toHaveAttribute('aria-hidden', 'true')
   })
 
-  it('uses canonical ghost list and read actions and a destructive detail delete', () => {
+  it('uses canonical ghost list and read actions and a destructive detail delete', async () => {
     seed(1)
     showInbox()
     expect(screen.getByRole('button', { name: 'Delete: Alert 0' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: en.notifications.options }))
+    await act(async () => { await vi.dynamicImportSettled() })
     for (const name of [en.notifications.markAllReadMenu, en.notifications.deleteAll]) {
       expect(screen.getByRole('menuitem', { name })).toBeInTheDocument()
     }
@@ -238,13 +240,14 @@ describe('alerts', () => {
   it.each([
     ['en', 'Mark all read', 'Mark as read'],
     ['pt-BR', 'Marcar lidos', 'Marcar como lido'],
-  ] as const)('keeps bulk and single read actions distinct in %s', (locale, bulkLabel, singleLabel) => {
+  ] as const)('keeps bulk and single read actions distinct in %s', async (locale, bulkLabel, singleLabel) => {
     state.locale = locale
     seed(1)
     showInbox()
 
     const messages = locale === 'en' ? en : pt
     fireEvent.click(screen.getByRole('button', { name: messages.notifications.options }))
+    await act(async () => { await vi.dynamicImportSettled() })
     expect(screen.getByRole('dialog', { name: messages.notifications.options })).toBeInTheDocument()
     expect(within(screen.getByRole('menu', { name: messages.notifications.options })).getByRole('menuitem', { name: bulkLabel })).toBeInTheDocument()
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'close-overlay' }))
@@ -368,14 +371,15 @@ describe('alerts', () => {
     expect(screen.getByRole('button', { name: `Reminder. ${messages.notifications.read}. ${messages.notifications.habit}` })).toBeInTheDocument()
   })
 
-  it('marks all read and removes the header action at zero', () => {
+  it('marks all read and removes the header action at zero', async () => {
     seed(2)
     const view = showInbox()
-    chooseInboxAction(en.notifications.markAllReadMenu)
+    await chooseInboxAction(en.notifications.markAllReadMenu)
     view.rerender(<NotificationInbox />)
     expect(screen.queryByRole('button', { name: en.notifications.markAllReadMenu })).toBeNull()
     expect(screen.getAllByRole('button', { name: /Alert \d. read/ })).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: en.notifications.options }))
+    await act(async () => { await vi.dynamicImportSettled() })
     expect(screen.getByRole('menuitem', { name: 'Clear all' })).toBeInTheDocument()
   })
 
@@ -407,12 +411,12 @@ describe('alerts', () => {
   it.each([
     ['en', 'All 50 alerts leave the list. There is no way to undo this.'],
     ['pt-BR', 'Os 50 avisos saem da lista. Não há como desfazer.'],
-  ])('confirms the full scope and irreversible clear in %s, asks first, and clears pending undo', (locale, confirmBody) => {
+  ])('confirms the full scope and irreversible clear in %s, asks first, and clears pending undo', async (locale, confirmBody) => {
     state.locale = locale
     seed(50)
     const messages = locale === 'en' ? en : pt
     const view = showInbox()
-    chooseInboxAction(messages.notifications.deleteAll)
+    await chooseInboxAction(messages.notifications.deleteAll)
     expect(screen.getByText(confirmBody)).toBeInTheDocument()
     const actions = screen.getByRole('dialog').querySelector<HTMLElement>('[data-slot="action-row"]')!
     expect(actions.style.justifyContent).toBe('flex-end')
@@ -423,7 +427,7 @@ describe('alerts', () => {
     fireEvent.click(screen.getByRole('button', { name: messages.common.cancel }))
     expect(screen.getAllByRole('listitem')).toHaveLength(50)
     deleteFromSheet('Alert 0')
-    chooseInboxAction(messages.notifications.deleteAll)
+    await chooseInboxAction(messages.notifications.deleteAll)
     fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteAllAction }))
     view.rerender(<><NotificationInbox /><NotificationDeleteNotice /></>)
     expect(screen.getByText(messages.notifications.empty)).toBeInTheDocument()
@@ -435,12 +439,12 @@ describe('alerts', () => {
   it.each([
     ['en', 'The alert leaves the list. There is no way to undo this.'],
     ['pt-BR', 'O aviso sai da lista. Não há como desfazer.'],
-  ])('names the one visible alert in the clear confirmation in %s', (locale, confirmBody) => {
+  ])('names the one visible alert in the clear confirmation in %s', async (locale, confirmBody) => {
     state.locale = locale
     seed(1)
     const messages = locale === 'en' ? en : pt
     showInbox()
-    chooseInboxAction(messages.notifications.deleteAll)
+    await chooseInboxAction(messages.notifications.deleteAll)
     expect(screen.getByText(confirmBody)).toBeInTheDocument()
   })
 
@@ -498,8 +502,9 @@ describe('alerts', () => {
   })
 })
 
-function chooseInboxAction(label: string) {
+async function chooseInboxAction(label: string) {
   const messages = state.locale === 'en' ? en : pt
   fireEvent.click(screen.getByRole('button', { name: messages.notifications.options }))
+  await act(async () => { await vi.dynamicImportSettled() })
   fireEvent.click(screen.getByRole('menuitem', { name: label }))
 }

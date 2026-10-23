@@ -464,6 +464,7 @@ describe('Calendar header geometry in Chromium', () => {
 
   it.each([{ width: 412, height: 56 }, { width: 1280, height: 48 }])('retains shared menu row height at $width', async ({ width, height }) => {
     render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC"><Menu.Root open={true}><Menu.Trigger asChild><button type="button" aria-label="Menu trigger" /></Menu.Trigger><Menu.Content presentation="sheet" title={ptBR.calendar.options} items={[{ id: 'legend', label: ptBR.calendar.legendTitle }]}  /></Menu.Root></NextIntlClientProvider>)
+    await screen.findByRole('menu')
     const portal = document.querySelector('.orbit-sheet-portal')!
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {

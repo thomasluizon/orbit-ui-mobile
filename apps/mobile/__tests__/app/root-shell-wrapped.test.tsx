@@ -123,6 +123,7 @@ vi.mock('@/stores/ui-store', () => ({
       setAstraConversationOpen: (open: boolean) => { createState.conversationOpen = open },
       setShowCreateModal: createState.showCreate,
       todayFabHidden: false,
+      openOverlayIds: [],
       lastDestination: 'hoje',
       setLastDestination: createState.setLastDestination,
     }),

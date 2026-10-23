@@ -190,6 +190,12 @@ function AllowanceStatus({ props }: Readonly<{ props: ComposerProps }>) {
   </div>
 }
 
+function ComposerControlIcon({ voiceActive, recording }: Readonly<{ voiceActive: boolean; recording: boolean }>) {
+  return voiceActive
+    ? <Square size={16} fill="currentColor" aria-hidden="true" className={recording ? undefined : 'text-[var(--fg-3)]'} />
+    : <Plus size={20} strokeWidth={2} aria-hidden="true" className="text-[var(--fg-3)]" />
+}
+
 function ComposerControls({ props, onPaste, onClear }: Readonly<{ props: WebComposerProps; onPaste?: () => void; onClear?: () => void }>) {
   const compactMenu = useContext(CompactComposerMenuContext)
   const [open, setOpen] = useState(false)
@@ -209,8 +215,8 @@ function ComposerControls({ props, onPaste, onClear }: Readonly<{ props: WebComp
       aria-haspopup={voiceActive ? undefined : 'menu'} aria-controls={open && !disabled && !voiceActive ? menuId : undefined}
       aria-expanded={voiceActive ? undefined : open && !disabled} data-focus-on-primary={isRecording ? '' : undefined}
       disabled={disabled} onClick={voiceActive ? props.onVoice : undefined}
-      className={`flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-40 ${isRecording ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-transparent text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)]'}`}>
-      {voiceActive ? <Square size={16} fill="currentColor" aria-hidden="true" /> : <Plus size={20} strokeWidth={2} aria-hidden="true" />}
+      className={`flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-40 ${isRecording ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-transparent enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)]'}`}>
+      <ComposerControlIcon voiceActive={voiceActive} recording={isRecording} />
     </button></Menu.Trigger>
     <Menu.Content id={menuId} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
   </div></Menu.Root>
