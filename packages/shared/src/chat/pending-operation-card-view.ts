@@ -83,7 +83,7 @@ interface PendingOperationFrameBase<Node> {
     editable?: boolean
     control?: Node
     icon?: string
-    rename?: PreviewItemTitleProps['rename']
+    rename?: NonNullable<PreviewItemTitleProps['rename']>
   }[]
   proposedLabel?: string
   irreversibleLabel: string

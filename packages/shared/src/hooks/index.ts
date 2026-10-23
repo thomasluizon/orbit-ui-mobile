@@ -26,3 +26,4 @@ export { createGoalProgressEntry, reduceGoalProgressEntry, getGoalProgressEntryR
 export * from './goal-creation-core'
 export * from './goal-linking-core'
 export * from './goal-habit-picker-core'
+export * from './preview-title-core'

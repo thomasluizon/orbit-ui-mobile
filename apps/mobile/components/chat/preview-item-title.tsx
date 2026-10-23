@@ -22,8 +22,12 @@ export function PreviewItemTitle(props: Readonly<PreviewItemTitleProps>) {
   }, [title.editing, title.restoreFocus])
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const titleColor = (pressed: boolean) => {
+    if (!props.proposed) return tokens.fg1
+    return pressed || interacting ? tokens.fg2 : tokens.fg3
+  }
   if (title.editing && props.rename) return <Input hideLabel autoFocus label={props.rename.label} value={title.draft} onChange={title.setDraft} onSubmit={() => void title.save(true)} onBlur={() => void title.save()} onCancel={title.cancel} disabled={props.rename.disabled} />
-  return <InsetFocusPressable ref={controlRef} accessibilityRole="button" accessibilityLabel={props.title} accessibilityState={{ disabled: props.rename?.disabled, ...(!props.rename ? { expanded } : {}) }} disabled={props.rename?.disabled} onPress={props.rename ? title.start : () => setExpanded(!expanded)} onFocus={() => setInteracting(true)} onBlur={() => setInteracting(false)} onHoverIn={() => setInteracting(true)} onHoverOut={() => setInteracting(false)} style={({ pressed }) => [styles.row, { backgroundColor: pressed || interacting ? tokens.bgHover : 'transparent' }]}>{({ pressed }) => <>{props.icon ? <Text accessible={false} style={[styles.text, { color: tokens.fg1 }]}>{props.icon}</Text> : null}<View style={styles.words}><PersonalText expanded={!props.rename && expanded} style={{ ...styles.text, color: props.proposed ? pressed || interacting ? tokens.fg2 : tokens.fg3 : tokens.fg1 }}>{props.title}</PersonalText></View></>}</InsetFocusPressable>
+  return <InsetFocusPressable ref={controlRef} accessibilityRole="button" accessibilityLabel={props.title} accessibilityState={{ disabled: props.rename?.disabled, ...(!props.rename ? { expanded } : {}) }} disabled={props.rename?.disabled} onPress={props.rename ? title.start : () => setExpanded(!expanded)} onFocus={() => setInteracting(true)} onBlur={() => setInteracting(false)} onHoverIn={() => setInteracting(true)} onHoverOut={() => setInteracting(false)} style={({ pressed }) => [styles.row, { backgroundColor: pressed || interacting ? tokens.bgHover : 'transparent' }]}>{({ pressed }) => <>{props.icon ? <Text accessible={false} style={[styles.text, { color: tokens.fg1 }]}>{props.icon}</Text> : null}<View style={styles.words}><PersonalText expanded={!props.rename && expanded} style={{ ...styles.text, color: titleColor(pressed) }}>{props.title}</PersonalText></View></>}</InsetFocusPressable>
 }
 
 const styles = StyleSheet.create({
