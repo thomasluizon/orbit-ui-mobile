@@ -477,7 +477,7 @@ it.each(['en', 'pt-BR'] as const)('keeps all approved native examples, single ta
     expect(example ? text(example) : undefined).toBe(PROMPT_PRESENTATION[template.id].example ? prompt : undefined)
     const description = PROMPT_PRESENTATION[template.id].example ? prompt : undefined
     expect(target.props.accessibilityLabel).toBe(label)
-    expect(target.props.accessibilityHint).toBe(findPromptSlot(prompt) ? description : description ? `${description} ${i18n.t('chat.title')}` : i18n.t('chat.title'))
+    expect(target.props.accessibilityHint).toBe(description || undefined)
     expect(target.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(1)
     expect(target.props.accessibilityState.disabled).toBe(false)
     expect(target.findAll(node => typeof node.type === 'string' && node.props.testID === 'prompt-attribution').length).toBe(findPromptSlot(prompt) ? 0 : 1)
@@ -501,7 +501,7 @@ it.each(['en', 'pt-BR'] as const)('describes native request and preparation acti
       const target = button(label)
       expect(hosts().filter(node => node.props.accessibilityRole === 'button')).toHaveLength(1)
       expect(target.props.accessibilityLabel).toBe(label)
-      expect(target.props.accessibilityHint).toBe(invokesAstra ? example ? `${prompt} ${i18n.t('chat.title')}` : i18n.t('chat.title') : example)
+      expect(target.props.accessibilityHint).toBe(example)
       expect(target.props.accessibilityState.disabled).toBe(false)
       onSelect.mockClear()
       press(label)
@@ -526,7 +526,7 @@ it.each(['en', 'pt-BR'] as const)('describes actual live request callbacks and k
   for (const suggestion of suggestions) {
     const target = button(suggestion.label)
     expect(target.props.accessibilityLabel).toBe(suggestion.label)
-    expect(target.props.accessibilityHint).toBe(i18n.t('chat.title'))
+    expect(target.props.accessibilityHint).toBeUndefined()
     expect(target.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(1)
   }
   press(suggestions[0]!.label)

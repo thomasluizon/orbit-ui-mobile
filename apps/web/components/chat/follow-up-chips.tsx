@@ -16,9 +16,9 @@ export function FollowUpChips({ followUps, onSelect }: Readonly<{
         key={text}
         type="button"
         onClick={() => onSelect(text)}
-        aria-label={`${text}, ${t('nav.astra')}`}
+        aria-label={text}
         className="min-h-[var(--touch-min)] w-full min-w-0 max-w-full rounded-[12px] bg-[var(--bg-well)] px-4 py-3 text-start text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
-      ><span className="block whitespace-normal leading-[1.4] [overflow-wrap:anywhere]">{text}</span><span className="mt-2 flex items-center gap-2" translate="no"><AstraGlyph size={16} />{t('nav.astra')}</span></button>)}
+      ><span className="block whitespace-normal leading-[1.4] [overflow-wrap:anywhere]">{text}</span><span className="mt-2 flex items-center gap-2" translate="no"><AstraGlyph size={16} /></span></button>)}
     </div>
   </div>
 }

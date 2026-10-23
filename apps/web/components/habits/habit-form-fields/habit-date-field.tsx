@@ -37,7 +37,7 @@ function DateConsultation({ editor, snapshot }: Readonly<{ editor: HabitDateEdit
     {canAsk ? <div className="flex min-w-0 flex-col items-start gap-4">
       {atLimit ? <CapacityNotice message={t('habits.form.aiSuggestLimitReached')} /> : null}
       {!isOnline ? <CapacityNotice message={t('shell.composer.offline.reason')} /> : null}
-      <PillButton minimumHeight={48} retainLeadingIcon leadingIcon={<AstraGlyph size={16} />} accessibleName={t('habits.form.askDate')} variant="ghost" disabled={!isOnline || atLimit || snapshot.pending || snapshot.capacity} loading={snapshot.pending} onClick={() => void editor.ask(isOnline, atLimit)}>{t('habits.form.askDate')}</PillButton>
+      <PillButton minimumHeight={48} retainLeadingIcon leadingIcon={<AstraGlyph size={16} />} accessibleName={t('habits.form.suggestDate')} variant="ghost" disabled={!isOnline || atLimit || snapshot.pending || snapshot.capacity} loading={snapshot.pending} onClick={() => void editor.ask(isOnline, atLimit)}>{t('habits.form.suggestDate')}</PillButton>
       <p className="text-xs text-[var(--fg-3)]">{t('habits.form.askAstraCost', { allowance: profile?.aiMessagesLimit ?? 5 })}</p>
     </div> : null}
     <p aria-live="polite" className="empty:hidden text-sm text-[var(--status-bad-text)]">{snapshot.capacity ? '' : snapshot.failure ?? ''}</p>

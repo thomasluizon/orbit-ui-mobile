@@ -66,7 +66,9 @@ describe('Follow-up question rows', () => {
     const rows = tree.root.findAll(node => node.type === 'Pressable')
     expect(rows).toHaveLength(2)
     rows.forEach((row, index) => {
-      expect(row.props.accessibilityLabel).toBe(`${questions[index]}, Astra`)
+      expect(row.props.accessibilityLabel).toBe(questions[index])
+      expect(row.findAll(node => node.type === 'Text' && node.props.children === 'Astra')).toHaveLength(0)
+      expect(row.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-mark-16')).toHaveLength(1)
       TestRenderer.act(() => { (row.props.onPress as () => void)() })
       expect(onSelect).toHaveBeenLastCalledWith(questions[index])
     })

@@ -313,15 +313,15 @@ describe('Composer', () => {
     }
   })
 
-  it.each([en, ptBR])('attributes each suggestion once with the canonical decorative Astra mark', messages => {
+  it.each([en, ptBR])('shows each suggestion action with only the decorative mark', messages => {
     astraCopy.name = messages.nav.astra
     const chips = suggestions(3)
     const view = render(<Composer {...props({ suggestions: chips })} />)
     try {
       const controls = within(screen.getByRole('group', { name: words.suggestionsLabel })).getAllByRole('button')
       for (const [index, control] of controls.entries()) {
-        expect(control).toHaveAccessibleName(`${chips[index]!.label}, ${messages.nav.astra}`)
-        expect(within(control).getAllByText(messages.nav.astra, { exact: true })).toHaveLength(1)
+        expect(control).toHaveAccessibleName(chips[index]!.label)
+        expect(within(control).queryByText(messages.nav.astra, { exact: true })).not.toBeInTheDocument()
         expect(control.querySelectorAll('svg')).toHaveLength(1)
         expect(control.querySelector('svg')).toHaveAttribute('data-asset', 'astra-mark-16')
         expect(control.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
@@ -336,7 +336,7 @@ describe('Composer', () => {
   it.each(['idle', 'sending', 'offline', 'atLimit', 'recording', 'transcribing'] as const)(
     'reserves send progress but mounts its animation only while sending: %s', state => {
       const view = render(<Composer {...props({ state, value: 'Draft', limitReason: 'reason', onVoice: vi.fn(), voiceWords })} />)
-      const send = screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })
+      const send = screen.getByRole('button', { name: words.send })
       const mark = send.querySelector('[data-asset="astra-mark"]')
       expect(mark).toHaveAttribute('aria-hidden', 'true')
       expect(send.querySelectorAll('svg')).toHaveLength(state === 'sending' ? 2 : 1)
@@ -382,14 +382,14 @@ describe('Composer', () => {
     render(<ControlledComposer />)
     const input = screen.getByRole('textbox')
     fireEvent.change(input, { target: { value: 'First\nSecond' } })
-    expect(screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })).toBeEnabled()
+    expect(screen.getByRole('button', { name: words.send })).toBeEnabled()
     const clear = screen.getByRole('button', { name: words.clear })
     clear.focus()
     fireEvent.click(clear)
     expect(onChangeValue).toHaveBeenLastCalledWith('')
     expect(input).toHaveValue('')
     expect(input).toHaveFocus()
-    expect(screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })).toBeDisabled()
+    expect(screen.getByRole('button', { name: words.send })).toBeDisabled()
     expect(screen.queryByRole('button', { name: words.clear })).not.toBeInTheDocument()
     expect(onAttachRemove).not.toHaveBeenCalled()
     if (attached) expect(screen.getByText('walk.png')).toBeInTheDocument()
@@ -549,7 +549,7 @@ describe('Composer', () => {
   it('keeps focus in the composer when a selected chip disappears', () => {
     const chips = suggestions(3)
     const view = render(<Composer {...props({ suggestions: chips })} />)
-    fireEvent.click(screen.getByRole('button', { name: `${chips[0]!.label}, nav.astra` }))
+    fireEvent.click(screen.getByRole('button', { name: chips[0]!.label }))
     expect(document.activeElement).toHaveAttribute('data-composer-root')
     view.rerender(<Composer {...props({ suggestions: chips, state: 'sending' })} />)
     expect(document.activeElement).toHaveAttribute('data-composer-root')
@@ -558,7 +558,7 @@ describe('Composer', () => {
   it('selects only the pressed suggestion', () => {
     const chips = suggestions(3)
     render(<Composer {...props({ suggestions: chips })} />)
-    fireEvent.click(screen.getByRole('button', { name: `${chips[1]!.label}, nav.astra` }))
+    fireEvent.click(screen.getByRole('button', { name: chips[1]!.label }))
     expect(chips[1]!.onSelect).toHaveBeenCalledOnce()
     expect(chips[0]!.onSelect).not.toHaveBeenCalled()
     expect(chips[2]!.onSelect).not.toHaveBeenCalled()
@@ -595,14 +595,14 @@ describe('Composer', () => {
   it.each(['', '   '])('does not send a blank value %j', (value) => {
     const onSend = vi.fn()
     render(<Composer {...props({ value, onSend })} />)
-    fireEvent.click(screen.getByRole('button', { name: `${words.send}, habits.form.askDate` }))
+    fireEvent.click(screen.getByRole('button', { name: words.send }))
     expect(onSend).not.toHaveBeenCalled()
   })
 
   it('sends a nonblank value once', () => {
     const onSend = vi.fn()
     render(<Composer {...props({ value: 'oi', onSend })} />)
-    fireEvent.click(screen.getByRole('button', { name: `${words.send}, habits.form.askDate` }))
+    fireEvent.click(screen.getByRole('button', { name: words.send }))
     expect(onSend).toHaveBeenCalledOnce()
   })
 
@@ -618,7 +618,7 @@ describe('Composer', () => {
     ['transcribing', { state: 'transcribing', value: 'oi', onVoice: vi.fn(), voiceWords }, false, true],
   ] as const)('styles the send control for %s', (_case, overrides, accented, disabled) => {
     render(<Composer {...props(overrides)} />)
-    const send = screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })
+    const send = screen.getByRole('button', { name: words.send })
     if (accented) expect(send).toHaveAttribute('data-accent', '')
     else expect(send).not.toHaveAttribute('data-accent')
     expect(send).toHaveClass(accented ? 'bg-[var(--primary)]' : 'bg-[var(--bg-well)]')
@@ -650,7 +650,7 @@ describe('Composer', () => {
         })}
       />,
     )
-    const send = screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })
+    const send = screen.getByRole('button', { name: words.send })
     expect(send).toBeDisabled()
     fireEvent.click(send)
     expect(onSend).not.toHaveBeenCalled()
@@ -675,7 +675,7 @@ describe('Composer', () => {
   it('disables input and send and hides suggestions during sending', () => {
     render(<Composer {...props({ state: 'sending', value: 'oi' })} />)
     expect(screen.getByRole('textbox', { name: words.placeholder })).toBeDisabled()
-    const send = screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })
+    const send = screen.getByRole('button', { name: words.send })
     expect(send).toBeDisabled()
     expect(send).toHaveAttribute('aria-busy', 'true')
     expect(send.querySelector('.orbit-essential-loading')).not.toBeNull()
@@ -687,7 +687,7 @@ describe('Composer', () => {
     expect(screen.getByText('limit sentinel')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: words.suggestionsLabel })).not.toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: words.placeholder })).toBeDisabled()
-    expect(screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })).toBeDisabled()
+    expect(screen.getByRole('button', { name: words.send })).toBeDisabled()
     expect(container.querySelector('[data-accent]')).toBeNull()
   })
 
@@ -767,7 +767,7 @@ describe('Composer', () => {
         })}
       />,
     )
-    const send = screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })
+    const send = screen.getByRole('button', { name: words.send })
     expect(send).toBeEnabled()
     fireEvent.click(send)
     expect(onSend).toHaveBeenCalledOnce()
@@ -798,10 +798,10 @@ describe('Composer', () => {
     const onRetry = vi.fn()
     const retryWords = { ...words, retry: 'retry sentinel' }
     const { rerender } = render(<Composer {...props({ words: retryWords, onRetry })} />)
-    fireEvent.click(screen.getByRole('button', { name: `${retryWords.retry}, nav.astra` }))
+    fireEvent.click(screen.getByRole('button', { name: retryWords.retry }))
     expect(onRetry).toHaveBeenCalledOnce()
     rerender(<Composer {...props()} />)
-    expect(screen.queryByRole('button', { name: `${retryWords.retry}, nav.astra` })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: retryWords.retry })).not.toBeInTheDocument()
   })
 
   it('uses the placeholder word as both placeholder and accessible name', () => {
@@ -810,8 +810,8 @@ describe('Composer', () => {
   })
 
   it.each([
-    ['pt-BR', ptBR.shell.composer.placeholder, 'Peça à Astra'],
-    ['en', en.shell.composer.placeholder, 'Ask Astra'],
+    ['pt-BR', ptBR.shell.composer.placeholder, 'O que você quer fazer?'],
+    ['en', en.shell.composer.placeholder, 'What would you like to do?'],
   ])('shows the %s composer placeholder', (_locale, placeholder, expected) => {
     render(<Composer {...props({ words: { ...words, placeholder } })} />)
     expect(placeholder).toBe(expected)

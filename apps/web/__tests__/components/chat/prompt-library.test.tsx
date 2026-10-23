@@ -175,7 +175,7 @@ it('renders the live composer labels as rows and reuses their activation', async
   const live = screen.getByRole('region', { name: 'For you now' })
   await waitFor(() => expect(within(live).getByRole('heading', { name: 'For you now', level: 2 })).toBeVisible())
   expect(within(live).getAllByRole('button').map(button => button.getAttribute('aria-label'))).toEqual(suggestions.map(suggestion => suggestion.label))
-  expect(within(live).getAllByRole('button').map(button => button.textContent)).toEqual(suggestions.map(suggestion => `${suggestion.label}Astra`))
+  expect(within(live).getAllByRole('button').map(button => button.textContent)).toEqual(suggestions.map(suggestion => suggestion.label))
   fireEvent.click(within(live).getAllByRole('button')[0]!)
   expect(onSelect).toHaveBeenCalledOnce()
   expect(onBack).toHaveBeenCalledOnce()

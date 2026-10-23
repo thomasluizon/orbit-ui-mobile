@@ -235,7 +235,7 @@
     "openPalette": "Open command palette",
     "composer": {
       "usage": "Messages today: {used} of {limit}",
-      "placeholder": "Ask Astra",
+      "placeholder": "What would you like to do?",
       "send": "Send",
       "clear": "Clear message",
       "paste": "Paste",
@@ -325,7 +325,7 @@
           "rename": "Rename the habit \"{title}\""
         }
       },
-      "inputLabel": "Ask Astra",
+      "inputLabel": "What would you like to do?",
       "actions": "Add"
     }
   },
@@ -569,7 +569,7 @@
       "loadError": "Could not load habits."
     },
     "createHabit": "Create habit",
-    "askAstra": "Ask Astra",
+    "askAstra": "Start conversation",
     "createManually": "Create manually",
     "createSubHabit": "Create Sub-Habit",
     "editHabit": "Edit habit",
@@ -625,7 +625,7 @@
       "skip": "Skip",
       "openSubHabits": "Open the sub habits",
       "unlog": "Mark incomplete",
-      "rescheduleAstra": "Reschedule with Astra",
+      "rescheduleAstra": "Reschedule",
       "reschedule": "Reschedule"
     },
     "reschedule": {
@@ -713,7 +713,7 @@
       "understood": "Orbit understood",
       "understoodAstra": "Astra understood",
       "unresolved": "Orbit did not find how often in this phrase. Pick the days or a number of times a week.",
-      "askAstra": "Ask Astra",
+      "askAstra": "Interpret request",
       "askAstraCost": "Uses 1 of today's {allowance} messages.",
       "astraReading": "Astra is reading the phrase",
       "localReadLimit": "Today's {allowance} Astra messages are used. Orbit reads the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.",
@@ -772,7 +772,8 @@
       "dateInvalid": "That date doesn't exist. Choose another.",
       "dateBudgetReached": "Astra has reached today's limit. Choose the date on the calendar.",
       "dateStale": "Choose the date on the calendar.",
-      "askDate": "Ask Astra",
+      "askDate": "Suggest",
+      "suggestDate": "Suggest date",
       "acceptDate": "Use date",
       "dateProposed": "Astra suggested this date.",
       "dateConfirmationRequired": "Use the suggested date or choose another in the calendar.",
@@ -995,7 +996,7 @@
       "inside": "What is inside",
       "addSubHabit": "Add sub-habit",
       "linkedGoals": "Goals",
-      "askAstra": "Ask Astra",
+      "askAstra": "Review habit",
       "moreDetails": "More details",
       "schedule": "Frequency",
       "noValue": "Not set",
@@ -1552,7 +1553,7 @@
       }
     },
     "empty": {
-      "title": "Talk to Astra"
+      "title": "Start conversation"
     },
     "attachImage": "Attach image",
     "send": "Send message",
@@ -2863,7 +2864,7 @@
     "loading": "Checking in on your day...",
     "error": "Couldn't load your summary. Try again.",
     "retry": "Try again",
-    "askAstra": "Ask Astra",
+    "askAstra": "Review summary",
     "upgrade": "Upgrade",
     "freePrompt": "Pro gets a daily summary of your habits."
   },
@@ -3030,7 +3031,7 @@
       "calendarButton": "Import calendar",
       "importTitle": "Import from another app?",
       "importDescription": "Coming from another habit tracker? Astra can recreate your habits. Attach a file or paste your list.",
-      "importButton": "Import with Astra",
+      "importButton": "Import habits",
       "importNotNow": "Not now"
     },
     "featureGuide": {
@@ -3488,7 +3489,7 @@
       "historyDate": "Date: {date}",
       "historyDelta": "Change: {delta} {unit}",
       "historyProgress": "Progress: {current} of {target} {unit}",
-      "askAstraEyebrow": "Ask Astra",
+      "askAstraEyebrow": "Review goal",
       "askAstraDefault": "Want a weekly check-in plan for this?",
       "askAstraSeedDefault": "Help me set up a weekly check-in plan for my goal \"{title}\".",
       "statusLabel": "Status"
@@ -3980,7 +3981,7 @@
       "items": {
         "createHabit": "Create your first habit",
         "logHabit": "Log a habit today",
-        "tryAstra": "Ask Astra anything"
+        "tryAstra": "What would you like to do?"
       },
       "progress": "{done} of {total} done",
       "complete": "You're all set.",
