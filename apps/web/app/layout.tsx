@@ -59,7 +59,6 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://app.useorbit.org'),
     description,
-    manifest: '/manifest.webmanifest',
     icons: {
       icon: [
         { url: '/favicon.ico', type: 'image/x-icon' },
@@ -154,6 +153,7 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{

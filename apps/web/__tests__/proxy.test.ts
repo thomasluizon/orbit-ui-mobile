@@ -9,7 +9,7 @@ import {
   setSessionCookies,
 } from '@/lib/auth-api'
 import nextConfig from '../next.config'
-import manifest from '../app/manifest'
+import { createManifest } from '@/lib/manifest'
 
 vi.mock('next-intl/server', () => ({ getTranslations: async () => (key: string) => key }))
 import { POST as issueEventTicket } from '@/app/api/events/ticket/route'
@@ -297,7 +297,7 @@ describe('proxy', () => {
   })
 
   it('keeps every public install asset outside the auth proxy', async () => {
-    for (const path of ['/manifest.webmanifest', ...(await manifest()).icons!.map(({ src }) => src)]) {
+    for (const path of ['/manifest.webmanifest', ...(await createManifest()).icons!.map(({ src }) => src)]) {
       expect(unstable_doesMiddlewareMatch({
         config,
         url: `http://localhost:3000${path}?v=1`,

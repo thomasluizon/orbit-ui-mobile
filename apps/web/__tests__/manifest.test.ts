@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { createTranslator } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import manifest from '../app/manifest'
+import { createManifest } from '@/lib/manifest'
 
 const request = vi.hoisted(() => ({ locale: 'en' }))
 vi.mock('next-intl/server', () => ({
@@ -18,7 +18,7 @@ describe('web app manifest', () => {
   it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])(
     'publishes desktop installation metadata in $locale', async ({ locale, messages }) => {
       request.locale = locale
-      expect(await manifest()).toEqual({
+      expect(await createManifest()).toEqual({
         id: '/',
         scope: '/',
         name: 'Orbit',
