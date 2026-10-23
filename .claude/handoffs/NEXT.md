@@ -14,7 +14,7 @@ Check free disk first (`df -g /System/Volumes/Data`); the floor is 50 GiB (55 at
 
 ## Goal
 
-Finish the spec: every requested production fix, the Astra overhaul, the owner reports, deferred asset and email work, verified releases and an empty board, in `## The order`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: open 73, placed 73, unplaced 0, placed twice 0 (`#1661`, `#1665`, `#1666`, `#1667` closed and their bullets removed). Newly filed scope gets exactly one order bullet in the session it arrives. An external interruption is the only earlier ending.
+Finish the spec: every requested production fix, the Astra overhaul, the owner reports, deferred asset and email work, verified releases and an empty board, in `## The order`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: open 74, placed 74, unplaced 0, placed twice 0 (`#1661`, `#1665`, `#1666`, `#1667` closed and their bullets removed; `#1668` new, first in Batch 0c). Newly filed scope gets exactly one order bullet in the session it arrives. An external interruption is the only earlier ending.
 
 ## In flight
 
@@ -23,6 +23,7 @@ UI `main` is `3f9f10c8`, API `main` is `78ca5334`, landing `main` is `0d5e3df4`.
 | Item | Disposition |
 | --- | --- |
 | Android `1.3.93` | Verify run 40019771480's Play upload, then Play Open availability (Play Console Open testing through `claude-in-chrome`, one tab, close it after). It carries `#1994` and `#1995` to Android; then update `#1613`'s Android acceptance. |
+| `#1668` | NEW owner order, FIRST launch: `launch-new-ticket.sh ui 1668 <new worktree from new-worktrees.sh> main deep` (the ticket body is the order). Remove the visible word "Astra" beside the Astra mark on every surface and the name from the placeholder (copy approved with `/second-opinion`), and make the habit detail composer collapsible. |
 | `ui#2002` (`#1588`) | Round 2 pushed at `c7f87cda2398e26fe08886bbf5bc3ad6aeebee93` with the body rewritten (hover and press paint only inside the 28px radius-12 check; empty check takes the hover fill, done check the opaque hover layer; red-first on both platforms). Wait on CI and a fresh review, merge, release web staging then production, and the next Android Open. |
 | `ui#1984` (`#577`) | Round 4 commits `a341f152c` and `2a7c0617d` are local in `ticket-577-headless-overlays`, not pushed: the root rerun passed 217 and failed 6 (`repro-1984/layout.log`, traces in `repro-1984/results/`). Launch round 5 with `launch-review-round.sh ui 577 <worktree> main max r5 <scratchpad>/note-1984-r5.md "<reason>"` once 50 GiB is free, rerun the eight spec files at root with `repro-1984.sh`, push only on `layout exit=0`. |
 | q6 | `check-q6/summary.txt` and `DONE` (main `0d624955` plus `ui#1903` `268fe9898` plus `ui#1993` `8d1f79d4d`; web Vitest, build and layout still running at the relay). On `OVERALL fail=0`, merge both at those heads if `base-overlap.sh 1903 1993` shows no file shared with `#1992`'s lockfile change; otherwise a new combined check. |
@@ -37,7 +38,7 @@ UI `main` is `3f9f10c8`, API `main` is `78ca5334`, landing `main` is `0d5e3df4`.
 ## Then, in this order
 
 1. Answer any owner message first, in his language, and give each order a ticket or a rescope before the turn ends.
-2. Verify Android `1.3.93` on Play.
+2. Launch `#1668` (owner order), then verify Android `1.3.93` on Play.
 3. Merge `ui#2002` when green and approved; launch `ui#1984` round 5; read q6 and merge `ui#1903` and `ui#1993`; release web staging then production after each set of merges.
 4. `orbit-api#877` round 4, then `#876`; the Dependabot lockfile pull requests one at a time.
 5. Follow `## The order` for everything else, keeping the pool full under the load gate and the disk floor.
