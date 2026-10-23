@@ -31,6 +31,15 @@ const pinnedPaneBackground = {
   backgroundColor: 'var(--bg-elev)',
 } as const
 
+function readGridScroll(node: HTMLDivElement, previous: Readonly<{ top: number; left: number }>) {
+  const movedVertically = isCalendarGridScrollMovement(node.scrollTop, previous.top, node.scrollHeight - node.clientHeight)
+  const clampedTop = !movedVertically && node.scrollTop < previous.top
+  return {
+    moved: movedVertically || isCalendarGridScrollMovement(node.scrollLeft, previous.left, node.scrollWidth - node.clientWidth),
+    position: { top: clampedTop ? previous.top : node.scrollTop, left: node.scrollLeft },
+  }
+}
+
 export interface TimeGridColumn {
   date: Date
   dateStr: string
@@ -191,6 +200,7 @@ export function CalendarTimeGrid({
   const [disclosure, setDisclosure] = useAccountScopedState<{ entries: CalendarDayEntry[]; title: string } | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const [isPanePinned, setIsPanePinned] = useState(true)
+  const [scrollGeometry, setScrollGeometry] = useState({ snapMargin: 0, trailingSpace: 0 })
   const [now, setNow] = useState<Date>(() => nowDate())
   const nowMinutes = getAccountDateTime(now, timeZone).minutes
 
@@ -220,10 +230,10 @@ export function CalendarTimeGrid({
   const longestHourLabel = Math.max(...HOURS.map((hour) => displayTime(`${String(hour).padStart(2, '0')}:00`).length))
   const gutterWidth = `max(96px, calc(${longestHourLabel}ch + 16px))`
   const columnMinWidth = `${minColumnWidth / 16}rem`
-  const columnSnapStyle = { scrollSnapAlign: 'start', scrollMarginInlineEnd: 'var(--time-grid-snap-margin, 0px)' } as const
+  const columnSnapStyle = { scrollSnapAlign: 'start', scrollMarginInlineEnd: scrollGeometry.snapMargin } as const
   const columnTrack = `minmax(${columnMinWidth}, 1fr)`
-  const gridTemplate = `${gutterWidth} repeat(${columns.length}, ${columnTrack}) var(--time-grid-trailing-space, 0px)`
-  const gridMinWidth = `calc(${gutterWidth} + ${columns.length} * ${columnMinWidth} + var(--time-grid-trailing-space, 0px))`
+  const gridTemplate = `${gutterWidth} repeat(${columns.length}, ${columnTrack}) ${scrollGeometry.trailingSpace}px`
+  const gridMinWidth = `calc(${gutterWidth} + ${columns.length} * ${columnMinWidth} + ${scrollGeometry.trailingSpace}px)`
 
   const hasMovedGrid = useRef(false)
   const openingScroll = useRef({ top: 0, left: 0 })
@@ -231,9 +241,9 @@ export function CalendarTimeGrid({
     const node = bodyRef.current
     if (!node) return
     const open = () => {
-      if (isCalendarGridScrollMovement(node.scrollTop, openingScroll.current.top, node.scrollHeight - node.clientHeight)
-        || isCalendarGridScrollMovement(node.scrollLeft, openingScroll.current.left, node.scrollWidth - node.clientWidth)) hasMovedGrid.current = true
-      openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
+      const scroll = readGridScroll(node, openingScroll.current)
+      hasMovedGrid.current ||= scroll.moved
+      openingScroll.current = hasMovedGrid.current ? scroll.position : { top: node.scrollTop, left: node.scrollLeft }
       const paneHeight = node.firstElementChild?.clientHeight ?? 0
       const shouldPin = paneHeight <= node.clientHeight / 2
       if (shouldPin !== isPanePinned) {
@@ -245,17 +255,19 @@ export function CalendarTimeGrid({
       const measuredHour = hourLabels[1]!.offsetTop - hourLabels[0]!.offsetTop
       const scale = measuredHour > 0 ? measuredHour / HOUR_HEIGHT : 1
       const bodyHeight = Math.max(0, node.clientHeight - pinnedHeight)
-      node.style.setProperty('--time-grid-tail', `${Math.max(128 * scale, bodyHeight * 0.75)}px`)
+      const retainedTail = hasMovedGrid.current ? openingScroll.current.top + node.clientHeight - paneHeight - HOURS.length * HOUR_HEIGHT * scale : 0
+      node.style.setProperty('--time-grid-tail', `${Math.max(128 * scale, bodyHeight * 0.75, retainedTail)}px`)
       node.style.scrollPaddingTop = `${pinnedHeight}px`
       const gutter = node.querySelector<HTMLElement>('[data-testid="time-grid-any-time-label"]')?.parentElement?.clientWidth ?? 0
       const viewportWidth = node.clientWidth - gutter
       const measuredColumnWidth = node.querySelector('[data-testid="time-grid-col-header"]')?.getBoundingClientRect().width ?? 0
       const fitsSnapport = measuredColumnWidth > 0 && measuredColumnWidth <= viewportWidth + INTERACTION_FILL_CLEARANCE
       node.style.scrollSnapType = fitsSnapport ? 'x mandatory' : 'x proximity'
-      node.style.setProperty('--time-grid-snap-margin', fitsSnapport ? `${-measuredColumnWidth}px` : '0px')
       const { trailingSpace } = resolveCalendarGridOpeningScroll(columns.length - 1, minColumnWidth * scale, viewportWidth, columns.length)
-      node.style.setProperty('--time-grid-trailing-space', `${trailingSpace}px`)
-      if (hasMovedGrid.current || isLoading || bodyHeight <= 0) return
+      const snapMargin = fitsSnapport ? -measuredColumnWidth : 0
+      setScrollGeometry((current) => current.snapMargin === snapMargin && current.trailingSpace === trailingSpace ? current : { snapMargin, trailingSpace })
+      if (hasMovedGrid.current) { node.scrollTop = openingScroll.current.top; return }
+      if (isLoading || bodyHeight <= 0) return
       const firstTop = Math.min(7 * HOUR_HEIGHT, ...perColumn.flatMap(({ timed }) => timed.map(({ top }) => top)))
       node.scrollTop = Math.max(0, columns.some(({ isToday }) => isToday)
         ? (getAccountDateTime(nowDate(), timeZone).minutes / 60) * HOUR_HEIGHT * scale - bodyHeight / 4
@@ -315,9 +327,9 @@ export function CalendarTimeGrid({
           ref={bodyRef}
           onScroll={(event) => {
             const node = event.currentTarget
-            if (isCalendarGridScrollMovement(node.scrollTop, openingScroll.current.top, node.scrollHeight - node.clientHeight)
-              || isCalendarGridScrollMovement(node.scrollLeft, openingScroll.current.left, node.scrollWidth - node.clientWidth)) hasMovedGrid.current = true
-            openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
+            const scroll = readGridScroll(node, openingScroll.current)
+            hasMovedGrid.current ||= scroll.moved
+            openingScroll.current = hasMovedGrid.current ? scroll.position : { top: node.scrollTop, left: node.scrollLeft }
           }}
           onWheel={() => { hasMovedGrid.current = true }}
           onTouchMove={() => { hasMovedGrid.current = true }}
@@ -353,7 +365,7 @@ export function CalendarTimeGrid({
                       gap: 4,
                     }}
                   >
-                    <span aria-hidden="true" className="orbit-calendar-week-header-fill pointer-events-none absolute rounded-[inherit] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:bg-[var(--bg-hover)] group-active:bg-[var(--bg-hover)]"
+                    <span aria-hidden="true" data-press-fill="" className="orbit-calendar-week-header-fill pointer-events-none absolute rounded-[inherit] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:bg-[var(--bg-hover)] group-active:bg-[var(--bg-hover)]"
                       style={{ inset: INTERACTION_FILL_CLEARANCE }} />
                     <span
                       className="relative"

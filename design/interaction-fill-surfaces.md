@@ -100,6 +100,9 @@ its columns cannot scroll beneath the gutter. Chromium shell cases mount the liv
 compact and wide widths, including 320px and doubled text, after small, mid-column and terminal
 offsets while retaining arbitrary vertical offsets. Wheel, keyboard and scroll-into-view cases
 retain their settled position through a refetch and a viewport-height change.
+When a refetch shortens the pinned pane, web extends the hour tail and restores a clamped offset.
+Android reserves the retained offset plus viewport height in both synchronized scroll containers.
+Both retain upward scrolling after the pane or viewport changes.
 
 The mounted native `calendar-time-grid.test.tsx` exercises the actual header and InsetFocusPressable
 in both themes and locales. Its real installed Hover gesture uses the registry and event receiver

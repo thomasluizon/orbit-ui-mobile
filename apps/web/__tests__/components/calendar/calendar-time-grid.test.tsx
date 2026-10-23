@@ -189,7 +189,7 @@ describe('CalendarTimeGrid', () => {
     renderGrid([col], dayMap)
 
     expect(screen.getByTestId('time-grid-all-day-band')).toHaveStyle({
-      gridTemplateColumns: 'max(96px, calc(5ch + 16px)) repeat(1, minmax(12rem, 1fr)) var(--time-grid-trailing-space, 0px)',
+      gridTemplateColumns: 'max(96px, calc(5ch + 16px)) repeat(1, minmax(12rem, 1fr)) 0px',
     })
     for (const block of screen.getAllByTestId('time-grid-event')) {
       expect(block).toHaveStyle({ minWidth: '48px' })

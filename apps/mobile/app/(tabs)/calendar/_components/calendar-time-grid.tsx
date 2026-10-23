@@ -331,6 +331,7 @@ export function CalendarTimeGrid({
   const gutterScrollRef = useRef<ScrollView>(null);
   const columnsScrollRef = useRef<ScrollView>(null);
   const [bodyHeight, setBodyHeight] = useState(0);
+  const [retainedScrollTop, setRetainedScrollTop] = useState(0);
   const [paneLayout, setPaneLayout] = useState({ height: 0, isLoading });
   const paneHeight = paneLayout.height;
   const isPanePinned = paneHeight <= bodyHeight / 2;
@@ -406,6 +407,7 @@ export function CalendarTimeGrid({
       if (isCalendarGridScrollMovement(offset, openingScroll.current.top, maximumTravel)) hasMovedGrid.current = true;
     }
     openingScroll.current.top = offset;
+    if (hasMovedGrid.current) setRetainedScrollTop(offset);
     scrollViewToY(gutterScrollRef.current, offset);
   };
 
@@ -430,6 +432,7 @@ export function CalendarTimeGrid({
             <ScrollView
               ref={gutterScrollRef}
               style={{ flex: 1, minHeight: 0 }}
+              contentContainerStyle={{ minHeight: retainedScrollTop + bodyHeight }}
               scrollEnabled={false}
               showsVerticalScrollIndicator={false}
               stickyHeaderIndices={isPanePinned ? [0] : []}
@@ -478,6 +481,7 @@ export function CalendarTimeGrid({
               <ScrollView
                 ref={bodyScrollRef}
                 style={{ flex: 1, minHeight: 0 }}
+                contentContainerStyle={{ minHeight: retainedScrollTop + bodyHeight }}
                 testID="time-grid-hour-scroller"
                 stickyHeaderIndices={isPanePinned ? [0] : []}
                 onLayout={(event) => setBodyHeight(event.nativeEvent.layout.height)}

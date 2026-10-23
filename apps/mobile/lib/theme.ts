@@ -133,7 +133,7 @@ export interface AppTokensV2 {
   primary: string
   primaryHover: string
   primaryPressed: string
-  /** "r, g, b" channels of `primary` for alpha tints (never hardcode violet). */
+  /** "r, g, b" channels of `primary` for alpha tints (never hardcode accent channels). */
   primaryRgb: string
   /** Soft accent foreground resolved for the active canvas. */
   primarySoft: string

@@ -531,6 +531,33 @@ describe("CalendarTimeGrid (mobile)", () => {
     } finally { __setScrollToImpl(() => {}); }
   });
 
+  it.each([600, 1080])("keeps the settled scroll extent at %s reachable when the pane shrinks", (offset) => {
+    const tree = renderGrid([column('2026-10-08')], new Map());
+    const body = () => hostsByTestID(tree, 'time-grid-hour-scroller')[0]!;
+    const pane = () => hostsByTestID(tree, 'time-grid-day-pane')[0]!;
+    TestRenderer.act(() => {
+      body().props.onLayout({ nativeEvent: { layout: { width: 800, height: 464 } } });
+      pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: 178 } } });
+      body().props.onScrollBeginDrag();
+      body().props.onScroll({ nativeEvent: {
+        contentOffset: { x: 0, y: offset }, contentSize: { width: 800, height: 1678 },
+        layoutMeasurement: { width: 800, height: 464 },
+      } });
+    });
+    TestRenderer.act(() => pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: 126 } } }));
+    for (const height of [464, 384, 544]) {
+      TestRenderer.act(() => body().props.onLayout({ nativeEvent: { layout: { width: 800, height } } }));
+      const scrollers = tree.root.findAll((node) => node.type === 'ScrollView' && !node.props.horizontal);
+      expect(scrollers).toHaveLength(2);
+      for (const scroller of scrollers) expect(resolveStyle(scroller.props.contentContainerStyle).minHeight).toBeGreaterThanOrEqual(offset + height);
+    }
+    TestRenderer.act(() => body().props.onScroll({ nativeEvent: {
+      contentOffset: { x: 0, y: 120 }, contentSize: { width: 800, height: 1678 },
+      layoutMeasurement: { width: 800, height: 544 },
+    } }));
+    expect(resolveStyle(body().props.contentContainerStyle).minHeight).toBe(120 + 544);
+  });
+
   it.each([false, true])("opens loaded concurrent lanes once and respects prior dragging (dragged=%s)", (dragged) => {
     const scrollTo = vi.fn();
     __setScrollToImpl(scrollTo);

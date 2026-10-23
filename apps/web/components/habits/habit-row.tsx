@@ -278,7 +278,7 @@ export function HabitRow({
   )
 
   return (
-    <HabitRowLayout measureRef={rowRef} habitTitle={habit.title} depth={depth} state={graphicState} selected={selected}
+    <HabitRowLayout measureRef={rowRef} habitId={habit.id} habitTitle={habit.title} depth={depth} state={graphicState} selected={selected}
       isChild={isChild} supportingMeta={supportingMeta}>
       {rowContents}
     </HabitRowLayout>
@@ -345,8 +345,9 @@ function HabitRowSupportingFooter({ meta, largeText, descriptionPresent }: Reado
   )
 }
 
-function HabitRowLayout({ measureRef, habitTitle, depth, state, selected, isChild, supportingMeta, children }: Readonly<{
+function HabitRowLayout({ measureRef, habitId, habitTitle, depth, state, selected, isChild, supportingMeta, children }: Readonly<{
   measureRef: RefCallback<HTMLDivElement>
+  habitId: string
   habitTitle: string
   depth: number
   state: HabitStatus
@@ -358,7 +359,7 @@ function HabitRowLayout({ measureRef, habitTitle, depth, state, selected, isChil
   const minHeight = isChild ? 52 : 68
   const contentLayoutClass = supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : 'items-center gap-0'
   return (
-    <div ref={measureRef} data-testid="habit-row" data-habit-title={habitTitle} data-depth={depth} data-status={state} tabIndex={-1}
+    <div ref={measureRef} data-testid="habit-row" data-habit-id={habitId} data-habit-title={habitTitle} data-depth={depth} data-status={state} tabIndex={-1}
       className={`habit-row relative rounded-[20px] ${selected ? 'bg-[var(--selection-bg)]' : 'bg-[var(--bg-card)]'} ${supportingMeta ? 'grid' : 'flex'} ${contentLayoutClass}`}
       style={{ minHeight }}>
       {children}

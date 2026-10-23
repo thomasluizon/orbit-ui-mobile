@@ -926,10 +926,9 @@
    ═══════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════
-   DARK MODE — navy canvas (handoff slate ramp), translucent surfaces.
-   Opaque neutrals derive via the locked OKLCH ramp (L/C fixed
-   per token, per-token hue drift from the canvas hue).
-   Alpha surfaces are scheme-independent constants.
+   Dark mode: near-black canvas (#09090B), neutral surface steps.
+   Shared theme tokens supply neutral and alpha surfaces; this block
+   supplies dark shadows and the date-icon filter.
    ═══════════════════════════════════════════════════════ */
 :root.dark, .dark {
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.20);
@@ -962,8 +961,8 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-   Semantic type classes (Rubik = sans, Inter = display,
-   Roboto = mono-role with tabular numerals)
+   Semantic type classes (Geist Sans = sans, Space Grotesk = display,
+   Geist Mono = mono with tabular numerals)
    ═══════════════════════════════════════════════════════ */
 
 @layer components {

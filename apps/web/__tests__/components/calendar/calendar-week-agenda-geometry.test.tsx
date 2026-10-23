@@ -8,6 +8,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { enUS, ptBR as ptLocale } from 'date-fns/locale'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
@@ -43,12 +44,39 @@ describe('Week and agenda geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
+  let weekScript: string
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch }, {
     ignoreDefaultArgs: ['--hide-scrollbars'],
   })
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    weekScript = execFileSync(resolve(process.cwd(), '../../node_modules/.bin/esbuild'), [
+      '--bundle', '--loader=tsx', '--jsx=automatic', '--format=iife', '--platform=browser',
+      '--define:process.env.NODE_ENV="production"', '--define:process.env={}',
+    ], { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024, input: `
+      import React from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { NextIntlClientProvider } from 'next-intl';
+      import { enUS } from 'date-fns/locale';
+      import en from '../../packages/shared/src/i18n/en.json';
+      import { CalendarTimeGrid } from './components/calendar/calendar-time-grid';
+      const fixture = JSON.parse(document.getElementById('week-fixture').textContent);
+      const columns = fixture.columns.map(column => ({ ...column, date: new Date(column.date) }));
+      const root = createRoot(document.getElementById('week-grid'));
+      const timeLabel = ${timeLabel.toString()};
+      function draw(isLoading) {
+        root.render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+          <div data-live-week="" style={{ height: 640, display: 'flex', flexDirection: 'column' }}>
+            <CalendarTimeGrid columns={columns} dayMap={new Map(columns.map(({ dateStr }) => [dateStr, [fixture.entry]]))}
+              onSelectDay={() => {}} displayTime={timeLabel} dateFnsLocale={enUS} allDayLabel={en.calendar.timeGrid.noSetTime}
+              nowLabel={en.calendar.timeGrid.now} timeZone="UTC" isLoading={isLoading} />
+          </div>
+        </NextIntlClientProvider>);
+      }
+      draw(true);
+      document.addEventListener('week-loaded', () => draw(false));
+    ` })
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
@@ -63,7 +91,7 @@ describe('Week and agenda geometry in Chromium', () => {
     const view = render(grid(true))
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+      await page.setContent(`<style>${stylesheet}</style><div id="week-grid">${view.container.innerHTML}</div><script id="week-fixture" type="application/json">${JSON.stringify({ columns, entry })}</script>`)
       await loadAppFonts(page)
       const measured = await page.evaluate(() => {
         const scroller = document.querySelector<HTMLElement>('[data-time-grid-scroller]')!
@@ -75,17 +103,19 @@ describe('Week and agenda geometry in Chromium', () => {
       Object.defineProperty(view.getByTestId('time-grid-any-time-label').parentElement!, 'clientWidth', { configurable: true, value: measured.gutter })
       vi.spyOn(view.container.querySelector<HTMLElement>('[data-today="true"]')!, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, measured.column, 1280))
       view.rerender(grid(false))
-      const geometry = await page.evaluate(({ left, trailingSpace, todayIndex }) => {
+      await page.addScriptTag({ content: weekScript })
+      await page.locator('[data-live-week] [data-time-grid-scroller]').waitFor()
+      await page.evaluate(() => document.dispatchEvent(new Event('week-loaded')))
+      await expect.poll(() => page.locator('[data-time-grid-scroller]').evaluate((element) => element.scrollLeft)).toBeCloseTo(scroller.scrollLeft, 1)
+      const geometry = await page.evaluate((todayIndex) => {
         const scroller = document.querySelector<HTMLElement>('[data-time-grid-scroller]')!
-        scroller.style.setProperty('--time-grid-trailing-space', trailingSpace)
-        scroller.scrollLeft = left
         const gutter = document.querySelector('[data-testid="time-grid-any-time-label"]')!.parentElement!.getBoundingClientRect()
         const visible = [...document.querySelectorAll('[data-testid="time-grid-day-column"]')].map((column) => column.getBoundingClientRect()).filter((bounds) => bounds.right > gutter.right + 0.5)
         const today = document.querySelector('[data-today="true"]')!.getBoundingClientRect()
         const headers = [...document.querySelectorAll('[data-testid="time-grid-col-header"]')]
         const firstHeader = headers.find((header) => header.getBoundingClientRect().right > gutter.right + 0.5)!
         return { left: scroller.scrollLeft, firstStart: visible[0]!.left, firstPaintStart: firstHeader.firstElementChild!.getBoundingClientRect().left, gutterEnd: gutter.right, todayStart: today.left, todayEnd: today.right, todayPaintEnd: headers[todayIndex]!.firstElementChild!.getBoundingClientRect().right, viewportEnd: scroller.getBoundingClientRect().left + scroller.clientWidth }
-      }, { left: scroller.scrollLeft, trailingSpace: scroller.style.getPropertyValue('--time-grid-trailing-space'), todayIndex })
+      }, todayIndex)
       expect(geometry.left).toBeCloseTo(scroller.scrollLeft, 1)
       expect(geometry.firstStart).toBeCloseTo(geometry.gutterEnd, 1)
       expect(geometry.firstPaintStart - geometry.gutterEnd).toBeCloseTo(4, 1)

@@ -180,7 +180,7 @@ describe('Calendar week through the destination shell and route transition', () 
     } finally { await page.close(); view.unmount() }
   })
 
-  it.each(['wheel', 'scrollIntoView', 'keyboard'] as const)('holds a settled %s position through refetch and resize', async (input) => {
+  it.each((['wheel', 'scrollIntoView', 'keyboard'] as const).flatMap((input) => [600, 1080].map((top) => ({ input, top }))))('holds a settled $input position at $top through refetch and resize', async ({ input, top }) => {
     route.pathname = '/calendar'
     const view = renderDestination(weekBody())
     const page = await browser.newPage({ viewport: { width: 412, height: 640 } })
@@ -205,13 +205,17 @@ describe('Calendar week through the destination shell and route transition', () 
       else if (input === 'scrollIntoView') await page.getByTestId('time-grid-col-header').first().evaluate((element) => element.scrollIntoView({ inline: 'start', block: 'nearest' }))
       else { await page.getByTestId('time-grid-col-header').nth(3).focus(); await page.keyboard.press('ArrowLeft') }
       await expect.poll(async () => (await position()).left).toBeLessThan(opening.left - 100)
+      await scroller.evaluate((element, top) => { element.scrollTop = top }, top)
       const held = await position()
       expect(held.left % 192).toBe(0)
+      expect(held.top).toBe(top)
       await page.evaluate(() => document.dispatchEvent(new Event('week-refetch')))
       await expect.poll(() => page.getByTestId('time-grid-all-day-more').count()).toBe(0)
       expect(await position()).toEqual(held)
       await page.setViewportSize({ width: 412, height: 560 })
       expect(await position()).toEqual(held)
+      await scroller.evaluate((element) => { element.scrollTop = 120 })
+      expect((await position()).top).toBe(120)
     } finally { await page.close(); view.unmount() }
   })
 

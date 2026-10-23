@@ -30,9 +30,14 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn().mockResolvedValue({ id: 'created-goal' }),
   showError: vi.fn(),
   pending: false,
+  habitFormReady: Promise.resolve(),
   habits: { data: { habitsById: new Map<string, ReturnType<typeof createMockHabit>>() }, isLoading: false, isError: false, refetch: vi.fn() },
 }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
+vi.mock('@/components/habits/create-habit-modal', async () => {
+  await mocks.habitFormReady
+  return { CreateHabitModal: (props: Record<string, unknown>) => React.createElement('CreateHabitModal', props) }
+})
 vi.mock('@/hooks/use-goals', () => ({ useCreateGoal: () => ({ mutateAsync: mocks.create, isPending: mocks.pending }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => mocks.habits }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError }) }))
@@ -73,6 +78,75 @@ async function openHabitPicker(tree: TestTree) {
 }
 
 describe('goal creation with habits', () => {
+  it.each(['Standard', 'Streak'])('explains selected bad habits for %s goals', async (goalType) => {
+    const habit = createMockHabit({ id: 'habit-caffeine', title: 'Caffeine', isBadHabit: true })
+    mocks.habits.data.habitsById.set(habit.id, habit)
+    const tree = await mount()
+    const text = (key: string) => tree.root.findAll((node) => node.type === 'Text' && node.props.children === key)
+    const note = goalType === 'Streak' ? 'goals.form.avoidedDays' : 'goals.form.loggedSlips'
+    const excluded = goalType === 'Streak' ? 'goals.form.loggedSlips' : 'goals.form.avoidedDays'
+    expect(text('goals.form.habitsExplainer')).toHaveLength(1)
+    if (goalType === 'Streak') {
+      await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'segment-Streak-unselected-enabled')[0]!.props.onPress())
+    }
+    await openHabitPicker(tree)
+    expect(text('goals.form.avoidedDays')).toHaveLength(0)
+    expect(text('goals.form.loggedSlips')).toHaveLength(0)
+    await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === habit.title)[0]!.props.onPress())
+    expect(text(note)).toHaveLength(1)
+    expect(text(excluded)).toHaveLength(0)
+    await TestRenderer.act(() => button(tree, 'common.done').props.onClick())
+    expect(text(note)).toHaveLength(1)
+    expect(text(excluded)).toHaveLength(0)
+    await TestRenderer.act(() => tree.unmount())
+  })
+
+  it('updates bad-habit guidance when the goal type changes', async () => {
+    const habit = createMockHabit({ id: 'habit-caffeine', title: 'Caffeine', isBadHabit: true })
+    mocks.habits.data.habitsById.set(habit.id, habit)
+    const tree = await mount()
+    const text = (key: string) => tree.root.findAll((node) => node.type === 'Text' && node.props.children === key)
+    await openHabitPicker(tree)
+    await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === habit.title)[0]!.props.onPress())
+    await TestRenderer.act(() => button(tree, 'common.done').props.onClick())
+    for (const [type, note, excluded] of [
+      ['Streak', 'goals.form.avoidedDays', 'goals.form.loggedSlips'],
+      ['Standard', 'goals.form.loggedSlips', 'goals.form.avoidedDays'],
+    ]) {
+      await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === `segment-${type}-unselected-enabled`)[0]!.props.onPress())
+      expect(text(note!)).toHaveLength(1)
+      expect(text(excluded!)).toHaveLength(0)
+      await openHabitPicker(tree)
+      expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === habit.title)[0]!.props.accessibilityState).toMatchObject({ selected: true })
+      expect(text(note!)).toHaveLength(1)
+      expect(text(excluded!)).toHaveLength(0)
+      await TestRenderer.act(() => button(tree, 'common.done').props.onClick())
+    }
+    await TestRenderer.act(() => tree.unmount())
+  })
+
+  it('waits for picker dismissal before creating a habit and preserves the goal draft', async () => {
+    let finishLoad!: () => void
+    mocks.habitFormReady = new Promise<void>((resolve) => { finishLoad = resolve })
+    const tree = await mount()
+    await fillGoal(tree)
+    await openHabitPicker(tree)
+    sheetTestControls.defer(true)
+    await TestRenderer.act(() => button(tree, 'habits.createHabit').props.onClick())
+    expect(button(tree, 'habits.createHabit').props).toMatchObject({ disabled: true, loading: true })
+    expect(tree.root.findAllByType('CreateHabitModal')).toHaveLength(0)
+    await TestRenderer.act(async () => { finishLoad(); await import('@/components/habits/create-habit-modal') })
+    expect(tree.root.findAllByType('CreateHabitModal')).toHaveLength(0)
+    await TestRenderer.act(() => sheetTestControls.completeDismissal())
+    expect(tree.root.findAllByType('CreateHabitModal')).toHaveLength(1)
+    sheetTestControls.defer(false)
+    await TestRenderer.act(() => (tree.root.findByType('CreateHabitModal').props.onClose as () => void)())
+    await TestRenderer.act(() => button(tree, 'common.done').props.onClick())
+    expect(tree.root.findAll((node) => node.type === 'GoalInput' && node.props.accessibilityLabel === 'goals.form.title')[0]!.props.value).toBe('Read every day')
+    expect(mocks.create).not.toHaveBeenCalled()
+    await TestRenderer.act(() => tree.unmount())
+  })
+
   it('rejects empty, negative and nonnumeric targets, missing units and missing titles', async () => {
     for (const [target, unit, title] of [['', 'books', 'Read'], ['-1', 'books', 'Read'], ['abc', 'books', 'Read'], ['2', '', 'Read'], ['2', 'books', '']]) {
       const tree = await mount()
@@ -89,19 +163,23 @@ describe('goal creation with habits', () => {
   it('saves the selected habits and deadline and waits for native dismissal', async () => {
     const habit = createMockHabit({ id: 'habit-reading', title: 'Read' })
     mocks.habits.data.habitsById.set(habit.id, habit)
+    const secondHabit = createMockHabit({ id: 'habit-library', title: 'Visit the library' })
+    mocks.habits.data.habitsById.set(secondHabit.id, secondHabit)
     const onClose = vi.fn()
     const tree = await mount(onClose)
     await fillGoal(tree)
     await openHabitPicker(tree)
     const habitRow = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === habit.title)[0]!
     await TestRenderer.act(() => habitRow.props.onPress())
+    await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === secondHabit.title)[0]!.props.onPress())
     await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss').at(-1)!.props.onPress())
     const addDeadline = tree.root.findAll((node) => node.type === 'Pressable' && node.findAll((child) => child.type === 'Text' && child.props.children === 'goals.form.addDeadline').length > 0)[0]!
     await TestRenderer.act(() => addDeadline.props.onPress())
     await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'DateField')[0]!.props.onChange('2099-12-01'))
     sheetTestControls.defer(true)
     await TestRenderer.act(async () => { await button(tree, 'goals.create').props.onClick() })
-    expect(mocks.create).toHaveBeenCalledWith({ title: 'Read every day', type: 'Standard', targetValue: 12, unit: 'books', deadline: '2099-12-01', habitIds: [habit.id] })
+    expect(mocks.create).toHaveBeenCalledWith({ title: 'Read every day', type: 'Standard', targetValue: 12, unit: 'books', deadline: '2099-12-01', habitIds: [habit.id, secondHabit.id] })
+    expect(mocks.create).toHaveBeenCalledOnce()
     expect(onClose).not.toHaveBeenCalled()
     await TestRenderer.act(() => sheetTestControls.completeDismissal())
     expect(onClose).toHaveBeenCalledOnce()
@@ -144,7 +222,7 @@ describe('goal creation with habits', () => {
     expect(mocks.habits.refetch).toHaveBeenCalledOnce()
     mocks.habits.isError = false
     await TestRenderer.act(() => tree.update(<CreateGoalSheet open onClose={onClose} />))
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'habits.emptyState')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'goals.form.habitsInvitation')).toHaveLength(1)
     await TestRenderer.act(() => button(tree, 'common.done').props.onClick())
     expect(tree.root.findAll((node) => node.type === 'GoalInput' && node.props.accessibilityLabel === 'goals.form.title')[0]!.props.value).toBe('Read every day')
   })
