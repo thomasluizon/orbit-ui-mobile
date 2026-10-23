@@ -1,3 +1,5 @@
+import { ChatBlock } from '@/components/chat/block-registry'
+import { chatNavigationCases } from '@orbit/shared/test-support/chat-navigation-fixtures'
 import React from 'react'
 import { act, create } from 'react-test-renderer'
 import { Pressable, View } from 'react-native'
@@ -164,5 +166,17 @@ it.each(['child', 'bad'] as const)('keeps a completed %s row outside the parent 
   const tree = render(<DaySummaryCard daySummary={snapshot} />)
   expect(renderedText(tree.toJSON())).toContain('chat.daySummary.doneOfDue:{"done":0,"due":1}')
   expect(tree.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]!.props.accessibilityValue).toEqual(expect.objectContaining({ now: 0 }))
+  void act(() => tree.unmount())
+})
+
+vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
+
+it.each(chatNavigationCases)('closes Astra before routing from $name', ({ part, label, mobile }) => {
+  state.push.mockImplementation(() => expect(useUIStore.getState().astraConversationOpen).toBe(false))
+  state.goals.set('goal-1', createMockGoal({ id: 'goal-1' }))
+  const tree = render(<ChatBlock part={part} onActionChipClick={undefined} />)
+  press(tree, label)
+  expect(state.push).toHaveBeenCalledWith(mobile)
+  expect(useUIStore.getState().astraConversationOpen).toBe(false)
   void act(() => tree.unmount())
 })

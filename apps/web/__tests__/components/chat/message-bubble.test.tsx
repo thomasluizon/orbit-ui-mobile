@@ -1,3 +1,4 @@
+import { useUIStore } from '@/stores/ui-store'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 
@@ -285,6 +286,7 @@ describe('MessageBubble', () => {
   })
 
   it('renders a related-surfaces footer that deep-links known surfaces', () => {
+    useUIStore.getState().setAstraConversationOpen(true)
     render(
       <MessageBubble
         message={makeMessage({
@@ -299,6 +301,7 @@ describe('MessageBubble', () => {
     const link = screen.getByRole('button', { name: 'chat.related.surface.gamification' })
     fireEvent.click(link)
     expect(push).toHaveBeenCalledWith('/progress/achievements')
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
     expect(screen.queryByText('mystery')).not.toBeInTheDocument()
   })
 

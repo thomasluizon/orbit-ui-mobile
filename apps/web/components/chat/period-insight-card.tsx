@@ -10,7 +10,8 @@ import type { PeriodInsightCard as PeriodInsightData } from '@orbit/shared/types
 import { mapCompletionSeries } from '@orbit/shared/utils'
 import { BarChart } from '@/components/ui/bar-chart'
 import { BlockFrame } from './read-block-frame'
-import { Button, PillLink } from '@/components/ui/pill-button'
+import { Button } from '@/components/ui/pill-button'
+import { ChatLink } from './chat-link'
 
 export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: PeriodInsightData }>) {
   const t = useTranslations()
@@ -61,7 +62,7 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
         body={body}
         actions={<>
           <Button variant="ghost" size="sm" expanded={expanded} hasPopup={false} onClick={() => setExpanded(!expanded)}>{t(expanded ? 'chat.readBlock.less' : 'chat.habitList.more')}</Button>
-          <PillLink variant="ghost" size="sm" href="/progress">{t('chat.insight.progressLink')}</PillLink>
+          <ChatLink variant="ghost" size="sm" href="/progress">{t('chat.insight.progressLink')}</ChatLink>
         </>}
       />
     </div>

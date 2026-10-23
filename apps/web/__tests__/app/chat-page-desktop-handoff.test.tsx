@@ -72,8 +72,8 @@ vi.mock('next-intl', () => ({
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: { setAstraConversationOpen: typeof mocks.setOpen }) => unknown) =>
-    selector({ setAstraConversationOpen: mocks.setOpen }),
+  useUIStore: Object.assign((selector: (state: { setAstraConversationOpen: typeof mocks.setOpen }) => unknown) =>
+    selector({ setAstraConversationOpen: mocks.setOpen }), { getState: () => ({ setAstraConversationOpen: mocks.setOpen }) }),
 }))
 vi.mock('@/components/ui/app-bar', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/app-bar')>()),
