@@ -41,7 +41,7 @@
     "date-fns": "^4.4.0",
     "html-entities": "2.6.0",
     "marked": "18.0.9",
-    "zod": "^4.4.3"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@fast-check/vitest": "^0.4.1",
