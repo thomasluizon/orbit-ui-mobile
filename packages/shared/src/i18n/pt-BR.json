@@ -715,7 +715,7 @@
       "understood": "O Orbit entendeu",
       "understoodAstra": "A Astra entendeu",
       "unresolved": "O Orbit não encontrou a frequência nessa frase. Escolha os dias ou um número de vezes por semana.",
-      "askAstra": "Interpretar pedido",
+      "askAstra": "Sugerir frequência",
       "askAstraCost": "Usa 1 das {allowance} mensagens de hoje.",
       "astraReading": "A Astra está lendo a frase",
       "localReadLimit": "As {allowance} mensagens da Astra de hoje foram usadas. O Orbit lê a frase neste aparelho, e criar um hábito não usa mensagem. Escolha os dias ou um número de vezes por semana.",
