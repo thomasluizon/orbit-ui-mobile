@@ -60,24 +60,32 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
-            synchronized(OrbitWidgetModule.accountRenderLock) {
-                try {
-                    renderWidget(context, appWidgetManager, appWidgetId)
-                } catch (_: Exception) {
-                    runCatching {
-                        val fallback = RemoteViews(context.packageName, R.layout.widget_layout)
-                        applyOpenAppActions(context, fallback)
-                        fallback.setViewVisibility(R.id.widget_list, View.GONE)
-                        if (isSignedOut(context)) {
-                            applySignedOutCard(context, fallback)
-                        } else {
-                            showRefresh(fallback)
-                            fallback.setViewVisibility(R.id.widget_loading, View.VISIBLE)
-                        }
-                        appWidgetManager.updateAppWidget(appWidgetId, fallback)
-                    }
+            try {
+                OrbitWidgetModule.widgetPublisher.publish(
+                    build = { renderWidget(context, appWidgetManager, appWidgetId) },
+                    publishViews = { views -> appWidgetManager.updateAppWidget(appWidgetId, views) }
+                )
+            } catch (_: Exception) {
+                runCatching {
+                    OrbitWidgetModule.widgetPublisher.publish(
+                        build = { buildFallbackViews(context) },
+                        publishViews = { views -> appWidgetManager.updateAppWidget(appWidgetId, views) }
+                    )
                 }
             }
+        }
+
+        private fun buildFallbackViews(context: Context): RemoteViews {
+            val fallback = RemoteViews(context.packageName, R.layout.widget_layout)
+            applyOpenAppActions(context, fallback)
+            fallback.setViewVisibility(R.id.widget_list, View.GONE)
+            if (isSignedOut(context)) {
+                applySignedOutCard(context, fallback)
+            } else {
+                showRefresh(fallback)
+                fallback.setViewVisibility(R.id.widget_loading, View.VISIBLE)
+            }
+            return fallback
         }
 
         /** Signed out: no refresh and no spinner. Every signed-out path goes through here. */
@@ -149,7 +157,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             context: Context,
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
-        ) {
+        ): RemoteViews {
             val density = context.resources.displayMetrics.density
             val displayMetrics = context.resources.displayMetrics
             val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
@@ -160,7 +168,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val bgHeight = (if (maxHeightDp > 0) (maxHeightDp * density).toInt() else displayMetrics.heightPixels / 2)
                 .coerceIn(1, displayMetrics.heightPixels / 2)
 
-            val views = buildWidgetRemoteViews(
+            return buildWidgetRemoteViews(
                 context,
                 appWidgetId,
                 bgWidth,
@@ -170,7 +178,6 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                     options.getParcelableArrayList<SizeF>(AppWidgetManager.OPTION_APPWIDGET_SIZES).orEmpty()
                 } else emptyList()
             )
-            appWidgetManager.updateAppWidget(appWidgetId, views)
         }
 
         /**
@@ -451,37 +458,43 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
-        for (appWidgetId in appWidgetIds) {
-            updateWidgetLayout(context, appWidgetManager, appWidgetId)
+        enqueueUpdate(context) { applicationContext ->
+            for (appWidgetId in appWidgetIds) {
+                updateWidgetLayout(applicationContext, appWidgetManager, appWidgetId)
+            }
+            // Trigger data refresh (not just layout rebuild) on periodic updates
+            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_list)
         }
-        // Trigger data refresh (not just layout rebuild) on periodic updates
-        appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_list)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
 
         if (intent.action == ACTION_REFRESH) {
-            val appWidgetManager = AppWidgetManager.getInstance(context)
-            val appWidgetIds = appWidgetManager.getAppWidgetIds(
-                android.content.ComponentName(context, OrbitWidgetProvider::class.java)
-            )
-            // Show loading spinner immediately, unless there is nothing to refresh
-            if (isSignedOut(context)) {
-                for (id in appWidgetIds) updateWidgetLayout(context, appWidgetManager, id)
-                return
-            }
-            context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-                .edit()
-                .putBoolean(CACHE_REFRESHING, true)
-                .apply()
-            // This intermediate state is visible while the network load runs. A full render keeps
-            // both size-keyed children current and also reapplies the complete mode-aware palette.
-            for (id in appWidgetIds) updateWidgetLayout(context, appWidgetManager, id)
-            // Trigger data reload (factory restores refresh button when done)
-            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_list)
-            scheduleRefreshTimeout(context)
+            enqueueUpdate(context) { applicationContext -> refreshWidgets(applicationContext) }
         }
+    }
+
+    private fun refreshWidgets(context: Context) {
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val appWidgetIds = appWidgetManager.getAppWidgetIds(
+            android.content.ComponentName(context, OrbitWidgetProvider::class.java)
+        )
+        // Show loading spinner immediately, unless there is nothing to refresh
+        if (isSignedOut(context)) {
+            for (id in appWidgetIds) updateWidgetLayout(context, appWidgetManager, id)
+            return
+        }
+        context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(CACHE_REFRESHING, true)
+            .apply()
+        // This intermediate state is visible while the network load runs. A full render keeps
+        // both size-keyed children current and also reapplies the complete mode-aware palette.
+        for (id in appWidgetIds) updateWidgetLayout(context, appWidgetManager, id)
+        // Trigger data reload (factory restores refresh button when done)
+        scheduleRefreshTimeout(context)
+        appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_list)
     }
 
     override fun onAppWidgetOptionsChanged(
@@ -493,7 +506,17 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
         // A resize changes the background bitmap's pixel dimensions, and nothing else re-renders
         // on resize, so the card would keep a bitmap cut for the old size.
-        updateWidgetLayout(context, appWidgetManager, appWidgetId)
+        enqueueUpdate(context) { applicationContext ->
+            updateWidgetLayout(applicationContext, appWidgetManager, appWidgetId)
+        }
+    }
+
+    private fun enqueueUpdate(context: Context, update: (Context) -> Unit) {
+        val pendingResult = goAsync()
+        val applicationContext = context.applicationContext
+        OrbitWidgetModule.enqueueWidgetUpdate(onComplete = { pendingResult?.finish() }) {
+            update(applicationContext)
+        }
     }
 
     override fun onEnabled(context: Context) {
