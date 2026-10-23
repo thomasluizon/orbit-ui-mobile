@@ -40,6 +40,70 @@ export const cases = async () => {
       core: { ...recorded.resources.core, remaining: recorded.resources.core.limit, reset: Math.floor(end / 1000) + 1 },
     } }),
   }
+  for (const offset of [0, -1]) {
+    for (const remaining of [0, recorded.resources.core.limit]) {
+      const boundaryRepo = stageRepo(`ci-budget-boundary-${offset}-${remaining}`)
+      let boundaryClock = start
+      let reads = 0
+      const pauses = []
+      const boundary = createCiBudget({ ...settings, repoRoot: boundaryRepo.path, now: () => boundaryClock,
+        sleep: async (milliseconds) => { pauses.push(milliseconds); boundaryClock += milliseconds },
+        readRate: async () => ++reads === 1 ? { ...recorded, resources: { ...recorded.resources,
+          core: { ...recorded.resources.core, remaining, reset: start / 1000 + offset },
+        } } : settings.readRate(),
+      })
+      const reservations = []
+      let failure
+      try {
+        for (let index = 0; index < 2; index++) {
+          const at = await boundary.beforeRequest(options(end))
+          reservations.push(at)
+          await boundary.afterResponse(response(), at, options(end))
+        }
+      } catch (error) { failure = error.message }
+      T(`CI budget: reset offset ${offset}s with ${remaining} remaining refreshes and permits later reads`,
+        !failure && reads === 2 && pauses[0] === 1000 && reservations[0] === start + 1000 &&
+        reservations[1] > reservations[0], JSON.stringify({ failure, reads, pauses, reservations }))
+    }
+  }
+
+  const staleRepo = stageRepo("ci-budget-persistent-stale")
+  let staleClock = start
+  let staleReads = 0
+  const stale = createCiBudget({ ...settings, repoRoot: staleRepo.path, now: () => staleClock,
+    sleep: async (milliseconds) => { staleClock += milliseconds },
+    readRate: async () => {
+      staleReads++
+      return { ...recorded, resources: { ...recorded.resources,
+        core: { ...recorded.resources.core, reset: start / 1000 },
+      } }
+    },
+  })
+  let staleError
+  try { await stale.beforeRequest(options(start + 2500)) } catch (error) { staleError = error }
+  T("CI budget: persistently expired windows retry at a bounded pace until the caller ceiling",
+    staleError?.code === "GITHUB_READ_CEILING" && staleClock === start + 2500 && staleReads === 3,
+    JSON.stringify({ error: staleError?.message, staleClock, staleReads }))
+
+  const malformedRepo = stageRepo("ci-budget-malformed")
+  for (const core of [undefined, {},
+    ...["limit", "remaining", "reset"].flatMap((field) => [undefined, "1", 1.5, -1].map((value) =>
+      ({ ...recorded.resources.core, reset: end / 1000, [field]: value }))),
+    { ...recorded.resources.core, limit: 0, reset: end / 1000 },
+    { ...recorded.resources.core, remaining: recorded.resources.core.limit + 1, reset: end / 1000 },
+  ]) {
+    let reads = 0
+    let pauses = 0
+    const malformed = createCiBudget({ ...settings, repoRoot: malformedRepo.path,
+      sleep: async () => { pauses++ },
+      readRate: async () => { reads++; return { resources: { core } } },
+    })
+    let failure
+    try { await malformed.beforeRequest(options(end)) } catch (error) { failure = error.message }
+    T(`CI budget: malformed rate ${JSON.stringify(core)} stays fatal without retry`,
+      failure === "GitHub REST rate limit had an unexpected shape" && reads === 1 && pauses === 0, failure)
+  }
+
   const waiters = Array.from({ length: 7 }, () => createCiBudget(settings))
   const observed = new Map()
   let counted = 0
