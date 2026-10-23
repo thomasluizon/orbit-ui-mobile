@@ -24,6 +24,16 @@ vi.mock('expo-router/entry', async () => {
 const nativeIntl = Object.getOwnPropertyDescriptors(Intl)
 let i18n: typeof import('../lib/i18n').i18n
 
+function withoutListFormat(assertions: () => void) {
+  const descriptor = Object.getOwnPropertyDescriptor(Intl, 'ListFormat')!
+  Object.defineProperty(Intl, 'ListFormat', { configurable: true, writable: true, value: undefined })
+  try {
+    assertions()
+  } finally {
+    Object.defineProperty(Intl, 'ListFormat', descriptor)
+  }
+}
+
 type MessageCatalog = { [key: string]: string | MessageCatalog }
 
 function collectIcuMessages(catalog: MessageCatalog, prefix = ''): { key: string; template: string }[] {
@@ -158,21 +168,27 @@ describe.each([
   })
 
   it('formats repair dates when ListFormat is undefined at the call site', () => {
-    const descriptor = Object.getOwnPropertyDescriptor(Intl, 'ListFormat')!
-    Object.defineProperty(Intl, 'ListFormat', { configurable: true, writable: true, value: undefined })
-    try {
+    withoutListFormat(() => {
       expect(formatStreakRepairDates(['2026-10-01', '2026-10-02'], locale)).toBe(dates)
       expect(formatStreakRepairDates([], locale)).toBe('')
       expect(formatStreakRepairDates(['2026-10-01'], locale)).toBe(dates.split(locale === 'en' ? ' and ' : ' e ')[0])
+    })
+  })
+
+  it('formats chat answers when ListFormat is undefined at the call site', () => {
+    withoutListFormat(() => {
       expect(formatBlockAnswer(['Morning', 'Afternoon'], ' Evening ', locale))
         .toBe(locale === 'en' ? 'Morning, Afternoon, and Evening' : 'Morning, Afternoon e Evening')
+    })
+  })
+
+  it('formats weekday schedules when ListFormat is undefined at the call site', () => {
+    withoutListFormat(() => {
       expect(formatWeekdaySchedule(['Monday', 'Wednesday', 'Friday'], locale, (key) => {
         const day = key.split('.').at(-1) as keyof typeof messages.dates.weekdaySchedule.list
         return messages.dates.weekdaySchedule.list[day]
       })).toBe(triple)
-    } finally {
-      Object.defineProperty(Intl, 'ListFormat', descriptor)
-    }
+    })
   })
 
   it('formats two and three selected weekdays using the shipped translations', async () => {
