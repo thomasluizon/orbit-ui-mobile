@@ -145,6 +145,27 @@ export function Label({ t }) { return t('save') }`,
   })
   check("check-i18n-usage.mjs", "traces translators through imported helpers and component props",
     ["--root", acrossModules], { status: 0, stdout: /Unresolved translation calls: 0 in 0 files[\s\S]*2 resolved calls/ })
+  const defaultExport = repository("default-export", {
+    "apps/web/translator.ts": `import { useTranslations as factory } from 'next-intl'
+export default factory('common')`,
+    "apps/web/page.ts": `import words from './translator'
+function label(t) { return t('save') }
+label(words)`,
+  })
+  check("check-i18n-usage.mjs", "traces a default-exported factory expression through an imported translator argument",
+    ["--root", defaultExport], { status: 0, stdout: /Unresolved translation calls: 0 in 0 files[\s\S]*1 resolved calls/ })
+  writeFileSync(join(defaultExport, "apps/web/page.ts"), `import words from './translator'
+function label(t) { return t('missing') }
+label(words)`)
+  check("check-i18n-usage.mjs", "rejects missing keys behind a default-exported factory expression",
+    ["--root", defaultExport], { status: 1, stderr: /apps\/web\/page.ts:2: missing common.missing in en.json, pt-BR.json/,
+      stdout: /; 1 misses/ })
+  const defaultCarrier = repository("default-carrier", {
+    "apps/web/translator.ts": "export default { t: useTranslations('common') }",
+    "apps/web/page.ts": "import words from './translator'; words.t('save')",
+  })
+  check("check-i18n-usage.mjs", "keeps an exported unnamed carrier unconfined without crashing",
+    ["--root", defaultCarrier], { status: 0, stdout: /Unresolved translator bindings: 1; 1 with literal keys[\s\S]*0 resolved calls/ })
   writeFileSync(join(acrossModules, "apps/web/labels.tsx"), `export function label(t) { return t('missing') }
 export function Label({ t }) { return t('save') }`)
   check("check-i18n-usage.mjs", "rejects missing keys read through a module boundary",
