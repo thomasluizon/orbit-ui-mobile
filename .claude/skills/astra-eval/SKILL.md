@@ -38,3 +38,9 @@ before each of the three attempts. Run the offline tests after changing the corp
 Do not attach raw promptfoo databases, responses, or traces to a pull request. The summary
 contains only case identifiers and counts. Record behavior failures on the work ticket;
 this skill does not authorize behavior changes, ticket writes, or outbound messages.
+
+Composition acceptance belongs to #26. Run its English and Portuguese real-pipeline gate after the
+API composition producer and #1620's paired consumers are deployed through the current `main`
+release workflow. Cover every #1617 family, block-only success, compound queries and legacy or
+missing-kind clients. Missing or skipped composition assertions cannot approve broad activation
+of `astra_block_first`. Local rendering tests do not replace that evidence.

@@ -101,7 +101,7 @@ function buildChat(): ChatController {
   } as unknown as ChatController
 }
 
-it('keeps live composer suggestions available in a new and populated thread', () => {
+it('keeps live composer suggestions in a new thread and removes them from populated answers', () => {
   const chat = buildChat()
   chat.messages = []
   chat.showSuggestions = true
@@ -112,7 +112,7 @@ it('keeps live composer suggestions available in a new and populated thread', ()
   chat.showSuggestions = false
   view.rerender(<AstraConversation chat={chat} />)
   expect(screen.queryByText('chat.empty.title')).not.toBeInTheDocument()
-  expect(screen.getByRole('group', { name: 'composer-chips' })).toBeInTheDocument()
+  expect(screen.queryByRole('group', { name: 'composer-chips' })).not.toBeInTheDocument()
 })
 
 it('keeps the requested Progress action only in the composer in a new conversation', () => {

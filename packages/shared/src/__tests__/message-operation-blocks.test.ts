@@ -3,6 +3,28 @@ import { selectMessageOperationBlocks } from '../chat/message-operation-blocks'
 import { agentPolicyDenialFixture, makeActionResult, makeAgentOperationResult, makeHeldHabitMessage } from '../test-support/chat-fixtures'
 
 describe('one block per write', () => {
+  it('shows the latest outcome once for repeated operation identities', () => {
+    const operation = { ...makeAgentOperationResult('Denied', 1), pendingOperationId: '11111111-1111-4111-8111-111111111111' }
+    const message = makeHeldHabitMessage({ pendingOperations: [], actions: [], operations: [operation, { ...operation, status: 'Failed' }] })
+    expect(selectMessageOperationBlocks(message).outcomes).toMatchObject([{ id: operation.pendingOperationId, status: 'Failed' }])
+    expect(selectMessageOperationBlocks(message).outcomes).toHaveLength(1)
+  })
+
+  it.each([true, false])('retains an independent failure before a same-tool success with pending identity=%s', identified => {
+    const failure = { ...makeAgentOperationResult('Failed', 1), operationId: 'create_habit',
+      pendingOperationId: identified ? '11111111-1111-4111-8111-111111111111' : null }
+    const success = { ...makeAgentOperationResult('Succeeded', 2), operationId: 'create_habit',
+      pendingOperationId: identified ? '22222222-2222-4222-8222-222222222222' : null }
+    const message = makeHeldHabitMessage({ pendingOperations: [], actions: [], operations: [failure, success] })
+    expect(selectMessageOperationBlocks(message).outcomes).toMatchObject([{ status: 'Failed', target: 'Habit 1' }])
+  })
+
+  it('retains two same-tool failures as separate visible outcomes', () => {
+    const operations = [1, 2].map(index => ({ ...makeAgentOperationResult('Failed', index), operationId: 'create_habit' }))
+    const outcomes = selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], actions: [], operations })).outcomes
+    expect(outcomes.map(outcome => outcome.target)).toEqual(['Habit 1', 'Habit 2'])
+    expect(new Set(outcomes.map(outcome => outcome.id)).size).toBe(2)
+  })
   it('keeps only the preview for a pending write', () => {
     expect(selectMessageOperationBlocks(makeHeldHabitMessage())).toEqual({ actions: [], outcomes: [] })
   })

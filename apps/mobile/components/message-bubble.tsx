@@ -64,7 +64,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
     new Set(),
   );
 
-  const { isUser, parts, showUnreadableReply, relatedSurfaces, nonSuggestionActions, suggestions, outcomes } = getMessageBubbleView(props, dismissedBreakdowns)
+  const { isUser, parts, showUnreadableReply, showOperationUpdate, relatedSurfaces, nonSuggestionActions, suggestions, outcomes } = getMessageBubbleView(props, dismissedBreakdowns)
   const operations = getMessageBubbleOperations(props, useChatStore.getState().transitionMessage)
   function dismissBreakdown(key: string) {
     setDismissedBreakdowns(previous => new Set([...previous, key]))
@@ -76,47 +76,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
     isUser ? styles.userContainer : styles.aiContainer,
   ];
 
-  const bubbleContent = (
-    <>
-      <View
-        style={isUser ? styles.bubbleColumnUser : styles.bubbleColumnAI}
-      >
-        {showUnreadableReply ? <Text accessibilityLiveRegion="polite" style={{ fontSize: 14, color: tokens.fg2 }}>{t('chat.unreadableReply')}</Text> : null}
-        {parts.map(part => {
-          if (part.type === 'block') return <ChatBlock key={part.key} part={part.part} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={part.expired} onActionChipClick={onActionChipClick} />
-          return <MessageProse key={part.key} message={message}
-            sourceText={part.text}
-            styles={styles} showImage={part.showImage} />;
-        })}
-
-        {!isUser && relatedSurfaces.length > 0 ? (
-          <View style={styles.relatedContainer}>
-            <Text style={styles.relatedTitle}>{t("chat.related.title")}</Text>
-            <View style={styles.relatedChips}>
-              {relatedSurfaces.map((surface) => (
-                <Pressable
-                  key={surface.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={t(surface.labelKey)}
-                  onPress={() => navigate(surface.mobileRoute)}
-                  style={({ pressed }) => [
-                    styles.relatedChip,
-                    pressed
-                      ? {
-                          transform: [{ scale: 0.96 }],
-                          backgroundColor: tokens.bgHover,
-                        }
-                      : null,
-                  ]}
-                >
-                  <Text style={styles.relatedChipText}>{t(surface.labelKey)}</Text>
-                  <ArrowUpRight size={16} color={tokens.fg3} strokeWidth={1.8} />
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        ) : null}
-
+  const operationContent = <>
         {!isUser && nonSuggestionActions.length > 0 && (
           <ActionChips actions={nonSuggestionActions} onChipClick={onActionChipClick} />
         )}
@@ -145,6 +105,52 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
             <OperationOutcomes outcomes={outcomes} />
           </View>
         ) : null}
+  </>
+
+  const bubbleContent = (
+    <>
+      <View
+        style={isUser ? styles.bubbleColumnUser : styles.bubbleColumnAI}
+      >
+        {message.parts != null ? operationContent : null}
+        {showOperationUpdate ? <Text style={{ fontSize: 14, color: tokens.fg2 }}>{t('chat.operationUpdated')}</Text> : null}
+        {showUnreadableReply ? <Text style={{ fontSize: 14, color: tokens.fg2 }}>{t('chat.unreadableReply')}</Text> : null}
+        {parts.map(part => {
+          if (part.type === 'block') return <ChatBlock key={part.key} part={part.part} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={part.expired} onActionChipClick={onActionChipClick} />
+          return <MessageProse key={part.key} message={message}
+            sourceText={part.text}
+            styles={styles} showImage={part.showImage} />;
+        })}
+
+        {!isUser && relatedSurfaces.length > 0 ? (
+          <View style={styles.relatedContainer} accessibilityLabel={t("chat.related.title")}>
+            <View style={styles.relatedChips}>
+              {relatedSurfaces.map((surface) => (
+                <Pressable
+                  key={surface.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(surface.labelKey)}
+                  onPress={() => navigate(surface.mobileRoute)}
+                  style={({ pressed }) => [
+                    styles.relatedChip,
+                    pressed
+                      ? {
+                          transform: [{ scale: 0.96 }],
+                          backgroundColor: tokens.bgHover,
+                        }
+                      : null,
+                  ]}
+                >
+                  <Text style={styles.relatedChipText}>{t(surface.labelKey)}</Text>
+                  <ArrowUpRight size={16} color={tokens.fg3} strokeWidth={1.8} />
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        {message.parts == null ? operationContent : null}
+
       </View>
     </>
   );
@@ -224,13 +230,6 @@ function createStyles(tokens: AppTokens) {
     },
     relatedContainer: {
       width: "100%",
-    },
-    relatedTitle: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 12,
-      color: tokens.fg3,
-      marginBottom: SPACING.s4,
-      paddingHorizontal: SPACING.s4,
     },
     relatedChips: {
       flexDirection: "row",

@@ -172,3 +172,7 @@ export function resolveComposerChipSurface(pathname: string): ComposerChipSurfac
 export function resolveComposerDockSuggestions(pathname: string, suggestions: ComposerSuggestions): ComposerSuggestions {
   return pathname === '/' ? [] : suggestions
 }
+
+export function resolveConversationSuggestions(messageCount: number, suggestions: ComposerSuggestions): ComposerSuggestions {
+  return messageCount === 0 ? suggestions : []
+}

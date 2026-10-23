@@ -81,7 +81,7 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
           expect(Math.abs(box.y + box.height - viewport.height)).toBeLessThanOrEqual(0.5)
           const composer = (await conversation.locator('[data-composer-root]').boundingBox())!
           expect(Math.abs(composer.y + composer.height - box.y - box.height)).toBeLessThanOrEqual(0.5)
-          await expect(conversation.getByRole('group', { name: words.shell.composer.suggestionsLabel, exact: true })).toHaveCount(1)
+          await expect(conversation.getByRole('group', { name: words.shell.composer.suggestionsLabel, exact: true })).toHaveCount(scrolling ? 0 : 1)
           await expect(page.locator('[data-shell-scroller]')).toBeHidden()
           await expect(page.locator('[data-shell-destination]')).toHaveAttribute('inert')
           if (viewport.width >= 1024) await expect(page.locator('[data-shell-sidebar]')).toBeVisible()
