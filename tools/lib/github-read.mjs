@@ -31,8 +31,9 @@ const attempt = async (args, environment, options) => {
   if (result.timedOut || result.error || result.overflowed || result.status !== 0) {
     const text = result.stderr || result.error?.message || (result.timedOut ? "gh timed out" : response.body || `exit ${result.status}`)
     const status = response.status ?? Number(/\bHTTP (\d{3})\b/.exec(text)?.[1])
+    const secondaryLimit = /secondary rate limit|abuse detection/i.test(text)
     const rateLimited = status === 403 && (response.headers.has("retry-after") ||
-      response.headers.get("x-ratelimit-remaining") === "0" || /secondary rate limit|abuse detection/i.test(text))
+      response.headers.get("x-ratelimit-remaining") === "0" || secondaryLimit) || (!status && secondaryLimit)
     const timeout = result.timedOut || /timed?\s*out|context deadline exceeded|Client\.Timeout/i.test(text)
     const transient = !result.error && !result.overflowed && (status >= 500 && status <= 599 ||
       status === 429 || rateLimited || (!(status >= 400 && status <= 499) && timeout))

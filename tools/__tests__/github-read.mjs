@@ -29,6 +29,7 @@ export const cases = async () => {
   for (const [name, failure] of [
     ["secondary", response(403, "Retry-After: 0\r\n")],
     ["secondary-text", { stderr: "gh: You have exceeded a secondary rate limit (HTTP 403)", exit: 1 }],
+    ["secondary-graphql", { stderr: "GraphQL: You have exceeded a secondary rate limit", exit: 1 }],
     ["primary", response(403, "X-RateLimit-Remaining: 0\r\n")],
     ["timeout", { stderr: "net/http: request canceled (Client.Timeout exceeded while awaiting headers)", exit: 1 }],
     ["deadline", { stderr: "context deadline exceeded", exit: 1 }],
