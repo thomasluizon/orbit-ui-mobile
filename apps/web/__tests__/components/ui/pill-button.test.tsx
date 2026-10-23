@@ -49,14 +49,26 @@ describe('PillButton', () => {
 
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-    it.each([412, 1280].flatMap((width) => [false, true].map((loading) => ({ width, loading }))))('settles focused Astra action geometry at $width px (loading: $loading)', async ({ width, loading }) => {
+    it.each([412, 1280].flatMap((width) => [false, true].map((loading) => ({ width, loading }))))('keeps focused Astra action motion confined to its busy loader at $width px (loading: $loading)', async ({ width, loading }) => {
       const { container } = render(<PillButton variant="ghost" retainLeadingIcon leadingIcon={<AstraGlyph size={16} />} loading={loading} focusableWhenLoading onClick={vi.fn()}>Ask Astra</PillButton>)
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const button = page.getByRole('button', { name: 'Ask Astra' })
         await button.focus()
-        await settleFocusAnimations(button, undefined, true)
+        const statusSlot = button.locator('span[aria-hidden="true"]')
+        expect(await statusSlot.evaluate((element) => {
+          const { width, height } = element.getBoundingClientRect()
+          return { width, height }
+        })).toEqual({ width: BUTTON_SIZES.sm.iconSize, height: BUTTON_SIZES.sm.iconSize })
+        expect(await statusSlot.locator('svg').count()).toBe(loading ? 1 : 0)
+        if (loading) {
+          expect(await statusSlot.locator('svg').getAttribute('class')).toContain('animate-spin')
+          expect(await statusSlot.locator('svg').getAttribute('class')).toContain('orbit-essential-loading')
+          expect(await statusSlot.evaluate((element) => element.getAnimations({ subtree: true }).some((animation) => animation.playState === 'running' && animation.effect?.getComputedTiming().endTime === Infinity))).toBe(true)
+        }
+        await settleFocusAnimations(button, undefined, !loading)
+        if (!loading) expect(await button.evaluate((element) => element.getAnimations({ subtree: true }).filter((animation) => animation.playState === 'running').length)).toBe(0)
         expect(await button.evaluate((element) => element.matches(':focus'))).toBe(true)
         expect(await button.locator('[data-asset="astra-mark-16"]').count()).toBe(1)
         expect(await button.getAttribute('aria-busy')).toBe(loading ? 'true' : null)

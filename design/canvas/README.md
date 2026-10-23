@@ -34,8 +34,8 @@ on that line, the text start is 12px from the pill edge.
 Live chip action text and Astra attribution share one wrapping text flow beside the canonical
 mark, retaining the complete default action line and first-line alignment at enlarged text.
 The send progress slot stays reserved; its spinner runs only while sending.
-Pill actions retaining the Astra glyph reserve a trailing status slot with a still loading indicator
-only while busy, keeping idle and focused geometry free of looping status animation.
+Pill actions retaining the Astra glyph reserve a trailing status slot. A moving loader mounts only
+while busy; an idle action carries no looping status animation, including while focused.
 Loading, offline, limit, proposal, validation and manual recovery states retain their guards.
 This amendment supersedes the glyph-removal inventory below only for invocation/entry controls;
 static headings, attribution, plan facts and deterministic acceptance keep their current treatment.

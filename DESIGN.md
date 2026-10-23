@@ -1499,8 +1499,8 @@ Android haptic. Milestone days show only their milestone panel; queue priority a
 
 **Motion is never the only feedback channel.** Every animated state change also carries a static cue: a colour change, an icon swap, or a label.
 
-Actions retaining their leading Astra glyph reserve a trailing status slot and show a still loading
-indicator only while busy. Their idle and focused states carry no looping status animation (#1607).
+Actions retaining their leading Astra glyph reserve a trailing status slot. A moving loader mounts
+only while busy; an idle action carries no looping status animation, including while focused (#1607).
 
 **A high-frequency interaction gets instant feedback or an `opacity` / `background-color` transition of 150ms or less.** Never a full entrance on a hover or a keystroke.
 

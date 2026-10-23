@@ -14,7 +14,6 @@ import { SPACING, GOOGLE_SIGN_IN_BUTTON, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH
 import { createTokensV2, mixHex, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
-import { Loader2 } from '@/components/ui/icons'
 
 const SMALL_PILL_HIT_PADDING = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
 
@@ -164,7 +163,7 @@ function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, ch
           {children}
         </Text>
       )}
-      {retainLeadingIcon ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={{ width: sizeSpec.iconSize, height: sizeSpec.iconSize }}>{loading ? <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} color={textColor} /> : null}</View> : null}
+      {retainLeadingIcon ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={{ width: sizeSpec.iconSize, height: sizeSpec.iconSize }}>{loading ? <ActivityIndicator animating size="small" color={textColor} /> : null}</View> : null}
   </>
 }
 

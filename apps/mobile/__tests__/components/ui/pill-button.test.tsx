@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { PillButton } from '@/components/ui/pill-button'
-import { Copy, Loader2 } from '@/components/ui/icons'
+import { Copy } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { BUTTON_SIZES } from '@orbit/shared/theme'
 import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
@@ -44,7 +44,7 @@ function pressableHeight(tree: any): number | undefined {
 }
 
 describe('PillButton (mobile)', () => {
-  it('keeps focused Astra action geometry still through idle, loading and completion', () => {
+  it('mounts the moving loader only while the focused Astra action is busy', () => {
     const onClick = vi.fn()
     const action = (loading: boolean) => <PillButton variant="ghost" retainLeadingIcon leadingIcon={<AstraGlyph size={16} />} loading={loading} focusableWhenLoading onClick={onClick}>Ask Astra</PillButton>
     const tree = renderPill(action(false))
@@ -53,8 +53,12 @@ describe('PillButton (mobile)', () => {
       TestRenderer.act(() => button.props.onFocus())
       for (const loading of [false, true, false]) {
         TestRenderer.act(() => tree.update(action(loading)))
-        expect(tree.root.findAllByType('ActivityIndicator')).toHaveLength(0)
-        expect(tree.root.findAllByType(Loader2)).toHaveLength(loading ? 1 : 0)
+        const loaders = tree.root.findAllByType('ActivityIndicator')
+        expect(loaders).toHaveLength(loading ? 1 : 0)
+        const statusSlot = tree.root.findByType('View')
+        expect(flattenStyle(statusSlot.props.style)).toMatchObject({ width: BUTTON_SIZES.sm.iconSize, height: BUTTON_SIZES.sm.iconSize })
+        if (loading) expect(loaders[0].props).toMatchObject({ animating: true, size: 'small', color: createTokensV2('purple', theme.mode).fg1 })
+        else expect(statusSlot.children).toHaveLength(0)
         expect(tree.root.findAllByType(AstraGlyph)).toHaveLength(1)
         expect(button.props.accessibilityState).toMatchObject({ disabled: false, busy: loading })
         expect(flattenStyle(button.props.style({ pressed: false })).outlineWidth).toBe(2)

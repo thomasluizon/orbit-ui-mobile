@@ -97,7 +97,7 @@ function persistentButtonStyle(style: CSSProperties, retain: boolean): CSSProper
 
 function PersistentLoadingIndicator({ visible, loading, size }: Readonly<{ visible: boolean; loading: boolean; size: ButtonSize }>) {
   if (!visible) return null
-  return <span aria-hidden="true" style={{ display: 'inline-flex', flexShrink: 0, width: BUTTON_SIZES[size].iconSize, height: BUTTON_SIZES[size].iconSize }}>{loading ? <Loader2 size={BUTTON_SIZES[size].iconSize} strokeWidth={1.8} /> : null}</span>
+  return <span aria-hidden="true" style={{ display: 'inline-flex', flexShrink: 0, width: BUTTON_SIZES[size].iconSize, height: BUTTON_SIZES[size].iconSize }}>{loading ? <Loader2 size={BUTTON_SIZES[size].iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" /> : null}</span>
 }
 
 /** The canonical five-variant pill action in the shared two-size geometry. */

@@ -68,7 +68,6 @@ export {
   IconList as List,
   IconListCheck as ListChecks,
   IconListTree as ListTree,
-  IconLoader2 as Loader2,
   IconSubtask as Subtask,
   IconLock as Lock,
   IconLogout as LogOut,
