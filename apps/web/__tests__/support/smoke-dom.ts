@@ -119,13 +119,16 @@ export class SmokeDomPage {
 }
 
 export function expectSmokeDom(subject: unknown) {
+  if (typeof subject === 'function') return {
+    toPass: (options?: { timeout?: number }) => waitFor(async () => { await subject() }, options),
+  }
   if (!(subject instanceof SmokeDomLocator)) return expect(subject)
-  const check = async (assert: () => void) => {
+  const check = async (assert: () => void, options?: { timeout?: number }) => {
     await subject.page.checkpoint(subject)
-    await waitFor(assert)
+    await waitFor(assert, options)
   }
   return {
-    toBeVisible: () => check(() => expect(subject.element()).toBeVisible()),
+    toBeVisible: (options?: { timeout?: number }) => check(() => expect(subject.element()).toBeVisible(), options),
     toBeEnabled: () => check(() => {
       expect(subject.element()).toBeEnabled()
       expect(subject.element()).not.toHaveAttribute('aria-disabled', 'true')
