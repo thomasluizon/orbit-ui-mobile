@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url"
 const USAGE = `usage: release-plan.mjs [--environment production|staging|production-redesign] [--branch <name>] [--track internal|open|production]
 
 List commits not yet released to production or staging, with planned SHAs and pinned dispatch commands.
-Staging reads live Render state.
+Staging reads live Render state. Android reads Play upload deployment records for the track.
 The default environment is production. The default Android track is open for production
 and internal for staging. Staging requires --branch.
 production-redesign plans only web from redesign/main and accepts no --track. Set RENDER_MCP_TOKEN for Render reads.
@@ -25,8 +25,8 @@ export const githubClient = {
   read(path) {
     const projection = path.includes("/actions/variables?")
           ? "{total_count,variables:[.variables[] | {name,value}]}"
-        : path.includes("/actions/workflows/")
-          ? "{workflow_runs:[.workflow_runs[] | {display_title,conclusion,status,head_branch,head_sha}]}"
+        : path.includes("/deployments?")
+          ? "[.[] | {sha,payload:{track:.payload.track}}]"
           : path.includes("/compare/")
             ? "{ahead_by,behind_by,total_commits,commits:[.commits[] | {sha,commit:{message:.commit.message}}]}"
             : "{sha,commit:{message:.commit.message}}"
@@ -92,20 +92,17 @@ async function landingServiceId(client, environment) {
   return id
 }
 
-async function previousAndroidRun(client, branch, track) {
+async function androidBaseline(client, track) {
+  const environment = track === "internal" ? "staging" : "production"
   for (let page = 1; ; page++) {
-    const path = `repos/${OWNER}/orbit-ui-mobile/actions/workflows/android-release.yml/runs?branch=${encodeURIComponent(branch)}&per_page=100&page=${page}`
-    const response = await client.read(path)
-    const runs = expectArray(response?.workflow_runs, path)
-    for (const run of runs) {
-      const title = /^Android Release \S+ \(\d+\) to (internal|open|production) on /.exec(run.display_title)
-      if (run.conclusion === "success" && run.status === "completed" && run.head_branch === branch &&
-          title?.[1] === track) {
-        if (!SHA.test(run.head_sha)) throw new Error(`GitHub workflow run at ${path} has an unexpected SHA`)
-        return run.head_sha
-      }
+    const path = `repos/${OWNER}/orbit-ui-mobile/deployments?task=android-release&environment=${environment}&per_page=100&page=${page}`
+    const deployments = expectArray(await client.read(path), path)
+    for (const deployment of deployments) {
+      if (deployment.payload?.track !== track) continue
+      if (!SHA.test(deployment.sha)) throw new Error(`GitHub deployment at ${path} has an unexpected SHA`)
+      return deployment.sha
     }
-    if (runs.length < 100) return null
+    if (deployments.length < 100) return null
   }
 }
 
@@ -144,7 +141,7 @@ async function planService(client, service, environment, branch, serviceIds, tra
     throw new Error(`GitHub commit at ${headPath} has an unexpected shape`)
   }
   const deployedSha = service.name === "android"
-    ? await previousAndroidRun(client, branch, track)
+    ? await androidBaseline(client, track)
     : await renderBaseline(client, service, serviceIds, environment)
   const plannedService = service.name === "android" ? { ...service, track } : service
   if (deployedSha === head.sha) return { ...plannedService, branch, headSha: head.sha, deployedSha, commits: [], needsRelease: false }

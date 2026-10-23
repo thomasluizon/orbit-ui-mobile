@@ -503,7 +503,58 @@ jobs:
         run: |
           set -euo pipefail
 
-          deployment=$(jq -n \
+          response_file=$(mktemp)
+          trap 'rm -f "$response_file"' EXIT
+
+          api_request() {
+            local path="$1" method="${2:-GET}" payload="${3:-}" http_status
+            local arguments=(--silent --show-error --max-time 30 --output "$response_file"
+              --write-out '%{http_code}' --header @-
+              --header 'Accept: application/vnd.github+json' --header 'Content-Type: application/json' --request "$method")
+            if [[ "$method" == POST ]]; then arguments+=(--data-binary "$payload"); fi
+            if ! http_status=$(curl "${arguments[@]}" "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/${path}" <<< "Authorization: Bearer ${GH_TOKEN}"); then
+              return 1
+            fi
+            if [[ "$http_status" == 2?? ]]; then
+              jq -e 'type == "object" or type == "array"' "$response_file" > /dev/null && return 0
+              echo 'GitHub returned an empty or invalid JSON response' >&2
+              return 1
+            fi
+            cat "$response_file" >&2
+            echo "GitHub API returned HTTP ${http_status}" >&2
+            if [[ "$http_status" == 4?? && "$http_status" != 429 ]]; then
+              if [[ "$http_status" != 403 ]] || ! grep -Eqi 'rate limit|abuse detection' "$response_file"; then
+                return 2
+              fi
+            fi
+            return 1
+          }
+
+          record_upload() {
+            local page=1 count
+            deployment_id=''
+            while :; do
+              if api_request "deployments?sha=${GITHUB_SHA}&task=android-release&per_page=100&page=${page}"; then :; else return "$?"; fi
+              jq -e 'type == "array"' "$response_file" > /dev/null || return 1
+              deployment_id=$(jq -r --arg environment "$DEPLOYMENT_ENVIRONMENT" \
+                --arg version "$APP_VERSION" --arg code "$ANDROID_VERSION_CODE" --arg track "$RELEASE_TRACK" \
+                '[.[] | select(.environment == $environment and .payload.app_version == $version and
+                  .payload.android_version_code == $code and .payload.track == $track)] |
+                if length == 0 then "" else first.id |
+                  if type == "number" then . else error("Android deployment has an unexpected ID") end end' "$response_file") || return 1
+              if [[ -n "$deployment_id" ]]; then break; fi
+              count=$(jq 'length' "$response_file")
+              if (( count < 100 )); then break; fi
+              page=$((page + 1))
+            done
+            if [[ -z "$deployment_id" ]]; then
+              if api_request deployments POST "$deployment_payload"; then :; else return "$?"; fi
+              deployment_id=$(jq -er '.id | select(type == "number")' "$response_file") || return 1
+            fi
+            api_request "deployments/${deployment_id}/statuses" POST "$status_payload"
+          }
+
+          deployment_payload=$(jq -n \
             --arg sha "${GITHUB_SHA}" \
             --arg environment "${DEPLOYMENT_ENVIRONMENT}" \
             --arg version "${APP_VERSION}" \
@@ -514,15 +565,16 @@ jobs:
               description: ("Android " + $version + " (" + $code + ") to " + $track),
               auto_merge: false, required_contexts: [],
               payload: {app_version: $version, android_version_code: $code,
-                track: $track, api_base: $api_base}}' |
-            gh api "repos/${GITHUB_REPOSITORY}/deployments" --method POST --input -)
-          deployment_id=$(jq -er '.id | select(type == "number")' <<< "${deployment}")
-
-          jq -n \
+                track: $track, api_base: $api_base}}')
+          status_payload=$(jq -n \
             --arg log_url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
-            '{state: "success", log_url: $log_url, auto_inactive: false}' |
-            gh api "repos/${GITHUB_REPOSITORY}/deployments/${deployment_id}/statuses" \
-              --method POST --input - > /dev/null
+            '{state: "success", log_url: $log_url, auto_inactive: false}')
+
+          for attempt in 1 2 3; do
+            if record_upload; then break; else result=$?; fi
+            if (( result == 2 || attempt == 3 )); then exit "$result"; fi
+            sleep "$((attempt * 2))"
+          done
 
           echo "Android deployment ${deployment_id}: ${DEPLOYMENT_ENVIRONMENT}, ${APP_VERSION} (${ANDROID_VERSION_CODE}), ${GITHUB_SHA}"
           echo "| GitHub deployment | \`${deployment_id}\` |" >> "${GITHUB_STEP_SUMMARY}"
