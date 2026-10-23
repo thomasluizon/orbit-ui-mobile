@@ -33,6 +33,19 @@ const fixture = (label, overrides = []) => {
 const argumentsFor = (...extra) => ["--repo", "ui", "--pr", "12", ...extra]
 
 export const cases = async () => {
+  const transientSequence = stage("wait-ci/transient-sequence", "")
+  const unavailable = { stdout: "HTTP/2.0 503 Service Unavailable\r\nRetry-After: 0\r\n\r\nService Unavailable", stderr: "gh: HTTP 503\n", exit: 1 }
+  const transient = fixture("transient", [
+    { kind: "pull", sequenceFile: transientSequence, responseSequence: [unavailable, unavailable, { stdout: pull(), stderr: "", exit: 0 }] },
+    { kind: "first", match: "pr view 12", ...unavailable },
+  ])
+  const transientResult = run(TOOL, argumentsFor("--ceiling-minutes", "0.1"), { path: transient.path, env: transient.env })
+  const transientBody = JSON.parse(transientResult.stdout)
+  T("wait-ci: transient pull endpoint failures recover without losing the wake", transientResult.status === 0 &&
+    transientBody.reason === "SETTLED" && transientBody.transientErrors?.count >= 2 &&
+    transientBody.transientErrors.last.includes("503") && readWakeSources(transient.base).length === 0,
+    `exit ${transientResult.status}: ${transientResult.stdout} ${transientResult.stderr}`)
+
   const settled = fixture("settled")
   const settledResult = run(TOOL, argumentsFor("--require-check", "Lint"), { path: settled.path, env: settled.env })
   T("wait-ci: completed checks settle and clear wake source", settledResult.status === 0 && JSON.parse(settledResult.stdout).pullRequests[0].settled && readWakeSources(settled.base).length === 0, settledResult.stderr)

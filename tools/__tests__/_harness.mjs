@@ -269,10 +269,15 @@ const argv = process.argv.slice(1)
 if (argv[0] && existsSync(argv[0])) return
 const line = argv.join(" ")
 const plan = JSON.parse(process.env.ORBIT_ORCA_STUB || "[]")
-const match = plan.find((entry) => line.includes(entry.match))
+let match = plan.find((entry) => line.includes(entry.match))
 if (!match) {
   process.stdout.write(JSON.stringify({ ok: false, error: { code: "stub-miss", message: "unstubbed orca call: " + line } }))
   process.exit(9)
+}
+if (Array.isArray(match.responseSequence) && match.sequenceFile) {
+  const index = existsSync(match.sequenceFile) ? Number(readFileSync(match.sequenceFile, "utf8")) : 0
+  writeFileSync(match.sequenceFile, String(index + 1))
+  match = { ...match, ...match.responseSequence[Math.min(index, match.responseSequence.length - 1)] }
 }
 if (match.removePath) rmSync(match.removePath, { recursive: true, force: true })
 if (match.argvFile) writeFileSync(match.argvFile, JSON.stringify(argv))
