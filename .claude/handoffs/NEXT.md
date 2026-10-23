@@ -23,7 +23,7 @@ UI `main` is `3f9f10c8`, API `main` is `78ca5334`, landing `main` is `0d5e3df4`.
 | Item | Disposition |
 | --- | --- |
 | Android `1.3.93` | Verify run 40019771480's Play upload, then Play Open availability (Play Console Open testing through `claude-in-chrome`, one tab, close it after). It carries `#1994` and `#1995` to Android; then update `#1613`'s Android acceptance. |
-| `ui#2002` (`#1588`) | Round 2 (deep, commit-only) runs in `ticket-1588-check-hover-shape` (log `launch-1588-r2.out`). Read its diff: the hover and press fill must stay inside the 28px radius-12 check; a halo of any size is the owner's reported defect. Update the PR body, resolve threads, push once, wait on CI and review, merge, release web staging then production, and the next Android Open. |
+| `ui#2002` (`#1588`) | Round 2 pushed at `c7f87cda2398e26fe08886bbf5bc3ad6aeebee93` with the body rewritten (hover and press paint only inside the 28px radius-12 check; empty check takes the hover fill, done check the opaque hover layer; red-first on both platforms). Wait on CI and a fresh review, merge, release web staging then production, and the next Android Open. |
 | `ui#1984` (`#577`) | Round 4 commits `a341f152c` and `2a7c0617d` are local in `ticket-577-headless-overlays`, not pushed: the root rerun passed 217 and failed 6 (`repro-1984/layout.log`, traces in `repro-1984/results/`). Launch round 5 with `launch-review-round.sh ui 577 <worktree> main max r5 <scratchpad>/note-1984-r5.md "<reason>"` once 50 GiB is free, rerun the eight spec files at root with `repro-1984.sh`, push only on `layout exit=0`. |
 | q6 | `check-q6/summary.txt` and `DONE` (main `0d624955` plus `ui#1903` `268fe9898` plus `ui#1993` `8d1f79d4d`; web Vitest, build and layout still running at the relay). On `OVERALL fail=0`, merge both at those heads if `base-overlap.sh 1903 1993` shows no file shared with `#1992`'s lockfile change; otherwise a new combined check. |
 | `orbit-api#877` (`#1655`) | Round 4 (`max`) on the per-mutant test cost runs in `ticket-1655-user-mutation-spans` (log `launch-877-r4.out`). Read the diff and its before and after timings, push, dispatch the full `workflow_dispatch` mutation matrix, merge when every shard finishes inside 45 minutes. Then `orbit-api#876`. |
@@ -38,7 +38,7 @@ UI `main` is `3f9f10c8`, API `main` is `78ca5334`, landing `main` is `0d5e3df4`.
 
 1. Answer any owner message first, in his language, and give each order a ticket or a rescope before the turn ends.
 2. Verify Android `1.3.93` on Play.
-3. Land `ui#2002`; launch `ui#1984` round 5; read q6 and merge `ui#1903` and `ui#1993`; release web staging then production after each set of merges.
+3. Merge `ui#2002` when green and approved; launch `ui#1984` round 5; read q6 and merge `ui#1903` and `ui#1993`; release web staging then production after each set of merges.
 4. `orbit-api#877` round 4, then `#876`; the Dependabot lockfile pull requests one at a time.
 5. Follow `## The order` for everything else, keeping the pool full under the load gate and the disk floor.
 6. Run the full real-call Astra staging sweep only after the current Astra work is deployed.
