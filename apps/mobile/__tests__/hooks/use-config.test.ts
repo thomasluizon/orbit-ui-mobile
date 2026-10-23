@@ -10,6 +10,8 @@ import { setAccountId } from '@/lib/account-scope'
 import { configCache } from '@/lib/config-cache'
 import { createMockConfigResponse } from '@orbit/shared/__tests__/factories'
 import { appConfigSchema, DEFAULT_CONFIG } from '@orbit/shared/types/config'
+import { createApiClientError } from '@orbit/shared/utils'
+import { shouldRetryQuery } from '@orbit/shared/query'
 
 const mocks = vi.hoisted(() => ({ fetch: vi.fn(), report: vi.fn() }))
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.fetch }))
@@ -59,6 +61,18 @@ afterEach(() => {
 })
 
 describe('mobile config and flags', () => {
+  it('does not report or retry a config request after session rejection', async () => {
+    queryClient.setDefaultOptions({ queries: { retry: shouldRetryQuery, retryDelay: 0 } })
+    mocks.fetch.mockRejectedValue(createApiClientError(401, null, 'Unauthorized'))
+    const { result } = mount()
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(result.current.error).toMatchObject({ status: 401 })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    expect(mocks.report).not.toHaveBeenCalled()
+  })
+
   it.each([true, false])('returns the resolved flag %s and keeps absent flags off', async (enabled) => {
     respond(enabled)
     const { result } = mount()

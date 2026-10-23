@@ -16,8 +16,8 @@ export interface TypeRole {
 export const SECONDARY_TEXT_SIZE = 14
 
 /**
- * The 11 semantic type roles of the navy+violet system (Rubik = sans,
- * Inter = display, Roboto = mono-role). Web maps these to .t-* classes,
+ * The 11 semantic type roles of the orbital system (Geist Sans = sans,
+ * Space Grotesk = display, Geist Mono = mono). Web maps these to .t-* classes,
  * mobile to RN TextStyles, the widget to XML attrs.
  */
 export const typeRoles = {
