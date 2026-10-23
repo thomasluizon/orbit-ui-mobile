@@ -1286,24 +1286,6 @@ export function HabitList({
     )
   }
 
-  if (habitsQuery.isLoading) {
-    return <HabitListSkeleton />
-  }
-
-  if (habitsQuery.isError && !habitsQuery.data) {
-    return (
-      <HabitListEmptyState
-        title={t('habits.loadError')}
-        description=""
-        actionLabel={t('common.retry')}
-        onAction={() => {
-          void habitsQuery.refetch()
-        }}
-        variant="secondary"
-      />
-    )
-  }
-
   const showAllDone = view === 'today' && !filters.frequencyUnit && !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
     selectedDateStr === todayStr &&
     getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
@@ -1418,8 +1400,13 @@ export function HabitList({
     )
   }
 
-  return (
-    <div
+  function renderList(): React.ReactNode {
+    if (habitsQuery.isLoading) return <HabitListSkeleton />
+    if (habitsQuery.isError && !habitsQuery.data) return <HabitListEmptyState
+      title={t('habits.loadError')} description="" actionLabel={t('common.retry')}
+      onAction={() => { void habitsQuery.refetch() }} variant="secondary" />
+
+    return <div
       ref={setListContainerRef}
       data-habit-list=""
       tabIndex={-1}
@@ -1483,13 +1470,16 @@ export function HabitList({
           (current) => shiftParentPrompt(current, selectedDateStr),
         )}
       />
-
-      {moveIntent && moveIntent.accountGeneration === accountGeneration ? (
-        <Suspense fallback={<PendingMoveParent onClose={closeMoveParentPicker} />}>
-          <MoveParentController key={moveIntent.key} intent={moveIntent}
-            onBulkMove={onBulkMove} onClose={closeMoveParentPicker} />
-        </Suspense>
-      ) : null}
     </div>
-  )
+  }
+
+  return <>
+    {renderList()}
+    {moveIntent && moveIntent.accountGeneration === accountGeneration ? (
+      <Suspense fallback={<PendingMoveParent onClose={closeMoveParentPicker} />}>
+        <MoveParentController key={moveIntent.key} intent={moveIntent}
+          onBulkMove={onBulkMove} onClose={closeMoveParentPicker} />
+      </Suspense>
+    ) : null}
+  </>
 }

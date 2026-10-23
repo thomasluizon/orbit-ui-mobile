@@ -166,9 +166,10 @@ describe('label and interaction fill guards in Chromium', () => {
 
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([412, 840].flatMap((width) => (['dark', 'light'] as const).map((mode) => ({ width, mode }))))(
-    'measures tab indicator interaction fills at $width px in $mode mode',
-    async ({ width, mode }) => {
+  describe('tab indicators', () => {
+    let page: Awaited<ReturnType<Browser['newPage']>>
+
+    beforeAll(async () => {
       const tabs = renderToStaticMarkup(createElement(BottomTabBar, {
         label: en.nav.mainNavigation, activeId: 'hoje', onSelect: () => {},
         items: SHELL_DESTINATION_IDS.map((id) => ({
@@ -178,24 +179,29 @@ describe('label and interaction fill guards in Chromium', () => {
           }),
         })),
       }))
-      const page = await browser.newPage({ viewport: { width, height: 915 } })
-      try {
-        const variables = Object.entries(resolveWebThemeVariables('orange', mode))
-          .map(([name, value]) => `${name}: ${value};`).join(' ')
-        await page.setContent(`<!doctype html><html class="${mode}"><style>${stylesheet}
-          :root { ${variables} }
-        </style>${tabs}</html>`)
-        await loadAppFonts(page)
+      page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+      await page.setContent(`<!doctype html><html><style>${stylesheet}</style>${tabs}</html>`)
+      await loadAppFonts(page)
+    })
+
+    afterAll(async () => { await page.close() })
+
+    it.each([412, 840].flatMap((width) => (['dark', 'light'] as const).map((mode) => ({ width, mode }))))(
+      'measures tab indicator interaction fills at $width px in $mode mode',
+      async ({ width, mode }) => {
+        await page.setViewportSize({ width, height: 915 })
+        await page.evaluate(({ mode, variables }) => {
+          document.documentElement.className = mode
+          for (const [name, value] of Object.entries(variables)) document.documentElement.style.setProperty(name, value)
+        }, { mode, variables: resolveWebThemeVariables('orange', mode) })
         const indicators = page.locator('nav > a [data-tab-indicator]')
         expect(await indicators.count()).toBe(SHELL_DESTINATION_IDS.length)
         for (const indicator of await indicators.all()) {
           await expectInteractionFill(indicator)
         }
-      } finally {
-        await page.close()
-      }
-    },
-  )
+      },
+    )
+  })
 
   for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
     it.each([320, 600].flatMap((width) => [1, 2].map((textScale) => ({ width, textScale }))))(

@@ -2,7 +2,7 @@
 
 import { SPACING } from '@orbit/shared/theme'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Home, Search } from '@/components/ui/icons'
 import { plural } from '@/lib/plural'
 import { getMoveParentRowAvailability, getMoveParentPickerRows, getMoveParentScrollOffset, type MoveParentPickerProps, type MoveParentRowProps } from '@orbit/shared/utils/move-parent'
@@ -60,14 +60,13 @@ function MoveTargetRow({
   )
 }
 
-function MoveInventoryBody({ state, onRetry, t, children }: Readonly<{
-  state: MoveParentPickerProps['inventoryState']; onRetry: MoveParentPickerProps['onRetryInventory']; t: MoveParentOverlayProps['t']; children: ReactNode
+function MoveInventoryStatus({ state, onRetry, t }: Readonly<{
+  state: MoveParentPickerProps['inventoryState']; onRetry: MoveParentPickerProps['onRetryInventory']; t: MoveParentOverlayProps['t']
 }>) {
   if (state === 'loading') return <Skeleton variant="habit-row" label={t('common.loading')} />
   return <>
     {state ? <ErrorState message={t('errors.fetchHabits')}
       action={<PillButton size="sm" variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>} /> : null}
-    {state === 'error' ? null : children}
   </>
 }
 
@@ -119,8 +118,10 @@ export function MoveParentOverlay({
     () => getMoveParentPickerRows(options, searchQuery), [options, searchQuery],
   )
 
+  if (!open) return null
+
   return (
-    open ? (<Sheet
+    <Sheet
       ref={sheetRef}
       virtualizedBody
       boundedBody
@@ -140,7 +141,8 @@ export function MoveParentOverlay({
       }
     >
       <div ref={focusRef} tabIndex={-1} className="flex flex-col min-h-0" style={{ gap: 8 }}>
-        <MoveInventoryBody state={inventoryState} onRetry={onRetryInventory} t={t}>
+        <MoveInventoryStatus state={inventoryState} onRetry={onRetryInventory} t={t} />
+        {inventoryState !== 'loading' && inventoryState !== 'error' ? <>
 
         {movingHabitCount === undefined && movingHabitTitle ? (
           <p className="text-sm text-[var(--fg-3)]">
@@ -212,8 +214,8 @@ export function MoveParentOverlay({
             {t('habits.moveParent.noSearchResults')}
           </p>
         )}
-        </MoveInventoryBody>
+        </> : null}
       </div>
-    </Sheet>) : null
+    </Sheet>
   )
 }

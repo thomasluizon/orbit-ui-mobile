@@ -923,6 +923,74 @@ describe('HabitList', () => {
     expect(picker().props.visible).toBe(false)
   })
 
+  it.each(['ready', 'error'] as const)('preserves the active Move operation across list loading and %s', async (outcome) => {
+    skipFlow.active = true
+    const fixture = createMoveInventoryFixture(TODAY)
+    let releaseList = () => {}
+    let heldList = new Promise<void>((resolve) => { releaseList = resolve })
+    const changedRequests = vi.fn()
+    offlineMocks.apiClient.mockImplementation(async (url: string) => {
+      if (url.includes('dateFrom=') && !url.includes(`dateFrom=${TODAY}`)) {
+        changedRequests()
+        await heldList
+        if (outcome === 'error') throw new Error('List unavailable')
+      }
+      return fixture.response(url)
+    })
+    let releaseMove = (_result: import('@orbit/shared/types/habit').BulkMoveHabitParentResult) => {}
+    const heldMove = new Promise<import('@orbit/shared/types/habit').BulkMoveHabitParentResult>((resolve) => { releaseMove = resolve })
+    const onBulkMove = vi.fn().mockReturnValueOnce(heldMove)
+      .mockResolvedValueOnce({ results: [{ index: 0, habitId: 'past', status: 'Success' }] })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const ref = React.createRef<HabitListHandle>()
+    const list = (date: string) => <QueryClientProvider client={client}>
+      <HabitList ref={ref} filters={{ dateFrom: date }} showCompleted onCreatePress={vi.fn()} isSelectMode
+        selectedHabitIds={new Set(['source', 'past'])} onBulkMove={onBulkMove} />
+    </QueryClientProvider>
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => { tree = createTestTree(list(TODAY)); await Promise.resolve() })
+    const rows = () => tree!.root.findAllByType(HabitRow)
+    await vi.waitFor(() => expect(rows().some((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'source')).toBe(true))
+    TestRenderer.act(() => ref.current!.openBulkMove())
+    const picker = () => tree!.root.findByType(MoveParentDialog)
+    await vi.waitFor(() => expect(picker().props.inventoryState).toBeUndefined())
+    const search = () => tree!.root.findAll((node: { props: { label?: string; onChange?: unknown } }) =>
+      node.props.label === 'habits.moveParent.searchPlaceholder' && typeof node.props.onChange === 'function')[0]!
+    TestRenderer.act(() => { search().props.onChange('Future page'); picker().props.onSelectOption('future') })
+    TestRenderer.act(() => { pressConfirm(tree, 'habits.moveParent.confirm') })
+    expect(onBulkMove).toHaveBeenCalledExactlyOnceWith(['source', 'past'], 'future')
+    await TestRenderer.act(async () => { tree!.update(list(TOMORROW)); await Promise.resolve() })
+    await vi.waitFor(() => expect(changedRequests).toHaveBeenCalledOnce())
+    expect(picker().props.visible).toBe(true)
+    expect(picker().props.selectedMoveParentId).toBe('future')
+    expect(search().props.value).toBe('Future page')
+    expect(picker().props.isPending).toBe(true)
+    await TestRenderer.act(async () => { releaseList(); await heldList })
+    if (outcome === 'error') await vi.waitFor(() => expect(tree!.root.findByType(FlatList).props.ListEmptyComponent.props.title).toBe('habits.loadError'))
+    else await vi.waitFor(() => expect(rows().some((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'source')).toBe(true))
+    await TestRenderer.act(async () => { await picker().props.onConfirm() })
+    expect(onBulkMove).toHaveBeenCalledOnce()
+    await TestRenderer.act(async () => { releaseMove({ results: [
+      { index: 0, habitId: 'source', status: 'Success' },
+      { index: 1, habitId: 'past', status: 'Failed', error: 'Move refused by server' },
+    ] }); await heldMove })
+    await vi.waitFor(() => expect(picker().props.error).toBe('habits.moveParent.errorPartial'))
+    changedRequests.mockClear()
+    heldList = new Promise<void>((resolve) => { releaseList = resolve })
+    await TestRenderer.act(async () => { tree!.update(list(YESTERDAY)); await Promise.resolve() })
+    await vi.waitFor(() => expect(changedRequests).toHaveBeenCalledOnce())
+    expect(picker().props.selectedMoveParentId).toBe('future')
+    expect(search().props.value).toBe('Future page')
+    expect(picker().props.movingHabitCount).toBe(1)
+    expect(picker().props.error).toBe('habits.moveParent.errorPartial')
+    await TestRenderer.act(async () => { releaseList(); await heldList })
+    await TestRenderer.act(async () => { pressConfirm(tree, 'habits.moveParent.confirm'); await Promise.resolve() })
+    expect(onBulkMove).toHaveBeenNthCalledWith(2, ['past'], 'future')
+    expect(picker().props.visible).toBe(false)
+    TestRenderer.act(() => tree!.unmount())
+    client.clear()
+  })
+
   it('opens sub-habit creation for a free account from the habit list', () => {
     accountDate.hasProAccess = false
     try {

@@ -1,5 +1,5 @@
 import { SPACING } from '@orbit/shared/theme'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { Home, Search } from '@/components/ui/icons'
 import { plural } from '@/lib/plural'
@@ -63,14 +63,13 @@ function MoveTargetRow({
   )
 }
 
-function MoveInventoryBody({ state, onRetry, t, children }: Readonly<{
-  state: MoveParentPickerProps['inventoryState']; onRetry: MoveParentPickerProps['onRetryInventory']; t: MoveParentDialogProps['t']; children: ReactNode
+function MoveInventoryStatus({ state, onRetry, t }: Readonly<{
+  state: MoveParentPickerProps['inventoryState']; onRetry: MoveParentPickerProps['onRetryInventory']; t: MoveParentDialogProps['t']
 }>) {
   if (state === 'loading') return <Skeleton variant="habit-row" label={t('common.loading')} />
   return <>
     {state ? <ErrorState message={t('errors.fetchHabits')}
       action={<PillButton size="sm" variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>} /> : null}
-    {state === 'error' ? null : children}
   </>
 }
 
@@ -137,8 +136,10 @@ export function MoveParentDialog({
     onClose()
   }
 
+  if (!visible) return null
+
   return (
-    visible ? (<Sheet
+    <Sheet
       ref={sheetRef}
       virtualizedBody
       boundedBody
@@ -157,7 +158,8 @@ export function MoveParentDialog({
       }
     >
       <View style={{ flexShrink: 1, gap: 8 }}>
-        <MoveInventoryBody state={inventoryState} onRetry={onRetryInventory} t={t}>
+        <MoveInventoryStatus state={inventoryState} onRetry={onRetryInventory} t={t} />
+        {inventoryState !== 'loading' && inventoryState !== 'error' ? <>
 
         <MoveDialogDescription
           t={t}
@@ -226,9 +228,9 @@ export function MoveParentDialog({
 
         <Text accessibilityLiveRegion="polite" style={[styles.moveDialogError, !error && styles.emptyError]}>{error}</Text>
         <MoveEmptyState t={t} options={options} isSearchEmpty={isSearchEmpty} styles={styles} />
-        </MoveInventoryBody>
+        </> : null}
       </View>
-    </Sheet>) : null
+    </Sheet>
   )
 }
 
