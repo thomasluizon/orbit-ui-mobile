@@ -167,7 +167,7 @@ describe('HabitFormFields mobile', () => {
     </HabitFormInteractionProvider>
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(form(false)) })
-    const controls = tree.root.findAllByType(PillButton).filter((node: { props: Record<string, unknown> }) => node.props.children === 'habits.form.askAstra' || node.props.children === 'habits.form.askDate')
+    const controls = tree.root.findAllByType(PillButton).filter((node: { props: Record<string, unknown> }) => node.props.children === 'habits.form.askAstra' || node.props.children === 'habits.form.askDate' || node.props.children === 'habits.form.suggestDate')
     expect(controls).toHaveLength(3)
     const hosts = controls.map((control: import('react-test-renderer').ReactTestInstance) => control.findAll((node) => String(node.type) === 'Pressable')[0]!)
     for (const control of controls) expect(control.findAllByType(AstraGlyph)).toHaveLength(1)
@@ -1557,7 +1557,7 @@ describe('native date ownership across form transitions', () => {
     expect(helpers.form.getValues()).toMatchObject({ itemType: 'habit', frequencyQuantity: 1, isFlexible: false, days: [], intervalWeeks: 1, dueDate: '2026-10-20', endDate: '2026-12-01', title: 'Read', datePhrase: wording, dateIssue: '' })
     await TestRenderer.act(() => { expect(helpers.validateAll()).toBeNull() })
     expect(hosts('habits.form.datePhrase')[0]!.props.value).toBe(wording)
-    expect(action('habits.form.askDate')).toHaveLength(0)
+    expect(action('habits.form.suggestDate')).toHaveLength(0)
     expect(dateRequests.request).not.toHaveBeenCalled()
     const values = habitFormSchema.parse(helpers.form.getValues())
     expect(buildCreateHabitRequest(values, [], [], [], [])).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-20' })
@@ -1571,7 +1571,7 @@ describe('native date ownership across form transitions', () => {
     await mount()
     await phrase('weekly')
     expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, dueDate: '2026-10-20', dateIssue: '' })
-    expect(action('habits.form.askDate')).toHaveLength(0)
+    expect(action('habits.form.suggestDate')).toHaveLength(0)
     expect(dateRequests.request).not.toHaveBeenCalled()
   })
 
@@ -1614,7 +1614,7 @@ describe('native date ownership across form transitions', () => {
     await phrase('every week')
     expect(helpers.form.getValues()).toMatchObject({ itemType: 'task', frequencyUnit: null, frequencyQuantity: null, dueDate: '2026-10-20', dateIssue: 'habits.form.recurrenceRequiresHabit' })
     expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'habits.form.recurrenceRequiresHabit')).toHaveLength(1)
-    expect(action('habits.form.askDate')).toHaveLength(0)
+    expect(action('habits.form.suggestDate')).toHaveLength(0)
     await TestRenderer.act(() => { expect(helpers.validateAll()).toBe('habits.form.recurrenceRequiresHabit') })
     expect(__getFocusedNativeTag()).toBe(hosts('habits.form.typeTask')[0]!.props.__nativeTag)
     expect(hosts('habits.form.typeTask')[0]!.props.accessibilityState.checked).toBe(true)
@@ -1698,12 +1698,12 @@ describe('native date ownership across form transitions', () => {
     dateRequests.request.mockImplementation(() => new Promise((resolve) => { finish = resolve }))
     await mount()
     await phrase('after vacation')
-    await TestRenderer.act(() => action('habits.form.askDate')[0]!.props.onPress())
+    await TestRenderer.act(() => action('habits.form.suggestDate')[0]!.props.onPress())
     await phrase('weekly')
     await TestRenderer.act(() => finish({ date: '2026-10-26', referenceDate: '2026-10-20' }))
     expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: 'Week', dueDate: '2026-10-20', dateIssue: '' })
     expect(action('habits.form.acceptDate')).toHaveLength(0)
-    expect(action('habits.form.askDate')).toHaveLength(0)
+    expect(action('habits.form.suggestDate')).toHaveLength(0)
     expect(dateRequests.request).toHaveBeenCalledOnce()
   })
 
@@ -1726,7 +1726,7 @@ describe('native date ownership across form transitions', () => {
     expect(hosts('habits.form.datePhrase')).toHaveLength(0)
     await recurring()
     expect(helpers.form.getValues('datePhrase')).toBe(text)
-    expect(action('habits.form.askDate')).toHaveLength(text === 'after my vacation' ? 1 : 0)
+    expect(action('habits.form.suggestDate')).toHaveLength(text === 'after my vacation' ? 1 : 0)
     expect(hosts('habits.form.habitStartDate,')).toHaveLength(1)
     expect(dateRequests.request).not.toHaveBeenCalled()
   })
@@ -1766,7 +1766,7 @@ describe('native date ownership across form transitions', () => {
     dateRequests.request.mockImplementation(() => new Promise((resolve) => { finish = resolve }))
     await mount()
     await phrase('after my vacation')
-    await TestRenderer.act(() => action('habits.form.askDate')[0]!.props.onPress())
+    await TestRenderer.act(() => action('habits.form.suggestDate')[0]!.props.onPress())
     await changeCadence(change)
     await TestRenderer.act(async () => { finish({ date: '2026-10-26', referenceDate: '2026-10-20' }); await Promise.resolve() })
     expect(action('habits.form.acceptDate')).toHaveLength(0)
@@ -1778,7 +1778,7 @@ describe('native date ownership across form transitions', () => {
     dateRequests.request.mockResolvedValue({ date: '2026-10-26', referenceDate: '2026-10-20' })
     await mount()
     await phrase('after my vacation')
-    await TestRenderer.act(() => action('habits.form.askDate')[0]!.props.onPress())
+    await TestRenderer.act(() => action('habits.form.suggestDate')[0]!.props.onPress())
     expect(action('habits.form.acceptDate')).toHaveLength(1)
     await changeCadence(change)
     expect(action('habits.form.acceptDate')).toHaveLength(0)
@@ -1789,7 +1789,7 @@ describe('native date ownership across form transitions', () => {
     dateRequests.request.mockResolvedValue({ date: '2026-10-26', referenceDate: '2026-10-20' })
     await mount()
     await phrase('after my vacation')
-    await TestRenderer.act(() => action('habits.form.askDate')[0]!.props.onPress())
+    await TestRenderer.act(() => action('habits.form.suggestDate')[0]!.props.onPress())
     const accept = action('habits.form.acceptDate')[0]!
     const row = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'action-row' && node.findAll((child: UnderstandingTestNode) => child === accept).length > 0)[0]
     expect(row).toBeDefined()
@@ -1802,7 +1802,7 @@ describe('native date ownership across form transitions', () => {
     dateRequests.request.mockResolvedValue({ date: '2026-10-26', referenceDate: '2026-10-20' })
     await mount()
     await phrase('after my vacation')
-    await TestRenderer.act(() => action('habits.form.askDate')[0]!.props.onPress())
+    await TestRenderer.act(() => action('habits.form.suggestDate')[0]!.props.onPress())
     expect(StyleSheet.flatten(dateValue().props.style).color).toBe(tokens.fg3)
     const accept = action('habits.form.acceptDate')[0]!
     const row = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'action-row' && node.findAll((child: UnderstandingTestNode) => child === accept).length > 0)[0]!
@@ -1811,7 +1811,7 @@ describe('native date ownership across form transitions', () => {
     await TestRenderer.act(() => accept.props.onPress())
     expect(StyleSheet.flatten(dateValue().props.style).color).toBe(tokens.fg1)
     await phrase('after my vacation')
-    await TestRenderer.act(() => action('habits.form.askDate')[0]!.props.onPress())
+    await TestRenderer.act(() => action('habits.form.suggestDate')[0]!.props.onPress())
     await press('habits.form.habitStartDate,')
     const day = tree.root.findByType('Sheet').findAll((node: { type: unknown; props: { accessibilityState?: { selected?: boolean } } }) => node.type === 'Pressable' && node.props.accessibilityState?.selected === true)[0]!
     await TestRenderer.act(() => day.props.onPress())
@@ -1838,7 +1838,7 @@ it('keeps a native Astra date proposed until acceptance and moves focus to its c
     const input = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.datePhrase')[0]!
     const button = (label: string) => tree.root.findAllByType('Pressable').find((node: import('react-test-renderer').ReactTestInstance) => node.findAll((text) => String(text.type) === 'Text' && text.props.children === label).length > 0)!
     await TestRenderer.act(() => input.props.onChangeText('after vacation'))
-    await TestRenderer.act(() => button('habits.form.askDate').props.onPress())
+    await TestRenderer.act(() => button('habits.form.suggestDate').props.onPress())
     expect(helpers.form.getValues('dueDate')).toBe('2026-10-20')
     await TestRenderer.act(() => { expect(helpers.validateAll()).toBe('habits.form.dateConfirmationRequired') })
     await TestRenderer.act(() => button('habits.form.acceptDate').props.onPress())
@@ -1982,7 +1982,7 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     const messages = locale === 'en' ? en : ptBR
     await mount(type)
     await TestRenderer.act(() => phraseInput().props.onChangeText('after vacation'))
-    await TestRenderer.act(() => action('habits.form.askDate').props.onPress())
+    await TestRenderer.act(() => action('habits.form.suggestDate').props.onPress())
     await submit()
     expect(phraseInput().props.accessibilityHint).toContain(messages.habits.form.dateConfirmationRequired)
     expect(__getFocusedNativeTag()).toBe(phraseInput().props.__nativeTag)
@@ -2149,7 +2149,7 @@ describe('native date candidate confirmation', () => {
   const picker = () => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('habits.form.taskDate,'))[0]!
   async function propose() {
     await TestRenderer.act(() => phraseInput().props.onChangeText('after vacation'))
-    await TestRenderer.act(() => action('habits.form.askDate')[0]!.props.onPress())
+    await TestRenderer.act(() => action('habits.form.suggestDate')[0]!.props.onPress())
     expect(action('habits.form.acceptDate')).toHaveLength(1)
   }
   async function save() {
@@ -2162,13 +2162,13 @@ describe('native date candidate confirmation', () => {
     await mount()
     await TestRenderer.act(() => phraseInput().props.onChangeText('after vacation'))
     expect(captions(messages.habits.form.datePhraseUnresolved)).toHaveLength(1)
-    await TestRenderer.act(() => action('habits.form.askDate')[0]!.props.onPress())
+    await TestRenderer.act(() => action('habits.form.suggestDate')[0]!.props.onPress())
     expect(captions(messages.habits.form.datePhraseUnresolved)).toHaveLength(0)
     expect(phraseInput().props.accessibilityHint).not.toContain(messages.habits.form.datePhraseUnresolved)
     const inputRoot = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && 'data-error' in node.props && node.findAll((child: UnderstandingTestNode) => child === phraseInput()).length > 0)[0]!
     expect(inputRoot.props['data-error']).toBeUndefined()
     expect(captions(messages.habits.form.dateProposed).filter((node: UnderstandingTestNode) => node.props.accessibilityLiveRegion === 'polite')).toHaveLength(1)
-    expect(action('habits.form.askDate')).toHaveLength(0)
+    expect(action('habits.form.suggestDate')).toHaveLength(0)
     expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && String(node.props.children).startsWith('habits.form.askAstraCost'))).toHaveLength(0)
     expect(helpers.form.getValues()).toMatchObject({ dueDate: '2026-10-20', datePhrase: 'after vacation', dateIssue: '' })
     expect(dateRequests.request).toHaveBeenCalledOnce()
@@ -2192,11 +2192,11 @@ describe('native date candidate confirmation', () => {
   it('offers another paid consultation only after the proposed phrase changes', async () => {
     await mount()
     await propose()
-    expect(action('habits.form.askDate')).toHaveLength(0)
+    expect(action('habits.form.suggestDate')).toHaveLength(0)
     expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && String(node.props.children).startsWith('habits.form.askAstraCost'))).toHaveLength(0)
     await TestRenderer.act(() => phraseInput().props.onChangeText('after my next vacation'))
     expect(action('habits.form.acceptDate')).toHaveLength(0)
-    expect(action('habits.form.askDate')[0]!.props.disabled).toBe(false)
+    expect(action('habits.form.suggestDate')[0]!.props.disabled).toBe(false)
     expect(dateRequests.request).toHaveBeenCalledOnce()
   })
 
@@ -2204,13 +2204,13 @@ describe('native date candidate confirmation', () => {
     dateRequests.request.mockRejectedValueOnce(new Error('provider timeout'))
     await mount()
     await TestRenderer.act(() => phraseInput().props.onChangeText('after vacation'))
-    await TestRenderer.act(() => action('habits.form.askDate')[0]!.props.onPress())
-    expect(action('habits.form.askDate')[0]!.props.disabled).toBe(false)
+    await TestRenderer.act(() => action('habits.form.suggestDate')[0]!.props.onPress())
+    expect(action('habits.form.suggestDate')[0]!.props.disabled).toBe(false)
     expect(captions(en.habits.form.datePhraseUnresolved)).toHaveLength(1)
     expect(action('habits.form.acceptDate')).toHaveLength(0)
     await save()
     expect(saved).not.toHaveBeenCalled()
-    await TestRenderer.act(() => action('habits.form.askDate')[0]!.props.onPress())
+    await TestRenderer.act(() => action('habits.form.suggestDate')[0]!.props.onPress())
     expect(captions(en.habits.form.datePhraseUnresolved)).toHaveLength(0)
     await TestRenderer.act(() => phraseInput().props.onChangeText('dia 26'))
     await save()
