@@ -522,8 +522,8 @@ jobs:
             fi
             cat "$response_file" >&2
             echo "GitHub API returned HTTP ${http_status}" >&2
-            if [[ "$http_status" == 4?? && "$http_status" != 408 && "$http_status" != 429 ]]; then
-              if [[ "$http_status" != 403 ]] || ! grep -qi 'rate limit\|abuse detection' "$response_file"; then
+            if [[ "$http_status" == 4?? && "$http_status" != 429 ]]; then
+              if [[ "$http_status" != 403 ]] || ! grep -Eqi 'rate limit|abuse detection' "$response_file"; then
                 return 2
               fi
             fi

@@ -138,12 +138,7 @@ async function redesignCases() {
 export async function cases() {
   workflowCases()
   androidRecordCases()
-  const uploaded = clientFor({ ahead: ["android"], androidUploads: [{ track: "open", sha: SECOND }] })
-  const uploadedPlan = await planRelease(uploaded, "production", IDS)
-  T("successful Play submission with failed record step uses the repaired deployment", !uploadedPlan.services[3].needsRelease &&
-    uploadedPlan.services[3].deployedSha === SECOND)
-  T("Android baseline does not depend on workflow conclusion", !uploaded.calls.some((path) => path.includes("/actions/workflows/")))
-  await redesignCases()
+  await androidBaselineCases()
   let missingBranch = ""
   try { await planRelease(clientFor(), "staging", IDS) } catch (error) { missingBranch = error.message }
   T("staging requires a selected branch", missingBranch === "invalid branch for environment")
@@ -170,34 +165,6 @@ export async function cases() {
     T(`${service.name} dispatch pins the planned SHA`, service.plannedSha === SECOND &&
       service.dispatchCommand === `gh workflow run release.yml --repo thomasluizon/${service.repo} --ref main -f environment=production -f branch='main' -f sha=${SECOND}`)
   }
-
-  const productionTrack = await planRelease(clientFor({ ahead: ["android"], androidUploads: [
-    { track: "open", sha: SECOND }, { track: "production", sha: FIRST },
-  ] }), "production", IDS, "production")
-  T("an open upload does not mark production current", productionTrack.services[3].needsRelease &&
-    productionTrack.services[3].deployedSha === FIRST)
-
-  const emptyAndroid = await planRelease(clientFor({ androidUploads: [] }), "production", IDS)
-  T("Android without deployment records reports a first upload", emptyAndroid.services[3].noBaseline &&
-    emptyAndroid.services[3].deployedSha === null)
-  const paginatedAndroid = clientFor()
-  const readPage = paginatedAndroid.read
-  paginatedAndroid.read = (path) => {
-    const response = readPage(path)
-    if (!path.includes("task=android-release")) return response
-    return path.endsWith("page=1")
-      ? Array.from({ length: 100 }, () => ({ ...clone(androidFixture), payload: { ...androidFixture.payload, track: "production" } }))
-      : [{ ...clone(androidFixture), sha: FIRST }]
-  }
-  const paginatedPlan = await planRelease(paginatedAndroid, "production", IDS)
-  T("Android track baseline follows deployment pagination", paginatedPlan.services[3].deployedSha === FIRST &&
-    paginatedAndroid.calls.some((path) => path.includes("task=android-release") && path.endsWith("page=2")))
-  const invalidAndroid = clientFor({ androidUploads: [{ track: "open", sha: "invalid" }] })
-  let androidShape = ""
-  try { await planRelease(invalidAndroid, "production", IDS) } catch (error) { androidShape = error.message }
-  T("Android rejects an invalid deployment commit", androidShape.includes("unexpected SHA"))
-  T("Android baseline selects the deployment environment", uploaded.calls.some((path) =>
-    path.includes("task=android-release&environment=production")))
 
   const first = await planRelease(clientFor({ ahead: ["api"], noLiveApi: true }), "production", IDS)
   T("first production deployment has no baseline", first.services[0].needsRelease && first.services[0].noBaseline && first.services[0].deployedSha === null)
@@ -250,16 +217,7 @@ export async function cases() {
   T("malformed repository variable does not masquerade as a first deploy", invalidVariable.includes("unexpected shape"))
 }
 
-function androidRecordCases() {
-  const workflow = load(readFileSync(toolPath("../.github/workflows/android-release.yml"), "utf8"))
-  const steps = workflow.jobs["release-android"].steps
-  const step = steps.find((value) => value.name === "Record Android deployment")
-  T("Android records only after successful Play submission", !step.if &&
-    steps[steps.indexOf(step) - 1].name === "Submit build to Google Play")
-  const calls = stage("android-record/calls", "")
-  const response = stage("android-record/deployment.json", JSON.stringify(androidFixture))
-  const summary = stage("android-record/summary", "")
-  const stub = `
+const ANDROID_API_STUB = `
     sleep() { :; }
     gh() {
       printf 'gh %s\n' "$*" >> "$CALLS"
@@ -281,9 +239,9 @@ function androidRecordCases() {
       printf '%s %s\n' "$request" "$endpoint" >> "$CALLS"
       local count
       count=$(wc -l < "$CALLS" | tr -d ' ')
-      if [[ "$MODE" == permanent || "$MODE" == exhausted ]]; then
+      if [[ "$MODE" == permanent-* || "$MODE" == exhausted ]]; then
         printf '{"message":"Resource not accessible"}' > "$output"
-        if [[ "$MODE" == permanent ]]; then printf 403; else printf 503; fi
+        if [[ "$MODE" == permanent-* ]]; then printf '%s' "\${MODE#permanent-}"; else printf 503; fi
         return
       fi
       if [[ "$MODE" == transport && "$count" == 1 ]]; then return 56; fi
@@ -312,11 +270,22 @@ function androidRecordCases() {
       printf 200
     }
   `
-  for (const mode of ["normal", "lost-response", "list-retry", "create-retry", "status-retry", "rate-limit", "transport", "permanent", "exhausted"]) {
+
+function androidRecordCases() {
+  const workflow = load(readFileSync(toolPath("../.github/workflows/android-release.yml"), "utf8"))
+  const steps = workflow.jobs["release-android"].steps
+  const step = steps.find((value) => value.name === "Record Android deployment")
+  T("Android records only after successful Play submission", !step.if &&
+    steps[steps.indexOf(step) - 1].name === "Submit build to Google Play")
+  const calls = stage("android-record/calls", "")
+  const response = stage("android-record/deployment.json", JSON.stringify(androidFixture))
+  const summary = stage("android-record/summary", "")
+
+  for (const mode of ["normal", "lost-response", "list-retry", "create-retry", "status-retry", "rate-limit", "transport", "permanent-400", "permanent-401", "permanent-403", "permanent-404", "permanent-408", "permanent-422", "exhausted"]) {
     stage("android-record/calls", "")
     const payload = stage("android-record/payload", "")
     const statusPayload = stage("android-record/status-payload", "")
-    const result = spawnSync(BASH, ["-c", `${stub}\n${step.run}`], { encoding: "utf8", timeout: 5000,
+    const result = spawnSync(BASH, ["-c", `${ANDROID_API_STUB}\n${step.run}`], { encoding: "utf8", timeout: 5000,
       env: { ...process.env, MODE: mode, CALLS: calls, DEPLOYMENT: response, PAYLOAD: payload, STATUS_PAYLOAD: statusPayload,
         GITHUB_REPOSITORY: "example/repository", GITHUB_SHA: androidFixture.sha,
         GITHUB_SERVER_URL: "https://github.com", GITHUB_API_URL: "https://api.github.com",
@@ -325,10 +294,10 @@ function androidRecordCases() {
         RELEASE_TRACK: androidFixture.payload.track, DEPLOYMENT_ENVIRONMENT: androidFixture.environment,
         BUILD_API_BASE: androidFixture.payload.api_base } })
     const observed = readFileSync(calls, "utf8").trim().split("\n")
-    T(`Android record ${mode} ${mode === "permanent" ? "fails with API message" : "recovers"}`,
-      ["permanent", "exhausted"].includes(mode) ? result.status !== 0 && result.stderr.includes("Resource not accessible") : result.status === 0,
+    T(`Android record ${mode} ${mode.startsWith("permanent-") || mode === "exhausted" ? "fails with API message" : "recovers"}`,
+      mode.startsWith("permanent-") || mode === "exhausted" ? result.status !== 0 && result.stderr.includes("Resource not accessible") : result.status === 0,
       result.stdout + result.stderr)
-    if (mode === "permanent") {
+    if (mode.startsWith("permanent-")) {
       T("permanent API failure is not retried", observed.length === 1)
     } else if (mode === "exhausted") {
       T("transient API failure stops after three attempts", observed.length === 3)
@@ -348,4 +317,41 @@ function androidRecordCases() {
       }
     }
   }
+}
+
+async function androidBaselineCases() {
+  const uploaded = clientFor({ ahead: ["android"], androidUploads: [{ track: "open", sha: SECOND }] })
+  const uploadedPlan = await planRelease(uploaded, "production", IDS)
+  T("successful Play submission with failed record step uses the repaired deployment", !uploadedPlan.services[3].needsRelease &&
+    uploadedPlan.services[3].deployedSha === SECOND)
+  T("Android baseline does not depend on workflow conclusion", !uploaded.calls.some((path) => path.includes("/actions/workflows/")))
+  await redesignCases()
+  const productionTrack = await planRelease(clientFor({ ahead: ["android"], androidUploads: [
+    { track: "open", sha: SECOND }, { track: "production", sha: FIRST },
+  ] }), "production", IDS, "production")
+  T("an open upload does not mark production current", productionTrack.services[3].needsRelease &&
+    productionTrack.services[3].deployedSha === FIRST)
+
+  const emptyAndroid = await planRelease(clientFor({ androidUploads: [] }), "production", IDS)
+  T("Android without deployment records reports a first upload", emptyAndroid.services[3].noBaseline &&
+    emptyAndroid.services[3].deployedSha === null)
+  const paginatedAndroid = clientFor()
+  const readPage = paginatedAndroid.read
+  paginatedAndroid.read = (path) => {
+    const response = readPage(path)
+    if (!path.includes("task=android-release")) return response
+    return path.endsWith("page=1")
+      ? Array.from({ length: 100 }, () => ({ ...clone(androidFixture), payload: { ...androidFixture.payload, track: "production" } }))
+      : [{ ...clone(androidFixture), sha: FIRST }]
+  }
+  const paginatedPlan = await planRelease(paginatedAndroid, "production", IDS)
+  T("Android track baseline follows deployment pagination", paginatedPlan.services[3].deployedSha === FIRST &&
+    paginatedAndroid.calls.some((path) => path.includes("task=android-release") && path.endsWith("page=2")))
+  const invalidAndroid = clientFor({ androidUploads: [{ track: "open", sha: "invalid" }] })
+  let androidShape = ""
+  try { await planRelease(invalidAndroid, "production", IDS) } catch (error) { androidShape = error.message }
+  T("Android rejects an invalid deployment commit", androidShape.includes("unexpected SHA"))
+  T("Android baseline selects the deployment environment", uploaded.calls.some((path) =>
+    path.includes("task=android-release&environment=production")))
+
 }
