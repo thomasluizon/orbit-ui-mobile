@@ -14,7 +14,7 @@ import {
   type ListRenderItem,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useChatNavigation } from "@/hooks/use-chat-navigation";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types";
 import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
@@ -105,7 +105,7 @@ function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{
 
 export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) {
   const { t } = useTranslation();
-  const router = useRouter();
+  const navigate = useChatNavigation();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -250,9 +250,9 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       }
 
       setGoalDrawerOpen(false);
-      router.push({ pathname: "/habits/[id]", params: { id: entityId } });
+      navigate({ pathname: "/habits/[id]", params: { id: entityId } });
     },
-    [router],
+    [navigate],
   );
 
   /* WHY: selectedGoalId keeps the presented sheet mounted until native

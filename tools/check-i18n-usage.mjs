@@ -160,6 +160,7 @@ function bindingSources(source, checker, programReferences) {
     })
   }
   function written(binding) {
+    if (!binding.name) return false
     const usages = references.get(referencedSymbol(binding.name, checker)) ?? []
     return usages.some((reference) => {
       let target = reference
@@ -226,6 +227,7 @@ function bindingSources(source, checker, programReferences) {
   function inputs(binding, seen = new Set()) {
     if (!binding || seen.has(binding) || written(binding)) return undefined
     const visited = new Set([...seen, binding])
+    if (ts.isExportAssignment(binding) && !binding.isExportEquals) return [binding.expression]
     if (ts.isVariableDeclaration(binding)) return binding.initializer ? [binding.initializer] : undefined
     if (ts.isParameter(binding)) return parameterArguments(binding, programReferences, checker)
     if (ts.isBindingElement(binding) && ts.isObjectBindingPattern(binding.parent) && !binding.dotDotDotToken) {

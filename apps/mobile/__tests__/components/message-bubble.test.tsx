@@ -1,3 +1,4 @@
+import { useUIStore } from '@/stores/ui-store'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import { createTokensV2 } from '@/lib/theme'
@@ -542,6 +543,7 @@ describe('MessageBubble related-surfaces footer (mobile)', () => {
   })
 
   it('renders deep links for known surfaces and drops unknown ones', async () => {
+    useUIStore.getState().setAstraConversationOpen(true)
     let tree!: TestInstance
     await TestRenderer.act(() => {
       tree = TestRenderer.create(
@@ -565,6 +567,7 @@ describe('MessageBubble related-surfaces footer (mobile)', () => {
       links[0]?.props.onPress?.()
     })
     expect(push).toHaveBeenCalledWith('/progress/achievements')
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
   })
 
   it('does not render the footer for user messages', async () => {

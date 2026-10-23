@@ -2,9 +2,13 @@ import type { ReactElement } from 'react'
 import { act, create } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import type { PeriodInsightCard as PeriodInsightData } from '@orbit/shared/types/chat'
+import { Text } from 'react-native'
+import { Shell412 } from '@/components/shell/shell-412'
+import { useUIStore } from '@/stores/ui-store'
 import { PeriodInsightCard } from '@/components/chat/period-insight-card'
 
-const push = vi.fn()
+let pathname = '/'
+const push = vi.fn((destination: string) => { pathname = destination })
 vi.mock('expo-router', () => ({ useRouter: () => ({ push }) }))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
@@ -36,7 +40,26 @@ const insight: PeriodInsightData = {
   })) },
 }
 
+function App() {
+  const open = useUIStore(state => state.astraConversationOpen)
+  return <Shell412 nav={false} conversationLabel="Astra" conversationOpen={open} conversation={<PeriodInsightCard periodInsight={insight} />}><Text>{pathname}</Text></Shell412>
+}
+
 describe('period insight card on mobile', () => {
+  it('reveals Progress outside the full-screen conversation', () => {
+    push.mockClear()
+    useUIStore.getState().setAstraConversationOpen(true)
+    pathname = '/'
+    const root = render(<App />)
+    const progress = root.findByProps({ accessibilityLabel: 'chat.insight.progressLink' })
+    void act(() => { (progress.props.onPress as () => void)() })
+    expect(push).toHaveBeenCalledWith('/progress')
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(root.findAllByType('View').filter(node => node.props.testID === 'shell-conversation')).toHaveLength(0)
+    expect(root.findByProps({ testID: 'shell-background' }).props.importantForAccessibility).toBe('auto')
+    expect(root.findAllByType('Text').some(node => node.props.children === '/progress')).toBe(true)
+  })
+
   it('starts with scoped figures and reveals every supplied narrative section', () => {
     const root = render(<PeriodInsightCard periodInsight={insight} />)
     const chart = root.findByProps({ testID: 'bar-chart-control' })
@@ -57,9 +80,6 @@ describe('period insight card on mobile', () => {
     expect(announcement.props.accessibilityLiveRegion).toBe('polite')
     expect(announcement.findAllByType('Text').some(node => node.props.children === 'Reading')).toBe(true)
     expect(root.findByProps({ testID: 'block-frame-item-attention-0-pending' })).toBeDefined()
-    const progress = root.findByProps({ accessibilityLabel: 'chat.insight.progressLink' })
-    void act(() => { (progress.props.onPress as () => void)() })
-    expect(push).toHaveBeenCalledWith('/progress')
     const less = root.findByProps({ accessibilityLabel: 'chat.readBlock.less' })
     expect(less.props.accessibilityState).toMatchObject({ expanded: true })
     void act(() => { (less.props.onPress as () => void)() })

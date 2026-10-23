@@ -46,7 +46,10 @@ function beforeSend(event: CaptureResult | null): CaptureResult | null {
   if (containsSensitiveUrl(event.properties) || containsSensitiveUrl(event.$set) || containsSensitiveUrl(event.$set_once)) return null
   return {
     ...event,
-    properties: scrubUrlProperties(event.properties) as CaptureResult['properties'],
+    properties: {
+      ...scrubUrlProperties(event.properties) as CaptureResult['properties'],
+      display_mode: window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser',
+    },
     $set: event.$set ? scrubUrlProperties(event.$set) as CaptureResult['$set'] : undefined,
     $set_once: event.$set_once ? scrubUrlProperties(event.$set_once) as CaptureResult['$set_once'] : undefined,
   }
@@ -70,7 +73,7 @@ let serverEnabled = false
 let optedOut = readAnalyticsOptOut()
 const preferenceListeners = new Set<() => void>()
 let accountId: string | null = null
-let pendingHabitEvents = 0
+let pendingEvents: Array<'habit_logged' | 'pwa_installed'> = []
 let pendingReset = false
 let identityReady = false
 
@@ -94,7 +97,7 @@ export async function applyPostHogGate(enabled: boolean): Promise<void> {
   analyticsEnabled = enabled && !optedOut
   if (!key) return
   if (!analyticsEnabled) {
-    pendingHabitEvents = 0
+    pendingEvents = []
     posthog?.opt_out_capturing()
     return
   }
@@ -107,7 +110,7 @@ export async function applyPostHogGate(enabled: boolean): Promise<void> {
   loading ??= import('posthog-js').then((module) => module.default).catch(() => {
     loading = null
     analyticsEnabled = false
-    pendingHabitEvents = 0
+    pendingEvents = []
     return null
   })
   const client = await loading
@@ -128,10 +131,8 @@ export async function applyPostHogGate(enabled: boolean): Promise<void> {
     })
     posthog = client
     initialized = true
-    while (pendingHabitEvents > 0) {
-      client.capture('habit_logged')
-      pendingHabitEvents -= 1
-    }
+    for (const event of pendingEvents) client.capture(event)
+    pendingEvents = []
     return
   }
 
@@ -169,7 +170,7 @@ export function identifyPostHogUser(userId: string): void {
 
 export function resetPostHogUser(): void {
   accountId = null
-  pendingHabitEvents = 0
+  pendingEvents = []
   pendingReset = true
   if (!posthog) return
   identityReady = false
@@ -183,5 +184,11 @@ export function resetPostHogUser(): void {
 export function captureHabitLogged(): void {
   if (!key || !analyticsEnabled) return
   if (posthog) posthog.capture('habit_logged')
-  else pendingHabitEvents += 1
+  else pendingEvents.push('habit_logged')
+}
+
+export function capturePwaInstalled(): void {
+  if (!key || !analyticsEnabled) return
+  if (posthog) posthog.capture('pwa_installed')
+  else pendingEvents.push('pwa_installed')
 }

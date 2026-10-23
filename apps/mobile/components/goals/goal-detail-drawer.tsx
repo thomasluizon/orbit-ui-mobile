@@ -1,7 +1,7 @@
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useRouter } from 'expo-router'
+import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { AccessibilityInfo, BackHandler, StyleSheet, View } from 'react-native'
 import { formatLocaleDateTime, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { prepareChatRequest } from '@orbit/shared/stores'
@@ -35,7 +35,7 @@ interface GoalDetailDrawerProps {
 
 export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Readonly<GoalDetailDrawerProps>) {
   const { t, i18n } = useTranslation()
-  const router = useRouter()
+  const navigate = useChatNavigation()
   const locale = i18n.language
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -63,10 +63,10 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
     else closeSheet(() => setEditingProgress(true))
   }, [goal, inline, closeSheet, setEditingProgress])
   const openHabit = useCallback((habitId: string) => {
-    const navigate = () => router.push({ pathname: '/habits/[id]', params: { id: habitId } })
-    if (inline) navigate()
-    else closeSheet(() => { onClose(); navigate() })
-  }, [inline, closeSheet, onClose, router])
+    const openDestination = () => navigate({ pathname: '/habits/[id]', params: { id: habitId } })
+    if (inline) openDestination()
+    else closeSheet(() => { onClose(); openDestination() })
+  }, [inline, closeSheet, onClose, navigate])
   const actions = useGoalStatusActions({
     goalId,
     goalName: goal?.title,

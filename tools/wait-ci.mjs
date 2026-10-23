@@ -2,6 +2,7 @@
 import { setTimeout as wait } from "node:timers/promises"
 
 import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
+import { createCiBudget } from "./lib/ci-budget.mjs"
 import { readGithub, readGithubPull } from "./lib/github-read.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { clearWakeSource, registerWakeSource, readRunState } from "./lib/run-state.mjs"
@@ -11,6 +12,8 @@ const USAGE = `usage: wait-ci.mjs --repo <key> --pr <n> [--pr <n> ...] [--requir
 Watch every named pull request's current head through GitHub REST checks and commit statuses.
 Exit when all checks settle, a head moves, a pull request closes, or the ceiling expires.
 Transient GitHub errors retry until the ceiling; JSON includes their count and last text.
+Waiters in this checkout share half the live REST hourly limit per account, use conditional
+reads, and slow down when capacity is low. Budget waits remain inside the ceiling.
 --help, -h print this usage.
 exit codes: 0 settled, head moved, or pull request closed; 1 GitHub read or wake registration failed;
             2 invalid arguments or config; 3 ceiling reached; 130 SIGINT; 143 SIGTERM`
@@ -80,7 +83,7 @@ const deadline = Date.now() + ceilingMinutes * 60_000
 try {
   const auth = await githubEnvironment(repositoryPath)
   const slug = repositorySlug(repositoryPath)
-  const readOptions = { deadline, pollMs: config.timeouts.pollSeconds * 1000, onTransientError: (text) => {
+  const readOptions = { deadline, rest: createCiBudget({ owner: auth.owner, environment: auth.environment }), pollMs: config.timeouts.pollSeconds * 1000, onTransientError: (text) => {
     result.transientErrors.count++
     result.transientErrors.last = redactSecrets(text, auth.secrets)
   } }

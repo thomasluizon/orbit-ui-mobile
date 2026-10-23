@@ -171,6 +171,7 @@ export function Button({
 export function PillLink({
   href,
   onClick,
+  onNavigate,
   variant = 'primary',
   size: requestedSize = 'sm',
   children,
@@ -178,6 +179,7 @@ export function PillLink({
 }: Readonly<{
   href: LinkProps['href']
   onClick?: () => void
+  onNavigate?: LinkProps['onNavigate']
   variant?: ButtonVariant
   size?: ButtonSize
   children: string
@@ -189,6 +191,7 @@ export function PillLink({
     <Link
       href={href}
       onClick={onClick}
+      onNavigate={onNavigate}
       aria-label={accessibleName}
       data-variant={variant}
       data-size={size}

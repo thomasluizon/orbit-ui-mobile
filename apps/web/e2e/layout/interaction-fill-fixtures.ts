@@ -1,7 +1,9 @@
 import type { BrowserContext } from '@playwright/test'
 import { API } from '@orbit/shared/api'
-import { createMockCalendarSyncEvent, createMockGamificationProfile, createMockGoal, createMockNotification, createMockRecap } from '@orbit/shared/__tests__/factories'
+import { createMockCalendarSyncEvent, createMockGamificationProfile, createMockGoal, createMockNotification, createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { buildRetrospectiveRequestUrl } from '@orbit/shared/utils/retrospective'
+import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
 import { buildRecapRequestUrl } from '@orbit/shared/utils'
 import { calendarEventsResponseSchema } from '@orbit/shared/types/calendar'
 import { habitMetricsSchema } from '@orbit/shared/types/habit'
@@ -28,9 +30,18 @@ export async function installInteractionFillFixtures(context: BrowserContext, ro
   ])
   const events = calendarEventsResponseSchema.parse([createMockCalendarSyncEvent({ startDate: day, startTime: '09:00:00' }), createMockCalendarSyncEvent({ id: 'event-2', title: 'Read a chapter', startDate: day, startTime: '10:00:00' })])
   const metrics = habitMetricsSchema.parse({ currentStreak: 1, longestStreak: 1, weeklyCompletionRate: 100, monthlyCompletionRate: 100, totalCompletions: 1, lastCompletedDate: day })
+  const retrospective = retrospectiveResponseSchema.parse({
+    period: 'month', fromCache: false,
+    narrative: { highlights: '', missed: '', trends: '', suggestion: '' },
+    metrics: createMockRetrospectiveMetrics({ completionSeries: { granularity: 'day', points: Array.from({ length: 30 }, (_, index) => ({
+      startDate: `2026-09-${String(index + 1).padStart(2, '0')}`, endDate: `2026-09-${String(index + 1).padStart(2, '0')}`,
+      scheduled: 4, completed: [0, 2, 4][index % 3]!, completionRate: [0, 50, 100][index % 3]!,
+    })) } }),
+  })
   const responses: readonly (readonly [string, unknown])[] = [
     [API.habits.get(habit.id), habit], [API.habits.logs(habit.id), []], [API.habits.metrics(habit.id), metrics],
     [API.habits.calendarMonth, { habits: items, logs: {} }], [API.calendar.events, events],
+    [buildRetrospectiveRequestUrl('month', locale), retrospective],
     [API.habits.count, { count: items.length }], [buildRecapRequestUrl('week'), createMockRecap()],
   ]
   for (const [path, body] of responses) await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === path.split('?')[0], (request) => request.fulfill({ json: body }))

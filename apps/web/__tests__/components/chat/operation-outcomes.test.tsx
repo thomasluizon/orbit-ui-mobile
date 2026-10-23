@@ -1,3 +1,4 @@
+import { useUIStore } from '@/stores/ui-store'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
@@ -38,6 +39,7 @@ describe('OperationOutcomes on web', () => {
   beforeEach(() => push.mockReset())
 
   it('renders localized typed outcomes and keeps policy recovery on Profile', () => {
+    useUIStore.getState().setAstraConversationOpen(true)
     const outcomes = selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [
       makeAgentOperationResult('Succeeded', 1),
       makeAgentOperationResult('Failed', 2),
@@ -54,6 +56,7 @@ describe('OperationOutcomes on web', () => {
     expect(screen.queryByText('DeleteAccount')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.openProfile' }))
     expect(push).toHaveBeenCalledWith('/profile')
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
   })
 
   it('renders one policy outcome when the API returns a denial twice', () => {

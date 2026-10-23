@@ -1,3 +1,4 @@
+import { INTERACTION_FILL_CLEARANCE } from '../../theme/interaction'
 import { TOUCH_TARGET_MIN } from '../../theme/breakpoints'
 
 export type BarChartPoint = Readonly<{
@@ -16,6 +17,7 @@ export type BarGeometry = Readonly<{
   width: number
   height: number
   radius: number
+  fillInsetInline: number
   slotStart: number
   slotEnd: number
 }>
@@ -29,20 +31,22 @@ export function resolveBarChartGeometry(
 ): readonly BarGeometry[] {
   if (rates.length === 0 || width <= 0) return []
   const slotWidth = width / rates.length
-  const gap = Math.min(8, Math.max(0, slotWidth - 2))
+  const gap = Math.min(8, slotWidth - Math.min(2, slotWidth / 2))
   const barWidth = slotWidth - gap
+  const plotHeight = BAR_CHART_HEIGHT - INTERACTION_FILL_CLEARANCE * 2
 
   return rates.map((rate, index) => {
     const height = rate == null || rate <= 0
       ? BAR_CHART_EMPTY_HEIGHT
-      : Math.max(BAR_CHART_EMPTY_HEIGHT, Math.min(100, rate) / 100 * BAR_CHART_HEIGHT)
+      : Math.max(BAR_CHART_EMPTY_HEIGHT, Math.min(100, rate) / 100 * plotHeight)
     const slotStart = index * slotWidth
     return {
       x: slotStart + gap / 2,
-      y: BAR_CHART_HEIGHT - height,
+      y: BAR_CHART_HEIGHT - INTERACTION_FILL_CLEARANCE - height,
       width: barWidth,
       height,
       radius: Math.min(8, height / 2, barWidth / 2),
+      fillInsetInline: Math.min(gap / 4, Math.max(0, INTERACTION_FILL_CLEARANCE - gap / 2)),
       slotStart,
       slotEnd: (index + 1) * slotWidth,
     }

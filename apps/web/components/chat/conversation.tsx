@@ -7,7 +7,7 @@ import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence } from 'motion/react'
-import { useRouter } from 'next/navigation'
+import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
 import { chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason, getChatReplyState } from '@orbit/shared/chat'
@@ -117,7 +117,7 @@ function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{
 
 export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatController; notice?: ReactNode }>) {
   const t = useTranslations()
-  const router = useRouter()
+  const navigate = useChatNavigation()
   const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const close = useCallback(() => setAstraConversationOpen(false), [setAstraConversationOpen])
   const {
@@ -250,15 +250,13 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     }
 
     setSelectedGoalId(null)
-    close()
-    router.push(`/habits/${entityId}`)
-  }, [close, router, setSelectedGoalId])
+    navigate(`/habits/${entityId}`)
+  }, [navigate, setSelectedGoalId])
 
   const handleLinkedHabitNavigate = useCallback((habitId: string) => {
     setSelectedGoalId(null)
-    close()
-    router.push(`/habits/${habitId}`)
-  }, [close, router, setSelectedGoalId])
+    navigate(`/habits/${habitId}`)
+  }, [navigate, setSelectedGoalId])
 
   const handleGoalDrawerOpenChange = useCallback((open: boolean) => {
     if (!open) setSelectedGoalId(null)
