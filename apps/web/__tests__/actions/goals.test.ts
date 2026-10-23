@@ -24,7 +24,6 @@ const {
   updateGoalProgress,
   updateGoalStatus,
   reorderGoals,
-  linkHabitsToGoal,
 } = await import('@/lib/actions/goals')
 
 describe('goal server actions', () => {
@@ -195,37 +194,6 @@ describe('goal server actions', () => {
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({ positions: [] })
-    })
-  })
-
-
-  describe('linkHabitsToGoal', () => {
-    it('sends PUT to /api/goals/:id/habits', async () => {
-      mock204()
-
-      await linkHabitsToGoal('goal-1', ['h-1', 'h-2'], 'account-a')
-
-      const [url, init] = mockFetch.mock.calls[0]!
-      expect(url).toContain('/api/goals/goal-1/habits')
-      expect(init.method).toBe('PUT')
-      expect(JSON.parse(init.body)).toEqual({ habitIds: ['h-1', 'h-2'] })
-    })
-
-    it('handles empty habit ids to unlink all', async () => {
-      mock204()
-
-      await linkHabitsToGoal('goal-1', [], 'account-a')
-
-      const [, init] = mockFetch.mock.calls[0]!
-      expect(JSON.parse(init.body)).toEqual({ habitIds: [] })
-    })
-
-    it('throws on server error', async () => {
-      mockApiResponse({ error: 'Goal not found' }, 404)
-
-      await expect(
-        linkHabitsToGoal('nonexistent', ['h-1'], 'account-a'),
-      ).rejects.toThrow('Goal not found')
     })
   })
 

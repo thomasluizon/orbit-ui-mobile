@@ -1,0 +1,14 @@
+{
+  "repository": "thomasluizon/orbit-api",
+  "revision": "5b9dd63f75157f8cb95095a724c038f77d3e4b83",
+  "origin": "ProfileResponse declaration extracted verbatim from the production API revision and serialized with MVC JsonOptions plus JsonStringEnumConverter. Synthetic scalar inputs; not a captured account response. The handler explicitly passes null for PublicProfile.",
+  "command": "dotnet run --project <scratchpad>/profile-1630-probe/profile-1630-probe.csproj --verbosity quiet",
+  "sourceCommand": "git show 5b9dd63f75157f8cb95095a724c038f77d3e4b83:<source path>",
+  "sources": {
+    "src/Orbit.Application/Profile/Queries/GetProfileQuery.cs": "afecc38f88bde92f595a980c76c61001dd247be2d99a5413d051a0cfd5063b0e",
+    "src/Orbit.Application/Profile/Models/PublicProfileSettings.cs": "8ff7f5d5818c1ff95ae3aa16bbe54aa83db807a985b71ce7e988f8537542f2cd",
+    "src/Orbit.Domain/Enums/GoogleCalendarAutoSyncStatus.cs": "12c328fec28f56caf801bffb6450de98aff149be6fa557d0055a272d5198a56f",
+    "src/Orbit.Api/Extensions/ServiceCollectionExtensions.Infrastructure.cs": "2957ef8fdc5952b850335950f344cfcef9e6a8634ae2ff16fd76609a7e392600",
+    "src/Orbit.Api/Controllers/ProfileController.cs": "9548e664fc82bccccb302eed543b9dc4b9f8e50d9bd4ef2b9dcc0c66145ea66c"
+  }
+}

@@ -1,9 +1,12 @@
+import type { UIStoreState } from '../stores/ui-store'
 import type {
   CreateGoalRequest,
   Goal,
   GoalDetailWithMetrics,
   GoalStatus,
   UpdateGoalRequest,
+  UpdateGoalProgressRequest,
+  UpdateGoalStatusRequest,
 } from '../types/goal'
 
 export function sortGoalsByPosition(a: Goal, b: Goal): number {
@@ -138,4 +141,26 @@ export function updateGoalStatusDetail(
       progressPercentage: status === 'Completed' ? 100 : detail.metrics.progressPercentage,
     },
   }
+}
+
+export interface GoalMutationInput<Request> {
+  goalId: string
+  data: Request
+  goalName?: string
+  goalCount?: number
+  goalUnit?: string
+}
+
+function goalCompletionCelebration(input: Pick<GoalMutationInput<unknown>, 'goalName' | 'goalCount' | 'goalUnit'>) {
+  return input.goalName && input.goalCount !== undefined && input.goalUnit !== undefined
+    ? { name: input.goalName, count: input.goalCount, unit: input.goalUnit }
+    : null
+}
+
+export function getGoalProgressCelebration(input: GoalMutationInput<UpdateGoalProgressRequest>): UIStoreState['goalCompletedCelebration'] {
+  return input.data.currentValue === input.goalCount ? goalCompletionCelebration(input) : null
+}
+
+export function getGoalStatusCelebration(input: GoalMutationInput<UpdateGoalStatusRequest>): UIStoreState['goalCompletedCelebration'] {
+  return input.data.status === 'Completed' ? goalCompletionCelebration(input) : null
 }

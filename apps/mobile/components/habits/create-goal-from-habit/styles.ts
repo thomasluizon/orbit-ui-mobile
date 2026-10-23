@@ -7,6 +7,7 @@ export type CreateGoalStyles = ReturnType<typeof createStyles>
 
 export function createStyles(tokens: CreateGoalTokens) {
   return StyleSheet.create({
+    explainer: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22, color: tokens.fg2 },
     form: {
       gap: 16,
     },

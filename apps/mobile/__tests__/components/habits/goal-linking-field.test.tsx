@@ -77,18 +77,29 @@ describe.each(['Today', 'habit detail'])('GoalLinkingField lifecycle from %s', (
   })
 })
 
-it.each([undefined, 'habit-reading'])('creates from a populated picker with habit context %s without overriding saved associations', async (habitId) => {
+it.each([undefined, 'habit-reading'])('creates from a populated picker with habit context %s and selects the created goal', async (habitId) => {
   queryGoals = [createMockGoal({ id: 'existing-goal', title: 'Existing goal' })]
   const onToggleGoal = vi.fn()
   let tree!: ReturnType<typeof TestRenderer.create>
-  await TestRenderer.act(() => { tree = TestRenderer.create(<GoalLinkingField habitId={habitId} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={onToggleGoal} />) })
+  await TestRenderer.act(() => { tree = TestRenderer.create(<GoalLinkingField habitId={habitId} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={onToggleGoal} onGoalCreated={onToggleGoal} />) })
   await TestRenderer.act(() => tree.root.findByType('ListRow').props.onClick())
   await TestRenderer.act(() => createGoalButton(tree.root, 'goals.create').props.onPress())
   const creator = tree.root.findByType('CreateGoalSheet')
   expect(creator.props.initialHabitIds).toEqual(habitId ? [habitId] : [])
-  await TestRenderer.act(() => { creator.props.onCreated?.('created-goal'); creator.props.onClose() })
-  if (habitId) expect(onToggleGoal).not.toHaveBeenCalled()
-  else expect(onToggleGoal).toHaveBeenCalledWith('created-goal')
+  await TestRenderer.act(() => { creator.props.onCreated?.('created-goal', habitId ? [habitId] : []); creator.props.onClose() })
+  expect(onToggleGoal).toHaveBeenCalledWith('created-goal')
+  await TestRenderer.act(() => tree.unmount())
+})
+
+it('does not select the created goal when the starting habit was deselected', async () => {
+  queryGoals = []
+  const onGoalCreated = vi.fn()
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { tree = TestRenderer.create(<GoalLinkingField habitId="habit-reading" selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onGoalCreated={onGoalCreated} />) })
+  await TestRenderer.act(() => tree.root.findByType('ListRow').props.onClick())
+  await TestRenderer.act(() => createGoalButton(tree.root).props.onPress())
+  await TestRenderer.act(() => tree.root.findByType('CreateGoalSheet').props.onCreated('created-goal', []))
+  expect(onGoalCreated).not.toHaveBeenCalled()
   await TestRenderer.act(() => tree.unmount())
 })
 

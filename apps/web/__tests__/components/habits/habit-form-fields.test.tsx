@@ -192,6 +192,7 @@ describe('HabitFormFields', () => {
     mockProfileState.hasProAccess = hasProAccess
     renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
     expect(screen.queryByText('sub-habit-editor')).toBeTruthy()
+    expect(screen.getByText('goal-linking')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /common\.upgrade/ }) !== null).toBe(false)
   })
 
