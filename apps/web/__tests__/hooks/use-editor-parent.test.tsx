@@ -36,6 +36,7 @@ it('loads both complete account inventories on demand, including off-day, Genera
   expect(result.current.options.map((option) => option.id)).toContain('general')
   expect(result.current.options.find((option) => option.id === 'later')?.disabled).toBe(false)
   expect(result.current.options.find((option) => option.id === 'source')?.disabled).toBe(true)
+  expect(result.current.options.find((option) => option.id === null)?.disabled).toBe(false)
   expect(read).toHaveBeenCalledTimes(3)
   for (const [url] of read.mock.calls) {
     const params = new URL(url, 'https://fixture.invalid').searchParams

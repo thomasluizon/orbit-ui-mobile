@@ -48,6 +48,7 @@ it('loads both complete account inventories on demand and includes a later-page 
   expect(current.options.map((option) => option.id)).toContain('general')
   expect(current.options.find((option) => option.id === 'later')?.disabled).toBe(false)
   expect(current.options.find((option) => option.id === 'source')?.disabled).toBe(true)
+  expect(current.options.find((option) => option.id === null)?.disabled).toBe(false)
   expect(read).toHaveBeenCalledTimes(3)
   for (const [url] of read.mock.calls) {
     const params = new URL(url, 'https://fixture.invalid').searchParams

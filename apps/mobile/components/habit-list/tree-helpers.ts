@@ -11,8 +11,6 @@ export interface DragItem extends ReorderableHabitItem {
   hasSubHabits: boolean
 }
 
-export { buildMoveParentOptions, getHabitDepth, getSubtreeMaxDepth, isHabitDescendant, validateMoveTarget, type MoveTargetValidation } from '@orbit/shared/utils'
-
 /** Flattens the visible habit forest into draggable rows in render order,
  *  descending into a habit's children only when it is not collapsed. */
 export function buildFlatHabitItems(
@@ -46,3 +44,5 @@ export function buildFlatHabitItems(
 
   return items
 }
+
+export { buildMoveParentOptions, getHabitDepth, getMoveParentSelection, getSubtreeMaxDepth, isHabitDescendant, validateMoveTarget, type MoveTargetValidation } from '@orbit/shared/utils/move-parent'

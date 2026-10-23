@@ -252,6 +252,7 @@ function TodayScreenContent() {
             onDeselectAll={selection.handleDeselectAll}
             onLog={selection.handleOpenBulkLog}
             onSkip={selection.handleOpenBulkSkip}
+            onMove={() => habitListRef.current?.openBulkMove()}
             onDelete={selection.handleOpenBulkDelete}
             onClose={clearSelection}
             countSuffixLabel={plural(t('common.selectedSuffix'), selection.selectedCount)}
@@ -259,6 +260,7 @@ function TodayScreenContent() {
             deselectAllLabel={t('common.deselectAll')}
             logLabel={t('habits.bulkBar.log')}
             skipLabel={t('habits.bulkBar.skip')}
+            moveLabel={t('habits.bulkBar.move')}
             deleteLabel={t('habits.bulkBar.delete')}
             closeLabel={t('common.cancel')}
             completionReadOnly={selection.completionReadOnly}
@@ -335,6 +337,7 @@ function TodayScreenContent() {
             onShowCompleted={() => setShowCompleted(true)}
             isSelectMode={isSelectMode}
             selectedHabitIds={selectedHabitIds}
+            onBulkMove={selection.confirmBulkMove}
             listHeader={listHeader}
             onCreatePress={() => setShowCreateModal(true)}
             onSeeUpcoming={getSeeUpcomingAction(activeView, date.nextDisabled, date.goToNextDay)}
