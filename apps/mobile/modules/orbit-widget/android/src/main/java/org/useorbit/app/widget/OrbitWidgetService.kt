@@ -432,9 +432,9 @@ class OrbitWidgetFactory(
         }
     }
 
-    private fun cardState(): List<Any?> {
+    private fun cardState(): List<Any?> = synchronized(OrbitWidgetModule.accountRenderLock) {
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-        return listOf(
+        listOf(
             prefs.getString(renderSessionKey, null),
             prefs.getString("header_label", null),
             prefs.getInt("row_count", 0),
@@ -459,7 +459,6 @@ class OrbitWidgetFactory(
             .remove(renderSessionKey)
             .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
             .apply()
-
     }
 
     override fun onDataSetChanged() {
@@ -544,7 +543,6 @@ class OrbitWidgetFactory(
                 .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
                 .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, false)
                 .apply()
-
         }
     }
 

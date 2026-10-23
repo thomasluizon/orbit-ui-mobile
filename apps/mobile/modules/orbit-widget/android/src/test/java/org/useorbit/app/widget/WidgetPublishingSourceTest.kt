@@ -18,7 +18,8 @@ class WidgetPublishingSourceTest {
                 val criticalSection = blockAt(source, source.indexOf('{', match.range.first))
                 for (call in listOf(
                     "updateAppWidget(", "partiallyUpdateAppWidget(",
-                    "notifyAppWidgetViewDataChanged(", "updateWidgetLayout(", "renderWidgets("
+                    "notifyAppWidgetViewDataChanged(", "updateWidgetLayout(", "renderWidgets(",
+                    "widgetPublisher.publish(", "publishViews("
                 )) {
                     assertFalse("${file.name}: $call inside account lock", criticalSection.contains(call))
                 }
@@ -49,6 +50,19 @@ class WidgetPublishingSourceTest {
         assertTrue(body.contains("enqueueWidgetUpdate"))
         assertFalse(source.contains("notifyAppWidgetViewDataChanged("))
         assertTrue(source.contains("if (cardState() != previousCardState) renderWidgets()"))
+    }
+
+    @Test
+    fun `framework card publication is confined to publisher callbacks`() {
+        val calls = sourceDirectory.listFiles().orEmpty().filter { it.extension == "kt" }
+            .flatMap { file -> file.readLines().filter { it.contains(".updateAppWidget(") } }
+        assertTrue(calls.isNotEmpty())
+        for (call in calls) {
+            assertTrue(call.trim().startsWith("publishViews = { views -> "))
+        }
+        assertFalse(sourceDirectory.listFiles().orEmpty().any {
+            it.extension == "kt" && it.readText().contains(".partiallyUpdateAppWidget(")
+        })
     }
 
     private fun blockAt(source: String, openingBrace: Int): String {

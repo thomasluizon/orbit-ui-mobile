@@ -101,7 +101,7 @@ class OrbitWidgetModule : Module() {
         .apply()
     }
 
-    internal fun enqueueWidgetUpdate(onComplete: () -> Unit = {}, update: () -> Unit) {
+    internal fun enqueueWidgetUpdate(onComplete: () -> Unit = {}, update: () -> Unit) =
       widgetPublisher.enqueue(onComplete) {
         try {
           update()
@@ -109,7 +109,6 @@ class OrbitWidgetModule : Module() {
           Log.e("OrbitWidget", "Widget publication failed", exception)
         }
       }
-    }
 
     fun refreshWidgets(context: Context) {
       val applicationContext = context.applicationContext
