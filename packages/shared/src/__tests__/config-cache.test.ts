@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createConfigCache } from '../query/config-cache'
 import { resolveFlag } from '../utils/config'
 import { createMockConfigResponse } from './factories'
+import { createApiClientError } from '../utils/error-utils'
 
 const enabledResponse = () => createMockConfigResponse({ redesign: { enabled: true, planRequirement: null } })
 function createStorage() {
@@ -19,6 +20,18 @@ function deferred<T>() {
 }
 
 describe('account config cache', () => {
+  it('keeps session rejection typed without reporting it as a config failure', async () => {
+    const report = vi.fn()
+    const cache = createConfigCache(report)
+    cache.setAccount('account-a')
+    const rejection = createApiClientError(401, null, 'Unauthorized')
+
+    await expect(cache.fetch(cache.getSnapshot(), async () => { throw rejection })).rejects.toBe(rejection)
+
+    expect(report).not.toHaveBeenCalled()
+    expect(cache.getSnapshot().config).toBeUndefined()
+  })
+
   it('restores a last good value across process instances and retains it after failure', async () => {
     const storage = createStorage()
     const original = createConfigCache(vi.fn(), storage)

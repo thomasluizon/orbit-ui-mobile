@@ -205,6 +205,10 @@ export function buildEditHabitFormState(
   }
 }
 
+export function selectHabitGoal(goalIds: string[], goalId: string): string[] {
+  return goalIds.includes(goalId) ? goalIds : [...goalIds, goalId]
+}
+
 const MODE_FIELDS = ['frequencyUnit', 'frequencyQuantity', 'intervalWeeks', 'days', 'isGeneral', 'isFlexible', 'dueDate', 'datePhrase', 'dateIssue', 'dueTime', 'dueEndTime', 'endDate', 'reminderEnabled', 'scheduledReminders', 'isBadHabit', 'slipAlertEnabled'] as const
 
 export class HabitModeDrafts {

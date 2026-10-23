@@ -14,7 +14,6 @@ import {
   useUpdateGoalProgress,
   useUpdateGoalStatus,
   useReorderGoals,
-  useLinkHabitsToGoal,
 } from '@/hooks/use-goals'
 import { makeEnrichedHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { habitKeys, goalKeys } from '@orbit/shared/query'
@@ -52,7 +51,6 @@ vi.mock('@/lib/actions/goals', () => ({
   updateGoalProgress: vi.fn(),
   updateGoalStatus: vi.fn(),
   reorderGoals: vi.fn(),
-  linkHabitsToGoal: vi.fn(),
 }))
 
 vi.mock('@/stores/ui-store', () => ({
@@ -607,33 +605,5 @@ describe('useReorderGoals', () => {
     })
 
     await waitFor(() => expect(result.current.isError).toBe(true))
-  })
-})
-
-describe('useLinkHabitsToGoal', () => {
-  beforeEach(() => {
-    mockFetch.mockReset()
-  })
-
-  it('calls linkHabitsToGoal action', async () => {
-    const { linkHabitsToGoal } = await import('@/lib/actions/goals')
-    const mockedLink = vi.mocked(linkHabitsToGoal)
-    mockedLink.mockResolvedValue(undefined as any)
-
-    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
-    const detail = makeEnrichedHabitDetail()
-    queryClient.setQueryData(habitKeys.detail(detail.id), detail)
-    const wrapper = createWrapper(queryClient)
-    const { result } = renderHook(() => useLinkHabitsToGoal(), { wrapper })
-
-    await act(async () => {
-      await result.current.mutateAsync({
-        goalId: 'g-1',
-        habitIds: ['h-1', 'h-2'],
-      })
-    })
-
-    expect(mockedLink).toHaveBeenCalledWith('g-1', ['h-1', 'h-2'], 'account-a')
-    expect(queryClient.getQueryState(habitKeys.detail(detail.id))?.isInvalidated).toBe(true)
   })
 })

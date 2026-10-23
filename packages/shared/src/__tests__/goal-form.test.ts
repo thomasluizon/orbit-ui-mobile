@@ -121,7 +121,10 @@ describe('create goal contract', () => {
   it('preserves optional linked habit IDs and accepts clients without them', () => {
     const request = { title: 'Read every day', targetValue: 12, unit: 'books' }
     expect(createGoalRequestSchema.parse(request)).toEqual(request)
-    expect(createGoalRequestSchema.parse({ ...request, habitIds: ['habit-reading'] }).habitIds).toEqual(['habit-reading'])
+    expect(createGoalRequestSchema.parse({ ...request, habitIds: ['11111111-1111-4111-8111-111111111111'] }).habitIds).toEqual(['11111111-1111-4111-8111-111111111111'])
+    expect(createGoalRequestSchema.parse({ ...request, habitIds: [] }).habitIds).toEqual([])
     expect(createGoalRequestSchema.safeParse({ ...request, habitIds: 'habit-reading' }).success).toBe(false)
+    expect(createGoalRequestSchema.safeParse({ ...request, habitIds: ['habit-reading'] }).success).toBe(false)
+    expect(createGoalRequestSchema.safeParse({ ...request, habitIds: [12] }).success).toBe(false)
   })
 })

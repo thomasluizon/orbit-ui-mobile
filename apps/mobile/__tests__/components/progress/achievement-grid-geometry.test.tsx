@@ -20,6 +20,7 @@ vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({
 }) }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-goals', () => ({
+  useCreateGoal: vi.fn(),
   useGoals: () => ({ data: { allGoals: [] }, isLoading: false, isError: false }),
   useReorderGoals: () => ({ mutate: vi.fn(), isPending: false }),
 }))
