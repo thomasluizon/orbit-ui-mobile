@@ -1,16 +1,25 @@
 import { defaultExclude, defineConfig } from 'vitest/config'
 import path from 'path'
+import { transformWithOxc } from 'vite'
 
 const focusIndicatorTest = '__tests__/components/ui/selected-focus-indicator.test.tsx'
 
 export default defineConfig({
+  plugins: [{
+    name: 'rn-primitives-jsx',
+    enforce: 'pre',
+    transform(source, id) {
+      if (!/\/node_modules\/@rn-primitives\/(portal|slot)\/dist\/index\.m?js$/.test(id)) return
+      return transformWithOxc(source, id, { lang: 'jsx' })
+    },
+  }],
   test: {
     environment: 'node',
     globals: true,
     setupFiles: ['./test-setup-expo-runtime.ts', './test-setup.ts'],
     server: {
       deps: {
-        inline: ['@tabler/icons-react-native'],
+        inline: ['@tabler/icons-react-native', /@rn-primitives\//],
       },
     },
     projects: [
