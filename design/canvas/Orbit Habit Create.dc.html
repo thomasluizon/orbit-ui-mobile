@@ -352,6 +352,7 @@ const T = {
     fSlip: 'Alerta de deslize', fSlipDesc: 'Um aviso quando o hábito começa a falhar.',
     fTags: 'Etiquetas', fAddTag: 'Adicionar etiqueta', tagCap: 'O limite é 5 etiquetas.',
     fGoal: 'Ligar a uma meta', goalNone: 'Nenhuma', goalTitle: 'Metas', goals: ['Correr 10 km', 'Manhã sem pressa'],
+    fParent: 'Hábito principal', parentRoot: 'Sem hábito principal (nível raiz)', parents: ['Leitura', 'Rotina da manhã'], editTitle: 'Editar hábito', save: 'Salvar',
     cancel: 'Cancelar',
     emoTitle: 'Escolher emoji', emoWell: 'Escolher emoji', emoSearch: 'Buscar emoji', emoClear: 'Limpar a busca',
     emoNone: 'Nenhum emoji com esse nome',
@@ -408,6 +409,7 @@ const T = {
     fSlip: 'Slip alert', fSlipDesc: 'A heads-up when the habit starts to slip.',
     fTags: 'Tags', fAddTag: 'Add a tag', tagCap: 'The limit is 5 tags.',
     fGoal: 'Link to a goal', goalNone: 'None', goalTitle: 'Goals', goals: ['Run 10 km', 'Calm mornings'],
+    fParent: 'Parent habit', parentRoot: 'No parent (top level)', parents: ['Reading', 'Morning routine'], editTitle: 'Edit habit', save: 'Save',
     cancel: 'Cancel',
     emoTitle: 'Choose an emoji', emoWell: 'Choose an emoji', emoSearch: 'Search emoji', emoClear: 'Clear the search',
     emoNone: 'No emoji with that name',
@@ -460,7 +462,7 @@ class Component extends DCLogic {
     fTime: null, remOn: true, remSel: [0, 15], remCustom: [], cNum: '45', cUnit: 'min', sched: [], schedForm: null,
     ckItems: [], ckInput: '', tplOpen: false, tplList: null, tplSaving: false, tplName: '',
     subsOwn: [], subInput: '', tags: [], tagInput: '',
-    badOn: false, slipOn: false, goalOpen: false, goalSel: -1 };
+    badOn: false, slipOn: false, goalOpen: false, goalSel: -1, parentOpen: false, parentSel: -1 };
 
   componentDidMount() {
     if (!window.OrbitDesignSystem_918bd5) {
@@ -473,13 +475,13 @@ class Component extends DCLogic {
 
   onCC = (next) => {
     clearTimeout(this._akT);
-    this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale, plan: next.plan || 'free', dateCandidate: null, dateAccepted: false,
+    this.setState({ ...(next.state === 'edit' ? { itemType: 'habit' } : {}), mode: next.mode, width: next.width, st: next.state, loc: next.locale, plan: next.plan || 'free', dateCandidate: null, dateAccepted: false,
       text: null, days: null, qty: null, resolved: null, disc: null, phase: null,
       cEmoji: null, emoOpen: false, emoQ: '', emoCat: null,
       fTime: null, remOn: true, remSel: [0, 15], remCustom: [], cNum: '45', cUnit: 'min', sched: [], schedForm: null,
       ckItems: [], ckInput: '', tplOpen: false, tplList: null, tplSaving: false, tplName: '',
       subsOwn: [], subInput: '', tags: [], tagInput: '',
-      badOn: false, slipOn: false, goalOpen: false, goalSel: -1 });
+      badOn: false, slipOn: false, goalOpen: false, goalSel: -1, parentOpen: false, parentSel: -1 });
   };
 
   pick = (d, days) => this.setState((p) => {
@@ -734,6 +736,7 @@ class Component extends DCLogic {
             const v = (this.state.tagInput || '').trim();
             if (v) this.setState((p) => ({ tags: p.tags.indexOf(v) >= 0 ? p.tags : p.tags.concat([v]).slice(0, 5), tagInput: '' }));
           }));
+    const parent = s.st === 'edit' ? H(D.ListRow, { title: x.fParent, value: s.parentSel < 0 ? x.parentRoot : x.parents[s.parentSel], chevron: true, onClick: () => this.setState({ parentOpen: true }) }) : null;
     const goal = H('div', { style: { marginInline: -16 } },
       H(D.ListRow, { icon: 'target', title: x.fGoal, value: s.goalSel >= 0 ? x.goals[s.goalSel] : x.goalNone,
         chevron: true, onClick: () => this.setState({ goalOpen: true }) }));
@@ -742,7 +745,7 @@ class Component extends DCLogic {
       !(s.itemType === 'habit' && s.scheduleMode === 'general') ? H(D.TimeField, { label: x.fTime, value: time, hint: x.fTimeHint,
         onChange: (v) => this.setState({ fTime: v }) }) : null,
       !(s.itemType === 'habit' && s.scheduleMode === 'general') ? reminders : null, checklist, subs,
-      !(s.itemType === 'habit' && s.scheduleMode === 'general') ? badRow : null, !(s.itemType === 'habit' && s.scheduleMode === 'general') ? slip : null, tags, goal,
+      !(s.itemType === 'habit' && s.scheduleMode === 'general') ? badRow : null, !(s.itemType === 'habit' && s.scheduleMode === 'general') ? slip : null, parent, tags, goal,
       s.itemType === 'habit' && !(s.itemType === 'habit' && s.scheduleMode === 'general') ? H(D.Input, { label: x.fEnd, placeholder: x.fEndPlaceholder }) : null,
       H(D.Input, { label: x.fDesc, placeholder: '' }));
   }
@@ -777,6 +780,14 @@ class Component extends DCLogic {
               onPress: () => this.setState({ tplList: list.filter((q2, j) => j !== i) }) },
             onClick: () => { this.ckAppend(tp.items); this.setState({ tplOpen: false, tplSaving: false }); } })))));
   }
+  parentSheet(x) {
+    const D = window.OrbitDesignSystem_918bd5;
+    return H(D.Sheet, { open: true, title: x.fParent, onClose: () => this.setState({ parentOpen: false }) },
+      H('div', { role: 'radiogroup', 'aria-label': x.fParent },
+        H(D.RadioRow, { label: x.parentRoot, selected: this.state.parentSel < 0, onSelect: () => this.setState({ parentSel: -1 }) }),
+        x.parents.map((name, index) => H(D.RadioRow, { key: index, label: name, selected: this.state.parentSel === index, onSelect: () => this.setState({ parentSel: index }) }))));
+  }
+
   goalSheet(x) {
     const D = window.OrbitDesignSystem_918bd5;
     const close = () => this.setState({ goalOpen: false });
@@ -832,12 +843,12 @@ class Component extends DCLogic {
     const base = {
       mode: s.mode, lang: t.lang, onCC: this.onCC,
       cc: { mode: s.mode, width: s.width, state: st, locale: s.loc, plan: s.plan },
-      stateAxis: ['date proposed', 'empty', 'typed', 'resolved', 'unresolved', 'from chat', 'proposed', 'details', 'parsing', 'at limit'],
+      stateAxis: ['date proposed', 'empty', 'typed', 'resolved', 'unresolved', 'from chat', 'proposed', 'details', 'parsing', 'at limit', 'edit'],
       planAxis: ['free', 'Pro'],
       is412: s.width === '412', isWide: s.width === 'wide',
       n3: 3, n18: 18, n20: 20, no: false, noop: () => {},
       showReport: this.props.showReport !== false,
-      title: t.title, lblField: t.lblField, placeholder: t.placeholder,
+      title: st === 'edit' ? t.editTitle : t.title, lblField: t.lblField, placeholder: t.placeholder,
       backLabel: t.back, navLabelWord: t.navLabel, paletteWord: t.palette,
     };
     if (!D) return base;
@@ -862,7 +873,7 @@ class Component extends DCLogic {
     const qty = s.qty != null ? s.qty : (parsed.qty || 3);
     const mode = s.days != null ? (days.length ? 'fixed' : 'flex') : parsed.mode;
     const resolved = s.resolved != null ? s.resolved : st === 'resolved';
-    const discOpen = s.disc != null ? s.disc : st === 'details';
+    const discOpen = s.disc != null ? s.disc : st === 'details' || st === 'edit';
     const seedDays = st === 'resolved' && s.days == null ? [1, 3, 5] : days;
     const useDays = s.days != null ? days : seedDays;
     const useMode = (st === 'resolved' && s.days == null) ? 'fixed' : mode;
@@ -934,10 +945,11 @@ class Component extends DCLogic {
       astraRow: H(window.OrbitNativeMobile.AstraRow),
       navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
       account: t.account,
-      footer: H('div', { style: { paddingInline: 16, display: 'flex', flexDirection: 'column', gap: 8 } },
+      footer: st === 'edit' ? H('div', { style: { display: 'flex', gap: 8, justifyContent: 'flex-end', paddingInline: 16 } }, H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ parentSel: -1 }) }, t.cancel), H(D.Button, { size: 'sm', onClick: () => {} }, t.save)) : H('div', { style: { paddingInline: 16, display: 'flex', flexDirection: 'column', gap: 8 } },
         H(D.Button, { disabled: isEmpty, onClick: () => {}, style: { width: '100%' } }, t.create),
         isEmpty ? H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', textAlign: 'center' } }, t.createWhy) : null),
-      sheet: s.emoOpen ? this.emojiSheet(t, t.lang)
+      sheet: s.parentOpen ? this.parentSheet(t)
+        : s.emoOpen ? this.emojiSheet(t, t.lang)
         : s.tplOpen ? this.tplNode(t)
         : s.goalOpen ? this.goalSheet(t)
         : null,

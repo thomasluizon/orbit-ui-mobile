@@ -1,6 +1,8 @@
+import { findPromptSlot } from './composer-controls'
+
 export const PROMPT_CATEGORIES = ['start', 'remember', 'many', 'restart', 'understand', 'calendar'] as const
 export type PromptCategory = (typeof PROMPT_CATEGORIES)[number]
-export type PromptTemplate = { id: string; category: PromptCategory; labelKey: string; promptKey: string }
+export type PromptTemplate = (typeof PROMPT_TEMPLATES)[number]
 export const PROMPT_PAGE_SIZE = 8
 
 export type PromptFilters = { category: PromptCategory; query: string; page: number }
@@ -21,7 +23,7 @@ export function reducePromptFilters(state: PromptFilters, action: PromptFilterAc
   }
 }
 
-export const PROMPT_TEMPLATES: readonly PromptTemplate[] = [
+export const PROMPT_TEMPLATES = [
   { id: 'morning', category: 'start', labelKey: 'chat.templates.items.morning.label', promptKey: 'chat.templates.items.morning.prompt' },
   { id: 'evening', category: 'start', labelKey: 'chat.templates.items.evening.label', promptKey: 'chat.templates.items.evening.prompt' },
   { id: 'oneHabit', category: 'start', labelKey: 'chat.templates.items.oneHabit.label', promptKey: 'chat.templates.items.oneHabit.prompt' },
@@ -58,7 +60,46 @@ export const PROMPT_TEMPLATES: readonly PromptTemplate[] = [
   { id: 'findTime', category: 'calendar', labelKey: 'chat.templates.items.findTime.label', promptKey: 'chat.templates.items.findTime.prompt' },
   { id: 'tomorrow', category: 'calendar', labelKey: 'chat.templates.items.tomorrow.label', promptKey: 'chat.templates.items.tomorrow.prompt' },
   { id: 'busyDay', category: 'calendar', labelKey: 'chat.templates.items.busyDay.label', promptKey: 'chat.templates.items.busyDay.prompt' },
-]
+] as const
+
+export const PROMPT_PRESENTATION = {
+  morning: { icon: 'Sun', example: false },
+  evening: { icon: 'Moon', example: false },
+  oneHabit: { icon: 'Plus', example: false },
+  goalHabits: { icon: 'Target', example: true },
+  habitReminder: { icon: 'Bell', example: true },
+  smallSteps: { icon: 'ListTree', example: true },
+  setReminder: { icon: 'Bell', example: true },
+  changeReminder: { icon: 'Clock', example: true },
+  dueToday: { icon: 'List', example: false },
+  tonight: { icon: 'Moon', example: false },
+  reviewReminders: { icon: 'Bell', example: false },
+  busyReminders: { icon: 'Bell', example: false },
+  moveToday: { icon: 'ArrowsMove', example: true },
+  changeTimes: { icon: 'Clock', example: false },
+  skipToday: { icon: 'SkipForward', example: false },
+  logMany: { icon: 'CheckCheck', example: true },
+  tagGroup: { icon: 'Tag', example: true },
+  pauseMany: { icon: 'CalendarDays', example: true },
+  afterDay: { icon: 'RotateCcw', example: false },
+  afterWeek: { icon: 'RotateCcw', example: false },
+  smallerHabit: { icon: 'Minus', example: true },
+  keepOne: { icon: 'CircleDot', example: false },
+  lighterWeek: { icon: 'CalendarDays', example: false },
+  easierTime: { icon: 'Clock', example: true },
+  reviewWeek: { icon: 'ChartLine', example: false },
+  missedHabit: { icon: 'ChartLine', example: false },
+  streak: { icon: 'Repeat', example: false },
+  freezes: { icon: 'Snowflake', example: false },
+  whatWorks: { icon: 'ChartLine', example: false },
+  reviewGoals: { icon: 'Target', example: false },
+  aroundEvents: { icon: 'CalendarClock', example: false },
+  importWeek: { icon: 'Download', example: false },
+  todayEvents: { icon: 'Calendar', example: false },
+  findTime: { icon: 'Clock', example: true },
+  tomorrow: { icon: 'CalendarDays', example: false },
+  busyDay: { icon: 'CalendarDays', example: false },
+} as const satisfies Record<PromptTemplate['id'], { icon: string; example: boolean }>
 
 export function promptCategories(hasProAccess: boolean, hasGoogleConnection: boolean): readonly PromptCategory[] {
   return PROMPT_CATEGORIES.filter(category => category !== 'calendar' || (hasProAccess && hasGoogleConnection))
@@ -96,4 +137,18 @@ export function buildPromptPage(options: {
   const currentPage = Math.min(page, lastPage)
   return { categories, activeCategory, matches, lastPage, currentPage,
     visible: matches.slice(currentPage * PROMPT_PAGE_SIZE, (currentPage + 1) * PROMPT_PAGE_SIZE) }
+}
+
+export function promptExampleParts(prompt: string): { text: string; slot: boolean }[] {
+  const parts: { text: string; slot: boolean }[] = []
+  let remaining = prompt
+  let slot = findPromptSlot(remaining)
+  while (slot) {
+    if (slot.start > 0) parts.push({ text: remaining.slice(0, slot.start), slot: false })
+    parts.push({ text: remaining.slice(slot.start, slot.end), slot: true })
+    remaining = remaining.slice(slot.end)
+    slot = findPromptSlot(remaining)
+  }
+  if (remaining) parts.push({ text: remaining, slot: false })
+  return parts
 }

@@ -3,6 +3,7 @@ import { habitDetailSchema } from '@orbit/shared/types/habit'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import type { SQLInputValue } from 'node:sqlite'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
+import { habitKeys } from '@orbit/shared/query'
 import { buildQueuedMutation, cancelScheduledFlush, flushQueuedMutations, queueOrExecute } from '@/lib/offline-mutations'
 
 import {
@@ -32,6 +33,7 @@ const replayMocks = vi.hoisted(() => ({
   apiClient: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   getCurrentConnectivity: vi.fn(() => Promise.resolve(true)),
   persistRecovery: vi.fn(() => Promise.resolve()),
+  invalidateQueries: vi.fn(() => Promise.resolve()),
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -50,7 +52,7 @@ vi.mock('@/lib/offline-state', () => ({
 }))
 vi.mock('@/lib/query-client', () => ({
   persistQueryCache: vi.fn(),
-  queryClient: { invalidateQueries: vi.fn(), getQueriesData: () => [] },
+  queryClient: { invalidateQueries: replayMocks.invalidateQueries, getQueriesData: () => [] },
 }))
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 vi.mock('@/stores/offline-sync-store', () => ({
@@ -136,6 +138,17 @@ describe('mobile offline queue', () => {
     replayMocks.getCurrentConnectivity.mockResolvedValue(true)
     replayMocks.persistRecovery.mockReset()
     replayMocks.persistRecovery.mockResolvedValue(undefined)
+    replayMocks.invalidateQueries.mockClear()
+  })
+
+  it.each([{ parentId: '22222222-2222-4222-8222-222222222222' }, { clearParent: true }])('keeps parent changes after pending Create instead of merging incompatible fields: %s', (parentChange) => {
+    const source = 'offline-habit-source'
+    enqueueWithCompaction(makeMutation({ id: 'create-source', clientEntityId: source, payload: { title: 'Before' } }))
+    enqueueWithCompaction(makeMutation({ id: 'edit-source', type: 'updateHabit', method: 'PUT', endpoint: `/api/habits/${source}`, targetEntityId: source, dependsOn: [source], payload: { title: 'After', isBadHabit: false, ...parentChange } }))
+    expect(getAll().map((entry) => [entry.type, entry.payload])).toEqual([
+      ['createHabit', { title: 'Before' }], ['updateHabit', { title: 'After', isBadHabit: false, ...parentChange }],
+    ])
+    expect(getAll()[1]!.dependsOn).toEqual([source])
   })
 
   it('preserves a retired persisted operation without assigning current metadata', () => {
@@ -771,6 +784,62 @@ describe('mobile offline queue', () => {
     ])
     database.prepare('DELETE FROM mutation_queue WHERE id = ?').run('other-account-reminder')
     expect(habitDetailSchema.parse(reminderWire.HabitDetailResponse).relativeReminders).toEqual(payload.relativeReminders)
+  })
+
+
+  it('resolves source, chosen parent and tag through the actual persisted queue before one Update', async () => {
+    const ids = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333333']
+    const temporary = ['offline-habit-source', 'offline-habit-parent', 'offline-tag-selected']
+    for (const [index, clientEntityId] of temporary.entries()) {
+      const tag = index === 2
+      enqueueWithCompaction(makeMutation({ id: `create-${index}`, type: tag ? 'createTag' : 'createHabit', entityType: tag ? 'tag' : 'habit', scope: tag ? 'tags' : 'habits', endpoint: tag ? '/api/tags' : '/api/habits', clientEntityId, payload: { title: `Synthetic ${index}` } }))
+      replayMocks.apiClient.mockResolvedValueOnce({ id: ids[index] })
+    }
+    const payload = { title: 'Together', isBadHabit: false, parentId: temporary[1], tagIds: [temporary[2]], goalIds: [], checklistItems: [{ text: 'Same', isChecked: true }, { text: 'Same', isChecked: false }] }
+    enqueueWithCompaction(makeMutation({ id: 'one-update', type: 'updateHabit', endpoint: `/api/habits/${temporary[0]}`, method: 'PUT', targetEntityId: temporary[0], dependsOn: temporary, payload }))
+    expect(getAll()).toHaveLength(4)
+    replayMocks.apiClient.mockResolvedValueOnce(undefined)
+    await expect(flushQueuedMutations()).resolves.toMatchObject({ succeeded: 4, remaining: 0 })
+    expect(replayMocks.apiClient.mock.calls.map((call) => call[0])).toEqual(['/api/habits', '/api/habits', '/api/tags', `/api/habits/${ids[0]}`])
+    expect(replayMocks.apiClient.mock.calls[3]![1]).toMatchObject({ method: 'PUT', body: JSON.stringify({ ...payload, parentId: ids[1], tagIds: [ids[2]] }) })
+  })
+
+  it('replays Create A, parent update B and plain update C in order from the persisted queue', async () => {
+    const source = 'offline-habit-source'
+    const resolvedSource = '11111111-1111-4111-8111-111111111111'
+    const parentId = '22222222-2222-4222-8222-222222222222'
+    const create = { title: 'A' }
+    const parentEdit = { title: 'B', isBadHabit: false, parentId, checklistItems: [{ text: 'Same', isChecked: false }], goalIds: [], tagIds: [] }
+    const lastEdit = { title: 'C', isBadHabit: false, checklistItems: [{ text: 'Same', isChecked: true }, { text: 'Same', isChecked: false }], goalIds: ['33333333-3333-4333-8333-333333333333'], tagIds: ['44444444-4444-4444-8444-444444444444'] }
+    enqueueWithCompaction(makeMutation({ id: 'create-a', timestamp: 1, clientEntityId: source, payload: create }))
+    for (const [index, payload] of [parentEdit, lastEdit].entries()) {
+      enqueueWithCompaction(makeMutation({ id: `edit-${index}`, timestamp: index + 2, type: 'updateHabit', method: 'PUT', endpoint: `/api/habits/${source}`, targetEntityId: source, dependsOn: [source], payload }))
+    }
+    const persisted = getAll()
+    replayMocks.apiClient.mockResolvedValueOnce({ id: resolvedSource }).mockResolvedValue(undefined)
+    const replay = await flushQueuedMutations()
+    expect(replayMocks.apiClient.mock.calls.at(-1)?.[1]).toMatchObject({ method: 'PUT', body: JSON.stringify(lastEdit) })
+    expect(persisted.map((entry) => entry.payload)).toEqual([create, parentEdit, lastEdit])
+    expect(replay).toMatchObject({ succeeded: 3, remaining: 0 })
+    expect(replayMocks.apiClient.mock.calls.map(([endpoint, options]) => [endpoint, options])).toEqual([
+      ['/api/habits', { method: 'POST', body: JSON.stringify(create), idempotencyKey: 'create-a' }],
+      [`/api/habits/${resolvedSource}`, { method: 'PUT', body: JSON.stringify(parentEdit), idempotencyKey: 'edit-0' }],
+      [`/api/habits/${resolvedSource}`, { method: 'PUT', body: JSON.stringify(lastEdit), idempotencyKey: 'edit-1' }],
+    ])
+  })
+
+  it('invalidates parent details only after a persisted parent update successfully replays', async () => {
+    const parentId = '22222222-2222-4222-8222-222222222222'
+    enqueueWithCompaction(makeMutation({ id: 'parent-update', type: 'updateHabit', method: 'PUT', endpoint: '/api/habits/source', targetEntityId: 'source', payload: { title: 'Read', isBadHabit: false, parentId } }))
+    expect(replayMocks.invalidateQueries).not.toHaveBeenCalled()
+    let finish!: () => void
+    replayMocks.apiClient.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    const replay = flushQueuedMutations()
+    await vi.waitFor(() => expect(finish).toBeTypeOf('function'))
+    expect(replayMocks.invalidateQueries).not.toHaveBeenCalled()
+    finish()
+    await expect(replay).resolves.toMatchObject({ succeeded: 1, remaining: 0 })
+    expect(replayMocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.all })
   })
 
 

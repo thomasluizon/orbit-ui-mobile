@@ -263,6 +263,8 @@ export default function UpgradeScreen() {
         plans={plans}
         isLoadingPlans={isLoadingPlans}
         isPlansError={isPlansError}
+        isLoadingProducts={playBilling.isLoadingProducts}
+        isProductsError={playBilling.isProductsError}
         isOnline={isOnline}
         dateHint={getProfileTrialEndHint(status, locale, t)}
         trialDaysLeft={trialDaysLeft}
@@ -279,7 +281,7 @@ export default function UpgradeScreen() {
         onCheckout={handleCheckout}
         isRestoring={playBilling.isRestoring}
         onRestore={() => { if (isOnline) void playBilling.restorePurchases() }}
-        onRetryPlans={() => { if (isOnline) refetchPlans().catch(() => {}) }}
+        onRetryPlans={() => { if (isOnline) { playBilling.retryProducts(); refetchPlans().catch(() => {}) } }}
         t={t}
         tokens={tokens}
       />

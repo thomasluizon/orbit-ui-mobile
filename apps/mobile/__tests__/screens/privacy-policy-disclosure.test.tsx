@@ -99,16 +99,23 @@ describe('PrivacyScreen disclosures', () => {
     expect(rendersText(tree!.root, en.privacy.retention.afterDeletion)).toBe(true)
   })
 
-  it('shows the legacy AdMob disclosure', () => {
+  it.each([
+    ['en', en, 'Device data: a push notification token (to deliver reminders) and Android crash reports with device and OS details, a random installation ID, and an approximate city inferred from the request IP address. These reports do not include your name, email, or account details.'],
+    ['pt-BR', ptBR, 'Dados do dispositivo: um token de notificação push (para enviar lembretes) e relatórios de falhas no Android com informações do aparelho e do sistema, um identificador aleatório da instalação e a cidade aproximada, estimada pelo endereço IP da conexão. Esses relatórios não incluem nome, e-mail nem dados da conta.'],
+  ])('omits retired ad disclosures while retaining device disclosures in %s', (_locale, messages, deviceDisclosure) => {
+    translations.messages = messages
     let tree: { root: TestNode } | undefined
     TestRenderer.act(() => {
       tree = TestRenderer.create(<PrivacyScreen />)
     })
 
-    expect(rendersText(tree!.root, en.privacy.thirdParty.admob)).toBe(true)
-    expect(en.privacy.dataCollected.device).toBe('Device data: a push notification token (to deliver reminders) and Android crash reports with device and OS details, a random installation ID, and an approximate city inferred from the request IP address. These reports do not include your name, email, or account details. On Orbit for Android before version 1.3.35, also your device advertising identifier, which the ad SDK could access')
-    expect(ptBR.privacy.dataCollected.device).toBe('Dados do dispositivo: um token de notificação push (para enviar lembretes) e relatórios de falhas no Android com informações do aparelho e do sistema, um identificador aleatório da instalação e a cidade aproximada, estimada pelo endereço IP da conexão. Esses relatórios não incluem nome, e-mail nem dados da conta. No Orbit para Android antes da versão 1.3.35, também o identificador de publicidade do seu dispositivo, que o SDK de anúncios podia acessar')
-    expect(rendersText(tree!.root, en.privacy.dataCollected.device)).toBe(true)
+    const text = tree!.root.findAll((node) => typeof node.props.children === 'string')
+      .map((node) => node.props.children).join(' ')
+    expect(text).not.toMatch(/AdMob|ad SDK|SDK de anúncios|advertising identifier|identificador de publicidade|privacy\.thirdParty\.admob/i)
+    expect(messages.privacy.thirdParty).not.toHaveProperty('admob')
+    expect(messages.privacy.dataCollected.device).toBe(deviceDisclosure)
+    expect(rendersText(tree!.root, deviceDisclosure)).toBe(true)
+    expect(rendersText(tree!.root, messages.privacy.thirdParty.googlePlay)).toBe(true)
   })
 
   it('shows the cutover processors and data locations', () => {

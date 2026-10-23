@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-import { execFileSync } from "node:child_process"
 import { setTimeout as wait } from "node:timers/promises"
+import { readGithub } from "./lib/github-read.mjs"
+import { redactSecrets } from "./lib/github-auth.mjs"
 import { REPO_ROOT, clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
 
 const USAGE = `usage: wait-release.mjs --repo api|ui|landing --run <id> --sha <planned-commit> [--workflow-sha <dispatch-commit>] [--service-url <origin>] [--workflow release|android] [--ceiling-minutes <n>] [--poll-seconds <n>]
@@ -10,6 +11,7 @@ Watch one dispatched GitHub Actions release run through completion. Registers a 
 Releases require --service-url, the selected service origin: verifies web/API health or landing orbit-build.
 --workflow android is UI-only and checks the workflow commit without a web service check.
 The run link is included in every result.
+Transient GitHub errors retry until the ceiling; JSON includes their count and last text.
 --help, -h  print this usage and exit 0
 exit codes: 0 successful run and deployed commit; 1 failed run, remote read, or deployed commit mismatch; 2 invalid arguments;
             3 ceiling reached; 130 SIGINT; 143 SIGTERM`
@@ -56,13 +58,13 @@ if (!repo || !["release", "android"].includes(workflow) ||
 }
 
 let finished = false
-const result = { repo: values["--repo"], runId, sha, workflowSha, deployedSha: null, url: `https://github.com/thomasluizon/${repo}/actions/runs/${runId}`, status: null, conclusion: null, reason: null }
+const result = { repo: values["--repo"], runId, sha, workflowSha, deployedSha: null, url: `https://github.com/thomasluizon/${repo}/actions/runs/${runId}`, status: null, conclusion: null, reason: null, transientErrors: { count: 0, last: null } }
 const finish = (reason, code, error) => {
   if (finished) return
   finished = true
   clearWakeSource(process.pid, REPO_ROOT)
   result.reason = reason
-  if (error) result.error = error
+  if (error) result.error = redactSecrets(error, [process.env.GH_TOKEN, process.env.GITHUB_TOKEN])
   console.log(JSON.stringify(result))
   process.exit(code)
 }
@@ -96,7 +98,10 @@ const deadline = Date.now() + ceilingMinutes * 60_000
 try {
   while (!finished) {
     const path = `repos/thomasluizon/${repo}/actions/runs/${runId}`
-    const run = JSON.parse(execFileSync(process.env.GH_BIN || "gh", ["api", path, "--jq", "{id,head_sha,html_url,status,conclusion}"], { encoding: "utf8", timeout: 30_000 }))
+    const run = await readGithub(path, process.env, { deadline, pollMs: pollSeconds * 1000, onTransientError: (text) => {
+      result.transientErrors.count++
+      result.transientErrors.last = redactSecrets(text, [process.env.GH_TOKEN, process.env.GITHUB_TOKEN])
+    } })
     if (run?.id !== runId || run.head_sha !== workflowSha || typeof run.html_url !== "string" ||
         typeof run.status !== "string" || !(run.conclusion === null || typeof run.conclusion === "string")) {
       throw new Error(`GitHub workflow run ${runId} had an unexpected identity or shape`)
@@ -113,5 +118,6 @@ try {
     await wait(Math.min(pollSeconds * 1000, Math.max(1, deadline - Date.now())))
   }
 } catch (error) {
+  if (error.code === "GITHUB_READ_CEILING") finish("CEILING", 3)
   finish("READ_ERROR", 1, error.message)
 }

@@ -2,6 +2,9 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { inPlaceDayFixture, inPlaceCalendarFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
+import { focusedPeriodTotalFixture, focusedPeriodComparisonFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { PeriodTotalCard } from '@/components/chat/period-total-card'
+import { PeriodComparisonCard } from '@/components/chat/period-comparison-card'
 import { DaySummaryCard } from '@/components/chat/day-summary-card'
 import { CalendarCard } from '@/components/chat/calendar-card'
 import { MetricsCard } from '@/components/chat/metrics-card'
@@ -9,6 +12,8 @@ import { i18n } from '@/lib/i18n'
 import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureProfileRow } from '../../support/profile-row-geometry'
 
+const state = vi.hoisted(() => ({ theme: 'dark' }))
+vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: state.theme }) }))
 vi.unmock('react-i18next')
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-habits', () => ({
@@ -23,10 +28,13 @@ vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPe
 afterEach(__resetTestHostConfig)
 type Tree = ReactTestRenderer & { toJSON: () => Parameters<typeof measureProfileRow>[0] }
 
-it.each([320, 412, 1352].flatMap(width => ['en', 'pt-BR'].flatMap(locale => [1, 2].map(scale => ({ width, locale, scale })))))('fits blocks at $width in $locale at $scale text', async ({ width, locale, scale }) => {
+it.each([320, 360, 384, 412, 1352].flatMap(width => ['en', 'pt-BR'].flatMap(locale => (['dark', 'light'] as const).flatMap(theme => [1, 2].map(scale => ({ width, locale, scale, theme }))))))('fits blocks at $width in $locale at $scale text in $theme', async ({ width, locale, scale, theme }) => {
+  state.theme = theme
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: scale })
   await i18n.changeLanguage(locale)
   const elements = [
+    <PeriodTotalCard key="total" card={focusedPeriodTotalFixture} />,
+    <PeriodComparisonCard key="comparison" card={focusedPeriodComparisonFixture} />,
     <DaySummaryCard key="day" daySummary={inPlaceDayFixture} />,
     <CalendarCard key="calendar" calendarCard={inPlaceCalendarFixture} />,
     <MetricsCard key="metrics" metricsCard={{ period: 'week', completionRate: 50, activeDays: 3, totalCompletions: 3, totalScheduled: 6, currentStreak: 3, bestStreak: 9, hasData: true, surfaceId: 'progress' }} />,

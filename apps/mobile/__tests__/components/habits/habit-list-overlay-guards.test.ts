@@ -26,7 +26,7 @@ const overlays: OverlayGuard[] = [
     name: 'move parent sheet',
     sourcePath: 'components/habit-list/move-parent-dialog.tsx',
     mount: /<Sheet\b/,
-    firstLine: "title={t('habits.moveParent.title')}",
+    firstLine: "title={t(selectionOnly ? 'habits.form.parentHabit' : 'habits.moveParent.title')}",
   },
   {
     name: 'reschedule sheet',

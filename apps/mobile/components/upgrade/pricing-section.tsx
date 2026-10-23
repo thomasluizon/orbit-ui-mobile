@@ -16,6 +16,8 @@ export function PricingSection({
   plans,
   isLoadingPlans,
   isPlansError,
+  isLoadingProducts = false,
+  isProductsError = false,
   isOnline,
   trialDaysLeft,
   selectedInterval,
@@ -42,6 +44,8 @@ export function PricingSection({
   plans: SubscriptionPlans | null | undefined
   isLoadingPlans: boolean
   isPlansError: boolean
+  isLoadingProducts?: boolean
+  isProductsError?: boolean
   isOnline: boolean
   trialDaysLeft: number | null
   selectedInterval: SubscriptionInterval
@@ -69,9 +73,9 @@ export function PricingSection({
         <View style={styles.purchaseActions}>
           <PlanSelection
             inset={inset}
-            plans={plans}
-            isLoading={isLoadingPlans}
-            isError={isPlansError}
+            plans={isProductsError ? null : plans}
+            isLoading={isLoadingPlans || isLoadingProducts}
+            isError={isPlansError || isProductsError}
             isOnline={isOnline}
             monthlyOffer={monthlyOffer}
             yearlyOffer={yearlyOffer}

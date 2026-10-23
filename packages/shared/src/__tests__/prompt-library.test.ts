@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createChatStoreState } from '../stores/chat-store'
-import { buildPromptPage, INITIAL_PROMPT_FILTERS, reducePromptFilters, filterPromptTemplates, promptCategories, PROMPT_CATEGORIES, PROMPT_TEMPLATES } from '../chat/prompt-library'
+import { PROMPT_PRESENTATION, promptExampleParts, buildPromptPage, INITIAL_PROMPT_FILTERS, reducePromptFilters, filterPromptTemplates, promptCategories, PROMPT_CATEGORIES, PROMPT_TEMPLATES } from '../chat/prompt-library'
 import { promptDisabledReason, findPromptSlot, preparePromptTemplate } from '../chat/composer-controls'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
@@ -9,8 +9,7 @@ const locales = { en, 'pt-BR': ptBR }
 
 describe('prompt library', () => {
   it('defines six balanced categories and complete copy in both languages', () => {
-    expect(PROMPT_TEMPLATES.length).toBeGreaterThanOrEqual(36)
-    expect(PROMPT_TEMPLATES.length).toBeLessThanOrEqual(44)
+    expect(PROMPT_TEMPLATES).toHaveLength(36)
     expect(new Set(PROMPT_TEMPLATES.map(template => template.id)).size).toBe(PROMPT_TEMPLATES.length)
     for (const category of PROMPT_CATEGORIES) {
       expect(PROMPT_TEMPLATES.filter(template => template.category === category)).toHaveLength(6)
@@ -101,4 +100,24 @@ describe('prompt library', () => {
     expect(promptDisabledReason({ ...state, atMessageLimit: true, isSending: true }, translate)).toBe('shell.composer.limit.reason:5')
     expect(promptDisabledReason({ ...state, isOnline: false, atMessageLimit: true, isSending: true }, translate)).toBe('shell.composer.offline.reason:')
   })
+})
+
+it('covers the complete catalog with the approved intent mapping and twelve useful examples', () => {
+  expect(Object.keys(PROMPT_PRESENTATION)).toEqual(PROMPT_TEMPLATES.map(template => template.id))
+  const icons = ['Sun', 'Moon', 'Plus', 'Target', 'Bell', 'ListTree', 'Bell', 'Clock', 'List', 'Moon', 'Bell', 'Bell', 'ArrowsMove', 'Clock', 'SkipForward', 'CheckCheck', 'Tag', 'CalendarDays', 'RotateCcw', 'RotateCcw', 'Minus', 'CircleDot', 'CalendarDays', 'Clock', 'ChartLine', 'ChartLine', 'Repeat', 'Snowflake', 'ChartLine', 'Target', 'CalendarClock', 'Download', 'Calendar', 'Clock', 'CalendarDays', 'CalendarDays']
+  expect(PROMPT_TEMPLATES.map(template => PROMPT_PRESENTATION[template.id].icon)).toEqual(icons)
+  expect(PROMPT_TEMPLATES.filter(template => PROMPT_PRESENTATION[template.id].example).map(template => template.id)).toEqual([
+    'goalHabits', 'habitReminder', 'smallSteps', 'setReminder', 'changeReminder', 'moveToday', 'logMany', 'tagGroup', 'pauseMany', 'smallerHabit', 'easierTime', 'findTime',
+  ])
+})
+
+it('emphasizes localized slot cues without changing any prompt bytes or selection offsets', () => {
+  for (const prompt of ['Me lembre de {hábito} às {hora}.', 'Turn my goal of {goal} into small habits.', "Move today's remaining habits to tomorrow.", '🙂 {hábito}', 'A {broken slot']) {
+    const parts = promptExampleParts(prompt)
+    expect(parts.map(part => part.text).join('')).toBe(prompt)
+    const firstSlot = parts.find(part => part.slot)
+    const selection = findPromptSlot(prompt)
+    expect(firstSlot?.text).toBe(selection ? prompt.slice(selection.start, selection.end) : undefined)
+  }
+  expect(promptExampleParts('Me lembre de {hábito} às {hora}.').filter(part => part.slot).map(part => part.text)).toEqual(['{hábito}', '{hora}'])
 })

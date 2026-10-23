@@ -122,21 +122,24 @@ function HabitCreation({ empty = false }: { empty?: boolean }) {
   </DestinationShell>
 }
 
-function Logging({ page, success = true }: { page: SmokeDomPage; success?: boolean }) {
-  const [done, setDone] = useState(false)
+function Logging({ page, success = true, completed = false, initiallyOpen = false, onOptionsPress = () => true }: {
+  page: SmokeDomPage; success?: boolean; completed?: boolean; initiallyOpen?: boolean; onOptionsPress?: () => boolean
+}) {
+  const [done, setDone] = useState(completed)
   const t = useTranslations()
-  const [optionsOpen, setOptionsOpen] = useState(false)
+  const [optionsOpen, setOptionsOpen] = useState(initiallyOpen)
+  const [showCompleted, setShowCompleted] = useState(false)
   return <>
-    <button onClick={() => setOptionsOpen(true)}>{t('habits.listOptions')}</button>
-    {optionsOpen ? <button role="menuitem" onClick={() => setOptionsOpen(false)}>{t('habits.showCompletedMenu')}</button> : null}
-    <HabitRow habit={createMockHabit({ title: 'Smoke log' })} state={done ? 'done' : 'empty'}
+    <button onClick={() => { if (onOptionsPress()) setOptionsOpen((open) => !open) }}>{t('habits.listOptions')}</button>
+    {optionsOpen ? <button role="menuitem" onClick={() => { setShowCompleted(true); setOptionsOpen(false) }}>{t('habits.showCompletedMenu')}</button> : null}
+    {!done || showCompleted ? <HabitRow habit={createMockHabit({ title: 'Smoke log' })} state={done ? 'done' : 'empty'}
     actions={{ onLog: () => {
       setDone(true)
       page.respond?.({
         request: () => ({ method: () => 'POST', headers: () => ({ 'next-action': '<action-id>' }), postData: () => JSON.stringify(['habit-1', { date: '2026-09-04' }, 'smoke-unit-account']) }),
         ok: () => success,
       } as unknown as Response)
-    } }} />
+    } }} /> : null}
   </>
 }
 
@@ -286,6 +289,44 @@ describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (loca
     const page = new SmokeDomPage()
     mount(<Logging page={page} success={false} />, locale)
     await expect(logSmokeHabit(page as unknown as Page, 'Smoke log')).rejects.toThrow(/truthy/)
+  })
+
+  it.each(['initial', 'reload', 'both'] as const)('recovers a lost list options click on %s', async (lostAt) => {
+    const page = new SmokeDomPage()
+    const presses = { initial: 0, reload: 0 }
+    let phase: 'initial' | 'reload' = 'initial'
+    const onOptionsPress = () => {
+      presses[phase] += 1
+      return (lostAt !== phase && lostAt !== 'both') || presses[phase] > 1
+    }
+    const view = mount(<Logging page={page} onOptionsPress={onOptionsPress} />, locale)
+    const reloaded = vi.fn(async () => {
+      phase = 'reload'
+      view.rerender(<Logging key="reload" page={page} completed onOptionsPress={onOptionsPress} />)
+      expect(document.querySelector('[data-habit-title="Smoke log"]')).toBeNull()
+    })
+    page.setReload(reloaded)
+
+    await logSmokeHabit(page as unknown as Page, 'Smoke log')
+
+    expect(reloaded).toHaveBeenCalledTimes(1)
+    expect(presses).toEqual({ initial: lostAt === 'reload' ? 1 : 2, reload: lostAt === 'initial' ? 1 : 2 })
+    expect(document.querySelector('[data-habit-title="Smoke log"]')).toHaveAttribute('data-status', 'done')
+    expect(screen.queryByRole('menuitem')).toBeNull()
+  })
+
+  it('keeps an already open list options menu open until Show done is chosen', async () => {
+    const page = new SmokeDomPage()
+    const onOptionsPress = vi.fn(() => true)
+    const view = mount(<Logging page={page} initiallyOpen onOptionsPress={onOptionsPress} />, locale)
+    page.setReload(async () => {
+      view.rerender(<Logging key="reload" page={page} completed initiallyOpen onOptionsPress={onOptionsPress} />)
+    })
+
+    await logSmokeHabit(page as unknown as Page, 'Smoke log')
+
+    expect(onOptionsPress).not.toHaveBeenCalled()
+    expect(document.querySelector('[data-habit-title="Smoke log"]')).toHaveAttribute('data-status', 'done')
   })
 
   it('respects the real logging control disabled reason', async () => {

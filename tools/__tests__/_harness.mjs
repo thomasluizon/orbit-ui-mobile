@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
@@ -86,6 +86,38 @@ export const processIsRunning = (pid) => {
   } catch {
     return false
   }
+}
+
+/** Interrupt only after the fake GitHub read has started its complete process tree. */
+export const interruptGithubRead = async ({ path, args, env, signal, pidFile, descendantPidFile }) => {
+  const child = spawn(process.execPath, [path, ...args], { env: { ...process.env, ...env } })
+  let stdout = ""
+  let stderr = ""
+  child.stdout.on("data", (chunk) => { stdout += chunk })
+  child.stderr.on("data", (chunk) => { stderr += chunk })
+  const closed = new Promise((resolve) => child.once("close", (status, signal) => resolve({ status, signal })))
+  const readPid = (file) => existsSync(file) ? Number(readFileSync(file, "utf8")) : null
+  const deadline = Date.now() + 5000
+  while (!readPid(descendantPidFile) && child.exitCode === null && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  }
+  const pids = [readPid(pidFile), readPid(descendantPidFile)]
+  const started = pids.every(processIsRunning)
+  child.kill(signal)
+  const watchdog = setTimeout(() => child.kill("SIGKILL"), 3000)
+  const exit = await closed
+  clearTimeout(watchdog)
+  const cleanupDeadline = Date.now() + 1000
+  while (pids.some(processIsRunning) && Date.now() < cleanupDeadline) {
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  }
+  const terminated = pids.every((pid) => !processIsRunning(pid))
+  for (const pid of pids) {
+    if (processIsRunning(pid)) {
+      try { process.kill(pid, "SIGKILL") } catch { /* the child can exit before cleanup */ }
+    }
+  }
+  return { ...exit, started, terminated, stdout, stderr }
 }
 
 /**
@@ -269,10 +301,15 @@ const argv = process.argv.slice(1)
 if (argv[0] && existsSync(argv[0])) return
 const line = argv.join(" ")
 const plan = JSON.parse(process.env.ORBIT_ORCA_STUB || "[]")
-const match = plan.find((entry) => line.includes(entry.match))
+let match = plan.find((entry) => line.includes(entry.match))
 if (!match) {
   process.stdout.write(JSON.stringify({ ok: false, error: { code: "stub-miss", message: "unstubbed orca call: " + line } }))
   process.exit(9)
+}
+if (Array.isArray(match.responseSequence) && match.sequenceFile) {
+  const index = existsSync(match.sequenceFile) ? Number(readFileSync(match.sequenceFile, "utf8")) : 0
+  writeFileSync(match.sequenceFile, String(index + 1))
+  match = { ...match, ...match.responseSequence[Math.min(index, match.responseSequence.length - 1)] }
 }
 if (match.removePath) rmSync(match.removePath, { recursive: true, force: true })
 if (match.argvFile) writeFileSync(match.argvFile, JSON.stringify(argv))
@@ -288,6 +325,7 @@ if (Array.isArray(match.stdoutSequence) && match.sequenceFile) {
 if (match.hangTreePidFile) {
   if (match.stderr) writeSync(2, match.stderr)
   const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" })
+  if (match.hangPidFile) writeFileSync(match.hangPidFile, String(process.pid))
   writeFileSync(match.hangTreePidFile, String(child.pid))
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
 }
