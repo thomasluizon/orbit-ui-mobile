@@ -37,12 +37,11 @@ import {
   getHabitDisplayStartDate,
   hasHabitFormProposal,
   rebaseSelectedIds,
-  toggleSelectedId,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildUpdateHabitRequest } from '@/lib/habit-request-builders'
 import { MAX_GOALS_PER_HABIT, habitFormSchema } from '@orbit/shared/validation'
-import { createSuggestionRequestCoordinator } from '@orbit/shared/hooks'
+import { useHabitGoalSelection, createSuggestionRequestCoordinator } from '@orbit/shared/hooks'
 
 interface EditHabitModalProps {
   open: boolean
@@ -186,10 +185,7 @@ function EditHabitDraft({
   const childrenIsGeneral = habitDetail?.children[0]?.isGeneral ?? null
   const resolvedLockedGeneral = childrenIsGeneral ?? lockedGeneral ?? null
 
-  const toggleGoal = useCallback((goalId: string) => {
-    relationshipFieldsTouchedRef.current.goalIds = true
-    setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
-  }, [])
+  const { toggleGoal, selectCreatedGoal } = useHabitGoalSelection(setSelectedGoalIds, relationshipFieldsTouchedRef)
 
   const handleSlipAlertEnabledChange = useCallback((nextEnabled: boolean) => {
     relationshipFieldsTouchedRef.current.slipAlertEnabled = true
@@ -469,7 +465,6 @@ function EditHabitDraft({
     }
   }, [formHelpers, locale, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
-
   function renderEditSheet() {
     if (!open) return null
     return (
@@ -511,12 +506,14 @@ function EditHabitDraft({
             }`}
           >
             <HabitFormFields
+              habitId={sessionHabitId ?? undefined}
               formHelpers={formHelpers}
               titleInputRef={titleInputRef}
               tags={trackedTags}
               selectedGoalIds={selectedGoalIds}
               atGoalLimit={atGoalLimit}
               onToggleGoal={toggleGoal}
+              onGoalCreated={selectCreatedGoal}
               reminderTimes={reminderTimes}
               onReminderTimesChange={setReminderTimes}
               onSlipAlertEnabledChange={handleSlipAlertEnabledChange}

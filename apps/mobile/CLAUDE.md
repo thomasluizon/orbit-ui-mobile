@@ -15,7 +15,7 @@ Mobile client (Android only — no iOS app exists). Direct calls to `orbit-api` 
 | What | Where |
 |---|---|
 | App shell + nav | `app/_layout.tsx` + `components/navigation/bottom-tab-bar.tsx` |
-| Design tokens (navy+violet via createTokensV2) | `lib/theme.ts` (consumes `@orbit/shared/theme`) |
+| Design tokens (near-black canvas, warm orange accent, light/dark via createTokensV2) | `lib/theme.ts` (consumes `@orbit/shared/theme`) |
 | Theme provider | `lib/theme-provider.tsx` |
 | API client | `lib/api-client.ts` |
 | Offline queue (SQLite) | `lib/queued-api-mutation.ts` |
@@ -56,7 +56,7 @@ const habit = await apiClient<Habit>(API.habits.get(id))
 ## Styling
 
 - **`StyleSheet.create` / inline styles** consuming the token bag. The Mobile StyleSheet Guard enforces this styling approach.
-- **Tokens via `useAppTheme()` from `lib/use-app-theme.ts`** — returns the navy+violet token bag resolved for the current scheme + theme mode.
+- **Tokens via `useAppTheme()` from `lib/use-app-theme.ts`** — returns the single warm orange token bag resolved for light or dark mode.
 - **`createTokensV2(scheme, mode)`** in `lib/theme.ts` is the source of truth; consumes `@orbit/shared/theme` (color-schemes + neutral-ramp).
 
 ## React 19 / React Compiler rules

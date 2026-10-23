@@ -1,4 +1,6 @@
 import React from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { habitKeys } from '@orbit/shared/query'
 import { StyleSheet, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { Resvg } from '@resvg/resvg-js'
@@ -157,6 +159,8 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
 const segmentSites = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'mobile')
 
 it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => ['calendar', 'goal', 'plans', 'share'].map((surface) => ({ locale, width, surface })))))('fits the real $surface container in $locale at $width', async ({ locale, width, surface }) => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  queryClient.setQueryData(habitKeys.list({}), [])
   await i18n.changeLanguage(locale)
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
   const tokens = createTokensV2('orange', 'dark')
@@ -173,7 +177,7 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
     : <PlanSelection plans={null} isLoading isError={false} isOnline monthlyOffer={null} yearlyOffer={null} selectedInterval="yearly" checkoutLoading={null} checkoutError="" checkoutDisabled={false}
       onSelectInterval={vi.fn()} onCheckout={vi.fn()} onRetry={vi.fn()} t={i18n.t.bind(i18n)} tokens={tokens} />
   let tree!: ReturnType<typeof TestRenderer.create> & { toJSON: () => Host; unmount: () => void }
-  await TestRenderer.act(() => { tree = TestRenderer.create(element) as typeof tree })
+  await TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={queryClient}>{element}</QueryClientProvider>) as typeof tree })
   const labels: { node: YogaNode; intrinsic: number; host: Host }[] = []
   const radios: YogaNode[] = []
   const groups: { node: YogaNode; radios: YogaNode[] }[] = []
@@ -192,7 +196,7 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
       expect(labels[index]!.node.getComputedWidth()).toBeGreaterThanOrEqual(labels[index]!.intrinsic)
       expect(labels[index]!.host.props.numberOfLines).toBe(1)
     }
-  } finally { layout.freeRecursive(); await TestRenderer.act(() => tree.unmount()) }
+  } finally { layout.freeRecursive(); await TestRenderer.act(() => tree.unmount()); queryClient.clear() }
 })
 
 
