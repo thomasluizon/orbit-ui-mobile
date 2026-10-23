@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { cpSync, mkdirSync, readdirSync } from "node:fs"
-import { join, resolve } from "node:path"
+import { isAbsolute, join, relative, resolve, sep } from "node:path"
 
 const USAGE = `usage: select-artifact-attempts.mjs --input-dir <path> --output-dir <path>
 
@@ -57,7 +57,8 @@ function selectAttempts(directory) {
 try {
   const inputDirectory = options.get("--input-dir")
   const outputDirectory = options.get("--output-dir")
-  if (outputDirectory === inputDirectory || outputDirectory.startsWith(`${inputDirectory}/`)) {
+  const relativeOutput = relative(inputDirectory, outputDirectory)
+  if (relativeOutput === "" || (!isAbsolute(relativeOutput) && relativeOutput !== ".." && !relativeOutput.startsWith(`..${sep}`))) {
     throw new Error("Output must be outside the input directory")
   }
   const selected = selectAttempts(inputDirectory)

@@ -47,6 +47,7 @@ export const cases = () => {
   check("select-artifact-attempts.mjs", "rejects an empty artifact set", ["--input-dir", empty, "--output-dir", coverage], { status: 1, stderr: /No artifact directories/ })
   check("select-artifact-attempts.mjs", "rejects missing input", ["--input-dir", join(root, "missing-artifacts"), "--output-dir", coverage], { status: 1 })
   check("select-artifact-attempts.mjs", "rejects output nested in input", ["--input-dir", input, "--output-dir", join(input, "reports")], { status: 1, stderr: /outside the input/ })
+  check("select-artifact-attempts.mjs", "rejects output equal to input", ["--input-dir", input, "--output-dir", input], { status: 1, stderr: /outside the input/ })
   check("select-artifact-attempts.mjs", "rejects missing output option", ["--input-dir", input], { status: 2 })
   check("select-artifact-attempts.mjs", "rejects missing option value", ["--input-dir", input, "--output-dir"], { status: 2 })
   check("select-artifact-attempts.mjs", "rejects repeated options", ["--input-dir", input, "--input-dir", input, "--output-dir", output], { status: 2 })
