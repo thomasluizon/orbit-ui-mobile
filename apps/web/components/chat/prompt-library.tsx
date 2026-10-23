@@ -3,7 +3,8 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { motion, useReducedMotion, useIsPresent } from 'motion/react'
-import { buildPromptPage, INITIAL_PROMPT_FILTERS, reducePromptFilters, PROMPT_CATEGORIES, type PromptCategory, type PromptTemplate } from '@orbit/shared/chat/prompt-library'
+import { buildPromptPage } from '@orbit/shared/chat/prompt-library'
+import { createUsePromptLibrary, groupPromptIdeas, type PromptIdeaGroup } from '@orbit/shared/chat/prompt-library-core'
 import type { ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { motionDurations, motionEasings, motionLayerTiming } from '@orbit/shared/theme'
 import { ActionRow } from '@/components/ui/action-row'
@@ -12,6 +13,8 @@ import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { Chip } from '@/components/ui/chip'
 import { CatalogIdea, PromptIdea } from './prompt-idea'
 import { Button } from '@/components/ui/pill-button'
+
+const usePromptLibrary = createUsePromptLibrary({ useState, useReducer, useEffect, useRef })
 
 type PromptLibraryProps = {
   onBack: () => void
@@ -22,34 +25,11 @@ type PromptLibraryProps = {
   disabledReason?: string
 }
 
-function CatalogGroup({ category, templates, searching, disabled, onSelect }: Readonly<{ category: PromptCategory; templates: readonly PromptTemplate[]; searching: boolean; disabled: boolean; onSelect: PromptLibraryProps['onSelect'] }>) {
-  const t = useTranslations()
-  const rows = templates.filter(template => template.category === category)
-  if (rows.length === 0) return null
-  return <section aria-label={t(`chat.templates.categories.${category}`)}>
-    {searching ? <h2 className="px-4 pb-3 font-medium tracking-[-0.01em] text-[var(--fg-1)]" style={{ fontSize: '1.25rem' }}>{t(`chat.templates.categories.${category}`)}</h2> : null}
-    <div className="flex flex-col gap-3 px-4">{rows.map(template => <CatalogIdea key={template.id} template={template} disabled={disabled} onSelect={onSelect} />)}</div>
+function CatalogGroup({ group, searching, disabled, onSelect }: Readonly<{ group: PromptIdeaGroup; searching: boolean; disabled: boolean; onSelect: PromptLibraryProps['onSelect'] }>) {
+  return <section aria-label={group.label}>
+    {searching ? <h2 className="px-4 pb-3 font-medium tracking-[-0.01em] text-[var(--fg-1)]" style={{ fontSize: '1.25rem' }}>{group.label}</h2> : null}
+    <div className="flex flex-col gap-3 px-4">{group.templates.map(template => <CatalogIdea key={template.id} template={template} disabled={disabled} onSelect={onSelect} />)}</div>
   </section>
-}
-
-function useLibraryFilters(visible: boolean) {
-  const [filters, dispatch] = useReducer(reducePromptFilters, INITIAL_PROMPT_FILTERS)
-  const [previousVisible, setPreviousVisible] = useState(visible)
-  if (previousVisible !== visible) {
-    setPreviousVisible(visible)
-    if (visible) dispatch({ type: 'reset' })
-  }
-  return [filters, dispatch] as const
-}
-
-function useIdeaActivation(visible: boolean, disabledReason?: string) {
-  const activated = useRef(false)
-  useEffect(() => { activated.current = !visible; return () => { activated.current = true } }, [visible])
-  return (action: () => void) => {
-    if (!visible || disabledReason || activated.current) return
-    activated.current = true
-    action()
-  }
 }
 
 export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
@@ -57,9 +37,8 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
   const locale = useLocale()
   const reducedMotion = useReducedMotion()
   const isPresent = useIsPresent()
-  const select = useIdeaActivation(isPresent, props.disabledReason)
+  const { filters, dispatch, select } = usePromptLibrary(isPresent, props.disabledReason)
   const headingRef = useRef<HTMLHeadingElement>(null)
-  const [filters, dispatch] = useLibraryFilters(isPresent)
   const { query } = filters
   const { categories, activeCategory, matches, lastPage, currentPage, visible } = buildPromptPage({ ...props, filters, locale, translate: t })
   useEffect(() => { if (isPresent) headingRef.current?.focus() }, [isPresent])
@@ -83,7 +62,7 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
         <h2 className="px-4 pb-3 font-medium tracking-[-0.01em] text-[var(--fg-1)]" style={{ fontSize: '1.25rem' }}>{t('chat.templates.forYou')}</h2>
         <div className="flex flex-col px-4">{props.suggestions.map(suggestion => <PromptIdea key={suggestion.id} label={suggestion.label} icon={suggestion.icon} disabled={!!props.disabledReason} onSelect={() => select(() => { suggestion.onSelect(); props.onBack() })} />)}</div>
       </section> : null}
-      {PROMPT_CATEGORIES.map(category => <CatalogGroup key={category} category={category} templates={visible} searching={!!query.trim()} disabled={!!props.disabledReason} onSelect={(...selection) => select(() => props.onSelect(...selection))} />)}
+      {groupPromptIdeas(visible, t).map(group => <CatalogGroup key={group.category} group={group} searching={!!query.trim()} disabled={!!props.disabledReason} onSelect={(...selection) => select(() => props.onSelect(...selection))} />)}
       <div className={matches.length === 0 ? 'flex flex-col items-start gap-3 px-4 py-6' : 'sr-only'}>
         <p role="status" className={matches.length === 0 ? 'text-sm text-[var(--fg-3)]' : 'sr-only'}>{matches.length === 0 ? t('chat.templates.noMatches', { query: query.trim() }) : ''}</p>
         {matches.length === 0 ? <Button variant="ghost" onClick={() => { dispatch({ type: 'query', query: '' }) }}>{t('chat.templates.clearSearch')}</Button> : null}

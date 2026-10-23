@@ -2,7 +2,8 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { AccessibilityInfo, Animated, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { buildPromptPage, INITIAL_PROMPT_FILTERS, reducePromptFilters, PROMPT_CATEGORIES, type PromptCategory, type PromptTemplate } from '@orbit/shared/chat/prompt-library'
+import { buildPromptPage } from '@orbit/shared/chat/prompt-library'
+import { createUsePromptLibrary, groupPromptIdeas, type PromptIdeaGroup } from '@orbit/shared/chat/prompt-library-core'
 import type { ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { motionDurations, motionEasings, motionLayerTiming, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
@@ -16,6 +17,8 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { createAnimatedTimingConfig, usePrefersReducedMotion } from '@/lib/motion'
 
+const usePromptLibrary = createUsePromptLibrary({ useState, useReducer, useEffect, useRef })
+
 type PromptLibraryProps = {
   visible?: boolean
   onExitComplete?: () => void
@@ -27,36 +30,13 @@ type PromptLibraryProps = {
   disabledReason?: string
 }
 
-function CatalogGroup({ category, templates, searching, disabled, onSelect }: Readonly<{ category: PromptCategory; templates: readonly PromptTemplate[]; searching: boolean; disabled: boolean; onSelect: PromptLibraryProps['onSelect'] }>) {
-  const { t } = useTranslation()
+function CatalogGroup({ group, searching, disabled, onSelect }: Readonly<{ group: PromptIdeaGroup; searching: boolean; disabled: boolean; onSelect: PromptLibraryProps['onSelect'] }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const rows = templates.filter(template => template.category === category)
-  if (rows.length === 0) return null
-  return <View role="group" accessibilityLabel={t(`chat.templates.categories.${category}`)}>
-    {searching ? <Text accessibilityRole="header" style={[styles.groupTitle, { color: tokens.fg1 }]}>{t(`chat.templates.categories.${category}`)}</Text> : null}
-    <View style={{ paddingHorizontal: SPACING.s16, gap: SPACING.s12 }}>{rows.map(template => <CatalogIdea key={template.id} template={template} disabled={disabled} onSelect={onSelect} />)}</View>
+  return <View role="group" accessibilityLabel={group.label}>
+    {searching ? <Text accessibilityRole="header" style={[styles.groupTitle, { color: tokens.fg1 }]}>{group.label}</Text> : null}
+    <View style={{ paddingHorizontal: SPACING.s16, gap: SPACING.s12 }}>{group.templates.map(template => <CatalogIdea key={template.id} template={template} disabled={disabled} onSelect={onSelect} />)}</View>
   </View>
-}
-
-function useLibraryFilters(visible: boolean) {
-  const [filters, dispatch] = useReducer(reducePromptFilters, INITIAL_PROMPT_FILTERS)
-  const [previousVisible, setPreviousVisible] = useState(visible)
-  if (previousVisible !== visible) {
-    setPreviousVisible(visible)
-    if (visible) dispatch({ type: 'reset' })
-  }
-  return [filters, dispatch] as const
-}
-
-function useIdeaActivation(visible: boolean, disabledReason?: string) {
-  const activated = useRef(false)
-  useEffect(() => { activated.current = !visible; return () => { activated.current = true } }, [visible])
-  return (action: () => void) => {
-    if (!visible || disabledReason || activated.current) return
-    activated.current = true
-    action()
-  }
 }
 
 export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
@@ -69,9 +49,8 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
   const [searchFocused, setSearchFocused] = useState(false)
   const { onExitComplete } = props
   const progress = useMemo(() => new Animated.Value(0), [])
-  const select = useIdeaActivation(visibleLayer, props.disabledReason)
+  const { filters, dispatch, select } = usePromptLibrary(visibleLayer, props.disabledReason)
   const headingRef = useRef<Text>(null)
-  const [filters, dispatch] = useLibraryFilters(visibleLayer)
   const { query } = filters
   const { categories, activeCategory, matches, lastPage, currentPage, visible } = buildPromptPage({ ...props, filters, locale: i18n.language, translate: t })
   useEffect(() => {
@@ -103,7 +82,7 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
         <Text accessibilityRole="header" style={[styles.groupTitle, { color: tokens.fg1 }]}>{t('chat.templates.forYou')}</Text>
         <View style={{ paddingHorizontal: SPACING.s16 }}>{props.suggestions.map(suggestion => <PromptIdea key={suggestion.id} label={suggestion.label} icon={suggestion.icon} disabled={!!props.disabledReason} onSelect={() => select(() => { suggestion.onSelect(); props.onBack() })} />)}</View>
       </View> : null}
-      {PROMPT_CATEGORIES.map(category => <CatalogGroup key={category} category={category} templates={visible} searching={!!query.trim()} disabled={!!props.disabledReason} onSelect={(...selection) => select(() => props.onSelect(...selection))} />)}
+      {groupPromptIdeas(visible, t).map(group => <CatalogGroup key={group.category} group={group} searching={!!query.trim()} disabled={!!props.disabledReason} onSelect={(...selection) => select(() => props.onSelect(...selection))} />)}
       <View style={matches.length === 0 ? styles.empty : styles.silentStatus}>
         <Text accessibilityLiveRegion="polite" style={matches.length === 0 ? { fontFamily: 'Geist_400Regular', fontSize: 14, color: tokens.fg3 } : styles.silentStatus}>{matches.length === 0 ? t('chat.templates.noMatches', { query: query.trim() }) : ''}</Text>
         {matches.length === 0 ? <Button variant="ghost" onClick={() => { dispatch({ type: 'query', query: '' }) }}>{t('chat.templates.clearSearch')}</Button> : null}

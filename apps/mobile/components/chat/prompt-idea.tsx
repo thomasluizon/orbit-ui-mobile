@@ -3,8 +3,8 @@ import { useMemo, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { useTranslation } from 'react-i18next'
-import { findPromptSlot } from '@orbit/shared/chat/composer-controls'
-import { PROMPT_PRESENTATION, promptExampleParts, type PromptTemplate } from '@orbit/shared/chat/prompt-library'
+import { promptExampleParts } from '@orbit/shared/chat/prompt-library'
+import { buildCatalogIdea, type CatalogIdeaProps, type PromptIdeaProps } from '@orbit/shared/chat/prompt-library-core'
 import { PADDING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -14,17 +14,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 const intentIcons = { Sun, Moon, Plus, Target, Bell, ListTree, Clock, List, ArrowsMove, SkipForward, CheckCheck, Tag, CalendarDays, RotateCcw, Minus, CircleDot, ChartLine, Repeat, Snowflake, CalendarClock, Download, Calendar }
 
-type PromptIdeaProps = {
-  label: string
-  icon?: ReactNode
-  example?: string
-  invokesAstra?: boolean
-  catalogId?: string
-  disabled: boolean
-  onSelect: () => void
-}
-
-export function PromptIdea({ label, icon, example, invokesAstra = true, catalogId, disabled, onSelect }: Readonly<PromptIdeaProps>) {
+export function PromptIdea({ label, icon, example, invokesAstra = true, catalogId, disabled, onSelect }: Readonly<PromptIdeaProps<ReactNode>>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -53,16 +43,13 @@ export function PromptIdea({ label, icon, example, invokesAstra = true, catalogI
   </InsetFocusPressable></GestureDetector>
 }
 
-export function CatalogIdea({ template, disabled, onSelect }: Readonly<{ template: PromptTemplate; disabled: boolean; onSelect: (id: string, label: string, prompt: string) => void }>) {
+export function CatalogIdea({ template, disabled, onSelect }: Readonly<CatalogIdeaProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const presentation = PROMPT_PRESENTATION[template.id]
-  const Icon = intentIcons[presentation.icon]
-  const label = t(template.labelKey)
-  const prompt = t(template.promptKey)
-  return <PromptIdea catalogId={template.id} label={label} icon={<Icon size={24} strokeWidth={1.5} color={tokens.fg1} />} example={presentation.example ? prompt : undefined}
-    invokesAstra={!findPromptSlot(prompt)} disabled={disabled} onSelect={() => onSelect(template.id, label, prompt)} />
+  const { intentIcon, ...idea } = buildCatalogIdea(template, t, onSelect)
+  const Icon = intentIcons[intentIcon]
+  return <PromptIdea {...idea} icon={<Icon size={24} strokeWidth={1.5} color={tokens.fg1} />} disabled={disabled} />
 }
 
 const styles = StyleSheet.create({
