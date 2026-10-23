@@ -102,8 +102,8 @@ const claimLaunchFile = (path, launch) => {
     // only if the destination is still absent.
     linkSync(unpublished, path)
     return { claimed: true, occupied: true, recorded: true }
-  } catch {
-    return { claimed: false, occupied: existsSync(path), recorded: false }
+  } catch (error) {
+    return { claimed: false, occupied: existsSync(path), recorded: false, contended: error.code === "EEXIST" }
   } finally {
     rmSync(unpublished, { force: true })
   }
@@ -160,8 +160,13 @@ export const acquireRelayLock = (repoRoot = REPO_ROOT, lockName = "orbit-relay-l
     if (claim.claimed) return () => {
       if (JSON.parse(readFileSync(path, "utf8")).claimId === owner.claimId) rmSync(path)
     }
+    if (!claim.occupied && claim.contended) continue
     if (!claim.occupied) throw new Error("cannot publish relay lock owner")
-    const contents = readFileSync(path, "utf8")
+    let contents
+    try { contents = readFileSync(path, "utf8") } catch (error) {
+      if (error.code === "ENOENT") continue
+      throw error
+    }
     const previous = JSON.parse(contents)
     if (!Number.isInteger(previous.pid) || previous.pid <= 0 || !processDefinitelyGone(previous.pid, previous.processStartIdentity)) occupied()
     const reclaim = claimLaunchFile(reclaimPath, { launcherPid: process.pid, launcherProcessStartIdentity: identity })

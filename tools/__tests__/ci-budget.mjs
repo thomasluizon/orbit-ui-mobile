@@ -1,8 +1,11 @@
 import { spawn } from "node:child_process"
+import filesystem from "node:fs"
 import { readFileSync, readdirSync } from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
 import { pathToFileURL } from "node:url"
 
 import { createCiBudget } from "../lib/ci-budget.mjs"
+import { acquireRelayLock } from "../lib/run-state.mjs"
 import { T, stageRepo, toolPath } from "./_harness.mjs"
 
 const recorded = JSON.parse(readFileSync(toolPath("__tests__/fixtures/wait-ci-rate-limit.json"), "utf8"))
@@ -10,6 +13,23 @@ const options = (deadline) => ({ deadline, signal: new AbortController().signal 
 const response = (status = 200, headers = []) => ({ status, headers: new Map(headers) })
 
 export const cases = async () => {
+  const releasedRepo = stageRepo("ci-budget-released-lock")
+  const releaseFirst = acquireRelayLock(releasedRepo.path, "budget-lock")
+  const originalRead = filesystem.readFileSync
+  let released = false
+  let reacquired = false
+  filesystem.readFileSync = (path, ...args) => {
+    if (path === `${releasedRepo.path}/.git/budget-lock/owner.json` && !released) {
+      released = true
+      releaseFirst()
+    }
+    return originalRead(path, ...args)
+  }
+  syncBuiltinESMExports()
+  try { acquireRelayLock(releasedRepo.path, "budget-lock")(); reacquired = true } catch { /* Assert the release race below. */ }
+  finally { filesystem.readFileSync = originalRead; syncBuiltinESMExports() }
+  T("CI budget: a lock released between its claim and owner read can be acquired", released && reacquired)
+
   const repo = stageRepo("ci-budget-hour")
   const start = Math.floor(Date.now() / 1000) * 1000
   let clock = start
