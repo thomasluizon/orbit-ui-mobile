@@ -1,4 +1,6 @@
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
+import { View } from 'react-native'
+import { styles } from './habit-row-styles'
 import { useEffect, useRef, useState } from 'react'
 import Animated, {
   useAnimatedStyle,
@@ -56,7 +58,8 @@ export function CheckCircle({
       onHoverOut={() => setHovered(false)}
       disabled={disabled}
       hitSlop={0}
-      focusOffset={-10}
+      focusInset={(48 - 36) / 2}
+      focusOffset={-2}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={disabled ? accessibilityHint : undefined}
@@ -65,19 +68,22 @@ export function CheckCircle({
         return {
           width: 48,
           minHeight: 48,
-          borderRadius: 22,
+          borderRadius: 16,
           overflow: 'hidden',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: (pressed || hovered) && !disabled ? tokens.bgHover : 'transparent',
+          backgroundColor: 'transparent',
           opacity: disabled ? 0.4 : 1,
           transform: [{ scale: pressed && !disabled && !prefersReducedMotion ? 0.96 : 1 }],
         }
       }}
     >
-      <Animated.View style={popStyle} accessible={false}>
-        <HabitCheck status={state} unavailable={unavailable} label={unavailable ? undefined : accessibilityLabel} />
-      </Animated.View>
+      {({ pressed }) => <View testID="habit-row-check-fill" pointerEvents="none"
+        style={[styles.checkFill, { backgroundColor: (pressed || hovered) && !disabled ? tokens.bgHover : 'transparent' }]}>
+        <Animated.View style={popStyle} accessible={false}>
+          <HabitCheck status={state} unavailable={unavailable} label={unavailable ? undefined : accessibilityLabel} />
+        </Animated.View>
+      </View>}
     </Pressable>
   )
 }

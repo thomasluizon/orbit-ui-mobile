@@ -11,6 +11,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 vi.unmock('@/components/ui/icons')
 const TestRenderer = require('react-test-renderer')
 const theme = vi.hoisted((): { mode: 'light' | 'dark' } => ({ mode: 'dark' }))
+const motion = vi.hoisted(() => ({ reduced: true }))
 const rowLocale = vi.hoisted((): { value: 'en' | 'pt-BR' } => ({ value: 'en' }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: theme.mode }) }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => {
@@ -18,9 +19,9 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => {
   return key === 'habits.rowTypeTask' ? messages.habits.rowTypeTask : key === 'habits.form.typeTask' ? messages.habits.form.typeTask : key === 'habits.form.typeHabit' ? messages.habits.form.typeHabit : key
 }, i18n: { language: rowLocale.value } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
-vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true }))
+vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => motion.reduced }))
 
-afterEach(() => { __resetTestHostConfig(); theme.mode = 'dark'; rowLocale.value = 'en' })
+afterEach(() => { __resetTestHostConfig(); theme.mode = 'dark'; rowLocale.value = 'en'; motion.reduced = true })
 
 function assertParentProgressLabel(root: import('react-test-renderer').ReactTestInstance, selecting: boolean, done: number, total: number) {
   if (total === 0) return
@@ -67,6 +68,45 @@ function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills
 }
 
 describe('habit row standard on Android', () => {
+  it.each((['light', 'dark'] as const).flatMap((mode) => [320, 412, 1352].flatMap((width) =>
+    [1, 2].flatMap((fontScale) => [false, true].flatMap((parent) => [false, true].map((reduced) => ({ mode, width, fontScale, parent, reduced })))),
+  )))('contains completion hover and press feedback in $mode at $width/$fontScale, parent=$parent reduced=$reduced', ({ mode, width, fontScale, parent, reduced }) => {
+    theme.mode = mode
+    motion.reduced = reduced
+    __setWindowDimensions({ width, height: 892, scale: 1, fontScale })
+    const actions = { onLog: vi.fn(), onEdit: vi.fn(), onDetail: vi.fn() }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow
+      habit={createMockHabit({ title: 'Read', description: 'Read two pages.' })} hasChildren={parent}
+      today="2025-01-01" selectedDate={new Date(2025, 0, 1)}
+      childrenDone={parent ? 1 : 0} childrenTotal={parent ? 3 : 0} actions={actions} />) })
+    const toggle = () => tree!.root.findAllByType('Pressable').find((node: import('react-test-renderer').ReactTestInstance) => String(node.props.accessibilityLabel).includes('habits.logHabit: Read'))!
+    const tokens = createTokensV2('orange', mode)
+    for (const pressed of [false, true]) {
+      TestRenderer.act(() => { if (pressed) toggle().props.onPressIn(); else toggle().props.onHoverIn() })
+      const geometry = measureInteractionFills(tree!.toJSON(), width, pressed, fontScale)
+      const target = geometry.find((part) => part.host.type === 'Pressable' && String(part.host.props.accessibilityLabel).includes('habits.logHabit: Read'))!
+      const fill = geometry.find((part) => part.host.props.testID === 'habit-row-check-fill') ?? target
+      const glyph = geometry.find((part) => part.host.props.testID === 'habit-check')!
+      expect(target.width).toBe(48)
+      expect(target.height).toBeGreaterThanOrEqual(48)
+      expect(target.style.backgroundColor ?? 'transparent').toBe('transparent')
+      expect(fill).toMatchObject({ width: 36, height: 36 })
+      expect(fill.style).toMatchObject({ borderRadius: 16, backgroundColor: tokens.bgHover })
+      expect(fill.left - glyph.left).toBe(-4)
+      expect(fill.top - glyph.top).toBe(-4)
+      expect(fill.left - target.left).toBe(6)
+      expect(fill.top - target.top).toBe(6)
+      expect(target.style.transform ?? []).toEqual(pressed && !reduced ? [{ scale: 0.96 }] : parent ? [] : [{ scale: 1 }])
+      TestRenderer.act(() => { toggle().props.onHoverOut(); toggle().props.onPressOut() })
+    }
+    for (const action of Object.values(actions)) expect(action).not.toHaveBeenCalled()
+    TestRenderer.act(() => toggle().props.onPress())
+    expect(actions.onLog).toHaveBeenCalledOnce()
+    expect(actions.onDetail).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it('keeps measured checklist fit and recursive depth boundary as independent footer causes', () => {
     __setWindowDimensions({ width: 320, height: 892, scale: 1, fontScale: 1 })
     const habit = createMockHabit({ title: 'Read', checklistItems: Array.from({ length: 50 }, () => ({ text: 'Page', isChecked: true })) })
@@ -210,7 +250,7 @@ describe('habit row standard on Android', () => {
     const check = tree!.root.findByProps({ testID: 'habit-check' })
     expect(StyleSheet.flatten(check.props.style)).toMatchObject({ width: 28, height: 28, borderRadius: 12, borderWidth: 1, borderColor: tokens.statusEmpty })
     const toggle = tree!.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'habits.statusDot.empty, habits.logHabit: Read')!
-    expect(StyleSheet.flatten(toggle.props.style({ pressed: false }))).toMatchObject({ width: 48, minHeight: 48, borderRadius: 22 })
+    expect(StyleSheet.flatten(toggle.props.style({ pressed: false }))).toMatchObject({ width: 48, minHeight: 48, borderRadius: 16 })
     TestRenderer.act(() => tree.unmount())
   })
 
@@ -245,7 +285,7 @@ describe('habit row standard on Android', () => {
           TestRenderer.act(() => toggle.props.onFocus({ target, currentTarget: target }))
           const indicators = tree!.root.findAllByType('View').filter((node: { props: { style: StyleProp<ViewStyle> } }) => StyleSheet.flatten<ViewStyle | undefined>(node.props.style)?.outlineWidth === 2)
           expect(indicators).toHaveLength(1)
-          expect(StyleSheet.flatten(indicators[0].props.style)).toMatchObject({ borderRadius: 22, outlineOffset: -10 })
+          expect(StyleSheet.flatten(indicators[0].props.style)).toMatchObject({ borderRadius: 16, outlineOffset: -2, top: 6, right: 6, bottom: 6, left: 6 })
         }
         TestRenderer.act(() => tree.unmount())
       }
@@ -317,7 +357,7 @@ it.each((['en', 'pt-BR'] as const).flatMap((locale) => [320, 412, 1352].flatMap(
       TestRenderer.act(() => control.props.onHoverIn())
       const paints = measure().filter((part) => part.style.backgroundColor === tokens.bgHover)
       expect(paints).toHaveLength(1)
-      expect(paints[0]!.host.type).toBe('Pressable')
+      expect(['Pressable', 'View']).toContain(paints[0]!.host.type)
       expect(paints[0]!.style.transform ?? []).not.toContainEqual({ scale: 0.96 })
       expect(StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-row' }).props.style).backgroundColor).toBe(selected ? tokens.selectionBg : tokens.bgCard)
       TestRenderer.act(() => control.props.onHoverOut())

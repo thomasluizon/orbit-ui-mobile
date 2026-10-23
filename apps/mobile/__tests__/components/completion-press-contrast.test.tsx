@@ -53,7 +53,8 @@ describe('completion control paint stack', () => {
           expect(color).toBe(tokens.statusEmpty)
           for (const pressed of [false, true, false]) {
             await act(() => { props()[pressed ? 'onPressIn' : 'onPressOut']() })
-            const parent = style(props().style)
+            const target = style(props().style)
+            const parent = kind === 'habit check' ? { ...target, ...style(tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'habit-row-check-fill')[0]!.props.style) } : target
             const trackStyle = style(track().props.style)
             expect(trackStyle.borderColor).toBe(color)
             for (const surface of [tokens.bgCard, tokens.bg]) {
@@ -61,8 +62,8 @@ describe('completion control paint stack', () => {
               expect(measured.graphic).toBeGreaterThanOrEqual(3)
               if (pressed) expect(measured.step).toBeGreaterThanOrEqual(1.25)
             }
-            expect(parent.width ?? parent.minWidth).toBe(48)
-            expect(parent.minHeight).toBe(48)
+            expect(target.width ?? target.minWidth).toBe(48)
+            expect(target.minHeight).toBe(48)
           }
           await act(() => { props().onPress!() })
           expect(onToggle).toHaveBeenCalledOnce()

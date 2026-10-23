@@ -145,3 +145,12 @@ covering independent columns, overlapping press and focus, stable date keys and 
 cleanup. Feedback stays static, including under reduced motion. This JS boundary does not execute
 native attachment or Android MotionEvents; physical pointer and accessibility acceptance remain
 device checks.
+
+## Habit completion shape
+
+Completion feedback uses a centred 36px rounded square with radius 16 around the 28px radius-12
+check, preserving the shared 4px content clearance and concentric radii. Leaf completion and
+parent progress share this shape. The 48px target remains transparent, leaving 6px between its
+edge and the fill. Hover and press paint only this inner surface; one inset focus indicator follows
+that surface with no glyph ring. Press retains scale 0.96 when motion is enabled and stays still
+with reduced motion. Disabled and presentational selection checks add no interaction paint.

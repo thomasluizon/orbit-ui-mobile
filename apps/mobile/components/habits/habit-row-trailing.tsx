@@ -11,6 +11,7 @@ import { HabitCheck } from './habit-check'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { CheckCircle } from './habit-row-check-circle'
 import type { HabitRowActions } from './habit-row'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { styles } from './habit-row-styles'
 
 interface HabitRowTrailingProps {
@@ -69,11 +70,12 @@ function InteractiveParentRing({
 }: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
   const [hovered, setHovered] = useState(false)
+  const prefersReducedMotion = usePrefersReducedMotion()
   const statusName = t(`habits.statusDot.${resolveHabitAccessibleStatus(dotState, isDoneForRange)}` as const)
   const toggleLabel = isDoneForRange ? t('habits.actions.unlog') : t('habits.logHabit')
   const completionLabel = completionRingLabel(completionStatusUnavailable, statusName, toggleLabel, habit.title)
   return (
-    <Pressable focusOffset={-10} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} onPress={() => {
+    <Pressable focusInset={(48 - 36) / 2} focusOffset={-2} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} onPress={() => {
       if (completionReadOnly) return
       const parentAction = isDoneForRange ? actions.onUnlog : actions.onLog
       parentAction?.()
@@ -84,11 +86,13 @@ function InteractiveParentRing({
       style={({ pressed }) => [
         styles.parentRingButton,
         completionReadOnly ? { opacity: 0.4 } : null,
-        hovered && !completionReadOnly ? { backgroundColor: tokens.bgHover } : null,
-        pressed && !completionReadOnly
-          ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
+        pressed && !completionReadOnly && !prefersReducedMotion
+          ? { transform: [{ scale: 0.96 }] } : null,
       ]}>
-      <HabitCheck status={dotState} progress={{ done: childrenDone, total: childrenTotal }} />
+      {({ pressed }) => <View testID="habit-row-check-fill" pointerEvents="none"
+        style={[styles.checkFill, { backgroundColor: (pressed || hovered) && !completionReadOnly ? tokens.bgHover : 'transparent' }]}>
+        <HabitCheck status={dotState} progress={{ done: childrenDone, total: childrenTotal }} />
+      </View>}
     </Pressable>
   )
 }

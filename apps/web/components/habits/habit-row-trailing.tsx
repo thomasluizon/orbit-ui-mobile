@@ -126,8 +126,10 @@ function InteractiveParentRing({
       aria-disabled={disabled && completionReason ? true : undefined}
       aria-describedby={completionReasonId(disabled, completionReason, reasonId)}
       title={disabled ? completionReason : undefined}
-      className={`appearance-none border-0 bg-transparent flex min-h-[48px] w-[48px] items-center justify-center rounded-[22px] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${disabled ? 'cursor-default opacity-40' : 'cursor-pointer hover:bg-[var(--bg-hover)] active:scale-[0.96]'}`}>
-      <HabitCheck status={state} progress={childProgress ?? { done: 0, total: 0 }} />
+      className={`appearance-none border-0 bg-transparent flex min-h-[48px] w-[48px] items-center justify-center rounded-[16px] transition-transform duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${disabled ? 'cursor-default opacity-40' : 'cursor-pointer motion-safe:active:scale-[0.96]'}`}>
+      <span data-habit-row-check-fill="" aria-hidden="true">
+        <HabitCheck status={state} progress={childProgress ?? { done: 0, total: 0 }} />
+      </span>
       <CompletionReason id={reasonId} disabled={disabled} reason={completionReason} />
     </button>
   )

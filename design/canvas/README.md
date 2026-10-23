@@ -545,3 +545,7 @@ destination is covered explicitly. A hermetic Chromium Vitest composition counts
 at 412, 1024 and 1352 in English and Brazilian Portuguese for check-in, returning, loading, loaded,
 error, free-plan and absent states. Native component tests cover semantics and two-line prose;
 Android font rendering remains a device-verification boundary.
+
+Habit completion feedback in `Orbit Hoje.dc.html` uses a 36px radius-16 inner surface around the
+28px radius-12 check, with 4px content clearance inside the transparent 48px target. Both leaf and
+parent progress controls retain one inset focus perimeter and motion-aware press scale.

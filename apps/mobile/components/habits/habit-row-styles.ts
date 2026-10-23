@@ -62,8 +62,15 @@ export const styles = StyleSheet.create({
   parentRingButton: {
     width: 48,
     minHeight: 48,
-    borderRadius: 22,
+    borderRadius: 16,
     overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkFill: {
+    width: 36,
+    height: 36,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -33,6 +33,43 @@ describe('habit row standard in Chromium', () => {
   })
   afterAll(async () => { vi.unstubAllGlobals(); await closeChrome(browserLaunch) }, 30_000)
 
+  it.each((['light', 'dark'] as const).flatMap((mode) => [320, 412, 1352].flatMap((width) =>
+    [1, 2].flatMap((scale) => [false, true].flatMap((parent) => (['reduce', 'no-preference'] as const).map((motion) => ({ mode, width, scale, parent, motion })))),
+  )))('contains completion feedback in $mode at $width with $scale text, parent=$parent motion=$motion', async ({ mode, width, scale, parent, motion }) => {
+    document.documentElement.style.fontSize = `${16 * scale}px`
+    const mounted = render(<div className="habit-panel">
+      <HabitRow habit={createMockHabit({ title: 'Read', description: 'Read two pages.' })}
+        hasChildren={parent} childProgress={parent ? { done: 1, total: 3 } : undefined}
+        actions={{ onEdit: vi.fn(), onLog: vi.fn() }} />
+    </div>)
+    const markup = mounted.container.innerHTML
+    mounted.unmount()
+    document.documentElement.style.removeProperty('font-size')
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: motion })
+    try {
+      const tokens = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<!doctype html><style>${stylesheet}:root{${tokens};font-size:${16 * scale}px}body{margin:0;padding:16px}</style>${markup}`)
+      await page.bringToFront()
+      for (const control of await page.locator('[data-habit-row-control="check"]').all()) {
+        await control.hover()
+        await expect.poll(() => control.evaluate((element) => getComputedStyle(element.querySelector('[data-habit-row-check-fill]') ?? element).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
+        await assertCompletionFill(control, scale)
+        await page.mouse.down()
+        const pressScale = motion === 'reduce' ? 1 : 0.96
+        await expect.poll(() => control.evaluate((element) => element.getBoundingClientRect().width)).toBeCloseTo(48 * pressScale, 1)
+        await assertCompletionFill(control, scale, pressScale)
+        await page.mouse.up()
+        await page.mouse.move(0, 0)
+        await page.keyboard.press('Tab')
+        await control.focus()
+        const rings = await control.evaluate((element) => [element, ...element.querySelectorAll('*')]
+          .map((part) => getComputedStyle(part)).filter((style) => style.outlineStyle !== 'none' && style.outlineColor !== 'rgba(0, 0, 0, 0)')
+          .map((style) => ({ width: style.width, radius: style.borderRadius, offset: style.outlineOffset })))
+        expect(rings).toEqual([{ width: '36px', radius: '16px', offset: '-2px' }])
+      }
+    } finally { await page.close() }
+  })
+
   it.each([false, true])('transitions the painted surface on arrival and exit, selected=%s', async (selected) => {
     const mounted = render(<HabitRow habit={createMockHabit({ title: 'Read', description: 'Read two pages.' })}
       structuralColumn selectMode selected={selected} hasChildren actions={{ onToggleSelection: vi.fn() }} />)
@@ -223,7 +260,7 @@ describe('habit row standard in Chromium', () => {
         return { width: bounds.width, height: bounds.height, radius: paint.borderTopLeftRadius, outline: paint.outlineStyle, outlineWidth: paint.outlineWidth, offset: paint.outlineOffset,
           childOutlines: Array.from(element.querySelectorAll('*')).filter((child) => getComputedStyle(child).outlineStyle !== 'none').length }
       })
-      expect(focus).toMatchObject({ width: 48, radius: '22px', outline: 'solid', outlineWidth: '2px', offset: '-10px', childOutlines: 0 })
+      expect(focus).toMatchObject({ width: 48, radius: '16px', outline: 'none', childOutlines: 1 })
       expect(focus.height).toBeGreaterThanOrEqual(48)
     } finally { await page.close() }
   })
@@ -301,7 +338,7 @@ describe('habit row standard in Chromium', () => {
       const page = await browser.newPage({ viewport: { width, height: 2600 }, reducedMotion: 'reduce' })
       try {
         const tokens = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
-        await page.setContent(`<style>${stylesheet}:root{${tokens};font-size:${16 * scale}px}body{margin:0;padding:16px;background:var(--bg)}</style><div id="root" data-locale="${locale}"></div>`)
+        await page.setContent(`<!doctype html><style>${stylesheet}:root{${tokens};font-size:${16 * scale}px}body{margin:0;padding:16px;background:var(--bg)}</style><div id="root" data-locale="${locale}"></div>`)
         await loadAppFonts(page)
         await page.addScriptTag({ content: metadataBundle })
         await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 4)
@@ -387,7 +424,7 @@ async function measurePreviewRow(row: Locator) {
     const paintedControls = Array.from(element.querySelectorAll('[data-habit-row-control]')).flatMap((control) => {
       const style = getComputedStyle(control)
       const painted = style.backgroundColor !== 'rgba(0, 0, 0, 0)' && style.backgroundColor !== 'transparent' || style.boxShadow !== 'none'
-      return (painted ? [control] : Array.from(control.querySelectorAll('[data-habit-check], svg'))).filter((node) => {
+      return (painted ? [control] : Array.from(control.querySelectorAll('[data-habit-row-check-fill], [data-habit-check], svg'))).filter((node) => {
         for (let owner: Element | null = node; owner; owner = owner.parentElement) {
           const paint = getComputedStyle(owner)
           if (paint.display === 'none' || paint.visibility === 'hidden' || Number(paint.opacity) === 0) return false
@@ -529,7 +566,7 @@ async function assertPreviewRow(row: Locator, page: Page, scale: number, describ
     await control.hover()
     assertTypePaintBounds(await measurePreviewRow(row))
     expect(await row.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(expectedFill)
-    expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(expectedFill)
+    expect(await control.evaluate((element) => getComputedStyle(element.querySelector('[data-habit-row-check-fill]') ?? element).backgroundColor)).toBe(expectedFill)
     await page.mouse.down()
     assertTypePaintBounds(await measurePreviewRow(row))
     expect(await row.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(expectedFill)
@@ -569,4 +606,40 @@ async function assertPreviewColour(row: Locator, described: boolean, token: stri
     return color
   }, token)
   expect(await row.locator('[data-habit-row-description]').evaluate((element) => getComputedStyle(element).color)).toBe(expected)
+}
+
+async function assertCompletionFill(control: Locator, scale: number, pressScale = 1) {
+  const measured = await control.evaluate((element) => {
+    const fill = element.querySelector('[data-habit-row-check-fill]') ?? element
+    const glyph = element.querySelector('[data-habit-check]')!
+    const row = element.closest('[data-testid="habit-row"]')!
+    const box = (part: Element) => {
+      const bounds = part.getBoundingClientRect()
+      return { left: bounds.left, top: bounds.top, right: bounds.right, bottom: bounds.bottom, width: bounds.width, height: bounds.height,
+        x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
+    }
+    const neighbor = row.querySelector('[data-habit-row-control="menu"]')!
+    const title = row.querySelector('[data-personal-text]')!
+    return { fill: box(fill), glyph: box(glyph), target: box(element), row: box(row), neighbor: box(neighbor), title: box(title),
+      radius: getComputedStyle(fill).borderTopLeftRadius, paint: getComputedStyle(fill).backgroundColor,
+      targetPaint: getComputedStyle(element).backgroundColor }
+  })
+  expect(measured.fill.width).toBeCloseTo(36 * pressScale, 1)
+  expect(measured.fill.height).toBeCloseTo(36 * pressScale, 1)
+  expect(measured.radius).toBe('16px')
+  expect(measured.glyph.width).toBeCloseTo(28 * pressScale, 1)
+  expect(measured.target.width).toBeCloseTo(48 * pressScale, 1)
+  expect(measured.target.height).toBeGreaterThanOrEqual(48 * pressScale - 0.1)
+  expect(measured.paint).not.toBe('rgba(0, 0, 0, 0)')
+  expect(measured.targetPaint).toBe('rgba(0, 0, 0, 0)')
+  for (const axis of ['x', 'y'] as const) {
+    expect(Math.abs(measured.fill[axis] - measured.glyph[axis])).toBeLessThanOrEqual(1)
+    expect(Math.abs(measured.fill[axis] - measured.target[axis])).toBeLessThanOrEqual(1)
+  }
+  if (scale === 1) expect(Math.abs(measured.fill.y - measured.row.y)).toBeLessThanOrEqual(1)
+  expect(measured.fill.left - measured.title.right).toBeGreaterThanOrEqual(4)
+  expect(measured.neighbor.left - measured.fill.right).toBeGreaterThanOrEqual(4)
+  expect(measured.row.right - measured.fill.right).toBeGreaterThanOrEqual(4)
+  expect(measured.fill.top - measured.row.top).toBeGreaterThanOrEqual(4)
+  expect(measured.row.bottom - measured.fill.bottom).toBeGreaterThanOrEqual(4)
 }
