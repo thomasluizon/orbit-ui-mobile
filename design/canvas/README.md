@@ -61,6 +61,17 @@ one Check on success and announces it once through visually hidden localized fee
 and manual-selection guidance remain visible. Account or description replacement clears feedback.
 This amendment does not make row previews interactive or add a Markdown renderer.
 
+
+### Full-editor parent relationship
+
+The edit state of `Orbit Habit Create.dc.html` adds Parent habit / Hábito principal beside tags
+and goals inside More details. Its existing ListRow opens the existing radio sheet with exact
+No parent (top level) / Sem hábito principal (nível raiz), current selection and full destination
+names. Choosing and closing retain a local relationship draft. Only the outer Save persists it;
+outer Cancel discards it. No immediate-move verb or second submit action appears in the picker.
+Type, title, description, dates and the existing pinned Save/Cancel keep their composition.
+`habit-form-surfaces.md` records complete inventory, unknown-parent and queue boundaries.
+
 ### Email sign-in entry amendment
 
 `Orbit Entrar` uses the existing verifying presentation for a valid incoming email link.
@@ -103,6 +114,26 @@ supporting footer serves enlarged text, the measured inline depth boundary and m
 with first-title-line controls; ordinary default rows retain whole-row centring. This production
 composition amendment adds no unused drawing prop or checklist action.
 
+### Focused read block amendment
+
+`Orbit Astra Conversation` adds `periodTotal`, `periodComparison`, `history`, `read stale` and
+`read partial` to its existing state controls at compact and wide widths in both locales.
+A total has one supplied figure, its unit and resolved dates. A comparison has both windows,
+their supplied values and absolute delta; a zero baseline has no relative percentage.
+History uses dated rows, including zero-valued logs, with the existing Show more and Refresh.
+The number role, BlockFrame rows, ghost actions, neutral chart and existing tokens are reused.
+No new primitive, token, colour, radius, shadow, font, effect or chart type is introduced.
+
+Saved figures and records retain their query scope. Current completion and navigation eligibility
+are independent. Signed refresh replaces that query's snapshot; signed paging retains its revision.
+One compact state carries stale, partial or failed recovery. Recap detail opens through Show more,
+including saved stale recaps. Read-only disclosure and valid navigation share the existing footer
+action row with Refresh; signed paging waits for refresh. Write-preview execution stays withheld.
+Recap disclosure retains the supplied current and longest streak figures with its narrative and
+habit rows. Show less returns to the focused figures. Expanded state and a card-local polite live
+region announce disclosure on web and Android, replacing the former page-position announcement.
+The paired owners and verification boundaries are in `design/astra-preview-surfaces.md`.
+
 ## The authority
 
 **Thomas granted this export on 2026-08-25**, which is what gives it authority. `DESIGN.md` records
@@ -116,13 +147,15 @@ that disagrees with production is a trap rather than an authority.
 | amendment | what changed | why |
 |---|---|---|
 | #1607 | Balanced type choices, compact growing name, description immediately after name, natural-date prompt and canonical Astra identification on real request/entry targets | Explicit form presentation and action attribution order; request, acceptance, draft and save owners remain unchanged. |
+| #1619 focused totals and comparisons | A supplied number, unit and resolved window; two comparison windows, their values and supplied delta, without relative percentages for a zero baseline | A read answers its requested metric and dates. |
+| #1619 history and recovery | Dated rows retain zero values, signed paging and exact-query refresh; stale and partial reads use one compact state | Snapshot display stays separate from current action eligibility. |
 | #1587 | Hoje rows carry actual visible depth with one 16px step per ancestor after the 8px root inset. Well, title and supporting metadata cascade together. Measured content width and scaled title space determine the narrow boundary, accounting for shell scrollbars and safe-area gutters. Boundary rows use the full-width supporting metadata footer with first-title-line controls, and the existing drill; drill resets local depth and detail children use depth 1 once | Expanded grandchildren must remain visibly subordinate to their parents without shrinking controls or flattening adjacent levels. |
 | #1588 | Hoje canonical rows restore stored plain text description previews below the title and before metadata, at Geist Sans 14/400 and line height 1.55 with a 4px stack gap. Normal text uses one naturally ellipsized line; above 130% text, up to two lines grow the row. Empty normalized text adds no line. Body feedback replaces the complete radius-20 row fill; sibling actions including selection paint independently and the check centres on the resulting normal row. The painted web row owns reversible 380ms background/outline hover feedback, with a strong hairline and immediate press/reduced-motion feedback | The explicitly requested preview restores stored content through the existing detail path without a new action or request. The active drawing amendment preserves 17/14 titles, the single depth inset and large-text supporting metadata. |
 | Astra blocks in place | `Orbit Astra Conversation` combines the day ring with up to 20 live habit rows and in-place logging; calendar EventRow actions open Calendários with one event selected for import review; streak keeps DayStrip and a read-only FreezeBank linking to Sequência; goals use ProgressBar, tracking badges and named derived sources; metrics keeps BarChart with at most three StatTile figures. The pt-BR stale line reads `A manhã mudou desde que a Astra montou este bloco.` | Blocks reuse their app actions and live state. This supersedes the drawing's goal rings, metrics note excluding a chart, and masculine reference to Astra in the stale line. |
 | #1471 | `Orbit Progresso` and `Orbit Astra Conversation` use selectable full-height BarChart columns with no slider or horizontal scroll. Each target is its full column, at least the shared 48 touch floor in height, edge to edge with its neighbours. Today opens selected; only the selection uses `--fg-1`, others use `--fg-2`. A short weekday/date, percentage and done count follow the selection above the bars, clamped within the chart. Zero and unscheduled days draw a 4px stub; unscheduled days say so. First/last dates and the figure rows remain | Selecting a column ties the readout to its day. This control supersedes the detached slider and the drawing note excluding a chart from Astra metrics. |
 | #1483 | Astra choice blocks use one column of radio or checkbox options and explicit Send; labels up to 20 characters and descriptions up to 24 each fit one line at default text size. Above font scale 1.3 or web text zoom 130%, rows grow and text may wrap; never ellipsize at 200% text. Pick list habit names use the full available row width, at most two lines then an ellipsis with the complete accessible name and one-tap label expansion independent of its checkbox; detail fits one line at default text size. Review prepares the existing approval preview. | Selected labels use `--fg-1`, resting labels `--fg-2`; one status line follows the trailing action. Selections use `Intl.ListFormat`, and no answer action writes. Identical answer recovery stays available at the limit and refreshes server usage. |
 | #1479 | Astra replies interleave text and block parts in server order, with at most one write preview per reply; unknown block kinds are skipped | Text streams before whole blocks arrive, keeping the first text position, the 16 gap, selectable prose and independent code-block copy controls. |
-| Astra ideas library | A second full view in the conversation layer uses AppBar back, persistent search, one scrolling category chip row, eight-row result pages, SectionLabel headings and ListRow ideas; the conversation header adds a 48 browse icon and the empty thread adds one ghost browse action; live suggestions become rows, Calendar requires Pro and Google, slots preserve drafts, and Escape or Android back returns focus to the entry | This amendment specifies the library without a separate drawing and makes routine, bulk and restart requests discoverable. |
+| Astra ideas library (#1611) | [Orbit Astra Ideas.md](Orbit%20Astra%20Ideas.md) specifies neutral radius-20 action cards with 16px record insets, inline intent icons and twelve translated prompt examples; live supplied-icon actions are unframed and hidden during search. Complete requests carry plain Astra attribution; slots only prepare the composer. One column at phone and wide widths retains the AppBar, labelled search, one category strip, eight-idea pages and accessible category names | The bounded composition improves recognition while preserving all 36 prompts, callbacks, draft retention, Calendar Pro + Google gating, load recovery and focus navigation. |
 | #1366 | Hoje date paging spans the content column: 48px arrow targets at its leading and trailing edges, day title and date centred between equal 12px gaps, in both compact and wide drawings | The placement uses the content-column centre and preserves the shell inset, full date labels and shared touch floor. |
 | #1335 | Sobre legal pages keep the short Privacidade/Privacy and Termos/Terms headers; prose titles select the privacy and terms row labels in sentence case | Each prose title names its own document. Web and Android use separate header and document titles matching the Sobre rows. |
 | Week time grid | Named timed blocks with status rings, per-day any-time chips and +N, natural short weekdays, one today date disc, one hour scroller and opening near now | The owner's report supersedes #1148 and adopts the Google Calendar week pattern. |
@@ -294,6 +327,7 @@ build.
 | `Orbit Habit Create.dc.html` | criar hábito |
 | `Orbit Habit Detail.dc.html` | one habit, its history and its actions |
 | `Orbit Astra Conversation.dc.html` | the full-screen Astra conversation and the web sidebar Astra row |
+| `Orbit Astra Ideas.md` | the scoped Ideas action composition and state matrix (#1611) |
 | `Orbit Wrapped.dc.html` | Wrapped, its cover and its pager |
 | `Orbit Onboarding.dc.html` | onboarding |
 | `Orbit Entrar.dc.html` | entrar |

@@ -1,6 +1,9 @@
 {
   "provenance": {
-    "legacyProduction": "75f00d37e18a4192dd2b0e8de872220c036f3f0a"
+    "legacyProduction": "75f00d37e18a4192dd2b0e8de872220c036f3f0a",
+    "productionSnapshots": [
+      "ea102cc95a72716cac5943a1a5c45a18cb1b1569"
+    ]
   },
   "mappings": {
     "mobile:control:advancedSettings.title": {
@@ -122,6 +125,24 @@
         "mobile:content:shell.composer.attach.image"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:chat.insight.next": {
+      "targets": [
+        "mobile:content:chat.habitList.more"
+      ],
+      "reason": "apps/mobile/components/chat/period-insight-card.tsx: Show more discloses every supplied narrative section together instead of advancing the former Pager."
+    },
+    "mobile:control:chat.insight.previous": {
+      "targets": [
+        "mobile:content:chat.readBlock.less"
+      ],
+      "reason": "apps/mobile/components/chat/period-insight-card.tsx: Show less returns from the disclosed narrative and habit detail to the focused overview instead of the former Pager back action."
+    },
+    "mobile:control:chat.insight.title": {
+      "targets": [
+        "mobile:content:chat.insight.title"
+      ],
+      "reason": "apps/mobile/components/chat/period-insight-card.tsx: the recap title renders through the read BlockFrame and the platform ui/block-frame.tsx heading instead of labelling the former Pager."
     },
     "mobile:control:chat.limitReachedError": {
       "targets": [
@@ -1139,6 +1160,18 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
+    "mobile:display:chat.daySummary.nothingDue": {
+      "targets": [
+        "mobile:content:chat.daySummary.nothingDue"
+      ],
+      "reason": "apps/mobile/components/chat/day-summary-card.tsx: the existing empty-state body retains Nothing due today for legacy blocks; signed dated reads use the scoped Nothing scheduled label."
+    },
+    "mobile:display:chat.daySummary.ring": {
+      "targets": [
+        "mobile:content:chat.daySummary.ring"
+      ],
+      "reason": "apps/mobile/components/chat/day-summary-card.tsx: ProgressRing retains the supplied snapshot completion figure and its accessible done/due label; signed dated reads omit today from that label."
+    },
     "mobile:display:chat.goalList.deadline": {
       "targets": [
         "mobile:content:chat.goalList.deadline"
@@ -1156,6 +1189,13 @@
         "mobile:content:chat.goalList.progress"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:chat.insight.pageAnnounce": {
+      "targets": [
+        "mobile:content:chat.habitList.more",
+        "mobile:content:chat.readBlock.less"
+      ],
+      "reason": "apps/mobile/components/chat/period-insight-card.tsx: the disclosure button expanded state and card-local polite live region announce the supplied narrative sections together, replacing the former Pager position announcement."
     },
     "mobile:display:chat.listening": {
       "targets": [
@@ -1810,6 +1850,24 @@
         "web:content:shell.composer.attach.image"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:chat.insight.next": {
+      "targets": [
+        "web:content:chat.habitList.more"
+      ],
+      "reason": "apps/web/components/chat/period-insight-card.tsx: Show more discloses every supplied narrative section together instead of advancing the former Pager."
+    },
+    "web:control:chat.insight.previous": {
+      "targets": [
+        "web:content:chat.readBlock.less"
+      ],
+      "reason": "apps/web/components/chat/period-insight-card.tsx: Show less returns from the disclosed narrative and habit detail to the focused overview instead of the former Pager back action."
+    },
+    "web:control:chat.insight.title": {
+      "targets": [
+        "web:content:chat.insight.title"
+      ],
+      "reason": "apps/web/components/chat/period-insight-card.tsx: the recap title renders through the read BlockFrame and the platform ui/block-frame.tsx heading instead of labelling the former Pager."
     },
     "web:control:chat.limitReachedError": {
       "targets": [
@@ -2884,6 +2942,18 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
+    "web:display:chat.daySummary.nothingDue": {
+      "targets": [
+        "web:content:chat.daySummary.nothingDue"
+      ],
+      "reason": "apps/web/components/chat/day-summary-card.tsx: the existing empty-state body retains Nothing due today for legacy blocks; signed dated reads use the scoped Nothing scheduled label."
+    },
+    "web:display:chat.daySummary.ring": {
+      "targets": [
+        "web:content:chat.daySummary.ring"
+      ],
+      "reason": "apps/web/components/chat/day-summary-card.tsx: ProgressRing retains the supplied snapshot completion figure and its accessible done/due label; signed dated reads omit today from that label."
+    },
     "web:display:chat.goalList.deadline": {
       "targets": [
         "web:content:chat.goalList.deadline"
@@ -2901,6 +2971,13 @@
         "web:content:chat.goalList.progress"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:chat.insight.pageAnnounce": {
+      "targets": [
+        "web:content:chat.habitList.more",
+        "web:content:chat.readBlock.less"
+      ],
+      "reason": "apps/web/components/chat/period-insight-card.tsx: the disclosure button expanded state and card-local polite live region announce the supplied narrative sections together, replacing the former Pager position announcement."
     },
     "web:display:chat.listening": {
       "targets": [
@@ -2925,6 +3002,12 @@
         "web:content:shell.composer.limit.reason"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:chat.templates.forYou": {
+      "targets": [
+        "web:content:chat.templates.forYou"
+      ],
+      "reason": "PromptLibrary retains For You in its rendered live-section heading and accessible section label."
     },
     "web:display:chat.title": {
       "targets": [

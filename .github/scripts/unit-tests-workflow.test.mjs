@@ -51,6 +51,7 @@ test("every pull request distributes Chromium without increasing browser concurr
   assert.match(run, /--reporter=json/)
   assert.doesNotMatch(run, /maxWorkers|fileParallelism|passWithNoTests/)
   const upload = web.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"))
+  assert.equal(upload.with.name, "web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}-attempt-${{ github.run_attempt }}")
   assert.equal(upload.if, "${{ always() }}")
   assert.equal(upload.with["include-hidden-files"], true)
   assert.equal(upload.with["if-no-files-found"], "error")
@@ -106,7 +107,7 @@ test("every non-web test workspace has an independent coverage job", () => {
   assert.equal(workspaces.name, "Workspace unit (${{ matrix.workspace }})")
   assert.ok(workspaces.steps.some((step) => step.run === 'npx turbo run test --filter="@orbit/${{ matrix.workspace }}" --concurrency=1 -- --coverage'))
   const upload = workspaces.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"))
-  assert.equal(upload.with.name, "workspace-unit-coverage-${{ matrix.workspace }}")
+  assert.equal(upload.with.name, "workspace-unit-coverage-${{ matrix.workspace }}-attempt-${{ github.run_attempt }}")
   assert.equal(upload.with.path, ".artifacts/workspace-coverage")
   assert.equal(upload.with["include-hidden-files"], true)
   assert.equal(upload.with["if-no-files-found"], "error")
@@ -155,8 +156,8 @@ test("Unit Tests preserves merged coverage thresholds and Sonar consumes the com
   const download = gate.steps.find((step) => step.name === "Download workspace coverage")
   assert.equal(download.if, undefined)
   assert.equal(download.with.pattern, "workspace-unit-coverage-*")
-  assert.equal(download.with["merge-multiple"], true)
-  assert.equal(download.with.path, undefined)
+  assert.equal(download.with["merge-multiple"], false)
+  assert.equal(download.with.path, ".artifacts/downloads/workspaces")
   const merge = gate.steps.find((step) => step.name === "Merge web reports and enforce coverage thresholds")
   assert.match(merge.run, /--merge-reports=/)
   assert.match(merge.run, /--coverage/)
@@ -168,6 +169,68 @@ test("Unit Tests preserves merged coverage thresholds and Sonar consumes the com
   }
   assert.equal(workflow.jobs.sonarcloud.needs, "unit-tests")
   assert.ok(workflow.jobs.sonarcloud.steps.some((step) => step.with?.name === "unit-test-coverage"))
+})
+
+test("aggregate downloads retain attempt directories until selection before verification", () => {
+  const steps = workflow.jobs["unit-tests"].steps
+  const download = steps.find((step) => step.name === "Download web shard reports")
+  assert.equal(download.with["merge-multiple"], false)
+  assert.equal(download.with.path, ".artifacts/downloads/web")
+  const select = steps.findIndex((step) => step.name === "Select latest report attempts")
+  assert.ok(select > steps.indexOf(download))
+  assert.ok(select > steps.findIndex((step) => step.name === "Download workspace coverage"))
+  assert.ok(select < steps.findIndex((step) => step.name === "Verify every web report arrived"))
+  assert.match(steps[select].run, /node tools\/select-artifact-attempts\.mjs --input-dir \.artifacts\/downloads\/web --output-dir apps\/web\/\.artifacts\/unit-tests/)
+  assert.match(steps[select].run, /node tools\/select-artifact-attempts\.mjs --input-dir \.artifacts\/downloads\/workspaces --output-dir \./)
+})
+
+test("workflow selects partial reruns before the existing missing-report gate", () => {
+  const gate = workflow.jobs["unit-tests"].steps
+  const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
+  const select = gate.find((step) => step.name === "Select latest report attempts")
+  const invoke = (command) => spawnSync("bash", ["-e", "-c", command], { cwd: directory, encoding: "utf8" })
+  const stageArtifact = (job, stepName, matrix, attempt, files) => {
+    const template = workflow.jobs[job].steps.find((step) => step.uses?.startsWith("actions/upload-artifact@")).with.name
+    let name = template.replaceAll("${{ github.run_attempt }}", String(attempt))
+    for (const [key, value] of Object.entries(matrix)) name = name.replaceAll(`\${{ matrix.${key} }}`, String(value))
+    const download = gate.find((step) => step.name === stepName).with.path
+    const artifact = join(directory, download, name)
+    for (const [path, contents] of Object.entries(files)) {
+      mkdirSync(dirname(join(artifact, path)), { recursive: true })
+      writeFileSync(join(artifact, path), contents)
+    }
+    return artifact
+  }
+  try {
+    assert.ok(select, "aggregate must select attempts before merging reports")
+    for (const [project, total] of [["jsdom", 2], ["chromium", 8]]) {
+      for (let shard = 1; shard <= total; shard++) {
+        stageArtifact("web-tests", "Download web shard reports", { project, shard }, 1, { [`blobs/${project}-${shard}.json`]: "original report" })
+      }
+    }
+    const older = stageArtifact("web-tests", "Download web shard reports", { project: "chromium", shard: 8 }, 1, { "stale-only.json": "must not survive" })
+    const newer = stageArtifact("web-tests", "Download web shard reports", { project: "chromium", shard: 8 }, 2, { "blobs/chromium-8.json": "passing rerun" })
+    for (const { workspace, directory: path } of workflow.jobs["workspace-tests"].strategy.matrix.include) {
+      stageArtifact("workspace-tests", "Download workspace coverage", { workspace }, 1, { [`${path}/coverage/lcov.info`]: `${workspace} coverage` })
+    }
+    const command = select.run.replaceAll("node tools/select-artifact-attempts.mjs", `node "${join(root, "tools/select-artifact-attempts.mjs")}"`)
+    const result = invoke(command)
+    assert.equal(result.status, 0, result.stderr)
+    const reports = join(directory, "apps/web/.artifacts/unit-tests")
+    assert.equal(readFileSync(join(reports, "blobs/chromium-8.json"), "utf8"), "passing rerun")
+    assert.equal(readdirSync(reports).includes("stale-only.json"), false)
+    assert.equal(invoke(gate.find((step) => step.name === "Verify every web report arrived").run).status, 0)
+    for (const { workspace, directory: path } of workflow.jobs["workspace-tests"].strategy.matrix.include) {
+      assert.equal(readFileSync(join(directory, path, "coverage/lcov.info"), "utf8"), `${workspace} coverage`)
+    }
+    rmSync(older, { recursive: true })
+    rmSync(join(directory, "apps/web"), { recursive: true })
+    rmSync(newer, { recursive: true })
+    assert.equal(invoke(command).status, 0)
+    assert.notEqual(invoke(gate.find((step) => step.name === "Verify every web report arrived").run).status, 0, "a shard missing at every attempt must still fail")
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
 })
 
 test("real Vitest reports combine project coverage and reject incomplete coverage", { timeout: 120_000 }, () => {

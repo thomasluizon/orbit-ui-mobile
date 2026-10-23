@@ -465,12 +465,37 @@ describe('Sheet (mobile)', () => {
     const footer = tree!.root.findByType(TrueSheet).props.footer
     TestRenderer.act(() => footer.props.onLayout({ nativeEvent: { layout: { height: 76 } } }))
     const scroller = tree!.root.findByType(KeyboardAwareSheetScrollView)
-    expect(scroller.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(76 - bottomInset)
-    expect(scroller.props.children.at(-1).props.testID).toBe('sheet-footer-space')
+    expect(tree!.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(76 - bottomInset)
+    expect(scroller.findAllByProps({ testID: 'sheet-footer-space' })).toHaveLength(0)
     expect(scroller.props.keyboardVerticalOffset).toBe(76)
     TestRenderer.act(() => footer.props.onLayout({ nativeEvent: { layout: { height: 112 } } }))
     expect(tree!.root.findByType(KeyboardAwareSheetScrollView).props.keyboardVerticalOffset).toBe(112)
     expect(tree!.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(112 - bottomInset)
+    TestRenderer.act(() => tree!.unmount())
+  })
+
+  it.each([
+    { width: 1280, height: 640, fontScale: 2, headerHeight: 100, footerHeight: 112, bottomInset: 24 },
+    { width: 640, height: 320, fontScale: 1, headerHeight: 72, footerHeight: 76, bottomInset: 0 },
+  ])('bounds the focus-scrolling viewport above the footer at $width by $height with font scale $fontScale', async ({ width, height, fontScale, headerHeight, footerHeight, bottomInset }) => {
+    safeArea.bottom = bottomInset
+    __setWindowDimensions({ width, height, scale: 1, fontScale })
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Sheet open title="Editor" actions={<PillButton onClick={vi.fn()}>Save</PillButton>}><Text>Parent</Text></Sheet>)
+      await Promise.resolve()
+    })
+    const nativeSheet = tree!.root.findByType(TrueSheet)
+    TestRenderer.act(() => {
+      nativeSheet.props.header.props.onLayout({ nativeEvent: { layout: { height: headerHeight } } })
+      nativeSheet.props.footer.props.onLayout({ nativeEvent: { layout: { height: footerHeight } } })
+    })
+    const scroller = tree!.root.findByType(KeyboardAwareSheetScrollView)
+    const viewportHeight = StyleSheet.flatten(scroller.props.style).maxHeight
+    const footerTop = nativeSheet.props.maxContentHeight + bottomInset - footerHeight
+    expect(headerHeight + viewportHeight + bottomInset).toBeLessThanOrEqual(footerTop)
+    expect(viewportHeight).toBeGreaterThanOrEqual(48)
+    expect(scroller.findAllByProps({ testID: 'sheet-footer-space' })).toHaveLength(0)
     TestRenderer.act(() => tree!.unmount())
   })
 
@@ -588,7 +613,7 @@ describe('Sheet (mobile)', () => {
       nativeSheet.props.header.props.onLayout({ nativeEvent: { layout: { height: 56 } } })
     })
     const measuredScroller = tree.root.findAllByType('ScrollView')[0]
-    expect(measuredScroller.props.style.maxHeight).toBeCloseTo(892 * 0.85 - 24 - 56 - 24)
+    expect(measuredScroller.props.style.maxHeight).toBeCloseTo(892 * 0.85 - 24 - 56 - 24 - (112 - 24))
   })
 
   it.each([false, true])('separates footer actions with space only with virtualizedBody=%s', async (virtualizedBody) => {

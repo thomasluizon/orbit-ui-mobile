@@ -75,7 +75,8 @@ describe('returning profile after other completion writes', () => {
   ] as const)('refreshes profile after %s', (_name, useWrite) => {
     mocks.queryClient.invalidateQueries.mockClear()
     const mutation = useWrite() as unknown as MutationConfig<unknown, unknown, unknown>
-    mutation.onSettled?.({}, null, {}, undefined)
+    const variables = _name === 'edit bad-habit flag' ? { habitId: 'habit-1', data: { title: 'Habit', isBadHabit: false } } : {}
+    mutation.onSettled?.({}, null, variables, undefined)
 
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
@@ -1438,6 +1439,14 @@ describe('mobile habit hooks', () => {
     }))
   })
 
+  it('keeps an offline parent reference in one update with its existing dependency list', async () => {
+    const mutation = useUpdateHabit() as unknown as MutationConfig<unknown, { habitId: string; data: UpdateHabitRequest; dependsOn: string[] }, unknown>
+    const request = { title: 'Read', isBadHabit: false, parentId: 'offline-habit-parent', checklistItems: [{ text: 'Same', isChecked: true }, { text: 'Same', isChecked: false }], goalIds: [], tagIds: [] }
+    await mutation.mutationFn({ habitId: 'offline-habit-source', data: request, dependsOn: ['offline-habit-source'] })
+    expect(mocks.runQueuedMutation).toHaveBeenCalledOnce()
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({ mutation: expect.objectContaining({ type: 'updateHabit', endpoint: API.habits.update('offline-habit-source'), method: 'PUT', payload: request, dependsOn: ['offline-habit-source', 'offline-habit-parent'] }) }))
+  })
+
   it('rejects an overlong update description before queuing or sending', async () => {
     const mutation = useUpdateHabit() as unknown as MutationConfig<
       void,
@@ -1764,6 +1773,36 @@ describe('mobile habit hooks', () => {
       frequencyUnit: 'Week',
       frequencyQuantity: 2,
     })
+  })
+
+  it('keeps queued parent edits optimistic without refetching parent details before replay', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    mocks.useRealQueryHooks = true
+    const child = makeChild({ id: 'habit-1', title: 'Read' })
+    const oldParent = makeDetail({ id: 'old-parent', children: [child] })
+    client.setQueryData(habitKeys.detail('old-parent'), oldParent)
+    client.setQueryData(habitKeys.detail('offline-habit-parent'), makeDetail({ id: 'offline-habit-parent', children: [] }))
+    const refetch = vi.fn(() => Promise.resolve(oldParent))
+    const observer = new QueryObserver(client, { queryKey: habitKeys.detail('old-parent'), queryFn: refetch, staleTime: Infinity })
+    const unsubscribe = observer.subscribe(() => {})
+    let mutation!: ReturnType<typeof useUpdateHabit>
+    function Probe() { mutation = useUpdateHabit(); return null }
+    let renderer: { unmount: () => void } | undefined
+    try {
+      await TestRenderer.act(() => { renderer = TestRenderer.create(React.createElement(QueryClientProvider, { client }, React.createElement(Probe))) })
+      await TestRenderer.act(async () => {
+        const result = await mutation.mutateAsync({ habitId: 'habit-1', data: { title: 'Read together', isBadHabit: false, parentId: 'offline-habit-parent' } })
+        expect(result).toMatchObject({ queued: true })
+      })
+      expect(refetch).not.toHaveBeenCalled()
+      expect(client.getQueryData(habitKeys.detail('old-parent'))).toMatchObject({ children: [] })
+      expect(client.getQueryData(habitKeys.detail('offline-habit-parent'))).toMatchObject({ children: [expect.objectContaining({ id: 'habit-1', title: 'Read together' })] })
+    } finally {
+      await TestRenderer.act(() => { renderer?.unmount() })
+      unsubscribe()
+      mocks.useRealQueryHooks = false
+      client.clear()
+    }
   })
 
   it('optimistically moves a habit under a new parent and restores the tree on failure', async () => {

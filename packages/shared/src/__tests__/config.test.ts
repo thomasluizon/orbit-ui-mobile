@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { appConfigSchema, DEFAULT_CONFIG } from '../types/config'
+import { appConfigSchema, DEFAULT_CONFIG, type FeatureKey } from '../types/config'
 import { isFeatureEnabled, resolveFlag } from '../utils/config'
 import expectedFlags from './default-config-flags.json'
 import { createMockConfigResponse } from './factories'
@@ -17,22 +17,30 @@ describe('resolved config', () => {
     const { features: _features, ...response } = createMockConfigResponse()
     const config = appConfigSchema.parse(response)
     expect(config.features).toEqual({})
-    expect(resolveFlag(config, 'redesign')).toBe(false)
+    expect(resolveFlag(config, 'offline_mode')).toBe(false)
   })
 
   it('uses the server resolution without applying another plan check', () => {
     const config = appConfigSchema.parse(createMockConfigResponse({
-      redesign: { enabled: true, planRequirement: 'Pro' },
+      offline_mode: { enabled: true, planRequirement: 'Pro' },
       ai_chat: { enabled: false, planRequirement: null },
     }))
-    expect(resolveFlag(config, 'redesign')).toBe(true)
+    expect(resolveFlag(config, 'offline_mode')).toBe(true)
     expect(resolveFlag(config, 'ai_chat')).toBe(false)
     expect(resolveFlag(config, 'sub_habits')).toBe(false)
-    expect(resolveFlag(undefined, 'redesign')).toBe(false)
+    expect(resolveFlag(undefined, 'offline_mode')).toBe(false)
+  })
+
+  it('keeps absent unknown keys off and preserves unconsumed API keys', () => {
+    const config = appConfigSchema.parse(createMockConfigResponse({
+      compatibility_only: { enabled: true, planRequirement: null },
+    }))
+    expect(config.features).toEqual({ compatibility_only: { enabled: true, planRequirement: null } })
+    expect(resolveFlag(config, 'unknown_feature' as FeatureKey)).toBe(false)
   })
 
   it.each([
-    { ...createMockConfigResponse(), features: { redesign: { enabled: 'true', planRequirement: null } } },
+    { ...createMockConfigResponse(), features: { offline_mode: { enabled: 'true', planRequirement: null } } },
     createMockConfigResponse(undefined, { MaxHabitDepth: 'invalid' }),
     { ...createMockConfigResponse(), settings: { syncIntervalSeconds: '300', syncMaxBatchSize: 100 } },
   ])('rejects malformed config', (response) => {

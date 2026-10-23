@@ -80,10 +80,10 @@ describe('Astra blocks act on app state', () => {
     expect(view.container).toBeEmptyDOMElement()
   })
 
-  it('exposes live goal progress and names its linked source', () => {
+  it('preserves goal progress and names its actual linked source', () => {
     state.goals.set('goal-1', createMockGoal({ id: 'goal-1', title: 'Move', currentValue: 6, targetValue: 10, isProgressDerived: true, linkedHabits: [{ id: 'habit-1', title: 'Walk' }] }))
     render(<GoalListCard goalList={{ items: [{ id: 'goal-1', title: 'Move', current: 1, target: 10, unit: 'km' }] }} />)
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '60')
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '10')
     expect(screen.getByRole('button', { name: 'goals.linkedHabits: Walk' })).toBeInTheDocument()
   })
 })
@@ -92,7 +92,7 @@ it.each([
   [{ isPending: true, isError: false, isRefetchError: false }, 'loading'],
   [{ isPending: false, isError: true, isRefetchError: false }, 'partiallyFailed'],
   [{ isPending: false, isError: true, isRefetchError: true }, 'stale'],
-] as const)('shares query states across all five blocks: %s', (query, expected) => {
+] as const)('shares query states across action queries while metrics retain their snapshot: %s', (query, expected) => {
   state.query = { ...query }
   state.goals.set('goal-1', createMockGoal({ id: 'goal-1' }))
   const view = render(<>
@@ -102,8 +102,8 @@ it.each([
     <StreakCard streakCard={{ currentStreak: 3, longestStreak: 9, level: 1, totalXp: 20, xpForNextLevel: 100, lastActiveDate: null, isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], surfaceId: 'progress' }} />
     <MetricsCard metricsCard={{ period: 'week', completionRate: 50, activeDays: 3, totalCompletions: 3, totalScheduled: 6, currentStreak: 3, bestStreak: 9, hasData: true, surfaceId: 'progress' }} />
   </>)
-  expect(view.container.querySelectorAll(`section[data-state="${expected}"]`)).toHaveLength(5)
-  if (expected === 'partiallyFailed') expect(screen.getAllByRole('alert')).toHaveLength(5)
+  expect(view.container.querySelectorAll(`section[data-state="${expected}"]`)).toHaveLength(4)
+  if (expected === 'partiallyFailed') expect(screen.getAllByRole('alert')).toHaveLength(4)
 })
 
 it('keeps the freeze bank read-only with one route to Sequencia', () => {

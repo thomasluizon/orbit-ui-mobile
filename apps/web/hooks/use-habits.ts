@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import {
   restoreCachedHabitDetails,
   updateCachedHabitDetails,
+  invalidateHabitParentDetails,
   habitKeys, goalKeys, gamificationKeys, profileKeys,
   applyCachedHabitSkip, rollbackDatedHabitLists,
   updateHabitListsForDate, invalidateHabitDependents,
@@ -28,6 +29,7 @@ import {
   normalizeHabits,
   buildChildrenIndex,
   plural,
+  optimisticMoveHabitParent,
   optimisticRemoveHabits,
   optimisticSetCalendarHabitLog, optimisticSetDatedCompletion,
   removeHabitDetailChild,
@@ -437,16 +439,19 @@ export function useUpdateHabit() {
       await Promise.all([
         queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
         queryClient.cancelQueries({ queryKey: habitKeys.details() }),
-        queryClient.cancelQueries({ queryKey: habitKeys.fullDetail(habitId) }),
+        queryClient.cancelQueries({ queryKey: data.parentId != null || data.clearParent === true ? habitKeys.fullDetails() : habitKeys.fullDetail(habitId) }),
       ])
 
       const previousLists = snapshotHabitLists(queryClient)
       const patch = buildOptimisticHabitPatch(queryClient, data)
-      updateHabitLists(queryClient, (items) =>
-        optimisticPatchHabit(items, habitId, patch),
-      )
-
-      const previousDetails = updateCachedHabitDetails(queryClient, (habit) => habit.id === habitId ? patch : {})
+      const parentId = data.clearParent === true ? null : data.parentId ?? undefined
+      const parentChange = parentId === undefined ? undefined : { habitId, parentId }
+      const previousDetails = updateCachedHabitDetails(queryClient, (habit) => habit.id === habitId
+        ? { ...patch, ...(parentChange ? { parentId } : {}) } : {}, parentChange)
+      updateHabitLists(queryClient, (items) => {
+        const patched = optimisticPatchHabit(items, habitId, patch)
+        return parentChange ? optimisticMoveHabitParent(patched, habitId, parentChange.parentId, true) : patched
+      })
 
       return { previousLists, previousDetails }
     },
@@ -458,8 +463,9 @@ export function useUpdateHabit() {
       if (context?.previousDetails) restoreCachedHabitDetails(queryClient, context.previousDetails)
     },
 
-    onSettled: (_data, error, { habitId }) => {
+    onSettled: (_data, error, { habitId, data: request }, context) => {
       if (error) return
+      if (request.parentId != null || request.clearParent === true) invalidateHabitParentDetails(queryClient, context?.previousDetails, habitId)
       invalidateHabitDependents(queryClient, habitId)
       void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
       void queryClient.invalidateQueries({ queryKey: profileKeys.all })

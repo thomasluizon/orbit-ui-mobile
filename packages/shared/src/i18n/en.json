@@ -688,6 +688,7 @@
     },
     "frequencyLabel": "Frequency",
     "form": {
+      "parentHabit": "Parent habit",
       "proRequired": "This is part of Orbit Pro.",
       "capacityTitle": "Habit limit reached",
       "capacityBody": "You can have up to {limit, number} active habits. Sub-habits don't count. Delete a habit to add another.",
@@ -1267,6 +1268,27 @@
     }
   },
   "chat": {
+    "readBlock": {
+      "dayTitle": "Summary",
+      "nothingDue": "Nothing scheduled.",
+      "actionsUnavailable": "Some actions are unavailable.",
+      "less": "Show less",
+      "stale": "These records changed. Refresh this query.",
+      "partial": "Some records are unavailable.",
+      "error": "Could not refresh this query. Try again.",
+      "expired": "Ask the original question again.",
+      "delta": "Change",
+      "metric": {
+        "positiveLogRecords": "Positive log records",
+        "distinctLoggedDates": "Days with logs",
+        "metScheduledDates": "Scheduled days met",
+        "scheduledDates": "Scheduled days"
+      },
+      "unit": {
+        "records": "{count, plural, one {record} other {records}}",
+        "days": "{count, plural, one {day} other {days}}"
+      }
+    },
     "choice": {
       "submit": "Send",
       "review": "Review",
@@ -1652,7 +1674,7 @@
       "pageAnnounce": "Page {n} of {total}: {title}",
       "previous": "Previous",
       "next": "Next",
-      "progressLink": "See it on Progress"
+      "progressLink": "Progress"
     },
     "goalList": {
       "title": "Your goals",
@@ -1697,7 +1719,7 @@
       "makeHabit": "Make a habit from {title}"
     },
     "recordList": {
-      "title": { "notifications": "Alerts", "tags": "Tags", "templates": "Checklist templates", "keys": "API keys" },
+      "title": { "habitHistory": "Habit history", "notifications": "Alerts", "tags": "Tags", "templates": "Checklist templates", "keys": "API keys" },
       "count": "{shown} of {total}",
       "empty": "Nothing here yet.",
       "unread": "Unread",
@@ -2712,7 +2734,7 @@
       "habits": "Habit data: habits you create, completion logs, schedules, tags, and goals",
       "chat": "AI chat messages: conversations with the Orbit AI assistant",
       "preferences": "Preferences: language, timezone, color scheme, and notification settings",
-      "device": "Device data: a push notification token (to deliver reminders) and Android crash reports with device and OS details, a random installation ID, and an approximate city inferred from the request IP address. These reports do not include your name, email, or account details. On Orbit for Android before version 1.3.35, also your device advertising identifier, which the ad SDK could access"
+      "device": "Device data: a push notification token (to deliver reminders) and Android crash reports with device and OS details, a random installation ID, and an approximate city inferred from the request IP address. These reports do not include your name, email, or account details."
     },
     "howWeUse": {
       "title": "How We Use Your Data",
@@ -2730,7 +2752,6 @@
       "openai": "OpenAI: for AI chat features and daily summaries",
       "ses": "Amazon SES (us-east-2): for transactional and marketing emails",
       "googlePlay": "Google Play Billing: for subscription purchases on Android",
-      "admob": "Google AdMob: Orbit for Android before version 1.3.35 could show ads to free users and could use your device advertising identifier for them. Version 1.3.35 and later show no ads.",
       "sentry": "Sentry: for crash and error reports. On Android, these include device and OS details, a random installation ID, and an approximate city inferred from the request IP address, without your name, email, or account details",
       "posthog": "PostHog (US Cloud): for product analytics linked to an account identifier and plan details, plus web traffic and performance analytics; we do not send habit or chat content",
       "render": "Render (Ohio, United States): for web and API hosting and the database",

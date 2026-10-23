@@ -169,6 +169,7 @@ export function Sheet({
   // WHY: TrueSheet 3.11.3 adds the bottom inset to every detent and pins the footer to the sheet bottom, so the footer covers the body only above that inset. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/android/src/main/java/com/lodev09/truesheet/core/TrueSheetDetentCalculator.kt#L42-L55
   const reservedFooterHeight = footer ? Math.max(0, footerHeight - bottomInset) : 0
   const maxBodyHeight = Math.max(0, height * MAX_HEIGHT_RATIO - SCROLL_EDGE_PEEK - headerHeight - bottomInset)
+  const maxScrollHeight = Math.max(0, maxBodyHeight - reservedFooterHeight)
 
   return (
     <TrueSheet
@@ -204,20 +205,22 @@ export function Sheet({
           <View testID="sheet-footer-space" style={{ height: reservedFooterHeight }} />
         </View>
       ) : (
-        <KeyboardAwareSheetScrollView
-          ref={bodyRef}
-          onScroll={handleBodyScroll}
-          testID="sheet-body-scroll"
-          style={{ maxHeight: maxBodyHeight }}
-          contentContainerStyle={[bodyStyle, boundedBody ? { maxHeight: maxBodyHeight } : null]}
-          keyboardVerticalOffset={footer ? footerHeight : undefined}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {expandedTitle}
-          {children}
+        <>
+          <KeyboardAwareSheetScrollView
+            ref={bodyRef}
+            onScroll={handleBodyScroll}
+            testID="sheet-body-scroll"
+            style={{ maxHeight: maxScrollHeight }}
+            contentContainerStyle={[bodyStyle, boundedBody ? { maxHeight: maxScrollHeight } : null]}
+            keyboardVerticalOffset={footer ? footerHeight : undefined}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {expandedTitle}
+            {children}
+          </KeyboardAwareSheetScrollView>
           <View testID="sheet-footer-space" style={{ height: reservedFooterHeight }} />
-        </KeyboardAwareSheetScrollView>
+        </>
       )}
     </TrueSheet>
   )

@@ -52,12 +52,14 @@ type ExpectedStale = {
   readonly staleMessage: string
   readonly onRefresh?: () => void
   readonly refreshLabel?: string
+  readonly staleActions?: React.ReactNode
 }
 type ExpectedSettled = {
   readonly state: 'loading' | 'resting' | 'acting' | 'partiallyFailed'
   readonly staleMessage?: never
   readonly onRefresh?: never
   readonly refreshLabel?: never
+  readonly staleActions?: never
 }
 type ExpectedEdited = {
   readonly onEditItem: (itemId: string) => void
@@ -96,6 +98,7 @@ export type BlockContractWidthAssertions = [
   Assert<IsExactWidth<BlockFrameProps['state'], 'loading' | 'resting' | 'acting' | 'partiallyFailed' | 'stale'>>,
   Assert<IsExactWidth<BlockFrameProps['staleMessage'], string | undefined>>,
   Assert<IsExactWidth<BlockFrameProps['onRefresh'], (() => void) | undefined>>,
+  Assert<IsExactWidth<BlockFrameProps['staleActions'], React.ReactNode>>,
   Assert<IsExactWidth<BlockFrameProps['onEditItem'], ((itemId: string) => void) | undefined>>,
   Assert<IsExactWidth<BlockFrameProps['editLabel'], string | undefined>>,
   Assert<IsExactWidth<ProposedProps['proposed'], boolean>>,
