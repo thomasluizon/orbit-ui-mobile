@@ -117,7 +117,7 @@ it.each([false, true])('hands attachment-menu focus back to the composer on Tab 
 })
 
 it.each([
-  ['notifications.bell', '/notifications', 'button'], ['Person, person@example.com', '/profile', 'link'],
+  ['notifications.bell', '/notifications', 'button'],
   ['nav.createHabit', '/habits/new', 'button'], ['nav.today', '/', 'link'], ['nav.calendar', '/calendar', 'link'],
   ['nav.progress', '/progress', 'link'], ['nav.profile', '/profile', 'link'],
 ])('closes Astra before sidebar navigation through %s', (label, pathname, role) => {
@@ -128,9 +128,7 @@ it.each([
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
   expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
   if (role === 'link') expect(control).toHaveAttribute('href', pathname)
-  if (label === 'Person, person@example.com') {
-    navigation.pathname = pathname
-  } else if (pathname !== '/') expect(navigation.push).toHaveBeenCalledWith(pathname)
+  if (pathname !== '/') expect(navigation.push).toHaveBeenCalledWith(pathname)
   view.rerender(<App />)
   expect(screen.getByRole('heading', { name: pathname })).toBeVisible()
 })
@@ -251,4 +249,19 @@ it('keeps Astra open when its destination link opens in another tab', () => {
   fireEvent.click(screen.getByRole('link', { name: 'Ver no Progresso' }), { ctrlKey: true })
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
   expect(navigation.push).not.toHaveBeenCalled()
+})
+
+it('opens the account menu from Astra without navigating and returns focus on Escape', async () => {
+  render(<App />)
+  fireEvent.click(screen.getByRole('button', { name: 'chat.title' }))
+  const trigger = screen.getByRole('button', { name: 'Person, person@example.com' })
+  fireEvent.click(trigger)
+  const menu = await screen.findByRole('menu', { name: 'Person, person@example.com' })
+  expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
+  expect(navigation.push).not.toHaveBeenCalled()
+  expect(within(menu).getByRole('menuitem', { name: 'profile.settingsRows.signOut' })).toBeVisible()
+  fireEvent.keyDown(document, { key: 'Escape' })
+  await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+  expect(trigger).toHaveFocus()
 })
