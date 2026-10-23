@@ -93,6 +93,7 @@ export function usePendingOperationRevision(
           ? { ...createPendingOperationRevisionState({ ...current.operation, ...preview }),
               sourceFingerprint: current.sourceFingerprint,
               authorizationVersion: current.authorizationVersion + 1 } : current)
+        setTitleDrafts({})
         setStaleFingerprint(undefined)
         setRefreshUnavailableFingerprint(undefined)
         onSettled?.({ operation: { ...operation, ...preview }, editedItemIds: [], stale: false, refreshUnavailable: false, status: undefined, completedOperation: undefined, canRetry: false })

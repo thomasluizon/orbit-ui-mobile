@@ -1096,6 +1096,28 @@ it('submits a title revision on blur and preserves a failed draft for retry', as
   expect(approve().props.disabled).toBe(false)
 })
 
+it('discards an unmounted title draft after refreshing a stale rename with the same item id', async () => {
+  const operation = makeCreateHabitsPreview(1)
+  const refreshed = { ...makeCreateHabitsPreview(1), previewFingerprint: 'refreshed-preview' }
+  const reviseTitle = vi.fn().mockResolvedValue({ ok: false, stale: true, error: 'stale_preview' })
+  const refresh = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, cancelled: false, pendingOperationId: operation.id, error: null, preview: refreshed } })
+  const { tree, handlers } = renderCard(operation, reviseTitle, refresh)
+  handlers.onConfirmExecute.mockResolvedValue({ ok: true })
+  TestRenderer.act(() => press(tree, 'Habit 1').props.onPress())
+  const input = tree.root.findByType(TextInput)
+  TestRenderer.act(() => input.props.onChangeText('Discarded draft'))
+  await TestRenderer.act(() => input.props.onSubmitEditing())
+  await TestRenderer.act(() => press(tree, 'chat.operation.refresh').props.onPress())
+  expect(refresh).toHaveBeenCalledExactlyOnceWith(operation.id)
+  expect(refreshed.items![0]!.itemId).toBe(operation.items![0]!.itemId)
+  expect(tree.root.findAllByType(TextInput)).toHaveLength(0)
+  expect(press(tree, 'Habit 1')).toBeDefined()
+  const approve = press(tree, 'chat.operation.approveCount.createHabits')
+  expect(approve.props.disabled).toBe(false)
+  await TestRenderer.act(() => approve.props.onPress())
+  expect(handlers.onConfirmExecute).toHaveBeenCalledWith(operation.id)
+})
+
 it('reveals full deletion names without opening the rename editor', () => {
   const operation = makeDeleteHabitsPreview(2)
   const names = ['Read every book about the places around the world before breakfast in the kitchen', 'Read every book about the places around the world before breakfast on the balcony']

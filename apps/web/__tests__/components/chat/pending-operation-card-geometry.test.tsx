@@ -124,7 +124,7 @@ describe('Pending preview geometry in Chromium', () => {
         const header = frame.querySelector('header')!
         const next = [...frame.querySelectorAll('[role="status"], div[aria-live="polite"]')]
           .find(region => region.textContent.trim())!
-        const row = frame.querySelector<HTMLElement>('[data-proposed] > div, [data-status]') ?? frame.querySelector<HTMLElement>('div[aria-live="polite"] > div')!
+        const row = frame.querySelector<HTMLElement>('div[aria-live="polite"] > div > div')!
         const style = getComputedStyle(frame)
         return { inset: parseFloat(style.paddingLeft), gap: next.getBoundingClientRect().top - header.getBoundingClientRect().bottom,
           rowInset: parseFloat(getComputedStyle(row).paddingLeft), countFont: getComputedStyle(header.querySelector('span')!).fontFamily,
@@ -156,7 +156,7 @@ describe('Pending preview geometry in Chromium', () => {
     }
     if (state === 'pending') expect(screen.getByRole('button', { name })).not.toHaveAttribute('aria-expanded')
     else if (state === 'acting') expect(screen.getByRole('button', { name })).toBeDisabled()
-    else expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+    else expect(screen.getByRole('button', { name })).toHaveAttribute('aria-expanded', 'false')
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}\nhtml { font-size: ${16 * textScale}px; }</style><div class="dark">${container.innerHTML}</div>`)

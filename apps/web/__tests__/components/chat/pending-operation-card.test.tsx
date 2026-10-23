@@ -1036,6 +1036,30 @@ it('submits a title revision on blur and preserves a failed draft for retry', as
   expect(approve).toBeEnabled()
 })
 
+it('discards an unmounted title draft after refreshing a stale rename with the same item id', async () => {
+  visibleLocale.actual = false
+  confirm.mockClear()
+  confirm.mockResolvedValue({ ok: true })
+  const operation = makeCreateHabitsPreview(1)
+  const refreshed = { ...makeCreateHabitsPreview(1), previewFingerprint: 'refreshed-preview' }
+  const reviseTitle = vi.fn().mockResolvedValue({ ok: false, stale: true, error: 'stale_preview' })
+  const refresh = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, cancelled: false, pendingOperationId: operation.id, error: null, preview: refreshed } })
+  render(<PendingOperationCard pendingOperation={operation} onRevise={reviseTitle} onRefresh={refresh} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Habit 1' }))
+  const input = screen.getByRole('textbox', { name: 'chat.operation.field.title' })
+  fireEvent.change(input, { target: { value: 'Discarded draft' } })
+  fireEvent.keyDown(input, { key: 'Enter' })
+  fireEvent.click(await screen.findByRole('button', { name: 'chat.operation.refresh' }))
+  await screen.findByRole('button', { name: 'Habit 1' })
+  expect(refresh).toHaveBeenCalledExactlyOnceWith(operation.id)
+  expect(refreshed.items![0]!.itemId).toBe(operation.items![0]!.itemId)
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  const approve = screen.getByRole('button', { name: 'chat.operation.approveCount.createHabits' })
+  expect(approve).toBeEnabled()
+  fireEvent.click(approve)
+  await waitFor(() => expect(confirm).toHaveBeenCalledWith(operation.id))
+})
+
 it('reveals full deletion names without opening the rename editor', () => {
   revise.mockClear()
   const operation = makeDeleteHabitsPreview(2)

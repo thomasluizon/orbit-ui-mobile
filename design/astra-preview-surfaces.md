@@ -58,3 +58,16 @@ The proposed row wrapper stays mounted when a revision accepts its title, preser
 the editor and its focus-return state across the change. Proposed title text uses
 fg-2 on hover, press and focus fills. Approval and identity verification share the
 unaccepted-title gate; failure feedback remains beside the held preview.
+
+A successful refresh replaces the editor with the accepted preview and clears its
+discarded title drafts, including when the returned item ids are unchanged. A failed
+revision keeps the displayed draft and continues to block approval until the title
+is accepted, restored or cancelled.
+
+The `preview item titles` amendment in
+`design/canvas/Orbit Astra Conversation.dc.html` retains full-name disclosure for
+terminal rows and the stable Proposed wrapper. The Chromium preview geometry suite
+measures the padded row inside that wrapper and includes the terminal title control
+in its bounds. The 24px frame inset, 24px header gap, 12px row inset, first-line action
+alignment and overflow bounds apply in every state. Android's BlockFrame style and
+Yoga suites retain the matching row and frame contracts.
