@@ -11,6 +11,5 @@
   "@sentry/react-native/expo",
   "expo-sharing",
   "./plugins/with-android-release-build-fixes",
-  "./plugins/with-react-native-imperative-focus",
-  "./plugins/with-design-bundle-launch"
+  "./plugins/with-react-native-imperative-focus"
 ]
