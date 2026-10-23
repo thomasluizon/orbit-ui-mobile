@@ -1,5 +1,6 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -8,6 +9,8 @@ import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import { referralKeys } from '@orbit/shared/query'
+import { referralDashboardSchema } from '@orbit/shared/types/referral'
 import { ShareCardSheet } from '@/components/share/share-card-sheet'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -19,16 +22,34 @@ describe('Share progress sheet geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
+  let queryClient: QueryClient
+  beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    queryClient.setQueryData(referralKeys.all, referralDashboardSchema.parse({
+      code: 'PREVIEW',
+      link: 'https://app.useorbit.org/r/PREVIEW',
+      stats: {
+        referralCode: 'PREVIEW',
+        referralLink: 'https://app.useorbit.org/r/PREVIEW',
+        successfulReferrals: 0,
+        pendingReferrals: 0,
+        maxReferrals: 10,
+        rewardType: 'pro_days',
+        discountPercent: 10,
+        proDaysPerReferral: 7,
+      },
+    }))
+  })
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
-  afterEach(cleanup)
+  afterEach(() => { cleanup(); queryClient.clear() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each([320, 360, 384, 412, 840, 1352, 1440].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))('fits the real sheet period selector at $width in $locale', async ({ width, locale }) => {
-    render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><ShareCardSheet onClose={vi.fn()} /></NextIntlClientProvider>)
+    render(<QueryClientProvider client={queryClient}><NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><ShareCardSheet onClose={vi.fn()} /></NextIntlClientProvider></QueryClientProvider>)
     const dialog = screen.getByRole('dialog')
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {

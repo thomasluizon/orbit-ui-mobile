@@ -1,9 +1,12 @@
 import React, { type ComponentProps, type ReactElement } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockProfile, createMockRecap } from '@orbit/shared/__tests__/factories'
 import { createLoginScreenFixture } from '@orbit/shared/__tests__/auth-screen-fixtures'
 import { buildWrappedSlides } from '@orbit/shared/utils'
+import { referralKeys } from '@orbit/shared/query'
+import { referralDashboardSchema } from '@orbit/shared/types/referral'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { Shell412 } from '@/components/shell/shell-412'
 import { NotificationInbox } from '@/components/navigation/notification-inbox'
@@ -103,14 +106,33 @@ const surfaces: { name: string; content: () => ReactElement; modal?: boolean; al
   { name: 'root error screen', content: () => <AppErrorScreen error={new Error('failed')} retry={noop} standalone />, standalone: true },
 ]
 
-afterEach(() => { useThrottleStore.getState().clear(); useVersionGateStore.setState({ upgradeRequired: false, minVersion: null }); useOnboardingDraftStore.getState().reset() })
+let queryClient: QueryClient
+beforeEach(() => {
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  queryClient.setQueryData(referralKeys.all, referralDashboardSchema.parse({
+    code: 'PREVIEW',
+    link: 'https://app.useorbit.org/r/PREVIEW',
+    stats: {
+      referralCode: 'PREVIEW',
+      referralLink: 'https://app.useorbit.org/r/PREVIEW',
+      successfulReferrals: 0,
+      pendingReferrals: 0,
+      maxReferrals: 10,
+      rewardType: 'pro_days',
+      discountPercent: 10,
+      proDaysPerReferral: 7,
+    },
+  }))
+})
+
+afterEach(() => { queryClient.clear(); useThrottleStore.getState().clear(); useVersionGateStore.setState({ upgradeRequired: false, minVersion: null }); useOnboardingDraftStore.getState().reset() })
 
 it.each(surfaces)('keeps $name below the top inset; new full-screen owners must join this table', async (surface) => {
   for (const top of surface.standalone ? [0, 24, 48, 96] : [0, 24, 48]) {
     state.top = top
     const content = surface.content()
     let tree!: GeometryTree
-    await renderer.act(() => { tree = renderer.create(surface.modal || surface.standalone ? content : <Shell412 nav={false} safeAreaTop={false}>{content}</Shell412>) as GeometryTree })
+    await renderer.act(() => { tree = renderer.create(<QueryClientProvider client={queryClient}>{surface.modal || surface.standalone ? content : <Shell412 nav={false} safeAreaTop={false}>{content}</Shell412>}</QueryClientProvider>) as GeometryTree })
     try {
       const host = tree.toJSON()
       let headerCount = 0
