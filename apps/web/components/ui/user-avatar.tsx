@@ -9,7 +9,7 @@ interface UserAvatarProps {
 }
 
 /**
- * Generic initials avatar disc: a violet-tinted circle showing a person's initials, used for
+ * Generic initials avatar disc: an accent-tinted circle showing a person's initials, used for
  * people without an uploaded picture. Decorative — the name is rendered
  * as text alongside it.
  */
