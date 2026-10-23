@@ -36,3 +36,29 @@ with the existing ghost dismissal before the filled action.
 Single acknowledgement and import footers keep their existing action count and use the
 same small, intrinsic-width geometry. Prompt wording and the referral drawer's body
 composition remain owned by their separate work orders.
+
+## Focus clearance
+
+The shared sheet owns visibility of a restored body control. Web focus restoration suppresses
+native scrolling, so the body reveals the full focused control on focus and after control or
+viewport resizing. It moves only its own scroll position and leaves visible controls in place.
+Focus inside a nested portal or the pinned actions does not scroll the underlying body.
+Switching to a virtualized body disconnects the ordinary body's focus observer.
+
+Android restores native focus through TrueSheet. React Native's ScrollView reveals that focused
+child within its viewport, so the viewport ends above the measured footer. The footer reserve
+sits outside the ordinary scroller, keeping both short-content sizing and native focus clearance.
+The bounded TimeField body uses the same reduced viewport. Virtualized bodies retain their
+existing allocation, with the footer reserve outside the child list's viewport.
+
+The consumer audit includes every Sheet mount under both apps' app and components trees:
+ordinary bodies with and without actions, nested confirmations and pickers, explicit initial and
+final focus targets, the bounded time picker, and virtualized date, year, tag and goal pickers.
+No caller supplies its own footer clearance. These owners also cover loading, validation, saving,
+notices and action removal through the measured primitive slots.
+
+Web unit cases exercise real nested-sheet focus restoration against supplied geometry, control
+growth, viewport shrinkage, visible controls, footer focus and virtualized ownership. Native cases
+cover footer measurements, safe-area insets, short windows, large text, keyboard offsets and
+virtualized allocation. Rendered web geometry remains with the existing expanded-radio-text
+Chromium cases; native font rendering and assistive technology require device verification.

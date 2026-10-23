@@ -50,7 +50,7 @@ frame. `aligned` means the existing owner already centres its column. Each phone
 | Privacy and terms | aligned | aligned | aligned | aligned | aligned | aligned | aligned | aligned | LegalDocumentLayout centres the document and caps prose measure. |
 | Not found and error states | aligned | aligned | aligned | aligned | aligned | aligned | aligned | aligned | Shared shell or centred standalone failure frame. |
 | Account deletion instructions, web | aligned | aligned | aligned | aligned | aligned | aligned | aligned | aligned | Public page uses its centred bounded wrapper. |
-| Conversation and ideas library | aligned | aligned | aligned | aligned | aligned | aligned | aligned | aligned | Shell conversation layer centres the same header, thread and composer column. |
+| Conversation and ideas library | aligned | aligned | aligned | aligned | aligned | aligned | aligned | aligned | Shell conversation layer centres the same header, thread and composer column; Ideas keeps one column of intent actions within that allocation. |
 | Sheets, dialogs and command palette | aligned | aligned | aligned | aligned | aligned | aligned | aligned | aligned | Shared overlay owners bound their panels; ordinary ActionRow consumers retain trailing actions. |
 
 The chat and referral routes redirect into existing owners. The native-intent route dispatches

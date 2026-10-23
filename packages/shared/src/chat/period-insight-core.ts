@@ -14,7 +14,6 @@ export function getInsightPages(card: PeriodInsightCard): readonly [InsightPage,
     { titleKey: 'chat.insight.missed', text: card.narrative.missed },
   ]
   for (const section of sections) {
-    if (pages.length === 4) break
     if (section.text.trim()) pages.push(section)
   }
   return pages

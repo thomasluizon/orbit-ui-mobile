@@ -232,3 +232,63 @@ export const apiStatusCardsFinalFixture = {
 }
 
 export { choiceBlockFixture, pickListBlockFixture } from './choice-fixtures'
+
+export const focusedReadMetadataFixture = {
+  queryId: '11111111-1111-4111-8111-111111111111', queryFamily: 'get_period_analytics',
+  scope: { date_from: '2026-09-01', date_to: '2026-09-30', metric: 'positiveLogRecords' },
+  revision: 'revision-one', completeness: 'complete' as const, refreshToken: 'signed-query',
+  nextCursor: null, totalCount: null, recovery: null,
+}
+
+export const focusedPeriodMetricsFixture = {
+  window: { from: '2026-09-01', to: '2026-09-30' }, positiveLogRecords: 12,
+  distinctLoggedDates: 9, metScheduledDates: 8, scheduledDates: 10, completionRate: 80,
+  currentStreak: 2, bestStreak: 4, streakScope: 'period' as const,
+}
+
+export const focusedPeriodTotalFixture = {
+  metric: 'positiveLogRecords' as const, unit: 'records' as const, value: 12,
+  metrics: focusedPeriodMetricsFixture, series: { granularity: 'week' as const, points: [] },
+  habitId: null, read: focusedReadMetadataFixture,
+}
+
+export const focusedPeriodComparisonFixture = {
+  metric: 'positiveLogRecords' as const, unit: 'records' as const,
+  current: focusedPeriodMetricsFixture,
+  baseline: { ...focusedPeriodMetricsFixture, window: { from: '2026-08-01', to: '2026-08-31' }, positiveLogRecords: 0 },
+  currentValue: 12, baselineValue: 0, absoluteDelta: 12, relativeDelta: null,
+  habitId: null, read: focusedReadMetadataFixture,
+}
+
+export const focusedHistoryFixture = {
+  kind: 'habitHistory' as const, totalCount: 2,
+  items: [{ id: 'log-one', title: '2026-09-01', logDate: '2026-09-01', value: 0 }],
+  read: { ...focusedReadMetadataFixture, queryFamily: 'get_habit_history', completeness: 'partial' as const, nextCursor: 'signed-page', totalCount: 2 },
+}
+
+export const focusedDatedHabitListFixture = {
+  scope: 'date' as const,
+  date: '2026-09-01',
+  items: [{ id: 'habit-one', title: 'Walk', emoji: null, depth: 0, isBadHabit: false, status: 'done' as const }],
+  totalCount: 1,
+  sourceRevision: 'schedule-revision',
+  read: {
+    ...focusedReadMetadataFixture, queryFamily: 'query_habits', revision: 'schedule-revision', totalCount: 1,
+    scope: { date: '2026-09-01', offset: 0, limit: 50, include_overdue: false, include_sub_habits: true, include_metrics: false },
+  },
+}
+
+export const focusedStaleRecapFixture = {
+  period: 'week', dateFrom: '2026-09-01', dateTo: '2026-09-07', completionRate: 50,
+  activeDays: 4, periodDays: 7, totalCompletions: 7, totalScheduled: 14,
+  currentStreak: 2, bestStreak: 5,
+  topHabits: [{ name: 'Walk', emoji: null, completionRate: 80, completedCount: 4, scheduledCount: 5 }],
+  needsAttention: [{ name: 'Read', emoji: null, completionRate: 20, completedCount: 1, scheduledCount: 5 }],
+  narrative: { highlights: 'Walked', trends: 'Mornings', suggestion: 'Start small', missed: 'Reading' },
+  series: null, surfaceId: 'progress',
+  read: {
+    ...focusedReadMetadataFixture, queryFamily: 'get_retrospective',
+    scope: { period: 'week', date_from: '2026-09-01', date_to: '2026-09-07' },
+    completeness: 'stale' as const, recovery: 'refresh',
+  },
+}

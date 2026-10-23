@@ -7,10 +7,11 @@ import { buildStreakWeekDays, getGamificationLevelTitleKey, xpRequiredForLevel, 
 import { DayStrip } from '@/components/dates/day-strip'
 import { AchievementMark } from '@/components/gamification/achievement-mark'
 import { useProfile } from '@/hooks/use-profile'
-import { BlockFrame } from '@/components/ui/block-frame'
+import { BlockFrame } from './read-block-frame'
 import { Button } from '@/components/ui/pill-button'
 import { FreezeBank } from '@/components/ui/freeze-bank'
 import { useStreakFreeze } from '@/hooks/use-gamification'
+import { formatReadWindow, readBlockWindow } from '@orbit/shared/chat/read-block-core'
 import { liveBlockState } from '@orbit/shared/chat/live-block-state'
 import { ProgressBar } from '@/components/ui/progress-bar'
 
@@ -20,19 +21,21 @@ export function StreakCard({ streakCard }: Readonly<{ streakCard: StreakCardData
   const navigate = useChatNavigation()
   const { profile } = useProfile()
   const freeze = useStreakFreeze(null, profile?.timeZone ?? null)
-  const liveStreak = freeze.streakInfo ?? streakCard
+  const liveStreak = streakCard
   const frameState = liveBlockState(freeze.streakQuery, { staleMessage: t('chat.liveBlock.stale'), onRefresh: () => { void freeze.streakQuery.refetch() } })
-  const days = buildStreakWeekDays(liveStreak, liveStreak.currentStreak, liveStreak.isFrozenToday, new Date(), 14, profile?.timeZone)
+  const window = streakCard.read ? readBlockWindow(streakCard.read.scope) : null
+  const asOf = window ? new Date(`${window.to}T12:00:00Z`) : new Date()
+  const days = buildStreakWeekDays(liveStreak, liveStreak.currentStreak, liveStreak.isFrozenToday, asOf, 14, window ? 'UTC' : profile?.timeZone)
   const words = {
     active: t('progressScreen.streak.active'), frozen: t('progressScreen.streak.frozen'),
-    missed: t('progressScreen.streak.missed'), today: t('progressScreen.streak.today'),
+    missed: t('progressScreen.streak.missed'), today: window ? formatReadWindow({ from: window.to, to: window.to }, locale) : t('progressScreen.streak.today'),
   }
   const discs = (streakCard.achievementDiscs ?? streakCard.recentAchievements).slice(0, 6)
   const number = new Intl.NumberFormat(locale)
   const currentLevelXp = xpRequiredForLevel(streakCard.level)
   return <div className="w-full">
     <BlockFrame {...frameState} title={t('chat.streakCard.title')} count={null}
-      body={<div className="flex flex-col gap-2"><DayStrip scope="account" days={days.map((day) => day.status)} labels={days.map((day) => new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(day.date))} words={words} label={t('chat.streakCard.days')} /><p className="text-xs text-[var(--fg-3)]">{Object.values(words).join(' · ')}</p>{freeze.streakInfo ? <FreezeBank
+      body={<div className="flex flex-col gap-2"><DayStrip scope="account" days={days.map((day) => day.status)} labels={days.map((day) => new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(day.date))} words={words} label={t('chat.streakCard.days')} /><p className="text-xs text-[var(--fg-3)]">{Object.values(words).join(' · ')}</p>{!streakCard.read && freeze.streakInfo ? <FreezeBank
         banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} usedThisMonth={freeze.freezesUsedThisMonth}
         longestValue={liveStreak.longestStreak} longestLabel={t('progressScreen.streak.longest')}
         daysTowardNext={Math.max(0, 7 - freeze.daysUntilNextFreeze)} earnRateDays={7}

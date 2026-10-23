@@ -20,6 +20,8 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 import { getAccountId } from '@/lib/account-scope'
 import { useAuthStore } from '@/stores/auth-store'
 
+const PLAY_CONNECTION_TIMEOUT_MS = 10_000
+
 export interface PlayOffer {
   interval: SubscriptionInterval
   sku: string
@@ -169,6 +171,8 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean; onPurc
   const [errorKey, setErrorKey] = useState<string | null>(null)
   const [pendingVerifications, setPendingVerifications] = useState(0)
   const [isRestoring, setIsRestoring] = useState(false)
+  const [productQueryState, setProductQueryState] = useState<'loading' | 'ready' | 'failed'>('loading')
+  const [productQueryAttempt, setProductQueryAttempt] = useState(0)
 
   const beginVerification = useCallback(() => setPendingVerifications((count) => count + 1), [])
   const endVerification = useCallback(
@@ -183,7 +187,10 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean; onPurc
     await queryClient.fetchQuery({ queryKey: profileKeys.detail(), queryFn: () => apiClient<Profile>(API.profile.get), staleTime: 0 })
   }, [queryClient])
 
-  const { connected, subscriptions, fetchProducts, requestPurchase } = useIAP({
+  const { connected, subscriptions, fetchProducts, requestPurchase, reconnect } = useIAP({
+    onError: () => {
+      if (!connected) setProductQueryState('failed')
+    },
     onPurchaseSuccess: (purchase) => {
       void (async () => {
         const account = purchaseAccount.current
@@ -207,10 +214,37 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean; onPurc
   })
 
   useEffect(() => {
-    if (connected) {
-      void fetchProducts({ skus: [PLAY_SUBSCRIPTION_PRODUCT_ID], type: 'subs' })
+    let active = true
+    const connectionTimeout = !connected
+      ? setTimeout(() => { if (active) setProductQueryState('failed') }, PLAY_CONNECTION_TIMEOUT_MS)
+      : undefined
+    void Promise.resolve().then(() => {
+      if (!active) return
+      if (!connected) {
+        if (productQueryAttempt > 0) {
+          void reconnect().then(
+            (success) => { if (!success && active) setProductQueryState('failed') },
+            () => { if (active) setProductQueryState('failed') },
+          )
+        }
+        return
+      }
+      setProductQueryState('loading')
+      return fetchProducts({ skus: [PLAY_SUBSCRIPTION_PRODUCT_ID], type: 'subs' }).then(
+        () => { if (active) setProductQueryState('ready') },
+        () => { if (active) setProductQueryState('failed') },
+      )
+    })
+    return () => {
+      active = false
+      clearTimeout(connectionTimeout)
     }
-  }, [connected, fetchProducts])
+  }, [connected, fetchProducts, reconnect, productQueryAttempt])
+
+  const retryProducts = useCallback(() => {
+    setProductQueryState('loading')
+    setProductQueryAttempt((attempt) => attempt + 1)
+  }, [])
 
   const offers = useMemo(() => extractPlayOffers(subscriptions), [subscriptions])
 
@@ -293,6 +327,9 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean; onPurc
     restorePurchases,
     isProcessing: pendingVerifications > 0,
     isRestoring,
+    isLoadingProducts: productQueryState === 'loading',
+    isProductsError: productQueryState === 'failed',
+    retryProducts,
     errorKey,
     clearError,
   }

@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View, type StyleProp, type TextStyle, typ
 import { __setWindowDimensions, __resetTestHostConfig } from '../../../test-mocks/react-native'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import React from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -21,6 +22,8 @@ const mocks = vi.hoisted(() => ({
   refetch: vi.fn(), online: true, locale: 'en', plansState: 'loaded', processing: false,
   errorKey: null as string | null, onPurchased: undefined as (() => Promise<void>) | undefined,
   purchase: vi.fn(), showSuccess: vi.fn(),
+  productQueryState: 'ready', retryProducts: vi.fn(),
+  realPlayBilling: false, connectionOutcome: 'false', reconnect: vi.fn(), fetchProducts: vi.fn(),
 }))
 function translate(key: string, parameters?: Record<string, unknown>): string {
   let value: unknown = mocks.locale === 'pt-BR' ? ptBr : en
@@ -38,10 +41,24 @@ vi.mock('@/hooks/use-subscription-plans', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/hooks/use-subscription-plans')>()),
   useSubscriptionPlans: () => ({ plans: mocks.plansState === 'loaded' ? plans : null, isLoading: mocks.plansState === 'loading', isError: mocks.plansState === 'error', refetch: vi.fn() }),
 }))
-vi.mock('@/hooks/use-play-billing', () => ({ usePlayBilling: (options: { onPurchased: () => Promise<void> }) => {
-  mocks.onPurchased = options.onPurchased
-  return { purchase: mocks.purchase, isProcessing: mocks.processing, errorKey: mocks.errorKey, clearError: vi.fn(), monthlyOffer: null, yearlyOffer: null, isRestoring: false, restorePurchases: vi.fn() }
-} }))
+vi.mock('@/hooks/use-play-billing', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-play-billing')>()
+  return { ...actual, usePlayBilling: (options: { onPurchased: () => Promise<void> }) => {
+    if (mocks.realPlayBilling) return actual.usePlayBilling(options)
+    mocks.onPurchased = options.onPurchased
+    return { purchase: mocks.purchase, isProcessing: mocks.processing, errorKey: mocks.errorKey, clearError: vi.fn(), monthlyOffer: null, yearlyOffer: null, isRestoring: false, restorePurchases: vi.fn(), isLoadingProducts: mocks.productQueryState === 'loading', isProductsError: mocks.productQueryState === 'failed', retryProducts: mocks.retryProducts }
+  } }
+})
+vi.mock('expo-iap', async (importOriginal) => ({
+  ...await importOriginal<typeof import('expo-iap')>(),
+  useIAP: (options: { onError?: (error: Error) => void }) => {
+    const initialOptions = React.useRef(options)
+    React.useEffect(() => {
+      if (mocks.connectionOutcome === 'rejected') initialOptions.current.onError?.(new Error('Play initialization failed'))
+    }, [])
+    return { connected: false, subscriptions: [], fetchProducts: mocks.fetchProducts, requestPurchase: mocks.purchase, reconnect: mocks.reconnect }
+  },
+}))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
 vi.mock('@/components/ui/pill-button', () => ({ PillButton: (props: Record<string, unknown>) => React.createElement('PillButton', props) }))
 
@@ -57,7 +74,7 @@ vi.mock('expo-router', () => ({ useRouter: () => ({ navigate: vi.fn(), replace: 
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => ({ isSupported: false }) }))
 
-afterEach(__resetTestHostConfig)
+afterEach(() => { __resetTestHostConfig(); vi.useRealTimers() })
 
 beforeEach(async () => {
   vi.clearAllMocks()
@@ -67,6 +84,12 @@ beforeEach(async () => {
   mocks.profile = createMockProfile({ isTrialActive: false, hasProAccess: false, plan: 'free', trialEndsAt: null })
   mocks.refetch.mockResolvedValue({ data: mocks.profile, isError: false })
   mocks.online = true; mocks.locale = 'en'; mocks.plansState = 'loaded'; mocks.processing = false; mocks.errorKey = null
+  mocks.productQueryState = 'ready'
+  mocks.retryProducts.mockReset()
+  mocks.realPlayBilling = false
+  mocks.connectionOutcome = 'false'
+  mocks.reconnect.mockReset().mockResolvedValue(false)
+  mocks.fetchProducts.mockReset().mockResolvedValue(undefined)
 })
 function all(root: ReactTestInstance, type: string) { return root.findAll((node) => node.type === type) }
 function text(root: ReactTestInstance): unknown[] { return all(root, 'Text').map((node) => node.props.children) }
@@ -80,11 +103,31 @@ async function mount() {
   const finish = vi.fn(() => Promise.resolve())
   const exit = React.createRef<OnboardingProExit>()
   let tree!: ReturnType<typeof TestRenderer.create>
-  await act(async () => { tree = TestRenderer.create(<OnboardingProStep onFinish={finish} ref={exit} />); await Promise.resolve() })
+  await act(async () => {
+    const step = <OnboardingProStep onFinish={finish} ref={exit} />
+    tree = TestRenderer.create(mocks.realPlayBilling ? <QueryClientProvider client={new QueryClient()}>{step}</QueryClientProvider> : step)
+    await Promise.resolve()
+  })
   return { tree, finish, exit }
 }
 
 describe('Android final Pro step', () => {
+  it.each(['en', 'pt-BR'].flatMap((locale) => ['false', 'rejected'].map((outcome) => ({ locale, outcome }))))('retries a $outcome Play connection during onboarding in $locale', async ({ locale, outcome }) => {
+    mocks.locale = locale
+    vi.useFakeTimers()
+    mocks.realPlayBilling = true
+    mocks.connectionOutcome = outcome
+    const { tree, finish } = await mount()
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000) })
+    expect(text(tree.root)).toContain(translate('upgrade.plans.error'))
+    expect(tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'upgrade-tier-yearly')).toHaveLength(0)
+    await act(() => callback(action(tree.root, translate('upgrade.plans.retry')), 'onClick')())
+    expect(mocks.reconnect).toHaveBeenCalledOnce()
+    expect(mocks.fetchProducts).not.toHaveBeenCalled()
+    expect(mocks.purchase).not.toHaveBeenCalled()
+    expect(finish).not.toHaveBeenCalled()
+    await act(() => tree.update(<></>))
+  })
   it.each(['en', 'pt-BR'])('keeps both loaded paywall card hooks and outcomes in %s', async (locale) => {
     mocks.locale = locale
     const { tree } = await mount()
