@@ -1,7 +1,14 @@
 import type { MetadataRoute } from 'next'
+import { getTranslations } from 'next-intl/server'
 
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const t = await getTranslations('meta')
   return {
+    id: '/',
+    scope: '/',
+    description: t('description'),
+    categories: ['productivity', 'lifestyle'],
+    launch_handler: { client_mode: 'focus-existing' },
     name: 'Orbit',
     short_name: 'Orbit',
     start_url: '/',
@@ -18,6 +25,12 @@ export default function manifest(): MetadataRoute.Manifest {
         src: '/pwa-512x512.png',
         sizes: '512x512',
         type: 'image/png',
+      },
+      {
+        src: '/pwa-maskable-512x512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
       },
     ],
   }

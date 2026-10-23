@@ -10,6 +10,8 @@ import {
 } from '@/lib/auth-api'
 import nextConfig from '../next.config'
 import manifest from '../app/manifest'
+
+vi.mock('next-intl/server', () => ({ getTranslations: async () => (key: string) => key }))
 import { POST as issueEventTicket } from '@/app/api/events/ticket/route'
 import { serverAuthMutate } from '@/lib/server-fetch'
 
@@ -294,14 +296,13 @@ describe('proxy', () => {
     expect(resolveSessionTokens).not.toHaveBeenCalled()
   })
 
-  it.each([
-    '/manifest.webmanifest',
-    ...manifest().icons!.map(({ src }) => src),
-  ])('keeps the public install asset %s outside the auth proxy', (path) => {
-    expect(unstable_doesMiddlewareMatch({
-      config,
-      url: `http://localhost:3000${path}?v=1`,
-    })).toBe(false)
+  it('keeps every public install asset outside the auth proxy', async () => {
+    for (const path of ['/manifest.webmanifest', ...(await manifest()).icons!.map(({ src }) => src)]) {
+      expect(unstable_doesMiddlewareMatch({
+        config,
+        url: `http://localhost:3000${path}?v=1`,
+      })).toBe(false)
+    }
   })
 
   it.each([
@@ -312,7 +313,9 @@ describe('proxy', () => {
     '/profile/notifications',
     '/manifest.webmanifest/private',
     '/manifest.webmanifest.json',
-    ...manifest().icons!.map(({ src }) => `${src}/private`),
+    '/pwa-192x192.png/private',
+    '/pwa-512x512.png/private',
+    '/pwa-maskable-512x512.png/private',
   ])('keeps %s protected when install assets are public', async (path) => {
     vi.mocked(resolveSessionTokens).mockResolvedValue({
       token: null,
