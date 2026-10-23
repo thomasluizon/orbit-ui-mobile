@@ -8,6 +8,7 @@ import { neutralColors, skeletonPulseIterations } from '@orbit/shared/theme'
 import { API } from '@orbit/shared/api'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { captureException } from '@sentry/nextjs'
+import { PwaLaunchHandler } from '@/components/pwa-launch-handler'
 import { PostHogProvider } from '@/components/posthog-provider'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
 import { RouteContext } from '@/components/navigation/route-context'
@@ -164,6 +165,7 @@ export default async function RootLayout({
         <PostHogProvider>
           <NextIntlClientProvider locale={locale} messages={messages}>
             <RouteContext>
+              <PwaLaunchHandler />
               <Suspense fallback={null}>
                 <PublicSessionBootstrap hasSessionCookie={hasSessionCookie} />
                 <NavigationHistoryTracker />
