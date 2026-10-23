@@ -24,9 +24,11 @@ class OrbitWidgetRefreshTimeoutWorker(
             .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, showSkeleton)
             .apply()
 
-        for (id in appWidgetIds) {
-            // A full provider render keeps both size variants current and preserves signed-out UI.
-            OrbitWidgetProvider.updateWidgetLayout(context, appWidgetManager, id)
+        OrbitWidgetModule.enqueueWidgetUpdate {
+            for (id in appWidgetIds) {
+                // A full provider render keeps both size variants current and preserves signed-out UI.
+                OrbitWidgetProvider.updateWidgetLayout(context, appWidgetManager, id)
+            }
         }
 
         return Result.success()

@@ -419,18 +419,34 @@ class OrbitWidgetFactory(
 
     override fun onCreate() {}
 
-    /**
-     * Renders after a load has resolved. Recreating the RemoteAdapter during a load would reset the
-     * factory, but a full render here keeps every size-keyed child current without interrupting it.
-     */
+    // WHY: #1656 a factory callback must return before a provider publish can convert its adapter.
     private fun renderWidgets() {
-        val appWidgetManager = AppWidgetManager.getInstance(context)
-        val widgetIds = appWidgetManager.getAppWidgetIds(
-            ComponentName(context, OrbitWidgetProvider::class.java)
-        )
-        for (id in widgetIds) {
-            OrbitWidgetProvider.updateWidgetLayout(context, appWidgetManager, id)
+        OrbitWidgetModule.enqueueWidgetUpdate {
+            val appWidgetManager = AppWidgetManager.getInstance(context)
+            val widgetIds = appWidgetManager.getAppWidgetIds(
+                ComponentName(context, OrbitWidgetProvider::class.java)
+            )
+            for (id in widgetIds) {
+                OrbitWidgetProvider.updateWidgetLayout(context, appWidgetManager, id)
+            }
         }
+    }
+
+    private fun cardState(): List<Any?> {
+        val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+        return listOf(
+            prefs.getString(renderSessionKey, null),
+            prefs.getString("header_label", null),
+            prefs.getInt("row_count", 0),
+            prefs.getInt("habit_count", 0),
+            prefs.getInt("completed_count", 0),
+            prefs.getInt("user_streak", 0),
+            prefs.getString("lang", null),
+            prefs.getString("empty_reason", null),
+            prefs.getLong("habits_updated_at", 0L) > 0L,
+            prefs.getBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false),
+            prefs.getBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, false)
+        )
     }
 
     /** Clears only this factory. The provider derives its loading or signed-out card from ownership. */
@@ -444,11 +460,10 @@ class OrbitWidgetFactory(
             .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
             .apply()
 
-        // The provider owns the whole card, including signed-out copy, controls and skeleton.
-        renderWidgets()
     }
 
     override fun onDataSetChanged() {
+        val previousCardState = cardState()
         try {
             loadWidgetData()
         } catch (_: Exception) {
@@ -460,9 +475,10 @@ class OrbitWidgetFactory(
                     .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
                     .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, showSkeleton)
                     .apply()
-                renderWidgets()
             }
         }
+        // A publish converts the adapter again; unchanged card state must end that cycle.
+        if (cardState() != previousCardState) renderWidgets()
     }
 
     private fun loadWidgetData() {
@@ -529,7 +545,6 @@ class OrbitWidgetFactory(
                 .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, false)
                 .apply()
 
-            renderWidgets()
         }
     }
 

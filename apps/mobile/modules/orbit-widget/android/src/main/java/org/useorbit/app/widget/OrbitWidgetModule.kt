@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Base64
+import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import expo.modules.kotlin.modules.Module
@@ -18,6 +19,7 @@ class OrbitWidgetModule : Module() {
     private const val KEY_TOKEN = "auth_token"
     private const val CACHE_PREFS_NAME = "orbit_widget_cache"
     internal val accountRenderLock = Any()
+    internal val widgetPublisher = WidgetPublisher(accountRenderLock)
     const val COLOR_KEY_PREFIX = "color_"
     private val NAME_IDENTIFIER_CLAIMS = listOf(
       "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
@@ -99,7 +101,22 @@ class OrbitWidgetModule : Module() {
         .apply()
     }
 
+    internal fun enqueueWidgetUpdate(onComplete: () -> Unit = {}, update: () -> Unit) {
+      widgetPublisher.enqueue(onComplete) {
+        try {
+          update()
+        } catch (exception: Exception) {
+          Log.e("OrbitWidget", "Widget publication failed", exception)
+        }
+      }
+    }
+
     fun refreshWidgets(context: Context) {
+      val applicationContext = context.applicationContext
+      enqueueWidgetUpdate { refreshWidgetsInBackground(applicationContext) }
+    }
+
+    private fun refreshWidgetsInBackground(context: Context) {
       val appWidgetManager = AppWidgetManager.getInstance(context)
       val widgetIds = appWidgetManager.getAppWidgetIds(
         ComponentName(context, OrbitWidgetProvider::class.java)
