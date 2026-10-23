@@ -22,14 +22,15 @@ export const MAX_OUTPUT_BYTES = 32 * 1024 * 1024
 
 /**
  * Run one child with a hard wall-clock bound. POSIX children lead a process group and Windows
- * children are terminated with taskkill /T, so a timeout cannot leave grandchildren running.
+ * children are terminated with taskkill /T, so a timeout or cancellation cannot leave grandchildren running.
  * Always resolves, never rejects: a child that cannot start is reported through `error`.
  */
-export const runBounded = (file, args, { cwd, env, timeoutMs, maxBuffer = MAX_OUTPUT_BYTES, input, encoding = "utf8" } = {}) =>
+export const runBounded = (file, args, { cwd, env, timeoutMs, maxBuffer = MAX_OUTPUT_BYTES, input, encoding = "utf8", signal } = {}) =>
   new Promise((resolve) => {
     const empty = () => (encoding === null ? Buffer.alloc(0) : "")
     let child
     try {
+      signal?.throwIfAborted()
       child = spawn(file, args, {
         cwd,
         env,
@@ -68,16 +69,25 @@ export const runBounded = (file, args, { cwd, env, timeoutMs, maxBuffer = MAX_OU
       timedOut = true
       killTree(child.pid)
     }, timeoutMs)
+    const abort = () => {
+      clearTimeout(timer)
+      killTree(child.pid)
+    }
+    signal?.addEventListener("abort", abort, { once: true })
+    const cleanup = () => {
+      clearTimeout(timer)
+      signal?.removeEventListener("abort", abort)
+    }
     const output = (chunks) => {
       const buffer = Buffer.concat(chunks)
       return encoding === null ? buffer : buffer.toString(encoding)
     }
     child.once("error", (error) => {
-      clearTimeout(timer)
+      cleanup()
       resolve({ status: null, signal: null, stdout: output(stdoutChunks), stderr: output(stderrChunks), timedOut, overflowed, error })
     })
     child.once("close", (status, signal) => {
-      clearTimeout(timer)
+      cleanup()
       resolve({ status, signal, stdout: output(stdoutChunks), stderr: output(stderrChunks), timedOut, overflowed, error: null })
     })
   })

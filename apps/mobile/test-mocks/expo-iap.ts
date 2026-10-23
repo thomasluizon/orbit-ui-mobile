@@ -15,11 +15,15 @@ export function getAvailablePurchases(): Promise<unknown[]> {
   return Promise.resolve([])
 }
 
+const reconnect = () => Promise.resolve(false)
+const fetchProducts = () => Promise.resolve(undefined)
+
 export function useIAP() {
   return {
     connected: false,
     subscriptions: [],
-    fetchProducts: () => Promise.resolve(undefined),
+    fetchProducts,
+    reconnect,
     requestPurchase: () => Promise.resolve(null),
   }
 }

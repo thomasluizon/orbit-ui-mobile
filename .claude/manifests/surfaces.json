@@ -1766,7 +1766,8 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/ui/columns.tsx"
+        "apps/web/components/ui/columns.tsx",
+        "apps/web/components/ui/pager.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -1784,7 +1785,8 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/ui/columns.tsx"
+        "apps/web/components/ui/columns.tsx",
+        "apps/web/components/ui/pager.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -1802,7 +1804,8 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/ui/columns.tsx"
+        "apps/web/components/ui/columns.tsx",
+        "apps/web/components/ui/pager.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -1820,7 +1823,8 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/ui/columns.tsx"
+        "apps/web/components/ui/columns.tsx",
+        "apps/web/components/ui/pager.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -3927,6 +3931,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "block-chat-period-comparison-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/period-comparison-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/period-comparison-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-period-comparison-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/period-comparison-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/period-comparison-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-period-comparison-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/period-comparison-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/period-comparison-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-period-comparison-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/period-comparison-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/period-comparison-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "block-chat-period-insight-card",
       "platform": "web",
       "kind": "block",
@@ -3977,6 +4037,62 @@
       "parentSurfaceId": "route-chat",
       "ownedFiles": [
         "apps/web/components/chat/period-insight-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-period-total-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/period-total-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/period-total-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-period-total-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/period-total-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/period-total-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-period-total-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/period-total-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/period-total-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-period-total-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/period-total-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/period-total-card.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -4095,6 +4211,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "block-chat-prompt-idea",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/prompt-idea.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/prompt-idea.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-prompt-idea",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/prompt-idea.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/prompt-idea.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-prompt-idea",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/prompt-idea.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/prompt-idea.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-prompt-idea",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/prompt-idea.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/prompt-idea.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "block-chat-prompt-library",
       "platform": "web",
       "kind": "block",
@@ -4145,6 +4317,62 @@
       "parentSurfaceId": "route-chat",
       "ownedFiles": [
         "apps/web/components/chat/prompt-library.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-read-block-frame",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/read-block-frame.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/read-block-frame.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-read-block-frame",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/read-block-frame.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/read-block-frame.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-read-block-frame",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/read-block-frame.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/read-block-frame.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-read-block-frame",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/read-block-frame.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/read-block-frame.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -10352,6 +10580,7 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
+        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -10370,6 +10599,7 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
+        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -10388,6 +10618,7 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
+        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -10406,6 +10637,7 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
+        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -11735,6 +11967,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-block-chat-period-comparison-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/period-comparison-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/period-comparison-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-period-comparison-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/period-comparison-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/period-comparison-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-period-comparison-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/period-comparison-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/period-comparison-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-period-comparison-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/period-comparison-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/period-comparison-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-block-chat-period-insight-card",
       "platform": "mobile",
       "kind": "block",
@@ -11785,6 +12073,62 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/period-insight-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-period-total-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/period-total-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/period-total-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-period-total-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/period-total-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/period-total-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-period-total-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/period-total-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/period-total-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-period-total-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/period-total-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/period-total-card.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -11903,6 +12247,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-block-chat-prompt-idea",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/prompt-idea.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/prompt-idea.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-prompt-idea",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/prompt-idea.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/prompt-idea.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-prompt-idea",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/prompt-idea.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/prompt-idea.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-prompt-idea",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/prompt-idea.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/prompt-idea.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-block-chat-prompt-library",
       "platform": "mobile",
       "kind": "block",
@@ -11953,6 +12353,62 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/prompt-library.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-read-block-frame",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/read-block-frame.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/read-block-frame.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-read-block-frame",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/read-block-frame.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/read-block-frame.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-read-block-frame",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/read-block-frame.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/read-block-frame.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-read-block-frame",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/read-block-frame.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/read-block-frame.tsx"
       ],
       "state": "default",
       "theme": "dark",

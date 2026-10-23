@@ -1,6 +1,6 @@
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { ErrorCode } from 'expo-iap'
 
@@ -13,15 +13,18 @@ import {
 } from '@/hooks/use-play-billing'
 
 const TestRenderer = require('react-test-renderer')
+const mountedViews: { unmount: () => void }[] = []
 
 const mocks = vi.hoisted(() => {
   const state = {
     iapOptions: null as {
       onPurchaseSuccess?: (purchase: unknown) => void
       onPurchaseError?: (error: unknown) => void
+      onError?: (error: Error) => void
     } | null,
     subscriptions: [] as unknown[],
     connected: true,
+    setConnected: null as ((connected: boolean) => void) | null,
     authUser: { userId: 'user-abc' } as { userId: string } | null,
   }
   return {
@@ -31,6 +34,7 @@ const mocks = vi.hoisted(() => {
     getAvailablePurchases: vi.fn(),
     requestPurchase: vi.fn(),
     fetchProducts: vi.fn(),
+    reconnect: vi.fn(),
     invalidateQueries: vi.fn(),
     fetchQuery: vi.fn(),
   }
@@ -50,12 +54,15 @@ vi.mock('expo-iap', () => ({
   finishTransaction: mocks.finishTransaction,
   getAvailablePurchases: mocks.getAvailablePurchases,
   useIAP: (options: typeof mocks.state.iapOptions) => {
+    const [connected, setConnected] = React.useState(mocks.state.connected)
+    mocks.state.setConnected = setConnected
     mocks.state.iapOptions = options
     return {
-      connected: mocks.state.connected,
+      connected,
       subscriptions: mocks.state.subscriptions,
       fetchProducts: mocks.fetchProducts,
       requestPurchase: mocks.requestPurchase,
+      reconnect: mocks.reconnect,
     }
   },
 }))
@@ -80,7 +87,7 @@ function renderUsePlayBilling(options?: { preferReferralOffer?: boolean; onPurch
     return null
   }
   TestRenderer.act(() => {
-    TestRenderer.create(<Harness />)
+    mountedViews.push(TestRenderer.create(<Harness />))
   })
   if (!valueHolder.current) throw new Error('usePlayBilling did not render')
   return valueHolder.current
@@ -93,7 +100,7 @@ function renderUsePlayBillingLive(options?: { onPurchased?: () => Promise<void> 
     return null
   }
   TestRenderer.act(() => {
-    TestRenderer.create(<Harness />)
+    mountedViews.push(TestRenderer.create(<Harness />))
   })
   if (!holder.current) throw new Error('usePlayBilling did not render')
   return holder as { current: ReturnType<typeof usePlayBilling> }
@@ -222,6 +229,10 @@ describe('mapPlayErrorKey', () => {
 })
 
 describe('usePlayBilling', () => {
+  afterEach(() => {
+    TestRenderer.act(() => mountedViews.splice(0).forEach((view) => view.unmount()))
+    vi.useRealTimers()
+  })
   beforeEach(() => {
     mocks.state.iapOptions = null
     mocks.state.subscriptions = []
@@ -232,6 +243,10 @@ describe('usePlayBilling', () => {
     mocks.getAvailablePurchases.mockReset().mockResolvedValue([])
     mocks.requestPurchase.mockReset().mockResolvedValue(null)
     mocks.fetchProducts.mockReset().mockResolvedValue(undefined)
+    mocks.reconnect.mockReset().mockImplementation(() => {
+      mocks.state.setConnected?.(true)
+      return Promise.resolve(true)
+    })
     mocks.invalidateQueries.mockReset().mockResolvedValue(undefined)
     mocks.fetchQuery.mockReset().mockResolvedValue(undefined)
   })
@@ -251,6 +266,94 @@ describe('usePlayBilling', () => {
 
     expect(result.monthlyOffer?.displayPrice).toBe('R$14,90')
     expect(result.yearlyOffer?.offerToken).toBe('tok_y')
+  })
+
+  it('handles a rejected product query and retries without starting a purchase', async () => {
+    mocks.fetchProducts.mockRejectedValueOnce(new Error('Failed to query product'))
+    const billing = renderUsePlayBillingLive()
+    await flushAsync()
+
+    expect(billing.current.isProductsError).toBe(true)
+    expect(billing.current.isLoadingProducts).toBe(false)
+    expect(billing.current.errorKey).toBeNull()
+    expect(mocks.requestPurchase).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => billing.current.retryProducts())
+    expect(billing.current.isLoadingProducts).toBe(true)
+    await flushAsync()
+
+    expect(mocks.fetchProducts).toHaveBeenCalledTimes(2)
+    expect(mocks.fetchProducts).toHaveBeenLastCalledWith({ skus: ['orbit_pro'], type: 'subs' })
+    expect(billing.current.isProductsError).toBe(false)
+    expect(billing.current.isLoadingProducts).toBe(false)
+  })
+
+  it.each(['false', 'rejected', 'pending'] as const)('settles a %s initial connection and reconnects before querying on retry', async (outcome) => {
+    vi.useFakeTimers()
+    mocks.state.connected = false
+    const billing = renderUsePlayBillingLive()
+    await TestRenderer.act(async () => { await Promise.resolve() })
+    expect(billing.current.isLoadingProducts).toBe(true)
+    if (outcome === 'rejected') {
+      await TestRenderer.act(async () => {
+        mocks.state.iapOptions?.onError?.(new Error('Play initialization failed'))
+        await Promise.resolve()
+      })
+    } else {
+      await TestRenderer.act(async () => vi.advanceTimersByTimeAsync(10_000))
+    }
+
+    expect(billing.current.isProductsError).toBe(true)
+    expect(billing.current.isLoadingProducts).toBe(false)
+    expect(billing.current.errorKey).toBeNull()
+    expect(mocks.fetchProducts).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { billing.current.retryProducts(); await Promise.resolve() })
+
+    expect(mocks.reconnect).toHaveBeenCalledOnce()
+    expect(mocks.fetchProducts).toHaveBeenCalledExactlyOnceWith({ skus: ['orbit_pro'], type: 'subs' })
+    expect(billing.current.isProductsError).toBe(false)
+    expect(billing.current.isLoadingProducts).toBe(false)
+    expect(mocks.requestPurchase).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => vi.advanceTimersByTimeAsync(10_000))
+    expect(billing.current.isProductsError).toBe(false)
+  })
+
+  it.each(['false', 'rejected', 'pending'] as const)('settles a %s reconnect without querying and permits another retry', async (outcome) => {
+    vi.useFakeTimers()
+    mocks.state.connected = false
+    const billing = renderUsePlayBillingLive()
+    await TestRenderer.act(async () => vi.advanceTimersByTimeAsync(10_000))
+    if (outcome === 'false') mocks.reconnect.mockResolvedValueOnce(false)
+    else if (outcome === 'rejected') mocks.reconnect.mockRejectedValueOnce(new Error('Play unavailable'))
+    else mocks.reconnect.mockImplementationOnce(() => new Promise<boolean>(() => {}))
+    await TestRenderer.act(async () => { billing.current.retryProducts(); await Promise.resolve() })
+    await TestRenderer.act(async () => vi.advanceTimersByTimeAsync(10_000))
+
+    expect(billing.current.isLoadingProducts).toBe(false)
+    expect(billing.current.isProductsError).toBe(true)
+    expect(mocks.fetchProducts).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { billing.current.retryProducts(); await Promise.resolve() })
+    expect(mocks.reconnect).toHaveBeenCalledTimes(2)
+    expect(mocks.fetchProducts).toHaveBeenCalledOnce()
+    expect(billing.current.isProductsError).toBe(false)
+    expect(billing.current.isLoadingProducts).toBe(false)
+  })
+
+  it('clears the connection deadline after connecting and on unmount', async () => {
+    vi.useFakeTimers()
+    mocks.state.connected = false
+    const billing = renderUsePlayBillingLive()
+    await TestRenderer.act(async () => vi.advanceTimersByTimeAsync(9_999))
+    expect(billing.current.isLoadingProducts).toBe(true)
+    await TestRenderer.act(async () => { mocks.state.setConnected?.(true); await Promise.resolve() })
+    expect(billing.current.isLoadingProducts).toBe(false)
+    await TestRenderer.act(async () => vi.advanceTimersByTimeAsync(10_000))
+    expect(billing.current.isProductsError).toBe(false)
+    TestRenderer.act(() => mountedViews.splice(0).forEach((view) => view.unmount()))
+    expect(vi.getTimerCount()).toBe(0)
+    renderUsePlayBillingLive()
+    TestRenderer.act(() => mountedViews.splice(0).forEach((view) => view.unmount()))
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('binds the purchase to the user via obfuscatedAccountId', async () => {

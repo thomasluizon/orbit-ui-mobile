@@ -120,7 +120,7 @@ export function Button({
   hint,
   buttonRef,
   quiet = false,
-}: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean; expanded?: boolean; controlsId?: string; hasPopup?: 'menu' | 'dialog'; onFocus?: () => void; onBlur?: () => void; onMouseEnter?: () => void; onMouseLeave?: () => void }>) {
+}: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean; expanded?: boolean; controlsId?: string; hasPopup?: false | 'menu' | 'dialog'; onFocus?: () => void; onBlur?: () => void; onMouseEnter?: () => void; onMouseLeave?: () => void }>) {
   const withinRow = useContext(ActionRowContext)
   const hintId = useId()
   const descriptionIds = buttonDescriptionIds(descriptionId, hintId, hint)

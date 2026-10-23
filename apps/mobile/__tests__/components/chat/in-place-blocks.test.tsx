@@ -89,10 +89,10 @@ describe('Astra blocks act on app state', () => {
     void act(() => tree.unmount())
   })
 
-  it('exposes live goal progress and its source', () => {
+  it('preserves goal progress and names its actual source', () => {
     state.goals.set('goal-1', createMockGoal({ id: 'goal-1', title: 'Move', currentValue: 6, targetValue: 10, isProgressDerived: true, linkedHabits: [{ id: 'habit-1', title: 'Walk' }] }))
     const tree = render(<GoalListCard goalList={{ items: [{ id: 'goal-1', title: 'Move', current: 1, target: 10, unit: 'km' }] }} />)
-    expect(tree.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]!.props.accessibilityValue).toEqual(expect.objectContaining({ now: 60 }))
+    expect(tree.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]!.props.accessibilityValue).toEqual(expect.objectContaining({ now: 10 }))
     expect(renderedText(tree.toJSON())).toContain('goals.linkedHabits: Walk')
     void act(() => tree.unmount())
   })
@@ -102,7 +102,7 @@ it.each([
   [{ isPending: true, isError: false, isRefetchError: false }, 'loading'],
   [{ isPending: false, isError: true, isRefetchError: false }, 'partiallyFailed'],
   [{ isPending: false, isError: true, isRefetchError: true }, 'stale'],
-] as const)('shares query states across all five blocks: %s', (query, expected) => {
+] as const)('shares query states across action queries while metrics retain their snapshot: %s', (query, expected) => {
   state.query = { ...query }
   state.goals.set('goal-1', createMockGoal({ id: 'goal-1' }))
   const tree = render(<>
@@ -112,7 +112,7 @@ it.each([
     <StreakCard streakCard={{ currentStreak: 3, longestStreak: 9, level: 1, totalXp: 20, xpForNextLevel: 100, lastActiveDate: null, isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], surfaceId: 'progress' }} />
     <MetricsCard metricsCard={{ period: 'week', completionRate: 50, activeDays: 3, totalCompletions: 3, totalScheduled: 6, currentStreak: 3, bestStreak: 9, hasData: true, surfaceId: 'progress' }} />
   </>)
-  expect(tree.root.findAll(node => node.type === View && node.props.testID === `block-frame-${expected}`)).toHaveLength(5)
+  expect(tree.root.findAll(node => node.type === View && node.props.testID === `block-frame-${expected}`)).toHaveLength(4)
   void act(() => tree.unmount())
 })
 

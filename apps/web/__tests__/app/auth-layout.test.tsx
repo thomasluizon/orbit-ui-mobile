@@ -1,5 +1,5 @@
 import { useLayoutEffect } from 'react'
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
 import AuthLayout from '@/app/(auth)/layout'
@@ -67,6 +67,11 @@ describe('AuthLayout reload guidance', () => {
     expect(input).toHaveFocus()
     expect(container.querySelectorAll('[data-update-banner]')).toHaveLength(1)
     expect(region).toHaveTextContent(failure === 'stale action' ? 'errors.api.appUpdated' : 'forceUpdate.banner')
-    expect(screen.getByRole('button', { name: failure === 'stale action' ? 'errors.api.reload' : 'forceUpdate.refresh' })).toBeEnabled()
+    const reload = vi.fn()
+    vi.stubGlobal('location', { reload })
+    const button = screen.getByRole('button', { name: failure === 'stale action' ? 'errors.api.reload' : 'forceUpdate.refresh' })
+    expect(button).toBeEnabled()
+    fireEvent.click(button)
+    expect(reload).toHaveBeenCalledOnce()
   })
 })

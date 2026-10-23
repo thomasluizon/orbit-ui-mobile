@@ -423,7 +423,7 @@ describe('EditHabitModal', () => {
 
   it('locks General from the caller-supplied prop when the habit has no children', () => {
     mockHabitDetailResult = {
-      data: { ...defaultHabit, id: 'h-1', children: [] },
+      data: { ...defaultHabit, id: 'h-1', parentId: '22222222-2222-4222-8222-222222222222', children: [] },
       isPending: false,
       error: null,
     }

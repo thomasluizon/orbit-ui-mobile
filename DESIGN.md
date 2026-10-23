@@ -62,7 +62,7 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
 
 ### Astra is a layer with a front door, never a destination
 
-**Ideas library:** a second full view inside the conversation layer, with no route, URL or sheet. A 48 icon control labelled `Browse ideas` (`Ver ideias`) in the conversation header and one ghost action with that label in the empty thread open it. Its `AppBar` back control is labelled `Back to conversation` (`Voltar à conversa`). Escape on web and Android back return to the thread before closing the layer; opening focuses the library heading and returning focuses the entry control. The thread and composer draft stay mounted. A quiet 12px push at the standard duration shows the hierarchy; reduced motion keeps only the opacity fade. A persistent search searches the current language across permitted categories, while one horizontally scrolling, non-wrapping chip row selects one category at a time, starting with Start. Template results paginate at eight rows. SectionLabel headings and ListRow actions carry the live composer suggestions under `For you now` and the selected category. Calendar ideas require Pro access and a Google Calendar connection. Offline and daily-limit reasons appear above disabled rows. A complete idea sends once; an idea with slots returns to the composer with the first slot selected. An existing draft uses `prepareChatRequest` to keep the draft and retain the idea above the composer until the draft is cleared. A search miss names the query and offers `Clear search` (`Limpar busca`).
+**Ideas library:** a second full view inside the conversation layer, with no route, URL or sheet. A 48 icon control labelled `Browse ideas` (`Ver ideias`) in the conversation header and one ghost action with that label in the empty thread open it. Its `AppBar` back control is labelled `Back to conversation` (`Voltar à conversa`). Escape on web and Android back return to the thread before closing the layer; opening focuses the library heading and returning focuses the entry control. The thread and composer draft stay mounted. A quiet 12px push at the standard duration shows the hierarchy; reduced motion keeps only the opacity fade. A persistent search searches the current language across permitted categories, while one horizontally scrolling, non-wrapping chip row selects one category at a time, starting with Start. Template results paginate at eight ideas. The active [Ideas composition](design/canvas/Orbit%20Astra%20Ideas.md) (#1611) uses one column of neutral radius-20 actionable cards, inline 24px intent icons and only the twelve approved translated prompt examples. Compact records use `PADDING.recordInset` (16), with 12 between cards, 24 between groups and 4 between title and example. Live suggestions are unframed actions under `For you now`, using their supplied icon or a neutral Lightbulb, and disappear during a nonblank search. A selected category chip replaces its repeated visual heading; the region keeps its accessible category name, and search retains category headings. Complete requests and current live request callbacks carry plain 20px Astra attribution within the single target; slotted ideas carry no request attribution. Both platforms retain one column at wide widths inside the centred 740px conversation allocation, and grow naturally at 200% text. Calendar ideas require Pro access and a Google Calendar connection. Offline and daily-limit reasons appear above disabled rows. A complete idea sends once; an idea with slots returns to the composer with the first slot selected. An existing draft uses `prepareChatRequest` to keep the draft and retain the idea above the composer until the draft is cleared. A search miss names the query and offers `Clear search` (`Limpar busca`).
 
 #### Ideas library surface inventory
 
@@ -73,8 +73,8 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
 | 3 | Library AppBar, named back control and initial heading focus | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
 | 4 | Persistent localized search, resting, focused and populated | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
 | 5 | Category strip, initial selection, changed selection and horizontal overflow | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
-| 6 | Category rows and search pages, first, middle and last page | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
-| 7 | Live composer suggestions as rows, populated and absent | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
+| 6 | Intent cards, selective examples and search pages, first, middle and last page | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
+| 7 | Live icon actions, populated, absent and hidden during search | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
 | 8 | Calendar category with Pro and Google, absent without either | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
 | 9 | Offline and daily capacity, including concurrent voice activity | `chat/conversation.tsx` and `chat/prompt-library.tsx` | `chat/conversation.tsx` and `chat/prompt-library.tsx` |
 | 10 | Search miss, query announcement and clear action | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
@@ -429,6 +429,28 @@ Six rules govern all of them:
 Rules 5 and 6 have no published precedent anywhere. They are Orbit's, and they are stated here because
 the alternative is that every block invents its own answer.
 
+### Focused reads
+
+`periodTotal` shows one server figure, its unit and resolved dates. `periodComparison` shows both
+windows, their server values and supplied delta. A zero baseline omits the relative percentage.
+Dated habit and history rows retain their dates and typed values, including zero. Period metrics
+use their declared window and null-rate meaning. Current completion, goal and calendar eligibility
+never replace the displayed snapshot. Derived goals name their actual linked habits once.
+
+Every read family retains its supported actions: logging, record navigation, notification mark-read,
+referral copy/share, exact-query refresh or signed paging. Tags and templates have no invented
+destination. Keys expose safe metadata; plans contain no added price, upsell or checkout.
+Refresh and paging use the API's signed absolute query identity. A changed page revision requires
+refresh before paging. Useful snapshot content stays visible through failed reads and offline
+recovery. One compact state owns stale, partial or failed recovery, with no freshness box.
+Recap figures and dates lead; Show more discloses its supplied narrative and habit detail.
+Current and longest streak figures remain reachable in that disclosure. Show less returns to the
+focused figures, and a card-local polite live region announces the disclosed narrative sections.
+Stale reads retain disclosure and valid navigation beside Refresh in the footer; signed paging
+waits for a refreshed revision. Stale write previews keep withholding their execution actions.
+The focused read amendment in the canvas README and active Astra drawing defines these compositions
+from existing BlockFrame rows, number formatting, ghost actions and the granted neutral chart.
+
 ### The proposed state
 
 **A value the machine inferred looks different from a value the person entered**, until it is accepted
@@ -528,6 +550,16 @@ The More details read disclosure retains statistics, reminders, linked-goal navi
 end-date facts, and month history with its loading/error/navigation behavior. The activity strip,
 contextual Astra, explicit rescue proposal, sub-habit actions, navigation and delete retain their own
 owners. The paired surface and preservation ledger is in `design/habit-form-surfaces.md`.
+
+The complete editor places Parent habit / Hábito principal with tags and goals inside More details.
+Its ListRow opens the existing radio picker without an immediate-move action. Exact No parent
+(top level) / Sem hábito principal (nível raiz) remains an explicit local choice. Closing the
+picker retains that choice; outer Cancel discards it and the single outer Save owns persistence.
+Unknown parent reads never imply root. A complete current-account destination inventory includes
+eligible completed items, with existing validity reasons, loading and retry. The chosen parent and
+existing children constrain final General; selecting root removes only the former-parent constraint.
+The editor retains type-first composition, independent object-management boundaries and native
+queued wording. Uncertain Save retains the draft and verifies authoritative readback before retry.
 
 ### Surfaces that no longer exist
 
@@ -634,7 +666,7 @@ style literals, including style factories and conditional values, without a viol
 |---|---|---|---|
 | screen gutter, inside the centred content column at every width | `PADDING.screenGutter` | `SPACING.s16` | 16 |
 | card and panel inner padding | `PADDING.cardInset` | `SPACING.s24` | 24 |
-| drawn compact records: goal cards, achievement cards, StatTile and allowance card | `PADDING.recordInset` | `SPACING.s16` | 16 |
+| drawn compact records: goal cards, achievement cards, StatTile, allowance card and Ideas actions | `PADDING.recordInset` | `SPACING.s16` | 16 |
 | section title to content | `PADDING.sectionTitleGap` | `SPACING.s12` | 12 |
 | sections on Hoje and Calendário | `PADDING.sectionGap` | `SPACING.s24` | 24 |
 | sections on Progresso and Perfil | `PADDING.sectionStackGap` | `SPACING.s32` | 32 |

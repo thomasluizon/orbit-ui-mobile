@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module'
+import { resolve } from 'node:path'
 import { AndroidConfig, compileModsAsync, withAndroidManifest } from '@expo/config-plugins'
 import { afterEach, describe, expect, it } from 'vitest'
 import appJson from '../app.json'
@@ -15,7 +16,7 @@ describe('Android app variant', () => {
       ...appJson.expo,
       updates: { ...appJson.expo.updates, enabled: false },
       android: { ...appJson.expo.android, allowBackup: false },
-      plugins: [...appJson.expo.plugins, './plugins/with-android-release-build-fixes', './plugins/with-react-native-imperative-focus', './plugins/with-design-bundle-launch'],
+      plugins: [...appJson.expo.plugins, './plugins/with-android-release-build-fixes', './plugins/with-react-native-imperative-focus'],
     }
     expect(JSON.stringify(createConfig())).toBe(JSON.stringify(expected))
   })
@@ -81,6 +82,32 @@ describe('Android app variant', () => {
     process.env.ORBIT_APP_VARIANT = variant
     expect(createConfig().updates.enabled).toBe(false)
     expect(createConfig().updates.checkAutomatically).toBe('NEVER')
+  })
+
+  it.each(['production', 'staging'])('generates embedded-only update settings for %s', async (variant) => {
+    process.env.ORBIT_APP_VARIANT = variant
+    const config = createConfig()
+    const version = (require('expo-updates/package.json') as { version: string }).version
+    let manifest!: AndroidConfig.Manifest.AndroidManifest
+    const configured = withAndroidManifest({ name: config.name, slug: config.slug }, async (mod) => {
+      mod.modResults = await AndroidConfig.Updates.setUpdatesConfigAsync(
+        mod.modRequest.projectRoot,
+        config as Parameters<typeof AndroidConfig.Updates.setUpdatesConfigAsync>[1],
+        mod.modResults, version,
+      )
+      manifest = mod.modResults
+      return mod
+    })
+    await compileModsAsync(configured, {
+      projectRoot: resolve(import.meta.dirname, '..'), platforms: ['android'], introspect: true,
+    })
+    const application = AndroidConfig.Manifest.getMainApplicationOrThrow(manifest)
+    const settings = Object.fromEntries((application['meta-data'] ?? []).map((entry) => [
+      entry.$['android:name'], entry.$['android:value'],
+    ]))
+    expect(settings['expo.modules.updates.ENABLED']).toBe('false')
+    expect(settings['expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH']).toBe('NEVER')
+    expect(settings).not.toHaveProperty('expo.modules.updates.UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY')
   })
 
   it('keeps production configuration stable across staging resolution', () => {

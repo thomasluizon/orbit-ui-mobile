@@ -7,7 +7,7 @@ import { liveBlockState, calendarBlockErrorKey } from '@orbit/shared/chat/live-b
 import type { CalendarCard as CalendarCardData } from '@orbit/shared/types/chat'
 import type { BlockFrameItem } from '@orbit/shared/contracts/blocks'
 import { EventRow } from '@/components/dates/event-row'
-import { BlockFrame } from '@/components/ui/block-frame'
+import { BlockFrame } from './read-block-frame'
 import { Button } from '@/components/ui/pill-button'
 import { Plus } from '@/components/ui/icons'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -31,11 +31,10 @@ export function CalendarCard({ calendarCard }: Readonly<{ calendarCard: Calendar
   const frameState = liveBlockState(eventsQuery, { failed: errorKey !== null, stale: missing, staleMessage: t('chat.liveBlock.stale'), onRefresh: () => { void eventsQuery.refetch() } })
   const items: BlockFrameItem[] = calendarCard.events.map((event, index) => {
     const eventId = event.id
-    const live = liveEvents?.find((entry) => entry.id === eventId)
-    const title = live?.title ?? event.title
-    const allDay = live ? live.startTime == null : event.isAllDay
-    const source = (calendars.data?.length ?? 0) > 1 ? live?.calendarName ?? event.calendarName ?? undefined : undefined
-    const timing = allDay ? { allDayLabel: t('chat.calendarCard.allDay') } : { time: displayClock(live?.startTime ?? event.start) }
+    const title = event.title
+    const allDay = event.isAllDay
+    const source = (calendars.data?.length ?? 0) > 1 ? event.calendarName ?? undefined : undefined
+    const timing = allDay ? { allDayLabel: t('chat.calendarCard.allDay') } : { time: displayClock(event.start) }
     return { id: eventId ?? `event-${index}`, wrapLabel: true, label: <EventRow title={title} {...timing} source={source}
       action={eventId ? <Button variant="ghost" size="sm" iconOnly minimumHeight={TOUCH_TARGET_MIN} label={t('chat.calendarCard.makeHabit', { title })} disabled={notConnected || eventsQuery.isError || missing} onClick={() => navigate(`/calendar?import=1&event=${encodeURIComponent(eventId)}`)}><Plus size={20} aria-hidden="true" /></Button> : null} /> }
   })
