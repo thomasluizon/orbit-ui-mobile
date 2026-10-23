@@ -435,11 +435,10 @@ describe('HabitRow status control names (mobile)', () => {
     const body = renderer!.root.findAll(
       (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
     )[0]
-    const ring = renderer!.root.findAll(
+    const ring = renderer!.root.findAllByType('Pressable').find(
       (node: { props: Record<string, unknown> }) =>
-        node.props.accessibilityLabel === 'habits.statusDot.empty, habits.logHabit: Meditate, 0/1' &&
-        typeof node.props.style === 'function',
-    )[0]
+        node.props.accessibilityLabel === 'habits.statusDot.empty, habits.logHabit: Meditate, 0/1',
+    )!
 
     TestRenderer.act(() => body.props.onPressIn())
     const pressedCard = StyleSheet.flatten(
@@ -461,9 +460,14 @@ describe('HabitRow status control names (mobile)', () => {
     const restingCard = StyleSheet.flatten(
       renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
     ) as Record<string, unknown>
+    TestRenderer.act(() => ring.props.onPressIn())
     const pressedRing = StyleSheet.flatten(ring.props.style({ pressed: true })) as Record<string, unknown>
     expect(restingCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
-    expect(pressedRing.backgroundColor).toBe('rgba(250,250,250,0.13)')
+    expect(pressedRing.backgroundColor).toBeUndefined()
+    const fill = () => StyleSheet.flatten(renderer!.root.findByProps({ testID: 'habit-row-check-fill' }).props.style)
+    expect(fill()).toMatchObject({ width: 36, height: 36, borderRadius: 16, backgroundColor: 'rgba(250,250,250,0.13)' })
+    TestRenderer.act(() => ring.props.onPressOut())
+    expect(fill().backgroundColor).toBe('transparent')
   })
 
   it('presses the disclosure control without painting the card', () => {
