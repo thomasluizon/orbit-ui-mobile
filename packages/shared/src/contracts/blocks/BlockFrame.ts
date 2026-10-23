@@ -24,6 +24,7 @@ type BlockFrameStaleArm = {
   readonly staleMessage: string
   readonly onRefresh?: () => void
   readonly refreshLabel?: string
+  readonly staleActions?: React.ReactNode
 }
 
 type BlockFrameSettledArm = {
@@ -31,6 +32,7 @@ type BlockFrameSettledArm = {
   readonly staleMessage?: never
   readonly onRefresh?: never
   readonly refreshLabel?: never
+  readonly staleActions?: never
 }
 
 type BlockFrameItemEditArm =

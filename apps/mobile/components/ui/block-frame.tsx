@@ -181,7 +181,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens
 
   if (frameProps.state === 'stale') {
     return (
-      <View style={styles.staleRow}>
+      <ActionRow>
         {frameProps.onRefresh ? <Pressable
           accessibilityLabel={frameProps.refreshLabel ?? t('blockFrame.refresh')}
           accessibilityRole="button"
@@ -194,7 +194,8 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens
           <RefreshCw accessible={false} color={tokens.fg1} size={20} strokeWidth={1.5} />
           <Text style={[styles.refreshLabel, { color: tokens.fg1 }]}>{frameProps.refreshLabel ?? t('blockFrame.refresh')}</Text>
         </Pressable> : null}
-      </View>
+        {frameProps.staleActions}
+      </ActionRow>
     )
   }
 
@@ -322,7 +323,6 @@ const styles = StyleSheet.create({
   rowSkeleton: { height: 16, flex: 1, borderRadius: 8 },
   iconSkeleton: { height: 20, width: 20, borderRadius: 8 },
   actionSkeleton: { height: TOUCH_TARGET_MIN, borderRadius: 8 },
-  staleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   hiddenMessage: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
   staleMessage: { fontFamily: 'Geist_400Regular', fontSize: 14 },
   refreshButton: { minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, overflow: 'hidden', paddingHorizontal: SPACING.s12 },

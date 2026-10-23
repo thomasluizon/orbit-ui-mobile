@@ -10,9 +10,9 @@ const card: PeriodInsightCard = {
 }
 
 describe('period insight page order', () => {
-  it('keeps four pages and leaves Missed out when all sections have text', () => {
+  it('preserves every supplied narrative section for disclosure', () => {
     expect(getInsightPages(card).map((page) => page.titleKey)).toEqual([
-      'chat.insight.overview', 'chat.insight.highlights', 'chat.insight.trends', 'chat.insight.suggestion',
+      'chat.insight.overview', 'chat.insight.highlights', 'chat.insight.trends', 'chat.insight.suggestion', 'chat.insight.missed',
     ])
   })
 

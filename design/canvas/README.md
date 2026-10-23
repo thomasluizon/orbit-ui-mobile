@@ -65,6 +65,26 @@ supporting footer serves enlarged text, the measured inline depth boundary and m
 with first-title-line controls; ordinary default rows retain whole-row centring. This production
 composition amendment adds no unused drawing prop or checklist action.
 
+### Focused read block amendment
+
+`Orbit Astra Conversation` adds `periodTotal`, `periodComparison`, `history`, `read stale` and
+`read partial` to its existing state controls at compact and wide widths in both locales.
+A total has one supplied figure, its unit and resolved dates. A comparison has both windows,
+their supplied values and absolute delta; a zero baseline has no relative percentage.
+History uses dated rows, including zero-valued logs, with the existing Show more and Refresh.
+The number role, BlockFrame rows, ghost actions, neutral chart and existing tokens are reused.
+No new primitive, token, colour, radius, shadow, font, effect or chart type is introduced.
+
+Saved figures and records retain their query scope. Current completion and navigation eligibility
+are independent. Signed refresh replaces that query's snapshot; signed paging retains its revision.
+One compact state carries stale, partial or failed recovery. Recap detail opens through Show more,
+including saved stale recaps. Read-only disclosure and valid navigation share the existing footer
+action row with Refresh; signed paging waits for refresh. Write-preview execution stays withheld.
+Recap disclosure retains the supplied current and longest streak figures with its narrative and
+habit rows. Show less returns to the focused figures. Expanded state and a card-local polite live
+region announce disclosure on web and Android, replacing the former page-position announcement.
+The paired owners and verification boundaries are in `design/astra-preview-surfaces.md`.
+
 ## The authority
 
 **Thomas granted this export on 2026-08-25**, which is what gives it authority. `DESIGN.md` records
@@ -77,6 +97,8 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
+| #1619 focused totals and comparisons | A supplied number, unit and resolved window; two comparison windows, their values and supplied delta, without relative percentages for a zero baseline | A read answers its requested metric and dates. |
+| #1619 history and recovery | Dated rows retain zero values, signed paging and exact-query refresh; stale and partial reads use one compact state | Snapshot display stays separate from current action eligibility. |
 | #1587 | Hoje rows carry actual visible depth with one 16px step per ancestor after the 8px root inset. Well, title and supporting metadata cascade together. Measured content width and scaled title space determine the narrow boundary, accounting for shell scrollbars and safe-area gutters. Boundary rows use the full-width supporting metadata footer with first-title-line controls, and the existing drill; drill resets local depth and detail children use depth 1 once | Expanded grandchildren must remain visibly subordinate to their parents without shrinking controls or flattening adjacent levels. |
 | #1588 | Hoje canonical rows restore stored plain text description previews below the title and before metadata, at Geist Sans 14/400 and line height 1.55 with a 4px stack gap. Normal text uses one naturally ellipsized line; above 130% text, up to two lines grow the row. Empty normalized text adds no line. Body feedback replaces the complete radius-20 row fill; sibling actions including selection paint independently and the check centres on the resulting normal row. The painted web row owns reversible 380ms background/outline hover feedback, with a strong hairline and immediate press/reduced-motion feedback | The explicitly requested preview restores stored content through the existing detail path without a new action or request. The active drawing amendment preserves 17/14 titles, the single depth inset and large-text supporting metadata. |
 | Astra blocks in place | `Orbit Astra Conversation` combines the day ring with up to 20 live habit rows and in-place logging; calendar EventRow actions open Calendários with one event selected for import review; streak keeps DayStrip and a read-only FreezeBank linking to Sequência; goals use ProgressBar, tracking badges and named derived sources; metrics keeps BarChart with at most three StatTile figures. The pt-BR stale line reads `A manhã mudou desde que a Astra montou este bloco.` | Blocks reuse their app actions and live state. This supersedes the drawing's goal rings, metrics note excluding a chart, and masculine reference to Astra in the stale line. |

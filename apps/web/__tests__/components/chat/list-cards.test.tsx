@@ -56,7 +56,7 @@ describe('Astra list cards on web', () => {
     expect(mocks.push).toHaveBeenCalledWith('/habits/habit-1')
 
     fireEvent.click(screen.getByRole('button', { name: /chat\.habitList\.log.*Water/ }))
-    expect(mocks.mutate).toHaveBeenNthCalledWith(1, { habitId: 'habit-1', intent: 'log' })
+    expect(mocks.mutate).toHaveBeenNthCalledWith(1, { habitId: 'habit-1', date: expect.any(String), intent: 'log' })
 
     fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.more' }))
     expect(screen.getByText('chat.habitList.count:{"shown":4,"total":4}')).toBeInTheDocument()
@@ -68,7 +68,7 @@ describe('Astra list cards on web', () => {
 
     expect(screen.getByText('chat.habitList.logged')).toHaveAttribute('data-ring-status', 'done')
     fireEvent.click(screen.getByRole('button', { name: /chat\.habitList\.unlog.*Water/ }))
-    expect(mocks.mutate).toHaveBeenCalledWith({ habitId: 'habit-1', intent: 'unlog' })
+    expect(mocks.mutate).toHaveBeenCalledWith({ habitId: 'habit-1', date: expect.any(String), intent: 'unlog' })
   })
 
   it('titles the all scope and explains an empty scope', () => {
