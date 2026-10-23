@@ -44,18 +44,10 @@ vi.mock('@/components/ui/icons', async (importOriginal) => ({
   MoreVertical: () => <svg data-testid="adjustments-icon" />,
 }))
 
-vi.mock('@/components/ui/menu', () => ({
-  Menu: ({ id, open, items, onSelect, onClose, title }: MenuProps) => open ? (
-    <div id={id} role="menu" aria-label={title}>
-      {items?.map((item) => (
-        <button key={item.id} role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
-          aria-checked={item.checked} disabled={item.disabled} onClick={() => { onClose?.(); onSelect?.(item.id) }}>
-          {item.icon ? <Icon name={item.icon} size={20} /> : null}
-          {item.label}
-        </button>
-      ))}
-    </div>
-  ) : null,
+vi.mock('@/components/ui/dropdown-menu', () => ({
+  Root: ({ children }: { children: React.ReactNode }) => children,
+  Trigger: ({ children }: { children: React.ReactNode }) => children,
+  Content: () => null,
 }))
 
 vi.mock('motion/react', async (importOriginal) => {

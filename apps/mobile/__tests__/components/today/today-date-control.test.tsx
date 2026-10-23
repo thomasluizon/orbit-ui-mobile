@@ -7,7 +7,7 @@ import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { formatLocaleDayMonth } from '@orbit/shared/utils'
 import { MoreVertical, Checkbox, ChevronsDown, ChevronsUp, Eye, EyeOff, RefreshCw } from '@/components/ui/icons'
 import { Icon } from '@/components/ui/icon'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { Shell412 } from '@/components/shell/shell-412'
 import { TodayDateControl } from '@/components/today/today-date-control'
 
@@ -167,9 +167,9 @@ describe('Today date control feedback (mobile)', () => {
     if (!control) throw new Error('List options control did not render')
     expect(control.findAllByType(MoreVertical)).toHaveLength(1)
     TestRenderer.act(() => control.props.onPress())
-    const menu = renderer.root.findByType(Menu)
+    const menu = renderer.root.findByType(Menu.Content)
     expect(menu.props.title).toBe('List options')
-    expect(menu.props.open).toBe(true)
+    expect(renderer.root.findByType(Menu.Root).props.open).toBe(true)
   })
 
   it('renders the Portuguese list options labels and glyphs in both list states', () => {
@@ -187,9 +187,9 @@ describe('Today date control feedback (mobile)', () => {
     const control = button(renderer, labels.listOptions)
     if (!control) throw new Error('List options control did not render')
     TestRenderer.act(() => control.props.onPress())
-    const menu = renderer.root.findByType(Menu)
+    const menu = renderer.root.findByType(Menu.Content)
     expect(menu.props.title).toBe(ptBr.habits.listOptions)
-    expect(menu.props.open).toBe(true)
+    expect(renderer.root.findByType(Menu.Root).props.open).toBe(true)
     expect(menu.props.items.map(({ label, icon }: { label: string; icon?: string }) => [label, icon])).toEqual([
       [ptBr.common.select, 'checkbox'],
       [labels.collapseAll, 'chevrons-up'],
@@ -198,7 +198,7 @@ describe('Today date control feedback (mobile)', () => {
       [ptBr.habits.frequencyFilter, 'adjustments-horizontal'],
     ])
     TestRenderer.act(() => renderer.update(<TodayDateControl {...props} {...controlProps} allCollapsed showCompleted collapseLabel={labels.expandAll} completedLabel={labels.hideCompleted} />))
-    expect(renderer.root.findByType(Menu).props.items.map(({ label, icon }: { label: string; icon?: string }) => [label, icon])).toEqual([
+    expect(renderer.root.findByType(Menu.Content).props.items.map(({ label, icon }: { label: string; icon?: string }) => [label, icon])).toEqual([
       [ptBr.common.select, 'checkbox'],
       [labels.expandAll, 'chevrons-down'],
       [labels.refresh, 'refresh'],
@@ -335,7 +335,7 @@ it.each([false, true])('keeps the open Portuguese menu labels inside 320 dp at 2
     completedLabel: showCompleted ? ptBr.habits.hideCompletedMenu : ptBr.habits.showCompletedMenu, showCompleted })
   try {
     TestRenderer.act(() => button(renderer, ptBr.habits.listOptions)!.props.onPress())
-    const menu = renderer.root.findByType(Menu)
+    const menu = renderer.root.findByType(Menu.Content)
     expect(measuredTextWidth(menu.props.shortTitle, 'Geist', 44,
       require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf'))).toBeLessThanOrEqual(320 - 2 * 24 - 16 - 48)
     for (const item of menu.props.items) {

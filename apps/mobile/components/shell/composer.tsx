@@ -24,7 +24,7 @@ import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { mobileMotion, toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
-import { Menu, MenuAnchorHost, useAnchoredMenu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { Sheet } from '@/components/ui/sheet'
 
 function AttachmentIcon({ kind, color }: Readonly<Pick<ComposerAttachment, 'kind'> & { color: string }>) {
@@ -234,26 +234,26 @@ function ComposerActionIcon({ state, tokens }: Readonly<{ state: ComposerProps['
 }
 
 function ComposerControls({ props, tokens, onPaste, onClear }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; onPaste?: () => void; onClear?: () => void }>) {
-  const menu = useAnchoredMenu()
+  const [menuOpen, setMenuOpen] = useState(false)
   const { voiceActive, disabled, label, items: defaultItems } = buildComposerControls(props)
   const textAction = onClear ? { id: 'clear', label: props.words.clear, icon: 'x' }
     : onPaste ? { id: 'paste', label: props.words.paste, icon: 'clipboard' } : null
   const items = textAction ? [textAction, ...defaultItems] : defaultItems
   const isRecording = props.state === 'recording'
-  const menuOpen = menu.visible && !disabled && !voiceActive
+  const showMenu = menuOpen && !disabled && !voiceActive
   if (!voiceActive && items.length === 0) return null
-  return <View testID="composer-controls" style={styles.controls}>
-    <MenuAnchorHost anchorRef={menu.anchorRef}>
+  return <Menu.Root open={showMenu} onOpenChange={setMenuOpen}><View testID="composer-controls" style={styles.controls}>
+    {voiceActive ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={props.onVoice} style={({ pressed }) => composerActionStyle(tokens, isRecording, disabled, pressed)}><ComposerActionIcon state={props.state} tokens={tokens} /></InsetFocusPressable> : <Menu.Trigger asChild>
       <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label}
         focusColor={tokens.primary}
         focusContrastColor={isRecording ? tokens.bg : undefined}
-        accessibilityState={{ disabled, ...(!voiceActive ? { expanded: menuOpen } : {}) }} disabled={disabled} onPress={voiceActive ? props.onVoice : menu.open}
+        accessibilityState={{ disabled, expanded: menuOpen }} disabled={disabled}
         style={({ pressed }) => composerActionStyle(tokens, isRecording, disabled, pressed)}>
         <ComposerActionIcon state={props.state} tokens={tokens} />
       </InsetFocusPressable>
-    </MenuAnchorHost>
-    <Menu open={menuOpen} anchorRef={menu.anchorRef} title={props.words.actions} items={items} onClose={menu.close} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
-  </View>
+    </Menu.Trigger>}
+    <Menu.Content title={props.words.actions} items={items} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
+  </View></Menu.Root>
 }
 
 function PasteFitMeasure({ props, pasteInMenu, onPasteFit }: Readonly<{

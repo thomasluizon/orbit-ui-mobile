@@ -6,7 +6,7 @@ import { MoreVertical } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { HabitCheck } from './habit-check'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { CheckCircle } from './habit-row-check-circle'
 import type { HabitRowActions } from './habit-row'
 import type { MenuItem } from '@orbit/shared/contracts/overlay'
@@ -175,17 +175,15 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
   } = actions
   const [menuOpen, setMenuOpen] = useState(false)
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
-  const closeMenu = () => setMenuOpen(false)
-  const openMenu = () => setMenuOpen(true)
   const menuId = useId()
   const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, completionReadOnly, state)
 
   return (
-    <div className="flex items-center shrink-0" style={{ gap: 8 }}>
+    <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}><div className="flex items-center shrink-0" style={{ gap: 8 }}>
       <HabitRowCompletion {...props} />
       {!selectMode && hasMenuActions && (
         <>
-          <button
+          <Menu.Trigger asChild><button
             ref={menuAnchorRef}
             type="button"
             data-habit-row-control="menu"
@@ -194,22 +192,19 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
             aria-controls={menuId}
             onClick={(event) => {
               event.stopPropagation()
-              if (menuOpen) closeMenu()
-              else openMenu()
             }}
             className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] cursor-pointer hover:text-[var(--fg-1)] active:scale-[0.96]"
             style={{ width: 48, minHeight: 48 }}
           >
             <MoreVertical size={20} strokeWidth={1.8} />
-          </button>
-          <Menu
+          </button></Menu.Trigger>
+          <Menu.Content
             id={menuId}
-            open={menuOpen}
-            anchorRef={menuAnchorRef}
+
+
             title={habit.title || t('habits.actions.menuTitle')}
             titleMode={habit.title ? 'typed' : 'label'}
             items={menuItems}
-            onClose={closeMenu}
             onSelect={(id) => {
               const handlers: Record<string, (() => void) | undefined> = {
                 add: onAddSubHabit, move: onMoveParent, skip: onSkip, reschedule: onReschedule,
@@ -221,6 +216,6 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
           />
         </>
       )}
-    </div>
+    </div></Menu.Root>
   )
 }

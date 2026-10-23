@@ -12,7 +12,7 @@ import {
 } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import type { MenuProps } from '@orbit/shared/contracts/overlay'
 import TodayScreen from '@/app/(tabs)/index'
 import { useUIStore } from '@/stores/ui-store'
@@ -271,7 +271,7 @@ function flattenText(node: unknown): string {
 }
 
 function todayMenu(tree: import('react-test-renderer').ReactTestRenderer): MenuProps {
-  return tree.root.findAll((node) => node.type === Menu)[0]!.props
+  return tree.root.findAll((node) => node.type === Menu.Content)[0]!.props
 }
 
 describe('Hoje date boundaries', () => {

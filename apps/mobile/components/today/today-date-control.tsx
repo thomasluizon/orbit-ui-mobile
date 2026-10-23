@@ -6,7 +6,7 @@ import { buildTodayHeaderMenuItems, selectTodayHeaderMenuItem, type TodayDateCon
 import { useUIStore } from '@/stores/ui-store'
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { MoreVertical, ChevronLeft, ChevronRight, Search } from '@/components/ui/icons'
-import { Menu, MenuAnchorHost, useAnchoredMenu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
@@ -27,8 +27,8 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
   const [frequencyMenu, setFrequencyMenu] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const menu = useAnchoredMenu()
-  return <DestinationHeaderRow testID="today-header-actions" gap={4} wrap>
+  const [menuOpen, setMenuOpen] = useState(false)
+  return <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}><DestinationHeaderRow testID="today-header-actions" gap={4} wrap>
 
     <View style={styles.spacer} />
     <View style={styles.actions}>
@@ -36,24 +36,24 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
         style={({ pressed }) => [styles.iconButton, pressed && { backgroundColor: tokens.bgHover }]}>
         <Search size={20} color={tokens.fg2} />
       </Pressable>
-      <MenuAnchorHost anchorRef={menu.anchorRef}>
+      <Menu.Trigger asChild>
         <Pressable accessibilityRole="button" accessibilityLabel={props.moreLabel}
-          accessibilityState={{ expanded: menu.visible }} onPress={() => { setFrequencyMenu(false); menu.toggle() }}
+          accessibilityState={{ expanded: menuOpen }} onPress={() => { setFrequencyMenu(false) }}
           style={({ pressed }) => [styles.iconButton, pressed && { backgroundColor: tokens.bgHover }]}>
           <MoreVertical size={20} strokeWidth={1.8} color={tokens.fg2} />
         </Pressable>
-      </MenuAnchorHost>
+      </Menu.Trigger>
       <NotificationBell />
     </View>
-    <Menu key={frequencyMenu ? 'frequency' : 'options'} open={menu.visible} anchorRef={menu.anchorRef}
+    <Menu.Content key={frequencyMenu ? 'frequency' : 'options'}
       title={frequencyMenu ? t('habits.frequencyFilter') : props.moreLabel}
       shortTitle={frequencyMenu ? t('common.options') : props.menuHeading}
       items={buildTodayHeaderMenuItems(props, frequencyMenu, frequencyUnit, t)}
-      onClose={menu.close} onSelect={(id) => selectTodayHeaderMenuItem(id, frequencyMenu, frequencyUnit, {
+      onSelect={(id) => selectTodayHeaderMenuItem(id, frequencyMenu, frequencyUnit, {
         ...props, setFrequencyUnit: (value) => setFilters({ frequencyUnit: value }),
-        openFrequencyMenu: () => { setFrequencyMenu(true); menu.open() },
+        openFrequencyMenu: () => { setFrequencyMenu(true); setMenuOpen(true) },
       })} />
-  </DestinationHeaderRow>
+  </DestinationHeaderRow></Menu.Root>
 }
 
 export function TodayDateControl(props: Readonly<TodayDateControlProps>) {

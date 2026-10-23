@@ -1,3 +1,4 @@
+import { useComposedRefs } from '@rn-primitives/hooks'
 import { cloneElement, isValidElement, useContext, useState, type Ref } from 'react'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
@@ -7,6 +8,7 @@ import {
   StyleSheet,
   Text,
   type ViewStyle,
+  type PressableProps,
   type View,
 } from 'react-native'
 import { SPACING, GOOGLE_SIGN_IN_BUTTON, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN, type ButtonVariant } from '@orbit/shared/theme'
@@ -39,6 +41,8 @@ function buttonFocusStyle(variant: ButtonVariant, outlineColor: string): ViewSty
 /** The canonical five-variant pill action in the shared two-size geometry. */
 export function Button({
   buttonRef,
+  ref,
+  onPress,
   minimumHeight,
   expanded,
   elevated = false,
@@ -62,7 +66,9 @@ export function Button({
   hint,
   accessibilityRole = 'button',
   quiet = false,
-}: Readonly<ButtonProps & { buttonRef?: Ref<View>; accessibilityRole?: 'button' | 'link'; quiet?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>) {
+  ...pressableProps
+}: Readonly<ButtonProps & Omit<PressableProps, 'children' | 'onFocus' | 'onBlur'> & { ref?: Ref<View>; buttonRef?: Ref<View>; accessibilityRole?: 'button' | 'link'; quiet?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>) {
+  const composedRef = useComposedRefs(ref, buttonRef)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const size = useContext(ActionRowContext) ? 'sm' : requestedSize
@@ -106,9 +112,10 @@ export function Button({
 
   return (
     <Pressable
-      ref={buttonRef}
+      {...pressableProps}
+      ref={composedRef}
       hitSlop={size === 'sm' && (!iconOnly || (minimumHeight ?? 0) < TOUCH_TARGET_MIN) ? SMALL_PILL_HIT_PADDING : undefined}
-      onPress={loading ? undefined : onClick}
+      onPress={loading ? undefined : onPress ?? onClick}
       onFocus={() => { setFocused(true); onFocus?.() }}
       onBlur={() => { setFocused(false); onBlur?.() }}
       onHoverIn={() => { setHovered(true); onHoverIn?.() }}
@@ -117,7 +124,7 @@ export function Button({
       accessibilityRole={accessibilityRole}
       accessibilityLabel={iconOnly ? label : accessibleName}
       accessibilityHint={hint}
-      accessibilityState={{ disabled: nativelyDisabled, busy: loading, ...(expanded === undefined ? {} : { expanded }) }}
+      accessibilityState={{ ...pressableProps.accessibilityState, disabled: nativelyDisabled, busy: loading, ...(expanded === undefined ? {} : { expanded }) }}
       testID={`button-${variant}-${size}`}
       style={({ pressed }) => [
         styles.base,

@@ -14,7 +14,7 @@ import {
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { ArrowUp, Clipboard, FileText, Image as ImageIcon, Loader2, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { Sheet } from '@/components/ui/sheet'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -209,16 +209,14 @@ function ComposerControls({ props, onPaste, onClear }: Readonly<{ props: WebComp
     </button>
   </div>
   if (items.length === 0) return null
-  return <div data-composer-controls className="flex shrink-0 items-center">
-    <button ref={anchorRef} type="button" aria-label={label} aria-haspopup="menu" aria-controls={open && !disabled ? menuId : undefined} aria-expanded={open && !disabled}
-      disabled={disabled} onClick={() => setOpen(true)} onKeyDown={(event) => {
-        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setOpen(true) }
-      }}
+  return <Menu.Root open={open && !disabled} onOpenChange={setOpen}><div data-composer-controls className="flex shrink-0 items-center">
+    <Menu.Trigger asChild><button ref={anchorRef} type="button" aria-label={label} aria-haspopup="menu" aria-controls={open && !disabled ? menuId : undefined} aria-expanded={open && !disabled}
+      disabled={disabled}
       className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40">
       <Plus size={20} strokeWidth={2} aria-hidden="true" />
-    </button>
-    <Menu id={menuId} open={open && !disabled} anchorRef={anchorRef} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onClose={() => setOpen(false)} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
-  </div>
+    </button></Menu.Trigger>
+    <Menu.Content id={menuId} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
+  </div></Menu.Root>
 }
 
 function subscribeClipboardAvailability() { return () => {} }

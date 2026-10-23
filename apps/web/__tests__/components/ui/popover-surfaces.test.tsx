@@ -1,10 +1,10 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
 import { TodayDateControl } from '@/app/(app)/today-shell'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
@@ -110,16 +110,16 @@ describe('Today controls and habit menu ownership', () => {
 })
 
 function ControlledMenus({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const firstAnchor = useRef<HTMLButtonElement>(null)
-  const secondAnchor = useRef<HTMLButtonElement>(null)
   const [secondOpen, setSecondOpen] = useState(false)
   return <>
-    <button ref={firstAnchor} type="button">Controlled menu</button>
-    <Menu open={open} presentation="anchored" anchorRef={firstAnchor} title="Controlled" onClose={onClose}
-      items={[{ id: 'first', label: 'First action' }]} />
-    <button ref={secondAnchor} type="button" onClick={() => setSecondOpen(true)}>Second menu</button>
-    <Menu open={secondOpen} presentation="anchored" anchorRef={secondAnchor} title="Second" onClose={() => setSecondOpen(false)}
-      items={[{ id: 'second', label: 'Second action' }]} />
+    <Menu.Root open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onClose() }}>
+      <Menu.Trigger asChild><button type="button">Controlled menu</button></Menu.Trigger>
+      <Menu.Content presentation="anchored" title="Controlled" items={[{ id: 'first', label: 'First action' }]} />
+    </Menu.Root>
+    <Menu.Root open={secondOpen} onOpenChange={setSecondOpen}>
+      <Menu.Trigger asChild><button type="button">Second menu</button></Menu.Trigger>
+      <Menu.Content presentation="anchored" title="Second" items={[{ id: 'second', label: 'Second action' }]} />
+    </Menu.Root>
   </>
 }
 
