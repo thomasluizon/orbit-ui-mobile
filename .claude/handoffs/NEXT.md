@@ -14,15 +14,14 @@ Check free disk first (`df -g /System/Volumes/Data`); the floor is 50 GiB (55 at
 
 ## Goal
 
-Finish the spec: every requested production fix, the Astra overhaul, the owner reports, deferred asset and email work, verified releases and an empty board, in `## The order`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: open 74, placed 74, unplaced 0, placed twice 0 (`#1661`, `#1666`, `#1667` closed and their bullets removed). Newly filed scope gets exactly one order bullet in the session it arrives. An external interruption is the only earlier ending.
+Finish the spec: every requested production fix, the Astra overhaul, the owner reports, deferred asset and email work, verified releases and an empty board, in `## The order`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: open 73, placed 73, unplaced 0, placed twice 0 (`#1661`, `#1665`, `#1666`, `#1667` closed and their bullets removed). Newly filed scope gets exactly one order bullet in the session it arrives. An external interruption is the only earlier ending.
 
 ## In flight
 
-UI `main` is `3f9f10c8`, API `main` is `78ca5334`, landing `main` is `0d5e3df4`. Production web `9157ff3f`, staging web `9157ff3f`; staging API `78ca5334`; production API `78ca5334` dispatched (run 40020917711); production landing `0d5e3df4`. Android Open `1.3.93` (`152`) dispatched from `3f9f10c8` (run 40019771480). Open pull requests: UI `#2002`, `#1998`, `#1993`, `#1991`, `#1990`, `#1989` (relay docs), `#1984`, `#1903`; API `#877`, `#876`; landing none.
+UI `main` is `3f9f10c8`, API `main` is `78ca5334`, landing `main` is `0d5e3df4`. Production web `9157ff3f`, staging web `9157ff3f`; staging and production API `78ca5334` (production run 40020917711, verified Healthy); production landing `0d5e3df4`. Android Open `1.3.93` (`152`) dispatched from `3f9f10c8` (run 40019771480). Open pull requests: UI `#2002`, `#1998`, `#1993`, `#1991`, `#1990`, `#1989` (relay docs), `#1984`, `#1903`; API `#877`, `#876`; landing none.
 
 | Item | Disposition |
 | --- | --- |
-| Production API `78ca5334` | Verify run 40020917711 with `wait-release.mjs --repo api --run 40020917711 --sha 78ca533463e452defdc919f656bb90849ab80f63 --workflow-sha 78ca533463e452defdc919f656bb90849ab80f63 --service-url https://api.useorbit.org`; then close `#1665` with the render evidence (comment on `orbit-api#884`) and the merges. |
 | Android `1.3.93` | Verify run 40019771480's Play upload, then Play Open availability (Play Console Open testing through `claude-in-chrome`, one tab, close it after). It carries `#1994` and `#1995` to Android; then update `#1613`'s Android acceptance. |
 | `ui#2002` (`#1588`) | Round 2 (deep, commit-only) runs in `ticket-1588-check-hover-shape` (log `launch-1588-r2.out`). Read its diff: the hover and press fill must stay inside the 28px radius-12 check; a halo of any size is the owner's reported defect. Update the PR body, resolve threads, push once, wait on CI and review, merge, release web staging then production, and the next Android Open. |
 | `ui#1984` (`#577`) | Round 4 commits `a341f152c` and `2a7c0617d` are local in `ticket-577-headless-overlays`, not pushed: the root rerun passed 217 and failed 6 (`repro-1984/layout.log`, traces in `repro-1984/results/`). Launch round 5 with `launch-review-round.sh ui 577 <worktree> main max r5 <scratchpad>/note-1984-r5.md "<reason>"` once 50 GiB is free, rerun the eight spec files at root with `repro-1984.sh`, push only on `layout exit=0`. |
@@ -38,7 +37,7 @@ UI `main` is `3f9f10c8`, API `main` is `78ca5334`, landing `main` is `0d5e3df4`.
 ## Then, in this order
 
 1. Answer any owner message first, in his language, and give each order a ticket or a rescope before the turn ends.
-2. Verify production API and Android `1.3.93`; close `#1665`.
+2. Verify Android `1.3.93` on Play.
 3. Land `ui#2002`; launch `ui#1984` round 5; read q6 and merge `ui#1903` and `ui#1993`; release web staging then production after each set of merges.
 4. `orbit-api#877` round 4, then `#876`; the Dependabot lockfile pull requests one at a time.
 5. Follow `## The order` for everything else, keeping the pool full under the load gate and the disk floor.
@@ -54,7 +53,7 @@ Unattended run. Never ask the owner; decide with the recommended option and log 
 - Answer the owner first: done for three owner messages (progress report; the check hover, rescoped onto `#1588` as `ui#2002`; the double ring, rescoped onto `#1665` and fixed by `orbit-api#885`); his "do it yourself" order: Gmail moved to Chrome, the Admin console stops at his password.
 - `ui#1984` launch: done (round 4 committed, rerun 217 passed and 6 failed); round 5 is composed and carried.
 - Web release: done (staging and production `9157ff3f`, smoke success); `#1661` closed.
-- `#1665` follow-up: done (`orbit-api#884` and `#885` merged, rendered, staging released); production verification carried.
+- `#1665` follow-up: done (`orbit-api#884` and `#885` merged, rendered, released to staging and production, ticket closed).
 - `ui#2000`, `ui#1999`: done (merged; `#1666`, `#1667` closed).
 - `ui#1993`, `ui#1903`: carried into q6.
 - Dependabot: `ui#1992` merged; `ui#1991` rebase asked; `ui#1990`, `ui#1998` carried.
