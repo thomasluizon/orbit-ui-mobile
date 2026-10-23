@@ -1,18 +1,18 @@
 'use client'
 
+import { getGoalProgressCelebration, getGoalStatusCelebration, type GoalMutationInput } from '@orbit/shared/utils'
+
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { goalKeys, habitKeys } from '@orbit/shared/query'
+import { goalKeys, goalListRollback, goalDetailRollback, goalDetailSettled, removeGoalFromCache, reorderGoalCache, updateGoalCache, invalidateGoalQueries } from '@orbit/shared/query'
 import type {
-  Goal,
-  GoalDetailWithMetrics,
   CreateGoalRequest,
   UpdateGoalRequest,
   UpdateGoalProgressRequest,
   UpdateGoalStatusRequest,
   GoalPositionItem,
 } from '@orbit/shared/types/goal'
-import { getFriendlyErrorMessage, updateGoalProgressDetail, updateGoalProgressItem } from '@orbit/shared/utils'
+import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import {
   createGoal as createGoalAction,
   updateGoal as updateGoalAction,
@@ -21,7 +21,6 @@ import {
   updateGoalProgress as updateGoalProgressAction,
   updateGoalStatus as updateGoalStatusAction,
   reorderGoals as reorderGoalsAction,
-  linkHabitsToGoal as linkHabitsToGoalAction,
 } from '@/lib/actions/goals'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import { useUIStore } from '@/stores/ui-store'
@@ -42,9 +41,7 @@ export function useCreateGoal() {
       createGoalAction(data, intendedAccountId),
 
     onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-      await queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      await queryClient.invalidateQueries({ queryKey: habitKeys.details() })
+      await invalidateGoalQueries(queryClient, { includeHabits: true })
     },
   })
 }
@@ -95,31 +92,9 @@ export function useDeleteGoal() {
       showUndoToast(t('undo.goalDeleted'), () => restoreGoal.mutate(goalId))
     },
 
-    onMutate: async (goalId) => {
-      await queryClient.cancelQueries({ queryKey: goalKeys.lists() })
+    onMutate: (goalId) => removeGoalFromCache(queryClient, goalId),
 
-      const previousLists = queryClient.getQueriesData<Goal[]>({
-        queryKey: goalKeys.lists(),
-      })
-
-      queryClient.setQueriesData<Goal[]>(
-        { queryKey: goalKeys.lists() },
-        (old) => {
-          if (!old) return old
-          return old.filter((g) => g.id !== goalId)
-        },
-      )
-
-      return { previousLists }
-    },
-
-    onError: (_err, _vars, context) => {
-      if (context?.previousLists) {
-        for (const [key, data] of context.previousLists) {
-          if (data) queryClient.setQueryData(key, data)
-        }
-      }
-    },
+    onError: goalListRollback(queryClient),
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
@@ -135,57 +110,18 @@ export function useUpdateGoalProgress() {
     mutationFn: ({
       goalId,
       data,
-    }: {
-      goalId: string
-      data: UpdateGoalProgressRequest
-      goalName?: string
-      goalCount?: number
-      goalUnit?: string
-    }, intendedAccountId) => updateGoalProgressAction(goalId, data, intendedAccountId),
+    }: GoalMutationInput<UpdateGoalProgressRequest>, intendedAccountId) => updateGoalProgressAction(goalId, data, intendedAccountId),
 
-    onSuccess: (_data, { data, goalName, goalCount, goalUnit }) => {
-      if (
-        data.currentValue === goalCount &&
-        goalName &&
-        goalUnit !== undefined
-      ) {
-        setGoalCompletedCelebration({ name: goalName, count: goalCount, unit: goalUnit })
-      }
+    onSuccess: (_result, input) => {
+      const celebration = getGoalProgressCelebration(input)
+      if (celebration) setGoalCompletedCelebration(celebration)
     },
 
-    onMutate: async ({ goalId, data }) => {
-      await queryClient.cancelQueries({ queryKey: goalKeys.lists() })
-      await queryClient.cancelQueries({ queryKey: goalKeys.detail(goalId) })
+    onMutate: ({ goalId, data }) => updateGoalCache(queryClient, goalId, { type: 'progress', currentValue: data.currentValue }, true),
 
-      const previousLists = queryClient.getQueriesData<Goal[]>({ queryKey: goalKeys.lists() })
-      const previousDetail = queryClient.getQueryData<GoalDetailWithMetrics>(goalKeys.detail(goalId))
+    onError: goalDetailRollback(queryClient),
 
-      queryClient.setQueriesData<Goal[]>(
-        { queryKey: goalKeys.lists() },
-        (old) => old?.map((goal) => (
-          goal.id === goalId ? updateGoalProgressItem(goal, data.currentValue) : goal
-        )),
-      )
-      queryClient.setQueryData<GoalDetailWithMetrics | undefined>(
-        goalKeys.detail(goalId),
-        (old) => updateGoalProgressDetail(old, data.currentValue),
-      )
-
-      return { previousLists, previousDetail }
-    },
-
-    onError: (_error, { goalId }, context) => {
-      for (const [key, value] of context?.previousLists ?? []) {
-        queryClient.setQueryData(key, value)
-      }
-      queryClient.setQueryData(goalKeys.detail(goalId), context?.previousDetail)
-    },
-
-    onSettled: (_data, _err, { goalId }) => {
-      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-      void queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
-      void queryClient.invalidateQueries({ queryKey: goalKeys.metrics(goalId) })
-    },
+    onSettled: goalDetailSettled(queryClient),
   })
 }
 
@@ -197,30 +133,14 @@ export function useUpdateGoalStatus() {
     mutationFn: ({
       goalId,
       data,
-    }: {
-      goalId: string
-      data: UpdateGoalStatusRequest
-      goalName?: string
-      goalCount?: number
-      goalUnit?: string
-    }, intendedAccountId) => updateGoalStatusAction(goalId, data, intendedAccountId),
+    }: GoalMutationInput<UpdateGoalStatusRequest>, intendedAccountId) => updateGoalStatusAction(goalId, data, intendedAccountId),
 
-    onSuccess: (_data, { data, goalName, goalCount, goalUnit }) => {
-      if (
-        data.status === 'Completed' &&
-        goalName &&
-        goalCount !== undefined &&
-        goalUnit !== undefined
-      ) {
-        setGoalCompletedCelebration({ name: goalName, count: goalCount, unit: goalUnit })
-      }
+    onSuccess: (_result, input) => {
+      const celebration = getGoalStatusCelebration(input)
+      if (celebration) setGoalCompletedCelebration(celebration)
     },
 
-    onSettled: (_data, _err, { goalId }) => {
-      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-      void queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
-      void queryClient.invalidateQueries({ queryKey: goalKeys.metrics(goalId) })
-    },
+    onSettled: goalDetailSettled(queryClient),
   })
 }
 
@@ -231,59 +151,12 @@ export function useReorderGoals() {
     mutationFn: (positions: GoalPositionItem[], intendedAccountId) =>
       reorderGoalsAction(positions, intendedAccountId),
 
-    onMutate: async (positions) => {
-      await queryClient.cancelQueries({ queryKey: goalKeys.lists() })
+    onMutate: (positions) => reorderGoalCache(queryClient, positions),
 
-      const previousLists = queryClient.getQueriesData<Goal[]>({
-        queryKey: goalKeys.lists(),
-      })
-
-      queryClient.setQueriesData<Goal[]>(
-        { queryKey: goalKeys.lists() },
-        (old) => {
-          if (!old) return old
-          const positionMap = new Map(positions.map((p) => [p.id, p.position]))
-          return old.map((g) => {
-            const newPos = positionMap.get(g.id)
-            return newPos === undefined ? g : { ...g, position: newPos }
-          })
-        },
-      )
-
-      return { previousLists }
-    },
-
-    onError: (_err, _vars, context) => {
-      if (context?.previousLists) {
-        for (const [key, data] of context.previousLists) {
-          if (data) queryClient.setQueryData(key, data)
-        }
-      }
-    },
+    onError: goalListRollback(queryClient),
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-    },
-  })
-}
-
-export function useLinkHabitsToGoal() {
-  const queryClient = useQueryClient()
-
-  return useAccountScopedMutation({
-    mutationFn: ({
-      goalId,
-      habitIds,
-    }: {
-      goalId: string
-      habitIds: string[]
-    }, intendedAccountId) => linkHabitsToGoalAction(goalId, habitIds, intendedAccountId),
-
-    onSettled: (_data, _err, { goalId }) => {
-      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-      void queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.details() })
     },
   })
 }

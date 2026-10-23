@@ -17,6 +17,7 @@ export function getLegacyRedirects() {
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  deploymentId: process.env.NEXT_PUBLIC_WEB_COMMIT_SHA || undefined,
   outputFileTracingRoot: path.resolve(import.meta.dirname, '../..'),
   productionBrowserSourceMaps: false,
   skipTrailingSlashRedirect: true,

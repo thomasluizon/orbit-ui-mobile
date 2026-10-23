@@ -89,8 +89,8 @@ vi.mock('react-native-safe-area-context', () => ({
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => mocks.composer }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: { setAstraConversationOpen: typeof mocks.setAstraConversationOpen }) => unknown) =>
-    selector({ setAstraConversationOpen: mocks.setAstraConversationOpen }),
+  useUIStore: Object.assign((selector: (state: { setAstraConversationOpen: typeof mocks.setAstraConversationOpen }) => unknown) =>
+    selector({ setAstraConversationOpen: mocks.setAstraConversationOpen }), { getState: () => ({ setAstraConversationOpen: mocks.setAstraConversationOpen }) }),
 }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
 vi.mock('@/hooks/use-habits', () => ({ useHabitDetail: () => ({ data: null }) }))
@@ -350,6 +350,7 @@ describe('ChatScreen composer recoveries', () => {
       pathname: '/habits/[id]',
       params: { id: 'habit-1' },
     })
+    expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(false)
 
     const feed = findByType(tree.root, 'FlatList')
     expect(feed?.props.accessibilityState).toEqual({ busy: true })

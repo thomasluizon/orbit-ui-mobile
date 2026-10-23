@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-10-21",
+  "calibratedAt": "2026-10-23",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -101,8 +101,8 @@
     ".claude/agents/design-reviewer.md": {
       "model": "sonnet",
       "effort": "medium",
-      "digest": "1ede1690a59d51c9",
-      "calibratedAt": "2026-10-17",
+      "digest": "c553f6cc3e44afad",
+      "calibratedAt": "2026-10-23",
       "verdict": "current: judges a diff against DESIGN.md with the spec in front of it, so sonnet at medium effort is right; the rules are written down, which is what keeps it off high."
     },
     ".claude/agents/design-specialist.md": {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
+import { act, cleanup, render, renderHook, waitFor } from '@testing-library/react'
 import { focusManager, onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import '@/lib/query-client'
@@ -10,8 +10,12 @@ import { configCache } from '@/lib/config-cache'
 import { createMockConfigResponse } from '@orbit/shared/__tests__/factories'
 import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import { API } from '@orbit/shared/api'
+import { shouldRetryQuery } from '@orbit/shared/query'
+import { ExpiryWarning } from '@/components/ui/expiry-warning'
 
-const mocks = vi.hoisted(() => ({ fetch: vi.fn(), report: vi.fn() }))
+const mocks = vi.hoisted(() => ({ fetch: vi.fn(), report: vi.fn(), replace: vi.fn() }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: mocks.replace }) }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/lib/api-fetch', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api-fetch')>()),
   sessionAwareFetch: mocks.fetch,
@@ -24,16 +28,17 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 }
 function mount() {
   return renderHook(() => ({
-    ...useConfig(), enabled: useFlag('redesign'), missing: useFlag('ai_summary'), defaultFlag: useFlag('sub_habits'),
+    ...useConfig(), enabled: useFlag('offline_mode'), missing: useFlag('ai_summary'), defaultFlag: useFlag('sub_habits'),
   }), { wrapper: Wrapper })
 }
 function respond(enabled: boolean) {
-  mocks.fetch.mockResolvedValue(new Response(JSON.stringify(createMockConfigResponse({ redesign: { enabled, planRequirement: null } }))))
+  mocks.fetch.mockResolvedValue(new Response(JSON.stringify(createMockConfigResponse({ offline_mode: { enabled, planRequirement: null } }))))
 }
 
 beforeEach(() => {
   mocks.fetch.mockReset()
   mocks.report.mockReset()
+  mocks.replace.mockReset()
   setAccountId(null)
   setAccountId('account-a')
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -49,6 +54,49 @@ afterEach(() => {
 })
 
 describe('web config and flags', () => {
+  it('sends concurrent config and API rejections to sign in once without an error storm', async () => {
+    const actual = await vi.importActual<typeof import('@/lib/api-fetch')>('@/lib/api-fetch')
+    const { useAuthStore } = await import('@/stores/auth-store')
+    const { useAppToastStore } = await import('@/stores/app-toast-store')
+    const showError = vi.spyOn(useAppToastStore.getState(), 'showError')
+    const upstream = vi.fn(async (input: RequestInfo | URL) => input === '/api/auth/session'
+      ? Response.json({ expiresAt: null, userId: null, refreshFailed: true }, { status: 401 })
+      : new Response(null, { status: 401, headers: { 'x-orbit-session-refresh': 'failed' } }))
+    mocks.fetch.mockImplementation(actual.sessionAwareFetch)
+    vi.stubGlobal('fetch', upstream)
+    useAuthStore.setState({ isAuthenticated: true, sessionRefreshFailed: false })
+    function SessionComposition() {
+      useConfig()
+      return React.createElement(ExpiryWarning)
+    }
+    try {
+      render(React.createElement(SessionComposition), { wrapper: Wrapper })
+      await act(async () => { await actual.sessionAwareFetch(API.profile.get) })
+      await waitFor(() => expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/login'))
+
+      expect(upstream.mock.calls.filter(([input]) => input === '/api/auth/session')).toHaveLength(1)
+      expect(mocks.report).not.toHaveBeenCalled()
+      expect(showError).not.toHaveBeenCalled()
+    } finally {
+      cleanup()
+      useAuthStore.setState(useAuthStore.getInitialState())
+      showError.mockRestore()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('does not report or retry a config request after session rejection', async () => {
+    queryClient.setDefaultOptions({ queries: { retry: shouldRetryQuery, retryDelay: 0 } })
+    mocks.fetch.mockResolvedValue(new Response(null, { status: 401 }))
+    const { result } = mount()
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(result.current.error).toMatchObject({ status: 401 })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    expect(mocks.report).not.toHaveBeenCalled()
+  })
+
   it.each([true, false])('returns the resolved flag %s and keeps absent flags off', async (enabled) => {
     respond(enabled)
     const { result } = mount()
@@ -57,14 +105,14 @@ describe('web config and flags', () => {
     expect(result.current.missing).toBe(false)
   })
 
-  it('publishes config after slow session recovery through the redesign fetch adapter', async () => {
+  it('publishes config after slow session recovery through the session-aware fetch adapter', async () => {
     const actual = await vi.importActual<typeof import('@/lib/api-fetch')>('@/lib/api-fetch')
     const { useAuthStore } = await import('@/stores/auth-store')
     const expiresAt = Date.now() + 60_000
     useAuthStore.setState({ sessionRefreshFailed: true })
     mocks.fetch.mockImplementation(actual.sessionAwareFetch)
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-      if (input === API.config.get) return Response.json(createMockConfigResponse({ redesign: { enabled: true, planRequirement: null } }))
+      if (input === API.config.get) return Response.json(createMockConfigResponse({ offline_mode: { enabled: true, planRequirement: null } }))
       if (input === '/api/auth/session') {
         await new Promise((resolve) => setTimeout(resolve, 1_200))
         return Response.json({ expiresAt, userId: null, refreshFailed: false })
@@ -137,15 +185,15 @@ describe('web config and flags', () => {
     await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(3))
 
     await act(async () => {
-      finishNewer(new Response(JSON.stringify(createMockConfigResponse({ redesign: { enabled: false, planRequirement: null } }))))
+      finishNewer(new Response(JSON.stringify(createMockConfigResponse({ offline_mode: { enabled: false, planRequirement: null } }))))
     })
     await waitFor(() => { expect(result.current.enabled).toBe(false); expect(result.current.isFetching).toBe(false) })
     await act(async () => {
-      finishOlder(new Response(JSON.stringify(createMockConfigResponse({ redesign: { enabled: true, planRequirement: null } }))))
+      finishOlder(new Response(JSON.stringify(createMockConfigResponse({ offline_mode: { enabled: true, planRequirement: null } }))))
     })
 
     expect(result.current.enabled).toBe(false)
-    expect(result.current.resolvedConfig?.features.redesign?.enabled).toBe(false)
+    expect(result.current.resolvedConfig?.features.offline_mode?.enabled).toBe(false)
   })
 
   it('refreshes on window focus even while config is fresh', async () => {
@@ -221,7 +269,7 @@ describe('web config and flags', () => {
     await waitFor(() => expect(mocks.fetch).toHaveBeenCalled())
     mocks.fetch.mockRejectedValue(new Error('offline'))
     act(() => { setAccountId('account-b') })
-    await act(async () => { finish(new Response(JSON.stringify(createMockConfigResponse({ redesign: { enabled: true, planRequirement: null } })))) })
+    await act(async () => { finish(new Response(JSON.stringify(createMockConfigResponse({ offline_mode: { enabled: true, planRequirement: null } })))) })
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(result.current.enabled).toBe(false)
   })

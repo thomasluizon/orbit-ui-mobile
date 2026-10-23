@@ -217,6 +217,7 @@ export {
   resolveAutoManagedReminderEnabled,
   resolveHabitFormMode,
   toggleSelectedId,
+  selectHabitGoal,
 } from './habit-form-state'
 export type {
   AutoManagedReminderEnabledInput,
@@ -818,6 +819,8 @@ export { getSetupChecklist } from './setup-checklist'
 
 export { getSummaryFirstSentence } from './summary-sentence'
 export { deriveBulkLogStreakTransition } from './bulk-log-streak'
+
+export { getGoalProgressCelebration, getGoalStatusCelebration, type GoalMutationInput } from './goal-mutations'
 export { HabitModeDrafts } from './habit-form-state'
 export { HabitDateEditor } from './habit-date-editor'
 export { getHabitRowTypeLabelKey, getHabitTypeLabelKey } from './habit-card-helpers'
@@ -825,3 +828,6 @@ export { readTypedHabitPhrase } from './habit-phrase-parser'
 export { getHabitChecklistProgress } from './habit-checklist-progress'
 
 export { getHabitInlineDepthLimit } from './habit-row-layout'
+
+export { buildMoveParentOptions, getHabitDepth, getSubtreeMaxDepth, isHabitDescendant, validateMoveTarget, getMoveParentInventory, getMoveParentPickerRows, buildEditorParentChange, validateEditorParent, type MoveParentOption, type MoveTargetValidation } from './move-parent'
+export { optimisticMoveHabitParent } from './habit-parent-optimistic'

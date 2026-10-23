@@ -205,10 +205,12 @@ export function createHabitFormSuggestionRevision(): HabitFormSuggestionRevision
 
 export interface HabitFormCommonProps<FormHelpers, TagState, ChildNode> {
   formHelpers: FormHelpers
+  habitId?: string
   tags: TagState
   selectedGoalIds: string[]
   atGoalLimit: boolean
   onToggleGoal: (goalId: string) => void
+  onGoalCreated?: (goalId: string) => void
   reminderTimes: number[]
   onReminderTimesChange: (times: number[]) => void
   onReminderEnabledChange?: (nextEnabled: boolean) => void
@@ -227,6 +229,7 @@ export interface HabitFormCommonProps<FormHelpers, TagState, ChildNode> {
   readPhraseLocally?: boolean
   onPhraseOwnershipChange?: (ownership: HabitPhraseFormOwnership) => void
   startDate?: string | null
+  parentField?: ChildNode
   children?: ChildNode | ((proposedItems: number) => ChildNode)
 }
 

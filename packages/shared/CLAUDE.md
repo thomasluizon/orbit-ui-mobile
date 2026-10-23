@@ -26,8 +26,8 @@ src/
     pt-BR.json              - Portuguese (Brazil) locale
     index.ts                - shared i18n config (next-intl + i18next compatible)
   theme/
-    color-schemes.ts        - 6 schemes: accents (dark/light), neutral hue, primaryRgb
-    neutral-ramp.ts         - locked OKLCH L/C ramps, alpha constants, status colors, gradient stops
+    color-schemes.ts        - one warm orange accent in light/dark modes, primaryRgb
+    neutral-ramp.ts         - neutral surfaces, alpha constants, status colors
     type-roles.ts           - the 11 semantic type roles as pure data
     motion.ts               - motion presets (durations, easings)
     index.ts
@@ -103,9 +103,9 @@ export const habitKeys = {
 
 ## Theme
 
-`theme/color-schemes.ts` defines the 6 schemes (purple, blue, green, rose, orange, cyan): per-mode accents, neutral hue, and `primaryRgb`. `theme/neutral-ramp.ts` holds the locked OKLCH L/C ramp shapes, alpha-constant surfaces, status colors, and gradient-header stops. `theme/type-roles.ts` holds the 11 semantic type roles.
+`theme/color-schemes.ts` defines one warm orange accent (`#C4530F`) with light and dark variants and `primaryRgb`. `theme/neutral-ramp.ts` holds neutral surfaces, including the near-black dark canvas (`#09090B`), alpha constants, and status colors. `theme/type-roles.ts` holds the 11 semantic type roles: Geist Sans for UI, Space Grotesk for display, and Geist Mono for metadata.
 
-- Web reads them via `app/globals.css` (scheme classes + `:root.dark/.light` blocks) + `lib/theme-dom.ts`.
+- Web reads them via `app/globals.css` (semantic variables + `:root.dark/.light` blocks) + `lib/theme-dom.ts`.
 - Mobile resolves them via `createTokensV2()` in `apps/mobile/lib/theme.ts`.
 
 ## Patterns to mirror

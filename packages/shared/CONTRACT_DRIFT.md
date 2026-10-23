@@ -127,3 +127,27 @@ handwritten selector implementation; it is not the owner of tooling changes.
 Root development dependencies retain `ajv@^8.20.0` for Orval's parser and
 `ajv-draft-04`, and `commander@~15.0.0` for its CLI. ESLint retains nested `ajv@6`
 and Expo autolinking retains nested `commander@7`.
+
+## Focused read activation
+
+The optional `read` metadata, dated habits, history rows, period metrics, `periodTotal` and
+`periodComparison` consume #1616's API contracts. The signed `refreshToken` and `nextCursor`
+are opaque: clients send them to `POST /api/chat/reads/refresh` with their carrying context.
+Refresh replaces the original query snapshot. Paging requires the same query id, kind, family
+and revision. No relative-date recap query substitutes for a saved period.
+
+Deploy the API contract before a carrying client advertises the new kinds, dated habit lists
+and history. Existing history without metadata continues to parse using optional defaults.
+No supported-version floor changes. Remove new-kind advertisement or roll back the carrying
+client to disable new period kinds; retain optional historical fields. The generated snapshot
+pin remains independent of these handwritten runtime schemas and is adopted atomically by the
+normal contract rebaseline workflow. Source schema evidence belongs in the implementation PR.
+
+## Dated habit read compatibility
+
+The handwritten habit-list schema accepts `today`, `all` and `date` scopes. Dated query
+results carry their resolved ISO date through chat parsing and signed refresh parsing before
+rendering on web and Android. Producer evidence is `QueryHabitsTool.cs:95-103` and
+`HabitListCard.cs:7-19` at API commit `316877abe6dfe7aa978a0d086ca5eb3295851719`.
+This append-only acceptance retains historical `today` and `all` payloads and does not
+change the generated contract pin or the supported client version floor.

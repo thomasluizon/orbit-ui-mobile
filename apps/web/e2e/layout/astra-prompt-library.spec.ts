@@ -20,9 +20,9 @@ for (const width of [320, 412, 1352]) {
         await expect(library.getByRole('heading', { name: words.chat.templates.title, exact: true })).toBeFocused()
         for (const category of PROMPT_CATEGORIES) {
           await library.getByRole('button', { name: words.chat.templates.categories[category], exact: true }).click()
-          const titles = library.locator('[data-slot="list-row-title"]')
+          const titles = library.locator('[data-slot="prompt-idea-title"]')
           const categoryRegion = library.getByRole('region', { name: words.chat.templates.categories[category], exact: true })
-          await expect(categoryRegion.locator('[data-slot="list-row-title"]')).toHaveCount(PROMPT_TEMPLATES.filter(template => template.category === category).length)
+          await expect(categoryRegion.locator('[data-slot="prompt-idea-title"]')).toHaveCount(PROMPT_TEMPLATES.filter(template => template.category === category).length)
           await markRequiredLabels(titles)
           await expectLabelsFit(page, library)
           const filter = library.locator('[data-prompt-categories]')

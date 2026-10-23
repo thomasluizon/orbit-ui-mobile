@@ -32,7 +32,7 @@ import { bulkLogItemRequestSchema, bulkLogResultSchema, bulkSkipItemRequestSchem
 import { z } from 'zod'
 import { ApiClientError, extractBackendErrorCode, findHabitInList } from '@orbit/shared/utils'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { validateResolvedHabitTags } from './habit-update-request'
+import { validateResolvedHabitReferences } from './habit-update-request'
 import { apiClient } from './api-client'
 import { getAccountId } from './account-scope'
 import { notifyBulkReplaySuccess } from './bulk-replay-events'
@@ -1059,7 +1059,7 @@ async function processQueuedMutationFlush(
   await markMutationSyncing(mutation)
 
   try {
-    validateResolvedHabitTags(mutation.type, mutation.payload)
+    validateResolvedHabitReferences(mutation.type, mutation.payload)
     const response = mutation.type === 'undoSkipHabit' ? await executeSkipUndo(mutation) : await apiClient<unknown>(
       mutation.endpoint,
       {

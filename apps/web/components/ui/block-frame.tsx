@@ -132,7 +132,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem }: Read
 
   if (frameProps.state === 'stale') {
     return (
-      <div className="flex shrink-0 justify-end text-sm text-[var(--fg-2)]">
+      <ActionRow>
         {frameProps.onRefresh ? <button
           className="flex min-h-[var(--touch-min)] items-center gap-2 rounded-full px-3 text-[var(--fg-1)] hover:bg-[var(--bg-hover)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
           onClick={frameProps.onRefresh}
@@ -141,7 +141,8 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem }: Read
           <RefreshCw aria-hidden="true" size={20} strokeWidth={1.5} />
           <span>{frameProps.refreshLabel ?? t('refresh')}</span>
         </button> : null}
-      </div>
+        {frameProps.staleActions}
+      </ActionRow>
     )
   }
 

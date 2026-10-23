@@ -8,7 +8,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
@@ -192,6 +192,7 @@ describe('HabitFormFields', () => {
     mockProfileState.hasProAccess = hasProAccess
     renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
     expect(screen.queryByText('sub-habit-editor')).toBeTruthy()
+    expect(screen.getByText('goal-linking')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /common\.upgrade/ }) !== null).toBe(false)
   })
 
@@ -1574,6 +1575,49 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     else if (method === 'Enter') { phraseInput().focus(); await user.keyboard('{Enter}') }
     else await user.click(submitButton())
   }
+
+  if (owner === 'create') it.each((['en', 'pt-BR'] as const).flatMap((locale) =>
+    (['task', 'habit'] as const).map((type) => ({ locale, type })),
+  ))('settles title parsing and repeated edits without an update loop for $locale $type', async ({ locale, type }) => {
+    formLocale.language = locale
+    const errors = vi.spyOn(console, 'error').mockImplementation((message: unknown) => {
+      if (/Maximum update depth exceeded|Too many re-renders/i.test(String(message))) throw new Error(String(message))
+    })
+    onTestFinished(() => errors.mockRestore())
+    const view = await mount(type)
+    const user = userEvent.setup()
+    const titleInput = () => screen.getByRole('textbox', { name: 'habits.form.describe' })
+    const initialTitle = locale === 'en' ? 'Read every Monday' : 'Ler toda segunda'
+    const editedTitle = locale === 'en' ? 'Read every Tuesday' : 'Ler toda terça'
+    await user.clear(titleInput())
+    await user.type(titleInput(), initialTitle)
+    expect(titleInput()).toHaveValue(initialTitle)
+    const understanding = () => screen.getByRole('region', { name: 'habits.form.understood' }).textContent
+    const initialUnderstanding = type === 'habit' ? understanding() : null
+    view.refresh()
+    expect(titleInput()).toHaveValue(initialTitle)
+    if (type === 'habit') expect(understanding()).toBe(initialUnderstanding)
+    await user.clear(titleInput())
+    await user.type(titleInput(), editedTitle)
+    expect(titleInput()).toHaveValue(editedTitle)
+    const editedUnderstanding = type === 'habit' ? understanding() : null
+    if (type === 'habit') expect(editedUnderstanding).not.toBe(initialUnderstanding)
+    view.refresh()
+    expect(titleInput()).toHaveValue(editedTitle)
+    if (type === 'habit') expect(understanding()).toBe(editedUnderstanding)
+    await user.clear(phraseInput())
+    await user.type(phraseInput(), locale === 'en' ? 'tomorrow' : 'amanhã')
+    expect(screen.queryByRole('button', { name: 'habits.form.acceptDate' })).toBeNull()
+    await submit()
+    await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+    const request = modalFeedback.create.mock.calls[0]![0]
+    expect(request).toMatchObject({ title: type === 'habit' ? locale === 'en' ? 'Read' : 'Ler' : editedTitle, [type === 'habit' ? 'startDate' : 'dueDate']: '2026-10-21' })
+    if (type === 'habit') expect(request).toMatchObject({ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Tuesday'] })
+    else expect(request.frequencyUnit).toBeUndefined()
+    expect(dateRequests.request).not.toHaveBeenCalled()
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+    expect(errors.mock.calls.flat().join(' ')).not.toMatch(/Maximum update depth exceeded|Too many re-renders/i)
+  })
 
   if (owner === 'create') {
     it.each((['task', 'habit'] as const).flatMap((type) => ['en', 'pt-BR'].flatMap((locale) => [

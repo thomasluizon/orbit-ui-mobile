@@ -18,6 +18,8 @@ export const chatClientContextSchema = z.object({
   currentAppArea: z.string(),
   supportsHabitListCard: z.boolean(),
   supportsHabitListDoneStatus: z.boolean().optional(),
+  supportsDatedHabitListCard: z.boolean().optional(),
+  supportsHabitHistoryCard: z.boolean().optional(),
   supportsGoalListCard: z.boolean(),
   supportsMetricsCard: z.boolean().optional(),
   supportsPeriodInsightCard: z.boolean().optional(),
@@ -174,6 +176,62 @@ export const actionResultSchema = z
 
 export type ActionResult = z.infer<typeof actionResultSchema>
 
+export const readBlockMetadataSchema = z.object({
+  queryId: z.uuid(),
+  queryFamily: z.string(),
+  scope: z.record(z.string(), z.unknown()),
+  revision: z.string(),
+  completeness: z.enum(['complete', 'partial', 'stale']),
+  refreshToken: z.string(),
+  nextCursor: z.string().nullish(),
+  totalCount: z.number().nullish(),
+  recovery: z.string().nullish(),
+})
+
+export type ReadBlockMetadata = z.infer<typeof readBlockMetadataSchema>
+
+export const readWindowSchema = z.object({ from: z.iso.date(), to: z.iso.date() })
+
+export const periodHabitMetricsSchema = z.object({
+  window: readWindowSchema,
+  positiveLogRecords: z.number(),
+  distinctLoggedDates: z.number(),
+  metScheduledDates: z.number(),
+  scheduledDates: z.number(),
+  completionRate: z.number().nullable(),
+  currentStreak: z.number(),
+  bestStreak: z.number(),
+  streakScope: z.literal('period'),
+})
+
+const periodMetricSchema = z.enum(['positiveLogRecords', 'distinctLoggedDates', 'metScheduledDates', 'scheduledDates'])
+
+export const periodTotalCardSchema = z.object({
+  metric: periodMetricSchema,
+  unit: z.enum(['records', 'days']),
+  value: z.number(),
+  metrics: periodHabitMetricsSchema,
+  series: completionSeriesSchema,
+  habitId: z.uuid().nullish(),
+  read: readBlockMetadataSchema.nullish(),
+})
+
+export const periodComparisonCardSchema = z.object({
+  metric: periodMetricSchema,
+  unit: z.enum(['records', 'days']),
+  current: periodHabitMetricsSchema,
+  baseline: periodHabitMetricsSchema,
+  currentValue: z.number(),
+  baselineValue: z.number(),
+  absoluteDelta: z.number(),
+  relativeDelta: z.number().nullable(),
+  habitId: z.uuid().nullish(),
+  read: readBlockMetadataSchema.nullish(),
+})
+
+export type PeriodTotalCard = z.infer<typeof periodTotalCardSchema>
+export type PeriodComparisonCard = z.infer<typeof periodComparisonCardSchema>
+
 export const habitListCardStatusSchema = z.enum(['today', 'overdue', 'general', 'none', 'done'])
 
 export type HabitListCardStatus = z.infer<typeof habitListCardStatusSchema>
@@ -190,7 +248,11 @@ export const habitListCardItemSchema = z.object({
 export type HabitListCardItem = z.infer<typeof habitListCardItemSchema>
 
 export const habitListCardSchema = z.object({
-  scope: z.enum(['today', 'all']),
+  read: readBlockMetadataSchema.nullish(),
+  scope: z.enum(['today', 'all', 'date']),
+  date: z.iso.date().nullish(),
+  totalCount: z.number().nullish(),
+  sourceRevision: z.string().nullish(),
   items: z.array(habitListCardItemSchema),
 })
 
@@ -204,6 +266,7 @@ export const goalListCardItemSchema = z.object({
   unit: z.string(),
   deadline: z.string().nullable().optional(),
   trackingStatus: z.enum(['on_track', 'at_risk', 'behind', 'no_deadline']).nullable().optional(),
+  status: z.string().nullish(),
   progressPercentage: z.number().nullable().optional(),
   projectedCompletionDate: z.iso.date().nullable().optional(),
   daysToDeadline: z.number().nullable().optional(),
@@ -212,13 +275,18 @@ export const goalListCardItemSchema = z.object({
 export type GoalListCardItem = z.infer<typeof goalListCardItemSchema>
 
 export const goalListCardSchema = z.object({
+  read: readBlockMetadataSchema.nullish(),
+  totalCount: z.number().nullish(),
+  sourceRevision: z.string().nullish(),
   items: z.array(goalListCardItemSchema),
 })
 
 export type GoalListCard = z.infer<typeof goalListCardSchema>
 
 export const metricsCardSchema = z.object({
+  read: readBlockMetadataSchema.nullish(),
   period: z.string(),
+  periodMetrics: periodHabitMetricsSchema.nullish(),
   completionRate: z.number(),
   totalCompletions: z.number(),
   totalScheduled: z.number(),
@@ -240,6 +308,7 @@ export const metricsCardSchema = z.object({
 export type MetricsCard = z.infer<typeof metricsCardSchema>
 
 export const periodInsightCardSchema = z.object({
+  read: readBlockMetadataSchema.nullish(),
   period: z.string(),
   dateFrom: z.iso.date(),
   dateTo: z.iso.date(),
@@ -265,7 +334,9 @@ export const periodInsightCardSchema = z.object({
 export type PeriodInsightCard = z.infer<typeof periodInsightCardSchema>
 
 export const daySummaryCardSchema = z.object({
+  read: readBlockMetadataSchema.nullish(),
   date: z.iso.date(),
+  dateTo: z.iso.date().nullish(),
   due: z.number(),
   done: z.number(),
   completionRate: z.number().nullable(),
@@ -285,6 +356,7 @@ const streakAchievementSchema = z.object({
 })
 
 export const streakCardSchema = z.object({
+  read: readBlockMetadataSchema.nullish(),
   currentStreak: z.number(),
   longestStreak: z.number(),
   level: z.number(),
@@ -301,6 +373,7 @@ export const streakCardSchema = z.object({
 export type StreakCard = z.infer<typeof streakCardSchema>
 
 export const calendarCardSchema = z.object({
+  read: readBlockMetadataSchema.nullish(),
   events: z.array(z.object({
     title: z.string(),
     start: z.string(),
@@ -313,6 +386,7 @@ export const calendarCardSchema = z.object({
     enabled: z.boolean(),
     status: z.enum(['Idle', 'ReconnectRequired', 'TransientError']),
     lastSyncedAt: z.string().nullable(),
+    hasGoogleConnection: z.boolean().nullish(),
   }).nullable().optional(),
   surfaceId: z.string(),
 })
@@ -320,12 +394,15 @@ export const calendarCardSchema = z.object({
 export type CalendarCard = z.infer<typeof calendarCardSchema>
 
 export const recordListCardSchema = z.object({
-  kind: z.enum(['notifications', 'tags', 'templates', 'keys']),
+  read: readBlockMetadataSchema.nullish(),
+  kind: z.enum(['notifications', 'tags', 'templates', 'keys', 'habitHistory']),
   totalCount: z.number(),
   items: z.array(z.object({
     id: z.string(),
     title: z.string(),
     detail: z.string().nullable().optional(),
+    logDate: z.iso.date().nullish(),
+    value: z.number().nullish(),
     date: z.string().nullable().optional(),
     isRead: z.boolean().nullable().optional(),
     count: z.number().nullable().optional(),
@@ -338,6 +415,7 @@ export const recordListCardSchema = z.object({
 export type RecordListCard = z.infer<typeof recordListCardSchema>
 
 export const accountRowsCardSchema = z.object({
+  read: readBlockMetadataSchema.nullish(),
   kind: z.enum(['profile', 'plan', 'referral']),
   rows: z.array(z.object({
     key: z.string(),
@@ -393,6 +471,8 @@ const chatBlockSchemas = {
   habitList: habitListCardSchema,
   goalList: goalListCardSchema,
   metrics: metricsCardSchema,
+  periodTotal: periodTotalCardSchema,
+  periodComparison: periodComparisonCardSchema,
   periodInsight: periodInsightCardSchema,
   daySummary: daySummaryCardSchema,
   streak: streakCardSchema,
@@ -414,6 +494,8 @@ export const chatPartSchema = z.union([
     blockPartSchema('habitList'),
     blockPartSchema('goalList'),
     blockPartSchema('metrics'),
+    blockPartSchema('periodTotal'),
+    blockPartSchema('periodComparison'),
     blockPartSchema('periodInsight'),
     blockPartSchema('daySummary'),
     blockPartSchema('streak'),
@@ -427,6 +509,23 @@ export const chatPartSchema = z.union([
 
 export type ChatPart = z.infer<typeof chatPartSchema>
 export type ChatBlockPart = Extract<ChatPart, { type: 'block' }>
+
+export const readBlockResponseSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('habitList'), block: habitListCardSchema, read: readBlockMetadataSchema }),
+  z.object({ kind: z.literal('goalList'), block: goalListCardSchema, read: readBlockMetadataSchema }),
+  z.object({ kind: z.literal('metrics'), block: metricsCardSchema, read: readBlockMetadataSchema }),
+  z.object({ kind: z.literal('periodInsight'), block: periodInsightCardSchema, read: readBlockMetadataSchema }),
+  z.object({ kind: z.literal('daySummary'), block: daySummaryCardSchema, read: readBlockMetadataSchema }),
+  z.object({ kind: z.literal('streak'), block: streakCardSchema, read: readBlockMetadataSchema }),
+  z.object({ kind: z.literal('calendar'), block: calendarCardSchema, read: readBlockMetadataSchema }),
+  z.object({ kind: z.literal('recordList'), block: recordListCardSchema, read: readBlockMetadataSchema }),
+  z.object({ kind: z.literal('accountRows'), block: accountRowsCardSchema, read: readBlockMetadataSchema }),
+  z.object({ kind: z.literal('periodTotal'), block: periodTotalCardSchema, read: readBlockMetadataSchema }),
+  z.object({ kind: z.literal('periodComparison'), block: periodComparisonCardSchema, read: readBlockMetadataSchema }),
+])
+
+export type ReadBlockResponse = z.infer<typeof readBlockResponseSchema>
+export type ReadBlockPart = Exclude<ChatBlockPart, { kind: 'choice' | 'pickList' }>
 
 const replyCardFieldsShape = {
   correlationId: z.string().nullable().optional(),

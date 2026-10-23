@@ -286,10 +286,12 @@ function HabitAvoidanceFields({ formHelpers, controller, hasProAccess }: Readonl
 
 export function HabitFormFields({
   formHelpers,
+  habitId,
   tags,
   selectedGoalIds,
   atGoalLimit,
   onToggleGoal,
+  onGoalCreated,
   reminderTimes,
   onReminderTimesChange,
   onReminderEnabledChange,
@@ -307,6 +309,7 @@ export function HabitFormFields({
   readPhraseLocally = false,
   lockedGeneral = null,
   defaultExpanded = false,
+  parentField,
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const t = useTranslations()
@@ -570,6 +573,7 @@ export function HabitFormFields({
             </SubHabitSection>
 
             <HabitAvoidanceFields formHelpers={formHelpers} controller={controller} hasProAccess={hasProAccess} />
+            {parentField}
             <section>
               <TagPickerField suggestions={<TagSuggestions suggestions={tagSuggestions} atLimit={tags.atTagLimit} disabled={tagMutationPending} />} tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void tags.deleteTag(id, (tagId) => deleteTag.mutateAsync(tagId))} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? (
                 <TagEditorRow
@@ -604,6 +608,8 @@ export function HabitFormFields({
 
             <section>
               <GoalLinkingField
+                habitId={habitId}
+                onGoalCreated={onGoalCreated ?? onToggleGoal}
                 selectedGoalIds={selectedGoalIds}
                 atGoalLimit={atGoalLimit}
                 onToggleGoal={onToggleGoal}

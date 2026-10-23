@@ -9,7 +9,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
 import { __focusHost, __getFocusedNativeTag, __setFocusImpl, __setTouchMode } from '@/test-mocks/react-native'
 import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selection'
@@ -126,7 +126,7 @@ vi.mock('@/components/ui/sheet', async () => {
 })
 vi.mock('@/components/habits/habit-checklist', () => ({ HabitChecklist: (props: Record<string, unknown>) => React.createElement('View', { ...props, testID: 'checklist' }) }))
 vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => React.createElement('View') }))
-vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => React.createElement('View') }))
+vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => React.createElement('View', { testID: 'goal-linking' }) }))
 vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: ({ children }: { children?: React.ReactNode }) => React.createElement('View', { testID: 'offset-reminders' }, children) }))
 vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: (props: Record<string, unknown>) => React.createElement('View', { ...props, testID: 'scheduled-reminders' }) }))
 vi.mock('@/components/ui/time-field', () => ({ TimeField: (props: Record<string, unknown>) => React.createElement('TimeField', props) }))
@@ -163,6 +163,7 @@ describe('HabitFormFields mobile', () => {
       )
     })
     expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'sub-habit-editor')).toHaveLength(1)
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'goal-linking')).toHaveLength(1)
     expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === ListRow && node.props.title === 'common.upgrade')).toHaveLength(0)
     await TestRenderer.act(() => { tree.unmount() })
   })
@@ -1632,19 +1633,65 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
   const mutation = () => owner === 'create' ? modalFeedback.create : modalFeedback.update
   async function mount(type: 'task' | 'habit' | null) {
     const habit = createMockHabit({ title: 'Read', frequencyUnit: type === 'habit' ? 'Day' : null, dueDate: '2026-10-20', startDate: '2026-10-20' })
-    await TestRenderer.act(() => {
-      tree = TestRenderer.create(<QueryClientProvider client={new QueryClient()}><FocusProvenanceView>{owner === 'create'
+    const client = new QueryClient()
+    const modal = () => <QueryClientProvider client={client}><FocusProvenanceView>{owner === 'create'
         ? <CreateHabitModal open onClose={closed} initialTitle="Read" />
-        : <EditHabitModal open onClose={closed} habit={habit} />}</FocusProvenanceView></QueryClientProvider>)
-    })
+        : <EditHabitModal open onClose={closed} habit={habit} />}</FocusProvenanceView></QueryClientProvider>
+    await TestRenderer.act(() => { tree = TestRenderer.create(modal()) })
     if (type) await TestRenderer.act(() => {
       tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === (type === 'task' ? 'habits.form.typeTask' : 'habits.form.typeHabit'))[0]!.props.onPress()
     })
     expect(input('habits.form.describe').props.value).toBe('Read')
+    return { refresh: async () => { await TestRenderer.act(() => tree.update(modal())) } }
   }
   async function submit() {
     await TestRenderer.act(() => action(owner === 'create' ? 'habits.createHabit' : 'common.save').props.onPress())
   }
+
+  if (owner === 'create') it.each((['en', 'pt-BR'] as const).flatMap((locale) =>
+    (['task', 'habit'] as const).map((type) => ({ locale, type })),
+  ))('settles title parsing and repeated edits without an update loop for $locale $type', async ({ locale, type }) => {
+    formLocale.language = locale
+    const errors = vi.spyOn(console, 'error').mockImplementation((message: unknown) => {
+      if (/Maximum update depth exceeded|Too many re-renders/i.test(String(message))) throw new Error(String(message))
+    })
+    onTestFinished(() => errors.mockRestore())
+    const view = await mount(type)
+    const titleInput = () => input('habits.form.describe')
+    const initialTitle = locale === 'en' ? 'Read every Monday' : 'Ler toda segunda'
+    const editedTitle = locale === 'en' ? 'Read every Tuesday' : 'Ler toda terça'
+    async function typeTitle(title: string) {
+      await TestRenderer.act(() => titleInput().props.onChangeText(''))
+      for (let length = 1; length <= title.length; length += 1) {
+        await TestRenderer.act(() => titleInput().props.onChangeText(title.slice(0, length)))
+      }
+    }
+    await typeTitle(initialTitle)
+    expect(titleInput().props.value).toBe(initialTitle)
+    const understanding = () => tree.root.findByType(HabitUnderstanding).props.sentence
+    const initialUnderstanding = understanding()
+    await view.refresh()
+    expect(titleInput().props.value).toBe(initialTitle)
+    expect(understanding()).toBe(initialUnderstanding)
+    await typeTitle(editedTitle)
+    expect(titleInput().props.value).toBe(editedTitle)
+    const editedUnderstanding = understanding()
+    if (type === 'habit') expect(editedUnderstanding).not.toBe(initialUnderstanding)
+    await view.refresh()
+    expect(titleInput().props.value).toBe(editedTitle)
+    expect(understanding()).toBe(editedUnderstanding)
+    await TestRenderer.act(() => phraseInput().props.onChangeText(locale === 'en' ? 'tomorrow' : 'amanhã'))
+    expect(captions('habits.form.acceptDate')).toHaveLength(0)
+    await submit()
+    expect(mutation()).toHaveBeenCalledOnce()
+    const request = modalFeedback.create.mock.calls[0]![0]
+    expect(request).toMatchObject({ title: type === 'habit' ? locale === 'en' ? 'Read' : 'Ler' : editedTitle, [type === 'habit' ? 'startDate' : 'dueDate']: '2026-10-21' })
+    if (type === 'habit') expect(request).toMatchObject({ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Tuesday'] })
+    else expect(request.frequencyUnit).toBeUndefined()
+    expect(dateRequests.request).not.toHaveBeenCalled()
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+    expect(errors.mock.calls.flat().join(' ')).not.toMatch(/Maximum update depth exceeded|Too many re-renders/i)
+  })
 
   it.each([
     ['en', 'task', 'accept'],

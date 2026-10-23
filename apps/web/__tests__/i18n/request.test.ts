@@ -41,6 +41,18 @@ describe('web i18n request config', () => {
     expect(result.locale).toBe('en')
   })
 
+  it('honors the selected Portuguese locale before an English browser language', async () => {
+    cookiesMock.mockResolvedValue({
+      get: (key: string) => (key === 'i18n_locale' ? { value: 'pt-BR' } : undefined),
+    })
+    headersMock.mockResolvedValue(new Headers({ 'accept-language': 'en' }))
+
+    const getRequestConfig = (await import('@/i18n/request')).default
+    const result = await getRequestConfig(createRequestParams())
+
+    expect(result.locale).toBe('pt-BR')
+  })
+
   it('falls back to the system locale when there is no supported locale cookie', async () => {
     cookiesMock.mockResolvedValue({
       get: () => undefined,

@@ -39,3 +39,25 @@ Vitest covers each recovery and presentation path on both platforms. Chromium me
 pending, completed, failed and stale previews at 390, 840 and 1352 in both locales and
 appearances. Android Yoga cases measure the same frame inset and absent-description gap.
 Native text rendering and TalkBack remain device-verification boundaries.
+
+## Focused read surfaces
+
+| Family | Paired owner and behavior |
+| --- | --- |
+| Habits and dated schedules | `chat/habit-list-card` and `chat/day-summary-card` retain requested rows and resolved dates; live completion eligibility is separate from the saved totals. |
+| Metrics and streaks | `chat/metrics-card` uses the declared period measures; `chat/streak-card` preserves its supplied figures and as-of window. Current freeze management remains in Sequência. |
+| Totals and comparisons | `chat/period-total-card` and `chat/period-comparison-card` expose the requested figure or both windows and supplied delta; zero baselines omit a relative percentage. |
+| Logs and history | `chat/record-list-card` renders `habitHistory` as dated, numeric rows without hiding zero or negative values. |
+| Goals | `chat/goal-list-card` retains saved progress and names actual linked sources once, with the existing detail action. |
+| Calendar | `chat/calendar-card` retains event titles and timing while current connection, permissions and event availability govern import actions. |
+| Records | `chat/record-list-card` keeps mark-read, safe key metadata and established navigation; tags and templates add no destination. |
+| Account | `chat/account-rows-card` retains safe profile, plan and referral facts, copy/share and navigation. Plans add no purchasing content. |
+| Retrospectives | `chat/period-insight-card` leads with dates and figures; Show more retains every supplied narrative section and habit detail, including stale saved recaps. Disclosure and the Progresso link share the stale refresh footer; signed paging stays withheld. The Progresso destination retains the supported recap/share flow. |
+| Recovery and paging | `chat/read-block-frame` adapts the existing BlockFrame to signed refresh and cursor paging. Failed refresh preserves the snapshot; mismatched query ids and changed page revisions are rejected. Account changes and unmounts discard late responses. |
+
+New renderers remain below the existing lazy conversation import. Both locales and appearances
+use the existing tokens. Vitest behavior cases cover registry rendering, null and zero semantics,
+signed refresh/paging, recovery and account changes. The existing geometry suites cover compact
+and wide figures with enlarged text. Actual Android text and TalkBack require device acceptance;
+unit geometry does not establish native font rendering or spoken output. Real-call composition
+acceptance belongs to #26. This inventory does not change preview editing or approval ownership.

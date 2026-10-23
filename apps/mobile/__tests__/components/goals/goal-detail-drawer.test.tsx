@@ -740,6 +740,7 @@ describe('GoalDetailDrawer', () => {
   })
 
   it('dismisses the sheet before opening a linked habit', async () => {
+    useUIStore.getState().setAstraConversationOpen(true)
     await i18n.changeLanguage('en')
     translation.current = i18n.t.bind(i18n)
     detailGoal = {
@@ -759,6 +760,7 @@ describe('GoalDetailDrawer', () => {
     press(tree, `Read every night, ${i18n.t('goals.metrics.weeklyAdherence', { percent: '90' })}, ${i18n.t('goals.detail.linkedHabitStreak', { count: 12 })}`)
 
     expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
     expect(onClose).not.toHaveBeenCalled()
     expect(mockPush).not.toHaveBeenCalled()
 
@@ -770,6 +772,7 @@ describe('GoalDetailDrawer', () => {
     expect(mockPush).toHaveBeenCalledOnce()
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/habits/[id]', params: { id: 'habit-read' } })
     expect(events).toEqual(['close', 'push'])
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
   })
 
   it('opens a linked habit directly when the detail is inline', async () => {
