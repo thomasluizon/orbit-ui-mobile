@@ -1,5 +1,6 @@
-import { spawnSync } from "node:child_process"
-import { readFileSync } from "node:fs"
+import { load } from "js-yaml"
+import { execFileSync, spawnSync } from "node:child_process"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { BASH, T, root, stage, toolPath } from "./_harness.mjs"
 
@@ -142,6 +143,64 @@ function checkProductionSteps() {
     records[1].environment === "production-redesign" && records[1].state === "success", record.stderr)
 }
 
+function checkSourceIdentity() {
+  const directory = join(root, "release-source")
+  mkdirSync(directory, { recursive: true })
+  const environment = { ...process.env, GIT_AUTHOR_NAME: "Fixture", GIT_AUTHOR_EMAIL: "fixture@example.invalid",
+    GIT_COMMITTER_NAME: "Fixture", GIT_COMMITTER_EMAIL: "fixture@example.invalid" }
+  const git = (...args) => execFileSync("git", args, { cwd: directory, env: environment, encoding: "utf8" }).trim()
+  git("init", "-q", "-b", "main")
+  writeFileSync(join(directory, "source"), "planned")
+  git("add", "source")
+  git("commit", "-qm", "Planned source")
+  const planned = git("rev-parse", "HEAD")
+  writeFileSync(join(directory, "source"), "advanced")
+  git("commit", "-qam", "Advance source")
+  const advanced = git("rev-parse", "HEAD")
+  git("update-ref", "refs/remotes/origin/main", advanced)
+  const output = stage("release-source/output", "")
+  const resolve = () => spawnSync(BASH, ["-c", stepScript("Resolve source")], { cwd: directory, encoding: "utf8",
+    env: { ...environment, SOURCE_SHA: planned, SOURCE_BRANCH: "main", GITHUB_OUTPUT: output } })
+  const wrongCheckout = resolve()
+  T("source rejects the advanced branch checkout", wrongCheckout.status === 1 && wrongCheckout.stdout.includes("Checkout does not match"), wrongCheckout.stderr)
+  git("checkout", "-q", "--detach", planned)
+  const pinned = resolve()
+  T("source accepts the planned ancestor after the branch advances", pinned.status === 0 && readFileSync(output, "utf8").includes(`sha=${planned}`), pinned.stderr)
+  git("update-ref", "refs/remotes/origin/main", planned)
+  git("checkout", "-q", "--detach", advanced)
+  const outside = spawnSync(BASH, ["-c", stepScript("Resolve source")], { cwd: directory, encoding: "utf8",
+    env: { ...environment, SOURCE_SHA: advanced, SOURCE_BRANCH: "main", GITHUB_OUTPUT: output } })
+  T("source rejects a commit outside the selected branch", outside.status === 1 && outside.stdout.includes("not reachable"), outside.stderr)
+}
+
+function checkPinnedRelease() {
+  const parsed = load(workflow)
+  const checkout = parsed.jobs.build.steps.find((step) => step.uses?.startsWith("actions/checkout@"))
+  T("build checks out the selected SHA with complete branch history", checkout.with.ref === "${{ steps.selection.outputs.sha }}" && checkout.with["fetch-depth"] === 0)
+  const resolve = stepScript("Resolve source")
+  T("source resolution verifies checkout identity and branch ancestry", resolve.includes('"$sha" != "$SOURCE_SHA"') && resolve.includes('git merge-base --is-ancestor "$SOURCE_SHA" "refs/remotes/origin/$SOURCE_BRANCH"'))
+  const admission = parsed.jobs.production.steps.find((step) => step.name === "Require healthy staging commit")
+  T("production admits staging before deploying", !!admission && parsed.jobs.production.steps.indexOf(admission) < parsed.jobs.production.steps.findIndex((step) => step.name === "Deploy web digest"))
+  if (!admission) return
+  T("redesign keeps its admission behavior", admission.if === "inputs.environment == 'production'")
+  const summary = stage("release-admission/summary", "")
+  const script = admission.run
+  for (const [status, commit, override, accepted] of [
+    ["ok", renderFixture.health.commit, "false", true],
+    ["ok", "b".repeat(40), "false", false],
+    ["unhealthy", renderFixture.health.commit, "false", false],
+    ["ok", "b".repeat(40), "true", true],
+  ]) {
+    const health = stage("release-admission/health", JSON.stringify({ ...renderFixture.health, status, commit }))
+    const result = spawnSync(BASH, ["-c", `curl() { cat "$HEALTH_RESPONSE"; }\n${script}`], { encoding: "utf8", env: {
+      ...process.env, SOURCE_SHA: renderFixture.health.commit, FORCE_UNSTAGED: override,
+      STAGING_WEB_ORIGIN: "https://staging.example.invalid", HEALTH_RESPONSE: health, GITHUB_STEP_SUMMARY: summary,
+    } })
+    T(`staging admission ${status} ${commit} override ${override}`, result.status === (accepted ? 0 : 1), result.stdout + result.stderr)
+  }
+  T("production override is recorded", readFileSync(summary, "utf8").includes("force_unstaged: true"))
+}
+
 export function cases() {
   T("release workflow exposes redesign as a dispatch choice", /options: \[production, staging, production-redesign\]/.test(workflow))
   T("release selection guard is present", typeof guard === "string")
@@ -157,13 +216,29 @@ export function cases() {
   ]) {
     const result = spawnSync(BASH, ["-c", guard], { encoding: "utf8", env: {
       ...process.env, GITHUB_REF_NAME: "main", RELEASE_ENVIRONMENT: environment, SOURCE_BRANCH: branch,
+      SOURCE_SHA: renderFixture.health.commit, DISPATCH_SHA: renderFixture.health.commit, GITHUB_OUTPUT: stage("release-guard/output", ""),
     } })
     T(`workflow ${environment} from ${branch} ${accepted ? "passes" : "fails"}`, accepted
       ? result.status === 0 : result.status === 1 && result.stdout.includes(message), result.stdout + result.stderr)
+  }
+  for (const [environment, selected, accepted] of [
+    ["staging", "", false], ["staging", "abc", false], ["staging", "A".repeat(40), false],
+    ["production-redesign", "", false], ["production", "", true],
+  ]) {
+    const output = stage("release-selection/output", "")
+    const result = spawnSync(BASH, ["-c", stepScript("Validate release selection")], { encoding: "utf8", env: {
+      ...process.env, GITHUB_REF_NAME: "main", RELEASE_ENVIRONMENT: environment,
+      SOURCE_BRANCH: environment === "production-redesign" ? "redesign/main" : "main",
+      SOURCE_SHA: selected, DISPATCH_SHA: renderFixture.health.commit, GITHUB_OUTPUT: output,
+    } })
+    T(`selection ${environment} ${selected || "without SHA"}`, result.status === (accepted ? 0 : 1), result.stdout + result.stderr)
+    if (accepted) T("production defaults to dispatch commit", readFileSync(output, "utf8").includes(`sha=${renderFixture.health.commit}`))
   }
   const wrongWorkflow = spawnSync(BASH, ["-c", guard], { encoding: "utf8", env: {
     ...process.env, GITHUB_REF_NAME: "redesign/main", RELEASE_ENVIRONMENT: "production-redesign", SOURCE_BRANCH: "redesign/main",
   } })
   T("redesign still dispatches the workflow from main", wrongWorkflow.status === 1 && wrongWorkflow.stdout.includes("Dispatch release.yml from main"))
   checkProductionSteps()
+  checkPinnedRelease()
+  checkSourceIdentity()
 }
