@@ -45,12 +45,10 @@ export function CheckCircle({ state, unavailable = false, onToggle, disabled, ar
       className={`appearance-none border-0 bg-transparent shrink-0 flex min-h-[48px] w-[48px] items-center justify-center rounded-[20px] transition-transform duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${disabled ? 'cursor-default' : 'cursor-pointer motion-safe:active:scale-[0.96]'}`}
       style={{ opacity: disabled ? 0.4 : 1 }}
     >
-      <span data-habit-row-check-fill="" aria-hidden="true">
-        <span className={`flex ${justCompleted ? 'animate-check-pop' : ''}`}>
-          {unavailable
-            ? <HabitCheck status={state} unavailable />
-            : <HabitCheck status={state} label={ariaLabel} />}
-        </span>
+      <span aria-hidden="true" className={`flex ${justCompleted ? 'animate-check-pop' : ''}`}>
+        {unavailable
+          ? <HabitCheck status={state} unavailable />
+          : <HabitCheck status={state} label={ariaLabel} />}
       </span>
       {disabled && disabledReason ? <span id={reasonId} className="sr-only">{disabledReason}</span> : null}
     </button>

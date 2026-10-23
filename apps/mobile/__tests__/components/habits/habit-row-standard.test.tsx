@@ -69,40 +69,61 @@ function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills
 
 describe('habit row standard on Android', () => {
   it.each((['light', 'dark'] as const).flatMap((mode) => [320, 412, 1352].flatMap((width) =>
-    [1, 2].flatMap((fontScale) => [false, true].flatMap((parent) => [false, true].flatMap((reduced) => [false, true].map((pressed) => ({ mode, width, fontScale, parent, reduced, pressed }))))),
-  )))('contains completion hover and press feedback in $mode at $width/$fontScale, parent=$parent reduced=$reduced pressed=$pressed', ({ mode, width, fontScale, parent, reduced, pressed }) => {
+    [1, 2].flatMap((fontScale) => [false, true].flatMap((parent) => [false, true].flatMap((reduced) => [false, true].flatMap((pressed) => (['empty', 'done', 'overdue', 'bad'] as const).map((state) => ({ mode, width, fontScale, parent, reduced, pressed, state })))))),
+  )))('contains completion hover and press feedback in $mode at $width/$fontScale, parent=$parent reduced=$reduced pressed=$pressed state=$state', ({ mode, width, fontScale, parent, reduced, pressed, state }) => {
     theme.mode = mode
     motion.reduced = reduced
     __setWindowDimensions({ width, height: 892, scale: 1, fontScale })
-    const actions = { onLog: vi.fn(), onEdit: vi.fn(), onDetail: vi.fn() }
+    const actions = { onLog: vi.fn(), onUnlog: vi.fn(), onEdit: vi.fn(), onDetail: vi.fn() }
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow
-      habit={createMockHabit({ title: 'Read', description: 'Read two pages.' })} hasChildren={parent}
+      habit={createMockHabit({ title: 'Read', description: 'Read two pages.', isCompleted: state === 'done', isOverdue: state === 'overdue', isBadHabit: state === 'bad' })} hasChildren={parent}
       today="2025-01-01" selectedDate={new Date(2025, 0, 1)}
-      childrenDone={parent ? 1 : 0} childrenTotal={parent ? 3 : 0} actions={actions} />) })
-    const toggle = () => tree!.root.findAllByType('Pressable').find((node: import('react-test-renderer').ReactTestInstance) => String(node.props.accessibilityLabel).includes('habits.logHabit: Read'))!
+      childrenDone={parent ? state === 'done' ? 3 : 1 : 0} childrenTotal={parent ? 3 : 0} actions={actions} />) })
+    const toggle = () => tree!.root.findAllByType('Pressable').find((node: import('react-test-renderer').ReactTestInstance) => String(node.props.accessibilityLabel).includes(': Read'))!
     const tokens = createTokensV2('orange', mode)
     TestRenderer.act(() => { if (pressed) toggle().props.onPressIn(); else toggle().props.onHoverIn() })
     const geometry = measureInteractionFills(tree!.toJSON(), width, pressed, fontScale)
-    const target = geometry.find((part) => part.host.type === 'Pressable' && String(part.host.props.accessibilityLabel).includes('habits.logHabit: Read'))!
-    const fill = geometry.find((part) => part.host.props.testID === 'habit-row-check-fill') ?? target
+    const target = geometry.find((part) => part.host.type === 'Pressable' && String(part.host.props.accessibilityLabel).includes(': Read'))!
     const glyph = geometry.find((part) => part.host.props.testID === 'habit-check')!
+    const fill = geometry.find((part) => part.host.props.testID === 'habit-row-check-fill' || part.host.props.testID === 'habit-check-feedback') ?? glyph
     expect(target.width).toBe(48)
     expect(target.height).toBeGreaterThanOrEqual(48)
     expect(target.style.backgroundColor ?? 'transparent').toBe('transparent')
-    expect(fill).toMatchObject({ width: 44, height: 44 })
-    expect(fill.style).toMatchObject({ borderRadius: 20, backgroundColor: tokens.bgHover })
-    expect(fill.left - glyph.left).toBe(-8)
-    expect(fill.top - glyph.top).toBe(-8)
-    expect(fill.left - target.left).toBe(2)
-    expect(fill.top - target.top).toBe(2)
+    expect(fill).toMatchObject({ width: 28, height: 28 })
+    expect(fill.style).toMatchObject({ borderRadius: 12, backgroundColor: state === 'done' ? tokens.bgHoverOpaque : tokens.bgHover })
+    expect(fill.left - glyph.left).toBe(0)
+    expect(fill.top - glyph.top).toBe(0)
+    expect(glyph.style.borderWidth).toBe(state === 'done' ? 0 : 1)
+    if (parent && state !== 'done') expect(tree!.root.findAllByType('Path').find((part: import('react-test-renderer').ReactTestInstance) => part.props.strokeDasharray)?.props.stroke).toBe(state === 'bad' ? tokens.statusBad : tokens.primary)
+    expect(fill.left - target.left).toBe(10)
+    expect(fill.top - target.top).toBe(10)
     expect(target.style.transform ?? []).toEqual(pressed && !reduced ? [{ scale: 0.96 }] : parent ? [] : [{ scale: 1 }])
     TestRenderer.act(() => { toggle().props.onHoverOut(); toggle().props.onPressOut() })
+    expect(StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-check' }).props.style).backgroundColor).toBe(state === 'done' ? tokens.fg1 : 'transparent')
+    expect(tree!.root.findAllByProps({ testID: 'habit-check-feedback' })).toHaveLength(0)
     for (const action of Object.values(actions)) expect(action).not.toHaveBeenCalled()
     TestRenderer.act(() => toggle().props.onPress())
-    expect(actions.onLog).toHaveBeenCalledOnce()
+    expect(state === 'done' ? actions.onUnlog : actions.onLog).toHaveBeenCalledOnce()
     expect(actions.onDetail).not.toHaveBeenCalled()
     TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each(['light', 'dark'] as const)('keeps disabled and selection status checks unpainted in %s', (mode) => {
+    theme.mode = mode
+    for (const parent of [false, true]) for (const done of [false, true]) for (const selecting of [false, true]) {
+      let tree: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow
+        habit={createMockHabit({ title: 'Read', isCompleted: done })} hasChildren={parent}
+        childrenDone={done ? 3 : 1} childrenTotal={parent ? 3 : 0} completionReadOnly isSelectMode={selecting}
+        today="2025-01-01" selectedDate={new Date(2025, 0, 1)} />) })
+      const toggle = tree!.root.findAllByType('Pressable').find((node: import('react-test-renderer').ReactTestInstance) => String(node.props.accessibilityLabel).includes(': Read'))
+      const rest = StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-check' }).props.style)
+      TestRenderer.act(() => { toggle?.props.onHoverIn(); toggle?.props.onPressIn() })
+      expect(StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-check' }).props.style)).toEqual(rest)
+      expect(tree!.root.findAllByProps({ testID: 'habit-check-feedback' })).toHaveLength(0)
+      TestRenderer.act(() => tree.unmount())
+    }
   })
 
   it('keeps measured checklist fit and recursive depth boundary as independent footer causes', () => {
@@ -248,7 +269,7 @@ describe('habit row standard on Android', () => {
     const check = tree!.root.findByProps({ testID: 'habit-check' })
     expect(StyleSheet.flatten(check.props.style)).toMatchObject({ width: 28, height: 28, borderRadius: 12, borderWidth: 1, borderColor: tokens.statusEmpty })
     const toggle = tree!.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'habits.statusDot.empty, habits.logHabit: Read')!
-    expect(StyleSheet.flatten(toggle.props.style({ pressed: false }))).toMatchObject({ width: 48, minHeight: 48, borderRadius: 20 })
+    expect(StyleSheet.flatten(toggle.props.style({ pressed: false }))).toMatchObject({ width: 48, minHeight: 48, borderRadius: 12 })
     TestRenderer.act(() => tree.unmount())
   })
 
@@ -283,7 +304,7 @@ describe('habit row standard on Android', () => {
           TestRenderer.act(() => toggle.props.onFocus({ target, currentTarget: target }))
           const indicators = tree!.root.findAllByType('View').filter((node: { props: { style: StyleProp<ViewStyle> } }) => StyleSheet.flatten<ViewStyle | undefined>(node.props.style)?.outlineWidth === 2)
           expect(indicators).toHaveLength(1)
-          expect(StyleSheet.flatten(indicators[0].props.style)).toMatchObject({ borderRadius: 20, outlineOffset: -2, top: 2, right: 2, bottom: 2, left: 2 })
+          expect(StyleSheet.flatten(indicators[0].props.style)).toMatchObject({ borderRadius: 12, outlineOffset: 2, top: 10, right: 10, bottom: 10, left: 10 })
         }
         TestRenderer.act(() => tree.unmount())
       }

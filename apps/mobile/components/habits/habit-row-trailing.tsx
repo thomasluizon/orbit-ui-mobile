@@ -65,7 +65,7 @@ function SelectionStatusGlyph({
 }
 
 function InteractiveParentRing({
-  habit, childrenDone, childrenTotal, isDoneForRange, dotState, actions, tokens,
+  habit, childrenDone, childrenTotal, isDoneForRange, dotState, actions,
   completionReadOnly, completionReason, completionStatusUnavailable,
 }: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
@@ -75,7 +75,7 @@ function InteractiveParentRing({
   const toggleLabel = isDoneForRange ? t('habits.actions.unlog') : t('habits.logHabit')
   const completionLabel = completionRingLabel(completionStatusUnavailable, statusName, toggleLabel, habit.title)
   return (
-    <Pressable focusInset={(48 - 44) / 2} focusOffset={-2} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} onPress={() => {
+    <Pressable focusInset={(48 - 28) / 2} focusOffset={2} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} onPress={() => {
       if (completionReadOnly) return
       const parentAction = isDoneForRange ? actions.onUnlog : actions.onLog
       parentAction?.()
@@ -89,10 +89,8 @@ function InteractiveParentRing({
         pressed && !completionReadOnly && !prefersReducedMotion
           ? { transform: [{ scale: 0.96 }] } : null,
       ]}>
-      {({ pressed }) => <View testID="habit-row-check-fill" pointerEvents="none"
-        style={[styles.checkFill, { backgroundColor: (pressed || hovered) && !completionReadOnly ? tokens.bgHover : 'transparent' }]}>
-        <HabitCheck status={dotState} progress={{ done: childrenDone, total: childrenTotal }} />
-      </View>}
+      {({ pressed }) => <HabitCheck status={dotState} progress={{ done: childrenDone, total: childrenTotal }}
+        feedback={(pressed || hovered) && !completionReadOnly} />}
     </Pressable>
   )
 }
@@ -110,8 +108,7 @@ function HabitRowCompletion(props: Readonly<HabitRowTrailingProps>) {
     onToggle={props.onToggleStatus}
     disabled={props.completionReadOnly || (!props.canLog && !props.isDoneForRange)}
     accessibilityLabel={completionLabel}
-    accessibilityHint={props.completionReadOnly ? props.completionReason : undefined}
-    tokens={props.tokens} />
+    accessibilityHint={props.completionReadOnly ? props.completionReason : undefined} />
 }
 
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal cluster; the flags are independent render inputs from the parent row, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243

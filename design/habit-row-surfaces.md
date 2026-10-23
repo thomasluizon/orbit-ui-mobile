@@ -8,7 +8,7 @@ The owner standard in landing Figma file `aLwwyaY3Dtw1NVesAWsNO7`, rows `7:72` a
 | Habit detail child list | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` | Each child owns its fill and border; the group adds neither |
 | Row completion | `components/habits/habit-check.tsx`, `habit-row-check-circle.tsx`, `habit-row-trailing.tsx` | Same paths | Empty, done, overdue, bad habit slip, partial parent progress, completed parent, disabled and unavailable |
 | Selection mode | `components/habits/habit-row-trailing.tsx` | Same path | Leaf and parent status glyphs retain the shape without becoming another action |
-| Keyboard focus | Habit check target and `app/globals.css` | Habit check target through `components/ui/inset-focus-pressable.tsx` | One inset indicator follows the check perimeter; no glyph indicator |
+| Keyboard focus | Habit check target and `app/globals.css` | Habit check target through `components/ui/inset-focus-pressable.tsx` | One outward-offset indicator follows the 28px check perimeter inside its target |
 
 Independently bordered rows have 4px separation within a Hoje family and 12px between families. Habit detail child rows retain 12px separation. Android spacing belongs to the unpainted wrapper so it does not enlarge the bordered body.
 
@@ -106,9 +106,10 @@ At the narrow inline boundary, supporting type and metadata use the existing ful
 
 ## Completion feedback shape
 
-Completion feedback uses a centred 44px rounded square with radius 20 around the 28px radius-12
-check, preserving the required 8px content clearance and concentric radii. Leaf completion and
-parent progress share this shape. The 48px target remains transparent, leaving 2px between its
-edge and the fill. Hover and press paint only this inner surface; one inset focus indicator follows
-that surface with no glyph ring. Press retains scale 0.96 when motion is enabled and stays still
-with reduced motion. Disabled and presentational selection checks add no interaction paint.
+Completion hover and press paint only inside the visible 28px radius-12 check, never a halo.
+Leaf completion and parent progress share this shape inside a transparent 48px target. Empty
+checks use `bg-hover` while retaining their 1px status border and readable partial progress;
+completed checks layer `bg-hover-opaque` over their resting neutral fill, beneath the checkmark.
+One 2px focus outline follows the check shape with a 2px outward offset, inside the target.
+Press retains scale 0.96 when motion is enabled and stays still with reduced motion. Disabled,
+read-only and presentational selection checks add no interaction paint.

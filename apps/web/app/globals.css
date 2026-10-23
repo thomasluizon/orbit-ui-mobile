@@ -1643,15 +1643,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transition-duration: 0s;
 }
 
-[data-habit-row-check-fill] {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border-radius: 20px;
+[data-habit-row-control="check"] [data-habit-check] {
   pointer-events: none;
+  transition: background-color var(--dur-hover-control) var(--ease-standard);
+}
+
+[data-habit-check-feedback] {
+  background: var(--habit-check-feedback-opaque, transparent);
   transition: background-color var(--dur-hover-control) var(--ease-standard);
 }
 
@@ -1659,13 +1657,17 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline: none;
 }
 
-[data-habit-row-control="check"]:focus-visible > [data-habit-row-check-fill] {
+[data-habit-row-control="check"]:focus-visible [data-habit-check] {
   outline: 2px solid var(--fg-1);
-  outline-offset: -2px;
+  outline-offset: 2px;
 }
 
-[data-habit-row-control="check"]:not(:disabled):not([aria-disabled="true"]):active > [data-habit-row-check-fill] {
-  background: var(--bg-hover);
+[data-habit-row-control="check"]:not(:disabled):not([aria-disabled="true"]):active {
+  --habit-check-feedback: var(--bg-hover);
+  --habit-check-feedback-opaque: var(--bg-hover-opaque);
+}
+
+[data-habit-row-control="check"]:active :is([data-habit-check], [data-habit-check-feedback]) {
   transition: none;
 }
 
@@ -1727,7 +1729,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
   }
 
-  [data-habit-row-control="check"]:not(:disabled):not([aria-disabled="true"]):hover > [data-habit-row-check-fill],
+  [data-habit-row-control="check"]:not(:disabled):not([aria-disabled="true"]):hover {
+    --habit-check-feedback: var(--bg-hover);
+    --habit-check-feedback-opaque: var(--bg-hover-opaque);
+  }
+
   [data-habit-row-control]:not([data-habit-row-control="check"]):not(:disabled):not([aria-disabled="true"]):hover {
     background: var(--bg-hover);
   }
@@ -1885,7 +1891,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     outline: none !important;
   }
 
-  [data-habit-row-control="check"]:focus-visible > [data-habit-row-check-fill],
+  [data-habit-row-control="check"]:focus-visible [data-habit-check],
   .orbit-tab:focus-visible::after,
   .orbit-bar-chart-column:focus-visible > [data-slot="bar-chart-focus"],
   .orbit-calendar-nav-control:focus-visible::before,

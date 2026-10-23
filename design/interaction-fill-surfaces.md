@@ -148,9 +148,10 @@ device checks.
 
 ## Habit completion shape
 
-Completion feedback uses a centred 44px rounded square with radius 20 around the 28px radius-12
-check, preserving the required 8px content clearance and concentric radii. Leaf completion and
-parent progress share this shape. The 48px target remains transparent, leaving 2px between its
-edge and the fill. Hover and press paint only this inner surface; one inset focus indicator follows
-that surface with no glyph ring. Press retains scale 0.96 when motion is enabled and stays still
-with reduced motion. Disabled and presentational selection checks add no interaction paint.
+Completion hover and press paint only inside the visible 28px radius-12 check, never a halo.
+Leaf completion and parent progress share this shape inside a transparent 48px target. Empty
+checks use `bg-hover` while retaining their 1px status border and readable partial progress;
+completed checks layer `bg-hover-opaque` over their resting neutral fill, beneath the checkmark.
+One 2px focus outline follows the check shape with a 2px outward offset, inside the target.
+Press retains scale 0.96 when motion is enabled and stays still with reduced motion. Disabled,
+read-only and presentational selection checks add no interaction paint.
