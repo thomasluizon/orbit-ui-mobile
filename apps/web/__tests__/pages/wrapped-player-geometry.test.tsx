@@ -24,6 +24,8 @@ const wrapped = vi.hoisted(() => ({
   slides: [] as unknown[],
 }))
 
+vi.mock('@/hooks/use-referral', () => ({ useReferral: () => ({ stats: null, isError: false }) }))
+
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: createMockProfile({ weekStartDay: 1 }) }),
 }))

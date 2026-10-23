@@ -232,6 +232,21 @@ function invalidPromotionInputs({ put, git, check, rules, legacyRevision, promot
 }
 
 
+function referralRuleRegressions(platform, current, files, rules, observations) {
+  const capabilities = ['drawer.couponsEarned', 'drawer.disclaimer', 'drawer.explanation', 'prompt.body']
+    .map((key) => ({ id: `${platform}:display:referral.${key}`, platform, kind: 'display', key: `referral.${key}`, evidence: [] }))
+  const retained = compare(capabilities, observations, rules)
+  T(`${platform} referral figures and reward copy retain all four legacy capabilities`, retained.length === 4 && retained.every((entry) => entry.disposition === 'retained' && entry.redesign.length > 0), retained.filter((entry) => entry.disposition !== 'retained').map((entry) => entry.id).join(', '))
+  const drawer = `apps/${platform}/components/referral/referral-drawer.tsx`
+  const prompt = `apps/${platform}/components/referral/referral-prompt.tsx`
+  const originals = new Map([drawer, prompt].map((path) => [path, files[path]]))
+  files[drawer] = 'export function ReferralDrawer() { return null }'
+  files[prompt] = 'export function ReferralPrompt() { return null }'
+  const removed = compare(capabilities, scan(current, platform, rules), rules)
+  T(`${platform} share copy cannot retain deleted referral figures and explanations`, removed.length === 4 && removed.every((entry) => entry.disposition === 'missing'), removed.filter((entry) => entry.disposition !== 'missing').map((entry) => entry.id).join(', '))
+  for (const [path, source] of originals) files[path] = source
+}
+
 function restoredRuleRegressions(platform, current, files, inventory, rules, observations) {
   const capabilities = inventory.entries.filter((entry) => restoredRuleIds.includes(entry.id) && entry.platform === platform)
   const retained = compare(capabilities, observations, rules)
@@ -579,6 +594,7 @@ export const cases = () => {
     if (platform === 'web') promptLibraryRegressions(current, files, rules)
     const apiKeys = `apps/${platform}/components/profile/profile-api-keys.tsx`
     const currentObservations = scan(current, platform)
+    referralRuleRegressions(platform, current, files, rules, currentObservations)
     const currentControls = currentObservations.filter((entry) => entry.kind !== 'content')
     const originalApiKeys = files[apiKeys]
     const entry = /<ListRow\s+compact\s+icon=\{<Key[\s\S]*?onClick=\{\(\) => setShowStepUp\(true\)\}\s*\/>/

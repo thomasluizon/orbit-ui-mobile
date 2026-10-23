@@ -11,7 +11,7 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 vi.mock('expo-clipboard', () => ({ setStringAsync: () => { throw new Error('denied') } }))
 vi.mock('@/hooks/use-referral', () => ({
   useReferral: () => ({
-    stats: { successfulReferrals: 1, pendingReferrals: 2, maxReferrals: 5, discountPercent: 20 },
+    stats: { successfulReferrals: 1, pendingReferrals: 2, maxReferrals: 5, rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 20 },
     referralUrl: 'https://useorbit.org/r/ORBIT1',
     isLoading: false, isError: false, error: null,
   }),
@@ -127,7 +127,7 @@ describe('Referral drawer sheet geometry (mobile)', () => {
       layout.calculateLayout(panelWidth, undefined)
       const link = findHost(elements, (element) => (element.children ?? []).some((child) => typeof child !== 'string' && child.props.accessibilityLabel === 'referral.drawer.copyLink'))
       const card = findHost(elements, (element) => element.props.__nativeTag === cardView.props.__nativeTag)
-      const disclaimer = findHost(elements, (element) => element.children?.includes('referral.drawer.disclaimer') === true)
+      const disclaimer = findHost(elements, (element) => element.children?.includes('referral.reward.eligibility') === true)
       const error = findHost(elements, (element) => element.props.accessibilityRole === 'alert')
       const progress = findHost(elements, (element) => element.props.accessibilityRole === 'progressbar')
       for (const surface of [link, card, disclaimer, error, progress]) {

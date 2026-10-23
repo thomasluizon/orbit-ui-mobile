@@ -1,11 +1,6 @@
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
 
-/**
- * The layout's always-mounted ReferralPrompt reads `dashboard.stats.discountPercent`
- * off the cached dashboard, so a full, schema-valid dashboard must be served (an empty
- * catch-all body would crash the surface).
- */
 export const referralDashboardFixture = {
   code: 'PREVIEW',
   link: 'https://app.useorbit.org/r/PREVIEW',
@@ -15,8 +10,9 @@ export const referralDashboardFixture = {
     successfulReferrals: 0,
     pendingReferrals: 0,
     maxReferrals: 10,
-    rewardType: 'discount',
+    rewardType: 'pro_days',
     discountPercent: 10,
+    proDaysPerReferral: 7,
   },
 } satisfies ReferralDashboard
 

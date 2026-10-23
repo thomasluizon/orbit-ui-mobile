@@ -1755,7 +1755,7 @@
         "plan": { "Free": "Grátis", "Pro": "Pro" },
         "interval": { "monthly": "Mensal", "yearly": "Anual" },
         "source": { "stripe": "Stripe", "play": "Google Play" },
-        "rewardType": { "discount": "Desconto" }
+        "rewardType": { "discount": "Desconto", "pro_days": "Dias de Pro" }
       },
       "yes": "Sim", "no": "Não", "notSet": "Não definido", "unknown": "Desconhecido",
       "code": "Código de indicação", "copy": "Copiar", "copied": "Copiado", "share": "Compartilhar",
@@ -2570,40 +2570,36 @@
     }
   },
   "referral": {
-    "card": {
-      "title": "Convidar amigos",
-      "hint": "Ganhe cupons de desconto para você e seus amigos",
-      "progress": "{count}/{max} indicações concluídas"
-    },
     "drawer": {
       "title": "Convidar amigos",
       "yourLink": "Seu link de indicação",
-      "copy": "Copiar",
       "copyLink": "Copiar link",
-      "copied": "Copiado",
       "linkCopied": "Link copiado",
       "share": "Compartilhar link",
       "completed": "Indicações concluídas",
       "pending": "Pendentes",
-      "couponsEarned": "Cupons ganhos",
       "howItWorks": "Como funciona",
-      "explanation": "Compartilhe seu link com os amigos. Quando eles entrarem no Orbit e começarem a usar o app, vocês dois ganham um cupom de {discount}% de desconto no Pro. Dá para indicar até 10 amigos",
-      "disclaimer": "Cada indicação rende um cupom de {discount}% de desconto, de uso único. O cupom vale para um único ciclo de cobrança e não acumula. Uma nova indicação substitui qualquer cupom que você não tenha usado. Se você já assina pela web, o desconto entra automaticamente na sua próxima fatura. Assinaturas do Google Play não podem ter desconto no meio do ciclo. Nesse caso, o cupom fica guardado para a próxima compra ou troca de plano.",
       "actionFailed": "Não foi possível concluir. Tente de novo."
     },
     "share": {
       "title": "Vem pro Orbit comigo",
-      "text": "Estou usando o Orbit para criar hábitos melhores. Entra também e nós dois ganhamos um cupom de {discount}% de desconto"
+      "proDays": "Vem pro Orbit comigo. Crie uma conta por este link e registre hábitos em três dias diferentes na primeira semana. Eu posso ganhar {proDays, plural, =0 {# dias} one {# dia} other {# dias}} de Pro. Você também pode ganhar dias de Pro ou um cupom de desconto no Pro.",
+      "discount": "Vem pro Orbit comigo. Crie uma conta por este link e registre hábitos em três dias diferentes na primeira semana. Eu posso ganhar um cupom de {discountPercent}% de desconto no Pro. Você também pode ganhar dias de Pro ou um cupom de desconto no Pro.",
+      "neutral": "Vem pro Orbit comigo."
     },
     "prompt": {
       "streakTitle": "Sequência de {count} dias",
       "levelTitle": "Você chegou ao nível {level}",
-      "body": "Convide um amigo e vocês dois ganham um cupom de {discount}% de desconto no Pro.",
-      "bodyFallback": "Convide um amigo para criar hábitos melhores com você.",
       "cta": "Convidar amigos",
       "later": "Agora não"
     },
-    "loginBanner": "Você veio por uma indicação. Ela vale ao criar uma conta nova."
+    "loginBanner": "Você veio por um convite. Ele vale ao criar uma conta nova.",
+    "reward": {
+      "proDays": "Convide alguém a criar uma conta pelo seu link. Se a pessoa registrar hábitos em três dias diferentes na primeira semana, você pode ganhar {proDays, plural, =0 {# dias} one {# dia} other {# dias}} de Pro.",
+      "discount": "Convide alguém a criar uma conta pelo seu link. Se a pessoa registrar hábitos em três dias diferentes na primeira semana, você pode ganhar um cupom de {discountPercent}% de desconto no Pro.",
+      "neutral": "Compartilhe seu link para convidar alguém para o Orbit.",
+      "eligibility": "O tipo de recompensa depende da conta. Há um limite de recompensas por conta."
+    }
   },
   "marketingConsent": {
     "prompt": {
@@ -2623,7 +2619,6 @@
     "download": "Baixar",
     "scanToJoin": "Escaneie para entrar no Orbit",
     "shareTitle": "Meu progresso no Orbit",
-    "shareText": "Estou construindo hábitos melhores com o Orbit. Venha comigo",
     "shareError": "Não foi possível compartilhar seu card. Tente novamente.",
     "saved": "Salvo como {file}",
     "weeklyBarLabel": "Conclusão em {day}: {percent}%",

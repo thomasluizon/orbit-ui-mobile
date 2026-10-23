@@ -1,4 +1,5 @@
 import type { AccountRowsCard } from '../types/chat'
+import { selectReferralReward } from '../utils/referral'
 
 type AccountRow = AccountRowsCard['rows'][number]
 
@@ -18,7 +19,14 @@ const LABELS = {
 const ENUM_VALUES: Partial<Record<keyof typeof LABELS, readonly string[]>> = {
   language: ['en', 'pt-BR'], weekStartDay: ['0', '1'], themePreference: ['dark', 'light'],
   plan: ['Free', 'Pro'], interval: ['monthly', 'yearly'], source: ['stripe', 'play'],
-  rewardType: ['discount'],
+  rewardType: ['discount', 'pro_days'],
+}
+
+export function presentAccountRows(card: AccountRowsCard): AccountRow[] {
+  if (card.kind !== 'referral') return card.rows
+  const rewardType = card.rows.find((row) => row.key === 'rewardType')?.value
+  return card.rows.filter((row) => row.key !== 'discountPercent'
+    || selectReferralReward({ rewardType: rewardType ?? undefined, discountPercent: Number(row.value) }).kind === 'discount')
 }
 
 export function accountRowLabelKey(key: string): string | null {

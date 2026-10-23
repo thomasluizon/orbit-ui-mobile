@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { referralKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import type { ReferralDashboard } from '@orbit/shared/types/referral'
+import { referralDashboardPresentationSchema } from '@orbit/shared/types/referral'
 import { buildReferralUrl } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
@@ -10,7 +10,7 @@ import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
 export function useReferral() {
   const query = useQuery({
     queryKey: referralKeys.all,
-    queryFn: () => apiClient<ReferralDashboard>(API.referral.dashboard),
+    queryFn: () => apiClient(API.referral.dashboard, {}, referralDashboardPresentationSchema),
     staleTime: QUERY_STALE_TIMES.subscriptionPlans,
   })
 

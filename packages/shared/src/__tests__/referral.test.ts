@@ -1,5 +1,37 @@
 import { describe, expect, it } from 'vitest'
-import { buildRecapShareUrl, buildReferralUrl, isValidReferralCode, withShareLinkOrigin } from '../utils/referral'
+import { buildRecapShareUrl, buildReferralUrl, isValidReferralCode, withShareLinkOrigin, selectReferralReward } from '../utils/referral'
+
+describe('referral reward selection', () => {
+  it.each([1, 7, 11])('uses the actual %i Pro days without borrowing the discount', (proDaysPerReferral) => {
+    expect(selectReferralReward({ rewardType: 'pro_days', proDaysPerReferral, discountPercent: 23 }))
+      .toEqual({ kind: 'proDays', values: { proDays: proDaysPerReferral } })
+  })
+
+  it('keeps the paid-account coupon and its own amount', () => {
+    expect(selectReferralReward({ rewardType: 'discount', proDaysPerReferral: 11, discountPercent: 23 }))
+      .toEqual({ kind: 'discount', values: { discountPercent: 23 } })
+  })
+
+  it.each([undefined, 0, -1, 1.5, NaN, Infinity])('withholds untrustworthy days %s', (proDaysPerReferral) => {
+    expect(selectReferralReward({ rewardType: 'pro_days', proDaysPerReferral, discountPercent: 23 }))
+      .toEqual({ kind: 'neutral', values: {} })
+  })
+
+  it.each([undefined, 0, -1, 1.5, 101, NaN, Infinity])('withholds untrustworthy percentage %s', (discountPercent) => {
+    expect(selectReferralReward({ rewardType: 'discount', proDaysPerReferral: 11, discountPercent }))
+      .toEqual({ kind: 'neutral', values: {} })
+  })
+
+  it.each([undefined, 'future_reward'])('requires a recognized kind %s even with both amounts', (rewardType) => {
+    expect(selectReferralReward({ rewardType, proDaysPerReferral: 11, discountPercent: 23 }))
+      .toEqual({ kind: 'neutral', values: {} })
+  })
+
+  it('keeps absent stats nonnumeric', () => {
+    expect(selectReferralReward(null)).toEqual({ kind: 'neutral', values: {} })
+    expect(selectReferralReward(undefined)).toEqual({ kind: 'neutral', values: {} })
+  })
+})
 
 describe('isValidReferralCode', () => {
   it('accepts url-safe token shapes', () => {

@@ -213,13 +213,6 @@ vi.mock('@/app/(app)/profile/_components/profile-nav-card', () => ({
 
 
 
-vi.mock('@/components/referral/referral-card', () => ({
-  ReferralCard: ({ onOpen }: { onOpen: () => void; onDismiss?: () => void }) => (
-    <button data-testid="profile-referral-card" onClick={onOpen}>
-      referral
-    </button>
-  ),
-}))
 
 vi.mock('@/components/referral/referral-drawer', () => ({
   ReferralDrawer: ({ open }: { open: boolean; onOpenChange?: (open: boolean) => void }) =>
