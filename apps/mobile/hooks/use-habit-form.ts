@@ -10,6 +10,7 @@ import {
 } from '@orbit/shared/validation'
 import {
   HabitModeDrafts,
+  isWeeklyRecurrencePhrase,
   applyHabitFormMode,
   buildHabitDaysList,
   buildHabitFrequencyUnits,
@@ -40,12 +41,13 @@ export interface HabitFormHelpers {
   daysList: HabitDayOption[]
   toggleDay: (day: string, daily?: boolean) => void
   frequencyUnits: { value: FrequencyUnit; label: string }[]
-  registerDateValidation: (validate: () => void) => () => void
+  registerDateValidation: (validate: () => void, onTypeChange?: () => void) => () => void
   resetModeDrafts: () => void
   chooseItemType: (type: 'task' | 'habit') => void
   validationFocusRequest: number
+  retiredCadenceTitle?: string
   setOneTime: () => void
-  setRecurring: () => void
+  setRecurring: (restoreDraft?: boolean) => void
   setFlexible: () => void
   setGeneral: () => void
   formatTimeInput: (value: string) => string
@@ -65,11 +67,14 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   const { t } = useTranslation()
 
   const dateValidation = useRef<(() => void) | null>(null)
-  const registerDateValidation = useCallback((validate: () => void) => {
+  const dateTypeChange = useRef<(() => void) | undefined>(undefined)
+  const registerDateValidation = useCallback((validate: () => void, onTypeChange?: () => void) => {
     dateValidation.current = validate
-    return () => { if (dateValidation.current === validate) dateValidation.current = null }
+    dateTypeChange.current = onTypeChange
+    return () => { if (dateValidation.current === validate) { dateValidation.current = null; dateTypeChange.current = undefined } }
   }, [])
   const [modeDrafts] = useState(() => new HabitModeDrafts())
+  const [retiredCadenceTitle, setRetiredCadenceTitle] = useState<string | undefined>(() => isWeeklyRecurrencePhrase(initialData?.datePhrase ?? '') ? initialData?.title : undefined)
   const [validationFocusRequest, setValidationFocusRequest] = useState(0)
   const form = useForm<HabitFormInput, unknown, HabitFormData>({
     resolver: zodResolver(habitFormSchema),
@@ -179,7 +184,8 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     if (draft) for (const [field, value] of Object.entries(draft)) form.setValue(field as keyof HabitFormInput, value, { shouldDirty: true })
   }, [form, modeDrafts])
 
-  const setRecurring = useCallback(() => {
+  const setRecurring = useCallback((restoreDraft = true) => {
+    if (!restoreDraft) setRetiredCadenceTitle(form.getValues('title'))
     const draft = modeDrafts.switch(normalizeHabitFormData(form.getValues()), 'recurring')
     form.setValue('isGeneral', false)
     form.setValue('isFlexible', false)
@@ -190,7 +196,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     if (!quantity || quantity < 1) {
       form.setValue('frequencyQuantity', 1)
     }
-    if (draft) for (const [field, value] of Object.entries(draft)) form.setValue(field as keyof HabitFormInput, value, { shouldDirty: true })
+    if (restoreDraft && draft) for (const [field, value] of Object.entries(draft)) form.setValue(field as keyof HabitFormInput, value, { shouldDirty: true })
   }, [form, modeDrafts])
 
   const setFlexible = useCallback(() => {
@@ -225,10 +231,17 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   }, [form, modeDrafts])
 
   const chooseItemType = useCallback((type: 'task' | 'habit') => {
+    const phrase = form.getValues('datePhrase') ?? ''
+    const date = form.getValues('dueDate') ?? ''
     if (type === 'task') setOneTime()
     else applyHabitFormMode(modeDrafts.habitMode, { setOneTime, setRecurring, setFlexible, setGeneral })
+    if (type === 'habit' && isWeeklyRecurrencePhrase(phrase)) {
+      form.setValue('datePhrase', phrase, { shouldDirty: true })
+      form.setValue('dueDate', date, { shouldDirty: true })
+    }
     form.setValue('itemType', type, { shouldDirty: true })
     form.clearErrors('itemType')
+    dateTypeChange.current?.()
   }, [form, modeDrafts, setOneTime, setRecurring, setFlexible, setGeneral])
 
   const formatTimeInput = useCallback((value: string) => formatHabitTimeInput(value), [])
@@ -238,7 +251,8 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     (context?: HabitFormValidationContext) => {
       dateValidation.current?.()
       const values = form.getValues()
-      const key = !values.itemType ? 'habits.form.typeRequired' : !values.isGeneral && values.dateIssue ? values.dateIssue : !values.isGeneral && !values.dueDate ? 'habits.form.dateStale' : null
+      const dateIssue = !values.isGeneral || values.dateIssue === 'errors.api.generalMismatchWithParent' ? values.dateIssue : null
+      const key = !values.itemType ? 'habits.form.typeRequired' : dateIssue ? dateIssue : !values.isGeneral && !values.dueDate ? 'habits.form.dateStale' : null
       if (key) {
         form.setError(!values.itemType ? 'itemType' : 'datePhrase', { message: key })
         setValidationFocusRequest((request) => request + 1)
@@ -252,7 +266,8 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   return {
     chooseItemType,
     registerDateValidation,
-    resetModeDrafts: () => modeDrafts.clear(),
+    resetModeDrafts: () => { modeDrafts.clear(); setRetiredCadenceTitle(undefined) },
+    retiredCadenceTitle,
     validationFocusRequest,
     backendFieldErrors: backendErrors.fieldErrors,
     backendFocusField,

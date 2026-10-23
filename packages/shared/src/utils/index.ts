@@ -198,7 +198,7 @@ export {
   HABIT_EMOJI_CATEGORIES,
   HABIT_EMOJI_OPTIONS,
 } from './habit-emoji-options'
-export { readHabitPhrase, segmentHabitPhrase } from './habit-phrase-parser'
+export { readHabitPhrase, segmentHabitPhrase, isWeeklyRecurrencePhrase } from './habit-phrase-parser'
 export { getHabitPhraseTitle } from './habit-phrase-title'
 export type { AppliedHabitPhraseFields } from './habit-phrase-title'
 export type {

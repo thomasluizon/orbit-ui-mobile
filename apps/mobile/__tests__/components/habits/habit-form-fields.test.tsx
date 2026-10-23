@@ -44,8 +44,9 @@ afterEach(async () => {
 const useWatchMock = vi.fn()
 const tagCollection = vi.hoisted(() => ({ tags: [] as HabitTag[] }))
 const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn(), delete: vi.fn() }))
-const formLocale = vi.hoisted((): { language: string; realDates: boolean; realDateCopy: boolean; theme: 'dark' | 'light' } => ({ language: 'en', realDates: false, realDateCopy: false, theme: 'dark' }))
+const formLocale = vi.hoisted((): { language: string; realController: boolean; realDates: boolean; realDateCopy: boolean; theme: 'dark' | 'light' } => ({ language: 'en', realController: false, realDates: false, realDateCopy: false, theme: 'dark' }))
 const dateRequests = vi.hoisted(() => ({ request: vi.fn() }))
+const connection = vi.hoisted(() => ({ isOnline: true }))
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false, timeZone: 'UTC' }))
 const modalFeedback = vi.hoisted(() => ({ showError: vi.fn(), create: vi.fn(), update: vi.fn() }))
 const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 }
@@ -76,18 +77,21 @@ function translateTestValue(key: string, values?: Record<string, unknown>): stri
   )
 }
 
-vi.mock('react-hook-form', async (importOriginal) => ({
-  ...await importOriginal<typeof import('react-hook-form')>(),
-  useController: () => ({ field: { ref: vi.fn() } }),
+vi.mock('react-hook-form', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-hook-form')>()
+  return {
+  ...actual,
+  useController: (props: Parameters<typeof actual.useController>[0]) => formLocale.realController ? actual.useController(props) : ({ field: { ref: vi.fn() } }),
   useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) => useWatchMock(args),
-}))
+}
+})
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: translateTestValue, i18n: { language: formLocale.language } }) }))
 vi.mock('@/lib/use-app-theme', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/use-app-theme')>()
   return { useAppTheme: () => ({ ...actual.useAppTheme(), currentTheme: formLocale.theme }) }
 })
 vi.mock('@/hooks/use-date-interpretation', () => ({ useDateInterpretation: () => ({ mutateAsync: dateRequests.request }) }))
-vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => connection }))
 vi.mock('@/hooks/use-config', () => ({
   useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse({ sub_habits: { enabled: true, planRequirement: 'Pro' } })) }),
 }))
@@ -1511,6 +1515,7 @@ describe('native date ownership across form transitions', () => {
   let tree: ReturnType<typeof TestRenderer.create>
   let helpers: HabitFormHelpers
   beforeEach(async () => {
+    formLocale.realController = true
     const { useWatch } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form')
     useWatchMock.mockImplementation(useWatch)
     dateRequests.request.mockReset()
@@ -1528,9 +1533,9 @@ describe('native date ownership across form transitions', () => {
     formLocale.realDates = false
     formLocale.theme = 'dark'
   })
-  function OwningForm({ flexible = false }: { flexible?: boolean }) {
-    helpers = useHabitForm({ initialData: { itemType: 'habit', title: 'Read', dueDate: '2026-10-20', frequencyUnit: 'Day', frequencyQuantity: 1, isFlexible: flexible, endDate: '2026-12-01' } })
-    return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
+  function OwningForm({ flexible = false, title = 'Read', fieldsVersion = 0, lockedGeneral = null }: { flexible?: boolean; title?: string; fieldsVersion?: number; lockedGeneral?: boolean | null }) {
+    helpers = useHabitForm({ initialData: { itemType: 'habit', title, dueDate: '2026-10-20', frequencyUnit: 'Day', frequencyQuantity: 1, isFlexible: flexible, endDate: '2026-12-01' } })
+    return <HabitFormFields key={fieldsVersion} lockedGeneral={lockedGeneral} readPhraseLocally formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
   }
   async function mount(flexible = false) { await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm flexible={flexible} />) }) }
   const hosts = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && String(node.props.accessibilityLabel).startsWith(label))
@@ -1540,6 +1545,167 @@ describe('native date ownership across form transitions', () => {
   const general = () => press('habits.form.noSchedule,')
   const recurring = () => press('habits.form.every')
   const dateValue = () => hosts('habits.form.habitStartDate,')[0]!.findAll((node: UnderstandingTestNode) => node.type === 'Text')[0]!
+
+  it.each([
+    ['pt-BR', 'toda semana'], ['pt-BR', 'todas as semanas'], ['pt-BR', 'semanalmente'],
+    ['en', 'every week'], ['en', 'weekly'],
+  ])('routes weekly wording %s %s through the real native form', async (locale, wording) => {
+    formLocale.language = locale
+    await mount()
+    await phrase(wording)
+    expect(helpers.form.getValues('frequencyUnit')).toBe('Week')
+    expect(helpers.form.getValues()).toMatchObject({ itemType: 'habit', frequencyQuantity: 1, isFlexible: false, days: [], intervalWeeks: 1, dueDate: '2026-10-20', endDate: '2026-12-01', title: 'Read', datePhrase: wording, dateIssue: '' })
+    await TestRenderer.act(() => { expect(helpers.validateAll()).toBeNull() })
+    expect(hosts('habits.form.datePhrase')[0]!.props.value).toBe(wording)
+    expect(action('habits.form.askDate')).toHaveLength(0)
+    expect(dateRequests.request).not.toHaveBeenCalled()
+    const values = habitFormSchema.parse(helpers.form.getValues())
+    expect(buildCreateHabitRequest(values, [], [], [], [])).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-20' })
+    expect(buildUpdateHabitRequest(values, false, '2026-12-01', [], [])).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-20' })
+  })
+
+  it.each([false, true])('recognizes native weekly wording offline at capacity with Pro access %s', async (hasProAccess) => {
+    connection.isOnline = false
+    mockProfileState.aiMessagesUsed = 5
+    mockProfileState.hasProAccess = hasProAccess
+    await mount()
+    await phrase('weekly')
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, dueDate: '2026-10-20', dateIssue: '' })
+    expect(action('habits.form.askDate')).toHaveLength(0)
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
+  it('keeps tomorrow calendar-only through the real native form', async () => {
+    await mount()
+    await phrase('tomorrow')
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: 'Day', dueDate: '2026-10-21', dateIssue: '' })
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
+  it('preserves the current native flexible draft when an older fixed draft exists', async () => {
+    await mount()
+    await TestRenderer.act(() => {
+      helpers.setFlexible()
+      helpers.form.setValue('dueDate', '2026-10-23')
+      helpers.form.setValue('dueTime', '08:00')
+      helpers.form.setValue('reminderEnabled', true)
+    })
+    await phrase('weekly')
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: 'Week', isFlexible: false, dueDate: '2026-10-23', dueTime: '08:00', reminderEnabled: true, endDate: '2026-12-01' })
+  })
+
+  it('recovers Task wording through the same-date native picker', async () => {
+    await mount()
+    await press('habits.form.typeTask')
+    await phrase('weekly')
+    await TestRenderer.act(() => { helpers.validateAll() })
+    await press('habits.form.taskDate,')
+    const day = tree.root.findByType('Sheet').findAll((node: { type: unknown; props: { accessibilityState?: { selected?: boolean } } }) => node.type === 'Pressable' && node.props.accessibilityState?.selected === true)[0]!
+    await TestRenderer.act(() => day.props.onPress())
+    await TestRenderer.act(() => { expect(helpers.validateAll()).toBeNull() })
+    expect(helpers.form.getValues()).toMatchObject({ itemType: 'task', frequencyUnit: null, dueDate: '2026-10-20', datePhrase: '', dateIssue: '' })
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
+  it.each(['en', 'pt-BR'])('retains deliberate Task with one %s recovery and real native type focus', async (locale) => {
+    formLocale.language = locale
+    await mount()
+    await press('habits.form.typeTask')
+    await phrase('every week')
+    expect(helpers.form.getValues()).toMatchObject({ itemType: 'task', frequencyUnit: null, frequencyQuantity: null, dueDate: '2026-10-20', dateIssue: 'habits.form.recurrenceRequiresHabit' })
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'habits.form.recurrenceRequiresHabit')).toHaveLength(1)
+    expect(action('habits.form.askDate')).toHaveLength(0)
+    await TestRenderer.act(() => { expect(helpers.validateAll()).toBe('habits.form.recurrenceRequiresHabit') })
+    expect(__getFocusedNativeTag()).toBe(hosts('habits.form.typeTask')[0]!.props.__nativeTag)
+    expect(hosts('habits.form.typeTask')[0]!.props.accessibilityState.checked).toBe(true)
+    await press('habits.form.typeHabit')
+    expect(helpers.form.getValues()).toMatchObject({ itemType: 'habit', frequencyUnit: 'Week', frequencyQuantity: 1, dueDate: '2026-10-20', dateIssue: '' })
+    await TestRenderer.act(() => { expect(helpers.validateAll()).toBeNull() })
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('resolves weekly Task wording after a General draft, inherited lock=%s', async (locked) => {
+    await mount()
+    await general()
+    await press('habits.form.typeTask')
+    await phrase('dia 23')
+    await phrase('weekly')
+    if (locked) await TestRenderer.act(() => tree.update(<OwningForm lockedGeneral />))
+    await press('habits.form.typeHabit')
+    if (locked) {
+      expect(helpers.form.getValues()).toMatchObject({ itemType: 'habit', isGeneral: true, frequencyUnit: null, dateIssue: 'errors.api.generalMismatchWithParent' })
+      expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'errors.api.generalMismatchWithParent')).toHaveLength(1)
+      await TestRenderer.act(() => { expect(helpers.validateAll()).toBe('errors.api.generalMismatchWithParent') })
+      expect(__getFocusedNativeTag()).toBe(hosts('habits.form.typeHabit')[0]!.props.__nativeTag)
+      const request = buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])
+      expect(request.isGeneral).toBe(true)
+      expect(request).not.toHaveProperty('frequencyUnit')
+      expect(request).not.toHaveProperty('startDate')
+    } else {
+      expect(helpers.form.getValues()).toMatchObject({ itemType: 'habit', isGeneral: false, frequencyUnit: 'Week', frequencyQuantity: 1, dueDate: '2026-10-23', datePhrase: 'weekly', dateIssue: '' })
+      expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-23' })
+      await TestRenderer.act(() => { expect(helpers.validateAll()).toBeNull() })
+      await TestRenderer.act(() => tree.update(<OwningForm fieldsVersion={1} />))
+      expect(helpers.form.getValues()).toMatchObject({ isGeneral: false, frequencyUnit: 'Week', dueDate: '2026-10-23', dateIssue: '' })
+    }
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
+  it('lets later native cadence and General decisions win over retained weekly wording', async () => {
+    await mount(true)
+    await phrase('weekly')
+    await press('habits.form.unitMonth')
+    await TestRenderer.act(() => tree.update(<OwningForm />))
+    await TestRenderer.act(() => { expect(helpers.validateAll()).toBeNull() })
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: 'Month', datePhrase: 'weekly', dateIssue: '', dueDate: '2026-10-20' })
+    await general()
+    expect(helpers.form.getValues()).toMatchObject({ isGeneral: true, frequencyUnit: null })
+    await recurring()
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: 'Month', dateIssue: '' })
+    await phrase('weekly')
+    expect(helpers.form.getValues('frequencyUnit')).toBe('Week')
+    await phrase('tomorrow')
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: 'Week', dueDate: '2026-10-21', dateIssue: '' })
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
+  it('keeps a manual native correction across field remount, account reset and validation with an old title phrase', async () => {
+    await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm title="Read every Monday" />) })
+    await phrase('weekly')
+    await press('habits.form.unitMonth')
+    await TestRenderer.act(() => tree.update(<OwningForm title="Read every Monday" fieldsVersion={1} />))
+    advanceAccountGeneration()
+    await TestRenderer.act(() => tree.update(<OwningForm title="Read every Monday" fieldsVersion={1} />))
+    await TestRenderer.act(() => { expect(helpers.validateAll()).toBeNull() })
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: 'Month', datePhrase: 'weekly', dateIssue: '', dueDate: '2026-10-20' })
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
+  it('keeps native manual cadence after manual date clears weekly wording and fields reopen', async () => {
+    await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm title="Read every Monday" />) })
+    await phrase('weekly')
+    await press('habits.form.unitMonth')
+    await press('habits.form.habitStartDate,')
+    await press(formatLocaleDate('2026-10-23', 'en', { month: 'long', day: 'numeric', year: 'numeric' }))
+    expect(helpers.form.getValues('datePhrase')).toBe('')
+    await TestRenderer.act(() => tree.update(<OwningForm title="Read every Monday" fieldsVersion={1} />))
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: 'Month', dueDate: '2026-10-23', datePhrase: '', dateIssue: '' })
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
+  it('retires a pending native date consultation when weekly wording is handled', async () => {
+    let finish!: (value: { date: string; referenceDate: string }) => void
+    dateRequests.request.mockImplementation(() => new Promise((resolve) => { finish = resolve }))
+    await mount()
+    await phrase('after vacation')
+    await TestRenderer.act(() => action('habits.form.askDate')[0]!.props.onPress())
+    await phrase('weekly')
+    await TestRenderer.act(() => finish({ date: '2026-10-26', referenceDate: '2026-10-20' }))
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: 'Week', dueDate: '2026-10-20', dateIssue: '' })
+    expect(action('habits.form.acceptDate')).toHaveLength(0)
+    expect(action('habits.form.askDate')).toHaveLength(0)
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+  })
 
   it.each([false, true])('clears the persisted end date in a real task conversion, flexible: %s', async (flexible) => {
     await mount(flexible)
@@ -1728,6 +1894,38 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
   async function submit() {
     await TestRenderer.act(() => action(owner === 'create' ? 'habits.createHabit' : 'common.save').props.onPress())
   }
+
+  if (owner === 'create') it('keeps native weekly wording behind the required explicit type choice', async () => {
+    formLocale.realController = true
+    await mount(null)
+    await TestRenderer.act(() => phraseInput().props.onChangeText('weekly'))
+    await submit()
+    expect(captions('habits.form.typeRequired')).toHaveLength(1)
+    expect(mutation()).not.toHaveBeenCalled()
+    await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.typeHabit')[0]!.props.onPress())
+    await submit()
+    expect(mutation()).toHaveBeenCalledOnce()
+    expect(mutation()).toHaveBeenCalledWith(expect.objectContaining({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-20' }))
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['pt-BR', 'toda semana'], ['pt-BR', 'todas as semanas'], ['pt-BR', 'semanalmente'],
+    ['en', 'every week'], ['en', 'weekly'],
+  ])('saves locally routed weekly wording %s %s only on ordinary native Submit', async (locale, wording) => {
+    formLocale.realController = true
+    formLocale.language = locale
+    await mount('habit')
+    await TestRenderer.act(() => phraseInput().props.onChangeText(wording))
+    expect(phraseInput().props.value).toBe(wording)
+    expect(mutation()).not.toHaveBeenCalled()
+    expect(dateRequests.request).not.toHaveBeenCalled()
+    await submit()
+    const request = expect.objectContaining({ title: 'Read', frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-20' })
+    expect(mutation()).toHaveBeenCalledOnce()
+    expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+  })
 
   if (owner === 'create') it.each((['en', 'pt-BR'] as const).flatMap((locale) =>
     (['task', 'habit'] as const).map((type) => ({ locale, type })),
@@ -2043,3 +2241,5 @@ describe('native date candidate confirmation', () => {
     expect(dateRequests.request).toHaveBeenCalledOnce()
   })
 })
+
+afterEach(() => { formLocale.realController = false; connection.isOnline = true })

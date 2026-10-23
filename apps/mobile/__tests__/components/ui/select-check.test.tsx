@@ -114,6 +114,23 @@ function renderEntryRows(onChange: (value: string) => void, initialValue?: strin
 }
 
 describe('select-check RadioRow group', () => {
+  it('focuses the enabled radio once per validation request', () => {
+    const focus = vi.fn()
+    const onChange = vi.fn()
+    __setFocusImpl(focus)
+    let tree!: ReactTestRenderer
+    const rows = (selected: boolean) => <RadioGroup accessibilityLabel="Type" focusRequest={1}>
+      <RadioRow label="Task" disabled reason="Locked" />
+      <RadioRow label="Habit" selected={selected} onSelect={onChange} />
+    </RadioGroup>
+    void act(() => { tree = create(rows(true)) })
+    expect(focus).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ accessibilityLabel: 'Habit' }))
+    void act(() => tree.update(rows(false)))
+    expect(focus).toHaveBeenCalledTimes(1)
+    expect(onChange).not.toHaveBeenCalled()
+    void act(() => tree.update(<View />))
+  })
+
   it.each([false, true])('announces personal text and supporting metadata when disabled=%s', (disabled) => {
     const label = `${'longaddress'.repeat(12)}@example.com`
     let tree!: ReactTestRenderer
