@@ -14,7 +14,7 @@ import { HABIT_CREATE_OVERLAY_ID } from '@orbit/shared/utils'
 import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
 import { OverlayHost } from '@/components/ui/overlay-host'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
-import { BackHandler, __setWindowDimensions } from '@/test-mocks/react-native'
+import { BackHandler, __getFocusedNativeTag, __setWindowDimensions } from '@/test-mocks/react-native'
 import { Checkbox } from '@/components/ui/icons'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -52,6 +52,21 @@ function menuItemLabels(tree: any): string[] {
 }
 
 describe('Menu (mobile)', () => {
+  it('focuses Cancel after a destructive confirmation is presented', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<ConfirmSheet open destructive title="Delete" message="Clear alerts" confirmLabel="Delete" onCancel={vi.fn()} onConfirm={vi.fn()} />)
+    })
+    try {
+      const sheet = tree.root.findAll((node) => node.type === TrueSheet)[0]!
+      await TestRenderer.act(() => {
+        const onDidPresent = sheet.props.onDidPresent
+        if (typeof onDidPresent === 'function') onDidPresent()
+      })
+      const cancel = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.testID === 'button-ghost-sm')[0]!
+      expect(__getFocusedNativeTag()).toBe(cancel.props.__nativeTag)
+    } finally { await TestRenderer.act(() => tree.update(<></>)) }
+  })
   it('discloses the full name from a real habit row menu without an edit action', async () => {
     __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale: 2 })
     const title = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'

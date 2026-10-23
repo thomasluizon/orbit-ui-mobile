@@ -15,6 +15,9 @@ keyboard navigation and dismissal. Orbit retains its menu paint and the compact 
 | Breakdown preview actions | `components/chat/breakdown-suggestion.tsx` | `components/chat/breakdown-suggestion.tsx` |
 | Goal filter | `app/(app)/progress/_components/progress-content.tsx` | `components/progress/progress-content.tsx` |
 | Calendar wide options | `app/(app)/calendar/_components/calendar-options.tsx` | The calendar options Sheet remains the compact platform owner |
+| Onboarding decisions, completion and plan | `components/onboarding/onboarding-flow.tsx` | `components/onboarding/onboarding-flow.tsx`; native window host decision pending |
+| Required upgrade and request throttle | The existing blocking error surfaces | `components/upgrade-required-screen.tsx`, `components/throttle-screen.tsx`; native window host decision pending |
+| Destructive confirmation | `components/ui/confirm-sheet.tsx`, `components/ui/sheet.tsx` | Same owners |
 
 Menus retain their compact sheet below the configured wide breakpoint, the explicit goal-filter
 sheet and the wide anchored panel. Existing short and typed headings, full-title disclosure,
@@ -28,6 +31,12 @@ The root host isolates its screen siblings while an anchored menu is registered.
 owners and screen reservations retain their own presentation and remain reachable.
 
 Web triggers retain their focus and identity while menu content loads on pointer intent or focus.
+The headless root, item behavior, positioning and focus modules load with that content. The
+headless trigger receives the existing button as its anchor without replacing the button.
+Within a Sheet, the headless positioner stays in normal flow so the sheet owns scrolling
+and safe-area clearance.
+The opening gesture consumes both a synthesized item click and the following pointer click,
+so releasing over a newly presented action cannot select it or dismiss the sheet.
 The content module is cached, and a failed prefetch can retry when the menu opens. Its first
 presentation uses the current breakpoint, so a wide menu never briefly mounts a compact sheet.
 Escape and outside presses cancel a pending opening before the content arrives. A canceled load
@@ -42,5 +51,8 @@ Vitest covers menu names, item state, selection, dismissal, focus, replacement o
 existing interaction geometry. Native keyboard, TalkBack and native window stacking still require
 installed-device verification; host mocks cannot establish those outcomes.
 
-The separate overlay work remains: onboarding, the upgrade and throttle blocking screens,
-confirmation focus on Android and the stale date-field overlay comment.
+The native full-screen owners still require a window host that can cover an existing
+TrueSheet without dismissing its stateful subtree. A root React portal cannot establish
+that native ordering. Destructive confirmations focus Cancel after native presentation
+completes, and sheets restore the captured focus target on close when no replacement
+overlay has taken ownership, with the same focus rules on web.

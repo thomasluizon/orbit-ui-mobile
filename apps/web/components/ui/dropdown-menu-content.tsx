@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, type ReactNode, type RefObject } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useRef, type ReactNode, type Ref, type RefObject } from 'react'
 import * as Primitive from '@radix-ui/react-dropdown-menu'
 import type { MenuItem, MenuProps } from '@orbit/shared/contracts/overlay'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -26,7 +26,23 @@ function visibleTabStop(element: HTMLElement) {
   return true
 }
 
-export function Content({ id, items = [], onSelect, title, shortTitle, titleMode, presentation = 'auto', wideFrom = 900, align = 'end', returnFocus, restoreFocusOnSelect = true, children, firstItemRef }: Readonly<ContentProps & { children: ReactNode; firstItemRef: RefObject<HTMLButtonElement | null> }>) {
+type LoadedContentProps = ContentProps & { children: ReactNode; firstItemRef: RefObject<HTMLButtonElement | null> }
+
+export function Content(props: Readonly<LoadedContentProps>) {
+  const { open, changeOpen } = useMenu()
+  return <Primitive.Root open={open} onOpenChange={changeOpen} modal={false}>
+    <Primitive.Trigger asChild><TriggerAnchor /></Primitive.Trigger>
+    <MenuContent {...props} />
+  </Primitive.Root>
+}
+
+function TriggerAnchor({ ref }: Readonly<{ ref?: Ref<HTMLButtonElement | null> }>) {
+  const { triggerRef } = useMenu()
+  useImperativeHandle<HTMLButtonElement | null, HTMLButtonElement | null>(ref, () => triggerRef.current, [triggerRef])
+  return null
+}
+
+function MenuContent({ id, items = [], onSelect, title, shortTitle, titleMode, presentation = 'auto', wideFrom = 900, align = 'end', returnFocus, restoreFocusOnSelect = true, children, firstItemRef }: Readonly<LoadedContentProps>) {
   const { open, close, triggerRef, canRestoreFocus } = useMenu()
   const wide = useViewportMatch(`(min-width: ${wideFrom}px)`)
   const selected = useRef(false)

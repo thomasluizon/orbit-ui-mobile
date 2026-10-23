@@ -580,7 +580,9 @@
 }
 
 .orbit-sheet-panel [data-radix-popper-content-wrapper] {
-  display: contents;
+  position: static !important;
+  min-width: 0 !important;
+  transform: none !important;
 }
 
 .orbit-menu-panel {
