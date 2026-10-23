@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { T, TOOLS_DIR, orcaEnv, realOrchestratorConfig, stageRepo } from "./_harness.mjs"
+import { T, TOOLS_DIR, orcaEnv, realOrchestratorConfig, stage, stageRepo } from "./_harness.mjs"
 import { RELEASE_HOLD_MS, checkAdmission, configuredRepositorySlug, queuedRunsPath, releaseAdmission } from "../lib/admission.mjs"
 import { processStartIdentity } from "../lib/run-state.mjs"
 
@@ -55,6 +55,17 @@ export const cases = async () => {
   T("admission: existing pull request is exempt", existing.admitted && existing.existingPullRequest === 99, JSON.stringify(existing))
   const failure = await check(plan([], 0, [], true))
   T("admission: failed GitHub read refuses", !failure.admitted && failure.error.includes("GitHub unavailable"), JSON.stringify(failure))
+
+  const recoveringPlan = ["pulls?head=", "pulls?state=open", "actions/runs?status=queued"].map((match, index) => ({
+    match, sequenceFile: stage(`admission/retry-${index}`, ""), responseSequence: [
+      { stderr: "gh: HTTP 503", exit: 1 },
+      { stdout: match.includes("actions/runs") ? '{"total_count":0,"workflow_runs":[]}' : "[]", stderr: "", exit: 0 },
+    ],
+  }))
+  const recovered = await check({ ...process.env, ...orcaEnv(recoveringPlan) })
+  T("admission: transient branch, pull count and queued count failures recover before launch", recovered.admitted &&
+    recovered.counts.openPullRequests === 0 && recovered.counts.queuedRuns === 0 && recovered.transientErrors.count === 3 &&
+    recovered.transientErrors.last.includes("503"), JSON.stringify(recovered))
 
   const checkout = repository("admission-reservations")
   const reservationDirectory = join(checkout, ".git", "orbit-worker-launches")
