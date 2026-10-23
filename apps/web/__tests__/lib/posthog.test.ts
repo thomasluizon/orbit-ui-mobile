@@ -385,6 +385,48 @@ describe('web PostHog adapter', () => {
     expect(beforeSend(event)).toBeNull()
   })
 
+  it.each(['browser', 'standalone'] as const)('adds %s display mode to the opening pageview', async (mode) => {
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'project-key')
+    const media = vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: mode === 'standalone' } as MediaQueryList)
+    try {
+      const analytics = await import('@/lib/posthog')
+      await analytics.applyPostHogGate(true)
+      const beforeSend = sdk.init.mock.calls[0]?.[1].before_send
+      expect(beforeSend({ event: '$pageview', properties: {} })).toMatchObject({
+        properties: { display_mode: mode },
+      })
+    } finally {
+      media.mockRestore()
+    }
+  })
+
+  it('queues installation during SDK loading and respects the analytics gate and opt out', async () => {
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'project-key')
+    const analytics = await import('@/lib/posthog')
+    const enabling = analytics.applyPostHogGate(true)
+    analytics.capturePwaInstalled()
+    expect(sdk.capture).not.toHaveBeenCalled()
+    await enabling
+    expect(sdk.capture).toHaveBeenCalledExactlyOnceWith('pwa_installed')
+    await analytics.setAnalyticsOptOut(true)
+    analytics.capturePwaInstalled()
+    await analytics.setAnalyticsOptOut(false)
+    await analytics.applyPostHogGate(false)
+    analytics.capturePwaInstalled()
+    expect(sdk.capture).toHaveBeenCalledTimes(1)
+  })
+
+  it('drops a pending installation if analytics is disabled during loading', async () => {
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'project-key')
+    const analytics = await import('@/lib/posthog')
+    const enabling = analytics.applyPostHogGate(true)
+    analytics.capturePwaInstalled()
+    await analytics.applyPostHogGate(false)
+    await enabling
+    await analytics.applyPostHogGate(true)
+    expect(sdk.capture).not.toHaveBeenCalled()
+  })
+
   it('disables DOM interaction autocapture while retaining pageview and web vitals', async () => {
     vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'project-key')
     const analytics = await import('@/lib/posthog')

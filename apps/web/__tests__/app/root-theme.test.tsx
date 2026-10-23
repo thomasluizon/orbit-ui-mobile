@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { profileSchema } from '@orbit/shared/types/profile'
@@ -12,6 +13,9 @@ import { captureException } from '@sentry/nextjs'
 import { cookies } from 'next/headers'
 import { RequestCookies } from 'next/dist/server/web/spec-extension/cookies'
 import { RequestCookiesAdapter } from 'next/dist/server/web/spec-extension/adapters/request-cookies'
+
+const router = vi.hoisted(() => ({ push: vi.fn() }))
+vi.mock('next/navigation', () => ({ useRouter: () => router }))
 
 const requestCookies = vi.hoisted(() => new Map<string, string>())
 const cookieMutationAccess = vi.hoisted(() => vi.fn())
@@ -147,4 +151,18 @@ describe('root theme before hydration', () => {
     expect(page.documentElement.style.colorScheme).toBe('light')
     expect(captureException).toHaveBeenCalledWith(failure)
   })
+})
+
+it('handles a launch from the root layout before a session exists', async () => {
+  let consumer!: (parameters: { targetURL: string; files: readonly FileSystemHandle[] }) => void
+  vi.stubGlobal('launchQueue', {
+    setConsumer: (callback: typeof consumer) => { consumer = callback },
+  })
+  const upstream = vi.fn()
+  vi.stubGlobal('fetch', upstream)
+  const view = render(await RootLayout({ children: <main>Login fixture</main> }), { container: document })
+  consumer({ targetURL: `${window.location.origin}/login`, files: [] })
+  expect(router.push).toHaveBeenCalledExactlyOnceWith('/login')
+  expect(upstream).not.toHaveBeenCalled()
+  view.unmount()
 })
