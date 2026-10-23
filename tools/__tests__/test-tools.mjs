@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { resolve } from "node:path"
-import { T, run } from "./_harness.mjs"
+import { T, interruptGithubRead, run, stage } from "./_harness.mjs"
 
 const repositoryRoot = resolve(fileURLToPath(new URL("../../", import.meta.url)))
 const repositoryText = (path) => readFileSync(resolve(repositoryRoot, path), "utf8")
@@ -55,7 +55,42 @@ const talliedRows = (result) => {
   return [...table.matchAll(/^\s*(\d+)\s+(\S+)$/gm)].map(([, count, tool]) => ({ tool, count: Number(count) }))
 }
 
+async function checkSignalStartup() {
+  const pidFile = stage("test-tools/startup.pid", "")
+  const descendantPidFile = stage("test-tools/startup-descendant.pid", "")
+  const path = stage("test-tools/startup.mjs", `
+import { spawn } from "node:child_process"
+import { writeFileSync } from "node:fs"
+const descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" })
+process.on("SIGTERM", () => {
+  clearTimeout(ready)
+  descendant.once("close", () => process.exit(143))
+  descendant.kill("SIGKILL")
+})
+writeFileSync(${JSON.stringify(descendantPidFile)}, String(descendant.pid))
+writeFileSync(${JSON.stringify(pidFile)}, "0")
+const ready = setTimeout(() => writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)), 100)
+`)
+  const observed = await interruptGithubRead({ path, args: [], env: {}, signal: "SIGTERM", pidFile, descendantPidFile })
+  T("test-tools.mjs: signal startup waits for both pid files to hold live pids",
+    observed.started && observed.status === 143 && observed.terminated, JSON.stringify(observed))
+
+  for (const [name, source, expected] of [
+    ["exit", "process.exit(17)", { status: 17, signal: null }],
+    ["signal", 'process.kill(process.pid, "SIGTERM")', { status: null, signal: "SIGTERM" }],
+  ]) {
+    const path = stage(`test-tools/early-${name}.mjs`, source)
+    const pidFile = stage(`test-tools/early-${name}.pid`, "")
+    const descendantPidFile = stage(`test-tools/early-${name}-descendant.pid`, "")
+    const observed = await interruptGithubRead({ path, args: [], env: {}, signal: "SIGTERM", pidFile, descendantPidFile })
+    T(`test-tools.mjs: early tool ${name} reports why signal startup failed`,
+      !observed.started && observed.terminated && observed.status === expected.status && observed.signal === expected.signal &&
+      observed.startupError === "Tool exited before both GitHub shim pid files held live pids", JSON.stringify(observed))
+  }
+}
+
 export async function cases() {
+  await checkSignalStartup()
   checkProdReadinessInventory()
   const focused = run("test-tools.mjs", ["--only", "bounded-process"])
   T("test-tools.mjs: --only runs the named case module", focused.status === 0, focused.stderr || focused.stdout)

@@ -95,15 +95,19 @@ export const interruptGithubRead = async ({ path, args, env, signal, pidFile, de
   let stderr = ""
   child.stdout.on("data", (chunk) => { stdout += chunk })
   child.stderr.on("data", (chunk) => { stderr += chunk })
+  let exited = false
+  child.once("exit", () => { exited = true })
   const closed = new Promise((resolve) => child.once("close", (status, signal) => resolve({ status, signal })))
   const readPid = (file) => existsSync(file) ? Number(readFileSync(file, "utf8")) : null
-  const deadline = Date.now() + 5000
-  while (!readPid(descendantPidFile) && child.exitCode === null && Date.now() < deadline) {
+  let pids
+  while (true) {
+    pids = [readPid(pidFile), readPid(descendantPidFile)]
+    if (pids.every(processIsRunning) || exited) break
     await new Promise((resolve) => setTimeout(resolve, 20))
   }
-  const pids = [readPid(pidFile), readPid(descendantPidFile)]
-  const started = pids.every(processIsRunning)
-  child.kill(signal)
+  const started = !exited && pids.every(processIsRunning)
+  const startupError = started ? null : "Tool exited before both GitHub shim pid files held live pids"
+  if (started) child.kill(signal)
   const watchdog = setTimeout(() => child.kill("SIGKILL"), 3000)
   const exit = await closed
   clearTimeout(watchdog)
@@ -117,7 +121,7 @@ export const interruptGithubRead = async ({ path, args, env, signal, pidFile, de
       try { process.kill(pid, "SIGKILL") } catch { /* the child can exit before cleanup */ }
     }
   }
-  return { ...exit, started, terminated, stdout, stderr }
+  return { ...exit, started, startupError, terminated, stdout, stderr }
 }
 
 /**
