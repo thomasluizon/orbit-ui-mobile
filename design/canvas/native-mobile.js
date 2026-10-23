@@ -10,8 +10,8 @@ window.OrbitNativeMobile = (() => {
   let rootScroller;
   window.addEventListener('scroll', (event) => { if (event.target instanceof Element && event.target.querySelector('[data-native-scroll]')) rootScroller = event.target; }, true);
   const words = () => document.querySelector('[lang="en"]')
-    ? { attach: 'Attach', file: 'Document', image: 'Photo', voice: 'Voice', ask: 'Ask Astra', bell: 'Notifications' }
-    : { attach: 'Anexar', file: 'Documento', image: 'Foto', voice: 'Voz', ask: 'Consultar Astra', bell: 'Avisos' };
+    ? { attach: 'Attach', file: 'Document', image: 'Photo', voice: 'Voice', open: 'Open conversation', bell: 'Notifications' }
+    : { attach: 'Anexar', file: 'Documento', image: 'Foto', voice: 'Voz', open: 'Abrir conversa', bell: 'Avisos' };
   function BellRow({ children, leading, count = 3 }) {
     const t = words();
     return node('div', { className: 'native-bell-row', style: { display: 'flex', alignItems: 'center',
@@ -25,13 +25,12 @@ window.OrbitNativeMobile = (() => {
   function AstraRow({ current = false, onOpen = () => window.location.assign('Orbit Astra Conversation.dc.html') }) {
     return node(React.Fragment, null,
       node('style', null, '.native-astra-row:hover,.native-astra-row:active{background:var(--bg-hover)}.native-astra-row:focus-visible{outline:2px solid var(--primary);outline-offset:2px}'),
-      node('button', { type: 'button', className: 'native-astra-row', 'aria-expanded': current,
+      node('button', { type: 'button', className: 'native-astra-row', 'aria-label': words().open, 'aria-expanded': current,
         onClick: onOpen, style: { ...button, width: '100%', minHeight: 48, borderRadius: 12,
           paddingInline: 12, gap: 12, justifyContent: 'flex-start', fontSize: 14, fontWeight: 500,
           color: current ? 'var(--primary-soft)' : 'var(--fg-3)' } },
         node('span', { 'aria-hidden': true, style: { display: 'flex', color: current ? 'var(--primary)' : 'inherit' } },
-          node(window.OrbitDesignSystem_918bd5.AstraGlyph, { size: 20 })),
-        node('span', { translate: 'no' }, 'Astra')));
+          node(window.OrbitDesignSystem_918bd5.AstraGlyph, { size: 20 }))));
   }
   function Composer(props) {
     const [open, setOpen] = React.useState(false);
@@ -61,8 +60,8 @@ window.OrbitNativeMobile = (() => {
             node('button', { type: 'button', 'aria-label': props.attachWords.remove(attachment.name),
               style: button, onClick: () => props.onAttachRemove?.(attachment.id) }, icon('x'))))) : null,
         node('div', { style: { display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', minHeight: 48 } },
-          props.onOpen ? node('button', { type: 'button', style: { ...button, gap: 8 }, 'aria-label': props.words.open + ', Astra',
-            onClick: props.onOpen }, node(window.OrbitDesignSystem_918bd5.AstraGlyph, { size: 20 }), node('span', { translate: 'no' }, 'Astra')) : null,
+          props.onOpen ? node('button', { type: 'button', style: { ...button, gap: 8 }, 'aria-label': props.words.open,
+            onClick: props.onOpen }, node(window.OrbitDesignSystem_918bd5.AstraGlyph, { size: 20 })) : null,
           recording ? node(React.Fragment, null, node('span', { style: { flex: 1, fontSize: 14 } }, props.voiceWords.listening, ' 00:12'),
             node('button', { type: 'button', style: button, 'aria-label': props.voiceWords.stop,
               onClick: props.onVoice }, icon('player-stop')))
@@ -80,7 +79,7 @@ window.OrbitNativeMobile = (() => {
           node('button', { type: 'button', className: 'native-send', 'aria-label': props.onRetry ? props.words.retry : props.words.send,
             disabled: blocked && !props.onRetry, onClick: send,
             style: { ...button, gap: 8, background: 'var(--primary)', color: 'var(--fg-on-primary)' } },
-            node(window.OrbitDesignSystem_918bd5.AstraGlyph, { size: 20 }), t.ask))),
+            node(window.OrbitDesignSystem_918bd5.AstraGlyph, { size: 20 })))),
       node(window.OrbitDesignSystem_918bd5.Menu, { open, title: t.attach, onClose: () => setOpen(false),
         items: menu.map((entry, index) => ({ id: String(index), label: entry.label })),
         onSelect: (id) => { setOpen(false); menu[Number(id)].run(); } }));
