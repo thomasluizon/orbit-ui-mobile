@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { referralKeys } from '@orbit/shared/query'
-import { selectReferralReward } from '@orbit/shared/utils'
+import { REFERRAL_REWARD_COPY_KEYS, selectReferralReward } from '@orbit/shared/utils'
 import type { ReferralPresentationDashboard } from '@orbit/shared/types/referral'
 import {
   canPromptReferral,
@@ -101,7 +101,7 @@ export function ReferralPrompt() {
   const title = milestone?.kind === 'level'
     ? t('referral.prompt.levelTitle', { level: milestone.value })
     : t('referral.prompt.streakTitle', { count: milestone?.value ?? 0 })
-  const body = t(`referral.reward.${reward.kind}`, reward.values)
+  const body = t(REFERRAL_REWARD_COPY_KEYS[reward.kind].rewardKey, reward.values)
 
   function openDrawer() {
     closeSheet(() => {

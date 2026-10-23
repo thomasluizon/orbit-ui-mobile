@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Check, Copy, Loader2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { ReferralPresentationStats } from '@orbit/shared/types/referral'
-import { selectReferralReward } from '@orbit/shared/utils'
+import { REFERRAL_REWARD_COPY_KEYS, selectReferralReward } from '@orbit/shared/utils'
 import { useReferral } from '@/hooks/use-referral'
 import { ErrorState } from '@/components/ui/error-state'
 import { InfoCard } from '@/components/ui/info-card'
@@ -104,7 +104,7 @@ function LoadedContent({
               {t('referral.drawer.howItWorks')}
             </strong>
             <p className="mt-2 text-sm text-[var(--fg-2)]">
-              {t(`referral.reward.${reward.kind}`, reward.values)}
+              {t(REFERRAL_REWARD_COPY_KEYS[reward.kind].rewardKey, reward.values)}
             </p>
           </InfoCard>
           <p className="text-xs leading-5 text-[var(--fg-3)]">
@@ -147,7 +147,7 @@ function ReferralDrawerContent({
     try {
       await navigator.share({
         title: t('referral.share.title'),
-        text: t(`referral.share.${reward.kind}`, reward.values),
+        text: t(REFERRAL_REWARD_COPY_KEYS[reward.kind].shareKey, reward.values),
         url: referralUrl,
       })
       setFailedAction(null)

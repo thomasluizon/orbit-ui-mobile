@@ -9,6 +9,12 @@ export type ReferralReward =
   | { kind: 'discount'; values: { discountPercent: number } }
   | { kind: 'neutral'; values: Record<string, never> }
 
+export const REFERRAL_REWARD_COPY_KEYS = {
+  proDays: { rewardKey: 'referral.reward.proDays', shareKey: 'referral.share.proDays' },
+  discount: { rewardKey: 'referral.reward.discount', shareKey: 'referral.share.discount' },
+  neutral: { rewardKey: 'referral.reward.neutral', shareKey: 'referral.share.neutral' },
+} as const satisfies Record<ReferralReward['kind'], { rewardKey: string; shareKey: string }>
+
 export function selectReferralReward(stats: RewardStats | null | undefined): ReferralReward {
   const days = stats?.proDaysPerReferral
   if (stats?.rewardType === 'pro_days' && days !== undefined && Number.isSafeInteger(days) && days > 0) {

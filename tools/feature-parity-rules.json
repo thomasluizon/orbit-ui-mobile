@@ -1398,11 +1398,33 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
+    "mobile:display:referral.drawer.couponsEarned": {
+      "targets": [
+        "mobile:display:referral.drawer.completed"
+      ],
+      "reason": "The same successful-referral count is shown once without implying a separate reward grant."
+    },
+    "mobile:display:referral.drawer.disclaimer": {
+      "targets": [
+        "mobile:content:referral.reward.eligibility"
+      ],
+      "reason": "The reward disclaimer now describes account eligibility and limits for every offer kind."
+    },
+    "mobile:display:referral.drawer.explanation": {
+      "targets": [
+        "mobile:content:referral.reward.proDays",
+        "mobile:content:referral.reward.discount",
+        "mobile:content:referral.reward.neutral"
+      ],
+      "reason": "The reward explanation is now selected from the API offer kind."
+    },
     "mobile:display:referral.prompt.body": {
       "targets": [
-        "mobile:content:referral.prompt.body"
+        "mobile:content:referral.reward.proDays",
+        "mobile:content:referral.reward.discount",
+        "mobile:content:referral.reward.neutral"
       ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
+      "reason": "The prompt reward explanation is now selected from the API offer kind."
     },
     "mobile:display:reviewMoment.levelTitle": {
       "targets": [
@@ -3106,11 +3128,33 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "web:display:referral.drawer.couponsEarned": {
+      "targets": [
+        "web:display:referral.drawer.completed"
+      ],
+      "reason": "The same successful-referral count is shown once without implying a separate reward grant."
+    },
+    "web:display:referral.drawer.disclaimer": {
+      "targets": [
+        "web:content:referral.reward.eligibility"
+      ],
+      "reason": "The reward disclaimer now describes account eligibility and limits for every offer kind."
+    },
+    "web:display:referral.drawer.explanation": {
+      "targets": [
+        "web:content:referral.reward.proDays",
+        "web:content:referral.reward.discount",
+        "web:content:referral.reward.neutral"
+      ],
+      "reason": "The reward explanation is now selected from the API offer kind."
+    },
     "web:display:referral.prompt.body": {
       "targets": [
-        "web:content:referral.prompt.body"
+        "web:content:referral.reward.proDays",
+        "web:content:referral.reward.discount",
+        "web:content:referral.reward.neutral"
       ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
+      "reason": "The prompt reward explanation is now selected from the API offer kind."
     },
     "web:display:shareCard.streak": {
       "targets": [

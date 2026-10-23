@@ -13,7 +13,7 @@ import * as Clipboard from 'expo-clipboard'
 import { Check, Copy } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ReferralPresentationStats } from '@orbit/shared/types/referral'
-import { selectReferralReward } from '@orbit/shared/utils'
+import { REFERRAL_REWARD_COPY_KEYS, selectReferralReward } from '@orbit/shared/utils'
 import { useReferral } from '@/hooks/use-referral'
 import { captureError } from '@/lib/sentry'
 import { ErrorState } from '@/components/ui/error-state'
@@ -122,7 +122,7 @@ function LoadedContent({
               {t('referral.drawer.howItWorks')}
             </Text>
             <Text style={styles.infoBody}>
-              {t(`referral.reward.${reward.kind}`, reward.values)}
+              {t(REFERRAL_REWARD_COPY_KEYS[reward.kind].rewardKey, reward.values)}
             </Text>
           </InfoCard>
           <Text style={styles.disclaimer}>
@@ -152,7 +152,7 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
   const shareLink = useCallback(async () => {
     if (!referralUrl) return
     try {
-      const referralMessage = t(`referral.share.${reward.kind}`, reward.values)
+      const referralMessage = t(REFERRAL_REWARD_COPY_KEYS[reward.kind].shareKey, reward.values)
       await Share.share({
         title: t('referral.share.title'),
         message: `${referralMessage} ${referralUrl}`,
