@@ -2889,6 +2889,12 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "web:display:chat.templates.forYou": {
+      "targets": [
+        "web:content:chat.templates.forYou"
+      ],
+      "reason": "PromptLibrary retains For You in its rendered live-section heading and accessible section label."
+    },
     "web:display:chat.title": {
       "targets": [
         "web:control:chat.title"

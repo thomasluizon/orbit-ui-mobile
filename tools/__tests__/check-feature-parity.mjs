@@ -255,6 +255,31 @@ function workflowRegressions(workflow) {
   T('evidence uploads even when the comparison fails', artifact.if.includes('always()') && artifact.with.path === manifestPath && artifact.with['include-hidden-files'] === true)
 }
 
+function promptLibraryRegressions(current, files, rules) {
+  const owner = 'apps/web/components/chat/prompt-library.tsx'
+  const original = files[owner]
+  const id = 'web:display:chat.templates.forYou'
+  const capability = [{ id, platform: 'web', kind: 'display', key: 'chat.templates.forYou', evidence: [] }]
+  const observations = scan(current, 'web', rules)
+  const content = observations.find((entry) => entry.id === 'web:content:chat.templates.forYou')
+  T('For You has actual reachable web heading and region consumers', content?.consumers.length === 2 && content.consumers.every((item) => item.file === owner))
+  const before = compare(capability, observations, rules)
+  T('the production For You display obligation resolves to web PromptLibrary', before[0].disposition === 'retained' && before[0].redesign.length === 2 && before[0].redesign.every((item) => item.file === owner))
+  files[owner] = original.replace(/<h2[^\n]*\{t\('chat.templates.forYou'\)\}<\/h2>/, '')
+  T('the heading fault leaves the real live section label', files[owner] !== original && files[owner].includes("aria-label={t('chat.templates.forYou')}"))
+  T('the live section accessible label remains separate static retention evidence', compare(capability, scan(current, 'web', rules), rules)[0].disposition === 'retained')
+  files[owner] = files[owner].replace(" aria-label={t('chat.templates.forYou')}", '')
+    .replace('const locale = useLocale()', "const unusedForYou = t('chat.templates.forYou')\n  const locale = useLocale()")
+  T('the owner fault preserves live callbacks, catalog groups and the translated key', files[owner].includes('props.suggestions.map') && files[owner].includes('<CatalogGroup') && files[owner].includes("const unusedForYou = t('chat.templates.forYou')") && JSON.parse(files['packages/shared/src/i18n/en.json']).chat.templates.forYou === 'For you now')
+  const withoutOwners = scan(current, 'web', rules)
+  const after = compare(capability, withoutOwners, rules)
+  T('an unused translation cannot retain the removed For You consumers', withoutOwners.find((entry) => entry.id === 'web:content:chat.templates.forYou')?.consumers.length === 0 && after[0].disposition === 'missing')
+  T('removing the actual For You owners blocks the original production obligation', newLosses(after, before).some((entry) => entry.id === id))
+  files[owner] = original
+  const restored = compare(capability, scan(current, 'web', rules), rules)
+  T('restoring the actual For You owners retains the production obligation again', restored[0].disposition === 'retained' && newLosses(restored, before).length === 0)
+}
+
 export const cases = () => {
   const workflow = yaml.load(readFileSync(join(REPO_ROOT, '.github/workflows/guards.yml'), 'utf8'))
   workflowRegressions(workflow)
@@ -436,6 +461,7 @@ export const cases = () => {
     load(`apps/${platform}`)
     load('packages/shared/src')
     const current = { paths: new Set(Object.keys(files)), read: (path) => files[path] }
+    if (platform === 'web') promptLibraryRegressions(current, files, rules)
     const apiKeys = `apps/${platform}/components/profile/profile-api-keys.tsx`
     const currentObservations = scan(current, platform)
     const currentControls = currentObservations.filter((entry) => entry.kind !== 'content')
