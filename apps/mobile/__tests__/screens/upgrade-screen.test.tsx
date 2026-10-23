@@ -2,6 +2,7 @@ import { StyleSheet, View, type AppStateStatus } from 'react-native'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import React from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createRequire } from 'node:module'
 import appJson from '../../app.json'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
@@ -38,6 +39,10 @@ const mocks = vi.hoisted(() => ({
   showSuccess: vi.fn(),
   isOnline: true,
   renderComposition: false,
+  realPlayBilling: false,
+  connectionOutcome: 'false',
+  reconnect: vi.fn(),
+  fetchProducts: vi.fn(),
   locale: 'en',
   mode: 'dark',
   from: undefined as string | undefined,
@@ -138,8 +143,20 @@ vi.mock('@/hooks/use-billing', () => ({
     refetch: mocks.refetchBilling,
   }),
 }))
-vi.mock('@/hooks/use-play-billing', () => ({
-  usePlayBilling: () => mocks.playBilling,
+vi.mock('@/hooks/use-play-billing', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-play-billing')>()
+  return { ...actual, usePlayBilling: (options: Parameters<typeof actual.usePlayBilling>[0]) =>
+    mocks.realPlayBilling ? actual.usePlayBilling(options) : mocks.playBilling }
+})
+vi.mock('expo-iap', async (importOriginal) => ({
+  ...await importOriginal<typeof import('expo-iap')>(),
+  useIAP: (options: { onError?: (error: Error) => void }) => {
+    const initialOptions = React.useRef(options)
+    React.useEffect(() => {
+      if (mocks.connectionOutcome === 'rejected') initialOptions.current.onError?.(new Error('Play initialization failed'))
+    }, [])
+    return { connected: false, subscriptions: [], fetchProducts: mocks.fetchProducts, requestPurchase: mocks.playBilling.purchase, reconnect: mocks.reconnect }
+  },
 }))
 vi.mock('@/hooks/use-subscription-plans', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-subscription-plans')>(),
@@ -208,7 +225,9 @@ vi.mock('@/components/upgrade/pricing-section', async (importOriginal) => {
 async function renderScreen() {
   let tree: { root: TestNode; unmount: () => void; toJSON: () => Parameters<typeof measureProfileRow>[0] } | undefined
   await TestRenderer.act(async () => {
-    tree = TestRenderer.create(<UpgradeScreen />)
+    tree = TestRenderer.create(mocks.realPlayBilling
+      ? <QueryClientProvider client={new QueryClient()}><UpgradeScreen /></QueryClientProvider>
+      : <UpgradeScreen />)
     await Promise.resolve()
   })
   return tree!
@@ -386,6 +405,10 @@ describe('UpgradeScreen', () => {
     mocks.refetchBilling.mockReset().mockResolvedValue(undefined)
     mocks.isOnline = true
     mocks.renderComposition = false
+    mocks.realPlayBilling = false
+    mocks.connectionOutcome = 'false'
+    mocks.reconnect.mockReset().mockResolvedValue(false)
+    mocks.fetchProducts.mockReset().mockResolvedValue(undefined)
     mocks.locale = 'en'
     mocks.mode = 'dark'
     vi.stubEnv('ORBIT_APP_VARIANT', 'production')
@@ -674,18 +697,22 @@ describe('UpgradeScreen', () => {
     expect(mocks.playBilling.purchase).toHaveBeenCalledWith('yearly')
   })
 
-  it.each(['en', 'pt-BR'] as const)('offers a Play product retry on the Pro screen in %s', async (locale) => {
+  it.each((['en', 'pt-BR'] as const).flatMap((locale) => ['false', 'rejected'].map((outcome) => ({ locale, outcome }))))('offers a retry for a $outcome Play connection on the Pro screen in $locale', async ({ locale, outcome }) => {
     await configureSubscription({ width: 412, locale, mode: 'dark', state: 'free' })
-    mocks.playBilling.isProductsError = true
+    vi.useFakeTimers()
+    mocks.realPlayBilling = true
+    mocks.connectionOutcome = outcome
     const tree = await renderScreen()
     try {
+      await TestRenderer.act(async () => vi.advanceTimersByTimeAsync(10_000))
       expect(JSON.stringify(tree.toJSON())).toContain(testI18n.t('upgrade.plans.error'))
       expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'upgrade-tier-yearly')).toHaveLength(0)
       const retry = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button'
         && node.findAll((child) => child.type === 'Text' && child.props.children === testI18n.t('upgrade.plans.retry')).length > 0)[0]!
       await TestRenderer.act(() => (retry.props.onPress as () => void)())
-      expect(mocks.playBilling.retryProducts).toHaveBeenCalledOnce()
+      expect(mocks.reconnect).toHaveBeenCalledOnce()
       expect(mocks.refetchPlans).toHaveBeenCalledOnce()
+      expect(mocks.fetchProducts).not.toHaveBeenCalled()
       expect(mocks.playBilling.purchase).not.toHaveBeenCalled()
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
