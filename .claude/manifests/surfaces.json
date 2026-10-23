@@ -5403,6 +5403,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-app-today-shell",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/today-shell.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/today-shell.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-app-today-shell",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/today-shell.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/today-shell.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-app-today-shell",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/today-shell.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/today-shell.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-app-today-shell",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/today-shell.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/today-shell.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-advanced-advanced-sections",
       "platform": "web",
       "kind": "overlay",
@@ -7119,6 +7171,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-habits-habit-row-trailing",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-row-trailing.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-row-trailing.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-row-trailing",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-row-trailing.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-row-trailing.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-row-trailing",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-row-trailing.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-row-trailing.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-row-trailing",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-row-trailing.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-row-trailing.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-habits-reschedule-sheet",
       "platform": "web",
       "kind": "overlay",
@@ -7847,6 +7951,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-shell-sidebar-account",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/shell/sidebar-account.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/shell/sidebar-account.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-shell-sidebar-account",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/shell/sidebar-account.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/shell/sidebar-account.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-shell-sidebar-account",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/shell/sidebar-account.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/shell/sidebar-account.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-shell-sidebar-account",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/shell/sidebar-account.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/shell/sidebar-account.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-ui-confirm-sheet",
       "platform": "web",
       "kind": "overlay",
@@ -8049,6 +8205,58 @@
       "href": null,
       "ownedFiles": [
         "apps/web/components/ui/dropdown-menu-content.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-ui-dropdown-menu",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/dropdown-menu.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/dropdown-menu.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-dropdown-menu",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/dropdown-menu.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/dropdown-menu.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-ui-dropdown-menu",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/dropdown-menu.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/dropdown-menu.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-dropdown-menu",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/dropdown-menu.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/dropdown-menu.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -8620,7 +8828,6 @@
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
-        "apps/mobile/components/today/today-date-control.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
@@ -8656,7 +8863,6 @@
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
-        "apps/mobile/components/today/today-date-control.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
@@ -8692,7 +8898,6 @@
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
-        "apps/mobile/components/today/today-date-control.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
@@ -8728,7 +8933,6 @@
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
-        "apps/mobile/components/today/today-date-control.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
@@ -8764,7 +8968,6 @@
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
-        "apps/mobile/components/today/today-date-control.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
@@ -8800,7 +9003,6 @@
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
-        "apps/mobile/components/today/today-date-control.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
@@ -8836,7 +9038,6 @@
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
-        "apps/mobile/components/today/today-date-control.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
@@ -8872,7 +9073,6 @@
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
-        "apps/mobile/components/today/today-date-control.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
@@ -14795,6 +14995,110 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-habits-habit-row-trailing",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-row-trailing.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-row-trailing.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-row-trailing",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-row-trailing.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-row-trailing.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-row-trailing",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-row-trailing.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-row-trailing.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-row-trailing",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-row-trailing.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-row-trailing.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-row",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-row.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-row.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-row",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-row.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-row.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-row",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-row.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-row.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-row",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-row.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-row.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-habits-reschedule-sheet",
       "platform": "mobile",
       "kind": "overlay",
@@ -16045,6 +16349,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/throttle-screen.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-today-today-date-control",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/today/today-date-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/today/today-date-control.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-today-today-date-control",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/today/today-date-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/today/today-date-control.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-today-today-date-control",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/today/today-date-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/today/today-date-control.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-today-today-date-control",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/today/today-date-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/today/today-date-control.tsx"
       ],
       "state": "default",
       "theme": "dark",

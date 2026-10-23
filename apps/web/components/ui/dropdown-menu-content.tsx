@@ -13,6 +13,7 @@ import { Icon } from '@/components/ui/icon'
 const Portal = Primitive.Portal
 
 export type ContentProps = Omit<MenuProps, 'open' | 'onClose' | 'anchorRef'> & {
+  header?: ReactNode
   returnFocus?: () => HTMLElement | null
   restoreFocusOnSelect?: boolean
 }
@@ -40,13 +41,24 @@ export function Content({ id, items = [], onSelect, title, shortTitle, titleMode
       && !active.isSameNode(target ?? null) && !firstItemRef.current?.closest('[role="menu"]')?.contains(active)
     return canRestoreFocus() && restoreFocus.current && !actionMovedFocus && (target ?? true)
   }
+  const restoreAnchoredFocus = () => {
+    const target = focusDestination()
+    if (typeof target !== 'boolean') target.focus()
+  }
   if (!open || items.length === 0) return null
   if (presentation === 'sheet' || (presentation === 'auto' && !wide)) {
     return <MenuSheet id={id} onSelect={activate} onClose={onClose} title={title} shortTitle={shortTitle} titleMode={titleMode} firstItemRef={firstItemRef} onSelectStart={() => { selected.current = true; restoreFocus.current = restoreFocusOnSelect }} finalFocus={focusDestination}>{children}</MenuSheet>
   }
   return <MenuItemsContext.Provider value={activate}><Portal><div>
-    <div className="orbit-menu-catcher" aria-hidden="true" />
-    <Primitive.Content {...(id ? { id } : {})} aria-label={title} aria-labelledby={undefined} align={align} sideOffset={8} collisionPadding={8} loop className="orbit-menu-panel" data-positioned="" onFocus={(event) => { if (event.target === event.currentTarget) firstItemRef.current?.focus() }} onKeyDown={(event) => {
+    <div className="orbit-menu-catcher" aria-hidden="true" onPointerDown={(event) => {
+      event.preventDefault()
+      restoreAnchoredFocus()
+      onClose()
+    }} />
+    <Primitive.Content {...(id ? { id } : {})} aria-label={title} aria-labelledby={undefined} align={align} sideOffset={8} collisionPadding={8} loop className="orbit-menu-panel" data-positioned="" onFocus={(event) => { if (event.target === event.currentTarget) firstItemRef.current?.focus() }} onEscapeKeyDown={restoreAnchoredFocus} onPointerDownOutside={(event) => {
+      event.detail.originalEvent.preventDefault()
+      restoreAnchoredFocus()
+    }} onKeyDown={(event) => {
       if (event.key !== 'Tab') return
       event.preventDefault()
       const trigger = triggerRef.current

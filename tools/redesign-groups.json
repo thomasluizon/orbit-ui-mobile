@@ -162,13 +162,19 @@
     "Orbit Hoje": [
       "m-overlay-habit-list-confirm-dialogs",
       "m-overlay-habit-list-move-parent-dialog",
+      "m-overlay-habits-habit-row",
+      "m-overlay-habits-habit-row-trailing",
       "m-overlay-shell-composer",
+      "m-overlay-today-today-date-control",
       "m-overlay-today-today-modals",
       "m-route-tabs-index",
       "overlay-app-layout",
       "overlay-app-today-page-view",
+      "overlay-app-today-shell",
       "overlay-habit-list-confirm-dialogs",
       "overlay-habit-list-move-parent-overlay",
+      "overlay-habits-habit-row-trailing",
+      "overlay-shell-sidebar-account",
       "route-root"
     ],
     "Orbit Offline": [],
@@ -265,6 +271,7 @@
       "overlay-ui-confirm-sheet",
       "overlay-ui-date-field",
       "overlay-ui-discard-changes-sheet",
+      "overlay-ui-dropdown-menu",
       "overlay-ui-dropdown-menu-content",
       "overlay-ui-sheet",
       "overlay-ui-time-field",
@@ -432,13 +439,15 @@
     }
   ],
   "notes": {
-    "m-overlay-ui-dropdown-menu": "The shared headless menu owns the overlay rendered by habit actions and Today controls; those callers remain covered by the Hoje route instead of being separate overlay roots.",
-    "overlay-ui-dropdown-menu-content": "The shared lazy menu content owns the overlay rendered by Today controls and habit actions; those callers remain covered by the Hoje route instead of being separate overlay roots.",
+    "m-overlay-ui-dropdown-menu": "The shared headless menu owns the overlay behavior rendered by habit actions and Today controls, whose surfaces belong to Orbit Hoje.",
+    "overlay-ui-dropdown-menu": "The shared headless menu composes the trigger, header and lazy content used by habit actions and Today controls, whose surfaces belong to Orbit Hoje.",
+    "overlay-ui-dropdown-menu-content": "The shared lazy menu content owns the overlay behavior rendered by Today controls and habit actions, whose surfaces belong to Orbit Hoje.",
     "m-overlay-progress-progress-content": "apps/mobile/components/progress/progress-content.tsx is the live body of the Progresso tab, reached from apps/mobile/app/(tabs)/progress.tsx. It reads as an overlay only because it imports ConfirmSheet directly, which is a listed overlay base.",
     "overlay-components-progress-content": "apps/web/app/(app)/progress/_components/progress-content.tsx is the live body of the /progress route, reached from apps/web/app/(app)/progress/page.tsx. It reads as an overlay only because it imports ConfirmSheet directly, which is a listed overlay base.",
     "m-overlay-habits-goal-linking-field": "Orbit Habit Detail is the representative owner for the shared goal-linking field; Orbit Habit Create also draws it in the creation flow.",
     "m-widget-orbit-widget": "D66 assigns the Android widget to its canvas document.",
     "overlay-app-layout": "Orbit Hoje is the representative owner for the authenticated shell shared across Hoje, Calendario, Progresso, and Perfil, as defined by DESIGN.md.",
+    "overlay-shell-sidebar-account": "Orbit Hoje owns the shared wide sidebar; its account menu follows the account header and sign-out composition specified by ticket #1657.",
     "route-turnstile-bridge": "Orbit Entrar owns the headless Turnstile bridge used by Android sign-in; it has no separate visible canvas."
   }
 }

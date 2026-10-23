@@ -79,7 +79,7 @@ export function Content(props: Readonly<ContentProps>) {
   const MenuContent = useContentModule(open)?.Content
   const items = props.items ?? []
   const rows = [...items.filter((item) => !item.destructive), ...items.filter((item) => item.destructive)]
-  return MenuContent ? <MenuContent {...props} firstItemRef={firstItemRef}><MenuItems items={rows} firstItemRef={firstItemRef} /></MenuContent> : <Primitive.Content hidden onCloseAutoFocus={(event) => {
+  return MenuContent ? <MenuContent {...props} firstItemRef={firstItemRef}>{props.header}<MenuItems items={rows} firstItemRef={firstItemRef} /></MenuContent> : <Primitive.Content hidden onPointerDownOutside={(event) => event.detail.originalEvent.preventDefault()} onCloseAutoFocus={(event) => {
       if (open || !canRestoreFocus()) { event.preventDefault(); return }
       const target = props.returnFocus?.() ?? triggerRef.current
       if (target) { event.preventDefault(); target.focus() }

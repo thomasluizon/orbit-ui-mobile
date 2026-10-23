@@ -1,8 +1,6 @@
 'use client'
 
-import { PersonalText } from '@/components/ui/personal-text'
-
-import Link from 'next/link'
+import { SidebarAccount } from './sidebar-account'
 import { useTranslations } from 'next-intl'
 import {
   useEffect,
@@ -125,33 +123,6 @@ function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
             <AstraGlyph size={20} color={open ? 'var(--primary)' : 'var(--fg-3)'} />
             <span translate="no" className={collapsed ? 'sr-only' : 'whitespace-nowrap'}>{row.label}</span>
           </button>
-}
-
-function SidebarAccount({ account, accountEmail, collapsed }: Readonly<{ account?: string; accountEmail?: string; collapsed: boolean }>) {
-  return <>{account ? (
-          <div className="flex min-w-0 items-center"><Link
-            data-shell-account=""
-            aria-label={[account, accountEmail].filter(Boolean).join(', ')}
-            title={collapsed ? [account, accountEmail].filter(Boolean).join(', ') : undefined}
-            href="/profile"
-            className={`orbit-hover-text flex flex-1 min-h-[var(--touch-min)] min-w-0 items-center ${collapsed ? 'justify-center' : ''} gap-3 rounded-[12px] px-2 py-2 text-[14px] font-medium text-[var(--fg-1)] transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]`}
-          >
-            <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-[8px] bg-[var(--bg-well)] text-[var(--fg-2)]">
-              {Array.from(account)[0]?.toLocaleUpperCase()}
-            </span>
-            <span className={collapsed ? 'sr-only' : 'flex min-w-0 flex-1 flex-col'}>
-              <PersonalText data-shell-account-name="">{account}</PersonalText>
-              {accountEmail ? <PersonalText data-shell-account-email="" className="text-[12px] font-normal text-[var(--fg-3)]">{accountEmail}</PersonalText> : null}
-            </span>
-          </Link></div>
-        ) : (
-          <div data-shell-account="" data-loading="true" aria-hidden="true" className="flex min-h-[var(--touch-min)] flex-col px-2 py-2 text-[14px]">
-            {collapsed ? null : <>
-              <span className="min-h-[1lh]" />
-              <span className="min-h-[1lh] text-[12px]" />
-            </>}
-          </div>
-        )}</>
 }
 
 function SidebarSearch({ onPalette, paletteLabel, paletteHint, collapsed }: Readonly<{ onPalette?: () => void; paletteLabel?: string; paletteHint?: string; collapsed: boolean }>) {
