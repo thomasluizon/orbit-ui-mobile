@@ -14,12 +14,18 @@ const staged = (name, responses, liveCommit = SHA, repository = "api", healthSta
     { name: "database", status: "Healthy", description: "Database reachable" },
   ] } : { status: healthStatus, commit: liveCommit }
   const endpoint = repository === "api" ? "/health" : repository === "ui" ? "/api/health" : "/"
-  const fetchStub = stage(`wait-release/${name}-fetch.mjs`, `globalThis.fetch = async (url) => {
-    if (url.pathname !== ${JSON.stringify(endpoint)}) throw new Error("Unexpected verification endpoint")
-    return { ok: ${httpStatus === 200}, status: ${httpStatus}, json: async () => (${JSON.stringify(health)}),
-      text: async () => ${JSON.stringify(`<html><head><meta name="orbit-build" content="${liveCommit}" /></head></html>`)} }
+  const responseFixture = JSON.stringify({ endpoint, ok: httpStatus === 200, status: httpStatus, health,
+    html: `<html><head><meta name="orbit-build" content="${liveCommit}" /></head></html>`,
+  })
+  const fetchStub = stage(`wait-release/${name}-fetch.mjs`, `
+  const response = JSON.parse(process.env.ORBIT_RELEASE_FETCH_RESPONSE)
+  globalThis.fetch = async (url) => {
+    if (url.pathname !== response.endpoint) throw new Error("Unexpected verification endpoint")
+    return { ok: response.ok, status: response.status, json: async () => response.health,
+      text: async () => response.html }
   }`)
-  return { ...installation, env: { ...env, NODE_OPTIONS: `${env.NODE_OPTIONS} --import=${fetchStub}` }, sequenceFile }
+  return { ...installation, env: { ...env, ORBIT_RELEASE_FETCH_RESPONSE: responseFixture,
+    NODE_OPTIONS: `${env.NODE_OPTIONS} --import=${fetchStub}` }, sequenceFile }
 }
 const workflowRun = (status, conclusion = null) => ({
   ...structuredClone(fixture.run), id: 1, head_sha: SHA, status, conclusion,
@@ -43,6 +49,26 @@ export async function cases() {
     JSON.parse(completedResult.stdout).reason === "SUCCESS" &&
     Number(readFileSync(completed.sequenceFile, "utf8")) >= 2, completedResult.stderr)
   T("release waiter clears its wake source", readWakeSources(completed.base).length === 0)
+
+  for (const repository of ["api", "ui", "landing"]) {
+    const installation = staged(`runtime-response-${repository}`, [workflowRun("completed", "success")], SHA, repository,
+      repository === "ui" ? "ok" : "Healthy")
+    const runtimeCommit = "b".repeat(40)
+    const responseFixture = {
+      endpoint: repository === "api" ? "/health" : repository === "ui" ? "/api/health" : "/",
+      ok: true, status: 200,
+      health: { status: repository === "ui" ? "ok" : "Healthy", commit: runtimeCommit },
+      html: `<html><head><meta name="orbit-build" content="${runtimeCommit}" /></head></html>`,
+    }
+    const argv = [...args]
+    argv[1] = repository
+    const observed = run(TOOL, argv, { path: installation.path, env: {
+      ...installation.env, ORBIT_RELEASE_FETCH_RESPONSE: JSON.stringify(responseFixture),
+    } })
+    T(`${repository} fetch fixture reads response values as runtime data`, observed.status === 1 &&
+      JSON.parse(observed.stdout).deployedSha === runtimeCommit && JSON.parse(observed.stdout).reason === "READ_ERROR",
+    observed.stdout + observed.stderr)
+  }
 
   const unstaged = staged("unstaged", [workflowRun("completed", "success")], "b".repeat(40))
   const unstagedResult = run(TOOL, args, { path: unstaged.path, env: unstaged.env })
@@ -102,7 +128,8 @@ export async function cases() {
     const env = orcaEnv([{ match: "api repos/", sequenceFile: installation.sequenceFile, responseSequence: [
       failure, failure, { stdout: JSON.stringify(workflowRun("completed", "success")), stderr: "", exit: 0 },
     ] }])
-    const observed = run(TOOL, args, { path: installation.path, env: { ...env, NODE_OPTIONS: installation.env.NODE_OPTIONS } })
+    const observed = run(TOOL, args, { path: installation.path,
+      env: { ...installation.env, ...env, NODE_OPTIONS: installation.env.NODE_OPTIONS } })
     const body = JSON.parse(observed.stdout)
     T(`release waiter: ${label} recovers`, observed.status === 0 && body.reason === "SUCCESS" &&
       body.transientErrors.count === 2 && body.transientErrors.last.length > 0 && readWakeSources(installation.base).length === 0, observed.stdout)
