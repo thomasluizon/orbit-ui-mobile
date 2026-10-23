@@ -8,12 +8,15 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockConfigResponse, createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { appConfigSchema } from '@orbit/shared/types/config'
+import { formatAPIDate } from '@orbit/shared/utils'
 import { SmokeDomPage, expectSmokeDom } from '@/__tests__/support/smoke-dom'
 import { holdAccount } from '@/__tests__/support/account-change'
 import AppLayout from '@/app/(app)/layout'
 import { DestinationShell } from '@/components/shell/destination-shell'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { HabitRow } from '@/components/habits/habit-row'
+import { HabitList } from '@/components/habits/habit-list'
+import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
 import { Sheet } from '@/components/ui/sheet'
 import { subscriptionPlansFixture } from '@/test-support/hermetic/mock-api/fixtures/subscription-plans'
@@ -39,7 +42,7 @@ vi.mock('next/link', () => ({ default: ({ children, ...props }: { children: Reac
 vi.mock('next/dynamic', () => ({ default: () => () => null }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
-vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: ReactNode }) => children, useToday: () => undefined }))
+vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: ReactNode }) => children, useToday: () => formatAPIDate(new Date()) }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null, CommandPaletteBackground: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/components/motion/route-transition-shell', () => ({ RouteTransitionShell: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/hooks/use-profile', () => ({
@@ -55,7 +58,10 @@ vi.mock('@/hooks/use-onboarding-flush', () => ({ useOnboardingFlush: () => {} })
 vi.mock('@/hooks/use-retained-onboarding-guard', () => ({ useRetainedOnboardingGuard: () => false, useRetainedOnboardingSession: () => ({ open: false }) }))
 vi.mock('@/hooks/use-onboarding-pro-pending', () => ({ useOnboardingProPending: () => false }))
 vi.mock('@/hooks/use-onboarding-completion-queue', () => ({ useOnboardingCompletionQueue: () => false }))
-vi.mock('@/hooks/use-habit-queries', () => ({ useHabitCountLoaded: () => ({ count: 0, isLoaded: true }) }))
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
+  useHabitCountLoaded: () => ({ count: 0, isLoaded: true }),
+}))
 vi.mock('@/hooks/use-gamification', () => ({ useGamificationProfile: () => ({ crossedStreakMilestones: [], newAchievements: [] }) }))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => ({ composerProps: {} }) }))
 vi.mock('@/stores/onboarding-draft-store', async (importOriginal) => ({
@@ -77,7 +83,15 @@ vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/components/gamification/celebration-panel', () => ({ CelebrationPanel: () => null }))
 vi.mock('@/lib/api-fetch-i18n-provider', () => ({ ApiFetchI18nProvider: () => null }))
 vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse()) }) }))
-vi.mock('@/hooks/use-habits', () => ({
+vi.mock('@/hooks/use-habits', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-habits')>(),
+  useHabits: () => ({ data: undefined, isLoading: false, error: null, dataUpdatedAt: 1, getChildren: () => [] }),
+  useLogHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSkipHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDuplicateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useReorderHabits: () => ({ mutate: vi.fn(), isPending: false }),
+  useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useCreateHabit: () => ({ mutateAsync: mocks.create, isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
@@ -99,10 +113,12 @@ function Checkout({ disabled = false }: { disabled?: boolean }) {
     checkoutLoading={null} onCheckout={mocks.checkout} onRetry={vi.fn()} t={t} />
 }
 
-function HabitCreation() {
+function HabitCreation({ empty = false }: { empty?: boolean }) {
   const [creating, setCreating] = useState(false)
-  return <DestinationShell onCreate={() => { mocks.pathname = '/habits/new'; setCreating(true) }}>
-    {creating ? <CreateHabitModal open presentation="screen" onOpenChange={() => { mocks.pathname = '/'; setCreating(false) }} /> : <h1>Today</h1>}
+  const openCreation = () => { mocks.pathname = '/habits/new'; setCreating(true) }
+  return <DestinationShell onCreate={openCreation}>
+    {creating ? <CreateHabitModal open presentation="screen" onOpenChange={() => { mocks.pathname = '/'; setCreating(false) }} />
+      : empty ? <><SetupChecklistCard /><HabitList view="today" filters={{}} onCreate={openCreation} /></> : <h1>Today</h1>}
   </DestinationShell>
 }
 
@@ -178,6 +194,28 @@ describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (loca
     expect(mocks.create).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('textbox', { name: (locale === 'en' ? en : ptBR).habits.form.describe })).toHaveValue('Smoke failure')
     expect(screen.getByRole('radio', { name: (locale === 'en' ? en : ptBR).habits.form.typeTask })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it.each([false, true])('creates from the real zero-habit Today state without a FAB, wide=%s', async (wide) => {
+    mocks.wide = wide
+    mocks.profile = createMockProfile({
+      hasCompletedOnboarding: true, hasImportedCalendar: true, hasSeenImportPrompt: true,
+      isTrialActive: false, hasCreatedFirstHabit: false, hasLoggedFirstHabit: false,
+      hasTriedAstra: false, hasCompletedOnboardingChecklist: false,
+    })
+    useUIStore.setState({ todayFabHidden: true })
+    mount(<HabitCreation empty />, locale)
+    const messages = locale === 'en' ? en : ptBR
+    expect(document.querySelector('[data-shell-fab]')).toBeNull()
+    expect(screen.getByRole('region', { name: messages.today.setupChecklist.title })).toBeVisible()
+    expect(screen.getByRole('button', { name: messages.habits.createManually })).toBeVisible()
+
+    await createSmokeHabit(new SmokeDomPage() as unknown as Page, 'Smoke first habit')
+
+    expect(mocks.create).toHaveBeenCalledTimes(1)
+    expect(mocks.create.mock.calls[0]?.[0]).toMatchObject({ title: 'Smoke first habit' })
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(mocks.suggestion).not.toHaveBeenCalled()
   })
 
   it('dismisses the real trial and subsequent calendar prompt before navigation', async () => {

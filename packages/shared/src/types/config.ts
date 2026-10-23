@@ -7,7 +7,6 @@ export const featureFlagSchema = z.object({
 export type FeatureFlag = z.infer<typeof featureFlagSchema>
 
 export type FeatureKey =
-  | 'redesign'
   | 'offline_mode'
   | 'ai_chat'
   | 'ai_summary'
