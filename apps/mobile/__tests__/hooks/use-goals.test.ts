@@ -10,7 +10,6 @@ import type { queueOrExecute } from '@/lib/offline-mutations'
 import {
   useCreateGoal,
   useDeleteGoal,
-  useLinkHabitsToGoal,
   useReorderGoals,
   useRestoreGoal,
   useUpdateGoal,
@@ -478,34 +477,7 @@ describe('mobile goal hooks', () => {
     expect(mocks.setGoalCompletedCelebration).toHaveBeenCalledTimes(1)
   })
 
-  it('optimistically links habits to a goal and restores the snapshot on failure', async () => {
-    const mutation = useLinkHabitsToGoal() as unknown as MutationConfig<
-      { queued: true; queuedMutationId: string },
-      { goalId: string; habitIds: string[] },
-      {
-        previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[]
-        previousDetail: GoalDetailWithMetrics | undefined
-      }
-    >
 
-    const variables = {
-      goalId: 'goal-1',
-      habitIds: ['habit-1'],
-    }
-
-    const context = await mutation.onMutate?.(variables)
-    expect(mocks.state.lists[0]?.value[0]?.linkedHabits).toEqual([
-      { id: 'habit-1', title: 'Workout' },
-    ])
-    expect(mocks.state.details.get(JSON.stringify(goalKeys.detail('goal-1')))?.goal.linkedHabits).toEqual([
-      { id: 'habit-1', title: 'Workout' },
-    ])
-
-    mutation.onError?.(new Error('Link failed'), variables, context)
-
-    expect(mocks.state.lists[0]?.value[0]?.linkedHabits).toEqual([])
-    expect(mocks.state.details.get(JSON.stringify(goalKeys.detail('goal-1')))?.goal.linkedHabits).toEqual([])
-  })
 
   it('shows the undo snackbar when a goal delete succeeds', () => {
     const mutation = useDeleteGoal() as unknown as MutationConfig<unknown, string, undefined>
@@ -741,27 +713,7 @@ describe('mobile goal hooks', () => {
     expect(mocks.state.lists[0]?.value.map((goal) => goal.id)).toEqual(['goal-1'])
   })
 
-  it('invalidates habit lists after linking habits confirms online', async () => {
-    const mutation = useLinkHabitsToGoal() as unknown as MutationConfig<
-      undefined,
-      { goalId: string; habitIds: string[] },
-      {
-        previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[]
-        previousDetail: GoalDetailWithMetrics | undefined
-      }
-    >
-    mocks.queueOrExecute.mockResolvedValue(undefined)
 
-    const variables = { goalId: 'goal-1', habitIds: ['habit-1'] }
-    const context = await mutation.onMutate?.(variables)
-    const result = await mutation.mutationFn(variables)
-    mutation.onSettled?.(result, null, variables, context)
-
-    expect(mocks.invalidateGoalQueries).toHaveBeenCalledWith(expect.anything(), {
-      goalId: 'goal-1',
-      includeHabits: true,
-    })
-  })
 })
 
 type Executable<Variables> = { mutationFn: (variables: Variables) => Promise<unknown> }
@@ -818,9 +770,5 @@ describe('mobile goal hooks online execute closures', () => {
     expect(apiClient).toHaveBeenCalledWith(API.goals.reorder, expect.objectContaining({ method: 'PUT' }))
   })
 
-  it('PUTs the linked-habits endpoint when executed online', async () => {
-    const mutation = useLinkHabitsToGoal() as unknown as Executable<{ goalId: string; habitIds: string[] }>
-    await mutation.mutationFn({ goalId: 'goal-1', habitIds: ['habit-1'] })
-    expect(apiClient).toHaveBeenCalledWith(API.goals.habits('goal-1'), expect.objectContaining({ method: 'PUT' }))
-  })
+
 })

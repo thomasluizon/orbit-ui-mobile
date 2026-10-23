@@ -249,8 +249,9 @@ Register gate passed it.
 > for every finding; if a rule is in neither `DESIGN.md` nor `.claude/rules/`, it is your taste and you must
 > label it as such.
 
-The anchor is the **de-decorated navy-violet orbital** (#539 freeze): a near-black canvas, one rationed
-violet, opaque surface steps, hairline rings and dividers, with hierarchy bought by surface steps, size,
+The anchor is the **near-black orbital system**: canvas `#09090B`, one warm orange accent `#C4530F`,
+light and dark modes, Geist Sans for UI, Space Grotesk for display, and Geist Mono for metadata.
+Surface steps, hairline rings and dividers establish hierarchy alongside size,
 weight, and whitespace. **Quiet decoration is still decoration**: a softened glow or a 0.03-opacity texture
 is the same violation as the loud version.
 

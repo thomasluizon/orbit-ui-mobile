@@ -53,7 +53,9 @@ function scheduleItem(done: boolean) {
   }))
 }
 
-function mountToday(page: SmokeDomPage, locale: 'en' | 'pt-BR', persisted = true) {
+function mountToday(page: SmokeDomPage, locale: 'en' | 'pt-BR', {
+  persisted = true, responseDelay = 0, unrelatedResponse = false,
+}: { persisted?: boolean; responseDelay?: number; unrelatedResponse?: boolean } = {}) {
   let stored = false
   let reloads = 0
   const hiddenAfterReload: boolean[] = []
@@ -66,10 +68,19 @@ function mountToday(page: SmokeDomPage, locale: 'en' | 'pt-BR', persisted = true
     if (!url.startsWith(`${API.habits.list}?`)) throw new Error(`Unexpected query: ${url}`)
     return { items: [scheduleItem(stored)], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 }
   })
-  boundary.log.mockImplementation(async () => {
+  boundary.log.mockImplementation(async (...arguments_: unknown[]) => {
     stored = true
+    if (unrelatedResponse) {
+      for (const postData of ['[{"language":"en"}]', JSON.stringify(['other-habit', { date: today }, 'smoke-unit-account'])]) {
+        page.respond?.({
+          request: () => ({ method: () => 'POST', headers: () => ({ 'next-action': '<other-action-id>' }), postData: () => postData }),
+          ok: () => false,
+        } as unknown as Response)
+      }
+    }
+    if (responseDelay) await new Promise<void>((resolve) => setTimeout(resolve, responseDelay))
     page.respond?.({
-      request: () => ({ method: () => 'POST', headers: () => ({ 'next-action': '<action-id>' }) }),
+      request: () => ({ method: () => 'POST', headers: () => ({ 'next-action': '<action-id>' }), postData: () => JSON.stringify(arguments_) }),
       ok: () => true,
     } as unknown as Response)
     return logHabitResponseSchema.parse({ logId: 'persisted-log', isFirstCompletionToday: false, currentStreak: 0 })
@@ -115,6 +126,27 @@ afterEach(() => {
 })
 
 describe.each(['en', 'pt-BR'] as const)('smoke persisted Today completion in %s', (locale) => {
+  it('reads the completed row after a log response outlasts its visibility window', async () => {
+    const page = new SmokeDomPage()
+    const surface = mountToday(page, locale, { responseDelay: 2200 })
+    try {
+      await logSmokeHabit(page as unknown as Page, title)
+      expect(surface.reloads()).toBe(1)
+      expect(surface.hiddenAfterReload).toEqual([true])
+      expect(document.querySelector(rowSelector)).toHaveAttribute('data-status', 'done')
+    } finally { surface.clear() }
+  })
+
+  it('waits for the log response when another Server Action responds first', async () => {
+    const page = new SmokeDomPage()
+    const surface = mountToday(page, locale, { unrelatedResponse: true })
+    try {
+      await logSmokeHabit(page as unknown as Page, title)
+      expect(surface.reloads()).toBe(1)
+      expect(document.querySelector(rowSelector)).toHaveAttribute('data-status', 'done')
+    } finally { surface.clear() }
+  })
+
   it.each([false, true])('reveals the persisted row through the real list menu, wide=%s', async (wide) => {
     vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
       matches: wide, media: query, onchange: null,
@@ -136,7 +168,7 @@ describe.each(['en', 'pt-BR'] as const)('smoke persisted Today completion in %s'
 
   it('rejects completion absent after reload despite a successful Server Action response', async () => {
     const page = new SmokeDomPage()
-    const surface = mountToday(page, locale, false)
+    const surface = mountToday(page, locale, { persisted: false })
     try {
       await expect(logSmokeHabit(page as unknown as Page, title)).rejects.toThrow(/done/)
       expect(boundary.log).toHaveBeenCalledTimes(1)

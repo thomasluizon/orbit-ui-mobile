@@ -4,7 +4,6 @@ import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { PickerRow } from '@/components/ui/picker-row'
 import { PickerList } from '@/components/ui/picker-list'
 
-import { useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 import { goalKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
@@ -17,13 +16,9 @@ import { ActionRow } from '@/components/ui/action-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { CreateGoalSheet } from '../goals/create-goal-sheet'
+import { createUseGoalLinking, type GoalLinkingFieldProps } from '@orbit/shared/hooks'
 
-interface GoalLinkingFieldProps {
-  habitId?: string
-  selectedGoalIds: string[]
-  atGoalLimit: boolean
-  onToggleGoal: (goalId: string) => void
-}
+const useGoalLinking = createUseGoalLinking(useAccountScopedState)
 
 interface GoalsListResponse { items: Goal[] }
 
@@ -63,10 +58,9 @@ function GoalPickerList({ goals, selectedIds, atLimit, onToggle }: Readonly<Goal
   }} />
 }
 
-export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onToggleGoal }: Readonly<GoalLinkingFieldProps>) {
+export function GoalLinkingField(props: Readonly<GoalLinkingFieldProps>) {
+  const { selectedGoalIds, atGoalLimit, onToggleGoal } = props
   const t = useTranslations()
-  const [open, setOpen] = useAccountScopedState(false)
-  const [creating, setCreating] = useAccountScopedState(false)
   const { sheetRef, closeSheet } = useSheetHost()
   const { data: goals } = useQuery({
     queryKey: goalKeys.lists(),
@@ -76,13 +70,8 @@ export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onTogg
     },
     staleTime: QUERY_STALE_TIMES.goals,
   })
-  const activeGoals = useMemo(() => goals?.filter((goal) => goal.status === 'Active') ?? [], [goals])
-  const selectedSet = useMemo(() => new Set(selectedGoalIds), [selectedGoalIds])
-  const selectedGoals = activeGoals.filter((goal) => selectedSet.has(goal.id))
-  const openCreateGoal = () => closeSheet(() => {
-    setOpen(false)
-    setCreating(true)
-  })
+  const { open, setOpen, creating, setCreating, activeGoals, selectedSet, selectedGoals,
+    openCreateGoal, handleCreated, initialHabitIds } = useGoalLinking(props, goals, closeSheet)
 
   return (
     <>
@@ -97,7 +86,7 @@ export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onTogg
         <Sheet ref={sheetRef} open virtualizedBody={activeGoals.length >= 21} title={t('habits.form.goals')} actions={activeGoals.length ? <ActionRow><PillButton onClick={openCreateGoal} disabled={atGoalLimit}>{t('goals.create')}</PillButton></ActionRow> : undefined} onClose={() => setOpen(false)}>
           {activeGoals.length === 0 ? (
             <div className="flex flex-col items-center px-6 py-8 text-center" style={{ gap: 12 }}>
-              <p className="max-w-full truncate text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noGoals')}</p>
+              <p className="max-w-full text-xl font-medium text-[var(--fg-1)]">{t('habits.form.goalInvitation')}</p>
               <PillButton onClick={openCreateGoal} disabled={atGoalLimit}>{t('habits.form.createGoal')}</PillButton>
             </div>
           ) : (
@@ -105,7 +94,7 @@ export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onTogg
           )}
         </Sheet>
       ) : null}
-      {creating ? <CreateGoalSheet open initialHabitIds={habitId ? [habitId] : []} onCreated={habitId || atGoalLimit ? undefined : onToggleGoal} onClose={() => setCreating(false)} /> : null}
+      {creating ? <CreateGoalSheet open initialHabitIds={initialHabitIds} onCreated={handleCreated} onClose={() => setCreating(false)} /> : null}
     </>
   )
 }

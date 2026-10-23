@@ -228,6 +228,15 @@ async function toNextResponse(
 
 async function handleProxy(request: NextRequest, path: string) {
   const session = await resolveServerSession()
+  if (session.refreshFailed) {
+    return NextResponse.json({ error: 'Unauthorized' }, {
+      status: 401,
+      headers: {
+        'cache-control': 'private, no-store, max-age=0',
+        [SESSION_REFRESH_HEADER]: SESSION_REFRESH_FAILED_VALUE,
+      },
+    })
+  }
   const protectChatWrite = requiresHeldAccount(request, path)
   const heldAccountId = request.headers.get('x-orbit-held-account-id')
   const refusal = initialChatRefusal(request, path, session.token, session.refreshFailed)
@@ -246,11 +255,11 @@ async function handleProxy(request: NextRequest, path: string) {
     }
     return toNextResponse(
       response,
-      session.refreshFailed || refreshedSession.refreshFailed,
+      refreshedSession.refreshFailed,
     )
   }
 
-  return toNextResponse(response, session.refreshFailed)
+  return toNextResponse(response)
 }
 
 /** Single handler for all HTTP methods -- eliminates S4144 duplicate functions */

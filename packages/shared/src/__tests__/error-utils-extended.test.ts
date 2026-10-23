@@ -683,4 +683,29 @@ describe('validateApiResponse', () => {
     const body = { anything: true }
     expect(validateApiResponse(body, undefined, '/api/x')).toBe(body)
   })
+
+  it('reports nested issue paths without leaking response values or validator messages', () => {
+    const privateValue = 'private-profile-value'
+    const nestedSchema = z.object({
+      profiles: z.array(z.object({ email: z.string().refine(() => false, privateValue) })),
+      plan: z.enum(['free', 'pro']),
+    })
+
+    try {
+      validateApiResponse({ profiles: [{ email: privateValue }], plan: privateValue }, nestedSchema, '/api/profile')
+      expect.unreachable('validateApiResponse should have thrown')
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiClientError)
+      const apiError = error as ApiClientError
+      expect(apiError.message).toBe('Unexpected API response shape for /api/profile at profiles.0.email, plan')
+      expect(apiError.data).toEqual(['profiles.0.email', 'plan'])
+      expect(JSON.stringify(apiError)).not.toContain(privateValue)
+      expect(apiError.stack).not.toContain(privateValue)
+    }
+  })
+
+  it('names the root when the entire response is invalid', () => {
+    expect(() => validateApiResponse(null, schema, '/api/profile'))
+      .toThrow('Unexpected API response shape for /api/profile at <root>')
+  })
 })

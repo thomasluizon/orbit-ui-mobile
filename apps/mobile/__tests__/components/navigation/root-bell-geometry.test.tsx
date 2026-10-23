@@ -30,7 +30,8 @@ vi.mock('@/hooks/use-notification-inbox', async (importOriginal) => {
 })
 vi.mock('@/lib/api-client', () => ({ apiClient: () => new Promise(() => {}) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined, isLoading: true, refetch: vi.fn(), patchProfile: vi.fn() }) }))
-vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isLoading: true }) }))
+vi.mock('@/hooks/use-goals', () => ({
+  useCreateGoal: vi.fn(), useGoals: () => ({ isLoading: true }) }))
 vi.mock('@/hooks/use-gamification', () => ({ useGamificationProfile: () => ({ isLoading: true }) }))
 vi.mock('@/hooks/use-logout', () => ({ useLogout: () => ({ logout: vi.fn(), isPending: false }) }))
 

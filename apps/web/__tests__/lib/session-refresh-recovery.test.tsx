@@ -14,6 +14,7 @@ afterEach(() => vi.useRealTimers())
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: vi.fn() }) }))
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)

@@ -25,10 +25,10 @@ for (const width of [320, 412, 1352]) {
       test('keeps the action beside the first line and discloses the full name', async ({ page, context }) => {
         await context.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, route => route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(event)}\n\n` }))
         await page.goto('/')
-        await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : messages.todayAstra.openConversation, exact: true }).click()
+        await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : `${messages.todayAstra.openConversation}, ${messages.nav.astra}`, exact: true }).click()
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         await conversation.locator('[data-composer-input]').fill(name)
-        await conversation.getByRole('button', { name: messages.shell.composer.send, exact: true }).click()
+        await conversation.getByRole('button', { name: `${messages.shell.composer.send}, ${messages.habits.form.askDate}`, exact: true }).click()
         const labelControl = conversation.getByRole('button', { name, exact: true })
         const action = conversation.getByRole('button', { name: `${messages.chat.operation.remove} ${name}`, exact: true })
         await expect(labelControl).toBeVisible()

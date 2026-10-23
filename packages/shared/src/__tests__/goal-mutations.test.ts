@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Goal, GoalDetailWithMetrics } from '../types/goal'
 import {
   buildTempGoal,
+  getGoalProgressCelebration,
+  getGoalStatusCelebration,
   nextGoalPosition,
   sortGoalsByPosition,
   updateGoalDetailItem,
@@ -140,5 +142,20 @@ describe('goal mutation utils', () => {
       goal: { status: 'Completed', progressPercentage: 100 },
       metrics: { progressPercentage: 100 },
     })
+  })
+})
+
+describe('goal completion notifications', () => {
+  const names = { goalId: 'goal-reading', goalName: 'Read', goalCount: 12, goalUnit: 'books' }
+  it('celebrates reaching the progress target and explicitly completing a goal', () => {
+    expect(getGoalProgressCelebration({ ...names, data: { currentValue: 12 } })).toEqual({ name: 'Read', count: 12, unit: 'books' })
+    expect(getGoalStatusCelebration({ ...names, data: { status: 'Completed' } })).toEqual({ name: 'Read', count: 12, unit: 'books' })
+    expect(getGoalProgressCelebration({ ...names, data: { currentValue: 11 } })).toBeNull()
+    expect(getGoalStatusCelebration({ ...names, data: { status: 'Active' } })).toBeNull()
+  })
+  it.each(['goalName', 'goalCount', 'goalUnit'] as const)('requires %s before celebrating', (field) => {
+    const input = { ...names, [field]: undefined }
+    expect(getGoalProgressCelebration({ ...input, data: { currentValue: 12 } })).toBeNull()
+    expect(getGoalStatusCelebration({ ...input, data: { status: 'Completed' } })).toBeNull()
   })
 })

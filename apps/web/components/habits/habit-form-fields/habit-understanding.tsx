@@ -57,8 +57,9 @@ export function HabitUnderstanding({
   onQuantityChange,
   labels,
 }: Readonly<HabitUnderstandingWithDisabledEmojiProps>) {
-  const phraseId = useId()
-  const errorId = `habit-phrase-error-${phraseId}`
+  const id = useId()
+  const phraseId = `habit-phrase-${id}`
+  const errorId = `habit-phrase-error-${id}`
   const { emojiProposed, selectEmoji, requestEmoji } = useEmojiProposal(onSuggestEmoji, onEmojiSelect)
   const hasValue = value.trim().length > 0
   const showPreview = hasValue && !isSuggestionDisabled && Boolean(sentence)
