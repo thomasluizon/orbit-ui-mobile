@@ -58,7 +58,7 @@ export function CheckCircle({
       onHoverOut={() => setHovered(false)}
       disabled={disabled}
       hitSlop={0}
-      focusInset={(48 - 36) / 2}
+      focusInset={(48 - 44) / 2}
       focusOffset={-2}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
@@ -68,7 +68,7 @@ export function CheckCircle({
         return {
           width: 48,
           minHeight: 48,
-          borderRadius: 16,
+          borderRadius: 20,
           overflow: 'hidden',
           alignItems: 'center',
           justifyContent: 'center',

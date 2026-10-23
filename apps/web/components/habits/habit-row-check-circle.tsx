@@ -42,7 +42,7 @@ export function CheckCircle({ state, unavailable = false, onToggle, disabled, ar
       aria-label={ariaLabel}
       aria-describedby={disabled && disabledReason ? reasonId : undefined}
       title={disabled ? disabledReason : undefined}
-      className={`appearance-none border-0 bg-transparent shrink-0 flex min-h-[48px] w-[48px] items-center justify-center rounded-[16px] transition-transform duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${disabled ? 'cursor-default' : 'cursor-pointer motion-safe:active:scale-[0.96]'}`}
+      className={`appearance-none border-0 bg-transparent shrink-0 flex min-h-[48px] w-[48px] items-center justify-center rounded-[20px] transition-transform duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${disabled ? 'cursor-default' : 'cursor-pointer motion-safe:active:scale-[0.96]'}`}
       style={{ opacity: disabled ? 0.4 : 1 }}
     >
       <span data-habit-row-check-fill="" aria-hidden="true">

@@ -65,7 +65,7 @@ describe('habit row standard in Chromium', () => {
         const rings = await control.evaluate((element) => [element, ...element.querySelectorAll('*')]
           .map((part) => getComputedStyle(part)).filter((style) => style.outlineStyle !== 'none' && style.outlineColor !== 'rgba(0, 0, 0, 0)')
           .map((style) => ({ width: style.width, radius: style.borderRadius, offset: style.outlineOffset })))
-        expect(rings).toEqual([{ width: '36px', radius: '16px', offset: '-2px' }])
+        expect(rings).toEqual([{ width: '44px', radius: '20px', offset: '-2px' }])
       }
     } finally { await page.close() }
   })
@@ -260,7 +260,7 @@ describe('habit row standard in Chromium', () => {
         return { width: bounds.width, height: bounds.height, radius: paint.borderTopLeftRadius, outline: paint.outlineStyle, outlineWidth: paint.outlineWidth, offset: paint.outlineOffset,
           childOutlines: Array.from(element.querySelectorAll('*')).filter((child) => getComputedStyle(child).outlineStyle !== 'none').length }
       })
-      expect(focus).toMatchObject({ width: 48, radius: '16px', outline: 'none', childOutlines: 1 })
+      expect(focus).toMatchObject({ width: 48, radius: '20px', outline: 'none', childOutlines: 1 })
       expect(focus.height).toBeGreaterThanOrEqual(48)
     } finally { await page.close() }
   })
@@ -624,9 +624,9 @@ async function assertCompletionFill(control: Locator, scale: number, pressScale 
       radius: getComputedStyle(fill).borderTopLeftRadius, paint: getComputedStyle(fill).backgroundColor,
       targetPaint: getComputedStyle(element).backgroundColor }
   })
-  expect(measured.fill.width).toBeCloseTo(36 * pressScale, 1)
-  expect(measured.fill.height).toBeCloseTo(36 * pressScale, 1)
-  expect(measured.radius).toBe('16px')
+  expect(measured.fill.width).toBeCloseTo(44 * pressScale, 1)
+  expect(measured.fill.height).toBeCloseTo(44 * pressScale, 1)
+  expect(measured.radius).toBe('20px')
   expect(measured.glyph.width).toBeCloseTo(28 * pressScale, 1)
   expect(measured.target.width).toBeCloseTo(48 * pressScale, 1)
   expect(measured.target.height).toBeGreaterThanOrEqual(48 * pressScale - 0.1)

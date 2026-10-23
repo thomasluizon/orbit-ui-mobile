@@ -75,7 +75,7 @@ function InteractiveParentRing({
   const toggleLabel = isDoneForRange ? t('habits.actions.unlog') : t('habits.logHabit')
   const completionLabel = completionRingLabel(completionStatusUnavailable, statusName, toggleLabel, habit.title)
   return (
-    <Pressable focusInset={(48 - 36) / 2} focusOffset={-2} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} onPress={() => {
+    <Pressable focusInset={(48 - 44) / 2} focusOffset={-2} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} onPress={() => {
       if (completionReadOnly) return
       const parentAction = isDoneForRange ? actions.onUnlog : actions.onLog
       parentAction?.()

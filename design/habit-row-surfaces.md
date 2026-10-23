@@ -105,9 +105,9 @@ At the narrow inline boundary, supporting type and metadata use the existing ful
 
 ## Completion feedback shape
 
-Completion feedback uses a centred 36px rounded square with radius 16 around the 28px radius-12
-check, preserving the shared 4px content clearance and concentric radii. Leaf completion and
-parent progress share this shape. The 48px target remains transparent, leaving 6px between its
+Completion feedback uses a centred 44px rounded square with radius 20 around the 28px radius-12
+check, preserving the required 8px content clearance and concentric radii. Leaf completion and
+parent progress share this shape. The 48px target remains transparent, leaving 2px between its
 edge and the fill. Hover and press paint only this inner surface; one inset focus indicator follows
 that surface with no glyph ring. Press retains scale 0.96 when motion is enabled and stays still
 with reduced motion. Disabled and presentational selection checks add no interaction paint.

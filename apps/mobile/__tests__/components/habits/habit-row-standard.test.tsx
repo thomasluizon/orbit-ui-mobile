@@ -91,12 +91,12 @@ describe('habit row standard on Android', () => {
       expect(target.width).toBe(48)
       expect(target.height).toBeGreaterThanOrEqual(48)
       expect(target.style.backgroundColor ?? 'transparent').toBe('transparent')
-      expect(fill).toMatchObject({ width: 36, height: 36 })
-      expect(fill.style).toMatchObject({ borderRadius: 16, backgroundColor: tokens.bgHover })
-      expect(fill.left - glyph.left).toBe(-4)
-      expect(fill.top - glyph.top).toBe(-4)
-      expect(fill.left - target.left).toBe(6)
-      expect(fill.top - target.top).toBe(6)
+      expect(fill).toMatchObject({ width: 44, height: 44 })
+      expect(fill.style).toMatchObject({ borderRadius: 20, backgroundColor: tokens.bgHover })
+      expect(fill.left - glyph.left).toBe(-8)
+      expect(fill.top - glyph.top).toBe(-8)
+      expect(fill.left - target.left).toBe(2)
+      expect(fill.top - target.top).toBe(2)
       expect(target.style.transform ?? []).toEqual(pressed && !reduced ? [{ scale: 0.96 }] : parent ? [] : [{ scale: 1 }])
       TestRenderer.act(() => { toggle().props.onHoverOut(); toggle().props.onPressOut() })
     }
@@ -250,7 +250,7 @@ describe('habit row standard on Android', () => {
     const check = tree!.root.findByProps({ testID: 'habit-check' })
     expect(StyleSheet.flatten(check.props.style)).toMatchObject({ width: 28, height: 28, borderRadius: 12, borderWidth: 1, borderColor: tokens.statusEmpty })
     const toggle = tree!.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'habits.statusDot.empty, habits.logHabit: Read')!
-    expect(StyleSheet.flatten(toggle.props.style({ pressed: false }))).toMatchObject({ width: 48, minHeight: 48, borderRadius: 16 })
+    expect(StyleSheet.flatten(toggle.props.style({ pressed: false }))).toMatchObject({ width: 48, minHeight: 48, borderRadius: 20 })
     TestRenderer.act(() => tree.unmount())
   })
 
@@ -285,7 +285,7 @@ describe('habit row standard on Android', () => {
           TestRenderer.act(() => toggle.props.onFocus({ target, currentTarget: target }))
           const indicators = tree!.root.findAllByType('View').filter((node: { props: { style: StyleProp<ViewStyle> } }) => StyleSheet.flatten<ViewStyle | undefined>(node.props.style)?.outlineWidth === 2)
           expect(indicators).toHaveLength(1)
-          expect(StyleSheet.flatten(indicators[0].props.style)).toMatchObject({ borderRadius: 16, outlineOffset: -2, top: 6, right: 6, bottom: 6, left: 6 })
+          expect(StyleSheet.flatten(indicators[0].props.style)).toMatchObject({ borderRadius: 20, outlineOffset: -2, top: 2, right: 2, bottom: 2, left: 2 })
         }
         TestRenderer.act(() => tree.unmount())
       }

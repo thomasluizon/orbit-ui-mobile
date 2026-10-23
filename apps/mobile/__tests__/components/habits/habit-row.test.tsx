@@ -465,7 +465,7 @@ describe('HabitRow status control names (mobile)', () => {
     expect(restingCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
     expect(pressedRing.backgroundColor).toBeUndefined()
     const fill = () => StyleSheet.flatten(renderer!.root.findByProps({ testID: 'habit-row-check-fill' }).props.style)
-    expect(fill()).toMatchObject({ width: 36, height: 36, borderRadius: 16, backgroundColor: 'rgba(250,250,250,0.13)' })
+    expect(fill()).toMatchObject({ width: 44, height: 44, borderRadius: 20, backgroundColor: 'rgba(250,250,250,0.13)' })
     TestRenderer.act(() => ring.props.onPressOut())
     expect(fill().backgroundColor).toBe('transparent')
   })
