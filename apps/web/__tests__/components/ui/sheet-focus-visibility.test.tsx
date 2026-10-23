@@ -40,7 +40,14 @@ async function mountMeasuredSheet(virtualizedBody = false) {
   let controlTop = 380
   let controlHeight = 120
   let bodyHeight = 300
-  Object.defineProperties(body, { clientHeight: { get: () => bodyHeight }, clientTop: { value: 0 } })
+  let borderTop = 0
+  let borderBottom = 0
+  let scrollbarHeight = 0
+  Object.defineProperties(body, {
+    clientHeight: { get: () => Math.round(bodyHeight - borderTop - borderBottom - scrollbarHeight) },
+    offsetHeight: { get: () => Math.round(bodyHeight) },
+    clientTop: { get: () => Math.round(borderTop) },
+  })
   vi.spyOn(body, 'getBoundingClientRect').mockImplementation(() => new DOMRect(0, 194, 560, bodyHeight))
   vi.spyOn(footer, 'getBoundingClientRect').mockImplementation(() => new DOMRect(0, 194 + bodyHeight, 560, 76))
   vi.spyOn(control, 'getBoundingClientRect').mockImplementation(() => new DOMRect(24, controlTop - body.scrollTop, 512, controlHeight))
@@ -50,11 +57,54 @@ async function mountMeasuredSheet(virtualizedBody = false) {
     resize: (target = control) => act(() => observers.forEach((observer) => observer.resize(target))),
     setControlBounds: (top: number, height: number) => { controlTop = top; controlHeight = height },
     setBodyHeight: (height: number) => { bodyHeight = height },
+    setBodyInsets: (top: number, bottom: number, scrollbar: number) => {
+      borderTop = top
+      borderBottom = bottom
+      scrollbarHeight = scrollbar
+      body.style.borderTop = `${top}px solid`
+      body.style.borderBottom = `${bottom}px solid`
+    },
     setVirtualizedBody: (value: boolean) => act(() => view.rerender(<ParentPickerHost virtualizedBody={value} />)),
   }
 }
 
 describe('Sheet focused control visibility', () => {
+  it.each([
+    { borderTop: 0, borderBottom: 0, scrollbarHeight: 0 },
+    { borderTop: 0.5, borderBottom: 1.5, scrollbarHeight: 0 },
+    { borderTop: 2, borderBottom: 3, scrollbarHeight: 17 },
+  ])('fully clears a fractional bottom with $borderTop/$borderBottom borders and $scrollbarHeight scrollbar', async ({ borderTop, borderBottom, scrollbarHeight }) => {
+    const { control, body, setBodyHeight, setBodyInsets, setControlBounds, resize } = await mountMeasuredSheet()
+    setBodyHeight(400.5)
+    setBodyInsets(borderTop, borderBottom, scrollbarHeight)
+    const visibleBottom = body.getBoundingClientRect().bottom - borderBottom - scrollbarHeight
+    setControlBounds(visibleBottom + 0.06 - 48, 48)
+    act(() => control.focus({ preventScroll: true }))
+    expect(body.scrollTop).toBe(1)
+    expect(control.getBoundingClientRect().bottom).toBeLessThanOrEqual(visibleBottom)
+    resize(body)
+    expect(body.scrollTop).toBe(1)
+  })
+
+  it('rounds upward reveals toward the fully visible top edge', async () => {
+    const { control, body, setControlBounds, resize } = await mountMeasuredSheet()
+    body.scrollTop = 100
+    setControlBounds(body.getBoundingClientRect().top + 100 - 0.06, 48)
+    act(() => control.focus({ preventScroll: true }))
+    expect(body.scrollTop).toBe(99)
+    expect(control.getBoundingClientRect().top).toBeGreaterThanOrEqual(body.getBoundingClientRect().top)
+    resize()
+    expect(body.scrollTop).toBe(99)
+  })
+
+  it('aligns the top of a control taller than the fractional visible body', async () => {
+    const { control, body, setBodyHeight, setControlBounds } = await mountMeasuredSheet()
+    setBodyHeight(400.5)
+    setControlBounds(body.getBoundingClientRect().top + 6.06, 400.75)
+    act(() => control.focus({ preventScroll: true }))
+    expect(body.scrollTop).toBe(7)
+  })
+
   it('reveals the complete grown control when the picker restores focus without native scrolling', async () => {
     const user = userEvent.setup()
     const { control, body, footer, resize, setControlBounds } = await mountMeasuredSheet()
