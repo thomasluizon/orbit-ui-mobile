@@ -19,11 +19,25 @@ class WidgetPublishingSourceTest {
                 for (call in listOf(
                     "updateAppWidget(", "partiallyUpdateAppWidget(",
                     "notifyAppWidgetViewDataChanged(", "updateWidgetLayout(", "renderWidgets(",
-                    "widgetPublisher.publish(", "publishViews("
+                    "widgetPublisher.publish(", "publishViews(", "runAndWait("
                 )) {
                     assertFalse("${file.name}: $call inside account lock", criticalSection.contains(call))
                 }
             }
+        }
+    }
+
+    @Test
+    fun `credential callbacks serialize their transition and repaint together`() {
+        val source = File(sourceDirectory, "OrbitWidgetModule.kt").readText()
+        for (callback in listOf("saveToken", "clearToken")) {
+            val start = source.indexOf("AsyncFunction(\"$callback\")")
+            val body = blockAt(source, source.indexOf('{', start))
+            assertTrue(body.contains("WidgetAccountState(accountRenderLock, widgetPublisher)"))
+            assertTrue(body.contains(".replaceAccount("))
+            assertTrue(body.contains("repaint = { refreshWidgetsInBackground(context) }"))
+            assertFalse(body.contains("synchronized("))
+            assertFalse(body.contains("refreshWidgets(context)"))
         }
     }
 

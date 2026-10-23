@@ -21,6 +21,12 @@ internal class WidgetPublisher(
             }
         }
 
+    fun runAndWait(action: () -> Unit) {
+        check(publishing.get() != true)
+        check(!Thread.holdsLock(accountLock))
+        enqueue(action = action).get()
+    }
+
     fun <Views> publish(build: () -> Views, publishViews: (Views) -> Unit) {
         check(publishing.get() == true)
         check(!Thread.holdsLock(accountLock))

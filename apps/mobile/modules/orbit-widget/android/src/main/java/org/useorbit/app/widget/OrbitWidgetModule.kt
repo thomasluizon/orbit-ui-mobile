@@ -142,22 +142,24 @@ class OrbitWidgetModule : Module() {
 
     AsyncFunction("saveToken") { token: String ->
       val context = moduleContext()
-      WidgetAccountState(accountRenderLock) { getToken(context)?.let { sessionKey(it) } }
+      WidgetAccountState(accountRenderLock, widgetPublisher) { getToken(context)?.let { sessionKey(it) } }
         .replaceAccount(
           sessionKey(token),
           saveToken = { getEncryptedPrefs(context).edit().putString(KEY_TOKEN, token).apply() },
-          clearCache = { clearWidgetCache(context) }
+          clearCache = { clearWidgetCache(context) },
+          repaint = { refreshWidgetsInBackground(context) }
         )
-      refreshWidgets(context)
     }
 
     AsyncFunction("clearToken") {
       val context = moduleContext()
-      synchronized(accountRenderLock) {
-        getEncryptedPrefs(context).edit().remove(KEY_TOKEN).apply()
-        clearWidgetCache(context)
-      }
-      refreshWidgets(context)
+      WidgetAccountState(accountRenderLock, widgetPublisher) { getToken(context)?.let { sessionKey(it) } }
+        .replaceAccount(
+          null,
+          saveToken = { getEncryptedPrefs(context).edit().remove(KEY_TOKEN).apply() },
+          clearCache = { clearWidgetCache(context) },
+          repaint = { refreshWidgetsInBackground(context) }
+        )
     }
 
     AsyncFunction("syncTheme") { colors: Map<String, String> ->
