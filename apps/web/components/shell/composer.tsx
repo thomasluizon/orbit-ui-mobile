@@ -90,7 +90,7 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
       const availableWidth = host.getBoundingClientRect().width
       const chipWidths = [...host.querySelectorAll<HTMLElement>('[data-suggestion-content]')].map(content => {
         const buttonStyle = getComputedStyle(content.parentElement!)
-        return content.getBoundingClientRect().width + parseFloat(buttonStyle.paddingInlineStart) + parseFloat(buttonStyle.paddingInlineEnd)
+        return content.getBoundingClientRect().width + Number.parseFloat(buttonStyle.paddingInlineStart) + Number.parseFloat(buttonStyle.paddingInlineEnd)
       })
       const next = { availableWidth, ...resolveComposerStripLayout(availableWidth, chipWidths) }
       setLayout(previous => previous.availableWidth === next.availableWidth && previous.gap === next.gap ? previous : next)
@@ -291,9 +291,9 @@ function useTextActionMenu(inputRef: React.RefObject<HTMLTextAreaElement | null>
       const sendWidth = trailing.lastElementChild!.getBoundingClientRect().width
       const entryWidth = row.querySelector('[data-open-conversation]')?.getBoundingClientRect().width ?? 0
       const rowStyle = getComputedStyle(row)
-      const available = row.clientWidth - parseFloat(rowStyle.paddingInlineStart) - parseFloat(rowStyle.paddingInlineEnd)
+      const available = row.clientWidth - Number.parseFloat(rowStyle.paddingInlineStart) - Number.parseFloat(rowStyle.paddingInlineEnd)
       const minimumWidth = row.querySelector('[data-composer-input-minimum]')!.getBoundingClientRect().width
-      const inMenu = entryWidth + minimumWidth + inlineControlsWidth + sendWidth + parseFloat(getComputedStyle(trailing).columnGap) > available
+      const inMenu = entryWidth + minimumWidth + inlineControlsWidth + sendWidth + Number.parseFloat(getComputedStyle(trailing).columnGap) > available
       setInMenu(inMenu)
     }
     const observer = new ResizeObserver(measure)
@@ -332,7 +332,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
     if (!input) return
     function updatePlaceholder() {
       const style = getComputedStyle(input!)
-      const availableWidth = input!.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)
+      const availableWidth = input!.clientWidth - Number.parseFloat(style.paddingInlineStart) - Number.parseFloat(style.paddingInlineEnd)
       if (availableWidth <= 0) return
       const context = document.createElement('canvas').getContext('2d')!
       context.font = style.font

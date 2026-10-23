@@ -456,9 +456,10 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
     setWidths(previous => previous[part] === width ? previous : { ...previous, [part]: width })
   }
   const hasConversationEntry = Boolean(props.onOpenConversation && props.conversationLabel)
+  const conversationEntryWidth = hasConversationEntry ? widths.entry : 0
   const availableWidth = widths.field > 0 && widths.actions > 0 && widths.send > 0
     && (!hasConversationEntry || widths.entry > 0)
-    ? widths.field - 2 * styles.field.padding - (hasConversationEntry ? widths.entry : 0) - widths.actions - widths.send - styles.trailingControls.gap
+    ? widths.field - 2 * styles.field.padding - conversationEntryWidth - widths.actions - widths.send - styles.trailingControls.gap
     : undefined
   const pasteFocus = useRef<string | null>(null)
   useEffect(() => {

@@ -28,7 +28,11 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [menuOpen, setMenuOpen] = useState(false)
-  return <Menu.Root open={menuOpen} onOpenChange={(nextOpen) => { if (nextOpen) setFrequencyMenu(false); setMenuOpen(nextOpen) }}><DestinationHeaderRow testID="today-header-actions" gap={4} wrap>
+  function changeMenuOpen(nextOpen: boolean) {
+    if (nextOpen) setFrequencyMenu(false)
+    setMenuOpen(nextOpen)
+  }
+  return <Menu.Root open={menuOpen} onOpenChange={changeMenuOpen}><DestinationHeaderRow testID="today-header-actions" gap={4} wrap>
 
     <View style={styles.spacer} />
     <View style={styles.actions}>

@@ -28,7 +28,11 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
   const [frequencyMenu, setFrequencyMenu] = useState(false)
   const menuId = useId()
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
-  return <Menu.Root open={menuOpen} onOpenChange={(nextOpen) => { if (nextOpen) setFrequencyMenu(false); setMenuOpen(nextOpen) }}><DestinationHeaderRow data-today-header-actions="" gap={4} className="flex-wrap">
+  function changeMenuOpen(nextOpen: boolean) {
+    if (nextOpen) setFrequencyMenu(false)
+    setMenuOpen(nextOpen)
+  }
+  return <Menu.Root open={menuOpen} onOpenChange={changeMenuOpen}><DestinationHeaderRow data-today-header-actions="" gap={4} className="flex-wrap">
 
     <div className="flex-1" />
     <div className="flex shrink-0 items-center gap-[4px]">

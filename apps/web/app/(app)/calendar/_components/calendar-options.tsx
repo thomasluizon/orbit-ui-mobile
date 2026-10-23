@@ -40,7 +40,7 @@ function CalendarOptionsContent({ onGoogleCalendar }: Readonly<{ onGoogleCalenda
     </DestinationHeaderRow>
     {wide ? <Menu.Content id={menuId} presentation="anchored" title={t('calendar.options')}
       items={[{ id: 'recurring', label: t('calendar.showRecurring'), checked }, { id: 'google', label: t('calendar.googleCalendar'), disabled: !onGoogleCalendar }, { id: 'legend', label: t('calendar.legendTitle') }]}
-      onSelect={selectOption} /> : menuOpen ? <Sheet ref={optionsSheetRef} open title={t('calendar.options')} onClose={() => setMenuOpen(false)}>
+      onSelect={selectOption} /> : menuOpen ? <Sheet ref={optionsSheetRef} open title={t('calendar.options')} onClose={() => { setMenuOpen(false); anchorRef.current?.focus() }}>
       <div id={menuId} className="grid gap-2">
         <CheckRow placement="column" label={t('calendar.showRecurring')} checked={checked} onChange={() => closeOptions('recurring')} />
         <ListRow placement="column" textMode="label" title={t('calendar.googleCalendar')} disabled={!onGoogleCalendar} onClick={() => closeOptions('google')} />

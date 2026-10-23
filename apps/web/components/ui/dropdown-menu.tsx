@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useContext, useEffect, useRef, useState, type ComponentProps, type ReactNode, type RefObject } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode, type RefObject } from 'react'
 import * as Primitive from '@radix-ui/react-dropdown-menu'
 import { useMenuState } from '@/hooks/use-menu-state'
 import { captureException } from '@sentry/nextjs'
@@ -43,7 +43,8 @@ function useContentModule(load: boolean) {
 export function Root({ open, onOpenChange, children }: Readonly<{ open?: boolean; onOpenChange?: (open: boolean) => void; children: ReactNode }>) {
   const state = useMenuState(open, onOpenChange)
   const triggerRef = useRef<HTMLButtonElement>(null)
-  return <MenuContext.Provider value={{ ...state, triggerRef }}>
+  const context = useMemo(() => ({ ...state, triggerRef }), [state])
+  return <MenuContext.Provider value={context}>
     <Primitive.Root open={state.open} onOpenChange={state.changeOpen} modal={false}>{children}</Primitive.Root>
   </MenuContext.Provider>
 }
@@ -51,6 +52,8 @@ export function Root({ open, onOpenChange, children }: Readonly<{ open?: boolean
 export function Trigger({ ref, onClick, onPointerDown, onPointerEnter, onFocus, ...props }: ComponentProps<typeof Primitive.Trigger>) {
   const { triggerRef, open, changeOpen } = useMenu()
   const pointerActivation = useRef(false)
+  const releaseOpeningGesture = useRef<() => void>(() => {})
+  useEffect(() => () => releaseOpeningGesture.current(), [])
   const composedRef = useCallback((element: HTMLButtonElement | null) => {
     triggerRef.current = element
     if (typeof ref === 'function') return ref(element)
@@ -61,14 +64,38 @@ export function Trigger({ ref, onClick, onPointerDown, onPointerEnter, onFocus, 
     onFocus={(event) => { void loadContent().catch(captureException); onFocus?.(event) }}
     onPointerDown={(event) => {
       void loadContent().catch(captureException)
-      pointerActivation.current = event.button === 0 && event.ctrlKey === false
+      releaseOpeningGesture.current()
+      pointerActivation.current = event.button === 0 && !event.ctrlKey
       onPointerDown?.(event)
+      if (!props.disabled && !open && pointerActivation.current && !event.defaultPrevented) {
+        releaseOpeningGesture.current = preserveOpeningGesture(event.currentTarget.ownerDocument, () => { pointerActivation.current = false })
+      }
     }}
     onClick={(event) => {
       onClick?.(event)
       if (!props.disabled && event.detail === 0 && !pointerActivation.current && !event.defaultPrevented) changeOpen(!open)
       pointerActivation.current = false
     }} />
+}
+
+function preserveOpeningGesture(ownerDocument: Document, onComplete: () => void) {
+  function release() {
+    ownerDocument.removeEventListener('click', consumeClick, true)
+    ownerDocument.removeEventListener('pointerdown', release, true)
+    ownerDocument.removeEventListener('pointercancel', release, true)
+    ownerDocument.removeEventListener('keydown', release, true)
+    onComplete()
+  }
+  function consumeClick(event: MouseEvent) {
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    release()
+  }
+  ownerDocument.addEventListener('click', consumeClick, true)
+  ownerDocument.addEventListener('pointerdown', release, true)
+  ownerDocument.addEventListener('pointercancel', release, true)
+  ownerDocument.addEventListener('keydown', release, true)
+  return release
 }
 
 export const Portal = Primitive.Portal

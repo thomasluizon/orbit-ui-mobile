@@ -25,7 +25,8 @@ function useMenu() {
 export function Root({ open, onOpenChange, children }: Readonly<{ open?: boolean; onOpenChange?: (open: boolean) => void; children: ReactNode }>) {
   const state = useMenuState(open, onOpenChange)
   const triggerRef = useRef<Primitive.TriggerRef>(null)
-  return <MenuContext.Provider value={{ ...state, triggerRef }}>
+  const context = useMemo(() => ({ ...state, triggerRef }), [state])
+  return <MenuContext.Provider value={context}>
     <Primitive.Root onOpenChange={state.changeOpen} style={styles.root}>
       <ControlledRoot />{children}
     </Primitive.Root>

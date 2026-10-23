@@ -579,17 +579,12 @@
   z-index: var(--z-index-dropdown);
 }
 
-[data-radix-popper-content-wrapper]:has(> .orbit-menu-panel) {
-  z-index: var(--z-index-dropdown) !important;
-}
-
 .orbit-sheet-panel [data-radix-popper-content-wrapper] {
-  position: static !important;
-  transform: none !important;
-  min-width: 0 !important;
+  display: contents;
 }
 
 .orbit-menu-panel {
+  z-index: var(--z-index-dropdown);
   min-width: 240px;
   max-width: 320px;
   padding: var(--orbit-space-8);
