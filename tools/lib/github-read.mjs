@@ -56,7 +56,7 @@ const pause = async (milliseconds, deadline) => {
 }
 
 const retryRead = async (operation, options) => {
-  const settings = { deadline: Date.now() + 30000, pollMs: 1000, onTransientError: () => {}, ...options }
+  const settings = { deadline: Date.now() + 60000, pollMs: 1000, onTransientError: () => {}, ...options }
   let failures = 0
   while (true) {
     try { return await operation(settings) } catch (error) {

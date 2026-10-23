@@ -56,4 +56,17 @@ export const cases = async () => {
   T("GitHub read: missing Retry-After backs off", !backoff.error && backoff.elapsed >= 100 && backoff.calls === 3)
   const timeout = await read("hung", [{ hangTreePidFile: stage("github-read/hung-child", "") }], { deadline: Date.now() + 250 })
   T("GitHub read: a hung gh is terminated at the ceiling", timeout.error?.code === "GITHUB_READ_CEILING" && timeout.errors.length === 1 && timeout.elapsed < 2000)
+
+  const sequenceFile = stage("github-read/default-timeout-retry", "")
+  const environment = { ...process.env, ...orcaEnv([{ match: "api test/read", sequenceFile, responseSequence: [
+    { hangTreePidFile: stage("github-read/default-timeout-child", "") }, success,
+  ] }]) }
+  const errors = []
+  let recovered = false
+  try {
+    await readGithub("test/read", environment, { pollMs: 10, onTransientError: (text) => errors.push(text) })
+    recovered = true
+  } catch { /* The assertion reports whether the bounded read exhausted its budget. */ }
+  T("GitHub read: admission retries after a real gh timeout", recovered && errors.length === 1 &&
+    errors[0].includes("timed out") && readFileSync(sequenceFile, "utf8") === "2")
 }
