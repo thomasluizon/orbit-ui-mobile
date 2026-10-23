@@ -5,6 +5,7 @@ import { isWeeklyRecurrencePhrase } from './habit-phrase-parser'
 
 interface DateEditorAdapter {
   owner: object
+  generalLocked: boolean
   context: () => DateInterpretationContext
   applyWeeklyRecurrence: () => void
   write: (field: 'dueDate' | 'datePhrase' | 'dateIssue', value: string) => void
@@ -29,7 +30,7 @@ export class HabitDateEditor {
   private context = ''
   constructor(private adapter: DateEditorAdapter) {}
   configure(adapter: DateEditorAdapter): void {
-    if (adapter.owner !== this.adapter.owner) {
+    if (adapter.owner !== this.adapter.owner || adapter.generalLocked !== this.adapter.generalLocked) {
       this.abort?.abort()
       this.session.invalidate()
       this.context = ''
@@ -48,7 +49,7 @@ export class HabitDateEditor {
 
   sync(): void {
     const context = this.adapter.context()
-    if (JSON.stringify(context) === this.context) return
+    if (JSON.stringify({ ...context, generalLocked: this.adapter.generalLocked }) === this.context) return
     this.abort?.abort()
     this.rememberContext()
     if (isWeeklyRecurrencePhrase(context.phrase)) {
@@ -62,13 +63,15 @@ export class HabitDateEditor {
     this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: this.session.parse(context).status })
   }
 
-  setPhrase(phrase: string): void {
+  setPhrase(phrase: string): void { this.readPhrase(phrase) }
+
+  private readPhrase(phrase: string, choosingType = false): void {
     this.abort?.abort()
     this.session.invalidate()
     this.adapter.write('datePhrase', phrase)
     const context = { ...this.adapter.context(), phrase }
     if (isWeeklyRecurrencePhrase(phrase)) {
-      this.applyRecurrence(context)
+      this.applyRecurrence(context, choosingType)
       this.setRecurrenceIssue(context)
       this.rememberContext()
       this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: 'recurrence' })
@@ -81,23 +84,24 @@ export class HabitDateEditor {
     this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: result.status })
   }
 
-  private applyRecurrence(context: DateInterpretationContext): void {
-    if (context.type === 'habit' && context.schedule !== 'general' && context.date) this.adapter.applyWeeklyRecurrence()
+  private applyRecurrence(context: DateInterpretationContext, choosingType: boolean): void {
+    if (context.type === 'habit' && !this.adapter.generalLocked && (context.schedule !== 'general' || choosingType) && context.date) this.adapter.applyWeeklyRecurrence()
   }
 
   private setRecurrenceIssue(context: DateInterpretationContext): void {
-    this.adapter.write('dateIssue', context.type === 'task' ? 'habits.form.recurrenceRequiresHabit' : '')
+    const issue = context.type === 'task' ? 'habits.form.recurrenceRequiresHabit' : context.type === 'habit' && this.adapter.generalLocked ? 'errors.api.generalMismatchWithParent' : ''
+    this.adapter.write('dateIssue', issue)
   }
 
   private rememberContext(): void {
     const context = this.adapter.context()
-    this.context = JSON.stringify(context)
+    this.context = JSON.stringify({ ...context, generalLocked: this.adapter.generalLocked })
     this.session.sync(context)
   }
 
   chooseType(): void {
     const { phrase } = this.adapter.context()
-    if (isWeeklyRecurrencePhrase(phrase)) this.setPhrase(phrase)
+    if (isWeeklyRecurrencePhrase(phrase)) this.readPhrase(phrase, true)
     else this.sync()
   }
 

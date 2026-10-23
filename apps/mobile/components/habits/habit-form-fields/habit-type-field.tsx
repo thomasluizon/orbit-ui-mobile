@@ -15,7 +15,7 @@ export function HabitTypeField({ formHelpers, lockedGeneral, onChange }: Readonl
   const tokens = createTokensV2(currentScheme, currentTheme)
   const itemType = useWatch({ control: formHelpers.form.control, name: 'itemType' })
   const errors = formHelpers.form.formState.errors
-  const recurrenceMismatch = errors.datePhrase?.message === 'habits.form.recurrenceRequiresHabit'
+  const recurrenceMismatch = errors.datePhrase?.message === 'habits.form.recurrenceRequiresHabit' || errors.datePhrase?.message === 'errors.api.generalMismatchWithParent'
   const choose = guard((type: 'task' | 'habit') => { onChange(); formHelpers.chooseItemType(type) })
   return (
       <View style={{ minWidth: 0, gap: 8 }}>

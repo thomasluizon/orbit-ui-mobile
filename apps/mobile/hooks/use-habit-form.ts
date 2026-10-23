@@ -251,7 +251,8 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     (context?: HabitFormValidationContext) => {
       dateValidation.current?.()
       const values = form.getValues()
-      const key = !values.itemType ? 'habits.form.typeRequired' : !values.isGeneral && values.dateIssue ? values.dateIssue : !values.isGeneral && !values.dueDate ? 'habits.form.dateStale' : null
+      const dateIssue = !values.isGeneral || values.dateIssue === 'errors.api.generalMismatchWithParent' ? values.dateIssue : null
+      const key = !values.itemType ? 'habits.form.typeRequired' : dateIssue ? dateIssue : !values.isGeneral && !values.dueDate ? 'habits.form.dateStale' : null
       if (key) {
         form.setError(!values.itemType ? 'itemType' : 'datePhrase', { message: key })
         setValidationFocusRequest((request) => request + 1)

@@ -1912,18 +1912,19 @@ describe('date ownership across form transitions', () => {
 
   function mountDateForm(isFlexible = false, title = 'Read') {
     let fieldsVersion = 0
+    let lockedGeneral: boolean | null = null
     let helpers!: HabitFormHelpers
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     function OwningForm() {
       helpers = useHabitForm({ initialData: { itemType: 'habit', title, dueDate: '2026-10-20', frequencyUnit: 'Day', frequencyQuantity: 1, isFlexible, endDate: '2026-12-01' } })
-      return <HabitFormFields key={fieldsVersion} readPhraseLocally formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
+      return <HabitFormFields key={fieldsVersion} lockedGeneral={lockedGeneral} readPhraseLocally formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
     }
     const form = () => <QueryClientProvider client={client}><OwningForm /></QueryClientProvider>
     const view = render(form())
     const phrase = (value: string) => fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.datePhrase' }), { target: { value } })
     const general = () => fireEvent.click(screen.getByRole('radio', { name: /habits.form.noSchedule/ }))
     const recurring = () => fireEvent.click(screen.getByRole('radio', { name: 'habits.form.every' }))
-    return { values: () => helpers.form.getValues(), helpers: () => helpers, phrase, general, recurring, refresh: () => view.rerender(form()), remountFields: () => { fieldsVersion++; view.rerender(form()) } }
+    return { lockGeneral: () => { lockedGeneral = true; view.rerender(form()) }, values: () => helpers.form.getValues(), helpers: () => helpers, phrase, general, recurring, refresh: () => view.rerender(form()), remountFields: () => { fieldsVersion++; view.rerender(form()) } }
   }
 
   it.each([
@@ -2005,6 +2006,34 @@ describe('date ownership across form transitions', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeHabit' }))
     expect(owner.values()).toMatchObject({ itemType: 'habit', frequencyUnit: 'Week', frequencyQuantity: 1, dueDate: '2026-10-20', dateIssue: '' })
     act(() => { expect(owner.helpers().validateAll()).toBeNull() })
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('resolves weekly Task wording after a General draft, inherited lock=%s', (locked) => {
+    const owner = mountDateForm()
+    owner.general()
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+    owner.phrase('dia 23')
+    owner.phrase('weekly')
+    if (locked) owner.lockGeneral()
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeHabit' }))
+    if (locked) {
+      expect(owner.values()).toMatchObject({ itemType: 'habit', isGeneral: true, frequencyUnit: null, dateIssue: 'errors.api.generalMismatchWithParent' })
+      expect(screen.getAllByText('errors.api.generalMismatchWithParent')).toHaveLength(1)
+      act(() => { expect(owner.helpers().validateAll()).toBe('errors.api.generalMismatchWithParent') })
+      expect(screen.getByRole('radio', { name: 'habits.form.typeHabit' })).toHaveFocus()
+      const request = buildCreateHabitRequest(habitFormSchema.parse(owner.values()), [], [], [], [])
+      expect(request.isGeneral).toBe(true)
+      expect(request).not.toHaveProperty('frequencyUnit')
+      expect(request).not.toHaveProperty('startDate')
+    } else {
+      expect(owner.values()).toMatchObject({ itemType: 'habit', isGeneral: false, frequencyUnit: 'Week', frequencyQuantity: 1, dueDate: '2026-10-23', datePhrase: 'weekly', dateIssue: '' })
+      expect(buildCreateHabitRequest(habitFormSchema.parse(owner.values()), [], [], [], [])).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-23' })
+      act(() => { expect(owner.helpers().validateAll()).toBeNull() })
+      owner.refresh()
+      owner.remountFields()
+      expect(owner.values()).toMatchObject({ isGeneral: false, frequencyUnit: 'Week', dueDate: '2026-10-23', dateIssue: '' })
+    }
     expect(dateRequests.request).not.toHaveBeenCalled()
   })
 

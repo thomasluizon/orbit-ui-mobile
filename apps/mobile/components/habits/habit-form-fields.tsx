@@ -546,7 +546,7 @@ export function HabitFormFields({
         visible={itemType !== 'task' && !formHelpers.isGeneral && shouldShowHabitAstraFallback(title, sentence, onSuggestSetup, proposal)}
       />
 
-      <HabitDateField formHelpers={formHelpers} onWeeklyRecurrence={controller.setWeeklyRecurrence} />
+      <HabitDateField generalLocked={lockedGeneral === true} formHelpers={formHelpers} onWeeklyRecurrence={controller.setWeeklyRecurrence} />
 
       <View style={styles.disclosure}>
         <ListRow disabled={disabled} icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.form.moreDetails')} expanded={detailsOpen} placement="column" chevron={false} onClick={() => setDetailsOpen((open) => !open)} />

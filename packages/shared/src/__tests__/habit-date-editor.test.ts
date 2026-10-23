@@ -28,6 +28,7 @@ function createAdapter(overrides: Partial<DateInterpretationContext> = {}) {
   }[] = []
   const adapter = {
     owner: fields,
+    generalLocked: false,
     applyWeeklyRecurrence: () => { context.schedule = 'recurring'; context.cadence = { unit: 'Week', quantity: 1, days: [], intervalWeeks: 1 } },
     context: () => ({ ...context, date: fields.dueDate, phrase: fields.datePhrase }),
     write: (field: keyof typeof fields, value: string) => { fields[field] = value },
@@ -74,7 +75,7 @@ describe('habit date editor lifecycle', () => {
     editor.setPhrase('weekly')
     expect(fields.dateIssue).toBe('habits.form.recurrenceRequiresHabit')
     context.type = 'habit'
-    context.schedule = 'recurring'
+    context.schedule = 'general'
     editor.sync()
     expect(context.cadence.unit).toBeNull()
     editor.chooseType()
@@ -88,6 +89,27 @@ describe('habit date editor lifecycle', () => {
     editor.sync()
     expect(context.cadence.unit).toBe('Month')
     expect(fields.dateIssue).toBe('')
+  })
+
+  it('keeps inherited General locked and reports the existing parent mismatch on a deliberate Habit choice', () => {
+    const { editor, adapter, fields, context, requests } = createEditor()
+    editor.setPhrase('weekly')
+    adapter.generalLocked = true
+    context.type = 'habit'
+    context.schedule = 'general'
+    editor.chooseType()
+    editor.sync()
+    editor.validate()
+    expect(context.cadence.unit).toBeNull()
+    expect(context.schedule).toBe('general')
+    expect(fields.dateIssue).toBe('errors.api.generalMismatchWithParent')
+    adapter.generalLocked = false
+    editor.sync()
+    editor.validate()
+    expect(context.schedule).toBe('general')
+    expect(context.cadence.unit).toBeNull()
+    expect(fields.dateIssue).toBe('')
+    expect(requests).toHaveLength(0)
   })
 
   it('does not apply old recognition when the form or account is replaced', () => {

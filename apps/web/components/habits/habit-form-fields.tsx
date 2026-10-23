@@ -517,7 +517,7 @@ export function HabitFormFields({
         onAsk={() => void controller.askAstra()}
       />
 
-      <HabitDateField formHelpers={formHelpers} onWeeklyRecurrence={controller.setWeeklyRecurrence} />
+      <HabitDateField generalLocked={lockedGeneral === true} formHelpers={formHelpers} onWeeklyRecurrence={controller.setWeeklyRecurrence} />
 
       <div className="flex flex-col" style={{ gap: 12 }}>
         <ListRow

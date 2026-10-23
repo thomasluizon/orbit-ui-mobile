@@ -49,6 +49,23 @@ function CommitRows({
 }
 
 describe('select-check RadioRow group', () => {
+  it('focuses the enabled radio once per validation request', () => {
+    const onChange = vi.fn()
+    const rows = (selected: boolean) => <>
+      <RadioGroup aria-label="Type" focusRequest={1}>
+        <RadioRow label="Task" disabled reason="Locked" />
+        <RadioRow label="Habit" selected={selected} onSelect={onChange} />
+      </RadioGroup>
+      <button>Outside</button>
+    </>
+    const view = render(rows(true))
+    expect(screen.getByRole('radio', { name: 'Habit' })).toHaveFocus()
+    screen.getByRole('button', { name: 'Outside' }).focus()
+    view.rerender(rows(false))
+    expect(screen.getByRole('button', { name: 'Outside' })).toHaveFocus()
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
   it('scrolls expanded personal text without changing or committing the selection', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()

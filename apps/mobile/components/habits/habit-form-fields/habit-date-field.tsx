@@ -50,7 +50,7 @@ function DateConsultation({ editor, snapshot }: Readonly<{ editor: HabitDateEdit
   </>
 }
 
-function DatedHabitField({ formHelpers, onWeeklyRecurrence }: Readonly<{ formHelpers: HabitFormHelpers; onWeeklyRecurrence: () => void }>) {
+function DatedHabitField({ formHelpers, onWeeklyRecurrence, generalLocked }: Readonly<{ formHelpers: HabitFormHelpers; onWeeklyRecurrence: () => void; generalLocked: boolean }>) {
   const { disabled, guard, isDisabled } = useHabitFormInteraction()
   const { t, i18n } = useTranslation()
   const locale = i18n.language
@@ -73,7 +73,7 @@ function DatedHabitField({ formHelpers, onWeeklyRecurrence }: Readonly<{ formHel
       cadence: { unit: values.frequencyUnit ?? null, quantity: values.frequencyQuantity ?? null, days: [...new Set(values.days ?? [])].sort((left, right) => left.localeCompare(right)), intervalWeeks: values.intervalWeeks ?? 1 },
       date: values.dueDate ?? '', endDate: values.endDate ?? '', phrase: values.datePhrase ?? '' }
   }
-  const adapter = { context, owner: form, applyWeeklyRecurrence: onWeeklyRecurrence,
+  const adapter = { context, owner: form, generalLocked, applyWeeklyRecurrence: onWeeklyRecurrence,
     write: (field: 'dueDate' | 'datePhrase' | 'dateIssue', value: string) => {
       if (isDisabled()) return
       form.setValue(field, value, { shouldDirty: true })
@@ -98,7 +98,7 @@ function DatedHabitField({ formHelpers, onWeeklyRecurrence }: Readonly<{ formHel
   const validationError = form.formState.errors.datePhrase?.message
   const error = issue || validationError
   const accept = () => { editor.accept(); setDateFocusRequest((request) => request + 1) }
-  if (formHelpers.isGeneral) return null
+  if (formHelpers.isGeneral) return issue === 'errors.api.generalMismatchWithParent' ? <Text accessibilityLiveRegion="polite" style={{ color: tokens.statusBadText, fontSize: 14, fontFamily: 'Geist_400Regular' }}>{t(issue)}</Text> : null
   return <View style={{ minWidth: 0, gap: 16 }}>
     <Input disabled={disabled} label={t('habits.form.datePhrase')} placeholder={t('habits.form.datePhrasePlaceholder')} hint={t(type === 'habit' ? 'habits.form.habitDateQuestion' : 'habits.form.taskDateQuestion')} name="datePhrase" autoComplete="off" value={phrase} error={error ? t(error) : undefined} focusRequest={validationError && issue !== 'habits.form.recurrenceRequiresHabit' ? formHelpers.validationFocusRequest : undefined} onChange={guard((value) => editor.setPhrase(value))} />
     <View style={{ minWidth: 0, gap: 8 }}>
@@ -113,6 +113,6 @@ function DatedHabitField({ formHelpers, onWeeklyRecurrence }: Readonly<{ formHel
   </View>
 }
 
-export function HabitDateField({ formHelpers, onWeeklyRecurrence }: Readonly<{ formHelpers: HabitFormHelpers; onWeeklyRecurrence: () => void }>) {
-  return <DatedHabitField formHelpers={formHelpers} onWeeklyRecurrence={onWeeklyRecurrence} />
+export function HabitDateField({ formHelpers, onWeeklyRecurrence, generalLocked }: Readonly<{ formHelpers: HabitFormHelpers; onWeeklyRecurrence: () => void; generalLocked: boolean }>) {
+  return <DatedHabitField generalLocked={generalLocked} formHelpers={formHelpers} onWeeklyRecurrence={onWeeklyRecurrence} />
 }

@@ -531,7 +531,10 @@ Habit, preserving its chosen date. The existing schedule control shows Week 1; t
 stay in the input without a second summary or Astra attribution. A Task keeps its type and date,
 with one inline recovery: `To repeat, choose Habit.` / `Para repetir, escolha Hábito.` Submit focuses
 the actual type group without marking the selected Task as missing. Selecting Habit is deliberate;
-clearing or replacing the wording and manual date selection also recover. Manual cadence changes,
+clearing or replacing the wording and manual date selection also recover. This choice takes precedence
+over a retained General draft and keeps the Task's current date as the weekly start date. Inherited
+General locks keep the child undated with the existing parent mismatch guidance and block Submit.
+Manual cadence changes,
 form reopening and context replacement never replay an old weekly read. Mixed wording stays with
 the existing date recovery and never guesses a cadence.
 

@@ -35,7 +35,10 @@ replacement cannot apply it. Manual scheduling releases title cadence ownership;
 mode drafts keeps later corrections. No weekly variant enters the title or onboarding parser.
 Task mismatch uses the input's single error region and focuses the real named type group on
 blocked Submit; the valid Task selection is retained. Choosing a date or clearing the wording
-clears the mismatch. General and inherited locks keep their existing restrictions.
+clears the mismatch. A deliberate Habit choice resolves retained Task weekly wording before an older
+General draft can win, using the current Task date as its start date. An inherited General lock
+keeps the child General, shows the existing parent mismatch guidance and blocks Submit. Manual
+General decisions otherwise retain their draft without replaying recognition.
 
 Only a date candidate receives DateField's proposed appearance, using resting fg-3 inside the
 existing dashed perimeter. Acceptance and manual picking restore normal ink. Use date sits in

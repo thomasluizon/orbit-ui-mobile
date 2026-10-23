@@ -12,7 +12,7 @@ export function HabitTypeField({ formHelpers, lockedGeneral, onChange }: Readonl
   const t = useTranslations()
   const itemType = formHelpers.form.watch('itemType')
   const errors = formHelpers.form.formState.errors
-  const recurrenceMismatch = errors.datePhrase?.message === 'habits.form.recurrenceRequiresHabit'
+  const recurrenceMismatch = errors.datePhrase?.message === 'habits.form.recurrenceRequiresHabit' || errors.datePhrase?.message === 'errors.api.generalMismatchWithParent'
   const choose = (type: 'task' | 'habit') => { onChange(); formHelpers.chooseItemType(type) }
   return (
       <div className="flex min-w-0 flex-col gap-2">

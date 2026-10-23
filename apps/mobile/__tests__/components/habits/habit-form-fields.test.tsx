@@ -1533,9 +1533,9 @@ describe('native date ownership across form transitions', () => {
     formLocale.realDates = false
     formLocale.theme = 'dark'
   })
-  function OwningForm({ flexible = false, title = 'Read', fieldsVersion = 0 }: { flexible?: boolean; title?: string; fieldsVersion?: number }) {
+  function OwningForm({ flexible = false, title = 'Read', fieldsVersion = 0, lockedGeneral = null }: { flexible?: boolean; title?: string; fieldsVersion?: number; lockedGeneral?: boolean | null }) {
     helpers = useHabitForm({ initialData: { itemType: 'habit', title, dueDate: '2026-10-20', frequencyUnit: 'Day', frequencyQuantity: 1, isFlexible: flexible, endDate: '2026-12-01' } })
-    return <HabitFormFields key={fieldsVersion} readPhraseLocally formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
+    return <HabitFormFields key={fieldsVersion} lockedGeneral={lockedGeneral} readPhraseLocally formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
   }
   async function mount(flexible = false) { await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm flexible={flexible} />) }) }
   const hosts = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && String(node.props.accessibilityLabel).startsWith(label))
@@ -1621,6 +1621,33 @@ describe('native date ownership across form transitions', () => {
     await press('habits.form.typeHabit')
     expect(helpers.form.getValues()).toMatchObject({ itemType: 'habit', frequencyUnit: 'Week', frequencyQuantity: 1, dueDate: '2026-10-20', dateIssue: '' })
     await TestRenderer.act(() => { expect(helpers.validateAll()).toBeNull() })
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('resolves weekly Task wording after a General draft, inherited lock=%s', async (locked) => {
+    await mount()
+    await general()
+    await press('habits.form.typeTask')
+    await phrase('dia 23')
+    await phrase('weekly')
+    if (locked) await TestRenderer.act(() => tree.update(<OwningForm lockedGeneral />))
+    await press('habits.form.typeHabit')
+    if (locked) {
+      expect(helpers.form.getValues()).toMatchObject({ itemType: 'habit', isGeneral: true, frequencyUnit: null, dateIssue: 'errors.api.generalMismatchWithParent' })
+      expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'errors.api.generalMismatchWithParent')).toHaveLength(1)
+      await TestRenderer.act(() => { expect(helpers.validateAll()).toBe('errors.api.generalMismatchWithParent') })
+      expect(__getFocusedNativeTag()).toBe(hosts('habits.form.typeHabit')[0]!.props.__nativeTag)
+      const request = buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])
+      expect(request.isGeneral).toBe(true)
+      expect(request).not.toHaveProperty('frequencyUnit')
+      expect(request).not.toHaveProperty('startDate')
+    } else {
+      expect(helpers.form.getValues()).toMatchObject({ itemType: 'habit', isGeneral: false, frequencyUnit: 'Week', frequencyQuantity: 1, dueDate: '2026-10-23', datePhrase: 'weekly', dateIssue: '' })
+      expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-23' })
+      await TestRenderer.act(() => { expect(helpers.validateAll()).toBeNull() })
+      await TestRenderer.act(() => tree.update(<OwningForm fieldsVersion={1} />))
+      expect(helpers.form.getValues()).toMatchObject({ isGeneral: false, frequencyUnit: 'Week', dueDate: '2026-10-23', dateIssue: '' })
+    }
     expect(dateRequests.request).not.toHaveBeenCalled()
   })
 
