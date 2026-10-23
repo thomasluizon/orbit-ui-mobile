@@ -1,3 +1,9 @@
+import { createInstance } from 'i18next'
+import ICUCommonJs from 'i18next-icu/cjs'
+import { renderedText } from '../../support/react-test-renderer'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -6,16 +12,12 @@ import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => key,
-    i18n: { language: 'en' },
-  }),
-}))
-
-vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ getQueryData: () => undefined }),
-}))
+const rewardState = vi.hoisted(() => ({ locale: '', stats: undefined as { rewardType?: string; proDaysPerReferral?: number; discountPercent?: number } | undefined }))
+const testI18n = createInstance()
+const ICU = typeof ICUCommonJs === 'function' ? ICUCommonJs : ICUCommonJs.default
+void testI18n.use(ICU).init({ resources: { en: { translation: en }, 'pt-BR': { translation: ptBR } }, lng: 'en', fallbackLng: 'en', initAsync: false })
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, params?: Record<string, unknown>) => rewardState.locale ? testI18n.getFixedT(rewardState.locale)(key, params) : key, i18n: { language: rewardState.locale || 'en' } }) }))
+vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ getQueryData: () => rewardState.stats ? { stats: rewardState.stats } : undefined }) }))
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
@@ -61,7 +63,7 @@ function resetStores() {
 
 describe('ReferralPrompt (mobile)', () => {
   beforeEach(() => {
-    vi.useFakeTimers()
+    vi.useFakeTimers(); rewardState.locale = ''; rewardState.stats = undefined
     resetStores()
   })
 
@@ -206,4 +208,19 @@ describe('ReferralPrompt (mobile)', () => {
     expect(findByType(tree, 'Sheet')).toHaveLength(0)
     expect(findByType(tree, 'ReferralDrawerOpen')).toHaveLength(0)
   })
+  it.each(referralCopyCases)('uses the cached $locale reward explanation after the real scheduling delay', async ({ locale, stats, explanation }) => {
+    rewardState.locale = locale
+    rewardState.stats = stats
+    const tree = await renderArmed('streak-7')
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    expect(renderedText(tree.root.findAll((node) => node.type === 'Text').map((node) => node.props.children))).toContain(explanation)
+  })
+
+  it('keeps an empty cache neutral after the real scheduling delay', async () => {
+    rewardState.locale = 'en'
+    const tree = await renderArmed('streak-7')
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    expect(renderedText(tree.root.findAll((node) => node.type === 'Text').map((node) => node.props.children))).toContain('Share your link to invite someone to Orbit.')
+  })
+
 })

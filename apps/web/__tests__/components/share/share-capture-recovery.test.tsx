@@ -18,6 +18,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
   useQueryClient: () => queryClient,
 }))
 const queryClient = new QueryClient()
+vi.mock('@/hooks/use-referral', () => ({ useReferral: () => ({ stats: queryClient.getQueryData<ReferralDashboard>(referralKeys.all)?.stats ?? null, isError: false }) }))
 vi.mock('@/hooks/use-wrapped', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/hooks/use-wrapped')>()),
   useWrapped: () => ({ recap: createMockRecap(), isLoading: false, isError: false }),

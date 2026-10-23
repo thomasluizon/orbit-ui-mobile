@@ -6,7 +6,7 @@ import { buildChatFinalMessageFields, getChatMessageParts } from '../chat/final-
 import { createChatSseParser } from '../chat/sse-stream'
 import partsFixture from '../test-support/chat-parts.fixture.json'
 import { agentExecuteOperationResponseSchema } from '../types/ai'
-import { makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldHabitMessage } from '../test-support/chat-fixtures'
+import { makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldHabitMessage, focusedPeriodTotalFixture, focusedPeriodComparisonFixture, habitRankingCardFixture } from '../test-support/chat-fixtures'
 import { chatBlockLayoutCases, makeChatBlockLayoutMessage } from '../test-support/chat-block-layout'
 
 const { PostApiChatResponse } = await vi.importActual<{ PostApiChatResponse: z.ZodObject }>('../types/__generated__/api.generated')
@@ -23,11 +23,18 @@ describe('ordered chat parts', () => {
     expect(getChatMessageParts(message, true)).toEqual([{ type: 'text', text: message.content }])
   })
 
-  it('validates every registered block from the pinned contract', () => {
-    expect(partsFixture.blocks.map(part => part.kind)).toEqual(CHAT_BLOCK_KINDS)
-    const response = { ...partsFixture.response, parts: partsFixture.blocks }
+  it('retains pinned history and validates every carrying block', () => {
+    const blocks = [
+      ...partsFixture.blocks.slice(0, 3),
+      { type: 'block', kind: 'periodTotal', block: focusedPeriodTotalFixture },
+      { type: 'block', kind: 'periodComparison', block: focusedPeriodComparisonFixture },
+      ...partsFixture.blocks.slice(3),
+      { type: 'block', kind: 'habitRanking', block: habitRankingCardFixture },
+    ]
+    expect(blocks.map(part => part.kind)).toEqual(CHAT_BLOCK_KINDS)
+    const response = { ...partsFixture.response, parts: blocks }
     expect(PostApiChatResponse.parse(response)).toEqual(response)
-    expect(chatResponseSchema.parse(response).parts).toEqual(partsFixture.blocks)
+    expect(chatResponseSchema.parse(response).parts).toEqual(blocks)
   })
 
   it.each(['futureKind', ...CHAT_BLOCK_KINDS])('skips an unsupported or malformed %s block without losing the final event', kind => {

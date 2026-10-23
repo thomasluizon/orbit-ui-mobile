@@ -1,3 +1,7 @@
+import { createInstance } from 'i18next'
+import ICUCommonJs from 'i18next-icu/cjs'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { PersonalText } from '@/components/ui/personal-text'
 import React from 'react'
@@ -8,13 +12,19 @@ import { AccountRowsCard } from '@/components/chat/account-rows-card'
 import { renderedText } from '../../support/react-test-renderer'
 
 const TestRenderer = require('react-test-renderer')
+const rewardState = vi.hoisted(() => ({ stats: { rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 23 }, locale: '' }))
+const referralRead = vi.hoisted(() => vi.fn())
+vi.mock('@/hooks/use-referral', () => ({ useReferral: () => { referralRead(); return { stats: rewardState.stats } } }))
 const mocks = vi.hoisted(() => ({ push: vi.fn(), setStringAsync: vi.fn().mockResolvedValue(true), share: vi.fn(), locale: 'en' }))
 vi.mock('react-native', async () => {
   const reactNative = await import('../../../test-mocks/react-native')
   return { ...reactNative, Share: { share: mocks.share } }
 })
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, params?: Record<string, unknown>) => params ? `${key}:${JSON.stringify(params)}` : key, i18n: { language: mocks.locale } }) }))
+const testI18n = createInstance()
+const ICU = typeof ICUCommonJs === 'function' ? ICUCommonJs : ICUCommonJs.default
+void testI18n.use(ICU).init({ resources: { en: { translation: en }, 'pt-BR': { translation: ptBR } }, lng: 'en', fallbackLng: 'en', initAsync: false })
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, params?: Record<string, unknown>) => rewardState.locale ? testI18n.getFixedT(rewardState.locale)(key, params) : params ? `${key}:${JSON.stringify(params)}` : key, i18n: { language: rewardState.locale || mocks.locale } }) }))
 vi.mock('expo-clipboard', () => ({ setStringAsync: mocks.setStringAsync }))
 vi.mock('@/components/ui/settings-group', () => ({ SettingsGroup: ({ children }: { children: React.ReactNode }) => <View>{children}</View> }))
 vi.mock('@/components/ui/pill-button', () => ({ Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => <Pressable accessibilityRole="button" onPress={onClick}><Text>{children}</Text></Pressable> }))
@@ -31,7 +41,7 @@ function render(element: React.ReactElement) {
 }
 
 describe('Astra account rows on mobile', () => {
-  beforeEach(() => { vi.clearAllMocks(); mocks.locale = 'en' })
+  beforeEach(() => { vi.clearAllMocks(); rewardState.locale = ''; mocks.locale = 'en' })
 
   it('keeps plan rows read only and drops unknown keys', () => {
     const tree = render(<AccountRowsCard accountRows={{ kind: 'plan', surfaceId: 'profile', rows: [
@@ -78,7 +88,7 @@ describe('Astra account rows on mobile', () => {
     expect(renderedText(tree.toJSON())).toContain('chat.account.copied')
     const openShare = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.account.share'))[0]
     await TestRenderer.act(async () => { openShare.props.onPress(); await Promise.resolve() })
-    expect(mocks.share).toHaveBeenCalledWith({ title: 'referral.share.title', message: 'https://example.com/r/ORBIT123' })
+    expect(mocks.share).toHaveBeenCalledWith({ title: 'referral.share.title', message: 'referral.share.proDays:{"proDays":7} https://example.com/r/ORBIT123' })
   })
 
   it('confirms a referral code only after the native write and permits retry after rejection', async () => {
@@ -104,4 +114,28 @@ describe('Astra account rows on mobile', () => {
     const tree = render(<AccountRowsCard accountRows={{ kind: 'plan', surfaceId: 'profile', rows: [{ key: 'trialEnd', value: '2026-09-26T12:00:00Z', valueType: 'date' }] }} />)
     expect(renderedText(tree.toJSON())).toContain('26 de set. de 2026')
   })
+  it.each(['en', 'pt-BR'])('recognizes the actual Pro-days record and hides its unrelated percent in %s', async (locale) => {
+    rewardState.locale = locale
+    const tree = render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', referralCode: 'ORBIT123', referralLink: 'https://example.com/r/ORBIT123', rows: [
+      { key: 'successfulReferrals', value: '8', valueType: 'count' },
+      { key: 'pendingReferrals', value: '2', valueType: 'count' },
+      { key: 'maxReferrals', value: '10', valueType: 'count' },
+      { key: 'rewardType', value: 'pro_days', valueType: 'enum' },
+      { key: 'discountPercent', value: '23', valueType: 'count' },
+    ] }} />)
+    expect(renderedText(tree.toJSON())).toContain(locale === 'en' ? 'Days of Pro' : 'Dias de Pro')
+    expect(renderedText(tree.toJSON())).not.toContain('23%')
+    const label = testI18n.getFixedT(locale)('chat.account.share')
+    const share = tree.root.findAll((node: { props: { onPress?: () => void; children?: unknown } }) => typeof node.props.onPress === 'function' && renderedText(node.props.children) === label)[0]
+    await act(async () => { share.props.onPress(); await Promise.resolve() })
+    expect(mocks.share).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining(locale === 'en' ? 'I can earn 7 days of Pro.' : 'Eu posso ganhar 7 dias de Pro.') }))
+    await act(() => tree.unmount())
+  })
+
+  it.each(['profile', 'plan'] as const)('does not read the referral dashboard for a %s record', (kind) => {
+    const tree = render(<AccountRowsCard accountRows={{ kind, surfaceId: 'profile', rows: [] }} />)
+    expect(referralRead).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.unmount())
+  })
+
 })

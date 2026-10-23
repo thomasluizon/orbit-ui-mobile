@@ -83,6 +83,13 @@ function secureResponse(response: NextResponse, contentSecurityPolicy: string) {
   return response
 }
 
+function isStaleServerAction(request: NextRequest) {
+  const clientDeploymentId = request.headers.get('x-deployment-id')
+  const deploymentId = process.env.NEXT_PUBLIC_WEB_COMMIT_SHA
+  return request.method === 'POST' && request.headers.has('next-action') &&
+    deploymentId && clientDeploymentId && clientDeploymentId !== deploymentId
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
@@ -125,6 +132,18 @@ export async function proxy(request: NextRequest) {
     )
   }
 
+  if (isStaleServerAction(request)) {
+    return new Response(null, {
+      status: 409,
+      headers: {
+        'x-nextjs-action-not-found': '1',
+        'Content-Type': 'text/plain',
+        'Cache-Control': 'no-store',
+        [CONTENT_SECURITY_POLICY]: contentSecurityPolicy,
+      },
+    })
+  }
+
   const isPublic = isPublicPath(pathname)
   const shouldResolveSession = pathname === '/login' || !isPublic
   const session = shouldResolveSession
@@ -163,5 +182,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|api/health$|manifest\\.webmanifest$|pwa-(?:192x192|512x512)\\.png$).*)'],
+  matcher: ['/((?!_next/static|_next/image|api/health$|manifest\\.webmanifest$|pwa-(?:192x192|512x512|maskable-512x512)\\.png$).*)'],
 }

@@ -1,6 +1,6 @@
-import type { NormalizedHabit } from '../types/habit'
+import type { HabitDetail, NormalizedHabit, UpdateHabitRequest } from '../types/habit'
 import { buildChildrenIndex, sortNormalizedHabits } from './habit-normalization'
-import { isHabitSelectableAsMoveTarget, filterMoveTargetsBySearch } from './habit-visibility'
+import { filterMoveTargetsBySearch, isHabitSelectableAsMoveTarget } from './habit-visibility'
 
 export interface MoveParentOption {
   id: string | null
@@ -21,6 +21,7 @@ export interface MoveParentRowProps {
 }
 
 export interface MoveParentPickerProps {
+  selectionOnly?: boolean
   movingHabitTitle: string | null
   movingHabitCount?: number
   error?: string | null
@@ -100,8 +101,10 @@ interface MoveValidationDeps {
 
 interface MoveParentOptionsDeps {
   state?: MoveParentInventory['state']
+  selectionOnly?: boolean
   habitsById: ReadonlyMap<string, NormalizedHabit>
   maxHabitDepth: number
+  includeCompleted?: boolean
   topLevelHabits: NormalizedHabit[]
   getChildren: (habitId: string) => NormalizedHabit[]
   validateMoveTarget: (
@@ -160,6 +163,7 @@ export function validateMoveTarget(
   deps: MoveValidationDeps,
   targetParentId: string | null,
   draggedId: string,
+  isGeneral = deps.habitsById.get(draggedId)?.isGeneral,
 ): MoveTargetValidation {
   const { habitsById, getChildren, maxHabitDepth, t } = deps
 
@@ -171,7 +175,7 @@ export function validateMoveTarget(
     return { valid: false, reason: t('habits.moveParent.invalidDescendant') }
   }
 
-  if (targetParentId && habitsById.get(targetParentId)?.isGeneral !== habitsById.get(draggedId)?.isGeneral) {
+  if (targetParentId && habitsById.get(targetParentId)?.isGeneral !== isGeneral) {
     return { valid: false, reason: t('errors.api.generalMismatchWithParent') }
   }
 
@@ -203,7 +207,7 @@ export function buildMoveParentOptions(
   const ids = typeof movingHabitId === 'string' ? [movingHabitId] : movingHabitId
   const validateSelection = (target: string | null) => {
     const parents = ids.map((id) => deps.habitsById.get(id)?.parentId)
-    if (parents.length > 0 && parents.every((parent) => parent !== undefined && parent === target)) {
+    if (!deps.selectionOnly && parents.length > 0 && parents.every((parent) => parent !== undefined && parent === target)) {
       return { valid: false, reason: t(ids.length > 1
         ? 'habits.moveParent.invalidCurrentParentMany' : 'habits.moveParent.invalidCurrentParent') }
     }
@@ -224,7 +228,7 @@ export function buildMoveParentOptions(
 
   const visit = (habit: NormalizedHabit, depth: number): void => {
     const selectableChildren = getChildren(habit.id).filter((child) =>
-      isHabitSelectableAsMoveTarget(child, getChildren),
+      deps.includeCompleted || isHabitSelectableAsMoveTarget(child, getChildren),
     )
     const validation = validateSelection(habit.id)
     options.push({
@@ -240,7 +244,7 @@ export function buildMoveParentOptions(
   }
 
   for (const habit of topLevelHabits) {
-    if (isHabitSelectableAsMoveTarget(habit, getChildren)) visit(habit, 0)
+    if (deps.includeCompleted || isHabitSelectableAsMoveTarget(habit, getChildren)) visit(habit, 0)
   }
 
   return options
@@ -304,4 +308,25 @@ export function getMoveParentSelection(
     selectedMoveOption,
     inventoryState,
   }
+}
+
+export function buildEditorParentChange(baseline: HabitDetail['parentId'], selected: string | null | undefined): Pick<UpdateHabitRequest, 'parentId' | 'clearParent'> {
+  if (selected === undefined || baseline === undefined || selected === baseline) return {}
+  return selected === null ? { clearParent: true } : { parentId: selected }
+}
+
+export function validateEditorParent(
+  deps: MoveValidationDeps,
+  parentId: string | null,
+  sourceId: string,
+  isGeneral: boolean,
+): MoveTargetValidation {
+  const parent = parentId === null ? null : deps.habitsById.get(parentId)
+  if (!deps.habitsById.has(sourceId) || (parentId !== null && !parent)) {
+    return { valid: false, reason: deps.t('habits.loadError') }
+  }
+  if ((parent && parent.isGeneral !== isGeneral) || deps.getChildren(sourceId).some((child) => child.isGeneral !== isGeneral)) {
+    return { valid: false, reason: deps.t('errors.api.generalMismatchWithParent') }
+  }
+  return validateMoveTarget(deps, parentId, sourceId, isGeneral)
 }

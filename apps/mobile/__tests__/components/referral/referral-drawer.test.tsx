@@ -1,6 +1,12 @@
+import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReferralStats } from '@orbit/shared/types/referral'
+import { createInstance } from 'i18next'
+import ICUCommonJs from 'i18next-icu/cjs'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { renderedText } from '../../support/react-test-renderer'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
@@ -17,7 +23,8 @@ const stats: ReferralStats = {
 }
 
 const mocks = vi.hoisted(() => ({
-  referral: {} as { stats: ReferralStats | null; isLoading: boolean; isError: boolean; error: Error | null },
+  locale: '',
+  referral: {} as { stats: (Omit<ReferralStats, 'rewardType'> & { rewardType?: string }) | null; isLoading: boolean; isError: boolean; error: Error | null },
   share: vi.fn(),
   setStringAsync: vi.fn().mockResolvedValue(true),
 }))
@@ -27,9 +34,10 @@ vi.mock('react-native', async (importOriginal) => ({
   Share: { share: mocks.share },
 }))
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}))
+const testI18n = createInstance()
+const ICU = typeof ICUCommonJs === 'function' ? ICUCommonJs : ICUCommonJs.default
+void testI18n.use(ICU).init({ resources: { en: { translation: en }, 'pt-BR': { translation: ptBR } }, lng: 'en', fallbackLng: 'en', initAsync: false })
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, params?: Record<string, unknown>) => mocks.locale ? testI18n.getFixedT(mocks.locale)(key, params) : key }) }))
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
 }))
@@ -69,9 +77,23 @@ function alerts(container: any): string[] {
 
 describe('ReferralDrawer (mobile)', () => {
   beforeEach(() => {
+    mocks.locale = ''
     mocks.referral = { stats, isLoading: false, isError: false, error: null }
     mocks.share.mockReset().mockResolvedValue({ action: 'sharedAction' })
     mocks.setStringAsync.mockReset()
+  })
+
+  it.each(['en', 'pt-BR'])('describes the real Pro-days offer and shares it in %s', async (locale) => {
+    mocks.locale = locale
+    mocks.referral.stats = { ...stats, successfulReferrals: 8, rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 23 }
+    const tree = renderDrawer()
+    const output = renderedText(tree.toJSON())
+    expect(output).toContain(locale === 'en'
+      ? 'Invite someone to create an account with your link. If they log habits on three different days in their first week, you can earn 7 days of Pro.'
+      : 'Convide alguém a criar uma conta pelo seu link. Se a pessoa registrar hábitos em três dias diferentes na primeira semana, você pode ganhar 7 dias de Pro.')
+    expect(output).not.toMatch(/23%|Coupons earned|Cupons ganhos|56/)
+    await pressButton(slot(tree, 'SheetActions'), testI18n.getFixedT(locale)('referral.drawer.share'))
+    expect(mocks.share).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining(locale === 'en' ? 'I can earn 7 days of Pro.' : 'Eu posso ganhar 7 dias de Pro.') }))
   })
 
   it('shows a failed share in the pinned footer, beside Share', async () => {
@@ -123,4 +145,24 @@ describe('ReferralDrawer (mobile)', () => {
 
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual([])
   })
+  it.each(referralCopyCases)('shows exact $locale reward prose and shares its matching offer', async ({ locale, stats: rewardStats, invitation, explanation }) => {
+    mocks.locale = locale
+    mocks.referral.stats = { ...stats, successfulReferrals: 8, ...rewardStats }
+    const tree = renderDrawer()
+    expect(renderedText(tree.toJSON())).toContain(explanation)
+    expect(renderedText(tree.toJSON())).toContain((locale === 'en' ? en : ptBR).referral.reward.eligibility)
+    await pressButton(slot(tree, 'SheetActions'), (locale === 'en' ? en : ptBR).referral.drawer.share)
+    expect(mocks.share).toHaveBeenLastCalledWith({ title: (locale === 'en' ? en : ptBR).referral.share.title, message: `${invitation} https://useorbit.org/r/ORBIT1` })
+  })
+
+  it.each([undefined, 'future_reward', 'pro_days'])('keeps a loaded unknown or incomplete reward nonnumeric, kind %s', async (rewardType) => {
+    mocks.locale = 'en'
+    mocks.referral.stats = { ...stats, rewardType, discountPercent: 23 }
+    const tree = renderDrawer()
+    expect(renderedText(tree.toJSON())).toContain('Share your link to invite someone to Orbit.')
+    expect(renderedText(tree.toJSON())).not.toMatch(/23%|Coupons earned/)
+    await pressButton(slot(tree, 'SheetActions'), en.referral.drawer.share)
+    expect(mocks.share).toHaveBeenLastCalledWith({ title: en.referral.share.title, message: 'Join me on Orbit. https://useorbit.org/r/ORBIT1' })
+  })
+
 })

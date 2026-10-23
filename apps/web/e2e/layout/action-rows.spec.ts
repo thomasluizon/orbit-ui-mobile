@@ -264,7 +264,7 @@ for (const width of [412, 1352]) {
         await expect(consent).toHaveCount(0)
         const row = page.getByTestId('habit-row').filter({ hasText: habit.title }).first()
         await row.locator('[data-habit-row-control="menu"]').click()
-        await page.getByRole('menuitem', { name: messages.habits.actions.reschedule, exact: true }).click()
+        await page.getByRole('menuitem', { name: messages.habits.actions.rescheduleAstra, exact: true }).click()
         const sheet = page.getByRole('dialog')
         await expect(sheet).toBeVisible()
         await expect(sheet.locator('.orbit-pill-action')).toHaveCount(2)

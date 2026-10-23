@@ -231,6 +231,17 @@ describe('BlockFrame on mobile', () => {
     expect(onRefresh).toHaveBeenCalledOnce()
   })
 
+  it('keeps explicitly safe stale actions beside refresh while withholding write actions', () => {
+    const onDisclose = vi.fn()
+    const tree = render(<BlockFrame state="stale" title="Recap" items={[]} staleMessage="The source moved" onRefresh={vi.fn()}
+      actions={<Text testID="write-action">Apply</Text>}
+      staleActions={<Pressable accessibilityLabel="Show more" onPress={onDisclose}><Text>Show more</Text></Pressable>} />)
+    prop<() => void>(tree.root.findByProps({ accessibilityLabel: 'Show more' }), 'onPress')()
+    expect(onDisclose).toHaveBeenCalledOnce()
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'Refresh' })).not.toHaveLength(0)
+    expect(tree.root.findAllByProps({ testID: 'write-action' })).toHaveLength(0)
+  })
+
   it('keeps pending rows editable and status rows fixed', () => {
     const onEditItem = vi.fn()
     const tree = render(

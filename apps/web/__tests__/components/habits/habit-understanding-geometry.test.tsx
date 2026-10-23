@@ -34,6 +34,50 @@ describe('habit understanding geometry', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it('leaves no empty feedback gap beside the emoji action and reveals real errors', async () => {
+    const understanding = (error?: string) => <NextIntlClientProvider locale="en" messages={en}><HabitUnderstanding value="Read" emoji="" days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={null} consumed={[]} showSchedule={false}
+      labels={buildHabitUnderstandingLabels(key => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} onSuggestEmoji={vi.fn()} canSuggestEmoji emojiSuggestionError={error} /></NextIntlClientProvider>
+    const view = render(understanding())
+    const page = await browser.newPage({ viewport: { width: 320, height: 1000 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><main style="padding:16px">${view.container.innerHTML}</main>`)
+      await loadAppFonts(page)
+      const feedbackGap = () => page.locator('[role="alert"]').evaluate(element => element.parentElement!.getBoundingClientRect().bottom - element.previousElementSibling!.getBoundingClientRect().bottom)
+      expect(await feedbackGap()).toBeLessThanOrEqual(1)
+      view.rerender(understanding('Try again'))
+      await page.setContent(`<style>${stylesheet}</style><main style="padding:16px">${view.container.innerHTML}</main>`)
+      expect(await page.locator('[role="alert"]').isVisible()).toBe(true)
+      expect(await feedbackGap()).toBeGreaterThan(8)
+    } finally { await page.close(); view.unmount() }
+  })
+
+  it.each([320, 412, 1352])('starts the name at the standard field size and grows its mirror at %s', async (width) => {
+    const understanding = (value: string) => <HabitUnderstanding value={value} emoji="" days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={null} consumed={[]} showSchedule={false}
+      labels={buildHabitUnderstandingLabels(key => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} />
+    const view = render(understanding('Read'))
+    const page = await browser.newPage({ viewport: { width, height: 1000 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><main style="padding:24px;max-width:640px">${view.container.innerHTML}</main>`)
+      await loadAppFonts(page)
+      const field = page.locator('[data-habit-phrase-field]')
+      expect((await field.boundingBox())!.height).toBe(54)
+      view.rerender(understanding('A long title that keeps all its words\n'.repeat(5)))
+      await page.setContent(`<style>${stylesheet}</style><main style="padding:24px;max-width:640px">${view.container.innerHTML}</main>`)
+      await loadAppFonts(page)
+      const metrics = await field.evaluate(element => {
+        const input = element.querySelector('textarea')!
+        const mirror = element.querySelector('p')!
+        const a = input.getBoundingClientRect()
+        const b = mirror.getBoundingClientRect()
+        return { height: a.height, mirrorHeight: b.height, padding: getComputedStyle(input).padding, mirrorPadding: getComputedStyle(mirror).padding, overflow: input.scrollHeight - input.clientHeight }
+      })
+      expect(metrics.height).toBeGreaterThan(54)
+      expect(metrics.height).toBe(metrics.mirrorHeight)
+      expect(metrics.padding).toBe(metrics.mirrorPadding)
+      expect(metrics.overflow).toBeLessThanOrEqual(1)
+    } finally { await page.close(); view.unmount() }
+  })
+
   it.each([320, 412, 1352])('contains manual schedule choices within their field column at %s', async (width) => {
     const view = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}>
       <HabitScheduleFields unit="Month" quantity={3} flexible disabled={false} onModeChange={vi.fn()} onChange={vi.fn()} />

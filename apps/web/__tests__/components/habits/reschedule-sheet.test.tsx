@@ -43,7 +43,7 @@ describe('RescheduleSheet', () => {
     if (state === 'free') h.profile = { hasProAccess: false, language: 'en' }
     if (state === 'error') h.reschedule.error = new Error('unavailable')
     render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
-    const primary = state === 'free' ? 'habits.reschedule.upgrade' : state === 'error' ? 'habits.reschedule.retry' : 'habits.reschedule.accept'
+    const primary = state === 'free' ? 'habits.reschedule.upgrade' : state === 'error' ? 'habits.form.askDate' : 'habits.reschedule.accept'
     const footer = screen.getByTestId('sheet').querySelector('[data-slot="sheet-actions"]')!
     expect(footer.querySelectorAll('[data-slot="action-row"]')).toHaveLength(1)
     const actions = footer.querySelector('[data-slot="action-row"]')!
@@ -126,7 +126,7 @@ describe('RescheduleSheet', () => {
     render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
 
     expect(screen.getByTestId('reschedule-error')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('habits.reschedule.retry'))
+    fireEvent.click(screen.getByText('habits.form.askDate'))
     expect(h.reschedule.refetch).toHaveBeenCalled()
   })
 

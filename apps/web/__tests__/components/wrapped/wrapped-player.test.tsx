@@ -1,3 +1,4 @@
+import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { beforeEach, describe, it, expect, vi } from 'vitest'
@@ -9,7 +10,9 @@ import { useUIStore } from '@/stores/ui-store'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useAppToastStore } from '@/stores/app-toast-store'
 
-const translationMock = vi.hoisted<{ labels: Record<string, string> }>(() => ({ labels: {} }))
+const translationMock = vi.hoisted<{ labels: Record<string, string>; locale: string }>(() => ({ labels: {}, locale: '' }))
+const rewardState = vi.hoisted(() => ({ stats: { rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 23 } as { rewardType?: string; proDaysPerReferral?: number; discountPercent?: number } | null, isError: false }))
+vi.mock('@/hooks/use-referral', () => ({ useReferral: () => rewardState }))
 
 const profileState = vi.hoisted<{ available: boolean; isError: boolean; refetch: ReturnType<typeof vi.fn> }>(() => ({ available: true, isError: false, refetch: vi.fn() }))
 
@@ -21,11 +24,10 @@ vi.mock('@/hooks/use-profile', () => ({
   }),
 }))
 
-vi.mock('next-intl', () => ({
-  useLocale: () => 'en',
-  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
-    params ? `${key}:${JSON.stringify(params)}` : translationMock.labels[key] ?? key,
-}))
+vi.mock('next-intl', async (importActual) => {
+  const actual = await importActual<typeof import('next-intl')>()
+  return { ...actual, useLocale: () => translationMock.locale || 'en', useTranslations: () => (key: string, params?: Record<string, string | number>) => translationMock.locale ? (() => { const translate = actual.createTranslator({ locale: translationMock.locale, messages: translationMock.locale === 'en' ? en : ptBR }); return translate(key as Parameters<typeof translate>[0], params) })() : params ? `${key}:${JSON.stringify(params)}` : translationMock.labels[key] ?? key }
+})
 
 vi.mock('@/components/share/share-card-qr', () => ({
   ShareCardQr: () => null,
@@ -49,8 +51,7 @@ vi.mock('@/hooks/use-share-card', () => ({
 
 import { WrappedPlayer } from '@/app/(app)/wrapped/_components/wrapped-player'
 
-function renderPlayer(onClose = vi.fn(), notice?: ReactNode) {
-  const recap = createMockRecap()
+function renderPlayer(onClose = vi.fn(), notice?: ReactNode, recap = createMockRecap()) {
   const slides = buildWrappedSlides(recap)
   const view = render(
     <WrappedPlayer
@@ -76,7 +77,7 @@ describe('WrappedPlayer', () => {
     profileState.available = true
     profileState.isError = false
     profileState.refetch.mockReset()
-    translationMock.labels = {}
+    translationMock.labels = {}; translationMock.locale = ''; rewardState.stats = { rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 23 }; rewardState.isError = false
     shareCardMock.isSharing = false
     shareCardMock.hasError = false
     shareCardMock.canShareFiles = true
@@ -234,7 +235,7 @@ describe('WrappedPlayer', () => {
     fireEvent.click(within(screen.getByTestId('wrapped-pager')).getByRole('button', { name: 'shareCard.share' }))
     expect(shareCardMock.share).toHaveBeenCalledWith({
       shareTitle: 'shareCard.shareTitle',
-      shareText: 'shareCard.shareText',
+      shareText: 'referral.share.proDays:{"proDays":7}',
       url: 'https://app.useorbit.org/r/ABC123?recap=week',
     })
   })
@@ -278,4 +279,42 @@ describe('WrappedPlayer', () => {
     expect(screen.queryByTestId('wrapped-slide-topHabit')).not.toBeInTheDocument()
     expect(within(screen.getByTestId('wrapped-pager')).getAllByRole('listitem')).toHaveLength(7)
   })
+  it.each(['en', 'pt-BR'])('sends the approved invitation with the original recap link in %s', (locale) => {
+    translationMock.locale = locale
+    renderPlayer()
+    advanceToLastSlide()
+    fireEvent.click(screen.getByRole('button', { name: locale === 'en' ? en.shareCard.share : ptBR.shareCard.share }))
+    expect(shareCardMock.share).toHaveBeenCalledWith(expect.objectContaining({ shareText: expect.stringContaining(locale === 'en' ? 'I can earn 7 days of Pro.' : 'Eu posso ganhar 7 dias de Pro.'), url: createMockRecap().shareDeepLink }))
+  })
+
+  it.each(referralCopyCases)('shares exact $locale $stats.rewardType copy using the matching amount', ({ locale, stats, invitation }) => {
+    translationMock.locale = locale
+    rewardState.stats = stats
+    const recap = createMockRecap({ shareDeepLink: 'https://app.useorbit.org/r/RECAP?recap=month&year=2025&month=4' })
+    renderPlayer(vi.fn(), undefined, recap)
+    advanceToLastSlide()
+    expect(document.body.textContent).not.toContain(invitation)
+    fireEvent.click(screen.getByRole('button', { name: locale === 'en' ? en.shareCard.share : ptBR.shareCard.share }))
+    expect(shareCardMock.share).toHaveBeenLastCalledWith({ shareTitle: (locale === 'en' ? en : ptBR).shareCard.shareTitle, shareText: invitation, url: recap.shareDeepLink })
+  })
+
+  it.each([null, { rewardType: 'future_reward', proDaysPerReferral: 11, discountPercent: 23 }, { rewardType: 'pro_days', discountPercent: 23 }, { discountPercent: 23 }])('keeps a valid recap share usable with neutral optional reward data %s', (stats) => {
+    translationMock.locale = 'en'
+    rewardState.stats = stats
+    renderPlayer()
+    advanceToLastSlide()
+    fireEvent.click(screen.getByRole('button', { name: en.shareCard.share }))
+    expect(shareCardMock.share).toHaveBeenLastCalledWith({ shareTitle: en.shareCard.shareTitle, shareText: 'Join me on Orbit.', url: createMockRecap().shareDeepLink })
+    expect(screen.getByRole('button', { name: en.shareCard.download })).toBeEnabled()
+  })
+
+  it('uses the neutral invitation after an optional reward request fails', () => {
+    translationMock.locale = 'en'
+    rewardState.isError = true
+    renderPlayer()
+    advanceToLastSlide()
+    fireEvent.click(screen.getByRole('button', { name: en.shareCard.share }))
+    expect(shareCardMock.share).toHaveBeenLastCalledWith(expect.objectContaining({ shareText: 'Join me on Orbit.' }))
+  })
+
 })

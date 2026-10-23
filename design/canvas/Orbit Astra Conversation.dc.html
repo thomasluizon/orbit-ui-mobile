@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="orbit-astra-action-contract" content="Actual invocation and conversation entry pair AstraGlyph with visible Astra wording in one target. Composer entry and send retain separate intents and wrap at enlarged text (#1607). Deterministic proposal acceptance remains unchanged.">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="./support.js"></script>
 </head>
@@ -62,6 +63,7 @@ a:hover{color:var(--fg-1)}
       <p><span style="color:var(--fg-3)">metrics&nbsp;&nbsp;</span>one overview answering how the period went, three real figures and a chip through to Progresso. No per habit drill in inside the chat, and no chart: the numbers are rows, which is what the system can draw honestly.</p>
       <p><span style="color:var(--fg-3)">goals&nbsp;&nbsp;</span>the sixth block (goal-list-card.tsx, rendered by message-bubble.tsx:165-166 off message.goalList; [[orbit:goals]] is D69’s third directive token). One row per goal through the same BlockFrame as the other five: the name, its figure with the deadline where one exists (chat.goalList.percentage, .progress, .deadline), and its ring in the row’s control slot, the done disc at 100 because completion is never the accent. A goal row opens the goal, because the chat opens the goal detail from a card today (chat/page.tsx:214), exactly as a habit row opens the habit (:208), and the chip goes through to Progresso. Its own empty line (chat.goalList.empty) says a goal starts from a habit or from an ask, so the empty block still routes somewhere real.</p>
       <p><span style="color:var(--fg-3)">breakdown&nbsp;&nbsp;</span>rows plus a frequency control per row, each one the row's own control rather than a single group under the list, so a cadence is changed where it is read. Every row it would change carries the proposed flag, which the frame renders at fg-3 inside a dashed hairline, and it never takes the accent. When the proposal collides with something that already exists the block says so above the actions, with the caution glyph and the name of the thing it collides with.</p>
+      <p><span style="color:var(--fg-3)">stale reads&nbsp;&nbsp;</span>Saved recap figures, narrative and habit detail retain Show more and the Progresso link beside Refresh in the existing wrapping footer action row. Disclosure includes the supplied current and longest streak figures. Show less returns to the focused figures; expanded state and a card-local polite live region announce the disclosed narrative sections. The stale notice remains visible. Signed paging waits for a refreshed revision; stale write previews still withhold execution actions.</p>
       <p><span style="color:var(--fg-3)">block rules&nbsp;&nbsp;</span>loading, resting or acting, never half of two: in acting every row shows the acting glyph and the actions are disabled as one, rather than one row spinning inside a resting block. Text streams and the block arrives whole, so the streaming state shows prose mid-stream with no block yet, and no block animates its own reveal. A stale block says so and offers a refresh instead of acting on state that already moved.</p>
       <p><span style="color:var(--fg-3)">announce&nbsp;&nbsp;</span>announcements are card scoped: each block body is its own polite live region, so a result is read where it happened, and the feed carries aria-busy for the length of a batch rather than announcing every row into the page.</p>
       <p><span style="color:var(--fg-3)">operation&nbsp;&nbsp;</span>five typed outcomes, each with its risk class stated as a neutral badge: pending confirmation on a destructive batch, step up where identity has to be reconfirmed, denied where the account cannot do it, unsupported by policy where Astra is not the place, and the terminal succeeded. Failed is the same per item shape as the partially failed batch. Risk is low, destructive or high, stated in the frame's header slot beside the count, and on the destructive batch every row also carries the frame's irreversible mark, so risk is never carried by one badge alone. Step up, answered 2026-08-18: it is a hand off, and the hand off is structural now rather than a drawing choice. StepUp has no children prop and no slot of any kind, and every prop on it is a string, a boolean or a handler, so no caller can nest a credential field into it. A credential field inside a chat is the shape of a phishing screen, and prose lost to that defect twice before the type carried it.</p>
@@ -80,6 +82,8 @@ a:hover{color:var(--fg-1)}
       <p><span style="color:var(--fg-3)">needs api&nbsp;&nbsp;</span>the metrics block has no server schema at all. The other four blocks have one, so this is the only block on the surface whose payload does not exist yet: it needs a new schema returning a period, a completion rate, a days logged count and a most consistent habit, which is ticket #333 on the api.</p>
       <p><span style="color:var(--fg-3)">frame&nbsp;&nbsp;</span>all five blocks are authored through BlockFrame's props and no block reaches for a frame class name. The row control, the proposed flag and the irreversible mark are the component's now, so the local versions are gone: the hand built frame markup for the preview, the habit list and the breakdown, the dashed hairline drawn around a proposed row, the caution glyph and coloured meta that stood in for an irreversible row, the risk badge composed above the actions, the shared day pill group under the breakdown rows, the empty value that suppressed the composer's atLimit placeholder, and the thread level line that stood in for a composer busy state.</p>
       <p><span style="color:var(--fg-3)">participants&nbsp;&nbsp;</span>Astra starts each consecutive run of replies with a 24px AstraGlyph in fg-1 on its own row at the thread's 16px inset, then an 8px gap before the first content below it. Continuations have no mark or reserved avatar space. Prose, previews, read blocks, charts, tool traces and follow-up actions share the composer's leading edge; blocks also fill its trailing edge, with 16px message and block gaps. A running tool trace uses the same structure and shows the mark only when it starts the Astra run. The pending reply puts the same mark above its indicator, keeping the content edge when the reply replaces it. The person's right-aligned bubble has no avatar space. This participant structure supersedes the side-by-side avatar column amendment and the unmarked reply layout below (#1408).</p>
+      <p><span style="color:var(--fg-3)">preview item titles&nbsp;&nbsp;</span>Pending editable titles activate an in-place Input with a 48px target and one field focus perimeter. Enter or blur revises the held preview, Escape restores the proposed name, and unchanged drafts keep it intact. Edited values use the existing revision validation. The proposed icon sits beside the title without a verb in either locale. Item titles carry no disclosure chevron; long personal names retain full-name access through editing. Titles that cannot rename, including deletion and terminal rows, wrap to two lines and reveal the complete name on activation through PersonalText expansion. Approval stays disabled while any displayed title draft has not been accepted, including after revision failure; restoring the accepted title or a successful revision enables it. Enter and Escape return web focus and Android accessibility focus to the title, while blur preserves the next destination. The proposed row wrapper stays mounted across acceptance, and proposed title text uses fg-2 on interaction fills. The separate Editar action opens the full field editor, while remove, approve, reject and failed-item recovery keep their contracts. Busy, stale and terminal titles are read-only. Existing Input, PersonalText, inset focus and neutral tokens own these controls on web and Android (#1628).</p>
+      <p><span style="color:var(--fg-3)">preview refresh&nbsp;&nbsp;</span>A successful refresh accepts a replacement preview and clears drafts from the editors it removed, even when item ids are retained. A displayed draft after a failed revision still blocks approval. The stable Proposed wrapper retains the padded row in every state: 24px frame inset, 24px header gap and 12px row inset. Terminal full-name controls and trailing actions stay within the row, with actions beside the title's first line (#1628).</p>
       <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>Both widths use one authored conversation feed with the same NavHeader, message blocks, chips and composer. BlockFrame has no collision slot, so the conflict line sits in its actions node. Inline refusals and model errors are composed from a well and one Icon. A preview row keeps its metadata short and states a deletion's habit as its label with the verb in the metadata.</p>
     </div>
   </sc-if>
@@ -159,6 +163,12 @@ const T = {
       rejected: 'As 3 mudanças foram rejeitadas. Nada foi salvo.',
     },
 
+    ranking: {
+      title: 'Ranking de hábitos', from: 'De 1 de jul. de 2026', through: 'Até 30 de set. de 2026',
+      more: 'Ver mais', refresh: 'Atualizar', empty: 'Nenhuma conclusão neste período.',
+      partial: 'Mais hábitos abaixo.', stale: 'O ranking mudou. Atualize para continuar.',
+      unit: (count) => count === 1 ? 'conclusão' : 'conclusões',
+    },
     hl: {
       ask: 'O que falta hoje',
       title: 'Hábitos de hoje',
@@ -329,6 +339,12 @@ const T = {
       rejected: 'The 3 changes were rejected. Nothing was saved.',
     },
 
+    ranking: {
+      title: 'Habit ranking', from: 'From Jul 1, 2026', through: 'Through Sep 30, 2026',
+      more: 'Show more', refresh: 'Refresh', empty: 'No completions in this period.',
+      partial: 'More habits below.', stale: 'Ranking changed. Refresh to continue.',
+      unit: (count) => count === 1 ? 'completion' : 'completions',
+    },
     hl: {
       ask: 'What is left today',
       title: "Today's habits",
@@ -448,7 +464,7 @@ const COMPOSER_STATES = ['recording', 'transcribing', 'attachments', 'offline'];
 
 class Component extends DCLogic {
   state = { mode: 'dark', width: '412', st: 'preview', loc: 'pt-BR', plan: 'free',
-    page: 1, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false, acting: false,
+    page: 1, rankingPage: 1, readRefreshed: false, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false, acting: false,
     voicePhase: null, atts: [], draft: '' };
 
   componentDidMount() {
@@ -465,7 +481,7 @@ class Component extends DCLogic {
     const t = T[next.locale] || T['pt-BR'];
     this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
       plan: next.plan || 'free',
-      page: 1, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false,
+      page: 1, rankingPage: 1, readRefreshed: false, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false,
       acting: next.state === 'preview acting',
       voicePhase: next.state === 'recording' ? 'recording' : next.state === 'transcribing' ? 'transcribing' : null,
       draft: '',
@@ -508,6 +524,33 @@ class Component extends DCLogic {
   block(props) {
     const D = window.OrbitDesignSystem_918bd5;
     return H(D.BlockFrame, props);
+  }
+
+  habitRankingBlock(t, state) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const N = window.OrbitNativeMobile;
+    const counts = [1200, 20, 20, 1];
+    const shown = state === 'ranking empty' ? 0 : Math.min(this.state.rankingPage * 2, counts.length);
+    const stale = state === 'ranking stale';
+    const number = new Intl.NumberFormat(t.intl);
+    return this.block({ title: t.ranking.title, count: null, items: [],
+      body: H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 } },
+        H('div', { style: { display: 'grid', gap: 4, fontSize: 14, color: 'var(--fg-2)' } },
+          H('p', null, mock(t.ranking.from)), H('p', null, mock(t.ranking.through))),
+        shown === 0 ? H('p', { style: { fontSize: 14, color: 'var(--fg-3)' } }, t.ranking.empty) : null,
+        t.hl.pool.slice(0, shown).map((habit, index) => H(N.ListRow, {
+          key: index, typedTitle: true, chevron: false,
+          title: number.format(index + 1) + '. ' + habit.emoji + ' ' + habit.name,
+          value: mock(number.format(counts[index]) + ' ' + t.ranking.unit(counts[index])), onClick: () => {},
+        })),
+        H('p', { role: 'status', style: { fontSize: 14, color: 'var(--fg-2)' } },
+          stale ? t.ranking.stale : shown > 0 && shown < counts.length ? t.ranking.partial : '')),
+      actions: H(F, null,
+        shown > 0 && shown < counts.length && !stale ? H(D.Button, {
+          size: 'sm', variant: 'ghost', onClick: () => this.setState(p => ({ rankingPage: p.rankingPage + 1 })),
+        }, t.ranking.more) : null,
+        H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ rankingPage: 1, st: 'ranking' }) }, t.ranking.refresh)),
+    });
   }
 
   /* The risk class sits in the frame's header slot, beside the count. */
@@ -557,8 +600,8 @@ class Component extends DCLogic {
     const base = {
       mode: s.mode, lang: t.lang, onCC: this.onCC,
       cc: { mode: s.mode, width: s.width, state: st, locale: s.loc, plan: s.plan },
-      stateAxis: ['empty', 'preview', 'preview acting', 'stale', 'habits', 'goals', 'goals empty',
-        'clarification', 'metrics', 'breakdown', 'conflict', 'batch failed', 'op pending', 'op step up',
+      stateAxis: ['empty', 'preview', 'preview acting', 'stale', 'habits', 'ranking', 'ranking empty', 'ranking stale', 'goals', 'goals empty',
+        'clarification', 'metrics', 'periodTotal', 'periodComparison', 'history', 'read stale', 'read partial', 'breakdown', 'conflict', 'batch failed', 'op pending', 'op step up',
         'op denied', 'op policy', 'op done', 'streaming', 'busy', 'recording', 'transcribing',
         'attachments', 'offline', 'at limit', 'model error', 'copy', 'loading'],
       planAxis: ['free', 'Pro'],
@@ -715,6 +758,38 @@ class Component extends DCLogic {
       H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)', textAlign: 'center',
         maxWidth: '65ch' } }, t.disclosure));
 
+    const readWords = s.loc === 'pt-BR'
+      ? { metric: 'Registros positivos', records: 'registros', delta: 'Variação', history: 'Histórico', more: 'Ver mais', refresh: 'Atualizar', stale: 'Os registros mudaram. Atualize esta consulta.', partial: 'Alguns registros estão indisponíveis.' }
+      : { metric: 'Positive log records', records: 'records', delta: 'Change', history: 'Habit history', more: 'Show more', refresh: 'Refresh', stale: 'These records changed. Refresh this query.', partial: 'Some records are unavailable.' };
+    const readDate = (value) => new Intl.DateTimeFormat(s.loc, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(value + 'T00:00:00Z'));
+    const readWindow = (from, to) => readDate(from) + ' - ' + readDate(to);
+    const readNumber = (value) => H('span', { 'data-mock': '', style: { fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--fg-1)' } }, new Intl.NumberFormat(s.loc).format(value));
+    const refreshRead = H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ readRefreshed: true, st: 'periodTotal' }) }, readWords.refresh);
+    const totalRead = (state) => this.block({
+      title: readWords.metric, state,
+      ...(state === 'stale' ? { staleMessage: readWords.stale } : {}),
+      items: [{ label: H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 } },
+        readNumber(s.readRefreshed ? 18 : 12),
+        H('span', { style: { fontSize: 14, color: 'var(--fg-2)' } }, readWords.records),
+        H('span', { 'data-mock': '', style: { fontSize: 14, color: 'var(--fg-3)' } }, readWindow('2026-09-01', '2026-09-30'))) }],
+      actions: H(F, null, state === 'partiallyFailed' ? H('p', { role: 'status', style: { fontSize: 14, color: 'var(--fg-2)' } }, readWords.partial) : null, refreshRead),
+    });
+    const comparisonRead = this.block({
+      title: readWords.metric,
+      items: [
+        { label: mock(readWindow('2026-09-01', '2026-09-30')), meta: readWords.records, control: readNumber(12) },
+        { label: mock(readWindow('2026-08-01', '2026-08-31')), meta: readWords.records, control: readNumber(0) },
+        { label: readWords.delta, control: mock('+12') },
+      ],
+      actions: refreshRead,
+    });
+    const historyDates = ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04'];
+    const historyRead = this.block({
+      title: readWords.history, count: mock(historyDates.slice(0, s.page * 3).length),
+      items: historyDates.slice(0, s.page * 3).map((date, index) => ({ label: mock(readDate(date)), control: readNumber(index === 0 ? 0 : 1) })),
+      actions: H(F, null, s.page === 1 ? H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ page: 2 }) }, readWords.more) : null, refreshRead),
+    });
+
     const turnsFor = () => {
       switch (COMPOSER_STATES.indexOf(st) >= 0 ? 'habits' : st) {
         case 'empty':
@@ -734,6 +809,10 @@ class Component extends DCLogic {
               this.inline(t.pv.rejected, 'x', 'var(--fg-3)')];
           }
           return [this.me(t.pv.ask), this.prose(t.pv.prose), this.node(previewBlock)];
+        case 'ranking':
+        case 'ranking empty':
+        case 'ranking stale':
+          return [this.node(this.habitRankingBlock(t, st))];
         case 'habits':
           return [this.me(t.hl.ask), this.node(habitsBlock)];
         case 'clarification':
@@ -742,6 +821,16 @@ class Component extends DCLogic {
             actions: H(F, null, t.cl.answers.map((a, i) =>
               H(D.Button, { key: i, size: 'sm', variant: 'ghost', onClick: () => this.setState({ st: 'habits' }) }, a))),
           }))];
+        case 'periodTotal':
+          return [this.node(totalRead('resting'))];
+        case 'periodComparison':
+          return [this.node(comparisonRead)];
+        case 'history':
+          return [this.node(historyRead)];
+        case 'read stale':
+          return [this.node(totalRead('stale'))];
+        case 'read partial':
+          return [this.node(totalRead('partiallyFailed'))];
         case 'metrics':
           return [this.me(t.mt.ask), this.node(this.block({
             title: t.mt.title, count: mock(t.mt.count),

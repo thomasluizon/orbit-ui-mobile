@@ -36,8 +36,9 @@ describe('profile response around a session refresh', () => {
   it.each(['expired', 'unauthorized'])('parses the profile after an %s access token refresh', async (mode) => {
     const originalToken = accessToken(mode === 'expired' ? -60 : 3600)
     const refreshedToken = accessToken(7200)
+    const refreshToken = `profile-refresh-token-${mode}`
     cookieValues.set('auth_token', originalToken)
-    cookieValues.set('refresh_token', 'profile-refresh-token')
+    cookieValues.set('refresh_token', refreshToken)
     const mockFetch = vi.fn()
     if (mode === 'unauthorized') {
       mockFetch.mockResolvedValueOnce(Response.json({ error: 'Unauthorized' }, { status: 401 }))
@@ -59,7 +60,7 @@ describe('profile response around a session refresh', () => {
     const refreshIndex = mode === 'expired' ? 0 : 1
     expect(mockFetch).toHaveBeenNthCalledWith(refreshIndex + 1, expect.stringContaining(API.auth.refresh), expect.objectContaining({
       method: 'POST',
-      body: JSON.stringify({ refreshToken: 'profile-refresh-token' }),
+      body: JSON.stringify({ refreshToken }),
     }))
     for (const requestNumber of [refreshIndex + 2, refreshIndex + 3]) {
       expect(mockFetch).toHaveBeenNthCalledWith(requestNumber, expect.stringContaining(API.profile.get), expect.objectContaining({

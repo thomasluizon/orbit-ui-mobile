@@ -1,6 +1,7 @@
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useRouter } from 'expo-router'
+import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { AccessibilityInfo, BackHandler, StyleSheet, View } from 'react-native'
 import { formatLocaleDateTime, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { prepareChatRequest } from '@orbit/shared/stores'
@@ -34,7 +35,7 @@ interface GoalDetailDrawerProps {
 
 export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Readonly<GoalDetailDrawerProps>) {
   const { t, i18n } = useTranslation()
-  const router = useRouter()
+  const navigate = useChatNavigation()
   const locale = i18n.language
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -62,10 +63,10 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
     else closeSheet(() => setEditingProgress(true))
   }, [goal, inline, closeSheet, setEditingProgress])
   const openHabit = useCallback((habitId: string) => {
-    const navigate = () => router.push({ pathname: '/habits/[id]', params: { id: habitId } })
-    if (inline) navigate()
-    else closeSheet(() => { onClose(); navigate() })
-  }, [inline, closeSheet, onClose, router])
+    const openDestination = () => navigate({ pathname: '/habits/[id]', params: { id: habitId } })
+    if (inline) openDestination()
+    else closeSheet(() => { onClose(); openDestination() })
+  }, [inline, closeSheet, onClose, navigate])
   const actions = useGoalStatusActions({
     goalId,
     goalName: goal?.title,
@@ -117,7 +118,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
         <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onEditProgress={openProgressForm} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} headingRef={headingRef} />
         <GoalForecast metrics={detailData?.metrics ?? null} unit={goal.unit} isLoading={isLoading} />
         <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} target={goal.targetValue} unit={goal.unit} formatDate={formatDate} onOpenHabit={openHabit} />
-        <ListRow placement="column" title={t('nav.astra')} accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`} disabled={!draftHydrated} onClick={openAstra} />
+        <ListRow placement="column" icon={<AstraGlyph size={24} />} title={t('nav.astra')} accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`} disabled={!draftHydrated} onClick={openAstra} />
         <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} defaultIconColor={tokens.fg3} iconColor={tokens.statusBad} styles={styles} />
       </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
       {isError ? <GoalLoadError onRetry={() => void refetch()} styles={styles} /> : null}

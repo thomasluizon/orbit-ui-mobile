@@ -2,12 +2,12 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { Pressable, View } from 'react-native'
+import { Pressable, View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import {
   MoveParentDialog,
   type MoveParentOption,
 } from '@/components/habit-list/move-parent-dialog'
-import { __resetTestHostConfig, __setScrollToImpl } from '../../../test-mocks/react-native'
+import { __resetTestHostConfig, __setScrollToImpl, __setWindowDimensions } from '../../../test-mocks/react-native'
 import { Sheet as SheetDouble } from '@/__tests__/support/sheet-double'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
@@ -17,10 +17,12 @@ const TestRenderer: typeof import('react-test-renderer') = require('react-test-r
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
+const appearance = vi.hoisted((): { mode: 'dark' | 'light' } => ({ mode: 'dark' }))
+
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
     currentScheme: 'purple',
-    currentTheme: 'dark',
+    currentTheme: appearance.mode,
   }),
 }))
 
@@ -520,4 +522,41 @@ it('clears a picker search after successful confirmation before reopening', asyn
   await TestRenderer.act(async () => { (confirm.props.onPress as () => void)(); await Promise.resolve() })
   expect(props.onClose).toHaveBeenCalledOnce()
   expect(findSearchInputs(tree)[0]!.props.value).toBe('')
+})
+describe('editor parent picker boundaries', () => {
+  it.each([
+    { width: 320, fontScale: 1, locale: 'pt-BR', mode: 'dark' },
+    { width: 320, fontScale: 2, locale: 'en', mode: 'light' },
+    { width: 412, fontScale: 1, locale: 'en', mode: 'dark' },
+    { width: 412, fontScale: 2, locale: 'pt-BR', mode: 'light' },
+    { width: 1280, fontScale: 2, locale: 'en', mode: 'dark' },
+  ] as const)('keeps full parent names and distinct selectable targets at $width $fontScale $locale $mode', async ({ width, fontScale, locale, mode }) => {
+    const copy = locale === 'en' ? (await import('@orbit/shared/i18n/en.json')).default : (await import('@orbit/shared/i18n/pt-BR.json')).default
+    appearance.mode = mode
+    __setWindowDimensions({ width, height: 640, scale: 1, fontScale })
+    const name = 'Um destino com nome completo para preservar toda a relação escolhida'
+    const { tree, props } = renderDialog({ selectionOnly: true, movingHabitTitle: null, t: (key) => key === 'habits.moveParent.toRoot' ? copy.habits.moveParent.toRoot : key, options: [makeOption({ id: null, label: copy.habits.moveParent.toRoot }), makeOption({ id: 'destination', label: name })] })
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual([])
+    const rows = findOptionRows(tree)
+    expect(rows).toHaveLength(2)
+    expect(rows[1]!.props.accessibilityLabel).toBe(name)
+    for (const row of rows) {
+      const style = typeof row.props.style === 'function' ? row.props.style({ pressed: false }) : row.props.style
+      expect(StyleSheet.flatten(style as StyleProp<ViewStyle>).minHeight).toBeGreaterThanOrEqual(48)
+    }
+    await TestRenderer.act(() => { (rows[1]!.props.onPress as () => void)() })
+    expect(props.onSelectOption).toHaveBeenCalledWith('destination')
+    expect(props.onConfirm).not.toHaveBeenCalled()
+    __resetTestHostConfig()
+    appearance.mode = 'dark'
+  })
+
+  it.each(['loading', 'error'] as const)('retains the editor recovery boundary for %s inventory', (inventoryState) => {
+    const onRetryInventory = vi.fn()
+    const { tree, props } = renderDialog({ selectionOnly: true, inventoryState, onRetryInventory, options: [] })
+    expect(findOptionRows(tree)).toEqual([])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual([])
+    expect(flattenRenderedText(tree.toJSON())).toContain(inventoryState === 'loading' ? 'common.loading' : 'habits.loadError')
+    expect(props.onConfirm).not.toHaveBeenCalled()
+  })
 })

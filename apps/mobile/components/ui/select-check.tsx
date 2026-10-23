@@ -67,7 +67,7 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
     const optionColor = proposed ? secondaryColor : labelColor
     const title = <>
         {leading ? <View data-slot="list-row-icon" style={styles.leading}>{leading}</View> : null}
-        <View style={styles.textBlock}>
+        <View style={[styles.textBlock, radioTextBlockStyle(wrapLabel)]}>
           {textMode === 'personal' ? <PersonalText data-slot="list-row-title" expanded={disabled ? disclosed : selected} style={[styles.label, { color: personalColor, lineHeight: 22.4 }]}>{label}</PersonalText> : <Text data-slot="list-row-title" style={[styles.label, { color: optionColor }, wrappingStyle]}>{label}</Text>}
           {description ? <Text style={[styles.description, { color: secondaryColor }]}>{description}</Text> : null}
           {!supportingReason && disabled && reason ? <Text style={[styles.reason, { color: secondaryColor }]}>{reason}</Text> : null}
@@ -77,16 +77,17 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
     const glyph = <View data-slot="radio-row-control" style={{ justifyContent: 'center', minHeight: controlMinHeight }}>
       <RadioGlyph selected={selected} size={24} tokens={tokens} pressed={pressed} />
     </View>
-    return supportingReason ? <View style={{ flex: 1, minWidth: 0, gap: SPACING.s8 }}>
+    const children = supportingReason ? <View style={{ flex: 1, minWidth: 0, gap: SPACING.s8 }}>
       <View style={{ minHeight: 48, flexDirection: 'row', minWidth: 0, alignItems: 'flex-start', gap: SPACING.s12 }}>{title}{glyph}</View>
       {metadata}
       <Text style={[styles.reason, { color: secondaryColor }]}>{reason}</Text>
     </View> : <>{title}{metadata}{glyph}</>
+    return wrapLabel ? <View style={styles.wrappedContent}>{children}</View> : children
   }
   const rowStyle = [
     styles.row,
     {
-      alignItems: wrapLabel ? 'flex-start' as const : 'center' as const,
+      alignItems: 'center' as const,
       paddingLeft: ROW_INDENTS[Math.min(5, Math.max(0, Math.trunc(depth)))],
       backgroundColor: selected ? tokens.selectionBg : 'transparent',
       borderColor: 'transparent',
@@ -135,9 +136,14 @@ const styles = StyleSheet.create({
   row: { minHeight: 52, paddingRight: SPACING.s16, paddingVertical: SPACING.s8, borderWidth: 1.5, borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12 },
   leading: { width: 30, height: 30, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   textBlock: { flex: 1, minWidth: 0, gap: 4 },
+  wrappedContent: { width: '100%', minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.s12 },
   label: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 20.8 },
   description: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },
   reason: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16.8 },
   meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, fontVariant: ['tabular-nums'], flexShrink: 0 },
   tag: { fontFamily: 'Geist_600SemiBold', fontSize: 12, letterSpacing: 0.96, textTransform: 'uppercase', flexShrink: 0 },
 })
+
+function radioTextBlockStyle(wrapLabel: boolean | undefined) {
+  return wrapLabel ? { minHeight: 24, justifyContent: 'center' as const } : undefined
+}

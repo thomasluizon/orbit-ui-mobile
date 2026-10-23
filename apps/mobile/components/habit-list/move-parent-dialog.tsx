@@ -32,6 +32,11 @@ function MoveDialogDescription({
   return <Text style={styles.moveDialogDescription}>{t('habits.moveParent.description', { name })}</Text>
 }
 
+function getMoveDialogTitle(t: MoveParentDialogProps['t'], selectionOnly: boolean, movingHabitCount?: number) {
+  return selectionOnly ? t('habits.form.parentHabit') : movingHabitCount === undefined ? t('habits.moveParent.title')
+    : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
+}
+
 function MoveTargetRow({
   option,
   selected,
@@ -63,12 +68,13 @@ function MoveTargetRow({
   )
 }
 
-function MoveInventoryStatus({ state, onRetry, t }: Readonly<{
-  state: MoveParentPickerProps['inventoryState']; onRetry: MoveParentPickerProps['onRetryInventory']; t: MoveParentDialogProps['t']
+function MoveInventoryStatus({ state, onRetry, t, selectionOnly, styles }: Readonly<{
+  selectionOnly: boolean; styles: Styles; state: MoveParentPickerProps['inventoryState']; onRetry: MoveParentPickerProps['onRetryInventory']; t: MoveParentDialogProps['t']
 }>) {
+  if (state === 'loading' && selectionOnly) return <View accessibilityLiveRegion="polite"><Text style={styles.moveDialogEmpty}>{t('common.loading')}</Text></View>
   if (state === 'loading') return <Skeleton variant="habit-row" label={t('common.loading')} />
   return <>
-    {state ? <ErrorState message={t('errors.fetchHabits')}
+    {state ? <ErrorState message={t(selectionOnly ? 'habits.loadError' : 'errors.fetchHabits')}
       action={<PillButton size="sm" variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>} /> : null}
   </>
 }
@@ -76,6 +82,7 @@ function MoveInventoryStatus({ state, onRetry, t }: Readonly<{
 /** Move-parent picker sheet (mobile). Presentational: the parent HabitList
  *  owns the move state and supplies the validated option list plus handlers. */
 export function MoveParentDialog({
+  selectionOnly = false,
   t,
   visible,
   isPending,
@@ -119,8 +126,7 @@ export function MoveParentDialog({
       contentLaidOutRef.current = false
     }
   }, [visible, inventoryState])
-  const title = movingHabitCount === undefined ? t('habits.moveParent.title')
-    : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
+  const title = getMoveDialogTitle(t, selectionOnly, movingHabitCount)
   async function confirmMove() {
     if (await onConfirm() === true) {
       closeSheet(hideDialog, hideDialog)
@@ -146,7 +152,7 @@ export function MoveParentDialog({
       open
       onClose={isPending ? undefined : hideDialog}
       title={title}
-      actions={
+      actions={selectionOnly ? undefined :
         <ActionRow>
           <PillButton size="sm" variant="ghost" disabled={isPending} onClick={() => closeSheet()}>
             {t('common.cancel')}
@@ -158,12 +164,12 @@ export function MoveParentDialog({
       }
     >
       <View style={{ flexShrink: 1, gap: 8 }}>
-        <MoveInventoryStatus state={inventoryState} onRetry={onRetryInventory} t={t} />
+        <MoveInventoryStatus styles={styles} selectionOnly={selectionOnly} state={inventoryState} onRetry={onRetryInventory} t={t} />
         {inventoryState !== 'loading' && inventoryState !== 'error' ? <>
 
         <MoveDialogDescription
           t={t}
-          name={movingHabitTitle}
+          name={selectionOnly ? null : movingHabitTitle}
           count={movingHabitCount}
           styles={styles}
         />

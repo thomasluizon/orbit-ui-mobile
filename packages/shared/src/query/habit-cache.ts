@@ -3,7 +3,7 @@ import { formatAPIDate, parseAPIDate } from '../utils/dates'
 import type { CalendarDayEntry } from '../types/calendar'
 import type { QueryClient } from '@tanstack/query-core'
 import { replaceEqualDeep } from '@tanstack/query-core'
-import type { HabitDetail, HabitDetailChild, HabitScheduleItem, HabitsFilter, NormalizedHabit } from '../types/habit'
+import type { HabitDetail, HabitDetailChild, HabitFullDetail, HabitScheduleItem, HabitsFilter, NormalizedHabit } from '../types/habit'
 import { buildChildrenIndex, normalizeHabits } from '../utils/habit-normalization'
 import { buildOptimisticSkipPatch, optimisticSetDatedCompletion, clearOptimisticSkipMarker, findHabitInList, findHabitInTree, getTomorrowDateString, optimisticPatchHabit, withChildren, type HabitTreeNode } from '../utils/habit-optimistic'
 import type { HabitListSnapshots } from './keys'
@@ -310,8 +310,8 @@ export type HabitDetailSnapshots = readonly (readonly [readonly unknown[], Habit
 
 export type HabitDetailUpdates = readonly {
   queryKey: readonly unknown[]
-  previous: HabitDetail
-  optimistic: HabitDetail
+  previous: HabitDetail | HabitFullDetail
+  optimistic: HabitDetail | HabitFullDetail
 }[]
 
 export function restoreCachedHabitDetails(queryClient: QueryClient, updates: HabitDetailUpdates): void {
@@ -328,24 +328,65 @@ export function restoreCachedHabitDetails(queryClient: QueryClient, updates: Hab
   }
 }
 
+function findDetailChild(habit: HabitDetailChild, id: string): HabitDetailChild | undefined {
+  if (habit.id === id) return habit
+  for (const child of habit.children) {
+    const found = findDetailChild(child, id)
+    if (found) return found
+  }
+  return undefined
+}
+
+export function findCachedHabitDetail(queryClient: QueryClient, id: string): HabitDetailChild | undefined {
+  const details = queryClient.getQueriesData<HabitDetail>({ queryKey: habitKeys.details() }).flatMap(([, detail]) => detail ? [detail] : [])
+  const fullDetails = queryClient.getQueriesData<HabitFullDetail>({ queryKey: habitKeys.fullDetails() }).flatMap(([, detail]) => detail ? [detail.habit] : [])
+  for (const detail of [...details, ...fullDetails]) {
+    const found = findDetailChild(detail, id)
+    if (found) return found
+  }
+  for (const [, items] of queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })) {
+    const found = items && findHabitInList(items, id)
+    if (found) return found
+  }
+  return undefined
+}
+
 export function updateCachedHabitDetails(
   queryClient: QueryClient,
   updater: (habit: HabitDetailChild) => Partial<HabitDetail>,
+  parentChange?: { habitId: string; parentId: string | null },
 ): HabitDetailUpdates {
+  const source = parentChange ? findCachedHabitDetail(queryClient, parentChange.habitId) : undefined
+
   function updateBranch<T extends HabitDetailChild>(habit: T): T {
-    return { ...habit, ...updater(habit), children: habit.children.map(updateBranch) }
+    const children = habit.children.filter((child) => !parentChange || child.id !== parentChange.habitId).map(updateBranch)
+    if (parentChange && source && habit.id === parentChange.parentId) {
+      children.push({ ...source, ...updater(source), children: source.children })
+    }
+    return { ...habit, ...updater(habit), children }
   }
-  const updates: { queryKey: readonly unknown[]; previous: HabitDetail; optimistic: HabitDetail }[] = []
-  for (const [queryKey, detail] of queryClient.getQueriesData<HabitDetail>({ queryKey: habitKeys.details() })) {
-    if (!detail) continue
-    const next = replaceEqualDeep(detail, updateBranch(detail))
-    if (next === detail) continue
-    const optimistic = queryClient.setQueryData<HabitDetail>(queryKey, next)
-    if (optimistic) updates.push({ queryKey, previous: detail, optimistic })
+  const updates: Array<HabitDetailUpdates[number]> = []
+  const entries: Array<[readonly unknown[], HabitDetail | HabitFullDetail | undefined]> = [
+    ...queryClient.getQueriesData<HabitDetail>({ queryKey: habitKeys.details() }),
+    ...(parentChange ? queryClient.getQueriesData<HabitFullDetail>({ queryKey: habitKeys.fullDetails() }) : []),
+  ]
+  for (const [queryKey, previous] of entries) {
+    if (!previous) continue
+    const next = replaceEqualDeep(previous, 'habit' in previous
+      ? { ...previous, habit: updateBranch(previous.habit) } : updateBranch(previous))
+    if (next === previous) continue
+    const optimistic = queryClient.setQueryData<HabitDetail | HabitFullDetail>(queryKey, next)
+    if (optimistic) updates.push({ queryKey, previous, optimistic })
   }
   return updates
 }
 
 export function invalidateBulkMoveParentQueries(queryClient: QueryClient): Promise<void> {
   return queryClient.invalidateQueries({ queryKey: habitKeys.all })
+}
+
+export function invalidateHabitParentDetails(queryClient: QueryClient, updates: HabitDetailUpdates | undefined, habitId: string): void {
+  for (const { queryKey } of updates ?? []) {
+    if (queryKey[2] !== habitId) void queryClient.invalidateQueries({ queryKey, exact: true })
+  }
 }

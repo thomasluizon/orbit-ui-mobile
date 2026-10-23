@@ -8,6 +8,7 @@ import type {
   PendingOperationRevisionResult,
   RevisePendingOperationRequest,
 } from '@orbit/shared'
+import { readBlockResponseSchema, type ChatClientContext } from '@orbit/shared/types/chat'
 import { proactiveItemSchema, proactiveItemStatusSchema } from '@orbit/shared/types'
 import { serverAuthFetch, serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
@@ -142,4 +143,11 @@ export async function reportProactiveOpened(id: string, intendedAccountId: strin
 
 export async function reportProactiveActed(id: string, intendedAccountId: string | null) {
   return serverAuthMutate(API.proactive.acted(proactiveItemSchema.shape.id.parse(id)), { method: 'POST', skipAuthRecovery: true }, intendedAccountId)
+}
+
+export async function refreshReadBlock(token: string, clientContext: ChatClientContext, page: boolean, intendedAccountId: string | null) {
+  return wrapServerAction(() => serverAuthMutate(API.chat.refreshRead, {
+    method: 'POST',
+    body: JSON.stringify({ token, clientContext, page }),
+  }, intendedAccountId, readBlockResponseSchema))
 }

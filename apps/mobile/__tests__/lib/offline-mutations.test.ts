@@ -257,6 +257,20 @@ describe('offline mutations', () => {
     expect(mocks.apiClient).toHaveBeenCalledExactlyOnceWith(API.habits.update('habit-1'), expect.objectContaining({ method: 'PUT', body: JSON.stringify({ ...payload, tagIds: [tagId] }) }), undefined)
   })
 
+  it('retains an unresolved parent without network submission, then resolves it with the same atomic update', async () => {
+    const parentId = '22222222-2222-4222-8222-222222222222'
+    const payload = queuedHabitUpdateRequestSchema.parse({ title: 'Read', isBadHabit: false, parentId: 'offline-habit-destination', clearParent: false })
+    await performQueuedApiMutation({ type: 'updateHabit', scope: 'habits', endpoint: API.habits.update('habit-1'), method: 'PUT', payload, entityType: 'habit', targetEntityId: 'habit-1', dependsOn: ['offline-habit-destination'] })
+    mocks.setOnline(true)
+    await flushQueuedMutations()
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    expect(mocks.queued).toHaveLength(1)
+    mocks.resolvedIds.set('offline-habit-destination', parentId)
+    await flushQueuedMutations()
+    expect(mocks.apiClient).toHaveBeenCalledExactlyOnceWith(API.habits.update('habit-1'), expect.objectContaining({ method: 'PUT', body: JSON.stringify({ ...payload, parentId }) }), undefined)
+    expect(mocks.queued).toHaveLength(0)
+  })
+
   beforeEach(() => {
     mocks.queued.length = 0
     mocks.resolvedIds.clear()

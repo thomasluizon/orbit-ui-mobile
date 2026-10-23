@@ -59,7 +59,10 @@ describe('habit list overlay caller guards', () => {
     const habitList = source('components/habits/habit-list.tsx')
     expect(caller).toMatch(overlay.mount)
     expect(caller).toContain(overlay.firstLine)
-    if (overlay.name === 'move parent sheet') expect(caller).toContain('virtualizedBody')
+    if (overlay.name === 'move parent sheet') {
+      expect(caller).toContain('virtualizedBody')
+      expect(caller).toContain("selectionOnly ? t('habits.form.parentHabit')")
+    }
     else expect(caller).not.toMatch(/overflow-(?:y-)?(?:auto|scroll)/)
     expect(sheet.indexOf('orbit-sheet-title')).toBeLessThan(sheet.indexOf('data-slot="sheet-body"'))
     expect(habitList).not.toContain('onConfirmSkip=')

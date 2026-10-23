@@ -278,7 +278,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.fetch.mockResolvedValue(stream.response)
     const { container, rerender } = render(<ComposerConversationHarness />)
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Plan my morning' } })
-    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send, habits.form.askDate' }))
     onTestFinished(() => { if (arrival !== 'cancel') stream.close() })
     expect(container.querySelector('[data-astra-pending]')).not.toBeNull()
     expect(screen.getByRole('feed')).toHaveAttribute('aria-busy', 'true')
@@ -305,7 +305,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.fetch.mockResolvedValue(stream.response)
     render(<ComposerConversationHarness />)
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Plan my morning' } })
-    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send, habits.form.askDate' }))
     expect(screen.getByText('Plan my morning')).toBeVisible()
     expect(screen.getAllByRole('textbox')).toHaveLength(1)
     expect(screen.getByRole('textbox').closest('[data-composer-root]')).toHaveFocus()
@@ -313,7 +313,7 @@ describe('web useChatComposer streaming send', () => {
     expect(screen.getByText('Start with water')).toBeVisible()
     await act(async () => { stream.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Start with water' }))); stream.close() })
     fireEvent.click(screen.getByRole('button', { name: 'common.closeConversation' }))
-    expect(screen.getByRole('button', { name: 'Open Astra' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Open Astra, nav.astra' })).toHaveFocus()
     expect(screen.getAllByRole('textbox')).toHaveLength(1)
   })
 
@@ -323,7 +323,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.fetch.mockResolvedValue(stream.response)
     render(<ComposerConversationHarness />)
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Plan my morning' } })
-    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send, habits.form.askDate' }))
     const closeButton = screen.getByRole('button', { name: 'common.closeConversation' })
     act(() => closeButton.focus())
     expect(closeButton).toHaveFocus()
@@ -339,7 +339,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.fetch.mockResolvedValue(stream.response)
     const view = render(<ComposerConversationHarness conversationReady={false} />)
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Plan my morning' } })
-    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send, habits.form.askDate' }))
     view.rerender(<ComposerConversationHarness />)
     expect(screen.getByRole('textbox').closest('[data-composer-root]')).toHaveFocus()
     await act(async () => { stream.enqueue(finalFrame(makeChatResponse())); stream.close() })
@@ -423,16 +423,16 @@ describe('web useChatComposer streaming send', () => {
       .mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
     render(<ComposerConversationHarness />)
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Plan my morning' } })
-    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send, habits.form.askDate' }))
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('chat.sendError'))
-    const retries = screen.getAllByRole('button', { name: 'shell.composer.retry' })
+    const retries = screen.getAllByRole('button', { name: 'shell.composer.retry, nav.astra' })
     expect(retries).toHaveLength(1)
     expect(retries[0]!.closest('[data-composer-root]')).not.toBeNull()
     fireEvent.click(retries[0]!)
     await waitFor(() => expect(screen.getByText('Hi there', { selector: '[data-bubble-role="ai"] p' })).toBeVisible())
     expect(mocks.fetch).toHaveBeenCalledTimes(2)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'shell.composer.retry' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'shell.composer.retry, nav.astra' })).not.toBeInTheDocument()
   })
 
   it('opens the conversation when sending a finished voice transcript', async () => {
@@ -957,9 +957,9 @@ describe('web useChatComposer streaming send', () => {
       : sseResponse(finalFrame(makeChatResponse()))))
     render(<AppLayout><p>Support</p></AppLayout>)
 
-    if (action === 'open') fireEvent.click(screen.getByRole('button', { name: 'todayAstra.openConversation' }))
+    if (action === 'open') fireEvent.click(screen.getByRole('button', { name: 'todayAstra.openConversation, nav.astra' }))
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'my streak reset' } })
-    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send, habits.form.askDate' }))
 
     await waitFor(() => expect(mocks.fetch.mock.calls.some(([, request]) => request?.body instanceof FormData)).toBe(true))
     const [, request] = mocks.fetch.mock.calls.find(([, options]) => options?.body instanceof FormData)!
@@ -1524,7 +1524,7 @@ describe('web useChatComposer streaming send', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'shell.composer.inputLabel' }), {
       target: { value: 'log my walk' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send, habits.form.askDate' }))
 
     await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
     const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
@@ -2096,7 +2096,7 @@ describe('web useChatComposer streaming send', () => {
     }
 
     const view = render(<TodayComposer />)
-    const chip = screen.getByRole('button', { name: 'shell.composer.chips.today.logHabit' })
+    const chip = screen.getByRole('button', { name: 'shell.composer.chips.today.logHabit, nav.astra' })
     act(() => chip.focus())
     expect(chip).toHaveFocus()
 
@@ -2111,10 +2111,10 @@ describe('web useChatComposer streaming send', () => {
       totalCount: 2,
     }
     view.rerender(<TodayComposer />)
-    expect(screen.getByRole('button', { name: 'shell.composer.chips.today.logHabit' })).toBe(chip)
+    expect(screen.getByRole('button', { name: 'shell.composer.chips.today.logHabit, nav.astra' })).toBe(chip)
     expect(chip).toHaveFocus()
     expect(chip).not.toHaveTextContent('Read outside')
-    expect(screen.getByRole('button', { name: 'shell.composer.chips.today.moveOverdue' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'shell.composer.chips.today.moveOverdue, nav.astra' })).toBeInTheDocument()
   })
 
   it('gates Calendar chips on the Calendar error rather than the Today query', () => {
@@ -2138,7 +2138,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
     mocks.state.profile = createMockProfile({ lastCompletionDate: null })
     const { result } = renderHook(() => useChatComposer())
-    const suggestion = result.current.composerProps.suggestions[0]!
+    const suggestion = result.current.composerProps.suggestions.find(chip => chip.id === 'today.startOneHabit')!
 
     act(() => suggestion.onSelect())
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
@@ -2147,6 +2147,32 @@ describe('web useChatComposer streaming send', () => {
     expect(requestBody).toBeInstanceOf(FormData)
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
     expect(requestBody.get('message')).toBe(suggestion.label)
+  })
+
+  it.each([
+    ['en', 'Build a morning routine', 'Build a morning routine'],
+    ['pt-BR', 'Montar rotina matinal', 'Montar uma rotina matinal'],
+  ] as const)('sends the original morning prompt once from the compact chip in %s', async (locale, label, prompt) => {
+    mocks.locale = locale
+    mocks.translate = createTranslator({ locale, messages: locale === 'en' ? en : ptBR })
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.habitData = { topLevelHabits: [], totalCount: 0 }
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer({ pathname: '/', totalHabitCount: 0 }))
+    const suggestion = result.current.composerProps.suggestions[0]!
+    expect(suggestion.id).toBe('today.buildMorningRoutine')
+    expect(suggestion.label).toBe(label)
+    expect(mocks.fetch).not.toHaveBeenCalled()
+
+    act(() => suggestion.onSelect())
+    await waitFor(() => expect(useChatStore.getState().messages.at(-1)?.content).toBe('Hi there'))
+    expect(mocks.fetch).toHaveBeenCalledOnce()
+    const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
+    expect(requestBody).toBeInstanceOf(FormData)
+    if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
+    expect(requestBody.get('message')).toBe(prompt)
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user').map(message => message.content)).toEqual([prompt])
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
   it.each(['moveOverdue', 'logHabit', 'trimHabit', 'keepOnlyHabit', 'reviewHabit', 'createGoal'])('sends the complete habit title behind the short %s label', async action => {
@@ -2319,8 +2345,8 @@ describe('web useChatComposer streaming send', () => {
     const group = screen.getByRole('group', { name: 'shell.composer.suggestionsLabel' })
     const chips = group.querySelectorAll('button')
     expect(chips.length).toBeGreaterThanOrEqual(3)
-    expect(chips[0]).toHaveAccessibleName('Create a goal')
-    fireEvent.click(screen.getByRole('button', { name: 'Create a goal' }))
+    expect(chips[0]).toHaveAccessibleName('Create a goal, nav.astra')
+    fireEvent.click(screen.getByRole('button', { name: 'Create a goal, nav.astra' }))
     await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
     const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')

@@ -66,7 +66,7 @@ const habitMenuActionCases = [
   ['habits.actions.addSubHabit', 'onAddSubHabit'],
   ['habits.actions.moveUnder', 'onMoveParent'],
   ['habits.actions.skip', 'onSkip'],
-  ['habits.actions.reschedule', 'onReschedule'],
+  ['habits.actions.rescheduleAstra', 'onReschedule'],
   ['common.edit', 'onEdit'],
   ['habits.actions.duplicate', 'onDuplicate'],
   ['common.select', 'onEnterSelectMode'],

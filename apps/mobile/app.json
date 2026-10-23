@@ -10,11 +10,7 @@
       "enabled": true,
       "checkAutomatically": "NEVER",
       "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/84b3535b-5957-42b7-bda3-4ed9dfde3734",
-      "requestHeaders": {
-        "expo-channel-name": "legacy",
-        "orbit-design-launch": "embedded"
-      }
+      "url": "https://u.expo.dev/84b3535b-5957-42b7-bda3-4ed9dfde3734"
     },
     "splash": {
       "image": "./assets/splash-icon.png",

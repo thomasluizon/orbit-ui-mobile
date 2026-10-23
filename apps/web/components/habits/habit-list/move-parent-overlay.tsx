@@ -60,17 +60,19 @@ function MoveTargetRow({
   )
 }
 
-function MoveInventoryStatus({ state, onRetry, t }: Readonly<{
-  state: MoveParentPickerProps['inventoryState']; onRetry: MoveParentPickerProps['onRetryInventory']; t: MoveParentOverlayProps['t']
+function MoveInventoryStatus({ state, onRetry, t, selectionOnly }: Readonly<{
+  selectionOnly: boolean; state: MoveParentPickerProps['inventoryState']; onRetry: MoveParentPickerProps['onRetryInventory']; t: MoveParentOverlayProps['t']
 }>) {
+  if (state === 'loading' && selectionOnly) return <div role="status"><p>{t('common.loading')}</p></div>
   if (state === 'loading') return <Skeleton variant="habit-row" label={t('common.loading')} />
   return <>
-    {state ? <ErrorState message={t('errors.fetchHabits')}
+    {state ? <ErrorState message={t(selectionOnly ? 'habits.loadError' : 'errors.fetchHabits')}
       action={<PillButton size="sm" variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>} /> : null}
   </>
 }
 
 export function MoveParentOverlay({
+  selectionOnly = false,
   t,
   open,
   isMoving,
@@ -90,7 +92,7 @@ export function MoveParentOverlay({
   const [searchQuery, setSearchQuery] = useState('')
   const hasPositionedRef = useRef(false)
   useEffect(() => { if (!open || inventoryState) hasPositionedRef.current = false }, [open, inventoryState])
-  const title = movingHabitCount === undefined ? t('habits.moveParent.title')
+  const title = selectionOnly ? t('habits.form.parentHabit') : movingHabitCount === undefined ? t('habits.moveParent.title')
     : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
   async function confirmMove() {
     if (await onConfirm() === true) {
@@ -129,7 +131,7 @@ export function MoveParentOverlay({
       open
       onClose={isMoving ? undefined : finishClose}
       title={title}
-      actions={
+      actions={selectionOnly ? undefined :
         <ActionRow>
           <PillButton size="sm" variant="ghost" disabled={isMoving} onClick={() => closeSheet()}>
             {t('common.cancel')}
@@ -141,10 +143,10 @@ export function MoveParentOverlay({
       }
     >
       <div ref={focusRef} tabIndex={-1} className="flex flex-col min-h-0" style={{ gap: 8 }}>
-        <MoveInventoryStatus state={inventoryState} onRetry={onRetryInventory} t={t} />
+        <MoveInventoryStatus selectionOnly={selectionOnly} state={inventoryState} onRetry={onRetryInventory} t={t} />
         {inventoryState !== 'loading' && inventoryState !== 'error' ? <>
 
-        {movingHabitCount === undefined && movingHabitTitle ? (
+        {!selectionOnly && movingHabitCount === undefined && movingHabitTitle ? (
           <p className="text-sm text-[var(--fg-3)]">
             {t('habits.moveParent.description', { name: movingHabitTitle })}
           </p>

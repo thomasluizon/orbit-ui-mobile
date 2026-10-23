@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
+import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import type { AgentOperationOutcome } from '@orbit/shared/utils'
 import {
   getAgentOperationLabelKey,
@@ -19,7 +19,7 @@ function localName(source: string, target: string | null | undefined, t: ReturnT
 
 export function OperationOutcomes({ outcomes }: Readonly<{ outcomes: readonly AgentOperationOutcome[] }>) {
   const t = useTranslations()
-  const router = useRouter()
+  const navigate = useChatNavigation()
   return <>{outcomes.map((outcome) => {
     const failed = outcome.status === 'Failed'
     const policy = outcome.status === 'UnsupportedByPolicy'
@@ -29,6 +29,6 @@ export function OperationOutcomes({ outcomes }: Readonly<{ outcomes: readonly Ag
       wrapLabel: Boolean(outcome.target),
       meta: t(getAgentPolicyReasonKey(outcome.policyReason) ?? `chat.operation.status.${outcome.status}`),
       status: failed ? 'failed' : undefined,
-    }]} actions={policy ? <Button size="sm" variant="ghost" onClick={() => router.push('/profile')}>{t('chat.operation.openProfile')}</Button> : undefined} />
+    }]} actions={policy ? <Button size="sm" variant="ghost" onClick={() => navigate('/profile')}>{t('chat.operation.openProfile')}</Button> : undefined} />
   })}</>
 }

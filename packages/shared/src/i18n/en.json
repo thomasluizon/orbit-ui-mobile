@@ -1,4 +1,8 @@
 {
+  "listFormatting": {
+    "pair": "{first} and {last}",
+    "end": "{first}, and {last}"
+  },
   "dragAndDrop": {
     "instructions": "To pick up an item, press the space bar. While dragging, use the arrow keys to move it. Press space again to drop it, or Escape to cancel.",
     "habitInstructions": "To move a habit, hold Alt and press the up or down arrow key.",
@@ -310,7 +314,8 @@
           "logHabit": "Log \"{title}\"",
           "trimHabit": "Simplify \"{title}\"",
           "keepOnlyHabit": "Keep only \"{title}\"",
-          "reviewHabit": "Review \"{title}\""
+          "reviewHabit": "Review \"{title}\"",
+          "buildMorningRoutine": "Build a morning routine"
         },
         "progress": {
           "createGoal": "Create a goal for {title}"
@@ -626,6 +631,7 @@
       "skip": "Skip",
       "openSubHabits": "Open the sub habits",
       "unlog": "Mark incomplete",
+      "rescheduleAstra": "Reschedule with Astra",
       "reschedule": "Reschedule"
     },
     "reschedule": {
@@ -694,6 +700,7 @@
     },
     "frequencyLabel": "Frequency",
     "form": {
+      "parentHabit": "Parent habit",
       "proRequired": "This is part of Orbit Pro.",
       "capacityTitle": "Habit limit reached",
       "capacityBody": "You can have up to {limit, number} active habits. Sub-habits don't count. Delete a habit to add another.",
@@ -764,6 +771,7 @@
       "typeRequired": "Choose a type.",
       "taskDate": "Do on",
       "habitStartDate": "Starts on",
+      "datePhrasePlaceholder": "In your own words",
       "datePhrase": "When",
       "taskDateQuestion": "When do you want to do this?",
       "habitDateQuestion": "When do you want to start?",
@@ -1272,6 +1280,45 @@
     }
   },
   "chat": {
+    "unreadableReply": "This answer could not be displayed. Please ask again.",
+    "ranking": {
+      "title": "Habit ranking",
+      "from": "From {date}",
+      "through": "Through {date}",
+      "completions": "{count, plural, =0 {# completions} one {# completion} other {# completions}}",
+      "open": "{rank}. {name}, {count, plural, =0 {# completions} one {# completion} other {# completions}}",
+      "empty": "No completions in this period.",
+      "partial": "More habits below.",
+      "more": "Show more",
+      "refresh": "Refresh",
+      "stale": "Ranking changed. Refresh to continue.",
+      "pageFailed": "Could not load more. Try again.",
+      "refreshFailed": "Could not refresh. Try again.",
+      "removed": "Habit unavailable. Refresh this ranking.",
+      "openFailed": "Could not open the habit. Try again.",
+      "offline": "Connect to continue."
+    },
+    "readBlock": {
+      "dayTitle": "Summary",
+      "nothingDue": "Nothing scheduled.",
+      "actionsUnavailable": "Some actions are unavailable.",
+      "less": "Show less",
+      "stale": "These records changed. Refresh this query.",
+      "partial": "Some records are unavailable.",
+      "error": "Could not refresh this query. Try again.",
+      "expired": "Ask the original question again.",
+      "delta": "Change",
+      "metric": {
+        "positiveLogRecords": "Positive log records",
+        "distinctLoggedDates": "Days with logs",
+        "metScheduledDates": "Scheduled days met",
+        "scheduledDates": "Scheduled days"
+      },
+      "unit": {
+        "records": "{count, plural, one {record} other {records}}",
+        "days": "{count, plural, one {day} other {days}}"
+      }
+    },
     "choice": {
       "submit": "Send",
       "review": "Review",
@@ -1657,7 +1704,7 @@
       "pageAnnounce": "Page {n} of {total}: {title}",
       "previous": "Previous",
       "next": "Next",
-      "progressLink": "See it on Progress"
+      "progressLink": "Progress"
     },
     "goalList": {
       "title": "Your goals",
@@ -1702,7 +1749,7 @@
       "makeHabit": "Make a habit from {title}"
     },
     "recordList": {
-      "title": { "notifications": "Alerts", "tags": "Tags", "templates": "Checklist templates", "keys": "API keys" },
+      "title": { "habitHistory": "Habit history", "notifications": "Alerts", "tags": "Tags", "templates": "Checklist templates", "keys": "API keys" },
       "count": "{shown} of {total}",
       "empty": "Nothing here yet.",
       "unread": "Unread",
@@ -1734,7 +1781,7 @@
         "plan": { "Free": "Free", "Pro": "Pro" },
         "interval": { "monthly": "Monthly", "yearly": "Yearly" },
         "source": { "stripe": "Stripe", "play": "Google Play" },
-        "rewardType": { "discount": "Discount" }
+        "rewardType": { "discount": "Discount", "pro_days": "Days of Pro" }
       },
       "yes": "Yes", "no": "No", "notSet": "Not set", "unknown": "Unknown",
       "code": "Referral code", "copy": "Copy", "copied": "Copied", "share": "Share",
@@ -1852,7 +1899,6 @@
         "anyDay": "Choose any day",
         "fixedDays": "Keep fixed days",
         "removeDescription": "Remove the description",
-        "useIcon": "Use {emoji}",
         "removeIcon": "Remove the icon",
         "repeatInDays": "Use days for repetition",
         "repeatInWeeks": "Use weeks for repetition",
@@ -2550,40 +2596,36 @@
     }
   },
   "referral": {
-    "card": {
-      "title": "Invite friends",
-      "hint": "Earn discount coupons for you and your friends",
-      "progress": "{count}/{max} successful referrals"
-    },
     "drawer": {
       "title": "Invite friends",
       "yourLink": "Your referral link",
-      "copy": "Copy",
       "copyLink": "Copy link",
-      "copied": "Copied",
       "linkCopied": "Link copied",
       "share": "Share link",
       "completed": "Successful referrals",
       "pending": "Pending",
-      "couponsEarned": "Coupons earned",
       "howItWorks": "How it works",
-      "explanation": "Share your link with friends. When they join Orbit and start using the app, you both earn a {discount}% discount coupon for Pro. You can refer up to 10 friends",
-      "disclaimer": "Each referral earns a one-time {discount}% discount coupon. Coupons apply to a single billing cycle and do not accumulate. A new referral replaces any unused coupon. If you're already subscribed on the web, the discount is applied to your next invoice automatically. Google Play subscriptions can't be discounted mid-cycle, so your coupon is saved for your next purchase or plan change.",
       "actionFailed": "That action did not work. Try again."
     },
     "share": {
       "title": "Join me on Orbit",
-      "text": "I've been using Orbit to build better habits. Join me and we both get a {discount}% discount coupon"
+      "proDays": "Join me on Orbit. Create an account with this link and log habits on three different days in your first week. I can earn {proDays, plural, =0 {# days} one {# day} other {# days}} of Pro. You may also earn Pro days or a discount coupon for Pro.",
+      "discount": "Join me on Orbit. Create an account with this link and log habits on three different days in your first week. I can earn a {discountPercent}% discount coupon for Pro. You may also earn Pro days or a discount coupon for Pro.",
+      "neutral": "Join me on Orbit."
     },
     "prompt": {
       "streakTitle": "{count}-day streak",
       "levelTitle": "You reached level {level}",
-      "body": "Invite a friend and you both get a {discount}% discount coupon for Pro.",
-      "bodyFallback": "Invite a friend to build better habits together.",
       "cta": "Invite friends",
       "later": "Maybe later"
     },
-    "loginBanner": "You came through an invitation. It applies when a new account is created."
+    "loginBanner": "You came through an invitation. It applies when a new account is created.",
+    "reward": {
+      "proDays": "Invite someone to create an account with your link. If they log habits on three different days in their first week, you can earn {proDays, plural, =0 {# days} one {# day} other {# days}} of Pro.",
+      "discount": "Invite someone to create an account with your link. If they log habits on three different days in their first week, you can earn a {discountPercent}% discount coupon for Pro.",
+      "neutral": "Share your link to invite someone to Orbit.",
+      "eligibility": "The reward type depends on the account. Each account has a reward limit."
+    }
   },
   "marketingConsent": {
     "prompt": {
@@ -2603,7 +2645,6 @@
     "download": "Download",
     "scanToJoin": "Scan to join Orbit",
     "shareTitle": "My Orbit progress",
-    "shareText": "I'm building better habits with Orbit. Join me",
     "shareError": "Couldn't share your card. Please try again.",
     "saved": "Saved as {file}",
     "weeklyBarLabel": "Completion on {day}: {percent}%",
@@ -2717,7 +2758,7 @@
       "habits": "Habit data: habits you create, completion logs, schedules, tags, and goals",
       "chat": "AI chat messages: conversations with the Orbit AI assistant",
       "preferences": "Preferences: language, timezone, color scheme, and notification settings",
-      "device": "Device data: a push notification token (to deliver reminders) and Android crash reports with device and OS details, a random installation ID, and an approximate city inferred from the request IP address. These reports do not include your name, email, or account details. On Orbit for Android before version 1.3.35, also your device advertising identifier, which the ad SDK could access"
+      "device": "Device data: a push notification token (to deliver reminders) and Android crash reports with device and OS details, a random installation ID, and an approximate city inferred from the request IP address. These reports do not include your name, email, or account details."
     },
     "howWeUse": {
       "title": "How We Use Your Data",
@@ -2735,7 +2776,6 @@
       "openai": "OpenAI: for AI chat features and daily summaries",
       "ses": "Amazon SES (us-east-2): for transactional and marketing emails",
       "googlePlay": "Google Play Billing: for subscription purchases on Android",
-      "admob": "Google AdMob: Orbit for Android before version 1.3.35 could show ads to free users and could use your device advertising identifier for them. Version 1.3.35 and later show no ads.",
       "sentry": "Sentry: for crash and error reports. On Android, these include device and OS details, a random installation ID, and an approximate city inferred from the request IP address, without your name, email, or account details",
       "posthog": "PostHog (US Cloud): for product analytics linked to an account identifier and plan details, plus web traffic and performance analytics; we do not send habit or chat content",
       "render": "Render (Ohio, United States): for web and API hosting and the database",

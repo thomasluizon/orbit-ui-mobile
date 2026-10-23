@@ -9,7 +9,7 @@ Every concrete text control and input-producing primitive or wrapper in the web 
 | Family | Drawn inline inset | Source and composition |
 |---|---:|---|
 | Standard Input, form-input, AppTextInput, BottomSheetAppTextInput, goal FieldWell | 16 | Granted design-system Input; minimum height 54. Busca, move-parent, emoji, tag, goal and time-zone searches inherit this family. Tag and goal search keep their keyboard-aware native wrapper with exact Input padding and minimum height. |
-| Composer | 8 | `design/canvas/native-mobile.js`, textarea padding `4px 8px`. Pill padding 4 yields text start 12 in conversation and 60 with the 48 glyph control on Hoje and habit detail. The trailing controls retain 48 targets. Native positioned placeholder and measurement text use logical start/end 8. |
+| Composer | 8 | The #1607 amendment in `design/canvas/README.md` retains pill padding 4 and input padding 8. Text starts at 12 in conversation, or 4 plus the measured glyph-and-name entry width plus 8 on compact Hoje and habit detail. Entry and trailing controls keep the 48 target minimum. Native positioned placeholder and measurement text use logical start/end 8. |
 | Sentence / multiline Input | 16 | Granted Habit Create sentence field and design-system multiline Input. Habit phrase overlays match the textarea/TextInput padding. |
 | Other inline add, template name, tag editor, custom reminder, detail quantity, chat record filter and breakdown edit | 12 | Granted Habit Create, Habit Detail and Astra inline wells. Checklist add rows use the standard Input family. |
 | Checklist item edit | 8 with drag grip; 12 without grip | Granted Habit Create checklist. Both shipped editors always include their grip; their add rows use the standard Input inset of 16. |

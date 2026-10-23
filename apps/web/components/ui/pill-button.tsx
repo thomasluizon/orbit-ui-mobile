@@ -86,9 +86,18 @@ function buttonStyle(size: ButtonSize, withinRow: boolean, { minimumHeight, icon
   }
 }
 
-function ButtonIcon({ size, loading, iconOnly, children, leadingIcon }: Readonly<Pick<ButtonProps, 'loading' | 'iconOnly' | 'children' | 'leadingIcon'> & { size: ButtonSize }>) {
-  if (loading) return <Loader2 size={BUTTON_SIZES[size].iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />
+function ButtonIcon({ size, loading, retainLeadingIcon, iconOnly, children, leadingIcon }: Readonly<Pick<ButtonProps, 'loading' | 'iconOnly' | 'children' | 'leadingIcon'> & { size: ButtonSize; retainLeadingIcon: boolean }>) {
+  if (loading && !retainLeadingIcon) return <Loader2 size={BUTTON_SIZES[size].iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />
   return iconOnly ? children : leadingIcon
+}
+
+function persistentButtonStyle(style: CSSProperties, retain: boolean): CSSProperties {
+  return retain ? { ...style, maxWidth: '100%', whiteSpace: 'normal' } : style
+}
+
+function PersistentLoadingIndicator({ visible, loading, size }: Readonly<{ visible: boolean; loading: boolean; size: ButtonSize }>) {
+  if (!visible) return null
+  return <span aria-hidden="true" style={{ display: 'inline-flex', flexShrink: 0, width: BUTTON_SIZES[size].iconSize, height: BUTTON_SIZES[size].iconSize }}>{loading ? <Loader2 size={BUTTON_SIZES[size].iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" /> : null}</span>
 }
 
 /** The canonical five-variant pill action in the shared two-size geometry. */
@@ -114,13 +123,14 @@ export function Button({
   matchedWidth = false,
   label,
   leadingIcon,
+  retainLeadingIcon = false,
   brand,
   formId,
   descriptionId,
   hint,
   buttonRef,
   quiet = false,
-}: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean; expanded?: boolean; controlsId?: string; hasPopup?: 'menu' | 'dialog'; onFocus?: () => void; onBlur?: () => void; onMouseEnter?: () => void; onMouseLeave?: () => void }>) {
+}: Readonly<ButtonProps & { retainLeadingIcon?: boolean; buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean; expanded?: boolean; controlsId?: string; hasPopup?: false | 'menu' | 'dialog'; onFocus?: () => void; onBlur?: () => void; onMouseEnter?: () => void; onMouseLeave?: () => void }>) {
   const withinRow = useContext(ActionRowContext)
   const hintId = useId()
   const descriptionIds = buttonDescriptionIds(descriptionId, hintId, hint)
@@ -148,10 +158,11 @@ export function Button({
       data-size={size}
       data-loading={loading || undefined}
       className={actionClasses(variant, size, 'button', loading, quiet, elevated)}
-      style={buttonStyle(size, withinRow, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet })}
+      style={persistentButtonStyle(buttonStyle(size, withinRow, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet }), retainLeadingIcon)}
     >
-      <ButtonIcon size={size} loading={loading} iconOnly={iconOnly} leadingIcon={leadingIcon}>{children}</ButtonIcon>
+      <ButtonIcon size={size} loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingIcon={leadingIcon}>{children}</ButtonIcon>
       {iconOnly ? null : <span>{children}</span>}
+      <PersistentLoadingIndicator visible={retainLeadingIcon} loading={loading} size={size} />
     </button>{hint ? <span id={hintId} hidden>{hint}</span> : null}</>
   )
 }
@@ -160,6 +171,7 @@ export function Button({
 export function PillLink({
   href,
   onClick,
+  onNavigate,
   variant = 'primary',
   size: requestedSize = 'sm',
   children,
@@ -167,6 +179,7 @@ export function PillLink({
 }: Readonly<{
   href: LinkProps['href']
   onClick?: () => void
+  onNavigate?: LinkProps['onNavigate']
   variant?: ButtonVariant
   size?: ButtonSize
   children: string
@@ -178,6 +191,7 @@ export function PillLink({
     <Link
       href={href}
       onClick={onClick}
+      onNavigate={onNavigate}
       aria-label={accessibleName}
       data-variant={variant}
       data-size={size}

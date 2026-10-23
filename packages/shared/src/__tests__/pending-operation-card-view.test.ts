@@ -197,7 +197,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
   it.each([
     ['interval_weeks', '2', 2, 'Every 2 weeks', 'A cada 2 semanas'],
     ['description', null, null, 'Remove the description', 'Remover a descrição'],
-    ['emoji', '📚', '📚', 'Use 📚', 'Usar 📚'],
+    ['emoji', '📚', '📚', '', ''],
     ['emoji', null, null, 'Remove the icon', 'Remover o ícone'],
     ['end_date', null, null, 'Remove the end date', 'Remover a data final'],
     ['sub_habits', '[]', [], 'Remove the habits inside', 'Remover os sub-hábitos'],
@@ -805,4 +805,34 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(record.confirm).toMatchObject({ open: false, destructive: false })
     expect(localized.approve(2)).toBe(messages.chat.operation.approve)
   })
+})
+
+it('keeps approval blocked by title drafts and wires each inline rename to its item', async () => {
+  const operation = makeCreateHabitsPreview(2)
+  const card = createCard()
+  card.revision = {
+    operation, canRevise: true, items: operation.items!, editingItem: undefined,
+    draft: {}, editedItemIds: [], busy: false, stale: false, canRefresh: false,
+    refresh: vi.fn(), rejected: false, error: undefined, hasTitleDrafts: true,
+    setDraftField: vi.fn(), closeEdit: vi.fn(), startEdit: vi.fn(),
+    saveEdit: vi.fn(), rejectItem: vi.fn(), rejectAll: vi.fn(),
+    renameItem: vi.fn().mockResolvedValue(true), setTitleDraft: vi.fn(),
+  }
+  const { record, render } = createRenderers()
+  const renderCard = () => renderPendingOperationCard({ card, labels, render, pendingOperation: operation, onVerifyStepUp: vi.fn() })
+  renderCard()
+  expect(record.buttons.find(button => button.label === 'Approve')?.disabled).toBe(true)
+  const firstTitle = record.frame!.items[0]!.rename!
+  firstTitle.onDraftChange!('Read books')
+  expect(card.revision.setTitleDraft).toHaveBeenCalledWith('0', 'Read books')
+  expect(await firstTitle.onSave('Read books')).toBe(true)
+  expect(card.revision.renameItem).toHaveBeenCalledWith('0', 'Read books')
+  card.revision.hasTitleDrafts = false
+  record.buttons = []
+  renderCard()
+  expect(record.buttons.find(button => button.label === 'Approve')?.disabled).toBe(false)
+  record.buttons.find(button => button.label === 'Edit item')!.onClick()
+  expect(card.revision.startEdit).toHaveBeenCalledWith('0')
+  record.buttons.find(button => button.label === 'Reject')!.onClick()
+  expect(card.revision.rejectAll).toHaveBeenCalledOnce()
 })

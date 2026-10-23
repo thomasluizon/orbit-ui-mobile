@@ -1,3 +1,4 @@
+import { formatConjunctionList } from './conjunction-list'
 import {
   differenceInCalendarDays,
   format,
@@ -147,10 +148,7 @@ export function formatStreakDate(date: string, locale: string): string {
 }
 
 export function formatStreakRepairDates(dates: readonly string[], locale: string): string {
-  return new Intl.ListFormat(locale, {
-    style: 'long',
-    type: 'conjunction',
-  }).format(dates.map((date) => formatStreakDate(date, locale)))
+  return formatConjunctionList(dates.map((date) => formatStreakDate(date, locale)), locale)
 }
 
 function isApiDate(value: string | null | undefined): value is string {

@@ -1,3 +1,6 @@
+import { ChatBlock } from '@/components/chat/block-registry'
+import { chatNavigationCases } from '@orbit/shared/test-support/chat-navigation-fixtures'
+import type { ReactNode, MouseEventHandler } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { inPlaceDayFixture, inPlaceCalendarFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
@@ -80,10 +83,10 @@ describe('Astra blocks act on app state', () => {
     expect(view.container).toBeEmptyDOMElement()
   })
 
-  it('exposes live goal progress and names its linked source', () => {
+  it('preserves goal progress and names its actual linked source', () => {
     state.goals.set('goal-1', createMockGoal({ id: 'goal-1', title: 'Move', currentValue: 6, targetValue: 10, isProgressDerived: true, linkedHabits: [{ id: 'habit-1', title: 'Walk' }] }))
     render(<GoalListCard goalList={{ items: [{ id: 'goal-1', title: 'Move', current: 1, target: 10, unit: 'km' }] }} />)
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '60')
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '10')
     expect(screen.getByRole('button', { name: 'goals.linkedHabits: Walk' })).toBeInTheDocument()
   })
 })
@@ -92,7 +95,7 @@ it.each([
   [{ isPending: true, isError: false, isRefetchError: false }, 'loading'],
   [{ isPending: false, isError: true, isRefetchError: false }, 'partiallyFailed'],
   [{ isPending: false, isError: true, isRefetchError: true }, 'stale'],
-] as const)('shares query states across all five blocks: %s', (query, expected) => {
+] as const)('shares query states across action queries while metrics retain their snapshot: %s', (query, expected) => {
   state.query = { ...query }
   state.goals.set('goal-1', createMockGoal({ id: 'goal-1' }))
   const view = render(<>
@@ -102,8 +105,8 @@ it.each([
     <StreakCard streakCard={{ currentStreak: 3, longestStreak: 9, level: 1, totalXp: 20, xpForNextLevel: 100, lastActiveDate: null, isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], surfaceId: 'progress' }} />
     <MetricsCard metricsCard={{ period: 'week', completionRate: 50, activeDays: 3, totalCompletions: 3, totalScheduled: 6, currentStreak: 3, bestStreak: 9, hasData: true, surfaceId: 'progress' }} />
   </>)
-  expect(view.container.querySelectorAll(`section[data-state="${expected}"]`)).toHaveLength(5)
-  if (expected === 'partiallyFailed') expect(screen.getAllByRole('alert')).toHaveLength(5)
+  expect(view.container.querySelectorAll(`section[data-state="${expected}"]`)).toHaveLength(4)
+  if (expected === 'partiallyFailed') expect(screen.getAllByRole('alert')).toHaveLength(4)
 })
 
 it('keeps the freeze bank read-only with one route to Sequencia', () => {
@@ -158,3 +161,27 @@ it.each(['child', 'bad'] as const)('keeps a completed %s row outside the parent 
   expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0')
   view.unmount()
 })
+
+vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
+
+it.each(chatNavigationCases)('closes Astra before routing from $name', ({ part, label, web }) => {
+  state.push.mockImplementation(() => expect(useUIStore.getState().astraConversationOpen).toBe(false))
+  state.goals.set('goal-1', createMockGoal({ id: 'goal-1' }))
+  render(<ChatBlock part={part} onActionChipClick={undefined} />)
+  const action = screen.queryByRole('link', { name: label }) ?? screen.getByRole('button', { name: label })
+  fireEvent.click(action)
+  if (action.tagName === 'A') expect(action).toHaveAttribute('href', web)
+  expect(state.push).toHaveBeenCalledWith(web)
+  expect(useUIStore.getState().astraConversationOpen).toBe(false)
+})
+
+vi.mock('next/link', () => ({ default: ({ href, onClick, onNavigate, children }: {
+  href: string; onClick?: MouseEventHandler<HTMLAnchorElement>; onNavigate?: (event: { preventDefault: () => void }) => void; children: ReactNode
+}) => <a href={href} onClick={event => {
+  onClick?.(event)
+  if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  event.preventDefault()
+  const cancellation = { prevented: false }
+  onNavigate?.({ preventDefault: () => { cancellation.prevented = true } })
+  if (!cancellation.prevented) state.push(href)
+}}>{children}</a> }))

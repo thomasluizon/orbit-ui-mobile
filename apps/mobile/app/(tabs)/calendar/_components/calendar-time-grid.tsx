@@ -1,4 +1,4 @@
-import { SPACING } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 import { useEffect, useMemo, useRef, useState } from "react";
 import { InsetFocusPressable } from "@/components/ui/inset-focus-pressable";
 import {
@@ -16,8 +16,8 @@ import { format } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
-import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, isCalendarGridScrollMovement, nowDate, orderCalendarDayEntries } from "@orbit/shared/utils";
-import { createTokensV2 } from "@/lib/theme";
+import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, isCalendarGridScrollMovement, nowDate, orderCalendarDayEntries, resolveCalendarGridOpeningScroll } from "@orbit/shared/utils";
+import { createTokensV2, radius } from "@/lib/theme";
 import { usePrefersReducedMotion } from "@/lib/motion";
 
 import { X } from '@/components/ui/icons';
@@ -240,54 +240,60 @@ function ColumnHeader({
     .onFinalize(() => setHovered(false)), []);
   const prefersReducedMotion = usePrefersReducedMotion();
   return (
-    <GestureDetector gesture={hoverGesture}>
-      <InsetFocusPressable
-        testID="time-grid-col-header"
-        focusOffset={-6}
-        accessibilityRole="button"
-        onPress={() => onSelectDay(column.dateStr)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        style={({ pressed }) => [
-          styles.colHeader,
-          { width: colWidth },
-          (hovered || pressed || focused) && { backgroundColor: tokens.bgHover },
-          pressed && !prefersReducedMotion && { transform: [{ scale: 0.96 }] },
-        ]}
-      >
-        <Text
-          style={[
-            styles.colHeaderWeekday,
-            { color: tokens.fg2 },
+    <View style={{ width: colWidth }}>
+      <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={styles.colHeaderGridLines} />
+      <GestureDetector gesture={hoverGesture}>
+        <InsetFocusPressable
+          testID="time-grid-col-header"
+          focusOffset={-(INTERACTION_FILL_CLEARANCE + 2)}
+          accessibilityRole="button"
+          onPress={() => onSelectDay(column.dateStr)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={({ pressed }) => [
+            styles.colHeader,
+            { width: colWidth },
+            pressed && !prefersReducedMotion && { transform: [{ scale: 0.96 }] },
           ]}
         >
-          {formatCalendarWeekday(column.dateStr, language)}
-        </Text>
-        <View
-          style={[
-            styles.colHeaderDatePill,
-            column.isToday && { backgroundColor: tokens.primary },
-          ]}
-        >
-          <Text
-            testID="time-grid-col-date"
-            style={[
-              styles.colHeaderDate,
-              {
-                color: column.isToday
-                  ? tokens.fgOnPrimary
-                  : column.isFuture
-                    ? tokens.fg2
-                    : tokens.fg1,
-                fontFamily: "GeistMono_500Medium",
-              },
-            ]}
-          >
-            {format(column.date, "d", { locale })}
-          </Text>
-        </View>
-      </InsetFocusPressable>
-    </GestureDetector>
+          {({ pressed }) => <>
+            <View testID="time-grid-col-header-fill" pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+              style={[styles.colHeaderFill, { backgroundColor: hovered || pressed || focused ? tokens.bgHover : 'transparent' }]} />
+            <Text
+              style={[
+                styles.colHeaderWeekday,
+                { color: tokens.fg2 },
+              ]}
+            >
+              {formatCalendarWeekday(column.dateStr, language)}
+            </Text>
+            <View
+              style={[
+                styles.colHeaderDatePill,
+                column.isToday && { backgroundColor: tokens.primary },
+              ]}
+            >
+              <Text
+                testID="time-grid-col-date"
+                style={[
+                  styles.colHeaderDate,
+                  {
+                    color: column.isToday
+                      ? tokens.fgOnPrimary
+                      : column.isFuture
+                        ? tokens.fg2
+                        : tokens.fg1,
+                    fontFamily: "GeistMono_500Medium",
+                  },
+                ]}
+              >
+                {format(column.date, "d", { locale })}
+              </Text>
+            </View>
+          </>}
+        </InsetFocusPressable>
+      </GestureDetector>
+    </View>
   );
 }
 
@@ -325,6 +331,7 @@ export function CalendarTimeGrid({
   const gutterScrollRef = useRef<ScrollView>(null);
   const columnsScrollRef = useRef<ScrollView>(null);
   const [bodyHeight, setBodyHeight] = useState(0);
+  const [retainedScrollTop, setRetainedScrollTop] = useState(0);
   const [paneLayout, setPaneLayout] = useState({ height: 0, isLoading });
   const paneHeight = paneLayout.height;
   const isPanePinned = paneHeight <= bodyHeight / 2;
@@ -363,6 +370,7 @@ export function CalendarTimeGrid({
     viewportWidth > 0 && columns.length > 0
       ? Math.max(minColumnWidth, viewportWidth / columns.length)
       : minColumnWidth;
+  const { left: openingLeft, trailingSpace } = resolveCalendarGridOpeningScroll(columns.findIndex(({ isToday }) => isToday), colWidth, viewportWidth, columns.length);
 
   const isEmpty =
     !isLoading &&
@@ -399,19 +407,18 @@ export function CalendarTimeGrid({
       if (isCalendarGridScrollMovement(offset, openingScroll.current.top, maximumTravel)) hasMovedGrid.current = true;
     }
     openingScroll.current.top = offset;
+    if (hasMovedGrid.current) setRetainedScrollTop(offset);
     scrollViewToY(gutterScrollRef.current, offset);
   };
 
   useEffect(() => {
     if (hasMovedGrid.current || isLoading || viewportWidth <= 0 || contentWidth < colWidth * columns.length) return;
-    const todayIndex = columns.findIndex(({ isToday }) => isToday);
-    if (todayIndex >= 0) {
-      const offset = Math.max(0, Math.min(contentWidth - viewportWidth, todayIndex * colWidth - (viewportWidth - colWidth) / 2));
-      openingOffsets.current.horizontal.add(offset);
-      openingScroll.current.left = offset;
-      columnsScrollRef.current?.scrollTo({ x: offset, animated: false });
+    if (columns.some(({ isToday }) => isToday)) {
+      openingOffsets.current.horizontal.add(openingLeft);
+      openingScroll.current.left = openingLeft;
+      columnsScrollRef.current?.scrollTo({ x: openingLeft, animated: false });
     }
-  }, [colWidth, columns, contentWidth, isLoading, viewportWidth]);
+  }, [colWidth, columns, contentWidth, isLoading, openingLeft, viewportWidth]);
 
   const onColumnsLayout = (event: LayoutChangeEvent) => {
     setViewportWidth(event.nativeEvent.layout.width);
@@ -425,6 +432,7 @@ export function CalendarTimeGrid({
             <ScrollView
               ref={gutterScrollRef}
               style={{ flex: 1, minHeight: 0 }}
+              contentContainerStyle={{ minHeight: retainedScrollTop + bodyHeight }}
               scrollEnabled={false}
               showsVerticalScrollIndicator={false}
               stickyHeaderIndices={isPanePinned ? [0] : []}
@@ -469,10 +477,11 @@ export function CalendarTimeGrid({
             }}
             scrollEventThrottle={16}
           >
-            <View style={styles.columnsContent}>
+            <View style={[styles.columnsContent, { paddingRight: trailingSpace }]}>
               <ScrollView
                 ref={bodyScrollRef}
                 style={{ flex: 1, minHeight: 0 }}
+                contentContainerStyle={{ minHeight: retainedScrollTop + bodyHeight }}
                 testID="time-grid-hour-scroller"
                 stickyHeaderIndices={isPanePinned ? [0] : []}
                 onLayout={(event) => setBodyHeight(event.nativeEvent.layout.height)}
@@ -664,15 +673,28 @@ function createStyles(tokens: Tokens) {
       flexShrink: 0,
       flexDirection: "row",
     },
-    colHeader: {
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 4,
-      paddingVertical: SPACING.s8,
+    colHeaderGridLines: {
+      ...StyleSheet.absoluteFill,
       borderLeftWidth: 1,
       borderLeftColor: tokens.hairline,
       borderBottomWidth: 1,
       borderBottomColor: tokens.hairline,
+    },
+    colHeaderFill: {
+      position: 'absolute',
+      top: INTERACTION_FILL_CLEARANCE,
+      right: INTERACTION_FILL_CLEARANCE,
+      bottom: INTERACTION_FILL_CLEARANCE,
+      left: INTERACTION_FILL_CLEARANCE,
+      borderRadius: radius.sm,
+    },
+    colHeader: {
+      flex: 1,
+      borderRadius: radius.sm,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      paddingVertical: SPACING.s8,
     },
     colHeaderWeekday: {
       fontFamily: "GeistMono_500Medium",

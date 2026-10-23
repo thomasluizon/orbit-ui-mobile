@@ -5,6 +5,7 @@
 | Surface | Web and Android owner | Behavior |
 |---|---|---|
 | Create and edit composition | `components/habits/create-habit-modal.tsx`, `edit-habit-modal.tsx` | Required unseeded type, persisted edit prefill, inherited General locks, retained drafts and unsaved-change guard |
+| Name and description | `habit-form-fields.tsx`, `habit-form-fields/habit-understanding.tsx` | Standard 54px growing name, equal mirror/input metrics, then one full description before all conditional content (#1607) |
 | Type | `habit-form-fields/habit-type-field.tsx` | Two vertical RadioRow choices before the focal title, visible validation and group focus |
 | Date | `habit-form-fields/habit-date-field.tsx` | When input, type-specific question and editable date before More details; General hides only the date group |
 | Schedule | `habit-form-fields/habit-schedule-fields.tsx` | Fixed, count-based and No schedule choices with a reachable return and tree locks |
@@ -82,6 +83,35 @@ production create/edit/readback remain separate verification boundaries. API pro
 precedes consumer publication. Web production and Android open-track release are owned by the
 orchestrator; no Android production release or version floor change is implied.
 
+## Astra affordance inventory (#1607)
+
+| Paired control | Callback owner | Disposition |
+|---|---|---|
+| Setup fallback | `createHabitFormController.askAstra` to `use-habit-suggestion` | Corrected mark with existing visible Astra label |
+| Emoji suggestion | `useEmojiProposal` to `onSuggestEmoji` / `use-habit-suggestion` | Corrected mark and Ask Astra wording in persistent Emoji context; manual picker unchanged |
+| Date consultation | `HabitDateEditor.ask` to `use-date-interpretation` | Corrected mark; explicit, budgeted and guarded request unchanged |
+| Tag generation | `TagSuggestions` to `useTagSuggestions.suggest` / `useSuggestTags` | Corrected mark and Ask Astra wording under Tags; acceptance remains deterministic |
+| Compact and habit-detail composer entry | `onOpenConversation` to conversation store | Corrected visible Astra name beside existing mark; opens without sending |
+| Composer send, retry and live suggestions | `onSend`, `onRetry`, suggestion `onSelect` to chat send owner | Corrected mark and visible wording; current request and retry ownership retained |
+| Habit and goal detail entries | `AskAstraRow`, `openAstra` to `prepareChatRequest` and conversation store | Corrected mark; draft preparation opens without sending |
+| Habit-list empty entry | `onAskAstra` to conversation store | Corrected mark with existing label |
+| Follow-up and proactive actions | `onSelect` / `useProactiveAction.act` to `sendMessage` | Corrected mark and visible Astra name in each specific action target |
+| Complete prompt-library and deferred ideas | `selectIdea` to `sendMessage` | Corrected mark and visible Astra name |
+| Slotted prompt ideas | `selectIdea` to `preparePromptTemplate` | Deterministic draft preparation; no invocation mark |
+| Reschedule menu and retries | Sheet opening / `refetch` to `useRescheduleSuggestion` | Corrected invocation identification; existing eligibility and GET/refetch policy retained |
+| Wide navigation and conversation header | Existing conversation store entry / AppBar | Already conforming, preserved |
+| Today Astra line | Caller-defined destination | Existing mark and visible sentence retained; no speculative navigation change |
+| Date, tag and reschedule acceptance, ordinary Save | Existing form and mutation owners | Deterministic, no generation label or new request |
+| Voice record, stop, cancel and transcription | Existing speech-to-text and recording owners | Separate transport and recording states retained; no inferred generation affordance |
+| Pending-operation approval and execution | Existing operation controllers | Deterministic approval boundary retained, no generation label |
+
+The selected date is displayed and accessibly labelled by DateField once; the form retains real
+Proposed, pending, error and manual recovery feedback. Empty feedback has no occupied field gap.
+The phrase placeholder is guidance only and never a default value. No external response field,
+model, budget, event, queue or transport changes are introduced. Historical spending decisions
+remain unchanged. Direct skill, agent, playbook and hook references contain no active superseded
+form-size or invocation rule requiring an edit; the owning contradictions are in DESIGN and canvas.
+
 ## Detail read and draft ownership
 
 | Previous section or action | Final paired owner and boundary |
@@ -120,3 +150,40 @@ are replaced at the actual full editor boundary; form weekday focus and geometry
 existing form owners. Changed rendered layout, modal focus, both locales/themes, phone/wide and
 200% text require frozen-build verification. Native device/AT and real combined save/readback/refusal
 remain separate acceptance; source tests do not establish deployment or server persistence.
+
+## Parent relationship draft
+
+The complete editor adds Parent habit / Hábito principal beside tags and goals inside the existing
+More details disclosure. Type remains first; title, description and date keep their owners. The
+field reuses ListRow and the existing move-parent radio sheet in selection-only mode. Closing that
+picker retains the local choice; outer Cancel discards it. Only outer Save writes the relationship.
+The active Create drawing's edit state shows this amendment without changing create behavior.
+
+The parent baseline is an authoritative UUID, verified null, or unknown. A list may supply display
+context but cannot override a detail read. Untouched, unknown and same-parent choices omit both
+ordinary-update keys. A changed destination sends parentId; explicit root sends clearParent true.
+The nullable request keys accept null as unchanged, and false also preserves clearParent. No
+standalone parent, goal-link or tag-assignment request follows the ordinary update.
+
+The shared move-parent owner composes scheduled and General account queries only after both have
+completed every page successfully. Picker demand uses those existing query caches without day,
+search, tag, frequency or completion filters. Partial, failed and refetching inventories withhold
+options and retain recovery. The editor explicitly includes completed one-time destinations;
+standalone presentation retains its existing exclusion. Final General, self, descendant and full
+subtree-depth checks use the complete inventory. Root capacity remains a server-owned refusal.
+
+Android keeps a parent-changing update separate from pending Create, resolves source, parent and
+tag references through the existing queue, and validates resolved parent UUIDs before transport.
+Ordinary updates without parent keys retain Create compaction. The existing optimistic move owner
+updates list membership alongside fields and the account-owned detail snapshot. Filtered lists
+without the target remove the source from its former position until authoritative refresh. Parent
+detail and full-detail membership roll back together after rejection. Optimism is not confirmation.
+Uncertain Save retains every field and requires successful authoritative parent readback before an
+explicit retry can send another update. Queued wording and confirmed-save callbacks stay distinct.
+
+Owning Vitest cases cover real web menu and detail-pencil entrypoints, Android Today menu through
+TodayModals and the detail pencil, local picker dismissal and Cancel, explicit set/clear/omit,
+late reads, complete pagination, cache rollback and persisted queue resolution. The bounded parent
+field/picker geometry cases extend the existing radio-text Chromium owner. Frozen combined-build
+rendering, installed Android fonts and assistive technology, and staging combined write/readback
+remain separate acceptance boundaries.

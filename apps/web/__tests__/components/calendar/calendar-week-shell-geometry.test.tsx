@@ -3,6 +3,7 @@ import { render } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
+import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { enUS } from 'date-fns/locale'
@@ -34,11 +35,11 @@ function renderDestination(content: React.ReactNode) {
   </NextIntlClientProvider>)
 }
 
-function weekBody() {
+function weekBody(entries = dayMap) {
   return <div data-page-viewport="" className="relative flex h-full min-h-0 flex-col">
     <div className="shrink-0"><button type="button" style={{ minHeight: 48 }}>Calendar options</button></div>
     <div className="relative flex min-h-0 flex-1 flex-col">
-      <CalendarWeekView columns={columns} dayMap={dayMap} slideDirection={null} onSelectDay={vi.fn()} displayTime={(time) => time} dateFnsLocale={enUS} allDayLabel={en.calendar.timeGrid.noSetTime} nowLabel={en.calendar.timeGrid.now} timeZone="UTC" />
+      <CalendarWeekView columns={columns} dayMap={entries} slideDirection={null} onSelectDay={vi.fn()} displayTime={(time) => time} dateFnsLocale={enUS} allDayLabel={en.calendar.timeGrid.noSetTime} nowLabel={en.calendar.timeGrid.now} timeZone="UTC" />
     </div>
   </div>
 }
@@ -47,12 +48,176 @@ describe('Calendar week through the destination shell and route transition', () 
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
+  let weekScript: string
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    weekScript = execFileSync(process.execPath, ['--input-type=module', '-e', `
+      import { build } from 'esbuild';
+      const result = await build(JSON.parse(process.argv[1]));
+      process.stdout.write(result.outputFiles[0].text);
+    `, JSON.stringify({
+      stdin: { contents: `import React from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { NextIntlClientProvider } from 'next-intl';
+        import { enUS } from 'date-fns/locale';
+        import en from '../../packages/shared/src/i18n/en.json';
+        import { CalendarWeekView } from './components/calendar/calendar-week-view';
+        const fixture = JSON.parse(document.getElementById('week-fixture').textContent);
+        const columns = fixture.columns.map(column => ({ ...column, date: new Date(column.date) }));
+        const host = document.querySelector('[data-testid="calendar-time-grid"]').parentElement.parentElement;
+        const root = createRoot(host);
+        function draw(dayMap) {
+          root.render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC"><div data-live-week="" className="flex min-h-0 flex-1 flex-col">
+            <CalendarWeekView columns={columns} dayMap={dayMap} slideDirection={null} onSelectDay={() => {}}
+              displayTime={time => time} dateFnsLocale={enUS} allDayLabel={en.calendar.timeGrid.noSetTime}
+              nowLabel={en.calendar.timeGrid.now} timeZone="UTC" />
+          </div></NextIntlClientProvider>);
+        }
+        draw(new Map(fixture.dayMap));
+        document.addEventListener('week-refetch', () => draw(new Map(fixture.dayMap.map(([date, entries]) => [date, entries.slice(0, 2)]))));`,
+      resolveDir: process.cwd(), loader: 'tsx' },
+      bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
+      define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' },
+    })], { maxBuffer: 10 * 1024 * 1024 }).toString()
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([
+    { width: 320, scale: 1, top: 0 }, { width: 320, scale: 1, top: 123 }, { width: 320, scale: 1, top: 600 },
+    { width: 412, scale: 1, top: 600 },
+    { width: 600, scale: 1, top: 600 }, { width: 1352, scale: 1, top: 600 },
+  ].flatMap((viewport) => [2, 300, 10_000].map((offset) => ({ ...viewport, offset }))))('settles $offset horizontal pixels on a day boundary at $width, $scale text, $top vertical pixels', async ({ width, scale, top, offset }) => {
+    route.pathname = '/calendar'
+    const view = renderDestination(weekBody())
+    const page = await browser.newPage({ viewport: { width, height: 640 } })
+    try {
+      await page.setContent(`<!doctype html><style>${stylesheet} :root { font-size: ${16 * scale}px }</style>${view.container.innerHTML}<script id="week-fixture" type="application/json">${JSON.stringify({ columns, dayMap: [...dayMap] })}</script>`)
+      await page.addScriptTag({ content: weekScript })
+      await page.locator('[data-live-week] [data-testid="time-grid-hour-scroller"]').waitFor()
+      const scroller = page.getByTestId('time-grid-hour-scroller')
+      const geometry = await scroller.evaluate(async (element, { top, offset }) => {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+        element.scrollTop = top
+        element.scrollLeft = offset
+        let previous = element.scrollLeft
+        let stableFrames = 0
+        for (let frame = 0; frame < 120 && stableFrames < 4; frame++) {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+          stableFrames = element.scrollLeft === previous ? stableFrames + 1 : 0
+          previous = element.scrollLeft
+        }
+        const gutter = element.querySelector('[data-testid="time-grid-any-time-label"]')!.parentElement!.getBoundingClientRect()
+        const headers = [...element.querySelectorAll('[data-testid="time-grid-col-header"]')].map((header) => header.getBoundingClientRect())
+        const firstVisible = headers.find((header) => header.right > gutter.right + 0.5)!
+        return { left: firstVisible.left, gutterRight: gutter.right, top: element.scrollTop, stableFrames, offset: element.scrollLeft, columnWidth: firstVisible.width, lastRight: headers.at(-1)!.right }
+      }, { top, offset })
+      expect(geometry.stableFrames).toBe(4)
+      expect(geometry.left, JSON.stringify(geometry)).toBeCloseTo(geometry.gutterRight, 1)
+      expect(geometry.offset % geometry.columnWidth).toBeCloseTo(0, 1)
+      if (offset === 2) expect(geometry.offset).toBe(0)
+      else expect(geometry.offset).toBeGreaterThan(100)
+      if (offset === 10_000) expect(geometry.lastRight).toBeGreaterThan(geometry.gutterRight)
+      expect(geometry.top).toBe(top)
+    } finally { await page.close(); view.unmount() }
+  })
+
+  it.each([0, 6])('keeps the whole date reachable in oversized day %i at doubled text', async (column) => {
+    route.pathname = '/calendar'
+    const view = renderDestination(weekBody())
+    const page = await browser.newPage({ viewport: { width: 320, height: 640 } })
+    try {
+      await page.setContent(`<!doctype html><style>${stylesheet} :root { font-size: 32px }</style>${view.container.innerHTML}<script id="week-fixture" type="application/json">${JSON.stringify({ columns, dayMap: [...dayMap] })}</script>`)
+      await page.addScriptTag({ content: weekScript })
+      const date = page.locator('[data-live-week] [data-testid="time-grid-col-date"]').nth(column)
+      await date.waitFor()
+      const geometry = await date.evaluate(async (element) => {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+        element.scrollIntoView({ inline: 'center', block: 'nearest' })
+        for (let frame = 0; frame < 8; frame++) await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        const scroller = element.closest<HTMLElement>('[data-testid="time-grid-hour-scroller"]')!
+        const gutter = scroller.querySelector('[data-testid="time-grid-any-time-label"]')!.parentElement!.getBoundingClientRect()
+        const bounds = scroller.getBoundingClientRect()
+        const range = document.createRange()
+        range.selectNodeContents(element)
+        const text = range.getBoundingClientRect()
+        return { left: text.left, right: text.right, visibleLeft: gutter.right, visibleRight: bounds.left + scroller.clientWidth, offset: scroller.scrollLeft, columnWidth: element.parentElement!.getBoundingClientRect().width }
+      })
+      expect(geometry.left, JSON.stringify(geometry)).toBeGreaterThanOrEqual(geometry.visibleLeft)
+      expect(geometry.right, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.visibleRight)
+      expect(geometry.offset % geometry.columnWidth).toBeGreaterThan(1)
+    } finally { await page.close(); view.unmount() }
+  })
+
+  it('keeps every concurrent lane reachable inside an oversized day', async () => {
+    route.pathname = '/calendar'
+    const concurrent = new Map(columns.map(({ dateStr }) => [dateStr, Array.from({ length: 3 }, (_, index) => ({
+      habitId: `timed-${index}`, title: `Read ${index}`, dueTime: '08:00', status: 'upcoming' as const, isBadHabit: false, isOneTime: false,
+    }))]))
+    const view = renderDestination(weekBody(concurrent))
+    const page = await browser.newPage({ viewport: { width: 320, height: 640 } })
+    try {
+      await page.setContent(`<!doctype html><style>${stylesheet}</style>${view.container.innerHTML}<script id="week-fixture" type="application/json">${JSON.stringify({ columns, dayMap: [...concurrent] })}</script>`)
+      await page.addScriptTag({ content: weekScript })
+      const lanes = page.locator('[data-live-week] [data-testid="time-grid-day-column"]').nth(3).getByTestId('time-grid-event')
+      await lanes.first().waitFor()
+      for (const lane of await lanes.all()) {
+        const geometry = await lane.evaluate(async (element) => {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+          element.scrollIntoView({ inline: 'nearest', block: 'center' })
+          for (let frame = 0; frame < 8; frame++) await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+          const scroller = element.closest<HTMLElement>('[data-testid="time-grid-hour-scroller"]')!
+          const gutter = scroller.querySelector('[data-testid="time-grid-any-time-label"]')!.parentElement!.getBoundingClientRect()
+          const viewport = scroller.getBoundingClientRect()
+          const bounds = element.getBoundingClientRect()
+          return { left: bounds.left, right: bounds.right, visibleLeft: gutter.right, visibleRight: viewport.left + scroller.clientWidth, hit: element.contains(document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)) }
+        })
+        expect(geometry.left, JSON.stringify(geometry)).toBeGreaterThanOrEqual(geometry.visibleLeft)
+        expect(geometry.right, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.visibleRight)
+        expect(geometry.hit).toBe(true)
+      }
+    } finally { await page.close(); view.unmount() }
+  })
+
+  it.each((['wheel', 'scrollIntoView', 'keyboard'] as const).flatMap((input) => [600, 1080].map((top) => ({ input, top }))))('holds a settled $input position at $top through refetch and resize', async ({ input, top }) => {
+    route.pathname = '/calendar'
+    const view = renderDestination(weekBody())
+    const page = await browser.newPage({ viewport: { width: 412, height: 640 } })
+    try {
+      await page.setContent(`<!doctype html><style>${stylesheet}</style>${view.container.innerHTML}<script id="week-fixture" type="application/json">${JSON.stringify({ columns, dayMap: [...dayMap] })}</script>`)
+      await page.addScriptTag({ content: weekScript })
+      await page.locator('[data-live-week] [data-testid="time-grid-hour-scroller"]').waitFor()
+      const scroller = page.getByTestId('time-grid-hour-scroller')
+      const position = () => scroller.evaluate(async (element) => {
+        let previous = element.scrollLeft
+        let stableFrames = 0
+        for (let frame = 0; frame < 120 && stableFrames < 4; frame++) {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+          stableFrames = element.scrollLeft === previous ? stableFrames + 1 : 0
+          previous = element.scrollLeft
+        }
+        return { left: element.scrollLeft, top: element.scrollTop }
+      })
+      const opening = await position()
+      expect(opening.left).toBeGreaterThan(100)
+      if (input === 'wheel') { await scroller.hover(); await page.mouse.wheel(-400, 0) }
+      else if (input === 'scrollIntoView') await page.getByTestId('time-grid-col-header').first().evaluate((element) => element.scrollIntoView({ inline: 'start', block: 'nearest' }))
+      else { await page.getByTestId('time-grid-col-header').nth(3).focus(); await page.keyboard.press('ArrowLeft') }
+      await expect.poll(async () => (await position()).left).toBeLessThan(opening.left - 100)
+      await scroller.evaluate((element, top) => { element.scrollTop = top }, top)
+      const held = await position()
+      expect(held.left % 192).toBe(0)
+      expect(held.top).toBe(top)
+      await page.evaluate(() => document.dispatchEvent(new Event('week-refetch')))
+      await expect.poll(() => page.getByTestId('time-grid-all-day-more').count()).toBe(0)
+      expect(await position()).toEqual(held)
+      await page.setViewportSize({ width: 412, height: 560 })
+      expect(await position()).toEqual(held)
+      await scroller.evaluate((element) => { element.scrollTop = 120 })
+      expect((await position()).top).toBe(120)
+    } finally { await page.close(); view.unmount() }
+  })
 
   it('keeps the vertical offset when the day pane changes height', async () => {
     route.pathname = '/calendar'

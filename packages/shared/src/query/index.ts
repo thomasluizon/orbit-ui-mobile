@@ -28,6 +28,8 @@ export { attachNotificationPolling } from './notification-polling'
 export {
   restoreCachedHabitDetails,
   updateCachedHabitDetails,
+  invalidateHabitParentDetails,
+  findCachedHabitDetail,
   applyCachedHabitSkip,
   updateHabitListsForDate,
   updateCachedHabitLists,

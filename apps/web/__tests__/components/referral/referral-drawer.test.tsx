@@ -1,18 +1,23 @@
+import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (params) return `${key}:${JSON.stringify(params)}`
-    return key
-  },
-}))
+const translationState = vi.hoisted(() => ({ locale: '' }))
+vi.mock('next-intl', async (importActual) => {
+  const actual = await importActual<typeof import('next-intl')>()
+  return { ...actual, useTranslations: () => (key: string, params?: Record<string, string | number>) => {
+    if (translationState.locale) return (() => { const translate = actual.createTranslator({ locale: translationState.locale, messages: translationState.locale === 'en' ? en : ptBR }); return translate(key as Parameters<typeof translate>[0], params) })()
+    return params ? `${key}:${JSON.stringify(params)}` : key
+  } }
+})
 
 vi.mock('dompurify', () => ({
   default: { sanitize: (html: string) => html },
 }))
 
-let mockStats: { successfulReferrals: number; maxReferrals: number; pendingReferrals: number; discountPercent: number } | null = null
+let mockStats: { successfulReferrals: number; maxReferrals: number; pendingReferrals: number; discountPercent: number; rewardType?: string; proDaysPerReferral?: number } | null = null
 const mockReferralUrl = 'https://app.useorbit.org/ref/abc123'
 let mockIsLoading = false
 let mockIsError = false
@@ -33,6 +38,7 @@ import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } 
 
 describe('ReferralDrawer', () => {
   beforeEach(() => {
+    translationState.locale = ''
     document.body.innerHTML = ''
     Object.defineProperty(navigator, 'share', {
       configurable: true,
@@ -42,6 +48,22 @@ describe('ReferralDrawer', () => {
     mockIsLoading = false
     mockIsError = false
     mockError = null
+  })
+
+  it.each(['en', 'pt-BR'])('describes the real Pro-days offer and shares it in %s', (locale) => {
+    translationState.locale = locale
+    mockStats = { successfulReferrals: 8, maxReferrals: 10, pendingReferrals: 2, rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 23 }
+    const share = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'share', { configurable: true, value: share })
+    render(<ReferralDrawer open onOpenChange={vi.fn()} />)
+    const explanation = locale === 'en'
+      ? 'Invite someone to create an account with your link. If they log habits on three different days in their first week, you can earn 7 days of Pro.'
+      : 'Convide alguém a criar uma conta pelo seu link. Se a pessoa registrar hábitos em três dias diferentes na primeira semana, você pode ganhar 7 dias de Pro.'
+    expect(screen.getByText(explanation)).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('23%')
+    expect(document.body.textContent).not.toMatch(/Coupons earned|Cupons ganhos|56/)
+    fireEvent.click(screen.getByRole('button', { name: locale === 'en' ? 'Share link' : ptBR.referral.drawer.share }))
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining(locale === 'en' ? 'I can earn 7 days of Pro.' : 'Eu posso ganhar 7 dias de Pro.'), url: mockReferralUrl }))
   })
 
   it('renders nothing when closed', () => {
@@ -113,7 +135,7 @@ describe('ReferralDrawer', () => {
     expect(document.body.textContent).toContain('2')
   })
 
-  it('shows coupons earned when successful referrals > 0', () => {
+  it('keeps completions without claiming they are reward grants', () => {
     mockStats = {
       successfulReferrals: 3,
       maxReferrals: 10,
@@ -121,7 +143,8 @@ describe('ReferralDrawer', () => {
       discountPercent: 10,
     }
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
-    expect(screen.getByText('referral.drawer.couponsEarned')).toBeInTheDocument()
+    expect(screen.queryByText('referral.drawer.couponsEarned')).not.toBeInTheDocument()
+    expect(screen.getByText('3 / 10')).toBeInTheDocument()
   })
 
   it('shows disclaimer', () => {
@@ -132,8 +155,9 @@ describe('ReferralDrawer', () => {
       discountPercent: 15,
     }
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
-    expect(document.body.textContent).toContain('referral.drawer.disclaimer')
-    expect(document.body.textContent).toContain('"discount":15')
+    expect(document.body.textContent).toContain('referral.reward.eligibility')
+    expect(document.body.textContent).toContain('referral.reward.neutral')
+    expect(document.body.textContent).not.toContain('15%')
   })
 
   it('shows feedback when the native share operation rejects', async () => {
@@ -149,7 +173,7 @@ describe('ReferralDrawer', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('referral.drawer.actionFailed')
     expect(share).toHaveBeenCalledWith({
       title: 'referral.share.title',
-      text: undefined,
+      text: 'referral.share.neutral:{}',
       url: mockReferralUrl,
     })
   })
@@ -207,6 +231,30 @@ describe('ReferralDrawer', () => {
   it('does not invent discount copy before stats load', () => {
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
     expect(document.body.textContent).not.toContain('referral.drawer.howItWorks')
-    expect(document.body.textContent).not.toContain('referral.drawer.disclaimer')
+    expect(document.body.textContent).not.toContain('referral.reward.eligibility')
   })
+  it.each(referralCopyCases)('shows exact $locale reward prose and shares its matching offer', ({ locale, stats, invitation, explanation }) => {
+    translationState.locale = locale
+    mockStats = { successfulReferrals: 8, maxReferrals: 10, pendingReferrals: 2, ...stats }
+    const share = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'share', { configurable: true, value: share })
+    render(<ReferralDrawer open onOpenChange={vi.fn()} />)
+    expect(screen.getByText(explanation)).toBeInTheDocument()
+    expect(screen.getByText((locale === 'en' ? en : ptBR).referral.reward.eligibility)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: (locale === 'en' ? en : ptBR).referral.drawer.share }))
+    expect(share).toHaveBeenLastCalledWith({ title: (locale === 'en' ? en : ptBR).referral.share.title, text: invitation, url: mockReferralUrl })
+  })
+
+  it.each([undefined, 'future_reward', 'pro_days'])('keeps a loaded unknown or incomplete reward nonnumeric, kind %s', (rewardType) => {
+    translationState.locale = 'en'
+    mockStats = { successfulReferrals: 8, maxReferrals: 10, pendingReferrals: 2, rewardType, discountPercent: 23 }
+    const share = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'share', { configurable: true, value: share })
+    render(<ReferralDrawer open onOpenChange={vi.fn()} />)
+    expect(screen.getByText('Share your link to invite someone to Orbit.')).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/23%|Coupons earned/)
+    fireEvent.click(screen.getByRole('button', { name: en.referral.drawer.share }))
+    expect(share).toHaveBeenLastCalledWith({ title: en.referral.share.title, text: 'Join me on Orbit.', url: mockReferralUrl })
+  })
+
 })

@@ -5,7 +5,8 @@ import { createTokensV2 } from '@/lib/theme'
 import type { ProactiveItem } from '@orbit/shared/types'
 import { proactiveActionLabelKey } from '@orbit/shared/utils'
 import { useProactiveAction } from '@/hooks/use-proactive-action'
-import { Button } from '@/components/ui/pill-button'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 
 export function ProactiveAction({ item, acted, isOnline, onSend }: Readonly<{
   item: ProactiveItem
@@ -19,8 +20,8 @@ export function ProactiveAction({ item, acted, isOnline, onSend }: Readonly<{
   const { reason, allowance, act } = useProactiveAction(item, acted, isOnline, onSend)
   const label = item.actionLabel || t(proactiveActionLabelKey(item.trigger))
   const explanation = reason ? t(reason, { allowance }) : undefined
-  return <View style={{ alignItems: 'flex-start', gap: explanation ? 8 : 0, paddingVertical: 8 }}>
-    <Button variant="ghost" disabled={reason !== null} hint={explanation} onClick={act}>{label}</Button>
-    <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontSize: 14, lineHeight: 14 * 1.55, fontFamily: 'Geist_400Regular' }}>{explanation}</Text>
+  return <View style={{ alignItems: 'flex-start', gap: 8, paddingVertical: 8 }}>
+    <InsetFocusPressable accessibilityRole="button" accessibilityLabel={`${label}, ${t('nav.astra')}`} accessibilityHint={explanation} disabled={reason !== null} onPress={act} style={({ pressed }) => ({ minHeight: 48, maxWidth: '100%', gap: 8, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : tokens.bgWell, opacity: reason ? 0.5 : 1 })}><Text style={{ color: tokens.fg2, fontSize: 14, lineHeight: 20, fontFamily: 'Geist_400Regular' }}>{label}</Text><View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><AstraGlyph size={16} color={tokens.fg2} /><Text style={{ color: tokens.fg2, fontSize: 14 }}>{t('nav.astra')}</Text></View></InsetFocusPressable>
+    <Text accessibilityLiveRegion="polite" style={[{ color: tokens.fg2, fontSize: 14, lineHeight: 14 * 1.55, fontFamily: 'Geist_400Regular' }, !explanation ? { position: 'absolute', width: 0, height: 0 } : null]}>{explanation}</Text>
   </View>
 }

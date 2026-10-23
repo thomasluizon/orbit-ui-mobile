@@ -3,9 +3,12 @@ import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-q
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { verificationValidationResponses } from '@orbit/shared/test-support/validation-fixtures'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
-import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { normalizeHabitQueryData } from '@orbit/shared/utils'
+import { createMockHabit, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
+import TodayScreen from '@/app/(tabs)/index'
+import { useUIStore } from '@/stores/ui-store'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
@@ -14,6 +17,19 @@ import { ActivityIndicator } from 'react-native'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { __setFocusImpl } from '@/test-mocks/react-native'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
+
+const editorParentState = vi.hoisted(() => ({ detail: undefined as import('@orbit/shared/types/habit').HabitDetail | undefined, items: [] as import('@orbit/shared/types/habit').HabitScheduleItem[] }))
+beforeEach(() => { editorParentState.detail = undefined; editorParentState.items = [] })
+vi.mock('react-native', async (original) => {
+  const actual = await original<typeof import('react-native')>()
+  const React = await import('react')
+  return { ...actual, FlatList: React.forwardRef((props: React.ComponentProps<typeof actual.FlatList>, ref) => {
+    React.useImperativeHandle(ref, () => ({ scrollToOffset: () => {} }), [])
+    const renderSlot = (slot: unknown) => typeof slot === 'function' ? React.createElement(slot as React.ComponentType) : slot as React.ReactNode
+    const children = props.testID === 'habit-list-all' ? <>{renderSlot(props.ListHeaderComponent)}{Array.from(props.data ?? []).map((item, index) => <React.Fragment key={index}>{props.renderItem?.({ item, index, separators: { highlight: () => {}, unhighlight: () => {}, updateProps: () => {} } })}</React.Fragment>)}</> : props.children
+    return React.createElement(actual.FlatList, props, children)
+  }) }
+})
 
 const mutation = vi.hoisted(() => vi.fn())
 const suggestionMutation = vi.hoisted(() => vi.fn())
@@ -26,22 +42,29 @@ const habit = createMockHabit({ title: 'Walk every day' })
 const detailHabit = { ...makeHabitDetail(), title: 'Read', children: [], isGeneral: true, frequencyUnit: null, tags: [], linkedGoals: [], slipAlertEnabled: false, checklistItems: [{ text: 'Pack a bag', isChecked: true }, { text: 'Read a chapter', isChecked: false }] }
 vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: detailHabit, isLoading: false, isError: false, refetch: vi.fn() }),
+  useHabitCountLoaded: () => ({ count: 2, isLoaded: true }),
   useHabitLogs: () => ({ data: [] }),
   useHabitMetrics: () => ({ data: undefined, isLoading: false, isError: false }),
-  useHabits: () => ({ data: { habitsById: new Map(), topLevelHabits: [] }, isLoading: false, isError: false }),
+  useHabits: (filters: { isGeneral?: boolean }) => ({ data: normalizeHabitQueryData(editorParentState.items.filter((item) => item.isGeneral === !!filters.isGeneral)), isSuccess: true, isFetching: false, isLoading: false, isError: false, refetch: vi.fn() }),
 }))
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({ useRescheduleSuggestion: () => ({ suggestion: null, error: null }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 
 
 vi.mock('@/hooks/use-habits', () => ({
+  EMPTY_HABITS_BY_ID: new Map(), EMPTY_CHILDREN_BY_PARENT: new Map(), EMPTY_NORMALIZED_HABITS: [],
+  useHabits: () => { const items = editorParentState.items; const normalized = React.useMemo(() => normalizeHabitQueryData(items), [items]); return { data: normalized, isSuccess: true, isLoading: false, isError: false, refetch: vi.fn(), getChildren: (id: string) => (normalized.childrenByParent.get(id) ?? []).map((child) => normalized.habitsById.get(child)!) } },
+  useSkipHabit: () => ({ mutateAsync: completion, isPending: false }),
+  useDuplicateHabit: () => ({ mutateAsync: completion, isPending: false }),
+  useReorderHabits: () => ({ mutate: completion, isPending: false }),
+  useMoveHabitParent: () => ({ mutateAsync: completion, isPending: false }),
   useLogHabit: () => ({ mutateAsync: completion }),
   useUpdateChecklist: () => ({ mutateAsync: completion }),
   useDeleteHabit: () => ({ mutateAsync: completion }),
   useCreateHabit: () => useMutation({ mutationFn: mutation }),
   useCreateSubHabit: () => useMutation({ mutationFn: mutation }),
   useUpdateHabit: () => useMutation({ mutationFn: mutation }),
-  useHabitDetail: () => ({ data: null, isPending: false, error: null, refetch: detailRefetch }),
+  useHabitDetail: (id: string | null) => ({ data: editorParentState.detail && editorParentState.detail.id === id ? editorParentState.detail : null, isPending: false, error: null, refetch: detailRefetch }),
 }))
 vi.mock('@/hooks/use-date-interpretation', () => ({ useDateInterpretation: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({
@@ -52,7 +75,7 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { hasProAccess: true, uses24HourClock: true, timeZone: 'UTC', weekStartDay: 1, language: 'en' } }),
 }))
 vi.mock('@/hooks/use-config', () => ({
-  useConfig: () => ({ config: { features: { 'sub_habits': { enabled: true, planRequirement: 'Pro' } } } }),
+  useConfig: () => ({ config: { limits: { maxHabitDepth: 5 }, features: { 'sub_habits': { enabled: true, planRequirement: 'Pro' } } } }),
 }))
 vi.mock('@/hooks/use-tags', () => ({ useSuggestTags: () => ({ isPending: false, mutateAsync: vi.fn() }),
   useTags: () => ({ tags: [{ id: '11111111-1111-4111-8111-111111111111', name: 'Reading', color: '#C4530F' }] }),
@@ -74,7 +97,7 @@ const { act, create } = require('react-test-renderer') as typeof import('react-t
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
 
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
-vi.mock('expo-router', () => ({ useIsFocused: () => true, useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('expo-router', () => ({ useIsFocused: () => true, useFocusEffect: () => {}, usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }))
 
 async function renderSheet(mode: 'create' | 'edit', selectedHabit = habit) {
   const onClose = vi.fn()
@@ -191,6 +214,7 @@ describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
     expect(buttonState(submit).disabled).toBe(false)
     expect(onClose).not.toHaveBeenCalled()
     mutation.mockResolvedValue(habit)
+    if (mode === 'edit') detailRefetch.mockResolvedValueOnce({ isSuccess: true, data: { ...makeHabitDetail(), parentId: null } })
     await pressSubmit(submit)
     await settleMutation()
     expect(onClose).toHaveBeenCalled()
@@ -304,6 +328,7 @@ describe('controlled full editor checklist', () => {
       if (outcome === 'uncertain') expect(tree.root.findAll((node) => String(node.type) === 'Text' && node.props.children === 'habits.form.saveUncertain')).not.toHaveLength(0)
       await changeTitle(checklist, 'Explicit retry item')
       mutation.mockResolvedValueOnce(undefined)
+      if (outcome === 'uncertain') detailRefetch.mockResolvedValueOnce({ isSuccess: true, data: { ...makeHabitDetail(), parentId: null } })
       await pressSubmit(submit)
       await settleMutation()
       expect(mutation).toHaveBeenCalledTimes(2)
@@ -323,7 +348,7 @@ describe('controlled full editor checklist', () => {
     expect(suggestionMutation).toHaveBeenCalledOnce()
     await pressSubmit(submit)
     await settleMutation()
-    const emojiControl = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === (action === 'onSuggestEmoji' ? 'habits.form.emojiSuggesting' : 'habits.form.emojiSuggest'))[0]!
+    const emojiControl = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'habits.form.emoji: habits.form.askDate')[0]!
     expect(emojiControl.props.disabled).toBe(true)
     const helpers = tree.root.findAll((node) => node.type === HabitFormFields)[0]!.props.formHelpers as import('@/hooks/use-habit-form').HabitFormHelpers
     const submitted = helpers.form.getValues()
@@ -406,17 +431,25 @@ describe('controlled full editor checklist', () => {
   })
 })
 
-vi.mock('@/app/(tabs)/use-today-date', () => ({ useCurrentDate: () => '2026-08-29' }))
+vi.mock('@/app/(tabs)/use-today-date', () => ({ useCurrentDate: () => '2026-08-29', useTodayDate: () => ({ today: '2026-08-29', dateStr: '2026-08-29', selectedDate: new Date('2026-08-29T00:00:00Z'), dayName: 'Saturday', numericDate: '08/29/2026', nextDisabled: false, goToPreviousDay: vi.fn(), goToToday: vi.fn(), goToNextDay: vi.fn() }) }))
+vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => ({ requestFirstUsePermission: vi.fn() }) }))
+vi.mock('@/components/today/today-astra', () => ({ TodayAstra: () => null }))
+vi.mock('@/components/today/setup-checklist-card', () => ({ SetupChecklistCard: () => null }))
+vi.mock('@/components/referral/referral-drawer', () => ({ ReferralDrawer: () => null }))
+vi.mock('@/app/(tabs)/use-today-selection', () => ({ useTodaySelection: () => ({ selectedCount: 0, allSelected: false, clearSelection: vi.fn(), showBulkDeleteConfirm: false, setShowBulkDeleteConfirm: vi.fn(), confirmBulkDelete: vi.fn() }) }))
 vi.mock('@/components/shell/flow-shell', () => ({ FlowShell: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
 
 it('opens the real full editor from detail and stages checked-state structure before its single Save', async () => {
   mutation.mockReset().mockResolvedValue(undefined)
   completion.mockReset()
+  editorParentState.detail = { ...detailHabit, parentId: null }
+  editorParentState.items = [createMockHabitScheduleItem({ ...detailHabit, children: [] }), createMockHabitScheduleItem({ id: parentDestination, title: 'Completed off-day destination', isGeneral: true, frequencyUnit: null, isCompleted: true, children: [] })]
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   let tree!: ReactTestRenderer
   await act(() => { tree = create(<QueryClientProvider client={client}><HabitDetailScreen habitId="habit-1" /></QueryClientProvider>); return Promise.resolve() })
   const pencil = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'habits.editHabit')[0]!
   await act(() => { (pencil.props.onPress as () => void)(); return Promise.resolve() })
+  await chooseEditorParent(tree)
   const items = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.checklistItemLabel')
   void act(() => (items[0]!.props.onChangeText as (value: string) => void)('Pack a blue bag'))
   const remove = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'habits.form.removeChecklistItem')[1]!
@@ -429,6 +462,7 @@ it('opens the real full editor from detail and stages checked-state structure be
   expect(mutation).toHaveBeenCalledOnce()
   expect(mutation.mock.calls[0]![0].data.checklistItems).toEqual([{ text: 'Pack a blue bag', isChecked: true }])
   expect(completion).not.toHaveBeenCalled()
+  expect(mutation.mock.calls[0]![0].data.parentId).toBe(parentDestination)
   void act(() => tree.update(<></>))
 })
 
@@ -475,5 +509,139 @@ it('distinguishes accepted queued work from the confirmed-save callback', async 
   expect(showInfo).toHaveBeenCalledWith('habits.form.waitingToSync')
   expect(onClose).toHaveBeenCalledOnce()
   expect(onSaved).not.toHaveBeenCalled()
+  void act(() => tree.update(<></>))
+})
+
+const parentDestination = '22222222-2222-4222-8222-222222222222'
+function prepareParentEditor(parentId: string | null | undefined = null) {
+  const source = createMockHabit({ id: 'source-parent-edit', title: 'Read', scheduledDates: ['2026-08-29'], frequencyUnit: 'Day', startDate: '2026-08-20', checklistItems: [{ text: 'Same', isChecked: true }, { text: 'Same', isChecked: false }] })
+  editorParentState.detail = { ...source, parentId, children: [] }
+  editorParentState.items = [createMockHabitScheduleItem({ ...source, children: [] }), createMockHabitScheduleItem({ id: parentDestination, title: 'Completed off-day destination', frequencyUnit: null, isCompleted: true, scheduledDates: [], children: [] })]
+  return source
+}
+
+function pressNamed(tree: ReactTestRenderer, label: string, role?: string) {
+  const control = tree.root.findAll((node) => String(node.type) === 'Pressable' && ((typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.startsWith(label)) || node.findAll((child) => String(child.type) === 'Text' && child.props.children === label).length > 0) && (!role || node.props.accessibilityRole === role))[0]!
+  expect(control).toBeDefined()
+  void act(() => (control.props.onPress as () => void)())
+}
+
+async function chooseEditorParent(tree: ReactTestRenderer, name = 'Completed off-day destination') {
+  pressNamed(tree, 'habits.form.parentHabit')
+  await settleMutation()
+  pressNamed(tree, name, 'radio')
+  const picker = tree.root.findAll((node) => String(node.type) === 'Sheet' && node.props.title === 'habits.form.parentHabit')[0]!
+  const dismiss = picker.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss')[0]!
+  void act(() => (dismiss.props.onPress as () => void)())
+}
+
+it('stages the parent with checked order and all fields, then accepts one queued ordinary Update', async () => {
+  mutation.mockReset().mockResolvedValue(createQueuedAck('one-parent-update'))
+  completion.mockReset()
+  for (const write of Object.values(tagManagement)) write.mockReset()
+  const source = prepareParentEditor()
+  const { tree, title, submit, onSaved, onClose } = await renderSheet('edit', source)
+  await chooseEditorParent(tree)
+  await changeTitle(title, 'Read together')
+  expect(mutation).not.toHaveBeenCalled()
+  expect(completion).not.toHaveBeenCalled()
+  for (const write of Object.values(tagManagement)) expect(write).not.toHaveBeenCalled()
+  await pressSubmit(submit)
+  await settleMutation()
+  expect(mutation).toHaveBeenCalledOnce()
+  expect(mutation.mock.calls[0]![0].data).toMatchObject({ title: 'Read together', parentId: parentDestination, checklistItems: source.checklistItems, tagIds: [], goalIds: [], startDate: '2026-08-20' })
+  expect(mutation.mock.calls[0]![0].data).not.toHaveProperty('clearParent')
+  expect(onClose).toHaveBeenCalledOnce()
+  expect(onSaved).not.toHaveBeenCalled()
+  void act(() => tree.update(<></>))
+})
+
+it('discards a local parent choice on Cancel and reopens the authoritative baseline', async () => {
+  mutation.mockReset()
+  const { tree, onClose, setOpen } = await renderSheet('edit', prepareParentEditor())
+  await chooseEditorParent(tree)
+  const cancel = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === 'common.cancel').length > 0)[0]!
+  void act(() => (cancel.props.onPress as () => void)())
+  const discard = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === 'common.discardChangesAction').length > 0)[0]!
+  void act(() => (discard.props.onPress as () => void)())
+  expect(onClose).toHaveBeenCalledOnce()
+  expect(mutation).not.toHaveBeenCalled()
+  await setOpen(false)
+  await setOpen(true)
+  const field = tree.root.findAll((node) => String(node.type) === 'Pressable' && String(node.props.accessibilityLabel).startsWith('habits.form.parentHabit'))[0]!
+  expect(field.props.accessibilityLabel).toContain('habits.moveParent.toRoot')
+  void act(() => tree.update(<></>))
+})
+
+it.each([null, undefined])('preserves untouched parent keys with baseline %s', async (parentId) => {
+  mutation.mockReset().mockResolvedValue(undefined)
+  const source = prepareParentEditor(parentId)
+  if (parentId === undefined) editorParentState.detail!.parentId = undefined
+  const { tree, submit } = await renderSheet('edit', source)
+  await pressSubmit(submit)
+  await settleMutation()
+  expect(mutation).toHaveBeenCalledOnce()
+  expect(mutation.mock.calls[0]![0].data).not.toHaveProperty('parentId')
+  expect(mutation.mock.calls[0]![0].data).not.toHaveProperty('clearParent')
+  void act(() => tree.update(<></>))
+})
+
+it('sends explicit clear while keeping a chosen root across a late read', async () => {
+  mutation.mockReset().mockResolvedValue(undefined)
+  const { tree, submit, title } = await renderSheet('edit', prepareParentEditor(parentDestination))
+  await chooseEditorParent(tree, 'habits.moveParent.toRoot')
+  editorParentState.detail = { ...editorParentState.detail!, parentId: '33333333-3333-4333-8333-333333333333' }
+  await changeTitle(title, 'Keep local root')
+  await pressSubmit(submit)
+  await settleMutation()
+  expect(mutation).toHaveBeenCalledOnce()
+  expect(mutation.mock.calls[0]![0].data).toMatchObject({ clearParent: true, title: 'Keep local root' })
+  expect(mutation.mock.calls[0]![0].data).not.toHaveProperty('parentId')
+  void act(() => tree.update(<></>))
+})
+
+it('opens the actual complete editor through Today row menu, TodayModals and one Save', async () => {
+  mutation.mockReset().mockResolvedValue(undefined)
+  completion.mockReset()
+  prepareParentEditor()
+  useUIStore.setState({ activeView: 'all', isSelectMode: false })
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  let tree!: ReactTestRenderer
+  await act(() => { tree = create(<QueryClientProvider client={client}><TodayScreen /></QueryClientProvider>); return Promise.resolve() })
+  expect(tree.root.findAll((node) => String(node.type) === 'Pressable').map((node) => node.props.accessibilityLabel)).toContain('habits.actions.more')
+  pressNamed(tree, 'habits.actions.more')
+  await settleMutation()
+  pressNamed(tree, 'common.edit')
+  await settleMutation()
+  const items = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.checklistItemLabel')
+  expect(items).toHaveLength(2)
+  await chooseEditorParent(tree)
+  expect(mutation).not.toHaveBeenCalled()
+  expect(completion).not.toHaveBeenCalled()
+  const save = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === 'common.save').length > 0)[0]!
+  await pressSubmit(save)
+  await settleMutation()
+  expect(mutation).toHaveBeenCalledOnce()
+  expect(mutation.mock.calls[0]![0].data.parentId).toBe(parentDestination)
+  void act(() => tree.update(<></>))
+})
+
+it('keeps the complete parent draft after a definitive destination refusal without another write', async () => {
+  const { createApiClientError } = await import('@orbit/shared/utils')
+  mutation.mockReset().mockRejectedValue(createApiClientError(409, { error: 'Conflict' }, 'Conflict'))
+  completion.mockReset()
+  detailRefetch.mockClear()
+  const { tree, submit, title, onClose } = await renderSheet('edit', prepareParentEditor())
+  await chooseEditorParent(tree)
+  await changeTitle(title, 'Retained title')
+  await pressSubmit(submit)
+  await settleMutation()
+  expect(mutation).toHaveBeenCalledOnce()
+  expect(completion).not.toHaveBeenCalled()
+  expect(detailRefetch).not.toHaveBeenCalled()
+  expect(onClose).not.toHaveBeenCalled()
+  expect(title.props.value).toBe('Retained title')
+  const field = tree.root.findAll((node) => String(node.type) === 'Pressable' && String(node.props.accessibilityLabel).startsWith('habits.form.parentHabit'))[0]!
+  expect(field.props.accessibilityLabel).toContain('Completed off-day destination')
   void act(() => tree.update(<></>))
 })

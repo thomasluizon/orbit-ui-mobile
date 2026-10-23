@@ -4,7 +4,7 @@ import { SPACING } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { ArrowUpRight } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
+import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import type { MessageBubbleProps } from '@orbit/shared/chat'
 import { getMessageBubbleView, getMessageBubbleOperations } from '@orbit/shared/chat'
 
@@ -21,9 +21,9 @@ import { ChatBlock } from './block-registry'
 export function MessageBubble(props: Readonly<MessageBubbleProps & { senderLabelId?: string }>) {
   const { message, blockAnswerInteraction, animateEntry, onBreakdownConfirmed, onActionChipClick, senderLabelId } = props
   const t = useTranslations()
-  const router = useRouter()
+  const navigate = useChatNavigation()
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
-  const { isUser, parts, relatedSurfaces, nonSuggestionActions, suggestions, outcomes } = getMessageBubbleView(props, dismissedBreakdowns)
+  const { isUser, parts, showUnreadableReply, relatedSurfaces, nonSuggestionActions, suggestions, outcomes } = getMessageBubbleView(props, dismissedBreakdowns)
   const operations = getMessageBubbleOperations(props, useChatStore.getState().transitionMessage)
   function dismissBreakdown(key: string) {
     setDismissedBreakdowns(previous => new Set([...previous, key]))
@@ -46,6 +46,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps & { senderLabel
           {isUser ? t('chat.senderYou') : t('chat.senderOrbit')}
         </span>
 
+        {showUnreadableReply ? <p role="status" className="text-sm text-[var(--fg-2)]">{t('chat.unreadableReply')}</p> : null}
         {parts.map(part => {
           if (part.type === 'block') return <ChatBlock key={part.key} part={part.part} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={part.expired} onActionChipClick={onActionChipClick} />
           return <div
@@ -87,7 +88,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps & { senderLabel
                 <button
                   key={surface.id}
                   type="button"
-                  onClick={() => router.push(surface.webRoute)}
+                  onClick={() => navigate(surface.webRoute)}
                   className="chip focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
                 >
                   {t(surface.labelKey)}

@@ -28,6 +28,7 @@ const FEATURE_FLAGS_OVERRIDE = `    val reactNativeFeatureFlagsProvider: ReactNa
     val featureFlagsReadBeforeOverride =
       ReactNativeFeatureFlags.dangerouslyForceOverride(
         object : ReactNativeFeatureFlagsProvider by reactNativeFeatureFlagsProvider {
+          override fun enableKeyEvents(): Boolean = true
           override fun enableImperativeFocus(): Boolean = true
         }
       )

@@ -209,6 +209,7 @@ export function normalizeHabitDetailForDrill(
     null,
     today,
   )
+  parent.parentId = detail.parentId ?? null
   parent.createdAtUtc = detail.createdAtUtc
   parent.position = detail.position ?? 0
   parent.reminderEnabled = detail.reminderEnabled

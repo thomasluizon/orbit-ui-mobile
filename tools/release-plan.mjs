@@ -4,7 +4,8 @@ import { pathToFileURL } from "node:url"
 
 const USAGE = `usage: release-plan.mjs [--environment production|staging|production-redesign] [--branch <name>] [--track internal|open|production]
 
-List commits not yet released to production or staging. Staging reads live Render state.
+List commits not yet released to production or staging, with planned SHAs and pinned dispatch commands.
+Staging reads live Render state.
 The default environment is production. The default Android track is open for production
 and internal for staging. Staging requires --branch.
 production-redesign plans only web from redesign/main and accepts no --track. Set RENDER_MCP_TOKEN for Render reads.
@@ -187,7 +188,13 @@ export async function planRelease(client = githubClient, environment = "producti
   }
   const services = environment === "production-redesign" ? SERVICES.filter((service) => service.name === "web") : SERVICES
   const planned = await Promise.all(services.map((service) => planService(client, service, environment, branch, serviceIds, track)))
-  return { environment, branch, services: planned }
+  return { environment, branch, services: planned.map((service) => ({
+    ...service,
+    plannedSha: service.headSha,
+    ...(service.name !== "android" ? {
+      dispatchCommand: `gh workflow run release.yml --repo ${OWNER}/${service.repo} --ref main -f environment=${environment} -f branch='${branch}' -f sha=${service.headSha}`,
+    } : {}),
+  })) }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

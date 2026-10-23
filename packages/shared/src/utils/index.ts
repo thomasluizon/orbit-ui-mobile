@@ -333,6 +333,7 @@ export {
   resolveCalendarEventsDisplayState,
   calendarEntryOutcome,
   isCalendarGridScrollMovement,
+  resolveCalendarGridOpeningScroll,
   orderCalendarDayEntries,
 } from './calendar-entries'
 export type { CalendarEventsDisplayState } from './calendar-entries'
@@ -388,7 +389,7 @@ export {
 } from './time-field'
 export { buildPreferencePickerModel } from './preference-picker'
 export type { PreferencePicker, PreferencePickerModel, PreferencePickerValues } from './preference-picker'
-export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode, withShareLinkOrigin } from './referral'
+export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode, withShareLinkOrigin, selectReferralReward, REFERRAL_REWARD_COPY_KEYS, type ReferralReward } from './referral'
 export {
   canRepeatOnboardingScheduleWeeks,
   clampOnboardingRepeatWeeks,
@@ -829,3 +830,5 @@ export { getHabitChecklistProgress } from './habit-checklist-progress'
 
 export { getHabitInlineDepthLimit } from './habit-row-layout'
 export type { MoveParentOption, MoveParentPickerProps, MoveParentRowProps, MoveTargetValidation } from './move-parent'
+
+export { optimisticMoveHabitParent } from './habit-parent-optimistic'

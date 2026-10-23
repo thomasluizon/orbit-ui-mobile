@@ -7,6 +7,7 @@ import {
 import {
   restoreCachedHabitDetails,
   updateCachedHabitDetails,
+  invalidateHabitParentDetails,
   habitKeys,
   invalidateBulkMoveParentQueries,
   goalKeys,
@@ -713,7 +714,7 @@ export function useUpdateHabit() {
         payload: request,
         entityType: 'habit',
         targetEntityId: habitId,
-        dependsOn,
+        dependsOn: [...(dependsOn ?? []), ...(data.parentId ? [data.parentId] : [])],
       })
     },
 
@@ -723,16 +724,20 @@ export function useUpdateHabit() {
       await Promise.all([
         queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
         queryClient.cancelQueries({ queryKey: habitKeys.details() }),
-        queryClient.cancelQueries({ queryKey: habitKeys.fullDetail(habitId) }),
+        queryClient.cancelQueries({ queryKey: data.parentId != null || data.clearParent === true ? habitKeys.fullDetails() : habitKeys.fullDetail(habitId) }),
       ])
 
       if (!account.stillCurrent()) throw new Error('Account changed')
       const previousLists = snapshotHabitLists(queryClient)
       const patch = buildOptimisticHabitPatch(queryClient, data)
-      updateHabitLists(queryClient, (items) =>
-        optimisticPatchHabit(items, habitId, patch),
-      )
-      const previousDetails = updateCachedHabitDetails(queryClient, (habit) => habit.id === habitId ? patch : {})
+      const parentId = data.clearParent === true ? null : data.parentId ?? undefined
+      const parentChange = parentId === undefined ? undefined : { habitId, parentId }
+      const previousDetails = updateCachedHabitDetails(queryClient, (habit) => habit.id === habitId
+        ? { ...patch, ...(parentChange ? { parentId } : {}) } : {}, parentChange)
+      updateHabitLists(queryClient, (items) => {
+        const patched = optimisticPatchHabit(items, habitId, patch)
+        return parentChange ? optimisticMoveHabitParent(patched, habitId, parentChange.parentId, true) : patched
+      })
 
       return { previousLists, previousDetails, account }
     },
@@ -745,9 +750,10 @@ export function useUpdateHabit() {
       if (context?.previousDetails) restoreCachedHabitDetails(queryClient, context.previousDetails)
     },
 
-    onSettled: (data, error, { habitId, account }) => {
+    onSettled: (data, error, { habitId, account, data: request }, context) => {
       if (account && !account.stillCurrent()) return
-      return finalizeHabitMutation(queryClient, data, error, { habitId, includeProfile: true })
+      if (!error && !isQueuedResult(data) && (request.parentId != null || request.clearParent === true)) invalidateHabitParentDetails(queryClient, context?.previousDetails, habitId)
+      return finalizeHabitMutation(queryClient, data, error, { habitId, includeProfile: true, includeCount: true })
     },
   })
   return {

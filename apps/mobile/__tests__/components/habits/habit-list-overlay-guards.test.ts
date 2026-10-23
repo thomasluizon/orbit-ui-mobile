@@ -59,7 +59,10 @@ describe('habit list overlay caller guards', () => {
     const habitList = source('components/habit-list.tsx')
     expect(caller).toMatch(overlay.mount)
     expect(caller).toContain(overlay.firstLine)
-    if (overlay.name === 'move parent sheet') expect(caller).toContain('virtualizedBody')
+    if (overlay.name === 'move parent sheet') {
+      expect(caller).toContain('virtualizedBody')
+      expect(caller).toContain("selectionOnly ? t('habits.form.parentHabit')")
+    }
     else expect(caller).not.toMatch(/<ScrollView\b|<FlatList\b/)
     expect(sheet.indexOf('const header =')).toBeLessThan(sheet.indexOf('<KeyboardAwareSheetScrollView'))
     expect(habitList).not.toContain('onConfirmSkip=')

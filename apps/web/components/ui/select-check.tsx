@@ -45,7 +45,7 @@ function RadioRowContent({ label, selection, hideMeta, wrapLabel, textMode, desc
   const supportingReason = Boolean(disabled && textMode === 'personal' && reason)
   const title = <>
       {leading ? <span data-slot="list-row-icon" className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[var(--r-well)]">{leading}</span> : null}
-      <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
+      <span className="flex min-w-0 flex-1 flex-col justify-center" style={radioTextBlockStyle(wrapLabel)}>
         {textMode === 'personal' ? <PersonalText data-slot="list-row-title" id={contentId} expanded={disabled ? disclosed : selected} onKeyDown={(event) => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) event.stopPropagation() }} style={{ color: personalColor, fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: 1.4 }}>{label}</PersonalText> : <span data-slot="list-row-title" style={{ color: optionColor, fontFamily: 'var(--font-sans)', ...radioLabelStyle(wrapLabel) }}>{label}</span>}
         {description ? <span className="orbit-radio-row-secondary" style={{ color: secondaryColor, fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.4 }}>{description}</span> : null}
         {!supportingReason && disabled && reason ? <span style={{ color: secondaryColor, fontFamily: 'var(--font-sans)', fontSize: 12, lineHeight: 1.4 }}>{reason}</span> : null}
@@ -71,10 +71,19 @@ function RadioRowMetadata({ meta, hideMeta, tag, secondaryColor, supportingReaso
   return supportingReason ? <span className="flex min-w-0 flex-wrap items-center" style={{ gap: SPACING.s12 }}>{metadata}</span> : metadata
 }
 
-function radioRowStyle(depth: number, selected: boolean, disabled: boolean, wrapLabel: boolean | undefined, proposed = false): CSSProperties {
+function radioTextBlockStyle(wrapLabel: boolean | undefined): CSSProperties {
+  return { gap: SPACING.s4, minHeight: wrapLabel ? 24 : undefined }
+}
+
+function radioRowStyle(depth: number, selected: boolean, disabled: boolean, proposed: boolean, wrapLabel: boolean | undefined, leading: ReactNode): CSSProperties {
   return {
     gap: 12,
-    alignItems: wrapLabel ? 'flex-start' : undefined,
+    display: wrapLabel ? 'grid' : undefined,
+    gridTemplateColumns: wrapLabel ? `${leading ? 'auto ' : ''}minmax(0, 1fr)` : undefined,
+    gridAutoFlow: wrapLabel ? 'column' : undefined,
+    gridAutoColumns: wrapLabel ? 'auto' : undefined,
+    alignContent: 'center',
+    alignItems: wrapLabel ? 'start' : 'center',
     minHeight: 52,
     paddingBlock: SPACING.s8,
     paddingInlineStart: ROW_INDENTS[Math.min(5, Math.max(0, Math.trunc(depth)))],
@@ -97,7 +106,7 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
   const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled, onSelect, selected })
   const secondaryColor = selected ? 'var(--fg-2)' : 'var(--radio-row-secondary,var(--fg-3))'
   const content = <RadioRowContent label={label} selection={selection} hideMeta={hideMeta} wrapLabel={wrapLabel} textMode={textMode} description={description} selected={selected} leading={leading} meta={meta} tag={tag} disabled={disabled} reason={reason} secondaryColor={secondaryColor} contentId={contentId} disclosed={disclosed} proposed={proposed} />
-  const style = radioRowStyle(depth, selected, disabled, wrapLabel, proposed)
+  const style = radioRowStyle(depth, selected, disabled, proposed, wrapLabel, leading)
   const accessibilityLabel = textMode === 'personal' || hideMeta
     ? [label, description, meta, tag, disabled ? reason : null].filter(Boolean).join(', ')
     : undefined

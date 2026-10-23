@@ -3,6 +3,44 @@
 > **At a glance** - the granted canvas export and design tokens for every redesign surface.
 > Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
 
+### Form presentation and Astra affordance amendment (#1607)
+
+Type stays first. Short RadioRow content centres within the existing 52px minimum; wrapped
+labels grow with first-line glyph alignment. The growing name starts at the standard 54px field
+minimum, with identical mirror/input metrics. One Description field follows immediately, before
+emoji, understanding, proposals and More details, retaining its full value and validation owner.
+Description shares the name field's leading edge; disclosure labels retain their own inset.
+When / Quando retains its question and manual picker, with In your own words / Escreva do seu jeito
+as the phrase placeholder. The picker owns its selected value without a second ordinary readback.
+
+Actual request actions and conversation entries show the canonical Astra glyph beside visible
+Astra wording within the same target. Context-specific requests reuse Ask Astra / Consultar Astra;
+reschedule entry uses Reschedule with Astra / Reagendar com a Astra. Follow-up and proactive targets
+retain their specific text. Complete ideas send; slotted ideas only prepare a draft. Composer entry
+and send remain distinct, with input width and wrapping preserving every action at enlarged text.
+The composer reserves its text-action target when allowance disables that action, including when
+paste and clear move into the attachment menu. Near-limit and exhausted states keep the same
+frame and input position before and after text measurement; the real status slot retains its
+96px minimum and grows with its content. Unavailable actions add no hidden focus target.
+Both platforms give the persistent input label, which matches the idle prompt, an intrinsic sizing
+owner with the input's font and inline padding before wrapping named controls. Web carries this
+owner in server markup and its first client layout. Controls bottom-align on their actual visual
+line; the last line keeps the field's 4px bottom inset. Menu fit measures the physical reserved
+action slot once in every state, including after font and width changes. Disabled state prompts
+retain their separate fit check.
+When the entry shares the input's visual line, the text start keeps the 4px pill inset plus the
+measured entry width plus 8px input padding, in both empty and populated fields. Without an entry
+on that line, the text start is 12px from the pill edge.
+Live chip action text and Astra attribution share one wrapping text flow beside the canonical
+mark, retaining the complete default action line and first-line alignment at enlarged text.
+The send progress slot stays reserved; its spinner runs only while sending.
+Pill actions retaining the Astra glyph reserve a trailing status slot. A moving loader mounts only
+while busy; an idle action carries no looping status animation, including while focused.
+Loading, offline, limit, proposal, validation and manual recovery states retain their guards.
+This amendment supersedes the glyph-removal inventory below only for invocation/entry controls;
+static headings, attribution, plan facts and deterministic acceptance keep their current treatment.
+Paired callback dispositions and verification boundaries are in `design/habit-form-surfaces.md`.
+
 ### Habit detail read and draft amendment
 
 `Orbit Habit Detail.dc.html` replaces inline rename/settings with one type-aware pencil opening the
@@ -22,6 +60,17 @@ failure retains the source and offers Retry. Copy description copies the origina
 one Check on success and announces it once through visually hidden localized feedback. Copy errors
 and manual-selection guidance remain visible. Account or description replacement clears feedback.
 This amendment does not make row previews interactive or add a Markdown renderer.
+
+
+### Full-editor parent relationship
+
+The edit state of `Orbit Habit Create.dc.html` adds Parent habit / Hábito principal beside tags
+and goals inside More details. Its existing ListRow opens the existing radio sheet with exact
+No parent (top level) / Sem hábito principal (nível raiz), current selection and full destination
+names. Choosing and closing retain a local relationship draft. Only the outer Save persists it;
+outer Cancel discards it. No immediate-move verb or second submit action appears in the picker.
+Type, title, description, dates and the existing pinned Save/Cancel keep their composition.
+`habit-form-surfaces.md` records complete inventory, unknown-parent and queue boundaries.
 
 ### Email sign-in entry amendment
 
@@ -65,6 +114,26 @@ supporting footer serves enlarged text, the measured inline depth boundary and m
 with first-title-line controls; ordinary default rows retain whole-row centring. This production
 composition amendment adds no unused drawing prop or checklist action.
 
+### Focused read block amendment
+
+`Orbit Astra Conversation` adds `periodTotal`, `periodComparison`, `history`, `read stale` and
+`read partial` to its existing state controls at compact and wide widths in both locales.
+A total has one supplied figure, its unit and resolved dates. A comparison has both windows,
+their supplied values and absolute delta; a zero baseline has no relative percentage.
+History uses dated rows, including zero-valued logs, with the existing Show more and Refresh.
+The number role, BlockFrame rows, ghost actions, neutral chart and existing tokens are reused.
+No new primitive, token, colour, radius, shadow, font, effect or chart type is introduced.
+
+Saved figures and records retain their query scope. Current completion and navigation eligibility
+are independent. Signed refresh replaces that query's snapshot; signed paging retains its revision.
+One compact state carries stale, partial or failed recovery. Recap detail opens through Show more,
+including saved stale recaps. Read-only disclosure and valid navigation share the existing footer
+action row with Refresh; signed paging waits for refresh. Write-preview execution stays withheld.
+Recap disclosure retains the supplied current and longest streak figures with its narrative and
+habit rows. Show less returns to the focused figures. Expanded state and a card-local polite live
+region announce disclosure on web and Android, replacing the former page-position announcement.
+The paired owners and verification boundaries are in `design/astra-preview-surfaces.md`.
+
 ## The authority
 
 **Thomas granted this export on 2026-08-25**, which is what gives it authority. `DESIGN.md` records
@@ -77,13 +146,17 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
+| #1607 | Balanced type choices, compact growing name, description immediately after name, natural-date prompt and canonical Astra identification on real request/entry targets | Explicit form presentation and action attribution order; request, acceptance, draft and save owners remain unchanged. |
+| #1619 focused totals and comparisons | A supplied number, unit and resolved window; two comparison windows, their values and supplied delta, without relative percentages for a zero baseline | A read answers its requested metric and dates. |
+| #1619 history and recovery | Dated rows retain zero values, signed paging and exact-query refresh; stale and partial reads use one compact state | Snapshot display stays separate from current action eligibility. |
 | #1587 | Hoje rows carry actual visible depth with one 16px step per ancestor after the 8px root inset. Well, title and supporting metadata cascade together. Measured content width and scaled title space determine the narrow boundary, accounting for shell scrollbars and safe-area gutters. Boundary rows use the full-width supporting metadata footer with first-title-line controls, and the existing drill; drill resets local depth and detail children use depth 1 once | Expanded grandchildren must remain visibly subordinate to their parents without shrinking controls or flattening adjacent levels. |
 | #1588 | Hoje canonical rows restore stored plain text description previews below the title and before metadata, at Geist Sans 14/400 and line height 1.55 with a 4px stack gap. Normal text uses one naturally ellipsized line; above 130% text, up to two lines grow the row. Empty normalized text adds no line. Body feedback replaces the complete radius-20 row fill; sibling actions including selection paint independently and the check centres on the resulting normal row. The painted web row owns reversible 380ms background/outline hover feedback, with a strong hairline and immediate press/reduced-motion feedback | The explicitly requested preview restores stored content through the existing detail path without a new action or request. The active drawing amendment preserves 17/14 titles, the single depth inset and large-text supporting metadata. |
 | Astra blocks in place | `Orbit Astra Conversation` combines the day ring with up to 20 live habit rows and in-place logging; calendar EventRow actions open Calendários with one event selected for import review; streak keeps DayStrip and a read-only FreezeBank linking to Sequência; goals use ProgressBar, tracking badges and named derived sources; metrics keeps BarChart with at most three StatTile figures. The pt-BR stale line reads `A manhã mudou desde que a Astra montou este bloco.` | Blocks reuse their app actions and live state. This supersedes the drawing's goal rings, metrics note excluding a chart, and masculine reference to Astra in the stale line. |
 | #1471 | `Orbit Progresso` and `Orbit Astra Conversation` use selectable full-height BarChart columns with no slider or horizontal scroll. Each target is its full column, at least the shared 48 touch floor in height, edge to edge with its neighbours. Today opens selected; only the selection uses `--fg-1`, others use `--fg-2`. A short weekday/date, percentage and done count follow the selection above the bars, clamped within the chart. Zero and unscheduled days draw a 4px stub; unscheduled days say so. First/last dates and the figure rows remain | Selecting a column ties the readout to its day. This control supersedes the detached slider and the drawing note excluding a chart from Astra metrics. |
 | #1483 | Astra choice blocks use one column of radio or checkbox options and explicit Send; labels up to 20 characters and descriptions up to 24 each fit one line at default text size. Above font scale 1.3 or web text zoom 130%, rows grow and text may wrap; never ellipsize at 200% text. Pick list habit names use the full available row width, at most two lines then an ellipsis with the complete accessible name and one-tap label expansion independent of its checkbox; detail fits one line at default text size. Review prepares the existing approval preview. | Selected labels use `--fg-1`, resting labels `--fg-2`; one status line follows the trailing action. Selections use `Intl.ListFormat`, and no answer action writes. Identical answer recovery stays available at the limit and refreshes server usage. |
 | #1479 | Astra replies interleave text and block parts in server order, with at most one write preview per reply; unknown block kinds are skipped | Text streams before whole blocks arrive, keeping the first text position, the 16 gap, selectable prose and independent code-block copy controls. |
-| Astra ideas library | A second full view in the conversation layer uses AppBar back, persistent search, one scrolling category chip row, eight-row result pages, SectionLabel headings and ListRow ideas; the conversation header adds a 48 browse icon and the empty thread adds one ghost browse action; live suggestions become rows, Calendar requires Pro and Google, slots preserve drafts, and Escape or Android back returns focus to the entry | This amendment specifies the library without a separate drawing and makes routine, bulk and restart requests discoverable. |
+| Astra ideas library (#1611) | [Orbit Astra Ideas.md](Orbit%20Astra%20Ideas.md) specifies neutral radius-20 action cards with 16px record insets, inline intent icons and twelve translated prompt examples; live supplied-icon actions are unframed and hidden during search. Complete requests carry plain Astra attribution; slots only prepare the composer. One column at phone and wide widths retains the AppBar, labelled search, one category strip, eight-idea pages and accessible category names | The bounded composition improves recognition while preserving all 36 prompts, callbacks, draft retention, Calendar Pro + Google gating, load recovery and focus navigation. |
+| Habit ranking block | `Orbit Astra Conversation` uses one BlockFrame, resolved date lines, ListRow ranks and names, localized completion counts, Show more and Refresh. Paging appends server rows and keeps query identity; one inline status carries recovery | Reuses the existing frame, rows, formatting, actions and tokens without a chart, totals, introduction or repeated figures. |
 | #1366 | Hoje date paging spans the content column: 48px arrow targets at its leading and trailing edges, day title and date centred between equal 12px gaps, in both compact and wide drawings | The placement uses the content-column centre and preserves the shell inset, full date labels and shared touch floor. |
 | #1335 | Sobre legal pages keep the short Privacidade/Privacy and Termos/Terms headers; prose titles select the privacy and terms row labels in sentence case | Each prose title names its own document. Web and Android use separate header and document titles matching the Sobre rows. |
 | Week time grid | Named timed blocks with status rings, per-day any-time chips and +N, natural short weekdays, one today date disc, one hour scroller and opening near now | The owner's report supersedes #1148 and adopts the Google Calendar week pattern. |
@@ -99,7 +172,7 @@ that disagrees with production is a trap rather than an authority.
 | #1288 | Calendário shares one centred navigation row across all four views; span titles are borderless mono controls that return to today, and Agenda rows carry a time or no-time value, a status ring and entry details | Agenda keeps day order stable, lists no-time habits before timed habits and builds the today heading from one localized template. |
 | #1107 | `Orbit Pro`: outcomes move into each tier card, and loaded cards hug their content | The owner's decision puts the four Pro outcomes on each tier and removes the separate outcomes list. Price-loading reservations belong only to the loading state. |
 | Hoje one Astra slot | Web and Android show one slot below the habit-view switch and above the date in Hoje only: unread proactive check-in, otherwise returning guidance, otherwise the daily summary. The summary's first sentence opens its full text as Astra's newest conversation message, preserving earlier turns. Loading, retry and the free plan's upgrade path use the same slot. One 20px glyph, one padded target at least 48 high and at most two prose lines | Supersedes the separate summary block. Hoje carries no second insight, AI badge, expand action or round Astra button. Only the way in and this slot carry the glyph outside the conversation. |
-| Hoje composer | A one-line pill with inside Astra glyph, input, + menu and send appears on Hoje and habit detail; Hoje chips move into the conversation and habit detail chips stay in one scroll row; Calendário, Progresso and Perfil clear the bottom | The front door stays visible on Hoje and habit detail. An open conversation and disclosure preserve state. |
+| Hoje composer | A growing pill with inside Astra glyph and name, input, + menu and named Astra send appears on Hoje and habit detail; Hoje chips move into the conversation and habit detail chips stay in one scroll row; Calendário, Progresso and Perfil clear the bottom | The front door stays visible on Hoje and habit detail. An open conversation and disclosure preserve state. |
 | Onboarding final Pro step | Onboarding ends with the free Pro trial step, or the Orbit Pro paywall for an account not on a trial; paid Pro finishes normally | The owner’s decision replaces D69 item 17 and the Onboarding drawing’s no-plan and no-price rules for that final step only. |
 | Light transparent hover | `--p-l-hover` uses `rgba(9,9,11,0.11)`; supporting text under the fill uses `fg-2` | The step measures 1.271:1 over white and 1.276:1 over the canvas. |
 | Light empty track | `--p-l-track-empty` uses `#7E7E82`; `--status-empty` retains this neutral at rest and under hover | Constant OKLCH hue and chroma with lower lightness clears 3.036:1 on canvas hover, 3.180:1 on card-child hover and 3.052:1 on canvas selection, while staying between `fg-3` and `fg-4`. |
@@ -145,12 +218,43 @@ Vitest covers chart behavior, column geometry and edge readouts on both platform
 mount the owning Progresso composition at 320, 412 and 1352. The layout workflow owns whole-page evidence;
 TalkBack and real Android text rendering remain device-verification boundaries.
 
+### Habit ranking block amendment
+
+The ranking composition in `Orbit Astra Conversation.dc.html` uses the existing BlockFrame and
+ListRow structures. The frame has no header count. Its body starts with separate first and last
+date lines, both including the year; the last date is the day before the exclusive API boundary.
+Each full-width row carries the server rank, emoji and habit name, followed by the completion
+count and its localized unit. The whole row opens the actual habit. Personal names keep their
+two-line treatment and complete accessible name; count values never ellipsize. No new token,
+colour, radius, shadow, font, effect, chart type or primitive is introduced.
+
+Show more appends server pages with stable row identity. Repeated presses cannot duplicate a page.
+The action retains focus while loading; its disappearance at completion moves focus to Refresh.
+Refresh retains the signed query's absolute window, filters, metric and page size. Partial results
+never claim completeness. One short inline status carries partial, stale, offline and failed-action
+states, and a removed target offers Refresh. The empty state is one localized line inside the frame.
+There is no introduction, explanatory paragraph, total, share or second breakdown.
+
+| Surface and states | Web owner | Android owner | Verification |
+|---|---|---|---|
+| Negotiated part, validated payload and history | Shared chat schemas and block registry | Shared chat schemas and block registry | Producer-derived contract and registry cases |
+| Resolved dates, ranks, names and counts | `chat/habit-ranking-card.tsx` | `chat/habit-ranking-card.tsx` | Both locale catalogs and rendered component cases |
+| In-place pages, ties, double presses and final focus | `hooks/use-habit-ranking.ts` | `hooks/use-habit-ranking.ts` | Shared controller and platform action cases |
+| Empty, partial, stale, offline, failed refresh and removed targets | Ranking card and action hook | Ranking card and action hook | Boundary and rendered recovery cases |
+| Account replacement and late responses | Ranking action hook and session generation | Ranking action hook and session generation | In-flight request cases |
+| Narrow and wide layouts, long names, large counts and 200% text | Ranking card with existing ListRow | Ranking card with existing ListRow | Hermetic Chromium covers web; native text and TalkBack still require a device |
+
+Owners are under each app's `components/` directory unless prefixed with `hooks/`. Both appearances
+and both languages share these owners. The drawing's ranking, ranking empty and ranking stale
+states show this composition. The renderer keeps the answer's query while habit navigation uses
+the existing detail destination. It adds no unsupported period parameters to that destination.
+
 ### Ordered Astra reply surface inventory
 
 | Paired web and Android surface | Contract and evidence |
 |---|---|
 | Streaming reply | One selectable text part, with blocks withheld until final delivery. |
-| Ordered final reply | Text, habit list, text and metrics retain server order with a 16 gap; all nine existing block kinds use the platform registry. |
+| Ordered final reply | Text and blocks retain server order with a 16 gap; every registered kind uses the platform registry. |
 | Unsupported or malformed block | The part is skipped while text and valid blocks remain; a fully skipped reply uses its joined text. |
 | Legacy and cached reply | Missing or null parts adapt the joined text and cards in their existing order, including every record list. |
 | Prose and trailing slots | Every text part uses the existing Markdown renderer and code-block copy controls; pending operations, outcomes and follow-ups keep their slots. |
@@ -255,6 +359,7 @@ build.
 | `Orbit Habit Create.dc.html` | criar hábito |
 | `Orbit Habit Detail.dc.html` | one habit, its history and its actions |
 | `Orbit Astra Conversation.dc.html` | the full-screen Astra conversation and the web sidebar Astra row |
+| `Orbit Astra Ideas.md` | the scoped Ideas action composition and state matrix (#1611) |
 | `Orbit Wrapped.dc.html` | Wrapped, its cover and its pager |
 | `Orbit Onboarding.dc.html` | onboarding |
 | `Orbit Entrar.dc.html` | entrar |

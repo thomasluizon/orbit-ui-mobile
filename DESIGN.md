@@ -62,7 +62,7 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
 
 ### Astra is a layer with a front door, never a destination
 
-**Ideas library:** a second full view inside the conversation layer, with no route, URL or sheet. A 48 icon control labelled `Browse ideas` (`Ver ideias`) in the conversation header and one ghost action with that label in the empty thread open it. Its `AppBar` back control is labelled `Back to conversation` (`Voltar à conversa`). Escape on web and Android back return to the thread before closing the layer; opening focuses the library heading and returning focuses the entry control. The thread and composer draft stay mounted. A quiet 12px push at the standard duration shows the hierarchy; reduced motion keeps only the opacity fade. A persistent search searches the current language across permitted categories, while one horizontally scrolling, non-wrapping chip row selects one category at a time, starting with Start. Template results paginate at eight rows. SectionLabel headings and ListRow actions carry the live composer suggestions under `For you now` and the selected category. Calendar ideas require Pro access and a Google Calendar connection. Offline and daily-limit reasons appear above disabled rows. A complete idea sends once; an idea with slots returns to the composer with the first slot selected. An existing draft uses `prepareChatRequest` to keep the draft and retain the idea above the composer until the draft is cleared. A search miss names the query and offers `Clear search` (`Limpar busca`).
+**Ideas library:** a second full view inside the conversation layer, with no route, URL or sheet. A 48 icon control labelled `Browse ideas` (`Ver ideias`) in the conversation header and one ghost action with that label in the empty thread open it. Its `AppBar` back control is labelled `Back to conversation` (`Voltar à conversa`). Escape on web and Android back return to the thread before closing the layer; opening focuses the library heading and returning focuses the entry control. The thread and composer draft stay mounted. A quiet 12px push at the standard duration shows the hierarchy; reduced motion keeps only the opacity fade. A persistent search searches the current language across permitted categories, while one horizontally scrolling, non-wrapping chip row selects one category at a time, starting with Start. Template results paginate at eight ideas. The active [Ideas composition](design/canvas/Orbit%20Astra%20Ideas.md) (#1611) uses one column of neutral radius-20 actionable cards, inline 24px intent icons and only the twelve approved translated prompt examples. Compact records use `PADDING.recordInset` (16), with 12 between cards, 24 between groups and 4 between title and example. Live suggestions are unframed actions under `For you now`, using their supplied icon or a neutral Lightbulb, and disappear during a nonblank search. A selected category chip replaces its repeated visual heading; the region keeps its accessible category name, and search retains category headings. Complete requests and current live request callbacks carry plain 20px Astra attribution within the single target; slotted ideas carry no request attribution. Both platforms retain one column at wide widths inside the centred 740px conversation allocation, and grow naturally at 200% text. Calendar ideas require Pro access and a Google Calendar connection. Offline and daily-limit reasons appear above disabled rows. A complete idea sends once; an idea with slots returns to the composer with the first slot selected. An existing draft uses `prepareChatRequest` to keep the draft and retain the idea above the composer until the draft is cleared. A search miss names the query and offers `Clear search` (`Limpar busca`).
 
 #### Ideas library surface inventory
 
@@ -73,8 +73,8 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
 | 3 | Library AppBar, named back control and initial heading focus | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
 | 4 | Persistent localized search, resting, focused and populated | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
 | 5 | Category strip, initial selection, changed selection and horizontal overflow | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
-| 6 | Category rows and search pages, first, middle and last page | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
-| 7 | Live composer suggestions as rows, populated and absent | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
+| 6 | Intent cards, selective examples and search pages, first, middle and last page | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
+| 7 | Live icon actions, populated, absent and hidden during search | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
 | 8 | Calendar category with Pro and Google, absent without either | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
 | 9 | Offline and daily capacity, including concurrent voice activity | `chat/conversation.tsx` and `chat/prompt-library.tsx` | `chat/conversation.tsx` and `chat/prompt-library.tsx` |
 | 10 | Search miss, query announcement and clear action | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
@@ -104,7 +104,7 @@ supersedes the side-by-side avatar column amendment in
 **Astra has no route, no Android tab and no bubble.** The wide web sidebar's Astra row opens
 its conversation as a layer; that row is navigation chrome, not a fifth destination.
 
-1. **The front door** is ONE persistent one-line composer on Hoje in the compact shell
+1. **The front door** is ONE persistent growing composer on Hoje in the compact shell
    (Android at every width, web below 1024), and the sidebar Astra row on wide web.
    **One set of 3 to 6 suggestion chips built from live state**, never from a static list, sits
    above the conversation input: what is overdue, which streak is at risk, which habit has no goal.
@@ -197,15 +197,18 @@ treatment: `--primary` glyph and `--primary-soft` label. The destination retains
 
 **The way in must be visible.** In the compact shell the Astra glyph at the leading edge inside
 the composer pill is a real button with a hit area at the touch floor, a padded hover and press
-fill and a focus ring, labelled `Abrir conversa`. On wide web the sidebar Astra row opens the
+fill and a focus ring, labelled `Abrir conversa`, with visible `Astra` beside the glyph (#1607). On wide web the sidebar Astra row opens the
 conversation. Habit detail's own composer glyph remains an entry at every width.
 
-**Astra's glyph appears once per place outside the conversation.** Keep it on the wide sidebar
-Astra row, the compact composer, habit detail's composer and Hoje's single slot. Other Astra actions
-and settings use their text; section headers, plan surfaces, badges, empty regions and sheets add no
-repeated mark. Conversation headers, participant avatars and conversation-owned empty states keep
+**Astra invocation and conversation-entry controls pair the canonical glyph with visible Astra wording in the same target (#1607).** Keep useful action context, disabled reasons and request guards. Deterministic saves, accepting an existing proposal, static attribution, section headings and plan facts gain no mark. The wide sidebar, compact composer, habit-detail composer and Hoje slot retain their existing owners. Conversation headers, participant avatars and conversation-owned empty states keep
 their own rules. The Perfil Astra settings row uses the neutral `MessageCircle` icon, keeping the
 shared row anatomy without repeating Astra's glyph.
+
+The composer's text composition reserves one inert text-action slot across inline and Add-menu
+routing, clipboard availability and allowance states. Its persistent input label has an intrinsic
+sizing owner with matching input metrics, present in web server markup and the first client
+layout. Actual visual lines bottom-align their own input and controls; the last line retains the
+4px field inset. The 56px field minimum allows named controls to wrap (#1607).
 
 **Avisos is reachable from every destination.** In the compact shell (Android at every width,
 web below 1024), Hoje and Calendário pass a header row with a minimum height of 48 to Shell412.
@@ -407,6 +410,19 @@ The **day summary** combines its ring with today's habit rows and the habit list
 
 A reply is an ordered sequence of text and block parts. A client skips an unknown block kind and keeps the rest of the reply. At most one write preview appears per reply.
 
+The **habit ranking** block uses one BlockFrame with no header count, chart, totals or repeated
+prose. Its two date lines show the resolved inclusive first and last dates, including the year.
+ListRow rows show the server rank, habit name and emoji, then the localized completion count with
+its unit. Names retain the full accessible name and open the actual habit. Rows grow at 200% text;
+counts remain whole. Show more appends the next server page without replacing earlier rows.
+It retains focus while loading and moves focus to Refresh when the final page removes Show more.
+Refresh uses the original signed query, preserving its absolute dates, scope and metric. One short
+inline status covers partial results, changed rankings, offline requests and failed actions. Removed
+habits offer the same exact-query refresh. Empty rankings use one short line inside the frame.
+Unknown or malformed blocks remain skippable; a sole unreadable answer shows a localized line.
+The focused composition and surface inventory live in `design/canvas/README.md` under
+**Habit ranking block amendment**.
+
 Six rules govern all of them:
 
 1. **Three-way state split.** Business data is server owned and re-fetched. UI state, meaning
@@ -428,6 +444,28 @@ Six rules govern all of them:
 
 Rules 5 and 6 have no published precedent anywhere. They are Orbit's, and they are stated here because
 the alternative is that every block invents its own answer.
+
+### Focused reads
+
+`periodTotal` shows one server figure, its unit and resolved dates. `periodComparison` shows both
+windows, their server values and supplied delta. A zero baseline omits the relative percentage.
+Dated habit and history rows retain their dates and typed values, including zero. Period metrics
+use their declared window and null-rate meaning. Current completion, goal and calendar eligibility
+never replace the displayed snapshot. Derived goals name their actual linked habits once.
+
+Every read family retains its supported actions: logging, record navigation, notification mark-read,
+referral copy/share, exact-query refresh or signed paging. Tags and templates have no invented
+destination. Keys expose safe metadata; plans contain no added price, upsell or checkout.
+Refresh and paging use the API's signed absolute query identity. A changed page revision requires
+refresh before paging. Useful snapshot content stays visible through failed reads and offline
+recovery. One compact state owns stale, partial or failed recovery, with no freshness box.
+Recap figures and dates lead; Show more discloses its supplied narrative and habit detail.
+Current and longest streak figures remain reachable in that disclosure. Show less returns to the
+focused figures, and a card-local polite live region announces the disclosed narrative sections.
+Stale reads retain disclosure and valid navigation beside Refresh in the footer; signed paging
+waits for a refreshed revision. Stale write previews keep withholding their execution actions.
+The focused read amendment in the canvas README and active Astra drawing defines these compositions
+from existing BlockFrame rows, number formatting, ghost actions and the granted neutral chart.
 
 ### The proposed state
 
@@ -470,8 +508,10 @@ A task has no cadence corrections. Habit exposes fixed repetition, count-based r
 The schedule group stays reachable in the undated branch. Tree constraints remain enforced, and
 General cannot gain reminders or avoidance settings. Switching modes preserves their drafts.
 
+The compact growing name field uses the standard 54px minimum with matching mirror/input metrics. Description follows it immediately, before emoji, understanding and proposal content, with one owned 10,000-character field. Type stays first. RadioRow keeps its 52px minimum: one-line content is centred as a group, while wrapped labels grow with the glyph aligned to their first line (#1607).
+
 The editable date group precedes the single details disclosure. It has a persistent `Quando` /
-`When` label, the type-specific question, natural-language input and the existing calendar picker.
+`When` label, the type-specific question, natural-language input with `In your own words` / `Escreva do seu jeito` and the existing calendar picker. The picker owns the selected date display; no ordinary selected-date sentence repeats it. Proposed, validation and recovery feedback remain (#1607).
 The picker is labelled `Fazer em` / `Do on` for tasks and `Começar em` / `Starts on` for dated
 habits. New dates use account today after its timezone is known; a caller-selected day is an
 explicit prefill. Edit uses the task due date or persisted recurring start anchor, never the
@@ -485,7 +525,7 @@ locale, timezone, day, phrase, picker, type, schedule, end-date and form changes
 interpretations. Only the paid action depends on AI capacity. Offline editing and manual picking
 remain available; web saving retains its connection requirement and Android retains offline saving.
 
-Exact time, reminders, end date, description, checklist, sub-habits, tags, goals and avoidance
+Exact time, reminders, end date, checklist, sub-habits, tags, goals and avoidance
 controls retain their existing homes behind one disclosure. Read-only DateRow remains a valid
 primitive elsewhere; editable form dates use DateField.
 
@@ -528,6 +568,16 @@ The More details read disclosure retains statistics, reminders, linked-goal navi
 end-date facts, and month history with its loading/error/navigation behavior. The activity strip,
 contextual Astra, explicit rescue proposal, sub-habit actions, navigation and delete retain their own
 owners. The paired surface and preservation ledger is in `design/habit-form-surfaces.md`.
+
+The complete editor places Parent habit / Hábito principal with tags and goals inside More details.
+Its ListRow opens the existing radio picker without an immediate-move action. Exact No parent
+(top level) / Sem hábito principal (nível raiz) remains an explicit local choice. Closing the
+picker retains that choice; outer Cancel discards it and the single outer Save owns persistence.
+Unknown parent reads never imply root. A complete current-account destination inventory includes
+eligible completed items, with existing validity reasons, loading and retry. The chosen parent and
+existing children constrain final General; selecting root removes only the former-parent constraint.
+The editor retains type-first composition, independent object-management boundaries and native
+queued wording. Uncertain Save retains the draft and verifies authoritative readback before retry.
 
 ### Surfaces that no longer exist
 
@@ -634,7 +684,7 @@ style literals, including style factories and conditional values, without a viol
 |---|---|---|---|
 | screen gutter, inside the centred content column at every width | `PADDING.screenGutter` | `SPACING.s16` | 16 |
 | card and panel inner padding | `PADDING.cardInset` | `SPACING.s24` | 24 |
-| drawn compact records: goal cards, achievement cards, StatTile and allowance card | `PADDING.recordInset` | `SPACING.s16` | 16 |
+| drawn compact records: goal cards, achievement cards, StatTile, allowance card and Ideas actions | `PADDING.recordInset` | `SPACING.s16` | 16 |
 | section title to content | `PADDING.sectionTitleGap` | `SPACING.s12` | 12 |
 | sections on Hoje and Calendário | `PADDING.sectionGap` | `SPACING.s24` | 24 |
 | sections on Progresso and Perfil | `PADDING.sectionStackGap` | `SPACING.s32` | 32 |
@@ -1086,6 +1136,8 @@ clipping or overlap. This placement applies on Android and web, including the wi
 
 Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same name, same props, same behaviour.
 
+**Headless behaviour, Orbit visuals.** A primitive's behaviour comes from Radix Primitives on web and rn-primitives on Android; its look comes from Orbit tokens. Reimplementing focus, dismissal or keyboard handling where a headless primitive exists is a defect. Migrated twins expose the same applicable parts: `Root`, `Trigger`, `Portal`, `Content`, `Item`, with the same props and behaviour.
+
 **Expose component state as `data-*` attributes** so styling and tests hook onto state rather than class names. A boolean attribute is present or absent, never `"false"`. An enumerated attribute carries a string value.
 
 | Primitive | Key specs | Web | Mobile |
@@ -1110,7 +1162,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | CheckRow | whole-row checkbox hit target, required label, error replaces description, trailing mono value | `ui/check-row.tsx` | `ui/check-row.tsx` |
 | TimeField | min-height 54, radius 12, 24-hour wire value with `h23` or `h12` presentation | `ui/time-field.tsx` | `ui/time-field.tsx` |
 | DateRow | formatted immutable date and optional reason, with no control role, focus or chevron | `ui/date-row.tsx` | `ui/date-row.tsx` |
-| Composer | a one-line pill at rest, minimum height 56 (`--touch-comfy`): the Astra glyph button at the leading edge inside (Hoje in the compact shell and habit detail at every width), one input, an attach `+` icon button, and one filled send action at the trailing edge, hit areas adjacent. Photo, document and voice open from the `+` Menu, which follows the Menu width rule. The input grows to 5 lines, then scrolls inside. Recording shows the timer and a visible stop; transcribing shows a one-line status; attachments show as a tray inside the container; at limit and offline show the reason and recovery above the pill; retry takes the send position. The top rule stays. State exposed without class hooks | `shell/composer.tsx` | `shell/composer.tsx` |
+| Composer | a growing pill, minimum height 56 (`--touch-comfy`): the Astra glyph and visible name in the entry button at the leading edge inside (Hoje in the compact shell and habit detail at every width), one input, an attach `+` icon button, and one filled send action with Astra glyph and wording at the trailing edge, hit areas adjacent. The field retains usable input width and the row wraps when its named controls need more room (#1607). Photo, document and voice open from the `+` Menu, which follows the Menu width rule. The input grows to 5 lines, then scrolls inside. Recording shows the timer and a visible stop; transcribing shows a one-line status; attachments show as a tray inside the container; at limit and offline show the reason and recovery above the pill; retry takes the send position. The top rule stays. State exposed without class hooks | `shell/composer.tsx` | `shell/composer.tsx` |
 | Overlay | see **Overlay** | `ui/sheet.tsx` | `ui/sheet.tsx` |
 | Toast | brief confirmation and undo only; stable live region; timed confirmation uses a 5000ms minimum; action toasts dismiss after the standard duration, manually, or on destination change; done uses `--status-done`; actionable errors and sync failures stay in a persistent surface | `ui/toast.tsx` | `ui/app-toast.tsx` |
 | Skeleton | one accessible busy unit shaped as habit row / settings row / stat tile / grid; opacity pulse only | `ui/skeleton.tsx` | same |
@@ -1244,8 +1296,7 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 Hoje starts with its habit-view switch. In the Hoje view, its single Astra slot follows the switch,
 then the date and habits. The slot chooses an unread
 check-in, then returning guidance, then the daily summary, including its loading, retry and free-plan
-states. No second insight block belongs below the date. Only the way in and the slot carry Astra's
-glyph outside the conversation.
+states. No second insight block belongs below the date. Request actions and conversation entries also pair Astra's glyph with visible Astra wording under #1607.
 
 - **Translucency ladder on dark:** 0.04 card / 0.06 field / 0.08 well / 0.12 elev-2, white-alpha over the canvas. Surfaces stack by alpha, not by lighter hexes.
 - **Opaque white cards on light.** Never translucent.
@@ -1494,6 +1545,9 @@ Android haptic. Milestone days show only their milestone panel; queue priority a
 **Delight amplifies, never blocks.** Under about 1 second total, never delaying core functionality, always skippable, and rationed to earned moments.
 
 **Motion is never the only feedback channel.** Every animated state change also carries a static cue: a colour change, an icon swap, or a label.
+
+Actions retaining their leading Astra glyph reserve a trailing status slot. A moving loader mounts
+only while busy; an idle action carries no looping status animation, including while focused (#1607).
 
 **A high-frequency interaction gets instant feedback or an `opacity` / `background-color` transition of 150ms or less.** Never a full entrance on a hover or a keystroke.
 

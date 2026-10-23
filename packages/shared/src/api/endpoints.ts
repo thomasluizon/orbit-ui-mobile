@@ -143,6 +143,8 @@ export const API = {
     stream: '/api/chat/stream',
     transcribe: '/api/chat/transcribe',
     records: '/api/chat/records',
+    habitRanking: '/api/chat/habit-ranking',
+    refreshRead: '/api/chat/reads/refresh',
   },
 
   ai: {
