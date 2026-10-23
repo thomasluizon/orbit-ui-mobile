@@ -1,3 +1,5 @@
+import { formatConjunctionList } from './conjunction-list'
+
 export function formatWeekdaySchedule(
   days: readonly string[],
   locale: string,
@@ -11,7 +13,5 @@ export function formatWeekdaySchedule(
     const prefix = previous?.slice(0, previous.indexOf(' ') + 1)
     return useListForm && prefix && phrase.startsWith(prefix) ? phrase.slice(prefix.length) : phrase
   })
-  return new Intl.ListFormat(locale === 'en' ? 'en-GB' : locale, {
-    style: 'long', type: 'conjunction',
-  }).format(labels)
+  return formatConjunctionList(labels, locale === 'en' ? 'en-GB' : locale)
 }

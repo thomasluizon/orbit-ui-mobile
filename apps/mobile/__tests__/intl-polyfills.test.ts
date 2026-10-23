@@ -2,6 +2,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { parse, TYPE, type MessageFormatElement } from '@formatjs/icu-messageformat-parser'
 import { formatStreakRepairDates } from '@orbit/shared/utils/progress'
+import { formatBlockAnswer } from '@orbit/shared/chat/block-answer'
+import { formatWeekdaySchedule } from '@orbit/shared/utils/weekday-schedule'
 import { buildHabitUnderstandingSentence } from '@orbit/shared/utils/habit-form-helpers'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -153,6 +155,24 @@ describe.each([
     expect(formatStreakRepairDates(['2026-10-01', '2026-10-02'], locale)).toBe(dates)
     expect(formatStreakRepairDates(['2026-10-01'], locale)).toBe(dates.split(locale === 'en' ? ' and ' : ' e ')[0])
     expect(formatStreakRepairDates([], locale)).toBe('')
+  })
+
+  it('formats repair dates when ListFormat is undefined at the call site', () => {
+    const descriptor = Object.getOwnPropertyDescriptor(Intl, 'ListFormat')!
+    Object.defineProperty(Intl, 'ListFormat', { configurable: true, writable: true, value: undefined })
+    try {
+      expect(formatStreakRepairDates(['2026-10-01', '2026-10-02'], locale)).toBe(dates)
+      expect(formatStreakRepairDates([], locale)).toBe('')
+      expect(formatStreakRepairDates(['2026-10-01'], locale)).toBe(dates.split(locale === 'en' ? ' and ' : ' e ')[0])
+      expect(formatBlockAnswer(['Morning', 'Afternoon'], ' Evening ', locale))
+        .toBe(locale === 'en' ? 'Morning, Afternoon, and Evening' : 'Morning, Afternoon e Evening')
+      expect(formatWeekdaySchedule(['Monday', 'Wednesday', 'Friday'], locale, (key) => {
+        const day = key.split('.').at(-1) as keyof typeof messages.dates.weekdaySchedule.list
+        return messages.dates.weekdaySchedule.list[day]
+      })).toBe(triple)
+    } finally {
+      Object.defineProperty(Intl, 'ListFormat', descriptor)
+    }
   })
 
   it('formats two and three selected weekdays using the shipped translations', async () => {
