@@ -83,8 +83,8 @@ describe('RescheduleSheet (mobile)', () => {
     expect(actions).toBeDefined()
     expect(actions.findAll((node) => node.type === 'View' && node.props.testID === 'action-row')).toHaveLength(1)
     expect(actions.findAll((node) => node.type === 'Pressable' && typeof node.props.testID === 'string').map((node) => node.props.testID)).toEqual(['button-ghost-sm', 'button-primary-sm'])
-    const terminalAction = state === 'free' ? 'upgrade' : state === 'error' ? 'retry' : 'accept'
-    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['habits.reschedule.dismiss', `habits.reschedule.${terminalAction}`])
+    const terminalAction = state === 'free' ? 'upgrade' : state === 'error' ? 'askDate' : 'accept'
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['habits.reschedule.dismiss', terminalAction === 'askDate' ? 'habits.form.askDate' : `habits.reschedule.${terminalAction}`])
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
   it.each(['free', 'error'] as const)('dismisses the %s footer without applying or navigating', (state) => {
@@ -234,7 +234,7 @@ describe('RescheduleSheet (mobile)', () => {
 
     expect(hasText(tree.root, 'habits.reschedule.error')).toBe(true)
     TestRenderer.act(() => {
-      pressButton(tree.root, 'habits.reschedule.retry')
+      pressButton(tree.root, 'habits.form.askDate')
     })
     expect(mockRefetch).toHaveBeenCalled()
   })

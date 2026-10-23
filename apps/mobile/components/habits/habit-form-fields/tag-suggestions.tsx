@@ -1,3 +1,4 @@
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -25,8 +26,8 @@ export function TagSuggestions({ suggestions, atLimit, disabled }: Readonly<TagS
   const failure = suggestions.error
   const statusKey = tagSuggestionStatusKey(suggestions, atLimit, suggestions.needsTitle)
   return <View style={styles.container}>
-    <View style={styles.action}><PillButton hint={suggestions.pending === 'suggest' ? t('habits.form.suggestingTags') : undefined} accessibleName={t('habits.form.suggestTags')} variant="ghost" disabled={!suggestions.canSuggest} loading={suggestions.pending === 'suggest'} onClick={() => void suggestions.suggest()}>{t('habits.form.suggestTags')}</PillButton></View>
-    <Text accessibilityLiveRegion="polite" style={styles.hint}>{statusKey ? t(statusKey) : null}</Text>
+    <View style={styles.action}><PillButton minimumHeight={48} retainLeadingIcon leadingIcon={<AstraGlyph size={16} />} hint={suggestions.pending === 'suggest' ? t('habits.form.suggestingTags') : undefined} accessibleName={`${t('habits.form.tags')}: ${t('habits.form.askDate')}`} variant="ghost" disabled={!suggestions.canSuggest} loading={suggestions.pending === 'suggest'} onClick={() => void suggestions.suggest()}>{t('habits.form.askDate')}</PillButton></View>
+    <Text accessibilityLiveRegion="polite" style={[styles.hint, !statusKey ? { position: 'absolute', width: 0, height: 0 } : null]}>{statusKey ? t(statusKey) : null}</Text>
     {failure ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.error}>{getFriendlyErrorMessage(failure.cause, t, failure.operation === 'suggest' ? 'habits.form.suggestTagsError' : 'toast.errors.validation', failure.operation === 'suggest' ? 'generic' : 'tag')}</Text> : null}
     {suggestions.suggestions.length > 0 ? <Proposed proposed scope="field" label={t('habits.form.suggestedTagsLabel')}><View accessibilityState={{ busy: suggestions.pending === 'accept' }} style={styles.proposals}>
       {suggestions.suggestions.map((suggestion) => <PickerRow proposed key={suggestion.name} name={suggestion.name} selected={false} disabled={disabled || atLimit || pending} onToggle={() => void suggestions.acceptSuggestion(suggestion)} value="" valueHidden valueStyle={styles.hint} />)}

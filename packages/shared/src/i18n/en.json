@@ -314,7 +314,8 @@
           "logHabit": "Log \"{title}\"",
           "trimHabit": "Simplify \"{title}\"",
           "keepOnlyHabit": "Keep only \"{title}\"",
-          "reviewHabit": "Review \"{title}\""
+          "reviewHabit": "Review \"{title}\"",
+          "buildMorningRoutine": "Build a morning routine"
         },
         "progress": {
           "createGoal": "Create a goal for {title}"
@@ -624,6 +625,7 @@
       "skip": "Skip",
       "openSubHabits": "Open the sub habits",
       "unlog": "Mark incomplete",
+      "rescheduleAstra": "Reschedule with Astra",
       "reschedule": "Reschedule"
     },
     "reschedule": {
@@ -761,6 +763,7 @@
       "typeRequired": "Choose a type.",
       "taskDate": "Do on",
       "habitStartDate": "Starts on",
+      "datePhrasePlaceholder": "In your own words",
       "datePhrase": "When",
       "taskDateQuestion": "When do you want to do this?",
       "habitDateQuestion": "When do you want to start?",

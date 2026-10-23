@@ -3,6 +3,44 @@
 > **At a glance** - the granted canvas export and design tokens for every redesign surface.
 > Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
 
+### Form presentation and Astra affordance amendment (#1607)
+
+Type stays first. Short RadioRow content centres within the existing 52px minimum; wrapped
+labels grow with first-line glyph alignment. The growing name starts at the standard 54px field
+minimum, with identical mirror/input metrics. One Description field follows immediately, before
+emoji, understanding, proposals and More details, retaining its full value and validation owner.
+Description shares the name field's leading edge; disclosure labels retain their own inset.
+When / Quando retains its question and manual picker, with In your own words / Escreva do seu jeito
+as the phrase placeholder. The picker owns its selected value without a second ordinary readback.
+
+Actual request actions and conversation entries show the canonical Astra glyph beside visible
+Astra wording within the same target. Context-specific requests reuse Ask Astra / Consultar Astra;
+reschedule entry uses Reschedule with Astra / Reagendar com a Astra. Follow-up and proactive targets
+retain their specific text. Complete ideas send; slotted ideas only prepare a draft. Composer entry
+and send remain distinct, with input width and wrapping preserving every action at enlarged text.
+The composer reserves its text-action target when allowance disables that action, including when
+paste and clear move into the attachment menu. Near-limit and exhausted states keep the same
+frame and input position before and after text measurement; the real status slot retains its
+96px minimum and grows with its content. Unavailable actions add no hidden focus target.
+Both platforms give the persistent input label, which matches the idle prompt, an intrinsic sizing
+owner with the input's font and inline padding before wrapping named controls. Web carries this
+owner in server markup and its first client layout. Controls bottom-align on their actual visual
+line; the last line keeps the field's 4px bottom inset. Menu fit measures the physical reserved
+action slot once in every state, including after font and width changes. Disabled state prompts
+retain their separate fit check.
+When the entry shares the input's visual line, the text start keeps the 4px pill inset plus the
+measured entry width plus 8px input padding, in both empty and populated fields. Without an entry
+on that line, the text start is 12px from the pill edge.
+Live chip action text and Astra attribution share one wrapping text flow beside the canonical
+mark, retaining the complete default action line and first-line alignment at enlarged text.
+The send progress slot stays reserved; its spinner runs only while sending.
+Pill actions retaining the Astra glyph reserve a trailing status slot. A moving loader mounts only
+while busy; an idle action carries no looping status animation, including while focused.
+Loading, offline, limit, proposal, validation and manual recovery states retain their guards.
+This amendment supersedes the glyph-removal inventory below only for invocation/entry controls;
+static headings, attribution, plan facts and deterministic acceptance keep their current treatment.
+Paired callback dispositions and verification boundaries are in `design/habit-form-surfaces.md`.
+
 ### Habit detail read and draft amendment
 
 `Orbit Habit Detail.dc.html` replaces inline rename/settings with one type-aware pencil opening the
@@ -108,6 +146,7 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
+| #1607 | Balanced type choices, compact growing name, description immediately after name, natural-date prompt and canonical Astra identification on real request/entry targets | Explicit form presentation and action attribution order; request, acceptance, draft and save owners remain unchanged. |
 | #1619 focused totals and comparisons | A supplied number, unit and resolved window; two comparison windows, their values and supplied delta, without relative percentages for a zero baseline | A read answers its requested metric and dates. |
 | #1619 history and recovery | Dated rows retain zero values, signed paging and exact-query refresh; stale and partial reads use one compact state | Snapshot display stays separate from current action eligibility. |
 | #1587 | Hoje rows carry actual visible depth with one 16px step per ancestor after the 8px root inset. Well, title and supporting metadata cascade together. Measured content width and scaled title space determine the narrow boundary, accounting for shell scrollbars and safe-area gutters. Boundary rows use the full-width supporting metadata footer with first-title-line controls, and the existing drill; drill resets local depth and detail children use depth 1 once | Expanded grandchildren must remain visibly subordinate to their parents without shrinking controls or flattening adjacent levels. |
@@ -132,7 +171,7 @@ that disagrees with production is a trap rather than an authority.
 | #1288 | Calendário shares one centred navigation row across all four views; span titles are borderless mono controls that return to today, and Agenda rows carry a time or no-time value, a status ring and entry details | Agenda keeps day order stable, lists no-time habits before timed habits and builds the today heading from one localized template. |
 | #1107 | `Orbit Pro`: outcomes move into each tier card, and loaded cards hug their content | The owner's decision puts the four Pro outcomes on each tier and removes the separate outcomes list. Price-loading reservations belong only to the loading state. |
 | Hoje one Astra slot | Web and Android show one slot below the habit-view switch and above the date in Hoje only: unread proactive check-in, otherwise returning guidance, otherwise the daily summary. The summary's first sentence opens its full text as Astra's newest conversation message, preserving earlier turns. Loading, retry and the free plan's upgrade path use the same slot. One 20px glyph, one padded target at least 48 high and at most two prose lines | Supersedes the separate summary block. Hoje carries no second insight, AI badge, expand action or round Astra button. Only the way in and this slot carry the glyph outside the conversation. |
-| Hoje composer | A one-line pill with inside Astra glyph, input, + menu and send appears on Hoje and habit detail; Hoje chips move into the conversation and habit detail chips stay in one scroll row; Calendário, Progresso and Perfil clear the bottom | The front door stays visible on Hoje and habit detail. An open conversation and disclosure preserve state. |
+| Hoje composer | A growing pill with inside Astra glyph and name, input, + menu and named Astra send appears on Hoje and habit detail; Hoje chips move into the conversation and habit detail chips stay in one scroll row; Calendário, Progresso and Perfil clear the bottom | The front door stays visible on Hoje and habit detail. An open conversation and disclosure preserve state. |
 | Onboarding final Pro step | Onboarding ends with the free Pro trial step, or the Orbit Pro paywall for an account not on a trial; paid Pro finishes normally | The owner’s decision replaces D69 item 17 and the Onboarding drawing’s no-plan and no-price rules for that final step only. |
 | Light transparent hover | `--p-l-hover` uses `rgba(9,9,11,0.11)`; supporting text under the fill uses `fg-2` | The step measures 1.271:1 over white and 1.276:1 over the canvas. |
 | Light empty track | `--p-l-track-empty` uses `#7E7E82`; `--status-empty` retains this neutral at rest and under hover | Constant OKLCH hue and chroma with lower lightness clears 3.036:1 on canvas hover, 3.180:1 on card-child hover and 3.052:1 on canvas selection, while staying between `fg-3` and `fg-4`. |

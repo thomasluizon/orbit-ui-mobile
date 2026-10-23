@@ -9,7 +9,7 @@ import { buildAccountScopedStorageKey, buildRecapRequestUrl, ONBOARDING_PRO_PEND
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { readFieldIndicators, inspectFocusedControlRings as inspectFocusedRing } from './focus-indicators'
+import { readFieldIndicators, inspectFocusedControlRings as inspectFocusedRing, settleFocusAnimations } from './focus-indicators'
 import { inspectDestinationHeading } from './destination-heading'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
@@ -35,17 +35,14 @@ async function installCollections(context: BrowserContext) {
   }
 }
 
-async function settle(page: Page) {
-  await page.evaluate(async () => {
-    await document.fonts.ready
-    for (const animation of document.getAnimations()) animation.finish()
-    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-  })
+async function settle(page: Page, target: Locator) {
+  await page.evaluate(() => document.fonts.ready)
+  await settleFocusAnimations(target)
 }
 
 async function expectWayfindingFocus(page: Page, target: Locator) {
   await expect(target).toHaveCount(1)
-  await settle(page)
+  await settle(page, target)
   await page.keyboard.press('Shift')
   await target.evaluate((element) => {
     if (!(element instanceof HTMLElement)) throw new Error('Expected a wayfinding element')

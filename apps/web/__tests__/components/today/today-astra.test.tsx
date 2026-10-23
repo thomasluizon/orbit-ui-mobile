@@ -32,10 +32,16 @@ const mocks = vi.hoisted((): TodayAstraMocks => ({
   profile: { id: 'profile', timeZone: 'UTC' },
 }))
 
+function portugueseTranslation(key: string, values?: { days: number }) {
+  const leaf = key.split('.').reduce<unknown>((value, part) => (value as Record<string, unknown>)[part], ptBr)
+  if (typeof leaf !== 'string') throw new Error('Expected a translation leaf')
+  return leaf.replace('{days}', String(values?.days))
+}
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: { days: number }) =>
     mocks.portuguese
-      ? ptBr.todayAstra[key.split('.')[1] as keyof typeof ptBr.todayAstra].replace('{days}', String(values?.days))
+      ? portugueseTranslation(key, values)
       : values ? `${key}:${values.days}` : key,
 }))
 
@@ -109,7 +115,7 @@ describe('web Today Astra', () => {
       onChangeValue={vi.fn()} onSend={vi.fn()} onOpenConversation={vi.fn()}
       conversationLabel={ptBr.todayAstra.openConversation} />)
 
-    expect(screen.getAllByRole('button', { name: ptBr.todayAstra.openConversation })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: `${ptBr.todayAstra.openConversation}, ${ptBr.nav.astra}` })).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Sua rotina mudou. Vamos conversar?' })).toHaveAccessibleDescription(ptBr.todayAstra.openConversation)
   })
 

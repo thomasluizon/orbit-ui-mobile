@@ -870,7 +870,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
     expect(textsOf(tree.root.findAllByType('Proposed').find(isRescueProposal)!.findByProps({ accessibilityLiveRegion: 'polite' }))).toContain('habits.detail.rescheduleError')
     expect(findPillButton(tree.root, 'habits.detail.rescheduleAccept')).toBeUndefined()
-    TestRenderer.act(() => { pressPillButton(tree.root, 'habits.detail.retry') })
+    TestRenderer.act(() => { pressPillButton(tree.root, 'habits.form.askDate') })
     expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
     TestRenderer.act(() => { pressPillButton(tree.root, 'habits.reschedule.dismiss') })
     expect(tree.root.findAllByProps({ children: 'habits.detail.rescheduleError' })).toHaveLength(0)
@@ -905,7 +905,7 @@ describe('HabitDetailScreen', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
     if (requestState === 'retry') {
-      TestRenderer.act(() => { pressPillButton(tree.root, 'habits.detail.retry') })
+      TestRenderer.act(() => { pressPillButton(tree.root, 'habits.form.askDate') })
       expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
       mocks.rescheduleError = null
       TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })

@@ -97,18 +97,23 @@ function daySelected(tree: TestTree, label: string): boolean {
 }
 
 describe("HabitUnderstanding mobile", () => {
-  it("replaces the phrase border on focus without adding an input border", () => {
+  it("replaces the inset phrase outline on focus without moving input or mirror", () => {
     const { tree } = renderUnderstanding();
     const input = tree.root.findAll((node) => node.type === "TextInput")[0]!;
     let layer = input.parent;
-    while (layer && StyleSheet.flatten(layer.props.style as ViewStyle).borderWidth === undefined) layer = layer.parent;
-    if (!layer) throw new Error('Expected a bordered phrase field');
-    expect(StyleSheet.flatten(layer.props.style as ViewStyle).borderWidth).toBe(1);
+    while (layer && StyleSheet.flatten(layer.props.style as ViewStyle).outlineWidth === undefined) layer = layer.parent;
+    if (!layer) throw new Error('Expected an outlined phrase field');
+    expect(StyleSheet.flatten(layer.props.style as ViewStyle).outlineWidth).toBe(1);
+    const resting = StyleSheet.flatten(layer.props.style as ViewStyle);
+    expect(resting.minHeight).toBe(54);
+    expect(resting.borderWidth).toBeUndefined();
+    expect(StyleSheet.flatten(input.props.style as TextStyle).minHeight).toBe(54);
     TestRenderer.act(() => (input.props.onFocus as () => void)());
-    expect(StyleSheet.flatten(layer.props.style as ViewStyle).borderWidth).toBe(2);
+    expect(StyleSheet.flatten(layer.props.style as ViewStyle).outlineWidth).toBe(2);
     expect(StyleSheet.flatten(input.props.style as TextStyle).borderWidth).toBeUndefined();
+    expect(StyleSheet.flatten(layer.props.style as ViewStyle)).toMatchObject({ minHeight: resting.minHeight, outlineOffset: -2 });
     TestRenderer.act(() => (input.props.onBlur as () => void)());
-    expect(StyleSheet.flatten(layer.props.style as ViewStyle).borderWidth).toBe(1);
+    expect(StyleSheet.flatten(layer.props.style as ViewStyle).outlineWidth).toBe(1);
   });
 
   it("shows every weekday selected for a daily phrase", () => {
@@ -136,7 +141,7 @@ describe("HabitUnderstanding mobile", () => {
     expect(
       tree.root.findAll(
         (node) =>
-          node.type === "Text" && node.props.children === labels.placeholder,
+          node.type === "Text" && Array.isArray(node.props.children) && node.props.children[0] === labels.placeholder,
       ),
     ).toHaveLength(1);
     expect(tree.root.findAll((node) => node.type === "Proposed")).toHaveLength(

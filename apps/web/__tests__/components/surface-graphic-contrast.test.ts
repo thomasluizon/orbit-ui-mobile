@@ -28,7 +28,7 @@ const graphicNames: Record<(typeof graphicSites)[number], string> = {
   'apps/mobile/components/auth/login-sections.tsx': 'WifiOff',
   'apps/mobile/components/calendar-sync/calendar-sync-event-row.tsx': 'X',
   'apps/mobile/components/search/search-results.tsx': 'ChevronRight',
-  'apps/mobile/components/shell/composer.tsx': 'ArrowUp',
+  'apps/mobile/components/shell/composer.tsx': 'AstraGlyph',
   'apps/mobile/components/ui/list-row.tsx': 'ChevronIcon',
   'apps/mobile/components/ui/time-field.tsx': 'Clock3',
   'apps/web/app/(app)/support/_components/support-form.tsx': 'WifiOff',
