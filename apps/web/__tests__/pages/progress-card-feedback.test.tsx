@@ -45,6 +45,7 @@ vi.mock('@/hooks/use-profile', () => ({
   }),
 }))
 vi.mock('@/hooks/use-goals', () => ({
+  useCreateGoal: vi.fn(),
   useGoals: () => ({
     data: { allGoals: [createMockGoal()] },
     isError: false,

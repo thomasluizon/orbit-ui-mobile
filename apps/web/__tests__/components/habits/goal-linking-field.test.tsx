@@ -7,8 +7,8 @@ import type { Goal } from '@orbit/shared/types/goal'
 import React from 'react'
 
 vi.mock('@/components/goals/create-goal-sheet', () => ({
-  CreateGoalSheet: ({ open, initialHabitIds, onCreated, onClose }: { open: boolean; initialHabitIds: string[]; onCreated?: (id: string) => void; onClose: () => void }) =>
-    open ? <div><output aria-label="Initial linked habits">{initialHabitIds.join(',')}</output><button type="button" onClick={() => { onCreated?.('created-goal'); onClose() }}>Save created goal</button><button type="button" onClick={onClose}>contextual-goal-creator</button></div> : null,
+  CreateGoalSheet: ({ open, initialHabitIds, onCreated, onClose }: { open: boolean; initialHabitIds: string[]; onCreated?: (id: string, habitIds: string[]) => void; onClose: () => void }) =>
+    open ? <div><output aria-label="Initial linked habits">{initialHabitIds.join(',')}</output><button type="button" onClick={() => { onCreated?.('created-goal', initialHabitIds); onClose() }}>Save created goal</button><button type="button" onClick={() => { onCreated?.('created-goal', []); onClose() }}>Save unlinked goal</button><button type="button" onClick={onClose}>contextual-goal-creator</button></div> : null,
 }))
 
 vi.mock('next-intl', () => ({
@@ -62,7 +62,7 @@ describe('GoalLinkingField', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
     await waitFor(() => {
-      expect(screen.getByText('habits.form.noGoals')).toBeInTheDocument()
+      expect(screen.getByText('habits.form.goalInvitation')).toBeInTheDocument()
     })
   })
 
@@ -103,7 +103,7 @@ describe('GoalLinkingField', () => {
       { wrapper: Wrapper },
     )
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
-    expect(screen.getByText('habits.form.noGoals')).toBeInTheDocument()
+    expect(screen.getByText('habits.form.goalInvitation')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Run 100km/, pressed: false })).not.toBeInTheDocument()
 
     await act(async () => {
@@ -115,7 +115,7 @@ describe('GoalLinkingField', () => {
 
     const activeGoal = await screen.findByRole('button', { name: /Run 100km/, pressed: false })
     expect(activeGoal).toBeEnabled()
-    expect(screen.queryByText('habits.form.noGoals')).not.toBeInTheDocument()
+    expect(screen.queryByText('habits.form.goalInvitation')).not.toBeInTheDocument()
     expect(screen.queryByText('Completed Goal')).not.toBeInTheDocument()
     fireEvent.click(activeGoal)
     expect(onToggleGoal).toHaveBeenCalledWith('g1')
@@ -130,25 +130,33 @@ describe('GoalLinkingField', () => {
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
     fireEvent.click(await screen.findByRole('button', { name: 'habits.form.createGoal' }))
 
-    await waitFor(() => expect(screen.queryByText('habits.form.noGoals')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByText('habits.form.goalInvitation')).not.toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'contextual-goal-creator' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'contextual-goal-creator' }))
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
-    expect(await screen.findByText('habits.form.noGoals')).toBeInTheDocument()
+    expect(await screen.findByText('habits.form.goalInvitation')).toBeInTheDocument()
   })
 
-  it.each([undefined, 'habit-reading'])('creates from a populated picker with habit context %s without overriding saved associations', async (habitId) => {
+  it.each([undefined, 'habit-reading'])('creates from a populated picker with habit context %s and selects the created goal', async (habitId) => {
     const onToggleGoal = vi.fn()
     mockFetchJson.mockResolvedValue([createMockGoal({ id: 'existing-goal', title: 'Existing goal' })])
-    render(<GoalLinkingField habitId={habitId} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={onToggleGoal} />, { wrapper: Wrapper })
+    render(<GoalLinkingField habitId={habitId} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={onToggleGoal} onGoalCreated={onToggleGoal} />, { wrapper: Wrapper })
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
     await screen.findByRole('button', { name: /Existing goal/, pressed: false })
     fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
     expect(await screen.findByLabelText('Initial linked habits')).toHaveTextContent(habitId ?? '')
     fireEvent.click(screen.getByRole('button', { name: 'Save created goal' }))
-    if (habitId) expect(onToggleGoal).not.toHaveBeenCalled()
-    else expect(onToggleGoal).toHaveBeenCalledWith('created-goal')
+    expect(onToggleGoal).toHaveBeenCalledWith('created-goal')
+  })
+
+  it('does not select the created goal when the starting habit was deselected', async () => {
+    const onGoalCreated = vi.fn()
+    render(<GoalLinkingField habitId="habit-reading" selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onGoalCreated={onGoalCreated} />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'habits.form.createGoal' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Save unlinked goal' }))
+    expect(onGoalCreated).not.toHaveBeenCalled()
   })
 
   it('disables creation at the habit goal limit', async () => {
