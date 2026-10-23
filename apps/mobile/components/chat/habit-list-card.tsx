@@ -2,7 +2,7 @@ import { PersonalText } from '@/components/ui/personal-text'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { useTranslation } from 'react-i18next'
 import type { HabitListCard as HabitListCardData } from '@orbit/shared/types/chat'
 import { formatAPIDate, isHabitDoneForRange } from '@orbit/shared/utils'
@@ -17,7 +17,7 @@ const PAGE_SIZE = 3
 
 export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCardData }>) {
   const { t } = useTranslation()
-  const router = useRouter()
+  const navigate = useChatNavigation()
   const logHabit = useLogHabit()
   const [occurrenceDate] = useState(() => formatAPIDate(new Date()))
   const occurrences = useHabits({
@@ -36,7 +36,7 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
     return {
       id: item.id,
       label: (
-        <Pressable accessibilityRole="button" accessibilityLabel={t('chat.habitList.open', { name: item.title })} onPress={() => router.push({ pathname: '/habits/[id]', params: { id: item.id } })} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: 0, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('chat.habitList.open', { name: item.title })} onPress={() => navigate({ pathname: '/habits/[id]', params: { id: item.id } })} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: 0, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>
           <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 32, height: 32, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: tokens.bgWell }}><Text>{item.emoji ?? '•'}</Text></View>
           <View style={{ flex: 1, minWidth: 0 }}><PersonalText style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19.6 }}>{item.title}</PersonalText></View>
         </Pressable>

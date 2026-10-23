@@ -4,7 +4,7 @@ import { SPACING } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { ArrowUpRight } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
+import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import type { MessageBubbleProps } from '@orbit/shared/chat'
 import { getMessageBubbleView, getMessageBubbleOperations } from '@orbit/shared/chat'
 
@@ -21,7 +21,7 @@ import { ChatBlock } from './block-registry'
 export function MessageBubble(props: Readonly<MessageBubbleProps & { senderLabelId?: string }>) {
   const { message, blockAnswerInteraction, animateEntry, onBreakdownConfirmed, onActionChipClick, senderLabelId } = props
   const t = useTranslations()
-  const router = useRouter()
+  const navigate = useChatNavigation()
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
   const { isUser, parts, relatedSurfaces, nonSuggestionActions, suggestions, outcomes } = getMessageBubbleView(props, dismissedBreakdowns)
   const operations = getMessageBubbleOperations(props, useChatStore.getState().transitionMessage)
@@ -87,7 +87,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps & { senderLabel
                 <button
                   key={surface.id}
                   type="button"
-                  onClick={() => router.push(surface.webRoute)}
+                  onClick={() => navigate(surface.webRoute)}
                   className="chip focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
                 >
                   {t(surface.labelKey)}

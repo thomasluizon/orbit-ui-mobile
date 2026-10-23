@@ -1,7 +1,7 @@
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useRouter } from 'expo-router'
+import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { Text, View } from 'react-native'
 import { getInsightPages } from '@orbit/shared/chat'
 import type { BlockFrameItem } from '@orbit/shared/contracts/blocks'
@@ -16,7 +16,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: PeriodInsightData }>) {
   const { t, i18n } = useTranslation()
-  const router = useRouter()
+  const navigate = useChatNavigation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [index, setIndex] = useState(0)
@@ -75,7 +75,7 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
             forwardSlot={<>
               <Button variant="ghost" size="sm" accessibleName={t('chat.insight.next')} disabled={index === pages.length - 1} onClick={() => setIndex(index + 1)}>{t('chat.insight.next')}</Button>
               {/* eslint-disable-next-line local/max-button-words -- #680 requires this destination chip copy. */}
-              <Button variant="ghost" size="sm" accessibilityRole="link" accessibleName={t('chat.insight.progressLink')} onClick={() => router.push('/progress')}>{t('chat.insight.progressLink')}</Button>
+              <Button variant="ghost" size="sm" accessibilityRole="link" accessibleName={t('chat.insight.progressLink')} onClick={() => navigate('/progress')}>{t('chat.insight.progressLink')}</Button>
             </>}
           />
         </View>}

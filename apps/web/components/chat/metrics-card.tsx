@@ -1,7 +1,6 @@
 'use client'
 
 import { useLocale, useTranslations } from 'next-intl'
-import { useUIStore } from '@/stores/ui-store'
 import { z } from 'zod'
 import { useHabitMetrics } from '@/hooks/use-habits'
 import { useProgressRecap } from '@/hooks/use-recap'
@@ -14,7 +13,7 @@ import { mapCompletionSeries } from '@orbit/shared/utils'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { BarChart } from '@/components/ui/bar-chart'
 import { BlockFrame } from '@/components/ui/block-frame'
-import { PillLink } from '@/components/ui/pill-button'
+import { ChatLink } from './chat-link'
 
 function chartBody(card: MetricsCardData, points: ReturnType<typeof mapCompletionSeries>, label: string, empty: React.ReactNode) {
   if (!card.hasData) return empty
@@ -56,7 +55,7 @@ export function MetricsCard({ metricsCard: snapshot }: Readonly<{ metricsCard: M
         count={null}
         items={rows}
         body={<div className="flex flex-col gap-4">{chart}<div className="flex flex-wrap gap-4">{figures.map((figure) => figure.value == null ? <StatTile key={figure.id} state="empty" label={t(metricsFigureLabelKey(figure.id, figure.labelKey))} emptyLabel={t('chat.metrics.noFigure')} /> : <StatTile key={figure.id} value={figure.value} label={t(metricsFigureLabelKey(figure.id, figure.labelKey))} />)}</div></div>}
-        actions={<>{query.isError ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('chat.liveBlock.error')}</p> : null}<PillLink onClick={() => useUIStore.getState().setAstraConversationOpen(false)} variant="ghost" size="sm" href={habitId ? `/habits/${habitId}` : '/progress'}>{t(habitId ? 'chat.metrics.habitLink' : 'chat.metrics.progressLink')}</PillLink></>}
+        actions={<>{query.isError ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('chat.liveBlock.error')}</p> : null}<ChatLink variant="ghost" size="sm" href={habitId ? `/habits/${habitId}` : '/progress'}>{t(habitId ? 'chat.metrics.habitLink' : 'chat.metrics.progressLink')}</ChatLink></>}
       />
     </div>
   )

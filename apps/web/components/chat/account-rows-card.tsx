@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
+import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import type { AccountRowsCard as AccountRowsCardData } from '@orbit/shared/types/chat'
 import { accountRowLabelKey, formatAccountRowValue } from '@orbit/shared/chat'
 import { BlockFrame } from '@/components/ui/block-frame'
@@ -36,7 +36,7 @@ function statusMessage(failure: string | null, linkCopied: boolean, copied: bool
 export function AccountRowsCard({ accountRows }: Readonly<{ accountRows: AccountRowsCardData }>) {
   const t = useTranslations()
   const locale = useLocale()
-  const router = useRouter()
+  const navigate = useChatNavigation()
   const [copied, setCopied] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
@@ -86,6 +86,6 @@ export function AccountRowsCard({ accountRows }: Readonly<{ accountRows: Account
         {referral && accountRows.referralCode ? <ReferralCodeRow code={accountRows.referralCode} copied={copied} onCopy={() => void copyCode()} /> : null}
         <p role="status" className={`text-sm ${failure ? 'text-[var(--status-bad-text)]' : 'text-[var(--fg-2)]'}`}>{statusMessage(failure, linkCopied, copied, t)}</p>
       </div>}
-      actions={referral ? (accountRows.referralLink ? <Button variant="ghost" size="sm" onClick={() => void (canShare ? shareLink() : copyLink())}>{t(canShare ? 'chat.account.share' : 'referral.drawer.copyLink')}</Button> : undefined) : <Button variant="ghost" size="sm" onClick={() => router.push('/profile')}>{t('chat.account.open')}</Button>} />
+      actions={referral ? (accountRows.referralLink ? <Button variant="ghost" size="sm" onClick={() => void (canShare ? shareLink() : copyLink())}>{t(canShare ? 'chat.account.share' : 'referral.drawer.copyLink')}</Button> : undefined) : <Button variant="ghost" size="sm" onClick={() => navigate('/profile')}>{t('chat.account.open')}</Button>} />
   </div>
 }

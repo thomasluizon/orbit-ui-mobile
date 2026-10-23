@@ -1,5 +1,7 @@
 import { createChatThreadScroll } from '@orbit/shared/hooks'
-import { createRef } from 'react'
+import { createRef, type ReactNode, type MouseEventHandler } from 'react'
+import { PeriodInsightCard } from '@/components/chat/period-insight-card'
+import type { PeriodInsightCard as PeriodInsightData } from '@orbit/shared/types/chat'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { AstraConversation } from '@/components/chat/conversation'
@@ -13,7 +15,17 @@ vi.mock('next/navigation', () => ({
   useParams: () => ({}),
   useRouter: () => ({ push: navigation.push }),
 }))
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next/link', () => ({ default: ({ href, onClick, onNavigate, children, ...props }: {
+  href: string; onClick?: MouseEventHandler<HTMLAnchorElement>; onNavigate?: (event: { preventDefault: () => void }) => void; children: ReactNode
+}) => <a {...props} href={href} onClick={event => {
+  onClick?.(event)
+  if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  event.preventDefault()
+  const cancellation = { prevented: false }
+  onNavigate?.({ preventDefault: () => { cancellation.prevented = true } })
+  if (!cancellation.prevented) navigation.push(href)
+}}>{children}</a> }))
+vi.mock('next-intl', () => ({ useLocale: () => 'pt-BR', useTranslations: () => (key: string) => key === 'chat.insight.progressLink' ? 'Ver no Progresso' : key }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { name: 'Person', email: 'person@example.com' } }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('@/components/command/command-palette', () => ({
@@ -37,9 +49,9 @@ function buildChat(draft: string): ChatController {
   } as unknown as ChatController
 }
 
-function App({ draft = '', chat }: Readonly<{ draft?: string; chat?: ChatController }>) {
+function App({ draft = '', chat, block }: Readonly<{ draft?: string; chat?: ChatController; block?: ReactNode }>) {
   const open = useUIStore((state) => state.astraConversationOpen)
-  return <DestinationShell conversation={<AstraConversation chat={chat ?? buildChat(draft)} />} conversationOpen={open}
+  return <DestinationShell conversation={block ?? <AstraConversation chat={chat ?? buildChat(draft)} />} conversationOpen={open}
     conversationLabel="Astra" onCreate={() => navigation.push('/habits/new')}>
     <h1>{navigation.pathname}</h1>
   </DestinationShell>
@@ -203,5 +215,40 @@ it.each([
   fireEvent.keyDown(document, { key: 'a' })
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
   expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
+  expect(navigation.push).not.toHaveBeenCalled()
+})
+
+const insight: PeriodInsightData = {
+  period: 'week', dateFrom: '2026-09-01', dateTo: '2026-09-07', completionRate: 50,
+  activeDays: 4, periodDays: 7, totalCompletions: 7, totalScheduled: 14,
+  currentStreak: 2, bestStreak: 5, topHabits: [], needsAttention: [],
+  narrative: { highlights: 'Walked', trends: '', suggestion: '', missed: '' },
+}
+
+it.each([[false, '/'], [true, '/'], [false, '/progress'], [true, '/progress']] as const)('leaves full-screen Astra for Progresso from the period insight with wide=%s at %s', (wide, pathname) => {
+  navigation.wide = wide
+  navigation.pathname = pathname
+  const block = <PeriodInsightCard periodInsight={insight} />
+  const view = render(<App block={block} />)
+  act(() => useUIStore.getState().setAstraConversationOpen(true))
+  const conversation = screen.getByRole('dialog', { name: 'Astra' })
+  fireEvent.click(within(conversation).getByRole('button', { name: 'chat.insight.next' }))
+  expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  fireEvent.click(within(conversation).getByRole('button', { name: 'chat.insight.previous' }))
+  expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  fireEvent.click(within(conversation).getByRole('link', { name: 'Ver no Progresso' }))
+  expect(navigation.push).toHaveBeenCalledWith('/progress')
+  view.rerender(<App block={block} />)
+  expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
+  expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  expect(screen.getByRole('heading', { name: '/progress' })).toBeVisible()
+  expect(document.querySelector('[data-shell-destination]')).not.toHaveAttribute('inert')
+})
+
+it('keeps Astra open when its destination link opens in another tab', () => {
+  render(<App block={<PeriodInsightCard periodInsight={insight} />} />)
+  act(() => useUIStore.getState().setAstraConversationOpen(true))
+  fireEvent.click(screen.getByRole('link', { name: 'Ver no Progresso' }), { ctrlKey: true })
+  expect(useUIStore.getState().astraConversationOpen).toBe(true)
   expect(navigation.push).not.toHaveBeenCalled()
 })

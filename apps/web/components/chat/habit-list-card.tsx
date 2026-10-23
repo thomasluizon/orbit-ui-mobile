@@ -2,7 +2,7 @@
 
 import { PersonalText } from '@/components/ui/personal-text'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { useTranslations } from 'next-intl'
 import type { HabitListCard as HabitListCardData } from '@orbit/shared/types/chat'
 import { formatAPIDate, isHabitDoneForRange } from '@orbit/shared/utils'
@@ -15,7 +15,7 @@ const PAGE_SIZE = 3
 
 export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCardData }>) {
   const t = useTranslations()
-  const router = useRouter()
+  const navigate = useChatNavigation()
   const logHabit = useLogHabit()
   const [occurrenceDate] = useState(() => formatAPIDate(new Date()))
   const occurrences = useHabits({
@@ -32,7 +32,7 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
     return {
       id: item.id,
       label: (
-        <button aria-label={t('chat.habitList.open', { name: item.title })} className="flex min-h-[var(--touch-min)] min-w-0 w-full items-center gap-3 rounded-[12px] px-2 py-1 border-0 bg-transparent text-left text-sm text-[var(--fg-1)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" onClick={() => router.push(`/habits/${item.id}`)} type="button">
+        <button aria-label={t('chat.habitList.open', { name: item.title })} className="flex min-h-[var(--touch-min)] min-w-0 w-full items-center gap-3 rounded-[12px] px-2 py-1 border-0 bg-transparent text-left text-sm text-[var(--fg-1)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" onClick={() => navigate(`/habits/${item.id}`)} type="button">
           <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-[var(--bg-well)]">{item.emoji ?? '•'}</span>
           <PersonalText className="flex-1">{item.title}</PersonalText>
         </button>

@@ -1,3 +1,6 @@
+import { ChatBlock } from '@/components/chat/block-registry'
+import { chatNavigationCases } from '@orbit/shared/test-support/chat-navigation-fixtures'
+import type { ReactNode, MouseEventHandler } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { inPlaceDayFixture, inPlaceCalendarFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
@@ -158,3 +161,27 @@ it.each(['child', 'bad'] as const)('keeps a completed %s row outside the parent 
   expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0')
   view.unmount()
 })
+
+vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
+
+it.each(chatNavigationCases)('closes Astra before routing from $name', ({ part, label, web }) => {
+  state.push.mockImplementation(() => expect(useUIStore.getState().astraConversationOpen).toBe(false))
+  state.goals.set('goal-1', createMockGoal({ id: 'goal-1' }))
+  render(<ChatBlock part={part} onActionChipClick={undefined} />)
+  const action = screen.queryByRole('link', { name: label }) ?? screen.getByRole('button', { name: label })
+  fireEvent.click(action)
+  if (action.tagName === 'A') expect(action).toHaveAttribute('href', web)
+  expect(state.push).toHaveBeenCalledWith(web)
+  expect(useUIStore.getState().astraConversationOpen).toBe(false)
+})
+
+vi.mock('next/link', () => ({ default: ({ href, onClick, onNavigate, children }: {
+  href: string; onClick?: MouseEventHandler<HTMLAnchorElement>; onNavigate?: (event: { preventDefault: () => void }) => void; children: ReactNode
+}) => <a href={href} onClick={event => {
+  onClick?.(event)
+  if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  event.preventDefault()
+  const cancellation = { prevented: false }
+  onNavigate?.({ preventDefault: () => { cancellation.prevented = true } })
+  if (!cancellation.prevented) state.push(href)
+}}>{children}</a> }))
