@@ -25,7 +25,10 @@ export async function expectAppNavigation(page: Page): Promise<void> {
 
 export async function createSmokeHabit(page: Page, title: string): Promise<void> {
   await handleSmokePrompts(page)
-  await localizedRole(page, 'button', en.nav.createHabit, ptBR.nav.createHabit).click()
+  const create = localizedRole(page, 'button', en.nav.createHabit, ptBR.nav.createHabit)
+  const emptyCreate = localizedRole(page, 'button', en.habits.createManually, ptBR.habits.createManually)
+  await expect(create.or(emptyCreate).first()).toBeVisible({ timeout: 30_000 })
+  await (await emptyCreate.isVisible() ? emptyCreate : create).click()
   const titleInput = localizedRole(page, 'textbox', en.habits.form.describe, ptBR.habits.form.describe)
   await expect(titleInput).toBeVisible()
   await localizedRole(page, 'radio', en.habits.form.typeTask, ptBR.habits.form.typeTask).click()
