@@ -266,6 +266,7 @@ export function Menu({
       }
       if (panelRef.current?.contains(target)) return
       if (anchorElement(anchorRef)?.contains(target)) return
+      event.preventDefault()
       closeMenu()
     }
     function onKeyDown(event: globalThis.KeyboardEvent) {

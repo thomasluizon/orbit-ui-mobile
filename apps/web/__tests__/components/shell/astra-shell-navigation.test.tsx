@@ -265,3 +265,14 @@ it('opens the account menu from Astra without navigating and returns focus on Es
   await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
   expect(trigger).toHaveFocus()
 })
+
+it.each([false, true])('owns one Astra mark before the four destinations with collapsed=%s', (collapsed) => {
+  useShellStore.setState({ sidebarCollapsed: collapsed })
+  render(<App />)
+  const sidebar = document.querySelector<HTMLElement>('[data-shell-sidebar]')!
+  const navigation = within(sidebar).getByRole('navigation', { name: 'nav.mainNavigation' })
+  const rows = within(navigation).getAllByRole('button', { name: 'chat.title' })
+  expect(rows).toHaveLength(1)
+  expect(rows[0]!.querySelector('svg')).toHaveAttribute('data-asset', 'astra-mark')
+  expect(within(navigation).getAllByRole('link')).toHaveLength(4)
+})
