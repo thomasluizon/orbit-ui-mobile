@@ -18,14 +18,14 @@ Finish the spec: every requested production fix, the Astra overhaul, the owner r
 
 ## In flight
 
-UI `main` is `f1f8a3ed`, API `main` is `fa276db9`, landing `main` is `0d5e3df4`. Production web `175eb7a8`, staging web `cb47241e`; production and staging API `fa276db9` (runs 40009572653 and 40008328210, deployed SHA verified, Healthy); production landing `0d5e3df4`. Android Open `1.3.92` (`151`) is available. Open pull requests: UI `#1999`, `#1998`, `#1993`, `#1992`, `#1991`, `#1990`, `#1989` (relay docs), `#1984`, `#1903`; API `#877`, `#876`; landing none.
+UI `main` is `f1f8a3ed`, API `main` is `fa276db9`, landing `main` is `0d5e3df4`. Production web `175eb7a8`, staging web `cb47241e`; production and staging API `fa276db9` (runs 40009572653 and 40008328210, deployed SHA verified, Healthy); production landing `0d5e3df4`. Android Open `1.3.92` (`151`) is available. Open pull requests: UI `#2000`, `#1999`, `#1998`, `#1993`, `#1992`, `#1991`, `#1990`, `#1989` (relay docs), `#1984`, `#1903`; API `#877`, `#876`; landing none.
 
 | Item | Disposition |
 | --- | --- |
 | `ui#1984` (`#577`) | FIRST launch. Run the composed order `order-577-r4.md` (note `note-1984-r4.md`) with `launch-review-round.sh ui 577 <the ticket-577-headless-overlays worktree> main max r4 <note> "<reason>"`; admission refused it during the drain. Evidence: `repro-1984/` (traces under `results/`): real clicks open and close menus in the same gesture. When the worker commits, read the diff, rerun the failing hermetic specs at root with `repro-1984.sh <commit> <spec>...` (all ten failing spec files named in the note) and push only when they pass. |
 | Web release | Release staging web `f1f8a3ed` with `-f sha=`, then production; the production smoke must pass. It carries `#1661` (`ui#1994`), `#1613` and `ui#1988`. Then close `#1661` on the passing smoke. |
 | `#1665` follow-up | Launch the composed order: `launch-new-ticket.sh api 1665 <orbit-api workspaces>/ticket-1665-action-row-fit main default <scratchpad>/note-1665-wrap.md` (worktree at `fa276db9`, clean). Before its push, re-render with `render-1665` against the worker's commit at 320, 390, 600, 1024 and 1280 px in both locales; no row may wrap partially. |
-| `#1667` | Worker launched before the drain on `ticket-1667-rate-limit-reset`; outcome unknown. Read the worktree and the launcher output first: a commit, a pull request, or nothing. |
+| `ui#2000` (`#1667`) | The worker finished and opened `ui#2000` at `c546677c1` ("refresh expired CI rate limit windows"); CI pending. Read the diff and its red-first proof, wait on CI and review, merge. |
 | `ui#1999` (`#1666`) | CI pending. The fix counts synchronous process startup against `runBounded`'s timeout and gives the recovery cases a 30 s deadline; read the PR body, wait on CI and review, merge. |
 | `ui#1993` (`#1620`) | Failed jobs of run 40003532262 rerun for one calendar-week-scroll flake. Merge at an approved head with every check green; if `calendar-week-scroll.spec.ts:199` reds again anywhere, file a flake ticket. |
 | `ui#1903` (`#181`) | Approved at `268fe9898`. The q5 check (main `eb2eea89` plus the head, predecessor-of-predecessor scratchpad `check-q5/`) was in web Vitest at the relay; read `check-q5/summary.txt` and `DONE`. Main moved to `f1f8a3ed` (`ui#1994`): merge only on `OVERALL fail=0` and when `base-overlap.sh 1903` shows no file shared with `ui#1994`; otherwise a new combined check. |
@@ -40,9 +40,9 @@ UI `main` is `f1f8a3ed`, API `main` is `fa276db9`, landing `main` is `0d5e3df4`.
 ## Then, in this order
 
 1. Answer any owner message first, in his language, and give each order a ticket (or a rescope of its existing ticket) before the turn ends.
-2. Launch `ui#1984`'s `max` round and `#1665`'s follow-up; read `#1667`'s worker result.
+2. Launch `ui#1984`'s `max` round and `#1665`'s follow-up; read `ui#2000`'s diff.
 3. Release web `f1f8a3ed` to staging, then production; close `#1661` on the passing smoke.
-4. Drive `ui#1999`, `ui#1993`, `ui#1903`, `ui#1992` and the other Dependabot pull requests to merge.
+4. Drive `ui#1999`, `ui#2000`, `ui#1993`, `ui#1903`, `ui#1992` and the other Dependabot pull requests to merge.
 5. `orbit-api#877` round, staging reseed check, `#1622` favicon re-read, `#1656` close.
 6. Follow `## The order` for everything else, keeping the pool full under the load gate.
 7. Run the full real-call Astra staging sweep only after the current Astra work is deployed.
