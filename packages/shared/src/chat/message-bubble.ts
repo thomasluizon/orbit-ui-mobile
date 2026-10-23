@@ -66,7 +66,7 @@ export function getMessageBubbleView(props: MessageBubbleProps, dismissedBreakdo
   })
   return {
     isUser,
-    showUnreadableReply: !isUser && !isStreaming && parts.length === 0 && message.parts != null
+    showUnreadableReply: !isUser && !isStreaming && parts.length === 0
       && !message.imageUrl && !message.actions?.length && !message.operations?.length
       && !message.pendingOperations?.length && !message.policyDenials?.length
       && !Object.keys(message.clarificationPreviews ?? {}).length,
@@ -80,6 +80,12 @@ export function getMessageBubbleView(props: MessageBubbleProps, dismissedBreakdo
     }),
     outcomes: operationBlocks.outcomes,
   }
+}
+
+export function getChatCompletionText(message: ChatMessage, words: { ready: string; unreadable: string }): string {
+  const view = getMessageBubbleView({ message }, new Set())
+  if (view.showUnreadableReply) return words.unreadable
+  return view.parts.flatMap(part => part.type === 'text' ? [part.text] : []).join('\n').trim() || words.ready
 }
 
 function messageOperationIds(message: ChatMessage, canRenderPending: boolean): string[] {

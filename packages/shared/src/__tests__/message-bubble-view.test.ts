@@ -17,9 +17,7 @@ it('keeps ordered parts, hides empty prose and expires only after unrelated mess
   expect(getMessageBubbleView({ message: { ...message, role: 'user', content: '[[orbit:open:today]]' } }, new Set()).parts).toEqual([
     { type: 'text', key: 0, text: '[[orbit:open:today]]', showImage: false },
   ])
-  expect(getMessageBubbleView({ message: { ...message, content: 'Streaming [[orbit:open' }, isStreaming: true }, new Set()).parts).toEqual([
-    { type: 'text', key: 0, text: 'Streaming', showImage: false },
-  ])
+  expect(getMessageBubbleView({ message: { ...message, content: 'Streaming [[orbit:open' }, isStreaming: true }, new Set()).parts).toEqual([])
   expect(getMessageBubbleView({ message: { ...message, imageUrl: 'attachment' } }, new Set()).parts[0]).toMatchObject({ key: 0, showImage: true })
 })
 

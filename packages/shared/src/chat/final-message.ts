@@ -4,7 +4,17 @@ function buildChatParts(response: Omit<ChatResponse, 'actions'>): ChatPart[] {
   const text: ChatPart = { type: 'text', text: response.aiMessage || '' }
   if (response.parts != null) {
     const parts = response.parts.filter(part => part !== null)
-    return parts.length > 0 ? parts : [text]
+    const identities = new Set<string>()
+    if (parts.length > 0) return parts.filter(part => {
+      if (part.type !== 'block') return true
+      const identity = 'blockId' in part.block ? part.block.blockId
+        : 'read' in part.block ? part.block.read?.queryId : undefined
+      if (!identity) return true
+      const key = `${part.kind}:${identity}`
+      if (identities.has(key)) return false
+      identities.add(key)
+      return true
+    })
   }
   return [
     text,
@@ -21,7 +31,7 @@ function buildChatParts(response: Omit<ChatResponse, 'actions'>): ChatPart[] {
 }
 
 export function getChatMessageParts(message: ChatMessage, isStreaming = false): ChatPart[] {
-  if (isStreaming) return [{ type: 'text', text: message.content }]
+  if (isStreaming) return []
   return buildChatParts({ ...message, aiMessage: message.content })
 }
 

@@ -3,6 +3,12 @@ import { selectMessageOperationBlocks } from '../chat/message-operation-blocks'
 import { agentPolicyDenialFixture, makeActionResult, makeAgentOperationResult, makeHeldHabitMessage } from '../test-support/chat-fixtures'
 
 describe('one block per write', () => {
+  it('shows the latest outcome once for repeated operation identities', () => {
+    const operation = makeAgentOperationResult('Denied', 1)
+    const message = makeHeldHabitMessage({ pendingOperations: [], actions: [], operations: [operation, { ...operation, status: 'Failed' }] })
+    expect(selectMessageOperationBlocks(message).outcomes).toMatchObject([{ id: operation.operationId, status: 'Failed' }])
+    expect(selectMessageOperationBlocks(message).outcomes).toHaveLength(1)
+  })
   it('keeps only the preview for a pending write', () => {
     expect(selectMessageOperationBlocks(makeHeldHabitMessage())).toEqual({ actions: [], outcomes: [] })
   })
