@@ -26,7 +26,8 @@ function FirstPaint() {
 }
 
 function TodayShell({ mounted = true }: { mounted?: boolean }) {
-  return <DestinationShell onCreate={() => {}} composer={<textarea aria-label="Draft" defaultValue="Keep this draft" />}><FirstPaint />{mounted ? <TodayPage /> : null}</DestinationShell>
+  const todayFabHidden = useUIStore((state) => state.todayFabHidden)
+  return <DestinationShell todayFabHidden={todayFabHidden} onCreate={() => {}} composer={<textarea aria-label="Draft" defaultValue="Keep this draft" />}><FirstPaint />{mounted ? <TodayPage /> : null}</DestinationShell>
 }
 
 function TodayPage() {

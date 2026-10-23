@@ -118,7 +118,8 @@ function Checkout({ disabled = false }: { disabled?: boolean }) {
 function HabitCreation({ empty = false }: { empty?: boolean }) {
   const [creating, setCreating] = useState(false)
   const openCreation = () => { mocks.pathname = '/habits/new'; setCreating(true) }
-  return <DestinationShell onCreate={openCreation}>
+  const todayFabHidden = useUIStore((state) => state.todayFabHidden)
+  return <DestinationShell todayFabHidden={todayFabHidden} onCreate={openCreation}>
     {creating ? <CreateHabitModal open presentation="screen" onOpenChange={() => { mocks.pathname = '/'; setCreating(false) }} />
       : <>{empty ? <SetupChecklistCard /> : null}<HabitList view="today" filters={{}} onCreate={openCreation} /></>}
   </DestinationShell>
@@ -216,7 +217,7 @@ describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (loca
     useUIStore.setState({ todayFabHidden: true })
     mount(<HabitCreation empty />, locale)
     const messages = locale === 'en' ? en : ptBR
-    expect(document.querySelector('[data-shell-fab]')).toBeNull()
+    expect(document.querySelector('[data-shell-fab] button')).toBeNull()
     expect(screen.getByRole('region', { name: messages.today.setupChecklist.title })).toBeVisible()
     expect(screen.getByRole('button', { name: messages.habits.createManually })).toBeVisible()
 

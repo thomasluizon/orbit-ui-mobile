@@ -451,6 +451,23 @@ describe('Wrapped root shell', () => {
     } finally { unsubscribe() }
   })
 
+  it('retains the Today bottom viewport when its habits become available', async () => {
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    routeState.mountToday = true
+    createState.profile = { hasProAccess: true }
+    const tree = await renderRoot()
+    const [bottomViewport] = findByTestId(tree, 'shell-bottom-viewport')
+    expect(findByTestId(tree, 'fab')).toHaveLength(0)
+    expect(bottomViewport?.props.scrollEnabled).toBe(true)
+    routeState.habits = normalizeHabitQueryData([createMockHabitScheduleItem()]).habitsById
+    routeState.hasData = true
+    await TestRenderer.act(() => tree.update(<RootLayout />))
+    expect(findByTestId(tree, 'fab')).toHaveLength(1)
+    expect(findByTestId(tree, 'shell-bottom-viewport')[0]).toBe(bottomViewport)
+    expect(bottomViewport?.props.scrollEnabled).toBe(true)
+  })
+
   it('renders Wrapped without bottom chrome or notices', async () => {
     const tree = await renderRoot()
 

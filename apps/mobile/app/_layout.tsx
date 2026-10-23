@@ -148,7 +148,6 @@ function RootLayoutNav() {
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const lastDestination = useUIStore((s) => s.lastDestination)
   const setLastDestination = useUIStore((s) => s.setLastDestination)
-  const todayFabHidden = useUIStore((s) => s.todayFabHidden)
   const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
   const setAstraConversationOpen = useUIStore((s) => s.setAstraConversationOpen)
   const offline = useOffline()
@@ -289,7 +288,7 @@ function RootLayoutNav() {
               {offlineNotice}
             </>}
             tabBar={<DestinationTabBar pathname={pathname} notFound={isNotFound} />}
-            fab={pathname === '/' && !todayFabHidden
+            fab={pathname === '/'
               ? <AppCreateFab onCreate={handleCreate} />
               : undefined}
           >
@@ -516,6 +515,8 @@ function RootLayoutContent() {
 
 function AppCreateFab({ onCreate }: Readonly<{ onCreate: () => void }>) {
   const { t } = useTranslation()
+  const todayFabHidden = useUIStore((state) => state.todayFabHidden)
+  if (todayFabHidden) return null
   return (
     <View pointerEvents="box-none">
       <Fab label={t('nav.createHabit')} onClick={onCreate}>

@@ -28,11 +28,13 @@ function bundleConversation() {
     const DeferredConversation = lazy(() => new Promise(resolve => setTimeout(() => resolve({ default: AstraConversation }), 500)));
     const messages = configuration.locale === 'en' ? en : ptBR;
     useUIStore.getState().setAstraConversationOpen(configuration.open);
+    if (configuration.settleToday) document.addEventListener('pointerdown', () => useUIStore.getState().setTodayFabHidden(false), { once: true });
     const threadScroll = createChatThreadScroll();
     const chatContainerRef = createRef();
     function App() {
       const [value, onChangeValue] = useState(configuration.draft);
       const open = useUIStore(state => state.astraConversationOpen);
+      const todayFabHidden = useUIStore(state => state.todayFabHidden);
       const onOpenConversation = () => useUIStore.getState().setAstraConversationOpen(true);
       const composerProps = { state: 'idle', value, onChangeValue, onSend: () => {},
         suggestions: [], words: messages.shell.composer };
@@ -41,6 +43,7 @@ function bundleConversation() {
         scrollToBottom: () => {} };
       return <NextIntlClientProvider locale={configuration.locale} messages={messages} timeZone="UTC">
         <DestinationShell onCreate={() => {}} conversationOpen={open} conversationLabel="Astra"
+          todayFabHidden={configuration.settleToday ? todayFabHidden : undefined}
           conversation={configuration.delayed ? <Suspense fallback={null}><DeferredConversation chat={chat} /></Suspense> : <AstraConversation chat={chat} />}
           composer={<Composer {...composerProps} onOpenConversation={onOpenConversation}
             conversationLabel={messages.todayAstra.openConversation} />}>
@@ -55,7 +58,7 @@ function bundleConversation() {
     'next/navigation': `const configuration = JSON.parse(document.getElementById('configuration').textContent);
       export { unstable_isUnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error';
       export const usePathname = () => ['/chat', '/r/invalid'].includes(configuration.route) ? '/' : configuration.route;
-      export const useParams = () => ({}); export const useRouter = () => ({ push: () => {} });`,
+      export const useParams = () => ({}); export const useRouter = () => ({ push: route => { document.documentElement.dataset.navigation = route; } });`,
     '@/hooks/use-profile': "export const useProfile = () => ({ profile: { name: 'Person', email: 'person@example.test' } });",
     '@/hooks/use-notification-inbox': 'export const useNotificationInbox = () => ({ visibleUnreadCount: 1 });',
     '@/components/command/command-palette': 'export const CommandPalette = () => null;',
@@ -107,16 +110,33 @@ describe('interaction fill guard with the mounted conversation owners', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  async function mount(width: number, locale: 'en' | 'pt-BR', route: string, open: boolean, draft: string, delayed = false) {
+  async function mount(width: number, locale: 'en' | 'pt-BR', route: string, open: boolean, draft: string, delayed = false, settleToday = false) {
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
     page.setDefaultTimeout(2000)
     const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
     await page.setContent(`<html class="dark" style="${variables}"><style>${stylesheet}</style><div id="root"></div>
-      <script id="configuration" type="application/json">${JSON.stringify({ locale, route, open, draft, delayed })}</script></html>`)
+      <script id="configuration" type="application/json">${JSON.stringify({ locale, route, open, draft, delayed, settleToday })}</script></html>`)
     await page.addScriptTag({ content: script })
     await page.locator('[data-shell]').waitFor()
     return page
   }
+
+  it.each(['en', 'pt-BR'] as const)('keeps a Calendar press when Today confirms its list in %s', async (locale) => {
+    const page = await mount(412, locale, '/', false, '', false, true)
+    try {
+      const messages = locale === 'en' ? en : ptBR
+      const calendar = page.locator('[data-shell-tab-bar]').getByRole('link', { name: messages.nav.calendar, exact: true })
+      const before = await calendar.boundingBox()
+      expect(before).not.toBeNull()
+      await page.mouse.move(before!.x + before!.width / 2, before!.y + before!.height / 2)
+      await page.mouse.down()
+      await page.locator('[data-shell-fab] button').waitFor({ state: 'visible' })
+      const after = await calendar.boundingBox()
+      await page.mouse.up()
+      expect(after).toEqual(before)
+      expect(await page.locator('html').getAttribute('data-navigation')).toBe('/calendar')
+    } finally { await page.close() }
+  })
 
   it.each([320, 412, 600].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale =>
     ['/', '/habits/habit-1', '/r/invalid'].flatMap(route => ['', 'Retained draft'].map(draft => ({ width, locale, route, draft }))))))(
