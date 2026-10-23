@@ -43,3 +43,16 @@ the trace and prose edges. Web
 measures compiled styles in hermetic Chromium through Vitest; Android measures its rendered
 native styles through Yoga. The wider block matrix also covers both locales, block-only replies,
 previews, read lists, metrics, clarification, outcomes and actions.
+
+## Lean answer placement
+
+Validated final parts lead with the API's selected answer block. Negotiated operation previews
+and terminal blocks precede external text. Completed tool steps use their existing collapsed
+disclosure after the answer; running feedback remains in the pending slot. Zero to two small
+follow-up pills retain an accessible group name without a visible heading. Populated threads hide
+generic composer suggestions, while empty-thread starters and Ideas retain their own behavior.
+
+Block-only completion receives one localized polite turn announcement. The announcement reads
+visible parts rather than duplicate legacy prose. Legacy history retains its supported fallback;
+malformed or missing sole answers recover visibly. Code copying remains governed by
+`astra-block-copy-surfaces.md`. API composition owns short-text exceptions and grounded proactive results; data-backed entries require their corresponding typed blocks.
