@@ -6,7 +6,7 @@ import { createTokensV2 } from '@/lib/theme'
 const TestRenderer = require('react-test-renderer')
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: () => 'Próximas perguntas' }),
+  useTranslation: () => ({ t: (key: string) => key === 'nav.astra' ? 'Astra' : 'Próximas perguntas' }),
 }))
 
 type TestNode = {
@@ -66,7 +66,7 @@ describe('Follow-up question rows', () => {
     const rows = tree.root.findAll(node => node.type === 'Pressable')
     expect(rows).toHaveLength(2)
     rows.forEach((row, index) => {
-      expect(row.props.accessibilityLabel).toBe(questions[index])
+      expect(row.props.accessibilityLabel).toBe(`${questions[index]}, Astra`)
       TestRenderer.act(() => { (row.props.onPress as () => void)() })
       expect(onSelect).toHaveBeenLastCalledWith(questions[index])
     })

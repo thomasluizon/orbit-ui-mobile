@@ -39,7 +39,7 @@ for (const { width, panelOpen } of [
 
       await page.goto(`/habits/${habitId}`)
       if (panelOpen) {
-        await page.getByRole('button', { name: ptBr.todayAstra.openConversation }).click()
+        await page.getByRole('button', { name: `${ptBr.todayAstra.openConversation}, ${ptBr.nav.astra}`, exact: true }).click()
         await expect(page.locator('[data-shell-conversation="overlay"]')).toBeVisible()
         await expect(page.locator('[data-shell-scroller]')).toBeHidden()
         await page.getByRole('button', { name: ptBr.common.closeConversation }).click()

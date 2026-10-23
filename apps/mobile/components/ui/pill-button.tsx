@@ -9,7 +9,8 @@ import {
   Text,
   type ViewStyle,
   type PressableProps,
-  type View,
+  View,
+  useWindowDimensions,
 } from 'react-native'
 import { SPACING, GOOGLE_SIGN_IN_BUTTON, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN, type ButtonVariant } from '@orbit/shared/theme'
 import { createTokensV2, mixHex, radius } from '@/lib/theme'
@@ -62,13 +63,14 @@ export function Button({
   matchedWidth = false,
   label,
   leadingIcon,
+  retainLeadingIcon = false,
   brand,
   hint,
   accessibilityRole = 'button',
   quiet = false,
   formId: _formId,
   ...pressableProps
-}: Readonly<ButtonProps & Omit<PressableProps, 'children' | 'onFocus' | 'onBlur'> & { ref?: Ref<View>; buttonRef?: Ref<View>; accessibilityRole?: 'button' | 'link'; quiet?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>) {
+}: Readonly<ButtonProps & { retainLeadingIcon?: boolean } & Omit<PressableProps, 'children' | 'onFocus' | 'onBlur'> & { ref?: Ref<View>; buttonRef?: Ref<View>; accessibilityRole?: 'button' | 'link'; quiet?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>) {
   const composedRef = useComposedRefs(ref, buttonRef)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -139,20 +141,7 @@ export function Button({
         pressed && !disabled && !loading && !prefersReducedMotion ? styles.pressedScale : null,
       ]}
     >
-      {loading ? (
-        <ActivityIndicator size="small" color={textColorByVariant[variant]} />
-      ) : iconOnly ? children : leadingGlyph}
-      {iconOnly ? null : (
-        <Text
-          numberOfLines={1}
-          style={[
-            styles.label,
-            { color: textColorByVariant[variant], fontSize: sizeSpec.fontSize },
-          ]}
-        >
-          {children}
-        </Text>
-      )}
+      <ButtonContents loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColorByVariant[variant]} sizeSpec={sizeSpec}>{children}</ButtonContents>
     </Pressable>
   )
 }
@@ -160,6 +149,30 @@ export function Button({
 /** Native navigation with the same visual contract as PillButton. */
 export function PillLink({ onPress, children }: Readonly<{ onPress: () => void; children: string }>) {
   return <Button accessibilityRole="link" onClick={onPress}>{children}</Button>
+}
+
+function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, sizeSpec }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
+  loading: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; sizeSpec: typeof BUTTON_SIZES.sm
+}>) {
+  const { fontScale } = useWindowDimensions()
+  return <>
+      {loading && !retainLeadingIcon ? (
+        <ActivityIndicator size="small" color={textColor} />
+      ) : iconOnly ? children : leadingGlyph}
+      {iconOnly ? null : (
+        <Text
+          numberOfLines={retainLeadingIcon && fontScale > 1.3 ? undefined : 1}
+          style={[
+            styles.label,
+            retainLeadingIcon ? { flexShrink: 1 } : null,
+            { color: textColor, fontSize: sizeSpec.fontSize },
+          ]}
+        >
+          {children}
+        </Text>
+      )}
+      {retainLeadingIcon ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={{ width: sizeSpec.iconSize, height: sizeSpec.iconSize }}>{loading ? <ActivityIndicator animating size="small" color={textColor} /> : null}</View> : null}
+  </>
 }
 
 const styles = StyleSheet.create({

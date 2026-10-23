@@ -22,7 +22,7 @@ for (const width of [412, 1352]) {
         contentType: 'text/event-stream', body: `data: ${JSON.stringify(finalEvent)}\n\n`,
       }))
       await page.goto('/')
-      await page.getByRole('button', { name: width >= 1024 ? pt.chat.title : pt.todayAstra.openConversation, exact: true }).click()
+      await page.getByRole('button', { name: width >= 1024 ? pt.chat.title : `${pt.todayAstra.openConversation}, ${pt.nav.astra}`, exact: true }).click()
       const conversation = page.locator('[data-shell-conversation="overlay"]')
       const feed = conversation.getByRole('feed', { name: pt.chat.title, exact: true })
       await expect(feed).toBeVisible()
@@ -31,7 +31,7 @@ for (const width of [412, 1352]) {
       }
       for (const [index, question] of ['Como posso revisar a minha rotina?', 'E amanhã?'].entries()) {
         await conversation.locator('[data-composer-input]').fill(question)
-        await conversation.getByRole('button', { name: pt.shell.composer.send, exact: true }).click()
+        await conversation.getByRole('button', { name: `${pt.shell.composer.send}, ${pt.habits.form.askDate}`, exact: true }).click()
         await expect(feed.getByRole('article')).toHaveCount((index + 1) * 2)
         await expect(feed).toHaveAttribute('aria-busy', 'false')
         await expect(feed.getByRole('article').last().locator('[aria-live="polite"]')).toHaveText(reply)

@@ -78,6 +78,21 @@ describe('composer chips', () => {
     expect(buildComposerChips(state())[1]!.params).toEqual({ title: 'Reading' })
   })
 
+  it.each([
+    ['en', en, 'Build a morning routine', 'Build a morning routine'],
+    ['pt-BR', ptBR, 'Montar rotina matinal', 'Montar uma rotina matinal'],
+  ] as const)('keeps the empty Today morning label separate from its full prompt in %s', (_locale, messages, label, prompt) => {
+    const chips = buildComposerChips(state({ habits: [], totalHabitCount: 0 }))
+    expect(chips).toEqual([
+      { id: 'today.buildMorningRoutine', key: 'shell.composer.chips.today.buildMorningRoutine', promptKey: 'shell.composer.prompts.today.buildMorningRoutine' },
+      { id: 'today.startOneHabit', key: 'shell.composer.chips.today.startOneHabit' },
+      { id: 'today.suggestThreeHabits', key: 'shell.composer.chips.today.suggestThreeHabits' },
+      { id: 'today.createEveningHabit', key: 'shell.composer.chips.today.createEveningHabit' },
+    ])
+    expect(messages.shell.composer.chips.today.buildMorningRoutine).toBe(label)
+    expect(messages.shell.composer.prompts.today.buildMorningRoutine).toBe(prompt)
+  })
+
   it('puts a pending log first when a streak is at risk', () => {
     expect(ids({ habits: [pending], profile: createMockProfile({ currentStreak: 5, lastCompletionDate: null }) })[0]).toBe('today.logHabit')
   })

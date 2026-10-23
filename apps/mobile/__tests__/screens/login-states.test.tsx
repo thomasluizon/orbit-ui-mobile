@@ -237,6 +237,23 @@ describe.each(authLocales)('mobile auth composition in %s', (locale) => {
     expect(host(tree.root, 'Text').filter((node) => node.props.accessibilityRole === 'alert')).toHaveLength(0)
     act(() => tree.unmount())
   })
+  it.each(['email', 'code'] as const)('keeps the exact quiet invitation receipt on %s and excludes account-back', (step) => {
+    const expected = locale === 'en'
+      ? 'You came through an invitation. It applies when a new account is created.'
+      : 'Você veio por um convite. Ele vale ao criar uma conta nova.'
+    setFixture(step, locale)
+    mocks.flow.showReferralBanner = true
+    const tree = render()
+    expect(textOf(tree.root)).toContain(expected)
+    expect(host(tree.root, 'Text').filter((node) => node.props.children === expected)).toHaveLength(1)
+    expect(expected).not.toMatch(/[0-9{}!]/)
+    setFixture('account back', locale)
+    mocks.flow.showReferralBanner = true
+    act(() => tree.update(<LoginContent />))
+    expect(textOf(tree.root)).not.toContain(expected)
+    act(() => tree.unmount())
+  })
+
   it('uses the singular habit count and retains referral on the code step', () => {
     const { t } = setFixture('from onboarding', locale)
     mocks.flow.plannedHabitCount = 1

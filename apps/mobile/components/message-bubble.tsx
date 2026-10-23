@@ -64,7 +64,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
     new Set(),
   );
 
-  const { isUser, parts, relatedSurfaces, nonSuggestionActions, suggestions, outcomes } = getMessageBubbleView(props, dismissedBreakdowns)
+  const { isUser, parts, showUnreadableReply, relatedSurfaces, nonSuggestionActions, suggestions, outcomes } = getMessageBubbleView(props, dismissedBreakdowns)
   const operations = getMessageBubbleOperations(props, useChatStore.getState().transitionMessage)
   function dismissBreakdown(key: string) {
     setDismissedBreakdowns(previous => new Set([...previous, key]))
@@ -81,6 +81,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
       <View
         style={isUser ? styles.bubbleColumnUser : styles.bubbleColumnAI}
       >
+        {showUnreadableReply ? <Text accessibilityLiveRegion="polite" style={{ fontSize: 14, color: tokens.fg2 }}>{t('chat.unreadableReply')}</Text> : null}
         {parts.map(part => {
           if (part.type === 'block') return <ChatBlock key={part.key} part={part.part} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={part.expired} onActionChipClick={onActionChipClick} />
           return <MessageProse key={part.key} message={message}

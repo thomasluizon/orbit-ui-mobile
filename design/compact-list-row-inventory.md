@@ -100,12 +100,11 @@ Owner: the existing subscription presentation on `/upgrade`; invoice rows belong
 
 ### 10. Referral entry and statistics
 
-Owners: reusable referral entry and the referral sheet opened by the shell prompt and Hoje overlays. The reusable card is included even though no active parent currently imports it.
+Owner: the referral sheet opened by the existing shell prompt. Completed and pending figures count attributions, not reward grants. The explanation follows the current reward kind; unrelated percentage rows are absent from Pro-days records.
 
 | Web consumer | Mobile consumer | Rows and states | Density |
 |---|---|---|---|
-| `apps/web/components/referral/referral-card.tsx` | `apps/mobile/components/referral/referral-card.tsx` | Loading hint/populated progress description; entry with chevron or optional dismiss action | Described row preserves growth; dismiss target 44px |
-| `apps/web/components/referral/referral-drawer.tsx` | `apps/mobile/components/referral/referral-drawer.tsx` | Sheet closed/open; loading/error/populated content; completed, pending and coupon statistic rows | Default plain read-only rows 52px |
+| `apps/web/components/referral/referral-drawer.tsx` | `apps/mobile/components/referral/referral-drawer.tsx` | Sheet closed/open; loading/error/populated content; completed and pending attribution rows | Default plain read-only rows 52px |
 
 ## Evidence boundary
 

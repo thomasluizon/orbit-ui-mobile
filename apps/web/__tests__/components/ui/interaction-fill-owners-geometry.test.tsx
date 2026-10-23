@@ -46,14 +46,40 @@ async function reachState(page: Page, control: Locator, state: 'hover' | 'press'
   }
 }
 
-async function assertComposerRow(page: Page, messages: typeof en | typeof ptBR, surface: 'composer' | 'composerPaste', width: number, forcedColors: 'active' | 'none') {
+async function assertComposerRow(page: Page, messages: typeof en | typeof ptBR, surface: 'composer' | 'composerPaste') {
+  const row = page.locator('[data-composer-input-row]')
+  const geometry = await row.evaluate(element => {
+    const style = getComputedStyle(element)
+    const trailing = element.querySelector('[data-composer-trailing-controls]')!
+    const entry = element.querySelector('[data-open-conversation]')!
+    const minimum = element.querySelector('[data-composer-input-minimum]')!
+    const textControls = trailing.querySelector('[data-composer-text-controls]')!
+    const bounds = element.getBoundingClientRect()
+    const children = [...element.children].map(child => child.getBoundingClientRect())
+    return {
+      available: element.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd),
+      required: entry.getBoundingClientRect().width + minimum.getBoundingClientRect().width
+        + textControls.getBoundingClientRect().width + trailing.lastElementChild!.getBoundingClientRect().width
+        + parseFloat(getComputedStyle(trailing).columnGap),
+      top: bounds.top, height: bounds.height,
+      borderTop: parseFloat(style.borderTopWidth), borderBottom: parseFloat(style.borderBottomWidth),
+      lineTops: [...new Set(children.map(child => child.top))].sort((left, right) => left - right),
+      heights: children.map(child => child.height),
+    }
+  })
   const control = page.getByRole('button', { name: messages.shell.composer[surface === 'composer' ? 'clear' : 'paste'], exact: true })
-  const textActionInMenu = width === 320
+  const textActionInMenu = geometry.required > geometry.available
   await expect.poll(() => control.count()).toBe(textActionInMenu ? 0 : 1)
   if (!textActionInMenu) expect(await control.evaluate(element => element.parentElement!.firstElementChild === element)).toBe(true)
   const bounds = await page.locator('[data-composer-trailing-controls] button').evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top))
   expect(new Set(bounds).size).toBe(1)
-  expect((await page.locator('[data-composer-input-row]').boundingBox())!.height).toBe({ active: 60, none: 56 }[forcedColors])
+  expect(geometry.lineTops.length).toBeGreaterThanOrEqual(1)
+  expect(geometry.lineTops.length).toBeLessThanOrEqual(2)
+  for (const height of geometry.heights) expect(height).toBe(48)
+  for (const [index, top] of geometry.lineTops.entries()) {
+    expect(top).toBeCloseTo(geometry.top + geometry.borderTop + 4 + index * 48, 1)
+  }
+  expect(geometry.height).toBeCloseTo(geometry.lineTops.length * 48 + 8 + geometry.borderTop + geometry.borderBottom, 1)
 }
 
 function ownerSurfaces(messages: typeof en | typeof ptBR) {
@@ -101,13 +127,14 @@ describe('shared interaction fill owners in Chromium', () => {
       });
       process.stdout.write(result.outputFiles[0].text);
     `, JSON.stringify(`import React from 'react'; import { createRoot } from 'react-dom/client';
+      import { NextIntlClientProvider } from 'next-intl';
       import { Composer } from './components/shell/composer';
-      const { messages, value } = JSON.parse(document.getElementById('composer-configuration').textContent);
+      const { messages, value, locale } = JSON.parse(document.getElementById('composer-configuration').textContent);
       Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { readText: async () => '' } });
-      createRoot(document.getElementById('composer-mount')).render(<Composer state="idle" value={value} suggestions={[]}
+      createRoot(document.getElementById('composer-mount')).render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><Composer state="idle" value={value} suggestions={[]}
         words={messages.shell.composer} onChangeValue={() => {}} onSend={() => {}}
         onOpenConversation={() => {}} conversationLabel={messages.todayAstra.openConversation}
-        onAttachFile={() => {}} attachWords={{ ...messages.shell.composer.attach, remove: name => name }} />);`)],
+        onAttachFile={() => {}} attachWords={{ ...messages.shell.composer.attach, remove: name => name }} /></NextIntlClientProvider>);`)],
       { maxBuffer: 10 * 1024 * 1024 }).toString()
     const source = resolve('app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
@@ -122,7 +149,7 @@ describe('shared interaction fill owners in Chromium', () => {
     </NextIntlClientProvider>)
     const composerSurface = surface === 'composer' || surface === 'composerPaste'
     const markup = composerSurface
-      ? `<main data-shell-column style="max-width:740px;margin:auto"><div id="composer-mount"></div></main><script id="composer-configuration" type="application/json">${JSON.stringify({ messages, value: composerValues[surface] })}</script>`
+      ? `<main data-shell-column style="max-width:740px;margin:auto"><div id="composer-mount"></div></main><script id="composer-configuration" type="application/json">${JSON.stringify({ messages, value: composerValues[surface], locale })}</script>`
       : renderToStaticMarkup(content)
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce', forcedColors })
     try {
@@ -133,7 +160,7 @@ describe('shared interaction fill owners in Chromium', () => {
         await page.locator('[data-composer-input]').waitFor()
       }
       await loadAppFonts(page)
-      if (composerSurface) await assertComposerRow(page, messages, surface, width, forcedColors)
+      if (composerSurface) await assertComposerRow(page, messages, surface)
       const controls = page.locator('button:not(:disabled):not([aria-disabled="true"]), a[href], [role="switch"]')
       for (const control of await controls.all()) {
         await control.scrollIntoViewIfNeeded()

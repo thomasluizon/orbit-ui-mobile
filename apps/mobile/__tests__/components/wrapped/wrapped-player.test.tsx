@@ -1,3 +1,6 @@
+import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
+import { createInstance } from 'i18next'
+import ICUCommonJs from 'i18next-icu/cjs'
 import React from 'react'
 import { StyleSheet } from 'react-native'
 import type { ReactTestRenderer } from 'react-test-renderer'
@@ -16,14 +19,14 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: profileState.available ? createMockProfile({ weekStartDay: 1 }) : undefined }),
 }))
 
-const translationMock = vi.hoisted<{ labels: Record<string, string> }>(() => ({ labels: {} }))
+const translationMock = vi.hoisted<{ labels: Record<string, string>; locale: string }>(() => ({ labels: {}, locale: '' }))
+const rewardState = vi.hoisted<{ stats: { rewardType?: string; proDaysPerReferral?: number; discountPercent?: number } | null; isError: boolean }>(() => ({ stats: { rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 23 }, isError: false }))
+vi.mock('@/hooks/use-referral', () => ({ useReferral: () => rewardState }))
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => translationMock.labels[key] ?? key,
-    i18n: { language: 'en' },
-  }),
-}))
+const testI18n = createInstance()
+const ICU = typeof ICUCommonJs === 'function' ? ICUCommonJs : ICUCommonJs.default
+void testI18n.use(ICU).init({ resources: { en: { translation: en }, 'pt-BR': { translation: ptBR } }, lng: 'en', fallbackLng: 'en', initAsync: false })
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, params?: Record<string, unknown>) => translationMock.locale ? testI18n.getFixedT(translationMock.locale)(key, params) : translationMock.labels[key] ?? key, i18n: { language: translationMock.locale || 'en' } }) }))
 
 vi.mock('react-native-gesture-handler', () => {
   const GestureDetector = ({ children }: Readonly<{ children?: React.ReactNode }>) => children
@@ -75,8 +78,7 @@ const renderer = require('react-test-renderer') as typeof import('react-test-ren
 
 const tokens = createTokensV2('purple', 'dark')
 
-function renderPlayer() {
-  const recap = createMockRecap()
+function renderPlayer(recap = createMockRecap()) {
   const slides = buildWrappedSlides(recap)
   let tree!: ReactTestRenderer
   void renderer.act(() => {
@@ -130,7 +132,7 @@ function advanceToLastSlide(tree: ReactTestRenderer, slideCount: number) {
 describe('WrappedPlayer', () => {
   beforeEach(() => {
     profileState.available = true
-    translationMock.labels = {}
+    translationMock.labels = {}; translationMock.locale = ''; rewardState.stats = { rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 23 }; rewardState.isError = false
     shareCardMock.isSharing = false
     shareCardMock.hasError = false
     shareCardMock.canShareFiles = true
@@ -329,8 +331,49 @@ describe('WrappedPlayer', () => {
 
     expect(shareCardMock.share).toHaveBeenCalledWith({
       shareTitle: 'shareCard.shareTitle',
-      shareText: 'shareCard.shareText',
+      shareText: 'referral.share.proDays',
       url: createMockRecap().shareDeepLink,
     })
   })
+  it.each(['en', 'pt-BR'])('sends the approved invitation with the original recap link in %s', (locale) => {
+    translationMock.locale = locale
+    const { slides, tree } = renderPlayer()
+    advanceToLastSlide(tree, slides.length)
+    press(byTestId(tree, 'button-primary-sm'))
+    expect(shareCardMock.share).toHaveBeenCalledWith(expect.objectContaining({ shareText: expect.stringContaining(locale === 'en' ? 'I can earn 7 days of Pro.' : 'Eu posso ganhar 7 dias de Pro.'), url: createMockRecap().shareDeepLink }))
+  })
+
+  it.each(referralCopyCases)('shares exact $locale $stats.rewardType copy using the matching amount', ({ locale, stats, invitation }) => {
+    translationMock.locale = locale
+    rewardState.stats = stats
+    const recap = createMockRecap({ shareDeepLink: 'https://app.useorbit.org/r/RECAP?recap=month&year=2025&month=4' })
+    const { slides, tree } = renderPlayer(recap)
+    advanceToLastSlide(tree, slides.length)
+    expect(hasText(tree, invitation)).toBe(false)
+    press(byTestId(tree, 'button-primary-sm'))
+    expect(shareCardMock.share).toHaveBeenLastCalledWith({ shareTitle: (locale === 'en' ? en : ptBR).shareCard.shareTitle, shareText: invitation, url: recap.shareDeepLink })
+    void renderer.act(() => tree.update(<></>))
+  })
+
+  it.each([null, { rewardType: 'future_reward', proDaysPerReferral: 11, discountPercent: 23 }, { rewardType: 'pro_days', discountPercent: 23 }, { discountPercent: 23 }])('keeps a valid recap share usable with neutral optional reward data %s', (stats) => {
+    translationMock.locale = 'en'
+    rewardState.stats = stats
+    const { slides, tree } = renderPlayer()
+    advanceToLastSlide(tree, slides.length)
+    press(byTestId(tree, 'button-primary-sm'))
+    expect(shareCardMock.share).toHaveBeenLastCalledWith({ shareTitle: en.shareCard.shareTitle, shareText: 'Join me on Orbit.', url: createMockRecap().shareDeepLink })
+    expect(hasText(tree, en.shareCard.download)).toBe(true)
+    void renderer.act(() => tree.update(<></>))
+  })
+
+  it('uses the neutral invitation after an optional reward request fails', () => {
+    translationMock.locale = 'en'
+    rewardState.isError = true
+    const { slides, tree } = renderPlayer()
+    advanceToLastSlide(tree, slides.length)
+    press(byTestId(tree, 'button-primary-sm'))
+    expect(shareCardMock.share).toHaveBeenLastCalledWith(expect.objectContaining({ shareText: 'Join me on Orbit.' }))
+    void renderer.act(() => tree.update(<></>))
+  })
+
 })

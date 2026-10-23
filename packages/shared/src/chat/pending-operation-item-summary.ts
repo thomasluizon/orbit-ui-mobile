@@ -74,7 +74,7 @@ function additionalChanges(
       return [translate(`chat.preview.summary.${keyPair[boolean === 'true' ? 1 : 0]}`)]
     }
     if (field.field === 'description') return [field.newValue || translate('chat.preview.summary.removeDescription')]
-    if (field.field === 'emoji') return field.newValue ? [translate('chat.preview.summary.useIcon', { emoji: field.newValue })] : [translate('chat.preview.summary.removeIcon')]
+    if (field.field === 'emoji') return field.newValue ? [] : [translate('chat.preview.summary.removeIcon')]
     if (field.field === 'frequency_quantity' && !scheduleSummarized && field.newValue) return [translate('chat.preview.summary.repeatInterval', { count: field.newValue })]
     if (field.field === 'frequency_unit' && !field.newValue) return [translate('habits.filter.oneTime')]
     return [...scheduleAndListChanges(field, translate, formatTime, locale, scheduleSummarized), ...writeOutcome(field, translate, formatTime, locale)]

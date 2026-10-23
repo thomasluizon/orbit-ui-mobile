@@ -28,3 +28,4 @@ export * from './goal-linking-core'
 export * from './goal-habit-picker-core'
 
 export { createMenuOwnership, type MenuOwnership } from './menu-state-core'
+export * from './preview-title-core'

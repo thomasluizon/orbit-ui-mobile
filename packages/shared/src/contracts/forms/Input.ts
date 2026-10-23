@@ -20,6 +20,7 @@ type InputBase = {
   name?: string
   onSubmit?: () => void
   onBlur?: () => void
+  onCancel?: () => void
   trailing?: React.ReactNode
 }
 

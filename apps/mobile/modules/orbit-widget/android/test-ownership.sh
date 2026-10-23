@@ -7,6 +7,7 @@ trap 'rm -rf "$test_dir"' EXIT
 
 kotlinc \
   "$module_dir/src/main/java/org/useorbit/app/widget/WidgetAccountState.kt" \
+  "$module_dir/src/main/java/org/useorbit/app/widget/WidgetPublisher.kt" \
   "$module_dir/src/main/java/org/useorbit/app/widget/WidgetGeometry.kt" \
   "$module_dir/src/test/java/org/useorbit/app/widget/WidgetGeometryTest.kt" \
   "$module_dir/src/test/java/org/useorbit/app/widget/WidgetAccountStateTest.kt" \

@@ -3,6 +3,7 @@ import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
 import { useState } from 'react'
+import { renderToString } from 'react-dom/server'
 import userEvent from '@testing-library/user-event'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
@@ -12,7 +13,8 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 const authSession = vi.hoisted(() => ({ isAuthenticated: true, user: { userId: 'account-a' } }))
 vi.mock('@/stores/auth-store', () => ({ useAuthStore: { getState: () => authSession } }))
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+const astraCopy = vi.hoisted(() => ({ name: 'nav.astra' }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key === 'nav.astra' ? astraCopy.name : key }))
 
 const words = {
   placeholder: 'placeholder sentinel',
@@ -201,6 +203,151 @@ describe('clipboard composer control', () => {
 })
 
 describe('Composer', () => {
+  it.each([en, ptBR].flatMap(messages => (['idle', 'atLimit', 'offline', 'sending'] as const).map(state => ({ messages, state }))))(
+    'owns the persistent input minimum and inert action reservation before effects while $state', ({ messages, state }) => {
+      const configuration = props({ suggestions: [], words: { ...messages.shell.composer,
+        placeholder: state === 'atLimit' ? messages.shell.composer.limit.placeholder : messages.shell.composer.placeholder },
+        state, limitReason: 'reason', onAttachFile: vi.fn(), attachWords })
+      const initial = document.createElement('div')
+      initial.innerHTML = renderToString(<Composer {...configuration} />)
+      const minimum = initial.querySelector('[data-composer-input-minimum]')!
+      expect(minimum).not.toBeNull()
+      expect(minimum).toHaveTextContent(messages.shell.composer.inputLabel)
+      expect(minimum).toHaveAttribute('aria-hidden', 'true')
+      expect(minimum).not.toHaveAttribute('tabindex')
+      expect(initial.querySelector('[data-composer-text-action-slot]')).toBeEmptyDOMElement()
+      const view = render(<Composer {...configuration} />)
+      try {
+        const mounted = view.container.querySelector('[data-composer-input-minimum]')!
+        expect(mounted.outerHTML).toBe(minimum.outerHTML)
+        expect(screen.getAllByRole('textbox')).toHaveLength(1)
+        expect(screen.getByRole('textbox')).toHaveAttribute('aria-label', messages.shell.composer.inputLabel)
+        expect(view.container.querySelectorAll('[data-composer-text-action-slot]')).toHaveLength(1)
+      } finally { view.unmount() }
+    },
+  )
+
+  it.each([en, ptBR].flatMap(messages => (['idle', 'atLimit'] as const).map(initialState => ({ messages, initialState }))))('measures the prompt and reserved actions from $initialState through mounted allowance changes', async ({ messages, initialState }) => {
+    const readText = vi.fn().mockResolvedValue('Pasted message')
+    vi.stubGlobal('navigator', { clipboard: { readText } })
+    const onSend = vi.fn()
+    const onChangeValue = vi.fn()
+    const configuration = props({ suggestions: [], words: messages.shell.composer, onSend, onChangeValue, state: initialState, limitReason: 'reason',
+      onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation,
+      onAttachFile: vi.fn(), attachWords, attachments: [{ id: 'image', kind: 'image', name: 'walk.png' }], onAttachRemove: vi.fn() })
+    function Mounted({ configuration }: Readonly<{ configuration: ComposerProps }>) {
+      const [value, setValue] = useState('')
+      return <Composer {...configuration} value={value} onChangeValue={text => { onChangeValue(text); setValue(text) }} />
+    }
+    const view = render(<Mounted configuration={configuration} />)
+    const field = screen.getByRole('textbox') as HTMLTextAreaElement
+    const row = field.closest<HTMLElement>('[data-composer-input-row]')!
+    const trailing = row.querySelector<HTMLElement>('[data-composer-trailing-controls]')!
+    const textControls = trailing.firstElementChild!
+    let width = 380
+    Object.assign(field.style, { fontSize: '16px', fontFamily: 'Geist', fontStyle: 'normal', fontWeight: '400',
+      paddingInlineStart: '8px', paddingInlineEnd: '8px' })
+    Object.assign(row.style, { paddingInlineStart: '4px', paddingInlineEnd: '4px' })
+    trailing.style.columnGap = '4px'
+    Object.assign((textControls as HTMLElement).style, { minWidth: '48px', columnGap: '4px' })
+    const promptWidth = messages === en ? 70.83193969726562 : 92.03193664550781
+    const canvas = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      font: '', letterSpacing: '', measureText: () => ({ width: promptWidth }),
+    } as unknown as CanvasRenderingContext2D)
+    const rowWidth = vi.spyOn(row, 'clientWidth', 'get').mockImplementation(() => width)
+    const inputWidth = vi.spyOn(field, 'clientWidth', 'get').mockReturnValue(96)
+    const rectangles = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this === row) return new DOMRect(16, 17, width, 80)
+      if (this.hasAttribute('data-composer-input-minimum')) return new DOMRect(0, 0, promptWidth + 16, 48)
+      if (this.hasAttribute('data-open-conversation')) return new DOMRect(20, 21, 77.984375, 48)
+      if (this === trailing.lastElementChild) return new DOMRect(220, 45, messages === en ? 133.984375 : 171.609375, 48)
+      if (this === textControls) return new DOMRect(120, 45, textControls.children.length === 2 ? 100 : 48, 48)
+      return new DOMRect(0, 0, 48, 48)
+    })
+    try {
+      const measure = () => act(() => document.fonts.dispatchEvent(new Event('loadingdone')))
+      await measure()
+      const reservedSlot = textControls.querySelector('[data-composer-text-action-slot]')!
+      expect(reservedSlot).not.toBeNull()
+      expect(reservedSlot).toBeEmptyDOMElement()
+      expect(row.querySelector('[data-composer-input-minimum]')).toHaveTextContent(messages.shell.composer.inputLabel)
+      expect(screen.queryByRole('button', { name: messages.shell.composer.paste })).not.toBeInTheDocument()
+      for (const state of ['atLimit', 'idle', 'sending', 'idle'] as const) {
+        view.rerender(<Mounted configuration={props({ ...configuration, state, limitReason: 'reason',
+          words: { ...messages.shell.composer, placeholder: state === 'atLimit' ? messages.shell.composer.limit.placeholder : messages.shell.composer.placeholder } })} />)
+        await measure()
+        expect(textControls.querySelector('[data-composer-text-action-slot]')).toBe(reservedSlot)
+        expect(reservedSlot).toBeEmptyDOMElement()
+        expect(screen.queryByRole('button', { name: messages.shell.composer.paste })).not.toBeInTheDocument()
+      }
+      width = 568
+      await measure()
+      expect(textControls.querySelector('[data-composer-text-action-slot]')).toBe(reservedSlot)
+      expect(screen.getAllByRole('button', { name: messages.shell.composer.paste })).toHaveLength(1)
+      width = 380
+      await measure()
+      fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.actions }))
+      const menu = await screen.findByRole('menu')
+      expect(within(menu).getAllByRole('menuitem')[0]).toHaveAccessibleName(messages.shell.composer.paste)
+      expect(within(menu).getAllByRole('menuitem', { name: messages.shell.composer.paste })).toHaveLength(1)
+      expect(onChangeValue).not.toHaveBeenCalled()
+      fireEvent.click(within(menu).getAllByRole('menuitem')[0]!)
+      await waitFor(() => expect(field).toHaveValue('Pasted message'))
+      await waitFor(() => expect(field).toHaveFocus())
+      expect([field.selectionStart, field.selectionEnd]).toEqual([14, 14])
+      expect(readText).toHaveBeenCalledOnce()
+      fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.actions }))
+      const clearMenu = await screen.findByRole('menu')
+      expect(within(clearMenu).getAllByRole('menuitem')[0]).toHaveAccessibleName(messages.shell.composer.clear)
+      expect(within(clearMenu).getAllByRole('menuitem', { name: messages.shell.composer.clear })).toHaveLength(1)
+      fireEvent.click(within(clearMenu).getAllByRole('menuitem')[0]!)
+      await waitFor(() => expect(field).toHaveValue(''))
+      await waitFor(() => expect(field).toHaveFocus())
+      expect([field.selectionStart, field.selectionEnd]).toEqual([0, 0])
+      expect(screen.getByText('walk.png')).toBeInTheDocument()
+      expect(onChangeValue.mock.calls).toEqual([['Pasted message'], ['']])
+      expect(onSend).not.toHaveBeenCalled()
+    } finally {
+      rectangles.mockRestore(); inputWidth.mockRestore(); rowWidth.mockRestore(); canvas.mockRestore()
+      view.unmount(); vi.unstubAllGlobals()
+    }
+  })
+
+  it.each([en, ptBR])('attributes each suggestion once with the canonical decorative Astra mark', messages => {
+    astraCopy.name = messages.nav.astra
+    const chips = suggestions(3)
+    const view = render(<Composer {...props({ suggestions: chips })} />)
+    try {
+      const controls = within(screen.getByRole('group', { name: words.suggestionsLabel })).getAllByRole('button')
+      for (const [index, control] of controls.entries()) {
+        expect(control).toHaveAccessibleName(`${chips[index]!.label}, ${messages.nav.astra}`)
+        expect(within(control).getAllByText(messages.nav.astra, { exact: true })).toHaveLength(1)
+        expect(control.querySelectorAll('svg')).toHaveLength(1)
+        expect(control.querySelector('svg')).toHaveAttribute('data-asset', 'astra-mark-16')
+        expect(control.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+      }
+      fireEvent.click(controls[1]!)
+      expect(chips[1]!.onSelect).toHaveBeenCalledOnce()
+      expect(chips[0]!.onSelect).not.toHaveBeenCalled()
+      expect(chips[2]!.onSelect).not.toHaveBeenCalled()
+    } finally { astraCopy.name = 'nav.astra'; view.unmount() }
+  })
+
+  it.each(['idle', 'sending', 'offline', 'atLimit', 'recording', 'transcribing'] as const)(
+    'reserves send progress but mounts its animation only while sending: %s', state => {
+      const view = render(<Composer {...props({ state, value: 'Draft', limitReason: 'reason', onVoice: vi.fn(), voiceWords })} />)
+      const send = screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })
+      const mark = send.querySelector('[data-asset="astra-mark"]')
+      expect(mark).toHaveAttribute('aria-hidden', 'true')
+      expect(send.querySelectorAll('svg')).toHaveLength(state === 'sending' ? 2 : 1)
+      expect(send.lastElementChild).toHaveAttribute('aria-hidden', 'true')
+      expect(send.lastElementChild).toHaveStyle({ visibility: state === 'sending' ? 'visible' : 'hidden' })
+      if (state === 'sending') expect(send).toHaveAttribute('aria-busy', 'true')
+      else expect(send).not.toHaveAttribute('aria-busy')
+      view.unmount()
+    },
+  )
+
   it('keeps live suggestions available near the daily limit', () => {
     render(<Composer {...props({ allowanceReason: 'Daily allowance used', renewalHint: 'Returns tonight', usageMessage: '3 of 5' })} />)
     expect(screen.getByRole('group', { name: words.suggestionsLabel })).toBeInTheDocument()
@@ -215,7 +362,7 @@ describe('Composer', () => {
   it.each(['oi', '   ', '\n'])('shows clear as the first trailing control for typed text %j', value => {
     render(<Composer {...props({ value, onVoice: vi.fn(), voiceWords })} />)
     const clear = screen.getByRole('button', { name: words.clear })
-    expect(clear.parentElement).toHaveAttribute('data-composer-trailing-controls')
+    expect(clear.closest('[data-composer-trailing-controls]')).not.toBeNull()
     expect(clear.parentElement?.firstElementChild).toBe(clear)
   })
 
@@ -235,14 +382,14 @@ describe('Composer', () => {
     render(<ControlledComposer />)
     const input = screen.getByRole('textbox')
     fireEvent.change(input, { target: { value: 'First\nSecond' } })
-    expect(screen.getByRole('button', { name: words.send })).toBeEnabled()
+    expect(screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })).toBeEnabled()
     const clear = screen.getByRole('button', { name: words.clear })
     clear.focus()
     fireEvent.click(clear)
     expect(onChangeValue).toHaveBeenLastCalledWith('')
     expect(input).toHaveValue('')
     expect(input).toHaveFocus()
-    expect(screen.getByRole('button', { name: words.send })).toBeDisabled()
+    expect(screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })).toBeDisabled()
     expect(screen.queryByRole('button', { name: words.clear })).not.toBeInTheDocument()
     expect(onAttachRemove).not.toHaveBeenCalled()
     if (attached) expect(screen.getByText('walk.png')).toBeInTheDocument()
@@ -407,7 +554,7 @@ describe('Composer', () => {
   it('keeps focus in the composer when a selected chip disappears', () => {
     const chips = suggestions(3)
     const view = render(<Composer {...props({ suggestions: chips })} />)
-    fireEvent.click(screen.getByRole('button', { name: chips[0]!.label }))
+    fireEvent.click(screen.getByRole('button', { name: `${chips[0]!.label}, nav.astra` }))
     expect(document.activeElement).toHaveAttribute('data-composer-root')
     view.rerender(<Composer {...props({ suggestions: chips, state: 'sending' })} />)
     expect(document.activeElement).toHaveAttribute('data-composer-root')
@@ -416,7 +563,7 @@ describe('Composer', () => {
   it('selects only the pressed suggestion', () => {
     const chips = suggestions(3)
     render(<Composer {...props({ suggestions: chips })} />)
-    fireEvent.click(screen.getByRole('button', { name: chips[1]!.label }))
+    fireEvent.click(screen.getByRole('button', { name: `${chips[1]!.label}, nav.astra` }))
     expect(chips[1]!.onSelect).toHaveBeenCalledOnce()
     expect(chips[0]!.onSelect).not.toHaveBeenCalled()
     expect(chips[2]!.onSelect).not.toHaveBeenCalled()
@@ -435,8 +582,8 @@ describe('Composer', () => {
     field.focus()
 
     expect(field).toHaveFocus()
-    expect(field.parentElement?.className.split(' ')).toContain('has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)]')
-    expect(field.parentElement?.className.split(' ')).not.toContain('focus-within:outline-2')
+    expect(field.closest('[data-composer-input-row]')?.className.split(' ')).toContain('has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)]')
+    expect(field.closest('[data-composer-input-row]')?.className.split(' ')).not.toContain('focus-within:outline-2')
     expect(field).toHaveClass('focus-visible:outline-0')
     expect(field.className.split(' ')).not.toContain('focus-visible:outline-2')
   })
@@ -447,20 +594,20 @@ describe('Composer', () => {
     control.focus()
     expect(control).toHaveFocus()
     expect(control).toHaveClass('rounded-full')
-    expect(control.closest('[data-composer-input-row]')).toBe(screen.getByRole('textbox').parentElement)
+    expect(control.closest('[data-composer-input-row]')).toBe(screen.getByRole('textbox').closest('[data-composer-input-row]'))
   })
 
   it.each(['', '   '])('does not send a blank value %j', (value) => {
     const onSend = vi.fn()
     render(<Composer {...props({ value, onSend })} />)
-    fireEvent.click(screen.getByRole('button', { name: words.send }))
+    fireEvent.click(screen.getByRole('button', { name: `${words.send}, habits.form.askDate` }))
     expect(onSend).not.toHaveBeenCalled()
   })
 
   it('sends a nonblank value once', () => {
     const onSend = vi.fn()
     render(<Composer {...props({ value: 'oi', onSend })} />)
-    fireEvent.click(screen.getByRole('button', { name: words.send }))
+    fireEvent.click(screen.getByRole('button', { name: `${words.send}, habits.form.askDate` }))
     expect(onSend).toHaveBeenCalledOnce()
   })
 
@@ -476,7 +623,7 @@ describe('Composer', () => {
     ['transcribing', { state: 'transcribing', value: 'oi', onVoice: vi.fn(), voiceWords }, false, true],
   ] as const)('styles the send control for %s', (_case, overrides, accented, disabled) => {
     render(<Composer {...props(overrides)} />)
-    const send = screen.getByRole('button', { name: words.send })
+    const send = screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })
     if (accented) expect(send).toHaveAttribute('data-accent', '')
     else expect(send).not.toHaveAttribute('data-accent')
     expect(send).toHaveClass(accented ? 'bg-[var(--primary)]' : 'bg-[var(--bg-well)]')
@@ -485,9 +632,9 @@ describe('Composer', () => {
     }
     if (_case === 'idle with text' || _case === 'idle with a file only') {
       expect(send).toHaveClass('enabled:hover:bg-[var(--primary-hover)]')
-    } else {
-      expect(send.querySelector('span[aria-hidden="true"]')).toBeNull()
     }
+    expect(send.querySelector('span[aria-hidden="true"]')).toHaveStyle({ visibility: _case === 'sending' ? 'visible' : 'hidden' })
+    expect(send.querySelector('[data-asset^="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
     if (_case === 'sending') expect(send).not.toHaveClass('disabled:opacity-40')
     else if (disabled) expect(send).toHaveClass('disabled:opacity-40')
     if (disabled) expect(send).toBeDisabled()
@@ -508,7 +655,7 @@ describe('Composer', () => {
         })}
       />,
     )
-    const send = screen.getByRole('button', { name: words.send })
+    const send = screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })
     expect(send).toBeDisabled()
     fireEvent.click(send)
     expect(onSend).not.toHaveBeenCalled()
@@ -533,7 +680,7 @@ describe('Composer', () => {
   it('disables input and send and hides suggestions during sending', () => {
     render(<Composer {...props({ state: 'sending', value: 'oi' })} />)
     expect(screen.getByRole('textbox', { name: words.placeholder })).toBeDisabled()
-    const send = screen.getByRole('button', { name: words.send })
+    const send = screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })
     expect(send).toBeDisabled()
     expect(send).toHaveAttribute('aria-busy', 'true')
     expect(send.querySelector('.orbit-essential-loading')).not.toBeNull()
@@ -545,7 +692,7 @@ describe('Composer', () => {
     expect(screen.getByText('limit sentinel')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: words.suggestionsLabel })).not.toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: words.placeholder })).toBeDisabled()
-    expect(screen.getByRole('button', { name: words.send })).toBeDisabled()
+    expect(screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })).toBeDisabled()
     expect(container.querySelector('[data-accent]')).toBeNull()
   })
 
@@ -625,7 +772,7 @@ describe('Composer', () => {
         })}
       />,
     )
-    const send = screen.getByRole('button', { name: words.send })
+    const send = screen.getByRole('button', { name: `${words.send}, habits.form.askDate` })
     expect(send).toBeEnabled()
     fireEvent.click(send)
     expect(onSend).toHaveBeenCalledOnce()
@@ -656,10 +803,10 @@ describe('Composer', () => {
     const onRetry = vi.fn()
     const retryWords = { ...words, retry: 'retry sentinel' }
     const { rerender } = render(<Composer {...props({ words: retryWords, onRetry })} />)
-    fireEvent.click(screen.getByRole('button', { name: retryWords.retry }))
+    fireEvent.click(screen.getByRole('button', { name: `${retryWords.retry}, nav.astra` }))
     expect(onRetry).toHaveBeenCalledOnce()
     rerender(<Composer {...props()} />)
-    expect(screen.queryByRole('button', { name: retryWords.retry })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: `${retryWords.retry}, nav.astra` })).not.toBeInTheDocument()
   })
 
   it('uses the placeholder word as both placeholder and accessible name', () => {

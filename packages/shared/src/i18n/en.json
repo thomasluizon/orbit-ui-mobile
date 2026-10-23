@@ -314,7 +314,8 @@
           "logHabit": "Log \"{title}\"",
           "trimHabit": "Simplify \"{title}\"",
           "keepOnlyHabit": "Keep only \"{title}\"",
-          "reviewHabit": "Review \"{title}\""
+          "reviewHabit": "Review \"{title}\"",
+          "buildMorningRoutine": "Build a morning routine"
         },
         "progress": {
           "createGoal": "Create a goal for {title}"
@@ -624,6 +625,7 @@
       "skip": "Skip",
       "openSubHabits": "Open the sub habits",
       "unlog": "Mark incomplete",
+      "rescheduleAstra": "Reschedule with Astra",
       "reschedule": "Reschedule"
     },
     "reschedule": {
@@ -761,6 +763,7 @@
       "typeRequired": "Choose a type.",
       "taskDate": "Do on",
       "habitStartDate": "Starts on",
+      "datePhrasePlaceholder": "In your own words",
       "datePhrase": "When",
       "taskDateQuestion": "When do you want to do this?",
       "habitDateQuestion": "When do you want to start?",
@@ -1269,6 +1272,24 @@
     }
   },
   "chat": {
+    "unreadableReply": "This answer could not be displayed. Please ask again.",
+    "ranking": {
+      "title": "Habit ranking",
+      "from": "From {date}",
+      "through": "Through {date}",
+      "completions": "{count, plural, =0 {# completions} one {# completion} other {# completions}}",
+      "open": "{rank}. {name}, {count, plural, =0 {# completions} one {# completion} other {# completions}}",
+      "empty": "No completions in this period.",
+      "partial": "More habits below.",
+      "more": "Show more",
+      "refresh": "Refresh",
+      "stale": "Ranking changed. Refresh to continue.",
+      "pageFailed": "Could not load more. Try again.",
+      "refreshFailed": "Could not refresh. Try again.",
+      "removed": "Habit unavailable. Refresh this ranking.",
+      "openFailed": "Could not open the habit. Try again.",
+      "offline": "Connect to continue."
+    },
     "readBlock": {
       "dayTitle": "Summary",
       "nothingDue": "Nothing scheduled.",
@@ -1752,7 +1773,7 @@
         "plan": { "Free": "Free", "Pro": "Pro" },
         "interval": { "monthly": "Monthly", "yearly": "Yearly" },
         "source": { "stripe": "Stripe", "play": "Google Play" },
-        "rewardType": { "discount": "Discount" }
+        "rewardType": { "discount": "Discount", "pro_days": "Days of Pro" }
       },
       "yes": "Yes", "no": "No", "notSet": "Not set", "unknown": "Unknown",
       "code": "Referral code", "copy": "Copy", "copied": "Copied", "share": "Share",
@@ -1870,7 +1891,6 @@
         "anyDay": "Choose any day",
         "fixedDays": "Keep fixed days",
         "removeDescription": "Remove the description",
-        "useIcon": "Use {emoji}",
         "removeIcon": "Remove the icon",
         "repeatInDays": "Use days for repetition",
         "repeatInWeeks": "Use weeks for repetition",
@@ -2568,40 +2588,36 @@
     }
   },
   "referral": {
-    "card": {
-      "title": "Invite friends",
-      "hint": "Earn discount coupons for you and your friends",
-      "progress": "{count}/{max} successful referrals"
-    },
     "drawer": {
       "title": "Invite friends",
       "yourLink": "Your referral link",
-      "copy": "Copy",
       "copyLink": "Copy link",
-      "copied": "Copied",
       "linkCopied": "Link copied",
       "share": "Share link",
       "completed": "Successful referrals",
       "pending": "Pending",
-      "couponsEarned": "Coupons earned",
       "howItWorks": "How it works",
-      "explanation": "Share your link with friends. When they join Orbit and start using the app, you both earn a {discount}% discount coupon for Pro. You can refer up to 10 friends",
-      "disclaimer": "Each referral earns a one-time {discount}% discount coupon. Coupons apply to a single billing cycle and do not accumulate. A new referral replaces any unused coupon. If you're already subscribed on the web, the discount is applied to your next invoice automatically. Google Play subscriptions can't be discounted mid-cycle, so your coupon is saved for your next purchase or plan change.",
       "actionFailed": "That action did not work. Try again."
     },
     "share": {
       "title": "Join me on Orbit",
-      "text": "I've been using Orbit to build better habits. Join me and we both get a {discount}% discount coupon"
+      "proDays": "Join me on Orbit. Create an account with this link and log habits on three different days in your first week. I can earn {proDays, plural, =0 {# days} one {# day} other {# days}} of Pro. You may also earn Pro days or a discount coupon for Pro.",
+      "discount": "Join me on Orbit. Create an account with this link and log habits on three different days in your first week. I can earn a {discountPercent}% discount coupon for Pro. You may also earn Pro days or a discount coupon for Pro.",
+      "neutral": "Join me on Orbit."
     },
     "prompt": {
       "streakTitle": "{count}-day streak",
       "levelTitle": "You reached level {level}",
-      "body": "Invite a friend and you both get a {discount}% discount coupon for Pro.",
-      "bodyFallback": "Invite a friend to build better habits together.",
       "cta": "Invite friends",
       "later": "Maybe later"
     },
-    "loginBanner": "You came through an invitation. It applies when a new account is created."
+    "loginBanner": "You came through an invitation. It applies when a new account is created.",
+    "reward": {
+      "proDays": "Invite someone to create an account with your link. If they log habits on three different days in their first week, you can earn {proDays, plural, =0 {# days} one {# day} other {# days}} of Pro.",
+      "discount": "Invite someone to create an account with your link. If they log habits on three different days in their first week, you can earn a {discountPercent}% discount coupon for Pro.",
+      "neutral": "Share your link to invite someone to Orbit.",
+      "eligibility": "The reward type depends on the account. Each account has a reward limit."
+    }
   },
   "marketingConsent": {
     "prompt": {
@@ -2621,7 +2637,6 @@
     "download": "Download",
     "scanToJoin": "Scan to join Orbit",
     "shareTitle": "My Orbit progress",
-    "shareText": "I'm building better habits with Orbit. Join me",
     "shareError": "Couldn't share your card. Please try again.",
     "saved": "Saved as {file}",
     "weeklyBarLabel": "Completion on {day}: {percent}%",

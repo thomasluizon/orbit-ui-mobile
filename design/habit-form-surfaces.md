@@ -5,6 +5,7 @@
 | Surface | Web and Android owner | Behavior |
 |---|---|---|
 | Create and edit composition | `components/habits/create-habit-modal.tsx`, `edit-habit-modal.tsx` | Required unseeded type, persisted edit prefill, inherited General locks, retained drafts and unsaved-change guard |
+| Name and description | `habit-form-fields.tsx`, `habit-form-fields/habit-understanding.tsx` | Standard 54px growing name, equal mirror/input metrics, then one full description before all conditional content (#1607) |
 | Type | `habit-form-fields/habit-type-field.tsx` | Two vertical RadioRow choices before the focal title, visible validation and group focus |
 | Date | `habit-form-fields/habit-date-field.tsx` | When input, type-specific question and editable date before More details; General hides only the date group |
 | Schedule | `habit-form-fields/habit-schedule-fields.tsx` | Fixed, count-based and No schedule choices with a reachable return and tree locks |
@@ -81,6 +82,35 @@ Whole-page rendering, keyboard and assistive technology inspection, Android font
 production create/edit/readback remain separate verification boundaries. API production promotion
 precedes consumer publication. Web production and Android open-track release are owned by the
 orchestrator; no Android production release or version floor change is implied.
+
+## Astra affordance inventory (#1607)
+
+| Paired control | Callback owner | Disposition |
+|---|---|---|
+| Setup fallback | `createHabitFormController.askAstra` to `use-habit-suggestion` | Corrected mark with existing visible Astra label |
+| Emoji suggestion | `useEmojiProposal` to `onSuggestEmoji` / `use-habit-suggestion` | Corrected mark and Ask Astra wording in persistent Emoji context; manual picker unchanged |
+| Date consultation | `HabitDateEditor.ask` to `use-date-interpretation` | Corrected mark; explicit, budgeted and guarded request unchanged |
+| Tag generation | `TagSuggestions` to `useTagSuggestions.suggest` / `useSuggestTags` | Corrected mark and Ask Astra wording under Tags; acceptance remains deterministic |
+| Compact and habit-detail composer entry | `onOpenConversation` to conversation store | Corrected visible Astra name beside existing mark; opens without sending |
+| Composer send, retry and live suggestions | `onSend`, `onRetry`, suggestion `onSelect` to chat send owner | Corrected mark and visible wording; current request and retry ownership retained |
+| Habit and goal detail entries | `AskAstraRow`, `openAstra` to `prepareChatRequest` and conversation store | Corrected mark; draft preparation opens without sending |
+| Habit-list empty entry | `onAskAstra` to conversation store | Corrected mark with existing label |
+| Follow-up and proactive actions | `onSelect` / `useProactiveAction.act` to `sendMessage` | Corrected mark and visible Astra name in each specific action target |
+| Complete prompt-library and deferred ideas | `selectIdea` to `sendMessage` | Corrected mark and visible Astra name |
+| Slotted prompt ideas | `selectIdea` to `preparePromptTemplate` | Deterministic draft preparation; no invocation mark |
+| Reschedule menu and retries | Sheet opening / `refetch` to `useRescheduleSuggestion` | Corrected invocation identification; existing eligibility and GET/refetch policy retained |
+| Wide navigation and conversation header | Existing conversation store entry / AppBar | Already conforming, preserved |
+| Today Astra line | Caller-defined destination | Existing mark and visible sentence retained; no speculative navigation change |
+| Date, tag and reschedule acceptance, ordinary Save | Existing form and mutation owners | Deterministic, no generation label or new request |
+| Voice record, stop, cancel and transcription | Existing speech-to-text and recording owners | Separate transport and recording states retained; no inferred generation affordance |
+| Pending-operation approval and execution | Existing operation controllers | Deterministic approval boundary retained, no generation label |
+
+The selected date is displayed and accessibly labelled by DateField once; the form retains real
+Proposed, pending, error and manual recovery feedback. Empty feedback has no occupied field gap.
+The phrase placeholder is guidance only and never a default value. No external response field,
+model, budget, event, queue or transport changes are introduced. Historical spending decisions
+remain unchanged. Direct skill, agent, playbook and hook references contain no active superseded
+form-size or invocation rule requiring an edit; the owning contradictions are in DESIGN and canvas.
 
 ## Detail read and draft ownership
 

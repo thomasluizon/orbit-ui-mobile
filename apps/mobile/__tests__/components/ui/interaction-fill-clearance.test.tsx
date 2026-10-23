@@ -88,14 +88,20 @@ describe('Android interaction fill clearance', () => {
         const parts = measureInteractionFills(tree.toJSON(), Math.min(width, 740), state === 'pressed')
         const clear = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === label)!
         const actions = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === messages.shell.composer.actions)!
-        const send = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === messages.shell.composer.send)!
+        const send = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === `${messages.shell.composer.send}, habits.form.askDate`)!
         const fill = fillBox(parts, clear)
         expect(clear.width).toBe(48)
         expect(clear.bottom - clear.top).toBe(48)
         expect(actions.left - fill.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
-        expect(new Set([clear.top, actions.top, send.top]).size).toBe(1)
+        expect(clear.top).toBe(actions.top)
         const field = parts.find(part => part.host.props.testID === 'composer-field')!
-        expect(field.bottom - field.top).toBe(56)
+        expect(field.bottom - field.top).toBeGreaterThanOrEqual(56)
+        for (const control of [clear, actions, send]) {
+          expect(control.left - field.left).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+          expect(field.right - control.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+          expect(field.bottom - control.bottom).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+        }
+        expect(send.top >= clear.bottom || send.left >= actions.right).toBe(true)
       } finally { await act(() => tree.unmount()) }
     })
 
@@ -113,7 +119,7 @@ describe('Android interaction fill clearance', () => {
         </Shell412>) as GeometryTree
       })
       try {
-        if (state === 'pressed') await setInteraction(tree, messages.todayAstra.openConversation, state)
+        if (state === 'pressed') await setInteraction(tree, `${messages.todayAstra.openConversation}, nav.astra`, state)
         else {
           const input = tree.root.findAll(node => String(node.type) === 'TextInput' && node.props.accessibilityLabel === messages.shell.composer.inputLabel)[0]!
           await act(() => (input.props.onFocus as () => void)())

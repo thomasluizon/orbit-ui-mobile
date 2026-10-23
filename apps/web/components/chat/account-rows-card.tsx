@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { useReferralInvitation } from '@/hooks/use-referral-invitation'
 import { useLocale, useTranslations } from 'next-intl'
 import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import type { AccountRowsCard as AccountRowsCardData } from '@orbit/shared/types/chat'
-import { accountRowLabelKey, formatAccountRowValue } from '@orbit/shared/chat'
+import { accountRowLabelKey, formatAccountRowValue, presentAccountRows } from '@orbit/shared/chat'
 import { BlockFrame } from './read-block-frame'
 import { SettingsGroup } from '@/components/ui/settings-group'
 import { ListRow } from '@/components/ui/list-row'
@@ -34,6 +35,17 @@ function statusMessage(failure: string | null, linkCopied: boolean, copied: bool
 }
 
 export function AccountRowsCard({ accountRows }: Readonly<{ accountRows: AccountRowsCardData }>) {
+  return accountRows.kind === 'referral'
+    ? <ReferralAccountRowsCard accountRows={accountRows} />
+    : <AccountRowsContent accountRows={accountRows} />
+}
+
+function ReferralAccountRowsCard({ accountRows }: Readonly<{ accountRows: AccountRowsCardData }>) {
+  const invitation = useReferralInvitation()
+  return <AccountRowsContent accountRows={accountRows} invitation={invitation} />
+}
+
+function AccountRowsContent({ accountRows, invitation }: Readonly<{ accountRows: AccountRowsCardData; invitation?: string }>) {
   const t = useTranslations()
   const locale = useLocale()
   const navigate = useChatNavigation()
@@ -41,7 +53,7 @@ export function AccountRowsCard({ accountRows }: Readonly<{ accountRows: Account
   const [linkCopied, setLinkCopied] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const [canShare] = useState(() => typeof navigator !== 'undefined' && typeof navigator.share === 'function')
-  const rows = accountRows.rows.flatMap((row) => {
+  const rows = presentAccountRows(accountRows).flatMap((row) => {
     const labelKey = accountRowLabelKey(row.key)
     return labelKey ? [<ListRow key={row.key} title={t(labelKey)} value={formatAccountRowValue(row, locale, t)} wrapValue valueTextMode={row.key === 'name' || row.key === 'email' ? 'personal' : undefined} readOnly={row.key !== 'name' && row.key !== 'email'} chevron={false} />] : []
   })
@@ -60,7 +72,7 @@ export function AccountRowsCard({ accountRows }: Readonly<{ accountRows: Account
   async function shareLink() {
     if (!accountRows.referralLink) return
     try {
-      await navigator.share({ title: t('referral.share.title'), url: accountRows.referralLink })
+      await navigator.share({ title: t('referral.share.title'), text: invitation, url: accountRows.referralLink })
       setFailure(null)
     } catch {
       setFailure(t('chat.account.shareError'))

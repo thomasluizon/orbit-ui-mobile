@@ -1,3 +1,4 @@
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
@@ -58,6 +59,7 @@ export function HabitListEmptyState({
         {showAstraAction && askAstraLabel ? (
           <PillButton
 
+            leadingIcon={<AstraGlyph size={16} />}
             onClick={onAskAstra}
 
           >

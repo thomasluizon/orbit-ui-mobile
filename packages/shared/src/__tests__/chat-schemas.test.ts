@@ -6,7 +6,7 @@ import { buildChatFinalMessageFields, getChatMessageParts } from '../chat/final-
 import { createChatSseParser } from '../chat/sse-stream'
 import partsFixture from '../test-support/chat-parts.fixture.json'
 import { agentExecuteOperationResponseSchema } from '../types/ai'
-import { makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldHabitMessage, focusedPeriodTotalFixture, focusedPeriodComparisonFixture } from '../test-support/chat-fixtures'
+import { makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldHabitMessage, focusedPeriodTotalFixture, focusedPeriodComparisonFixture, habitRankingCardFixture } from '../test-support/chat-fixtures'
 import { chatBlockLayoutCases, makeChatBlockLayoutMessage } from '../test-support/chat-block-layout'
 
 const { PostApiChatResponse } = await vi.importActual<{ PostApiChatResponse: z.ZodObject }>('../types/__generated__/api.generated')
@@ -29,6 +29,7 @@ describe('ordered chat parts', () => {
       { type: 'block', kind: 'periodTotal', block: focusedPeriodTotalFixture },
       { type: 'block', kind: 'periodComparison', block: focusedPeriodComparisonFixture },
       ...partsFixture.blocks.slice(3),
+      { type: 'block', kind: 'habitRanking', block: habitRankingCardFixture },
     ]
     expect(blocks.map(part => part.kind)).toEqual(CHAT_BLOCK_KINDS)
     const response = { ...partsFixture.response, parts: blocks }

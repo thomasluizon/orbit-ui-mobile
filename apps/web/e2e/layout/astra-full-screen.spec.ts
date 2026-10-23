@@ -66,7 +66,7 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
           const feed = conversation.getByRole('feed', { name: words.chat.title, exact: true })
           if (scrolling) {
             await conversation.locator('[data-composer-input]').fill('Como posso revisar a rotina?')
-            await conversation.getByRole('button', { name: words.shell.composer.send, exact: true }).click()
+            await conversation.getByRole('button', { name: `${words.shell.composer.send}, ${words.habits.form.askDate}`, exact: true }).click()
             await expect(feed.getByRole('article')).toHaveCount(2)
             await expect(feed).toHaveAttribute('aria-busy', 'false')
             expect(await feed.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true)
@@ -106,7 +106,7 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
           const conversation = page.locator('[data-shell-conversation]')
           const input = conversation.locator('[data-composer-input]')
           await input.fill('Como posso revisar a rotina?')
-          await conversation.getByRole('button', { name: words.shell.composer.send, exact: true }).click()
+          await conversation.getByRole('button', { name: `${words.shell.composer.send}, ${words.habits.form.askDate}`, exact: true }).click()
           await expect(conversation.getByRole('article')).toHaveCount(2)
           await input.fill('Retained draft')
           for (const width of [840, 1100]) {

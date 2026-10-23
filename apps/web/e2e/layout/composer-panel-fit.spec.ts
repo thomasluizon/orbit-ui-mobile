@@ -8,6 +8,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { measureFieldInset } from './field-inset-geometry'
+import { composerPlaceholderFits } from './composer-column-paint'
 
 for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
   for (const width of [412, 1024, 1352] as const) {
@@ -19,7 +20,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         const profile = profileSchema.parse({ ...profileFixture, language: locale })
         await setLayoutProfileSession(context, profile)
         await page.goto('/')
-        await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : messages.todayAstra.openConversation, exact: true }).click()
+        await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : `${messages.todayAstra.openConversation}, ${messages.nav.astra}`, exact: true }).click()
 
         const panel = page.locator('[data-shell-conversation="overlay"]')
         await expect(panel).toBeVisible()
@@ -68,7 +69,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
 
         for (const name of [
           messages.shell.composer.actions,
-          messages.shell.composer.send,
+          `${messages.shell.composer.send}, ${messages.habits.form.askDate}`,
         ]) {
           const control = panel.getByRole('button', { name, exact: true })
           await expect(control).toBeVisible()
@@ -149,29 +150,30 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           context.letterSpacing = style.letterSpacing
           return {
             placeholderWidth: context.measureText(input.placeholder).width,
-            pasteInSlot: input.parentElement!.querySelector('[data-composer-paste]') !== null,
-            pillHeight: input.parentElement!.getBoundingClientRect().height,
-            controls: [...input.parentElement!.querySelectorAll('button')].map((button) => ({ top: button.getBoundingClientRect().top, width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height })),
+            pasteInSlot: input.closest('[data-composer-input-row]')!.querySelector('[data-composer-paste]') !== null,
+            pillHeight: input.closest('[data-composer-input-row]')!.getBoundingClientRect().height,
+            controls: [...input.closest('[data-composer-input-row]')!.querySelectorAll('button')].map((button) => ({ top: button.getBoundingClientRect().top, width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height })),
             contentWidth: input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
             clientHeight: input.clientHeight,
             scrollHeight: input.scrollHeight,
             singleLineHeight: parseFloat(style.lineHeight) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom),
           }
         })
-        expect(empty.pillHeight).toBe(56)
+        expect(empty.pillHeight).toBeGreaterThanOrEqual(56)
         expect(empty.controls).toHaveLength(empty.pasteInSlot ? 4 : 3)
-        expect(new Set(empty.controls.map((control) => control.top)).size).toBe(1)
-        for (const control of empty.controls) { expect(control.width).toBe(48); expect(control.height).toBe(48) }
+        expect(await field.evaluate(composerPlaceholderFits, 1)).toBe(true)
+        for (const control of empty.controls) { expect(control.width).toBeGreaterThanOrEqual(48); expect(control.height).toBeGreaterThanOrEqual(48) }
         expect(empty.contentWidth).toBeGreaterThanOrEqual(empty.placeholderWidth)
         const inset = await field.evaluate(measureFieldInset)
         expect(inset.paddingStart).toBe(8)
         expect(inset.paddingEnd).toBe(8)
-        expect(inset.pillInset).toBeCloseTo(60, 1)
+        const entryWidth = await field.evaluate(input => input.closest('[data-composer-input-row]')!.querySelector('[data-open-conversation]')!.getBoundingClientRect().width)
+        expect(inset.pillInset).toBeCloseTo(4 + entryWidth + 8, 1)
         expect(empty.scrollHeight).toBe(empty.clientHeight)
         expect(empty.clientHeight).toBe(empty.singleLineHeight)
 
         const draft = 'Astra '.repeat(10)
-        await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : messages.todayAstra.openConversation, exact: true }).click()
+        await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : `${messages.todayAstra.openConversation}, ${messages.nav.astra}`, exact: true }).click()
         const overlay = page.locator('[data-shell-conversation="overlay"]')
         await overlay.locator('[data-composer-input]').fill(draft)
         await page.getByRole('button', { name: messages.common.closeConversation }).click()
@@ -193,7 +195,8 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         if (width === 320) expect(wrapped.height).toBeGreaterThan(empty.clientHeight)
         expect(wrapped.height).toBeLessThanOrEqual(5 * wrapped.lineHeight + 24)
         expect(wrapped.scrollHeight).toBe(wrapped.height)
-        expect(wrapped.pillInset).toBeCloseTo(60, 1)
+        expect(wrapped.pillInset).toBeCloseTo(4 + entryWidth + 8, 1)
+        expect(wrapped.pillInset).toBeCloseTo(inset.pillInset!, 1)
         expect(typed.whiteSpace).toBe('pre-wrap')
         expect(typed.wordBreak).toBe('normal')
         expect(typed.left).toBeGreaterThanOrEqual(0)

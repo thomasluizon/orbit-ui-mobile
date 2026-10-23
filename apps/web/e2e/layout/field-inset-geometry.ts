@@ -5,7 +5,7 @@ export function measureFieldInset(element: Element) {
   const mirror = document.createElement('div')
   for (const property of style) mirror.style.setProperty(property, style.getPropertyValue(property))
   Object.assign(mirror.style, { position: 'fixed', inset: 'auto', left: `${box.left}px`, top: `${box.top}px`,
-    width: `${box.width}px`, height: `${box.height}px`, margin: '0', visibility: 'hidden',
+    width: `${box.width}px`, minWidth: '0', maxWidth: 'none', height: `${box.height}px`, margin: '0', visibility: 'hidden',
     pointerEvents: 'none', transform: 'none', whiteSpace: field.tagName === 'TEXTAREA' ? 'pre-wrap' : 'pre' })
   const text = document.createTextNode(field.value || field.placeholder || 'M')
   mirror.append(text)

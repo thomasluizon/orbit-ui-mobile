@@ -100,7 +100,6 @@ export default defineConfig({
         'components/onboarding/onboarding-create-habit.tsx',
         'components/onboarding/onboarding-welcome.tsx',
         'components/profile/profile-nav-icon.tsx',
-        'components/referral/referral-card.tsx',
         'components/referral/referral-drawer.tsx',
         'components/ui/app-date-picker.tsx',
         'components/ui/app-select.tsx',

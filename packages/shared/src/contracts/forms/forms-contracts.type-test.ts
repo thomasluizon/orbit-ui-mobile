@@ -50,6 +50,7 @@ type ExpectedSingleLineVariant = {
   name?: string
   onSubmit?: () => void
   onBlur?: () => void
+  onCancel?: () => void
   trailing?: React.ReactNode
   multiline?: never
   rows?: never

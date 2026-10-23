@@ -1,3 +1,4 @@
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { PillButton } from '@/components/ui/pill-button'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useMemo, useCallback, useId } from 'react'
@@ -23,15 +24,19 @@ function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled
   const t = useTranslations()
   return onSuggest ? (
     <PillButton
+      accessibleName={`${t('habits.form.emoji')}: ${t('habits.form.askDate')}`}
       variant="ghost"
+      retainLeadingIcon
+      leadingIcon={<AstraGlyph size={16} />}
       minimumHeight={TOUCH_TARGET_MIN}
       loading={isSuggesting}
       focusableWhenLoading
+      hint={isSuggesting ? t('habits.form.emojiSuggesting') : undefined}
       disabled={!isSuggesting && (!canSuggest || isDisabled)}
       descriptionId={[suggestionHint ? hintId : '', suggestionError ? errorId : ''].filter(Boolean).join(' ') || undefined}
       onClick={() => { if (canSuggest && !isDisabled && !isSuggesting) onSuggest() }}
     >
-      {t(isSuggesting ? 'habits.form.emojiSuggesting' : 'habits.form.emojiSuggest')}
+      {t('habits.form.askDate')}
     </PillButton>
   ) : null
 }
@@ -83,7 +88,8 @@ export function HabitEmojiSelector({
   return (
     <>
       <div className="flex max-w-full min-w-0 flex-col gap-2">
-        <div className="flex items-center gap-3">
+        <span className="form-label">{t('habits.form.emoji')}</span>
+        <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           className="habit-control-motion grid shrink-0 cursor-pointer place-items-center border-0 bg-[var(--bg-well)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45"
@@ -106,7 +112,7 @@ export function HabitEmojiSelector({
         <EmojiSuggestionButton onSuggest={onSuggest} canSuggest={canSuggest} isSuggesting={isSuggesting} isDisabled={isDisabled} suggestionHint={suggestionHint} suggestionError={suggestionError} hintId={hintId} errorId={errorId} />
         </div>
         {onSuggest && suggestionHint ? <p id={hintId} className="text-sm text-[var(--fg-2)]">{suggestionHint}</p> : null}
-        {onSuggest ? <p id={errorId} role="alert" className="text-sm text-[var(--status-bad-text)]">{suggestionError}</p> : null}
+        {onSuggest ? <p id={errorId} role="alert" className="empty:absolute text-sm text-[var(--status-bad-text)]">{suggestionError}</p> : null}
       </div>
 
       {pickerOpen ? <Sheet ref={sheetRef} open title={t('habits.form.emojiPickerTitle')} onClose={hidePicker} headerAccessory={selectedEmoji ? (

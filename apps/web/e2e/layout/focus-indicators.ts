@@ -67,13 +67,34 @@ export interface FieldIndicatorOptions {
   forcedColors?: boolean
 }
 
+export async function settleFocusAnimations(target: Locator, rootSelector?: string, includeDescendants = false) {
+  await target.evaluate(async (element, settings) => {
+    const root = settings.rootSelector ? element.closest(settings.rootSelector) : element
+    if (!root) throw new Error(`Missing field root: ${settings.rootSelector}`)
+    const owners = new Set<Element>([element, ...element.querySelectorAll('[data-press-fill]')])
+    for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) owners.add(ancestor)
+    const activeCell = root.querySelector('[data-otp-cell][data-active]')
+    if (activeCell) owners.add(activeCell)
+    if (settings.includeDescendants) root.querySelectorAll('*').forEach((owner) => owners.add(owner))
+    const animations = new Set([...owners].flatMap((owner) => owner.getAnimations({ subtree: false })))
+    for (const animation of animations) {
+      const endTime = animation.effect?.getComputedTiming().endTime
+      if (typeof endTime !== 'number' || !Number.isFinite(endTime)) {
+        throw new Error('Focus geometry owner has an animation without a finite end')
+      }
+      animation.finish()
+    }
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+  }, { rootSelector, includeDescendants })
+}
+
 export async function readFieldIndicators(
   target: Locator,
   rootSelector: string,
   options: FieldIndicatorOptions = {},
 ): Promise<string[]> {
+  await settleFocusAnimations(target, rootSelector, options.includeDescendants)
   return target.evaluate((field, settings) => {
-    for (const animation of document.getAnimations()) animation.finish()
     const root = field.closest(settings.rootSelector)
     if (!root) throw new Error(`Missing field root: ${settings.rootSelector}`)
     const perimeter = new Set<Element>()
@@ -151,8 +172,10 @@ export async function expectOneFieldIndicator(
 }
 
 export async function inspectFocusedRing(page: Page) {
+  const target = page.locator(':focus')
+  if (await target.count() !== 1) return null
+  await settleFocusAnimations(target, undefined, true)
   return page.evaluate(() => {
-    for (const animation of document.getAnimations()) animation.finish()
     const focused = document.activeElement
     if (!(focused instanceof HTMLElement) || focused === document.body) return null
 
@@ -181,8 +204,8 @@ export async function inspectFocusedRing(page: Page) {
 }
 
 async function inspectControlRings(target: Locator, focusedControl: boolean) {
+  await settleFocusAnimations(target, undefined, true)
   return target.evaluate((control, focusedControl) => {
-    for (const animation of document.getAnimations()) animation.finish()
     const bounds = control.getBoundingClientRect()
     const ancestors: Element[] = []
     for (let parent = control.parentElement, level = 0; parent; parent = parent.parentElement, level += 1) {

@@ -99,7 +99,7 @@ function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{
   if (!pendingIdea?.id.startsWith('prompt-library:')) return null;
   return <View style={{ paddingHorizontal: SPACING.s16 }}>
     {hasDraft ? <Text accessibilityLiveRegion="polite" style={{ fontFamily: 'Geist_400Regular', fontSize: 14, color: tokens.fg3 }}>{t('chat.templates.draftKept')}</Text> : null}
-    <ListRow placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={hasDraft || !!disabledReason} onClick={() => onSelect(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
+    <ListRow accessibilityLabel={findPromptSlot(pendingIdea.prompt) ? undefined : `${pendingIdea.label}, ${t('nav.astra')}`} icon={findPromptSlot(pendingIdea.prompt) ? undefined : <AstraGlyph size={24} />} value={findPromptSlot(pendingIdea.prompt) ? undefined : t('nav.astra')} placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={hasDraft || !!disabledReason} onClick={() => onSelect(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
   </View>;
 }
 

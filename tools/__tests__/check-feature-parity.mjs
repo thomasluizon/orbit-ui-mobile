@@ -15,6 +15,13 @@ const restoredRuleIds = [
   'web:display:orbitMcp.created', 'web:display:orbitMcp.lastUsed',
   ...['web', 'mobile'].flatMap((platform) => ['yes', 'no'].map((value) => `${platform}:display:common.${value}`)),
 ]
+const formRuleIds = [
+  ...['web', 'mobile'].flatMap((platform) => [
+    ...['habits.actions.reschedule', 'habits.form.suggestTags', 'habits.reschedule.retry'].map((key) => `${platform}:control:${key}`),
+    ...['common.selectedDate', 'habits.form.dateProposed'].map((key) => `${platform}:display:${key}`),
+  ]),
+  'web:display:habits.form.suggestTags',
+]
 
 function generatedInventory(catalog, rules) {
   const directory = join(root, 'parity-source')
@@ -29,6 +36,7 @@ function generatedInventory(catalog, rules) {
   for (const platform of ['web', 'mobile']) {
     const ids = Object.entries(rules.tickets).filter(([id, ticket]) => id.startsWith(`${platform}:`) && ticket === '#1447').map(([id]) => id)
     ids.push(...restoredRuleIds.filter((id) => id.startsWith(`${platform}:`)))
+    ids.push(...formRuleIds.filter((id) => id.startsWith(`${platform}:`)))
     ids.push(...['common.nextWeek', 'common.previousWeek', 'common.selectDate', 'common.selectedDate', 'chat.attachFile', 'gamification.levelUp.title', 'goals.completedCelebrationTitle'].map((key) => `${platform}:control:${key}`))
     if (platform === 'web') ids.push('web:control:calendar.agenda.nextDay', 'web:control:calendar.agenda.previousDay')
     for (const id of ids) fixtureCatalog[id.split(':')[2]] = id.split(':')[2]
@@ -224,14 +232,33 @@ function invalidPromotionInputs({ put, git, check, rules, legacyRevision, promot
 }
 
 
+function referralRuleRegressions(platform, current, files, rules, observations) {
+  const capabilities = ['drawer.couponsEarned', 'drawer.disclaimer', 'drawer.explanation', 'prompt.body']
+    .map((key) => ({ id: `${platform}:display:referral.${key}`, platform, kind: 'display', key: `referral.${key}`, evidence: [] }))
+  const retained = compare(capabilities, observations, rules)
+  T(`${platform} referral figures and reward copy retain all four legacy capabilities`, retained.length === 4 && retained.every((entry) => entry.disposition === 'retained' && entry.redesign.length > 0), retained.filter((entry) => entry.disposition !== 'retained').map((entry) => entry.id).join(', '))
+  const drawer = `apps/${platform}/components/referral/referral-drawer.tsx`
+  const prompt = `apps/${platform}/components/referral/referral-prompt.tsx`
+  const originals = new Map([drawer, prompt].map((path) => [path, files[path]]))
+  files[drawer] = 'export function ReferralDrawer() { return null }'
+  files[prompt] = 'export function ReferralPrompt() { return null }'
+  const removed = compare(capabilities, scan(current, platform, rules), rules)
+  T(`${platform} share copy cannot retain deleted referral figures and explanations`, removed.length === 4 && removed.every((entry) => entry.disposition === 'missing'), removed.filter((entry) => entry.disposition !== 'missing').map((entry) => entry.id).join(', '))
+  for (const [path, source] of originals) files[path] = source
+}
+
 function restoredRuleRegressions(platform, current, files, inventory, rules, observations) {
   const capabilities = inventory.entries.filter((entry) => restoredRuleIds.includes(entry.id) && entry.platform === platform)
   const retained = compare(capabilities, observations, rules)
   T(`${platform} closed restoration tickets resolve to their actual rendered replacements`, retained.length === restoredRuleIds.filter((id) => id.startsWith(`${platform}:`)).length && retained.every((entry) => entry.disposition === 'retained' && entry.redesign.length > 0), retained.filter((entry) => entry.disposition !== 'retained').map((entry) => entry.id).join(', '))
-  const paths = [...new Set(capabilities.flatMap((entry) => rules.mappings[entry.id].targets).flatMap((id) => observations.find((entry) => entry.id === id)?.evidence.map((item) => item.file) ?? []))]
+  const paths = [...new Set(retained.flatMap((entry) => entry.redesign.map((item) => item.file)))]
   const originals = new Map(paths.map((path) => [path, files[path]]))
   for (const path of paths) {
-    if (path.endsWith('habit-emoji-selector.tsx')) files[path] = files[path].replace("{t(isSuggesting ? 'habits.form.emojiSuggesting' : 'habits.form.emojiSuggest')}", '{null}')
+    if (path.endsWith('habit-emoji-selector.tsx')) {
+      const button = /<EmojiSuggestionButton\b[^>]*\/>/g
+      T(`${platform} the current emoji generation owner is removed exactly once`, [...files[path].matchAll(button)].length === 1)
+      files[path] = files[path].replace(button, '{null}')
+    }
     else if (path.endsWith('shell-wide.tsx')) files[path] = files[path].replace('aria-label={toggleLabel}', '').replace('title={toggleLabel}', '')
     else if (path.endsWith('mcp-code-client.tsx')) files[path] = files[path].split('\n').filter((line) => !line.includes("t('orbitMcp.configInstructions')") && !line.includes("t('orbitMcp.replaceKey')")).join('\n')
     else if (path.endsWith('profile-api-keys.tsx')) files[path] = files[path].split('\n').filter((line) => !line.includes("t('orbitMcp.created')") && !line.includes("t('orbitMcp.lastUsed')") && !line.includes("apiKey.isReadOnly ? t('orbitMcp.permReadOnly')")).join('\n')
@@ -239,7 +266,109 @@ function restoredRuleRegressions(platform, current, files, inventory, rules, obs
   }
   const removed = compare(capabilities, scan(current, platform), rules)
   T(`${platform} closed restoration tickets cannot exempt lost replacements`, newLosses(removed, retained).length === capabilities.length, removed.filter((entry) => entry.disposition !== 'missing').map((entry) => entry.id).join(', '))
+  T(`${platform} removing restoration owners retains manual emoji picking and other Astra actions`, files[`apps/${platform}/components/habits/habit-form-fields/habit-emoji-selector.tsx`].includes('handleSelectEmoji(emoji)') && scan(current, platform).some((entry) => entry.id === `${platform}:control:habits.form.askDate`))
   for (const [path, source] of originals) files[path] = source
+  T(`${platform} restoring every closed restoration owner leaves no new losses`, newLosses(compare(capabilities, scan(current, platform), rules), retained).length === 0)
+}
+
+function mappedOwnerRegressions(catalog) {
+  for (const platform of ['web', 'mobile']) {
+    const owner = `apps/${platform}/components/generator.tsx`
+    const sibling = `apps/${platform}/components/date.tsx`
+    const route = `apps/${platform}/app/${platform === 'web' ? 'page' : 'index'}.tsx`
+    const files = {
+      'packages/shared/src/i18n/en.json': catalog,
+      [route]: "import { Generator } from '../components/generator'; import { DateAction } from '../components/date'; export default function Home() { return <><Generator /><DateAction /></> }",
+      [owner]: "export function Generator() { return <button onClick={suggest}>{t('habits.form.askDate')}</button> }",
+      [sibling]: "export function DateAction() { return <button onClick={askDate}>{t('habits.form.askDate')}</button> }",
+    }
+    const current = { paths: new Set(Object.keys(files)), read: (path) => {
+      if (!(path in files)) throw new Error(`missing source: ${path}`)
+      return files[path]
+    } }
+    const id = `${platform}:control:habits.form.suggestTags`
+    const capability = [{ id, platform, kind: 'control', key: 'habits.form.suggestTags', evidence: [] }]
+    const rule = { reason: 'The generation action is owned by this source.', targets: [`${platform}:control:habits.form.askDate`], owners: [owner] }
+    const rules = { mappings: { [id]: rule } }
+    validateRules(capability, rules, current.read)
+    const before = compare(capability, scan(current, platform), rules)
+    T(`${platform} a qualified mapping retains only its actual action owner`, before[0].disposition === 'retained' && before[0].redesign.length === 1 && before[0].redesign[0].file === owner)
+    const multipleOwners = { mappings: { [id]: { ...rule, owners: [owner, sibling] } } }
+    validateRules(capability, multipleOwners, current.read)
+    T(`${platform} a mapping can qualify multiple same-platform owners`, compare(capability, scan(current, platform), multipleOwners)[0].redesign.length === 2)
+    const invalidOwners = [null, [], '', owner, {}, { file: owner }, [null], [''], [sibling.replace(platform, platform === 'web' ? 'mobile' : 'web')], ['packages/shared/src/generator.tsx'], [`apps/${platform}/../${platform}/components/generator.tsx`], [owner + '/extra'], [owner.replace('generator', 'missing')], [owner, owner]]
+    for (const owners of invalidOwners) {
+      let rejected = false
+      try { validateRules(capability, { mappings: { [id]: { ...rule, owners } } }, current.read) } catch { rejected = true }
+      T(`${platform} invalid mapped owners are rejected: ${JSON.stringify(owners)}`, rejected)
+    }
+    for (const mapping of [null, [], 'owner', {}, { ...rule, owner }, { ...rule, unknown: true }]) {
+      let rejected = false
+      try { validateRules(capability, { mappings: { [id]: mapping } }, current.read) } catch { rejected = true }
+      T(`${platform} empty or unknown mapping shapes are rejected: ${JSON.stringify(mapping)}`, rejected)
+    }
+    files[owner] = 'export function Generator() { return null }'
+    const withoutOwner = scan(current, platform)
+    T(`${platform} another identical Astra action cannot retain a deleted qualified owner`, newLosses(compare(capability, withoutOwner, rules), before).length === 1 && withoutOwner.some((entry) => entry.id === rule.targets[0] && entry.evidence.some((item) => item.file === sibling)))
+    const unqualified = { reason: rule.reason, targets: rule.targets }
+    validateRules(capability, { mappings: { [id]: unqualified } }, current.read)
+    T(`${platform} mappings without owner qualification keep their existing semantics`, compare(capability, withoutOwner, { mappings: { [id]: unqualified } })[0].disposition === 'retained')
+    files[sibling] = "export function DateAction() { return <button onClick={suggest}>{t('habits.form.suggestTags')}</button> }"
+    const direct = compare(capability, scan(current, platform), rules)
+    T(`${platform} direct legacy retention is independent of mapping owners`, direct[0].disposition === 'retained' && direct[0].redesign[0].file === sibling)
+    files[sibling] = "export function DateAction() { return <button onClick={askDate}>{t('habits.form.askDate')}</button> }"
+    const contentRules = { mappings: { [id]: { ...rule, targets: [`${platform}:content:habits.form.askDate`] } } }
+    files[owner] = "export function Generator() { const caption = t('habits.form.askDate'); return <p>{caption}</p> }"
+    const rendered = compare(capability, scan(current, platform), contentRules)
+    T(`${platform} qualified content still needs its actual rendered consumer`, rendered[0].disposition === 'retained' && rendered[0].redesign.every((item) => item.file === owner))
+    files[owner] = "export function Generator() { const caption = t('habits.form.askDate'); return null }"
+    files[sibling] = "export function DateAction() { const caption = t('habits.form.askDate'); return <p>{caption}</p> }"
+    T(`${platform} an unrendered owner and unrelated rendered content cannot satisfy qualification`, compare(capability, scan(current, platform), contentRules)[0].disposition === 'missing')
+    files[owner] = "export function Generator() { const caption = 'habits.form.askDate'; return null }"
+    T(`${platform} an unrendered source literal cannot satisfy qualification`, compare(capability, scan(current, platform), contentRules)[0].disposition === 'missing')
+    files[owner] = "export function Generator() { return null }; function Unused() { return <p>{t('habits.form.askDate')}</p> }"
+    T(`${platform} an unreachable owner declaration cannot satisfy qualification`, compare(capability, scan(current, platform), contentRules)[0].disposition === 'missing')
+  }
+}
+
+function invocationRuleRegressions(platform, current, files, inventory, rules, observations) {
+  const ids = formRuleIds.filter((id) => id.startsWith(`${platform}:`) && !id.includes('common.selectedDate') && !id.includes('dateProposed'))
+  const capabilities = inventory.entries.filter((entry) => ids.includes(entry.id))
+  const before = compare(capabilities, observations, rules)
+  T(`${platform} current form invocation owners retain every original obligation`, before.length === ids.length && before.every((entry) => entry.disposition === 'retained' && entry.redesign.length > 0))
+  const prefix = `apps/${platform}/components/habits/`
+  const mutations = [
+    ['tag generation', `${prefix}habit-form-fields/tag-suggestions.tsx`, /<PillButton minimumHeight=\{48\}[\s\S]*?<\/PillButton>/g, ids.filter((id) => id.endsWith('habits.form.suggestTags'))],
+    ['reschedule retry', `${prefix}reschedule-sheet.tsx`, /<PillButton leadingIcon=\{<AstraGlyph size=\{16\} \/>\} variant=\{filledVariant\} size="sm" onClick=\{\(\) => void refetch\(\)\}>\s*\{t\('habits.form.askDate'\)\}\s*<\/PillButton>/g, [`${platform}:control:habits.reschedule.retry`]],
+    ['reschedule menu', `${prefix}${platform === 'web' ? 'habit-row-trailing' : 'habit-row'}.tsx`, /^.*items\.push\(\{ id: 'reschedule',.*\n/gm, [`${platform}:control:habits.actions.reschedule`]],
+  ]
+  for (const [name, path, pattern, missingIds] of mutations) {
+    const original = files[path]
+    T(`${platform} ${name} mutation matches exactly one current owner`, [...original.matchAll(pattern)].length === 1)
+    files[path] = original.replace(pattern, '')
+    const afterObservations = scan(current, platform, rules)
+    const after = compare(capabilities, afterObservations, rules)
+    const losses = newLosses(after, before).map((entry) => entry.id).sort()
+    T(`${platform} deleting ${name} blocks exactly its original obligations`, JSON.stringify(losses) === JSON.stringify([...missingIds].sort()), losses.join(', '))
+    T(`${platform} deleting ${name} retains the other Astra owners and manual tag picker`, ['habit-date-field.tsx', 'habit-emoji-selector.tsx'].every((owner) => afterObservations.some((entry) => entry.id === `${platform}:control:habits.form.askDate` && entry.evidence.some((item) => item.file.endsWith(owner)))) && afterObservations.some((entry) => entry.id === `${platform}:control:habits.form.tags`))
+    T(`${platform} deleting ${name} preserves deterministic acceptance, recovery and other row actions`, files[`${prefix}habit-form-fields/tag-suggestions.tsx`].includes('suggestions.acceptSuggestion(suggestion)') && files[`${prefix}habit-form-fields/tag-suggestions.tsx`].includes('getFriendlyErrorMessage') && files[`${prefix}reschedule-sheet.tsx`].includes("t('habits.reschedule.dismiss')") && files[`${prefix}reschedule-sheet.tsx`].includes("t('habits.reschedule.accept')") && ['edit', 'skip', 'drill'].every((key) => files[`${prefix}${platform === 'web' ? 'habit-row-trailing' : 'habit-row'}.tsx`].includes(`id: '${key}'`)))
+    files[path] = original
+    T(`${platform} restoring ${name} leaves no new invocation losses`, newLosses(compare(capabilities, scan(current, platform, rules), rules), before).length === 0)
+  }
+  for (const [file, key] of [['habit-emoji-selector.tsx', 'emojiSuggesting'], ['tag-suggestions.tsx', 'suggestingTags']]) {
+    const path = `${prefix}habit-form-fields/${file}`
+    const original = files[path]
+    const pending = observations.filter((entry) => entry.id === `${platform}:control:habits.form.${key}`)
+    const pendingBefore = compare(pending, observations, rules)
+    const translation = `t('habits.form.${key}')`
+    T(`${platform} ${key} mutation matches one current pending hint`, original.split(translation).length === 2 && pending.length === 1)
+    files[path] = original.replace(translation, 'undefined')
+    const after = scan(current, platform, rules)
+    T(`${platform} removing ${key} blocks its pending obligation while retaining generation`, newLosses(compare(pending, after, rules), pendingBefore).length === 1 && after.some((entry) => entry.id === `${platform}:control:habits.form.askDate` && entry.evidence.some((item) => item.file === path)))
+    if (platform === 'web' && key === 'suggestingTags') T('web tag context mapping requires its pending evidence as well as its action', newLosses(compare(capabilities, after, rules), before).map((entry) => entry.id).join() === 'web:display:habits.form.suggestTags')
+    files[path] = original
+    T(`${platform} restoring ${key} leaves no pending or invocation losses`, newLosses(compare([...capabilities, ...pending], scan(current, platform, rules), rules), [...before, ...pendingBefore]).length === 0)
+  }
 }
 
 function workflowRegressions(workflow) {
@@ -287,6 +416,7 @@ export const cases = () => {
   T('Guards uploads the generated inventory from its hidden directory', artifact.with.path === manifestPath && artifact.with['include-hidden-files'] === true)
   const catalog = readFileSync(join(REPO_ROOT, 'packages/shared/src/i18n/en.json'), 'utf8')
   promotionRegressions(catalog)
+  mappedOwnerRegressions(catalog)
   const snapshot = (source, extra = {}) => {
     const files = {
       'packages/shared/src/i18n/en.json': catalog,
@@ -464,6 +594,7 @@ export const cases = () => {
     if (platform === 'web') promptLibraryRegressions(current, files, rules)
     const apiKeys = `apps/${platform}/components/profile/profile-api-keys.tsx`
     const currentObservations = scan(current, platform)
+    referralRuleRegressions(platform, current, files, rules, currentObservations)
     const currentControls = currentObservations.filter((entry) => entry.kind !== 'content')
     const originalApiKeys = files[apiKeys]
     const entry = /<ListRow\s+compact\s+icon=\{<Key[\s\S]*?onClick=\{\(\) => setShowStepUp\(true\)\}\s*\/>/
@@ -476,6 +607,7 @@ export const cases = () => {
     T(`${platform} removing the actual API-key entry also blocks its legacy relocation`, newLosses(compare(legacyEntry, withoutEntry, rules), compare(legacyEntry, currentObservations, rules)).length === 1)
     files[apiKeys] = originalApiKeys
     restoredRuleRegressions(platform, current, files, inventory, rules, currentObservations)
+    invocationRuleRegressions(platform, current, files, inventory, rules, currentObservations)
     const keyOwner = `apps/${platform}/components/profile/profile-api-keys.tsx`
     const noExpiryId = `${platform}:display:common.never`
     const keyObservations = scan(current, platform, rules)
@@ -494,13 +626,30 @@ export const cases = () => {
     const beforeDate = compare(dateCapabilities, scan(current, platform, rules), rules)
     T(`${platform} legacy date selection resolves to its rendered field`, beforeDate.length === 2 && beforeDate.every((entry) => entry.disposition === 'retained' && entry.redesign.some((item) => item.file === dateField)))
     const originalDateField = files[dateField]
+    const selectedDate = inventory.entries.filter((entry) => entry.id === `${platform}:display:common.selectedDate`)
+    const beforeReadback = compare(selectedDate, scan(current, platform, rules), rules)
+    T(`${platform} the selected-date display obligation resolves to the picker readback`, beforeReadback.length === 1 && beforeReadback[0].disposition === 'retained' && beforeReadback[0].redesign.some((item) => item.file === dateField))
     files[dateField] = 'export function DateField() { return null }'
     const withoutDateField = scan(current, platform, rules)
-    T(`${platform} removing the date field preserves the separate selected-date readout`, withoutDateField.some((entry) => entry.id === `${platform}:display:common.selectedDate`))
+    T(`${platform} removing the date field removes its selected-date readback`, !withoutDateField.some((entry) => entry.key === 'common.selectedDate'))
     const afterDate = compare(dateCapabilities, withoutDateField, rules)
-    T(`${platform} a separate date readout cannot retain deleted date selection`, afterDate.every((entry) => entry.disposition === 'missing'))
+    T(`${platform} deleted date selection cannot be retained by other form content`, afterDate.every((entry) => entry.disposition === 'missing'))
     T(`${platform} removing the date field blocks both legacy date capabilities`, newLosses(afterDate, beforeDate).length === 2)
+    T(`${platform} removing the date field also blocks its selected-date display obligation`, newLosses(compare(selectedDate, withoutDateField, rules), beforeReadback).length === 1)
     files[dateField] = originalDateField
+    const proposed = inventory.entries.filter((entry) => entry.id === `${platform}:display:habits.form.dateProposed`)
+    const beforeProposed = compare(proposed, scan(current, platform, rules), rules)
+    const candidateOwner = `apps/${platform}/components/habits/habit-form-fields/habit-date-field.tsx`
+    const originalCandidate = files[candidateOwner]
+    const proposedLabel = "t('habits.form.dateProposed')"
+    T(`${platform} the real Proposed label and status are both present`, originalCandidate.split(proposedLabel).length === 3 && beforeProposed.length === 1 && beforeProposed[0].disposition === 'retained')
+    files[candidateOwner] = originalCandidate.replaceAll(proposedLabel, "''")
+    T(`${platform} the Proposed mutation retains manual selection and acceptance callbacks`, files[candidateOwner] !== originalCandidate && files[candidateOwner].includes('editor.selectDate(value)') && files[candidateOwner].includes('editor.accept()') && files[dateField] === originalDateField)
+    const withoutProposed = scan(current, platform, rules)
+    T(`${platform} deleting candidate Proposed evidence blocks its original display obligation`, newLosses(compare(proposed, withoutProposed, rules), beforeProposed).length === 1)
+    T(`${platform} deleting Proposed evidence retains date selection and readback`, compare([...dateCapabilities, ...selectedDate], withoutProposed, rules).every((entry) => entry.disposition === 'retained'))
+    files[candidateOwner] = originalCandidate
+    T(`${platform} restoring date owners leaves no selection, readback or Proposed losses`, newLosses(compare([...dateCapabilities, ...selectedDate, ...proposed], scan(current, platform, rules), rules), [...beforeDate, ...beforeReadback, ...beforeProposed]).length === 0)
     const guide = `apps/${platform}/components/profile/profile-mcp-guide.tsx`
     const guideCapabilities = inventory.entries.filter((entry) => entry.platform === platform && rules.tickets[entry.id] === '#1447')
     const beforeGuide = compare(guideCapabilities, scan(current, platform), rules)

@@ -635,11 +635,11 @@ describe('HabitRow menu (mobile)', () => {
     expect(menu.props.title).toBe('Walk')
     expect(menu.props.items.map((item: { label: string }) => item.label)).toEqual([
       'habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
-      'habits.actions.reschedule', 'common.edit', 'habits.actions.duplicate',
+      'habits.actions.rescheduleAstra', 'common.edit', 'habits.actions.duplicate',
       'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete',
     ])
     expect(menu.props.items.map((item: { icon?: string }) => item.icon)).toEqual([
-      'subtask', 'arrows-move', 'player-skip-forward', 'calendar-time', 'pencil',
+      'subtask', 'arrows-move', 'player-skip-forward', 'astra', 'pencil',
       'copy', 'checkbox', 'list-tree', 'trash',
     ])
     expect(menu.props.items[0].badge).toBeUndefined()
@@ -647,7 +647,7 @@ describe('HabitRow menu (mobile)', () => {
     pressMoreButton(renderer)
     const icons = renderer!.root.findAllByType(Icon)
     expect(icons.map((icon: { props: { name: string } }) => icon.props.name)).toEqual([
-      'subtask', 'arrows-move', 'player-skip-forward', 'calendar-time', 'pencil',
+      'subtask', 'arrows-move', 'player-skip-forward', 'astra', 'pencil',
       'copy', 'checkbox', 'list-tree', 'trash',
     ])
     expect(icons.every((icon: { props: { size: number; strokeWidth: number } }) =>

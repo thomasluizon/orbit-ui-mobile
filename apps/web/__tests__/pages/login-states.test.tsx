@@ -114,6 +114,22 @@ describe.each(authLocales)('auth screen composition in %s', (locale) => {
     expect(screen.getByRole('button', { name: t('auth.resendCode') })).toBeDisabled()
   })
 
+  it.each(['email', 'code'] as const)('keeps the exact quiet invitation receipt on %s and excludes account-back', (step) => {
+    const expected = locale === 'en'
+      ? 'You came through an invitation. It applies when a new account is created.'
+      : 'Você veio por um convite. Ele vale ao criar uma conta nova.'
+    setFixture(step, locale)
+    mocks.flow.referralCode = 'REF123'
+    const view = render(<LoginContent />)
+    expect(screen.getAllByText(expected)).toHaveLength(1)
+    expect(screen.getByText(expected).closest('[role="status"]')).toHaveAttribute('aria-live', 'polite')
+    expect(expected).not.toMatch(/[0-9{}!]/)
+    setFixture('account back', locale)
+    mocks.flow.referralCode = 'REF123'
+    view.rerender(<LoginContent />)
+    expect(screen.queryByText(expected)).not.toBeInTheDocument()
+  })
+
   it('uses the singular habit count and retains referral on the code step', () => {
     const { t } = setFixture('from onboarding', locale)
     mocks.flow.pendingHabitCount = 1

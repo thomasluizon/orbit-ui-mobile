@@ -6,6 +6,7 @@ export { buildComposerChips, resolveComposerChipStatus, resolveComposerChipSurfa
 export * from './action-chips'
 export * from './client-context'
 export * from './block-kinds'
+export * from './habit-ranking-core'
 export * from './block-answer'
 export * from './block-answer-submission'
 export * from './answer-block-controller'
