@@ -1,4 +1,4 @@
-import { act, fireEvent, queryAllByRole, waitFor } from '@testing-library/react'
+import { act, fireEvent, isInaccessible, queryAllByRole, waitFor } from '@testing-library/react'
 import { expect } from 'vitest'
 import type { Page, Response } from '@playwright/test'
 
@@ -36,6 +36,16 @@ export class SmokeDomLocator {
   or(other: SmokeDomLocator) {
     return new SmokeDomLocator(this.page, `${this.description} or ${other.description}`,
       () => [...new Set([...this.matches(), ...other.matches()])])
+  }
+
+  first() {
+    return new SmokeDomLocator(this.page, `first ${this.description}`, () => this.matches().slice(0, 1))
+  }
+
+  async isVisible() {
+    if (!this.matches().length) return false
+    const element = this.element()
+    return element.isConnected && !isInaccessible(element)
   }
 
   async fill(value: string) {
