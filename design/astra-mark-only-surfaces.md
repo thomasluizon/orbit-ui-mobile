@@ -31,7 +31,11 @@ import actions use contextual verbs. Explanatory prose, AI disclosures, conversa
 names and settings that name the assistant retain their meaning.
 
 Habit detail adds one disclosure control. Collapsed, it occupies one compact row with the mark.
-Expanded, the same control collapses the composer. The input, attachments and requests remain
+Expanded, the collapse icon shares the suggestion row, leaving the scroll strip room beside it.
+Without suggestions it occupies the input row's reserved text-action slot, with Clear and Paste in
+the existing actions menu. Neither placement adds a row. The compact row remains 48px at enlarged
+text. Web uses the global focus indicator; Android retains InsetFocusPressable.
+The input, attachments and requests remain
 mounted. The local UI preference persists through the existing device storage adapter. Other
 composer surfaces stay expanded. The shell continues to allocate the pinned content outside the
 habit scroller, preserving the final content row in narrow and short viewports.

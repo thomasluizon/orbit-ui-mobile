@@ -8,6 +8,7 @@ import { AI_MESSAGE_COUNTER_THRESHOLD, buildComposerChips } from '@orbit/shared/
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
+import { useUIStore } from '@/stores/ui-store'
 import { SPACING } from '@orbit/shared/theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -78,6 +79,7 @@ function build(host: Host, nodes: Map<string, YogaNode>, fontScale = 1, inField 
   const declared = host.props.style
   const style = declared === undefined ? {} : StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared)
   applyStyle(node, style)
+  if (style.display === 'none') node.setDisplay(Yoga.DISPLAY_NONE)
   if (host.type === 'Svg' && host.props.width !== undefined && host.props.height !== undefined) {
     node.setWidth(host.props.width)
     node.setHeight(host.props.height)
@@ -385,3 +387,59 @@ it.each([['en', en], ['pt-BR', ptBR]] as const)('keeps the 50-message counter on
     expect(counter.getComputedWidth()).toBeLessThanOrEqual(288)
   } finally { layout.freeRecursive(); await renderer.act(() => tree.unmount()) }
 })
+
+it.each([320, 412, 480, 840].flatMap(width => [en, ptBR].flatMap(messages => [false, true].map(withSuggestions => ({ width, messages, withSuggestions }))))) (
+  'adds no expanded composer height at $width with suggestions=$withSuggestions in both locales', async ({ width, messages, withSuggestions }) => {
+    useUIStore.setState({ habitComposerCollapsed: false })
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    const heights: number[] = []
+    for (const collapsible of [false, true]) {
+      let tree!: Tree
+      await renderer.act(() => { tree = renderer.create(<Composer collapsible={collapsible} state="idle" value="Draft"
+        onChangeValue={vi.fn()} onSend={vi.fn()} words={messages.shell.composer}
+        onOpenConversation={vi.fn()} conversationLabel={messages.todayAstra.openConversation}
+        onAttachFile={vi.fn()} attachWords={{ ...messages.shell.composer.attach, remove: (name: string) => name }}
+        suggestions={withSuggestions ? [
+          { id: 'pause', label: messages.shell.composer.chips.habitDetail.pauseThisWeek, onSelect: vi.fn() },
+          { id: 'rename', label: messages.shell.composer.chips.habitDetail.rename, onSelect: vi.fn() },
+        ] : []} />) as Tree })
+      const nodes = new Map<string, YogaNode>()
+      const layout = build(tree.toJSON(), nodes)
+      try {
+        layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
+        heights.push(layout.getComputedHeight())
+        if (collapsible) {
+          const toggle = bounds(nodes.get('composer-collapse-control')!)
+          const row = bounds(nodes.get(withSuggestions ? 'composer-suggestion-row' : 'composer-field')!)
+          expect(toggle.right - toggle.left).toBe(48)
+          expect(toggle.bottom - toggle.top).toBe(48)
+          expect(toggle.top).toBeGreaterThanOrEqual(row.top)
+          expect(toggle.bottom).toBeLessThanOrEqual(row.bottom)
+          if (withSuggestions) expect(bounds(nodes.get('composer-suggestions-layout')!).right).toBeLessThanOrEqual(toggle.left - 4)
+          else {
+            expect(toggle.left).toBeGreaterThanOrEqual(row.left + 4)
+            expect(toggle.right).toBeLessThanOrEqual(row.right - 4)
+          }
+        }
+      } finally { layout.freeRecursive(); await renderer.act(() => tree.unmount()) }
+    }
+    expect(heights[1]).toBeLessThanOrEqual(heights[0]!)
+  },
+)
+
+it.each([320, 412, 480, 840].flatMap(width => [en, ptBR].map(messages => ({ width, messages }))))(
+  'keeps one collapsed row with doubled text at $width in both locales', async ({ width, messages }) => {
+    useUIStore.setState({ habitComposerCollapsed: true })
+    __setWindowDimensions({ width, height: 640, scale: 1, fontScale: 2 })
+    let tree!: Tree
+    await renderer.act(() => { tree = renderer.create(<Composer collapsible state="idle" value="Draft" onChangeValue={vi.fn()} onSend={vi.fn()} words={messages.shell.composer} suggestions={[]} />) as Tree })
+    const nodes = new Map<string, YogaNode>()
+    const layout = build(tree.toJSON(), nodes, 2)
+    try {
+      layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
+      const row = bounds(nodes.get('composer-collapse-row')!)
+      expect(row.bottom - row.top).toBe(48)
+      expect(layout.getComputedHeight()).toBeLessThanOrEqual(64)
+    } finally { layout.freeRecursive(); await renderer.act(() => tree.unmount()); useUIStore.setState({ habitComposerCollapsed: false }) }
+  },
+)

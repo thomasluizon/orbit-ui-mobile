@@ -1,9 +1,10 @@
 import { act, create } from 'react-test-renderer'
 import { TextInput, View } from 'react-native'
-import { useState } from 'react'
+import { useState, type ComponentProps } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { Menu } from '@/components/ui/menu'
 import { Composer } from '@/components/shell/composer'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useUIStore } from '@/stores/ui-store'
@@ -11,6 +12,8 @@ import { i18n } from '@/lib/i18n'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 
+const clipboard = vi.hoisted(() => ({ getStringAsync: vi.fn().mockResolvedValue('Pasted draft'), hasStringAsync: vi.fn().mockResolvedValue(true) }))
+vi.mock('expo-clipboard', () => clipboard)
 vi.unmock('react-i18next')
 beforeEach(() => useUIStore.setState({ habitComposerCollapsed: false }))
 afterEach(() => __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }))
@@ -73,3 +76,24 @@ it.each([{ width: 480, height: 640 }, { width: 800, height: 360 }].flatMap(viewp
     } finally { await act(() => tree.unmount()) }
   },
 )
+
+it.each([en, ptBR])('keeps Clear and Paste available in the actions menu beside collapse', async messages => {
+  function Draft() {
+    const [value, setValue] = useState('Draft')
+    return <Composer collapsible state="idle" value={value} onChangeValue={setValue} onSend={vi.fn()}
+      words={messages.shell.composer} suggestions={[]} onAttachFile={vi.fn()}
+      attachWords={{ ...messages.shell.composer.attach, remove: (name: string) => name }} />
+  }
+  let tree!: GeometryTree
+  await act(() => { tree = create(<Draft />) as GeometryTree })
+  try {
+    const menu = () => tree.root.findAll(node => node.type === Menu)[0]!
+    const items = () => menu().props.items as NonNullable<ComponentProps<typeof Menu>['items']>
+    expect(items()[0]).toMatchObject({ id: 'clear', label: messages.shell.composer.clear })
+    await act(() => (menu().props.onSelect as (id: string) => void)('clear'))
+    expect(tree.root.findAll(node => node.type === TextInput)[0]!.props.value).toBe('')
+    expect(items()[0]).toMatchObject({ id: 'paste', label: messages.shell.composer.paste })
+    await act(() => (menu().props.onSelect as (id: string) => void)('paste'))
+    expect(tree.root.findAll(node => node.type === TextInput)[0]!.props.value).toBe('Pasted draft')
+  } finally { await act(() => tree.unmount()) }
+})

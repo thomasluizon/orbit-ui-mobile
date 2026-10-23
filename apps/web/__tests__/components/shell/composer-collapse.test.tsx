@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
 import { NextIntlClientProvider } from 'next-intl'
 import { beforeEach, expect, it, vi } from 'vitest'
@@ -22,14 +22,17 @@ it.each([en, ptBR])('collapses and expands the mounted draft, remembers the choi
   fireEvent.change(input, { target: { value: 'Keep this draft' } })
   const toggle = screen.getByRole('button', { name: messages.shell.composer.collapse })
   fireEvent.click(toggle)
-  expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  const expand = screen.getByRole('button', { name: messages.shell.composer.expand })
+  expect(expand).toHaveAttribute('aria-expanded', 'false')
+  expect(expand).toHaveFocus()
   expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   expect(input).toHaveValue('Keep this draft')
   expect(input).toBeInTheDocument()
-  expect(toggle).toHaveTextContent('')
-  expect(toggle.querySelector('[data-asset="astra-mark"]')).not.toBeNull()
+  expect(expand).toHaveTextContent('')
+  expect(expand.querySelector('[data-asset="astra-mark"]')).not.toBeNull()
   expect(useUIStore.getState().habitComposerCollapsed).toBe(true)
   fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.expand }))
+  expect(screen.getByRole('button', { name: messages.shell.composer.collapse })).toHaveFocus()
   expect(screen.getByRole('textbox')).toBe(input)
   expect(input).toHaveValue('Keep this draft')
   const send = screen.getByRole('button', { name: messages.shell.composer.send })
@@ -48,4 +51,24 @@ it('keeps the ordinary composer expanded when the habit preference is collapsed'
   render(<NextIntlClientProvider locale="en" messages={en}><Composer state="idle" value="" onChangeValue={vi.fn()} onSend={vi.fn()} words={en.shell.composer} suggestions={[]} /></NextIntlClientProvider>)
   expect(screen.getByRole('textbox')).toBeVisible()
   expect(screen.queryByRole('button', { name: en.shell.composer.expand })).toBeNull()
+})
+
+it.each([en, ptBR])('retains Clear and Paste in the actions menu when collapse occupies their slot', async messages => {
+  vi.stubGlobal('navigator', { clipboard: { readText: vi.fn().mockResolvedValue('Pasted draft') } })
+  function Draft() {
+    const [value, setValue] = useState('Draft')
+    return <NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}>
+      <Composer collapsible state="idle" value={value} onChangeValue={setValue} onSend={vi.fn()} words={messages.shell.composer}
+        suggestions={[]} onAttachFile={vi.fn()} attachWords={{ ...messages.shell.composer.attach, remove: (name: string) => name }} />
+    </NextIntlClientProvider>
+  }
+  const view = render(<Draft />)
+  try {
+    fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.actions }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: messages.shell.composer.clear }))
+    expect(screen.getByRole('textbox')).toHaveValue('')
+    fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.actions }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: messages.shell.composer.paste }))
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('Pasted draft'))
+  } finally { view.unmount(); vi.unstubAllGlobals() }
 })
