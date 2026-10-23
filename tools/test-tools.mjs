@@ -37,6 +37,7 @@ const LIB_DIR = join(TOOLS_DIR, "lib")
  * universal contract to check and this registry is the only coverage it can carry.
  */
 const CASE_MODULES = [
+  ["select-artifact-attempts.mjs", "select-artifact-attempts"],
   ["lib/background-runs.mjs", "background-runs"],
   ["add-ticket-to-project.mjs", "add-ticket-to-project"],
   ["android-emulator.mjs", "android-emulator"],
@@ -187,6 +188,7 @@ for (const [file, module] of requestedSet.size === 0 ? REPOSITORY_CASE_MODULES :
 
 /** argv that must be refused before the tool does any work. One row per tools/ script. */
 const INVALID_INPUT = {
+  "select-artifact-attempts.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "progress-window.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "start-relay-successor.mjs": { argv: ["--launch", "invalid"], status: 2 },
   "relay-session.mjs": { argv: ["--model", "untrusted"], status: 2 },
