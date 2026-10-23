@@ -7839,6 +7839,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-shell-sidebar-account",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/shell/sidebar-account.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/shell/sidebar-account.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-shell-sidebar-account",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/shell/sidebar-account.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/shell/sidebar-account.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-shell-sidebar-account",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/shell/sidebar-account.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/shell/sidebar-account.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-shell-sidebar-account",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/shell/sidebar-account.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/shell/sidebar-account.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-ui-confirm-sheet",
       "platform": "web",
       "kind": "overlay",
