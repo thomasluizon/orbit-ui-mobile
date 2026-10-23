@@ -74,11 +74,12 @@ export function useTodayPage(
   const [showCompleted, setShowCompleted] = useState(false)
   const [listSurfaceOpen, setListSurfaceOpen] = useState(false)
 
+  useEffect(() => () => setTodayFabHidden(true), [setTodayFabHidden])
+
   useEffect(() => {
     const hidden = isSelectMode || showCreateModal || listSurfaceOpen ||
       !data.hasFetched || data.showLoadError || data.habitsCount === 0
     setTodayFabHidden(hidden)
-    return () => setTodayFabHidden(false)
   }, [
     data.hasFetched,
     data.habitsCount,

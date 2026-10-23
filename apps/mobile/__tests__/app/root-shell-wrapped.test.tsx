@@ -2,8 +2,13 @@ import React, { createContext, useContext, useSyncExternalStore, type ReactNode 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Text } from 'react-native'
 import { Portal, PortalHost } from '@rn-primitives/portal'
+import { createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
+import { normalizeHabitQueryData } from '@orbit/shared/utils/habit-normalization'
+import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import en from '@orbit/shared/i18n/en.json'
 import { __setWindowDimensions } from '../../test-mocks/react-native'
+import { useUIStore } from '@/stores/ui-store'
+import TodayScreen from '@/app/(tabs)/index'
 import RootLayout from '@/app/_layout'
 import { Shell412 } from '@/components/shell/shell-412'
 import {
@@ -20,6 +25,10 @@ function RootPortalProbe() {
 }
 
 const routeState = vi.hoisted(() => ({
+  mountToday: false,
+  hasData: false,
+  habits: new Map<string, NormalizedHabit>(),
+  paints: [] as boolean[],
   pathname: '/wrapped',
   segments: ['wrapped'],
 }))
@@ -46,6 +55,7 @@ vi.mock('expo-router', () => {
   )
 
   return {
+    useFocusEffect: (callback: () => void | (() => void)) => React.useEffect(callback, [callback]),
     DarkTheme: { colors: {} },
     DefaultTheme: { colors: {} },
     Stack,
@@ -89,7 +99,27 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: vi.fn() }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useHabitCountLoaded: () => ({ count: createState.count, isLoaded: createState.countLoaded }) }))
-vi.mock('@/hooks/use-habits', () => ({ useTotalHabitCount: () => createState.count }))
+vi.mock('@/hooks/use-habits', () => ({
+  EMPTY_HABITS_BY_ID: new Map(),
+  useTotalHabitCount: () => createState.count,
+  useHabits: () => ({ data: routeState.hasData ? { habitsById: routeState.habits } : undefined, isFetching: !routeState.hasData }),
+}))
+vi.mock('@/components/navigation/root-stack-screens', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/components/navigation/root-stack-screens')>()
+  return { RootStackScreens: (props: React.ComponentProps<typeof original.RootStackScreens>) => <>
+    <FirstPaint />{routeState.mountToday ? <TodayScreen /> : <original.RootStackScreens {...props} />}
+  </> }
+})
+vi.mock('@/components/habit-list', () => ({ HabitList: () => <Text testID="today-list">Today list</Text> }))
+vi.mock('@/components/today/today-astra', () => ({ TodayAstra: () => null }))
+vi.mock('@/components/today/today-date-control', () => ({ TodayDateControl: () => null }))
+vi.mock('@/components/today/today-modals', () => ({ TodayModals: () => null }))
+vi.mock('@/app/(tabs)/use-today-motion', () => ({ useTodayMotion: () => ({ renderBulkActionBar: false }) }))
+vi.mock('@/app/(tabs)/use-today-selection', () => ({ useTodaySelection: () => ({ clearSelection: vi.fn() }) }))
+vi.mock('@/app/(tabs)/use-today-date', () => ({
+  useCurrentDate: () => '2026-09-14',
+  useTodayDate: () => ({ dateStr: '2026-09-14', today: '2026-09-14' }),
+}))
 vi.mock('@/lib/theme', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/theme')>()),
   createTokensV2: () => ({ bg: '#111111', fg1: '#ffffff', hairline: '#222222', primary: '#c4530f' }),
@@ -115,18 +145,20 @@ vi.mock('@/lib/back-navigation', () => ({
 }))
 vi.mock('@/lib/overlay-stack', () => ({ dismissTopOverlay: () => false }))
 vi.mock('@/lib/upgrade-route', () => ({ buildUpgradeHref: () => '/upgrade' }))
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: Record<string, unknown>) => unknown) =>
-    selector({
+function setConversationOpen(open: boolean) { createState.conversationOpen = open }
+
+vi.mock('@/stores/ui-store', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/stores/ui-store')>()
+  return { ...original, useUIStore: Object.assign(
+    (selector: (state: ReturnType<typeof original.useUIStore.getState>) => unknown) => original.useUIStore((state) => selector({
+      ...state,
       astraConversationOpen: createState.conversationOpen,
-      enqueueCelebration: vi.fn(),
-      setAstraConversationOpen: (open: boolean) => { createState.conversationOpen = open },
+      setAstraConversationOpen: setConversationOpen,
       setShowCreateModal: createState.showCreate,
-      todayFabHidden: false,
-      lastDestination: 'hoje',
       setLastDestination: createState.setLastDestination,
-    }),
-}))
+    })), original.useUIStore,
+  ) }
+})
 vi.mock('@/stores/referral-prompt-store', () => ({
   useReferralPromptStore: (selector: (state: Record<string, unknown>) => unknown) =>
     selector({
@@ -215,6 +247,7 @@ vi.mock('@/hooks/use-chat-composer', () => ({
 }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-push-notifications', () => ({
+  usePushNotifications: () => ({ requestFirstUsePermission: vi.fn() }),
   PushNotificationsProvider: ({ children }: Readonly<{ children?: ReactNode }>) => children,
 }))
 vi.mock('@/lib/capture-mode', () => ({
@@ -223,6 +256,8 @@ vi.mock('@/lib/capture-mode', () => ({
   captureRouteProbeId: () => 'capture-probe',
   shouldExposeOnboardingRoute: () => false,
 }))
+
+const mountedRoots: import('react-test-renderer').ReactTestRenderer[] = []
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 type ReactTestRenderer = import('react-test-renderer').ReactTestRenderer
@@ -233,11 +268,18 @@ function findByTestId(tree: ReactTestRenderer, testID: string) {
   )
 }
 
+function FirstPaint() {
+  const hidden = useUIStore((state) => state.todayFabHidden)
+  React.useLayoutEffect(() => { routeState.paints.push(!hidden) })
+  return null
+}
+
 async function renderRoot() {
   let tree!: ReactTestRenderer
   await TestRenderer.act(() => {
     tree = TestRenderer.create(React.createElement(RootLayout))
   })
+  mountedRoots.push(tree)
   return tree
 }
 
@@ -260,6 +302,11 @@ describe('Wrapped root shell', () => {
   })
 
   beforeEach(() => {
+    useUIStore.setState(useUIStore.getInitialState())
+    routeState.mountToday = false
+    routeState.hasData = false
+    routeState.habits = new Map()
+    routeState.paints = []
     authState.isAuthenticated = true
     createState.portalVisible = false
     routeState.pathname = '/wrapped'
@@ -275,7 +322,8 @@ describe('Wrapped root shell', () => {
     resetPendingNotificationDeletesForTests()
   })
 
-  afterEach(() => {
+  afterEach(async () => {
+    await TestRenderer.act(() => { for (const tree of mountedRoots.splice(0)) tree.update(<></>) })
     resetPendingNotificationDeletesForTests()
     vi.useRealTimers()
   })
@@ -296,6 +344,7 @@ describe('Wrapped root shell', () => {
     routeState.segments = ['(tabs)']
     createState.count = 10
     createState.countLoaded = true
+    useUIStore.getState().setTodayFabHidden(false)
     const tree = await renderRoot()
     const [createFab] = findByTestId(tree, 'fab')
     await TestRenderer.act(() => (createFab?.props.onPress as () => void)())
@@ -310,6 +359,7 @@ describe('Wrapped root shell', () => {
   it('names the Hoje create FAB for the habit action', async () => {
     routeState.pathname = '/'
     routeState.segments = ['(tabs)']
+    useUIStore.getState().setTodayFabHidden(false)
     const tree = await renderRoot()
 
     const [createFab] = findByTestId(tree, 'fab')
@@ -358,6 +408,47 @@ describe('Wrapped root shell', () => {
     await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
     expect(findByTestId(tree, 'composer-idle')).toHaveLength(1)
     await TestRenderer.act(() => tree.update(React.createElement(React.Fragment)))
+  })
+
+  it('keeps the first empty Today render and its remount free of a FAB', async () => {
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    routeState.mountToday = true
+    createState.profile = { hasProAccess: true }
+    const tree = await renderRoot()
+    expect(routeState.paints[0]).toBe(false)
+    expect(routeState.paints.every((visible) => !visible)).toBe(true)
+    expect(findByTestId(tree, 'fab')).toHaveLength(0)
+    routeState.hasData = true
+    await TestRenderer.act(() => tree.update(<RootLayout />))
+    expect(findByTestId(tree, 'fab')).toHaveLength(0)
+    await TestRenderer.act(() => tree.update(<></>))
+    await TestRenderer.act(() => tree.update(<RootLayout />))
+    expect(routeState.paints.every((visible) => !visible)).toBe(true)
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
+  it('shows a populated Today FAB once and retains it through rerenders', async () => {
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    routeState.mountToday = true
+    createState.profile = { hasProAccess: true }
+    routeState.hasData = true
+    routeState.habits = normalizeHabitQueryData([createMockHabitScheduleItem()]).habitsById
+    const visibility: boolean[] = []
+    const unsubscribe = useUIStore.subscribe((next, previous) => {
+      if (next.todayFabHidden !== previous.todayFabHidden) visibility.push(!next.todayFabHidden)
+    })
+    try {
+      const tree = await renderRoot()
+      const [fab] = findByTestId(tree, 'fab')
+      expect(fab).toBeDefined()
+      await TestRenderer.act(() => tree.update(<RootLayout />))
+      expect(findByTestId(tree, 'fab')[0]).toBe(fab)
+      expect(visibility).toEqual([true])
+      unsubscribe()
+      await TestRenderer.act(() => tree.update(<></>))
+    } finally { unsubscribe() }
   })
 
   it('renders Wrapped without bottom chrome or notices', async () => {

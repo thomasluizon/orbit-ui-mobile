@@ -220,11 +220,12 @@ function TodayScreenContent() {
     }, [accountId, clearSelection]),
   )
 
+  useEffect(() => () => setTodayFabHidden(true), [setTodayFabHidden])
+
   useEffect(() => {
     const hidden = isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen ||
       !habitsQuery.data || habitsById.size === 0
     setTodayFabHidden(hidden)
-    return () => setTodayFabHidden(false)
   }, [
     editHabit,
     habitsById.size,

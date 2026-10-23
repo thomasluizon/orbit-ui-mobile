@@ -412,7 +412,7 @@ export function createUIStoreState(
       get().registerOpenOverlay(id);
       return true;
     },
-    todayFabHidden: false,
+    todayFabHidden: true,
     setTodayFabHidden: (hidden) => set({ todayFabHidden: hidden }),
     calendarHasError: false,
     setCalendarHasError: (calendarHasError) => set({ calendarHasError }),

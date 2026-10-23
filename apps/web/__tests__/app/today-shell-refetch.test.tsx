@@ -1,10 +1,12 @@
 import { beforeEach, expect, it, vi } from 'vitest'
+import { useLayoutEffect } from 'react'
 import { render, screen } from '@testing-library/react'
 import { useTodayPage } from '@/app/(app)/use-today-page'
 import { DestinationShell } from '@/components/shell/destination-shell'
 import { useUIStore } from '@/stores/ui-store'
 
 const state = vi.hoisted(() => ({
+  paints: [] as boolean[],
   habits: { hasFetched: true, habitsCount: 1, isFetching: false, showLoadError: false },
 }))
 
@@ -18,16 +20,24 @@ vi.mock('@/app/(app)/use-today-navigation', () => ({ useTodayNavigation: () => (
 vi.mock('@/app/(app)/use-today-selection', () => ({ useTodaySelection: () => ({}) }))
 vi.mock('@/app/(app)/use-today-habits-data', () => ({ useTodayHabitsData: () => state.habits }))
 
-function TodayShell() {
+function FirstPaint() {
+  useLayoutEffect(() => { state.paints.push(document.querySelector('[data-shell-fab] [data-fab]') !== null) })
+  return null
+}
+
+function TodayShell({ mounted = true }: { mounted?: boolean }) {
+  return <DestinationShell onCreate={() => {}} composer={<textarea aria-label="Draft" defaultValue="Keep this draft" />}><FirstPaint />{mounted ? <TodayPage /> : null}</DestinationShell>
+}
+
+function TodayPage() {
   useTodayPage('2026-09-04', null)
-  return <DestinationShell onCreate={() => {}} composer={<textarea aria-label="Draft" defaultValue="Keep this draft" />}>
-    <h1>Today</h1>
-  </DestinationShell>
+  return <h1>Today</h1>
 }
 
 beforeEach(() => {
   state.habits = { hasFetched: true, habitsCount: 1, isFetching: false, showLoadError: false }
-  useUIStore.setState({ todayFabHidden: false, isSelectMode: false, showCreateModal: false })
+  state.paints = []
+  useUIStore.setState(useUIStore.getInitialState())
 })
 
 it('retains the FAB and composer through a pending habits refresh', () => {
@@ -54,4 +64,32 @@ it.each([
   render(<TodayShell />)
   expect(document.querySelector('[data-shell-fab] [data-fab]')).toBeNull()
   expect(screen.getByRole('textbox', { name: 'Draft' })).toBeVisible()
+})
+
+it('never paints the FAB while loading an empty Today, including after returning', () => {
+  state.habits = { hasFetched: false, habitsCount: 0, isFetching: true, showLoadError: false }
+  const view = render(<TodayShell />)
+  expect(state.paints).toEqual([false])
+  state.habits = { ...state.habits, hasFetched: true, isFetching: false }
+  view.rerender(<TodayShell />)
+  expect(document.querySelector('[data-shell-fab] [data-fab]')).toBeNull()
+  view.rerender(<TodayShell mounted={false} />)
+  view.rerender(<TodayShell />)
+  expect(state.paints.every((visible) => !visible)).toBe(true)
+})
+
+it('shows a populated Today once without toggling during refresh', () => {
+  const visibility: boolean[] = []
+  const unsubscribe = useUIStore.subscribe((next, previous) => {
+    if (next.todayFabHidden !== previous.todayFabHidden) visibility.push(!next.todayFabHidden)
+  })
+  try {
+    const view = render(<TodayShell />)
+    state.habits = { ...state.habits, isFetching: true }
+    view.rerender(<TodayShell />)
+    state.habits = { ...state.habits, isFetching: false }
+    view.rerender(<TodayShell />)
+    expect(visibility).toEqual([true])
+    expect(document.querySelector('[data-shell-fab] [data-fab]')).not.toBeNull()
+  } finally { unsubscribe() }
 })
