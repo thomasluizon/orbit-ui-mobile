@@ -170,6 +170,7 @@
       "overlay-habit-list-confirm-dialogs",
       "overlay-habit-list-move-parent-overlay",
       "overlay-habits-habit-row-trailing",
+      "overlay-shell-sidebar-account",
       "route-root"
     ],
     "Orbit Offline": [],
@@ -438,6 +439,7 @@
     "m-overlay-habits-goal-linking-field": "Orbit Habit Detail is the representative owner for the shared goal-linking field; Orbit Habit Create also draws it in the creation flow.",
     "m-widget-orbit-widget": "D66 assigns the Android widget to its canvas document.",
     "overlay-app-layout": "Orbit Hoje is the representative owner for the authenticated shell shared across Hoje, Calendario, Progresso, and Perfil, as defined by DESIGN.md.",
+    "overlay-shell-sidebar-account": "Orbit Hoje owns the shared wide sidebar; its account menu follows the account header and sign-out composition specified by ticket #1657.",
     "route-turnstile-bridge": "Orbit Entrar owns the headless Turnstile bridge used by Android sign-in; it has no separate visible canvas."
   }
 }

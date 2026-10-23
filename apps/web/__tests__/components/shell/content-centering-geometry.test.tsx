@@ -86,7 +86,7 @@ describe('page content centring and add control clearance', () => {
       </NextIntlClientProvider>);`, {
       'next/link': "import React from 'react'; export default ({ children, ...props }) => React.createElement('a', props, children);",
       '@sentry/nextjs': 'export const captureException = () => {};',
-      '@/stores/auth-store': 'export const useAuthStore = { getState: () => ({ isAuthenticated: true, user: { userId: "shell-account" } }) };',
+      '@/stores/auth-store': 'import { create } from "zustand"; export const useAuthStore = create(() => ({ isAuthenticated: true, user: { userId: "shell-account" }, logout: async () => {} }));',
       './notification-bell': 'export const NotificationBell = () => null;',
       '@/components/ui/menu': 'export const Menu = () => null;',
       '@/components/ui/sheet': 'export const Sheet = () => null;',
@@ -219,8 +219,11 @@ describe('page content centring and add control clearance', () => {
         await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: viewport.top, bottom: viewport.bottom, left: viewport.left, right: viewport.right } })
         await page.setContent(`<style>${stylesheet}:root{font-size:${viewport.pressure ? 32 : 16}px}</style><div id="root"></div>`)
         await page.locator('#root').evaluate((element, pressure) => { element.dataset.configuration = JSON.stringify({ pressure }) }, viewport.pressure)
-        await page.addScriptTag({ content: shortShellScript })
-        await page.locator('[data-shell-tab-bar]').waitFor({ state: 'visible' })
+        const renderError = page.waitForEvent('pageerror').then(error => { throw error })
+        await Promise.race([
+          page.addScriptTag({ content: shortShellScript }).then(() => page.locator('[data-shell-tab-bar]').waitFor({ state: 'visible' })),
+          renderError,
+        ])
         await page.evaluate(() => new Promise<void>(resolve => {
           const observer = new ResizeObserver(() => { observer.disconnect(); resolve() })
           observer.observe(document.querySelector('[data-shell-header]')!)
