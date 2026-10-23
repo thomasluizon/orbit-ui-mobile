@@ -1,3 +1,4 @@
+import { formatConjunctionList } from '../utils/conjunction-list'
 import type { ChatStoreState } from '../stores/chat-store'
 import type { BlockAnswer, ChatMessage, ChoiceBlock, PickListBlock } from '../types/chat'
 
@@ -31,7 +32,7 @@ export function isSameBlockAnswer(answer: BlockAnswer, uncertain: BlockAnswer | 
 
 export function formatBlockAnswer(labels: readonly string[], freeText: string | undefined, locale: string): string {
   const words = freeText?.trim() ? [...labels, freeText.trim()] : [...labels]
-  return new Intl.ListFormat(locale, { style: 'long', type: 'conjunction' }).format(words)
+  return formatConjunctionList(words, locale)
 }
 
 export function blockAnswerErrorKey(status: number | null): 'closed' | 'alreadyAnswered' | 'invalid' | 'error' {

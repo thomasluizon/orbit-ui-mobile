@@ -1,4 +1,8 @@
 {
+  "listFormatting": {
+    "pair": "{first} and {last}",
+    "end": "{first}, and {last}"
+  },
   "dragAndDrop": {
     "instructions": "To pick up an item, press the space bar. While dragging, use the arrow keys to move it. Press space again to drop it, or Escape to cancel.",
     "habitInstructions": "To move a habit, hold Alt and press the up or down arrow key.",
