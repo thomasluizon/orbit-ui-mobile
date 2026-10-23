@@ -89,22 +89,39 @@ export const processIsRunning = (pid) => {
 }
 
 /** Interrupt only after the fake GitHub read has started its complete process tree. */
-export const interruptGithubRead = async ({ path, args, env, signal, pidFile, descendantPidFile }) => {
-  const child = spawn(process.execPath, [path, ...args], { env: { ...process.env, ...env } })
+export const interruptGithubRead = async ({ path, args, env, signal, pidFile, descendantPidFile, startupTimeoutMs = 60000 }) => {
+  const child = spawn(process.execPath, [path, ...args], {
+    env: { ...process.env, ...env }, detached: process.platform !== "win32",
+  })
+  const killTree = () => {
+    if (process.platform === "win32") {
+      spawnSync("taskkill", ["/T", "/F", "/PID", String(child.pid)], { windowsHide: true })
+      return
+    }
+    try { process.kill(-child.pid, "SIGKILL") } catch { /* the process group may have already exited */ }
+  }
   let stdout = ""
   let stderr = ""
   child.stdout.on("data", (chunk) => { stdout += chunk })
   child.stderr.on("data", (chunk) => { stderr += chunk })
+  let exited = false
+  child.once("exit", () => { exited = true })
   const closed = new Promise((resolve) => child.once("close", (status, signal) => resolve({ status, signal })))
   const readPid = (file) => existsSync(file) ? Number(readFileSync(file, "utf8")) : null
-  const deadline = Date.now() + 5000
-  while (!readPid(descendantPidFile) && child.exitCode === null && Date.now() < deadline) {
+  const startupDeadline = Date.now() + startupTimeoutMs
+  let pids
+  while (true) {
+    pids = [readPid(pidFile), readPid(descendantPidFile)]
+    if (pids.every(processIsRunning) || exited || Date.now() >= startupDeadline) break
     await new Promise((resolve) => setTimeout(resolve, 20))
   }
-  const pids = [readPid(pidFile), readPid(descendantPidFile)]
-  const started = pids.every(processIsRunning)
-  child.kill(signal)
-  const watchdog = setTimeout(() => child.kill("SIGKILL"), 3000)
+  const started = !exited && pids.every(processIsRunning)
+  const startupError = started ? null : exited
+    ? "Tool exited before both GitHub shim pid files held live pids"
+    : `GitHub shim pid files did not hold live pids within ${startupTimeoutMs}ms`
+  if (started) child.kill(signal)
+  else if (!exited) killTree()
+  const watchdog = setTimeout(killTree, 3000)
   const exit = await closed
   clearTimeout(watchdog)
   const cleanupDeadline = Date.now() + 1000
@@ -117,7 +134,7 @@ export const interruptGithubRead = async ({ path, args, env, signal, pidFile, de
       try { process.kill(pid, "SIGKILL") } catch { /* the child can exit before cleanup */ }
     }
   }
-  return { ...exit, started, terminated, stdout, stderr }
+  return { ...exit, started, startupError, terminated, stdout, stderr }
 }
 
 /**
