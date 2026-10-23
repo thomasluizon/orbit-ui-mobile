@@ -22,6 +22,22 @@ const read = async (name, responses, options = {}) => {
 const success = { stdout: "HTTP/2.0 200 OK\r\nContent-Type: application/json\r\n\r\n[]", stderr: "", exit: 0 }
 
 export const cases = async () => {
+  const cache = new Map()
+  const conditional = { rest: { cache } }
+  const sequenceFile304 = stage("github-read/conditional", "")
+  const conditionalArgv = stage("github-read/conditional-argv", "")
+  const conditionalEnvironment = { ...process.env, ...orcaEnv([{ match: "api test/read", argvFile: conditionalArgv, sequenceFile: sequenceFile304, responseSequence: [
+    { stdout: 'HTTP/2.0 200 OK\r\nEtag: W/"recorded"\r\nContent-Type: application/json\r\n\r\n[]' },
+    { stdout: 'HTTP/2.0 304 Not Modified\r\nEtag: W/"recorded"\r\n\r\n', stderr: 'gh: HTTP 304', exit: 1 },
+  ] }]) }
+  let reused = false
+  try {
+    await readGithub("test/read", conditionalEnvironment, conditional)
+    const unchanged = await readGithub("test/read", conditionalEnvironment, conditional)
+    reused = Array.isArray(unchanged) && cache.size === 1
+  } catch { /* The assertion reports rejection of an empty 304 body. */ }
+  T("GitHub read: conditional 304 reuses the recorded response body", reused)
+  T("GitHub read: the observed ETag is sent as If-None-Match", JSON.parse(readFileSync(conditionalArgv, "utf8")).includes('If-None-Match: W/"recorded"'))
   for (const signal of ["SIGTERM", "SIGINT"]) {
     const existingHandler = () => {}
     const listeners = process.listenerCount(signal)

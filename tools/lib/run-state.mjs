@@ -145,8 +145,8 @@ const removeStaleReclaim = (path) => {
 }
 
 /** The directory is only a container; a complete, exclusive owner file is the lock. */
-export const acquireRelayLock = (repoRoot = REPO_ROOT) => {
-  const directory = join(gitDirectoryOf(repoRoot), "orbit-relay-lock")
+export const acquireRelayLock = (repoRoot = REPO_ROOT, lockName = "orbit-relay-lock") => {
+  const directory = join(gitDirectoryOf(repoRoot), lockName)
   mkdirSync(directory, { recursive: true })
   const path = join(directory, "owner.json")
   const reclaimPath = `${path}.reclaim`
