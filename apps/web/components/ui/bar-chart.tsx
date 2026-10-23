@@ -61,7 +61,7 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
           {describePoint(points[selectedIndex]!)}
         </p>
       </div>
-      <div ref={containerRef} role="radiogroup" aria-label={label} className="relative flex w-full" style={{ height: BAR_CHART_HEIGHT }}>
+      <div ref={containerRef} data-interaction-fill-grid="" role="radiogroup" aria-label={label} className="relative flex w-full" style={{ height: BAR_CHART_HEIGHT }}>
         {points.map((point, index) => <button
           key={point.startDate}
           ref={(element) => { radioRefs.current[index] = element }}
@@ -72,11 +72,12 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
           tabIndex={index === selectedIndex ? 0 : -1}
           onClick={() => setSelectedDate(point.startDate)}
           onKeyDown={handleKey}
-          className="group relative min-w-0 flex-1 cursor-pointer touch-manipulation rounded-none bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]"
+          className="orbit-bar-chart-column group relative min-w-0 flex-1 cursor-pointer touch-manipulation rounded-none bg-transparent p-0 focus-visible:outline-0"
         >
-          <span aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-[8px] bg-transparent transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] group-hover:bg-[var(--bg-hover)] group-active:bg-[var(--bg-hover)] motion-reduce:transition-none" />
+          <span aria-hidden="true" data-slot="bar-chart-fill" style={{ insetInline: bars[index]?.fillInsetInline }} className="pointer-events-none absolute inset-0 overflow-hidden rounded-[8px] bg-transparent transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] group-hover:bg-[var(--bg-hover)] group-active:bg-[var(--bg-hover)] motion-reduce:transition-none" />
+          <span aria-hidden="true" data-slot="bar-chart-focus" style={{ insetInline: bars[index]?.fillInsetInline }} className="pointer-events-none absolute inset-0 [clip-path:inset(0)] group-focus-visible:outline group-focus-visible:outline-2 group-focus-visible:-outline-offset-2 group-focus-visible:outline-[var(--fg-1)]" />
         </button>)}
-        <svg aria-hidden="true" focusable="false" className="pointer-events-none absolute inset-0" width="100%" height={BAR_CHART_HEIGHT} viewBox={`0 0 ${width || 1} ${BAR_CHART_HEIGHT}`} preserveAspectRatio="none">
+        <svg data-interaction-fill-graphics="" aria-hidden="true" focusable="false" className="pointer-events-none absolute inset-0" width="100%" height={BAR_CHART_HEIGHT} viewBox={`0 0 ${width || 1} ${BAR_CHART_HEIGHT}`} preserveAspectRatio="none">
           {bars.map((bar, index) => <path key={points[index]!.startDate} d={barChartPath(bar)} data-state={index === selectedIndex ? 'selected' : 'resting'} data-empty={points[index]!.rate == null || points[index]!.rate === 0 || undefined} fill={index === selectedIndex ? 'var(--fg-1)' : 'var(--fg-2)'} />)}
         </svg>
       </div>
