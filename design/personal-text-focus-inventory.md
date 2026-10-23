@@ -14,6 +14,7 @@ on both platforms.
 | --- | --- | --- |
 | Personal radio options | `apps/web/components/ui/select-check.tsx` | Selected enabled option; disclosed disabled option. Radio and disclosure controls are siblings of the scrolling text. |
 | Personal list rows | `apps/web/components/ui/list-row.tsx` | Disclosed title, description or value; the account row's expanded value. A disclosure remains beside scrolling text; collapsed destination text stays inside its native link. |
+| Astra preview titles | `apps/web/components/chat/preview-item-title.tsx` | Editable pending names open Input. Every other title reveals the full name on activation; PersonalTextAction keeps the native title control beside scrolling expanded text. Android mirrors expansion through PersonalText and returns accessibility focus after inline editing. |
 | Typed text disclosure | `apps/web/components/ui/personal-text-details.tsx` | Inline disclosure separates its button; icon-only disclosure opens a sheet with standalone text. |
 | Habit selection rows | `apps/web/components/habits/habit-row.tsx` | Selected title expands through `habit-row-content.tsx`; the selection action keeps its progress and status accessible name. |
 | Habit detail heading | `apps/web/components/habits/habit-detail-screen.tsx` | Unclamped reading heading; words wrap and oversized tokens ellipsize without scrolling. The one named pencil opens the full title input. |
