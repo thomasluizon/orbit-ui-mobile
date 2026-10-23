@@ -1272,6 +1272,24 @@
     }
   },
   "chat": {
+    "unreadableReply": "Não foi possível mostrar a resposta. Pergunte de novo.",
+    "ranking": {
+      "title": "Ranking de hábitos",
+      "from": "De {date}",
+      "through": "Até {date}",
+      "completions": "{count, plural, =0 {# conclusões} one {# conclusão} other {# conclusões}}",
+      "open": "{rank}. {name}, {count, plural, =0 {# conclusões} one {# conclusão} other {# conclusões}}",
+      "empty": "Nenhuma conclusão neste período.",
+      "partial": "Mais hábitos abaixo.",
+      "more": "Ver mais",
+      "refresh": "Atualizar",
+      "stale": "O ranking mudou. Atualize para continuar.",
+      "pageFailed": "Não foi possível carregar. Tente de novo.",
+      "refreshFailed": "Não foi possível atualizar. Tente de novo.",
+      "removed": "Hábito indisponível. Atualize o ranking.",
+      "openFailed": "Não foi possível abrir o hábito. Tente de novo.",
+      "offline": "Conecte-se para continuar."
+    },
     "readBlock": {
       "dayTitle": "Resumo",
       "nothingDue": "Nenhum hábito agendado.",

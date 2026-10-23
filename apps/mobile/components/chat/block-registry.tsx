@@ -2,6 +2,7 @@ import { Fragment, type ReactNode } from 'react'
 import type { AnswerBlockProps, ChatBlockKind, MessageBubbleProps } from '@orbit/shared/chat'
 import type { ChatBlockPart, ChatMessage, ReadBlockResponse } from '@orbit/shared/types/chat'
 import { HabitListCard } from './habit-list-card'
+import { HabitRankingCard } from './habit-ranking-card'
 import { GoalListCard } from './goal-list-card'
 import { MetricsCard } from './metrics-card'
 import { PeriodTotalCard } from './period-total-card'
@@ -21,6 +22,7 @@ type BlockContent = { [Kind in ChatBlockKind]: Extract<ChatBlockPart, { kind: Ki
 type OpenAction = MessageBubbleProps['onActionChipClick']
 
 const blockRegistry: { [Kind in ChatBlockKind]: (block: BlockContent[Kind], onOpen: OpenAction, answerProps: Omit<AnswerBlockProps, 'definition'>) => ReactNode } = {
+  habitRanking: (block, _onOpen, props) => <HabitRankingCard habitRanking={block} isOnline={props.interaction?.isOnline} />,
   habitList: block => <HabitListCard habitList={block} />,
   goalList: (block, onOpen) => <GoalListCard goalList={block} onOpenGoal={id => onOpen?.(id, 'CreateGoal')} />,
   metrics: block => <MetricsCard metricsCard={block} />,

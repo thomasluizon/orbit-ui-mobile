@@ -12,6 +12,7 @@ export const CHAT_BLOCK_KINDS = [
   'accountRows',
   'choice',
   'pickList',
+  'habitRanking',
 ] as const
 
 export type ChatBlockKind = typeof CHAT_BLOCK_KINDS[number]

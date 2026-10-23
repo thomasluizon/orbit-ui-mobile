@@ -31,6 +31,24 @@ analysis. Workspace Vitest coverage includes generated schemas imported by tests
 Handwritten schemas remain the runtime contract. Review consumed discrepancies
 separately under the append-only and deploy-API-first rules in `CLAUDE.md`.
 
+## Negotiated habit ranking contract
+
+The handwritten `habitRankingCardSchema` and `habitRankingResponseSchema` consume the deployed
+ranking producer from API change #1615. The block is append-only and negotiated through
+`supportsParts` and `partKinds`; clients lacking `habitRanking` continue on the legacy path.
+The signed query token and revision stay with their answer. Paging appends the producer's ranks;
+refresh passes that token with no relative period or replacement filters.
+
+The immutable generated snapshot can predate this producer. Its absence there does not authorize
+hand-editing generated output or moving the pin independently. Producer records, the card builder,
+controller and all four published OpenAPI documents establish the handwritten addition. A routine
+rebaseline adopts the newer pin and generated output together. The negotiated ranking contract test
+checks the handwritten boundary separately from the older pinned block inventory.
+
+Deploy the API first and complete live ranking evaluation before client activation. To disable new
+emission, remove its advertised kind while retaining historical parsing and rendering. Rollback
+does not raise the supported-version floor.
+
 ## Regenerating locally
 
 From the repository root:

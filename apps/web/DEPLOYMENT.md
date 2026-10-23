@@ -4,6 +4,20 @@
 
 The image lives at `ghcr.io/thomasluizon/orbit-web`. The release workflow tags it with the source commit SHA, then deploys the immutable digest. Render services `orbit-web-staging`, `orbit-web`, and the redesign production service must be image-backed web services configured to pull this GHCR image. Give each service a GHCR registry credential, set port `3000`, and check `/api/health`. The image runs `node server.js` as the `orbit` user. The image carries `WEB_COMMIT_SHA`; the health response includes that SHA so the workflows can verify the served build. The builder stage also inlines it as `NEXT_PUBLIC_WEB_COMMIT_SHA`, and the About screen shows its first 7 characters as the web version.
 
+## Negotiated habit rankings
+
+Deploy the API's `habitRanking` producer and `/api/chat/habit-ranking` paging and refresh endpoint
+before releasing clients that advertise that part kind. Release the paired web and Android
+renderers with shared validation and action support. Run the ranking cases in the Astra capability
+evaluation against the deployed producer before activation, including calendar-month windows,
+complete multi-page results, stale cursors, exact-query refresh and legacy clients without the kind.
+Android text and TalkBack acceptance requires a device; hermetic web or Yoga checks do not replace it.
+
+To stop new ranking emission, remove only `habitRanking` from carrying clients' advertised
+`partKinds`. Retain its parser and both registries so historical valid answers remain readable.
+Use normal web and Android rollback without changing the minimum supported version. Paging and
+refresh retain the producer's `habit_ranking_query` telemetry and send no names or prompts.
+
 ## GitHub settings
 
 In repository **Settings > Secrets and variables > Actions**, set the repository secrets `SMOKE_TEST_EMAIL` and `SMOKE_TEST_CODE`. The smoke credentials must belong to the dedicated production smoke account. In **Settings > Environments**, restrict both `production` and `staging` to deployments from `main` and leave required reviewers empty. Both environments hold their own `RENDER_API_KEY` secret. Dispatch every web release with `--ref main`; staging can still build the branch selected by the workflow input. The Android internal track uses `android-internal` so it can build its selected branch without entering the web staging environment. After both web release paths succeed and `/api/health` reports their selected commits, delete the repository secret `RENDER_API_KEY` from **Settings > Secrets and variables > Actions**. Set these repository variables:

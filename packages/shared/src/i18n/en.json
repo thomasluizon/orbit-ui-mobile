@@ -1272,6 +1272,24 @@
     }
   },
   "chat": {
+    "unreadableReply": "This answer could not be displayed. Please ask again.",
+    "ranking": {
+      "title": "Habit ranking",
+      "from": "From {date}",
+      "through": "Through {date}",
+      "completions": "{count, plural, =0 {# completions} one {# completion} other {# completions}}",
+      "open": "{rank}. {name}, {count, plural, =0 {# completions} one {# completion} other {# completions}}",
+      "empty": "No completions in this period.",
+      "partial": "More habits below.",
+      "more": "Show more",
+      "refresh": "Refresh",
+      "stale": "Ranking changed. Refresh to continue.",
+      "pageFailed": "Could not load more. Try again.",
+      "refreshFailed": "Could not refresh. Try again.",
+      "removed": "Habit unavailable. Refresh this ranking.",
+      "openFailed": "Could not open the habit. Try again.",
+      "offline": "Connect to continue."
+    },
     "readBlock": {
       "dayTitle": "Summary",
       "nothingDue": "Nothing scheduled.",
