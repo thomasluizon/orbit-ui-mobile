@@ -32,7 +32,11 @@ It builds `open` and `production` as `org.useorbit.app` ("Orbit") against
 GitHub environment supplies the Firebase config containing both Android app clients;
 the other tracks use the repository secret.
 Each successful Play upload records an Android GitHub Deployment with the commit, version and
-versionCode. The workflow derives each new versionCode from the last run across tracks;
+versionCode. Release planning reads the newest Android deployment for the selected track, because
+an Actions failure after submission does not undo a Play upload. Recording retries transient API
+failures and looks up the commit, environment, track, version and versionCode before creating a
+record, so a lost creation response reuses the upload's existing record.
+The workflow derives each new versionCode from the last run across tracks;
 Play enforces uniqueness within each package. The open and production tracks build the embedded redesign
 from `main`. A binary is never promoted between tracks because its API base is fixed when it is built.
 

@@ -27,6 +27,9 @@ function createAdapter(overrides: Partial<DateInterpretationContext> = {}) {
     reject: (error: Error) => void
   }[] = []
   const adapter = {
+    owner: fields,
+    generalLocked: false,
+    applyWeeklyRecurrence: () => { context.schedule = 'recurring'; context.cadence = { unit: 'Week', quantity: 1, days: [], intervalWeeks: 1 } },
     context: () => ({ ...context, date: fields.dueDate, phrase: fields.datePhrase }),
     write: (field: keyof typeof fields, value: string) => { fields[field] = value },
     request: (input: { phrase: string; language: string }, signal: AbortSignal) =>
@@ -46,6 +49,128 @@ function createEditor(overrides: Partial<DateInterpretationContext> = {}) {
 }
 
 describe('habit date editor lifecycle', () => {
+  it.each(['toda semana', 'todas as semanas', 'semanalmente', 'every week', 'weekly'])('handles %s without date arithmetic, a proposal or a paid action', async (phrase) => {
+    const { editor, context, fields, requests } = createEditor({ type: 'habit', schedule: 'flexible', cadence: { unit: 'Month', quantity: 3, days: ['Monday'], intervalWeeks: 4 } })
+    editor.setPhrase(phrase)
+    editor.sync()
+    editor.validate()
+    await editor.ask(true, false)
+    expect(context.cadence).toEqual({ unit: 'Week', quantity: 1, days: [], intervalWeeks: 1 })
+    expect(fields).toEqual({ dueDate: '2026-10-20', datePhrase: phrase, dateIssue: '' })
+    expect(editor.getSnapshot()).toMatchObject({ status: 'recurrence', candidate: null, pending: false })
+    expect(requests).toHaveLength(0)
+  })
+
+  it.each(['task', undefined, 'habit'])('does not schedule an ineligible type %s', async (type) => {
+    const { editor, fields, context, requests } = createEditor({ type, schedule: type === 'habit' ? 'general' : 'oneTime' })
+    editor.setPhrase('every week')
+    await editor.ask(true, false)
+    expect(context.cadence.unit).toBeNull()
+    expect(fields).toEqual({ dueDate: '2026-10-20', datePhrase: 'every week', dateIssue: type === 'task' ? 'habits.form.recurrenceRequiresHabit' : '' })
+    expect(requests).toHaveLength(0)
+  })
+
+  it('requires the deliberate Habit choice before applying retained Task wording', () => {
+    const { editor, fields, context } = createEditor()
+    editor.setPhrase('weekly')
+    expect(fields.dateIssue).toBe('habits.form.recurrenceRequiresHabit')
+    context.type = 'habit'
+    context.schedule = 'general'
+    editor.sync()
+    expect(context.cadence.unit).toBeNull()
+    editor.chooseType()
+    expect(context.cadence.unit).toBe('Week')
+    expect(fields.dateIssue).toBe('')
+    context.cadence.unit = 'Month'
+    editor.sync()
+    editor.validate()
+    editor.close()
+    editor.open()
+    editor.sync()
+    expect(context.cadence.unit).toBe('Month')
+    expect(fields.dateIssue).toBe('')
+  })
+
+  it('keeps inherited General locked and reports the existing parent mismatch on a deliberate Habit choice', () => {
+    const { editor, adapter, fields, context, requests } = createEditor()
+    editor.setPhrase('weekly')
+    adapter.generalLocked = true
+    context.type = 'habit'
+    context.schedule = 'general'
+    editor.chooseType()
+    editor.sync()
+    editor.validate()
+    expect(context.cadence.unit).toBeNull()
+    expect(context.schedule).toBe('general')
+    expect(fields.dateIssue).toBe('errors.api.generalMismatchWithParent')
+    adapter.generalLocked = false
+    editor.sync()
+    editor.validate()
+    expect(context.schedule).toBe('general')
+    expect(context.cadence.unit).toBeNull()
+    expect(fields.dateIssue).toBe('')
+    expect(requests).toHaveLength(0)
+  })
+
+  it('does not apply old recognition when the form or account is replaced', () => {
+    const original = createEditor({ type: 'habit', schedule: 'recurring' })
+    original.editor.setPhrase('weekly')
+    const replacement = createAdapter({ type: 'habit', schedule: 'recurring', phrase: 'weekly', cadence: { unit: 'Year', quantity: 2, days: [], intervalWeeks: 1 } })
+    original.editor.configure(replacement.adapter)
+    original.editor.sync()
+    replacement.context.account++
+    original.editor.sync()
+    expect(replacement.context.cadence.unit).toBe('Year')
+    expect(original.context.cadence.unit).toBe('Week')
+    expect(replacement.requests).toHaveLength(0)
+  })
+
+  it('retires an old consultation when another form has identical context values', async () => {
+    const original = createEditor()
+    original.editor.setPhrase('after vacation')
+    const pending = original.editor.ask(true, false)
+    const replacement = createAdapter({ phrase: 'after vacation' })
+    original.editor.configure(replacement.adapter)
+    original.editor.sync()
+    expect(original.requests[0]!.signal.aborted).toBe(true)
+    original.requests[0]!.resolve(interpretation)
+    await pending
+    expect(original.editor.getSnapshot()).toMatchObject({ candidate: null, pending: false })
+    expect(replacement.fields.dueDate).toBe('2026-10-20')
+    expect(replacement.requests).toHaveLength(0)
+  })
+
+  it.each(['response', 'failure'] as const)('invalidates a pending date %s before handling recurrence', async (outcome) => {
+    const { editor, fields, context, requests } = createEditor({ type: 'habit', schedule: 'recurring' })
+    editor.setPhrase('after vacation')
+    const pending = editor.ask(true, false)
+    editor.setPhrase('weekly')
+    expect(requests[0]!.signal.aborted).toBe(true)
+    if (outcome === 'response') requests[0]!.resolve(interpretation)
+    else requests[0]!.reject(new Error('Late failure'))
+    await pending
+    expect(context.cadence.unit).toBe('Week')
+    expect(fields).toEqual({ dueDate: '2026-10-20', datePhrase: 'weekly', dateIssue: '' })
+    expect(editor.getSnapshot()).toMatchObject({ status: 'recurrence', candidate: null, pending: false, failure: null })
+  })
+
+  it('retains manual dates, newer wording and changed cadence instead of replaying recognition', () => {
+    const { editor, fields, context } = createEditor({ type: 'habit', schedule: 'recurring' })
+    editor.setPhrase('weekly')
+    context.cadence.unit = 'Year'
+    editor.sync()
+    expect(context.cadence.unit).toBe('Year')
+    expect(fields.dateIssue).toBe('')
+    editor.selectDate('2026-10-23')
+    editor.validate()
+    expect(fields).toEqual({ dueDate: '2026-10-23', datePhrase: '', dateIssue: '' })
+    editor.setPhrase('tomorrow')
+    expect(fields.dueDate).toBe('2026-10-21')
+    expect(context.cadence.unit).toBe('Year')
+    editor.setPhrase('weekly')
+    expect(context.cadence.unit).toBe('Week')
+  })
+
   it('publishes current snapshots to subscribers and stops notifying each detached subscriber', () => {
     const { editor, fields, requests } = createEditor()
     const initial = editor.getSnapshot()

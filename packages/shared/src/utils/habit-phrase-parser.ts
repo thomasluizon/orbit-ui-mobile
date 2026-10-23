@@ -262,3 +262,8 @@ export function readTypedHabitPhrase(title: string, locale: SupportedLocale, typ
     dueTime: general ? null : read.dueTime,
     consumed: general ? [] : read.consumed.filter((token) => token.kind === 'time') }
 }
+
+export function isWeeklyRecurrencePhrase(text: string): boolean {
+  const normalized = text.trim().toLowerCase().replace(/\s+/gu, ' ')
+  return /^[.!?,;:]*\s*(?:toda semana|todas as semanas|semanalmente|every week|weekly)\s*[.!?,;:]*$/u.test(normalized)
+}

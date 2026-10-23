@@ -14,7 +14,7 @@ const read = async (name, responses, options = {}) => {
   const startedAt = Date.now()
   try {
     value = await readGithub("test/read", environment, {
-      deadline: Date.now() + 3000, pollMs: 10, onTransientError: (text) => errors.push(text), ...options,
+      deadline: Date.now() + 30000, pollMs: 10, onTransientError: (text) => errors.push(text), ...options,
     })
   } catch (caught) { error = caught }
   return { value, error, errors, elapsed: Date.now() - startedAt, calls: Number(readFileSync(sequenceFile, "utf8")) }
@@ -58,6 +58,11 @@ export const cases = async () => {
     const recovered = await read(`recover-${status}`, [response(status), success])
     T(`GitHub read: HTTP ${status} recovers`, !recovered.error && recovered.calls === 2 && recovered.errors.length === 1, recovered.error?.message)
   }
+  const slowRecovery = await read("slow-recovery", [
+    { ...response(503), delayMs: 1600 }, { ...success, delayMs: 1600 },
+  ])
+  T("GitHub read: two slow invocations still recover on exactly the second call", !slowRecovery.error &&
+    slowRecovery.calls === 2 && slowRecovery.errors.length === 1 && Array.isArray(slowRecovery.value), slowRecovery.error?.message)
   for (const [name, failure] of [
     ["secondary", response(403, "Retry-After: 0\r\n")],
     ["secondary-text", { stderr: "gh: You have exceeded a secondary rate limit (HTTP 403)", exit: 1 }],

@@ -184,6 +184,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     }
   }, [router])
   const activeView = useUIStore((s) => s.activeView)
+  const todayFabHidden = useUIStore((s) => s.todayFabHidden)
   const showCreateModal = useUIStore((s) => s.showCreateModal)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
@@ -335,6 +336,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         <OpenAstraFromQuery pathname={pathname} onOpen={setAstraConversationOpen} />
       </Suspense>
       <DestinationShell
+        todayFabHidden={pathname === '/' && todayFabHidden}
         onCreate={handleCreate}
         createRefusal={!isOnline && showCreateRefusal ? (
           <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} />
