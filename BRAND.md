@@ -1,6 +1,6 @@
-> **At a glance** - the authority for Orbit's audience, positioning, and brand principles; read before brand, copy, positioning, or design-direction work.
-
 # Orbit brand
+
+> **At a glance** - the authority for Orbit's audience, positioning, and brand principles; read before brand, copy, positioning, or design-direction work.
 
 ## Who Orbit is for
 
@@ -33,7 +33,7 @@ and acts on a routine, rather than an optional destination outside the main expe
 ## Brand principles
 
 1. **Make the next action easier than maintaining the system.** A primary screen violates this
-   principle when setup, organisation, or explanation competes with the action the person came to
+   principle when setup, organization, or explanation competes with the action the person came to
    take.
 2. **Design for restarting, not only for staying perfect.** A missed routine violates this principle
    when the screen turns it into punishment, a dead end, or more work instead of making the return
@@ -51,8 +51,6 @@ keywords answer what someone searched for; they do not redefine who qualifies fo
 
 ADHD may support the story, but the standing promise names the friction. "ADHD-friendly" may be a
 supporting claim; "for people with ADHD" is not the default headline.
-
-Orbit and Astra are never translated.
 
 ## Boundary with DESIGN.md
 
