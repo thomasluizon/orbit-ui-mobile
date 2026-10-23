@@ -69,8 +69,8 @@ function assertTypePlacement(geometry: ReturnType<typeof measureInteractionFills
 
 describe('habit row standard on Android', () => {
   it.each((['light', 'dark'] as const).flatMap((mode) => [320, 412, 1352].flatMap((width) =>
-    [1, 2].flatMap((fontScale) => [false, true].flatMap((parent) => [false, true].map((reduced) => ({ mode, width, fontScale, parent, reduced })))),
-  )))('contains completion hover and press feedback in $mode at $width/$fontScale, parent=$parent reduced=$reduced', ({ mode, width, fontScale, parent, reduced }) => {
+    [1, 2].flatMap((fontScale) => [false, true].flatMap((parent) => [false, true].flatMap((reduced) => [false, true].map((pressed) => ({ mode, width, fontScale, parent, reduced, pressed }))))),
+  )))('contains completion hover and press feedback in $mode at $width/$fontScale, parent=$parent reduced=$reduced pressed=$pressed', ({ mode, width, fontScale, parent, reduced, pressed }) => {
     theme.mode = mode
     motion.reduced = reduced
     __setWindowDimensions({ width, height: 892, scale: 1, fontScale })
@@ -82,24 +82,22 @@ describe('habit row standard on Android', () => {
       childrenDone={parent ? 1 : 0} childrenTotal={parent ? 3 : 0} actions={actions} />) })
     const toggle = () => tree!.root.findAllByType('Pressable').find((node: import('react-test-renderer').ReactTestInstance) => String(node.props.accessibilityLabel).includes('habits.logHabit: Read'))!
     const tokens = createTokensV2('orange', mode)
-    for (const pressed of [false, true]) {
-      TestRenderer.act(() => { if (pressed) toggle().props.onPressIn(); else toggle().props.onHoverIn() })
-      const geometry = measureInteractionFills(tree!.toJSON(), width, pressed, fontScale)
-      const target = geometry.find((part) => part.host.type === 'Pressable' && String(part.host.props.accessibilityLabel).includes('habits.logHabit: Read'))!
-      const fill = geometry.find((part) => part.host.props.testID === 'habit-row-check-fill') ?? target
-      const glyph = geometry.find((part) => part.host.props.testID === 'habit-check')!
-      expect(target.width).toBe(48)
-      expect(target.height).toBeGreaterThanOrEqual(48)
-      expect(target.style.backgroundColor ?? 'transparent').toBe('transparent')
-      expect(fill).toMatchObject({ width: 44, height: 44 })
-      expect(fill.style).toMatchObject({ borderRadius: 20, backgroundColor: tokens.bgHover })
-      expect(fill.left - glyph.left).toBe(-8)
-      expect(fill.top - glyph.top).toBe(-8)
-      expect(fill.left - target.left).toBe(2)
-      expect(fill.top - target.top).toBe(2)
-      expect(target.style.transform ?? []).toEqual(pressed && !reduced ? [{ scale: 0.96 }] : parent ? [] : [{ scale: 1 }])
-      TestRenderer.act(() => { toggle().props.onHoverOut(); toggle().props.onPressOut() })
-    }
+    TestRenderer.act(() => { if (pressed) toggle().props.onPressIn(); else toggle().props.onHoverIn() })
+    const geometry = measureInteractionFills(tree!.toJSON(), width, pressed, fontScale)
+    const target = geometry.find((part) => part.host.type === 'Pressable' && String(part.host.props.accessibilityLabel).includes('habits.logHabit: Read'))!
+    const fill = geometry.find((part) => part.host.props.testID === 'habit-row-check-fill') ?? target
+    const glyph = geometry.find((part) => part.host.props.testID === 'habit-check')!
+    expect(target.width).toBe(48)
+    expect(target.height).toBeGreaterThanOrEqual(48)
+    expect(target.style.backgroundColor ?? 'transparent').toBe('transparent')
+    expect(fill).toMatchObject({ width: 44, height: 44 })
+    expect(fill.style).toMatchObject({ borderRadius: 20, backgroundColor: tokens.bgHover })
+    expect(fill.left - glyph.left).toBe(-8)
+    expect(fill.top - glyph.top).toBe(-8)
+    expect(fill.left - target.left).toBe(2)
+    expect(fill.top - target.top).toBe(2)
+    expect(target.style.transform ?? []).toEqual(pressed && !reduced ? [{ scale: 0.96 }] : parent ? [] : [{ scale: 1 }])
+    TestRenderer.act(() => { toggle().props.onHoverOut(); toggle().props.onPressOut() })
     for (const action of Object.values(actions)) expect(action).not.toHaveBeenCalled()
     TestRenderer.act(() => toggle().props.onPress())
     expect(actions.onLog).toHaveBeenCalledOnce()

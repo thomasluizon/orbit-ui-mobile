@@ -33,7 +33,8 @@ is independent. The glyph is 16px normally and 24px above 130% text, at stroke w
 metadata foreground. Empty checklists add no token, separator or gap. Checklist completion changes
 neither the habit's logged state nor its actions. The primary and selection naming paths reuse
 Checklist and the localized row-progress phrase once; visual metadata is hidden from accessibility. The same content reaches Hoje, Todos,
-Geral, search, inline children, drill lists, detail children and Astra-owned shared rows. Detail
+Geral, search, inline children, drill lists and detail children. Astra habit cards retain their distinct
+owners. Detail
 headers retain `Tarefa única` / `One-time task` or `Hábito` / `Habit` beneath their full-width
 rename heading, matching the full form choices. The row selector derives from the same schedule
 classification and uses the dedicated task caption key. Primary and selection accessible names
