@@ -155,14 +155,20 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           pattern: web-unit-shard-*
-          path: apps/web/.artifacts/unit-tests
-          merge-multiple: true
+          path: .artifacts/downloads/web
+          merge-multiple: false
 
       - name: Download workspace coverage
         uses: actions/download-artifact@v8
         with:
           pattern: workspace-unit-coverage-*
-          merge-multiple: true
+          path: .artifacts/downloads/workspaces
+          merge-multiple: false
+
+      - name: Select latest report attempts
+        run: |
+          node tools/select-artifact-attempts.mjs --input-dir .artifacts/downloads/web --output-dir apps/web/.artifacts/unit-tests
+          node tools/select-artifact-attempts.mjs --input-dir .artifacts/downloads/workspaces --output-dir .
 
       - name: Verify every web report arrived
         run: |
@@ -244,7 +250,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
         with:
-          name: web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}
+          name: web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
           path: apps/web/.artifacts/unit-tests
           include-hidden-files: true
           if-no-files-found: error
@@ -281,7 +287,7 @@ jobs:
       - name: Upload workspace coverage
         uses: actions/upload-artifact@v7
         with:
-          name: workspace-unit-coverage-${{ matrix.workspace }}
+          name: workspace-unit-coverage-${{ matrix.workspace }}-attempt-${{ github.run_attempt }}
           path: .artifacts/workspace-coverage
           include-hidden-files: true
           if-no-files-found: error
