@@ -38,6 +38,9 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@v7
+        env:
+          # Bound stalled cache segments so npm ci can continue with a cold cache.
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
       - name: Install locked native CLI

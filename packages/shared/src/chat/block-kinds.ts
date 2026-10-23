@@ -2,6 +2,8 @@ export const CHAT_BLOCK_KINDS = [
   'habitList',
   'goalList',
   'metrics',
+  'periodTotal',
+  'periodComparison',
   'periodInsight',
   'daySummary',
   'streak',

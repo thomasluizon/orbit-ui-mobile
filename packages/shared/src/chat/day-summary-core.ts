@@ -1,10 +1,12 @@
 import type { NormalizedHabit } from '../types/habit'
 import type { StatusRingProps } from '../contracts/lists'
+import { getHabitLogDateDecision } from '../utils/habit-card-helpers'
 import { isHabitDoneForRange } from '../utils/habit-visibility'
 
-export function daySummaryLogControl(habit: NormalizedHabit | undefined, overdue = false): {
+export function daySummaryLogControl(habit: NormalizedHabit | undefined, overdue = false, readDate?: { date: string; today: string; timeZone: string | null; ready: boolean }): {
   logged: boolean
   undoUnavailable: boolean
+  writeAllowed: boolean
   status: NonNullable<StatusRingProps['status']>
   statusKey: string
   actionKey: string
@@ -23,9 +25,15 @@ export function daySummaryLogControl(habit: NormalizedHabit | undefined, overdue
   }
   return {
     logged,
+    writeAllowed: readDate ? readDate.ready && getHabitLogDateDecision(habit, readDate.date, readDate.today, readDate.timeZone, false, logged ? 'unlog' : 'log') === 'write' : true,
     undoUnavailable: logged && (habit?.isBadHabit === true || habit?.isFlexible === true),
     status,
     statusKey,
     actionKey: logged ? 'chat.habitList.unlog' : 'chat.habitList.log',
   }
+}
+
+export function habitReadStatusKey(status: import('../types/chat').HabitListCardItem['status'], isBadHabit: boolean): string | null {
+  if (status === 'done') return isBadHabit ? 'habits.statusDot.bad' : 'chat.habitList.logged'
+  return status === 'overdue' ? 'chat.habitList.overdue' : null
 }

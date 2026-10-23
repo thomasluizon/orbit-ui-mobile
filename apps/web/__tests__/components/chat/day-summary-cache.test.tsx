@@ -22,8 +22,22 @@ it('subscribes to a log on Hoje through the real habit query cache', async () =>
   client.setQueryData(key, occurrences)
   const view = render(<QueryClientProvider client={client}><DaySummaryCard daySummary={inPlaceDayFixture} /></QueryClientProvider>)
   expect(screen.getByRole('button', { name: 'chat.habitList.log:Habit 1' })).toBeInTheDocument()
+  expect(screen.getByRole('progressbar', { name: 'chat.daySummary.ring' })).toHaveAttribute('aria-valuenow', '0')
   act(() => { client.setQueryData(key, occurrences.map(item => item.id === 'habit-1' ? { ...item, isLoggedInRange: true } : item)) })
   await waitFor(() => expect(screen.getByRole('button', { name: 'chat.habitList.unlog:Habit 1' })).toBeInTheDocument())
+  expect(screen.getByRole('progressbar', { name: 'chat.daySummary.ring' })).toHaveAttribute('aria-valuenow', '0')
+  view.unmount()
+  client.clear()
+})
+
+it('retains the nothing-due state without a completion ring', () => {
+  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })
+  const filters = { dateFrom: inPlaceDayFixture.date, dateTo: inPlaceDayFixture.date, includeGeneral: true, includeOverdue: true }
+  client.setQueryData(habitKeys.list(habitListQueryFilters(filters, true)), [])
+  const view = render(<QueryClientProvider client={client}><DaySummaryCard daySummary={{ ...inPlaceDayFixture, due: 0, done: 0, completionRate: null, rows: [], totalRows: 0 }} /></QueryClientProvider>)
+  expect(screen.getByText('chat.daySummary.nothingDue')).toBeInTheDocument()
+  expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'chat.daySummary.open' })).toBeEnabled()
   view.unmount()
   client.clear()
 })

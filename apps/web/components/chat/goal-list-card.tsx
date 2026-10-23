@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { formatGoalMetricsDate, getGoalMetricsStatusPresentation } from '@orbit/shared/utils'
 import type { GoalListCard as GoalListCardData, GoalListCardItem } from '@orbit/shared/types/chat'
-import { BlockFrame } from '@/components/ui/block-frame'
+import { BlockFrame } from './read-block-frame'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { useGoals } from '@/hooks/use-goals'
 import { liveBlockState } from '@orbit/shared/chat/live-block-state'
@@ -26,7 +26,7 @@ export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: Goal
   const frameState = liveBlockState(goals, { stale: missing, staleMessage: t('chat.liveBlock.stale'), onRefresh: () => { void goals.refetch() } })
   const items = goalList.items.map((snapshot) => {
     const live = goals.data?.goalsById.get(snapshot.id)
-    const item = live ? { ...snapshot, title: live.title, current: live.currentValue, target: live.targetValue, unit: live.unit, deadline: live.deadline, trackingStatus: live.trackingStatus } : snapshot
+    const item = snapshot
     const derived = live?.isProgressDerived && live.linkedHabits.length > 0 ? `${t('goals.linkedHabits')}: ${live.linkedHabits.map((habit) => habit.title).join(', ')}` : null
     const value = percentage(item)
     const progress = t('chat.goalList.progress', { current: item.current, target: item.target, unit: item.unit })

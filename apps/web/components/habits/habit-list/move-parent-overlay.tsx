@@ -3,9 +3,9 @@
 import { SPACING } from '@orbit/shared/theme'
 
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Home, Search } from '@/components/ui/icons'
-import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
+import { getMoveParentPickerRows } from '@orbit/shared/utils'
 import { Input } from '@/components/ui/input'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
@@ -13,31 +13,25 @@ import { ActionRow } from '@/components/ui/action-row'
 import { RadioGroup } from '@/components/ui/radio-row'
 import { RadioRow } from '@/components/ui/select-check'
 
-export interface MoveParentOption {
-  id: string | null
-  label: string
-  emoji: string | null
-  depth: number
-  childCount: number
-  disabled: boolean
-  reason: string | null
-}
+import type { MoveParentOption } from '@orbit/shared/utils'
+export type { MoveParentOption } from '@orbit/shared/utils'
 
 interface MoveParentOverlayProps {
+  selectionOnly?: boolean
+  inventoryState?: 'loading' | 'error'
+  onRetryInventory?: () => void
   t: (key: string, params?: Record<string, string | number | Date>) => string
   open: boolean
   isMoving: boolean
   movingHabitTitle: string | null
-  movingHabitParentId: string | null
+  movingHabitParentId: string | null | undefined
   options: MoveParentOption[]
-  selectedMoveParentId: string | null
+  selectedMoveParentId: string | null | undefined
   canSubmit: boolean
   onClose: () => void
   onConfirm: () => void
   onSelectOption: (optionId: string | null) => void
 }
-
-const SEARCH_THRESHOLD = 8
 
 const eyebrowStyle = {
   margin: SPACING.s0,
@@ -86,7 +80,20 @@ function MoveTargetRow({
 
 /** Move-parent picker overlay (web). Presentational — the parent HabitList owns
  *  the move state and supplies the validated option list plus handlers. */
+function MoveInventoryStatus({ state, t, onRetry }: Readonly<{ state?: 'loading' | 'error'; t: MoveParentOverlayProps['t']; onRetry?: () => void }>) {
+  if (!state) return null
+  return <div role="status"><p>{t(state === 'loading' ? 'common.loading' : 'habits.loadError')}</p>{state === 'error' ? <PillButton variant="ghost" size="sm" onClick={onRetry}>{t('common.retry')}</PillButton> : null}</div>
+}
+
+function MoveParentActions({ selectionOnly, t, isMoving, canSubmit, onClose, onConfirm }: Readonly<Pick<MoveParentOverlayProps, 'selectionOnly' | 't' | 'isMoving' | 'canSubmit' | 'onConfirm'> & { onClose: () => void }>) {
+  if (selectionOnly) return null
+  return <ActionRow><PillButton size="sm" variant="ghost" disabled={isMoving} onClick={onClose}>{t('common.cancel')}</PillButton><PillButton size="sm" disabled={!canSubmit} loading={isMoving} onClick={onConfirm}>{t('habits.moveParent.confirm')}</PillButton></ActionRow>
+}
+
 export function MoveParentOverlay({
+  selectionOnly = false,
+  inventoryState,
+  onRetryInventory,
   t,
   open,
   isMoving,
@@ -102,22 +109,8 @@ export function MoveParentOverlay({
   const [searchQuery, setSearchQuery] = useState('')
   const { sheetRef, closeSheet } = useSheetHost()
 
-  const rootOption = useMemo(
-    () => options.find((option) => option.id === null) ?? null,
-    [options],
-  )
-  const destinationCount = useMemo(
-    () => options.reduce((total, option) => (option.id === null ? total : total + 1), 0),
-    [options],
-  )
-  const showSearch = destinationCount > SEARCH_THRESHOLD
+  const { rootOption, showSearch, treeRows, isSearchEmpty } = getMoveParentPickerRows(options, searchQuery)
 
-  const treeRows = useMemo(() => {
-    const rows = showSearch ? filterMoveTargetsBySearch(options, searchQuery) : options
-    return rows.filter((option) => option.id !== null)
-  }, [options, showSearch, searchQuery])
-
-  const isSearchEmpty = showSearch && searchQuery.trim().length > 0 && treeRows.length === 0
 
   return (
     open ? (<Sheet
@@ -127,20 +120,12 @@ export function MoveParentOverlay({
         setSearchQuery('')
         onClose()
       }}
-      title={t('habits.moveParent.title')}
-      actions={
-        <ActionRow>
-          <PillButton size="sm" variant="ghost" disabled={isMoving} onClick={() => closeSheet()}>
-            {t('common.cancel')}
-          </PillButton>
-          <PillButton size="sm" disabled={!canSubmit} loading={isMoving} onClick={onConfirm}>
-            {t('habits.moveParent.confirm')}
-          </PillButton>
-        </ActionRow>
-      }
+      title={t(selectionOnly ? 'habits.form.parentHabit' : 'habits.moveParent.title')}
+      actions={selectionOnly ? undefined : <MoveParentActions selectionOnly={false} t={t} isMoving={isMoving} canSubmit={canSubmit} onClose={() => closeSheet()} onConfirm={onConfirm} />}
     >
       <div className="flex flex-col" style={{ gap: 8 }}>
-        {movingHabitTitle ? (
+        <MoveInventoryStatus state={inventoryState} t={t} onRetry={onRetryInventory} />
+        {!selectionOnly && movingHabitTitle ? (
           <p className="text-sm text-[var(--fg-3)]">
             {t('habits.moveParent.description', { name: movingHabitTitle })}
           </p>

@@ -62,6 +62,7 @@ a:hover{color:var(--fg-1)}
       <p><span style="color:var(--fg-3)">metrics&nbsp;&nbsp;</span>one overview answering how the period went, three real figures and a chip through to Progresso. No per habit drill in inside the chat, and no chart: the numbers are rows, which is what the system can draw honestly.</p>
       <p><span style="color:var(--fg-3)">goals&nbsp;&nbsp;</span>the sixth block (goal-list-card.tsx, rendered by message-bubble.tsx:165-166 off message.goalList; [[orbit:goals]] is D69’s third directive token). One row per goal through the same BlockFrame as the other five: the name, its figure with the deadline where one exists (chat.goalList.percentage, .progress, .deadline), and its ring in the row’s control slot, the done disc at 100 because completion is never the accent. A goal row opens the goal, because the chat opens the goal detail from a card today (chat/page.tsx:214), exactly as a habit row opens the habit (:208), and the chip goes through to Progresso. Its own empty line (chat.goalList.empty) says a goal starts from a habit or from an ask, so the empty block still routes somewhere real.</p>
       <p><span style="color:var(--fg-3)">breakdown&nbsp;&nbsp;</span>rows plus a frequency control per row, each one the row's own control rather than a single group under the list, so a cadence is changed where it is read. Every row it would change carries the proposed flag, which the frame renders at fg-3 inside a dashed hairline, and it never takes the accent. When the proposal collides with something that already exists the block says so above the actions, with the caution glyph and the name of the thing it collides with.</p>
+      <p><span style="color:var(--fg-3)">stale reads&nbsp;&nbsp;</span>Saved recap figures, narrative and habit detail retain Show more and the Progresso link beside Refresh in the existing wrapping footer action row. Disclosure includes the supplied current and longest streak figures. Show less returns to the focused figures; expanded state and a card-local polite live region announce the disclosed narrative sections. The stale notice remains visible. Signed paging waits for a refreshed revision; stale write previews still withhold execution actions.</p>
       <p><span style="color:var(--fg-3)">block rules&nbsp;&nbsp;</span>loading, resting or acting, never half of two: in acting every row shows the acting glyph and the actions are disabled as one, rather than one row spinning inside a resting block. Text streams and the block arrives whole, so the streaming state shows prose mid-stream with no block yet, and no block animates its own reveal. A stale block says so and offers a refresh instead of acting on state that already moved.</p>
       <p><span style="color:var(--fg-3)">announce&nbsp;&nbsp;</span>announcements are card scoped: each block body is its own polite live region, so a result is read where it happened, and the feed carries aria-busy for the length of a batch rather than announcing every row into the page.</p>
       <p><span style="color:var(--fg-3)">operation&nbsp;&nbsp;</span>five typed outcomes, each with its risk class stated as a neutral badge: pending confirmation on a destructive batch, step up where identity has to be reconfirmed, denied where the account cannot do it, unsupported by policy where Astra is not the place, and the terminal succeeded. Failed is the same per item shape as the partially failed batch. Risk is low, destructive or high, stated in the frame's header slot beside the count, and on the destructive batch every row also carries the frame's irreversible mark, so risk is never carried by one badge alone. Step up, answered 2026-08-18: it is a hand off, and the hand off is structural now rather than a drawing choice. StepUp has no children prop and no slot of any kind, and every prop on it is a string, a boolean or a handler, so no caller can nest a credential field into it. A credential field inside a chat is the shape of a phishing screen, and prose lost to that defect twice before the type carried it.</p>
@@ -450,7 +451,7 @@ const COMPOSER_STATES = ['recording', 'transcribing', 'attachments', 'offline'];
 
 class Component extends DCLogic {
   state = { mode: 'dark', width: '412', st: 'preview', loc: 'pt-BR', plan: 'free',
-    page: 1, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false, acting: false,
+    page: 1, readRefreshed: false, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false, acting: false,
     voicePhase: null, atts: [], draft: '' };
 
   componentDidMount() {
@@ -467,7 +468,7 @@ class Component extends DCLogic {
     const t = T[next.locale] || T['pt-BR'];
     this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
       plan: next.plan || 'free',
-      page: 1, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false,
+      page: 1, readRefreshed: false, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false,
       acting: next.state === 'preview acting',
       voicePhase: next.state === 'recording' ? 'recording' : next.state === 'transcribing' ? 'transcribing' : null,
       draft: '',
@@ -560,7 +561,7 @@ class Component extends DCLogic {
       mode: s.mode, lang: t.lang, onCC: this.onCC,
       cc: { mode: s.mode, width: s.width, state: st, locale: s.loc, plan: s.plan },
       stateAxis: ['empty', 'preview', 'preview acting', 'stale', 'habits', 'goals', 'goals empty',
-        'clarification', 'metrics', 'breakdown', 'conflict', 'batch failed', 'op pending', 'op step up',
+        'clarification', 'metrics', 'periodTotal', 'periodComparison', 'history', 'read stale', 'read partial', 'breakdown', 'conflict', 'batch failed', 'op pending', 'op step up',
         'op denied', 'op policy', 'op done', 'streaming', 'busy', 'recording', 'transcribing',
         'attachments', 'offline', 'at limit', 'model error', 'copy', 'loading'],
       planAxis: ['free', 'Pro'],
@@ -717,6 +718,38 @@ class Component extends DCLogic {
       H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)', textAlign: 'center',
         maxWidth: '65ch' } }, t.disclosure));
 
+    const readWords = s.loc === 'pt-BR'
+      ? { metric: 'Registros positivos', records: 'registros', delta: 'Variação', history: 'Histórico', more: 'Ver mais', refresh: 'Atualizar', stale: 'Os registros mudaram. Atualize esta consulta.', partial: 'Alguns registros estão indisponíveis.' }
+      : { metric: 'Positive log records', records: 'records', delta: 'Change', history: 'Habit history', more: 'Show more', refresh: 'Refresh', stale: 'These records changed. Refresh this query.', partial: 'Some records are unavailable.' };
+    const readDate = (value) => new Intl.DateTimeFormat(s.loc, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(value + 'T00:00:00Z'));
+    const readWindow = (from, to) => readDate(from) + ' - ' + readDate(to);
+    const readNumber = (value) => H('span', { 'data-mock': '', style: { fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--fg-1)' } }, new Intl.NumberFormat(s.loc).format(value));
+    const refreshRead = H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ readRefreshed: true, st: 'periodTotal' }) }, readWords.refresh);
+    const totalRead = (state) => this.block({
+      title: readWords.metric, state,
+      ...(state === 'stale' ? { staleMessage: readWords.stale } : {}),
+      items: [{ label: H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 } },
+        readNumber(s.readRefreshed ? 18 : 12),
+        H('span', { style: { fontSize: 14, color: 'var(--fg-2)' } }, readWords.records),
+        H('span', { 'data-mock': '', style: { fontSize: 14, color: 'var(--fg-3)' } }, readWindow('2026-09-01', '2026-09-30'))) }],
+      actions: H(F, null, state === 'partiallyFailed' ? H('p', { role: 'status', style: { fontSize: 14, color: 'var(--fg-2)' } }, readWords.partial) : null, refreshRead),
+    });
+    const comparisonRead = this.block({
+      title: readWords.metric,
+      items: [
+        { label: mock(readWindow('2026-09-01', '2026-09-30')), meta: readWords.records, control: readNumber(12) },
+        { label: mock(readWindow('2026-08-01', '2026-08-31')), meta: readWords.records, control: readNumber(0) },
+        { label: readWords.delta, control: mock('+12') },
+      ],
+      actions: refreshRead,
+    });
+    const historyDates = ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04'];
+    const historyRead = this.block({
+      title: readWords.history, count: mock(historyDates.slice(0, s.page * 3).length),
+      items: historyDates.slice(0, s.page * 3).map((date, index) => ({ label: mock(readDate(date)), control: readNumber(index === 0 ? 0 : 1) })),
+      actions: H(F, null, s.page === 1 ? H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ page: 2 }) }, readWords.more) : null, refreshRead),
+    });
+
     const turnsFor = () => {
       switch (COMPOSER_STATES.indexOf(st) >= 0 ? 'habits' : st) {
         case 'empty':
@@ -744,6 +777,16 @@ class Component extends DCLogic {
             actions: H(F, null, t.cl.answers.map((a, i) =>
               H(D.Button, { key: i, size: 'sm', variant: 'ghost', onClick: () => this.setState({ st: 'habits' }) }, a))),
           }))];
+        case 'periodTotal':
+          return [this.node(totalRead('resting'))];
+        case 'periodComparison':
+          return [this.node(comparisonRead)];
+        case 'history':
+          return [this.node(historyRead)];
+        case 'read stale':
+          return [this.node(totalRead('stale'))];
+        case 'read partial':
+          return [this.node(totalRead('partiallyFailed'))];
         case 'metrics':
           return [this.me(t.mt.ask), this.node(this.block({
             title: t.mt.title, count: mock(t.mt.count),

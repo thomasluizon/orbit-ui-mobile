@@ -120,3 +120,40 @@ are replaced at the actual full editor boundary; form weekday focus and geometry
 existing form owners. Changed rendered layout, modal focus, both locales/themes, phone/wide and
 200% text require frozen-build verification. Native device/AT and real combined save/readback/refusal
 remain separate acceptance; source tests do not establish deployment or server persistence.
+
+## Parent relationship draft
+
+The complete editor adds Parent habit / Hábito principal beside tags and goals inside the existing
+More details disclosure. Type remains first; title, description and date keep their owners. The
+field reuses ListRow and the existing move-parent radio sheet in selection-only mode. Closing that
+picker retains the local choice; outer Cancel discards it. Only outer Save writes the relationship.
+The active Create drawing's edit state shows this amendment without changing create behavior.
+
+The parent baseline is an authoritative UUID, verified null, or unknown. A list may supply display
+context but cannot override a detail read. Untouched, unknown and same-parent choices omit both
+ordinary-update keys. A changed destination sends parentId; explicit root sends clearParent true.
+The nullable request keys accept null as unchanged, and false also preserves clearParent. No
+standalone parent, goal-link or tag-assignment request follows the ordinary update.
+
+The shared move-parent owner composes scheduled and General account queries only after both have
+completed every page successfully. Picker demand uses those existing query caches without day,
+search, tag, frequency or completion filters. Partial, failed and refetching inventories withhold
+options and retain recovery. The editor explicitly includes completed one-time destinations;
+standalone presentation retains its existing exclusion. Final General, self, descendant and full
+subtree-depth checks use the complete inventory. Root capacity remains a server-owned refusal.
+
+Android keeps a parent-changing update separate from pending Create, resolves source, parent and
+tag references through the existing queue, and validates resolved parent UUIDs before transport.
+Ordinary updates without parent keys retain Create compaction. The existing optimistic move owner
+updates list membership alongside fields and the account-owned detail snapshot. Filtered lists
+without the target remove the source from its former position until authoritative refresh. Parent
+detail and full-detail membership roll back together after rejection. Optimism is not confirmation.
+Uncertain Save retains every field and requires successful authoritative parent readback before an
+explicit retry can send another update. Queued wording and confirmed-save callbacks stay distinct.
+
+Owning Vitest cases cover real web menu and detail-pencil entrypoints, Android Today menu through
+TodayModals and the detail pencil, local picker dismissal and Cancel, explicit set/clear/omit,
+late reads, complete pagination, cache rollback and persisted queue resolution. The bounded parent
+field/picker geometry cases extend the existing radio-text Chromium owner. Frozen combined-build
+rendering, installed Android fonts and assistive technology, and staging combined write/readback
+remain separate acceptance boundaries.

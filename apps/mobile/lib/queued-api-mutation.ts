@@ -5,7 +5,7 @@ import {
   type QueuedMutationBuildOptions,
 } from './offline-mutations'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
-import { validateResolvedHabitTags } from './habit-update-request'
+import { validateResolvedHabitReferences } from './habit-update-request'
 import { apiClient } from './api-client'
 import { getMutationResponseSchema } from './mutation-response-schemas'
 
@@ -32,7 +32,7 @@ export async function performQueuedApiMutation<
     execute:
       execute ??
       (async (resolvedMutation) => {
-        validateResolvedHabitTags(resolvedMutation.type, resolvedMutation.payload)
+        validateResolvedHabitReferences(resolvedMutation.type, resolvedMutation.payload)
         return apiClient<TResult>(
           resolvedMutation.endpoint,
           {
