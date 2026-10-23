@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { getAccountGeneration } from '@/lib/session-epoch'
+import { CancelledError, useQuery, useQueryClient } from '@tanstack/react-query'
 import { deduplicateHabitList, habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import {
@@ -60,13 +61,17 @@ export function useHabits(filters: HabitsFilter, options: { completeDay?: boolea
     queryKey: habitKeys.list(habitListQueryFilters(filters, completeDay, scheduleDate)),
     enabled: options.enabled,
     queryFn: async (): Promise<HabitScheduleItem[]> => {
-      const enrichSchedule = (items: HabitScheduleItem[]) => loadHabitListSchedule(items, scheduleDate,
-        async (scheduleFilters) => habitPageSchema.parse(await apiClient<unknown>(
-          buildUrlWithQuery(API.habits.list, buildHabitQueryString(scheduleFilters)),
-        )))
+      const accountGeneration = getAccountGeneration()
+      const readPage = async (pageFilters: HabitsFilter) => {
+        const page = habitPageSchema.parse(await apiClient<unknown>(
+          buildUrlWithQuery(API.habits.list, buildHabitQueryString(pageFilters)),
+        ))
+        if (getAccountGeneration() !== accountGeneration) throw new CancelledError({ silent: true })
+        return page
+      }
+      const enrichSchedule = (items: HabitScheduleItem[]) => loadHabitListSchedule(items, scheduleDate, readPage)
       const requestFilters = withDefaultPageSize(filters)
-      const firstQuery = buildUrlWithQuery(API.habits.list, buildHabitQueryString(requestFilters))
-      const firstPage = habitPageSchema.parse(await apiClient<unknown>(firstQuery))
+      const firstPage = await readPage(requestFilters)
 
       if (!shouldFetchAllHabitPages(requestFilters, completeDay, firstPage.totalPages)) {
         queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
@@ -78,8 +83,7 @@ export function useHabits(filters: HabitsFilter, options: { completeDay?: boolea
           if (page === 1) return firstPage
 
           const pageFilters = { ...requestFilters, page }
-          const pageUrl = buildUrlWithQuery(API.habits.list, buildHabitQueryString(pageFilters))
-          return habitPageSchema.parse(await apiClient<unknown>(pageUrl))
+          return readPage(pageFilters)
         },
       )
       queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)

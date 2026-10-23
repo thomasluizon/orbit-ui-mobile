@@ -16,7 +16,7 @@ vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAc
 vi.mock('@/hooks/use-habits', () => ({ useHabitMetrics: () => ({ isPending: false, isError: false, refetch: vi.fn() }) }))
 afterEach(() => vi.unstubAllGlobals())
 
-it.each([3, 0])('refreshes Free overview metrics with %s scheduled habits and no completions through the real query adapter', async (scheduled) => {
+it.each([3, 0])('preserves the saved window when the live recap has %s scheduled habits', async (scheduled) => {
   const recap = createMockRecap({ goalCompletions: 0, metrics: createMockRetrospectiveMetrics({ completionRate: 0, totalCompletions: 0, totalScheduled: scheduled, activeDays: 0, badHabitSlips: 0, topHabits: [], needsAttention: [], completionSeries: { granularity: 'day', points: [{ startDate: '2026-10-17', endDate: '2026-10-17', scheduled, completed: 0, completionRate: scheduled ? 0 : null }] } }) })
   vi.mocked(apiClient).mockReset()
   vi.mocked(apiClient).mockImplementation(<T,>(url: string, _options?: RequestInit, schema?: z.ZodType<T>) => {
@@ -28,9 +28,9 @@ it.each([3, 0])('refreshes Free overview metrics with %s scheduled habits and no
   let view!: GeometryTree
   await act(() => { view = create(<QueryClientProvider client={client}><MetricsCard metricsCard={{ period: 'week', completionRate: 50, activeDays: 3, totalCompletions: 3, totalScheduled: 6, currentStreak: 3, bestStreak: 9, hasData: true, surfaceId: 'progress' }} /></QueryClientProvider>) as GeometryTree })
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)) })
-  expect(apiClient).toHaveBeenCalledWith('/api/gamification/recap?period=week', undefined, expect.anything())
+  expect(apiClient).not.toHaveBeenCalled()
   expect(view.root.findAll(node => node.type === View && node.props.testID === 'block-frame-resting')).toHaveLength(1)
   expect(view.root.findAll(node => node.props.accessibilityRole === 'alert')).toHaveLength(0)
-  expect(renderedText(view.toJSON())).toContain(scheduled ? '0%' : 'chat.metrics.empty')
+  expect(renderedText(view.toJSON())).toContain('50%')
   await act(() => view.unmount()); client.clear()
 })

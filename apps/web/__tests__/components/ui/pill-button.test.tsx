@@ -8,6 +8,8 @@ import { resolve } from 'node:path'
 import { measureTextOverflow } from '../../../e2e/layout/text-overflow-geometry'
 import { measureOnboardingProStep } from '../../../e2e/layout/onboarding-pro-step-geometry'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { settleFocusAnimations } from '../../../e2e/layout/focus-indicators'
 import { SelectAllToggle } from '@/components/calendar-sync/select-all-toggle'
 import { Copy } from '@/components/ui/icons'
 import { BUTTON_SIZES } from '@orbit/shared/theme'
@@ -46,6 +48,34 @@ describe('PillButton', () => {
     })
 
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([412, 1280].flatMap((width) => [false, true].map((loading) => ({ width, loading }))))('keeps focused Astra action motion confined to its busy loader at $width px (loading: $loading)', async ({ width, loading }) => {
+      const { container } = render(<PillButton variant="ghost" retainLeadingIcon leadingIcon={<AstraGlyph size={16} />} loading={loading} focusableWhenLoading onClick={vi.fn()}>Ask Astra</PillButton>)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        const button = page.getByRole('button', { name: 'Ask Astra' })
+        await button.focus()
+        const statusSlot = button.locator('span[aria-hidden="true"]')
+        expect(await statusSlot.evaluate((element) => {
+          const { width, height } = element.getBoundingClientRect()
+          return { width, height }
+        })).toEqual({ width: BUTTON_SIZES.sm.iconSize, height: BUTTON_SIZES.sm.iconSize })
+        expect(await statusSlot.locator('svg').count()).toBe(loading ? 1 : 0)
+        if (loading) {
+          expect(await statusSlot.locator('svg').getAttribute('class')).toContain('animate-spin')
+          expect(await statusSlot.locator('svg').getAttribute('class')).toContain('orbit-essential-loading')
+          expect(await statusSlot.evaluate((element) => element.getAnimations({ subtree: true }).some((animation) => animation.playState === 'running' && animation.effect?.getComputedTiming().endTime === Infinity))).toBe(true)
+        }
+        await settleFocusAnimations(button, undefined, !loading)
+        if (!loading) expect(await button.evaluate((element) => element.getAnimations({ subtree: true }).filter((animation) => animation.playState === 'running').length)).toBe(0)
+        expect(await button.evaluate((element) => element.matches(':focus'))).toBe(true)
+        expect(await button.locator('[data-asset="astra-mark-16"]').count()).toBe(1)
+        expect(await button.getAttribute('aria-busy')).toBe(loading ? 'true' : null)
+      } finally {
+        await page.close()
+      }
+    })
 
     it.each([412, 1280])('measures only rendered onboarding action text lines at %ipx', async (width) => {
       const { container } = render(<main><div><div><section>

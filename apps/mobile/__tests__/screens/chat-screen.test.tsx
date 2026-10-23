@@ -89,8 +89,8 @@ vi.mock('react-native-safe-area-context', () => ({
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => mocks.composer }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: { setAstraConversationOpen: typeof mocks.setAstraConversationOpen }) => unknown) =>
-    selector({ setAstraConversationOpen: mocks.setAstraConversationOpen }),
+  useUIStore: Object.assign((selector: (state: { setAstraConversationOpen: typeof mocks.setAstraConversationOpen }) => unknown) =>
+    selector({ setAstraConversationOpen: mocks.setAstraConversationOpen }), { getState: () => ({ setAstraConversationOpen: mocks.setAstraConversationOpen }) }),
 }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
 vi.mock('@/hooks/use-habits', () => ({ useHabitDetail: () => ({ data: null }) }))
@@ -272,7 +272,7 @@ describe('ChatScreen composer recoveries', () => {
 
   function renderedChips(root: TestNode) {
     return root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button'
-      && mocks.composer.composerProps.suggestions.some(chip => chip.label === node.props.accessibilityLabel))
+      && mocks.composer.composerProps.suggestions.some(chip => `${chip.label}, nav.astra` === node.props.accessibilityLabel))
   }
 
   it('renders only live composer chips in a new and populated thread', async () => {
@@ -283,7 +283,7 @@ describe('ChatScreen composer recoveries', () => {
 
     expect(empty.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button').map(node => nodeText(node).trim())).toEqual(['chat.templates.browse'])
     expect(renderedChips(tree.root).map(node => node.props.accessibilityLabel)).toEqual(
-      mocks.composer.composerProps.suggestions.map(chip => chip.label),
+      mocks.composer.composerProps.suggestions.map(chip => `${chip.label}, nav.astra`),
     )
     expect(tree.root.findAll(node => node.type === 'ScrollView' && node.props.accessibilityLabel === 'shell.composer.suggestionsLabel')).toHaveLength(1)
     mocks.composer.messages = [{ id: 'message-1', role: 'user', content: 'Hello', timestamp: new Date() }]
@@ -298,7 +298,7 @@ describe('ChatScreen composer recoveries', () => {
     mocks.composer.composerProps.state = 'idle'
     mocks.composer.composerProps.suggestions = [...liveSuggestions('progress')]
     const tree = await renderScreen()
-    const actions = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === 'Create a goal')
+    const actions = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === 'Create a goal, nav.astra')
 
     expect(actions).toHaveLength(1)
     TestRenderer.act(() => press(actions[0]))
@@ -350,6 +350,7 @@ describe('ChatScreen composer recoveries', () => {
       pathname: '/habits/[id]',
       params: { id: 'habit-1' },
     })
+    expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(false)
 
     const feed = findByType(tree.root, 'FlatList')
     expect(feed?.props.accessibilityState).toEqual({ busy: true })

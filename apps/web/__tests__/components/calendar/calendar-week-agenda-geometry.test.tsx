@@ -8,6 +8,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { enUS, ptBR as ptLocale } from 'date-fns/locale'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
@@ -43,14 +44,86 @@ describe('Week and agenda geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
+  let weekScript: string
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch }, {
     ignoreDefaultArgs: ['--hide-scrollbars'],
   })
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    weekScript = execFileSync(resolve(process.cwd(), '../../node_modules/.bin/esbuild'), [
+      '--bundle', '--loader=tsx', '--jsx=automatic', '--format=iife', '--platform=browser',
+      '--define:process.env.NODE_ENV="production"', '--define:process.env={}',
+    ], { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024, input: `
+      import React from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { NextIntlClientProvider } from 'next-intl';
+      import { enUS } from 'date-fns/locale';
+      import en from '../../packages/shared/src/i18n/en.json';
+      import { CalendarTimeGrid } from './components/calendar/calendar-time-grid';
+      const fixture = JSON.parse(document.getElementById('week-fixture').textContent);
+      const columns = fixture.columns.map(column => ({ ...column, date: new Date(column.date) }));
+      const root = createRoot(document.getElementById('week-grid'));
+      const timeLabel = ${timeLabel.toString()};
+      function draw(isLoading) {
+        root.render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+          <div data-live-week="" style={{ height: 640, display: 'flex', flexDirection: 'column' }}>
+            <CalendarTimeGrid columns={columns} dayMap={new Map(columns.map(({ dateStr }) => [dateStr, [fixture.entry]]))}
+              onSelectDay={() => {}} displayTime={timeLabel} dateFnsLocale={enUS} allDayLabel={en.calendar.timeGrid.noSetTime}
+              nowLabel={en.calendar.timeGrid.now} timeZone="UTC" isLoading={isLoading} />
+          </div>
+        </NextIntlClientProvider>);
+      }
+      draw(true);
+      document.addEventListener('week-loaded', () => draw(false));
+    ` })
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412, 600, 1352].flatMap((width) => [3, 6].map((todayIndex) => ({ width, todayIndex }))))('aligns the opening column and its paint at the pinned gutter ($width, today=$todayIndex)', async ({ width, todayIndex }) => {
+    const columns = Array.from({ length: 7 }, (_, index) => ({ date: new Date(2026, 9, 5 + index), dateStr: `day-${index}`, isToday: index === todayIndex, isFuture: index > todayIndex }))
+    const grid = (isLoading: boolean) => <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+      <div style={{ height: 640, display: 'flex', flexDirection: 'column' }}>
+        <CalendarTimeGrid columns={columns} dayMap={new Map(columns.map(({ dateStr }) => [dateStr, [entry]]))} onSelectDay={vi.fn()} displayTime={timeLabel} dateFnsLocale={enUS}
+          allDayLabel={en.calendar.timeGrid.noSetTime} nowLabel={en.calendar.timeGrid.now} timeZone="UTC" isLoading={isLoading} />
+      </div>
+    </NextIntlClientProvider>
+    const view = render(grid(true))
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div id="week-grid">${view.container.innerHTML}</div><script id="week-fixture" type="application/json">${JSON.stringify({ columns, entry })}</script>`)
+      await loadAppFonts(page)
+      const measured = await page.evaluate(() => {
+        const scroller = document.querySelector<HTMLElement>('[data-time-grid-scroller]')!
+        const gutter = document.querySelector('[data-testid="time-grid-any-time-label"]')!.parentElement!
+        return { width: scroller.clientWidth, height: scroller.clientHeight, gutter: gutter.clientWidth, column: document.querySelector('[data-today="true"]')!.getBoundingClientRect().width }
+      })
+      const scroller = view.getByTestId('time-grid-hour-scroller')
+      Object.defineProperties(scroller, { clientWidth: { configurable: true, value: measured.width }, clientHeight: { configurable: true, value: measured.height } })
+      Object.defineProperty(view.getByTestId('time-grid-any-time-label').parentElement!, 'clientWidth', { configurable: true, value: measured.gutter })
+      vi.spyOn(view.container.querySelector<HTMLElement>('[data-today="true"]')!, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, measured.column, 1280))
+      view.rerender(grid(false))
+      await page.addScriptTag({ content: weekScript })
+      await page.locator('[data-live-week] [data-time-grid-scroller]').waitFor()
+      await page.evaluate(() => document.dispatchEvent(new Event('week-loaded')))
+      await expect.poll(() => page.locator('[data-time-grid-scroller]').evaluate((element) => element.scrollLeft)).toBeCloseTo(scroller.scrollLeft, 1)
+      const geometry = await page.evaluate((todayIndex) => {
+        const scroller = document.querySelector<HTMLElement>('[data-time-grid-scroller]')!
+        const gutter = document.querySelector('[data-testid="time-grid-any-time-label"]')!.parentElement!.getBoundingClientRect()
+        const visible = [...document.querySelectorAll('[data-testid="time-grid-day-column"]')].map((column) => column.getBoundingClientRect()).filter((bounds) => bounds.right > gutter.right + 0.5)
+        const today = document.querySelector('[data-today="true"]')!.getBoundingClientRect()
+        const headers = [...document.querySelectorAll('[data-testid="time-grid-col-header"]')]
+        const firstHeader = headers.find((header) => header.getBoundingClientRect().right > gutter.right + 0.5)!
+        return { left: scroller.scrollLeft, firstStart: visible[0]!.left, firstPaintStart: firstHeader.firstElementChild!.getBoundingClientRect().left, gutterEnd: gutter.right, todayStart: today.left, todayEnd: today.right, todayPaintEnd: headers[todayIndex]!.firstElementChild!.getBoundingClientRect().right, viewportEnd: scroller.getBoundingClientRect().left + scroller.clientWidth }
+      }, todayIndex)
+      expect(geometry.left).toBeCloseTo(scroller.scrollLeft, 1)
+      expect(geometry.firstStart).toBeCloseTo(geometry.gutterEnd, 1)
+      expect(geometry.firstPaintStart - geometry.gutterEnd).toBeCloseTo(4, 1)
+      expect(geometry.todayStart).toBeGreaterThanOrEqual(geometry.gutterEnd - 0.5)
+      if (measured.column <= measured.width - measured.gutter) expect(geometry.todayEnd).toBeLessThanOrEqual(geometry.viewportEnd + 0.5)
+      expect(geometry.todayPaintEnd).toBeLessThanOrEqual(geometry.viewportEnd + 0.5)
+    } finally { await page.close(); view.unmount() }
+  })
 
   it.each([412, 600, 1100, 1352].flatMap((width) => locales.map((settings) => ({ width, ...settings }))))('keeps drawn week columns and complete short names in $locale at $width', async ({ width, locale, messages, dateLocale }) => {
     const shortName = locale === 'pt-BR' ? 'Revisar notas' : 'Review notes'
@@ -232,9 +305,11 @@ describe('Week and agenda geometry in Chromium', () => {
           }
           expectNoOverlap(column.targets)
         }
-        const lastRow = await page.locator('[data-time-grid-scroller]').evaluate((scroller: HTMLElement) => {
+        const lastRow = await page.locator('[data-time-grid-scroller]').evaluate(async (scroller: HTMLElement) => {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
           scroller.scrollTop = scroller.scrollHeight
           scroller.scrollLeft = scroller.scrollWidth
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
           const bounds = scroller.getBoundingClientRect()
           const lastColumn = scroller.querySelector('[data-testid="time-grid-day-column"]:last-child')!
           const lastEvent = lastColumn.querySelector('[data-testid="time-grid-event"]:last-child')!
@@ -242,12 +317,14 @@ describe('Week and agenda geometry in Chromium', () => {
           return { bottom: eventBounds.bottom, top: eventBounds.top, right: eventBounds.right,
             viewportBottom: bounds.top + scroller.clientHeight, viewportRight: bounds.left + scroller.clientWidth,
             viewportTop: bounds.top, horizontalGutter: scroller.offsetHeight - scroller.clientHeight,
-            paddingBottom: getComputedStyle(scroller).paddingBottom }
+            paddingBottom: getComputedStyle(scroller).paddingBottom, scrollLeft: scroller.scrollLeft, scrollWidth: scroller.scrollWidth,
+            snapMargin: getComputedStyle(lastColumn).scrollMarginInlineEnd, snapPadding: getComputedStyle(scroller).scrollPaddingLeft,
+            column: lastColumn.getBoundingClientRect().toJSON() }
         })
         expect(lastRow.horizontalGutter).toBe(4)
         expect(lastRow.paddingBottom).toBe('0px')
         expect(lastRow.bottom).toBeLessThanOrEqual(lastRow.viewportBottom)
-        expect(lastRow.right).toBeLessThanOrEqual(lastRow.viewportRight)
+        expect(lastRow.right, JSON.stringify(lastRow)).toBeLessThanOrEqual(lastRow.viewportRight)
         expect(lastRow.top).toBeGreaterThanOrEqual(lastRow.viewportTop)
       }
       await page.emulateMedia({ reducedMotion: 'reduce' })

@@ -1,8 +1,8 @@
 import { SPACING } from '@orbit/shared/theme'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { Home, Search } from '@/components/ui/icons'
-import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
+import { getMoveParentPickerRows } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
@@ -12,31 +12,25 @@ import { RadioRow } from '@/components/ui/select-check'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-export interface MoveParentOption {
-  id: string | null
-  label: string
-  emoji: string | null
-  depth: number
-  childCount: number
-  disabled: boolean
-  reason: string | null
-}
+import type { MoveParentOption } from '@orbit/shared/utils'
+export type { MoveParentOption } from '@orbit/shared/utils'
 
 interface MoveParentDialogProps {
+  selectionOnly?: boolean
+  inventoryState?: 'loading' | 'error'
+  onRetryInventory?: () => void
   t: (key: string, params?: Record<string, unknown>) => string
   visible: boolean
   isPending: boolean
   movingHabitTitle: string | null
-  movingHabitParentId: string | null
+  movingHabitParentId: string | null | undefined
   options: MoveParentOption[]
-  selectedMoveParentId: string | null
+  selectedMoveParentId: string | null | undefined
   canSubmit: boolean
   onClose: () => void
   onConfirm: () => void
   onSelectOption: (optionId: string | null) => void
 }
-
-const SEARCH_THRESHOLD = 8
 
 type Styles = ReturnType<typeof createStyles>
 
@@ -89,7 +83,20 @@ function MoveTargetRow({
 
 /** Move-parent picker sheet (mobile). Presentational: the parent HabitList
  *  owns the move state and supplies the validated option list plus handlers. */
+function MoveInventoryStatus({ state, t, onRetry, styles }: Readonly<{ state?: 'loading' | 'error'; t: MoveParentDialogProps['t']; onRetry?: () => void; styles: Styles }>) {
+  if (!state) return null
+  return <View accessibilityLiveRegion="polite"><Text style={styles.moveDialogEmpty}>{t(state === 'loading' ? 'common.loading' : 'habits.loadError')}</Text>{state === 'error' ? <PillButton variant="ghost" size="sm" onClick={onRetry}>{t('common.retry')}</PillButton> : null}</View>
+}
+
+function MoveParentActions({ selectionOnly, t, isPending, canSubmit, onClose, onConfirm }: Readonly<Pick<MoveParentDialogProps, 'selectionOnly' | 't' | 'isPending' | 'canSubmit' | 'onConfirm'> & { onClose: () => void }>) {
+  if (selectionOnly) return null
+  return <ActionRow><PillButton size="sm" variant="ghost" disabled={isPending} onClick={onClose}>{t('common.cancel')}</PillButton><PillButton size="sm" disabled={!canSubmit} loading={isPending} onClick={onConfirm}>{t('habits.moveParent.confirm')}</PillButton></ActionRow>
+}
+
 export function MoveParentDialog({
+  selectionOnly = false,
+  inventoryState,
+  onRetryInventory,
   t,
   visible,
   isPending,
@@ -109,48 +116,27 @@ export function MoveParentDialog({
 
   const [searchQuery, setSearchQuery] = useState('')
 
-  const rootOption = useMemo(
-    () => options.find((option) => option.id === null) ?? null,
-    [options],
-  )
-  const destinationCount = useMemo(
-    () => options.reduce((total, option) => (option.id === null ? total : total + 1), 0),
-    [options],
-  )
-  const showSearch = destinationCount > SEARCH_THRESHOLD
+  const { rootOption, showSearch, treeRows, isSearchEmpty } = getMoveParentPickerRows(options, searchQuery)
 
-  const treeRows = useMemo(() => {
-    const rows = showSearch ? filterMoveTargetsBySearch(options, searchQuery) : options
-    return rows.filter((option) => option.id !== null)
-  }, [options, showSearch, searchQuery])
-
-  const isSearchEmpty = showSearch && searchQuery.trim().length > 0 && treeRows.length === 0
 
   const hideDialog = () => {
     setSearchQuery('')
     onClose()
   }
 
+  if (!visible) return null
   return (
-    visible ? (<Sheet
+    <Sheet
       ref={sheetRef}
       open
       onClose={isPending ? undefined : hideDialog}
-      title={t('habits.moveParent.title')}
-      actions={
-        <ActionRow>
-          <PillButton size="sm" variant="ghost" disabled={isPending} onClick={() => closeSheet()}>
-            {t('common.cancel')}
-          </PillButton>
-          <PillButton size="sm" disabled={!canSubmit} loading={isPending} onClick={onConfirm}>
-            {t('habits.moveParent.confirm')}
-          </PillButton>
-        </ActionRow>
-      }
+      title={t(selectionOnly ? 'habits.form.parentHabit' : 'habits.moveParent.title')}
+      actions={selectionOnly ? undefined : <MoveParentActions selectionOnly={false} t={t} isPending={isPending} canSubmit={canSubmit} onClose={() => closeSheet()} onConfirm={onConfirm} />}
     >
       <View>
+        <MoveInventoryStatus state={inventoryState} t={t} onRetry={onRetryInventory} styles={styles} />
         <MoveDialogDescription
-          title={movingHabitTitle}
+          title={selectionOnly ? null : movingHabitTitle}
           text={t('habits.moveParent.description', { name: movingHabitTitle })}
           styles={styles}
         />
@@ -206,7 +192,7 @@ export function MoveParentDialog({
           </Text>
         ) : null}
       </View>
-    </Sheet>) : null
+    </Sheet>
   )
 }
 

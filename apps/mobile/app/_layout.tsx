@@ -3,6 +3,7 @@ import { resolveComposerDockSuggestions } from '@orbit/shared/chat'
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { BackHandler, Platform, StyleSheet, View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { PortalHost } from '@rn-primitives/portal'
 import {
   DarkTheme,
   DefaultTheme,
@@ -505,6 +506,8 @@ function RootLayoutContent() {
         <RootLayoutNav />
         <ThrottleScreen />
         <UpgradeRequiredScreen />
+        {/* WHY: Root portals inherit app providers and render last: https://rnprimitives.com/portal/ */}
+        <PortalHost />
       </FocusProvenanceView>
     </NavigationThemeProvider>
   )
@@ -514,7 +517,7 @@ function RootLayoutContent() {
 function AppCreateFab({ onCreate }: Readonly<{ onCreate: () => void }>) {
   const { t } = useTranslation()
   return (
-    <View>
+    <View pointerEvents="box-none">
       <Fab label={t('nav.createHabit')} onClick={onCreate}>
         <Plus size={24} strokeWidth={2} />
       </Fab>

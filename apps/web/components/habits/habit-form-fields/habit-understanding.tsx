@@ -1,7 +1,7 @@
 'use client'
 
 import { TypedTextarea } from '@/components/ui/typed-textarea'
-import { useId, useMemo, useState, type Ref, type CSSProperties } from 'react'
+import { useId, useMemo, useState, type ReactNode, type Ref, type CSSProperties } from 'react'
 import type { HabitUnderstandingProps, HabitRepeatIntervalProps } from '@orbit/shared/utils'
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
@@ -10,6 +10,7 @@ import { HabitEmojiSelector } from './habit-emoji-selector'
 import { Proposed } from '@/components/ui/proposed'
 
 type HabitUnderstandingWithDisabledEmojiProps = HabitUnderstandingProps & {
+  children?: ReactNode
   inputRef?: Ref<HTMLTextAreaElement>
   isSuggestionDisabled?: boolean
 }
@@ -28,6 +29,7 @@ function useEmojiProposal(onSuggestEmoji: HabitUnderstandingProps['onSuggestEmoj
 }
 
 export function HabitUnderstanding({
+  children,
   inputRef,
   onSuggestEmoji,
   canSuggestEmoji = false,
@@ -55,8 +57,9 @@ export function HabitUnderstanding({
   onQuantityChange,
   labels,
 }: Readonly<HabitUnderstandingWithDisabledEmojiProps>) {
-  const phraseId = useId()
-  const errorId = `habit-phrase-error-${phraseId}`
+  const id = useId()
+  const phraseId = `habit-phrase-${id}`
+  const errorId = `habit-phrase-error-${id}`
   const { emojiProposed, selectEmoji, requestEmoji } = useEmojiProposal(onSuggestEmoji, onEmojiSelect)
   const hasValue = value.trim().length > 0
   const showPreview = hasValue && !isSuggestionDisabled && Boolean(sentence)
@@ -85,7 +88,7 @@ export function HabitUnderstanding({
         <div data-habit-phrase-field="" data-focus-perimeter="" className="orbit-field-hover relative rounded-[12px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
           <p
             aria-hidden="true"
-            className="pointer-events-none min-h-[92px] w-full whitespace-pre-wrap break-words p-4 text-start text-base leading-[1.45] text-transparent"
+            className="pointer-events-none min-h-[54px] w-full whitespace-pre-wrap break-words px-4 py-3 text-start text-base leading-[1.45] text-transparent"
           >
             {hasValue ? segments.map((segment, index) => segment.consumed ? (
               <span
@@ -95,19 +98,19 @@ export function HabitUnderstanding({
               >
                 {segment.text}
               </span>
-            ) : segment.text) : labels.placeholder}
+            ) : segment.text) : labels.placeholder}{'\u200b'}
           </p>
           <TypedTextarea
             ref={inputRef}
             id={phraseId}
             value={value}
-            rows={3}
+            rows={1}
             maxLength={200}
             spellCheck={false}
             placeholder={labels.placeholder}
             aria-invalid={!!error}
             aria-describedby={error ? errorId : undefined}
-            className="absolute inset-0 h-full min-h-[92px] w-full resize-none rounded-[12px] border-0 bg-transparent p-4 text-base leading-[1.45] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] caret-[var(--fg-1)] focus-visible:outline-none"
+            className="absolute inset-0 h-full min-h-[54px] w-full resize-none rounded-[12px] border-0 bg-transparent px-4 py-3 text-base leading-[1.45] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] caret-[var(--fg-1)] focus-visible:outline-none"
             onChange={(event) => onValueChange(event.target.value)}
           />
         </div>
@@ -117,6 +120,8 @@ export function HabitUnderstanding({
           </p>
         ) : null}
       </div>
+
+      {children}
 
       {onSuggestEmoji && !showPreview ? emojiControl : null}
 

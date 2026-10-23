@@ -26,6 +26,7 @@ import {
 const routeState = vi.hoisted(() => ({
   contextEntry: false,
   replace: vi.fn(),
+  setParams: vi.fn<(params: Record<string, string | undefined>) => void>(),
   pathname: '/wrapped',
   segments: ['wrapped'],
 }))
@@ -66,7 +67,7 @@ vi.mock('expo-router', () => {
       ? { code: routeState.pathname.slice(3) }
       : Object.fromEntries(new URL(routeState.pathname, 'https://orbit.test').searchParams),
     usePathname: () => routeState.pathname,
-    useRouter: () => ({ push: createState.push, replace: routeState.replace }),
+    useRouter: () => ({ push: createState.push, replace: routeState.replace, setParams: routeState.setParams }),
     useSegments: () => routeState.segments,
   }
 })
@@ -237,6 +238,14 @@ beforeEach(async () => {
   renderedRoutes.length = 0
   routeState.contextEntry = false
   routeState.replace.mockReset()
+  routeState.setParams.mockReset().mockImplementation((params) => {
+    const url = new URL(routeState.pathname, 'https://orbit.test')
+    for (const [key, value] of Object.entries(params)) {
+      if (value === undefined) url.searchParams.delete(key)
+      else url.searchParams.set(key, value)
+    }
+    routeState.pathname = url.pathname + url.search
+  })
   routeState.pathname = '/'
   routeState.segments = ['(tabs)']
   createState.count = 0
@@ -355,6 +364,7 @@ describe('explicit sign-in context through the root layout', () => {
   it.each([
     ['/login?ref=friend-42&returnUrl=%2Fcalendar', '/calendar', 'email true'],
     ['/login?email=person%40example.com&code=123456&returnUrl=%2Fcalendar', '/calendar', 'code false'],
+    ['/login?email=person%40example.com&code=123456&returnUrl=%2Fcalendar&ref=friend-42', '/calendar', 'code true'],
     ['/login?googleError=1&returnUrl=%2Fcalendar', '/calendar', 'auth.errors.googleError'],
     ['/login?returnUrl=%2F%2Fevil.example', null, 'email false'],
   ])('keeps an explicit login entry and validates its return URL: %s', async (url, destination, content) => {
@@ -362,6 +372,15 @@ describe('explicit sign-in context through the root layout', () => {
     routeState.segments = ['login']
     mounted = await renderRoot()
     await settle()
+    await TestRenderer.act(() => { mounted?.update(React.createElement(RootLayout)) })
+    const entered = new URL(url, 'https://orbit.test')
+    const cleaned = new URL(routeState.pathname, 'https://orbit.test')
+    expect(cleaned.pathname).toBe('/login')
+    expect(cleaned.searchParams.has('email') || cleaned.searchParams.has('code')).toBe(false)
+    expect(cleaned.searchParams.get('returnUrl')).toBe(entered.searchParams.get('returnUrl'))
+    expect(cleaned.searchParams.get('ref')).toBe(entered.searchParams.get('ref'))
+    if (entered.searchParams.has('email')) expect(routeState.setParams).toHaveBeenCalledExactlyOnceWith({ email: undefined, code: undefined })
+    else expect(routeState.setParams).not.toHaveBeenCalled()
     expect(findByTestId(mounted, 'login-context')[0]?.props.children).toContain(content)
     expect(await getStoredAuthReturnUrl(getAuthReturnUrlAttempt())).toBe(destination)
     expect(routeState.replace).not.toHaveBeenCalled()

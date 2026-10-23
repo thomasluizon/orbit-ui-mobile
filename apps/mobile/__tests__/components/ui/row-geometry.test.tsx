@@ -9,10 +9,11 @@ import { ListRow } from '@/components/ui/list-row'
 import { Badge } from '@/components/ui/badge'
 import { CheckRow } from '@/components/ui/check-row'
 import { DateRow } from '@/components/ui/date-row'
+import { RadioRow } from '@/components/ui/select-check'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
-import { HabitDetailFields, HabitDetailSchedule } from '@/components/habits/habit-detail-fields'
+import { HabitDetailFields } from '@/components/habits/habit-detail-fields'
 import { ProfileAstraContent } from '@/app/(tabs)/profile/_components/profile-astra-content'
 import { PushDevicesRow } from '@/components/profile/push-devices-row'
 import { createTokensV2 } from '@/lib/theme'
@@ -122,6 +123,45 @@ function createTags(): TagSelectionState {
 }
 
 describe('canonical row geometry in Yoga', () => {
+  it.each(['Task', 'Tarefa', 'Habit', 'Hábito'])('balances the actual one-line %s choice', async (label) => {
+    for (const width of [320, 412, 840]) {
+      for (const selected of [false, true]) {
+        for (const disabled of [false, true]) {
+          const tree = await mount(<RadioRow label={label} wrapLabel selected={selected} {...(disabled ? { disabled: true as const, reasonScope: 'group' as const } : { disabled: false as const })} onSelect={vi.fn()} />)
+          try {
+            for (const pressed of [false, true]) {
+              const parts = measureInteractionFills(tree.toJSON(), width, pressed)
+              const row = parts.find((part) => part.host.props['data-slot'] === 'list-row-body')!
+              const text = parts.find((part) => part.host.type === 'Text' && part.host.children?.includes(label))!
+              const glyph = parts.find((part) => part.host.props['data-slot'] === 'list-row-trailing')!
+              expect(row.height).toBe(52)
+              expect(Math.abs((text.top - row.top) - (row.bottom - text.bottom))).toBeLessThanOrEqual(1)
+              expect(Math.abs((glyph.top + glyph.bottom) / 2 - (text.top + text.bottom) / 2)).toBeLessThanOrEqual(1)
+              expect(text.left - row.left).toBeGreaterThanOrEqual(8)
+              expect(row.right - glyph.right).toBeGreaterThanOrEqual(8)
+            }
+          } finally { await act(() => tree.update(<></>)) }
+        }
+      }
+    }
+  })
+
+  it.each([320, 412, 840])('keeps a wrapped radio at its first line at %s with doubled text', async (width) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 2 })
+    const label = 'A recurring habit with a long readable choice that grows naturally across multiple lines'
+    const tree = await mount(<RadioRow label={label} wrapLabel onSelect={vi.fn()} />)
+    try {
+      const parts = measureInteractionFills(tree.toJSON(), width, false, 2)
+      const row = parts.find((part) => part.host.props['data-slot'] === 'list-row-body')!
+      const text = parts.find((part) => part.host.type === 'Text' && part.host.children?.includes(label))!
+      const glyph = parts.find((part) => part.host.props['data-slot'] === 'list-row-trailing')!
+      expect(text.height).toBeGreaterThan(44.8)
+      expect(Math.abs((glyph.top + glyph.bottom) / 2 - (text.top + 22.4))).toBeLessThanOrEqual(1)
+      expect(row.bottom - text.bottom).toBeGreaterThanOrEqual(8)
+      expect(row.right - glyph.right).toBeGreaterThanOrEqual(8)
+    } finally { await act(() => tree.update(<></>)) }
+  })
+
   it('measures canonical title and value geometry without instrumentation', async () => {
     for (const props of [{ title: 'Tags', value: '3' }]) {
       const tree = await mount(<ListRow {...props} onClick={vi.fn()} />)
@@ -200,10 +240,10 @@ describe('canonical row geometry in Yoga', () => {
       expect(geometry.parts.filter((part) => part.slot === 'list-row-body').some((body) => body.left === 20)).toBe(true)
     } finally { await act(() => form.update(<></>)); queryClient.clear() }
     const habit = createMockHabit({ isBadHabit: true })
-    const detail = await mount(<QueryClientProvider client={queryClient}><View style={{ paddingHorizontal: 16 }}><HabitDetailSchedule habit={habit} summary="Every day" open={false} tokens={tokens} onToggle={vi.fn()} onCancel={vi.fn()} onSave={vi.fn()} /><HabitDetailFields habit={habit} hasProAccess={false} relationshipControlsAvailable tokens={tokens} onItemsChange={vi.fn()} onPatch={vi.fn().mockResolvedValue(true)} onUpgrade={vi.fn()} /></View></QueryClientProvider>)
+    const detail = await mount(<QueryClientProvider client={queryClient}><View style={{ paddingHorizontal: 16 }}><HabitDetailFields habit={habit} summary="Every day" /></View></QueryClientProvider>)
     try {
       const rows = detail.root.findAll((node) => node.type === ListRow)
-      expect(rows.some((row) => row.props.title === 'habits.form.habitTypeAvoid')).toBe(true)
+      expect(rows.some((row) => row.props.title === 'habits.detail.schedule' && row.props.readOnly)).toBe(true)
       assertComposition(detail.toJSON(), width, scale, 16)
     } finally { await act(() => detail.update(<></>)); queryClient.clear() }
     const profile = await mount(<QueryClientProvider client={queryClient}><View><ProfileAstraContent profile={createMockProfile({ hasProAccess: true })} patchProfile={vi.fn()} /><PushDevicesRow tokens={tokens} count={1} max={5} currentDeviceRegistered supported loading={false} error={false} permissionStatus="granted" registrationStatus="idle" onToggle={vi.fn()} onOpenSettings={vi.fn()} onRetry={vi.fn()} /></View></QueryClientProvider>)

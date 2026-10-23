@@ -297,12 +297,19 @@ function compactQueuedMutations(
         (mutation.clientEntityId ?? mutation.targetEntityId) === entityKey,
     )
     const createMutation = createIndex >= 0 ? next[createIndex] : undefined
+    const hasInterveningUpdate = next.some((mutation, index) =>
+      index > createIndex && MERGE_INTO_CREATE_TYPES.has(mutation.type) &&
+      (mutation.clientEntityId ?? mutation.targetEntityId) === entityKey,
+    )
 
     if (
       createMutation &&
       createMutation.status === 'pending' &&
       createMutation.retries === 0 &&
-      MERGE_INTO_CREATE_TYPES.has(incoming.type)
+      !hasInterveningUpdate &&
+      MERGE_INTO_CREATE_TYPES.has(incoming.type) &&
+      !(incoming.type === 'updateHabit' && incoming.payload && typeof incoming.payload === 'object' &&
+        ('parentId' in incoming.payload || 'clearParent' in incoming.payload))
     ) {
       next[createIndex] = {
         ...createMutation,

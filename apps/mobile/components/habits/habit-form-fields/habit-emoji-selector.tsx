@@ -1,3 +1,5 @@
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { useHabitFormInteraction } from './habit-form-interaction'
 import { PillButton } from '@/components/ui/pill-button'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
@@ -28,19 +30,22 @@ interface HabitEmojiSelectorProps {
 }
 
 function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled, suggestionHint, suggestionError }: Readonly<Pick<HabitEmojiSelectorProps, 'onSuggest' | 'canSuggest' | 'isSuggesting' | 'isDisabled' | 'suggestionHint' | 'suggestionError'>>) {
+  const { disabled, guard } = useHabitFormInteraction()
   const { t } = useTranslation()
   return onSuggest ? (
     <PillButton
       variant="ghost"
-      accessibleName={t(isSuggesting ? 'habits.form.emojiSuggesting' : 'habits.form.emojiSuggest')}
+      retainLeadingIcon
+      leadingIcon={<AstraGlyph size={16} />}
+      accessibleName={`${t('habits.form.emoji')}: ${t('habits.form.askDate')}`}
       minimumHeight={TOUCH_TARGET_MIN}
       loading={isSuggesting}
       focusableWhenLoading
-      disabled={!isSuggesting && (!canSuggest || isDisabled)}
-      hint={[suggestionHint, suggestionError].filter(Boolean).join(' ') || undefined}
-      onClick={() => { if (canSuggest && !isDisabled && !isSuggesting) onSuggest() }}
+      disabled={disabled || (!isSuggesting && (!canSuggest || isDisabled))}
+      hint={[isSuggesting ? t('habits.form.emojiSuggesting') : suggestionHint, suggestionError].filter(Boolean).join(' ') || undefined}
+      onClick={guard(() => { if (canSuggest && !isDisabled && !isSuggesting) onSuggest() })}
     >
-      {t(isSuggesting ? 'habits.form.emojiSuggesting' : 'habits.form.emojiSuggest')}
+      {t('habits.form.askDate')}
     </PillButton>
   ) : null
 }
@@ -58,6 +63,8 @@ export function HabitEmojiSelector({
   isDisabled = false,
   wellSize = TOUCH_TARGET_MIN,
 }: Readonly<HabitEmojiSelectorProps>) {
+  const { disabled, guard, isDisabled: isFormDisabled } = useHabitFormInteraction()
+  isDisabled = isDisabled || disabled
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
   const { sheetRef, closeSheet } = useSheetHost();
@@ -92,7 +99,8 @@ export function HabitEmojiSelector({
   return (
     <>
       <View style={{ gap: 8, maxWidth: '100%' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Text style={{ color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{t('habits.form.emoji')}</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
         <Pressable focusInset
           style={({ pressed }) => [
             styles.emojiWell,
@@ -120,7 +128,7 @@ export function HabitEmojiSelector({
         <EmojiSuggestionButton onSuggest={onSuggest} canSuggest={canSuggest} isSuggesting={isSuggesting} isDisabled={isDisabled} suggestionHint={suggestionHint} suggestionError={suggestionError} />
         </View>
         {onSuggest && suggestionHint ? <Text style={{ color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{suggestionHint}</Text> : null}
-        {onSuggest ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={{ color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{suggestionError}</Text> : null}
+        {onSuggest ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[{ color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14 }, !suggestionError ? { position: 'absolute', width: 0, height: 0 } : null]}>{suggestionError}</Text> : null}
       </View>
 
       {pickerOpen ? (<Sheet
@@ -139,9 +147,11 @@ export function HabitEmojiSelector({
       >
         <View style={styles.emojiSheetContent}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <BottomSheetAppTextInput
+              <BottomSheetAppTextInput isChangeDisabled={isFormDisabled}
                 value={query}
-                onChangeText={setQuery}
+                editable={!isDisabled}
+                accessibilityState={{ disabled: isDisabled }}
+                onChangeText={guard(setQuery)}
                 placeholder={t("habits.form.emojiSearchPlaceholder")}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -167,7 +177,7 @@ export function HabitEmojiSelector({
               {HABIT_EMOJI_CATEGORIES.map((category) => {
                 const selected = selectedCategoryId === category.id;
                 return (
-                  <Pressable focusInset selectionRingWidth={1}
+                  <Pressable disabled={isDisabled} focusInset selectionRingWidth={1}
                     key={category.id}
                     style={({ pressed }) => [
                       styles.emojiCategoryTab,

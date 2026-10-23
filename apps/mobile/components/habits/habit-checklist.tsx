@@ -1,5 +1,5 @@
-import { PersonalText } from '@/components/ui/personal-text'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { useHabitFormInteraction } from './habit-form-fields/habit-form-interaction'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useState, useCallback, useMemo } from 'react'
 import {
@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 import { useChecklistItemKeys } from '@/hooks/use-checklist-item-keys'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -31,7 +31,6 @@ interface HabitChecklistProps {
   onItemsChange?: (items: ChecklistItem[]) => void
   onToggle?: (index: number) => void
   onReset?: () => void
-  onClear?: () => void
 }
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -65,30 +64,15 @@ function EditableChecklistItem({
   styles,
   tokens,
 }: Readonly<EditableChecklistItemProps>) {
+  const { disabled, guard, isDisabled } = useHabitFormInteraction()
   const { t } = useTranslation()
   const [localText, setLocalText] = useState(text)
-
+  const [focused, setFocused] = useState(false)
   const [previousText, setPreviousText] = useState(text)
   if (text !== previousText) {
     setPreviousText(text)
-    setLocalText(text)
+    if (!focused) setLocalText(text)
   }
-
-  const flushLocalText = useCallback(() => {
-    if (localText !== text) {
-      onUpdateText(index, localText)
-    }
-  }, [localText, text, index, onUpdateText])
-
-  const handleDuplicate = useCallback(() => {
-    flushLocalText()
-    onDuplicate(index)
-  }, [flushLocalText, onDuplicate, index])
-
-  const handleRemove = useCallback(() => {
-    flushLocalText()
-    onRemove(index)
-  }, [flushLocalText, onRemove, index])
 
   return (
     <View style={styles.editableItem}>
@@ -101,7 +85,7 @@ function EditableChecklistItem({
             pressed && !isFirst ? { backgroundColor: tokens.bgHover } : null,
           ]}
           onPress={onMoveUp}
-          disabled={isFirst}
+          disabled={disabled || isFirst}
         >
           <ChevronUp size={16} color={tokens.fg3} style={{ opacity: isFirst ? 0.3 : 1 }} />
         </Pressable>
@@ -113,18 +97,22 @@ function EditableChecklistItem({
             pressed && !isLast ? { backgroundColor: tokens.bgHover } : null,
           ]}
           onPress={onMoveDown}
-          disabled={isLast}
+          disabled={disabled || isLast}
         >
           <ChevronDown size={16} color={tokens.fg3} style={{ opacity: isLast ? 0.3 : 1 }} />
         </Pressable>
       </View>
       <View style={styles.uncheckedBox} />
-      <BottomSheetAppTextInput
+      <BottomSheetAppTextInput isChangeDisabled={isDisabled}
+        editable={!disabled}
+        accessibilityState={{ disabled }}
         value={localText}
         style={styles.itemTextInput}
         placeholderTextColor={tokens.fg3}
-        onChangeText={setLocalText}
-        onBlur={flushLocalText}
+        accessibilityLabel={t('habits.form.checklistItemLabel', { n: index + 1 })}
+        onFocus={() => setFocused(true)}
+        onBlur={guard(() => { setFocused(false); if (localText !== text) onUpdateText(index, localText) })}
+        onChangeText={guard((value) => { setLocalText(value); onUpdateText(index, value) })}
       />
       <Pressable
         accessibilityRole="button"
@@ -134,19 +122,20 @@ function EditableChecklistItem({
           duplicateDisabled ? { opacity: 0.35 } : null,
           pressed ? { backgroundColor: tokens.bgHover } : null,
         ]}
-        onPress={handleDuplicate}
-        disabled={duplicateDisabled}
+        onPress={() => onDuplicate(index)}
+        disabled={disabled || duplicateDisabled}
       >
         <Copy size={16} color={tokens.fg3} strokeWidth={1.8} />
       </Pressable>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('habits.form.removeChecklistItem')}
+        disabled={disabled}
         style={({ pressed }) => [
           styles.itemAction,
           pressed ? { backgroundColor: tokens.bgHover } : null,
         ]}
-        onPress={handleRemove}
+        onPress={() => onRemove(index)}
       >
         <X size={16} color={tokens.fg3} strokeWidth={1.8} />
       </Pressable>
@@ -173,28 +162,11 @@ function InteractiveChecklistItem({
   styles,
   tokens,
 }: Readonly<InteractiveChecklistItemProps>) {
-  const [expanded, setExpanded] = useState(false)
   const [pressed, setPressed] = useState(false)
-  function handlePress() {
-    onToggle(index)
-  }
-
-  const dividerStyle =
-    index < itemsLength - 1 ? styles.interactiveItemDivider : null
-
-  const itemLabel = (
-    <PersonalText expanded={expanded}
-      style={[
-        styles.itemText,
-        item.isChecked && styles.itemTextChecked,
-        pressed && { color: tokens.fg2 },
-      ]}
-    >{item.text}</PersonalText>
-  )
-
-  return <View style={[dividerStyle, { flexDirection: 'row', minWidth: 0, alignItems: 'flex-start', padding: interactive ? SPACING.s4 : SPACING.s0 }]}>
-    <Pressable onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} accessibilityRole="button" accessibilityLabel={item.text} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={({ pressed }) => [styles.interactiveItem, { flex: 1, minWidth: 0, minHeight: 48, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, flexDirection: 'row', gap: 8, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><View style={{ flex: 1, minWidth: 0 }}>{itemLabel}</View><ChevronDown accessible={false} size={20} strokeWidth={1.5} color={tokens.fg2} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} /></Pressable>
-    {interactive ? <Checkbox label={item.text} checked={item.isChecked} onChange={handlePress} /> : null}
+  const content = <Text style={[styles.itemText, { lineHeight: 22.4 }, item.isChecked && styles.itemTextChecked, pressed && { color: tokens.fg2 }]}>{item.text}</Text>
+  return <View style={[index < itemsLength - 1 ? styles.interactiveItemDivider : null, { flexDirection: 'row', minWidth: 0, alignItems: 'flex-start', padding: SPACING.s4 }]}>
+    {interactive ? <Pressable onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} accessibilityRole="button" accessibilityLabel={item.text} onPress={() => onToggle(index)} style={({ pressed }) => [styles.interactiveItem, { flex: 1, minWidth: 0, minHeight: TOUCH_TARGET_MIN, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>{content}</Pressable> : <View style={{ flex: 1, minWidth: 0 }}>{content}</View>}
+    {interactive ? <Checkbox label={item.text} checked={item.isChecked} onChange={() => onToggle(index)} /> : null}
   </View>
 }
 
@@ -253,8 +225,8 @@ export function HabitChecklist({
   onItemsChange,
   onToggle,
   onReset,
-  onClear,
 }: Readonly<HabitChecklistProps>) {
+  const { disabled, guard } = useHabitFormInteraction()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -328,6 +300,8 @@ export function HabitChecklist({
     [onToggle],
   )
 
+  if (!editable && items.length === 0) return null
+
   return (
     <View style={styles.container}>
       {items.length > 0 && !editable && (
@@ -353,19 +327,7 @@ export function HabitChecklist({
               {({ pressed }) => <RotateCcw size={16} color={pressed ? tokens.fg2 : tokens.primary} strokeWidth={1.8} />}
             </Pressable>
           )}
-          {interactive && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('habits.form.clearChecklist')}
-              style={({ pressed }) => [
-                styles.actionButton,
-                pressed ? { backgroundColor: tokens.bgHover } : null,
-              ]}
-              onPress={onClear}
-            >
-              <X size={16} color={tokens.statusBad} strokeWidth={1.8} />
-            </Pressable>
-          )}
+
         </View>
       )}
 
@@ -381,11 +343,11 @@ export function HabitChecklist({
               <EditableChecklistItem
                 text={item.text}
                 index={index}
-                onUpdateText={updateItemText}
-                onDuplicate={duplicateItem}
-                onRemove={removeItem}
-                onMoveUp={() => moveItem(index, index - 1)}
-                onMoveDown={() => moveItem(index, index + 1)}
+                onUpdateText={guard(updateItemText)}
+                onDuplicate={guard(duplicateItem)}
+                onRemove={guard(removeItem)}
+                onMoveUp={guard(() => moveItem(index, index - 1))}
+                onMoveDown={guard(() => moveItem(index, index + 1))}
                 isFirst={index === 0}
                 isLast={index === items.length - 1}
                 duplicateDisabled={atItemLimit}
@@ -419,7 +381,8 @@ export function HabitChecklist({
         <View style={styles.clearRow}>
           <Pressable
             accessibilityRole="button"
-            onPress={clearAll}
+            disabled={disabled}
+            onPress={guard(clearAll)}
             style={({ pressed }) => [styles.clearAction, pressed ? { backgroundColor: tokens.bgHover } : null]}
           >
             <Text style={[styles.clearText, { color: tokens.statusBadText }]}>{t('habits.form.clearChecklist')}</Text>
@@ -430,11 +393,11 @@ export function HabitChecklist({
       {editable && (
         <ChecklistAddRow
           value={newItemText}
-          onChangeText={setNewItemText}
-          onAdd={addItem}
+          onChangeText={guard(setNewItemText)}
+          onAdd={guard(addItem)}
           styles={styles}
           tokens={tokens}
-          disabled={atItemLimit}
+          disabled={disabled || atItemLimit}
         />
       )}
       {editable && atItemLimit ? (
@@ -476,7 +439,7 @@ function createStyles(tokens: AppTokens) {
   clearAction: {
     minHeight: TOUCH_TARGET_MIN,
     minWidth: TOUCH_TARGET_MIN,
-    borderRadius: 8,
+    borderRadius: radius.full,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',

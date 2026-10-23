@@ -22,7 +22,6 @@ async function expectVisibleFieldInsets(page: Page, messages: Messages, scope?: 
   const rules = [
     { selector: '[data-input-root] input, [data-input-root] textarea, .form-input, [cmdk-input], [data-hour-cycle], [data-habit-phrase-field] textarea', padding: 16 },
     { selector: '[data-composer-input]', padding: 8 },
-    { selector: `[data-habit-detail-content] input[aria-label=${JSON.stringify(messages.habits.detail.rename)}]`, padding: 0 },
     { selector: `input[aria-label=${JSON.stringify(messages.habits.form.tagName)}]`, padding: 12 },
     { selector: `input[aria-label^=${JSON.stringify(messages.habits.form.checklistItemLabel.split('{n}')[0])}]`, padding: 8 },
   ]
@@ -81,7 +80,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         })
       }
 
-      test('measures the habit detail composer and inline title', async ({ page, context }) => {
+      test('measures the habit detail composer and full editor fields', async ({ page, context }) => {
         const habit = habitDetailSchema.parse({ ...makeHabitDetail(), title: 'Routine', children: [] })
         const metrics = habitMetricsSchema.parse({ currentStreak: 1, longestStreak: 1, weeklyCompletionRate: 100,
           monthlyCompletionRate: 100, totalCompletions: 1, lastCompletedDate: null })
@@ -89,18 +88,33 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         await context.route(`${LAYOUT_ORIGIN}${API.habits.logs(habit.id)}`, route => route.fulfill({ json: [] }))
         await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habit.id)}`, route => route.fulfill({ json: metrics }))
         await page.goto(`/habits/${habit.id}`)
-        const title = page.locator('[data-habit-detail-content] h1 > button')
+        const title = page.locator('[data-habit-detail-content] h1')
         await expect(title).toHaveText(habit.title)
-        const hit = await title.evaluate(readExpandedControlGeometry)
+        const hit = await page.getByRole('button', { name: messages.habits.editHabit, exact: true }).evaluate(readExpandedControlGeometry)
         expect(hit.height).toBeGreaterThanOrEqual(48)
         expect(hit.edgeHits).toEqual([true, true, true, true])
         const composer = page.locator('[data-composer-input]:visible')
         await expect(composer).toBeVisible()
-        expect((await composer.evaluate(measureFieldInset)).pillInset).toBeCloseTo(60, 1)
+        const entry = composer.locator('xpath=ancestor::div[@data-composer-input-row]').locator('[data-open-conversation]')
+        await expect(entry).toContainText(messages.nav.astra)
+        const entryBounds = (await entry.boundingBox())!
+        expect(entryBounds.width).toBeGreaterThanOrEqual(48)
+        expect((await composer.evaluate(measureFieldInset)).pillInset).toBeCloseTo(4 + entryBounds.width + 8, 1)
         await expectVisibleFieldInsets(page, messages)
-        await title.click()
-        await expect(page.getByRole('textbox', { name: messages.habits.detail.rename })).toBeVisible()
-        await expectVisibleFieldInsets(page, messages)
+        await page.getByRole('button', { name: messages.habits.editHabit, exact: true }).click()
+        const editor = page.getByRole('dialog', { name: messages.habits.editHabit, exact: true })
+        await expect(editor.getByRole('textbox', { name: messages.habits.form.describe, exact: true })).toBeVisible()
+        const startTime = editor.getByRole('textbox', { name: messages.habits.form.exactTime, exact: true })
+        const endTime = editor.getByRole('textbox', { name: messages.habits.form.dueEndTime, exact: true })
+        await expect(startTime).toHaveValue('')
+        await expect(endTime).toBeDisabled()
+        const disabledEndInset = await endTime.evaluate(measureFieldInset)
+        expect(disabledEndInset.paddingStart).toBe(16)
+        expect(disabledEndInset.inset - disabledEndInset.borderStart).toBeCloseTo(16, 1)
+        await startTime.fill('08:00')
+        await expect(endTime).toBeEnabled()
+        await endTime.fill('09:00')
+        await expectVisibleFieldInsets(page, messages, editor)
       })
 
       test('measures sentence, start and end time, checklist, description, tag and goal search fields', async ({ page, context }) => {

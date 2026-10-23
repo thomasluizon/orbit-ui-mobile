@@ -5,8 +5,10 @@
 The page column stays centred in its available container. A web scrollbar's reserved gutter is
 outside that container's usable width. Text inside a centred column retains its own reading
 alignment. The shell's create control floats above notices and the composer without a bottom-chrome
-band or hairline. The bottom viewport reserves 96px of clearance inside its scrollable content
-while the control is present, so page content cannot pass behind its target. Wide web uses sidebar
+band or hairline. The page viewport extends beneath the floating target to the real pinned
+controls. Its scrollable content retains 96px of end clearance, so the last row can scroll fully
+above the target. Free space around the target is transparent and passes list interaction through.
+Notices, composer and navigation retain their opaque surfaces. Wide web uses sidebar
 creation and reserves no floating-control clearance.
 
 The source sweep follows every route's rendered owner and its width constraints. The columns
@@ -48,7 +50,7 @@ frame. `aligned` means the existing owner already centres its column. Each phone
 | Privacy and terms | aligned | aligned | aligned | aligned | aligned | aligned | aligned | aligned | LegalDocumentLayout centres the document and caps prose measure. |
 | Not found and error states | aligned | aligned | aligned | aligned | aligned | aligned | aligned | aligned | Shared shell or centred standalone failure frame. |
 | Account deletion instructions, web | aligned | aligned | aligned | aligned | aligned | aligned | aligned | aligned | Public page uses its centred bounded wrapper. |
-| Conversation and ideas library | aligned | aligned | aligned | aligned | aligned | aligned | aligned | aligned | Shell conversation layer centres the same header, thread and composer column. |
+| Conversation and ideas library | aligned | aligned | aligned | aligned | aligned | aligned | aligned | aligned | Shell conversation layer centres the same header, thread and composer column; Ideas keeps one column of intent actions within that allocation. |
 | Sheets, dialogs and command palette | aligned | aligned | aligned | aligned | aligned | aligned | aligned | aligned | Shared overlay owners bound their panels; ordinary ActionRow consumers retain trailing actions. |
 
 The chat and referral routes redirect into existing owners. The native-intent route dispatches
@@ -60,30 +62,57 @@ Both platforms' `content-centering-geometry.test.tsx` cover Todos empty, habit c
 calendar month navigation and figures, and floating-add clearance at 320, 360, 412, 480, 840,
 1100, 1352 and 1440, plus 1200 x 1600 and 1600 x 1200. Web mounts the production components
 with production CSS in isolated Vitest Chromium pages. The overlap guard intersects each
-control with the scroller's visible bounds at the start, middle and end of a long list.
+final row and its controls with the floating target at the end of a long list. Intermediate
+rows may pass behind the target; free space beside it remains visible and interactive.
 Wide web uses sidebar creation and has no floating add target.
 
+Keyboard focus uses the same 96px clearance as scroll-end content. Compact web applies
+`scroll-padding-bottom` to the actual page scroller, leaving its viewport, paint and pointer
+coverage intact. Android captures ordinary list focus through the existing shell focus host,
+measures the focused target against the shell viewport and scrolls only the active list by the
+missing clearance. Already revealed controls cause no corrective scroll. The native adapter
+uses the supported host measurement and list offset APIs; it never measures unfocused rows or adds an
+accessibility-focus callback. Composer, menu and modal focus retain their own owners.
+
+The intermediate-action Chromium guard uses actual Tab and Shift+Tab between the real row's
+check and menu at 320 and 412, with and without a notice. Its authored focus-reveal assertions
+require separate Chromium execution; floating-band rendering evidence alone does not
+prove keyboard focus visibility. Native shell/list tests exercise the focus adapter with
+Yoga-derived viewport and FAB bounds, separately from Android keyboard and TalkBack acceptance.
+
 Android mounts the production components and checks their resolved styles and Yoga geometry.
-Its guard proves that the real Fab target lies outside the entire scrolling content region.
+Its guard proves that the actual list viewport contains the real Fab target's vertical band,
+with no full-width opaque floating region, and retains declared end clearance for the last row.
 These tests do not measure Android font rendering.
 
 ## Short windows
 
-The floating-add reservation, notices and composer share one bottom viewport. Its 64px minimum
-keeps a full one-line composer pill revealable while the reservation scrolls away first. The
-tab bar stays outside that scroller. Content-size and viewport-size changes reveal the trailing
+Notices and composer share one bottom viewport. Its minimum is the larger of 64px and one input
+line plus the existing input and pill padding: 24px times text scale, plus 32px. At doubled text
+this gives 80px for the complete 72px input and its 8px pill inset. Both destination budgets
+include this growing minimum. The floating target belongs to the page viewport, above the actual controls;
+its overlay owns neither normal-flow height nor opaque free-space paint. The tab bar stays
+outside the bottom scroller. Content-size and viewport-size changes reveal the trailing
 composer controls without animation. With enough height, the floating target retains its normal
-position above the composer and outside the page scroller.
+position above the composer while the list extends behind it.
 
 When the header, minimum page region, composer and tabs cannot fit after safe-area insets,
 the destination itself scrolls inside those insets. Android reuses FlowViewport; compact web
 uses the destination viewport. Header and tab measurements retain taller chrome, and both
 tab bars share their unchanged 80px minimum through `TAB_BAR_MIN_HEIGHT`.
 
-The page scroller retains a 96px minimum so the date title and numeric date, and a two-line
-habit-row control, fit with focus clearance when scrolled to the centre. The bottom viewport
-yields height before the page region, and the destination viewport scrolls when both minimums
-and the measured header and tabs exceed the window.
+The floating page scroller retains 96px of usable space plus its 96px end focus clearance,
+giving a derived 192px physical minimum. The date title and numeric date, and a two-line
+habit-row control, fit in the usable region when scrolled to the centre. Initial and measured
+destination budgets include that same sum, the bottom viewport minimum and their header and tab
+heights. The bottom viewport yields height before the page region, and the destination viewport
+scrolls when both minimums and the measured header and tabs exceed the window.
+Compact web anchors that recovery viewport at its trailing edge while retaining the measured
+destination budget. Android measures the recovery viewport and its content, then
+reveals the trailing controls without animation. Resizing follows those controls while the
+person remains at the end; scrolling back to the header preserves that position. Leaving the
+constrained composition restores the normal scroll origin. Every header and bottom control
+remains reachable through the same outer recovery owner, without reducing the page or controls.
 Android applies that minimum only while the floating target is present. Without it, the page
 keeps its 48px minimum and the pinned action or composer owns its bounded ScrollView, preserving
 the existing short-window budget. Only floating compositions enable shared bottom scrolling.
@@ -99,9 +128,11 @@ therefore fits short content without a scrollbar; long content still clears the 
 The root-header geometry suite checks the shared bell edge with both content lengths at 320,
 412, 600 and 840 and at default and doubled text size.
 
-Both centring suites mount the production composer, Fab and BottomTabBar at 840 x 240 and
-360 x 320, with a 48px header and both zero and 24px top/16px bottom insets. They check the minimum viewport, revealability of the input,
-send, attachment and create controls, page separation and the tab bar's window bounds. Android
+Both centring suites mount the production composer, Fab and BottomTabBar at 840 x 240,
+360 x 320, 740 x 360 and 844 x 390, with the real 72px header row, zero and nonzero insets,
+and normal or doubled text with a tall notice. They check the minimum viewport, revealability of the named input,
+send and attachment controls, the floating target's containment within the page viewport,
+separation from actual pinned controls and the tab bar's window bounds. Android
 also drives the native layout and content-size callbacks to check the initial composer reveal.
 The Yoga adapter includes ScrollView's installed flex and overflow defaults.
 

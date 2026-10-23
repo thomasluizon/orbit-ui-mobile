@@ -9,7 +9,9 @@ import {
   setSessionCookies,
 } from '@/lib/auth-api'
 import nextConfig from '../next.config'
-import manifest from '../app/manifest'
+import { createManifest } from '@/lib/manifest'
+
+vi.mock('next-intl/server', () => ({ getTranslations: async () => (key: string) => key }))
 import { POST as issueEventTicket } from '@/app/api/events/ticket/route'
 import { serverAuthMutate } from '@/lib/server-fetch'
 
@@ -166,6 +168,56 @@ describe('proxy', () => {
     expect(nextConfig.skipTrailingSlashRedirect).toBe(true)
   })
 
+  it('rejects a stale login action before session redirects or action execution', async () => {
+    vi.stubEnv('NEXT_PUBLIC_WEB_COMMIT_SHA', 'current-build')
+    vi.mocked(resolveSessionTokens).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: false })
+    const response = await proxy(createRequest('/login?returnUrl=%2F', {
+      method: 'POST',
+      headers: { 'next-action': '00' + 'a'.repeat(40), 'x-deployment-id': 'previous-build' },
+    }))
+
+    expect(response.status).toBe(409)
+    expect(response.headers.get('x-nextjs-action-not-found')).toBe('1')
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
+    expect(NextResponse.next).not.toHaveBeenCalled()
+    expect(NextResponse.redirect).not.toHaveBeenCalled()
+  })
+
+  it('uses the image commit as the Next deployment identifier', async () => {
+    vi.stubEnv('NEXT_PUBLIC_WEB_COMMIT_SHA', 'current-build')
+    vi.resetModules()
+    const { default: releaseConfig } = await import('../next.config')
+    expect(releaseConfig.deploymentId).toBe('current-build')
+  })
+
+  it.each(['current-build', undefined])('passes a current or unversioned action to Next (%s)', async (deploymentId) => {
+    vi.stubEnv('NEXT_PUBLIC_WEB_COMMIT_SHA', 'current-build')
+    vi.mocked(resolveSessionTokens).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: false })
+    const response = await proxy(createRequest('/login', {
+      method: 'POST',
+      headers: { 'next-action': '00' + 'a'.repeat(40), ...(deploymentId ? { 'x-deployment-id': deploymentId } : {}) },
+    }))
+    expect(response.headers.has('x-nextjs-action-not-found')).toBe(false)
+    expect(resolveSessionTokens).toHaveBeenCalledOnce()
+    expect(NextResponse.next).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    { path: '/login', method: 'GET', action: true },
+    { path: '/login', method: 'POST', action: false },
+    { path: '/api/auth/send-code', method: 'POST', action: true },
+  ])('preserves non-action requests: $method $path with action header $action', async ({ path, method, action }) => {
+    vi.stubEnv('NEXT_PUBLIC_WEB_COMMIT_SHA', 'current-build')
+    vi.mocked(resolveSessionTokens).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: false })
+    const response = await proxy(createRequest(path, {
+      method,
+      headers: { 'x-deployment-id': 'previous-build', ...(action ? { 'next-action': '00' + 'a'.repeat(40) } : {}) },
+    }))
+    expect(response.headers.has('x-nextjs-action-not-found')).toBe(false)
+    expect(NextResponse.next).toHaveBeenCalledOnce()
+  })
+
   it('adds an enforcing nonce-based content security policy to rendered pages', async () => {
     const response = await proxy(createRequest('/terms'))
     const nextOptions = vi.mocked(NextResponse.next).mock.calls[0]![0]
@@ -294,14 +346,13 @@ describe('proxy', () => {
     expect(resolveSessionTokens).not.toHaveBeenCalled()
   })
 
-  it.each([
-    '/manifest.webmanifest',
-    ...manifest().icons!.map(({ src }) => src),
-  ])('keeps the public install asset %s outside the auth proxy', (path) => {
-    expect(unstable_doesMiddlewareMatch({
-      config,
-      url: `http://localhost:3000${path}?v=1`,
-    })).toBe(false)
+  it('keeps every public install asset outside the auth proxy', async () => {
+    for (const path of ['/manifest.webmanifest', ...(await createManifest()).icons!.map(({ src }) => src)]) {
+      expect(unstable_doesMiddlewareMatch({
+        config,
+        url: `http://localhost:3000${path}?v=1`,
+      })).toBe(false)
+    }
   })
 
   it.each([
@@ -312,7 +363,9 @@ describe('proxy', () => {
     '/profile/notifications',
     '/manifest.webmanifest/private',
     '/manifest.webmanifest.json',
-    ...manifest().icons!.map(({ src }) => `${src}/private`),
+    '/pwa-192x192.png/private',
+    '/pwa-512x512.png/private',
+    '/pwa-maskable-512x512.png/private',
   ])('keeps %s protected when install assets are public', async (path) => {
     vi.mocked(resolveSessionTokens).mockResolvedValue({
       token: null,

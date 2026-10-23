@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { habitLogSchema } from './calendar'
-import { MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH } from '../validation/constants'
+import { MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH, MAX_TAGS_PER_HABIT } from '../validation/constants'
 
 export const habitScheduleSchema = z.enum(['OneTime', 'Recurring', 'Flexible', 'General'])
 export type HabitSchedule = z.infer<typeof habitScheduleSchema>
@@ -202,7 +202,13 @@ export const habitScheduleItemSchema = baseHabitFieldsSchema.extend({
 
 export type HabitScheduleItem = z.infer<typeof habitScheduleItemSchema>
 
-export function createPaginatedSchema<T extends z.ZodType>(itemSchema: T) {
+export function createPaginatedSchema<T extends z.ZodType>(itemSchema: T): z.ZodObject<{
+  items: z.ZodArray<T>
+  page: z.ZodNumber
+  pageSize: z.ZodNumber
+  totalCount: z.ZodNumber
+  totalPages: z.ZodNumber
+}> {
   return z.object({
     items: z.array(itemSchema),
     page: z.number(),
@@ -250,12 +256,13 @@ export const habitDetailChildSchema: z.ZodType<ChildReminderFields & {
   createdAtUtc: z.string().optional(),
   isOverdue: z.boolean().optional(),
   tags: z.array(habitTagSchema).nullable().optional(),
-  children: z.lazy(() => z.array(habitDetailChildSchema)),
+  children: z.lazy((): z.ZodArray<typeof habitDetailChildSchema> => z.array(habitDetailChildSchema)),
 })
 
 export type HabitDetailChild = z.infer<typeof habitDetailChildSchema>
 
 export const habitDetailSchema = baseHabitFieldsSchema.extend({
+  parentId: z.uuid().nullish(),
   createdAtUtc: z.string(),
   linkedGoals: z.array(linkedGoalInfoSchema).nullable().transform((goals) => goals ?? undefined).optional(),
   slipAlertEnabled: z.boolean().nullable().transform((enabled) => enabled ?? undefined).optional(),
@@ -346,6 +353,8 @@ export const habitSetupSuggestionSchema = z.object({
 export type HabitSetupSuggestion = z.infer<typeof habitSetupSuggestionSchema>
 
 export const updateHabitRequestSchema = z.object({
+  parentId: z.uuid().nullish(),
+  clearParent: z.boolean().nullish(),
   startDate: z.iso.date().optional(),
   title: z.string().max(MAX_HABIT_TITLE_LENGTH),
   description: z.string().max(MAX_HABIT_DESCRIPTION_LENGTH).optional(),
@@ -367,6 +376,7 @@ export const updateHabitRequestSchema = z.object({
   slipAlertEnabled: z.boolean().optional(),
   checklistItems: z.array(checklistItemSchema).optional(),
   goalIds: z.array(z.string()).optional(),
+  tagIds: z.array(z.uuid()).max(MAX_TAGS_PER_HABIT).nullish(),
   endDate: z.string().nullable().optional(),
   clearEndDate: z.boolean().optional(),
 })

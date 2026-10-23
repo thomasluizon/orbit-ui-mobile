@@ -84,7 +84,7 @@ describe('Astra name and metadata start edges on Android', () => {
         if (state === 'breakdown-failed') await act(async () => { (tree.root.findAll(node => node.type === ConfirmSheet)[0]!.props.onConfirm as () => void)(); await Promise.resolve() })
       }
       expectEdges(tree, width)
-      const control = tree.root.findAll(node => String(node.type) === 'Pressable' && (state === 'goal' ? node.props.accessibilityLabel === goalListCardFixture.items[0]!.title : typeof node.props.accessibilityState === 'object' && node.props.accessibilityState !== null && 'expanded' in node.props.accessibilityState))[0]!
+      const control = tree.root.findAll(node => String(node.type) === 'Pressable' && (state === 'goal' ? node.props.accessibilityLabel === goalListCardFixture.items[0]!.title : state === 'preview' ? node.props.accessibilityLabel === 'Habit 1' : typeof node.props.accessibilityState === 'object' && node.props.accessibilityState !== null && 'expanded' in node.props.accessibilityState))[0]!
       const style = () => StyleSheet.flatten((control.props.style as (state: { pressed: boolean }) => ViewStyle)({ pressed: false }))
       for (const handler of ['onHoverIn', 'onPressIn'] as const) {
         await act(() => { (control.props[handler] as () => void)() })

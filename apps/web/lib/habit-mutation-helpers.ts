@@ -1,12 +1,14 @@
 import type { HabitListKey, HabitListSnapshots } from '@orbit/shared/query'
 import type { useQueryClient } from '@tanstack/react-query'
-import { goalKeys, habitKeys, restoreCachedHabitLists, updateCachedHabitLists } from '@orbit/shared/query'
+import { goalKeys, habitKeys, tagKeys, restoreCachedHabitLists, updateCachedHabitLists } from '@orbit/shared/query'
 import type {
   HabitScheduleItem,
   HabitScheduleChild,
   ReorderHabitsRequest,
   UpdateHabitRequest,
 } from '@orbit/shared/types/habit'
+import { resolveHabitTags } from '@orbit/shared/utils'
+import type { HabitTag } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
 
 export type { HabitListSnapshots } from '@orbit/shared/query'
@@ -97,6 +99,10 @@ function applyOptionalHabitContentPatch(
   if ('isFlexible' in data) patch.isFlexible = data.isFlexible ?? false
   if ('checklistItems' in data) patch.checklistItems = data.checklistItems ?? []
   if ('goalIds' in data) patch.linkedGoals = findCachedGoals(queryClient, data.goalIds)
+  if (data.tagIds != null) {
+    const availableTags = queryClient.getQueriesData<HabitTag[]>({ queryKey: tagKeys.lists() }).flatMap(([, tags]) => tags ?? [])
+    patch.tags = resolveHabitTags(availableTags, data.tagIds)
+  }
 }
 
 function applyOptionalHabitSchedulePatch(

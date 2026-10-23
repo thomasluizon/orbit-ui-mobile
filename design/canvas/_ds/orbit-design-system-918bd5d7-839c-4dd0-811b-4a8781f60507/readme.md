@@ -26,7 +26,7 @@ One product surface matters today: the app, designed mobile-first at a 412px she
   (marks, lockups, fonts, README.md, SETUP.md). `design/superseded/reference.html` is historical and
   carries no authority.
 - Uploaded brand files (same assets): fonts, mark/lockup SVGs and PNGs, now in `assets/`.
-- GitHub repo `github.com/thomasluizon/orbit-ui-mobile` exists but was deliberately NOT linked: its `main` branch carries the old system (six schemes, violet primary, glows, gradients, Rubik/Inter/Roboto) that this redesign deletes.
+- GitHub repository `github.com/thomasluizon/orbit-ui-mobile` uses the near-black canvas `#09090B`, one warm orange accent `#C4530F`, and light and dark modes. Fonts are Geist Sans for UI, Space Grotesk for display, and Geist Mono for metadata; `DESIGN.md` defines the authority of this export.
 - No Figma source exists.
 
 ## Content fundamentals

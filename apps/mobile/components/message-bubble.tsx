@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 // react-doctor-disable-next-line rn-prefer-expo-image -- expo-image is not a project dependency; the only <Image> is a transient chat-attachment preview (a per-message URI) where expo-image's disk cache brings no benefit, and adding a native image library is out of scope for a React Doctor burn-down (SDK 57 native-ABI/rebuild risk). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { View, Text, Image, StyleSheet, Pressable } from "react-native";
 import Animated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
-import { useRouter } from "expo-router";
+import { useChatNavigation } from "@/hooks/use-chat-navigation";
 import { ArrowUpRight } from "@/components/ui/icons";
 import { SPACING, TOUCH_TARGET_MIN } from "@orbit/shared/theme";
 import { useTranslation } from "react-i18next";
@@ -53,7 +53,7 @@ function MessageProse({ message, sourceText, styles, showImage }: Readonly<{
 export function MessageBubble(props: Readonly<MessageBubbleProps>) {
   const { message, blockAnswerInteraction, animateEntry, onBreakdownConfirmed, onActionChipClick } = props
   const { t } = useTranslation();
-  const router = useRouter();
+  const navigate = useChatNavigation();
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -64,7 +64,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
     new Set(),
   );
 
-  const { isUser, parts, relatedSurfaces, nonSuggestionActions, suggestions, outcomes } = getMessageBubbleView(props, dismissedBreakdowns)
+  const { isUser, parts, showUnreadableReply, relatedSurfaces, nonSuggestionActions, suggestions, outcomes } = getMessageBubbleView(props, dismissedBreakdowns)
   const operations = getMessageBubbleOperations(props, useChatStore.getState().transitionMessage)
   function dismissBreakdown(key: string) {
     setDismissedBreakdowns(previous => new Set([...previous, key]))
@@ -81,6 +81,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
       <View
         style={isUser ? styles.bubbleColumnUser : styles.bubbleColumnAI}
       >
+        {showUnreadableReply ? <Text accessibilityLiveRegion="polite" style={{ fontSize: 14, color: tokens.fg2 }}>{t('chat.unreadableReply')}</Text> : null}
         {parts.map(part => {
           if (part.type === 'block') return <ChatBlock key={part.key} part={part.part} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={part.expired} onActionChipClick={onActionChipClick} />
           return <MessageProse key={part.key} message={message}
@@ -97,7 +98,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
                   key={surface.id}
                   accessibilityRole="button"
                   accessibilityLabel={t(surface.labelKey)}
-                  onPress={() => router.push(surface.mobileRoute)}
+                  onPress={() => navigate(surface.mobileRoute)}
                   style={({ pressed }) => [
                     styles.relatedChip,
                     pressed

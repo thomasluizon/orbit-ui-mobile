@@ -31,6 +31,24 @@ analysis. Workspace Vitest coverage includes generated schemas imported by tests
 Handwritten schemas remain the runtime contract. Review consumed discrepancies
 separately under the append-only and deploy-API-first rules in `CLAUDE.md`.
 
+## Negotiated habit ranking contract
+
+The handwritten `habitRankingCardSchema` and `habitRankingResponseSchema` consume the deployed
+ranking producer from API change #1615. The block is append-only and negotiated through
+`supportsParts` and `partKinds`; clients lacking `habitRanking` continue on the legacy path.
+The signed query token and revision stay with their answer. Paging appends the producer's ranks;
+refresh passes that token with no relative period or replacement filters.
+
+The immutable generated snapshot can predate this producer. Its absence there does not authorize
+hand-editing generated output or moving the pin independently. Producer records, the card builder,
+controller and all four published OpenAPI documents establish the handwritten addition. A routine
+rebaseline adopts the newer pin and generated output together. The negotiated ranking contract test
+checks the handwritten boundary separately from the older pinned block inventory.
+
+Deploy the API first and complete live ranking evaluation before client activation. To disable new
+emission, remove its advertised kind while retaining historical parsing and rendering. Rollback
+does not raise the supported-version floor.
+
 ## Regenerating locally
 
 From the repository root:
@@ -109,3 +127,27 @@ handwritten selector implementation; it is not the owner of tooling changes.
 Root development dependencies retain `ajv@^8.20.0` for Orval's parser and
 `ajv-draft-04`, and `commander@~15.0.0` for its CLI. ESLint retains nested `ajv@6`
 and Expo autolinking retains nested `commander@7`.
+
+## Focused read activation
+
+The optional `read` metadata, dated habits, history rows, period metrics, `periodTotal` and
+`periodComparison` consume #1616's API contracts. The signed `refreshToken` and `nextCursor`
+are opaque: clients send them to `POST /api/chat/reads/refresh` with their carrying context.
+Refresh replaces the original query snapshot. Paging requires the same query id, kind, family
+and revision. No relative-date recap query substitutes for a saved period.
+
+Deploy the API contract before a carrying client advertises the new kinds, dated habit lists
+and history. Existing history without metadata continues to parse using optional defaults.
+No supported-version floor changes. Remove new-kind advertisement or roll back the carrying
+client to disable new period kinds; retain optional historical fields. The generated snapshot
+pin remains independent of these handwritten runtime schemas and is adopted atomically by the
+normal contract rebaseline workflow. Source schema evidence belongs in the implementation PR.
+
+## Dated habit read compatibility
+
+The handwritten habit-list schema accepts `today`, `all` and `date` scopes. Dated query
+results carry their resolved ISO date through chat parsing and signed refresh parsing before
+rendering on web and Android. Producer evidence is `QueryHabitsTool.cs:95-103` and
+`HabitListCard.cs:7-19` at API commit `316877abe6dfe7aa978a0d086ca5eb3295851719`.
+This append-only acceptance retains historical `today` and `all` payloads and does not
+change the generated contract pin or the supported client version floor.

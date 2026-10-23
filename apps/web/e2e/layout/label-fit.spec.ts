@@ -129,9 +129,9 @@ async function checkTodayLabels(page: Page, words: typeof en | typeof ptBR) {
   await expect(rows.filter({ has: page.getByText(userFields.habitTitle, { exact: true }) })
     .locator('[data-habit-row-meta]').getByText(words.habits.overdue, { exact: true })).toBeVisible()
   await expect(rows.filter({ has: page.getByText(userFields.timedHabitTitle, { exact: true }) })
-    .locator('[data-habit-row-meta]')).toHaveText('08:00')
+    .locator('[data-habit-row-meta]').getByText('08:00', { exact: true })).toBeVisible()
   await expect(rows.filter({ has: page.getByText(userFields.parentHabitTitle, { exact: true }) })
-    .locator('[data-habit-row-meta]')).toHaveText(words.habits.rowProgress.replace('{done}', '0').replace('{total}', '1'))
+    .locator('[data-habit-row-meta]').getByText(words.habits.rowProgress.replace('{done}', '0').replace('{total}', '1'), { exact: true })).toBeVisible()
   await checkSurfaceLabels(page, page, [userFields.habitTitle, userFields.timedHabitTitle, userFields.parentHabitTitle])
 }
 

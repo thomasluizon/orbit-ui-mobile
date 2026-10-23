@@ -25,7 +25,10 @@ export async function expectAppNavigation(page: Page): Promise<void> {
 
 export async function createSmokeHabit(page: Page, title: string): Promise<void> {
   await handleSmokePrompts(page)
-  await localizedRole(page, 'button', en.nav.createHabit, ptBR.nav.createHabit).click()
+  const create = localizedRole(page, 'button', en.nav.createHabit, ptBR.nav.createHabit)
+  const emptyCreate = localizedRole(page, 'button', en.habits.createManually, ptBR.habits.createManually)
+  await expect(create.or(emptyCreate).first()).toBeVisible({ timeout: 30_000 })
+  await (await emptyCreate.isVisible() ? emptyCreate : create).click()
   const titleInput = localizedRole(page, 'textbox', en.habits.form.describe, ptBR.habits.form.describe)
   await expect(titleInput).toBeVisible()
   await localizedRole(page, 'radio', en.habits.form.typeTask, ptBR.habits.form.typeTask).click()
@@ -37,13 +40,25 @@ export async function createSmokeHabit(page: Page, title: string): Promise<void>
 }
 
 export async function logSmokeHabit(page: Page, title: string): Promise<void> {
+  const listOptions = localizedRole(page, 'button', en.habits.listOptions, ptBR.habits.listOptions)
+  const showCompleted = localizedRole(page, 'menuitem', en.habits.showCompletedMenu, ptBR.habits.showCompletedMenu)
+  await expect(async () => {
+    if (!await showCompleted.isVisible()) await listOptions.click({ timeout: 1000 })
+    await expect(showCompleted).toBeVisible({ timeout: 1000 })
+  }).toPass({ timeout: 15_000 })
+  await showCompleted.click()
   const row = page.locator(`[data-habit-title="${title}"]`)
   const toggle = row.getByTestId('habit-status-toggle')
   await expect(toggle).toBeEnabled()
   await expect(row).toHaveAttribute('data-status', 'empty')
+  const habitId = await row.getAttribute('data-habit-id')
+  expect(habitId).toBeTruthy()
   const initialState = await toggle.getAttribute('aria-label')
   const logged = page.waitForResponse(
-    (response) => response.request().method() === 'POST' && 'next-action' in response.request().headers(),
+    (response) => response.request().method() === 'POST' &&
+      'next-action' in response.request().headers() &&
+      response.request().postData()?.startsWith(`[${JSON.stringify(habitId)},`) === true &&
+      /^\["[^"]+",\{"date":"\d{4}-\d{2}-\d{2}"\},/.test(response.request().postData() ?? ''),
     { timeout: 30_000 },
   )
   await toggle.click()
@@ -52,8 +67,11 @@ export async function logSmokeHabit(page: Page, title: string): Promise<void> {
   await expect(toggle).not.toHaveAttribute('aria-label', initialState ?? '')
   await expect(row).toHaveAttribute('data-status', 'done')
   await page.reload()
-  await localizedRole(page, 'button', en.habits.listOptions, ptBR.habits.listOptions).click()
-  await localizedRole(page, 'menuitem', en.habits.showCompletedMenu, ptBR.habits.showCompletedMenu).click()
+  await expect(async () => {
+    if (!await showCompleted.isVisible()) await listOptions.click({ timeout: 1000 })
+    await expect(showCompleted).toBeVisible({ timeout: 1000 })
+  }).toPass({ timeout: 15_000 })
+  await showCompleted.click()
   await expect(row).toHaveAttribute('data-status', 'done')
 }
 

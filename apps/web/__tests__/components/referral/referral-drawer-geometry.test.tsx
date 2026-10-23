@@ -12,7 +12,7 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-referral', () => ({
   useReferral: () => ({
-    stats: { successfulReferrals: 1, pendingReferrals: 2, maxReferrals: 5, discountPercent: 20 },
+    stats: { successfulReferrals: 1, pendingReferrals: 2, maxReferrals: 5, rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 20 },
     referralUrl: 'https://useorbit.org/r/ORBIT1',
     isLoading: false, isError: false, error: null,
   }),
@@ -67,7 +67,7 @@ describe('Referral drawer sheet insets in Chromium', () => {
           edge: { left: bodyBounds.left + parseFloat(bodyStyle.paddingLeft), right: bodyBounds.right - parseFloat(bodyStyle.paddingRight) },
           link: bounds(copy.parentElement!),
           card: bounds(body.querySelector('[data-tone="quiet"]')!),
-          disclaimer: bounds(text('referral.drawer.disclaimer')),
+          disclaimer: bounds(text('referral.reward.eligibility')),
           error: bounds(body.querySelector('[role="alert"]')!),
           progress: bounds(body.querySelector('[role="progressbar"]')!),
           share: bounds(share),

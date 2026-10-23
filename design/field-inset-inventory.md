@@ -9,12 +9,12 @@ Every concrete text control and input-producing primitive or wrapper in the web 
 | Family | Drawn inline inset | Source and composition |
 |---|---:|---|
 | Standard Input, form-input, AppTextInput, BottomSheetAppTextInput, goal FieldWell | 16 | Granted design-system Input; minimum height 54. Busca, move-parent, emoji, tag, goal and time-zone searches inherit this family. Tag and goal search keep their keyboard-aware native wrapper with exact Input padding and minimum height. |
-| Composer | 8 | `design/canvas/native-mobile.js`, textarea padding `4px 8px`. Pill padding 4 yields text start 12 in conversation and 60 with the 48 glyph control on Hoje and habit detail. The trailing controls retain 48 targets. Native positioned placeholder and measurement text use logical start/end 8. |
+| Composer | 8 | The #1607 amendment in `design/canvas/README.md` retains pill padding 4 and input padding 8. Text starts at 12 in conversation, or 4 plus the measured glyph-and-name entry width plus 8 on compact Hoje and habit detail. Entry and trailing controls keep the 48 target minimum. Native positioned placeholder and measurement text use logical start/end 8. |
 | Sentence / multiline Input | 16 | Granted Habit Create sentence field and design-system multiline Input. Habit phrase overlays match the textarea/TextInput padding. |
 | Other inline add, template name, tag editor, custom reminder, detail quantity, chat record filter and breakdown edit | 12 | Granted Habit Create, Habit Detail and Astra inline wells. Checklist add rows use the standard Input family. |
 | Checklist item edit | 8 with drag grip; 12 without grip | Granted Habit Create checklist. Both shipped editors always include their grip; their add rows use the standard Input inset of 16. |
 | Numbered subhabit row | 8 after index | Granted Habit Create compound row. Input padding is 0; the row provides leading padding and an 8 gap after its 16-wide index. |
-| Habit heading rename | 0 | Unboxed title aligned with the reading heading, rather than a field well. |
+| Habit title edit | 16 | Existing full editor Input; the detail reading heading is static and the named pencil opens this field. |
 | Calendar month | 16 inline, 8 block | `design/canvas/Orbit Calendario.dc.html`, month disclosure. The shipped month selector uses picker buttons on both platforms, not a text input; no month text control exists to measure. |
 | OTP | Centred digit | Design-system OTP cells. The input captures keystrokes invisibly; the visible digit is centred, so no inline inset applies. |
 | Attachment pickers | No drawn glyph | Hidden file inputs are listed for completeness and excluded from text geometry. |
@@ -138,8 +138,8 @@ Visible native text controls use `TypedTextInput`, which applies `fg1` after cal
 | Surface | Native owner | Web owner | Foreground path |
 | --- | --- | --- | --- |
 | Habit create and edit name | `habits/habit-form-fields/habit-understanding.tsx` | same relative component | Native `TypedTextInput`, web `TypedTextarea`; mirrors retain consumed-word backgrounds and underlines, while the editable controls draw foreground letters and placeholders. Native consumed spans use `hairlineStrong` foreground to paint Android underlines beneath the editable glyphs; web uses an independent inset shadow with transparent mirror glyphs |
-| Habit rename | `habits/habit-detail-screen.tsx` | same relative component | Native `TypedTextInput`, web input with `--fg-1` |
-| Checklist add and description | `habits/habit-form-fields.tsx`, `habits/habit-detail-fields.tsx` | same relative components | Shared `Input` in both single-line and multiline modes |
+| Habit detail title editing | `habits/habit-form-fields/habit-understanding.tsx` | same relative component | Existing full editor foreground and padding; the read heading has no input |
+| Checklist add and description | `habits/habit-form-fields.tsx` | same relative components | Shared `Input` in both single-line and multiline modes |
 | Checklist and subhabit edit | `habits/habit-checklist.tsx`, `habits/create-habit-modal/sub-habit-editor.tsx` | same relative components | Native `BottomSheetAppTextInput`, web input with `--fg-1` |
 | Astra and shell composers | `shell/composer.tsx` | same relative component | Native `TypedTextInput`, web `TypedTextarea` |
 | Astra record filter and breakdown rename | `chat/record-list-card.tsx`, `chat/breakdown-suggestion.tsx` | same relative components | Native `TypedTextInput`, web input with `--fg-1` |
@@ -164,3 +164,5 @@ DateField retains its own inset and separate calendar target. Proposed and valid
 the same owners. Native date text may wrap above the large-text threshold. The type group uses
 RadioRow and its existing first-line control alignment. `habit-form-surfaces.md` names the mode,
 request and retained-capability boundaries.
+
+Habit detail removes its inline title, quantity, time and description editors. The complete pencil editor retains the form controls and checklist item insets above; detail facts contain no text input.

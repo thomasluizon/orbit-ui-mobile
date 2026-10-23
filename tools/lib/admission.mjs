@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto"
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { runBounded } from "./bounded-process.mjs"
+import { readGithub } from "./github-read.mjs"
 import { isCloudTaskId, isTerminalTaskStatus, mirrorPathFor, reservationPathFor } from "./cloud-worker.mjs"
-import { repositorySlug } from "./github-auth.mjs"
+import { redactSecrets, repositorySlug } from "./github-auth.mjs"
 import { gitDirectoryOf, processIsAlive, processStartIdentity, REPO_ROOT, workerLaunchDirectory } from "./run-state.mjs"
 
 /** The checked-in repo paths are Windows paths. On macOS, their final directory names match the
@@ -86,22 +86,10 @@ export const queuedRunsPath = (slug, now) => {
   return `repos/${slug}/actions/runs?status=queued&created=${encodeURIComponent(`>=${since}`)}&per_page=1`
 }
 
-export const readGithub = async (path, environment) => {
-  const result = await runBounded(environment.GH_BIN || "gh", ["api", path], {
-    env: environment, timeoutMs: 30000, maxBuffer: 8 * 1024 * 1024,
-  })
-  if (result.timedOut || result.error || result.status !== 0) {
-    throw new Error(`GitHub read ${path} failed: ${result.stderr || result.error?.message || `exit ${result.status}`}`)
-  }
-  try { return JSON.parse(result.stdout) } catch (error) {
-    throw new Error(`GitHub read ${path} returned invalid JSON: ${error.message}`)
-  }
-}
-
-const openPullRequests = async (slug, environment) => {
+const openPullRequests = async (slug, environment, readOptions) => {
   let count = 0
   for (let page = 1; ; page += 1) {
-    const pulls = await readGithub(`repos/${slug}/pulls?state=open&per_page=100&page=${page}`, environment)
+    const pulls = await readGithub(`repos/${slug}/pulls?state=open&per_page=100&page=${page}`, environment, readOptions)
     if (!Array.isArray(pulls) || pulls.some((pull) => !Number.isInteger(pull.number))) {
       throw new Error(`GitHub open pull requests for ${slug} had an unexpected shape`)
     }
@@ -110,9 +98,9 @@ const openPullRequests = async (slug, environment) => {
   }
 }
 
-const branchPullRequests = async (slug, owner, branch, environment) => {
+const branchPullRequests = async (slug, owner, branch, environment, readOptions) => {
   const head = encodeURIComponent(`${owner}:${branch}`)
-  const pulls = await readGithub(`repos/${slug}/pulls?head=${head}&state=open&per_page=100`, environment)
+  const pulls = await readGithub(`repos/${slug}/pulls?head=${head}&state=open&per_page=100`, environment, readOptions)
   if (!Array.isArray(pulls) || pulls.some((pull) => !Number.isInteger(pull.number))) {
     throw new Error(`GitHub branch pull requests for ${slug} had an unexpected shape`)
   }
@@ -157,7 +145,7 @@ const cloudTerminalAt = (receipt) => {
   return NaN
 }
 
-const liveReservations = async (repoRoot, owner, environment, now) => {
+const liveReservations = async (repoRoot, owner, environment, now, readOptions) => {
   const directory = reservationDirectory(repoRoot)
   const counts = { pullRequests: 0, queuedRuns: 0 }
   if (!existsSync(directory)) return counts
@@ -184,7 +172,7 @@ const liveReservations = async (repoRoot, owner, environment, now) => {
       rmSync(path, { force: true })
       continue
     }
-    const branchHasPullRequest = (await branchPullRequests(reservation.repository, owner, reservation.branch, environment)).length > 0
+    const branchHasPullRequest = (await branchPullRequests(reservation.repository, owner, reservation.branch, environment, readOptions)).length > 0
     if (reservation.cloud && branchHasPullRequest && !Number.isFinite(released)) {
       releaseAdmission(name.slice("admission-".length, -".json".length), repoRoot, now)
     }
@@ -197,6 +185,12 @@ const liveReservations = async (repoRoot, owner, environment, now) => {
 export const checkAdmission = async ({ config, repositoryKey, branch, environment, worktree, now = Date.now(), repoRoot = REPO_ROOT, lockWaitMs = LOCK_WAIT_MS }) => {
   const limits = { maxOpenPullRequests: config.caps.maxOpenPullRequests, maxQueuedRuns: config.caps.maxQueuedRuns }
   const counts = { openPullRequests: null, queuedRuns: null, reservations: null }
+  const transientErrors = { count: 0, last: null }
+  const observation = { counts, limits, transientErrors }
+  const readOptions = { onTransientError: (text) => {
+    transientErrors.count++
+    transientErrors.last = redactSecrets(text, [environment.GH_TOKEN, environment.GITHUB_TOKEN])
+  } }
   let unlock
   try {
     const startIdentity = processStartIdentity(process.pid)
@@ -205,17 +199,17 @@ export const checkAdmission = async ({ config, repositoryKey, branch, environmen
     const targetPath = config.repos[repositoryKey]
     const owner = repositorySlug(existsSync(targetPath) ? targetPath : worktree).split("/")[0]
     const target = configuredRepositorySlug(config.repos[repositoryKey], owner)
-    const existing = await branchPullRequests(target, owner, branch, environment)
-    if (existing.length > 0) return { admitted: true, existingPullRequest: existing[0].number, counts, limits }
+    const existing = await branchPullRequests(target, owner, branch, environment, readOptions)
+    if (existing.length > 0) return { admitted: true, existingPullRequest: existing[0].number, ...observation }
     // Reconcile first, then read the fleet counts. A PR appearing between these reads can
     // temporarily count twice, but cannot disappear from both the claim and GitHub total.
-    counts.reservations = await liveReservations(repoRoot, owner, environment, now)
+    counts.reservations = await liveReservations(repoRoot, owner, environment, now, readOptions)
     counts.openPullRequests = 0
     counts.queuedRuns = 0
     for (const path of Object.values(config.repos)) {
       const slug = configuredRepositorySlug(path, owner)
-      counts.openPullRequests += await openPullRequests(slug, environment)
-      const runs = await readGithub(queuedRunsPath(slug, now), environment)
+      counts.openPullRequests += await openPullRequests(slug, environment, readOptions)
+      const runs = await readGithub(queuedRunsPath(slug, now), environment, readOptions)
       if (!Number.isInteger(runs?.total_count) || runs.total_count < 0) {
         throw new Error(`GitHub queued runs for ${slug} had an unexpected shape`)
       }
@@ -223,15 +217,15 @@ export const checkAdmission = async ({ config, repositoryKey, branch, environmen
     }
     if (counts.openPullRequests + counts.reservations.pullRequests > limits.maxOpenPullRequests ||
         counts.queuedRuns + counts.reservations.queuedRuns > limits.maxQueuedRuns) {
-      return { admitted: false, reason: "ADMISSION_REFUSED", counts, limits, error: null }
+      return { admitted: false, reason: "ADMISSION_REFUSED", ...observation, error: null }
     }
     const reservationId = randomUUID()
     mkdirSync(reservationDirectory(repoRoot), { recursive: true })
     publishReservation(reservationDirectory(repoRoot), `admission-${reservationId}`,
       { pid: process.pid, startIdentity, repository: target, branch, timestamp: new Date(now).toISOString() })
-    return { admitted: true, reservationId, counts, limits }
+    return { admitted: true, reservationId, ...observation }
   } catch (error) {
-    return { admitted: false, reason: "ADMISSION_REFUSED", counts, limits, error: error.message }
+    return { admitted: false, reason: "ADMISSION_REFUSED", ...observation, error: redactSecrets(error.message, [environment.GH_TOKEN, environment.GITHUB_TOKEN]) }
   } finally {
     if (unlock) unlock()
   }

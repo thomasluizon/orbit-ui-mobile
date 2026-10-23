@@ -178,6 +178,9 @@ describe('Hoje one Astra place at each shell width', () => {
             const sentence = line?.querySelector('.today-astra-sentence')
             return {
               glyphs: glyphs.length, slots: slots.length,
+              composerGlyphs: glyphs.filter(glyph => glyph.closest('[data-composer-root]')).length,
+              entryGlyphs: glyphs.filter(glyph => glyph.closest('[data-open-conversation]')).length,
+              sendGlyphs: glyphs.filter(glyph => glyph.closest('[data-composer-trailing-controls] > button')).length,
               slotGlyphs: slots[0]?.querySelectorAll('[data-asset^="astra-mark"]').length ?? 0,
               lineHeight: line?.getBoundingClientRect().height ?? 0,
               proseHeight: sentence?.getBoundingClientRect().height ?? 0,
@@ -187,7 +190,12 @@ describe('Hoje one Astra place at each shell width', () => {
             }
           })
           const slotAbsent = state === 'none' || state === 'all' || state === 'general'
-          expect(geometry, state).toMatchObject({ glyphs: slotAbsent ? 1 : 2, slots: slotAbsent ? 0 : 1, slotGlyphs: slotAbsent ? 0 : 1, overflow: false, retiredHeading: false })
+          const shellGlyphs = mocks.wide ? 1 : 2
+          const composerEntries = Number(!mocks.wide)
+          const slotCount = Number(!slotAbsent)
+          expect(geometry, state).toMatchObject({ glyphs: shellGlyphs + slotCount,
+            composerGlyphs: composerEntries * 2, entryGlyphs: composerEntries, sendGlyphs: composerEntries,
+            slots: slotCount, slotGlyphs: slotCount, overflow: false, retiredHeading: false })
           if (!slotAbsent) {
             expect(geometry.lineHeight).toBeGreaterThanOrEqual(48)
             expect(geometry.proseHeight).toBeLessThanOrEqual(geometry.proseLineHeight * 2 + 1)

@@ -43,6 +43,7 @@ type MessageBubblePart = { type: 'block'; key: number; part: Extract<ChatPart, {
 
 export interface MessageBubbleView {
   isUser: boolean
+  showUnreadableReply: boolean
   parts: MessageBubblePart[]
   relatedSurfaces: ReturnType<typeof getRelatedSurfaces>
   nonSuggestionActions: ReturnType<typeof partitionMessageActions>['nonSuggestionActions']
@@ -65,6 +66,10 @@ export function getMessageBubbleView(props: MessageBubbleProps, dismissedBreakdo
   })
   return {
     isUser,
+    showUnreadableReply: !isUser && !isStreaming && parts.length === 0 && message.parts != null
+      && !message.imageUrl && !message.actions?.length && !message.operations?.length
+      && !message.pendingOperations?.length && !message.policyDenials?.length
+      && !Object.keys(message.clarificationPreviews ?? {}).length,
     parts,
     relatedSurfaces: getRelatedSurfaces(message.relatedSurfaces),
     nonSuggestionActions: actions.nonSuggestionActions,

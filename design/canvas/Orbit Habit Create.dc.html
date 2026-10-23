@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta name="orbit-form-contract" content="Required Task/Habit radios, editable account date before details, General schedule, local parsing and explicitly accepted Astra date proposals.">
+<meta name="orbit-form-contract" content="Task/Habit first with balanced 52px choices, growing 54px name, description immediately after name, natural date prompt, explicit Astra attribution and preserved request/acceptance boundaries (#1607).">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="./support.js"></script>
 </head>
@@ -19,6 +19,7 @@
 <script src="_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/_ds_bundle.js"></script>
 <style>
 body{background:var(--bg)}
+[data-form-type] [role="radio"]{min-height:52px;align-items:center}
 a{color:var(--fg-2);text-decoration:none}
 a:hover{color:var(--fg-1)}
 .native-control:hover:not(:disabled):not(.native-send):not(.native-tab){background:var(--bg-hover)}
@@ -50,15 +51,16 @@ a:hover{color:var(--fg-1)}
           </sc-if>
 
           {{ typeField }}
-          <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;flex-direction:column;gap:8px">
             <label for="hc-say" style="font-size:14px;font-weight:500;color:var(--fg-2)">{{ lblField }}</label>
             <div style="position:relative">
-              <p aria-hidden="true" style="font-family:var(--font-sans);font-size:16px;line-height:1.45;padding:16px;border-radius:var(--r-well);border:0;width:100%;box-sizing:border-box;min-height:92px;margin:0;white-space:pre-wrap;word-break:break-word;letter-spacing:normal;text-align:start;background:var(--bg-field);color:var(--fg-1);box-shadow:inset 0 0 0 1px var(--border-control)">
+              <p aria-hidden="true" style="font-family:var(--font-sans);font-size:16px;line-height:1.45;padding:12px 16px;border-radius:var(--r-well);border:0;width:100%;box-sizing:border-box;min-height:54px;margin:0;white-space:pre-wrap;word-break:break-word;letter-spacing:normal;text-align:start;background:var(--bg-field);color:var(--fg-1);box-shadow:inset 0 0 0 1px var(--border-control)">
 <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}"><span style="color:var(--fg-4)">{{ placeholder }}</span></sc-if><sc-for list="{{ segs }}" as="seg" hint-placeholder-count="3"><sc-if value="{{ seg.hit }}" hint-placeholder-val="{{ false }}"><span style="background:var(--bg-well);border-radius:var(--r-chip);box-shadow:inset 0 -2px 0 var(--hairline-strong)">{{ seg.text }}</span></sc-if><sc-if value="{{ seg.plain }}" hint-placeholder-val="{{ true }}"><span>{{ seg.text }}</span></sc-if></sc-for></p>
-              <textarea id="hc-say" value="{{ text }}" onChange="{{ onText }}" spellcheck="false" aria-label="{{ lblField }}" style="font-family:var(--font-sans);font-size:16px;line-height:1.45;padding:16px;border-radius:var(--r-well);border:0;width:100%;box-sizing:border-box;min-height:92px;margin:0;white-space:pre-wrap;word-break:break-word;letter-spacing:normal;text-align:start;position:absolute;inset:0;height:100%;background:var(--p-transparent);color:transparent;caret-color:var(--fg-1);resize:none;overflow:hidden"></textarea>
+              <textarea id="hc-say" value="{{ text }}" onChange="{{ onText }}" spellcheck="false" aria-label="{{ lblField }}" style="font-family:var(--font-sans);font-size:16px;line-height:1.45;padding:12px 16px;border-radius:var(--r-well);border:0;width:100%;box-sizing:border-box;min-height:54px;margin:0;white-space:pre-wrap;word-break:break-word;letter-spacing:normal;text-align:start;position:absolute;inset:0;height:100%;background:var(--p-transparent);color:var(--fg-1);caret-color:var(--fg-1);resize:none;overflow:hidden"></textarea>
             </div>
           </div>
 
+          {{ descriptionField }}
           {{ manualEmojiField }}
           <sc-if value="{{ showPreview }}" hint-placeholder-val="{{ true }}">
             <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Proposed" scope="block" proposed="{{ isProposed }}" label="{{ proposedLabel }}" hint-size="100%,200px">
@@ -89,7 +91,7 @@ a:hover{color:var(--fg-1)}
             <div style="display:flex;flex-direction:column;gap:16px">
               <p style="font-size:14px;line-height:1.55;color:var(--fg-2);padding:12px;background:var(--bg-well);border-radius:var(--r-well);text-wrap:pretty">{{ unresolvedLine }}</p>
               <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ onAsk }}" hint-size="auto,40px">{{ lblAsk }}</x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ onAsk }}" hint-size="auto,40px">{{ astraActionMark }}{{ lblAsk }}</x-import>
                 <p style="font-size:12px;color:var(--fg-3);line-height:1.4">{{ askCost }}</p>
               </div>
             </div>
@@ -99,7 +101,7 @@ a:hover{color:var(--fg-1)}
             <div style="display:flex;flex-direction:column;gap:16px">
               <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ limitMessage }}" hint-size="100%,96px"></x-import>
               <div style="display:flex;align-items:flex-start">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" dc-props="{{ askOffProps }}" hint-size="auto,40px">{{ lblAsk }}</x-import>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" dc-props="{{ askOffProps }}" hint-size="auto,40px">{{ astraActionMark }}{{ lblAsk }}</x-import>
               </div>
             </div>
           </sc-if>
@@ -135,16 +137,17 @@ a:hover{color:var(--fg-1)}
             </sc-if>
 
             {{ typeField }}
-            <div style="display:flex;flex-direction:column;gap:6px;max-width:560px">
+            <div style="display:flex;flex-direction:column;gap:8px;max-width:560px">
               <label for="hc-say-w" style="font-size:14px;font-weight:500;color:var(--fg-2)">{{ lblField }}</label>
               <div style="position:relative">
-                <p aria-hidden="true" style="font-family:var(--font-sans);font-size:16px;line-height:1.45;padding:16px;border-radius:var(--r-well);border:0;width:100%;box-sizing:border-box;min-height:92px;margin:0;white-space:pre-wrap;word-break:break-word;letter-spacing:normal;text-align:start;background:var(--bg-field);color:var(--fg-1);box-shadow:inset 0 0 0 1px var(--border-control)">
+                <p aria-hidden="true" style="font-family:var(--font-sans);font-size:16px;line-height:1.45;padding:12px 16px;border-radius:var(--r-well);border:0;width:100%;box-sizing:border-box;min-height:54px;margin:0;white-space:pre-wrap;word-break:break-word;letter-spacing:normal;text-align:start;background:var(--bg-field);color:var(--fg-1);box-shadow:inset 0 0 0 1px var(--border-control)">
 <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}"><span style="color:var(--fg-4)">{{ placeholder }}</span></sc-if><sc-for list="{{ segs }}" as="seg" hint-placeholder-count="3"><sc-if value="{{ seg.hit }}" hint-placeholder-val="{{ false }}"><span style="background:var(--bg-well);border-radius:var(--r-chip);box-shadow:inset 0 -2px 0 var(--hairline-strong)">{{ seg.text }}</span></sc-if><sc-if value="{{ seg.plain }}" hint-placeholder-val="{{ true }}"><span>{{ seg.text }}</span></sc-if></sc-for></p>
-                <textarea id="hc-say-w" value="{{ text }}" onChange="{{ onText }}" spellcheck="false" aria-label="{{ lblField }}" style="font-family:var(--font-sans);font-size:16px;line-height:1.45;padding:16px;border-radius:var(--r-well);border:0;width:100%;box-sizing:border-box;min-height:92px;margin:0;white-space:pre-wrap;word-break:break-word;letter-spacing:normal;text-align:start;position:absolute;inset:0;height:100%;background:var(--p-transparent);color:transparent;caret-color:var(--fg-1);resize:none;overflow:hidden"></textarea>
+                <textarea id="hc-say-w" value="{{ text }}" onChange="{{ onText }}" spellcheck="false" aria-label="{{ lblField }}" style="font-family:var(--font-sans);font-size:16px;line-height:1.45;padding:12px 16px;border-radius:var(--r-well);border:0;width:100%;box-sizing:border-box;min-height:54px;margin:0;white-space:pre-wrap;word-break:break-word;letter-spacing:normal;text-align:start;position:absolute;inset:0;height:100%;background:var(--p-transparent);color:var(--fg-1);caret-color:var(--fg-1);resize:none;overflow:hidden"></textarea>
               </div>
             </div>
 
-            {{ manualEmojiField }}
+            {{ descriptionField }}
+          {{ manualEmojiField }}
           <sc-if value="{{ showPreview }}" hint-placeholder-val="{{ true }}">
               <div style="max-width:560px">
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Proposed" scope="block" proposed="{{ isProposed }}" label="{{ proposedLabel }}" hint-size="100%,200px">
@@ -176,7 +179,7 @@ a:hover{color:var(--fg-1)}
               <div style="display:flex;flex-direction:column;gap:16px;max-width:560px">
                 <p style="font-size:14px;line-height:1.55;color:var(--fg-2);padding:12px;background:var(--bg-well);border-radius:var(--r-well);text-wrap:pretty">{{ unresolvedLine }}</p>
                 <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ onAsk }}" hint-size="auto,40px">{{ lblAsk }}</x-import>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" on-click="{{ onAsk }}" hint-size="auto,40px">{{ astraActionMark }}{{ lblAsk }}</x-import>
                   <p style="font-size:12px;color:var(--fg-3);line-height:1.4">{{ askCost }}</p>
                 </div>
               </div>
@@ -186,7 +189,7 @@ a:hover{color:var(--fg-1)}
               <div style="display:flex;flex-direction:column;gap:16px;max-width:560px">
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ limitMessage }}" hint-size="100%,96px"></x-import>
                 <div style="display:flex;align-items:flex-start">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" dc-props="{{ askOffProps }}" hint-size="auto,40px">{{ lblAsk }}</x-import>
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="secondary" size="sm" dc-props="{{ askOffProps }}" hint-size="auto,40px">{{ astraActionMark }}{{ lblAsk }}</x-import>
                 </div>
               </div>
             </sc-if>
@@ -215,18 +218,18 @@ a:hover{color:var(--fg-1)}
 
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
-      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Creation begins with two plain-language type radios, then the focal title and live understanding. Habit keeps its manual cadence and No schedule branch. Editable date precedes the single details disclosure. Raw schedule enum names and retired colour choices do not render.</p>
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Creation begins with two balanced plain-language type radios, then a compact growing name, description and live understanding (#1607). Habit keeps its manual cadence and No schedule branch. Editable date precedes the single details disclosure. Raw schedule enum names and retired colour choices do not render.</p>
       <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>empty, typed, resolved, unresolved, from the conversation, proposed unasked, details open, reading the phrase, at the daily limit, the same set Hoje’s create states reach. A plan axis sits beside the state, free or Pro, defaulting to free, and it moves exactly one gate on this screen, the slip alert inside the disclosure. Reached by using the screen rather than the axis: the ask runs the reading beat live and settles on Astra’s proposal, the emoji picker opens from the well, the disclosure opens from its row, and the templates and goal sheets open from theirs. The empty state is what the create action opens: nothing is proposed before there is something to propose.</p>
       <p><span style="color:var(--fg-3)">input&nbsp;&nbsp;</span>the words the parser consumed are marked inside the field, so it is visible what was read and what was ignored. The marking is a background and a baseline rule only, never padding, so the marked text keeps the same metrics as the plain text. The field is a highlighted mirror under a transparent textarea sharing one metric declaration, which is what keeps the two aligned to the pixel.</p>
       <p><span style="color:var(--fg-3)">parser&nbsp;&nbsp;</span>reading the sentence happens on the device first. The local read is regex over weekdays, times, counts and the daily phrases: it runs on every keystroke, calls nothing and costs nothing, which is what makes a live preview compatible with a five message day. Weekdays beat a count, and a count beats a bare daily phrase. A time is read only with a separator or after the word for at, so the 3 in three times a week is never mistaken for an hour. Astra is the fallback, called only when the local read resolves nothing and the person asks for it, and what it can return is bounded by the suggestion contract: an emoji, a cadence, fixed weekdays, a flexible target, a time, and one breakdown, either sub habits or a checklist and never both. Neither path guesses silently: when nothing resolves the screen says so and offers the two controls and the ask.</p>
       <p><span style="color:var(--fg-3)">proposed&nbsp;&nbsp;</span>the treatment marks who read the sentence. A value the device read is just resolved and renders as typed, because the marked words in the field already show what was read. A value Astra read wears the proposed state, fg-3 inside a dashed hairline, and it never takes the accent. The first tap on a day pill, the stepper or the emoji picker resolves the whole block to normal, because at that point the person owns the value. Astra proposing unasked is the same treatment with every value proposed and a line naming that nothing has been created yet.</p>
       <p><span style="color:var(--fg-3)">emoji&nbsp;&nbsp;</span>the 46px well beside the understood sentence IS the emoji control (habit-form-fields.tsx:242 renders HabitEmojiSelector): tapping it opens a picker with a search that clears, the eleven category chips from habit-emoji-options.ts, and a grid of choices. With no emoji chosen and none read from the sentence the well shows a plus rather than a derived initial, because there it is an empty control and not a label. An emoji Astra proposed wears the block’s proposed state until it is touched.</p>
-      <p><span style="color:var(--fg-3)">disclosure&nbsp;&nbsp;</span>ONE disclosure, closed by default, holding creation’s ten sections in this order: exact time as a TimeField with the any-time hint; reminders, which are two things, offset chips over the ten shipping presets plus a custom number and unit when a due time exists, with the LAST offset locked and its reason beside it because reminders on with nothing set is a lie, and absolute clock times when none, each added through a small form whose add waits for a time, at most 5, with both refusals from validateScheduledReminders said in words, a timed habit nesting its clock times under the same switch; checklist items as real inputs that retype in place, each duplicable, removable and draggable, up to 50 with the cap stated where it bites, and the person’s own templates, load one, save the current items under a name (absent while the list is empty), delete one through ListRow’s real per-row action; sub habits up to 20; the bad habit toggle with its line; the slip alert, plan gated; tags up to 5 as plain word pills with no colour dot, since colour as data is dead; goal linking, ungated; end date; description. The editable date group precedes the disclosure; the create action remains in the pinned footer. Colour swatches stay deleted.</p>
+      <p><span style="color:var(--fg-3)">disclosure&nbsp;&nbsp;</span>ONE disclosure, closed by default, holding creation’s ten sections in this order: exact time as a TimeField with the any-time hint; reminders, which are two things, offset chips over the ten shipping presets plus a custom number and unit when a due time exists, with the LAST offset locked and its reason beside it because reminders on with nothing set is a lie, and absolute clock times when none, each added through a small form whose add waits for a time, at most 5, with both refusals from validateScheduledReminders said in words, a timed habit nesting its clock times under the same switch; checklist items as real inputs that retype in place, each duplicable, removable and draggable, up to 50 with the cap stated where it bites, and the person’s own templates, load one, save the current items under a name (absent while the list is empty), delete one through ListRow’s real per-row action; sub habits up to 20; the bad habit toggle with its line; the slip alert, plan gated; tags up to 5 as plain word pills with no colour dot, since colour as data is dead; goal linking, ungated; end date. Description is directly below the name, before conditional blocks (#1607). The editable date group precedes the disclosure; the create action remains in the pinned footer. Colour swatches stay deleted.</p>
       <p><span style="color:var(--fg-3)">plan&nbsp;&nbsp;</span>free is the default because it is the account most people have and the harder case to get right. The slip alert on free is a row carrying the Pro badge that ROUTES to the upgrade, never a disabled control and never a silent tap; on Pro it is the real switch with its shield glyph, its label and its description, and it turns on and off. The goal link stays ungated on both sides: D70 moved goals out of the paywall, and a gate a decision removed does not come back. Every gated tap leaves this document for Orbit Pro through one route. The daily ceiling is a different kind of boundary, an allowance and not a plan: it quiets the one ask with the reason stated in the notice beside it.</p>
       <p><span style="color:var(--fg-3)">date&nbsp;&nbsp;</span>Editable account-calendar date before More details. A task writes its due date; a dated habit writes its start anchor. General stays undated. Local phrases spend no message. Explicit Astra dates remain Proposed until accepted or manually selected. Invalid or unresolved text validates visibly and retains the calendar.</p>
       <p><span style="color:var(--fg-3)">weekly&nbsp;&nbsp;</span>When routes only toda semana, todas as semanas, semanalmente, every week and weekly to fixed Every week for a deliberate dated Habit, preserving its chosen date and entered words. The existing schedule shows Week 1 without another summary or Astra attribution. Task retains its type and date with one input-owned recovery, To repeat, choose Habit. / Para repetir, escolha Hábito. Blocked Submit focuses the actual type group. Manual controls, clearing or replacing the phrase remain available; later decisions and reopening never replay recognition. General stays undated, mixed wording is not guessed and old date proposals are retired.</p>
       <p><span style="color:var(--fg-3)">limit&nbsp;&nbsp;</span>creating a habit spends nothing from the daily Astra allowance. The live read is local. The one path that spends a message is the fallback ask, through SuggestHabitSetupCommand.cs:35, so the ceiling stops that one action and nothing else. The notice states the allowance, the ask stands beside it disabled, and the pills, the stepper, the details and the create action all stay live, so a habit can still be created with no model call at all.</p>
-      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32, gap only. 44 is the touch token for the pills, the stepper, the chips and the disclosure rows. The field is 92 tall with 16 of padding on every side: the microphone and its 60px end reserve are gone, because the app has no voice control on this form. use-speech-to-text.ts is imported by the chat composer, the copilot rail and the composer hook, and by nothing under components/habits, so voice stays where it lives, in the shell composer.</p>
+      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32, gap only. 48 is the touch token for the pills, the stepper, the chips and the disclosure rows. The field starts at the standard 54px minimum, with 16 inline and 12 block padding; it grows with its matching mirror: the microphone and its 60px end reserve are gone, because the app has no voice control on this form. use-speech-to-text.ts is imported by the chat composer, the copilot rail and the composer hook, and by nothing under components/habits, so voice stays where it lives, in the shell composer.</p>
       <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>8 on the marked words and chips, 12 on the field, the wells and the notice, 20 on the preview panel, 28 on the shell, 999 on interactive.</p>
       <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>412: the create action is the one filled action; the focused field ring and a selected day pill are current position, the pill taking the selected tint and ring rather than a fill because a day is a state, not an action. Wide: the sidebar carries no create button on this surface, since duplicating this screen's own action is exactly the doubling the accent budget forbids, so the create action keeps the fill there too. Nothing here marks completion.</p>
       <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. primary-soft only on the canvas at 4.58:1, which is why the nav item is the only coloured label. Light status-overdue #7D5700 measures 6.219:1 on #FAFAFA and 4.874:1 on hover, with white on it at 6.491:1, unused on this screen. fg-3 on the hovered dark row measures 4.57:1 since the .13 amendment closed that limit.</p>
@@ -319,16 +322,16 @@ const T = {
     lblField: 'O que você quer acompanhar',
     placeholder: 'Correr 3 vezes por semana',
     understood: 'O Orbit entendeu',
-    understoodAstra: 'O Astra entendeu',
-    proposedBy: 'Proposto pelo Astra',
-    emojiLabel: 'Emoji proposto pelo Astra',
+    understoodAstra: 'A Astra entendeu',
+    proposedBy: 'Proposto pela Astra',
+    emojiLabel: 'Emoji proposto pela Astra',
     days: 'Dias da semana',
     dayOn: (d) => PT_DAY[d] + ', ativo', dayOff: (d) => PT_DAY[d] + ', inativo',
     count: 'Vezes por semana', less: 'Menos vezes', more: 'Mais vezes',
     unresolved: 'O Orbit não encontrou a frequência nesta frase. Escolha os dias ou um número de vezes por semana.',
-    ask: 'Pedir ao Astra', askCost: ['Usa 1 das ', '5', ' mensagens de hoje.'],
-    limit: ['As ', '5', ' mensagens de hoje foram usadas. O Orbit lê a frase no aparelho, e criar um hábito não usa mensagem: só pedir ao Astra usa. Escolha os dias ou um número de vezes por semana.'],
-    parsing: 'O Astra está lendo a frase',
+    ask: 'Consultar Astra', askCost: ['Usa 1 das ', '5', ' mensagens de hoje.'],
+    limit: ['As ', '5', ' mensagens de hoje foram usadas. O Orbit lê a frase no aparelho, e criar um hábito não usa mensagem: só consultar a Astra usa. Escolha os dias ou um número de vezes por semana.'],
+    parsing: 'A Astra está lendo a frase',
     more2: 'Mais detalhes',
     fTime: 'Hora exata', fTimeHint: 'Deixe vazio para qualquer hora do dia',
     fRemind: 'Lembretes', fEnd: 'Data de término', fEndPlaceholder: '31/12/2026', fDesc: 'Descrição',
@@ -353,6 +356,7 @@ const T = {
     fSlip: 'Alerta de deslize', fSlipDesc: 'Um aviso quando o hábito começa a falhar.',
     fTags: 'Etiquetas', fAddTag: 'Adicionar etiqueta', tagCap: 'O limite é 5 etiquetas.',
     fGoal: 'Ligar a uma meta', goalNone: 'Nenhuma', goalTitle: 'Metas', goals: ['Correr 10 km', 'Manhã sem pressa'],
+    fParent: 'Hábito principal', parentRoot: 'Sem hábito principal (nível raiz)', parents: ['Leitura', 'Rotina da manhã'], editTitle: 'Editar hábito', save: 'Salvar',
     cancel: 'Cancelar',
     emoTitle: 'Escolher emoji', emoWell: 'Escolher emoji', emoSearch: 'Buscar emoji', emoClear: 'Limpar a busca',
     emoNone: 'Nenhum emoji com esse nome',
@@ -360,8 +364,8 @@ const T = {
     createWhy: 'Escreva o que você quer acompanhar.',
     breakdown: 'O que tem dentro',
     subs: ['Louça', 'Roupa lavada', 'Banheiro'],
-    fromChat: 'Veio da sua conversa com o Astra.',
-    fromAstra: 'O Astra propôs este hábito. Nada foi criado ainda.',
+    fromChat: 'Veio da sua conversa com a Astra.',
+    fromAstra: 'A Astra propôs este hábito. Nada foi criado ainda.',
     fixed: (days, time, x) => [['toda ', 0], [joinDays(days, PT_DAY, 'e'), 0]].concat(time ? [[' às ', 0], [time, 1]] : []),
     daily: (time) => [['todo dia', 0]].concat(time ? [[' às ', 0], [time, 1]] : []),
     flex: (q, time) => [[String(q), 1], [' vezes por semana, qualquer dia', 0]].concat(time ? [[', às ', 0], [time, 1]] : []),
@@ -409,6 +413,7 @@ const T = {
     fSlip: 'Slip alert', fSlipDesc: 'A heads-up when the habit starts to slip.',
     fTags: 'Tags', fAddTag: 'Add a tag', tagCap: 'The limit is 5 tags.',
     fGoal: 'Link to a goal', goalNone: 'None', goalTitle: 'Goals', goals: ['Run 10 km', 'Calm mornings'],
+    fParent: 'Parent habit', parentRoot: 'No parent (top level)', parents: ['Reading', 'Morning routine'], editTitle: 'Edit habit', save: 'Save',
     cancel: 'Cancel',
     emoTitle: 'Choose an emoji', emoWell: 'Choose an emoji', emoSearch: 'Search emoji', emoClear: 'Clear the search',
     emoNone: 'No emoji with that name',
@@ -456,12 +461,12 @@ const EMO = [
 
 class Component extends DCLogic {
   state = { itemType: null, selectedDate: '2026-08-17', datePhrase: '', dateCandidate: null, dateAccepted: false, scheduleMode: 'fixed', mode: 'dark', width: '412', st: 'typed', loc: 'pt-BR', plan: 'free',
-    text: null, days: null, qty: null, resolved: null, disc: null, phase: null,
+    description: '', text: null, days: null, qty: null, resolved: null, disc: null, phase: null,
     cEmoji: null, emoOpen: false, emoQ: '', emoCat: null,
     fTime: null, remOn: true, remSel: [0, 15], remCustom: [], cNum: '45', cUnit: 'min', sched: [], schedForm: null,
     ckItems: [], ckInput: '', tplOpen: false, tplList: null, tplSaving: false, tplName: '',
     subsOwn: [], subInput: '', tags: [], tagInput: '',
-    badOn: false, slipOn: false, goalOpen: false, goalSel: -1 };
+    badOn: false, slipOn: false, goalOpen: false, goalSel: -1, parentOpen: false, parentSel: -1 };
 
   componentDidMount() {
     if (!window.OrbitDesignSystem_918bd5) {
@@ -474,13 +479,13 @@ class Component extends DCLogic {
 
   onCC = (next) => {
     clearTimeout(this._akT);
-    this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale, plan: next.plan || 'free', dateCandidate: null, dateAccepted: false,
-      text: null, days: null, qty: null, resolved: null, disc: null, phase: null,
+    this.setState({ ...(next.state === 'edit' ? { itemType: 'habit' } : {}), mode: next.mode, width: next.width, st: next.state, loc: next.locale, plan: next.plan || 'free', dateCandidate: null, dateAccepted: false,
+      description: '', text: null, days: null, qty: null, resolved: null, disc: null, phase: null,
       cEmoji: null, emoOpen: false, emoQ: '', emoCat: null,
       fTime: null, remOn: true, remSel: [0, 15], remCustom: [], cNum: '45', cUnit: 'min', sched: [], schedForm: null,
       ckItems: [], ckInput: '', tplOpen: false, tplList: null, tplSaving: false, tplName: '',
       subsOwn: [], subInput: '', tags: [], tagInput: '',
-      badOn: false, slipOn: false, goalOpen: false, goalSel: -1 });
+      badOn: false, slipOn: false, goalOpen: false, goalSel: -1, parentOpen: false, parentSel: -1 });
   };
 
   pick = (d, days) => this.setState((p) => {
@@ -588,7 +593,7 @@ class Component extends DCLogic {
               onClick: () => this.setState({ schedForm: { time: '', when: 'same_day', err: null } }) })));
   }
   /* Everything else behind the ONE disclosure, in creation's order: when it happens, how it reminds,
-     what is inside it, what kind it is, how it is watched, how it is filed, when it ends, prose last. */
+     what is inside it, what kind it is, how it is watched, how it is filed, when it ends. Prose follows the name above the disclosure (#1607). */
   scheduleNode(x) {
     const D = window.OrbitDesignSystem_918bd5;
     const s = this.state;
@@ -617,7 +622,7 @@ class Component extends DCLogic {
       H('label', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
         H('span', null, english ? 'When' : 'Quando'),
         H('span', { style: { fontSize: 14, color: 'var(--fg-3)' } }, s.itemType === 'habit' ? (english ? 'When do you want to start?' : 'Quando você quer começar?') : (english ? 'When do you want to do this?' : 'Quando você quer fazer isso?')),
-        H('input', { value: s.datePhrase, onChange: (event) => this.setState({ datePhrase: event.target.value, dateCandidate: null, dateAccepted: true }), style: { padding: 16, minHeight: 54, background: 'var(--bg-field)', color: 'var(--fg-1)', borderRadius: 12, border: 0 } })),
+        H('input', { placeholder: english ? 'In your own words' : 'Escreva do seu jeito', value: s.datePhrase, onChange: (event) => this.setState({ datePhrase: event.target.value, dateCandidate: null, dateAccepted: true }), style: { padding: 16, minHeight: 54, background: 'var(--bg-field)', color: 'var(--fg-1)', borderRadius: 12, border: 0 } })),
       H('label', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
         H('span', null, pickerLabel),
         H(D.Proposed, { scope: 'field', proposed: !!candidate, label: proposalLabel },
@@ -629,7 +634,7 @@ class Component extends DCLogic {
         H(D.Button, { variant: 'ghost', size: 'sm', style: { width: 'auto' }, onClick: () => this.setState({ selectedDate: candidate, datePhrase: '', dateCandidate: null, dateAccepted: true }) }, english ? 'Use date' : 'Usar data')) : null,
       !candidate && s.datePhrase ? H('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 16 } },
         atLimit ? H(D.CapacityNotice, { message: H(F, null, x.limit[0], mock(x.limit[1]), x.limit[2]) }) : null,
-        H(D.Button, { variant: 'ghost', size: 'sm', disabled: atLimit, onClick: () => this.setState({ dateCandidate: '2026-08-26', dateAccepted: false }) }, english ? 'Ask Astra' : 'Consultar Astra'),
+        H(D.Button, { variant: 'ghost', size: 'sm', disabled: atLimit, onClick: () => this.setState({ dateCandidate: '2026-08-26', dateAccepted: false }) }, H('span', { 'aria-hidden': true }, H(D.AstraGlyph, { size: 16 })), english ? 'Ask Astra' : 'Consultar Astra'),
         H('p', { style: { fontSize: 12, color: 'var(--fg-3)' } }, x.askCost[0], mock(x.askCost[1]), x.askCost[2])) : null);
   }
   discNode(x, parsedTime) {
@@ -735,6 +740,7 @@ class Component extends DCLogic {
             const v = (this.state.tagInput || '').trim();
             if (v) this.setState((p) => ({ tags: p.tags.indexOf(v) >= 0 ? p.tags : p.tags.concat([v]).slice(0, 5), tagInput: '' }));
           }));
+    const parent = s.st === 'edit' ? H(D.ListRow, { title: x.fParent, value: s.parentSel < 0 ? x.parentRoot : x.parents[s.parentSel], chevron: true, onClick: () => this.setState({ parentOpen: true }) }) : null;
     const goal = H('div', { style: { marginInline: -16 } },
       H(D.ListRow, { icon: 'target', title: x.fGoal, value: s.goalSel >= 0 ? x.goals[s.goalSel] : x.goalNone,
         chevron: true, onClick: () => this.setState({ goalOpen: true }) }));
@@ -743,9 +749,9 @@ class Component extends DCLogic {
       !(s.itemType === 'habit' && s.scheduleMode === 'general') ? H(D.TimeField, { label: x.fTime, value: time, hint: x.fTimeHint,
         onChange: (v) => this.setState({ fTime: v }) }) : null,
       !(s.itemType === 'habit' && s.scheduleMode === 'general') ? reminders : null, checklist, subs,
-      !(s.itemType === 'habit' && s.scheduleMode === 'general') ? badRow : null, !(s.itemType === 'habit' && s.scheduleMode === 'general') ? slip : null, tags, goal,
+      !(s.itemType === 'habit' && s.scheduleMode === 'general') ? badRow : null, !(s.itemType === 'habit' && s.scheduleMode === 'general') ? slip : null, parent, tags, goal,
       s.itemType === 'habit' && !(s.itemType === 'habit' && s.scheduleMode === 'general') ? H(D.Input, { label: x.fEnd, placeholder: x.fEndPlaceholder }) : null,
-      H(D.Input, { label: x.fDesc, placeholder: '' }));
+      null);
   }
   /* Saved checklist templates: the person's own. Load one, save the current items under a name (absent
      while the list is empty), delete one through ListRow's real per-row action. */
@@ -778,6 +784,14 @@ class Component extends DCLogic {
               onPress: () => this.setState({ tplList: list.filter((q2, j) => j !== i) }) },
             onClick: () => { this.ckAppend(tp.items); this.setState({ tplOpen: false, tplSaving: false }); } })))));
   }
+  parentSheet(x) {
+    const D = window.OrbitDesignSystem_918bd5;
+    return H(D.Sheet, { open: true, title: x.fParent, onClose: () => this.setState({ parentOpen: false }) },
+      H('div', { role: 'radiogroup', 'aria-label': x.fParent },
+        H(D.RadioRow, { label: x.parentRoot, selected: this.state.parentSel < 0, onSelect: () => this.setState({ parentSel: -1 }) }),
+        x.parents.map((name, index) => H(D.RadioRow, { key: index, label: name, selected: this.state.parentSel === index, onSelect: () => this.setState({ parentSel: index }) }))));
+  }
+
   goalSheet(x) {
     const D = window.OrbitDesignSystem_918bd5;
     const close = () => this.setState({ goalOpen: false });
@@ -833,12 +847,12 @@ class Component extends DCLogic {
     const base = {
       mode: s.mode, lang: t.lang, onCC: this.onCC,
       cc: { mode: s.mode, width: s.width, state: st, locale: s.loc, plan: s.plan },
-      stateAxis: ['date proposed', 'empty', 'typed', 'resolved', 'unresolved', 'from chat', 'proposed', 'details', 'parsing', 'at limit'],
+      stateAxis: ['date proposed', 'empty', 'typed', 'resolved', 'unresolved', 'from chat', 'proposed', 'details', 'parsing', 'at limit', 'edit'],
       planAxis: ['free', 'Pro'],
       is412: s.width === '412', isWide: s.width === 'wide',
       n3: 3, n18: 18, n20: 20, no: false, noop: () => {},
       showReport: this.props.showReport !== false,
-      title: t.title, lblField: t.lblField, placeholder: t.placeholder,
+      title: st === 'edit' ? t.editTitle : t.title, lblField: t.lblField, placeholder: t.placeholder,
       backLabel: t.back, navLabelWord: t.navLabel, paletteWord: t.palette,
     };
     if (!D) return base;
@@ -863,7 +877,7 @@ class Component extends DCLogic {
     const qty = s.qty != null ? s.qty : (parsed.qty || 3);
     const mode = s.days != null ? (days.length ? 'fixed' : 'flex') : parsed.mode;
     const resolved = s.resolved != null ? s.resolved : st === 'resolved';
-    const discOpen = s.disc != null ? s.disc : st === 'details';
+    const discOpen = s.disc != null ? s.disc : st === 'details' || st === 'edit';
     const seedDays = st === 'resolved' && s.days == null ? [1, 3, 5] : days;
     const useDays = s.days != null ? days : seedDays;
     const useMode = (st === 'resolved' && s.days == null) ? 'fixed' : mode;
@@ -924,21 +938,24 @@ class Component extends DCLogic {
             H('button', { type: 'button', 'aria-label': t.emoWell, onClick: () => this.setState({ emoOpen: true, emoQ: '', emoCat: null }),
               style: { width: 48, minHeight: 48, borderRadius: 12, border: 0, background: 'var(--bg-well)', color: 'var(--fg-2)', fontSize: 22 } },
               s.cEmoji || parsed.emoji || H(D.Icon, { name: 'plus', size: 20 }))) : null,
-      typeField: H('section', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+      typeField: H('section', { 'data-form-type': '', style: { display: 'flex', flexDirection: 'column', gap: 8 } },
         H('p', { style: { fontSize: 14, color: 'var(--fg-2)' } }, t.lang === 'en' ? 'Type' : 'Tipo'),
         H('div', { role: 'radiogroup', 'aria-label': t.lang === 'en' ? 'Type' : 'Tipo' },
           H(D.RadioRow, { label: t.lang === 'en' ? 'One-time task' : 'Tarefa única', selected: s.itemType === 'task', onSelect: () => this.setState({ itemType: 'task', dateCandidate: null, dateAccepted: true }) }),
           H(D.RadioRow, { label: t.lang === 'en' ? 'Habit' : 'Hábito', selected: s.itemType === 'habit', onSelect: () => this.setState({ itemType: 'habit', dateCandidate: null, dateAccepted: true }) }))),
+      astraActionMark: H('span', { 'aria-hidden': true }, H(D.AstraGlyph, { size: 16 })),
+      descriptionField: H(D.Input, { label: t.fDesc, value: s.description, multiline: true, maxLength: 10000, onChange: (event) => this.setState({ description: event.target.value }) }),
       dateField: this.dateNode(t, st === 'date proposed'),
 
       onBack: () => {},
       astraRow: H(window.OrbitNativeMobile.AstraRow),
       navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
       account: t.account,
-      footer: H('div', { style: { paddingInline: 16, display: 'flex', flexDirection: 'column', gap: 8 } },
+      footer: st === 'edit' ? H('div', { style: { display: 'flex', gap: 8, justifyContent: 'flex-end', paddingInline: 16 } }, H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ parentSel: -1 }) }, t.cancel), H(D.Button, { size: 'sm', onClick: () => {} }, t.save)) : H('div', { style: { paddingInline: 16, display: 'flex', flexDirection: 'column', gap: 8 } },
         H(D.Button, { disabled: isEmpty, onClick: () => {}, style: { width: '100%' } }, t.create),
         isEmpty ? H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', textAlign: 'center' } }, t.createWhy) : null),
-      sheet: s.emoOpen ? this.emojiSheet(t, t.lang)
+      sheet: s.parentOpen ? this.parentSheet(t)
+        : s.emoOpen ? this.emojiSheet(t, t.lang)
         : s.tplOpen ? this.tplNode(t)
         : s.goalOpen ? this.goalSheet(t)
         : null,

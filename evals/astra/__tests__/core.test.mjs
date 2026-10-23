@@ -4,16 +4,22 @@ import { parse } from 'yaml'
 import { behavior, structural } from '../assertions.mjs'
 import parseResponse from '../response.mjs'
 import { summarize } from '../report.mjs'
+import { toolCall } from './fixtures/producer.mjs'
 
 const catalog = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
 const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
-const call = (name, arguments_, overrides = {}) => ({ name, arguments: arguments_, resultStatus: 'ok', result: {}, ...overrides })
-// This envelope belongs to this harness. It is not a fixture for an unshipped API field.
+let callNumber = 0
+const call = (name, arguments_, overrides = {}) => {
+  const writes = catalog.find((tool) => tool.function.name === name)?.writes
+  const produced = toolCall(name, arguments_, writes ? 'PendingConfirmation' : 'Succeeded', `call-${++callNumber}`)
+  const { status, ...fields } = produced
+  return { ...fields, resultStatus: status, ...overrides }
+}
 const envelope = (calls) => ({ answer: 'Done.', trace: {
   state: 'available', requestId: 'local-request', responseRequestId: 'local-request', calls,
 } })
 const context = (expectations) => ({
-  vars: { expectations }, test: { vars: {} }, provider: { config: { tools: catalog } },
+  vars: { expectations, evalRequestId: 'local-request' }, test: { vars: {} }, provider: { config: { tools: catalog } },
 })
 const attempt = (id, success = true, skipped = false) => ({
   testCase: { metadata: { id } }, success,
@@ -39,7 +45,7 @@ describe('production scenario mutation scope', () => {
       const calls = (vars.expectations.required ?? []).map((required) => call(required.name,
         exampleArguments(required.argumentsAnyOf?.[0] ?? required.arguments ?? {})))
       const output = { ...envelope(calls), httpStatus: vars.expectedHttpStatus ?? 200 }
-      const scenarioContext = { ...context(vars.expectations), vars }
+      const scenarioContext = { ...context(vars.expectations), vars: { ...vars, evalRequestId: 'local-request' } }
       expect(behavior(output, scenarioContext).pass).toBe(true)
       const extra = vars.expectations.required?.some((required) => required.name === 'update_habit')
         ? call('log_habit', { habit_id: '{secondHabitId}' })
@@ -100,19 +106,20 @@ describe('production scenario mutation scope', () => {
 })
 
 describe('tool evidence', () => {
-  it('skips unverified API trace fields with an explicit reason', () => {
+  it('fails unavailable API trace evidence with an explicit reason', () => {
     const response = parseResponse({ aiMessage: 'Hello' })
-    expect(behavior(response, context({}))).toMatchObject({ pass: true, metadata: { skipped: true } })
-    expect(response.trace.reason).toContain('#1573')
+    expect(behavior(response, context({}))).toMatchObject({ pass: false, metadata: { unavailable: true } })
+    expect(response.trace.state).toBe('unavailable')
   })
   it.each([{}, { aiMessage: null }, { aiMessage: '' }, { aiMessage: ' ' }])('rejects missing final text: %j', (response) => {
-    expect(() => parseResponse(response)).toThrow('aiMessage')
+    expect(parseResponse(response)).toEqual({ error: 'Astra did not return a nonempty aiMessage final answer.' })
   })
   it('grades a budget refusal only in a case expecting the verified HTTP outcome', () => {
-    const output = parseResponse({ error: 'Daily AI message limit reached.', errorCode: 'PAY_GATE' }, '', { response: { status: 403 } })
-    expect(behavior(output, { vars: { expectedHttpStatus: 403, expectations: {} } }).pass).toBe(true)
+    const output = parseResponse({ error: 'Daily AI message limit reached.', errorCode: 'PAY_GATE' }, '', { response: { status: 403, headers: { 'x-orbit-request-id': 'local-request' } } })
+    expect(behavior(output, { vars: { evalRequestId: 'local-request', expectedHttpStatus: 403, expectations: { allowed: [] } } }).pass).toBe(true)
     expect(behavior(output, context({})).pass).toBe(false)
-    expect(() => parseResponse({ error: 'Denied', errorCode: 'NO_PERMISSION' }, '', { response: { status: 403 } })).toThrow('unexpected refusal')
+    expect(parseResponse({ error: 'Denied', errorCode: 'NO_PERMISSION' }, '', { response: { status: 403 } }))
+      .toEqual({ error: 'Astra returned an unexpected refusal.' })
   })
   it('matches a compound operation in either order', () => {
     const calls = [call('update_habit', { habit_id: 'first', title: '  CAMINHADA  diária ' }), call('skip_habit', { habit_id: 'second' })]
@@ -138,10 +145,14 @@ describe('tool evidence', () => {
       { name: 'create_habit', arguments: { frequency_unit: 'Day' } },
     ] })).pass).toBe(false)
   })
-  it('checks result payloads and status when expected', () => {
-    const expectations = { required: [{ name: 'log_habit', resultStatus: 'ok', result: { applied: true } }] }
-    expect(behavior(envelope([call('log_habit', {})]), context(expectations)).pass).toBe(false)
-    expect(behavior(envelope([call('log_habit', {}, { result: { applied: true } })]), context(expectations)).pass).toBe(true)
+  it('checks source-derived result text, null payload and status when expected', () => {
+    const expectations = { required: [{ name: 'query_habits', resultStatus: 'Succeeded', result: {
+      entityName: 'No habits found matching the given filters.', payload: null,
+    } }] }
+    const matching = call('query_habits', {})
+    expect(behavior(envelope([matching]), context(expectations)).pass).toBe(true)
+    matching.result.entityName = 'A different result'
+    expect(behavior(envelope([matching]), context(expectations)).pass).toBe(false)
   })
   it('matches one bulk call with an unordered ID set', () => {
     const expectations = { required: [{ name: 'bulk_log_habits', arguments: { habit_ids: ['first', 'second'] } }],
@@ -178,9 +189,9 @@ describe('tool evidence', () => {
     expect((await structural(envelope([call('log_habit', {})]), context({}))).pass).toBe(false)
     expect((await structural(envelope([call('invented_tool', {})]), context({}))).pass).toBe(false)
   })
-  it('accepts a genuine no-tool answer and skips missing trace separately', async () => {
+  it('accepts a genuine no-tool answer and rejects missing trace separately', async () => {
     expect((await structural(envelope([]), context({}))).pass).toBe(true)
-    expect(await structural(parseResponse({ aiMessage: 'Hello' }), context({}))).toMatchObject({ metadata: { skipped: true } })
+    expect(await structural(parseResponse({ aiMessage: 'Hello' }), context({}))).toMatchObject({ pass: false, metadata: { unavailable: true } })
   })
 })
 
@@ -193,6 +204,13 @@ describe('pass^3 gate', () => {
     const summary = summarize([attempt('a', true, true), attempt('a'), attempt('a')], ['a'])
     expect(summary.status).toBe('incomplete')
     expect(summary.cases[0]).toMatchObject({ pass3: 'incomplete', skipped: 1 })
+  })
+  it('reports unavailable evidence as incomplete and preserves independent rubric failures', () => {
+    const unavailable = attempt('a', false)
+    unavailable.gradingResult.componentResults = [{ pass: false, metadata: { unavailable: true } }]
+    expect(summarize([unavailable, attempt('a'), attempt('a')], ['a']).status).toBe('incomplete')
+    unavailable.gradingResult.componentResults.push({ pass: false })
+    expect(summarize([unavailable, attempt('a'), attempt('a')], ['a']).status).toBe('fail')
   })
   it('detects missing, extra, or absent cases', () => {
     expect(summarize([attempt('a'), attempt('a')], ['a']).status).toBe('incomplete')

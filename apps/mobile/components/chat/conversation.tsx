@@ -14,7 +14,7 @@ import {
   type ListRenderItem,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useChatNavigation } from "@/hooks/use-chat-navigation";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types";
 import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
@@ -99,13 +99,13 @@ function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{
   if (!pendingIdea?.id.startsWith('prompt-library:')) return null;
   return <View style={{ paddingHorizontal: SPACING.s16 }}>
     {hasDraft ? <Text accessibilityLiveRegion="polite" style={{ fontFamily: 'Geist_400Regular', fontSize: 14, color: tokens.fg3 }}>{t('chat.templates.draftKept')}</Text> : null}
-    <ListRow placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={hasDraft || !!disabledReason} onClick={() => onSelect(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
+    <ListRow accessibilityLabel={findPromptSlot(pendingIdea.prompt) ? undefined : `${pendingIdea.label}, ${t('nav.astra')}`} icon={findPromptSlot(pendingIdea.prompt) ? undefined : <AstraGlyph size={24} />} value={findPromptSlot(pendingIdea.prompt) ? undefined : t('nav.astra')} placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={hasDraft || !!disabledReason} onClick={() => onSelect(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
   </View>;
 }
 
 export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) {
   const { t } = useTranslation();
-  const router = useRouter();
+  const navigate = useChatNavigation();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -250,9 +250,9 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       }
 
       setGoalDrawerOpen(false);
-      router.push({ pathname: "/habits/[id]", params: { id: entityId } });
+      navigate({ pathname: "/habits/[id]", params: { id: entityId } });
     },
-    [router],
+    [navigate],
   );
 
   /* WHY: selectedGoalId keeps the presented sheet mounted until native

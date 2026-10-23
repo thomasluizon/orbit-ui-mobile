@@ -2,7 +2,10 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta name="orbit-item-type" content="Full quiet One-time task / Habit or Tarefa única / Hábito below the full-width title, without a badge or type ellipsis. Existing status, count, check and menu remain. Rows grow at large text.">
+<meta name="orbit-astra-action-contract" content="Actual invocation and conversation entry pair AstraGlyph with visible Astra wording in one target. Composer entry and send retain separate intents and wrap at enlarged text (#1607). Deterministic proposal acceptance remains unchanged.">
+<meta name="orbit-item-type" content="Full quiet Task / Habit or Tarefa / Hábito below the full-width title, without a badge or type ellipsis. Existing status, count, check and menu remain. Rows grow at large text.">
+<meta name="orbit-detail-contract" content="Read title, Task/Habit type, facts, selectable description, one immediate completion checklist and sub-habits. One named pencil opens the complete controlled editor with Save and Cancel. Structural clear is editor-only. History, statistics and reminders remain read facts.">
+<meta name="orbit-detail-description-contract" content="Full selectable source and newlines stay visible with no disclosure. Only validated absolute HTTP/HTTPS spans are links, independently named and reachable. Web opens a new tab with noopener noreferrer; native opening failures retain the text and offer Retry. Copy preserves the original source. Check is the sole visible success cue; one visually hidden localized live region announces success. Errors remain visible with manual-copy recovery. Account or description replacement clears stale status.">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="./support.js"></script>
 </head>
@@ -58,17 +61,18 @@ a:hover{color:var(--fg-1)}
 
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
-      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>One surface, two documents: this one is the authority for the habit detail, and Hoje's detail state is the same surface reached from Hoje. The order is the shipping drawer's (habit-detail-drawer.tsx): the header, the interactive checklist, the three numbers, the reminders it holds, the end date, the linked goals, the month calendar and the ask Astra row, with the redesign's strip and slipping line up top, then the editable half behind ONE disclosure, the read-only start-date fact, and delete last.</p>
-      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>holding, slipping, sub habits, checklist, no data, metrics loading, delete, loading, error, at the daily limit. A plan axis sits beside the state, free or Pro, defaulting to free, and it moves exactly three gates: the reschedule, add a sub habit, and the slip alert inside the disclosure. Renaming, the emoji picker, the disclosure, a sub habit as the subject and the delete question are reached by using the screen rather than the axis.</p>
-      <p><span style="color:var(--fg-3)">header&nbsp;&nbsp;</span>a controls row with the 76px emoji well and trailing rename button and 44px header ring, then the full-width name with rename in place, the complete quiet Task/Habit type and its summary below. The name wraps to show the full title. Tags and description follow the header copy with 12px gaps, and the strip follows the last content with 24px. Every tag is a plain word pill. The well IS the emoji control (habit-form-fields.tsx:242 renders HabitEmojiSelector): tapping it opens a picker with a search that clears, the eleven category chips from habit-emoji-options.ts, and a grid; with no emoji the well shows a plus, because here it is an empty control and not a label. The tags lose the shipping colour dot deliberately: colour as data is dead (DESIGN.md:737) and a habit is told apart by its emoji, its name and its ring. The header ring is a real 44px button on HabitRow's pairing, its accessible name the action and its direction, the ring inside it decorative. Logging from here resets the checklist ONLY under Habit.cs:186-190: a frequency, not flexible, the due date advances; a flexible habit's list does not reset.</p>
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Read and use one habit, then open its complete editor from one named pencil. The read surface retains description, completion, one checklist and sub-habits. More details holds read facts and history. The contextual Astra entry and explicit rescue proposal keep their independent operation boundaries.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>holding, slipping, sub habits, checklist, no data, metrics loading, delete, loading, error, at the daily limit. A plan axis sits beside the state, free or Pro, defaulting to free, and it moves exactly two gates: the reschedule and the slip alert inside the editor. Sub-habit creation is available on every plan. Renaming, the emoji picker, the disclosure, a sub habit as the subject and the delete question are reached by using the screen rather than the axis.</p>
+      <p><span style="color:var(--fg-3)">header&nbsp;&nbsp;</span>A static emoji well and completion control share the controls row with one type-aware Edit habit or Edit task pencil. The full-width title is a reading heading. Plain Task/Habit type and useful schedule or due facts follow it. Stored description is selectable prose with its source and line breaks. Title and emoji edits belong to the full editor.</p>
+      <p><span style="color:var(--fg-3)">description&nbsp;&nbsp;</span>The complete source remains directly visible without expand or collapse. Valid absolute HTTP/HTTPS spans are independent underlined links, preserving every source character and wrapping long URLs at enlarged text. Unsupported or malformed destinations stay inert. Web links use a new tab with noopener noreferrer; native opening failures retain the source and offer Retry. Copy description copies the original source. Its Check is the only visible success cue, with one visually hidden localized announcement; pending, visible failure and manual-selection recovery remain. Account or description changes clear feedback. This read-content amendment leaves inert row previews and the controlled editor unchanged.</p>
       <p><span style="color:var(--fg-3)">strip&nbsp;&nbsp;</span>DayStrip in its habit scope, 30 days, the same period as the third number, so the picture and the number describe one window. A freeze marks a user and a date (StreakFreeze.Create), never a habit, so frozen is absent from the habit union and no snowflake can appear here; the freeze lives on Progresso where the day is the subject.</p>
       <p><span style="color:var(--fg-3)">numbers&nbsp;&nbsp;</span>the shipping three (HabitDetailStatsGrid): the current streak, labelled free of relapse on a habit to avoid, the longest streak, and the 30 day rate, which IS monthlyCompletionRate (HabitMetricsCalculator.cs:29). Three states: the numbers, the same card with a loading value in each of its three rows, and ONE centred no data line when metrics is null, never three zeros. The card renders only when the habit has a frequency or is a general one, so a one time task draws none.</p>
       <p><span style="color:var(--fg-3)">slipping&nbsp;&nbsp;</span>drawn from the numbers, not a status: the streak at zero, the rate down, nothing logged for three days. The line names the circumstance and never the person, and it carries no red. The reschedule appears only here, because the app offers it only on an overdue habit (habit-list.tsx:906), and it needs Pro (reschedule-sheet.tsx:119): on Pro it is a proposal carrying its reason, with accept and not now; on free the same place carries the upgrade route in the shipping sheet's words, never an empty space.</p>
-      <p><span style="color:var(--fg-3)">checklist&nbsp;&nbsp;</span>ONE list with two jobs, never drawn twice at once. In the open part it is interactive: a progress bar with the mono count, uncheck everything appearing only once something is checked, clear asking first, and the last item checked on an unlogged habit asking whether to log the habit now. While the disclosure is open the same list is creation's editable one, where an item is retyped in place, duplicated, removed or dragged, with saved templates in a listed sheet. The reset rule line renders only where Habit.cs makes it true.</p>
-      <p><span style="color:var(--fg-3)">inside&nbsp;&nbsp;</span>each child is a HabitRow at depth 1 whose ring logs through onLog, a real sibling button; its body makes it the subject of this screen with the parent one step back, and its overflow holds log, open and delete. A child with its own children drills rather than nesting a third level inline. Add a sub habit follows the plan (startAddSubHabit, habit-list.tsx:702): on free the row carries the Pro badge and leaves for the upgrade; on Pro it would open creation, which lives in Hoje's create surface.</p>
+      <p><span style="color:var(--fg-3)">checklist&nbsp;&nbsp;</span>One read checklist. Its body and checkbox complete the same item exactly once. Uncheck all remains immediate, including the existing final-item log question. Labels wrap in full, so readable text has no disclosure arrow. Structure, duplication, deletion, clear and real reorder belong to the draft editor. Each checked value travels with its item.</p>
+      <p><span style="color:var(--fg-3)">inside&nbsp;&nbsp;</span>each child is a HabitRow at depth 1 whose ring logs through onLog, a real sibling button; its body makes it the subject of this screen with the parent one step back, and its overflow holds log, open and delete. A child with its own children drills rather than nesting a third level inline. Add a sub habit opens creation on every plan, using Hoje's create surface without a Pro badge or upgrade route.</p>
       <p><span style="color:var(--fg-3)">goals&nbsp;&nbsp;</span>linked goals are plain rows that leave for the goal in Progresso, one per linked goal. The manual progress stepper is deleted from this screen: the app does not edit goal progress here, and D69 item 8 gave goals to Progresso. The reasoning that produced it, only GoalType.Streak can derive and every other goal moves by hand, is kept for Progresso's own round as ticket #340.</p>
       <p><span style="color:var(--fg-3)">calendar&nbsp;&nbsp;</span>the whole history as a month of DayCells under MonthGrid: month back and forward, days outside the month shown as such, future days future, and a logged day tappable, answering when it was logged. The strip answers whether this one is holding right now; the calendar answers what it has looked like.</p>
-      <p><span style="color:var(--fg-3)">disclosure&nbsp;&nbsp;</span>the editable half is creation's field set (edit-habit-modal.tsx:262 renders the same HabitFormFields creation renders), behind one disclosure in creation's order: exact time, reminders, checklist items, the bad habit toggle, the slip alert, tags, goal linking, end date, description. Reminders are two things: offset chips over the ten shipping presets with a custom entry when a due time exists, absolute clock times capped at 5 when none, nested with no second switch when both. Sub habits are the one exception to the order: they already hold their own section in the open part doing both jobs, so the disclosure does not draw a second, smaller version. Manual cadence edits stay inside the disclosure. The read-only start-date fact here carries no immutable-form-date claim; create and edit forms put an editable date before their details disclosure. Delete is last.</p>
+      <p><span style="color:var(--fg-3)">disclosure&nbsp;&nbsp;</span>More details contains read facts. The pencil opens the existing full form in a sheet at compact and wide widths. It retains type, title, emoji, editable start or due date, fixed/count/General cadence, exact and end time, every reminder, checklist/templates, tags/goals, end-date clear, description and avoidance/slip constraints. Save commits the habit draft together; Cancel restores its persisted read view. Explicit shared-object management remains independently committed. Pending Save keeps its name. Rejection retains the draft. Transport uncertainty is stated and reconciled by real readback; native accepted queue work remains waiting to sync.</p>
       <p><span style="color:var(--fg-3)">plan&nbsp;&nbsp;</span>free is the default because it is the account most people have and the harder case to get right. Every gated tap leaves this document for Orbit Pro through one route; a gated affordance is never a disabled control and never a silent no-op. The goal link stays ungated on both sides: D70 moved goals out of the paywall, and a gate a decision removed does not come back.</p>
       <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>412: one filled action, the reschedule's accept on Pro and the upgrade button on free, only in the slipping state; otherwise none. A selected day pill takes the tint and ring. Completion is neutral everywhere: the done disc, the checked box and a finished arc are fg-1. Wide: the sidebar create is the one filled action, so the body's filled steps down to the neutral secondary.</p>
       <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11 hover, 6.09 pressed. status-bad marks only the delete row and the destructive menu item. The strip's missed ring uses status-empty, dark #8B8B8E and light #7E7E82, which both clear 3:1 on every reachable composed surface. Overdue states itself in words in the slipping line, never colour alone.</p>
@@ -316,7 +320,7 @@ const T = {
 class Component extends DCLogic {
   state = { mode: 'dark', width: '412', st: 'holding', loc: 'pt-BR', plan: 'free',
     stack: [], logs: {}, mLoading: false, reschedGone: false, confirm: false,
-    editing: false, days: null, dtDescOpen: false, disc: false, childMenu: null,
+    editing: false, editorOpen: false, editSnapshot: null, names: {}, days: null, dtDescOpen: false, disc: false, childMenu: null,
     emo: {}, emoOpen: false, emoQ: '', emoCat: null,
     checks: {}, itemsOv: {}, cleared: {}, clearAsk: false, logNow: false,
     calM: { y: 2026, m: 7 }, calSel: null,
@@ -526,6 +530,38 @@ class Component extends DCLogic {
 
   /* Creation's field set behind the one disclosure, seeded from the subject. Sub habits are the one
      exception: they hold their own section in the open part, doing both jobs. */
+  openEditor = () => {
+    const snapshot = JSON.parse(JSON.stringify(this.state));
+    const id = this.subjId();
+    const lang = this.state.loc === 'en' ? 'en' : 'pt';
+    this.setState({ editSnapshot: snapshot, editorOpen: true, editName: this.state.names[id] || HB[id][lang] });
+  };
+  cancelEditor = () => {
+    const snapshot = this.state.editSnapshot;
+    this.setState(Object.assign({}, snapshot, { editorOpen: false, editSnapshot: null, tplList: this.state.tplList }));
+  };
+  saveEditor = () => {
+    const id = this.subjId();
+    this.setState((previous) => ({ names: Object.assign({}, previous.names, { [id]: previous.editName }), editorOpen: false, editSnapshot: null }));
+  };
+  editorSheet(t, id, h) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const english = t.lang === 'en';
+    const title = h.oneTime ? (english ? 'Edit task' : 'Editar tarefa') : (english ? 'Edit habit' : 'Editar hábito');
+    return H(D.Sheet, { open: true, title, onClose: this.cancelEditor,
+      actions: H(F, null,
+        H(D.Button, { variant: 'ghost', size: 'sm', onClick: this.cancelEditor }, english ? 'Cancel' : 'Cancelar'),
+        H(D.Button, { size: 'sm', onClick: this.saveEditor }, english ? 'Save' : 'Salvar')) },
+      H('div', { style: { display: 'flex', flexDirection: 'column', gap: 24 } },
+        H(D.RadioRow, { label: english ? 'One-time task' : 'Tarefa única', selected: this.state.editTask === undefined ? !!h.oneTime : this.state.editTask, onSelect: () => this.setState({ editTask: true }) }),
+        H(D.RadioRow, { label: english ? 'Habit' : 'Hábito', selected: this.state.editTask === undefined ? !h.oneTime : !this.state.editTask, onSelect: () => this.setState({ editTask: false }) }),
+        H(D.Input, { label: title, value: this.state.editName, onChange: (editName) => this.setState({ editName }) }),
+        H('label', null, h.oneTime ? (english ? 'Do on' : 'Fazer em') : (english ? 'Starts on' : 'Começar em'), H('input', { type: 'date', value: this.state.editDate || BASE.toISOString().slice(0, 10), onChange: (event) => this.setState({ editDate: event.target.value }) })),
+        H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ emoOpen: true, emoQ: '', emoCat: null }) }, english ? 'Emoji' : 'Emoji'),
+        this.dayPills(this.state.days || h.days || [], t, (day) => this.setState((previous) => ({ days: (previous.days || h.days || []).includes(day) ? (previous.days || h.days || []).filter((value) => value !== day) : (previous.days || h.days || []).concat([day]) }))),
+        this.discNode(t, id, h)));
+  }
+
   discNode(t, id, h) {
     const D = window.OrbitDesignSystem_918bd5;
     const s = this.state;
@@ -775,7 +811,7 @@ class Component extends DCLogic {
     const id = this.subjId();
     const h = HB[id] || {};
     const lang = t.lang === 'en' ? 'en' : 'pt';
-    const name = h[lang] || '';
+    const name = s.names[id] || h[lang] || '';
     const emoji = s.emo[id] !== undefined ? s.emo[id] : (h.e || null);
     const days = s.days != null ? s.days : (h.days || [0, 1, 2, 3, 4, 5, 6]);
     const slipping = !!h.slip && !s.stack.length;
@@ -798,14 +834,13 @@ class Component extends DCLogic {
     const out = [];
     out.push(H('div', { key: 'head', style: { display: 'flex', flexDirection: 'column', gap: 12 } },
       H('div', { style: { display: 'flex', alignItems: 'center', gap: 12 } },
-        H('button', { type: 'button', 'aria-label': x.emoWellLabel(name),
-          onClick: () => this.setState({ emoOpen: true, emoQ: '', emoCat: null }),
+        H('div', { 'aria-hidden': 'true',
           style: { width: 76, height: 76, flex: '0 0 auto', borderRadius: 'var(--r-well)', background: 'var(--bg-well)',
             border: 0, cursor: 'pointer', display: 'grid', placeItems: 'center', fontSize: 34, color: 'var(--fg-3)' } },
           emoji ? H('span', { 'aria-hidden': 'true' }, emoji) : H(D.Icon, { name: 'plus', size: 24 })),
         H('div', { style: { flex: 1 } }),
-        H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.rename,
-          onClick: () => this.setState({ editing: true }),
+        H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': h.oneTime ? (t.lang === 'en' ? 'Edit task' : 'Editar tarefa') : (t.lang === 'en' ? 'Edit habit' : 'Editar hábito'),
+          onClick: this.openEditor,
           style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none', flex: '0 0 auto' } },
           H(D.Icon, { name: 'pencil', size: 20 })),
         H('button', { type: 'button', 'aria-label': logged ? x.ringUnlog(name) : x.ringLog(name), onClick: fireHeader,
@@ -813,26 +848,16 @@ class Component extends DCLogic {
             borderRadius: 'var(--r-pill)', background: 'var(--p-transparent)', border: 0, cursor: 'pointer' } },
           H('span', { 'aria-hidden': 'true', style: { display: 'grid', placeItems: 'center' } }, ringNode))),
       H('div', { style: { width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 } },
-        s.editing
-          ? H('div', { style: { display: 'flex', alignItems: 'flex-end', gap: 8 } },
-              H('div', { style: { flex: 1, minWidth: 0 } },
-                H(D.Input, { defaultValue: name, 'aria-label': x.rename, autoFocus: true })),
-              H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ editing: false }) }, x.done))
-          : H('p', { style: { fontFamily: 'var(--font-display)', fontSize: s.width === 'wide' ? 28 : 22, fontWeight: 500,
-              letterSpacing: '-0.02em', lineHeight: 1.4, whiteSpace: 'normal', overflowWrap: 'anywhere' } }, name),
-        H('p', { style: { fontSize: 12, color: 'var(--fg-3)', whiteSpace: 'normal' } }, h.oneTime ? (t.lang === 'en' ? 'One-time task' : 'Tarefa única') : (t.lang === 'en' ? 'Habit' : 'Hábito')),
+        H('h1', { style: { fontFamily: 'var(--font-display)', fontSize: s.width === 'wide' ? 28 : 22, fontWeight: 500,
+          letterSpacing: '-0.02em', lineHeight: 1.4, whiteSpace: 'normal', overflowWrap: 'anywhere' } }, name),
+        H('p', { style: { fontSize: 12, color: 'var(--fg-3)', whiteSpace: 'normal' } }, h.oneTime ? (t.lang === 'en' ? 'Task' : 'Tarefa') : (t.lang === 'en' ? 'Habit' : 'Hábito')),
         H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
           fontVariantNumeric: 'tabular-nums' } }, sum))));
     if (h.tags) out.push(H('div', { key: 'tags', style: { display: 'flex', flexWrap: 'wrap', gap: 8, paddingTop: 12 } },
       h.tags[lang].map((tag, i) => H('span', { key: i, style: { height: 28, display: 'inline-flex', alignItems: 'center',
         paddingInline: 10, borderRadius: 'var(--r-chip)', background: 'var(--bg-well)', color: 'var(--fg-2)',
         fontSize: 'var(--fs-xs)', boxShadow: 'inset 0 0 0 1px var(--hairline)' } }, tag))));
-    if (h.desc) out.push(H('button', { key: 'desc', type: 'button', 'aria-label': x.dDescOpen, 'aria-expanded': s.dtDescOpen,
-      onClick: () => this.setState({ dtDescOpen: !s.dtDescOpen }),
-      style: { background: 'var(--p-transparent)', border: 0, padding: 0, marginTop: 12, cursor: 'pointer', textAlign: 'start',
-        fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5,
-        overflow: s.dtDescOpen ? 'visible' : 'hidden', textOverflow: 'ellipsis',
-        whiteSpace: s.dtDescOpen ? 'normal' : 'nowrap', maxWidth: '100%' } }, h.desc[lang]));
+    if (h.desc) out.push(H('p', { key: 'desc', style: { paddingTop: 12, fontSize: 16, lineHeight: 1.55, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', userSelect: 'text', color: 'var(--fg-2)' } }, h.desc[lang]));
     const strip = stripFor(h.days || null, slipping, t.intl);
     out.push(H('div', { key: 'strip', style: { display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 24 } },
       H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, x.holding),
@@ -868,7 +893,7 @@ class Component extends DCLogic {
               H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ reschedGone: true }) }, x.notNow))));
     }
     const label = (txt) => H('p', { style: { fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--fg-2)' } }, txt);
-    const items = h.chk && !s.cleared[id] && !s.disc ? this.itemsOf(id) : null;
+    const items = h.chk && !s.cleared[id] ? this.itemsOf(id) : null;
     if (items && items.length) {
       const checked = this.checksOf(id);
       const c = checked.filter(Boolean).length;
@@ -882,9 +907,7 @@ class Component extends DCLogic {
             fontVariantNumeric: 'tabular-nums' } }, mock(c), '/', mock(items.length)),
           c > 0 ? H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.dUncheck,
             onClick: () => setChecked(items.map(() => false)),
-            style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } }, H(D.Icon, { name: 'deselect', size: 20 })) : null,
-          H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.dClear, onClick: () => this.setState({ clearAsk: true }),
-            style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } }, H(D.Icon, { name: 'trash', size: 20 }))),
+            style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } }, H(D.Icon, { name: 'deselect', size: 20 })) : null),
         H('div', { style: { display: 'flex', flexDirection: 'column' } },
           items.map((it, i) => H(D.CheckRow, { key: i, label: it, checked: !!checked[i],
             onChange: (nx) => {
@@ -944,7 +967,7 @@ class Component extends DCLogic {
             const nm = kh[lang];
             const kst = this.statusOf(kk);
             const kEmoji = s.emo[kk] !== undefined ? s.emo[kk] : (kh.e || undefined);
-            return H(D.HabitRow, { key: kk, icon: kEmoji || undefined, title: nm, depth: 1, meta: kh.oneTime ? (t.lang === 'en' ? 'One-time task' : 'Tarefa única') : (t.lang === 'en' ? 'Habit' : 'Hábito'),
+            return H(D.HabitRow, { key: kk, icon: kEmoji || undefined, title: nm, depth: 1, meta: kh.oneTime ? (t.lang === 'en' ? 'Task' : 'Tarefa') : (t.lang === 'en' ? 'Habit' : 'Hábito'),
               status: kst, statusLabel: x.status[kst],
               onLog: () => this.toggle(kk),
               logLabel: kst === 'done' ? x.ringUnlog(nm) : x.ringLog(nm),
@@ -954,8 +977,7 @@ class Component extends DCLogic {
           })),
         H('div', { style: { marginInline: -16 } },
           H(window.OrbitNativeMobile.ListRow, { icon: 'plus', title: x.fAddSub, chevron: false,
-            trailing: s.plan === 'Pro' ? undefined : H(window.OrbitNativeMobile.Badge, null, 'Pro'),
-            onClick: () => { if (this.state.plan === 'Pro') window.location.href = encodeURI('Orbit Hoje.dc.html'); else this.goPro(); } }))));
+            onClick: () => { window.location.href = encodeURI('Orbit Hoje.dc.html'); } }))));
     }
     rest.push(this.activityNode(t, id, h));
     rest.push(H('button', { key: 'astra', type: 'button', onClick: this.goConv,
@@ -976,7 +998,7 @@ class Component extends DCLogic {
     rest.push(H('div', { key: 'disc', style: { display: 'flex', flexDirection: 'column', gap: 12 } },
       H(window.OrbitNativeMobile.ListRow, { icon: s.disc ? 'chevron-down' : 'chevron-right', title: x.moreDetails, chevron: false,
         onClick: () => this.setState({ disc: !s.disc }) }),
-      s.disc ? H(F, null, cadence, this.discNode(t, id, h)) : null));
+      s.disc ? H('p', { style: { fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' } }, h.freq[lang]) : null));
     rest.push(H('div', { key: 'start', style: { marginInline: -16 } },
       H(D.DateRow, { label: x.startLabel, value: BASE.toLocaleDateString(t.intl, { day: 'numeric', month: 'long' }) })));
     rest.push(H('div', { key: 'del', style: { marginInline: -16 } },
@@ -1021,6 +1043,7 @@ class Component extends DCLogic {
         onChipPress: this.goConv, onOpen: this.goConv, onAttach: this.goConv, onVoice: this.goConv,
       }),
       sheet: s.emoOpen ? this.emojiSheet(t)
+        : s.editorOpen ? this.editorSheet(t, id, kh)
         : s.tplOpen ? this.tplNode(t)
         : s.goalOpen ? this.goalSheet(t)
         : s.childMenu ? (() => {

@@ -8,7 +8,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
@@ -42,6 +42,7 @@ const testTranslations: Record<string, string> = {
 
 function translateTestValue(key: string, values?: Record<string, unknown>): string {
   const messages = formLocale.language === 'en' ? en : ptBR
+  if (key === 'habits.form.datePhrasePlaceholder') return messages.habits.form.datePhrasePlaceholder
   const dateTemplate = formLocale.realDateCopy && ['habits.form.datePhraseUnresolved', 'habits.form.dateProposed', 'habits.form.dateConfirmationRequired'].includes(key)
     ? Object.entries(messages.habits.form).find(([name]) => key === `habits.form.${name}`)?.[1]
     : undefined
@@ -84,7 +85,7 @@ vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: modalFeedback.create, isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateHabit: () => ({ mutateAsync: modalFeedback.update, isPending: false }),
-  useHabitDetail: () => ({ data: null, isPending: false, error: null }),
+  useHabitDetail: () => ({ data: null, isPending: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) }),
 }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-tags', () => ({
@@ -178,6 +179,29 @@ function renderForm(
 }
 
 describe('HabitFormFields', () => {
+  it.each(['en', 'pt-BR'])('keeps natural date guidance and a single selected date in %s', (locale) => {
+    formLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    renderForm(createFormHelpers({ itemType: 'task' }))
+    expect(screen.getByRole('textbox', { name: 'habits.form.datePhrase' })).toHaveAttribute('placeholder', messages.habits.form.datePhrasePlaceholder)
+    expect(screen.queryByText(/^common.selectedDate/)).toBeNull()
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('keeps one full description directly after the name with details open %s', (expanded) => {
+    const description = 'Long description\n'.repeat(500)
+    const helpers = createFormHelpers({ title: 'Read', description })
+    renderForm(helpers, undefined, expanded)
+    const fields = screen.getAllByRole('textbox')
+    expect(fields[0]).toHaveAccessibleName('habits.form.describe')
+    expect(fields[1]).toHaveAccessibleName('habits.form.description')
+    expect(fields[1]).toHaveValue(description)
+    expect(fields[1]).toHaveAttribute('maxlength', '10000')
+    expect(screen.getAllByRole('textbox', { name: 'habits.form.description' })).toHaveLength(1)
+    fireEvent.change(fields[1]!, { target: { value: 'Edited description' } })
+    expect(helpers.form.getValues('description')).toBe('Edited description')
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     formLocale.language = 'en'
@@ -196,13 +220,14 @@ describe('HabitFormFields', () => {
     mockProfileState.hasProAccess = hasProAccess
     renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
     expect(screen.queryByText('sub-habit-editor')).toBeTruthy()
+    expect(screen.getByText('goal-linking')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /common\.upgrade/ }) !== null).toBe(false)
   })
 
   it.each(['', '   ', 'Swim'])('reaches the emoji action without replacing setup for title %j', async (title) => {
     const onSuggestEmoji = vi.fn().mockResolvedValue(SETUP_PROPOSAL)
     renderForm(createFormHelpers({ title }), undefined, false, false, null, undefined, { onSuggestEmoji })
-    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggest' })
+    const button = screen.getByRole('button', { name: 'habits.form.emoji: habits.form.askDate' })
     expect(button.hasAttribute('disabled')).toBe(!title.trim())
     if (title.trim()) {
       const user = userEvent.setup()
@@ -221,13 +246,14 @@ describe('HabitFormFields', () => {
     const emojiOptions = { onSuggestEmoji, isEmojiSuggesting: false }
     const view = renderForm(createFormHelpers({ title: 'Swim', frequencyUnit: 'Day', frequencyQuantity: 1 }), undefined, false, false, null, undefined, emojiOptions)
     const user = userEvent.setup()
-    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggest' })
+    const button = screen.getByRole('button', { name: 'habits.form.emoji: habits.form.askDate' })
     button.focus()
     await user.keyboard('{Enter}')
     emojiOptions.isEmojiSuggesting = true
     view.rerenderForm(true)
-    const busy = screen.getByRole('button', { name: 'habits.form.emojiSuggesting' })
+    const busy = screen.getByRole('button', { name: 'habits.form.emoji: habits.form.askDate' })
     expect(busy).toBe(button)
+    expect(busy.querySelector('[data-asset^="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
     expect(busy).toHaveAttribute('aria-busy', 'true')
     expect(busy).not.toBeDisabled()
     expect(busy).toHaveAttribute('aria-disabled', 'true')
@@ -239,7 +265,7 @@ describe('HabitFormFields', () => {
     await act(async () => { complete(SETUP_PROPOSAL); await pending })
     emojiOptions.isEmojiSuggesting = false
     view.rerenderForm()
-    expect(screen.getByRole('button', { name: 'habits.form.emojiSuggest' })).toBe(button)
+    expect(screen.getByRole('button', { name: 'habits.form.emoji: habits.form.askDate' })).toBe(button)
     expect(button.closest('[data-proposed]')).toBeInTheDocument()
     expect(moveFocus ? phrase : button).toHaveFocus()
   })
@@ -247,7 +273,7 @@ describe('HabitFormFields', () => {
   it('keeps the emoji request visible and busy while blocking competing emoji edits', () => {
     const onSuggestEmoji = vi.fn()
     renderForm(createFormHelpers({ title: 'Swim', frequencyUnit: 'Day', frequencyQuantity: 1 }), undefined, false, false, null, undefined, { onSuggestEmoji, isEmojiSuggesting: true })
-    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggesting' })
+    const button = screen.getByRole('button', { name: 'habits.form.emoji: habits.form.askDate' })
     expect(button).not.toBeDisabled()
     expect(button).toHaveAttribute('aria-disabled', 'true')
     expect(button).toHaveAttribute('aria-busy', 'true')
@@ -265,7 +291,7 @@ describe('HabitFormFields', () => {
     emojiOptions.emojiSuggestionError = 'Try again'
     view.rerenderForm()
     expect(screen.getByRole('alert')).toBe(alert)
-    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggest' })
+    const button = screen.getByRole('button', { name: 'habits.form.emoji: habits.form.askDate' })
     expect(button).toBeDisabled()
     expect(button.getAttribute('aria-describedby')).toBeTruthy()
     expect(screen.getByRole('alert')).toHaveTextContent('Try again')
@@ -842,17 +868,17 @@ describe('cadence correction transitions', () => {
 })
 
 
-it('reveals the same description failure again after details were collapsed', () => {
+it('focuses the visible description failure without opening details', () => {
   const helpers = createFormHelpers()
   helpers.backendFieldErrors = { description: 'Server description failure' }
   helpers.backendFocusField = 'description'
   helpers.backendFocusRequest = 1
   const view = renderForm(helpers)
-  expect(screen.getByLabelText('habits.form.description').closest('[data-open]')).toHaveAttribute('data-open', 'true')
-  fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+  expect(screen.getByLabelText('habits.form.description')).toHaveFocus()
+  expect(screen.getByRole('button', { name: 'habits.form.moreDetails' })).toHaveAttribute('aria-expanded', 'false')
   helpers.backendFocusRequest = 2
   view.rerenderForm()
-  expect(screen.getByLabelText('habits.form.description').closest('[data-open]')).toHaveAttribute('data-open', 'true')
+  expect(screen.getByLabelText('habits.form.description')).toHaveFocus()
 })
 
 
@@ -902,7 +928,7 @@ it('keeps rejected tag Name validation beside its input in the owning habit edit
 it('exposes tag suggestions from the owning habit form', () => {
   renderForm(createFormHelpers({ title: 'Run', description: 'Outside' }), undefined, true)
   fireEvent.click(screen.getByRole('button', { name: /^habits.form.tags/ }))
-  expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' })).toBeEnabled()
 })
 
 describe('habit tag suggestions', () => {
@@ -943,7 +969,7 @@ describe('habit tag suggestions', () => {
       view.refresh()
       return Promise.resolve()
     })
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
     if (phase === 'settled') await act(async () => complete(proposals))
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'habits.form.deleteTag: Health' })) })
     expect(tagMutations.delete).toHaveBeenCalledWith('existing')
@@ -958,7 +984,7 @@ describe('habit tag suggestions', () => {
     await waitFor(() => {
       expect(screen.getByLabelText('Selected tags')).toHaveTextContent('outdoors')
       expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeEnabled()
-      expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestedTagsLabel')
+      expect(screen.getByRole('status', { name: 'habits.form.tags: habits.form.askDate' })).toHaveTextContent('habits.form.suggestedTagsLabel')
     })
     tagMutations.create.mockResolvedValue({ id: 'created' })
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Reading', pressed: false })) })
@@ -973,14 +999,14 @@ describe('habit tag suggestions', () => {
     tagMutations.suggest.mockImplementation(() => new Promise((resolve) => { complete = resolve }))
     if (phase === 'error') tagMutations.suggest.mockRejectedValueOnce(new Error('Unavailable'))
     renderTagForm()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
     const proposals = { tags: [{ name: 'Reading', color: '#000000', isExisting: false, id: null }] }
     if (phase === 'settled') await act(async () => complete(proposals))
     if (phase === 'error') expect(await screen.findByRole('alert')).toHaveTextContent('habits.form.suggestTagsError')
     fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.searchTags' }), { target: { value: 'Tag 24' } })
     if (phase === 'pending') {
-      expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
-      expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestingTags')
+      expect(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' })).toBeDisabled()
+      expect(screen.getByRole('status', { name: 'habits.form.tags: habits.form.askDate' })).toHaveTextContent('habits.form.suggestingTags')
       await act(async () => complete(proposals))
     }
     if (phase === 'error') expect(screen.getByRole('alert')).toHaveTextContent('habits.form.suggestTagsError')
@@ -1002,12 +1028,12 @@ describe('habit tag suggestions', () => {
       view.refresh()
       return new Promise((resolve, reject) => { complete = resolve; fail = reject })
     })
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Reading', pressed: false }))
     expect(screen.getByRole('textbox', { name: 'habits.form.searchTags' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Outdoors', pressed: false })).toBeDisabled()
-    expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('common.loading')
-    expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
+    expect(screen.getByRole('status', { name: 'habits.form.tags: habits.form.askDate' })).toHaveTextContent('common.loading')
+    expect(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' })).toBeDisabled()
     if (outcome === 'success') {
       await act(async () => complete({ id: 'created' }))
       expect(screen.getByLabelText('Selected tags')).toHaveTextContent('created')
@@ -1034,7 +1060,7 @@ describe('habit tag suggestions', () => {
     ] })
     tagMutations.create.mockResolvedValue({ id: 'created' })
     renderTagForm()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
     expect(await screen.findByRole('group', { name: 'habits.form.suggestedTagsLabel' })).toHaveAttribute('data-proposed')
     expect(tagMutations.suggest).toHaveBeenCalledWith({ title: 'Run', description: 'Outside', language: 'en' })
     expect(screen.getByLabelText('Selected tags')).toHaveTextContent('')
@@ -1053,29 +1079,29 @@ describe('habit tag suggestions', () => {
     tagMutations.suggest.mockImplementation(() => new Promise((complete) => { resolve = complete }))
     formLocale.language = 'pt-BR'
     renderTagForm('Run', '   ')
-    const action = screen.getByRole('button', { name: 'habits.form.suggestTags' })
-    expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="astra-mark"]')).toBeNull()
+    const action = screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' })
+    expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
     fireEvent.click(action)
     expect(action).toBeDisabled()
     expect(action).toHaveAttribute('aria-busy', 'true')
     expect(action).toHaveAccessibleDescription('habits.form.suggestingTags')
-    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestingTags')
+    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.tags: habits.form.askDate' })).toHaveTextContent('habits.form.suggestingTags')
     fireEvent.click(action)
     expect(tagMutations.suggest).toHaveBeenCalledTimes(1)
     expect(tagMutations.suggest).toHaveBeenCalledWith({ title: 'Run', description: null, language: 'pt-BR' })
     await act(async () => resolve({ tags: [] }))
-    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.noTagSuggestions')
+    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.tags: habits.form.askDate' })).toHaveTextContent('habits.form.noTagSuggestions')
     expect(action).toBeEnabled()
-    expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="astra-mark"]')).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
   })
 
   it('shows request failure inline and permits a successful retry', async () => {
     tagMutations.suggest.mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValueOnce({ tags: [] })
     renderTagForm()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('habits.form.suggestTagsError')
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
-    await waitFor(() => expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.noTagSuggestions'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
+    await waitFor(() => expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.tags: habits.form.askDate' })).toHaveTextContent('habits.form.noTagSuggestions'))
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
@@ -1084,11 +1110,11 @@ describe('habit tag suggestions', () => {
     let reject!: (error: Error) => void
     tagMutations.create.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail })).mockResolvedValueOnce({ id: 'created' })
     renderTagForm()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Reading', pressed: false }))
     expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeDisabled()
-    expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('common.loading')
-    expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
+    expect(screen.getByRole('status', { name: 'habits.form.tags: habits.form.askDate' })).toHaveTextContent('common.loading')
+    expect(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' })).toBeDisabled()
     await act(async () => reject(new Error('Unavailable')))
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(screen.getByLabelText('Selected tags')).toBeEmptyDOMElement()
@@ -1098,12 +1124,12 @@ describe('habit tag suggestions', () => {
 
   it.each([['   ', []], ['Run', ['1', '2', '3', '4', '5']]])('disables suggestions with an empty title or full selection: %s', (title, ids) => {
     const view = renderTagForm(title, '', ids)
-    const action = screen.getByRole('button', { name: 'habits.form.suggestTags' })
+    const action = screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' })
     expect(action).toBeDisabled()
     fireEvent.click(action)
     expect(tagMutations.suggest).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'habits.form.newTag' })).toBeInTheDocument()
-    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent(title.trim() ? 'habits.form.tagLimit' : 'habits.form.titleRequired')
+    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.tags: habits.form.askDate' })).toHaveTextContent(title.trim() ? 'habits.form.tagLimit' : 'habits.form.titleRequired')
     if (!title.trim()) {
       view.helpers.testValues.title = 'Run'
       view.refresh()
@@ -1119,7 +1145,7 @@ describe('habit tag suggestions', () => {
       { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
     ] })
     renderTagForm('Run', '', ['1', '2', '3', '4'])
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
     fireEvent.click(within(await screen.findByRole('group', { name: 'habits.form.suggestedTagsLabel' })).getByRole('button', { name: 'Health', pressed: false }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeDisabled())
     expect(tagMutations.create).not.toHaveBeenCalled()
@@ -1129,7 +1155,7 @@ describe('habit tag suggestions', () => {
     let resolve!: (response: { tags: { name: string; color: string; isExisting: boolean; id: null }[] }) => void
     tagMutations.suggest.mockImplementation(() => new Promise((complete) => { resolve = complete }))
     const view = renderTagForm()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
     await act(async () => {
       if (context === 'locale') formLocale.language = 'pt-BR'
       else if (context === 'account') advanceAccountGeneration()
@@ -1139,7 +1165,7 @@ describe('habit tag suggestions', () => {
     if (context === 'returning title') await act(async () => { view.helpers.testValues.title = ' Run '; view.refresh() })
     await act(async () => resolve({ tags: [{ name: 'Outdoors', color: '#7c3aed', isExisting: false, id: null }] }))
     expect(screen.queryByRole('button', { name: 'Outdoors', pressed: false })).toBeNull()
-    expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' })).toBeEnabled()
 
   })
 })
@@ -1567,7 +1593,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
       : <EditHabitModal open onOpenChange={closed} habit={habit} />}</QueryClientProvider>
     const view = render(modal())
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read'))
-    const dialog = screen.getByRole('dialog', { name: owner === 'create' ? 'habits.form.newHabit' : 'habits.editHabit' })
+    const dialog = screen.getByRole('dialog', { name: owner === 'create' ? 'habits.form.newHabit' : type === 'habit' ? 'habits.editHabit' : 'habits.editTask' })
     await waitFor(() => expect(within(dialog).getByRole('button', { name: 'common.close' })).toHaveFocus())
     if (type) fireEvent.click(screen.getByRole('radio', { name: type === 'task' ? 'habits.form.typeTask' : 'habits.form.typeHabit' }))
     return { refresh: () => view.rerender(modal()) }
@@ -1612,6 +1638,49 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     const request = expect.objectContaining({ title: 'Read', frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-20' })
     expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
     expect(modalFeedback.showError).not.toHaveBeenCalled()
+  })
+
+  if (owner === 'create') it.each((['en', 'pt-BR'] as const).flatMap((locale) =>
+    (['task', 'habit'] as const).map((type) => ({ locale, type })),
+  ))('settles title parsing and repeated edits without an update loop for $locale $type', async ({ locale, type }) => {
+    formLocale.language = locale
+    const errors = vi.spyOn(console, 'error').mockImplementation((message: unknown) => {
+      if (/Maximum update depth exceeded|Too many re-renders/i.test(String(message))) throw new Error(String(message))
+    })
+    onTestFinished(() => errors.mockRestore())
+    const view = await mount(type)
+    const user = userEvent.setup()
+    const titleInput = () => screen.getByRole('textbox', { name: 'habits.form.describe' })
+    const initialTitle = locale === 'en' ? 'Read every Monday' : 'Ler toda segunda'
+    const editedTitle = locale === 'en' ? 'Read every Tuesday' : 'Ler toda terça'
+    await user.clear(titleInput())
+    await user.type(titleInput(), initialTitle)
+    expect(titleInput()).toHaveValue(initialTitle)
+    const understanding = () => screen.getByRole('region', { name: 'habits.form.understood' }).textContent
+    const initialUnderstanding = type === 'habit' ? understanding() : null
+    view.refresh()
+    expect(titleInput()).toHaveValue(initialTitle)
+    if (type === 'habit') expect(understanding()).toBe(initialUnderstanding)
+    await user.clear(titleInput())
+    await user.type(titleInput(), editedTitle)
+    expect(titleInput()).toHaveValue(editedTitle)
+    const editedUnderstanding = type === 'habit' ? understanding() : null
+    if (type === 'habit') expect(editedUnderstanding).not.toBe(initialUnderstanding)
+    view.refresh()
+    expect(titleInput()).toHaveValue(editedTitle)
+    if (type === 'habit') expect(understanding()).toBe(editedUnderstanding)
+    await user.clear(phraseInput())
+    await user.type(phraseInput(), locale === 'en' ? 'tomorrow' : 'amanhã')
+    expect(screen.queryByRole('button', { name: 'habits.form.acceptDate' })).toBeNull()
+    await submit()
+    await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+    const request = modalFeedback.create.mock.calls[0]![0]
+    expect(request).toMatchObject({ title: type === 'habit' ? locale === 'en' ? 'Read' : 'Ler' : editedTitle, [type === 'habit' ? 'startDate' : 'dueDate']: '2026-10-21' })
+    if (type === 'habit') expect(request).toMatchObject({ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Tuesday'] })
+    else expect(request.frequencyUnit).toBeUndefined()
+    expect(dateRequests.request).not.toHaveBeenCalled()
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+    expect(errors.mock.calls.flat().join(' ')).not.toMatch(/Maximum update depth exceeded|Too many re-renders/i)
   })
 
   if (owner === 'create') {
@@ -1806,12 +1875,17 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     expect(modalFeedback.showError).not.toHaveBeenCalled()
   })
 
-  it('keeps genuine save failures on the existing global error path', async () => {
+  it('retains failed saves with the owning create error or edit uncertainty', async () => {
     mutation().mockRejectedValueOnce(new Error('save failed'))
     await mount('task')
     await submit()
-    await waitFor(() => expect(modalFeedback.showError).toHaveBeenCalledOnce())
-    expect(modalFeedback.showError).toHaveBeenCalledWith(owner === 'create' ? 'errors.createHabit' : 'errors.updateHabit')
+    if (owner === 'create') {
+      await waitFor(() => expect(modalFeedback.showError).toHaveBeenCalledOnce())
+      expect(modalFeedback.showError).toHaveBeenCalledWith('errors.createHabit')
+    } else {
+      expect(await screen.findByText('habits.form.saveUncertain')).toBeVisible()
+      expect(modalFeedback.showError).not.toHaveBeenCalled()
+    }
     expect(mutation()).toHaveBeenCalledOnce()
     expect(closed).not.toHaveBeenCalled()
     expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read')

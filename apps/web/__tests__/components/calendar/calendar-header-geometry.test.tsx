@@ -1,6 +1,8 @@
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { habitKeys } from '@orbit/shared/query'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { collectSegmentCallSites, segmentTranslation } from '../../../../../packages/shared/src/test-support/segmented-control-inventory'
@@ -421,7 +423,9 @@ describe('Calendar header geometry in Chromium', () => {
   })
 
   it.each([320, 360, 384, 412].flatMap((width) => [{ width, locale: 'en', messages: en }, { width, locale: 'pt-BR', messages: ptBR }]))('fits the goal type sheet container in $locale at $width', async ({ width, locale, messages }) => {
-    render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><CreateGoalSheet open onClose={vi.fn()} /></NextIntlClientProvider>)
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    queryClient.setQueryData(habitKeys.list({}), [])
+    render(<QueryClientProvider client={queryClient}><NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><CreateGoalSheet open onClose={vi.fn()} /></NextIntlClientProvider></QueryClientProvider>)
     const portal = document.querySelector('.orbit-sheet-portal')!
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {

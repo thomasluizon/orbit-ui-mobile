@@ -1,7 +1,8 @@
 import { TypedTextInput } from '@/components/ui/typed-text-input'
+import { useHabitFormInteraction } from './habit-form-interaction'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
-import { useMemo, useState, type Ref } from 'react'
+import { useMemo, useState, type ReactNode, type Ref } from 'react'
 import { StyleSheet, Text, type TextInput, View } from 'react-native'
 import type { HabitUnderstandingProps, HabitRepeatIntervalProps } from '@orbit/shared/utils'
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
@@ -14,6 +15,7 @@ import { HabitEmojiSelector } from './habit-emoji-selector'
 import { createStyles as createFormStyles } from './styles'
 
 type HabitUnderstandingWithDisabledEmojiProps = HabitUnderstandingProps & {
+  children?: ReactNode
   inputRef?: Ref<TextInput>
   isSuggestionDisabled?: boolean
 }
@@ -32,6 +34,7 @@ function useEmojiProposal(onSuggestEmoji: HabitUnderstandingProps['onSuggestEmoj
 }
 
 export function HabitUnderstanding({
+  children,
   inputRef,
   onSuggestEmoji,
   canSuggestEmoji = false,
@@ -59,6 +62,7 @@ export function HabitUnderstanding({
   onQuantityChange,
   labels,
 }: Readonly<HabitUnderstandingWithDisabledEmojiProps>) {
+  const { disabled, guard } = useHabitFormInteraction()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -83,7 +87,7 @@ export function HabitUnderstanding({
         onSuggest={requestEmoji}
         canSuggest={canSuggestEmoji}
         isSuggesting={isEmojiSuggesting}
-        isDisabled={isSuggestionDisabled || isEmojiSuggesting}
+        isDisabled={disabled || isSuggestionDisabled || isEmojiSuggesting}
         suggestionHint={emojiSuggestionHint}
         suggestionError={emojiSuggestionError}
       />
@@ -95,15 +99,16 @@ export function HabitUnderstanding({
       <View style={styles.fieldGroup}>
         <Text style={styles.label}>{labels.field}</Text>
         <View style={[styles.inputLayer, {
-          borderColor: focused ? tokens.primary : tokens.borderControl,
-          borderWidth: focused ? 2 : 1,
+          outlineColor: focused ? tokens.primary : tokens.borderControl,
+          outlineWidth: focused ? 2 : 1,
+          outlineOffset: focused ? -2 : -1,
         }]}>
           <Text aria-hidden pointerEvents="none" style={styles.inputMirror}>
             {hasValue ? segments.map((segment, index) => (
               <Text key={`${segment.text}-${index}`} style={segment.consumed ? styles.consumed : null}>
                 {segment.text}
               </Text>
-            )) : labels.placeholder}
+            )) : labels.placeholder}{'\u200b'}
           </Text>
           <TypedTextInput
             ref={inputRef}
@@ -113,12 +118,13 @@ export function HabitUnderstanding({
             spellCheck={false}
             accessibilityLabel={labels.field}
             accessibilityHint={error}
-            accessibilityState={{ disabled: false }}
+            editable={!disabled}
+            accessibilityState={{ disabled }}
             placeholder={labels.placeholder}
             placeholderTextColor={tokens.fg3}
             selectionColor={tokens.primary}
             style={styles.input}
-            onChangeText={onValueChange}
+            onChangeText={guard(onValueChange)}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
           />
@@ -127,6 +133,8 @@ export function HabitUnderstanding({
           <Text accessibilityRole="alert" style={styles.error}>{error}</Text>
         ) : null}
       </View>
+
+      {children}
 
       {onSuggestEmoji && !showPreview ? emojiControl : null}
 
@@ -160,19 +168,22 @@ function createStyles(tokens: AppTokens) {
     fieldGroup: { gap: 8 },
     label: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 },
     inputLayer: {
-      minHeight: 92,
+      minHeight: 54,
       borderRadius: radius.md,
-      borderWidth: 1,
-      borderColor: tokens.borderControl,
+      outlineWidth: 1,
+      outlineOffset: -1,
+      outlineStyle: 'solid',
+      outlineColor: tokens.borderControl,
       backgroundColor: tokens.bgField,
     },
     inputMirror: {
-      minHeight: 90,
+      minHeight: 54,
       color: 'transparent',
       fontFamily: 'Geist_400Regular',
       fontSize: 16,
       lineHeight: 23,
-      padding: SPACING.s16,
+      paddingHorizontal: SPACING.s16,
+      paddingVertical: SPACING.s12,
     },
     input: {
       position: 'absolute',
@@ -180,11 +191,12 @@ function createStyles(tokens: AppTokens) {
       right: 0,
       bottom: 0,
       left: 0,
-      minHeight: 90,
+      minHeight: 54,
       fontFamily: 'Geist_400Regular',
       fontSize: 16,
       lineHeight: 23,
-      padding: SPACING.s16,
+      paddingHorizontal: SPACING.s16,
+      paddingVertical: SPACING.s12,
       textAlignVertical: 'top',
     },
     consumed: {
@@ -250,6 +262,8 @@ interface ScheduleCorrectionProps extends Pick<HabitUnderstandingProps, 'days' |
 }
 
 function ScheduleCorrections({ hidden = false, proposed = false, days, daily = false, dayOptions, quantity, showCount, scheduleLocked = false, onToggleDay, onQuantityChange, labels, tokens, styles }: Readonly<ScheduleCorrectionProps>) {
+  const { disabled } = useHabitFormInteraction()
+  scheduleLocked = scheduleLocked || disabled
   if (hidden) return null
   return (
     <>
@@ -280,6 +294,8 @@ function ScheduleCorrections({ hidden = false, proposed = false, days, daily = f
 }
 
 export function HabitRepeatInterval({ visible, intervalWeeks, scheduleLocked = false, onIntervalWeeksChange, labels }: Readonly<HabitRepeatIntervalProps>) {
+  const { disabled } = useHabitFormInteraction()
+  scheduleLocked = scheduleLocked || disabled
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const styles = useMemo(() => createStyles(tokens), [tokens])

@@ -77,6 +77,16 @@ describe('BlockFrame on web', () => {
     expect(onRefresh).toHaveBeenCalledOnce()
   })
 
+  it('keeps explicitly safe stale actions beside refresh while withholding write actions', () => {
+    const onDisclose = vi.fn()
+    render(<BlockFrame state="stale" title="Recap" items={[]} staleMessage="The source moved" onRefresh={vi.fn()}
+      actions={<button>Apply</button>} staleActions={<button onClick={onDisclose}>Show more</button>} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Show more' }))
+    expect(onDisclose).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Apply' })).not.toBeInTheDocument()
+  })
+
   it('keeps pending rows editable and status rows fixed', () => {
     const onEditItem = vi.fn()
     const { container } = render(

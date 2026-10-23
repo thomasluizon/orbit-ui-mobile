@@ -53,7 +53,7 @@ for (const width of [412, 1280] as const) {
 
       const composer = page.locator('[data-shell-pinned-slot]')
       if (width < 1024) {
-        await expectHoverOnHitArea(composer.getByRole('button', { name: ptBr.todayAstra.openConversation }), 'pill')
+        await expectHoverOnHitArea(composer.getByRole('button', { name: `${ptBr.todayAstra.openConversation}, ${ptBr.nav.astra}`, exact: true }), 'pill')
         await expectHoverOnHitArea(composer.getByRole('button', { name: ptBr.shell.composer.actions }), 'pill')
         await composer.locator('[data-composer-input]').focus()
       } else {
@@ -68,7 +68,7 @@ for (const width of [412, 1280] as const) {
       const conversationField = conversation.locator('[data-composer-input]')
       await expect(conversationField).toBeFocused()
       await conversationField.fill('Como começo?')
-      await expectHoverOnHitArea(conversation.getByRole('button', { name: ptBr.shell.composer.send }), 'pill')
+      await expectHoverOnHitArea(conversation.getByRole('button', { name: `${ptBr.shell.composer.send}, ${ptBr.habits.form.askDate}`, exact: true }), 'pill')
       await conversation.getByRole('button', { name: ptBr.shell.composer.actions }).click()
       const menu = page.getByRole('menu', { name: ptBr.shell.composer.actions, exact: true })
       for (const label of [ptBr.shell.composer.attach.file, ptBr.shell.composer.attach.image, ptBr.shell.composer.voice.start]) {
@@ -191,7 +191,7 @@ for (const width of [412, 1280] as const) {
         await step.hover()
         await expectFullTouchTarget(step.getByRole('button', { name: label }), 'pill')
       }
-      await expectFullTouchTarget(disclosure.getByRole('button', { name: ptBr.habits.form.clearChecklist, exact: true }), 8)
+      await expectFullTouchTarget(disclosure.getByRole('button', { name: ptBr.habits.form.clearChecklist, exact: true }), 'pill')
       const time = disclosure.getByRole('textbox', { name: ptBr.habits.form.exactTime })
       await time.fill('08:00')
       await time.press('Tab')

@@ -27,6 +27,7 @@ export function usePendingOperationRevision(
   const draft = useMemo(() => editingItemId ? synchronized.drafts[editingItemId] ?? {} : {},
     [editingItemId, synchronized.drafts])
   const [busy, setBusy] = useState(false)
+  const [titleDrafts, setTitleDrafts] = useState<Record<string, string | undefined>>({})
   const [staleFingerprint, setStaleFingerprint] = useState<string | undefined>(savedState?.stale ? initialOperation.previewFingerprint ?? undefined : undefined)
   const [refreshUnavailableFingerprint, setRefreshUnavailableFingerprint] = useState<string | undefined>(savedState?.refreshUnavailable ? initialOperation.previewFingerprint ?? undefined : undefined)
   const [rejectedFingerprint, setRejectedFingerprint] = useState<string | undefined>(savedState?.rejected ? initialOperation.previewFingerprint ?? undefined : undefined)
@@ -92,6 +93,7 @@ export function usePendingOperationRevision(
           ? { ...createPendingOperationRevisionState({ ...current.operation, ...preview }),
               sourceFingerprint: current.sourceFingerprint,
               authorizationVersion: current.authorizationVersion + 1 } : current)
+        setTitleDrafts({})
         setStaleFingerprint(undefined)
         setRefreshUnavailableFingerprint(undefined)
         onSettled?.({ operation: { ...operation, ...preview }, editedItemIds: [], stale: false, refreshUnavailable: false, status: undefined, completedOperation: undefined, canRetry: false })
@@ -125,6 +127,9 @@ export function usePendingOperationRevision(
   return {
     operation, items, canRevise, editingItem, draft, editedItemIds, authorizationVersion: synchronized.authorizationVersion,
     busy, stale, rejected, error, errorSource: currentError?.source,
+    hasTitleDrafts: items.some((item) => titleDrafts[item.itemId] !== undefined
+      && titleDrafts[item.itemId] !== item.fields.find((field) => field.field === 'title')?.newValue),
+    setTitleDraft: (itemId: string, title: string | undefined) => setTitleDrafts((current) => ({ ...current, [itemId]: title })),
     canRefresh: Boolean(onRefresh && !refreshUnavailable), refresh,
     markStale: () => {
       setRevisionError(undefined)
@@ -134,6 +139,7 @@ export function usePendingOperationRevision(
     closeEdit: () => setRevision((current) => ({ ...current, editingItemId: undefined })),
     startEdit,
     saveEdit,
+    renameItem: (itemId: string, title: string) => revise(items, { itemId, values: { title } }),
     rejectItem: (itemId: string) => revise(items.filter((item) => item.itemId !== itemId)),
     rejectAll: () => revise([]),
   }

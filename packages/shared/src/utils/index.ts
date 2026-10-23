@@ -123,6 +123,7 @@ export {
 } from './error-utils'
 export { isFeatureEnabled, resolveFlag } from './config'
 export { getMarkdownImageLabel, stripInlineMarkdown } from './markdown'
+export { splitDescriptionLinks } from './description-links'
 export {
   resolveShellDestination,
   resolveShellChrome,
@@ -216,6 +217,7 @@ export {
   resolveAutoManagedReminderEnabled,
   resolveHabitFormMode,
   toggleSelectedId,
+  selectHabitGoal,
 } from './habit-form-state'
 export type {
   AutoManagedReminderEnabledInput,
@@ -331,6 +333,7 @@ export {
   resolveCalendarEventsDisplayState,
   calendarEntryOutcome,
   isCalendarGridScrollMovement,
+  resolveCalendarGridOpeningScroll,
   orderCalendarDayEntries,
 } from './calendar-entries'
 export type { CalendarEventsDisplayState } from './calendar-entries'
@@ -386,7 +389,7 @@ export {
 } from './time-field'
 export { buildPreferencePickerModel } from './preference-picker'
 export type { PreferencePicker, PreferencePickerModel, PreferencePickerValues } from './preference-picker'
-export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode, withShareLinkOrigin } from './referral'
+export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode, withShareLinkOrigin, selectReferralReward, REFERRAL_REWARD_COPY_KEYS, type ReferralReward } from './referral'
 export {
   canRepeatOnboardingScheduleWeeks,
   clampOnboardingRepeatWeeks,
@@ -817,7 +820,15 @@ export { getSetupChecklist } from './setup-checklist'
 
 export { getSummaryFirstSentence } from './summary-sentence'
 export { deriveBulkLogStreakTransition } from './bulk-log-streak'
+
+export { getGoalProgressCelebration, getGoalStatusCelebration, type GoalMutationInput } from './goal-mutations'
 export { HabitModeDrafts } from './habit-form-state'
 export { HabitDateEditor } from './habit-date-editor'
 export { getHabitRowTypeLabelKey, getHabitTypeLabelKey } from './habit-card-helpers'
 export { readTypedHabitPhrase } from './habit-phrase-parser'
+export { getHabitChecklistProgress } from './habit-checklist-progress'
+
+export { getHabitInlineDepthLimit } from './habit-row-layout'
+
+export { buildMoveParentOptions, getHabitDepth, getSubtreeMaxDepth, isHabitDescendant, validateMoveTarget, getMoveParentInventory, getMoveParentPickerRows, buildEditorParentChange, validateEditorParent, type MoveParentOption, type MoveTargetValidation } from './move-parent'
+export { optimisticMoveHabitParent } from './habit-parent-optimistic'

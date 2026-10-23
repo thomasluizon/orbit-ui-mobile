@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { StrictMode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
@@ -7,11 +7,13 @@ import { PostHogProvider } from '@/components/posthog-provider'
 const mocks = vi.hoisted(() => ({
   useConfig: vi.fn(),
   applyPostHogGate: vi.fn(),
+  capturePwaInstalled: vi.fn(),
 }))
 
 vi.mock('@/hooks/use-config', () => ({ useConfig: mocks.useConfig }))
 vi.mock('@/lib/posthog', () => ({
   applyPostHogGate: mocks.applyPostHogGate,
+  capturePwaInstalled: mocks.capturePwaInstalled,
 }))
 
 describe('web PostHog provider', () => {
@@ -46,4 +48,18 @@ describe('web PostHog provider', () => {
     view.rerender(<PostHogProvider><div>Orbit</div></PostHogProvider>)
     expect(mocks.applyPostHogGate).toHaveBeenLastCalledWith(true)
   })
+  it('captures once per install through strict effects and rerenders, then removes the listener', () => {
+    mocks.useConfig.mockReturnValue({ config: DEFAULT_CONFIG, refetch: vi.fn() })
+    const view = render(<StrictMode><PostHogProvider><div>Orbit</div></PostHogProvider></StrictMode>)
+    window.dispatchEvent(new Event('appinstalled'))
+    expect(mocks.capturePwaInstalled).toHaveBeenCalledTimes(1)
+    view.rerender(<StrictMode><PostHogProvider><div>Hoje</div></PostHogProvider></StrictMode>)
+    expect(mocks.capturePwaInstalled).toHaveBeenCalledTimes(1)
+    window.dispatchEvent(new Event('appinstalled'))
+    expect(mocks.capturePwaInstalled).toHaveBeenCalledTimes(2)
+    view.unmount()
+    window.dispatchEvent(new Event('appinstalled'))
+    expect(mocks.capturePwaInstalled).toHaveBeenCalledTimes(2)
+  })
+
 })

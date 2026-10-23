@@ -64,8 +64,9 @@ export function SharedPendingOperationCard({
       return result
     },
   })
-  const staleRef = useRef(revision.stale)
-  useLayoutEffect(() => { staleRef.current = revision.stale }, [revision.stale])
+  const approvalBlocked = revision.stale || revision.busy || revision.hasTitleDrafts
+  const approvalBlockedRef = useRef(approvalBlocked)
+  useLayoutEffect(() => { approvalBlockedRef.current = approvalBlocked }, [approvalBlocked])
 
   return renderPendingOperationCard({
     card: {
@@ -79,13 +80,13 @@ export function SharedPendingOperationCard({
         if (revision.stale && card.preparedStepUp) card.closeStepUp()
         else card.clearClosingStepUp()
       },
-      execute: async () => { if (!staleRef.current) await card.execute() },
-      startStepUp: async () => { if (!staleRef.current) await card.startStepUp() },
-      setConfirmOpen: (open) => { if (!staleRef.current) card.setConfirmOpen(open) },
+      execute: async () => { if (!approvalBlockedRef.current) await card.execute() },
+      startStepUp: async () => { if (!approvalBlockedRef.current) await card.startStepUp() },
+      setConfirmOpen: (open) => { if (!open || !approvalBlockedRef.current) card.setConfirmOpen(open) },
     },
     labels: labels(revision.operation),
     onVerifyStepUp: async (...args) => {
-      if (staleRef.current || !card.preparedStepUp || !card.isCurrent()) return { ok: false }
+      if (approvalBlockedRef.current || !card.preparedStepUp || !card.isCurrent()) return { ok: false }
       const result = await onVerifyStepUp(...args)
       if (result.stale) { revision.markStale(); onStateChange?.({ stale: true }) }
       return result

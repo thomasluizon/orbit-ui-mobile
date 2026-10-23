@@ -81,7 +81,7 @@ describe('Follow-up conversation geometry in Chromium', () => {
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={pt}>
       <div style={{ width: width >= 1024 ? 380 : width }}><AstraConversation chat={chat} /></div>
     </NextIntlClientProvider>)
-    fireEvent.click(screen.getByRole('button', { name: questions[0] }))
+    fireEvent.click(screen.getByRole('button', { name: `${questions[0]}, Astra` }))
     expect(chat.sendMessage).toHaveBeenCalledWith(questions[0], 'followUp')
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {

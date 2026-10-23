@@ -40,13 +40,6 @@ interface MockDeviceState {
   refresh: ReturnType<typeof vi.fn>
 }
 
-vi.mock('@/components/referral/referral-card', () => ({
-  ReferralCard: ({ onOpen }: { onOpen: () => void; onDismiss?: () => void }) =>
-    React.createElement('ReferralCardStub', {
-      accessibilityRole: 'button',
-      onPress: onOpen,
-    }),
-}))
 
 vi.mock('@/components/referral/referral-drawer', () => ({
   ReferralDrawer: ({ open }: { open: boolean; onClose?: () => void }) =>

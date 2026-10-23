@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { createConfigCache } from '../query/config-cache'
 import { resolveFlag } from '../utils/config'
 import { createMockConfigResponse } from './factories'
+import { createApiClientError } from '../utils/error-utils'
 
-const enabledResponse = () => createMockConfigResponse({ redesign: { enabled: true, planRequirement: null } })
+const enabledResponse = () => createMockConfigResponse({ offline_mode: { enabled: true, planRequirement: null } })
 function createStorage() {
   let stored: string | null = null
   return {
@@ -19,6 +20,18 @@ function deferred<T>() {
 }
 
 describe('account config cache', () => {
+  it('keeps session rejection typed without reporting it as a config failure', async () => {
+    const report = vi.fn()
+    const cache = createConfigCache(report)
+    cache.setAccount('account-a')
+    const rejection = createApiClientError(401, null, 'Unauthorized')
+
+    await expect(cache.fetch(cache.getSnapshot(), async () => { throw rejection })).rejects.toBe(rejection)
+
+    expect(report).not.toHaveBeenCalled()
+    expect(cache.getSnapshot().config).toBeUndefined()
+  })
+
   it('restores a last good value across process instances and retains it after failure', async () => {
     const storage = createStorage()
     const original = createConfigCache(vi.fn(), storage)
@@ -27,7 +40,7 @@ describe('account config cache', () => {
     const restored = createConfigCache(vi.fn(), storage)
     restored.setAccount('account-a')
     await expect(restored.fetch(restored.getSnapshot(), async () => { throw new Error('offline') })).rejects.toThrow('offline')
-    expect(resolveFlag(restored.getSnapshot().config, 'redesign')).toBe(true)
+    expect(resolveFlag(restored.getSnapshot().config, 'offline_mode')).toBe(true)
   })
 
   it('cannot restore the old account when a switch returns to it', async () => {
@@ -38,7 +51,7 @@ describe('account config cache', () => {
     cache.setAccount('account-b')
     cache.setAccount('account-a')
     await expect(cache.fetch(cache.getSnapshot(), async () => { throw new Error('offline') })).rejects.toThrow('offline')
-    expect(resolveFlag(cache.getSnapshot().config, 'redesign')).toBe(false)
+    expect(resolveFlag(cache.getSnapshot().config, 'offline_mode')).toBe(false)
     await expect(storage.read()).resolves.toBeNull()
   })
 
@@ -58,7 +71,7 @@ describe('account config cache', () => {
   it.each(['abort', 'supersede'])('keeps the latest config when an older response completes after %s', async (invalidation) => {
     const storage = createStorage()
     const cache = createConfigCache(vi.fn(), storage)
-    const disabled = createMockConfigResponse({ redesign: { enabled: false, planRequirement: null } })
+    const disabled = createMockConfigResponse({ offline_mode: { enabled: false, planRequirement: null } })
     cache.setAccount('account-a')
     await cache.fetch(cache.getSnapshot(), async () => disabled)
     const olderResponse = deferred<unknown>()
@@ -71,7 +84,7 @@ describe('account config cache', () => {
     olderResponse.resolve(enabledResponse())
     await olderFetch
 
-    expect(resolveFlag(cache.getSnapshot().config, 'redesign')).toBe(false)
+    expect(resolveFlag(cache.getSnapshot().config, 'offline_mode')).toBe(false)
     await expect(storage.read()).resolves.toBe(JSON.stringify({ accountId: 'account-a', config: cache.getSnapshot().config }))
   })
 
@@ -82,7 +95,7 @@ describe('account config cache', () => {
       ...storage,
       write: async (value) => { await pendingSave.promise; await storage.write(value) },
     })
-    const disabled = createMockConfigResponse({ redesign: { enabled: false, planRequirement: null } })
+    const disabled = createMockConfigResponse({ offline_mode: { enabled: false, planRequirement: null } })
     cache.setAccount('account-a')
     await cache.fetch(cache.getSnapshot(), async () => disabled)
     const lastGood = JSON.stringify({ accountId: 'account-a', config: cache.getSnapshot().config })
@@ -144,7 +157,7 @@ describe('account config cache', () => {
     const cache = createConfigCache(report, storage)
     cache.setAccount('account-a')
     await cache.fetch(cache.getSnapshot(), async () => enabledResponse())
-    expect(resolveFlag(cache.getSnapshot().config, 'redesign')).toBe(true)
+    expect(resolveFlag(cache.getSnapshot().config, 'offline_mode')).toBe(true)
     expect(report).toHaveBeenCalled()
   })
 
@@ -156,7 +169,7 @@ describe('account config cache', () => {
     cache.setAccount('account-a')
     await cache.fetch(cache.getSnapshot(), async () => enabledResponse())
     await vi.waitFor(() => expect(report).toHaveBeenCalled())
-    expect(resolveFlag(cache.getSnapshot().config, 'redesign')).toBe(true)
+    expect(resolveFlag(cache.getSnapshot().config, 'offline_mode')).toBe(true)
   })
 
   it('fetches valid config even when both persistent reads and deletion fail', async () => {
@@ -167,7 +180,7 @@ describe('account config cache', () => {
     const cache = createConfigCache(report, storage)
     cache.setAccount('account-a')
     await cache.fetch(cache.getSnapshot(), async () => enabledResponse())
-    expect(resolveFlag(cache.getSnapshot().config, 'redesign')).toBe(true)
+    expect(resolveFlag(cache.getSnapshot().config, 'offline_mode')).toBe(true)
     expect(report).toHaveBeenCalled()
   })
 

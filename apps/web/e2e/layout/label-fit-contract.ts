@@ -1,10 +1,10 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 
 const logicalLabelSelector = [
-  'button:not([data-habit-row-body]):not(.orbit-list-row-body)',
+  'button:not([data-habit-row-body]):not(.orbit-list-row-body):not([data-prompt-idea])',
   '[role="menuitem"]', '[role="tab"]', '[role="radio"]',
-  '[data-slot="list-row-title"]', '[data-slot="list-row-value"]', 'h1', 'h2', 'h3', 'label',
-  '[data-habit-row-meta]',
+  '[data-slot="list-row-title"]', '[data-slot="prompt-idea-title"]', '[data-slot="list-row-value"]', 'h1', 'h2', 'h3', 'label',
+  '[data-habit-row-meta-token]',
   '[data-layout-label]', '[data-personal-text]',
 ].join(', ')
 
@@ -22,7 +22,7 @@ export async function markUserText(page: Page, values: readonly string[]) {
       const owner = node.parentElement!
       if (owner.closest('[data-layout-text-origin="user"]')) continue
       const bounds = owner.getBoundingClientRect()
-      if (owner.closest('svg, [aria-hidden="true"]:not([data-personal-text-visual-copy])') || getComputedStyle(owner).visibility !== 'visible'
+      if (owner.closest('svg, [aria-hidden="true"]:not([data-personal-text-visual-copy]):not([data-habit-row-meta])') || getComputedStyle(owner).visibility !== 'visible'
         || !bounds.width || !bounds.height || bounds.width <= 1) continue
       const field = fields.find((value) => node.textContent.includes(value))
       if (!field) continue
@@ -123,12 +123,12 @@ export async function expectLabelsFit(page: Page, surface: Page | Locator = page
     const userText = new Map<Element, { text: string[]; fragments: DOMRect[]; clipped: boolean; ellipsized: boolean; brokenWords: string[]; unclampedHeading: boolean }>()
     for (const node of nodes) {
       const owner = node.parentElement!
-      if (!node.textContent.trim() || owner.closest('svg, [aria-hidden="true"]:not([data-personal-text-visual-copy])')) continue
+      if (!node.textContent.trim() || owner.closest('svg, [aria-hidden="true"]:not([data-personal-text-visual-copy]):not([data-habit-row-meta])')) continue
       const geometry = measureNode(node)
       if (!geometry) continue
       const userElement = owner.closest('[data-layout-text-origin="user"], [data-personal-text]')
       if (userElement) {
-        const typed = userText.get(userElement) ?? { text: [], fragments: [], clipped: false, ellipsized: false, brokenWords: [], unclampedHeading: userElement.matches('[data-personal-text-unclamped]') && !!userElement.closest('h1 > button') }
+        const typed = userText.get(userElement) ?? { text: [], fragments: [], clipped: false, ellipsized: false, brokenWords: [], unclampedHeading: userElement.matches('[data-personal-text-unclamped]') && !!userElement.closest('h1') }
         typed.text.push(node.textContent.trim())
         typed.brokenWords.push(...wordsBreakingAcrossLines(node))
         typed.fragments.push(...geometry.visibleFragments)

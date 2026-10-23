@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { PillButton } from '@/components/ui/pill-button'
 import { Copy } from '@/components/ui/icons'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { BUTTON_SIZES } from '@orbit/shared/theme'
 import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
 import { createTokensV2, mixHex, radius } from '@/lib/theme'
@@ -43,6 +44,63 @@ function pressableHeight(tree: any): number | undefined {
 }
 
 describe('PillButton (mobile)', () => {
+  it('mounts the moving loader only while the focused Astra action is busy', () => {
+    const onClick = vi.fn()
+    const action = (loading: boolean) => <PillButton variant="ghost" retainLeadingIcon leadingIcon={<AstraGlyph size={16} />} loading={loading} focusableWhenLoading onClick={onClick}>Ask Astra</PillButton>
+    const tree = renderPill(action(false))
+    try {
+      const button = tree.root.findByType('Pressable')
+      TestRenderer.act(() => button.props.onFocus())
+      for (const loading of [false, true, false]) {
+        TestRenderer.act(() => tree.update(action(loading)))
+        const loaders = tree.root.findAllByType('ActivityIndicator')
+        expect(loaders).toHaveLength(loading ? 1 : 0)
+        const statusSlot = tree.root.findByType('View')
+        expect(flattenStyle(statusSlot.props.style)).toMatchObject({ width: BUTTON_SIZES.sm.iconSize, height: BUTTON_SIZES.sm.iconSize })
+        if (loading) expect(loaders[0].props).toMatchObject({ animating: true, size: 'small', color: createTokensV2('purple', theme.mode).fg1 })
+        else expect(statusSlot.children).toHaveLength(0)
+        expect(tree.root.findAllByType(AstraGlyph)).toHaveLength(1)
+        expect(button.props.accessibilityState).toMatchObject({ disabled: false, busy: loading })
+        expect(flattenStyle(button.props.style({ pressed: false })).outlineWidth).toBe(2)
+        if (loading) expect(button.props.onPress).toBeUndefined()
+        else TestRenderer.act(() => button.props.onPress())
+      }
+      expect(onClick).toHaveBeenCalledTimes(2)
+    } finally {
+      TestRenderer.act(() => tree.unmount())
+    }
+  })
+
+  it.each(['dark', 'light'] as const)('replaces the ghost resting stroke only while focused in %s', (mode) => {
+    theme.mode = mode
+    const tokens = createTokensV2('purple', mode)
+    const onFocus = vi.fn()
+    const onBlur = vi.fn()
+    const tree = renderPill(<PillButton variant="ghost" iconOnly minimumHeight={48} label="Edit habit" onFocus={onFocus} onBlur={onBlur}><span /></PillButton>)
+    try {
+      const button = tree.root.findByType('Pressable')
+      const paint = (pressed = false) => flattenStyle(button.props.style({ pressed }))
+      const resting = paint()
+      expect(resting).toMatchObject({ borderWidth: 1.5, borderColor: tokens.hairlineStrong, borderRadius: radius.full, height: 48, width: 48 })
+      expect(button.props.hitSlop).toBeUndefined()
+      TestRenderer.act(() => button.props.onFocus())
+      const focused = paint()
+      expect(focused).toEqual({ ...resting, borderColor: 'transparent', outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.fg1, outlineOffset: 2 })
+      expect(onFocus).toHaveBeenCalledOnce()
+      TestRenderer.act(() => button.props.onHoverIn())
+      expect(paint()).toEqual({ ...focused, backgroundColor: tokens.bgHover })
+      expect(paint(true)).toEqual({ ...focused, backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] })
+      TestRenderer.act(() => button.props.onHoverOut())
+      expect(paint()).toEqual(focused)
+      TestRenderer.act(() => button.props.onBlur())
+      expect(paint()).toEqual(resting)
+      expect(onBlur).toHaveBeenCalledOnce()
+    } finally {
+      TestRenderer.act(() => tree.unmount())
+      theme.mode = 'dark'
+    }
+  })
+
   it.each(['dark', 'light'] as const)('paints the secondary fill and preserves its label in %s', (mode) => {
     theme.mode = mode
     const tokens = createTokensV2('purple', mode)

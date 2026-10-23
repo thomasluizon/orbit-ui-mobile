@@ -1,6 +1,6 @@
 'use client'
 
-import { SPACING } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -8,7 +8,7 @@ import { format } from 'date-fns'
 import type { Locale } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, isCalendarGridScrollMovement, nowDate, orderCalendarDayEntries } from '@orbit/shared/utils'
+import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, isCalendarGridScrollMovement, nowDate, orderCalendarDayEntries, resolveCalendarGridOpeningScroll } from '@orbit/shared/utils'
 
 import { X } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
@@ -30,6 +30,15 @@ const CARD_BG = 'var(--bg-card)'
 const pinnedPaneBackground = {
   backgroundColor: 'var(--bg-elev)',
 } as const
+
+function readGridScroll(node: HTMLDivElement, previous: Readonly<{ top: number; left: number }>) {
+  const movedVertically = isCalendarGridScrollMovement(node.scrollTop, previous.top, node.scrollHeight - node.clientHeight)
+  const clampedTop = !movedVertically && node.scrollTop < previous.top
+  return {
+    moved: movedVertically || isCalendarGridScrollMovement(node.scrollLeft, previous.left, node.scrollWidth - node.clientWidth),
+    position: { top: clampedTop ? previous.top : node.scrollTop, left: node.scrollLeft },
+  }
+}
 
 export interface TimeGridColumn {
   date: Date
@@ -191,6 +200,7 @@ export function CalendarTimeGrid({
   const [disclosure, setDisclosure] = useAccountScopedState<{ entries: CalendarDayEntry[]; title: string } | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const [isPanePinned, setIsPanePinned] = useState(true)
+  const [scrollGeometry, setScrollGeometry] = useState({ snapMargin: 0, trailingSpace: 0 })
   const [now, setNow] = useState<Date>(() => nowDate())
   const nowMinutes = getAccountDateTime(now, timeZone).minutes
 
@@ -220,9 +230,10 @@ export function CalendarTimeGrid({
   const longestHourLabel = Math.max(...HOURS.map((hour) => displayTime(`${String(hour).padStart(2, '0')}:00`).length))
   const gutterWidth = `max(96px, calc(${longestHourLabel}ch + 16px))`
   const columnMinWidth = `${minColumnWidth / 16}rem`
+  const columnSnapStyle = { scrollSnapAlign: 'start', scrollMarginInlineEnd: scrollGeometry.snapMargin } as const
   const columnTrack = `minmax(${columnMinWidth}, 1fr)`
-  const gridTemplate = `${gutterWidth} repeat(${columns.length}, ${columnTrack})`
-  const gridMinWidth = `calc(${gutterWidth} + ${columns.length} * ${columnMinWidth})`
+  const gridTemplate = `${gutterWidth} repeat(${columns.length}, ${columnTrack}) ${scrollGeometry.trailingSpace}px`
+  const gridMinWidth = `calc(${gutterWidth} + ${columns.length} * ${columnMinWidth} + ${scrollGeometry.trailingSpace}px)`
 
   const hasMovedGrid = useRef(false)
   const openingScroll = useRef({ top: 0, left: 0 })
@@ -230,9 +241,9 @@ export function CalendarTimeGrid({
     const node = bodyRef.current
     if (!node) return
     const open = () => {
-      if (isCalendarGridScrollMovement(node.scrollTop, openingScroll.current.top, node.scrollHeight - node.clientHeight)
-        || isCalendarGridScrollMovement(node.scrollLeft, openingScroll.current.left, node.scrollWidth - node.clientWidth)) hasMovedGrid.current = true
-      openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
+      const scroll = readGridScroll(node, openingScroll.current)
+      hasMovedGrid.current ||= scroll.moved
+      openingScroll.current = hasMovedGrid.current ? scroll.position : { top: node.scrollTop, left: node.scrollLeft }
       const paneHeight = node.firstElementChild?.clientHeight ?? 0
       const shouldPin = paneHeight <= node.clientHeight / 2
       if (shouldPin !== isPanePinned) {
@@ -244,17 +255,28 @@ export function CalendarTimeGrid({
       const measuredHour = hourLabels[1]!.offsetTop - hourLabels[0]!.offsetTop
       const scale = measuredHour > 0 ? measuredHour / HOUR_HEIGHT : 1
       const bodyHeight = Math.max(0, node.clientHeight - pinnedHeight)
-      node.style.setProperty('--time-grid-tail', `${Math.max(128 * scale, bodyHeight * 0.75)}px`)
+      const retainedTail = hasMovedGrid.current ? openingScroll.current.top + node.clientHeight - paneHeight - HOURS.length * HOUR_HEIGHT * scale : 0
+      node.style.setProperty('--time-grid-tail', `${Math.max(128 * scale, bodyHeight * 0.75, retainedTail)}px`)
       node.style.scrollPaddingTop = `${pinnedHeight}px`
-      if (hasMovedGrid.current || isLoading || bodyHeight <= 0) return
+      const gutter = node.querySelector<HTMLElement>('[data-testid="time-grid-any-time-label"]')?.parentElement?.clientWidth ?? 0
+      const viewportWidth = node.clientWidth - gutter
+      const measuredColumnWidth = node.querySelector('[data-testid="time-grid-col-header"]')?.getBoundingClientRect().width ?? 0
+      const fitsSnapport = measuredColumnWidth > 0 && measuredColumnWidth <= viewportWidth + INTERACTION_FILL_CLEARANCE
+      node.style.scrollSnapType = fitsSnapport ? 'x mandatory' : 'x proximity'
+      const { trailingSpace } = resolveCalendarGridOpeningScroll(columns.length - 1, minColumnWidth * scale, viewportWidth, columns.length)
+      const snapMargin = fitsSnapport ? -measuredColumnWidth : 0
+      setScrollGeometry((current) => current.snapMargin === snapMargin && current.trailingSpace === trailingSpace ? current : { snapMargin, trailingSpace })
+      if (hasMovedGrid.current) { node.scrollTop = openingScroll.current.top; return }
+      if (isLoading || bodyHeight <= 0) return
       const firstTop = Math.min(7 * HOUR_HEIGHT, ...perColumn.flatMap(({ timed }) => timed.map(({ top }) => top)))
       node.scrollTop = Math.max(0, columns.some(({ isToday }) => isToday)
         ? (getAccountDateTime(nowDate(), timeZone).minutes / 60) * HOUR_HEIGHT * scale - bodyHeight / 4
         : firstTop * scale) + (isPanePinned ? 0 : paneHeight)
       const todayColumn = node.querySelector<HTMLElement>('[data-today="true"]')
-      if (todayColumn) {
-        const gutter = node.querySelector<HTMLElement>('[data-testid="time-grid-any-time-label"]')?.parentElement?.clientWidth ?? 0
-        node.scrollLeft = Math.max(0, todayColumn.offsetLeft - gutter - (node.clientWidth - gutter - todayColumn.clientWidth) / 2)
+      const columnWidth = todayColumn?.getBoundingClientRect().width ?? 0
+      if (todayColumn && columnWidth > 0) {
+        const { left } = resolveCalendarGridOpeningScroll(columns.findIndex(({ isToday }) => isToday), columnWidth, viewportWidth, columns.length)
+        node.scrollLeft = left
       }
       openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
     }
@@ -281,7 +303,7 @@ export function CalendarTimeGrid({
       node.removeEventListener('keydown', preserveOpeningPosition)
       node.removeEventListener('pointerdown', releaseOpeningOnScrollbar)
     }
-  }, [columns, perColumn, timeZone, isLoading, isPanePinned])
+  }, [columns, perColumn, timeZone, isLoading, isPanePinned, minColumnWidth])
 
   const isEmpty =
     !isLoading &&
@@ -305,15 +327,15 @@ export function CalendarTimeGrid({
           ref={bodyRef}
           onScroll={(event) => {
             const node = event.currentTarget
-            if (isCalendarGridScrollMovement(node.scrollTop, openingScroll.current.top, node.scrollHeight - node.clientHeight)
-              || isCalendarGridScrollMovement(node.scrollLeft, openingScroll.current.left, node.scrollWidth - node.clientWidth)) hasMovedGrid.current = true
-            openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
+            const scroll = readGridScroll(node, openingScroll.current)
+            hasMovedGrid.current ||= scroll.moved
+            openingScroll.current = hasMovedGrid.current ? scroll.position : { top: node.scrollTop, left: node.scrollLeft }
           }}
           onWheel={() => { hasMovedGrid.current = true }}
           onTouchMove={() => { hasMovedGrid.current = true }}
           data-testid="time-grid-hour-scroller"
           data-time-grid-scroller=""
-          style={{ ...SCROLLER_VARIABLES, scrollPaddingLeft: gutterWidth, overflowAnchor: 'none', overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
+          style={{ ...SCROLLER_VARIABLES, scrollPaddingLeft: gutterWidth, scrollSnapType: 'x proximity', overflowAnchor: 'none', overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
         >
           <div data-testid="time-grid-day-pane" data-pinning={isPanePinned ? 'pinned' : 'scrolling'} className={`${isPanePinned ? 'sticky top-0' : 'relative'} z-[3]`} style={{ minWidth: gridMinWidth, ...pinnedPaneBackground }}>
             <div
@@ -326,56 +348,58 @@ export function CalendarTimeGrid({
                 style={{ minHeight: HEADER_HEIGHT, borderBottom: '1px solid var(--hairline)', ...pinnedPaneBackground }}
               />
               {perColumn.map(({ column }) => (
-                <button
-                  key={column.dateStr}
-                  type="button"
-                  data-testid="time-grid-col-header"
-                  data-interaction-fill-cell=""
-                  data-focus-inset="panel"
-                  onClick={() => onSelectDay(column.dateStr)}
-                  className="flex flex-col items-center justify-center bg-transparent transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-fast)] [transition-timing-function:var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] motion-safe:active:scale-[0.96]"
-                  style={{
-                    appearance: 'none',
-                    border: 0,
-                    minHeight: HEADER_HEIGHT,
-                    borderLeft: '1px solid var(--hairline)',
-                    borderBottom: '1px solid var(--hairline)',
-                    cursor: 'pointer',
-                    padding: "var(--orbit-space-8) var(--orbit-space-4)",
-                    gap: 4,
-                  }}
-                >
-                  <span
+                <div key={column.dateStr} style={{ ...columnSnapStyle, display: 'flex', boxShadow: 'inset 1px 0 0 var(--hairline), inset 0 -1px 0 var(--hairline)' }}>
+                  <button
+                    type="button"
+                    data-testid="time-grid-col-header"
+                    data-interaction-fill-cell=""
+                    data-focus-inset="panel"
+                    onClick={() => onSelectDay(column.dateStr)}
+                    className="orbit-calendar-week-header group relative flex w-full flex-col items-center justify-center rounded-sm bg-transparent transition-[scale] duration-[var(--dur-fast)] ease-[var(--ease-out)] motion-safe:active:scale-[0.96]"
                     style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      color: 'var(--fg-2)',
+                      appearance: 'none',
+                      border: 0,
+                      minHeight: HEADER_HEIGHT,
+                      cursor: 'pointer',
+                      padding: "var(--orbit-space-8) var(--orbit-space-4)",
+                      gap: 4,
                     }}
                   >
-                    {formatCalendarWeekday(column.dateStr, dateFnsLocale.code)}
-                  </span>
-                  <span
-                    data-testid="time-grid-col-date"
-                    className="inline-flex items-center justify-center rounded-full"
-                    style={{
-                      minWidth: '1.5rem',
-                      minHeight: '1.5rem',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      fontVariantNumeric: 'tabular-nums',
-                      color: column.isToday
-                        ? 'var(--fg-on-primary)'
-                        : column.isFuture
-                          ? 'var(--fg-2)'
-                          : 'var(--fg-1)',
-                      background: column.isToday ? 'var(--primary)' : 'transparent',
-                    }}
-                  >
-                    {format(column.date, 'd', { locale: dateFnsLocale })}
-                  </span>
-                </button>
+                    <span aria-hidden="true" data-press-fill="" className="orbit-calendar-week-header-fill pointer-events-none absolute rounded-[inherit] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:bg-[var(--bg-hover)] group-active:bg-[var(--bg-hover)]"
+                      style={{ inset: INTERACTION_FILL_CLEARANCE }} />
+                    <span
+                      className="relative"
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        color: 'var(--fg-2)',
+                      }}
+                    >
+                      {formatCalendarWeekday(column.dateStr, dateFnsLocale.code)}
+                    </span>
+                    <span
+                      data-testid="time-grid-col-date"
+                      className="relative inline-flex items-center justify-center rounded-full"
+                      style={{
+                        minWidth: '1.5rem',
+                        minHeight: '1.5rem',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        fontVariantNumeric: 'tabular-nums',
+                        color: column.isToday
+                          ? 'var(--fg-on-primary)'
+                          : column.isFuture
+                            ? 'var(--fg-2)'
+                            : 'var(--fg-1)',
+                        background: column.isToday ? 'var(--primary)' : 'transparent',
+                      }}
+                    >
+                      {format(column.date, 'd', { locale: dateFnsLocale })}
+                    </span>
+                  </button>
+                </div>
               ))}
             </div>
 
@@ -406,6 +430,7 @@ export function CalendarTimeGrid({
                     data-date={column.dateStr}
                     className="flex min-w-0 flex-col"
                     style={{
+                      ...columnSnapStyle,
                       gap: 4,
                       minHeight: 64,
                       padding: "var(--orbit-space-8) var(--orbit-space-4)",
@@ -451,6 +476,7 @@ export function CalendarTimeGrid({
                 data-today={column.isToday}
                 data-date={column.dateStr}
                 style={{
+                  ...columnSnapStyle,
                   position: 'relative',
                   height: 'calc(72rem + var(--time-grid-tail, 128px))',
                   minHeight: '80rem',

@@ -2,13 +2,17 @@ import { createRef } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { PresenceContext } from 'motion/react'
-import { NextIntlClientProvider } from 'next-intl'
+import { createTranslator, NextIntlClientProvider } from 'next-intl'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { buildComposerChips } from '@orbit/shared/chat'
 import { toComposerSuggestions, type ComposerProps } from '@orbit/shared/contracts/composer'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { PROMPT_CATEGORIES, PROMPT_TEMPLATES, PROMPT_PRESENTATION } from '@orbit/shared/chat/prompt-library'
+import { findPromptSlot } from '@orbit/shared/chat/composer-controls'
+import { CatalogIdea } from '@/components/chat/prompt-idea'
+import { PromptLibrary } from '@/components/chat/prompt-library'
 import { AstraConversation } from '@/components/chat/conversation'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -136,7 +140,7 @@ it.each(['offline', 'atLimit'] as const)('disables every idea and shows the reas
 it('searches every category in the current language, paginates, and clears a miss', async () => {
   const { PromptLibrary } = await import('@/components/chat/prompt-library')
   render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}><PromptLibrary onBack={vi.fn()} onSelect={vi.fn()} suggestions={[]} hasProAccess hasGoogleConnection /></NextIntlClientProvider>)
-  await waitFor(() => expect(screen.getByRole('heading', { name: 'Começar' })).toBeVisible())
+  await waitFor(() => expect(screen.getByRole('region', { name: 'Começar' })).toBeVisible())
   expect(screen.queryByRole('heading', { name: 'Entender' })).toBeNull()
   const search = screen.getByRole('searchbox', { name: 'Buscar ideias' })
   fireEvent.change(search, { target: { value: 'congelamentos da sequencia' } })
@@ -150,7 +154,7 @@ it('searches every category in the current language, paginates, and clears a mis
   expect(screen.getByText('Nenhuma ideia para “sem resultado”.')).toBeVisible()
   fireEvent.click(screen.getByRole('button', { name: 'Limpar busca' }))
   expect(search).toHaveValue('')
-  expect(screen.getByRole('heading', { name: 'Começar' })).toBeVisible()
+  expect(screen.getByRole('region', { name: 'Começar' })).toBeVisible()
 })
 
 it.each([[false, false], [false, true], [true, false]])('excludes Calendar from the filter and search with Pro %s and Google %s', async (hasProAccess, hasGoogleConnection) => {
@@ -169,12 +173,15 @@ it('renders the live composer labels as rows and reuses their activation', async
   const suggestions = toComposerSuggestions(chips.map(chip => ({ id: chip.id, label: chip.key, onSelect })))
   const { rerender } = render(<NextIntlClientProvider locale="en" messages={en}><PromptLibrary onBack={onBack} onSelect={vi.fn()} suggestions={suggestions} hasProAccess hasGoogleConnection /></NextIntlClientProvider>)
   const live = screen.getByRole('region', { name: 'For you now' })
-  expect(within(live).getAllByRole('button').map(button => button.textContent)).toEqual(suggestions.map(suggestion => suggestion.label))
+  await waitFor(() => expect(within(live).getByRole('heading', { name: 'For you now', level: 2 })).toBeVisible())
+  expect(within(live).getAllByRole('button').map(button => button.getAttribute('aria-label'))).toEqual(suggestions.map(suggestion => suggestion.label))
+  expect(within(live).getAllByRole('button').map(button => button.textContent)).toEqual(suggestions.map(suggestion => `${suggestion.label}Astra`))
   fireEvent.click(within(live).getAllByRole('button')[0]!)
   expect(onSelect).toHaveBeenCalledOnce()
   expect(onBack).toHaveBeenCalledOnce()
   rerender(<NextIntlClientProvider locale="en" messages={en}><PromptLibrary onBack={onBack} onSelect={vi.fn()} suggestions={[]} hasProAccess hasGoogleConnection /></NextIntlClientProvider>)
   expect(screen.queryByRole('heading', { name: 'For you now' })).toBeNull()
+  expect(screen.queryByRole('region', { name: 'For you now' })).toBeNull()
 })
 
 it('returns focus to the header when sending removes the empty-thread trigger', async () => {
@@ -234,4 +241,69 @@ it('keeps heading focus when reopening before a deferred idea restores its trigg
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Ideas' })).toHaveFocus())
   await new Promise(resolve => setTimeout(resolve, 50))
   expect(screen.getByRole('heading', { name: 'Ideas' })).toHaveFocus()
+})
+
+it.each(['en', 'pt-BR'] as const)('renders every approved intent and useful example with exact selection bytes in %s', locale => {
+  const messages = locale === 'en' ? en : ptBR
+  const t = createTranslator({ locale, messages })
+  const onSelect = vi.fn()
+  const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>{PROMPT_TEMPLATES.map(template => <CatalogIdea key={template.id} template={template} disabled={false} onSelect={onSelect} />)}</NextIntlClientProvider>)
+  expect(container.querySelectorAll('[data-prompt-idea]')).toHaveLength(36)
+  expect(container.querySelectorAll('[data-prompt-example]')).toHaveLength(12)
+  for (const template of PROMPT_TEMPLATES) {
+    const label = t(template.labelKey)
+    const prompt = t(template.promptKey)
+    const action = screen.getByRole('button', { name: label })
+    expect(action.querySelectorAll('button')).toHaveLength(0)
+    const icon = action.querySelector('[data-prompt-intent] svg')!
+    expect(icon).toHaveAttribute('width', '24')
+    expect(icon).toHaveAttribute('stroke-width', '1.5')
+    expect(action.querySelector('[data-prompt-example]')?.textContent).toBe(PROMPT_PRESENTATION[template.id].example ? prompt : undefined)
+    expect(!!action.querySelector('[data-prompt-attribution]')).toBe(!findPromptSlot(prompt))
+    fireEvent.click(action)
+    expect(onSelect).toHaveBeenLastCalledWith(template.id, label, prompt)
+  }
+  expect(onSelect).toHaveBeenCalledTimes(36)
+  expect(container.textContent).not.toContain("'{'")
+})
+
+it('keeps live supplied icons, hides live actions during search and restores the selected category without requests', async () => {
+  const onSelect = vi.fn()
+  const liveSelect = vi.fn()
+  const suggestions = toComposerSuggestions([{ id: 'supplied', label: 'Supplied suggestion', icon: <svg data-supplied-icon="" />, onSelect: liveSelect }, { id: 'missing', label: 'Suggestion without icon', onSelect: liveSelect }])
+  const { container } = render(<NextIntlClientProvider locale="en" messages={en}><PromptLibrary onBack={vi.fn()} onSelect={onSelect} suggestions={suggestions} hasProAccess hasGoogleConnection /></NextIntlClientProvider>)
+  const live = screen.getByRole('region', { name: 'For you now' })
+  expect(live.querySelector('[data-supplied-icon]')).not.toBeNull()
+  expect(live.querySelectorAll('[data-prompt-intent] svg')).toHaveLength(2)
+  expect(screen.queryByRole('heading', { name: 'Start' })).toBeNull()
+  for (const category of PROMPT_CATEGORIES) fireEvent.click(screen.getByRole('button', { name: en.chat.templates.categories[category] }))
+  const search = screen.getByRole('searchbox')
+  fireEvent.change(search, { target: { value: 'week' } })
+  expect(screen.queryByRole('region', { name: 'For you now' })).toBeNull()
+  expect(screen.queryByRole('heading', { name: 'For you now' })).toBeNull()
+  expect(container.querySelectorAll('[data-prompt-idea="catalog"]').length).toBeGreaterThan(0)
+  expect(screen.getAllByRole('heading').length).toBeGreaterThan(1)
+  fireEvent.change(search, { target: { value: '   ' } })
+  await waitFor(() => expect(screen.getByRole('region', { name: 'For you now' })).toBeVisible())
+  expect(within(screen.getByRole('region', { name: 'For you now' })).getByRole('heading', { name: 'For you now', level: 2 })).toBeVisible()
+  expect(screen.getByRole('region', { name: 'Calendar' })).toBeVisible()
+  expect(onSelect).not.toHaveBeenCalled()
+  expect(liveSelect).not.toHaveBeenCalled()
+})
+
+it('ignores repeated activations and stale exiting actions, then rearms on reopen', () => {
+  const select = vi.fn()
+  const register = () => () => {}
+  const view = (isPresent: boolean) => <NextIntlClientProvider locale="en" messages={en}><PresenceContext value={{ id: 'library', isPresent, register }}><PromptLibrary onBack={vi.fn()} onSelect={select} suggestions={[]} hasProAccess hasGoogleConnection /></PresenceContext></NextIntlClientProvider>
+  const { rerender } = render(view(true))
+  const action = screen.getByRole('button', { name: 'Plan my morning' })
+  fireEvent.click(action)
+  fireEvent.click(action)
+  expect(select).toHaveBeenCalledTimes(1)
+  rerender(view(false))
+  fireEvent.click(action)
+  expect(select).toHaveBeenCalledTimes(1)
+  rerender(view(true))
+  fireEvent.click(action)
+  expect(select).toHaveBeenCalledTimes(2)
 })

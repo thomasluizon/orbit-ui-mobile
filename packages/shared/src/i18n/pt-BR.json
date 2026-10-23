@@ -1,4 +1,8 @@
 {
+  "listFormatting": {
+    "pair": "{first} e {last}",
+    "end": "{first} e {last}"
+  },
   "dragAndDrop": {
     "instructions": "Para mover um item, pressione a barra de espaço. Use as setas para mudar a posição. Pressione espaço novamente para soltar ou Escape para cancelar.",
     "habitInstructions": "Para mover um hábito, segure Alt e pressione a seta para cima ou para baixo.",
@@ -277,7 +281,7 @@
           "changeTimes": "Mudar os horários",
           "pauseWhatDoesNotFit": "Pausar o que não cabe",
           "keepOnlyHabit": "Manter só um hábito",
-          "buildMorningRoutine": "Montar uma rotina matinal",
+          "buildMorningRoutine": "Montar rotina matinal",
           "startOneHabit": "Começar com um hábito",
           "suggestThreeHabits": "Sugerir três hábitos",
           "createEveningHabit": "Criar hábito noturno",
@@ -310,7 +314,8 @@
           "logHabit": "Registrar \"{title}\"",
           "trimHabit": "Simplificar \"{title}\"",
           "keepOnlyHabit": "Manter só \"{title}\"",
-          "reviewHabit": "Rever \"{title}\""
+          "reviewHabit": "Rever \"{title}\"",
+          "buildMorningRoutine": "Montar uma rotina matinal"
         },
         "progress": {
           "createGoal": "Criar uma meta para {title}"
@@ -568,6 +573,7 @@
     "createManually": "Criar manualmente",
     "createSubHabit": "Criar sub-hábito",
     "editHabit": "Editar hábito",
+    "editTask": "Editar tarefa",
     "deleteHabit": "Apagar hábito",
     "logHabit": "Registrar hábito",
     "saveChanges": "Salvar alterações",
@@ -619,6 +625,7 @@
       "skip": "Pular",
       "openSubHabits": "Abrir os sub-hábitos",
       "unlog": "Marcar como não feito",
+      "rescheduleAstra": "Reagendar com a Astra",
       "reschedule": "Reagendar"
     },
     "reschedule": {
@@ -685,6 +692,7 @@
     },
     "frequencyLabel": "Frequência",
     "form": {
+      "parentHabit": "Hábito principal",
       "proRequired": "Isso faz parte do Orbit Pro.",
       "capacityTitle": "Limite de hábitos atingido",
       "capacityBody": "Você pode ter até {limit, number} hábitos ativos. Sub-hábitos não contam. Apague um hábito para adicionar outro.",
@@ -755,6 +763,7 @@
       "typeRequired": "Escolha o tipo.",
       "taskDate": "Fazer em",
       "habitStartDate": "Começar em",
+      "datePhrasePlaceholder": "Escreva do seu jeito",
       "datePhrase": "Quando",
       "taskDateQuestion": "Quando você quer fazer isso?",
       "habitDateQuestion": "Quando você quer começar?",
@@ -936,13 +945,17 @@
       "endTimeBeforeStartTime": "O horário final precisa ser depois do inicial",
       "invalidTime": "Horário inválido (use HH:MM, de 00:00 a 23:59)",
       "goals": "Metas",
-      "noGoals": "Nenhuma meta ativa",
+      "goalInvitation": "Crie uma meta para este hábito",
       "createGoal": "Criar meta",
       "searchGoals": "Buscar metas",
       "selectedCount": "{count, plural, =0 {# selecionadas} one {# selecionada} other {# selecionadas}}",
       "moreSelected": "+{count} mais",
       "availableCount": "{count} disponíveis",
-      "goalLimit": "Vincule até 10 metas a este hábito."
+      "goalLimit": "Vincule até 10 metas a este hábito.",
+      "saveUncertain": "Não foi possível confirmar as alterações. Tente novamente.",
+      "waitingToSync": "Aguardando sincronização.",
+      "unsavedHabit": "As alterações neste hábito ainda não foram salvas.",
+      "unsavedTask": "As alterações nesta tarefa ainda não foram salvas."
     },
     "errors": {
       "alreadyLogged": "Este hábito já foi registrado nessa data",
@@ -1260,6 +1273,45 @@
     }
   },
   "chat": {
+    "unreadableReply": "Não foi possível mostrar a resposta. Pergunte de novo.",
+    "ranking": {
+      "title": "Ranking de hábitos",
+      "from": "De {date}",
+      "through": "Até {date}",
+      "completions": "{count, plural, =0 {# conclusões} one {# conclusão} other {# conclusões}}",
+      "open": "{rank}. {name}, {count, plural, =0 {# conclusões} one {# conclusão} other {# conclusões}}",
+      "empty": "Nenhuma conclusão neste período.",
+      "partial": "Mais hábitos abaixo.",
+      "more": "Ver mais",
+      "refresh": "Atualizar",
+      "stale": "O ranking mudou. Atualize para continuar.",
+      "pageFailed": "Não foi possível carregar. Tente de novo.",
+      "refreshFailed": "Não foi possível atualizar. Tente de novo.",
+      "removed": "Hábito indisponível. Atualize o ranking.",
+      "openFailed": "Não foi possível abrir o hábito. Tente de novo.",
+      "offline": "Conecte-se para continuar."
+    },
+    "readBlock": {
+      "dayTitle": "Resumo",
+      "nothingDue": "Nenhum hábito agendado.",
+      "actionsUnavailable": "Algumas ações estão indisponíveis.",
+      "less": "Ver menos",
+      "stale": "Os registros mudaram. Atualize esta consulta.",
+      "partial": "Alguns registros estão indisponíveis.",
+      "error": "Não foi possível atualizar. Tente de novo.",
+      "expired": "Faça a pergunta original de novo.",
+      "delta": "Variação",
+      "metric": {
+        "positiveLogRecords": "Registros positivos",
+        "distinctLoggedDates": "Dias com registros",
+        "metScheduledDates": "Dias cumpridos",
+        "scheduledDates": "Dias agendados"
+      },
+      "unit": {
+        "records": "{count, plural, =0 {registros} one {registro} other {registros}}",
+        "days": "{count, plural, =0 {dias} one {dia} other {dias}}"
+      }
+    },
     "choice": {
       "submit": "Enviar",
       "review": "Revisar",
@@ -1377,7 +1429,7 @@
           "prompt": "Me ajude a recomeçar depois de um dia sem fazer meus hábitos."
         },
         "afterWeek": {
-          "label": "Voltar após uma semana difícil",
+          "label": "Voltar após semana difícil",
           "prompt": "Me ajude a recomeçar depois de uma semana difícil."
         },
         "smallerHabit": {
@@ -1433,7 +1485,7 @@
           "prompt": "Me mostre os eventos de hoje da agenda."
         },
         "findTime": {
-          "label": "Achar tempo para um hábito",
+          "label": "Encaixar um hábito",
           "prompt": "Ache um horário para '{'hábito'}' entre os eventos de hoje."
         },
         "tomorrow": {
@@ -1645,7 +1697,7 @@
       "pageAnnounce": "Página {n} de {total}: {title}",
       "previous": "Anterior",
       "next": "Próximo",
-      "progressLink": "Ver no Progresso"
+      "progressLink": "Progresso"
     },
     "goalList": {
       "title": "Suas metas",
@@ -1690,7 +1742,7 @@
       "makeHabit": "Criar hábito a partir de {title}"
     },
     "recordList": {
-      "title": { "notifications": "Avisos", "tags": "Tags", "templates": "Modelos de checklist", "keys": "Chaves de API" },
+      "title": { "habitHistory": "Histórico", "notifications": "Avisos", "tags": "Tags", "templates": "Modelos de checklist", "keys": "Chaves de API" },
       "count": "{shown} de {total}",
       "empty": "Nada por aqui ainda.",
       "unread": "Não lido",
@@ -1722,7 +1774,7 @@
         "plan": { "Free": "Grátis", "Pro": "Pro" },
         "interval": { "monthly": "Mensal", "yearly": "Anual" },
         "source": { "stripe": "Stripe", "play": "Google Play" },
-        "rewardType": { "discount": "Desconto" }
+        "rewardType": { "discount": "Desconto", "pro_days": "Dias de Pro" }
       },
       "yes": "Sim", "no": "Não", "notSet": "Não definido", "unknown": "Desconhecido",
       "code": "Código de indicação", "copy": "Copiar", "copied": "Copiado", "share": "Compartilhar",
@@ -1840,7 +1892,6 @@
         "anyDay": "Escolher qualquer dia",
         "fixedDays": "Manter dias fixos",
         "removeDescription": "Remover a descrição",
-        "useIcon": "Usar {emoji}",
         "removeIcon": "Remover o ícone",
         "repeatInDays": "Repetir em dias",
         "repeatInWeeks": "Repetir em semanas",
@@ -2538,40 +2589,36 @@
     }
   },
   "referral": {
-    "card": {
-      "title": "Convidar amigos",
-      "hint": "Ganhe cupons de desconto para você e seus amigos",
-      "progress": "{count}/{max} indicações concluídas"
-    },
     "drawer": {
       "title": "Convidar amigos",
       "yourLink": "Seu link de indicação",
-      "copy": "Copiar",
       "copyLink": "Copiar link",
-      "copied": "Copiado",
       "linkCopied": "Link copiado",
       "share": "Compartilhar link",
       "completed": "Indicações concluídas",
       "pending": "Pendentes",
-      "couponsEarned": "Cupons ganhos",
       "howItWorks": "Como funciona",
-      "explanation": "Compartilhe seu link com os amigos. Quando eles entrarem no Orbit e começarem a usar o app, vocês dois ganham um cupom de {discount}% de desconto no Pro. Dá para indicar até 10 amigos",
-      "disclaimer": "Cada indicação rende um cupom de {discount}% de desconto, de uso único. O cupom vale para um único ciclo de cobrança e não acumula. Uma nova indicação substitui qualquer cupom que você não tenha usado. Se você já assina pela web, o desconto entra automaticamente na sua próxima fatura. Assinaturas do Google Play não podem ter desconto no meio do ciclo. Nesse caso, o cupom fica guardado para a próxima compra ou troca de plano.",
       "actionFailed": "Não foi possível concluir. Tente de novo."
     },
     "share": {
       "title": "Vem pro Orbit comigo",
-      "text": "Estou usando o Orbit para criar hábitos melhores. Entra também e nós dois ganhamos um cupom de {discount}% de desconto"
+      "proDays": "Vem pro Orbit comigo. Crie uma conta por este link e registre hábitos em três dias diferentes na primeira semana. Eu posso ganhar {proDays, plural, =0 {# dias} one {# dia} other {# dias}} de Pro. Você também pode ganhar dias de Pro ou um cupom de desconto no Pro.",
+      "discount": "Vem pro Orbit comigo. Crie uma conta por este link e registre hábitos em três dias diferentes na primeira semana. Eu posso ganhar um cupom de {discountPercent}% de desconto no Pro. Você também pode ganhar dias de Pro ou um cupom de desconto no Pro.",
+      "neutral": "Vem pro Orbit comigo."
     },
     "prompt": {
       "streakTitle": "Sequência de {count} dias",
       "levelTitle": "Você chegou ao nível {level}",
-      "body": "Convide um amigo e vocês dois ganham um cupom de {discount}% de desconto no Pro.",
-      "bodyFallback": "Convide um amigo para criar hábitos melhores com você.",
       "cta": "Convidar amigos",
       "later": "Agora não"
     },
-    "loginBanner": "Você veio por uma indicação. Ela vale ao criar uma conta nova."
+    "loginBanner": "Você veio por um convite. Ele vale ao criar uma conta nova.",
+    "reward": {
+      "proDays": "Convide alguém a criar uma conta pelo seu link. Se a pessoa registrar hábitos em três dias diferentes na primeira semana, você pode ganhar {proDays, plural, =0 {# dias} one {# dia} other {# dias}} de Pro.",
+      "discount": "Convide alguém a criar uma conta pelo seu link. Se a pessoa registrar hábitos em três dias diferentes na primeira semana, você pode ganhar um cupom de {discountPercent}% de desconto no Pro.",
+      "neutral": "Compartilhe seu link para convidar alguém para o Orbit.",
+      "eligibility": "O tipo de recompensa depende da conta. Há um limite de recompensas por conta."
+    }
   },
   "marketingConsent": {
     "prompt": {
@@ -2591,7 +2638,6 @@
     "download": "Baixar",
     "scanToJoin": "Escaneie para entrar no Orbit",
     "shareTitle": "Meu progresso no Orbit",
-    "shareText": "Estou construindo hábitos melhores com o Orbit. Venha comigo",
     "shareError": "Não foi possível compartilhar seu card. Tente novamente.",
     "saved": "Salvo como {file}",
     "weeklyBarLabel": "Conclusão em {day}: {percent}%",
@@ -2705,7 +2751,7 @@
       "habits": "Dados de hábitos: hábitos que você cria, registros de conclusão, agendamentos, tags e metas",
       "chat": "Mensagens do chat com a IA: suas conversas com a assistente de IA do Orbit",
       "preferences": "Preferências: idioma, fuso horário, cor do tema e configurações de notificação",
-      "device": "Dados do dispositivo: um token de notificação push (para enviar lembretes) e relatórios de falhas no Android com informações do aparelho e do sistema, um identificador aleatório da instalação e a cidade aproximada, estimada pelo endereço IP da conexão. Esses relatórios não incluem nome, e-mail nem dados da conta. No Orbit para Android antes da versão 1.3.35, também o identificador de publicidade do seu dispositivo, que o SDK de anúncios podia acessar"
+      "device": "Dados do dispositivo: um token de notificação push (para enviar lembretes) e relatórios de falhas no Android com informações do aparelho e do sistema, um identificador aleatório da instalação e a cidade aproximada, estimada pelo endereço IP da conexão. Esses relatórios não incluem nome, e-mail nem dados da conta."
     },
     "howWeUse": {
       "title": "Como usamos seus dados",
@@ -2723,7 +2769,6 @@
       "openai": "OpenAI: para recursos de chat com IA e resumos diários",
       "ses": "Amazon SES (us-east-2): para e-mails transacionais e de marketing",
       "googlePlay": "Google Play Billing: para compras de assinatura no Android",
-      "admob": "Google AdMob: o Orbit para Android antes da versão 1.3.35 podia mostrar anúncios para usuários do plano gratuito e podia usar o identificador de publicidade do seu aparelho para isso. A versão 1.3.35 e as posteriores não mostram anúncios.",
       "sentry": "Sentry: para relatórios de falhas e erros. No Android, eles incluem informações do aparelho e do sistema, um identificador aleatório da instalação e a cidade aproximada, estimada pelo endereço IP da conexão, sem nome, e-mail nem dados da conta",
       "posthog": "PostHog (nuvem nos Estados Unidos): para análises de uso do produto vinculadas a um identificador da conta e a detalhes do plano, além de análises de tráfego web e desempenho; não enviamos conteúdo de hábitos nem do chat",
       "render": "Render (Ohio, Estados Unidos): para hospedar o aplicativo web, a API e o banco de dados",
@@ -3365,6 +3410,11 @@
     "dragItem": "item arrastável",
     "reorderHint": "Segure para reordenar",
     "form": {
+      "habitsExplainer": "O progresso da meta vem dos hábitos que você vincula a ela.",
+      "habitsInvitation": "Comece com um hábito",
+      "habitFormError": "Não foi possível abrir o formulário do hábito. Tente de novo.",
+      "avoidedDays": "Nos hábitos que você quer evitar, cada dia sem praticar conta como progresso.",
+      "loggedSlips": "Nesta meta, cada deslize registrado em um hábito que você quer evitar conta como progresso.",
       "createError": "Não foi possível criar a meta. Tente de novo.",
       "title": "Título",
       "searchHabits": "Buscar hábitos",

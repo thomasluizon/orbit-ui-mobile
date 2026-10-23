@@ -23,7 +23,10 @@ from a recorded completion status. Writes the untracked inventory only with --wr
   --help, -h          print usage and exit 0
 
 Rules require provenance.legacyProduction, the immutable legacy production commit.
+Optional provenance.productionSnapshots retains immutable sources for later relocations.
 Protects the deduplicated union of legacy and active production, including newer controls.
+Mappings may qualify fallback evidence with owners, a nonempty list of same-platform source paths.
+Content targets still require rendered consumers; owners qualify those consumers, not literals.
 For main pull requests use --production HEAD^1 --base HEAD^1 on the queued merge.
 
 No stdin. Exit codes: 0 retained or ticketed base debt in CI, 1 missing capability,
@@ -591,9 +594,14 @@ export function validateRules(capabilities, rules, read) {
         if (!/^#[1-9]\d*$/.test(rule)) throw new Error(`${id}: expected a ticket reference`)
         continue
       }
+      if (section === 'mappings' && (!rule || typeof rule !== 'object' || Array.isArray(rule) || Object.keys(rule).some((key) => !['targets', 'reason', 'owners'].includes(key)))) throw new Error(`${id}: mapping requires targets, reason and optional owners`)
       if (typeof rule.reason !== 'string' || !rule.reason.trim()) throw new Error(`${id}: missing rule rationale`)
       if (section === 'mappings') {
         if (!Array.isArray(rule.targets) || rule.targets.length === 0 || rule.targets.some((target) => typeof target !== 'string' || !new RegExp(`^${id.split(':')[0]}:(?:control|display|content|route|shortcut|native-control|native-display):[^\\s].*$`).test(target))) throw new Error(`${id}: mapping targets must name capabilities on the same platform`)
+        if ('owners' in rule) {
+          if (!Array.isArray(rule.owners) || rule.owners.length === 0 || new Set(rule.owners).size !== rule.owners.length || rule.owners.some((path) => typeof path !== 'string' || !path.startsWith(`apps/${id.split(':')[0]}/`) || !/\.[jt]sx?$/.test(path) || /[\\\s]/.test(path) || posix.normalize(path) !== path)) throw new Error(`${id}: mapping owners must be unique source paths on the same platform`)
+          for (const path of rule.owners) read(path)
+        }
       } else {
         if (rules.mappings?.[id] || rules.tickets?.[id]) throw new Error(`${id}: a removal cannot also be mapped or ticketed`)
         if (!['DESIGN.md', '.claude/specs/orbit-prod-release.md'].includes(rule.citation) || typeof rule.rule !== 'string' || !rule.rule.trim() || !read(rule.citation).includes(rule.rule)) throw new Error(`${id}: removal requires a verifiable owner rule citation`)
@@ -613,7 +621,13 @@ export function compare(production, redesign, rules) {
     const rule = rules.mappings?.[capability.id]
     const removal = rules.removals?.[capability.id]
     const direct = byId.get(capability.id)
-    const candidates = direct ? [direct] : (rule?.targets ?? []).map((id) => byId.get(id)).filter((entry) => entry && (entry.kind !== 'content' || entry.consumers?.length))
+    const candidates = direct ? [direct] : (rule?.targets ?? []).map((id) => {
+      const entry = byId.get(id)
+      if (!entry || (entry.kind === 'content' && !entry.consumers?.length)) return null
+      if (!rule.owners) return entry
+      const locations = (entry.kind === 'content' ? entry.consumers : entry.evidence).filter((item) => rule.owners.includes(item.file))
+      return locations.length ? { ...entry, ...(entry.kind === 'content' ? { consumers: locations } : { evidence: locations }) } : null
+    }).filter(Boolean)
     const retained = Boolean(direct) || Boolean(rule?.targets && candidates.length === rule.targets.length)
     if (retained) return { ...capability, disposition: 'retained', redesign: candidates.flatMap((entry) => entry.kind === 'content' ? entry.consumers : entry.evidence) }
     if (removal) return { ...capability, disposition: 'approved-removal', removal }
@@ -623,18 +637,20 @@ export function compare(production, redesign, rules) {
 
 function run(options) {
   const rules = JSON.parse(readFileSync(resolve(options.root, RULES), 'utf8'))
-  if (!rules.provenance || Object.keys(rules.provenance).length !== 1 || typeof rules.provenance.legacyProduction !== 'string' || !/^[a-f0-9]{40}$/.test(rules.provenance.legacyProduction)) throw new Error('provenance requires an immutable legacyProduction commit')
+  if (!rules.provenance || Object.keys(rules.provenance).some(key => !['legacyProduction', 'productionSnapshots'].includes(key)) || typeof rules.provenance.legacyProduction !== 'string' || !/^[a-f0-9]{40}$/.test(rules.provenance.legacyProduction)) throw new Error('provenance requires an immutable legacyProduction commit')
+  const productionSnapshots = rules.provenance.productionSnapshots === undefined ? [] : rules.provenance.productionSnapshots
+  if (!Array.isArray(productionSnapshots) || productionSnapshots.some(revision => typeof revision !== 'string' || !/^[a-f0-9]{40}$/.test(revision))) throw new Error('provenance.productionSnapshots requires immutable commit IDs')
   const legacy = tree(options.root, rules.provenance.legacyProduction)
   const production = tree(options.root, options.production)
   const base = options.ci ? tree(options.root, options.base) : null
   const current = tree(options.root, null)
-  const sources = [...new Map([legacy, production].map((snapshot) => [snapshot.revision, snapshot])).values()]
+  const sources = [...new Map([legacy, ...productionSnapshots.map(revision => tree(options.root, revision)), production].map((snapshot) => [snapshot.revision, snapshot])).values()]
   const observations = sources.flatMap((snapshot) => ['web', 'mobile'].flatMap((platform) => scan(snapshot, platform, rules)))
   const capabilities = [...new Map(observations.filter((entry) => entry.kind !== 'content').map((entry) => [entry.id, entry])).values()]
   const redesign = ['web', 'mobile'].flatMap((platform) => scan(current, platform, rules))
   validateRules(capabilities, rules, current.read)
   const entries = compare(capabilities, redesign, rules)
-  const inventory = { regenerate: 'git fetch origin main && node tools/check-feature-parity.mjs --write', legacyProduction: legacy.revision, production: production.revision, base: base?.revision ?? null, standingRemovals: rules.policies, allowedRemovals: rules.removals, translationUses: observations.filter((entry) => entry.kind === 'content'), method: 'Deduplicated legacy and active production capabilities from reachable exported symbols, routes, translated controls and option bindings, keyboard handlers and native widget actions and figures. Mapped translation bindings require a reachable rendered consumer, resolved through property-specific values, calls and component props. Noninteractive translation references alone are supporting observations. Static source evidence does not prove runtime conditions, permissions or API behavior.', entries }
+  const inventory = { regenerate: 'git fetch origin main && node tools/check-feature-parity.mjs --write', legacyProduction: legacy.revision, productionSnapshots, production: production.revision, base: base?.revision ?? null, standingRemovals: rules.policies, allowedRemovals: rules.removals, translationUses: observations.filter((entry) => entry.kind === 'content'), method: 'Deduplicated legacy, retained and active production capabilities from reachable exported symbols, routes, translated controls and option bindings, keyboard handlers and native widget actions and figures. Mapped translation bindings require a reachable rendered consumer, resolved through property-specific values, calls and component props. Noninteractive translation references alone are supporting observations. Static source evidence does not prove runtime conditions, permissions or API behavior.', entries }
   if (options.write) {
     const { entries: rows, translationUses, ...header } = inventory
     const serialize = (entry) => JSON.stringify(entry, (key, value) => ['label', 'consumers'].includes(key) ? undefined : value)

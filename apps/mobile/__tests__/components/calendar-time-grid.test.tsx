@@ -4,6 +4,7 @@ import type { HoverGesture, GestureStateChangeEvent } from 'react-native-gesture
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable';
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { StyleSheet } from "react-native";
+import { INTERACTION_FILL_CLEARANCE } from "@orbit/shared/theme";
 import * as ReactNative from "react-native";
 import { Resvg } from '@resvg/resvg-js';
 import en from '@orbit/shared/i18n/en.json';
@@ -199,6 +200,51 @@ function renderedAncestorHeight(node: TestNode): number | undefined {
 }
 
 describe("CalendarTimeGrid (mobile)", () => {
+  it.each([320, 412, 600, 1024, 1352])('insets every pressed week header fill from its cell edges at %ipx', (width) => {
+    vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 });
+    const columns = Array.from({ length: 7 }, (_, index) => column(`2026-10-${String(5 + index).padStart(2, '0')}`));
+    const tree = renderGrid(columns, new Map(columns.map(({ dateStr }) => [dateStr, [makeEntry()]])));
+    for (const header of hostsByTestID(tree, 'time-grid-col-header')) {
+      const target = StyleSheet.flatten(header.props.style({ pressed: true }));
+      expect(target.backgroundColor ?? 'transparent').toBe('transparent');
+      expect(Number(target.borderRadius)).toBeGreaterThan(0);
+      TestRenderer.act(() => header.props.onPressIn?.());
+      const fill = hostsByTestID(tree, 'time-grid-col-header-fill').find((candidate) => {
+        for (let parent = candidate.parent; parent; parent = parent.parent) if (parent === header) return true;
+        return false;
+      });
+      expect(fill).toBeDefined();
+      const painted = resolveStyle(fill!.props.style);
+      expect(painted.backgroundColor).toBe(tokens.bgHover);
+      expect(painted.borderRadius).toBe(target.borderRadius);
+      expect(painted.position).toBe('absolute');
+      for (const [edge, border] of [['top', 'borderTopWidth'], ['right', 'borderRightWidth'], ['bottom', 'borderBottomWidth'], ['left', 'borderLeftWidth']] as const) {
+        expect(Number(painted[edge]) + Number(target[border] ?? target.borderWidth ?? 0)).toBe(INTERACTION_FILL_CLEARANCE);
+      }
+      TestRenderer.act(() => header.props.onPressOut?.());
+    }
+  });
+
+  it.each(['light', 'dark'] as const)('paints week header focus and clears it on blur in %s mode', (mode) => {
+    setRuntimeTheme({ themeMode: mode });
+    const palette = createTokensV2('purple', mode);
+    const tree = renderGrid([column('2026-10-05')], new Map(), vi.fn(), false, displayTime, 'UTC', palette);
+    const header = hostsByTestID(tree, 'time-grid-col-header')[0]!;
+    const fillStyle = () => resolveStyle(hostsByTestID(tree, 'time-grid-col-header-fill')[0]!.props.style);
+    const focusEvent = { target: 1, currentTarget: 1 };
+    expect(fillStyle().backgroundColor).toBe('transparent');
+    TestRenderer.act(() => header.props.onFocus(focusEvent));
+    expect(fillStyle().backgroundColor).toBe(palette.bgHover);
+    const ring = tree.root.findAll((node) => typeof node.type === 'string' && resolveStyle(node.props.style).outlineStyle === 'solid')[0]!;
+    const outline = resolveStyle(ring.props.style);
+    expect(-Number(outline.outlineOffset) - Number(outline.outlineWidth)).toBe(INTERACTION_FILL_CLEARANCE);
+    TestRenderer.act(() => header.props.onPressIn());
+    TestRenderer.act(() => header.props.onPressOut());
+    expect(fillStyle().backgroundColor).toBe(palette.bgHover);
+    TestRenderer.act(() => header.props.onBlur(focusEvent));
+    expect(fillStyle().backgroundColor).toBe('transparent');
+  });
+
   it.each([412, 600, 1100, 1352].flatMap((width) => ['en', 'pt-BR'].map((language) => ({ width, language }))))('keeps drawn week columns and complete short names in $language at $width', ({ width, language }) => {
     const title = language === 'pt-BR' ? 'Revisar notas' : 'Review notes';
     const words = language === 'pt-BR' ? ptBR : en;
@@ -305,7 +351,7 @@ describe("CalendarTimeGrid (mobile)", () => {
     const weekday = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && resolveStyle(node.props.style).color === palette.fg2)[0]!;
     expect(resolveStyle(weekday.props.style).color).toBe(palette.fg2);
     TestRenderer.act(() => header.props.onPressIn?.());
-    const fill = StyleSheet.flatten(header.props.style({ pressed: true })).backgroundColor;
+    const fill = String(resolveStyle(hostsByTestID(tree, 'time-grid-col-header-fill')[0]!.props.style).backgroundColor);
     const color = String(resolveStyle(weekday.props.style).color);
     expect(fill).toBe(palette.bgHover);
     if (mode === 'light') expect(contrastOnSurface(color, [palette.bg, palette.bgCard, fill])).toBeGreaterThanOrEqual(4.5);
@@ -453,6 +499,65 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(tree.root.findAll((node) => node.type === CalendarEntryDetails)[0]!.props.entries[0].title).toBe("All 0");
   });
 
+  it.each([320, 412, 600].flatMap((width) => [0, 3, 6].map((todayIndex) => ({ width, todayIndex }))))('opens on the nearest column boundary at the gutter with today fully visible ($width, today=$todayIndex)', ({ width, todayIndex }) => {
+    let horizontalOffset = 0;
+    __setScrollToImpl((position) => { if (position.x !== undefined) horizontalOffset = position.x; });
+    try {
+      const columns = Array.from({ length: 7 }, (_, index) => ({ ...column(`2026-10-${String(5 + index).padStart(2, '0')}`), isToday: index === todayIndex }));
+      const tree = renderGrid(columns, new Map());
+      const horizontal = () => tree.root.findAll((node) => node.type === 'ScrollView' && node.props.horizontal)[0]!;
+      const gutter = 96;
+      const viewportWidth = width - gutter;
+      const columnWidth = Number(resolveStyle(hostsByTestID(tree, 'time-grid-col-header')[0]!.props.style).width);
+      TestRenderer.act(() => {
+        horizontal().props.onLayout({ nativeEvent: { layout: { width: viewportWidth, height: 400 } } });
+        horizontal().props.onContentSizeChange(columns.length * columnWidth, 400);
+      });
+      const leftmostIndex = Math.floor(horizontalOffset / columnWidth);
+      expect(gutter + leftmostIndex * columnWidth - horizontalOffset).toBe(gutter);
+      const content = hostParent(hostsByTestID(tree, 'time-grid-hour-scroller')[0]!);
+      const trailingSpace = Number(resolveStyle(content.props.style).paddingRight ?? 0);
+      expect(horizontalOffset + viewportWidth).toBeLessThanOrEqual(columns.length * columnWidth + trailingSpace);
+      const todayLeft = gutter + todayIndex * columnWidth - horizontalOffset;
+      expect(todayLeft).toBeGreaterThanOrEqual(gutter);
+      expect(todayLeft + columnWidth).toBeLessThanOrEqual(width);
+      const centered = Math.max(0, todayIndex * columnWidth - (viewportWidth - columnWidth) / 2);
+      expect(Math.abs(horizontalOffset - centered)).toBeLessThanOrEqual(columnWidth / 2);
+      if (todayIndex > 0) expect(horizontalOffset).toBeGreaterThan(0);
+      TestRenderer.act(() => horizontal().props.onScrollBeginDrag());
+      horizontalOffset = 88;
+      TestRenderer.act(() => horizontal().props.onLayout({ nativeEvent: { layout: { width: viewportWidth + 16, height: 400 } } }));
+      expect(horizontalOffset).toBe(88);
+    } finally { __setScrollToImpl(() => {}); }
+  });
+
+  it.each([600, 1080])("keeps the settled scroll extent at %s reachable when the pane shrinks", (offset) => {
+    const tree = renderGrid([column('2026-10-08')], new Map());
+    const body = () => hostsByTestID(tree, 'time-grid-hour-scroller')[0]!;
+    const pane = () => hostsByTestID(tree, 'time-grid-day-pane')[0]!;
+    TestRenderer.act(() => {
+      body().props.onLayout({ nativeEvent: { layout: { width: 800, height: 464 } } });
+      pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: 178 } } });
+      body().props.onScrollBeginDrag();
+      body().props.onScroll({ nativeEvent: {
+        contentOffset: { x: 0, y: offset }, contentSize: { width: 800, height: 1678 },
+        layoutMeasurement: { width: 800, height: 464 },
+      } });
+    });
+    TestRenderer.act(() => pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: 126 } } }));
+    for (const height of [464, 384, 544]) {
+      TestRenderer.act(() => body().props.onLayout({ nativeEvent: { layout: { width: 800, height } } }));
+      const scrollers = tree.root.findAll((node) => node.type === 'ScrollView' && !node.props.horizontal);
+      expect(scrollers).toHaveLength(2);
+      for (const scroller of scrollers) expect(resolveStyle(scroller.props.contentContainerStyle).minHeight).toBeGreaterThanOrEqual(offset + height);
+    }
+    TestRenderer.act(() => body().props.onScroll({ nativeEvent: {
+      contentOffset: { x: 0, y: 120 }, contentSize: { width: 800, height: 1678 },
+      layoutMeasurement: { width: 800, height: 544 },
+    } }));
+    expect(resolveStyle(body().props.contentContainerStyle).minHeight).toBe(120 + 544);
+  });
+
   it.each([false, true])("opens loaded concurrent lanes once and respects prior dragging (dragged=%s)", (dragged) => {
     const scrollTo = vi.fn();
     __setScrollToImpl(scrollTo);
@@ -473,7 +578,7 @@ describe("CalendarTimeGrid (mobile)", () => {
       update(crowded);
       expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toHaveLength(0);
       TestRenderer.act(() => horizontal().props.onContentSizeChange(2016, 400));
-      expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toEqual(dragged ? [] : [[{ x: 866, animated: false }]]);
+      expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toEqual(dragged ? [] : [[{ x: 864, animated: false }]]);
       TestRenderer.act(() => horizontal().props.onScrollBeginDrag());
       update(new Map([[columns[3]!.dateStr, [...crowded.get(columns[3]!.dateStr)!, makeEntry({ habitId: 'fourth', dueTime: '08:00' })]]]));
       TestRenderer.act(() => horizontal().props.onLayout({ nativeEvent: { layout: { width: 300, height: 400 } } }));
@@ -558,7 +663,7 @@ describe("CalendarTimeGrid (mobile)", () => {
   });
 
   it.each([
-    { movement: 'native clamp', offset: 1060, contentWidth: 1344, expected: 1044 },
+    { movement: 'native clamp', offset: 1060, contentWidth: 1344, expected: 1152 },
     { movement: 'upward input below the maximum', offset: 1000, contentWidth: 1344, expected: 1000 },
     { movement: 'input to the end', offset: 1788, contentWidth: 2072, expected: 1788 },
   ])("keeps horizontal opening ownership after $movement", ({ offset, contentWidth, expected }) => {
@@ -583,10 +688,10 @@ describe("CalendarTimeGrid (mobile)", () => {
         body().props.onLayout({ nativeEvent: { layout: { width: 2016, height: 400 } } });
         pane().props.onLayout({ nativeEvent: { layout: { width: 2016, height: 300 } } });
       });
-      expect(horizontalOffset).toBe(1730);
+      expect(horizontalOffset).toBe(1728);
       expect(verticalOffset).toBe(1232);
       TestRenderer.act(() => horizontal().props.onScroll({ nativeEvent: {
-        contentOffset: { x: 1730, y: 0 },
+        contentOffset: { x: 1728, y: 0 },
         contentSize: { width: 2016, height: 400 },
         layoutMeasurement: { width: 284, height: 400 },
       } }));
@@ -607,7 +712,7 @@ describe("CalendarTimeGrid (mobile)", () => {
         pane().props.onLayout({ nativeEvent: { layout: { width: 1344, height: 100 } } });
       });
       expect(horizontalOffset).toBe(expected);
-      expect(verticalOffset).toBe(expected === 1044 ? 957 : 1232);
+      expect(verticalOffset).toBe(expected === 1152 ? 957 : 1232);
     } finally { vi.useRealTimers(); __setScrollToImpl(() => {}); }
   });
 
@@ -664,7 +769,7 @@ describe("CalendarTimeGrid (mobile)", () => {
         body().props.onLayout({ nativeEvent: { layout: { width: 1344, height: 400 } } });
         pane().props.onLayout({ nativeEvent: { layout: { width: 1344, height: 300 } } });
       });
-      const horizontalOffset = todayIndex === 0 ? 0 : 1060;
+      const horizontalOffset = todayIndex === 0 ? 0 : 1152;
       expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toEqual([[{ x: horizontalOffset, animated: false }]]);
       TestRenderer.act(() => horizontal().props.onScroll({ nativeEvent: { contentOffset: { x: horizontalOffset, y: 0 }, contentSize: { width: 1344, height: 400 }, layoutMeasurement: { width: 284, height: 400 } } }));
       scrollTo.mockClear();
@@ -888,7 +993,23 @@ function headerInteractions(mode: 'dark' | 'light', language: 'en' | 'pt-BR') {
   const otherHover = attachedHeaderHover(headers()[1]!);
   expect(otherHover).not.toBe(hover);
   const style = (pressed = false) => resolveStyle(header().props.style({ pressed }));
-  const paint = (pressed = false) => style(pressed).backgroundColor ?? 'transparent';
+  const fill = (index = 0) => hostsByTestID(tree, 'time-grid-col-header-fill').find((candidate) => {
+    for (let parent = candidate.parent; parent; parent = parent.parent) if (parent === headers()[index]) return true;
+    return false;
+  })!;
+  const paint = (index = 0) => resolveStyle(fill(index).props.style).backgroundColor ?? 'transparent';
+  for (let index = 0; index < headers().length; index++) {
+    const target = resolveStyle(headers()[index]!.props.style);
+    expect(target.backgroundColor ?? 'transparent').toBe('transparent');
+    expect(resolveStyle(headers()[index]!.props.style({ pressed: true })).backgroundColor ?? 'transparent').toBe('transparent');
+    expect(fill(index)).toBeDefined();
+    expect(resolveStyle(fill(index).props.style)).toMatchObject({
+      position: 'absolute', top: INTERACTION_FILL_CLEARANCE, right: INTERACTION_FILL_CLEARANCE,
+      bottom: INTERACTION_FILL_CLEARANCE, left: INTERACTION_FILL_CLEARANCE, borderRadius: radius.sm,
+    });
+    expect(fill(index).props.pointerEvents).toBe('none');
+    expect(target.borderRadius).toBe(radius.sm);
+  }
   const run = (event: 'hoverBegin' | 'hoverFinalize' | 'onPressIn' | 'onPressOut') => {
     expect(attachedHeaderHover(header())).toBe(hover);
     if (event === 'hoverBegin') deliverHover(hover, State.BEGAN, State.UNDETERMINED);
@@ -925,7 +1046,7 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
       expect(view.outlines()).toHaveLength(0);
       expect(__getFocusedNativeTag()).toBe(initialFocus);
       expect(headerGeometry(view.style())).toEqual(initialGeometry);
-      expect(resolveStyle(view.headers()[1]!.props.style).backgroundColor ?? 'transparent').toBe('transparent');
+      expect(view.paint(1)).toBe('transparent');
       view.run('hoverFinalize');
       view.run('hoverFinalize');
       expect(view.paint()).toBe('transparent');
@@ -937,14 +1058,14 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
     const view = headerInteractions(mode, language);
     view.run('hoverBegin');
     view.run('onPressIn');
-    expect(view.paint(true)).toBe(view.palette.bgHover);
+    expect(view.paint()).toBe(view.palette.bgHover);
     expect(view.style(true).transform).toEqual([{ scale: 0.96 }]);
     view.run('onPressOut');
     expect(view.paint()).toBe(view.palette.bgHover);
     expect(view.style().transform).toBeUndefined();
     view.run('onPressIn');
     view.run('hoverFinalize');
-    expect(view.paint(true)).toBe(view.palette.bgHover);
+    expect(view.paint()).toBe(view.palette.bgHover);
     view.run('onPressOut');
     expect(view.paint()).toBe('transparent');
     expect(view.onSelectDay).not.toHaveBeenCalled();
@@ -982,7 +1103,7 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
     view.focus(0);
     view.run('onPressIn');
     view.focus(1);
-    expect(view.paint(true)).toBe(view.palette.bgHover);
+    expect(view.paint()).toBe(view.palette.bgHover);
     view.run('onPressOut');
     expect(view.paint()).toBe('transparent');
     expect(view.onSelectDay).not.toHaveBeenCalled();
@@ -991,10 +1112,25 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
   it.each(['en', 'pt-BR'] as const)('keeps touch activation exact and cancellation inert with the full-column target in %s', (language) => {
     const view = headerInteractions(mode, language);
     const initial = view.style();
-    expect(initial).toMatchObject({ width: 192, paddingVertical: 8, borderLeftWidth: 1, borderBottomWidth: 1 });
+    expect(initial).toMatchObject({ width: 192, paddingVertical: 8, borderRadius: radius.sm });
+    let frame = view.header().parent;
+    while (frame && frame.type !== 'View') frame = frame.parent;
+    expect(resolveStyle(frame!.props.style).width).toBe(initial.width);
+    const gridLines = view.tree.root.findAll((node) => {
+      if (node.type !== 'View' || node.props.pointerEvents !== 'none') return false;
+      let owner = node.parent;
+      while (owner && typeof owner.type !== 'string') owner = owner.parent;
+      return owner === frame;
+    });
+    expect(gridLines).toHaveLength(1);
+    expect(resolveStyle(gridLines[0]!.props.style)).toMatchObject({
+      position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
+      borderLeftWidth: 1, borderBottomWidth: 1,
+      borderLeftColor: view.palette.hairline, borderBottomColor: view.palette.hairline,
+    });
     expect(renderedAncestorHeight(view.header())).toBeGreaterThanOrEqual(48);
     view.run('onPressIn');
-    expect(view.paint(true)).toBe(view.palette.bgHover);
+    expect(view.paint()).toBe(view.palette.bgHover);
     view.run('onPressOut');
     expect(view.paint()).toBe('transparent');
     expect(view.onSelectDay).not.toHaveBeenCalled();
@@ -1036,14 +1172,14 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
       deliverHover(view.otherHover, State.BEGAN, State.UNDETERMINED);
       deliverHover(view.hover, terminal, State.BEGAN);
       expect(view.paint()).toBe('transparent');
-      expect(resolveStyle(view.headers()[1]!.props.style).backgroundColor).toBe(view.palette.bgHover);
+      expect(view.paint(1)).toBe(view.palette.bgHover);
       deliverHover(view.otherHover, terminal, State.BEGAN);
-      expect(resolveStyle(view.headers()[1]!.props.style).backgroundColor ?? 'transparent').toBe('transparent');
+      expect(view.paint(1)).toBe('transparent');
       view.focus(0);
       view.run('onPressIn');
       view.run('hoverBegin');
       deliverHover(view.hover, terminal, State.BEGAN);
-      expect(view.paint(true)).toBe(view.palette.bgHover);
+      expect(view.paint()).toBe(view.palette.bgHover);
       view.run('onPressOut');
       expect(view.paint()).toBe(view.palette.bgHover);
       expect(view.outlines()).toHaveLength(1);
@@ -1057,16 +1193,16 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
     vi.mocked(usePrefersReducedMotion).mockReturnValue(true);
     const view = headerInteractions(mode, language);
     view.run('onPressIn');
-    expect(view.paint(true)).toBe(view.palette.bgHover);
+    expect(view.paint()).toBe(view.palette.bgHover);
     expect(view.style(true).transform).toBeUndefined();
     view.run('onPressOut');
     view.run('hoverBegin');
     expect(view.paint()).toBe(view.palette.bgHover);
     view.run('onPressIn');
-    expect(view.paint(true)).toBe(view.palette.bgHover);
+    expect(view.paint()).toBe(view.palette.bgHover);
     expect(view.style(true).transform).toBeUndefined();
     view.run('hoverFinalize');
-    expect(view.paint(true)).toBe(view.palette.bgHover);
+    expect(view.paint()).toBe(view.palette.bgHover);
     view.run('onPressOut');
     expect(view.paint()).toBe('transparent');
     view.focus(0);

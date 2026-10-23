@@ -29,10 +29,9 @@ describe('stored habit row descriptions', () => {
     const line = screen.getByText(preview, { exact: true })
     expect(line).toHaveAttribute('data-habit-row-description')
     expect(line.previousElementSibling).toHaveAttribute('data-personal-text')
-    const type = line.nextElementSibling!
-    expect(type).toHaveAttribute('data-habit-row-type')
-    expect(type).toHaveTextContent('habits.form.typeHabit')
-    expect(type.nextElementSibling).toHaveAttribute('data-habit-row-meta')
+    const meta = line.nextElementSibling!
+    expect(meta).toHaveAttribute('data-habit-row-meta')
+    expect(meta.querySelector('[data-habit-row-type]')).toHaveTextContent('habits.form.typeHabit')
     expect(container.querySelectorAll('a,img,iframe')).toHaveLength(0)
     expect(line.querySelectorAll('*')).toHaveLength(0)
     expect(habit.description).toBe(description)
@@ -42,9 +41,9 @@ describe('stored habit row descriptions', () => {
     const { container } = render(<HabitRow habit={createMockHabit({ title: 'Read', description })} meta={['08:00']} />)
     expect(container.querySelector('[data-habit-row-description]')).toBeNull()
     const title = container.querySelector('[data-personal-text]')!
-    expect(title.nextElementSibling).toHaveAttribute('data-habit-row-type')
-    expect(title.nextElementSibling!.nextElementSibling).toHaveAttribute('data-habit-row-meta')
-    expect(title.parentElement!.children).toHaveLength(3)
+    expect(title.nextElementSibling).toHaveAttribute('data-habit-row-meta')
+    expect(title.nextElementSibling!.querySelector('[data-habit-row-type]')).not.toBeNull()
+    expect(title.parentElement!.children).toHaveLength(2)
   })
 
   it.each([false, true])('keeps detail, selection and completion independent while selected=%s', (selectMode) => {
@@ -78,9 +77,9 @@ describe('stored habit row descriptions', () => {
     const { container } = render(<HabitRow habit={habit} meta={['08:00']} />)
     const type = container.querySelector('[data-habit-row-type]')!
     expect(type.textContent).toBe(expectedType)
-    expect(type.previousElementSibling).toHaveAttribute('data-habit-row-description')
-    expect(type.previousElementSibling!.previousElementSibling).toHaveTextContent(habit.title)
-    expect(type.nextElementSibling).toHaveAttribute('data-habit-row-meta')
+    const meta = type.closest('[data-habit-row-meta]')!
+    expect(meta.previousElementSibling).toHaveAttribute('data-habit-row-description')
+    expect(meta.previousElementSibling!.previousElementSibling).toHaveTextContent(habit.title)
     expect(container.querySelector('[data-habit-row-body]')).toHaveAccessibleName(`${habit.title}, ${expectedType} 08:00`)
   })
 

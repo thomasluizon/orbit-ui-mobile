@@ -4,6 +4,20 @@
 
 The image lives at `ghcr.io/thomasluizon/orbit-web`. The release workflow tags it with the source commit SHA, then deploys the immutable digest. Render services `orbit-web-staging`, `orbit-web`, and the redesign production service must be image-backed web services configured to pull this GHCR image. Give each service a GHCR registry credential, set port `3000`, and check `/api/health`. The image runs `node server.js` as the `orbit` user. The image carries `WEB_COMMIT_SHA`; the health response includes that SHA so the workflows can verify the served build. The builder stage also inlines it as `NEXT_PUBLIC_WEB_COMMIT_SHA`, and the About screen shows its first 7 characters as the web version.
 
+## Negotiated habit rankings
+
+Deploy the API's `habitRanking` producer and `/api/chat/habit-ranking` paging and refresh endpoint
+before releasing clients that advertise that part kind. Release the paired web and Android
+renderers with shared validation and action support. Run the ranking cases in the Astra capability
+evaluation against the deployed producer before activation, including calendar-month windows,
+complete multi-page results, stale cursors, exact-query refresh and legacy clients without the kind.
+Android text and TalkBack acceptance requires a device; hermetic web or Yoga checks do not replace it.
+
+To stop new ranking emission, remove only `habitRanking` from carrying clients' advertised
+`partKinds`. Retain its parser and both registries so historical valid answers remain readable.
+Use normal web and Android rollback without changing the minimum supported version. Paging and
+refresh retain the producer's `habit_ranking_query` telemetry and send no names or prompts.
+
 ## GitHub settings
 
 In repository **Settings > Secrets and variables > Actions**, set the repository secrets `SMOKE_TEST_EMAIL` and `SMOKE_TEST_CODE`. The smoke credentials must belong to the dedicated production smoke account. In **Settings > Environments**, restrict both `production` and `staging` to deployments from `main` and leave required reviewers empty. Both environments hold their own `RENDER_API_KEY` secret. Dispatch every web release with `--ref main`; staging can still build the branch selected by the workflow input. The Android internal track uses `android-internal` so it can build its selected branch without entering the web staging environment. After both web release paths succeed and `/api/health` reports their selected commits, delete the repository secret `RENDER_API_KEY` from **Settings > Secrets and variables > Actions**. Set these repository variables:
@@ -48,3 +62,13 @@ If `RENDER_WEB_SERVICE_ID` is absent during the first production release, the wo
 Production releases require `https://<PRODUCTION_WEB_HOST>/api/health` to return the deployed SHA and healthy status. An unreachable host, missing health route, or different SHA fails the deploy job. The smoke job runs against the public host, and the GitHub Deployment URL points there. The web proxy redirects the Render service host to the public site, so a release never smoke-tests a different host than the one people use.
 
 The Render API request uses `POST /v1/services/{serviceId}/deploys` with `imageUrl` set to `ghcr.io/thomasluizon/orbit-web@sha256:...`. Each job reads the deploy ID from Render's HTTP 201 response to that request, checks that the response names the same image reference, and polls that deploy. Any other response status fails the job, because an HTTP 202 (queued) response has no body and so cannot name the deploy the release created. A later deploy that supersedes this one leaves it `canceled`. Both jobs accept Render's `live` status and fail on terminal failure statuses, `canceled` included.
+
+## Focused read block rollout
+
+Deploy #1616's API contracts before shipping the client advertisement for `periodTotal`,
+`periodComparison`, dated habit lists and habit history. Verify the carrying context advertises
+only its paired renderers. `POST /api/chat/reads/refresh` must accept the saved signed query token
+and return that query's kind, snapshot and read metadata; signed paging must retain its revision.
+Historical replies without optional read metadata remain readable. No minimum client version
+change is needed. Roll back the carrying client or remove new-kind advertisement to stop new
+period cards. The existing lazy conversation import keeps these renderers out of Today loading.

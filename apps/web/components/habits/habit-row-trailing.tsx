@@ -56,7 +56,7 @@ function buildMenuItems(
   if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.actions.addSubHabit'), icon: 'subtask' })
   if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.actions.moveUnder'), icon: 'arrows-move' })
   if (actions.onSkip && !completionReadOnly) items.push({ id: 'skip', label: t('habits.actions.skip'), icon: 'player-skip-forward' })
-  if (actions.onReschedule && state === 'overdue' && !completionReadOnly) items.push({ id: 'reschedule', label: t('habits.actions.reschedule'), icon: 'calendar-time' })
+  if (actions.onReschedule && state === 'overdue' && !completionReadOnly) items.push({ id: 'reschedule', label: t('habits.actions.rescheduleAstra'), icon: 'astra' })
   if (actions.onEdit) items.push({ id: 'edit', label: t('common.edit'), icon: 'pencil' })
   if (actions.onDuplicate) items.push({ id: 'duplicate', label: t('habits.actions.duplicate'), icon: 'copy' })
   if (canSelect && actions.onEnterSelectMode) items.push({ id: 'select', label: t('common.select'), icon: 'checkbox' })
@@ -71,7 +71,6 @@ function buildMenuItems(
 
 interface HabitRowTrailingProps {
   habit: NormalizedHabit
-  depth: 0 | 1
   selectMode: boolean
   hasChildren: boolean
   childProgress?: { done: number; total: number }

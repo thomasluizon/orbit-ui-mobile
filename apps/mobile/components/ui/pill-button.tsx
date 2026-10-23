@@ -7,7 +7,8 @@ import {
   StyleSheet,
   Text,
   type ViewStyle,
-  type View,
+  View,
+  useWindowDimensions,
 } from 'react-native'
 import { SPACING, GOOGLE_SIGN_IN_BUTTON, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN, type ButtonVariant } from '@orbit/shared/theme'
 import { createTokensV2, mixHex, radius } from '@/lib/theme'
@@ -23,6 +24,16 @@ function buttonTextColors(tokens: ReturnType<typeof createTokensV2>, quiet: bool
     ghost: quiet ? tokens.fg2 : tokens.fg1,
     destructive: tokens.fgOnBad,
     caution: tokens.fgOnOverdue,
+  }
+}
+
+function buttonFocusStyle(variant: ButtonVariant, outlineColor: string): ViewStyle {
+  return {
+    outlineWidth: 2,
+    outlineStyle: 'solid',
+    outlineColor,
+    outlineOffset: 2,
+    ...(variant === 'ghost' ? { borderColor: 'transparent' } : null),
   }
 }
 
@@ -48,11 +59,12 @@ export function Button({
   matchedWidth = false,
   label,
   leadingIcon,
+  retainLeadingIcon = false,
   brand,
   hint,
   accessibilityRole = 'button',
   quiet = false,
-}: Readonly<ButtonProps & { buttonRef?: Ref<View>; accessibilityRole?: 'button' | 'link'; quiet?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>) {
+}: Readonly<ButtonProps & { retainLeadingIcon?: boolean; buttonRef?: Ref<View>; accessibilityRole?: 'button' | 'link'; quiet?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const size = useContext(ActionRowContext) ? 'sm' : requestedSize
@@ -116,25 +128,12 @@ export function Button({
           : { height: minimumHeight === undefined ? Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN) : undefined, minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN), width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingVertical: SPACING.s4, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
         brand === 'google' ? { paddingHorizontal: GOOGLE_SIGN_IN_BUTTON.paddingX, paddingStart: GOOGLE_SIGN_IN_BUTTON.paddingX, gap: GOOGLE_SIGN_IN_BUTTON.gap } : null,
         variantStyle(pressed && !disabled && !loading),
-        focused ? { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.fg1, outlineOffset: 2 } : null,
+        focused ? buttonFocusStyle(variant, tokens.fg1) : null,
         disabled && !loading ? styles.disabled : null,
         pressed && !disabled && !loading && !prefersReducedMotion ? styles.pressedScale : null,
       ]}
     >
-      {loading ? (
-        <ActivityIndicator size="small" color={textColorByVariant[variant]} />
-      ) : iconOnly ? children : leadingGlyph}
-      {iconOnly ? null : (
-        <Text
-          numberOfLines={1}
-          style={[
-            styles.label,
-            { color: textColorByVariant[variant], fontSize: sizeSpec.fontSize },
-          ]}
-        >
-          {children}
-        </Text>
-      )}
+      <ButtonContents loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColorByVariant[variant]} sizeSpec={sizeSpec}>{children}</ButtonContents>
     </Pressable>
   )
 }
@@ -142,6 +141,30 @@ export function Button({
 /** Native navigation with the same visual contract as PillButton. */
 export function PillLink({ onPress, children }: Readonly<{ onPress: () => void; children: string }>) {
   return <Button accessibilityRole="link" onClick={onPress}>{children}</Button>
+}
+
+function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, sizeSpec }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
+  loading: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; sizeSpec: typeof BUTTON_SIZES.sm
+}>) {
+  const { fontScale } = useWindowDimensions()
+  return <>
+      {loading && !retainLeadingIcon ? (
+        <ActivityIndicator size="small" color={textColor} />
+      ) : iconOnly ? children : leadingGlyph}
+      {iconOnly ? null : (
+        <Text
+          numberOfLines={retainLeadingIcon && fontScale > 1.3 ? undefined : 1}
+          style={[
+            styles.label,
+            retainLeadingIcon ? { flexShrink: 1 } : null,
+            { color: textColor, fontSize: sizeSpec.fontSize },
+          ]}
+        >
+          {children}
+        </Text>
+      )}
+      {retainLeadingIcon ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={{ width: sizeSpec.iconSize, height: sizeSpec.iconSize }}>{loading ? <ActivityIndicator animating size="small" color={textColor} /> : null}</View> : null}
+  </>
 }
 
 const styles = StyleSheet.create({

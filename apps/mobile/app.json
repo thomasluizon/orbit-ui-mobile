@@ -10,11 +10,7 @@
       "enabled": true,
       "checkAutomatically": "NEVER",
       "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/84b3535b-5957-42b7-bda3-4ed9dfde3734",
-      "requestHeaders": {
-        "expo-channel-name": "legacy",
-        "orbit-design-launch": "embedded"
-      }
+      "url": "https://u.expo.dev/84b3535b-5957-42b7-bda3-4ed9dfde3734"
     },
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -38,6 +34,21 @@
       "package": "org.useorbit.app",
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ],
+          "data": [
+            {
+              "scheme": "https",
+              "host": "app.useorbit.org",
+              "path": "/login"
+            }
+          ]
+        },
         {
           "action": "VIEW",
           "autoVerify": true,
@@ -152,7 +163,7 @@
         "@sentry/react-native/expo",
         {
           "url": "https://sentry.io/",
-          "organization": "thomasluizon",
+          "organization": "orbit-ai-habit-tracker",
           "project": "orbit-mobile"
         }
       ],
