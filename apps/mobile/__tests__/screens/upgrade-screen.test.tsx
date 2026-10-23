@@ -64,6 +64,9 @@ const mocks = vi.hoisted(() => ({
   refetchBilling: vi.fn(() => Promise.resolve()),
   refetchStatus: vi.fn(() => Promise.resolve()),
   playBilling: {
+    isLoadingProducts: false,
+    isProductsError: false,
+    retryProducts: vi.fn(),
     isProcessing: false,
     errorKey: '',
     clearError: vi.fn(),
@@ -411,6 +414,9 @@ describe('UpgradeScreen', () => {
     mocks.subscriptionEndedAtUtc = null
     mocks.playBilling.isProcessing = false
     mocks.playBilling.errorKey = ''
+    mocks.playBilling.isLoadingProducts = false
+    mocks.playBilling.isProductsError = false
+    mocks.playBilling.retryProducts.mockReset()
   })
 
   describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('back destination in $locale', ({ locale, messages }) => {
@@ -666,6 +672,30 @@ describe('UpgradeScreen', () => {
     })
     expect(mocks.playBilling.clearError).toHaveBeenCalledTimes(1)
     expect(mocks.playBilling.purchase).toHaveBeenCalledWith('yearly')
+  })
+
+  it.each(['en', 'pt-BR'] as const)('offers a Play product retry on the Pro screen in %s', async (locale) => {
+    await configureSubscription({ width: 412, locale, mode: 'dark', state: 'free' })
+    mocks.playBilling.isProductsError = true
+    const tree = await renderScreen()
+    try {
+      expect(JSON.stringify(tree.toJSON())).toContain(testI18n.t('upgrade.plans.error'))
+      expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'upgrade-tier-yearly')).toHaveLength(0)
+      const retry = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button'
+        && node.findAll((child) => child.type === 'Text' && child.props.children === testI18n.t('upgrade.plans.retry')).length > 0)[0]!
+      await TestRenderer.act(() => (retry.props.onPress as () => void)())
+      expect(mocks.playBilling.retryProducts).toHaveBeenCalledOnce()
+      expect(mocks.refetchPlans).toHaveBeenCalledOnce()
+      expect(mocks.playBilling.purchase).not.toHaveBeenCalled()
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it('withholds purchase tiers while Play products load', async () => {
+    await configureSubscription({ width: 412, locale: 'en', mode: 'dark', state: 'free' })
+    mocks.playBilling.isLoadingProducts = true
+    const tree = await renderScreen()
+    expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'upgrade-tier-yearly')).toHaveLength(0)
+    expect(JSON.stringify(tree.toJSON())).not.toContain(testI18n.t('upgrade.plans.error'))
   })
 
   it('switches the selected interval', async () => {

@@ -169,6 +169,8 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean; onPurc
   const [errorKey, setErrorKey] = useState<string | null>(null)
   const [pendingVerifications, setPendingVerifications] = useState(0)
   const [isRestoring, setIsRestoring] = useState(false)
+  const [productQueryState, setProductQueryState] = useState<'loading' | 'ready' | 'failed'>('loading')
+  const [productQueryAttempt, setProductQueryAttempt] = useState(0)
 
   const beginVerification = useCallback(() => setPendingVerifications((count) => count + 1), [])
   const endVerification = useCallback(
@@ -207,10 +209,23 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean; onPurc
   })
 
   useEffect(() => {
-    if (connected) {
-      void fetchProducts({ skus: [PLAY_SUBSCRIPTION_PRODUCT_ID], type: 'subs' })
-    }
-  }, [connected, fetchProducts])
+    if (!connected) return
+    let active = true
+    void Promise.resolve().then(() => {
+      if (!active) return
+      setProductQueryState('loading')
+      return fetchProducts({ skus: [PLAY_SUBSCRIPTION_PRODUCT_ID], type: 'subs' }).then(
+        () => { if (active) setProductQueryState('ready') },
+        () => { if (active) setProductQueryState('failed') },
+      )
+    })
+    return () => { active = false }
+  }, [connected, fetchProducts, productQueryAttempt])
+
+  const retryProducts = useCallback(() => {
+    setProductQueryState('loading')
+    setProductQueryAttempt((attempt) => attempt + 1)
+  }, [])
 
   const offers = useMemo(() => extractPlayOffers(subscriptions), [subscriptions])
 
@@ -293,6 +308,9 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean; onPurc
     restorePurchases,
     isProcessing: pendingVerifications > 0,
     isRestoring,
+    isLoadingProducts: productQueryState === 'loading',
+    isProductsError: productQueryState === 'failed',
+    retryProducts,
     errorKey,
     clearError,
   }

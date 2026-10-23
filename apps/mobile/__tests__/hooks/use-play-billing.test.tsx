@@ -253,6 +253,26 @@ describe('usePlayBilling', () => {
     expect(result.yearlyOffer?.offerToken).toBe('tok_y')
   })
 
+  it('handles a rejected product query and retries without starting a purchase', async () => {
+    mocks.fetchProducts.mockRejectedValueOnce(new Error('Failed to query product'))
+    const billing = renderUsePlayBillingLive()
+    await flushAsync()
+
+    expect(billing.current.isProductsError).toBe(true)
+    expect(billing.current.isLoadingProducts).toBe(false)
+    expect(billing.current.errorKey).toBeNull()
+    expect(mocks.requestPurchase).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => billing.current.retryProducts())
+    expect(billing.current.isLoadingProducts).toBe(true)
+    await flushAsync()
+
+    expect(mocks.fetchProducts).toHaveBeenCalledTimes(2)
+    expect(mocks.fetchProducts).toHaveBeenLastCalledWith({ skus: ['orbit_pro'], type: 'subs' })
+    expect(billing.current.isProductsError).toBe(false)
+    expect(billing.current.isLoadingProducts).toBe(false)
+  })
+
   it('binds the purchase to the user via obfuscatedAccountId', async () => {
     mocks.state.subscriptions = [
       {

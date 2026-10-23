@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   refetch: vi.fn(), online: true, locale: 'en', plansState: 'loaded', processing: false,
   errorKey: null as string | null, onPurchased: undefined as (() => Promise<void>) | undefined,
   purchase: vi.fn(), showSuccess: vi.fn(),
+  productQueryState: 'ready', retryProducts: vi.fn(),
 }))
 function translate(key: string, parameters?: Record<string, unknown>): string {
   let value: unknown = mocks.locale === 'pt-BR' ? ptBr : en
@@ -40,7 +41,7 @@ vi.mock('@/hooks/use-subscription-plans', async (importOriginal) => ({
 }))
 vi.mock('@/hooks/use-play-billing', () => ({ usePlayBilling: (options: { onPurchased: () => Promise<void> }) => {
   mocks.onPurchased = options.onPurchased
-  return { purchase: mocks.purchase, isProcessing: mocks.processing, errorKey: mocks.errorKey, clearError: vi.fn(), monthlyOffer: null, yearlyOffer: null, isRestoring: false, restorePurchases: vi.fn() }
+  return { purchase: mocks.purchase, isProcessing: mocks.processing, errorKey: mocks.errorKey, clearError: vi.fn(), monthlyOffer: null, yearlyOffer: null, isRestoring: false, restorePurchases: vi.fn(), isLoadingProducts: mocks.productQueryState === 'loading', isProductsError: mocks.productQueryState === 'failed', retryProducts: mocks.retryProducts }
 } }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
 vi.mock('@/components/ui/pill-button', () => ({ PillButton: (props: Record<string, unknown>) => React.createElement('PillButton', props) }))
@@ -67,6 +68,8 @@ beforeEach(async () => {
   mocks.profile = createMockProfile({ isTrialActive: false, hasProAccess: false, plan: 'free', trialEndsAt: null })
   mocks.refetch.mockResolvedValue({ data: mocks.profile, isError: false })
   mocks.online = true; mocks.locale = 'en'; mocks.plansState = 'loaded'; mocks.processing = false; mocks.errorKey = null
+  mocks.productQueryState = 'ready'
+  mocks.retryProducts.mockReset()
 })
 function all(root: ReactTestInstance, type: string) { return root.findAll((node) => node.type === type) }
 function text(root: ReactTestInstance): unknown[] { return all(root, 'Text').map((node) => node.props.children) }
@@ -85,6 +88,17 @@ async function mount() {
 }
 
 describe('Android final Pro step', () => {
+  it.each(['en', 'pt-BR'])('retries a failed Play product query during onboarding in %s', async (locale) => {
+    mocks.locale = locale
+    mocks.productQueryState = 'failed'
+    const { tree, finish } = await mount()
+    expect(text(tree.root)).toContain(translate('upgrade.plans.error'))
+    expect(tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'upgrade-tier-yearly')).toHaveLength(0)
+    await act(() => callback(action(tree.root, translate('upgrade.plans.retry')), 'onClick')())
+    expect(mocks.retryProducts).toHaveBeenCalledOnce()
+    expect(mocks.purchase).not.toHaveBeenCalled()
+    expect(finish).not.toHaveBeenCalled()
+  })
   it.each(['en', 'pt-BR'])('keeps both loaded paywall card hooks and outcomes in %s', async (locale) => {
     mocks.locale = locale
     const { tree } = await mount()
