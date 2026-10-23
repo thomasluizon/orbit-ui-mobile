@@ -1086,6 +1086,8 @@ clipping or overlap. This placement applies on Android and web, including the wi
 
 Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same name, same props, same behaviour.
 
+**Headless behaviour, Orbit visuals.** A primitive's behaviour comes from Radix Primitives on web and rn-primitives on Android; its look comes from Orbit tokens. Reimplementing focus, dismissal or keyboard handling where a headless primitive exists is a defect. Migrated twins expose the same applicable parts: `Root`, `Trigger`, `Portal`, `Content`, `Item`, with the same props and behaviour.
+
 **Expose component state as `data-*` attributes** so styling and tests hook onto state rather than class names. A boolean attribute is present or absent, never `"false"`. An enumerated attribute carries a string value.
 
 | Primitive | Key specs | Web | Mobile |

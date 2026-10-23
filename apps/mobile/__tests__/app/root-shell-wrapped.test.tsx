@@ -1,6 +1,7 @@
-import React, { useSyncExternalStore, type ReactNode } from 'react'
+import React, { createContext, useContext, useSyncExternalStore, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Text } from 'react-native'
+import { Portal, PortalHost } from '@rn-primitives/portal'
 import en from '@orbit/shared/i18n/en.json'
 import { __setWindowDimensions } from '../../test-mocks/react-native'
 import RootLayout from '@/app/_layout'
@@ -11,6 +12,12 @@ import {
   resetPendingNotificationDeletesForTests,
   subscribePendingNotificationDeleteIds,
 } from '@/lib/pending-notification-deletes'
+
+const RootPortalContext = createContext('outside-providers')
+
+function RootPortalProbe() {
+  return React.createElement(Text, { testID: 'root-portal-probe' }, useContext(RootPortalContext))
+}
 
 const routeState = vi.hoisted(() => ({
   pathname: '/wrapped',
@@ -26,6 +33,7 @@ const createState = vi.hoisted(() => ({
   showCreate: vi.fn(),
   setLastDestination: vi.fn(),
   conversationOpen: false,
+  portalVisible: false,
 }))
 
 vi.mock('expo-router', () => {
@@ -41,7 +49,8 @@ vi.mock('expo-router', () => {
     DarkTheme: { colors: {} },
     DefaultTheme: { colors: {} },
     Stack,
-    ThemeProvider: ({ children }: Readonly<{ children?: ReactNode }>) => children,
+    ThemeProvider: ({ children }: Readonly<{ children?: ReactNode }>) =>
+      React.createElement(RootPortalContext.Provider, { value: `${useContext(RootPortalContext)}/navigation` }, children),
     useGlobalSearchParams: () => ({}),
     usePathname: () => routeState.pathname,
     useRouter: () => ({ push: createState.push, replace: vi.fn() }),
@@ -57,7 +66,8 @@ vi.mock('react-native-gesture-handler', () => ({
 }))
 vi.mock('@sentry/react-native', () => ({ wrap: (component: unknown) => component }))
 vi.mock('@/lib/providers', () => ({
-  Providers: ({ children }: Readonly<{ children?: ReactNode }>) => children,
+  Providers: ({ children }: Readonly<{ children?: ReactNode }>) =>
+    React.createElement(RootPortalContext.Provider, { value: 'providers' }, children),
   useCaptureReady: () => false,
 }))
 vi.mock('@/stores/auth-store', () => ({
@@ -180,7 +190,11 @@ vi.mock('@/components/gamification/celebration-panel', () => ({
 vi.mock('@/components/ui/app-toast', () => ({ AppToast: () => null }))
 vi.mock('@/components/ui/app-error-boundary', () => ({ AppErrorScreen: () => null }))
 vi.mock('@/components/chat/conversation', () => ({ AstraConversation: () => React.createElement(Text, { testID: 'conversation-content' }, 'Conversation') }))
-vi.mock('@/components/throttle-screen', () => ({ ThrottleScreen: () => null }))
+vi.mock('@/components/throttle-screen', () => ({
+  ThrottleScreen: () => createState.portalVisible
+    ? <Portal name="root-portal-probe"><RootPortalProbe /></Portal>
+    : null,
+}))
 vi.mock('@/components/upgrade-required-screen', () => ({
   UpgradeRequiredScreen: () => null,
 }))
@@ -228,8 +242,26 @@ async function renderRoot() {
 }
 
 describe('Wrapped root shell', () => {
+  it.each([true, false])('hosts portals once inside app and navigation providers when authenticated is %s', async (authenticated) => {
+    authState.isAuthenticated = authenticated
+    const tree = await renderRoot()
+    expect(tree.root.findAll((node) => node.type === PortalHost)).toHaveLength(1)
+    expect(findByTestId(tree, 'root-portal-probe')).toHaveLength(0)
+    createState.portalVisible = true
+    await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
+    expect(findByTestId(tree, 'root-portal-probe')).toHaveLength(1)
+    expect(findByTestId(tree, 'root-portal-probe')[0]?.props.children).toBe('providers/navigation')
+    await TestRenderer.act(() => tree.update(React.createElement(React.Fragment)))
+    createState.portalVisible = false
+    await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
+    expect(tree.root.findAll((node) => node.type === PortalHost)).toHaveLength(1)
+    expect(findByTestId(tree, 'root-portal-probe')).toHaveLength(0)
+    await TestRenderer.act(() => tree.update(React.createElement(React.Fragment)))
+  })
+
   beforeEach(() => {
     authState.isAuthenticated = true
+    createState.portalVisible = false
     routeState.pathname = '/wrapped'
     routeState.segments = ['wrapped']
     createState.profile = undefined
