@@ -16,7 +16,7 @@ for (const width of [320, 360, 384, 412, 1024, 1100, 1352, 1440]) {
     test.describe(`sidebar account text at ${width}px in ${locale}`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 900 }, layoutProfile: { name, email } })
 
-      test('keeps one growing account link and reaches the profile account row', async ({ page }) => {
+      test('keeps one growing account button, opens sign out and reaches Perfil through its row', async ({ page }) => {
         const words = locale === 'pt-BR' ? ptBR : en
         await page.goto(`${LAYOUT_ORIGIN}/profile`)
         const profileAccount = page.locator(`a[href="${accountRoute}"]`)
@@ -35,7 +35,9 @@ for (const width of [320, 360, 384, 412, 1024, 1100, 1352, 1440]) {
         }
         const account = sidebar.locator('[data-shell-account]:not([data-loading])')
         await expect(account).toHaveCount(1)
-        await expect(account).toHaveAttribute('href', '/profile')
+        await expect(sidebar.getByRole('button', { name: `${name}, ${email}`, exact: true })).toHaveCount(1)
+        await expect(account).not.toHaveAttribute('href')
+        await expect(account).toHaveAttribute('aria-haspopup', 'menu')
         for (const value of [name, email]) {
           const field = account.getByText(value, { exact: true })
           await expect(field).toBeVisible()
@@ -55,6 +57,23 @@ for (const width of [320, 360, 384, 412, 1024, 1100, 1352, 1440]) {
         await sidebar.getByRole('link', { name: words.nav.today, exact: true }).click()
         await expect(page).toHaveURL(`${LAYOUT_ORIGIN}/`)
         await account.click()
+        await expect(page).toHaveURL(`${LAYOUT_ORIGIN}/`)
+        const menu = page.getByRole('menu', { name: `${name}, ${email}`, exact: true })
+        await expect(menu).toBeVisible()
+        await expect(account).toHaveAttribute('aria-expanded', 'true')
+        const header = menu.locator('[data-shell-account-menu-header]')
+        await expect(header.getByText(name, { exact: true })).toBeVisible()
+        await expect(header.getByText(email, { exact: true })).toBeVisible()
+        await expect(menu.getByRole('link')).toHaveCount(0)
+        await expect(menu.getByRole('menuitem')).toHaveCount(1)
+        const signOut = menu.getByRole('menuitem', { name: words.profile.settingsRows.signOut, exact: true })
+        await expect(signOut).toBeVisible()
+        await markRequiredLabels(signOut)
+        await expectLabelsFit(page, menu, [name, email])
+        await page.keyboard.press('Escape')
+        await expect(menu).toBeHidden()
+        await expect(account).toBeFocused()
+        await sidebar.getByRole('link', { name: words.nav.profile, exact: true }).click()
         await expect(page).toHaveURL(`${LAYOUT_ORIGIN}/profile`)
         await expect(profileAccount.getByText(name, { exact: true })).toBeVisible()
         await expect(profileAccount.getByText(email, { exact: true })).toBeVisible()

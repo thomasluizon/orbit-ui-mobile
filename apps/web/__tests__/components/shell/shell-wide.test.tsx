@@ -395,7 +395,7 @@ describe('ShellWide', () => {
     delete document.documentElement.dataset.theme
   })
 
-  it('keeps the full account name and email in one profile link with an initial well', () => {
+  it('keeps the full account name and email in one menu button with an initial well', () => {
     render(
       <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
         items={items}
@@ -406,8 +406,9 @@ describe('ShellWide', () => {
       />,
     )
 
-    const account = screen.getByRole('link', { name: 'Ada Lovelace, ada@example.com' })
-    expect(account).toHaveAttribute('href', '/profile')
+    const account = screen.getByRole('button', { name: 'Ada Lovelace, ada@example.com' })
+    expect(account).not.toHaveAttribute('href')
+    expect(account).toHaveAttribute('aria-haspopup', 'menu')
     expect(within(account).getByText('ada@example.com')).toBeInTheDocument()
     expect(account.querySelector('[aria-hidden="true"]')).toHaveTextContent('A')
     expect(within(account).queryByRole('button')).not.toBeInTheDocument()
@@ -424,7 +425,7 @@ describe('ShellWide', () => {
     expect(placeholder?.previousElementSibling).toContainElement(create)
 
     rerender(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} {...props} account="Ada Lovelace" />)
-    const account = screen.getByRole('link', { name: 'Ada Lovelace' })
+    const account = screen.getByRole('button', { name: 'Ada Lovelace' })
     expect(account).toHaveClass('min-h-[var(--touch-min)]')
     expect(account.parentElement?.previousElementSibling).toContainElement(create)
   })

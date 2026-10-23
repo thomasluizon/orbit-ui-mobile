@@ -179,13 +179,15 @@ describe('Foldable shell geometry', () => {
     ('keeps the sidebar account tokens on one line at $width and text scale $textScale', async ({ width, words, textScale }) => {
       const name = 'W'.repeat(60)
       const email = `${'W'.repeat(48)}@example.com`
-      const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={words.nav.mainNavigation} account={name} accountEmail={email} />)
+      const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[{ id: 'perfil', href: '/profile', icon: 'perfil', label: words.nav.profile }]} activeId="hoje" navLabel={words.nav.mainNavigation} account={name} accountEmail={email} />)
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         const largeText = textScale === 2 ? '[data-shell-account-name] { font-size: 28px; } [data-shell-account-email] { font-size: 24px; }' : ''
         await page.setContent(`<style>${stylesheet}\n${largeText}</style>${container.innerHTML}`)
-        const account = page.getByRole('link', { name: `${name}, ${email}` })
-        expect(await account.getAttribute('href')).toBe('/profile')
+        const account = page.getByRole('button', { name: `${name}, ${email}`, exact: true })
+        expect(await account.getAttribute('href')).toBeNull()
+        expect(await account.getAttribute('aria-haspopup')).toBe('menu')
+        expect(await page.getByRole('link', { name: words.nav.profile, exact: true }).getAttribute('href')).toBe('/profile')
         const geometry = await account.evaluate((element) => {
           const control = element.getBoundingClientRect()
           const fields = [...element.querySelectorAll<HTMLElement>('[data-shell-account-name], [data-shell-account-email]')].map((text) => {
