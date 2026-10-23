@@ -171,10 +171,10 @@ describe('headless Menu', () => {
     render(<Example presentation="sheet" />)
     await openMenu()
     await userEvent.tab()
-    expect(screen.getByRole('button', { name: 'common.close' })).toHaveFocus()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'common.close' })).toHaveFocus())
     expect(screen.getByRole('menu')).toBeVisible()
     await userEvent.tab({ shift: true })
-    expect(screen.getByRole('menuitem', { name: 'Edit' })).toHaveFocus()
+    await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Edit' })).toHaveFocus())
   })
 
   it('skips hidden controls when Tab leaves an anchored menu', async () => {

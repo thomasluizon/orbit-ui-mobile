@@ -110,15 +110,7 @@ export function Content({ id, items = [], onSelect, title, shortTitle, titleMode
 function MenuSheet({ id, items, onSelect, onClose, title, shortTitle, titleMode, finalFocus, onSelectStart, firstItemRef }: Readonly<ContentProps & { firstItemRef: RefObject<HTMLButtonElement | null>; onSelectStart: () => void; onClose: () => void; finalFocus: () => boolean | HTMLElement }>) {
   const { sheetRef, closeSheet } = useSheetHost()
   return <div className="contents" onKeyDownCapture={(event) => {
-    if (event.key !== 'Tab' || !(event.target instanceof HTMLElement)) return
-    const dialog = event.target.closest('[role="dialog"]')
-    if (!dialog) return
-    const controls = Array.from(dialog.querySelectorAll<HTMLElement>('a[href], button, input, select, textarea, [tabindex]'))
-      .filter((element) => element.tabIndex >= 0 && element.getAttribute('role') !== 'menu' && !element.hasAttribute('disabled') && visibleTabStop(element))
-    const index = controls.indexOf(event.target)
-    event.preventDefault()
-    event.stopPropagation()
-    controls[(index + (event.shiftKey ? -1 : 1) + controls.length) % controls.length]?.focus()
+    if (event.key === 'Tab') event.stopPropagation()
   }}><Sheet ref={sheetRef} initialFocus={firstItemRef} open title={titleMode === 'typed' ? title : shortTitle ?? title} titleMode={titleMode} accessibleTitle={title} onClose={() => { const target = finalFocus(); if (target instanceof HTMLElement) target.focus(); onClose() }} finalFocus={finalFocus}>
     <Primitive.Content {...(id ? { id } : {})} aria-label={title} aria-labelledby={undefined} loop className="orbit-menu-items" {...{ onOpenAutoFocus: (event: Event) => { event.preventDefault(); firstItemRef.current?.focus() } }} onEscapeKeyDown={(event) => { event.preventDefault(); closeSheet() }} onInteractOutside={(event) => event.preventDefault()} onCloseAutoFocus={(event) => event.preventDefault()}>
       {items?.map((item) => <Item key={item.id} item={item} buttonRef={item === items.find((row) => !row.disabled || row.badge) ? firstItemRef : undefined} onActivate={(id) => { onSelectStart(); closeSheet(() => onSelect?.(id)) }} />)}

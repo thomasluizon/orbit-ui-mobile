@@ -4,7 +4,6 @@ import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import type { MenuProps } from '@orbit/shared/contracts/overlay'
 import {
   buildSelectionRefreshKey,
   TodayHabitsPanel,
@@ -42,12 +41,6 @@ vi.mock('@/components/ui/icons', async (importOriginal) => ({
   ChevronLeft: () => null,
   ChevronRight: () => null,
   MoreVertical: () => <svg data-testid="adjustments-icon" />,
-}))
-
-vi.mock('@/components/ui/dropdown-menu', () => ({
-  Root: ({ children }: { children: React.ReactNode }) => children,
-  Trigger: ({ children }: { children: React.ReactNode }) => children,
-  Content: () => null,
 }))
 
 vi.mock('motion/react', async (importOriginal) => {
