@@ -1,11 +1,12 @@
 import { spawn } from "node:child_process"
 import { existsSync, readFileSync } from "node:fs"
-import { T, interruptGithubRead, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
+import { T, interruptGithubRead, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, toolPath } from "./_harness.mjs"
 import { readWakeSources } from "../lib/run-state.mjs"
 
 const TOOL = "wait-ci.mjs"
 const SHA_A = "a".repeat(40)
 const SHA_B = "b".repeat(40)
+const recordedRate = JSON.parse(readFileSync(toolPath("__tests__/fixtures/wait-ci-rate-limit.json"), "utf8"))
 const pull = (sha = SHA_A, state = "open") => JSON.stringify({ state, head: { sha } })
 const checks = (rows) => JSON.stringify({ total_count: rows.length, check_runs: rows })
 const completed = (name, conclusion = "success") => ({ name, status: "completed", conclusion })
@@ -22,6 +23,9 @@ const fixture = (label, overrides = []) => {
   const env = orcaEnv([
     ...overrides.filter((entry) => entry.kind === "first"),
     { match: "auth token --user test-owner", stdout: "test-github-token" },
+    { match: "api rate_limit", stdout: JSON.stringify({ ...recordedRate, resources: { ...recordedRate.resources,
+      core: { ...recordedRate.resources.core, limit: 3_600_000, remaining: 3_600_000, reset: Math.ceil(Date.now() / 1000) + 3600 },
+    } }) },
     { match: "/pulls/12", stdout: pull(), ...overrides.find((entry) => entry.kind === "pull") },
     { match: "/check-runs?", stdout: checks([completed("Lint")]), ...overrides.find((entry) => entry.kind === "checks") },
     { match: "/status?", stdout: statuses([]), ...overrides.find((entry) => entry.kind === "statuses") },
@@ -33,6 +37,17 @@ const fixture = (label, overrides = []) => {
 const argumentsFor = (...extra) => ["--repo", "ui", "--pr", "12", ...extra]
 
 export const cases = async () => {
+  const callsWhileExhausted = stage("wait-ci/budget-pull-calls", "")
+  const exhaustedBudget = fixture("budget-exhausted", [
+    { kind: "first", match: "api rate_limit", stdout: JSON.stringify({ ...recordedRate, resources: { ...recordedRate.resources,
+      core: { ...recordedRate.resources.core, remaining: 0, reset: Math.ceil(Date.now() / 1000) + 3600 },
+    } }) },
+    { kind: "pull", sequenceFile: callsWhileExhausted, stdoutSequence: [pull()] },
+  ])
+  const budgetResult = run(TOOL, argumentsFor("--ceiling-minutes", "0.01"), { path: exhaustedBudget.path, env: exhaustedBudget.env })
+  T("wait-ci: an exhausted budget reaches the ceiling without reading a pull", budgetResult.status === 3 &&
+    JSON.parse(budgetResult.stdout).reason === "CEILING" && readFileSync(callsWhileExhausted, "utf8") === "" &&
+    readWakeSources(exhaustedBudget.base).length === 0, budgetResult.stdout)
   for (const [signal, code] of [["SIGTERM", 143], ["SIGINT", 130]]) {
     const pidFile = stage(`wait-ci/${signal}-gh.pid`, "")
     const descendantPidFile = stage(`wait-ci/${signal}-descendant.pid`, "")

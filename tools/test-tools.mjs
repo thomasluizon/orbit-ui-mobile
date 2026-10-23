@@ -37,6 +37,7 @@ const LIB_DIR = join(TOOLS_DIR, "lib")
  * universal contract to check and this registry is the only coverage it can carry.
  */
 const CASE_MODULES = [
+  ["lib/ci-budget.mjs", "ci-budget"],
   ["lib/github-read.mjs", "github-read"],
   ["select-artifact-attempts.mjs", "select-artifact-attempts"],
   ["lib/background-runs.mjs", "background-runs"],
