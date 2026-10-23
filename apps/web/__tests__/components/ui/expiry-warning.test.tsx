@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { StrictMode } from 'react'
 
 const mockLogout = vi.fn()
+const { replace } = vi.hoisted(() => ({ replace: vi.fn() }))
 let mockSessionRefreshFailed = false
 
+vi.mock('next/navigation', () => ({ useRouter: () => ({ replace }) }))
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
     if (params) return `${key}(${JSON.stringify(params)})`
@@ -25,12 +28,23 @@ import { ExpiryWarning } from '@/components/ui/expiry-warning'
 describe('ExpiryWarning', () => {
   beforeEach(() => {
     mockLogout.mockClear()
+    replace.mockClear()
     mockSessionRefreshFailed = false
   })
 
   it('renders nothing while silent session refreshes succeed', () => {
     const { container } = render(<ExpiryWarning />)
     expect(container.innerHTML).toBe('')
+    expect(replace).not.toHaveBeenCalled()
+  })
+
+  it('routes a confirmed ended session to sign in once across repeated renders', () => {
+    mockSessionRefreshFailed = true
+    const mounted = render(<StrictMode><ExpiryWarning /></StrictMode>)
+    mounted.rerender(<StrictMode><ExpiryWarning /></StrictMode>)
+
+    expect(replace).toHaveBeenCalledExactlyOnceWith('/login')
+    expect(mockLogout).not.toHaveBeenCalled()
   })
 
   it('shows the signed-out message only after refresh fails', () => {

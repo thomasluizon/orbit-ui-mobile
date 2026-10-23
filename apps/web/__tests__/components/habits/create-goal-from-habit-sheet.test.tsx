@@ -11,6 +11,8 @@ vi.mock('dompurify', () => ({
   default: { sanitize: (html: string) => html },
 }))
 
+vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isLoading: false, isError: false, refetch: vi.fn() }) }))
+
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { weekStartDay: 0 } }),
 }))

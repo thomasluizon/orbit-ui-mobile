@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useAuthStore } from '@/stores/auth-store'
 import { PillButton } from '@/components/ui/pill-button'
@@ -8,6 +9,18 @@ import { PillButton } from '@/components/ui/pill-button'
 export function ExpiryWarning() {
   const t = useTranslations()
   const { sessionRefreshFailed, logout } = useAuthStore()
+  const router = useRouter()
+  const routedToSignIn = useRef(false)
+
+  useEffect(() => {
+    if (!sessionRefreshFailed) {
+      routedToSignIn.current = false
+      return
+    }
+    if (routedToSignIn.current) return
+    routedToSignIn.current = true
+    router.replace('/login')
+  }, [router, sessionRefreshFailed])
 
   const handleSignIn = useCallback(() => {
     void logout()

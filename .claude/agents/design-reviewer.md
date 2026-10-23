@@ -36,7 +36,7 @@ Cite the DESIGN.md section for every finding. If a rule is not in DESIGN.md and 
 
 **Staged gates.** `local/no-decorative-glow` and `local/no-raw-gradient` ship at `warn` until the `eslint-rules/` re-derivation lands (the PR after human grant 1), so the existing violations are known debt — do not report them as new findings. A **newly introduced** glow or raw gradient in this diff is still a Blocker: the token is deleted and the ban is settled. The same applies to the spacing scale: its step values are **provisional until grant 1**, so do not flag an off-scale value against a scale that has not been chosen yet.
 
-**The colour system has one scheme.** One scheme, not six. A deep space-blue accent, not violet. `--fg-on-primary` is the canvas ink and **not white**, because white on the accent measures 2.41:1. `--status-frozen` is a neutral plus the snowflake glyph and no longer a hue. Flag any surviving reference to six schemes, a violet accent, `Rubik`/`Inter`/`Roboto`, or a cyan frozen dot.
+**The colour system has one scheme with light and dark modes.** The dark canvas is near-black `#09090B`, with one warm orange accent `#C4530F`. `--fg-on-primary` is white in both modes, meeting the 4.5:1 text contrast floor on the accent fill. Families are Geist Sans for UI, Space Grotesk for display, and Geist Mono for metadata. `--status-frozen` is a neutral plus the snowflake glyph. Flag current guidance that names a different scheme, accent or family, or a cyan frozen dot.
 
 ## Rendered critique
 

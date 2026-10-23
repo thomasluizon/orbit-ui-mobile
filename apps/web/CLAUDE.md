@@ -16,7 +16,7 @@ Web client. Server Components by default. Auth via httpOnly cookies + BFF proxy.
 | What | Where |
 |---|---|
 | App shell + nav | `app/(app)/layout.tsx` + `components/shell/destination-shell.tsx` + `components/shell/flow-shell.tsx` |
-| Design tokens (navy+violet system, 6 schemes × dark/light) | `app/globals.css` (Tailwind v4 CSS-first) |
+| Design tokens (near-black canvas, warm orange accent, light/dark) | `app/globals.css` (Tailwind v4 CSS-first) |
 | Auth proxy and public root files | `proxy.ts` |
 | BFF catch-all proxy | `app/api/[...path]/route.ts` |
 | Server Actions (mutations) | `app/actions/*.ts` |
@@ -56,7 +56,7 @@ export async function createHabit(input: CreateHabitInput) {
 ## Styling
 
 - **Tailwind v4 CSS-first.** Theme tokens in `@theme` block in `app/globals.css`. New tokens go there, not inline.
-- **Semantic tokens only** — `var(--bg)`, `var(--bg-elev)`, `var(--fg-1)`, `var(--primary)`, `var(--primary-rgb)` tints, etc. per `DESIGN.md`. Never raw slate values, never hardcoded violet rgba.
+- **Semantic tokens only** — `var(--bg)`, `var(--bg-elev)`, `var(--fg-1)`, `var(--primary)`, `var(--primary-rgb)` tints, etc. per `DESIGN.md`. Never raw slate values, never hardcoded accent rgba.
 - **shadcn-style primitives** are wrapped in `components/ui/*`. Never use them in default state — customize radii, colors, shadows to the token system.
 
 ## Patterns to mirror

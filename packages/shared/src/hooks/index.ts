@@ -14,7 +14,6 @@ export * from './checklist-item-keys-core'
 export * from './suggestion-request-core'
 export * from './composer-recording-core'
 
-
 export * from './backend-field-errors-core'
 export * from './toast-lifecycle-core'
 export * from './tag-suggestions-core'
@@ -24,5 +23,7 @@ export * from './proactive-item-core'
 export { createHabitViewSearchState, updateHabitViewSearch, type HabitViewSearchState } from './habit-view-search-core'
 export { createGoalProgressEntry, reduceGoalProgressEntry, getGoalProgressEntryRequest } from './goal-progress-entry-core'
 
-
 export * from './bulk-actions-core'
+export * from './goal-creation-core'
+export * from './goal-linking-core'
+export * from './goal-habit-picker-core'
