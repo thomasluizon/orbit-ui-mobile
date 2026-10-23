@@ -89,8 +89,17 @@ export const processIsRunning = (pid) => {
 }
 
 /** Interrupt only after the fake GitHub read has started its complete process tree. */
-export const interruptGithubRead = async ({ path, args, env, signal, pidFile, descendantPidFile }) => {
-  const child = spawn(process.execPath, [path, ...args], { env: { ...process.env, ...env } })
+export const interruptGithubRead = async ({ path, args, env, signal, pidFile, descendantPidFile, startupTimeoutMs = 60000 }) => {
+  const child = spawn(process.execPath, [path, ...args], {
+    env: { ...process.env, ...env }, detached: process.platform !== "win32",
+  })
+  const killTree = () => {
+    if (process.platform === "win32") {
+      spawnSync("taskkill", ["/T", "/F", "/PID", String(child.pid)], { windowsHide: true })
+      return
+    }
+    try { process.kill(-child.pid, "SIGKILL") } catch { /* the process group may have already exited */ }
+  }
   let stdout = ""
   let stderr = ""
   child.stdout.on("data", (chunk) => { stdout += chunk })
@@ -99,16 +108,20 @@ export const interruptGithubRead = async ({ path, args, env, signal, pidFile, de
   child.once("exit", () => { exited = true })
   const closed = new Promise((resolve) => child.once("close", (status, signal) => resolve({ status, signal })))
   const readPid = (file) => existsSync(file) ? Number(readFileSync(file, "utf8")) : null
+  const startupDeadline = Date.now() + startupTimeoutMs
   let pids
   while (true) {
     pids = [readPid(pidFile), readPid(descendantPidFile)]
-    if (pids.every(processIsRunning) || exited) break
+    if (pids.every(processIsRunning) || exited || Date.now() >= startupDeadline) break
     await new Promise((resolve) => setTimeout(resolve, 20))
   }
   const started = !exited && pids.every(processIsRunning)
-  const startupError = started ? null : "Tool exited before both GitHub shim pid files held live pids"
+  const startupError = started ? null : exited
+    ? "Tool exited before both GitHub shim pid files held live pids"
+    : `GitHub shim pid files did not hold live pids within ${startupTimeoutMs}ms`
   if (started) child.kill(signal)
-  const watchdog = setTimeout(() => child.kill("SIGKILL"), 3000)
+  else if (!exited) killTree()
+  const watchdog = setTimeout(killTree, 3000)
   const exit = await closed
   clearTimeout(watchdog)
   const cleanupDeadline = Date.now() + 1000
