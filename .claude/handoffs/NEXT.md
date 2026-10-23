@@ -18,11 +18,11 @@ Finish the spec: every requested production fix, the Astra overhaul, the owner r
 
 ## In flight
 
-UI `main` is `a4ef1097`, API `main` is `78ca5334`, landing `main` is `0d5e3df4`. Production web `9157ff3f`, staging web `9157ff3f`; staging and production API `78ca5334`; production landing `0d5e3df4`. Android Open `1.3.93` (`152`) was in Play review. Open pull requests: UI `#2005`, `#2004`, `#2003`, `#2002`, `#1998`, `#1991`, `#1990`, `#1989` (relay docs), `#1984`; API `#877`, `#876`; landing none. No worker is running.
+UI `main` is `a4ef1097`, API `main` is `78ca5334`, landing `main` is `0d5e3df4`. Production web `a4ef1097` and staging web `a4ef1097` (runs 40037036586 and 40036617462, Post-deploy smoke success, carrying `#181` and `#1620`); staging and production API `78ca5334`; production landing `0d5e3df4`. Android Open `1.3.93` (`152`) was in Play review. Open pull requests: UI `#2005`, `#2004`, `#2003`, `#2002`, `#1998`, `#1991`, `#1990`, `#1989` (relay docs), `#1984`; API `#877`, `#876`; landing none. No worker is running.
 
 | Item | Disposition |
 | --- | --- |
-| Web release | `ui#1903` (`#181`) and `ui#1993` (`#1620`) merged; release web staging at the current main SHA with `-f sha=`, then production, smoke must pass. |
+| Web release | Done: `ui#1903` (`#181`) and `ui#1993` (`#1620`) are live on staging and production web `a4ef1097`; record their web acceptance on both tickets, and their Android half rides the next Open release. |
 | `ui#2005` (`#1668`, owner order) | Head `b06f7b0d`, Pullfrog APPROVED, copy approved and posted. CI red: `Tool and Hook Tests` and `Web unit (jsdom 1/2)` (others were pending). Read the failed logs, run a review round on the worktree `ticket-1668-astra-mark-only` (`launch-review-round.sh ui 1668 ...`), push, merge when green and approved, release web, then the next Android Open. |
 | `ui#2002` (`#1588`) | Head `6d9eea4c`, Pullfrog APPROVED at head, 0 threads, one check pending at the relay. Merge when green, release web, next Android Open. |
 | `ui#1984` (`#577`) | Round 5 commit `069406ae` local in `ticket-577-headless-overlays`, not pushed; report `report-577-r5.txt` in the scratchpad. Its NEEDS_DECISION: an app-owned Android native window host for the rn-primitives Dialog above TrueSheet. Research the installed rn-primitives, TrueSheet and Expo sources first, decide and log it, then a `max` round with a recorded reason; rerun the eight failing layout spec files at root with `repro-1984.sh` and push only on layout exit 0. |
@@ -37,7 +37,7 @@ UI `main` is `a4ef1097`, API `main` is `78ca5334`, landing `main` is `0d5e3df4`.
 ## Then, in this order
 
 1. Answer any owner message first, in his language, and give each order a ticket or a rescope before the turn ends.
-2. Release web staging then production for the merged `#181` and `#1620`.
+2. Record `#181` and `#1620` web acceptance (live on production web `a4ef1097`), then dispatch the next Android Open once `ui#2005` and `ui#2002` merge.
 3. `ui#2005` CI round, then `ui#2002`; merge each when green and approved, and release web after each set of merges.
 4. `ui#1984` decision and round; `orbit-api#877` relaunch, then `#876`; the Dependabot and snapshot pull requests one at a time.
 5. Follow `## The order` for everything else, keeping the pool full under the load gate and the disk floor.
@@ -55,7 +55,7 @@ Unattended run. Never ask the owner; decide with the recommended option and log 
 - Verify Android `1.3.93`: carried (still in review at the relay).
 - `ui#2002`: rounds 3 and 4 pushed as `6d9eea4c`, approved; merge carried.
 - `ui#1984` round 5: done as a local commit `069406ae`; decision and push carried.
-- q6: done, `ui#1903` and `ui#1993` merged; their web release carried.
+- q6: done, `ui#1903` and `ui#1993` merged and released to staging and production web `a4ef1097` (smoke success).
 - `orbit-api#877`: measured, no gain, relaunch carried; `#876` carried.
 - Dependabot: `ui#2001` merged; `ui#1991` rebase asked; `ui#1990`, `ui#1998`, `ui#2004`, `ui#2003` carried.
 - `#1641`, `#1622`, `#1656`, staging Postgres, `#1660`, remaining rows: carried with the readings above.
