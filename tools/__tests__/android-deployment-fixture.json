@@ -1,0 +1,48 @@
+{
+  "provenance": "gh api repos/thomasluizon/orbit-ui-mobile/deployments/7283516196",
+  "deployment": {
+    "url": "https://example.invalid/resource",
+    "id": 1,
+    "node_id": "<value>",
+    "task": "android-release",
+    "original_environment": "production",
+    "environment": "production",
+    "description": "Android 1.3.92 (151) to open",
+    "created_at": "<ISO-8601 timestamp>",
+    "updated_at": "<ISO-8601 timestamp>",
+    "statuses_url": "https://example.invalid/resource",
+    "repository_url": "https://example.invalid/resource",
+    "creator": {
+      "login": "<value>",
+      "id": 1,
+      "node_id": "<value>",
+      "avatar_url": "https://example.invalid/resource",
+      "gravatar_id": "<value>",
+      "url": "https://example.invalid/resource",
+      "html_url": "https://example.invalid/resource",
+      "followers_url": "https://example.invalid/resource",
+      "following_url": "https://example.invalid/resource",
+      "gists_url": "https://example.invalid/resource",
+      "starred_url": "https://example.invalid/resource",
+      "subscriptions_url": "https://example.invalid/resource",
+      "organizations_url": "https://example.invalid/resource",
+      "repos_url": "https://example.invalid/resource",
+      "events_url": "https://example.invalid/resource",
+      "received_events_url": "https://example.invalid/resource",
+      "type": "<value>",
+      "user_view_type": "<value>",
+      "site_admin": false
+    },
+    "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "payload": {
+      "app_version": "1.3.92",
+      "android_version_code": "151",
+      "track": "open",
+      "api_base": "https://example.invalid/resource"
+    },
+    "transient_environment": false,
+    "production_environment": true,
+    "performed_via_github_app": null
+  }
+}
