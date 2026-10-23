@@ -161,6 +161,10 @@ export async function cases() {
 
   const all = await planRelease(clientFor({ ahead: ["api", "web", "landing", "android"] }), "production", IDS)
   T("release plan selects all changed services", all.services.every((service) => service.needsRelease && service.commits.length === 1))
+  for (const service of all.services.filter((service) => service.name !== "android")) {
+    T(`${service.name} dispatch pins the planned SHA`, service.plannedSha === SECOND &&
+      service.dispatchCommand === `gh workflow run release.yml --repo thomasluizon/${service.repo} --ref main -f environment=production -f branch='main' -f sha=${SECOND}`)
+  }
 
   const productionTrack = await planRelease(clientFor({ ahead: ["android"], androidRuns: [
     { track: "open", sha: SECOND }, { track: "production", sha: FIRST },

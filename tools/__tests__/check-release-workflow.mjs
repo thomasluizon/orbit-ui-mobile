@@ -192,9 +192,11 @@ function checkPinnedRelease() {
     ["ok", "b".repeat(40), "true", true],
   ]) {
     const health = stage("release-admission/health", JSON.stringify({ ...renderFixture.health, status, commit }))
-    const result = spawnSync(BASH, ["-c", `curl() { cat "$HEALTH_RESPONSE"; }\n${script}`], { encoding: "utf8", env: {
+    const result = spawnSync(BASH, ["-c", `curl() { if [[ "$*" == *api.render.com* ]]; then cat "$SERVICE_RESPONSE"; else cat "$HEALTH_RESPONSE"; fi; }\n${script}`], { encoding: "utf8", env: {
       ...process.env, SOURCE_SHA: renderFixture.health.commit, FORCE_UNSTAGED: override,
-      STAGING_WEB_ORIGIN: "https://staging.example.invalid", HEALTH_RESPONSE: health, GITHUB_STEP_SUMMARY: summary,
+      STAGING_SERVICE_ID: "srv-staging", RENDER_API_KEY: "fixture",
+      SERVICE_RESPONSE: stage("release-admission/service", JSON.stringify(renderFixture.service)),
+      HEALTH_RESPONSE: health, GITHUB_STEP_SUMMARY: summary,
     } })
     T(`staging admission ${status} ${commit} override ${override}`, result.status === (accepted ? 0 : 1), result.stdout + result.stderr)
   }
