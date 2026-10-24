@@ -102,7 +102,10 @@ final class WidgetStore {
   }
 
   func saveToken(_ token: String) throws {
-    if try self.token().map(Self.sessionKey) != Self.sessionKey(token) { try remove("habits.json") }
+    if try self.token().map(Self.sessionKey) != Self.sessionKey(token) {
+      try remove("session")
+      try remove("habits.json")
+    }
     try credentials.write(token)
     try write(Data(Self.sessionKey(token).utf8), to: "session")
   }

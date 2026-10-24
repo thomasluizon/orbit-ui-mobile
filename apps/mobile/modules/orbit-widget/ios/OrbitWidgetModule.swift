@@ -9,13 +9,13 @@ public class OrbitWidgetModule: Module {
     Name("OrbitWidget")
 
     AsyncFunction("saveToken") { (token: String) in
+      defer { WidgetCenter.shared.reloadTimelines(ofKind: "OrbitWidget") }
       try WidgetStore.configured().saveToken(token)
-      WidgetCenter.shared.reloadTimelines(ofKind: "OrbitWidget")
     }.runOnQueue(queue)
 
     AsyncFunction("clearToken") {
+      defer { WidgetCenter.shared.reloadTimelines(ofKind: "OrbitWidget") }
       try WidgetStore.configured().clearToken()
-      WidgetCenter.shared.reloadTimelines(ofKind: "OrbitWidget")
     }.runOnQueue(queue)
 
     AsyncFunction("syncTheme") { (colors: [String: String]) in

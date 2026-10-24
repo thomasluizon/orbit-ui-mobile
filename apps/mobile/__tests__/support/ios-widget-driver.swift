@@ -70,6 +70,14 @@ struct WidgetDriver {
     observations["invalidPayloadDoesNotCache"] = try store.cachedPayload() == nil
     try store.saveTheme(["dark_textPrimary": "#F4F4F6"])
     observations["themeRoundTrip"] = try store.theme()["dark_textPrimary"] == "#F4F4F6"
+    keychain.rejectWrite = true
+    do { try store.saveToken(tokenB) } catch { observations["accountSwitchWriteFailureRejects"] = true }
+    observations["failedSwitchRevokesPriorAccount"] = try store.token() == nil
+    keychain.rejectWrite = false
+    try store.saveToken(tokenA)
+    keychain.rejectWrite = true
+    do { try store.saveToken(rotatedA) } catch { observations["rotationWriteFailureRejects"] = true }
+    observations["rotationFailureKeepsSameAccount"] = try store.token() == tokenA
     let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
     observations["noTokenOnDisk"] = try files.allSatisfy { url in
       let contents = try String(contentsOf: url, encoding: .utf8)

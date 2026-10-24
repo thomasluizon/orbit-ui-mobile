@@ -80,7 +80,8 @@ describe.skipIf(process.platform !== 'darwin')('compiled WidgetKit state and ses
 
   it('shares credentials safely across rotation, switch, logout and reinstall', () => {
     const observations = run('store', payload([habit()])) as Record<string, boolean>
-    expect(Object.keys(observations)).toHaveLength(14)
+    expect(Object.keys(observations)).toHaveLength(18)
+    expect(observations).toMatchObject({ failedSwitchRevokesPriorAccount: true, rotationFailureKeepsSameAccount: true })
     expect(Object.values(observations).every(Boolean)).toBe(true)
   })
 })

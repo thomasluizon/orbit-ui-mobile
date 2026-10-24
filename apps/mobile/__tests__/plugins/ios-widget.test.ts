@@ -15,7 +15,7 @@ interface XcodeProject {
   parseSync(): void
   writeSync(): string
   getFirstTarget(): { uuid: string; firstTarget: NativeTarget }
-  getFirstProject(): { firstProject: { targets: Reference[] } }
+  getFirstProject(): { firstProject: { targets: Reference[]; mainGroup: string; knownRegions: string[] } }
   pbxTargetByName(name: string): NativeTarget
   pbxXCConfigurationList(): Record<string, { buildConfigurations: Reference[] }>
   pbxXCBuildConfigurationSection(): Record<string, { buildSettings: Record<string, string> }>
@@ -24,6 +24,7 @@ interface XcodeProject {
     PBXTargetDependency: Record<string, { target: string }>
     PBXSourcesBuildPhase: Record<string, { files: Reference[] }>
     PBXCopyFilesBuildPhase: Record<string, string | { dstSubfolderSpec: number; files: Reference[] }>
+    PBXGroup: Record<string, { children: Reference[] }>
   } } }
 }
 const xcode = require('xcode') as { project(path: string): XcodeProject }
@@ -63,6 +64,11 @@ describe('WidgetKit prebuild plugin using the installed Expo project template', 
     expect(app.dependencies).toHaveLength(1)
     const objects = project.hash.project.objects
     expect(project.writeSync()).not.toContain('= undefined;')
+    const projectRoot = project.getFirstProject().firstProject
+    const widgetGroup = objects.PBXGroup[projectRoot.mainGroup]?.children.find((child) => child.comment === 'OrbitWidgetExtension')
+    expect(widgetGroup).toBeDefined()
+    expect(objects.PBXGroup[widgetGroup!.value]?.children).toHaveLength(6)
+    expect(projectRoot.knownRegions).toContain('"pt-BR"')
     const dependency = objects.PBXTargetDependency[app.dependencies[0]!.value]!
     expect(objects.PBXNativeTarget[dependency.target]).toEqual(widget)
     const phases = widget.buildPhases.map((phase) => objects.PBXSourcesBuildPhase[phase.value]).filter(Boolean)

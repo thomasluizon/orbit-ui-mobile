@@ -52,10 +52,16 @@ function addWidgetTarget(config, project) {
   project.hash.project.objects.PBXContainerItemProxy ??= {}
   const target = existing ? { pbxNativeTarget: existing } : project.addTarget(TARGET, 'app_extension', TARGET, widgetIdentifiers(config).bundleIdentifier)
   if (!existing) {
-    project.addBuildPhase(SOURCES.map((source) => `${TARGET}/${source}`), 'PBXSourcesBuildPhase', 'Sources', target.uuid)
-    project.addBuildPhase(['en', 'pt-BR'].map((locale) => `${TARGET}/${locale}.lproj/Localizable.strings`), 'PBXResourcesBuildPhase', 'Resources', target.uuid)
+    const sources = SOURCES.map((source) => `${TARGET}/${source}`)
+    const resources = ['en', 'pt-BR'].map((locale) => `${TARGET}/${locale}.lproj/Localizable.strings`)
+    project.addBuildPhase(sources, 'PBXSourcesBuildPhase', 'Sources', target.uuid)
+    project.addBuildPhase(resources, 'PBXResourcesBuildPhase', 'Resources', target.uuid)
     project.addBuildPhase([], 'PBXFrameworksBuildPhase', 'Frameworks', target.uuid)
+    const group = project.addPbxGroup([...sources, ...resources], TARGET, '""')
+    project.addToPbxGroup(group.uuid, project.getFirstProject().firstProject.mainGroup)
   }
+  const projectRoot = project.getFirstProject().firstProject
+  projectRoot.knownRegions = [...new Set([...projectRoot.knownRegions, '"pt-BR"'])]
   configureTarget(project, target, {
     INFOPLIST_FILE: `${TARGET}/Info.plist`, CODE_SIGN_ENTITLEMENTS: `${TARGET}/${TARGET}.entitlements`,
     IPHONEOS_DEPLOYMENT_TARGET: '17.4', SWIFT_VERSION: '5.9', TARGETED_DEVICE_FAMILY: '"1,2"',
