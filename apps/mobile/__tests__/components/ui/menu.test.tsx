@@ -14,9 +14,12 @@ import { HABIT_CREATE_OVERLAY_ID } from '@orbit/shared/utils'
 import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
 import { OverlayHost } from '@/components/ui/overlay-host'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
-import { BackHandler, __getFocusedNativeTag, __setWindowDimensions } from '@/test-mocks/react-native'
+import { Composer } from '@/components/shell/composer'
+import { BackHandler, __focusHost, __getFocusedNativeTag, __setTouchMode, __setWindowDimensions } from '@/test-mocks/react-native'
 import { Checkbox } from '@/components/ui/icons'
 import { useUIStore } from '@/stores/ui-store'
+import { withFocusProvenance } from '@/__tests__/support/focus-provenance'
+import en from '@orbit/shared/i18n/en.json'
 
 const theme = vi.hoisted<{ mode: 'dark' | 'light' }>(() => ({ mode: 'dark' }))
 vi.mock('@/lib/use-app-theme', () => ({
@@ -328,6 +331,41 @@ describe('Menu (mobile)', () => {
       await TestRenderer.act(() => tree.update(<></>))
       vi.useRealTimers()
       focus.mockRestore()
+    }
+  })
+
+  it('keeps keyboard focus on Send after the wide composer menu closes and accessibility restoration settles', async () => {
+    vi.useFakeTimers()
+    __setWindowDimensions({ width: 1280, height: 900, scale: 1, fontScale: 1 })
+    __setTouchMode(false)
+    let tree!: ReactTestRenderer
+    try {
+      await TestRenderer.act(() => {
+        tree = TestRenderer.create(withFocusProvenance(<OverlayHost>
+          <Composer state="idle" value="Keep this draft" onChangeValue={vi.fn()} onSend={vi.fn()} suggestions={[]}
+            words={en.shell.composer} onAttachFile={vi.fn()}
+            attachWords={{ ...en.shell.composer.attach, remove: name => name }} />
+        </OverlayHost>))
+      })
+      const trigger = tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.accessibilityLabel === en.shell.composer.actions)[0]!
+      const send = tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.testID === 'composer-send-accent')[0]!
+      const triggerTag = trigger.props.__nativeTag as number
+      const sendTag = send.props.__nativeTag as number
+      await TestRenderer.act(() => { __focusHost(triggerTag); (trigger.props.onPress as () => void)() })
+      await TestRenderer.act(() => vi.advanceTimersByTime(60))
+      expect(menuItemLabels(tree)).toEqual([en.shell.composer.attach.file])
+      await TestRenderer.act(() => { expect(BackHandler.emitBackPress()).toBe(true) })
+      expect(menuItemLabels(tree)).toEqual([])
+      await TestRenderer.act(() => __focusHost(sendTag))
+      expect(__getFocusedNativeTag()).toBe(sendTag)
+      await TestRenderer.act(() => vi.runOnlyPendingTimers())
+      expect(tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.testID === 'composer-send-accent')[0]).toBe(send)
+      expect(__getFocusedNativeTag()).toBe(sendTag)
+      expect(tree.root.findAll(node => String(node.type) === 'TextInput')[0]!.props.value).toBe('Keep this draft')
+    } finally {
+      await TestRenderer.act(() => tree.update(<></>))
+      vi.useRealTimers()
+      __setTouchMode(true)
     }
   })
 

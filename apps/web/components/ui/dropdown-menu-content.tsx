@@ -53,7 +53,10 @@ export function Content({ id, items = [], onSelect, title, shortTitle, titleMode
   }
   const restoreAnchoredFocus = () => {
     const target = focusDestination()
-    if (typeof target !== 'boolean') target.focus()
+    if (typeof target !== 'boolean') {
+      restoreFocus.current = false
+      target.focus()
+    }
   }
   if (!open || items.length === 0) return null
   if (presentation === 'sheet' || (presentation === 'auto' && !wide)) {
