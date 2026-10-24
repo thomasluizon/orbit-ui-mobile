@@ -11,6 +11,7 @@ import type { Recap } from '@orbit/shared/types/gamification'
 import { formatClosedWrappedMonth, type ClosedRecapMonth, type RecapSharePeriod } from '@orbit/shared/utils'
 import { useWrappedStory, type WrappedSlide as WrappedSlideModel } from '@/hooks/use-wrapped'
 import { useShareCard } from '@/hooks/use-share-card'
+import { useReferralInvitation } from '@/hooks/use-referral-invitation'
 import { useProfile } from '@/hooks/use-profile'
 import { Pager } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
@@ -37,6 +38,7 @@ export function WrappedPlayer({
   onClose,
 }: Readonly<WrappedPlayerProps>) {
   const { t, i18n } = useTranslation()
+  const invitation = useReferralInvitation()
   const clearance = useShellScrollerClearance()
   const windowLabel = closedMonth && period === 'month'
     ? formatClosedWrappedMonth(closedMonth, i18n.language)
@@ -131,7 +133,7 @@ export function WrappedPlayer({
           isSharing={isSharing}
           onShare={() => void share({
             shareTitle: t('shareCard.shareTitle'),
-            shareText: t('shareCard.shareText'),
+            shareText: invitation,
             url: recap.shareDeepLink,
           })}
           onDownload={() => void download()}

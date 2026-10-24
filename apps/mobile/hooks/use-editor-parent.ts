@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { findCachedHabitDetail } from '@orbit/shared/query'
 import type { HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
-import { buildEditorParentChange, buildMoveParentOptions, getMoveParentInventory, validateEditorParent } from '@orbit/shared/utils'
+import { buildEditorParentChange, buildMoveParentOptions, getMoveParentInventory, validateEditorParent } from '@orbit/shared/utils/move-parent'
 import { useHabits } from './use-habit-queries'
 import { useConfig } from './use-config'
 
@@ -24,7 +24,7 @@ export function useEditorParent(habit: NormalizedHabit | null, detail: HabitDeta
   const state = inventory.state ?? (baseline === undefined || !habit || !inventory.habitsById.has(habit.id) ? 'error' : undefined)
   const deps = { ...inventory, maxHabitDepth: config.limits.maxHabitDepth, t }
   const validate = (target: string | null, source: string) => validateEditorParent(deps, target, source, isGeneral)
-  const options = state || !habit ? [] : buildMoveParentOptions({ ...deps, includeCompleted: true, validateMoveTarget: validate }, habit.id)
+  const options = state || !habit ? [] : buildMoveParentOptions({ ...deps, selectionOnly: true, includeCompleted: true, validateMoveTarget: validate }, habit.id)
   const parentGeneral = selected ? inventory.habitsById.get(selected)?.isGeneral ?? chosen?.isGeneral : null
   const lockedGeneral = detail?.children[0]?.isGeneral ?? parentGeneral ?? (chosen === undefined && baseline !== null ? previousConstraint : null)
   const value = selected === undefined ? t('common.unknown') : selected === null ? t('habits.moveParent.toRoot')

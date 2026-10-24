@@ -1,5 +1,6 @@
 'use client'
 
+
 import { SPACING } from '@orbit/shared/theme'
 
 
@@ -10,7 +11,7 @@ import { AnimatePresence } from 'motion/react'
 import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
-import { chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason, getChatReplyState } from '@orbit/shared/chat'
+import { getChatCompletionText, resolveConversationSuggestions, chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason, getChatReplyState } from '@orbit/shared/chat'
 import { APP_BAR_CONTROL_CLASS, AppBar } from '@/components/ui/app-bar'
 import type { useChatComposer } from '@/hooks/use-chat-composer'
 import { MessageBubble } from '@/components/chat/message-bubble'
@@ -111,7 +112,7 @@ function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{
   if (!pendingIdea?.id.startsWith('prompt-library:')) return null
   return <div className="px-4">
     {hasDraft ? <p role="status" className="text-sm text-[var(--fg-3)]">{t('chat.templates.draftKept')}</p> : null}
-    <ListRow placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={hasDraft || !!disabledReason} onClick={() => onSelect(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
+    <ListRow accessibilityLabel={findPromptSlot(pendingIdea.prompt) ? undefined : `${pendingIdea.label}, ${t('nav.astra')}`} icon={findPromptSlot(pendingIdea.prompt) ? undefined : <AstraGlyph size={24} />} value={findPromptSlot(pendingIdea.prompt) ? undefined : t('nav.astra')} placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={hasDraft || !!disabledReason} onClick={() => onSelect(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
   </div>
 }
 
@@ -342,8 +343,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             <AstraGlyph size={24} />
           </span> : null}
           <div className="flex min-w-0 w-full flex-col gap-4">
-          {msg.role === 'ai' ? <TurnAnnouncement messageId={msg.id} claimAnnouncement={claimAnnouncement} content={msg.content} complete={(!initialMessageIds.has(msg.id) || msg.id === initialStreamingMessageId) && msg.id !== streamingMessageId && !isTyping} /> : null}
-          {msg.role === 'ai' && msg.toolSteps?.length ? <ThinkingTrace steps={msg.toolSteps} running={false} /> : null}
+          {msg.role === 'ai' ? <TurnAnnouncement messageId={msg.id} claimAnnouncement={claimAnnouncement} content={getChatCompletionText(msg, { ready: t('chat.replyReady'), unreadable: t('chat.unreadableReply') })} complete={(!initialMessageIds.has(msg.id) || msg.id === initialStreamingMessageId) && msg.id !== streamingMessageId && !isTyping} /> : null}
           <MessageBubble
             senderLabelId={`${senderIdPrefix}-${msg.id}`}
             message={msg}
@@ -360,8 +360,9 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             onPendingOperationPrepareStepUp={prepareStepUpForBubble}
             onPendingOperationVerifyStepUp={verifyStepUpForBubble}
           />
+          {msg.role === 'ai' && msg.toolSteps?.length ? <ThinkingTrace steps={msg.toolSteps} running={false} /> : null}
           {msg.proactiveItem ? <ProactiveAction isOnline={chat.isOnline} item={msg.proactiveItem} acted={msg.proactiveActed ?? false} onSend={sendMessage} /> : null}
-          {msg.role === 'ai' && msg.id === messages.at(-1)?.id && canShowFollowUps && msg.followUps ? <FollowUpChips followUps={msg.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
+          {msg.role === 'ai' && msg.id === messages.at(-1)?.id && canShowFollowUps ? <FollowUpChips followUps={msg.followUps ?? []} followUpContext={msg.followUpContext} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
           </div>
           </article>
         ))}
@@ -382,7 +383,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
       <div className="shrink-0">
         {notice !== undefined ? <div data-shell-notice="">{notice}</div> : null}
         <PendingPromptIdea hasDraft={!!composerProps.value} disabledReason={disabledReason} onSelect={selectIdea} />
-        <Composer {...composerProps} inputSelection={inputSelection} onChangeValue={value => { setInputSelection(undefined); composerProps.onChangeValue(value) }} autoFocus suggestions={composerProps.suggestions} />
+        <Composer {...composerProps} inputSelection={inputSelection} onChangeValue={value => { setInputSelection(undefined); composerProps.onChangeValue(value) }} autoFocus suggestions={resolveConversationSuggestions(messages.length, composerProps.suggestions)} />
       </div>
 
       {selectedGoalId && (

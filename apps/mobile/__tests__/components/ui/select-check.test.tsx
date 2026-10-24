@@ -1,5 +1,9 @@
 import { useState, type ReactNode } from 'react'
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { PADDING } from '@orbit/shared/theme'
+import { measureProfileRow } from '../../support/profile-row-geometry'
+import { Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RadioGroup } from '@/components/ui/radio-row'
@@ -12,6 +16,7 @@ import {
   __resetTestHostConfig,
   __setFocusImpl,
   __setTouchMode,
+  __setWindowDimensions,
 } from '../../../test-mocks/react-native'
 
 const themeState = vi.hoisted((): { currentScheme: 'orange'; currentTheme: 'dark' | 'light' } => ({ currentScheme: 'orange', currentTheme: 'dark' }))
@@ -114,6 +119,23 @@ function renderEntryRows(onChange: (value: string) => void, initialValue?: strin
 }
 
 describe('select-check RadioRow group', () => {
+  it('focuses the enabled radio once per validation request', () => {
+    const focus = vi.fn()
+    const onChange = vi.fn()
+    __setFocusImpl(focus)
+    let tree!: ReactTestRenderer
+    const rows = (selected: boolean) => <RadioGroup accessibilityLabel="Type" focusRequest={1}>
+      <RadioRow label="Task" disabled reason="Locked" />
+      <RadioRow label="Habit" selected={selected} onSelect={onChange} />
+    </RadioGroup>
+    void act(() => { tree = create(rows(true)) })
+    expect(focus).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ accessibilityLabel: 'Habit' }))
+    void act(() => tree.update(rows(false)))
+    expect(focus).toHaveBeenCalledTimes(1)
+    expect(onChange).not.toHaveBeenCalled()
+    void act(() => tree.update(<View />))
+  })
+
   it.each([false, true])('announces personal text and supporting metadata when disabled=%s', (disabled) => {
     const label = `${'longaddress'.repeat(12)}@example.com`
     let tree!: ReactTestRenderer
@@ -129,6 +151,18 @@ describe('select-check RadioRow group', () => {
     expect(radio.props.accessibilityState).toEqual(disabled
       ? { checked: false, disabled: true }
       : { checked: true })
+    void act(() => tree.update(<View />))
+  })
+
+  it.each([false, true])('keeps group-disabled reasons at the group when personal=%s', (personal) => {
+    let tree!: ReactTestRenderer
+    void act(() => { tree = create(<RadioRow label="A title written by a person" textMode={personal ? 'personal' : undefined}
+      meta="3" tag="Current" disabled reasonScope="group" />) })
+    const radio = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')[0]!
+    expect(radio.props.focusable).toBe(false)
+    expect(radio.props.onPress).toBeUndefined()
+    expect(radio.props.accessibilityLabel).toBe('A title written by a person, 3, Current')
+    expect(tree.root.findAll((node) => node.type === Pressable)).toHaveLength(personal ? 1 : 0)
     void act(() => tree.update(<View />))
   })
 
@@ -496,5 +530,57 @@ describe('RadioRow secondary text contrast', () => {
     expect(metaStyle.color).toBe(expectedForeground)
     expect(tagStyle.color).toBe(expectedForeground)
     void act(() => { tree.update(<View />) })
+  })
+})
+
+
+describe('disabled personal destination reason layout', () => {
+  afterEach(() => { __resetTestHostConfig(); themeState.currentTheme = 'dark' })
+
+  const cases = (['dark', 'light'] as const).flatMap((mode) =>
+    (['en', 'pt-BR'] as const).map((locale) => ({ mode, locale, fontScale: 2 })),
+  )
+  it.each([...cases, { mode: 'dark' as const, locale: 'en' as const, fontScale: 1 }])('separates the complete $locale reason from current metadata and controls at 320/$fontScale in $mode', ({ mode, locale, fontScale }) => {
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale })
+    themeState.currentTheme = mode
+    const words = locale === 'en' ? en : ptBR
+    const label = 'Current place for evening tasks'
+    const reasonText = words.habits.moveParent.invalidCurrentParentMany
+    const tag = words.habits.moveParent.currentParent
+    let tree!: ReactTestRenderer & { toJSON: () => Parameters<typeof measureProfileRow>[0] }
+    void act(() => { tree = create(<RadioRow label={label} textMode="personal" depth={2}
+      meta="12" tag={tag} leading={<Text accessible={false} style={{ fontSize: 16, lineHeight: 16 }}>·</Text>} disabled reason={reasonText} />) as typeof tree })
+    const measure = () => measureProfileRow(tree.toJSON(), 320 - 2 * PADDING.sheetInline, fontScale)
+    const assertLayout = () => {
+      const measured = measure()
+      const reason = measured.texts.find((text) => text.label === reasonText)!
+      const title = measured.texts.find((text) => text.label === label)!
+      const metadata = measured.texts.filter((text) => text.label === '12' || text.label === tag)
+      const glyph = measured.parts.find((part) => part.slot === 'list-row-trailing')!
+      const disclosure = measured.controls.find((control) => control.accessibilityLabel === label)!
+      expect(metadata).toHaveLength(2)
+      expect(title.width).toBeGreaterThanOrEqual(Math.max(24, 16 * fontScale))
+      expect(reason.width).toBeGreaterThan(title.width)
+      expect(reason.clipped).toBe(false)
+      for (const other of [...metadata, glyph, disclosure]) {
+        expect(reason.left < other.right && reason.right > other.left && reason.top < other.bottom && reason.bottom > other.top).toBe(false)
+      }
+      expect(reason.top).toBeGreaterThanOrEqual(Math.max(...metadata.map((text) => text.bottom), glyph.bottom, disclosure.bottom))
+      expect(reason.left).toBeGreaterThanOrEqual(0)
+      expect(reason.right).toBeLessThanOrEqual(320 - 2 * PADDING.sheetInline)
+      expect(disclosure.width).toBeGreaterThanOrEqual(48)
+      expect(disclosure.height).toBeGreaterThanOrEqual(48)
+      const radio = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')[0]!
+      expect(radio.props.accessibilityLabel).toBe(`${label}, 12, ${tag}, ${reasonText}`)
+      expect(radio.props.focusable).toBe(false)
+      expect(radio.props.onPress).toBeUndefined()
+    }
+    assertLayout()
+    const disclosure = tree.root.findAll((node) => node.type === Pressable && node.props.accessibilityLabel === label)[0]!
+    void act(() => (disclosure.props.onPress as () => void)())
+    expect((disclosure.props.accessibilityState as { expanded: boolean }).expanded).toBe(true)
+    expect(tree.root.findAll((node) => node.type === ScrollView && node.props.horizontal === true)).not.toHaveLength(0)
+    assertLayout()
+    void act(() => tree.update(<View />))
   })
 })

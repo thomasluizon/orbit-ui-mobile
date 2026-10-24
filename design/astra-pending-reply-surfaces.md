@@ -23,3 +23,12 @@ line without a scroll event. Layout-only reveal checks cover both widths and mot
 without reattaching follow-latest or rendering the native conversation on scroll.
 
 These hermetic checks do not prove native text rasterization or screen-reader speech on a device.
+
+## Final answer boundary
+
+Provisional answer deltas remain hidden on both platforms. Pending dots stay visible until final
+delivery unless running tools replace them. Cancellation, offline/transport failure, allowance and
+account replacement retain their terminal owners. Completed steps move into their request's
+collapsed disclosure after the answer. A block-only final answer completes the turn and receives
+one localized polite announcement; unreadable sole answers announce their visible recovery line.
+The feed remains silent outside those announcement owners.

@@ -1,3 +1,4 @@
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import type { ComponentType } from 'react'
 import type { IconProps } from '@orbit/shared/contracts/brand'
 import { View } from 'react-native'
@@ -93,7 +94,7 @@ const ICON_COMPONENTS: Readonly<Record<string, TablerIcon>> = {
 }
 
 export function Icon({ name, size = 24, strokeWidth = 1.5, filled = false, color, label }: Readonly<IconProps>) {
-  const Glyph = ICON_COMPONENTS[name]
+  const Glyph = name === 'astra' ? AstraGlyph : ICON_COMPONENTS[name]
 
   return (
     <View

@@ -1,17 +1,22 @@
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-}))
+const rewardState = vi.hoisted(() => ({ locale: '', stats: undefined as { rewardType?: string; proDaysPerReferral?: number; discountPercent?: number } | undefined }))
+vi.mock('next-intl', async (importActual) => {
+  const actual = await importActual<typeof import('next-intl')>()
+  return { ...actual, useTranslations: () => (key: string, params?: Record<string, string | number>) => rewardState.locale ? (() => { const translate = actual.createTranslator({ locale: rewardState.locale, messages: rewardState.locale === 'en' ? en : ptBR }); return translate(key as Parameters<typeof translate>[0], params) })() : key }
+})
 
 /**
  * One client for every render, the way the real `useQueryClient` reads one off a context. A fresh
  * object per render changes the identity of an effect dependency, which re-arms a settle timer
  * this test exists to prove stays cleared.
  */
-const queryClientDouble = { getQueryData: () => undefined }
+const queryClientDouble = { getQueryData: () => rewardState.stats ? { stats: rewardState.stats } : undefined }
 vi.mock('@tanstack/react-query', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-query')>()),
   useQueryClient: () => queryClientDouble,
@@ -63,7 +68,7 @@ describe('ReferralPrompt', () => {
     expect(drawerRender).not.toHaveBeenCalled()
   })
   beforeEach(() => {
-    vi.useFakeTimers()
+    vi.useFakeTimers(); rewardState.locale = ''; rewardState.stats = undefined
     vi.stubGlobal('fetch', vi.fn())
     holdAccount('user-1')
     resetStores()
@@ -209,4 +214,22 @@ describe('ReferralPrompt', () => {
 
     expect(screen.queryByTestId('sheet')).toBeNull()
   })
+  it.each(referralCopyCases)('uses the cached $locale reward explanation without a new fetch', async ({ locale, stats, explanation }) => {
+    rewardState.locale = locale
+    rewardState.stats = stats
+    render(<ReferralPrompt />)
+    await arm('streak-7')
+    await settle()
+    expect(screen.getByText(explanation)).toBeInTheDocument()
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+  })
+
+  it('keeps an empty cache neutral after the real scheduling delay', async () => {
+    rewardState.locale = 'en'
+    render(<ReferralPrompt />)
+    await arm('streak-7')
+    await settle()
+    expect(screen.getByText('Share your link to invite someone to Orbit.')).toBeInTheDocument()
+  })
+
 })

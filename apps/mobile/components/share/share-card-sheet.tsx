@@ -5,6 +5,7 @@ import { PADDING } from '@orbit/shared/theme'
 import { isRecapShareEmpty, type RecapSharePeriod } from '@orbit/shared/utils'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { useShareCard } from '@/hooks/use-share-card'
+import { useReferralInvitation } from '@/hooks/use-referral-invitation'
 import { Sheet } from '@/components/ui/sheet'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { PillButton } from '@/components/ui/pill-button'
@@ -40,6 +41,7 @@ function ShareCardFeedback({ hasError, savedFileName, tokens }: Readonly<{
 
 export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
   const { t } = useTranslation()
+  const invitation = useReferralInvitation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [period, setPeriod] = useState<RecapSharePeriod>('week')
@@ -51,7 +53,7 @@ export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
   const actions = <>
     <PillButton variant={canShareFiles ? 'ghost' : 'primary'} disabled={disabled} loading={isSharing} onClick={() => void download()} leadingIcon={<Download size={16} strokeWidth={2} color={canShareFiles ? tokens.fg1 : tokens.fgOnPrimary} />}>{t('shareCard.download')}</PillButton>
     {canShareFiles ? <PillButton disabled={disabled} loading={isSharing} onClick={() => {
-      if (recap) void share({ shareTitle: t('shareCard.shareTitle'), shareText: t('shareCard.shareText'), url: recap.shareDeepLink })
+      if (recap) void share({ shareTitle: t('shareCard.shareTitle'), shareText: invitation, url: recap.shareDeepLink })
     }} leadingIcon={<Share2 size={16} strokeWidth={2} color={tokens.fgOnPrimary} />}>{t('shareCard.share')}</PillButton> : null}
   </>
 

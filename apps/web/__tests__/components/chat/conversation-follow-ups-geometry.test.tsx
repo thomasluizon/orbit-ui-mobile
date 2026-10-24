@@ -18,8 +18,8 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 
 const questions = [
-  'Quer revisar os seus hábitos e planejar a rotina pra amanhã?',
-  'Quer revisar os seus hábitos e planejar a rotina pra depois?',
+  'Planejar amanhã',
+  'Revisar hábitos',
 ]
 const finalResponse = chatResponseSchema.parse({
   aiMessage: 'Podemos revisar a sua rotina.', actions: [], followUps: questions,
@@ -76,13 +76,11 @@ describe('Follow-up conversation geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each(cases)('shows whole questions at $width with text scale $textScale and trace $withTrace', async ({ width, textScale, withTrace }) => {
+  it.each(cases)('shows label-hugging chips at $width with text scale $textScale and trace $withTrace', async ({ width, textScale, withTrace }) => {
     const chat = createChat(withTrace)
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={pt}>
       <div style={{ width: width >= 1024 ? 380 : width }}><AstraConversation chat={chat} /></div>
     </NextIntlClientProvider>)
-    fireEvent.click(screen.getByRole('button', { name: questions[0] }))
-    expect(chat.sendMessage).toHaveBeenCalledWith(questions[0], 'followUp')
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style><div class="dark">${container.innerHTML}</div>`)
@@ -90,7 +88,7 @@ describe('Follow-up conversation geometry in Chromium', () => {
       await page.addStyleTag({ content: `html { font-size: ${16 * textScale}px; }` })
       const geometry = await page.getByRole('group', { name: pt.chat.followUps.label }).evaluate(group => {
         const message = document.querySelector('[data-bubble-role="ai"]')!
-        const label = group.querySelector('span')!
+        const groupBounds = group.getBoundingClientRect()
         const rows = [...group.querySelectorAll('button')].map(row => {
           const text = row.querySelector('span')!
           const bounds = row.getBoundingClientRect()
@@ -103,7 +101,7 @@ describe('Follow-up conversation geometry in Chromium', () => {
         })
         const trace = [...document.querySelectorAll('button')].find(button => button.hasAttribute('aria-expanded'))
         return { rows, messageLeft: message.getBoundingClientRect().left,
-          groupWidth: group.getBoundingClientRect().width, labelGap: label.getBoundingClientRect().top - message.getBoundingClientRect().bottom,
+          groupWidth: group.getBoundingClientRect().width, labelGap: groupBounds.top - message.getBoundingClientRect().bottom,
           traceLeft: trace?.getBoundingClientRect().left }
       })
       expect(geometry.rows).toHaveLength(2)
@@ -111,19 +109,22 @@ describe('Follow-up conversation geometry in Chromium', () => {
         expect.soft(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth)
         expect.soft(row.scrollHeight).toBeLessThanOrEqual(row.clientHeight)
         expect.soft(row.overflow).not.toBe('ellipsis')
-        expect.soft(row.whiteSpace).not.toBe('nowrap')
+        expect.soft(row.whiteSpace).toBe('normal')
         expect.soft(row.title).toBeNull()
-        expect.soft(Math.abs(row.left - geometry.messageLeft)).toBeLessThanOrEqual(1)
-        expect.soft(row.width).toBeCloseTo(geometry.groupWidth, 0)
-        expect.soft(row.height).toBeGreaterThanOrEqual(48)
-        expect.soft(row.radius).toBe('12px')
-        expect.soft(row.paddingBlock).toBe('12px')
+        expect.soft(row.left).toBeGreaterThanOrEqual(geometry.messageLeft)
+        expect.soft(row.width).toBeLessThanOrEqual(geometry.groupWidth)
+        expect.soft(row.height).toBeGreaterThanOrEqual(40)
+        expect.soft(parseFloat(row.radius)).toBeGreaterThanOrEqual(999)
+        expect.soft(row.paddingBlock).toBe('4px')
         expect.soft(row.paddingInline).toBe('16px')
-        expect.soft(row.textAlign).toBe('start')
+        expect.soft(row.textAlign).toBe('center')
         expect(row.fontSize).toBe(14 * textScale)
       }
       expect.soft(geometry.labelGap).toBeGreaterThanOrEqual(16)
       if (withTrace) expect.soft(Math.abs(geometry.traceLeft! - geometry.messageLeft)).toBeLessThanOrEqual(1)
     } finally { await page.close() }
+    fireEvent.click(screen.getByRole('button', { name: `${questions[0]}, Astra` }))
+    fireEvent.click(screen.getByRole('button', { name: `${questions[0]}, Astra` }))
+    expect(chat.sendMessage).toHaveBeenCalledExactlyOnceWith(questions[0], 'followUp')
   })
 })

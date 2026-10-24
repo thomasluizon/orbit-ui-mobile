@@ -66,6 +66,7 @@ export const API = {
     bulk: '/api/habits/bulk',
     bulkLog: '/api/habits/bulk/log',
     bulkSkip: '/api/habits/bulk/skip',
+    bulkParent: '/api/habits/bulk/parent',
     reorder: '/api/habits/reorder',
     summary: '/api/habits/summary',
     trends: '/api/habits/trends',
@@ -142,6 +143,7 @@ export const API = {
     stream: '/api/chat/stream',
     transcribe: '/api/chat/transcribe',
     records: '/api/chat/records',
+    habitRanking: '/api/chat/habit-ranking',
     refreshRead: '/api/chat/reads/refresh',
   },
 

@@ -1,13 +1,21 @@
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 
+const rewardState = vi.hoisted(() => ({ locale: '', stats: null as { rewardType?: string; proDaysPerReferral?: number; discountPercent?: number } | null, isError: false }))
+vi.mock('@/hooks/use-referral', () => ({ useReferral: () => rewardState }))
 const mocks = vi.hoisted(() => ({
   wrapped: vi.fn(), share: vi.fn(), download: vi.fn(), resetFeedback: vi.fn(), refetch: vi.fn(),
   isLoading: false, isError: false, isEmpty: false, isSharing: false, hasError: false,
   canShareFiles: true, savedFileName: null as string | null,
 }))
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string, values?: { file: string }) => values ? `${key}:${values.file}` : key }))
+vi.mock('next-intl', async (importActual) => {
+  const actual = await importActual<typeof import('next-intl')>()
+  return { ...actual, useTranslations: () => (key: string, values?: Record<string, string | number>) => rewardState.locale ? (() => { const translate = actual.createTranslator({ locale: rewardState.locale, messages: rewardState.locale === 'en' ? en : ptBR }); return translate(key as Parameters<typeof translate>[0], values) })() : values?.file ? `${key}:${values.file}` : key }
+})
 vi.mock('@/hooks/use-wrapped', () => ({ useWrapped: (period: string, options: unknown) => {
   mocks.wrapped(period, options)
   return { recap: createMockRecap({ metrics: createMockRetrospectiveMetrics({ activeDays: mocks.isEmpty ? 0 : 5, totalCompletions: mocks.isEmpty ? 0 : 40, completionRate: mocks.isEmpty ? 0 : 73.5 }) }), ...mocks }
@@ -23,7 +31,7 @@ function openSheet() {
 
 describe('Share progress sheet', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.clearAllMocks(); rewardState.locale = ''; rewardState.stats = null; rewardState.isError = false
     Object.assign(mocks, { isLoading: false, isError: false, isEmpty: false, isSharing: false, hasError: false, canShareFiles: true, savedFileName: null })
   })
 
@@ -46,7 +54,7 @@ describe('Share progress sheet', () => {
     render(<ShareCardEntryButton />)
     openSheet()
     fireEvent.click(screen.getByRole('button', { name: 'shareCard.share' }))
-    expect(mocks.share).toHaveBeenCalledWith({ shareTitle: 'shareCard.shareTitle', shareText: 'shareCard.shareText', url: createMockRecap().shareDeepLink })
+    expect(mocks.share).toHaveBeenCalledWith({ shareTitle: 'shareCard.shareTitle', shareText: 'referral.share.neutral', url: createMockRecap().shareDeepLink })
     fireEvent.click(screen.getByRole('button', { name: 'shareCard.download' }))
     expect(mocks.download).toHaveBeenCalledOnce()
   })
@@ -100,4 +108,24 @@ describe('Share progress sheet', () => {
     view.rerender(<ShareCardEntryButton />)
     expect(screen.getByRole('status')).toHaveTextContent('shareCard.saved:orbit-recap.png')
   })
+  it.each(referralCopyCases)('sends the exact approved $locale invitation for $stats.rewardType', ({ locale, stats, invitation }) => {
+    rewardState.locale = locale
+    rewardState.stats = stats
+    render(<ShareCardEntryButton />)
+    fireEvent.click(screen.getByRole('button', { name: (locale === 'en' ? en : ptBR).shareCard.entry }))
+    expect(document.body.textContent).not.toContain(invitation)
+    fireEvent.click(screen.getByRole('button', { name: (locale === 'en' ? en : ptBR).shareCard.share }))
+    expect(mocks.share).toHaveBeenLastCalledWith({ shareTitle: (locale === 'en' ? en : ptBR).shareCard.shareTitle, shareText: invitation, url: createMockRecap().shareDeepLink })
+  })
+
+  it.each([false, true])('shares a neutral invitation while optional reward data is unavailable, error %s', (isError) => {
+    rewardState.locale = 'en'
+    rewardState.isError = isError
+    render(<ShareCardEntryButton />)
+    fireEvent.click(screen.getByRole('button', { name: en.shareCard.entry }))
+    fireEvent.click(screen.getByRole('button', { name: en.shareCard.share }))
+    expect(mocks.share).toHaveBeenLastCalledWith({ shareTitle: en.shareCard.shareTitle, shareText: 'Join me on Orbit.', url: createMockRecap().shareDeepLink })
+    expect(screen.getByRole('button', { name: en.shareCard.download })).toBeEnabled()
+  })
+
 })

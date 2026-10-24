@@ -10,6 +10,9 @@ The granted Astra conversation canvas defines the item rows, action order and ou
 | Wide preview actions | Secondary action named from `actionKey` with the target count, ghost Edit, a spacer and ghost Reject; whole controls reflow when the panel cannot fit them. |
 | Breakdown draft footer | Add habit, More actions and Approve are the three visible actions. Approve is primary with rows; Add habit is primary in an empty draft. More actions opens the shared compact sheet or wide anchored menu with Edit and Reject, keeping their accessible names. |
 | Breakdown recovery footer | Pending disables editing and disclosure. Capacity feedback stays neutral, adding is disabled at the limit, no-write failures retain the draft, and partial failure keeps only Retry. Completed and rejected previews retain their terminal status. |
+| Inline item title | A pending item with an editable title opens an in-place Input on title activation. Enter or blur revises the held preview; Escape discards the draft. Unchanged drafts leave the proposal intact; edited values use the existing revision validation. Approval stays disabled while any visible title draft differs from its accepted proposal, including after revision failure. Restoring the accepted name or completing the revision enables approval. Enter and Escape return focus to the title control; blur preserves the next focus destination. Busy, stale and terminal rows cannot rename. No item title carries a disclosure chevron. |
+| Reading item title | Every title that cannot rename, including deletion and terminal rows, wraps to two lines and reveals its complete name on activation. Expanded web text scrolls beside its native control through PersonalTextAction. Android uses the existing PersonalText expansion adapter. |
+| Proposed icon | The proposed icon sits beside the title in both locales, without a verb or redundant metadata label. Icon removal retains its summary. |
 | Item editing sheet | Existing typed editing, per-item removal and batch revision remain available. |
 | Irreversible confirmation and identity verification | Reversible previews approve directly; deletion confirmation names the deletion count and act, including in a mixed preview. Existing identity verification remains available. |
 | Revised preview | Removal and editing update the action count, irreversible marks and deletion count from the returned items. |
@@ -40,6 +43,35 @@ pending, completed, failed and stale previews at 390, 840 and 1352 in both local
 appearances. Android Yoga cases measure the same frame inset and absent-description gap.
 Native text rendering and TalkBack remain device-verification boundaries.
 
+Preview title owners are `components/chat/preview-item-title.tsx` on both platforms.
+They use Input, PersonalText and the native inset focus primitive with the existing
+48px target, field perimeter and neutral tokens. Full Edit continues to open the
+typed sheet for every other field. Inline title revisions use the current preview
+fingerprint and invalidate prior authorization through the existing revision path.
+Android hardware Escape uses the native key-down event enabled by the application
+feature-flag adapter; the legacy TextInput soft-key event cannot deliver it.
+The focused suites cover cancellation, submission deduplication, updated names,
+retained full editing and approval. Staging rendering, persisted habit readback and
+native keyboard delivery remain rollout verification boundaries.
+
+The proposed row wrapper stays mounted when a revision accepts its title, preserving
+the editor and its focus-return state across the change. Proposed title text uses
+fg-2 on hover, press and focus fills. Approval and identity verification share the
+unaccepted-title gate; failure feedback remains beside the held preview.
+
+A successful refresh replaces the editor with the accepted preview and clears its
+discarded title drafts, including when the returned item ids are unchanged. A failed
+revision keeps the displayed draft and continues to block approval until the title
+is accepted, restored or cancelled.
+
+The `preview item titles` amendment in
+`design/canvas/Orbit Astra Conversation.dc.html` retains full-name disclosure for
+terminal rows and the stable Proposed wrapper. The Chromium preview geometry suite
+measures the padded row inside that wrapper and includes the terminal title control
+in its bounds. The 24px frame inset, 24px header gap, 12px row inset, first-line action
+alignment and overflow bounds apply in every state. Android's BlockFrame style and
+Yoga suites retain the matching row and frame contracts.
+
 ## Focused read surfaces
 
 | Family | Paired owner and behavior |
@@ -61,3 +93,17 @@ signed refresh/paging, recovery and account changes. The existing geometry suite
 and wide figures with enlarged text. Actual Android text and TalkBack require device acceptance;
 unit geometry does not establish native font rendering or spoken output. Real-call composition
 acceptance belongs to #26. This inventory does not change preview editing or approval ownership.
+
+## Lean composition ownership
+
+Negotiated parts render their primary answer once and exclude duplicate legacy cards and prose.
+Operation previews and outcomes lead before external text. Repeated pending ids retain their
+original card; a later terminal response updates that card's presented persisted state. Failed,
+denied, partial, rejected, stale and uncertain outcomes retain the existing localized recovery and
+approval mechanics. No risk badge or purchase invitation is added.
+
+Choice and pick-list questions stay inside their existing blocks. Completed steps use secondary
+disclosure after the answer. Follow-ups use zero to two existing small pills with a hidden group
+name and full contextual activation. Empty answers recover visibly; block-only answers announce
+completion once. Read scopes survive history serialization without carrying refresh credentials.
+The #26 bilingual real-pipeline gate remains required before broad composition activation.

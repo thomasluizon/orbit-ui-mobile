@@ -1,17 +1,29 @@
 package org.useorbit.app.widget
 
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 fun main() {
     val lock = Any()
+    val serial = Executors.newSingleThreadExecutor()
+    try {
+        verifyAccountOwnership(lock, WidgetPublisher(lock, serial))
+    } finally {
+        serial.shutdownNow()
+        check(serial.awaitTermination(2, TimeUnit.SECONDS))
+    }
+}
+
+private fun verifyAccountOwnership(lock: Any, publisher: WidgetPublisher) {
     var session: String? = "A"
     var cachedHabit: String? = "A private habit"
-    val accounts = WidgetAccountState(lock) { session }
+    val accounts = WidgetAccountState(lock, publisher) { session }
     fun save(account: String) = accounts.replaceAccount(
         account,
         saveToken = { session = account },
-        clearCache = { cachedHabit = null }
+        clearCache = { cachedHabit = null },
+        repaint = {}
     )
 
     save("A")

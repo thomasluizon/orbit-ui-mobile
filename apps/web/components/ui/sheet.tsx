@@ -221,12 +221,17 @@ function revealSheetBodyFocus(body: HTMLDivElement) {
   const focused = body.ownerDocument.activeElement
   if (!(focused instanceof HTMLElement) || !body.contains(focused)) return
   const bounds = focused.getBoundingClientRect()
-  const top = body.getBoundingClientRect().top + body.clientTop
-  const bottom = top + body.clientHeight
-  const delta = bounds.top < top || bounds.height > body.clientHeight
+  const bodyBounds = body.getBoundingClientRect()
+  const style = getComputedStyle(body)
+  const borderTop = Number.parseFloat(style.borderTopWidth) || 0
+  const borderBottom = Number.parseFloat(style.borderBottomWidth) || 0
+  const scrollbarHeight = Math.max(0, body.offsetHeight - body.clientHeight - borderTop - borderBottom)
+  const top = bodyBounds.top + borderTop
+  const bottom = bodyBounds.bottom - borderBottom - scrollbarHeight
+  const delta = bounds.top < top || bounds.height > bottom - top
     ? bounds.top - top
     : Math.max(0, bounds.bottom - bottom)
-  body.scrollTop += delta
+  body.scrollTop += delta < 0 ? Math.floor(delta) : Math.ceil(delta)
 }
 
 function useSheetBodyFocusVisibility(virtualizedBody: boolean | undefined) {

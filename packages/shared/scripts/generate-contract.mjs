@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { generate } from 'orval'
+import { preserveUtf16Bounds } from './utf16-contract.mjs'
 import {
   contractOptions, generatedDirectory, readContract, resolveContract, sharedRoot, validateCommit,
 } from './contract-source.mjs'
@@ -19,6 +20,7 @@ export async function regenerate({ root = sharedRoot, candidate, check = false, 
   try {
     const output = resolve(staging, 'api.generated.ts')
     await generator(contractOptions(document, output), root, { throwOnError: true })
+    writeFileSync(output, preserveUtf16Bounds(readFileSync(output, 'utf8')))
     const generated = readFileSync(output)
     if (generated.length === 0) throw new Error('Contract generation produced no output.')
     if (check) {

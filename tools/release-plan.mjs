@@ -2,13 +2,13 @@
 import { execFileSync } from "node:child_process"
 import { pathToFileURL } from "node:url"
 
-const USAGE = `usage: release-plan.mjs [--environment production|staging|production-redesign] [--branch <name>] [--track internal|open|production]
+const USAGE = `usage: release-plan.mjs [--environment production|staging] [--branch <name>] [--track internal|open|production]
 
 List commits not yet released to production or staging, with planned SHAs and pinned dispatch commands.
-Staging reads live Render state.
+Staging reads live Render state. Android reads Play upload deployment records for the track.
 The default environment is production. The default Android track is open for production
 and internal for staging. Staging requires --branch.
-production-redesign plans only web from redesign/main and accepts no --track. Set RENDER_MCP_TOKEN for Render reads.
+Set RENDER_MCP_TOKEN for Render reads.
 --help, -h  print this usage and exit 0
 exit codes: 0 plan produced; 1 remote read or response error; 2 invalid arguments`
 
@@ -25,8 +25,8 @@ export const githubClient = {
   read(path) {
     const projection = path.includes("/actions/variables?")
           ? "{total_count,variables:[.variables[] | {name,value}]}"
-        : path.includes("/actions/workflows/")
-          ? "{workflow_runs:[.workflow_runs[] | {display_title,conclusion,status,head_branch,head_sha}]}"
+        : path.includes("/deployments?")
+          ? "[.[] | {sha,payload:{track:.payload.track}}]"
           : path.includes("/compare/")
             ? "{ahead_by,behind_by,total_commits,commits:[.commits[] | {sha,commit:{message:.commit.message}}]}"
             : "{sha,commit:{message:.commit.message}}"
@@ -65,12 +65,10 @@ export const stagingServiceIds = (client = githubClient) => ({
   web: serviceVariable(client, "orbit-ui-mobile", "RENDER_WEB_STAGING_SERVICE_ID"),
 })
 
-export const productionServiceIds = (client = githubClient, environment = "production") => environment === "production-redesign"
-  ? { web: serviceVariable(client, "orbit-ui-mobile", "RENDER_WEB_REDESIGN_SERVICE_ID") }
-  : {
-    api: serviceVariable(client, "orbit-api", "RENDER_PRODUCTION_SERVICE_ID"),
-    web: serviceVariable(client, "orbit-ui-mobile", "RENDER_WEB_SERVICE_ID"),
-  }
+export const productionServiceIds = (client = githubClient) => ({
+  api: serviceVariable(client, "orbit-api", "RENDER_PRODUCTION_SERVICE_ID"),
+  web: serviceVariable(client, "orbit-ui-mobile", "RENDER_WEB_SERVICE_ID"),
+})
 
 const expectArray = (value, path) => {
   if (!Array.isArray(value)) throw new Error(`GitHub returned an unexpected array at ${path}`)
@@ -92,20 +90,17 @@ async function landingServiceId(client, environment) {
   return id
 }
 
-async function previousAndroidRun(client, branch, track) {
+async function androidBaseline(client, track) {
+  const environment = track === "internal" ? "staging" : "production"
   for (let page = 1; ; page++) {
-    const path = `repos/${OWNER}/orbit-ui-mobile/actions/workflows/android-release.yml/runs?branch=${encodeURIComponent(branch)}&per_page=100&page=${page}`
-    const response = await client.read(path)
-    const runs = expectArray(response?.workflow_runs, path)
-    for (const run of runs) {
-      const title = /^Android Release \S+ \(\d+\) to (internal|open|production) on /.exec(run.display_title)
-      if (run.conclusion === "success" && run.status === "completed" && run.head_branch === branch &&
-          title?.[1] === track) {
-        if (!SHA.test(run.head_sha)) throw new Error(`GitHub workflow run at ${path} has an unexpected SHA`)
-        return run.head_sha
-      }
+    const path = `repos/${OWNER}/orbit-ui-mobile/deployments?task=android-release&environment=${environment}&per_page=100&page=${page}`
+    const deployments = expectArray(await client.read(path), path)
+    for (const deployment of deployments) {
+      if (deployment.payload?.track !== track) continue
+      if (!SHA.test(deployment.sha)) throw new Error(`GitHub deployment at ${path} has an unexpected SHA`)
+      return deployment.sha
     }
-    if (runs.length < 100) return null
+    if (deployments.length < 100) return null
   }
 }
 
@@ -144,7 +139,7 @@ async function planService(client, service, environment, branch, serviceIds, tra
     throw new Error(`GitHub commit at ${headPath} has an unexpected shape`)
   }
   const deployedSha = service.name === "android"
-    ? await previousAndroidRun(client, branch, track)
+    ? await androidBaseline(client, track)
     : await renderBaseline(client, service, serviceIds, environment)
   const plannedService = service.name === "android" ? { ...service, track } : service
   if (deployedSha === head.sha) return { ...plannedService, branch, headSha: head.sha, deployedSha, commits: [], needsRelease: false }
@@ -175,19 +170,17 @@ async function planService(client, service, environment, branch, serviceIds, tra
 }
 
 export async function planRelease(client = githubClient, environment = "production", serviceIds = {},
-                                  track = environment === "production" ? "open" : environment === "staging" ? "internal" : null,
-                                  branch = environment === "production" ? "main" : environment === "production-redesign" ? "redesign/main" : null) {
-  if (!["production", "staging", "production-redesign"].includes(environment)) throw new Error("invalid environment")
-  if (!(environment === "production" ? ["open", "production"] : environment === "staging" ? ["internal"] : [null]).includes(track)) {
+                                  track = environment === "production" ? "open" : "internal",
+                                  branch = environment === "production" ? "main" : null) {
+  if (!["production", "staging"].includes(environment)) throw new Error("invalid environment")
+  if (!(environment === "production" ? ["open", "production"] : ["internal"]).includes(track)) {
     throw new Error("invalid Android track for environment")
   }
   if ((environment === "production" && branch !== "main") ||
-      (environment === "production-redesign" && branch !== "redesign/main") ||
       (environment === "staging" && (!branch || !/^(?!-)[A-Za-z0-9._/-]+$/.test(branch)))) {
     throw new Error("invalid branch for environment")
   }
-  const services = environment === "production-redesign" ? SERVICES.filter((service) => service.name === "web") : SERVICES
-  const planned = await Promise.all(services.map((service) => planService(client, service, environment, branch, serviceIds, track)))
+  const planned = await Promise.all(SERVICES.map((service) => planService(client, service, environment, branch, serviceIds, track)))
   return { environment, branch, services: planned.map((service) => ({
     ...service,
     plannedSha: service.headSha,
@@ -207,7 +200,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     for (let index = 0; index < args.length; index += 2) {
       const flag = args[index]
       const value = args[index + 1]
-      if (flag === "--environment" && !args.slice(0, index).includes(flag) && ["production", "staging", "production-redesign"].includes(value)) {
+      if (flag === "--environment" && !args.slice(0, index).includes(flag) && ["production", "staging"].includes(value)) {
         options.environment = value
       } else if (flag === "--branch" && !args.slice(0, index).includes(flag) && value && !value.startsWith("--")) {
         options.branch = value
@@ -217,13 +210,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       } else { invalid = true; break }
     }
     if (invalid || options.environment === "staging" && !options.branch || options.environment === "production" && options.branch && options.branch !== "main" ||
-        options.environment === "production-redesign" && (options.track || options.branch && options.branch !== "redesign/main") ||
         options.track && !(options.environment === "production" ? ["open", "production"] : ["internal"]).includes(options.track)) {
       console.error(USAGE)
       process.exitCode = 2
     } else {
       try {
-        const serviceIds = options.environment === "staging" ? stagingServiceIds() : productionServiceIds(githubClient, options.environment)
+        const serviceIds = options.environment === "staging" ? stagingServiceIds() : productionServiceIds()
         console.log(JSON.stringify(await planRelease(githubClient, options.environment, serviceIds,
           options.track ?? undefined, options.branch ?? undefined)))
       } catch (error) { console.error(error.message); process.exitCode = 1 }

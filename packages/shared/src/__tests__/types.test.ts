@@ -74,6 +74,7 @@ import {
   referralCodeSchema,
   referralStatsSchema,
   referralDashboardSchema,
+  referralDashboardPresentationSchema,
 } from '../types/referral'
 
 import {
@@ -489,9 +490,18 @@ describe('setNameRequestSchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('rejects names longer than 50 characters', () => {
-    const result = setNameRequestSchema.safeParse({ name: 'a'.repeat(51) })
+  it.each(['a'.repeat(51), 'a'.repeat(49) + '😀'])('rejects names over 50 UTF-16 units: %s', (name) => {
+    const result = setNameRequestSchema.safeParse({ name })
     expect(result.success).toBe(false)
+    if (!result.success) expect(result.error.issues[0]).toMatchObject({
+      code: 'too_big', origin: 'string', maximum: 50,
+      message: 'Too big: expected string to have <=50 characters',
+    })
+  })
+
+  it('accepts 48 ASCII letters and an astral character after trimming', () => {
+    const name = 'a'.repeat(48) + '😀'
+    expect(setNameRequestSchema.parse({ name: `  ${name}  ` })).toEqual({ name })
   })
 
   it('accepts a 50-character name after trimming', () => {
@@ -1901,6 +1911,26 @@ describe('subscription schemas', () => {
 
 
 describe('referral schemas', () => {
+  const stats = { referralCode: 'REF123', referralLink: 'https://app.useorbit.org/r/REF123', successfulReferrals: 8, pendingReferrals: 2, maxReferrals: 10, rewardType: 'discount', discountPercent: 23 }
+
+  it('parses old, new and future reward payloads without narrowing the contract', () => {
+    expect(referralStatsSchema.parse(stats)).toEqual(stats)
+    expect(referralStatsSchema.parse({ ...stats, rewardType: 'pro_days', proDaysPerReferral: 11 }).proDaysPerReferral).toBe(11)
+    expect(referralStatsSchema.parse({ ...stats, rewardType: 'future_reward' }).rewardType).toBe('future_reward')
+  })
+
+  it.each([{}, { rewardType: null, discountPercent: null, proDaysPerReferral: '7' }])('keeps optional copy metadata from failing a valid dashboard %s', (reward) => {
+    const { rewardType: _kind, discountPercent: _percent, ...counts } = stats
+    const parsed = referralDashboardPresentationSchema.parse({ code: 'REF123', link: stats.referralLink, stats: { ...counts, ...reward } })
+    expect(parsed.stats.successfulReferrals).toBe(8)
+    expect(parsed.stats.rewardType).toBeUndefined()
+    expect(parsed.stats.discountPercent).toBeUndefined()
+    expect(parsed.stats.proDaysPerReferral).toBeUndefined()
+  })
+
+  it('still rejects malformed dashboard facts', () => {
+    expect(referralDashboardPresentationSchema.safeParse({ code: 'REF123', link: stats.referralLink, stats: { ...stats, successfulReferrals: '8' } }).success).toBe(false)
+  })
   describe('referralCodeSchema', () => {
     it('parses valid referral code', () => {
       const result = referralCodeSchema.safeParse({

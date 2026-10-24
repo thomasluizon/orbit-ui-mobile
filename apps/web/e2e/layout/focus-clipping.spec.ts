@@ -159,10 +159,9 @@ for (const width of [412, 1352] as const) {
         const final = chatStreamEventSchema.parse({ type: 'final', response: { aiMessage: 'Ready', actions: [] } })
         await page.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, (route) => route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(final)}\n\n` }))
         await field.fill('Review my habits')
-        await conversation.getByRole('button', { name: messages.shell.composer.send, exact: true }).click()
+        await conversation.getByRole('button', { name: `${messages.shell.composer.send}, ${messages.habits.form.askDate}`, exact: true }).click()
         await expect(composer).toHaveAttribute('data-state', 'idle')
-        await expect(conversationChips.first()).toBeVisible()
-        await waitForSettledChips(conversationChips)
+        await expect(conversationChips).toHaveCount(0)
         for (let index = 0; index < await controls.count(); index += 1) {
           await expectCompleteTabIndicator(page, controls.nth(index), `conversation composer control ${index}`)
         }

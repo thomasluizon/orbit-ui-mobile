@@ -232,6 +232,7 @@ export const apiStatusCardsFinalFixture = {
 }
 
 export { choiceBlockFixture, pickListBlockFixture } from './choice-fixtures'
+export { habitRankingCardFixture, habitRankingNextPageFixture } from './habit-ranking-fixtures'
 
 export const focusedReadMetadataFixture = {
   queryId: '11111111-1111-4111-8111-111111111111', queryFamily: 'get_period_analytics',

@@ -83,6 +83,15 @@ afterEach(async () => {
 })
 
 describe('native profile theme readiness', () => {
+  it('renders the cached profile while its startup refresh is pending', async () => {
+    queryClient.setQueryData(profileKeys.detail(), createMockProfile({ themePreference: 'light' }), { updatedAt: Date.now() - 600_000 })
+    vi.mocked(apiClient).mockImplementation(() => new Promise(() => {}))
+    const tree = await mountProviders()
+    expect(tree.root.findByProps({ testID: 'theme-destination' }).props.accessibilityLabel).toBe('light')
+    expect(apiClient).toHaveBeenCalled()
+    expect(hideAsync).toHaveBeenCalledOnce()
+  })
+
   it.each([null, 'legacy', 'redesign'])('renders the embedded app with saved choice %s', async (choice) => {
     const key = 'design_bundle_000061'
     await SecureStore.deleteItemAsync(key)

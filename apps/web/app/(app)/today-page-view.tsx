@@ -168,6 +168,7 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
         onShowCompleted={() => setShowCompleted(true)}
         isSelectMode={isSelectMode}
         selectedHabitIds={selectedHabitIds}
+        onBulkMove={selection.confirmBulkMove}
         filters={data.filters}
         onToggleSelection={selection.handleToggleSelection}
         onEnterSelectMode={(habitId) => {
@@ -203,6 +204,7 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
         onDeselectAll={view.selection.deselectAll}
         onBulkLog={() => void view.selection.confirmBulkLog()}
         onBulkSkip={() => void view.selection.confirmBulkSkip()}
+        onBulkMove={() => view.habitListRef.current?.openBulkMove()}
         onBulkDelete={() => view.selection.setShowBulkDeleteConfirm(true)}
         onCancel={view.toggleSelectMode}
         completionReadOnly={view.selection.completionReadOnly}

@@ -3707,6 +3707,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "block-chat-habit-ranking-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-ranking-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-ranking-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-ranking-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-ranking-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-ranking-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-ranking-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-ranking-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-ranking-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-ranking-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-ranking-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-ranking-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "block-chat-message-bubble",
       "platform": "web",
       "kind": "block",
@@ -4149,6 +4205,62 @@
       "parentSurfaceId": "route-chat",
       "ownedFiles": [
         "apps/web/components/chat/pick-list-block.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-preview-item-title",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/preview-item-title.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/preview-item-title.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-preview-item-title",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/preview-item-title.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/preview-item-title.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-preview-item-title",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/preview-item-title.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/preview-item-title.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-preview-item-title",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/preview-item-title.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/preview-item-title.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -7839,6 +7951,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-shell-sidebar-account",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/shell/sidebar-account.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/shell/sidebar-account.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-shell-sidebar-account",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/shell/sidebar-account.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/shell/sidebar-account.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-shell-sidebar-account",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/shell/sidebar-account.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/shell/sidebar-account.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-shell-sidebar-account",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/shell/sidebar-account.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/shell/sidebar-account.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-ui-confirm-sheet",
       "platform": "web",
       "kind": "overlay",
@@ -8612,6 +8776,7 @@
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
+        "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
@@ -8647,6 +8812,7 @@
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
+        "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
@@ -8682,6 +8848,7 @@
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
+        "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
@@ -8717,6 +8884,7 @@
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
+        "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
@@ -8752,6 +8920,7 @@
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
+        "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
@@ -8787,6 +8956,7 @@
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
+        "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
@@ -8822,6 +8992,7 @@
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
+        "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
@@ -8857,6 +9028,7 @@
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
+        "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
@@ -11743,6 +11915,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-block-chat-habit-ranking-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-ranking-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-ranking-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-ranking-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-ranking-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-ranking-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-ranking-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-ranking-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-ranking-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-ranking-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-ranking-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-ranking-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-block-chat-metrics-card",
       "platform": "mobile",
       "kind": "block",
@@ -12185,6 +12413,62 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/pick-list-block.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-preview-item-title",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/preview-item-title.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/preview-item-title.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-preview-item-title",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/preview-item-title.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/preview-item-title.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-preview-item-title",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/preview-item-title.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/preview-item-title.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-preview-item-title",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/preview-item-title.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/preview-item-title.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -16838,6 +17122,7 @@
         "apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetAccountState.kt",
         "apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetColorFallbacks.generated.kt",
         "apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetGeometry.kt",
+        "apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetPublisher.kt",
         "apps/mobile/modules/orbit-widget/android/src/main/res/color/widget_item_title.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable-night-xxxhdpi/widget_picker_preview.png",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable-pt-rBR-night-xxxhdpi/widget_picker_preview.png",
@@ -16867,6 +17152,8 @@
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/OrbitWidgetDayStateTest.kt",
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/WidgetAccountStateTest.kt",
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/WidgetGeometryTest.kt",
+        "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/WidgetPublisherTest.kt",
+        "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/WidgetPublishingSourceTest.kt",
         "apps/mobile/modules/orbit-widget/android/test-ownership.sh",
         "apps/mobile/modules/orbit-widget/android/widget-tests.init.gradle",
         "apps/mobile/modules/orbit-widget/expo-module.config.json",
@@ -16899,6 +17186,7 @@
         "apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetAccountState.kt",
         "apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetColorFallbacks.generated.kt",
         "apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetGeometry.kt",
+        "apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetPublisher.kt",
         "apps/mobile/modules/orbit-widget/android/src/main/res/color/widget_item_title.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable-night-xxxhdpi/widget_picker_preview.png",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable-pt-rBR-night-xxxhdpi/widget_picker_preview.png",
@@ -16928,6 +17216,8 @@
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/OrbitWidgetDayStateTest.kt",
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/WidgetAccountStateTest.kt",
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/WidgetGeometryTest.kt",
+        "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/WidgetPublisherTest.kt",
+        "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/WidgetPublishingSourceTest.kt",
         "apps/mobile/modules/orbit-widget/android/test-ownership.sh",
         "apps/mobile/modules/orbit-widget/android/widget-tests.init.gradle",
         "apps/mobile/modules/orbit-widget/expo-module.config.json",
@@ -16960,6 +17250,7 @@
         "apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetAccountState.kt",
         "apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetColorFallbacks.generated.kt",
         "apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetGeometry.kt",
+        "apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetPublisher.kt",
         "apps/mobile/modules/orbit-widget/android/src/main/res/color/widget_item_title.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable-night-xxxhdpi/widget_picker_preview.png",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable-pt-rBR-night-xxxhdpi/widget_picker_preview.png",
@@ -16989,6 +17280,8 @@
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/OrbitWidgetDayStateTest.kt",
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/WidgetAccountStateTest.kt",
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/WidgetGeometryTest.kt",
+        "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/WidgetPublisherTest.kt",
+        "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/WidgetPublishingSourceTest.kt",
         "apps/mobile/modules/orbit-widget/android/test-ownership.sh",
         "apps/mobile/modules/orbit-widget/android/widget-tests.init.gradle",
         "apps/mobile/modules/orbit-widget/expo-module.config.json",
@@ -17021,6 +17314,7 @@
         "apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetAccountState.kt",
         "apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetColorFallbacks.generated.kt",
         "apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetGeometry.kt",
+        "apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetPublisher.kt",
         "apps/mobile/modules/orbit-widget/android/src/main/res/color/widget_item_title.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable-night-xxxhdpi/widget_picker_preview.png",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable-pt-rBR-night-xxxhdpi/widget_picker_preview.png",
@@ -17050,6 +17344,8 @@
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/OrbitWidgetDayStateTest.kt",
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/WidgetAccountStateTest.kt",
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/WidgetGeometryTest.kt",
+        "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/WidgetPublisherTest.kt",
+        "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/WidgetPublishingSourceTest.kt",
         "apps/mobile/modules/orbit-widget/android/test-ownership.sh",
         "apps/mobile/modules/orbit-widget/android/widget-tests.init.gradle",
         "apps/mobile/modules/orbit-widget/expo-module.config.json",

@@ -23,6 +23,8 @@ export * from './proactive-item-core'
 export { createHabitViewSearchState, updateHabitViewSearch, type HabitViewSearchState } from './habit-view-search-core'
 export { createGoalProgressEntry, reduceGoalProgressEntry, getGoalProgressEntryRequest } from './goal-progress-entry-core'
 
+export * from './bulk-actions-core'
 export * from './goal-creation-core'
 export * from './goal-linking-core'
 export * from './goal-habit-picker-core'
+export * from './preview-title-core'

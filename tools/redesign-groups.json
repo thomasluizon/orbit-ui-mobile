@@ -20,6 +20,7 @@
       "block-chat-follow-up-chips",
       "block-chat-goal-list-card",
       "block-chat-habit-list-card",
+      "block-chat-habit-ranking-card",
       "block-chat-message-bubble",
       "block-chat-metrics-card",
       "block-chat-operation-outcomes",
@@ -28,6 +29,7 @@
       "block-chat-period-insight-card",
       "block-chat-period-total-card",
       "block-chat-pick-list-block",
+      "block-chat-preview-item-title",
       "block-chat-proactive-action",
       "block-chat-prompt-idea",
       "block-chat-prompt-library",
@@ -50,6 +52,7 @@
       "m-block-chat-follow-up-chips",
       "m-block-chat-goal-list-card",
       "m-block-chat-habit-list-card",
+      "m-block-chat-habit-ranking-card",
       "m-block-chat-message-bubble",
       "m-block-chat-metrics-card",
       "m-block-chat-operation-outcomes",
@@ -59,6 +62,7 @@
       "m-block-chat-period-insight-card",
       "m-block-chat-period-total-card",
       "m-block-chat-pick-list-block",
+      "m-block-chat-preview-item-title",
       "m-block-chat-proactive-action",
       "m-block-chat-prompt-idea",
       "m-block-chat-prompt-library",
@@ -170,6 +174,7 @@
       "overlay-habit-list-confirm-dialogs",
       "overlay-habit-list-move-parent-overlay",
       "overlay-habits-habit-row-trailing",
+      "overlay-shell-sidebar-account",
       "route-root"
     ],
     "Orbit Offline": [],
@@ -438,6 +443,7 @@
     "m-overlay-habits-goal-linking-field": "Orbit Habit Detail is the representative owner for the shared goal-linking field; Orbit Habit Create also draws it in the creation flow.",
     "m-widget-orbit-widget": "D66 assigns the Android widget to its canvas document.",
     "overlay-app-layout": "Orbit Hoje is the representative owner for the authenticated shell shared across Hoje, Calendario, Progresso, and Perfil, as defined by DESIGN.md.",
+    "overlay-shell-sidebar-account": "Orbit Hoje owns the shared wide sidebar; its account menu follows the account header and sign-out composition specified by ticket #1657.",
     "route-turnstile-bridge": "Orbit Entrar owns the headless Turnstile bridge used by Android sign-in; it has no separate visible canvas."
   }
 }

@@ -104,7 +104,7 @@ supersedes the side-by-side avatar column amendment in
 **Astra has no route, no Android tab and no bubble.** The wide web sidebar's Astra row opens
 its conversation as a layer; that row is navigation chrome, not a fifth destination.
 
-1. **The front door** is ONE persistent one-line composer on Hoje in the compact shell
+1. **The front door** is ONE persistent growing composer on Hoje in the compact shell
    (Android at every width, web below 1024), and the sidebar Astra row on wide web.
    **One set of 3 to 6 suggestion chips built from live state**, never from a static list, sits
    above the conversation input: what is overdue, which streak is at risk, which habit has no goal.
@@ -145,7 +145,7 @@ below 1024) it is the default home for that content. The shell composer stays vi
 that compact shell only. Habit detail keeps its own composer at every width.
 Calendário, Progresso and Perfil clear the tab bar or the wide column bottom without a composer dock.
 Hoje's selection tray stays pinned at both widths while selection is active, with exit, select-all,
-delete, log and skip controls. It replaces the compact composer; on wide web it alone occupies
+delete, log, skip and move controls. It replaces the compact composer; on wide web it alone occupies
 the destination's bottom slot, named `composer` in the shell reference contract. Resting wide Hoje
 passes no bottom content. Transient notices keep the separate `notice` slot.
 
@@ -170,7 +170,7 @@ The dots remain visible and static under reduced motion; pause the pulse outside
 viewport. Replace the line in the same render as the first reply text, tool step or block,
 without an assistant entrance translation or exit delay. Clear it on error, cancellation or
 the allowance notice. Keep the feed busy and announce work once through a stable polite
-region outside the feed, independently of the dots; completed prose retains its turn announcement.
+region outside the feed, independently of the dots; every completed answer, including a block-only answer, retains one turn announcement.
 
 Every conversation entry, including the proactive line, the no-habits action and habit detail's
 own entry, opens this same layer. Closing it restores the underlying surface and its selection.
@@ -197,15 +197,18 @@ treatment: `--primary` glyph and `--primary-soft` label. The destination retains
 
 **The way in must be visible.** In the compact shell the Astra glyph at the leading edge inside
 the composer pill is a real button with a hit area at the touch floor, a padded hover and press
-fill and a focus ring, labelled `Abrir conversa`. On wide web the sidebar Astra row opens the
+fill and a focus ring, labelled `Abrir conversa`, with visible `Astra` beside the glyph (#1607). On wide web the sidebar Astra row opens the
 conversation. Habit detail's own composer glyph remains an entry at every width.
 
-**Astra's glyph appears once per place outside the conversation.** Keep it on the wide sidebar
-Astra row, the compact composer, habit detail's composer and Hoje's single slot. Other Astra actions
-and settings use their text; section headers, plan surfaces, badges, empty regions and sheets add no
-repeated mark. Conversation headers, participant avatars and conversation-owned empty states keep
+**Astra invocation and conversation-entry controls pair the canonical glyph with visible Astra wording in the same target (#1607).** Keep useful action context, disabled reasons and request guards. Deterministic saves, accepting an existing proposal, static attribution, section headings and plan facts gain no mark. The wide sidebar, compact composer, habit-detail composer and Hoje slot retain their existing owners. Conversation headers, participant avatars and conversation-owned empty states keep
 their own rules. The Perfil Astra settings row uses the neutral `MessageCircle` icon, keeping the
 shared row anatomy without repeating Astra's glyph.
+
+The composer's text composition reserves one inert text-action slot across inline and Add-menu
+routing, clipboard availability and allowance states. Its persistent input label has an intrinsic
+sizing owner with matching input metrics, present in web server markup and the first client
+layout. Actual visual lines bottom-align their own input and controls; the last line retains the
+4px field inset. The 56px field minimum allows named controls to wrap (#1607).
 
 **Avisos is reachable from every destination.** In the compact shell (Android at every width,
 web below 1024), Hoje and Calendário pass a header row with a minimum height of 48 to Shell412.
@@ -407,6 +410,41 @@ The **day summary** combines its ring with today's habit rows and the habit list
 
 A reply is an ordered sequence of text and block parts. A client skips an unknown block kind and keeps the rest of the reply. At most one write preview appears per reply.
 
+**Lean answer composition.** For negotiated replies, the API selects the leading interactive
+answer from successful typed results. Preserve its validated order; legacy fields cannot add a
+second copy. Supported data replies have no surrounding prose by default and at most one short
+essential line. Independent blocks appear only for distinct requested subjects. Operations retain
+their original preview and persisted terminal state, including partial failure and uncertainty.
+Clarification questions belong inside choice or pick-list blocks. Never shorten an execution error
+to satisfy a copy limit. A missing or malformed sole answer uses readable legacy recovery or the
+localized unreadable-answer line.
+
+Follow-ups are optional, zero to two existing `sm` ghost pills in one horizontal row with the
+existing 8 gap, hugging their short labels. Keep the accessible group name without a visible
+heading. Send the full question once; retain absolute query scope in conversation history.
+Long legacy questions and truncated labels may be omitted instead of inventing shorter copy.
+Populated conversations omit generic composer suggestions. Empty-thread live starters and Ideas
+retain their existing behavior and drafts. Running tool feedback remains transient; completed
+steps use the existing collapsed disclosure after their answer.
+
+Feature help, advice, small talk and no-data proactive nudges use one to three short lines without
+headings, unsolicited lists or caveat paragraphs. A relevant existing screen/tool action remains
+available. Proactive requests returning data use the same registered blocks. Data-backed proactive entries require their corresponding typed block; sparse notification facts cannot fabricate read results. Requested code explanations retain selectable Markdown and
+independent code-block copying.
+
+The **habit ranking** block uses one BlockFrame with no header count, chart, totals or repeated
+prose. Its two date lines show the resolved inclusive first and last dates, including the year.
+ListRow rows show the server rank, habit name and emoji, then the localized completion count with
+its unit. Names retain the full accessible name and open the actual habit. Rows grow at 200% text;
+counts remain whole. Show more appends the next server page without replacing earlier rows.
+It retains focus while loading and moves focus to Refresh when the final page removes Show more.
+Refresh uses the original signed query, preserving its absolute dates, scope and metric. One short
+inline status covers partial results, changed rankings, offline requests and failed actions. Removed
+habits offer the same exact-query refresh. Empty rankings use one short line inside the frame.
+Unknown or malformed blocks remain skippable; a sole unreadable answer shows a localized line.
+The focused composition and surface inventory live in `design/canvas/README.md` under
+**Habit ranking block amendment**.
+
 Six rules govern all of them:
 
 1. **Three-way state split.** Business data is server owned and re-fetched. UI state, meaning
@@ -418,8 +456,7 @@ Six rules govern all of them:
    are visually distinguished, the preview never auto-dismisses, and the actions are approve, edit and
    reject rather than a single OK. A partial failure reuses the same per-item rows with a status glyph
    per row.
-4. **Text streams, the block arrives whole.** Text above a block keeps its position when the final parts replace streamed text, and the scroll position stays put. Never animate a block's own reveal, and never gate the
-   screen-reader announcement on a visual typing effect.
+4. **The answer arrives whole.** Withhold provisional answer prose until final delivery. Keep pending dots or running tool feedback during work. Preserve the reading position when the final parts arrive, without entrance motion. A block-only answer completes and receives one localized polite announcement.
 5. **A stale block says so.** When the record's `updatedAt` is newer than the block's snapshot, the
    block states it and offers a refresh.
 6. **Announcements are card-scoped.** The message list is an ARIA feed, each block's own state change
@@ -492,8 +529,10 @@ A task has no cadence corrections. Habit exposes fixed repetition, count-based r
 The schedule group stays reachable in the undated branch. Tree constraints remain enforced, and
 General cannot gain reminders or avoidance settings. Switching modes preserves their drafts.
 
+The compact growing name field uses the standard 54px minimum with matching mirror/input metrics. Description follows it immediately, before emoji, understanding and proposal content, with one owned 10,000-character field. Type stays first. RadioRow keeps its 52px minimum: one-line content is centred as a group, while wrapped labels grow with the glyph aligned to their first line (#1607).
+
 The editable date group precedes the single details disclosure. It has a persistent `Quando` /
-`When` label, the type-specific question, natural-language input and the existing calendar picker.
+`When` label, the type-specific question, natural-language input with `In your own words` / `Escreva do seu jeito` and the existing calendar picker. The picker owns the selected date display; no ordinary selected-date sentence repeats it. Proposed, validation and recovery feedback remain (#1607).
 The picker is labelled `Fazer em` / `Do on` for tasks and `Começar em` / `Starts on` for dated
 habits. New dates use account today after its timezone is known; a caller-selected day is an
 explicit prefill. Edit uses the task due date or persisted recurring start anchor, never the
@@ -507,7 +546,20 @@ locale, timezone, day, phrase, picker, type, schedule, end-date and form changes
 interpretations. Only the paid action depends on AI capacity. Offline editing and manual picking
 remain available; web saving retains its connection requirement and Android retains offline saving.
 
-Exact time, reminders, end date, description, checklist, sub-habits, tags, goals and avoidance
+Recurrence-only wording in When has its own local route. `toda semana`, `todas as semanas`,
+`semanalmente`, `every week` and `weekly` select fixed Every week for an explicitly selected dated
+Habit, preserving its chosen date. The existing schedule control shows Week 1; the entered words
+stay in the input without a second summary or Astra attribution. A Task keeps its type and date,
+with one inline recovery: `To repeat, choose Habit.` / `Para repetir, escolha Hábito.` Submit focuses
+the actual type group without marking the selected Task as missing. Selecting Habit is deliberate;
+clearing or replacing the wording and manual date selection also recover. This choice takes precedence
+over a retained General draft and keeps the Task's current date as the weekly start date. Inherited
+General locks keep the child undated with the existing parent mismatch guidance and block Submit.
+Manual cadence changes,
+form reopening and context replacement never replay an old weekly read. Mixed wording stays with
+the existing date recovery and never guesses a cadence.
+
+Exact time, reminders, end date, checklist, sub-habits, tags, goals and avoidance
 controls retain their existing homes behind one disclosure. Read-only DateRow remains a valid
 primitive elsewhere; editable form dates use DateField.
 
@@ -1001,6 +1053,7 @@ Consequences that hold either way:
 - Radii, enumerated: **0 / 8 / 12 / 16 / 20 / 28**, pill 999. Cards and habit panels 20, wells 12, fields 12, chips and badges 8, overlay panel **28 top radius**, CTAs pill.
 - **The app and store icon radius is set by the platform mask** (the iOS superellipse, the Android adaptive mask) and is the one radius outside this scale. It never appears on a UI surface.
 - **The pill radius means interactive.** Radius 999 is reserved for something you can press. A static element never wears it, because a non-clickable shape identical to the buttons beside it collects dead clicks. Badges and status chips use radius 8.
+- **Habit row completion feedback** paints only inside the visible 28px radius-12 check, never a halo. The 48px target stays transparent. Empty checks retain their status border over `bg-hover`; completed checks layer `bg-hover-opaque` over their neutral fill beneath the checkmark. Leaf and parent controls share one 2px focus outline following the check with a 2px outward offset, inside the target.
 - **Nested rounded surfaces use concentric radii: outer = inner + padding.** A parent and its inset child never share a radius. Where the padding exceeds 24, treat the layers as separate surfaces and choose each radius independently.
 - Shadows: sh-1 `0 1px 2px rgba(0,0,0,.20)`, sh-2 `0 4px 16px rgba(0,0,0,.28)`, sh-3 `0 12px 40px rgba(0,0,0,.45)`. **There is no glow.** Shadows model occlusion under a lifted surface and never carry a hue.
 - **Shadows are for elevation, borders are for structure.** Replace a border that only faked depth with a shadow. Keep a border that divides content or marks a state: dividers, table boundaries, input outlines, selected and focus states.
@@ -1144,7 +1197,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | CheckRow | whole-row checkbox hit target, required label, error replaces description, trailing mono value | `ui/check-row.tsx` | `ui/check-row.tsx` |
 | TimeField | min-height 54, radius 12, 24-hour wire value with `h23` or `h12` presentation | `ui/time-field.tsx` | `ui/time-field.tsx` |
 | DateRow | formatted immutable date and optional reason, with no control role, focus or chevron | `ui/date-row.tsx` | `ui/date-row.tsx` |
-| Composer | a one-line pill at rest, minimum height 56 (`--touch-comfy`): the Astra glyph button at the leading edge inside (Hoje in the compact shell and habit detail at every width), one input, an attach `+` icon button, and one filled send action at the trailing edge, hit areas adjacent. Photo, document and voice open from the `+` Menu, which follows the Menu width rule. The input grows to 5 lines, then scrolls inside. Recording shows the timer and a visible stop; transcribing shows a one-line status; attachments show as a tray inside the container; at limit and offline show the reason and recovery above the pill; retry takes the send position. The top rule stays. State exposed without class hooks | `shell/composer.tsx` | `shell/composer.tsx` |
+| Composer | a growing pill, minimum height 56 (`--touch-comfy`): the Astra glyph and visible name in the entry button at the leading edge inside (Hoje in the compact shell and habit detail at every width), one input, an attach `+` icon button, and one filled send action with Astra glyph and wording at the trailing edge, hit areas adjacent. The field retains usable input width and the row wraps when its named controls need more room (#1607). Photo, document and voice open from the `+` Menu, which follows the Menu width rule. The input grows to 5 lines, then scrolls inside. Recording shows the timer and a visible stop; transcribing shows a one-line status; attachments show as a tray inside the container; at limit and offline show the reason and recovery above the pill; retry takes the send position. The top rule stays. State exposed without class hooks | `shell/composer.tsx` | `shell/composer.tsx` |
 | Overlay | see **Overlay** | `ui/sheet.tsx` | `ui/sheet.tsx` |
 | Toast | brief confirmation and undo only; stable live region; timed confirmation uses a 5000ms minimum; action toasts dismiss after the standard duration, manually, or on destination change; done uses `--status-done`; actionable errors and sync failures stay in a persistent surface | `ui/toast.tsx` | `ui/app-toast.tsx` |
 | Skeleton | one accessible busy unit shaped as habit row / settings row / stat tile / grid; opacity pulse only | `ui/skeleton.tsx` | same |
@@ -1278,8 +1331,7 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 Hoje starts with its habit-view switch. In the Hoje view, its single Astra slot follows the switch,
 then the date and habits. The slot chooses an unread
 check-in, then returning guidance, then the daily summary, including its loading, retry and free-plan
-states. No second insight block belongs below the date. Only the way in and the slot carry Astra's
-glyph outside the conversation.
+states. No second insight block belongs below the date. Request actions and conversation entries also pair Astra's glyph with visible Astra wording under #1607.
 
 - **Translucency ladder on dark:** 0.04 card / 0.06 field / 0.08 well / 0.12 elev-2, white-alpha over the canvas. Surfaces stack by alpha, not by lighter hexes.
 - **Opaque white cards on light.** Never translucent.
@@ -1307,7 +1359,7 @@ The painted row owns its background and inset-outline hover transition, using th
 - **The per-row overflow menu stays.**
 - **Habit emoji render in full colour.**
 - **There is no habit colour system. Colour-as-data is dead**. D30's curated palette of about 8 habit colours and D31's monochrome emoji tinted by that colour are both **rejected**, not deferred. Reason: the accent is rationed to exactly four roles and every status is already unbound from it and rendered in neutrals, so adding 8 more meaning-bearing colours reopens the "the accent does six jobs on one screen" defect this redesign exists to close. A habit is told apart by its emoji, its name and its check, and by nothing else.
-- **A row's status lives in its trailing rounded-square check.** The visible shape is 28px with radius 12 at both depths and in selection mode, inside a separate 48px target. Done is `--status-done` fill with the canvas-colour check; empty has a 1px `--status-empty` border; overdue takes `--status-overdue`; a bad habit takes `--status-bad`. A day the person cannot log keeps its dimmed, non-tappable treatment. A parent carries done-over-total progress around the same perimeter; unfinished progress retains the accent and bad progress retains `--status-bad`. Completed good progress uses the neutral done fill. One inset focus indicator follows the check shape, with no second indicator on its glyph. Other progress indicators stay circular.
+- **A row's status lives in its trailing rounded-square check.** The visible shape is 28px with radius 12 at both depths and in selection mode, inside a separate 48px target. Done is `--status-done` fill with the canvas-colour check; empty has a 1px `--status-empty` border; overdue takes `--status-overdue`; a bad habit takes `--status-bad`. A day the person cannot log keeps its dimmed, non-tappable treatment. A parent carries done-over-total progress around the same perimeter; unfinished progress retains the accent and bad progress retains `--status-bad`. Completed good progress uses the neutral done fill. One 2px focus outline follows the check shape with a 2px outward offset inside the transparent target; no second indicator appears. Other progress indicators stay circular.
 - **A habit row is never frozen and never skipped**. `StreakFreeze` is `(UserId, UsedOnDate)`, so a freeze marks a **day** for a **user** and `Habit` carries no freeze member at all. Frozen renders on the streak day strip inside Progresso and nowhere else. Skipping advances the schedule, so the row leaves the day rather than taking a status; only a flexible habit even writes a log row for it. `--status-frozen` therefore serves the day strip only, and `--status-skip` binds to no habit-row state. No new surface may use it.
 - **Never animate the habit list's data while the user is reading or acting on it.**
 
@@ -1528,6 +1580,9 @@ Android haptic. Milestone days show only their milestone panel; queue priority a
 **Delight amplifies, never blocks.** Under about 1 second total, never delaying core functionality, always skippable, and rationed to earned moments.
 
 **Motion is never the only feedback channel.** Every animated state change also carries a static cue: a colour change, an icon swap, or a label.
+
+Actions retaining their leading Astra glyph reserve a trailing status slot. A moving loader mounts
+only while busy; an idle action carries no looping status animation, including while focused (#1607).
 
 **A high-frequency interaction gets instant feedback or an `opacity` / `background-color` transition of 150ms or less.** Never a full entrance on a hover or a keystroke.
 

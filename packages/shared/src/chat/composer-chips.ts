@@ -75,7 +75,10 @@ function todayChips(state: ComposerChipState): ComposerChip[] {
   if (state.status !== 'success' || !state.profile || state.totalHabitCount === null) return []
   const { habits, profile } = state
   if (state.totalHabitCount === 0) {
-    return [chip('today.buildMorningRoutine'), chip('today.startOneHabit'), chip('today.suggestThreeHabits'), chip('today.createEveningHabit')]
+    return [
+      { ...chip('today.buildMorningRoutine'), promptKey: 'shell.composer.prompts.today.buildMorningRoutine' },
+      chip('today.startOneHabit'), chip('today.suggestThreeHabits'), chip('today.createEveningHabit'),
+    ]
   }
   const returning = (state.selectedDateIsToday ?? true)
     ? getReturningInterval(profile.lastCompletionDate, profile.timeZone, state.now)
@@ -168,4 +171,8 @@ export function resolveComposerChipSurface(pathname: string): ComposerChipSurfac
 
 export function resolveComposerDockSuggestions(pathname: string, suggestions: ComposerSuggestions): ComposerSuggestions {
   return pathname === '/' ? [] : suggestions
+}
+
+export function resolveConversationSuggestions(messageCount: number, suggestions: ComposerSuggestions): ComposerSuggestions {
+  return messageCount === 0 ? suggestions : []
 }

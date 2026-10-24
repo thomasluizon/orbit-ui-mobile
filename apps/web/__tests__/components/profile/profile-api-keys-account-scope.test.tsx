@@ -311,14 +311,16 @@ it.each([false, true])('asks for a name before creating a key with scoped=%s', a
   expect(name).toHaveAccessibleDescription(en.orbitMcp.keyNameRequired)
   expect(name).toHaveFocus()
   expect(management.handleCreateKey).not.toHaveBeenCalled()
-  fireEvent.change(name, { target: { value: 'x'.repeat(51) } })
-  fireEvent.keyDown(name, { key: 'Enter' })
-  expect(name).toHaveAccessibleDescription(en.orbitMcp.keyNameMaxLength)
-  expect(management.handleCreateKey).not.toHaveBeenCalled()
-  fireEvent.change(name, { target: { value: `  ${'x'.repeat(50)}  ` } })
+  for (const value of ['x'.repeat(51), 'x'.repeat(49) + '😀']) {
+    fireEvent.change(name, { target: { value } })
+    fireEvent.keyDown(name, { key: 'Enter' })
+    expect(name).toHaveAccessibleDescription(en.orbitMcp.keyNameMaxLength)
+    expect(management.handleCreateKey).not.toHaveBeenCalled()
+  }
+  fireEvent.change(name, { target: { value: `  ${('x'.repeat(48) + '😀')}  ` } })
   await act(async () => { fireEvent.click(submit) })
   expect(management.handleCreateKey).toHaveBeenCalledWith(
-    { name: 'x'.repeat(50), ...(scoped ? { scopes: ['habits:read'] } : {}), isReadOnly: false, expiresAtUtc: null },
+    { name: ('x'.repeat(48) + '😀'), ...(scoped ? { scopes: ['habits:read'] } : {}), isReadOnly: false, expiresAtUtc: null },
     expect.any(Function),
   )
   expect(screen.getByText(ACCOUNT_A_KEY)).toBeInTheDocument()

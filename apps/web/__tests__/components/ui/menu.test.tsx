@@ -489,3 +489,13 @@ describe('Menu', () => {
     expect(onSelect).toHaveBeenCalledWith('pro')
   })
 })
+
+it.each([true, false])('keeps an optional static header outside the action focus order with wide=%s', async (wide) => {
+  setWide(wide)
+  render(<Menu open anchorRef={createRef<HTMLButtonElement>()} title="Account" header={<div>Person, person@example.com</div>}
+    items={[{ id: 'signOut', label: 'Sign out' }]} />)
+  const menu = await screen.findByRole('menu')
+  expect(menu).toHaveTextContent('Person, person@example.com')
+  expect(screen.getAllByRole('menuitem')).toHaveLength(1)
+  await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Sign out' })).toHaveFocus())
+})

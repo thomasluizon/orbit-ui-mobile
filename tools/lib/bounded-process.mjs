@@ -27,6 +27,7 @@ export const MAX_OUTPUT_BYTES = 32 * 1024 * 1024
  */
 export const runBounded = (file, args, { cwd, env, timeoutMs, maxBuffer = MAX_OUTPUT_BYTES, input, encoding = "utf8", signal } = {}) =>
   new Promise((resolve) => {
+    const startedAt = performance.now()
     const empty = () => (encoding === null ? Buffer.alloc(0) : "")
     let child
     try {
@@ -65,10 +66,13 @@ export const runBounded = (file, args, { cwd, env, timeoutMs, maxBuffer = MAX_OU
       child.stdin?.on("error", () => { /* a child that exits before reading input still reports its own status */ })
       child.stdin?.end(input)
     }
-    const timer = setTimeout(() => {
+    const expire = () => {
       timedOut = true
       killTree(child.pid)
-    }, timeoutMs)
+    }
+    // Synchronous process startup consumes the caller's wall-clock budget too.
+    const remainingMs = timeoutMs - (performance.now() - startedAt)
+    const timer = remainingMs <= 0 ? null : setTimeout(expire, remainingMs)
     const abort = () => {
       clearTimeout(timer)
       killTree(child.pid)
@@ -90,4 +94,5 @@ export const runBounded = (file, args, { cwd, env, timeoutMs, maxBuffer = MAX_OU
       cleanup()
       resolve({ status, signal, stdout: output(stdoutChunks), stderr: output(stderrChunks), timedOut, overflowed, error: null })
     })
+    if (remainingMs <= 0) expire()
   })

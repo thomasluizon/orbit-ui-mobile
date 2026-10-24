@@ -36,7 +36,7 @@ for (const width of [412, 1280]) {
           await page.getByRole('menu', { name: words.habits.listOptions, exact: true })
             .getByRole('menuitem', { name: words.habits.refresh, exact: true }).click()
           await expect(page.locator(`[data-habit-title="${habitTitle}"]`)).toBeVisible()
-          await page.getByRole('button', { name: width >= 1024 ? words.chat.title : words.todayAstra.openConversation, exact: true }).click()
+          await page.getByRole('button', { name: width >= 1024 ? words.chat.title : `${words.todayAstra.openConversation}, ${words.nav.astra}`, exact: true }).click()
           const conversation = page.locator('[data-shell-conversation="overlay"]')
           await expect(conversation).toBeVisible()
           const empty = conversation.getByRole('feed', { name: words.chat.title })

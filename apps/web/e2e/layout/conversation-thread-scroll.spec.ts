@@ -8,7 +8,7 @@ import { test } from './upgrade-fixtures'
 
 const clarification = makeClarificationPreviewMessage()
 const reply = chatStreamEventSchema.parse({ type: 'final', response: {
-  aiMessage: 'Podemos revisar a rotina com calma. '.repeat(80), actions: clarification.actions,
+  aiMessage: '', actions: clarification.actions,
 } })
 
 for (const width of [600, 1352]) {
@@ -25,8 +25,8 @@ for (const width of [600, 1352]) {
       test(sameTask ? 'brings all clarification preview actions above the composer after a same-task scroll and answer' : 'brings all clarification preview actions above the composer', async ({ page }) => {
         await page.goto('/?astra=open')
         const conversation = page.locator('[data-shell-conversation="overlay"]')
-        await conversation.locator('[data-composer-input]').fill('Quero criar um hábito')
-        await conversation.getByRole('button', { name: pt.shell.composer.send, exact: true }).click()
+        await conversation.locator('[data-composer-input]').fill('Quero criar um hábito. '.repeat(80))
+        await conversation.getByRole('button', { name: `${pt.shell.composer.send}, ${pt.habits.form.askDate}`, exact: true }).click()
         const answer = conversation.getByRole('button', { name: pt.habits.clarification.quickAction.daily, exact: true })
         await expect(answer).toBeVisible()
         if (sameTask) await answer.evaluate(element => {
@@ -47,10 +47,16 @@ for (const width of [600, 1352]) {
     }
 
     test('reopens a long retained conversation at the newest content', async ({ page }) => {
+      const retainedReply = chatStreamEventSchema.parse({ type: 'final', response: {
+        aiMessage: 'Podemos revisar a rotina com calma. '.repeat(80), actions: clarification.actions,
+      } })
+      await page.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, route => route.fulfill({
+        contentType: 'text/event-stream', body: `data: ${JSON.stringify(retainedReply)}\n\n`,
+      }))
       await page.goto('/?astra=open')
       const conversation = page.locator('[data-shell-conversation="overlay"]')
       await conversation.locator('[data-composer-input]').fill('Quero criar um hábito')
-      await conversation.getByRole('button', { name: pt.shell.composer.send, exact: true }).click()
+      await conversation.getByRole('button', { name: `${pt.shell.composer.send}, ${pt.habits.form.askDate}`, exact: true }).click()
       const feed = conversation.getByRole('feed')
       await expect(feed.getByRole('article')).toHaveCount(2)
       await expect(feed).toHaveAttribute('aria-busy', 'false')
@@ -58,7 +64,7 @@ for (const width of [600, 1352]) {
       await page.mouse.wheel(0, -800)
       await expect.poll(() => feed.evaluate(element => element.scrollHeight - element.clientHeight - element.scrollTop)).toBeGreaterThan(100)
       await conversation.getByRole('button', { name: pt.common.closeConversation, exact: true }).click()
-      await page.getByRole('button', { name: width >= 1024 ? pt.chat.title : pt.todayAstra.openConversation, exact: true }).click()
+      await page.getByRole('button', { name: width >= 1024 ? pt.chat.title : `${pt.todayAstra.openConversation}, ${pt.nav.astra}`, exact: true }).click()
       await expect.poll(() => feed.evaluate(element => element.scrollHeight - element.clientHeight - element.scrollTop)).toBeLessThanOrEqual(1)
     })
   })

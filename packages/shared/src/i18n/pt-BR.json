@@ -281,7 +281,7 @@
           "changeTimes": "Mudar os horários",
           "pauseWhatDoesNotFit": "Pausar o que não cabe",
           "keepOnlyHabit": "Manter só um hábito",
-          "buildMorningRoutine": "Montar uma rotina matinal",
+          "buildMorningRoutine": "Montar rotina matinal",
           "startOneHabit": "Começar com um hábito",
           "suggestThreeHabits": "Sugerir três hábitos",
           "createEveningHabit": "Criar hábito noturno",
@@ -314,7 +314,8 @@
           "logHabit": "Registrar \"{title}\"",
           "trimHabit": "Simplificar \"{title}\"",
           "keepOnlyHabit": "Manter só \"{title}\"",
-          "reviewHabit": "Rever \"{title}\""
+          "reviewHabit": "Rever \"{title}\"",
+          "buildMorningRoutine": "Montar uma rotina matinal"
         },
         "progress": {
           "createGoal": "Criar uma meta para {title}"
@@ -612,7 +613,13 @@
       "noSearchResults": "Nenhum hábito corresponde à busca",
       "invalidSelf": "Não dá para mover para dentro de si mesmo",
       "invalidDescendant": "Não dá para mover para dentro de um sub-hábito dele",
-      "invalidDepth": "Passaria do limite de profundidade ({max})"
+      "invalidDepth": "Passaria do limite de profundidade ({max})",
+      "titleMany": "Mover {count} hábito | Mover {count} hábitos",
+      "invalidForSome": "Alguns hábitos selecionados não podem ficar aqui",
+      "invalidCurrentParent": "Este hábito já está aqui",
+      "invalidCurrentParentMany": "Os hábitos selecionados já estão aqui",
+      "noDestinations": "Não há outro lugar para colocar esses hábitos",
+      "errorPartial": "Alguns hábitos não foram movidos. Escolha um lugar e tente de novo."
     },
     "actions": {
       "more": "Mais ações",
@@ -624,6 +631,7 @@
       "skip": "Pular",
       "openSubHabits": "Abrir os sub-hábitos",
       "unlog": "Marcar como não feito",
+      "rescheduleAstra": "Reagendar com a Astra",
       "reschedule": "Reagendar"
     },
     "reschedule": {
@@ -673,7 +681,9 @@
       "partialFailure": "Não foi possível atualizar {count} linha selecionada. | Não foi possível atualizar {count} linhas selecionadas.",
       "retryFailed": "Tentar de novo",
       "offlineFailure": "Nada mudou porque seu aparelho está sem conexão.",
-      "connectionRefreshed": "A conexão caiu. A lista foi atualizada."
+      "connectionRefreshed": "A conexão caiu. A lista foi atualizada.",
+      "move": "Mover selecionados",
+      "moveLimit": "Selecione até {limit, number} hábitos para mover de uma vez."
     },
     "skipHabit": "Pular",
     "frequency": {
@@ -761,9 +771,11 @@
       "typeRequired": "Escolha o tipo.",
       "taskDate": "Fazer em",
       "habitStartDate": "Começar em",
+      "datePhrasePlaceholder": "Escreva do seu jeito",
       "datePhrase": "Quando",
       "taskDateQuestion": "Quando você quer fazer isso?",
       "habitDateQuestion": "Quando você quer começar?",
+      "recurrenceRequiresHabit": "Para repetir, escolha Hábito.",
       "datePhraseUnresolved": "Não consegui identificar a data. Escolha no calendário.",
       "dateInvalid": "Essa data não existe. Escolha outra.",
       "dateBudgetReached": "A Astra chegou ao limite de hoje. Escolha a data no calendário.",
@@ -1269,6 +1281,26 @@
     }
   },
   "chat": {
+    "operationUpdated": "Veja o resultado atualizado acima.",
+    "replyReady": "Resposta pronta.",
+    "unreadableReply": "Não foi possível mostrar a resposta. Pergunte de novo.",
+    "ranking": {
+      "title": "Ranking de hábitos",
+      "from": "De {date}",
+      "through": "Até {date}",
+      "completions": "{count, plural, =0 {# conclusões} one {# conclusão} other {# conclusões}}",
+      "open": "{rank}. {name}, {count, plural, =0 {# conclusões} one {# conclusão} other {# conclusões}}",
+      "empty": "Nenhuma conclusão neste período.",
+      "partial": "Mais hábitos abaixo.",
+      "more": "Ver mais",
+      "refresh": "Atualizar",
+      "stale": "O ranking mudou. Atualize para continuar.",
+      "pageFailed": "Não foi possível carregar. Tente de novo.",
+      "refreshFailed": "Não foi possível atualizar. Tente de novo.",
+      "removed": "Hábito indisponível. Atualize o ranking.",
+      "openFailed": "Não foi possível abrir o hábito. Tente de novo.",
+      "offline": "Conecte-se para continuar."
+    },
     "readBlock": {
       "dayTitle": "Resumo",
       "nothingDue": "Nenhum hábito agendado.",
@@ -1752,7 +1784,7 @@
         "plan": { "Free": "Grátis", "Pro": "Pro" },
         "interval": { "monthly": "Mensal", "yearly": "Anual" },
         "source": { "stripe": "Stripe", "play": "Google Play" },
-        "rewardType": { "discount": "Desconto" }
+        "rewardType": { "discount": "Desconto", "pro_days": "Dias de Pro" }
       },
       "yes": "Sim", "no": "Não", "notSet": "Não definido", "unknown": "Desconhecido",
       "code": "Código de indicação", "copy": "Copiar", "copied": "Copiado", "share": "Compartilhar",
@@ -1870,7 +1902,6 @@
         "anyDay": "Escolher qualquer dia",
         "fixedDays": "Manter dias fixos",
         "removeDescription": "Remover a descrição",
-        "useIcon": "Usar {emoji}",
         "removeIcon": "Remover o ícone",
         "repeatInDays": "Repetir em dias",
         "repeatInWeeks": "Repetir em semanas",
@@ -2568,40 +2599,36 @@
     }
   },
   "referral": {
-    "card": {
-      "title": "Convidar amigos",
-      "hint": "Ganhe cupons de desconto para você e seus amigos",
-      "progress": "{count}/{max} indicações concluídas"
-    },
     "drawer": {
       "title": "Convidar amigos",
       "yourLink": "Seu link de indicação",
-      "copy": "Copiar",
       "copyLink": "Copiar link",
-      "copied": "Copiado",
       "linkCopied": "Link copiado",
       "share": "Compartilhar link",
       "completed": "Indicações concluídas",
       "pending": "Pendentes",
-      "couponsEarned": "Cupons ganhos",
       "howItWorks": "Como funciona",
-      "explanation": "Compartilhe seu link com os amigos. Quando eles entrarem no Orbit e começarem a usar o app, vocês dois ganham um cupom de {discount}% de desconto no Pro. Dá para indicar até 10 amigos",
-      "disclaimer": "Cada indicação rende um cupom de {discount}% de desconto, de uso único. O cupom vale para um único ciclo de cobrança e não acumula. Uma nova indicação substitui qualquer cupom que você não tenha usado. Se você já assina pela web, o desconto entra automaticamente na sua próxima fatura. Assinaturas do Google Play não podem ter desconto no meio do ciclo. Nesse caso, o cupom fica guardado para a próxima compra ou troca de plano.",
       "actionFailed": "Não foi possível concluir. Tente de novo."
     },
     "share": {
       "title": "Vem pro Orbit comigo",
-      "text": "Estou usando o Orbit para criar hábitos melhores. Entra também e nós dois ganhamos um cupom de {discount}% de desconto"
+      "proDays": "Vem pro Orbit comigo. Crie uma conta por este link e registre hábitos em três dias diferentes na primeira semana. Eu posso ganhar {proDays, plural, =0 {# dias} one {# dia} other {# dias}} de Pro. Você também pode ganhar dias de Pro ou um cupom de desconto no Pro.",
+      "discount": "Vem pro Orbit comigo. Crie uma conta por este link e registre hábitos em três dias diferentes na primeira semana. Eu posso ganhar um cupom de {discountPercent}% de desconto no Pro. Você também pode ganhar dias de Pro ou um cupom de desconto no Pro.",
+      "neutral": "Vem pro Orbit comigo."
     },
     "prompt": {
       "streakTitle": "Sequência de {count} dias",
       "levelTitle": "Você chegou ao nível {level}",
-      "body": "Convide um amigo e vocês dois ganham um cupom de {discount}% de desconto no Pro.",
-      "bodyFallback": "Convide um amigo para criar hábitos melhores com você.",
       "cta": "Convidar amigos",
       "later": "Agora não"
     },
-    "loginBanner": "Você veio por uma indicação. Ela vale ao criar uma conta nova."
+    "loginBanner": "Você veio por um convite. Ele vale ao criar uma conta nova.",
+    "reward": {
+      "proDays": "Convide alguém a criar uma conta pelo seu link. Se a pessoa registrar hábitos em três dias diferentes na primeira semana, você pode ganhar {proDays, plural, =0 {# dias} one {# dia} other {# dias}} de Pro.",
+      "discount": "Convide alguém a criar uma conta pelo seu link. Se a pessoa registrar hábitos em três dias diferentes na primeira semana, você pode ganhar um cupom de {discountPercent}% de desconto no Pro.",
+      "neutral": "Compartilhe seu link para convidar alguém para o Orbit.",
+      "eligibility": "O tipo de recompensa depende da conta. Há um limite de recompensas por conta."
+    }
   },
   "marketingConsent": {
     "prompt": {
@@ -2621,7 +2648,6 @@
     "download": "Baixar",
     "scanToJoin": "Escaneie para entrar no Orbit",
     "shareTitle": "Meu progresso no Orbit",
-    "shareText": "Estou construindo hábitos melhores com o Orbit. Venha comigo",
     "shareError": "Não foi possível compartilhar seu card. Tente novamente.",
     "saved": "Salvo como {file}",
     "weeklyBarLabel": "Conclusão em {day}: {percent}%",

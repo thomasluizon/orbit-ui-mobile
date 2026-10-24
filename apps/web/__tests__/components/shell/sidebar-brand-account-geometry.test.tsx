@@ -145,7 +145,7 @@ describe('sidebar brand and account geometry in Chromium', () => {
       expect(Math.abs(loadingHeight - shortAccount.rowHeight)).toBeLessThanOrEqual(0.1)
       for (const name of [longName, 'Alexandrasupercalifragilisticexpialidocious']) {
         view.rerender(sidebarFixture(locale, name))
-        expect(within(view.container).getByRole('link', { name: `${name}, ${email}` })).toHaveAttribute('href', '/profile')
+        expect(within(view.container).getByRole('button', { name: `${name}, ${email}` })).toHaveAttribute('aria-haspopup', 'menu')
         await page.evaluate(markup => { document.body.innerHTML = markup }, view.container.innerHTML)
         const account = await measureAccount(page)
         if (collapsed) {

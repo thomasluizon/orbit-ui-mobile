@@ -64,7 +64,7 @@ async function expectComposerKeyboardRings(page: Page, container: Locator, force
   await expect(menu).toBeHidden()
   await expect(container.getByRole('button', { name: en.shell.composer.actions, exact: true })).toBeFocused()
   await page.keyboard.press('Tab')
-  await expectOneControlRing(container.getByRole('button', { name: en.shell.composer.send, exact: true }), forcedColors)
+  await expectOneControlRing(container.getByRole('button', { name: `${en.shell.composer.send}, ${en.habits.form.askDate}`, exact: true }), forcedColors)
 }
 
 for (const width of [412, 1280] as const) {

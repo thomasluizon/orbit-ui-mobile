@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="orbit-astra-action-contract" content="Actual invocation and conversation entry pair AstraGlyph with visible Astra wording in one target. Composer entry and send retain separate intents and wrap at enlarged text (#1607). Deterministic proposal acceptance remains unchanged.">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="./support.js"></script>
 </head>
@@ -69,7 +70,8 @@ a:hover{color:var(--fg-1)}
       <p><span style="color:var(--fg-3)">boundaries&nbsp;&nbsp;</span>managing the subscription, the API keys and the account left the chat and live only in Perfil, so those three arrive as unsupported by policy with one action that opens Perfil. Astra never pitches the paywall and never starts a checkout, which is why the denied outcome states the boundary and stops there, with no upgrade action anywhere on this surface.</p>
       <p><span style="color:var(--fg-3)">limit&nbsp;&nbsp;</span>the allowance is daily, 5 free and 50 Pro, one at limit state reading its ceiling from the plan axis. Both refusals say the list keeps working and that speaking does not spend a message, and neither carries an upgrade path: Astra never pitches the paywall and never starts a checkout, so this screen passes the plan axis and still has no route to Orbit Pro. That is not an omission: the axis exists to draw the two ceilings honestly, and the no-upsell boundary is the decision. The refusal arrives on the stream as an inline error event, so it renders in the thread where the answer would have been. Nothing says when the allowance returns, because no endpoint returns that moment.</p>
       <p><span style="color:var(--fg-3)">busy&nbsp;&nbsp;</span>the concurrent limit is exactly one, so a second message while one is in flight is refused rather than queued. The composer's own busy state carries it: the send control goes neutral and inactive rather than accent, which is what separates refused from accepted, and the refusal sits above the pill. There is no queue and no draft buffer, because a queued message would act on state the person can no longer see.</p>
-      <p><span style="color:var(--fg-3)">composer&nbsp;&nbsp;</span>The conversation input is a one-line pill without a leading Astra glyph. One set of 3 to 6 chips from live state sits above it, including on the empty state; no chips show at the daily limit. Chips hug their labels in a horizontal scroll strip with the next chip peeking when content overflows. The block keeps its top hairline and 16 padding, aligned with the thread inset, with no wrapper padding. One + menu holds photo, document and voice; recording keeps a visible stop, attachments stay inside the container, and typing grows to five lines before internal scrolling. Closing disclosure preserves the draft.</p>
+      <p><span style="color:var(--fg-3)">composer&nbsp;&nbsp;</span>The conversation input is a one-line pill without a leading Astra glyph. Only the empty thread keeps its set of 3 to 6 live starter chips above it; populated answers have no generic suggestion strip; no chips show at the daily limit. Chips hug their labels in a horizontal scroll strip with the next chip peeking when content overflows. The block keeps its top hairline and 16 padding, aligned with the thread inset, with no wrapper padding. One + menu holds photo, document and voice; recording keeps a visible stop, attachments stay inside the container, and typing grows to five lines before internal scrolling. Closing disclosure preserves the draft.</p>
+      <p><span style="color:var(--fg-3)">lean answers&nbsp;&nbsp;</span>Validated answers begin with their interactive block and the least external text. The existing small ghost pills form one follow-up row with an 8 gap, zero to two short labels and no visible heading; activation sends the full contextual question once. Completed steps use the existing neutral disclosure after the answer. Pending dots or running tools remain until final delivery; provisional prose stays hidden. A block-only final answer receives one localized completion announcement. Data-backed proactive entries require their corresponding typed block; sparse notification facts cannot fabricate a read result.</p>
       <p><span style="color:var(--fg-3)">empty&nbsp;&nbsp;</span>The Astra mark, title and disclosure are centred in the thread. The disclosure, aiDisclosure.notMedicalAdvice, uses --fg-3. There is no prompt or second set of opener chips in the empty thread; the live chips remain above the conversation input.</p>
       <p><span style="color:var(--fg-3)">copy&nbsp;&nbsp;</span>message text stays selectable on both platforms. Every fenced or indented code block in an Astra reply carries one small copy control in a separate row above its text, always visible. No message carries a per-message copy control. Copying confirms in place and through a polite live announcement. This block rule supersedes the per-message pill drawn below.</p>
       <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24, gap only. 44 is the touch token for the log ring and the row edit, 40 the frequency pill and the small button, 52 the compact row, 32 the emoji well.</p>
@@ -81,6 +83,8 @@ a:hover{color:var(--fg-1)}
       <p><span style="color:var(--fg-3)">needs api&nbsp;&nbsp;</span>the metrics block has no server schema at all. The other four blocks have one, so this is the only block on the surface whose payload does not exist yet: it needs a new schema returning a period, a completion rate, a days logged count and a most consistent habit, which is ticket #333 on the api.</p>
       <p><span style="color:var(--fg-3)">frame&nbsp;&nbsp;</span>all five blocks are authored through BlockFrame's props and no block reaches for a frame class name. The row control, the proposed flag and the irreversible mark are the component's now, so the local versions are gone: the hand built frame markup for the preview, the habit list and the breakdown, the dashed hairline drawn around a proposed row, the caution glyph and coloured meta that stood in for an irreversible row, the risk badge composed above the actions, the shared day pill group under the breakdown rows, the empty value that suppressed the composer's atLimit placeholder, and the thread level line that stood in for a composer busy state.</p>
       <p><span style="color:var(--fg-3)">participants&nbsp;&nbsp;</span>Astra starts each consecutive run of replies with a 24px AstraGlyph in fg-1 on its own row at the thread's 16px inset, then an 8px gap before the first content below it. Continuations have no mark or reserved avatar space. Prose, previews, read blocks, charts, tool traces and follow-up actions share the composer's leading edge; blocks also fill its trailing edge, with 16px message and block gaps. A running tool trace uses the same structure and shows the mark only when it starts the Astra run. The pending reply puts the same mark above its indicator, keeping the content edge when the reply replaces it. The person's right-aligned bubble has no avatar space. This participant structure supersedes the side-by-side avatar column amendment and the unmarked reply layout below (#1408).</p>
+      <p><span style="color:var(--fg-3)">preview item titles&nbsp;&nbsp;</span>Pending editable titles activate an in-place Input with a 48px target and one field focus perimeter. Enter or blur revises the held preview, Escape restores the proposed name, and unchanged drafts keep it intact. Edited values use the existing revision validation. The proposed icon sits beside the title without a verb in either locale. Item titles carry no disclosure chevron; long personal names retain full-name access through editing. Titles that cannot rename, including deletion and terminal rows, wrap to two lines and reveal the complete name on activation through PersonalText expansion. Approval stays disabled while any displayed title draft has not been accepted, including after revision failure; restoring the accepted title or a successful revision enables it. Enter and Escape return web focus and Android accessibility focus to the title, while blur preserves the next destination. The proposed row wrapper stays mounted across acceptance, and proposed title text uses fg-2 on interaction fills. The separate Editar action opens the full field editor, while remove, approve, reject and failed-item recovery keep their contracts. Busy, stale and terminal titles are read-only. Existing Input, PersonalText, inset focus and neutral tokens own these controls on web and Android (#1628).</p>
+      <p><span style="color:var(--fg-3)">preview refresh&nbsp;&nbsp;</span>A successful refresh accepts a replacement preview and clears drafts from the editors it removed, even when item ids are retained. A displayed draft after a failed revision still blocks approval. The stable Proposed wrapper retains the padded row in every state: 24px frame inset, 24px header gap and 12px row inset. Terminal full-name controls and trailing actions stay within the row, with actions beside the title's first line (#1628).</p>
       <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>Both widths use one authored conversation feed with the same NavHeader, message blocks, chips and composer. BlockFrame has no collision slot, so the conflict line sits in its actions node. Inline refusals and model errors are composed from a well and one Icon. A preview row keeps its metadata short and states a deletion's habit as its label with the verb in the metadata.</p>
     </div>
   </sc-if>
@@ -160,6 +164,12 @@ const T = {
       rejected: 'As 3 mudanças foram rejeitadas. Nada foi salvo.',
     },
 
+    ranking: {
+      title: 'Ranking de hábitos', from: 'De 1 de jul. de 2026', through: 'Até 30 de set. de 2026',
+      more: 'Ver mais', refresh: 'Atualizar', empty: 'Nenhuma conclusão neste período.',
+      partial: 'Mais hábitos abaixo.', stale: 'O ranking mudou. Atualize para continuar.',
+      unit: (count) => count === 1 ? 'conclusão' : 'conclusões',
+    },
     hl: {
       ask: 'O que falta hoje',
       title: 'Hábitos de hoje',
@@ -330,6 +340,12 @@ const T = {
       rejected: 'The 3 changes were rejected. Nothing was saved.',
     },
 
+    ranking: {
+      title: 'Habit ranking', from: 'From Jul 1, 2026', through: 'Through Sep 30, 2026',
+      more: 'Show more', refresh: 'Refresh', empty: 'No completions in this period.',
+      partial: 'More habits below.', stale: 'Ranking changed. Refresh to continue.',
+      unit: (count) => count === 1 ? 'completion' : 'completions',
+    },
     hl: {
       ask: 'What is left today',
       title: "Today's habits",
@@ -449,7 +465,7 @@ const COMPOSER_STATES = ['recording', 'transcribing', 'attachments', 'offline'];
 
 class Component extends DCLogic {
   state = { mode: 'dark', width: '412', st: 'preview', loc: 'pt-BR', plan: 'free',
-    page: 1, readRefreshed: false, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false, acting: false,
+    page: 1, rankingPage: 1, readRefreshed: false, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false, acting: false,
     voicePhase: null, atts: [], draft: '' };
 
   componentDidMount() {
@@ -466,7 +482,7 @@ class Component extends DCLogic {
     const t = T[next.locale] || T['pt-BR'];
     this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
       plan: next.plan || 'free',
-      page: 1, readRefreshed: false, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false,
+      page: 1, rankingPage: 1, readRefreshed: false, logs: {}, freq: {}, confirm: false, approved: false, rejected: false, copied: false,
       acting: next.state === 'preview acting',
       voicePhase: next.state === 'recording' ? 'recording' : next.state === 'transcribing' ? 'transcribing' : null,
       draft: '',
@@ -509,6 +525,33 @@ class Component extends DCLogic {
   block(props) {
     const D = window.OrbitDesignSystem_918bd5;
     return H(D.BlockFrame, props);
+  }
+
+  habitRankingBlock(t, state) {
+    const D = window.OrbitDesignSystem_918bd5;
+    const N = window.OrbitNativeMobile;
+    const counts = [1200, 20, 20, 1];
+    const shown = state === 'ranking empty' ? 0 : Math.min(this.state.rankingPage * 2, counts.length);
+    const stale = state === 'ranking stale';
+    const number = new Intl.NumberFormat(t.intl);
+    return this.block({ title: t.ranking.title, count: null, items: [],
+      body: H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 } },
+        H('div', { style: { display: 'grid', gap: 4, fontSize: 14, color: 'var(--fg-2)' } },
+          H('p', null, mock(t.ranking.from)), H('p', null, mock(t.ranking.through))),
+        shown === 0 ? H('p', { style: { fontSize: 14, color: 'var(--fg-3)' } }, t.ranking.empty) : null,
+        t.hl.pool.slice(0, shown).map((habit, index) => H(N.ListRow, {
+          key: index, typedTitle: true, chevron: false,
+          title: number.format(index + 1) + '. ' + habit.emoji + ' ' + habit.name,
+          value: mock(number.format(counts[index]) + ' ' + t.ranking.unit(counts[index])), onClick: () => {},
+        })),
+        H('p', { role: 'status', style: { fontSize: 14, color: 'var(--fg-2)' } },
+          stale ? t.ranking.stale : shown > 0 && shown < counts.length ? t.ranking.partial : '')),
+      actions: H(F, null,
+        shown > 0 && shown < counts.length && !stale ? H(D.Button, {
+          size: 'sm', variant: 'ghost', onClick: () => this.setState(p => ({ rankingPage: p.rankingPage + 1 })),
+        }, t.ranking.more) : null,
+        H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ rankingPage: 1, st: 'ranking' }) }, t.ranking.refresh)),
+    });
   }
 
   /* The risk class sits in the frame's header slot, beside the count. */
@@ -558,7 +601,7 @@ class Component extends DCLogic {
     const base = {
       mode: s.mode, lang: t.lang, onCC: this.onCC,
       cc: { mode: s.mode, width: s.width, state: st, locale: s.loc, plan: s.plan },
-      stateAxis: ['empty', 'preview', 'preview acting', 'stale', 'habits', 'goals', 'goals empty',
+      stateAxis: ['empty', 'preview', 'preview acting', 'stale', 'habits', 'ranking', 'ranking empty', 'ranking stale', 'goals', 'goals empty',
         'clarification', 'metrics', 'periodTotal', 'periodComparison', 'history', 'read stale', 'read partial', 'breakdown', 'conflict', 'batch failed', 'op pending', 'op step up',
         'op denied', 'op policy', 'op done', 'streaming', 'busy', 'recording', 'transcribing',
         'attachments', 'offline', 'at limit', 'model error', 'copy', 'loading'],
@@ -763,12 +806,21 @@ class Component extends DCLogic {
              dead actions reads as broken, and removing it entirely makes a decline look like a
              failure to anyone scrolling back. */
           if (s.rejected) {
-            return [this.me(t.pv.ask), this.prose(t.pv.prose),
-              this.inline(t.pv.rejected, 'x', 'var(--fg-3)')];
+            return [this.me(t.pv.ask), this.inline(t.pv.rejected, 'x', 'var(--fg-3)')];
           }
-          return [this.me(t.pv.ask), this.prose(t.pv.prose), this.node(previewBlock)];
+          return [this.me(t.pv.ask), this.node(previewBlock)];
+        case 'ranking':
+        case 'ranking empty':
+        case 'ranking stale':
+          return [this.node(this.habitRankingBlock(t, st))];
         case 'habits':
-          return [this.me(t.hl.ask), this.node(habitsBlock)];
+          return [this.me(t.hl.ask), this.node(habitsBlock), this.node(H('div', null,
+            H('details', { style: { color: 'var(--fg-3)', paddingBlock: 8 } },
+              H('summary', { style: { minHeight: 48, display: 'flex', alignItems: 'center' } }, s.loc === 'pt-BR' ? 'Uma etapa' : 'One step'),
+              H('div', null, s.loc === 'pt-BR' ? 'Hábitos consultados' : 'Habits checked')),
+            H('div', { role: 'group', 'aria-label': s.loc === 'pt-BR' ? 'Próximas perguntas' : 'Next questions', style: { display: 'flex', gap: 8, overflowX: 'auto', paddingBlock: 8 } },
+              H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ st: 'metrics' }) }, s.loc === 'pt-BR' ? 'Ver semana' : 'View week'),
+              H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ st: 'goals' }) }, s.loc === 'pt-BR' ? 'Ver metas' : 'View goals'))))];
         case 'clarification':
           return [this.me(t.cl.ask), this.node(this.block({
             title: t.cl.title,
@@ -835,15 +887,13 @@ class Component extends DCLogic {
             actions: H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => {} }, t.op.policyAction),
           }))];
         case 'op done':
-          return [this.me(t.op.doneAsk), this.prose(t.op.doneProse), this.node(this.block({
+          return [this.me(t.op.doneAsk), this.node(this.block({
             title: t.op.doneTitle, count: mock(t.op.doneCount), risk: this.risk(t.op.riskDestructive),
             items: t.op.doneRows.map((r) => ({ label: r.label, meta: r.meta, status: 'done',
               statusLabel: t.statusDone })),
           }))];
         case 'streaming':
-          return [this.me(t.stream.ask), this.prose(H(F, null, t.stream.text,
-            H('span', { 'aria-hidden': 'true', style: { display: 'inline-block', width: 2, height: '1em',
-              marginInlineStart: 2, verticalAlign: '-0.15em', background: 'var(--fg-3)' } })))];
+          return [this.me(t.stream.ask), this.node(H('div', { 'aria-label': s.loc === 'pt-BR' ? 'Preparando resposta' : 'Preparing reply', style: { color: 'var(--fg-3)', minHeight: 24 } }, '···'))];
         case 'busy':
           return [this.me(t.busy.ask), this.prose(t.busy.prose)];
         case 'at limit':
@@ -892,7 +942,7 @@ class Component extends DCLogic {
           : s.draft ? 'composing' : 'resting';
         const props = {
           state: cState, padding: 16,
-          chips: NO_CHIPS.indexOf(st) >= 0 ? [] : t.chips,
+          chips: st === 'empty' ? t.chips : [],
           words: t.composerWords,
           value: s.draft || undefined,
           onChange: (val) => this.setState({ draft: val }),

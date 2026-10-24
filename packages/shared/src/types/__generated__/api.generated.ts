@@ -283,6 +283,86 @@ export const DeleteApiApiKeysIdHeader = zod.object({
 export const DeleteApiApiKeysIdResponse = zod.void()
 
 
+export const PostApiAuthAppleNativeHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const postApiAuthAppleNativeBodyLanguageDefault = `en`;
+
+export const PostApiAuthAppleNativeBody = zod.object({
+  "identityToken": zod.string(),
+  "authorizationCode": zod.string(),
+  "rawNonce": zod.string(),
+  "givenName": zod.string().nullish(),
+  "familyName": zod.string().nullish(),
+  "language": zod.string().default(postApiAuthAppleNativeBodyLanguageDefault),
+  "referralCode": zod.string().nullish()
+})
+
+export const postApiAuthAppleNativeResponseWasReactivatedDefault = false;
+
+export const PostApiAuthAppleNativeResponse = zod.object({
+  "userId": zod.uuid(),
+  "token": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "wasReactivated": zod.boolean().default(postApiAuthAppleNativeResponseWasReactivatedDefault),
+  "refreshToken": zod.string().nullish()
+})
+
+
+export const PostApiAuthAppleStartHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const postApiAuthAppleStartBodyLanguageDefault = `en`;
+
+export const PostApiAuthAppleStartBody = zod.object({
+  "state": zod.string(),
+  "language": zod.string().default(postApiAuthAppleStartBodyLanguageDefault),
+  "referralCode": zod.string().nullish()
+})
+
+export const PostApiAuthAppleStartResponse = zod.object({
+  "authorizationUrl": zod.string()
+})
+
+
+export const PostApiAuthAppleCallbackHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const PostApiAuthAppleCallbackBody = zod.object({
+  "state": zod.string().optional(),
+  "code": zod.string().optional(),
+  "user": zod.string().optional(),
+  "error": zod.string().optional()
+})
+
+export const PostApiAuthAppleCallbackResponse = zod.void()
+
+
+export const PostApiAuthAppleHandoffHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const PostApiAuthAppleHandoffBody = zod.object({
+  "handoff": zod.string(),
+  "state": zod.string()
+})
+
+export const postApiAuthAppleHandoffResponseWasReactivatedDefault = false;
+
+export const PostApiAuthAppleHandoffResponse = zod.object({
+  "userId": zod.uuid(),
+  "token": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "wasReactivated": zod.boolean().default(postApiAuthAppleHandoffResponseWasReactivatedDefault),
+  "refreshToken": zod.string().nullish()
+})
+
+
 export const PostApiAuthSendCodeHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -4303,6 +4383,37 @@ export const PostApiNotificationsTestPushHeader = zod.object({
 export const PostApiNotificationsTestPushResponse = zod.unknown()
 
 
+export const GetOauthAppleStartQueryParams = zod.object({
+  "client_id": zod.string().optional(),
+  "redirect_uri": zod.string().optional(),
+  "state": zod.string().optional(),
+  "code_challenge": zod.string().optional(),
+  "code_challenge_method": zod.string().optional(),
+  "nonce": zod.string().optional(),
+  "scope": zod.string().optional()
+})
+
+export const GetOauthAppleStartHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const GetOauthAppleStartResponse = zod.unknown()
+
+
+export const PostOauthAppleCallbackHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const PostOauthAppleCallbackBody = zod.object({
+  "state": zod.string().optional(),
+  "code": zod.string().optional(),
+  "user": zod.string().optional(),
+  "error": zod.string().optional()
+})
+
+export const PostOauthAppleCallbackResponse = zod.unknown()
+
+
 export const GetWellKnownOauthAuthorizationServerHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -4461,6 +4572,21 @@ export const PostOauthConsentBody = zod.object({
 export const PostOauthConsentResponse = zod.unknown()
 
 
+export const PostOauthConsentCancelHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const PostOauthConsentCancelBody = zod.object({
+  "ticket": zod.string().optional()
+})
+
+export const PostOauthConsentCancelResponse = zod.unknown()
+
+
+export const GetApiAiProactiveCurrentQueryParams = zod.object({
+  "clientContext": zod.string().optional()
+})
+
 export const GetApiAiProactiveCurrentHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -4504,7 +4630,15 @@ export const GetApiAiProactiveCurrentResponse = zod.object({
   "hadScheduledHabitsYesterday": zod.boolean().nullish(),
   "hadPositiveLogsYesterday": zod.boolean().nullish(),
   "hadRecentActivity": zod.boolean().nullish()
-})])
+})]),
+  "parts": zod.array(zod.union([zod.object({
+  "type": zod.enum(['text']),
+  "text": zod.string()
+}),zod.object({
+  "type": zod.enum(['block']),
+  "kind": zod.string(),
+  "block": zod.unknown()
+})])).nullish()
 })
 
 
@@ -4618,7 +4752,8 @@ export const GetApiProfileResponse = zod.object({
   "proactiveAstraEnabled": zod.boolean().default(getApiProfileResponseProactiveAstraEnabledDefault),
   "marketingEmailConsent": zod.boolean().nullish(),
   "lastCompletionDate": zod.iso.date().nullish(),
-  "activeApiKeyCount": zod.union([zod.int(),zod.stringFormat('int32', getApiProfileResponseActiveApiKeyCountRegExpTwo)]).nullish()
+  "activeApiKeyCount": zod.union([zod.int(),zod.stringFormat('int32', getApiProfileResponseActiveApiKeyCountRegExpTwo)]).nullish(),
+  "billingProvider": zod.string().nullish()
 })
 
 
@@ -4970,7 +5105,25 @@ export const GetApiSubscriptionsStatusHeader = zod.object({
   "api-version": zod.string().optional()
 })
 
-export const GetApiSubscriptionsStatusResponse = zod.unknown()
+export const getApiSubscriptionsStatusResponseAiMessagesUsedRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiSubscriptionsStatusResponseAiMessagesLimitRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const GetApiSubscriptionsStatusResponse = zod.object({
+  "plan": zod.string(),
+  "hasProAccess": zod.boolean(),
+  "isTrialActive": zod.boolean(),
+  "trialEndsAt": zod.iso.datetime({"offset":true}).nullable(),
+  "planExpiresAt": zod.iso.datetime({"offset":true}).nullable(),
+  "aiMessagesUsed": zod.union([zod.int(),zod.stringFormat('int32', getApiSubscriptionsStatusResponseAiMessagesUsedRegExpTwo)]),
+  "aiMessagesLimit": zod.union([zod.int(),zod.stringFormat('int32', getApiSubscriptionsStatusResponseAiMessagesLimitRegExpTwo)]),
+  "isLifetimePro": zod.boolean(),
+  "subscriptionInterval": zod.string().nullable(),
+  "source": zod.string().nullable(),
+  "lapseReason": zod.string().nullish(),
+  "subscriptionEndedAtUtc": zod.iso.datetime({"offset":true}).nullish(),
+  "billingProvider": zod.string().nullish()
+})
 
 
 export const GetApiSubscriptionsBillingHeader = zod.object({
@@ -5052,6 +5205,34 @@ export const PostApiSubscriptionsPlayRtdnHeader = zod.object({
 })
 
 export const PostApiSubscriptionsPlayRtdnResponse = zod.unknown()
+
+
+export const PostApiSubscriptionsAppStoreVerifyHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const PostApiSubscriptionsAppStoreVerifyBody = zod.object({
+  "signedTransaction": zod.string()
+})
+
+export const PostApiSubscriptionsAppStoreVerifyResponse = zod.object({
+  "hasProAccess": zod.boolean(),
+  "source": zod.string().nullable(),
+  "subscriptionInterval": zod.string().nullable(),
+  "planExpiresAt": zod.iso.datetime({"offset":true}).nullable(),
+  "billingProvider": zod.string().nullish()
+})
+
+
+export const PostApiSubscriptionsAppStoreNotificationsHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const PostApiSubscriptionsAppStoreNotificationsBody = zod.object({
+  "signedPayload": zod.string()
+})
+
+export const PostApiSubscriptionsAppStoreNotificationsResponse = zod.unknown()
 
 
 export const PostApiSupportHeader = zod.object({

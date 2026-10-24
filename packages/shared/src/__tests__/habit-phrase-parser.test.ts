@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readHabitPhrase, segmentHabitPhrase } from '../utils/habit-phrase-parser'
+import { isWeeklyRecurrencePhrase, readHabitPhrase, segmentHabitPhrase } from '../utils/habit-phrase-parser'
 
 interface PhraseCase {
   input: string
@@ -39,6 +39,23 @@ const cases: PhraseCase[] = [
   { input: '3 times a week every 3 weeks', locale: 'en', cadence: 'flexible', quantity: 3, interval: 3 },
   { input: 'Beber água quando der', locale: 'pt-BR', cadence: null },
 ]
+
+describe('recurrence-only wording', () => {
+  it.each(['toda semana', 'todas as semanas', 'semanalmente', 'every week', 'weekly'])('recognizes %s with safe casing, whitespace and punctuation', (phrase) => {
+    for (const value of [phrase, `  ${phrase.toUpperCase().replaceAll(' ', '\t  ')}.  `, `! ${phrase} ?`]) {
+      expect(isWeeklyRecurrencePhrase(value)).toBe(true)
+      for (const locale of ['en', 'pt-BR'] as const) {
+        const read = readHabitPhrase(value, locale)
+        expect(read).toMatchObject({ cadence: null, dueTime: null, consumed: [] })
+        expect(segmentHabitPhrase(value, read.consumed)).toEqual([{ text: value, consumed: false }])
+      }
+    }
+  })
+
+  it.each(['', 'week', 'biweekly', 'every 2 weeks', '3 times a week', 'every week tomorrow', 'tomorrow every week', 'toda semana segunda', 'toda semana às 8', 'weekly report', 'Read weekly', 'todas semanas', 'weekly\u200b', 'weekly '.repeat(1000)])('leaves unsupported or mixed wording unchanged: %s', (phrase) => {
+    expect(isWeeklyRecurrencePhrase(phrase)).toBe(false)
+  })
+})
 
 describe('readHabitPhrase', () => {
   it.each([

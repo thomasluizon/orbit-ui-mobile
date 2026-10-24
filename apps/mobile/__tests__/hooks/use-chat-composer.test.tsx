@@ -185,7 +185,7 @@ vi.mock('@/components/ui/app-toast', () => ({ AppToast: () => null }))
 vi.mock('@/components/ui/app-error-boundary', () => ({ AppErrorScreen: () => null }))
 vi.mock('@/components/message-bubble', async importOriginal => {
   const actual = await importOriginal<typeof import('@/components/message-bubble')>()
-  return { MessageBubble: (props: React.ComponentProps<typeof actual.MessageBubble>) => props.message.parts?.some(part => part?.type === 'block' && part.kind === 'choice')
+  return { MessageBubble: (props: React.ComponentProps<typeof actual.MessageBubble>) => props.isStreaming || props.message.parts?.some(part => part?.type === 'block' && part.kind === 'choice')
     ? <actual.MessageBubble {...props} /> : React.createElement('Text', null, props.message.content) }
 })
 vi.mock('@/components/ui/markdown', () => ({ Markdown: () => null }))
@@ -469,8 +469,8 @@ describe('mobile useChatComposer', () => {
       if (arrival === 'cancel') stream.fail(new DOMException('Cancelled', 'AbortError'))
       await Promise.resolve()
     })
-    expect(pending()).toHaveLength(0)
-    if (arrival === 'text') expect(visibleMessageTexts(tree)).toContain('Start with water')
+    expect(pending()).toHaveLength(arrival === 'text' ? 1 : 0)
+    if (arrival === 'text') expect(visibleMessageTexts(tree)).not.toContain('Start with water')
     if (arrival === 'tool') expect(visibleMessageTexts(tree)).toContain('chat.trace.habits.read')
   })
 
@@ -488,7 +488,7 @@ describe('mobile useChatComposer', () => {
     expect(focus).toHaveBeenCalledWith(expect.objectContaining({ testID: 'composer-sending' }))
     await TestRenderer.act(async () => { stream.enqueue(frame('{"type":"delta","text":"Start with water"}')); await Promise.resolve() })
     expect(visibleMessageTexts(tree)).toContain('Plan my morning')
-    expect(visibleMessageTexts(tree)).toContain('Start with water')
+    expect(visibleMessageTexts(tree)).not.toContain('Start with water')
     const list = tree.root.findByType('FlatList')
     expect(list.props.data).toEqual(expect.arrayContaining([
       expect.objectContaining({ role: 'user', content: 'Plan my morning' }),
@@ -2271,7 +2271,7 @@ describe('mobile useChatComposer', () => {
     const appendFormPart = vi.spyOn(FormData.prototype, 'append')
     mocks.state.profile = createMockProfile({ lastCompletionDate: null })
     const composer = await renderComposer()
-    const suggestion = composer.current.composerProps.suggestions[0]!
+    const suggestion = composer.current.composerProps.suggestions.find(chip => chip.id === 'today.startOneHabit')!
 
     TestRenderer.act(() => suggestion.onSelect())
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
@@ -2279,6 +2279,32 @@ describe('mobile useChatComposer', () => {
 
     expect(appendFormPart).toHaveBeenCalledWith('message', suggestion.label)
     appendFormPart.mockRestore()
+  })
+
+  it.each([
+    ['en', 'Build a morning routine', 'Build a morning routine'],
+    ['pt-BR', 'Montar rotina matinal', 'Montar uma rotina matinal'],
+  ] as const)('sends the original morning prompt once from the compact chip in %s', async (locale, label, prompt) => {
+    mocks.locale = locale
+    await i18n.changeLanguage(locale)
+    mocks.translate = i18n.t.bind(i18n)
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.habitData = { topLevelHabits: [], totalCount: 0 }
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    onTestFinished(() => appendFormPart.mockRestore())
+    const composer = await renderComposer({ pathname: '/' })
+    const suggestion = composer.current.composerProps.suggestions[0]!
+    expect(suggestion.id).toBe('today.buildMorningRoutine')
+    expect(suggestion.label).toBe(label)
+    expect(mocks.openChatStream).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => suggestion.onSelect())
+    await vi.waitFor(() => expect(useChatStore.getState().messages.at(-1)?.content).toBe('Hi there'))
+    expect(mocks.openChatStream).toHaveBeenCalledOnce()
+    expect(appendFormPart.mock.calls.filter(([name]) => name === 'message')).toEqual([['message', prompt]])
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user').map(message => message.content)).toEqual([prompt])
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
   it.each(['moveOverdue', 'logHabit', 'trimHabit', 'keepOnlyHabit', 'reviewHabit', 'createGoal'])('sends the complete habit title behind the short %s label', async action => {
@@ -2466,7 +2492,7 @@ describe('mobile useChatComposer', () => {
     const group = tree.root.findByProps({ accessibilityLabel: 'shell.composer.suggestionsLabel' })
     const chips = group.findAllByType('Pressable')
     expect(chips.length).toBeGreaterThanOrEqual(3)
-    expect(chips[0].props.accessibilityLabel).toBe('Create a goal')
+    expect(chips[0].props.accessibilityLabel).toBe('Create a goal, nav.astra')
     TestRenderer.act(() => chips[0].props.onPress())
     await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
     expect(appendFormPart).toHaveBeenCalledWith('message', 'Help me make a goal')

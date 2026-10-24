@@ -15,6 +15,8 @@ import type {
   BulkLogResult,
   BulkSkipItemRequest,
   BulkSkipResult,
+  BulkMoveHabitParentRequest,
+  BulkMoveHabitParentResult,
   ReorderHabitsRequest,
   CreateSubHabitRequest,
   MoveHabitParentRequest,
@@ -27,6 +29,8 @@ import {
   bulkDeleteResponseSchema,
   bulkLogResultSchema,
   bulkSkipResultSchema,
+  bulkMoveHabitParentRequestSchema,
+  bulkMoveHabitParentResultSchema,
   createHabitRequestSchema,
   updateHabitRequestSchema,
   validateApiRequest,
@@ -262,4 +266,19 @@ export async function interpretHabitDate(input: DateInterpretationRequest, inten
     method: 'POST',
     body: JSON.stringify(dateInterpretationRequestSchema.parse(input)),
   }, intendedAccountId, dateInterpretationSchema))
+}
+
+export async function bulkMoveHabitParent(
+  input: BulkMoveHabitParentRequest,
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<BulkMoveHabitParentResult>> {
+  return wrapServerAction(() => serverAuthMutate(
+    API.habits.bulkParent,
+    {
+      method: 'POST',
+      body: JSON.stringify(validateApiRequest(input, bulkMoveHabitParentRequestSchema)),
+    },
+    intendedAccountId,
+    bulkMoveHabitParentResultSchema,
+  ))
 }

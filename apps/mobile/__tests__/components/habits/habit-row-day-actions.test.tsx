@@ -28,7 +28,7 @@ describe('mobile habit row on an old day', () => {
     await i18n.changeLanguage('en')
   })
 
-  it.each([['en', 'Reschedule'], ['pt-BR', 'Reagendar']])('shows the %s reschedule label on an overdue row', async (locale, label) => {
+  it.each([['en', 'Reschedule with Astra'], ['pt-BR', 'Reagendar com a Astra']])('shows the %s reschedule label on an overdue row', async (locale, label) => {
     await i18n.changeLanguage(locale)
     const onReschedule = vi.fn()
     let tree: ReturnType<typeof TestRenderer.create>
@@ -43,7 +43,7 @@ describe('mobile habit row on an old day', () => {
     TestRenderer.act(() => more.props.onPress())
     const items = tree!.root.findAllByProps({ accessibilityRole: 'menuitem' })
     const item = items.find((candidate: TestNode) => candidate.findByType('Text').props.children === label)
-    expect(i18n.t('habits.actions.reschedule')).toBe(label)
+    expect(i18n.t('habits.actions.rescheduleAstra')).toBe(label)
     expect(item).toBeDefined()
     TestRenderer.act(() => item!.props.onPress())
     expect(onReschedule).toHaveBeenCalledOnce()
@@ -78,7 +78,7 @@ describe('mobile habit row on an old day', () => {
       expect(labels).toContain(label)
     }
     expect(labels).not.toContain(i18n.t('habits.actions.skip'))
-    expect(labels).not.toContain(i18n.t('habits.actions.reschedule'))
+    expect(labels).not.toContain(i18n.t('habits.actions.rescheduleAstra'))
     const edit = items.find((item: TestNode) => item.findByType('Text').props.children === i18n.t('common.edit'))!
     TestRenderer.act(() => edit.props.onPress())
     expect(actions.onEdit).toHaveBeenCalledOnce()

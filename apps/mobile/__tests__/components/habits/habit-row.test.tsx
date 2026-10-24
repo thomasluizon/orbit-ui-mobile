@@ -435,11 +435,10 @@ describe('HabitRow status control names (mobile)', () => {
     const body = renderer!.root.findAll(
       (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
     )[0]
-    const ring = renderer!.root.findAll(
+    const ring = renderer!.root.findAllByType('Pressable').find(
       (node: { props: Record<string, unknown> }) =>
-        node.props.accessibilityLabel === 'habits.statusDot.empty, habits.logHabit: Meditate, 0/1' &&
-        typeof node.props.style === 'function',
-    )[0]
+        node.props.accessibilityLabel === 'habits.statusDot.empty, habits.logHabit: Meditate, 0/1',
+    )!
 
     TestRenderer.act(() => body.props.onPressIn())
     const pressedCard = StyleSheet.flatten(
@@ -461,9 +460,14 @@ describe('HabitRow status control names (mobile)', () => {
     const restingCard = StyleSheet.flatten(
       renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
     ) as Record<string, unknown>
+    TestRenderer.act(() => ring.props.onPressIn())
     const pressedRing = StyleSheet.flatten(ring.props.style({ pressed: true })) as Record<string, unknown>
     expect(restingCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
-    expect(pressedRing.backgroundColor).toBe('rgba(250,250,250,0.13)')
+    expect(pressedRing.backgroundColor).toBeUndefined()
+    const fill = () => StyleSheet.flatten(renderer!.root.findByProps({ testID: 'habit-check' }).props.style)
+    expect(fill()).toMatchObject({ width: 28, height: 28, borderRadius: 12, backgroundColor: 'rgba(250,250,250,0.13)' })
+    TestRenderer.act(() => ring.props.onPressOut())
+    expect(fill().backgroundColor).toBe('transparent')
   })
 
   it('presses the disclosure control without painting the card', () => {
@@ -635,11 +639,11 @@ describe('HabitRow menu (mobile)', () => {
     expect(menu.props.title).toBe('Walk')
     expect(menu.props.items.map((item: { label: string }) => item.label)).toEqual([
       'habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
-      'habits.actions.reschedule', 'common.edit', 'habits.actions.duplicate',
+      'habits.actions.rescheduleAstra', 'common.edit', 'habits.actions.duplicate',
       'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete',
     ])
     expect(menu.props.items.map((item: { icon?: string }) => item.icon)).toEqual([
-      'subtask', 'arrows-move', 'player-skip-forward', 'calendar-time', 'pencil',
+      'subtask', 'arrows-move', 'player-skip-forward', 'astra', 'pencil',
       'copy', 'checkbox', 'list-tree', 'trash',
     ])
     expect(menu.props.items[0].badge).toBeUndefined()
@@ -647,7 +651,7 @@ describe('HabitRow menu (mobile)', () => {
     pressMoreButton(renderer)
     const icons = renderer!.root.findAllByType(Icon)
     expect(icons.map((icon: { props: { name: string } }) => icon.props.name)).toEqual([
-      'subtask', 'arrows-move', 'player-skip-forward', 'calendar-time', 'pencil',
+      'subtask', 'arrows-move', 'player-skip-forward', 'astra', 'pencil',
       'copy', 'checkbox', 'list-tree', 'trash',
     ])
     expect(icons.every((icon: { props: { size: number; strokeWidth: number } }) =>

@@ -1,15 +1,15 @@
 import { useState, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider, useTranslations } from 'next-intl'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Page, Response } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { createMockConfigResponse, createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createMockConfigResponse, createMockHabit, createMockHabitScheduleItem, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { appConfigSchema } from '@orbit/shared/types/config'
-import { formatAPIDate } from '@orbit/shared/utils'
-import { SmokeDomPage, expectSmokeDom } from '@/__tests__/support/smoke-dom'
+import { formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
+import { SmokeDomPage, type SmokeDomLocator, expectSmokeDom } from '@/__tests__/support/smoke-dom'
 import { holdAccount } from '@/__tests__/support/account-change'
 import AppLayout from '@/app/(app)/layout'
 import { DestinationShell } from '@/components/shell/destination-shell'
@@ -25,6 +25,8 @@ import { useUIStore } from '@/stores/ui-store'
 import { createSmokeHabit, expectAppNavigation, expectCheckout, logSmokeHabit } from '@/e2e/support/smoke-adapters'
 
 const mocks = vi.hoisted(() => ({
+  loadingToday: false,
+  emptyToday: false,
   profile: undefined as ReturnType<typeof createMockProfile> | undefined,
   pathname: '/', wide: false, expired: false, online: true,
   create: vi.fn(), dismissCalendarImport: vi.fn(), dismissImportPrompt: vi.fn(),
@@ -85,7 +87,7 @@ vi.mock('@/lib/api-fetch-i18n-provider', () => ({ ApiFetchI18nProvider: () => nu
 vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse()) }) }))
 vi.mock('@/hooks/use-habits', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habits')>(),
-  useHabits: () => ({ data: undefined, isLoading: false, error: null, dataUpdatedAt: 1, getChildren: () => [] }),
+  useHabits: () => ({ data: normalizeHabitQueryData(mocks.emptyToday ? [] : [createMockHabitScheduleItem()]), isLoading: mocks.loadingToday, error: null, dataUpdatedAt: 1, getChildren: () => [] }),
   useLogHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useSkipHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -116,9 +118,10 @@ function Checkout({ disabled = false }: { disabled?: boolean }) {
 function HabitCreation({ empty = false }: { empty?: boolean }) {
   const [creating, setCreating] = useState(false)
   const openCreation = () => { mocks.pathname = '/habits/new'; setCreating(true) }
-  return <DestinationShell onCreate={openCreation}>
+  const todayFabHidden = useUIStore((state) => state.todayFabHidden)
+  return <DestinationShell todayFabHidden={todayFabHidden} onCreate={openCreation}>
     {creating ? <CreateHabitModal open presentation="screen" onOpenChange={() => { mocks.pathname = '/'; setCreating(false) }} />
-      : empty ? <><SetupChecklistCard /><HabitList view="today" filters={{}} onCreate={openCreation} /></> : <h1>Today</h1>}
+      : <>{empty ? <SetupChecklistCard /> : null}<HabitList view="today" filters={{}} onCreate={openCreation} /></>}
   </DestinationShell>
 }
 
@@ -156,6 +159,8 @@ function mount(children: ReactNode, locale: 'en' | 'pt-BR') {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.pathname = '/'
+  mocks.loadingToday = false
+  mocks.emptyToday = false
   mocks.wide = false
   mocks.expired = false
   mocks.online = true
@@ -178,6 +183,7 @@ describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (loca
   })
 
   it('submits the real habit form once through its external footer button', async () => {
+    useUIStore.getState().setTodayFabHidden(false)
     mount(<HabitCreation />, locale)
     await createSmokeHabit(new SmokeDomPage() as unknown as Page, 'Smoke creation')
     expect(mocks.create).toHaveBeenCalledTimes(1)
@@ -192,6 +198,7 @@ describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (loca
 
   it('keeps a failed create red with the entered title retained', async () => {
     mocks.create.mockRejectedValue(new Error('Create request failed'))
+    useUIStore.getState().setTodayFabHidden(false)
     mount(<HabitCreation />, locale)
     await expect(createSmokeHabit(new SmokeDomPage() as unknown as Page, 'Smoke failure')).rejects.toThrow()
     expect(mocks.create).toHaveBeenCalledTimes(1)
@@ -206,10 +213,11 @@ describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (loca
       isTrialActive: false, hasCreatedFirstHabit: false, hasLoggedFirstHabit: false,
       hasTriedAstra: false, hasCompletedOnboardingChecklist: false,
     })
+    mocks.emptyToday = true
     useUIStore.setState({ todayFabHidden: true })
     mount(<HabitCreation empty />, locale)
     const messages = locale === 'en' ? en : ptBR
-    expect(document.querySelector('[data-shell-fab]')).toBeNull()
+    expect(document.querySelector('[data-shell-fab] button')).toBeNull()
     expect(screen.getByRole('region', { name: messages.today.setupChecklist.title })).toBeVisible()
     expect(screen.getByRole('button', { name: messages.habits.createManually })).toBeVisible()
 
@@ -219,6 +227,30 @@ describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (loca
     expect(mocks.create.mock.calls[0]?.[0]).toMatchObject({ title: 'Smoke first habit' })
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(mocks.suggestion).not.toHaveBeenCalled()
+  })
+
+  it('waits for settled Today when the initial create button disappears before the click', async () => {
+    mocks.loadingToday = true
+    mocks.emptyToday = true
+    useUIStore.getState().setTodayFabHidden(false)
+    const view = mount(<HabitCreation empty />, locale)
+    let settled = false
+    class LoadingTodayPage extends SmokeDomPage {
+      override async checkpoint(target: SmokeDomLocator) {
+        if (!settled && (target.description === 'button Create habit or button Criar hábito' || target.description.includes('[data-habit-list]'))) {
+          settled = true
+          mocks.loadingToday = false
+          await act(async () => {
+            useUIStore.getState().setTodayFabHidden(true)
+            view.rerender(<HabitCreation empty />)
+          })
+        }
+        await super.checkpoint(target)
+      }
+    }
+    await createSmokeHabit(new LoadingTodayPage() as unknown as Page, 'Smoke settled creation')
+    expect(settled).toBe(true)
+    expect(mocks.create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ title: 'Smoke settled creation' }))
   })
 
   it('dismisses the real trial and subsequent calendar prompt before navigation', async () => {

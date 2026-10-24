@@ -198,7 +198,7 @@ export {
   HABIT_EMOJI_CATEGORIES,
   HABIT_EMOJI_OPTIONS,
 } from './habit-emoji-options'
-export { readHabitPhrase, segmentHabitPhrase } from './habit-phrase-parser'
+export { readHabitPhrase, segmentHabitPhrase, isWeeklyRecurrencePhrase } from './habit-phrase-parser'
 export { getHabitPhraseTitle } from './habit-phrase-title'
 export type { AppliedHabitPhraseFields } from './habit-phrase-title'
 export type {
@@ -389,7 +389,7 @@ export {
 } from './time-field'
 export { buildPreferencePickerModel } from './preference-picker'
 export type { PreferencePicker, PreferencePickerModel, PreferencePickerValues } from './preference-picker'
-export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode, withShareLinkOrigin } from './referral'
+export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode, withShareLinkOrigin, selectReferralReward, REFERRAL_REWARD_COPY_KEYS, type ReferralReward } from './referral'
 export {
   canRepeatOnboardingScheduleWeeks,
   clampOnboardingRepeatWeeks,
@@ -829,6 +829,8 @@ export { readTypedHabitPhrase } from './habit-phrase-parser'
 export { getHabitChecklistProgress } from './habit-checklist-progress'
 
 export { getHabitInlineDepthLimit } from './habit-row-layout'
+export type { MoveParentOption, MoveParentPickerProps, MoveParentRowProps, MoveTargetValidation } from './move-parent'
 
-export { buildMoveParentOptions, getHabitDepth, getSubtreeMaxDepth, isHabitDescendant, validateMoveTarget, getMoveParentInventory, getMoveParentPickerRows, buildEditorParentChange, validateEditorParent, type MoveParentOption, type MoveTargetValidation } from './move-parent'
 export { optimisticMoveHabitParent } from './habit-parent-optimistic'
+
+export { TODAY_LAUNCH_SPAN_NAME, sampleTodayLaunch, startTodayLaunchTiming, isTodayLaunchCache } from './today-launch'

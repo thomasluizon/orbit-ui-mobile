@@ -5,10 +5,12 @@
 | Surface | Web and Android owner | Behavior |
 |---|---|---|
 | Create and edit composition | `components/habits/create-habit-modal.tsx`, `edit-habit-modal.tsx` | Required unseeded type, persisted edit prefill, inherited General locks, retained drafts and unsaved-change guard |
+| Name and description | `habit-form-fields.tsx`, `habit-form-fields/habit-understanding.tsx` | Standard 54px growing name, equal mirror/input metrics, then one full description before all conditional content (#1607) |
 | Type | `habit-form-fields/habit-type-field.tsx` | Two vertical RadioRow choices before the focal title, visible validation and group focus |
 | Date | `habit-form-fields/habit-date-field.tsx` | When input, type-specific question and editable date before More details; General hides only the date group |
 | Schedule | `habit-form-fields/habit-schedule-fields.tsx` | Fixed, count-based and No schedule choices with a reachable return and tree locks |
 | Date interpretation | Shared `date-phrase-parser.ts`, `date-interpretation-session.ts`, `habit-date-editor.ts`; app `use-date-interpretation.ts` | Local calendar arithmetic, explicit metered request, separate candidate, acceptance, stale rejection, direct transport and terminal allowance refresh |
+| Weekly intent | Shared `habit-phrase-parser.ts`, `habit-date-editor.ts`, `habit-form-helpers.ts`; paired date/type fields and form hooks | Recurrence-only wording routes to fixed Week 1 for a deliberately selected dated Habit; Task retains its date and one inline recovery toward the existing Habit choice |
 | Type readback | `habit-row-content.tsx`, `habit-detail-screen.tsx` | Whole quiet vocabulary beneath the full-width title; original controls and counts retained |
 
 All component paths above are relative to each app's `components/habits/` unless another owner is
@@ -24,6 +26,19 @@ when its context changed. Unsupported wording keeps the explicit Astra recovery;
 ambiguous dates do not offer it. Consultation ownership includes the semantic cadence unit,
 quantity, sorted distinct weekdays and interval, in addition to mode and type. A changed cadence
 retires both delayed responses and visible candidates without another consultation.
+
+The five weekly equivalents are `toda semana`, `todas as semanas`, `semanalmente`, `every week`
+and `weekly`, with safe case, spacing and edge punctuation normalization. They preserve the chosen
+date and input source, retire date consultations and never offer a paid date action. Only typing
+or deliberately choosing Habit can apply that cadence. Sync, validation, remount and account
+replacement cannot apply it. Manual scheduling releases title cadence ownership; returning between
+mode drafts keeps later corrections. No weekly variant enters the title or onboarding parser.
+Task mismatch uses the input's single error region and focuses the real named type group on
+blocked Submit; the valid Task selection is retained. Choosing a date or clearing the wording
+clears the mismatch. A deliberate Habit choice resolves retained Task weekly wording before an older
+General draft can win, using the current Task date as its start date. An inherited General lock
+keeps the child General, shows the existing parent mismatch guidance and blocks Submit. Manual
+General decisions otherwise retain their draft without replaying recognition.
 
 Only a date candidate receives DateField's proposed appearance, using resting fg-3 inside the
 existing dashed perimeter. Acceptance and manual picking restore normal ink. Use date sits in
@@ -81,6 +96,35 @@ Whole-page rendering, keyboard and assistive technology inspection, Android font
 production create/edit/readback remain separate verification boundaries. API production promotion
 precedes consumer publication. Web production and Android open-track release are owned by the
 orchestrator; no Android production release or version floor change is implied.
+
+## Astra affordance inventory (#1607)
+
+| Paired control | Callback owner | Disposition |
+|---|---|---|
+| Setup fallback | `createHabitFormController.askAstra` to `use-habit-suggestion` | Corrected mark with existing visible Astra label |
+| Emoji suggestion | `useEmojiProposal` to `onSuggestEmoji` / `use-habit-suggestion` | Corrected mark and Ask Astra wording in persistent Emoji context; manual picker unchanged |
+| Date consultation | `HabitDateEditor.ask` to `use-date-interpretation` | Corrected mark; explicit, budgeted and guarded request unchanged |
+| Tag generation | `TagSuggestions` to `useTagSuggestions.suggest` / `useSuggestTags` | Corrected mark and Ask Astra wording under Tags; acceptance remains deterministic |
+| Compact and habit-detail composer entry | `onOpenConversation` to conversation store | Corrected visible Astra name beside existing mark; opens without sending |
+| Composer send, retry and live suggestions | `onSend`, `onRetry`, suggestion `onSelect` to chat send owner | Corrected mark and visible wording; current request and retry ownership retained |
+| Habit and goal detail entries | `AskAstraRow`, `openAstra` to `prepareChatRequest` and conversation store | Corrected mark; draft preparation opens without sending |
+| Habit-list empty entry | `onAskAstra` to conversation store | Corrected mark with existing label |
+| Follow-up and proactive actions | `onSelect` / `useProactiveAction.act` to `sendMessage` | Corrected mark and visible Astra name in each specific action target |
+| Complete prompt-library and deferred ideas | `selectIdea` to `sendMessage` | Corrected mark and visible Astra name |
+| Slotted prompt ideas | `selectIdea` to `preparePromptTemplate` | Deterministic draft preparation; no invocation mark |
+| Reschedule menu and retries | Sheet opening / `refetch` to `useRescheduleSuggestion` | Corrected invocation identification; existing eligibility and GET/refetch policy retained |
+| Wide navigation and conversation header | Existing conversation store entry / AppBar | Already conforming, preserved |
+| Today Astra line | Caller-defined destination | Existing mark and visible sentence retained; no speculative navigation change |
+| Date, tag and reschedule acceptance, ordinary Save | Existing form and mutation owners | Deterministic, no generation label or new request |
+| Voice record, stop, cancel and transcription | Existing speech-to-text and recording owners | Separate transport and recording states retained; no inferred generation affordance |
+| Pending-operation approval and execution | Existing operation controllers | Deterministic approval boundary retained, no generation label |
+
+The selected date is displayed and accessibly labelled by DateField once; the form retains real
+Proposed, pending, error and manual recovery feedback. Empty feedback has no occupied field gap.
+The phrase placeholder is guidance only and never a default value. No external response field,
+model, budget, event, queue or transport changes are introduced. Historical spending decisions
+remain unchanged. Direct skill, agent, playbook and hook references contain no active superseded
+form-size or invocation rule requiring an edit; the owning contradictions are in DESIGN and canvas.
 
 ## Detail read and draft ownership
 
