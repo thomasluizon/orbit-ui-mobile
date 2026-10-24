@@ -43,6 +43,7 @@ export {
   checkTodayAllDoneOrDefer,
   deduplicateHabitList,
   invalidateHabitDependents,
+  invalidateBulkMoveParentQueries,
 } from './habit-cache'
 
 export {

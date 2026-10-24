@@ -93,3 +93,17 @@ signed refresh/paging, recovery and account changes. The existing geometry suite
 and wide figures with enlarged text. Actual Android text and TalkBack require device acceptance;
 unit geometry does not establish native font rendering or spoken output. Real-call composition
 acceptance belongs to #26. This inventory does not change preview editing or approval ownership.
+
+## Lean composition ownership
+
+Negotiated parts render their primary answer once and exclude duplicate legacy cards and prose.
+Operation previews and outcomes lead before external text. Repeated pending ids retain their
+original card; a later terminal response updates that card's presented persisted state. Failed,
+denied, partial, rejected, stale and uncertain outcomes retain the existing localized recovery and
+approval mechanics. No risk badge or purchase invitation is added.
+
+Choice and pick-list questions stay inside their existing blocks. Completed steps use secondary
+disclosure after the answer. Follow-ups use zero to two existing small pills with a hidden group
+name and full contextual activation. Empty answers recover visibly; block-only answers announce
+completion once. Read scopes survive history serialization without carrying refresh credentials.
+The #26 bilingual real-pipeline gate remains required before broad composition activation.

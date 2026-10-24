@@ -5,6 +5,7 @@ import {
   bulkDeleteResponseSchema,
   bulkLogResultSchema,
   bulkSkipResultSchema,
+  bulkMoveHabitParentResultSchema,
   logHabitResponseSchema,
 } from '@orbit/shared/types/habit'
 
@@ -14,6 +15,7 @@ const MUTATION_RESPONSE_SCHEMAS: Partial<Record<MutationType, ZodType>> = {
   bulkDeleteHabits: bulkDeleteResponseSchema,
   bulkLogHabits: bulkLogResultSchema,
   bulkSkipHabits: bulkSkipResultSchema,
+  bulkMoveHabitParent: bulkMoveHabitParentResultSchema,
 }
 
 /**

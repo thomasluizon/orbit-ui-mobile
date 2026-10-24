@@ -151,3 +151,18 @@ rendering on web and Android. Producer evidence is `QueryHabitsTool.cs:95-103` a
 `HabitListCard.cs:7-19` at API commit `316877abe6dfe7aa978a0d086ca5eb3295851719`.
 This append-only acceptance retains historical `today` and `all` payloads and does not
 change the generated contract pin or the supported client version floor.
+
+## Astra answer composition
+
+The append-only `supportsFollowUpContext` capability and optional `followUpContext` entries come
+from the composition producer in API pull request #853. Runtime schemas validate label, complete
+question, optional context, target and query identity before either renderer consumes them.
+Legacy `followUps` strings remain accepted; only short untruncated labels become optional pills.
+Malformed optional context cannot discard the final answer. Negotiated parts become authoritative
+after boundary validation; a fully rejected sequence retains readable legacy recovery.
+
+Both stream consumers withhold provisional prose, preserve block-only completion and keep errors
+visible. Query identities and absolute scopes remain in assistant history for contextual follow-ups;
+refresh tokens stay out of that serialization. #26 owns bilingual real-pipeline composition
+assertions and the TESTING.md harness instructions. Production activation follows the current
+`main` release workflow and the independently controlled API composition flag.

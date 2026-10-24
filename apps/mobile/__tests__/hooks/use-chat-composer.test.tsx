@@ -185,7 +185,7 @@ vi.mock('@/components/ui/app-toast', () => ({ AppToast: () => null }))
 vi.mock('@/components/ui/app-error-boundary', () => ({ AppErrorScreen: () => null }))
 vi.mock('@/components/message-bubble', async importOriginal => {
   const actual = await importOriginal<typeof import('@/components/message-bubble')>()
-  return { MessageBubble: (props: React.ComponentProps<typeof actual.MessageBubble>) => props.message.parts?.some(part => part?.type === 'block' && part.kind === 'choice')
+  return { MessageBubble: (props: React.ComponentProps<typeof actual.MessageBubble>) => props.isStreaming || props.message.parts?.some(part => part?.type === 'block' && part.kind === 'choice')
     ? <actual.MessageBubble {...props} /> : React.createElement('Text', null, props.message.content) }
 })
 vi.mock('@/components/ui/markdown', () => ({ Markdown: () => null }))
@@ -469,8 +469,8 @@ describe('mobile useChatComposer', () => {
       if (arrival === 'cancel') stream.fail(new DOMException('Cancelled', 'AbortError'))
       await Promise.resolve()
     })
-    expect(pending()).toHaveLength(0)
-    if (arrival === 'text') expect(visibleMessageTexts(tree)).toContain('Start with water')
+    expect(pending()).toHaveLength(arrival === 'text' ? 1 : 0)
+    if (arrival === 'text') expect(visibleMessageTexts(tree)).not.toContain('Start with water')
     if (arrival === 'tool') expect(visibleMessageTexts(tree)).toContain('chat.trace.habits.read')
   })
 
@@ -488,7 +488,7 @@ describe('mobile useChatComposer', () => {
     expect(focus).toHaveBeenCalledWith(expect.objectContaining({ testID: 'composer-sending' }))
     await TestRenderer.act(async () => { stream.enqueue(frame('{"type":"delta","text":"Start with water"}')); await Promise.resolve() })
     expect(visibleMessageTexts(tree)).toContain('Plan my morning')
-    expect(visibleMessageTexts(tree)).toContain('Start with water')
+    expect(visibleMessageTexts(tree)).not.toContain('Start with water')
     const list = tree.root.findByType('FlatList')
     expect(list.props.data).toEqual(expect.arrayContaining([
       expect.objectContaining({ role: 'user', content: 'Plan my morning' }),

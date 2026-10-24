@@ -290,7 +290,7 @@ describe('ChatScreen composer recoveries', () => {
     mocks.composer.showSuggestions = false
     TestRenderer.act(() => tree.update(<AstraConversation chat={mocks.composer as never} />))
     expect(findByType(tree.root, 'ChatEmptyState')).toBeUndefined()
-    expect(renderedChips(tree.root)).toHaveLength(mocks.composer.composerProps.suggestions.length)
+    expect(renderedChips(tree.root)).toHaveLength(0)
   })
 
   it('renders the requested Progress action once in the composer and sends its prompt', async () => {

@@ -145,7 +145,7 @@ below 1024) it is the default home for that content. The shell composer stays vi
 that compact shell only. Habit detail keeps its own composer at every width.
 Calendário, Progresso and Perfil clear the tab bar or the wide column bottom without a composer dock.
 Hoje's selection tray stays pinned at both widths while selection is active, with exit, select-all,
-delete, log and skip controls. It replaces the compact composer; on wide web it alone occupies
+delete, log, skip and move controls. It replaces the compact composer; on wide web it alone occupies
 the destination's bottom slot, named `composer` in the shell reference contract. Resting wide Hoje
 passes no bottom content. Transient notices keep the separate `notice` slot.
 
@@ -170,7 +170,7 @@ The dots remain visible and static under reduced motion; pause the pulse outside
 viewport. Replace the line in the same render as the first reply text, tool step or block,
 without an assistant entrance translation or exit delay. Clear it on error, cancellation or
 the allowance notice. Keep the feed busy and announce work once through a stable polite
-region outside the feed, independently of the dots; completed prose retains its turn announcement.
+region outside the feed, independently of the dots; every completed answer, including a block-only answer, retains one turn announcement.
 
 Every conversation entry, including the proactive line, the no-habits action and habit detail's
 own entry, opens this same layer. Closing it restores the underlying surface and its selection.
@@ -416,6 +416,28 @@ The **day summary** combines its ring with today's habit rows and the habit list
 
 A reply is an ordered sequence of text and block parts. A client skips an unknown block kind and keeps the rest of the reply. At most one write preview appears per reply.
 
+**Lean answer composition.** For negotiated replies, the API selects the leading interactive
+answer from successful typed results. Preserve its validated order; legacy fields cannot add a
+second copy. Supported data replies have no surrounding prose by default and at most one short
+essential line. Independent blocks appear only for distinct requested subjects. Operations retain
+their original preview and persisted terminal state, including partial failure and uncertainty.
+Clarification questions belong inside choice or pick-list blocks. Never shorten an execution error
+to satisfy a copy limit. A missing or malformed sole answer uses readable legacy recovery or the
+localized unreadable-answer line.
+
+Follow-ups are optional, zero to two existing `sm` ghost pills in one horizontal row with the
+existing 8 gap, hugging their short labels. Keep the accessible group name without a visible
+heading. Send the full question once; retain absolute query scope in conversation history.
+Long legacy questions and truncated labels may be omitted instead of inventing shorter copy.
+Populated conversations omit generic composer suggestions. Empty-thread live starters and Ideas
+retain their existing behavior and drafts. Running tool feedback remains transient; completed
+steps use the existing collapsed disclosure after their answer.
+
+Feature help, advice, small talk and no-data proactive nudges use one to three short lines without
+headings, unsolicited lists or caveat paragraphs. A relevant existing screen/tool action remains
+available. Proactive requests returning data use the same registered blocks. Data-backed proactive entries require their corresponding typed block; sparse notification facts cannot fabricate read results. Requested code explanations retain selectable Markdown and
+independent code-block copying.
+
 The **habit ranking** block uses one BlockFrame with no header count, chart, totals or repeated
 prose. Its two date lines show the resolved inclusive first and last dates, including the year.
 ListRow rows show the server rank, habit name and emoji, then the localized completion count with
@@ -440,8 +462,7 @@ Six rules govern all of them:
    are visually distinguished, the preview never auto-dismisses, and the actions are approve, edit and
    reject rather than a single OK. A partial failure reuses the same per-item rows with a status glyph
    per row.
-4. **Text streams, the block arrives whole.** Text above a block keeps its position when the final parts replace streamed text, and the scroll position stays put. Never animate a block's own reveal, and never gate the
-   screen-reader announcement on a visual typing effect.
+4. **The answer arrives whole.** Withhold provisional answer prose until final delivery. Keep pending dots or running tool feedback during work. Preserve the reading position when the final parts arrive, without entrance motion. A block-only answer completes and receives one localized polite announcement.
 5. **A stale block says so.** When the record's `updatedAt` is newer than the block's snapshot, the
    block states it and offers a refresh.
 6. **Announcements are card-scoped.** The message list is an ARIA feed, each block's own state change

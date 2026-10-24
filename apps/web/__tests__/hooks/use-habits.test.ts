@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor, act, render } from '@testing-library/react'
 import { QueryClient, QueryClientProvider, QueryObserver, useQuery } from '@tanstack/react-query'
 import React from 'react'
-import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useRestoreHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
+import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useRestoreHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits, useBulkMoveHabitParent } from '@/hooks/use-habits'
 import { useSearchHabits } from '@/hooks/use-habit-queries'
 import { getTodayHabitList, habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import { createApiClientError } from '@orbit/shared'
@@ -107,6 +107,7 @@ vi.mock('@/lib/actions/habits', () => ({
   bulkDeleteHabits: vi.fn(),
   bulkLogHabits: vi.fn(),
   bulkSkipHabits: vi.fn(),
+  bulkMoveHabitParent: vi.fn(),
 }))
 
 vi.mock('@/stores/ui-store', async () => {
@@ -2469,7 +2470,7 @@ describe('useBulkSkipHabits', () => {
   })
 
   it('calls bulkSkipHabits action', async () => {
-    const { useBulkSkipHabits } = await import('@/hooks/use-habits')
+    const { useBulkSkipHabits, useBulkMoveHabitParent } = await import('@/hooks/use-habits')
     const { bulkSkipHabits } = await import('@/lib/actions/habits')
     const mockedBulkSkip = vi.mocked(bulkSkipHabits)
     mockedBulkSkip.mockResolvedValue({
@@ -2491,7 +2492,7 @@ describe('useBulkSkipHabits', () => {
   })
 
   it('optimistically completes every dated item in the viewed list', async () => {
-    const { useBulkSkipHabits } = await import('@/hooks/use-habits')
+    const { useBulkSkipHabits, useBulkMoveHabitParent } = await import('@/hooks/use-habits')
     const { bulkSkipHabits } = await import('@/lib/actions/habits')
     vi.mocked(bulkSkipHabits).mockResolvedValue({ results: [] })
     const queryClient = createQueryClient()
@@ -2970,4 +2971,20 @@ it('does not attribute another bulk log extension to a cached no-op habit', asyn
     unmount()
     queryClient.clear()
   }
+})
+
+describe('useBulkMoveHabitParent', () => {
+  it('sends the selected set through one action and refreshes every habit view', async () => {
+    const { bulkMoveHabitParent } = await import('@/lib/actions/habits')
+    const request = { habitIds: ['one', 'two', 'three'], parentId: 'parent' }
+    const response = { results: request.habitIds.map((habitId, index) => ({ index, habitId, status: 'Success' as const })) }
+    vi.mocked(bulkMoveHabitParent).mockResolvedValue(response)
+    const queryClient = createQueryClient()
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useBulkMoveHabitParent(), { wrapper: createWrapper(queryClient) })
+    await act(() => result.current.mutateAsync(request))
+    expect(bulkMoveHabitParent).toHaveBeenCalledExactlyOnceWith(request, 'account-a')
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: habitKeys.all })
+    queryClient.clear()
+  })
 })
