@@ -18,18 +18,18 @@ Finish the spec: every requested production fix, the Astra overhaul, the owner r
 
 ## In flight
 
-UI `main` is `d36522a7`, API `main` is `918141de`, landing `main` is `0d5e3df4`. Staging web `d36522a7`; production web `721ad446` with the `d36522a7` release in flight (run 40131758978); staging API release of `918141de` in flight (run 40131793198), production API `9b4f5cf1`; Android Open 1.3.96 (155) from `d36522a7` in flight (run 40131451169). Open pull requests: UI `#2034`, `#2033`, `#2031`, `#2023`, `#2021`, `#1989` (relay docs), `#1984`; API `#905`, `#903`; landing none. Workers: the `orbit-api#905` base-carry round (log `#227-*` in `orbit-workers/`) was running at this handoff. Unpushed: whatever that round commits. Uncommitted: `thomas-brain` holds the `#1623` set (now with the two new `06-create.screen.png` captures) and the older untracked `orbit/founder/`.
+UI `main` is `d36522a7`, API `main` is `918141de`, landing `main` is `0d5e3df4`. Staging web `d36522a7`; production web `d36522a7` (verified); staging API `918141de` (healthy), production API `9b4f5cf1`; Android Open 1.3.96 (155) from `d36522a7` submitted to Play (run 40131451169, `Submit build to Google Play` success; tester availability not yet verified). Open pull requests: UI `#2034`, `#2033`, `#2031`, `#2023`, `#2021`, `#1989` (relay docs), `#1984`; API `#905`, `#903`; landing none. Workers: none running. Unpushed: none. Uncommitted: `thomas-brain` holds the `#1623` set (now with the two new `06-create.screen.png` captures) and the older untracked `orbit/founder/`.
 
 | Item | Disposition |
 | --- | --- |
-| Releases in flight | Confirm production web `d36522a7`, staging API `918141de` and the Android Open upload (`wait-release.mjs` again on each run id if the watchers died with the relay). Then production API `918141de` (read `/api/chat` first). Tell the owner `#1687` is live (sidebar and every Astra entry show "Astra" again), in his language. |
-| `orbit-api#905` (`#227` step 3) | Base-carry round (commit only): read `git show --remerge-diff`, confirm `capability-inventory.mjs --check`, OpenAPI bytes and the suites, edit the body, push, CI, fresh approval, merge, staging then production API. |
+| Releases in flight | Verify Android Open 1.3.96 availability in Play. Then production API `918141de` (read `/api/chat` first). Tell the owner `#1687` is live (sidebar and every Astra entry show "Astra" again), in his language. |
+| `orbit-api#905` (`#227` step 3) | Main carried at `d1007d67` (pushed; conflict kept both sides, build and the three suites pass, OpenAPI bytes equal main). CI, fresh approval, merge, staging then production API. |
 | `ui#2023`, `ui#2021`, `ui#1984` | The combined check `check-trio` (scratchpad, base `721ad446`, combined `6dbd0c7b6`) was mid web Vitest. Read `check-trio/summary.txt`; if it is gone or stale, rerun `mc-full.sh trio` with the three heads. On green, rerun `base-overlap.sh 2023 2021 1984` against `d36522a7` and run a targeted check for any newly shared file, then merge all three at their approved heads, release web, close `#1683`, and start `#579`. |
 | `ui#2033` (`#1693`) | Round 1 pushed at `dbb2f2ab` (161 cases split over five files). CI, fresh approval, merge, close. |
 | `ui#2031` (`#1560` step 3) | Round 2 pushed at `f50d0bd7` (Sonar coverage of `palette.js`). CI, fresh approval, merge; staging desktop sign-in proof; close `#1679`; step 4. |
 | `ui#2034` (`#1692`) | Delivered (diff read: cleanup waits on the tree pids, macOS zombie state). CI, Pullfrog, merge, close. |
 | `orbit-api#903` (`#582`) | Held: the `#26` gate on staging with the full catalog, then with the `#903` head deployed to staging; merge only with no capability regression. |
-| `#1688`, `#1690`, `#1689`, `#1610` | Close each once Android Open 1.3.96 is confirmed (`#1610` and the `#1595` Android check also need the throwaway-AVD session with a staging build, plus the airplane-mode check for `#32`). |
+| `#1688`, `#1690`, `#1689`, `#1610` | Close each once Android Open 1.3.96 shows as available (`#1610` and the `#1595` Android check also need the throwaway-AVD session with a staging build, plus the airplane-mode check for `#32`). |
 | `#1623` | English Astra frame after New York midnight (04:00 UTC) on the en demo account, `node orbit/google-play/build.cjs --render`, `thomas-brain` pull request, Play upload both locales. |
 | `#62`, `#195` | Merged and live; rendered staging acceptance, then close. |
 | `#26` | Live gate once `ui#2021` is on staging, one daily window; it also measures `orbit-api#903`. |
@@ -50,15 +50,15 @@ Unattended run. Never ask the owner; decide with the recommended option and log 
 
 - Reading list, entry point, scratchpad restore, carry and relay procedures, Sleep rules, Dependabot review request: carried (decision log pointer moved to `65af1e8e`).
 - Answer the owner first: carried; no owner message arrived.
-- Web releases: done for `721ad446` (staging and production) and `d36522a7` (staging; production in flight); carried for confirmation.
+- Web releases: done for `721ad446` (staging and production) and `d36522a7` (staging and production, verified).
 - `ui#2025`: merged (`d36522a7`) after a targeted `DESIGN.md` merge check; telling the owner is carried.
 - `ui#2030`: merged (`f59355eb`); the AVD checks are carried.
 - `ui#2031`: Sonar coverage round pushed; carried.
 - `ui#2023`, `ui#2021`, `ui#1984`: combined check running; carried.
 - `ui#2033`: round 1 pushed after its own budget gate failed; carried.
-- `orbit-api#904`, `#906`: merged; staging API in flight; production carried. `#905`: base-carry round running; carried.
+- `orbit-api#904`, `#906`: merged; staging API in flight; production carried. `#905`: main carried and pushed (`d1007d67`); carried.
 - `orbit-api#903`: held; carried.
-- Android Open: 1.3.96 (155) dispatched; confirmation and closes carried.
+- Android Open: 1.3.96 (155) submitted to Play; availability check and closes carried.
 - `#1623`: create frames recaptured; English Astra frame and upload carried.
 - `#26`: carried.
 - `#1692`: delivered as `ui#2034`; carried.
