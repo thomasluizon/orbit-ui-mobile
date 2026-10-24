@@ -1,16 +1,18 @@
 import { settleAnimations } from './settle-animations'
-import { expect, type Locator } from '@playwright/test'
+import { expect, type ElementHandle, type Locator } from '@playwright/test'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { readControlPaint } from './control-paint'
 
-async function settleFillTransitions(control: Locator) {
+type FillControl = Pick<ElementHandle<SVGElement | HTMLElement>, 'evaluate'>
+
+async function settleFillTransitions(control: FillControl) {
   await control.evaluate(async () => {
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
   })
   await control.evaluate(settleAnimations)
 }
 
-async function readFill(control: Locator) {
+async function readFill(control: FillControl) {
   const paint = await control.evaluate(readControlPaint)
   return control.evaluate((element, { paint, clearance }) => {
     function clipTextRect(rect: DOMRect, parent: Element | null) {
@@ -60,7 +62,7 @@ async function readFill(control: Locator) {
   }, { paint, clearance: INTERACTION_FILL_CLEARANCE })
 }
 
-export async function expectFillShape(control: Locator, state: string) {
+export async function expectFillShape(control: FillControl, state: string) {
   await expect.soft(async () => {
     const fill = await readFill(control)
     expect(fill.background, `${state}: the fill paints a visible surface`).not.toMatch(/^(transparent|rgba\([^)]*,\s*0\))$/)
@@ -94,21 +96,24 @@ export async function expectInteractionFill(control: Locator) {
     return hovered.background !== resting.background || hovered.opacity !== resting.opacity
   }, { message: 'hover paints the control fill', timeout: 3000 }).toBe(true)
   await expectFillShape(control, 'hover')
+  // WHY: An open sheet hides its trigger from role queries. https://github.com/thomasluizon/orbit-tickets/issues/577
+  const pressedControl = await control.elementHandle()
   try {
-    const menuTrigger = await control.evaluate((element) => element.hasAttribute('data-menu-trigger'))
+    const menuTrigger = await pressedControl.evaluate((element) => element.hasAttribute('data-menu-trigger'))
     await page.mouse.down()
-    await expect.poll(() => control.evaluate((element, menuTrigger) => menuTrigger
+    await expect.poll(() => pressedControl.evaluate((element, menuTrigger) => menuTrigger
       ? element.getAttribute('data-state') === 'open' || element.getAttribute('aria-expanded') === 'true'
       : element.matches(':active'), menuTrigger),
     { message: 'control enters its observable press state' }).toBe(true)
     if (menuTrigger) await page.mouse.move(0, 0)
-    await settleFillTransitions(control)
-    await expectFillShape(control, 'press')
-    await expect.poll(async () => (await readFill(control)).background,
+    await settleFillTransitions(pressedControl)
+    await expectFillShape(pressedControl, 'press')
+    await expect.poll(async () => (await readFill(pressedControl)).background,
       { message: 'press paints a fill distinct from rest', timeout: 3000 }).not.toBe(resting.background)
   } finally {
     await page.mouse.move(0, 0)
     await page.mouse.up()
+    await pressedControl.dispose()
     if (await overlays.count() > initialOverlayCount) {
       await page.keyboard.press('Escape')
       await expect(overlays).toHaveCount(initialOverlayCount)

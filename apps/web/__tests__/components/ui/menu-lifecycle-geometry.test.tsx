@@ -54,10 +54,16 @@ describe('mounted headless menu lifecycle in Chromium', () => {
 
   it.each([320, 360, 384, 412].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale =>
     (['dark', 'light'] as const).map(mode => ({ width, locale, mode })))))
-    ('checks the Today menu interaction fill at $width pixels in $locale, $mode', async ({ width, locale, mode }) => {
+    ('reopens the Today menu with a real pointer and checks its fill at $width pixels in $locale, $mode', async ({ width, locale, mode }) => {
       const page = await mount('frequency', locale, width, 915, mode)
       const words = locale === 'en' ? en : ptBR
-      const trigger = page.getByRole('button', { name: words.habits.listOptions, exact: true, includeHidden: true })
+      const trigger = page.getByRole('button', { name: words.habits.listOptions, exact: true })
+      await trigger.click()
+      await page.getByRole('menu', { name: words.habits.listOptions, exact: true }).waitFor({ state: 'visible' })
+      expect(await trigger.count()).toBe(0)
+      await page.keyboard.press('Escape')
+      await expect.poll(() => page.getByRole('menu').count()).toBe(0)
+      await expect.poll(() => trigger.evaluate(element => element === document.activeElement)).toBe(true)
       await expectInteractionFill(trigger)
       expect(await page.getByRole('menu').count()).toBe(0)
     })
