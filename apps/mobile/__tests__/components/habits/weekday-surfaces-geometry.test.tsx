@@ -74,6 +74,11 @@ describe('native weekday surface geometry', () => {
           expect(control.height).toBeGreaterThanOrEqual(48)
           expect(control.right).toBeLessThanOrEqual(width - 16 + 0.01)
           if (index) expect(control.left + 0.01).toBeGreaterThanOrEqual(controls[index - 1]!.right)
+          const text = measured.texts.find(text => control.labels.includes(text.label)
+            && Math.abs(text.left + text.width / 2 - control.left - control.width / 2) < 0.01
+            && text.top >= control.top - 0.01 && text.bottom <= control.bottom + 0.01)
+          expect(text).toBeDefined()
+          expect(text!.width).toBeLessThanOrEqual(control.width + 0.01)
         })
         const row = tree.root.findAll(node => String(node.type) === 'View' && node.props.accessibilityLabel === (surface === 'form' ? i18n.t('habits.form.activeDays') : surface === 'astra' ? i18n.t('chat.operation.field.days') : i18n.t('onboarding.flow.when.daysLabel')))[0]
         expect(row).toBeDefined()
