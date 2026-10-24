@@ -141,7 +141,7 @@ Workers compile these specs and run the repository's Vitest suites, including th
 ## Astra capability eval
 
 `evals/astra` is a standalone npm package outside the app workspaces and `dotnet test`.
-It pins promptfoo, uses its maintained HTTP provider, and sends multipart `message` and empty
+It pins promptfoo, uses its maintained HTTP provider, and sends multipart `message`, `clientContext` and
 `history` fields to `POST /api/chat`. The server selects Astra's model. The superseded model
 comparison is absent; this harness cannot override that selection. D147 selects `gpt-6-luna`
 at low effort with the existing per-user daily ceiling. Do not increase quotas or backstops
@@ -151,8 +151,8 @@ Install with `npm ci --prefix evals/astra --workspaces=false`. From `evals/astra
 `npx promptfoo eval` after preparing the environment below. The `.github/workflows/astra-eval.yml`
 Action has only `workflow_dispatch`; it never runs on a schedule, push, or pull request.
 Runs consume real message and spend allowance and incur endpoint and rubric-grader charges.
-Use disposable eval accounts. The one-message corpus requires held previews for writes;
-it does not approve them or prove persisted changes.
+Use disposable eval accounts. Write scenarios require held previews; correction scenarios create
+a verified setup turn first. The corpus does not approve them or prove persisted changes.
 
 ### Environment and reproducible fixtures
 
@@ -202,7 +202,8 @@ resets followed by a complete `reports/summary.md` prove the configuration is us
 configuration fails before chat requests. A manual dispatch still consumes paid allowance and must use isolated fixtures.
 
 The budget case expects HTTP 403 with the verified `PAY_GATE` error code and grades only the
-natural-language `error` text. Other cases expect HTTP 200 and a nonempty `aiMessage`.
+natural-language `error` text. Other cases expect HTTP 200 and either final text or a valid typed block, preview or outcome.
+A block-only answer may omit `aiMessage` or return it empty.
 Authentication errors, unrelated refusals, throttling, and transport failures cannot pass as a
 budget refusal. The corpus does not infer a successful mutation from a plausible answer.
 
@@ -210,7 +211,8 @@ budget refusal. The corpus does not infer a successful mutation from a plausible
 
 Every case runs three times with caching and HTTP retries disabled. A case passes `pass^3`
 only when all three attempts pass all assertions with complete required evidence.
-`reports/summary.json` and `reports/summary.md` contain only case IDs and counts. The Action
+`reports/summary.json` and `reports/summary.md` contain only case IDs, family and locale labels, and counts.
+Each family and locale also receives a pass^3 aggregate; any failing or incomplete case prevents its pass. The Action
 publishes these summaries and a job summary. It does not upload raw responses or a promptfoo
 database. Sharing and database writes are disabled in the configuration. For local runs, set
 `PROMPTFOO_DISABLE_TELEMETRY=1`, `PROMPTFOO_DISABLE_SHARING=1`, and point
@@ -234,8 +236,13 @@ selector. Top-level `habit_ids` requires an omitted `filter`; an explicit `filte
 rejected. An object `filter` permits omitted or null top-level `habit_ids`. Additional arguments
 such as `date` remain permitted.
 `allowed` restricts ambiguity and guardrail cases to read or ask tools.
-The `llm-rubric` assertion receives only `answer`, never tool arguments,
-results, or the raw response. Missing natural-language text fails rather than grading card JSON.
+The `llm-rubric` assertion receives only `answer`, never the eval trace, tool arguments or execution
+payloads. For a block or operation answer, `answer` is a final rendered-answer projection: ordered
+parts, preview display fields, outcome surfaces, related actions and follow-ups. It excludes query
+tokens, state fingerprints, canonical proposed values and duplicate operation read blocks. Empty
+prose is valid. The rubric compares external text with displayed blocks to catch repeated figures,
+including semantic paraphrases. Canonical dates in typed payloads remain transport values; locale
+date formatting still requires rendered consumer acceptance.
 
 `beforeEach` generates a new UUID after the fixture reset. The HTTP provider sends it as
 `X-Orbit-Request-Id`, alongside `X-Orbit-Eval-Trace: 1`. The response adapter reads the
@@ -267,15 +274,71 @@ It claims refusal evidence, not tool execution. The existing budget case covers 
 message allowance; the separate monetary safety backstop remains a coverage gap.
 
 ORB-20 remains open through genuine live acceptance after all carrying Astra code is deployed
-to staging. The 19-case starter corpus does not cover every tool, the all-habits icon request,
+to staging. The corpus does not cover every mutating tool, the all-habits icon request,
 interactive approval/edit/reject journeys, persisted readback, actual audio/image input,
 rendered phone/desktop UI or installed Android acceptance. Text shaped like speech tests only
 transcript interpretation. Source and offline tests cannot establish any of those live outcomes.
 
+### Block-first composition gate
+
+`composition-scenarios.yaml` adds both languages for habits and schedules, history, metrics,
+streaks, rankings, totals, comparisons, goals, calendar and sync, notifications, tags, templates,
+profile and settings, plans, referrals, keys, achievements and level, recaps, write readback,
+choices, pick lists, proactive entry, help, coaching and small talk. Empty, error, partial, stale,
+quota, plan, offline and refusal fixtures exercise their actual producer states. Compound cases
+cover supported, legacy and missing-kind capability sets. These are required live cases, not
+claims that the current behavior passes them.
+
+The composition assertion requires ordered parts for parts-capable clients. It validates known
+block payload projections and advertised capabilities, required families and subtypes, and
+preserves operation surfaces ahead of read parts as the consumers render them. It never infers a
+block from prose. Data answers lead with a block or typed operation surface, with at most one
+external line of 180 characters. Preview answers contain no external prose. No-data replies need
+one to three short lines, without headings, unsolicited lists or caveat paragraphs. Help cases
+require an available relevant screen action. Follow-ups are limited to two. A missing composition
+result, unavailable evidence or any skipped assertion prevents a pass even if promptfoo reports
+success. The rubric handles semantic repetition independently of these structural checks.
+
+The reset executable must prepare these additional fixtures in the requested case locale:
+
+| Fixture | Required state |
+|---|---|
+| `composition` | Disposable Pro account with Water and Walk, dated logs for the fixed corpus windows, a goal, notifications, tags, templates, revoked key metadata, profile, plan and referral state, achievements and calendar integration |
+| `composition-partial` | More habits than one response page, so the actual read metadata is partial |
+| `composition-stale` | Calendar integration with an actually stale read and available refresh action |
+| `composition-error` | Calendar connection requiring recovery, preserving the actual typed recovery state |
+| `composition-offline` | Calendar provider temporarily unavailable, preserving its actual typed recovery state |
+| `composition-logged` | Water already completed today through an independently approved write; the case queries its current state without executing a new write |
+| `medical` | No conflicting habits or pending previews; the corpus dates identify the reported exams and preparation boundaries |
+| `existing-parents` | Existing Post Lunch at `ORBIT_EVAL_HABIT_ID` and Before Bed at `ORBIT_EVAL_SECOND_HABIT_ID`, without duplicate names or proposed children |
+
+The medical batch keeps the original message intact, with no setup or follow-up. It requires one
+bulk proposal with one-time exams and bounded preparation commitments. Avoid cases require Fumar
+or Smoking with `is_bad_habit: true`. Existing-parent cases require exactly one bulk proposal and
+exact parent IDs, weekly vitamin D and daily rosuvastatin, without duplicate roots or questions.
+
+Only medical correction cases declare `vars.setup`. After fixture reset, the hook issues that
+original request using the same installed HTTP provider and capabilities, with a separate fresh
+request identity. Structure, behavior and composition must all pass before the correction runs.
+The actual final answer becomes chat history, and the actual preview becomes the comparison
+baseline. The correction requires 16:00 and preserves every other preview field and item identity.
+A missing baseline or failed setup stops the attempt. This setup adds one paid request per attempt;
+it never approves a write or resets spend or message allowance. The full corpus can exceed the
+historical starter-run cost estimate. Stay within existing ceilings and report incomplete runs.
+
+Offline Vitest checks drive the installed HTTP transform and actual promptfoo CLI, including
+prose-first failure, extra text, malformed or unsupported parts, excessive follow-ups, block-only
+success, omitted and skipped composition results, correction identity, and a canned semantic
+repetition rejection. The canned grader verifies rubric routing, not a real grader's semantic
+accuracy. The orchestrator owns real-call calibration and settled staging acceptance on both
+rendered consumers; this harness change does not unblock broad rollout by itself.
+
 ### Add a scenario
 
-1. Add an entry to `evals/astra/scenarios.yaml` with a unique stable `metadata.id`, a category,
+1. Add an entry to `evals/astra/scenarios.yaml` or `composition-scenarios.yaml` with a unique stable `metadata.id`, a category,
    a fixture, a credential environment key, an input, expectations, and a final-answer rubric.
+   Composition cases also declare `metadata.family`, `metadata.locale`, `vars.clientContext` and
+   `vars.composition`. Add every family in both `en` and `pt-BR`.
    `{habitId}`, `{secondHabitId}`, and `{overdueDate}` are substituted in inputs and expected
    arguments after the fixture reset. Never commit credentials or real account values.
 2. Extend the reset executable if the case needs new state. Describe that state in this catalog.
@@ -327,3 +390,12 @@ fixtures; no server or live model is used.
 ## orbit-api
 
 The backend (`orbit-api`, a sibling repo) has its own xUnit + FluentAssertions unit suite under its `tests/` folder, with test accounts wired via the `TEST_ACCOUNTS` env var. It is unit-only too (the integration suite was removed). See that repo's `CLAUDE.md` and `tests/CLAUDE.md` for its conventions; it is out of scope for this catalog.
+
+Composition fields and additional catalog projections are verified against orbit-api revision
+`5e37641722450549fe61b8cff4e2e6a4c0ce7c8d`: `ChatResponse` and its text/block part records in
+`ProcessUserChatCommand.cs`, the DTOs in `src/Orbit.Application/Chat/*Card.cs`,
+`src/Orbit.Domain/Models/AgentContracts.cs`, `AstraBlocks.cs`, `ChatHistoryMessage.cs`,
+`ChatFollowUp.cs`, `ReadBlocks.cs`, `ChatResponseNegotiation.cs`, and the covered tool producers.
+`ProcessUserChatCommand.Composition.cs` establishes preview/outcome ordering and short-line limits.
+`ProcessUserChatCommand.Tools.cs` supplies the held-proposal trace payload. Re-derive with
+`git show <revision>:<source-path>` in the API repository. Source evidence is not deployment evidence.

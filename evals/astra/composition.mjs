@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util'
+
 const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 const text = (value) => typeof value === 'string' && value.trim().length > 0
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
@@ -23,7 +25,7 @@ const capability = { habitList: 'supportsHabitListCard', goalList: 'supportsGoal
 
 function validBlock(part, client) {
   const shape = shapes[part.kind]
-  if (!shape || !object(part.block) || !client?.partKinds?.includes(part.kind)
+  if (client?.supportsParts !== true || !shape || !object(part.block) || !client?.partKinds?.includes(part.kind)
     || (capability[part.kind] && client[capability[part.kind]] !== true)) return false
   if (!Object.entries(shape).every(([key, type]) => type === 'array' ? Array.isArray(part.block[key])
     : type === 'object' ? object(part.block[key]) : typeof part.block[key] === type)) return false
@@ -55,11 +57,38 @@ function validOperations(response) {
     && (response.pendingOperations ?? []).every((pending) => object(pending) && text(pending.id)
       && text(pending.displayName) && text(pending.summary) && Array.isArray(pending.items)
       && pending.items.length > 0 && pending.items.every((item) => object(item) && text(item.itemId)
-        && text(item.entityName) && Array.isArray(item.fields) && item.fields.length > 0))
+        && text(item.entityName) && Array.isArray(item.fields) && item.fields.length > 0
+        && item.fields.every((field) => object(field) && text(field.field) && text(field.valueType)
+          && (field.newValue === null || typeof field.newValue === 'string'))))
     && (response.actions ?? []).every((action) => object(action) && text(action.type)
       && ['Success', 'Failed', 'Suggestion', 'NeedsClarification'].includes(action.status))
+    && (response.relatedSurfaces ?? []).every(text)
+    && (response.followUpContext ?? []).every((followUp) => object(followUp) && text(followUp.label) && text(followUp.question))
+    && (response.policyDenials ?? []).every((denial) => object(denial) && text(denial.operationId) && text(denial.reason))
     && (response.operations ?? []).every((operation) => object(operation) && text(operation.operationId)
-      && ['Succeeded', 'Failed', 'PendingConfirmation', 'Denied', 'UnsupportedByPolicy', 'NotExecuted'].includes(operation.status))
+      && ['Succeeded', 'Failed', 'PendingConfirmation', 'Denied', 'UnsupportedByPolicy'].includes(operation.status))
+}
+
+function unchangedPreview(pending, baseline, correction) {
+  if (!Array.isArray(baseline) || baseline.length !== 1 || pending.length !== 1) return false
+  const original = baseline[0].items
+  const revised = pending[0].items
+  if (!Array.isArray(original) || revised.length !== original.length) return false
+  let changed = 0
+  return original.every((item) => {
+    const next = revised.find((candidate) => candidate.itemId === item.itemId && candidate.entityName === item.entityName)
+    if (!next || next.fields.length !== item.fields.length) return false
+    return item.fields.every((field) => {
+      const updated = next.fields.find((candidate) => candidate.field === field.field)
+      if (!updated) return false
+      if (item.entityName.toLocaleLowerCase().includes(correction.titleContains.toLocaleLowerCase()) && field.field === correction.field) {
+        changed++
+        return updated.proposedValue === correction.value
+          && isDeepStrictEqual({ ...updated, newValue: field.newValue, proposedValue: field.proposedValue }, field)
+      }
+      return isDeepStrictEqual(updated, field)
+    })
+  }) && changed === 1
 }
 
 export function composition(output, context) {
@@ -67,6 +96,7 @@ export function composition(output, context) {
   const response = parsed?.composition
   const expected = context.vars.composition
   if (!expected || !response) return result(false, 'Missing composition evidence or scenario policy.', { unavailable: true })
+  if (!['data', 'text', 'fallback', 'preview', 'outcome'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
   if (!validOperations(response)) return result(false, 'Malformed operation or action surfaces.')
   if ((response.followUps?.length ?? 0) > 2 || (response.followUpContext?.length ?? 0) > 2
     || !(response.followUps ?? []).every(text)) return result(false, 'Malformed or excessive follow-ups.')
@@ -87,8 +117,11 @@ export function composition(output, context) {
     return result(false, 'Final prose differs from the ordered text parts.')
   }
   const pending = response.pendingOperations ?? []
-  const outcome = (response.actions?.length ?? 0) > 0 || (response.operations ?? [])
-    .some((operation) => operation.status !== 'Succeeded' || operation.readBlock == null)
+  if (expected.correction && !unchangedPreview(pending, context.vars.baselinePreview, expected.correction)) {
+    return result(false, 'Correction changed fields outside the requested time or lacks its baseline preview.')
+  }
+  const outcome = (response.actions?.length ?? 0) > 0 || (response.policyDenials?.length ?? 0) > 0
+    || (response.operations ?? []).some((operation) => operation.status !== 'PendingConfirmation' && operation.readBlock == null)
   if (expected.mode === 'fallback') {
     if (blocks.length || !text(response.aiMessage)) return result(false, 'Missing readable capability fallback or unsupported block.')
   } else if (expected.mode === 'text') {

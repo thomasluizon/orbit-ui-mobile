@@ -18,7 +18,7 @@ export function extractTrace(response, responseRequestId) {
 const compositionKeys = ['aiMessage', 'parts', 'actions', 'operations', 'pendingOperations', 'policyDenials',
   'relatedSurfaces', 'followUps', 'followUpContext']
 const privateKeys = new Set(['read', 'payload', 'refreshToken', 'queryToken', 'nextCursor', 'previewFingerprint',
-  'stateFingerprint', 'expiresAtUtc', 'correlationId'])
+  'stateFingerprint', 'expiresAtUtc', 'correlationId', 'readBlock', 'proposedValue'])
 
 function finalAnswer(composition) {
   const visible = (value) => {
@@ -39,10 +39,11 @@ export default function parseResponse(response, _text, context) {
     }
     return { answer: response.error, composition: { aiMessage: response.error }, httpStatus, trace: { state: 'refused', responseRequestId } }
   }
+  if (response?.aiMessage != null && typeof response.aiMessage !== 'string') return { error: 'Astra returned malformed final text.' }
   const composition = Object.fromEntries(compositionKeys.filter((key) => response && Object.hasOwn(response, key))
     .map((key) => [key, response[key]]))
   const hasSurface = (Array.isArray(response?.parts) && response.parts.some((part) => part?.type === 'block'))
-    || response?.pendingOperations?.length > 0 || response?.actions?.length > 0
+    || ['pendingOperations', 'actions', 'operations', 'policyDenials'].some((key) => Array.isArray(response?.[key]) && response[key].length > 0)
   if (!response || (!hasSurface && (typeof response.aiMessage !== 'string' || !response.aiMessage.trim()))) {
     return { error: 'Astra did not return a nonempty aiMessage final answer.' }
   }

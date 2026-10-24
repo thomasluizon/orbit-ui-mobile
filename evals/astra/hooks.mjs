@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { appendFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
+import { prepareCorrection } from './setup.mjs'
 import { summarize, writeReport } from './report.mjs'
 
 export function beforeAll({ suite }) {
@@ -37,7 +38,7 @@ export function beforeEach({ test }) {
   test.vars.clientContextJson = JSON.stringify(test.vars.clientContext ?? {})
   test.vars.historyJson = JSON.stringify(test.vars.history ?? [])
   test.vars.evalRequestId = randomUUID()
-  return { test }
+  return test.vars.setup ? prepareCorrection(test) : { test }
 }
 
 export function afterAll({ results, suite }) {

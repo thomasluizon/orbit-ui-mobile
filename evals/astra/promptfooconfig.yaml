@@ -47,12 +47,15 @@ defaultTest:
       value: >-
         {{rubric}}
         Grade only the final rendered answer projection, including its visible typed blocks and preview fields.
-        Missing prose is valid for a block-only answer. Fail any external text that repeats a figure or fact
+        Missing prose is valid for a block-only answer. aiMessage mirrors text parts; count that text once.
+        Operation surfaces render before ordered read parts. Fail any external text that repeats a figure or fact
         already displayed in a block, including spelled-out numbers, ratios and semantic paraphrases.
         A heading, unrequested list or caveat paragraph in a no-data answer fails.
         Do not mistake a held proposal for a saved change. A prose claim never proves a block exists.
       metric: finalAnswer
-tests: file://scenarios.yaml
+tests:
+  - file://scenarios.yaml
+  - file://composition-scenarios.yaml
 evaluateOptions:
   repeat: 3
   maxConcurrency: 1
