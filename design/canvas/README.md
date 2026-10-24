@@ -13,8 +13,12 @@ Description shares the name field's leading edge; disclosure labels retain their
 When / Quando retains its question and manual picker, with In your own words / Escreva do seu jeito
 as the phrase placeholder. The picker owns its selected value without a second ordinary readback.
 
-Under #1668 and #1687, actual request actions and composer entries retain the canonical Astra
-glyph without appended branding. Named navigation rows retain visible `Astra` wording beside
+Under #1700, standalone request actions retain their short visible label beside the canonical
+Astra glyph. Menu items use their sibling row geometry and interaction treatment. Actions drop
+appended branding, never their label. The owner's authority is: "Revert this, just keep the changes
+that remove the bloat, be smart." Inline emoji, date, tag and frequency fill controls remain
+icon-only under #1701. Composer entries and send keep their drawn icon controls; suggestion chips
+and the composer prompt retain their current short text. Named navigation rows retain visible `Astra` wording beside
 their glyph, matching sibling destinations. The wide sidebar and onboarding shell use this
 row; Perfil keeps its named settings row and neutral icon. Follow-up and proactive targets
 retain their specific text. Complete ideas send; slotted ideas only prepare a draft. Composer entry

@@ -4,6 +4,8 @@ import { createRef, useEffect, useRef, useState } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { Menu } from '@/components/ui/menu'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -27,16 +29,21 @@ const items = [
 ] as const
 
 describe('Menu', () => {
-  it('keeps an Astra menu action icon-only and named', () => {
-    setWide(false)
+  it.each([en, ptBR].flatMap(messages => [false, true].map(wide => ({ messages, wide }))))('shows an Astra action label with sibling row treatment at wide=$wide', async ({ messages, wide }) => {
+    setWide(wide)
     const onSelect = vi.fn()
-    render(<Menu open title="Actions" items={[{ id: 'reschedule', label: 'Suggest a new date with Astra', icon: 'astra' }]} onSelect={onSelect} />)
-    const action = screen.getByRole('menuitem', { name: 'Suggest a new date with Astra' })
-    expect(action.textContent).toBe('')
-    expect(action.style.width).toBe('48px')
+    const label = messages.habits.actions.rescheduleAstra
+    render(<Menu open title="Actions" items={[{ id: 'reschedule', label, icon: 'astra' }, { id: 'edit', label: messages.common.edit, icon: 'pencil' }]} onSelect={onSelect} />)
+    const action = await screen.findByRole('menuitem', { name: label })
+    const sibling = screen.getByRole('menuitem', { name: messages.common.edit })
+    expect(action).toHaveTextContent(label)
+    expect(action).toHaveAccessibleName(label)
+    expect(action.style.cssText).toBe(sibling.style.cssText)
     expect(action.querySelector('[data-asset^="astra-mark"]')).not.toBeNull()
+    action.focus()
+    expect(action).toHaveFocus()
     fireEvent.click(action)
-    expect(onSelect).toHaveBeenCalledWith('reschedule')
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith('reschedule')
   })
 
   beforeEach(() => {

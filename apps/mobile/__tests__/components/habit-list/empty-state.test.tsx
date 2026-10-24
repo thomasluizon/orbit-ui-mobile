@@ -55,7 +55,7 @@ function pressableWithLabel(tree: TestTree, label: string): TestNode | undefined
   return tree.root.findAll(
     (node) =>
       node.props.accessibilityRole === 'button' &&
-      node.props.accessibilityLabel === label,
+      (node.props.accessibilityLabel === label || node.findAllByType('Text').some(child => child.props.children === label)),
   )[0]
 }
 
@@ -103,7 +103,7 @@ describe('HabitListEmptyState', () => {
       />,
     )
     const texts = textStrings(tree)
-    expect(texts).not.toContain('Ask Astra')
+    expect(texts).toContain('Ask Astra')
     expect(pressableWithLabel(tree, 'Ask Astra')).toBeTruthy()
     expect(texts).toContain('Create habit')
   })

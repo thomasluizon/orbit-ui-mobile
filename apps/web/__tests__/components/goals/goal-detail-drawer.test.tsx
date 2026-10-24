@@ -373,9 +373,8 @@ describe('GoalDetailDrawer', () => {
     const onOpenChange = vi.fn()
     detailGoal = { ...detailGoal, title: 'Synced goal' }
     render(<GoalDetailDrawer inline open onOpenChange={onOpenChange} goalId="1" />)
-    const astraAction = screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault' })
-    expect(astraAction.textContent).toBe('')
-    expect(astraAction.style.width).toBe('48px')
+    const astraAction = screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow' })
+    expect(astraAction).toHaveTextContent('goals.detail.askAstraEyebrow')
     fireEvent.click(astraAction)
     expect(useChatStore.getState().draft).toBe('goals.detail.askAstraSeedDefault:{"title":"Synced goal"}')
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
@@ -392,9 +391,8 @@ describe('GoalDetailDrawer', () => {
     const drawer = screen.getByRole('dialog', { name: 'progressScreen.sections.goals' })
     const getAnimations = vi.fn(() => drawer.hasAttribute('data-closed') ? [{ finished: exitFinished }] : [])
     Object.defineProperty(drawer, 'getAnimations', { value: getAnimations })
-    const astraAction = screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault' })
-    expect(astraAction.textContent).toBe('')
-    expect(astraAction.style.width).toBe('48px')
+    const astraAction = screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow' })
+    expect(astraAction).toHaveTextContent('goals.detail.askAstraEyebrow')
     fireEvent.click(astraAction)
     try {
       await waitFor(() => expect(getAnimations).toHaveReturnedWith([{ finished: exitFinished }]))
@@ -414,9 +412,8 @@ describe('GoalDetailDrawer', () => {
   it('keeps an existing draft and offers the goal request as a suggestion', () => {
     useChatStore.setState({ draft: 'My unfinished message' })
     render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
-    const astraAction = screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault' })
-    expect(astraAction.textContent).toBe('')
-    expect(astraAction.style.width).toBe('48px')
+    const astraAction = screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow' })
+    expect(astraAction).toHaveTextContent('goals.detail.askAstraEyebrow')
     fireEvent.click(astraAction)
     expect(useChatStore.getState().draft).toBe('My unfinished message')
     expect(useChatStore.getState().contextualSuggestion).toEqual({
@@ -434,7 +431,7 @@ describe('GoalDetailDrawer', () => {
   it('disables the goal request until the saved draft is hydrated', () => {
     useChatStore.setState({ draftHydrated: false })
     render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
-    const action = screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault' })
+    const action = screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow' })
     expect(action).toBeDisabled()
     fireEvent.click(action)
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
@@ -447,14 +444,13 @@ describe('GoalDetailDrawer', () => {
     detailLoadError = true
     detailAvailable = false
     const view = render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
-    const astraAction = screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault' })
-    expect(astraAction.textContent).toBe('')
-    expect(astraAction.style.width).toBe('48px')
+    const astraAction = screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow' })
+    expect(astraAction).toHaveTextContent('goals.detail.askAstraEyebrow')
     fireEvent.click(astraAction)
     expect(useChatStore.getState().draft).toContain('Read 12 books')
     expect(screen.getByText('goals.detail.loadError')).toBeTruthy()
     view.rerender(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="missing" />)
-    expect(screen.queryByRole('button', { name: 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'goals.detail.askAstraEyebrow' })).toBeNull()
   })
 
   it('renders nothing when closed', () => {

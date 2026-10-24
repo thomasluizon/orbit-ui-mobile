@@ -1904,8 +1904,7 @@ describe('HabitList', () => {
     expect(screen.getByText('habits.emptyState')).toBeInTheDocument()
     const astraAction = screen.getByRole('button', { name: 'habits.askAstra' })
     expect(astraAction).toBeInTheDocument()
-    expect(astraAction.textContent).toBe('')
-    expect(astraAction.style.width).toBe('48px')
+    expect(astraAction).toHaveTextContent('habits.askAstra')
     expect(screen.getByRole('button', { name: 'habits.createManually' })).toBeInTheDocument()
   })
 

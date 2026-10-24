@@ -476,7 +476,7 @@ describe('GoalDetailDrawer', () => {
     expect(refetchDetail).toHaveBeenCalled()
   })
 
-  const astraLabel = 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault'
+  const astraLabel = 'goals.detail.askAstraEyebrow'
 
   it('opens Astra after sheet dismissal with the selected synced goal', () => {
     detailGoal = { ...detailGoal, title: 'Synced goal' }
@@ -484,7 +484,7 @@ describe('GoalDetailDrawer', () => {
     sheetTestControls.defer(true)
     const tree = renderDrawer(onClose)
     const astraAction = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === astraLabel)[0]!
-    expect(astraAction.findAllByType('Text')).toHaveLength(0)
+    expect(astraAction.findAllByType('Text').map((node: import('react-test-renderer').ReactTestInstance) => node.props.children)).toContain('goals.detail.askAstraEyebrow')
     press(tree, astraLabel)
     expect(sheetTestControls.isDismissPending).toBe(true)
     expect(useUIStore.getState().astraConversationOpen).toBe(false)

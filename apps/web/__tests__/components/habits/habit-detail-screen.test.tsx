@@ -192,16 +192,21 @@ vi.mock('@/components/ui/switch', () => ({
     <button type="button" role="switch" aria-label={label} aria-checked={checked} onClick={() => onChange(!checked)} />
   ),
 }))
-vi.mock('@/components/ui/list-row', () => ({
-  ListRow: ({ title, description, value, trailing, chevron, onClick, expanded, controls, toggle }: React.ComponentProps<typeof import('@/components/ui/list-row').ListRow>) => onClick || toggle
+vi.mock('@/components/ui/list-row', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/list-row')>()
+  return { ListRow: (props: React.ComponentProps<typeof actual.ListRow>) => {
+    if (props.title === 'habits.detail.askAstra') return <actual.ListRow {...props} />
+    const { title, description, value, trailing, chevron, onClick, expanded, controls, toggle } = props
+    return onClick || toggle
     ? <button type="button" role={toggle ? "switch" : undefined} aria-label={title} aria-checked={toggle?.checked} aria-expanded={expanded} aria-controls={controls} data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)} onClick={toggle ? () => toggle.onChange(!toggle.checked) : onClick}>{title}{trailing}</button>
-    : <div aria-expanded={expanded} aria-controls={controls} data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)}>{title}{trailing}</div>,
-}))
+    : <div aria-expanded={expanded} aria-controls={controls} data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)}>{title}{trailing}</div>
+  }}
+})
 vi.mock('@/components/ui/pill-button', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/ui/pill-button')>()
   return ({
   ...(await importOriginal<typeof import('@/components/ui/pill-button')>()),
-  PillButton: (props: React.ComponentProps<typeof actual.PillButton>) => props.label === 'habits.detail.askAstra' || props.label === 'habits.reschedule.suggestDate' || (mocks.realEditorPencil && props.label === 'habits.editHabit')
+  PillButton: (props: React.ComponentProps<typeof actual.PillButton>) => props.children === 'habits.reschedule.suggestDate' || (mocks.realEditorPencil && props.label === 'habits.editHabit')
     ? <actual.PillButton {...props} /> : <button type="button" disabled={props.disabled} aria-label={props.label} aria-busy={props.loading} data-variant={props.variant} data-size={props.size} onClick={props.onClick}>{props.children}</button>,
   Button: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) => <button type="button" onClick={onClick}>{children}</button>,
 }) })
@@ -608,7 +613,9 @@ describe('HabitDetailScreen', () => {
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
     expect(within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')).toHaveTextContent('habits.detail.rescheduleError')
     expect(screen.queryByRole('button', { name: 'habits.detail.rescheduleAccept' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.suggestDate' }))
+    const retry = screen.getByRole('button', { name: 'habits.reschedule.suggestDate' })
+    expect(retry).toHaveTextContent('habits.reschedule.suggestDate')
+    fireEvent.click(retry)
     expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.dismiss' }))
     expect(screen.queryByText('habits.detail.rescheduleError')).not.toBeInTheDocument()
@@ -1423,8 +1430,7 @@ describe('HabitDetailScreen', () => {
     useUIStore.getState().setAstraConversationOpen(false)
     render(<HabitDetailScreen habitId="habit-1" />)
     const astraAction = screen.getByRole('button', { name: 'habits.detail.askAstra' })
-    expect(astraAction.textContent).toBe('')
-    expect(astraAction.style.width).toBe('48px')
+    expect(astraAction).toHaveTextContent('habits.detail.askAstra')
     fireEvent.click(astraAction)
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
     const prompt = 'habits.detail.askAstraSeedDefault:{"title":"Read"}'

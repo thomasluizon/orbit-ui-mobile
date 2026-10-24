@@ -88,10 +88,10 @@ describe('RescheduleSheet (mobile)', () => {
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['habits.reschedule.dismiss', terminalAction === 'askDate' ? 'habits.reschedule.suggestDate' : `habits.reschedule.${terminalAction}`])
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
     if (state === 'error') {
-      const action = tree.root.findAll(node => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.reschedule.suggestDate')[0]!
-      expect(action.findAll(node => node.type === 'Text')).toHaveLength(0)
+      const action = tree.root.findAll(node => node.type === 'Pressable' && node.findAll(child => child.type === 'Text' && child.props.children === 'habits.reschedule.suggestDate').length > 0)[0]!
+      expect(action.findAll(node => node.type === 'Text').map(node => node.props.children)).toEqual(['habits.reschedule.suggestDate'])
       const style = action.props.style as (state: { pressed: boolean }) => import('react-native').ViewStyle[]
-      expect(StyleSheet.flatten(style({ pressed: false })).width).toBe(48)
+      expect(StyleSheet.flatten(style({ pressed: false })).width).toBeUndefined()
     }
   })
   it.each(['free', 'error'] as const)('dismisses the %s footer without applying or navigating', (state) => {
