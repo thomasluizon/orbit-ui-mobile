@@ -42,7 +42,7 @@ pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 &[
                     &MenuItem::with_id(app, "support", labels.text("support"), true, None::<&str>)?,
                     #[cfg(not(target_os = "macos"))]
-                    &PredefinedMenuItem::about(app, Some(labels.text("about")), None)?,
+                    &about_item(app, &labels)?,
                 ],
             )?,
         ],
@@ -88,7 +88,7 @@ fn application_menu(
         true,
         &[
             #[cfg(target_os = "macos")]
-            &PredefinedMenuItem::about(app, Some(labels.text("about")), None)?,
+            &about_item(app, labels)?,
             #[cfg(target_os = "macos")]
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(
@@ -126,6 +126,18 @@ fn application_menu(
                 Some("CmdOrCtrl+Q"),
             )?,
         ],
+    )
+}
+
+fn about_item(app: &AppHandle, labels: &Labels) -> tauri::Result<PredefinedMenuItem<tauri::Wry>> {
+    PredefinedMenuItem::about(
+        app,
+        Some(labels.text("about")),
+        Some(tauri::menu::AboutMetadata {
+            name: app.config().product_name.clone(),
+            version: Some(app.package_info().version.to_string()),
+            ..Default::default()
+        }),
     )
 }
 
