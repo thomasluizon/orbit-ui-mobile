@@ -97,7 +97,7 @@ export async function invalidateAgentQueries(queryClient: QueryClient): Promise<
   )
 }
 
-type SendFailureKind = 'upgrade' | 'timeout' | 'limit' | 'generic'
+type SendFailureKind = 'upgrade' | 'timeout' | 'limit' | 'dailyBudget' | 'generic'
 
 interface SendFailureInput {
   status?: number | null
@@ -119,6 +119,8 @@ interface SendFailureClassification {
 export function classifySendFailure(input: SendFailureInput): SendFailureClassification {
   const upgrade = resolveUpgradeEntitlementDenial(input)
   const reason = input.reason?.trim() ?? ''
+
+  if (input.code === 'AI_DAILY_BUDGET_EXCEEDED') return { kind: 'dailyBudget', reason, upgrade }
 
   if (input.status === 403 && input.code === 'PAY_GATE' && reason.toLowerCase().includes('daily ai message limit')) {
     return { kind: 'limit', reason, upgrade }

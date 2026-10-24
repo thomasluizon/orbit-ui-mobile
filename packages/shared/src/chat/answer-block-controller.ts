@@ -58,13 +58,14 @@ export class AnswerBlockController {
     const { selectedIds, freeText, acting } = this.state
     const answer = answerSnapshot(props, this.state)
     const recovery = isSameBlockAnswer(answer, this.state.uncertainAnswer)
-    if (acting || !interaction || !interaction.isOnline || interaction.isSending ||
+    if (acting || !interaction || interaction.dailyBudgetReached || !interaction.isOnline || interaction.isSending ||
       (definition.kind === 'choice' && interaction.atMessageLimit && !recovery) || !hasBlockAnswer(definition, selectedIds, freeText)) return
     this.update({ acting: true, error: null, uncertainAnswer: answer })
     const labels = blockAnswerOptions(definition).filter(option => selectedIds.includes(option.id)).map(option => option.label)
     try {
       const result = await interaction.send({ kind: definition.kind, labels, answer })
       if (result.ok) this.update({ settled: { text: t('answered', { options: formatBlockAnswer(labels, freeText, locale) }), answered: true } })
+      else if (result.dailyBudgetReached) this.update({ error: null, uncertainAnswer: null })
       else {
         const key = blockAnswerErrorKey(result.status)
         if (key === 'closed' || key === 'alreadyAnswered') this.update({ settled: { text: t(key), answered: false } })
@@ -80,6 +81,7 @@ export class AnswerBlockController {
 
 function getAnswerStatus(props: AnswerBlockProps, state: AnswerBlockState, t: AnswerTranslator) {
   const { definition, interaction } = props
+  if (interaction?.dailyBudgetReached) return { text: '', error: false, blocked: true }
   if (state.acting) return { text: t(definition.kind === 'choice' ? 'acting' : 'reviewing'), error: false, blocked: true }
   if (interaction && !interaction.isOnline) return { text: t('offline'), error: false, blocked: true }
   if (definition.kind === 'choice' && interaction?.atMessageLimit && !isSameBlockAnswer(answerSnapshot(props, state), state.uncertainAnswer)) return { text: t('limit', { allowance: interaction.allowance }), error: false, blocked: true }
@@ -108,7 +110,7 @@ export function getAnswerBlockView(props: AnswerBlockProps, state: AnswerBlockSt
   const single = isChoice && !definition.block.multiSelect
   const status = getAnswerStatus(props, state, t)
   const settled = props.savedAnswer ?? state.settled
-  const disabled = state.acting || interaction?.isSending === true
+  const disabled = interaction?.dailyBudgetReached === true || state.acting || interaction?.isSending === true
   return {
     title: isChoice ? definition.block.question : definition.block.title,
     single,

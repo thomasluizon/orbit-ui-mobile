@@ -24,6 +24,10 @@ function makeAction(overrides: Partial<ActionResult> = {}): ActionResult {
 }
 
 describe('classifySendFailure', () => {
+  it('classifies a daily ceiling independently of the message allowance', () => {
+    expect(classifySendFailure({ status: 400, code: 'AI_DAILY_BUDGET_EXCEEDED', reason: 'Daily budget reached' }).kind).toBe('dailyBudget')
+  })
+
   it('classifies a 408 as a timeout', () => {
     const result = classifySendFailure({ status: 408, reason: 'CHAT_TIMEOUT' })
     expect(result.kind).toBe('timeout')

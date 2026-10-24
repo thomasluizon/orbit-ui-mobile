@@ -397,6 +397,99 @@ function inputHosts(tree: ReturnType<typeof TestRenderer.create>) {
 }
 
 describe('mobile useChatComposer', () => {
+  it.each([['en', 'http'], ['pt-BR', 'http'], ['en', 'sse'], ['pt-BR', 'sse']] as const)('keeps a daily ceiling refusal single and nonretryable in %s over %s', async (locale, transport) => {
+    mocks.locale = locale
+    await i18n.changeLanguage(locale)
+    mocks.translate = i18n.t.bind(i18n)
+    mocks.state.profile = createMockProfile({ hasProAccess: true, aiMessagesUsed: 1, aiMessagesLimit: 50 })
+    mocks.openChatStream.mockResolvedValue(transport === 'http' ? new Response(JSON.stringify({ error: 'Your daily AI safety budget has been reached. Please try again tomorrow.', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }), { status: 400 }) : sseStreamResponse(frame('{"type":"delta","text":"Unfinished reply"}'), frame('{"type":"error","status":400,"error":"Daily budget reached","code":"AI_DAILY_BUDGET_EXCEEDED"}')))
+    const tree = await renderConversationHarness()
+    const draft = '  Plan my morning\n  '
+    TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText(draft))
+    await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
+    const notice = i18n.t('chat.dailyBudgetReached')
+    expect(visibleComposerRoot(tree).findAllByType('Text').filter((node: { props: { children?: unknown } }) => node.props.children === notice)).toHaveLength(1)
+    expect(inputHosts(tree)[0].props.value).toBe(draft)
+    expect(visibleMessageTexts(tree)).not.toContain(i18n.t('chat.aiError'))
+    expect(visibleMessageTexts(tree)).not.toContain(i18n.t('chat.sendError'))
+    expect(visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === i18n.t('shell.composer.retry'))).toHaveLength(0)
+    await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
+    await TestRenderer.act(async () => { useUIStore.getState().setAstraConversationOpen(false); await Promise.resolve() })
+    expect(visibleComposerRoot(tree).findAllByType('Text').filter((node: { props: { children?: unknown } }) => node.props.children === notice)).toHaveLength(1)
+    expect(inputHosts(tree)[0].props.value).toBe(draft)
+  })
+
+  it.each(['http', 'sse'] as const)('blocks choice retries after a daily ceiling over %s', async transport => {
+    useChatStore.setState({ draft: 'Keep this draft', messages: [makeHeldHabitMessage({ id: 'question', content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'choice', block: choiceBlockFixture }] })] })
+    mocks.openChatStream.mockResolvedValue(transport === 'http'
+      ? Response.json({ error: 'Daily budget reached', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }, { status: 400 })
+      : sseStreamResponse(frame('{"type":"delta","text":"Preparing"}'), frame('{"type":"error","status":400,"error":"Daily budget reached","code":"AI_DAILY_BUDGET_EXCEEDED"}')))
+    const tree = await renderConversationHarness()
+    await TestRenderer.act(async () => { useUIStore.getState().setAstraConversationOpen(true); await Promise.resolve() })
+    const radios = () => visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
+    const { Button: AnswerButton } = await import('@/components/ui/pill-button')
+    const submit = () => tree.root.findAllByType(AnswerButton).find((node: { props: { children?: string } }) => node.props.children === 'chat.choice.submit')!
+    await TestRenderer.act(async () => { radios()[2]!.props.onPress(); await Promise.resolve() })
+    await TestRenderer.act(async () => { await submit().props.onClick() })
+    expect(submit().props.disabled).toBe(true)
+    expect(visibleComposerRoot(tree).findAllByType('Text').filter((node: { props: { children?: unknown } }) => node.props.children === 'chat.dailyBudgetReached')).toHaveLength(1)
+    expect(visibleMessageTexts(tree)).not.toContain('chat.choice.invalid')
+    expect(visibleMessageTexts(tree)).not.toContain('chat.choice.error')
+    expect(visibleMessageTexts(tree)).not.toContain('Preparing')
+    expect(useChatStore.getState().draft).toBe('Keep this draft')
+    await TestRenderer.act(async () => { await submit().props.onClick() })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
+  })
+
+  it('releases the daily ceiling on the next local date', async () => {
+    mocks.openChatStream.mockResolvedValueOnce(Response.json({ error: 'Daily budget reached', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }, { status: 400 }))
+      .mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    await TestRenderer.act(async () => { await composer.current.sendMessage('First request') })
+    expect(composer.current.atMessageLimit).toBe(true)
+    vi.useFakeTimers()
+    vi.setSystemTime(Date.now() + 24 * 60 * 60 * 1000)
+    composer.rerender()
+    expect(composer.current.atMessageLimit).toBe(false)
+    await TestRenderer.act(async () => { await composer.current.sendMessage('New day') })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
+    vi.useRealTimers()
+  })
+
+  it.each(['suggestion', 'followUp', 'pickList'] as const)('routes a daily ceiling from a %s request without retry', async entry => {
+    mocks.state.profile = createMockProfile()
+    mocks.openChatStream.mockResolvedValue(Response.json({ error: 'Daily budget reached', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }, { status: 400 }))
+    const composer = await renderComposer()
+    TestRenderer.act(() => composer.current.setInput('Keep this draft'))
+    const request = { kind: 'pickList' as const, answer: { blockId: pickListBlockFixture.blockId, selectedIds: ['1'] }, labels: ['Walk'] }
+    await TestRenderer.act(async () => {
+      if (entry === 'pickList') await composer.current.blockAnswerInteraction.send(request)
+      else if (entry === 'suggestion') { composer.current.composerProps.suggestions[0]!.onSelect(); await Promise.resolve() }
+      else await composer.current.sendMessage('Follow up', 'followUp')
+    })
+    expect(composer.current.composerProps.state).toBe('atLimit')
+    expect(composer.current.input).toBe('Keep this draft')
+    expect(composer.current.composerProps.onRetry).toBeUndefined()
+    await TestRenderer.act(async () => { await composer.current.blockAnswerInteraction.send(request); await composer.current.retryLastSend() })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['terminal', 'partial'] as const)('handles a daily ceiling in a %s SSE error without retry', async arrival => {
+    const stream = arrival === 'partial' ? [frame('{"type":"delta","text":"Unfinished reply"}')] : []
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(...stream, frame('{"type":"error","status":400,"error":"Daily budget reached","code":"AI_DAILY_BUDGET_EXCEEDED"}')))
+    const composer = await renderComposer()
+    TestRenderer.act(() => composer.current.setInput('Keep this draft'))
+    await TestRenderer.act(async () => { await composer.current.sendMessage() })
+    expect(composer.current.composerProps.state).toBe('atLimit')
+    if (composer.current.composerProps.state === 'atLimit') expect(composer.current.composerProps.limitReason).toBe('chat.dailyBudgetReached')
+    expect(composer.current.input).toBe('Keep this draft')
+    expect(composer.current.messages.filter(message => message.role === 'ai')).toHaveLength(0)
+    expect(composer.current.composerProps.onRetry).toBeUndefined()
+    await TestRenderer.act(async () => { await composer.current.retryLastSend(); await composer.current.sendMessage(); await composer.current.sendMessage('Suggestion') })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
+  })
+
   it.each(['en', 'pt-BR'] as const)('shows one daily boundary with its renewal in %s', async (locale) => {
     mocks.locale = locale
     await i18n.changeLanguage(locale)
