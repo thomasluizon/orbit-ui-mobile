@@ -33,9 +33,10 @@ describe('habit row standard in Chromium', () => {
   })
   afterAll(async () => { vi.unstubAllGlobals(); await closeChrome(browserLaunch) }, 30_000)
 
-  it.each((['light', 'dark'] as const).flatMap((mode) => [320, 412, 1352].flatMap((width) =>
+  // WHY: Independent pages overlap animation waits; DOM renders finish before the first await. https://github.com/thomasluizon/orbit-tickets/issues/1693
+  it.concurrent.for((['light', 'dark'] as const).flatMap((mode) => [320, 412, 1352].flatMap((width) =>
     [1, 2].flatMap((scale) => [false, true].flatMap((parent) => (['reduce', 'no-preference'] as const).map((motion) => ({ mode, width, scale, parent, motion })))),
-  )))('contains completion feedback in $mode at $width with $scale text, parent=$parent motion=$motion', async ({ mode, width, scale, parent, motion }) => {
+  )))('contains completion feedback in $mode at $width with $scale text, parent=$parent motion=$motion', async ({ mode, width, scale, parent, motion }, { expect }) => {
     document.documentElement.style.fontSize = `${16 * scale}px`
     const mounted = render(<div className="habit-panel">
       {(['empty', 'done', 'overdue', 'bad'] as const).map((state) => <HabitRow key={state} state={state}
@@ -58,14 +59,14 @@ describe('habit row standard in Chromium', () => {
         const border = await control.locator('[data-habit-check]').evaluate((element) => getComputedStyle(element).boxShadow)
         await control.hover()
         await expect.poll(() => completionPaint(control)).not.toBe('rgba(0, 0, 0, 0)')
-        await assertCompletionFill(control, scale)
+        await assertCompletionFill(control, scale, 1, expect)
         expect(await control.locator('[data-habit-check]').evaluate((element) => getComputedStyle(element).boxShadow)).toBe(border)
         const progress = control.locator('svg path[stroke-dasharray]')
         if (await progress.count()) expect(await progress.getAttribute('stroke')).toBe(await control.locator('[data-habit-check]').getAttribute('data-status') === 'bad' ? 'var(--status-bad)' : 'var(--primary)')
         await page.mouse.down()
         const pressScale = motion === 'reduce' ? 1 : 0.96
         await expect.poll(() => control.evaluate((element) => element.getBoundingClientRect().width)).toBeCloseTo(48 * pressScale, 1)
-        await assertCompletionFill(control, scale, pressScale)
+        await assertCompletionFill(control, scale, pressScale, expect)
         await page.mouse.up()
         await page.mouse.move(0, 0)
         await expect.poll(() => completionPaint(control)).toBe(restingFeedback)
@@ -79,9 +80,9 @@ describe('habit row standard in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each((['light', 'dark'] as const).flatMap((mode) => [false, true].flatMap((parent) =>
+  it.concurrent.for((['light', 'dark'] as const).flatMap((mode) => [false, true].flatMap((parent) =>
     (['reduce', 'no-preference'] as const).map((motion) => ({ mode, parent, motion })),
-  )))('paints completion on press without hover in $mode, parent=$parent motion=$motion', async ({ mode, parent, motion }) => {
+  )))('paints completion on press without hover in $mode, parent=$parent motion=$motion', async ({ mode, parent, motion }, { expect }) => {
     const mounted = render(<>{(['empty', 'done', 'overdue', 'bad'] as const).map((state) => <HabitRow key={state} state={state}
       habit={createMockHabit({ title: 'Read', description: 'Read two pages.', isBadHabit: state === 'bad' })}
       hasChildren={parent} childProgress={parent ? { done: state === 'done' ? 3 : 1, total: 3 } : undefined}
@@ -100,7 +101,7 @@ describe('habit row standard in Chromium', () => {
         await page.mouse.down()
         const pressScale = motion === 'reduce' ? 1 : 0.96
         await expect.poll(() => control.evaluate((element) => element.getBoundingClientRect().width)).toBeCloseTo(48 * pressScale, 1)
-        await assertCompletionFill(control, 1, pressScale)
+        await assertCompletionFill(control, 1, pressScale, expect)
         await page.mouse.move(0, 0)
         await page.mouse.up()
         await expect.poll(() => completionPaint(control)).toBe(rest)
@@ -397,7 +398,7 @@ describe('habit row standard in Chromium', () => {
     }
   }, 30_000)
 
-  it.each((['light', 'dark'] as const).flatMap((mode) => [320, 412, 1352].flatMap((width) => [1, 2, 2.5].flatMap((scale) =>
+  it.concurrent.for((['light', 'dark'] as const).flatMap((mode) => [320, 412, 1352].flatMap((width) => [1, 2, 2.5].flatMap((scale) =>
     (['en', 'pt-BR'] as const).map((locale) => ({ mode, width, scale, locale }))))))(
     'flows hydrated type and maximum checklist tokens in $mode/$locale at $width/$scale', async ({ mode, width, scale, locale }) => {
       const page = await browser.newPage({ viewport: { width, height: 2600 }, reducedMotion: 'reduce' })
@@ -502,7 +503,24 @@ async function measurePreviewRow(row: Locator) {
     const check = element.querySelector('[data-habit-check]')!
     let target = check.parentElement!
     while (target !== element && target.getBoundingClientRect().width !== 48) target = target.parentElement!
-    return { row: box(element), title: box(title), titleSize: getComputedStyle(title).fontSize,
+    const reference = document.createElement('span')
+    element.append(reference)
+    const tokenPaint = (property: 'color' | 'background', token: string) => {
+      reference.style[property] = `var(${token})`
+      return getComputedStyle(reference)[property === 'background' ? 'backgroundColor' : 'color']
+    }
+    const expectedFill = tokenPaint('background', '--bg-hover')
+    const descriptionRest = tokenPaint('color', '--fg-3')
+    const descriptionHover = tokenPaint('color', '--fg-2')
+    reference.remove()
+    const bodyPaint = getComputedStyle(element.querySelector('[data-habit-row-body]')!)
+    return { rowFill: getComputedStyle(element).backgroundColor, bodyFill: bodyPaint.backgroundColor, radius: getComputedStyle(element).borderRadius,
+      expectedFill, descriptionRest, descriptionHover, descriptionColour: preview && getComputedStyle(preview).color,
+      controlFills: Array.from(element.querySelectorAll('[data-habit-row-control]'), control => {
+        const fill = control.querySelector('[data-habit-row-check-fill]') ?? control.querySelector('[data-habit-check-feedback]') ?? control.querySelector('[data-habit-check]') ?? control
+        return getComputedStyle(fill).backgroundColor
+      }),
+      row: box(element), title: box(title), titleSize: getComputedStyle(title).fontSize,
       body: box(element.querySelector('[data-habit-row-body]')!), typeLines, wordLineCounts, paintedControls,
       content: box(title.parentElement!), footerContent: heading ? box(type.closest('[data-habit-row-meta]')!.parentElement!) : null,
       typeCount: element.querySelectorAll('[data-habit-row-type]').length, typeInHeading: Boolean(heading?.contains(type)),
@@ -581,8 +599,8 @@ function assertSupportingRowHeight(measured: Awaited<ReturnType<typeof measurePr
 }
 
 async function assertPreviewRow(row: Locator, page: Page, scale: number, described: boolean, expectedType: string) {
-  await assertPreviewColour(row, described, '--fg-3')
   const measured = await measurePreviewRow(row)
+  if (described) expect(measured.descriptionColour).toBe(measured.descriptionRest)
   assertContentStack(measured, scale, described, expectedType)
   expect(measured.titleSize).toBe(`${(measured.depth ? 14 : 17) * scale}px`)
   expect(measured.title.width).toBeGreaterThanOrEqual(Number.parseFloat(measured.titleSize))
@@ -616,30 +634,32 @@ async function assertPreviewRow(row: Locator, page: Page, scale: number, describ
     expect(measured.target.width).toBe(48)
     expect(measured.target.height).toBeGreaterThanOrEqual(48)
   }
-  await row.locator('[data-habit-row-body]').hover({ position: { x: 12, y: 12 } })
-  const feedback = await row.evaluate((element) => ({ fill: getComputedStyle(element).backgroundColor,
-    bodyFill: getComputedStyle(element.querySelector('[data-habit-row-body]')!).backgroundColor, radius: getComputedStyle(element).borderRadius }))
-  await assertPreviewColour(row, described, '--fg-2')
+  await hoverStaticTarget(row.locator('[data-habit-row-body]'), { x: 12, y: 12 })
+  const feedback = await measurePreviewRow(row)
+  if (described) expect(feedback.descriptionColour).toBe(feedback.descriptionHover)
   expect(feedback.radius).toBe('20px')
   expect(feedback.bodyFill).toBe('rgba(0, 0, 0, 0)')
-  const expectedFill = await row.evaluate((element) => { const reference = document.createElement('span'); reference.style.background = 'var(--bg-hover)'; element.append(reference); const result = getComputedStyle(reference).backgroundColor; reference.remove(); return result })
-  expect(feedback.fill).toBe(expectedFill)
+  const expectedFill = feedback.expectedFill
+  expect(feedback.rowFill).toBe(expectedFill)
   await page.mouse.down()
   expect(await row.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(expectedFill)
   await page.mouse.up()
-  for (const control of await row.locator('[data-habit-row-control]').all()) {
-    await control.hover()
-    assertTypePaintBounds(await measurePreviewRow(row))
-    expect(await row.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(expectedFill)
-    expect(await completionPaint(control)).toBe(expectedFill)
+  for (const [index, control] of (await row.locator('[data-habit-row-control]').all()).entries()) {
+    await hoverStaticTarget(control)
+    const hovered = await measurePreviewRow(row)
+    assertTypePaintBounds(hovered)
+    expect(hovered.rowFill).not.toBe(expectedFill)
+    expect(hovered.controlFills[index]).toBe(expectedFill)
     await page.mouse.down()
-    assertTypePaintBounds(await measurePreviewRow(row))
-    expect(await row.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(expectedFill)
+    const pressed = await measurePreviewRow(row)
+    assertTypePaintBounds(pressed)
+    expect(pressed.rowFill).not.toBe(expectedFill)
     await page.mouse.up()
   }
   await page.mouse.move(0, 0)
-  await assertPreviewColour(row, described, '--fg-3')
-  expect(await row.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(expectedFill)
+  const resting = await measurePreviewRow(row)
+  if (described) expect(resting.descriptionColour).toBe(resting.descriptionRest)
+  expect(resting.rowFill).not.toBe(expectedFill)
   await assertPrimaryFocus(row, scale)
 }
 
@@ -647,30 +667,17 @@ async function assertPrimaryFocus(row: Locator, scale: number) {
   const body = row.locator('[data-habit-row-body]')
   await row.page().keyboard.press('Tab')
   await body.focus()
-  expect(await body.evaluate((element) => element === document.activeElement)).toBe(true)
-  expect(await body.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
   const focus = await body.evaluate((element) => {
     const style = getComputedStyle(element)
-    return { outline: style.outlineStyle, width: style.outlineWidth, offset: style.outlineOffset, radius: style.borderRadius, overflow: style.overflow }
+    return { active: element === document.activeElement, visible: element.matches(':focus-visible'), outline: style.outlineStyle, width: style.outlineWidth, offset: style.outlineOffset, radius: style.borderRadius, overflow: style.overflow }
   })
+  expect(focus.active).toBe(true)
+  expect(focus.visible).toBe(true)
   expect(focus).toMatchObject({ outline: 'solid', width: '2px', offset: '-4px', radius: '20px', overflow: 'hidden' })
   const measured = await measurePreviewRow(row)
   assertTypePaintBounds(measured)
   if (measured.supporting) expect(measured.body).toEqual(measured.row)
   await body.evaluate((element) => (element as HTMLElement).blur())
-}
-
-async function assertPreviewColour(row: Locator, described: boolean, token: string) {
-  if (!described) return
-  const expected = await row.evaluate((element, name) => {
-    const reference = document.createElement('span')
-    reference.style.color = `var(${name})`
-    element.append(reference)
-    const color = getComputedStyle(reference).color
-    reference.remove()
-    return color
-  }, token)
-  expect(await row.locator('[data-habit-row-description]').evaluate((element) => getComputedStyle(element).color)).toBe(expected)
 }
 
 async function completionPaint(control: Locator) {
@@ -680,7 +687,7 @@ async function completionPaint(control: Locator) {
   })
 }
 
-async function assertCompletionFill(control: Locator, scale: number, pressScale = 1) {
+async function assertCompletionFill(control: Locator, scale: number, pressScale = 1, testExpect = expect) {
   const measured = await control.evaluate((element) => {
     const glyph = element.querySelector('[data-habit-check]')!
     const fill = element.querySelector('[data-habit-row-check-fill]') ?? element.querySelector('[data-habit-check-feedback]') ?? glyph
@@ -697,15 +704,15 @@ async function assertCompletionFill(control: Locator, scale: number, pressScale 
       targetPaint: getComputedStyle(element).backgroundColor,
       painted: [element, ...element.querySelectorAll('*')].filter((part) => getComputedStyle(part).backgroundColor !== 'rgba(0, 0, 0, 0)').map(box) }
   })
-  expect(measured.fill.width).toBeCloseTo(28 * pressScale, 1)
-  expect(measured.fill.height).toBeCloseTo(28 * pressScale, 1)
-  expect(measured.radius).toBe('12px')
-  expect(measured.glyph.width).toBeCloseTo(28 * pressScale, 1)
+  testExpect(measured.fill.width).toBeCloseTo(28 * pressScale, 1)
+  testExpect(measured.fill.height).toBeCloseTo(28 * pressScale, 1)
+  testExpect(measured.radius).toBe('12px')
+  testExpect(measured.glyph.width).toBeCloseTo(28 * pressScale, 1)
   for (const edge of ['left', 'right', 'top', 'bottom'] as const) {
-    expect(Math.abs(measured.fill[edge] - measured.glyph[edge])).toBeLessThanOrEqual(1)
+    testExpect(Math.abs(measured.fill[edge] - measured.glyph[edge])).toBeLessThanOrEqual(1)
   }
-  expect(measured.target.width).toBeCloseTo(48 * pressScale, 1)
-  expect(measured.target.height).toBeGreaterThanOrEqual(48 * pressScale - 0.1)
+  testExpect(measured.target.width).toBeCloseTo(48 * pressScale, 1)
+  testExpect(measured.target.height).toBeGreaterThanOrEqual(48 * pressScale - 0.1)
   const expected = await control.evaluate((element) => {
     const reference = document.createElement('span')
     reference.style.background = element.querySelector('[data-habit-check-feedback]') ? 'var(--bg-hover-opaque)' : 'var(--bg-hover)'
@@ -714,22 +721,36 @@ async function assertCompletionFill(control: Locator, scale: number, pressScale 
     reference.remove()
     return paint
   })
-  await expect.poll(() => completionPaint(control)).toBe(expected)
-  expect(measured.targetPaint).toBe('rgba(0, 0, 0, 0)')
+  await testExpect.poll(() => completionPaint(control)).toBe(expected)
+  testExpect(measured.targetPaint).toBe('rgba(0, 0, 0, 0)')
   for (const painted of measured.painted) {
-    expect(painted.left).toBeGreaterThanOrEqual(measured.glyph.left - 1)
-    expect(painted.top).toBeGreaterThanOrEqual(measured.glyph.top - 1)
-    expect(painted.right).toBeLessThanOrEqual(measured.glyph.right + 1)
-    expect(painted.bottom).toBeLessThanOrEqual(measured.glyph.bottom + 1)
+    testExpect(painted.left).toBeGreaterThanOrEqual(measured.glyph.left - 1)
+    testExpect(painted.top).toBeGreaterThanOrEqual(measured.glyph.top - 1)
+    testExpect(painted.right).toBeLessThanOrEqual(measured.glyph.right + 1)
+    testExpect(painted.bottom).toBeLessThanOrEqual(measured.glyph.bottom + 1)
   }
   for (const axis of ['x', 'y'] as const) {
-    expect(Math.abs(measured.fill[axis] - measured.glyph[axis])).toBeLessThanOrEqual(1)
-    expect(Math.abs(measured.fill[axis] - measured.target[axis])).toBeLessThanOrEqual(1)
+    testExpect(Math.abs(measured.fill[axis] - measured.glyph[axis])).toBeLessThanOrEqual(1)
+    testExpect(Math.abs(measured.fill[axis] - measured.target[axis])).toBeLessThanOrEqual(1)
   }
-  if (scale === 1) expect(Math.abs(measured.fill.y - measured.row.y)).toBeLessThanOrEqual(1)
-  expect(measured.fill.left - measured.title.right).toBeGreaterThanOrEqual(4)
-  expect(measured.neighbor.left - measured.fill.right).toBeGreaterThanOrEqual(4)
-  expect(measured.row.right - measured.fill.right).toBeGreaterThanOrEqual(4)
-  expect(measured.fill.top - measured.row.top).toBeGreaterThanOrEqual(4)
-  expect(measured.row.bottom - measured.fill.bottom).toBeGreaterThanOrEqual(4)
+  if (scale === 1) testExpect(Math.abs(measured.fill.y - measured.row.y)).toBeLessThanOrEqual(1)
+  testExpect(measured.fill.left - measured.title.right).toBeGreaterThanOrEqual(4)
+  testExpect(measured.neighbor.left - measured.fill.right).toBeGreaterThanOrEqual(4)
+  testExpect(measured.row.right - measured.fill.right).toBeGreaterThanOrEqual(4)
+  testExpect(measured.fill.top - measured.row.top).toBeGreaterThanOrEqual(4)
+  testExpect(measured.row.bottom - measured.fill.bottom).toBeGreaterThanOrEqual(4)
+}
+
+// WHY: These fixtures disable transitions and animations; repeated locator stability waits add two frames per target. https://github.com/thomasluizon/orbit-tickets/issues/1693
+async function hoverStaticTarget(target: Locator, offset?: { x: number; y: number }) {
+  const point = await target.evaluate((element, offset) => {
+    element.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    const bounds = element.getBoundingClientRect()
+    const x = bounds.left + (offset.x ?? bounds.width / 2)
+    const y = bounds.top + (offset.y ?? bounds.height / 2)
+    return { x, y, hitsTarget: element.contains(document.elementFromPoint(x, y)) }
+  }, offset ?? { x: null, y: null })
+  expect(point.hitsTarget).toBe(true)
+  await target.page().mouse.move(point.x, point.y)
+  expect(await target.evaluate(element => element.matches(':hover'))).toBe(true)
 }
