@@ -280,8 +280,7 @@ describe('Sheet (mobile)', () => {
         )
         expect(items.map((item: { props: { accessibilityLabel?: string }; findAllByType: (type: string) => { props: { children?: string } }[] }) =>
           item.props.accessibilityLabel ?? item.findAllByType('Text')[0]!.props.children)).toEqual(labels)
-        expect(items[3].props.accessibilityLabel).toBe('habits.actions.rescheduleAstra')
-        expect(items[3].findAllByType('Text')).toHaveLength(0)
+        expect(items[3].findAllByType('Text').map((node: { props: { children?: string } }) => node.props.children)).toEqual(['habits.actions.rescheduleAstra'])
         expect(items.every((item: { props: { disabled?: boolean } }) => !item.props.disabled)).toBe(true)
         await TestRenderer.act(() => items[index].props.onPress())
         expect(Object.values(actions)[index]).not.toHaveBeenCalled()
