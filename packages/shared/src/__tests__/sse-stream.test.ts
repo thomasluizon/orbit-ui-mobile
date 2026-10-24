@@ -10,6 +10,15 @@ async function* chunksOf(...chunks: string[]) {
 }
 
 describe('createChatSseParser', () => {
+  it.each([
+    { type: 'started', turnId: 'fe4a8c19-9c97-481a-882d-ed7dea936ec0', state: 'running', replayed: false },
+    { type: 'started', turnId: 'fe4a8c19-9c97-481a-882d-ed7dea936ec0', state: 'running', replayed: true },
+    { type: 'started', turnId: 'fe4a8c19-9c97-481a-882d-ed7dea936ec0', state: 'completed', replayed: true },
+    { type: 'error', status: 503, error: 'The turn was interrupted. Its effects may be partial; do not resend it with another key.', code: 'CHAT_TURN_INTERRUPTED', turnId: 'fe4a8c19-9c97-481a-882d-ed7dea936ec0', state: 'interrupted' },
+  ])('preserves keyed turn metadata: %j', (event) => {
+    expect(createChatSseParser().feed(frame(JSON.stringify(event)))).toEqual([event])
+  })
+
   it('parses complete events as they arrive', () => {
     const parser = createChatSseParser()
 
