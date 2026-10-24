@@ -9,6 +9,7 @@ interface Workflow<Job extends string> {
   on: Record<string, { paths?: string[] } | null>
   jobs: Record<Job, {
     'runs-on': string
+    env: Record<string, string>
     steps: { name?: string; run?: string }[]
   }>
 }
@@ -16,6 +17,17 @@ interface Workflow<Job extends string> {
 const readWorkflow = <Job extends string>(name: string) => parse(readFileSync(resolve(`../../.github/workflows/${name}.yml`), 'utf8')) as Workflow<Job>
 
 describe('iOS build and release boundaries', () => {
+  it.each(['ios-build', 'ios-release'])('%s resolves the updates entry against the configured Metro root', (name) => {
+    const workflow = readWorkflow<string>(name)
+    const job = Object.values(workflow.jobs)[0]!
+    const entry = execFileSync(process.execPath, ['-e', `
+      const { convertEntryPointToRelative, resolveEntryPoint } = require('expo/config/paths')
+      const root = process.cwd()
+      process.stdout.write(convertEntryPointToRelative(root, resolveEntryPoint(root, { platform: 'ios' }), null))
+    `], { cwd: resolve('.'), env: { ...process.env, EXPO_NO_METRO_WORKSPACE_ROOT: 'false', ...job.env }, encoding: 'utf8' })
+    expect(resolve(entry)).toBe(resolve('index.js'))
+  })
+
   it('compiles mobile pull requests on macOS without signing or launching a simulator', () => {
     const workflow = readWorkflow<'compile'>('ios-build')
     expect(workflow.on.pull_request?.paths).toContain('apps/mobile/**')

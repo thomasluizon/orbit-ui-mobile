@@ -1,6 +1,7 @@
 import { unmappedBackendFormError } from '@orbit/shared/hooks'
 import { extractBackendFieldErrors, extractBackendErrorDetails, extractBackendErrorCode, getBackendFieldError } from '@orbit/shared/utils'
 import { useEffect, useRef, useState } from 'react'
+import { Platform } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
@@ -393,6 +394,7 @@ export function useLoginFlow(isAuthCallback = false) {
       const result = await startMobileGoogleAuth({ returnUrl: typeof params.returnUrl === 'string' ? params.returnUrl : undefined })
       if (result.type === 'dismiss') setDismissedGoogleAttemptId(result.returnUrlAttemptId)
       else if (result.type !== 'success') setErrorKey('auth.errors.googleError')
+      else if (Platform.OS === 'ios') router.replace('/auth-callback')
     } catch { setErrorKey('auth.errors.googleError') }
     finally { busy.current = false; setIsGoogleLoading(false) }
   }

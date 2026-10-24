@@ -824,7 +824,7 @@ function CalendarScreenContent({
           initialEventId={calendarImportInitialEventId(importRequested, params.event ?? null, initialImportEventId)}
           actionRef={importActionRef}
           onActionStateChange={setImportActionState}
-          onClose={() => closeImportSheet()}
+          onClose={(afterClose) => closeImportSheet(afterClose, afterClose)}
           onGoToHabits={() => closeImportSheet(() => {
             setIsImportOpen(false);
             router.push('/(tabs)');

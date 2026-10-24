@@ -1399,6 +1399,26 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => tree.update(<></>));
   });
 
+  it('hands the native auth callback off only after the import sheet finishes dismissing', () => {
+    sheetTestControls.defer(true);
+    state.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true };
+    state.routeParams = { import: '1' };
+    const completeAuth = vi.fn();
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    try {
+      const content = tree.root.findAll((node) => node.type === 'CalendarImportContentMock')[0]!;
+      TestRenderer.act(() => content.props.onClose(completeAuth));
+      expect(sheetTestControls.isDismissPending).toBe(true);
+      expect(completeAuth).not.toHaveBeenCalled();
+      TestRenderer.act(() => sheetTestControls.completeDismissal());
+      expect(completeAuth).toHaveBeenCalledOnce();
+    } finally {
+      sheetTestControls.defer(false);
+      TestRenderer.act(() => tree.update(<></>));
+    }
+  });
+
   it("passes a resolved empty Google events query as ready", () => {
     state.profile = { weekStartDay: 1, timeZone: "UTC", hasProAccess: true };
     let tree!: Tree;

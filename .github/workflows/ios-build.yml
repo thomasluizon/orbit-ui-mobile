@@ -27,6 +27,7 @@ jobs:
     env:
       ORBIT_APP_VARIANT: staging
       EXPO_NO_TELEMETRY: '1'
+      EXPO_NO_METRO_WORKSPACE_ROOT: '1'
       EXPO_PUBLIC_API_BASE: https://api-staging.useorbit.org
       SENTRY_DISABLE_AUTO_UPLOAD: 'true'
     steps:
@@ -36,6 +37,8 @@ jobs:
           sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
           xcodebuild -version
       - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
           cache: npm
