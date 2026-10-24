@@ -1007,6 +1007,21 @@ describe('ProfileScreen', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
+  it.each(['en', 'pt-BR'] as const)('keeps the Android Astra settings entry named in %s', async (locale) => {
+    translateProMessages(locale)
+    mockRealListRow.current = true
+    const tree = await renderProfileScreen()
+    try {
+      const row = tree.root.findAllByType(ListRow).find((entry: { props: React.ComponentProps<typeof ListRow> }) => entry.props.title === 'Astra')!
+      expect(row).toBeDefined()
+      expect(nodeText(row)).toContain('Astra')
+      const target = row.find((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')
+      expect(target.props.accessibilityLabel).toBe('Astra')
+      TestRenderer.act(() => target.props.onPress())
+      expect(mockRouterPush).toHaveBeenLastCalledWith('/profile/astra')
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
   it('opens each settings sub-screen from Perfil without showing its controls there', async () => {
     const tree = await renderProfileScreen()
     for (const [label, path] of [
