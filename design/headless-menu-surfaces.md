@@ -15,8 +15,8 @@ keyboard navigation and dismissal. Orbit retains its menu paint and the compact 
 | Breakdown preview actions | `components/chat/breakdown-suggestion.tsx` | `components/chat/breakdown-suggestion.tsx` |
 | Goal filter | `app/(app)/progress/_components/progress-content.tsx` | `components/progress/progress-content.tsx` |
 | Calendar wide options | `app/(app)/calendar/_components/calendar-options.tsx` | The calendar options Sheet remains the compact platform owner |
-| Onboarding decisions, completion and plan | `components/onboarding/onboarding-flow.tsx` | `components/onboarding/onboarding-flow.tsx`; native window host decision pending |
-| Required upgrade and request throttle | The existing blocking error surfaces | `components/upgrade-required-screen.tsx`, `components/throttle-screen.tsx`; native window host decision pending |
+| Onboarding decisions, completion and plan | `components/onboarding/onboarding-flow.tsx` | `components/onboarding/onboarding-flow.tsx`, through `ui/native-dialog.tsx` and `ui/native-window-host.tsx` |
+| Required upgrade and request throttle | The existing blocking error surfaces | `components/upgrade-required-screen.tsx`, `components/throttle-screen.tsx`, through the same native dialog and window host |
 | Destructive confirmation | `components/ui/confirm-sheet.tsx`, `components/ui/sheet.tsx` | Same owners |
 
 Menus retain their compact sheet below the configured wide breakpoint, the explicit goal-filter
@@ -33,8 +33,9 @@ owners and screen reservations retain their own presentation and remain reachabl
 Web triggers retain their focus and identity while menu content loads on pointer intent or focus.
 The headless root, item behavior, positioning and focus modules load with that content. The
 headless trigger receives the existing button as its anchor without replacing the button.
-Within a Sheet, the headless positioner stays in normal flow so the sheet owns scrolling
-and safe-area clearance.
+Within a Sheet, the headless positioner uses `display: contents`, leaving its menu in the
+primitive's single body scroller. The panel's viewport height bound, nonshrinking header and
+shrinkable body preserve scrolling and safe-area clearance at zero and nonzero insets.
 The opening gesture consumes both a synthesized item click and the following pointer click,
 so releasing over a newly presented action cannot select it or dismiss the sheet.
 The content module is cached, and a failed prefetch can retry when the menu opens. Its first
@@ -51,8 +52,16 @@ Vitest covers menu names, item state, selection, dismissal, focus, replacement o
 existing interaction geometry. Native keyboard, TalkBack and native window stacking still require
 installed-device verification; host mocks cannot establish those outcomes.
 
-The native full-screen owners still require a window host that can cover an existing
-TrueSheet without dismissing its stateful subtree. A root React portal cannot establish
-that native ordering. Destructive confirmations focus Cancel after native presentation
-completes, and sheets restore the captured focus target on close when no replacement
-overlay has taken ownership, with the same focus rules on web.
+All ten surface groups have their behavior owners migrated. The native full-screen owners use
+rn-primitives Dialog Root, Portal, Overlay, Content and Title. A single app-owned native window
+contains their named PortalHost and is visible only while a dialog targets it. Its Back request
+reaches the topmost dialog's current open-change callback. Upgrade and throttle retain their
+blocking close policy, and onboarding retains its step and completion transitions.
+The host isolates background touch and accessibility without dismissing or re-presenting a
+TrueSheet.
+The full-screen owners retain their existing canvas, safe areas, content geometry and strings.
+Destructive confirmations focus Cancel after native presentation completes, and sheets and dialogs
+restore the captured focus target on close when no replacement overlay has taken ownership,
+with the same focus rules on web. Component coverage includes all three full-screen owners,
+topmost Back, focus return and a TrueSheet double that drops its edited subtree on dismissal;
+that subtree survives dialog opening and closing without a second presentation.

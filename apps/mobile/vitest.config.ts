@@ -9,7 +9,7 @@ export default defineConfig({
     name: 'rn-primitives-jsx',
     enforce: 'pre',
     transform(source, id) {
-      if (!/\/node_modules\/@rn-primitives\/(portal|slot|dropdown-menu)\/dist\/(index|dropdown-menu)\.m?js$/.test(id)) return
+      if (!/\/node_modules\/@rn-primitives\/(portal|slot|dropdown-menu|dialog)\/dist\/(index|dropdown-menu|dialog)\.m?js$/.test(id)) return
       return transformWithOxc(source, id, { lang: 'jsx' })
     },
   }],

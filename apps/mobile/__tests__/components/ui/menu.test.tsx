@@ -231,21 +231,19 @@ describe('Menu (mobile)', () => {
       tree = TestRenderer.create(<OverlayHost><Menu.Root><Menu.Trigger accessibilityLabel="Actions" /><Menu.Content presentation="anchored" title="Actions" items={items} /></Menu.Root><Text>Background</Text></OverlayHost>)
     })
     try {
-      const background = () => tree.root.findAll((node) => String(node.type) === 'View' && node.findAll((child) => child.type === Text && child.props.children === 'Background').length > 0)[0]!
-      expect(background().props.importantForAccessibility).not.toBe('no-hide-descendants')
+      const background = () => tree.root.findAll((node) => String(node.type) === 'View' && node.findAll((child) => child.type === Text && child.props.children === 'Background').length > 0)
+      expect(background().some((node) => node.props.importantForAccessibility === 'no-hide-descendants')).toBe(false)
       const trigger = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Actions')[0]!
       await TestRenderer.act(() => (trigger.props.onPress as () => void)())
       expect(menuItemLabels(tree)).toEqual(['Edit', 'Delete'])
-      expect(background().props.importantForAccessibility).toBe('no-hide-descendants')
-      expect(background().props.pointerEvents).toBe('none')
+      expect(background().some((node) => node.props.importantForAccessibility === 'no-hide-descendants' && node.props.pointerEvents === 'none')).toBe(true)
       const panel = tree.root.findAll((node) => String(node.type) === 'View' && node.props.accessibilityViewIsModal === true)[0]!
       expect(panel).toBeDefined()
       expect(panel.props.importantForAccessibility).not.toBe('no-hide-descendants')
       expect(panel.findAll((node) => node.props.children === 'Background')).toHaveLength(0)
       await TestRenderer.act(() => BackHandler.emitBackPress())
       expect(menuItemLabels(tree)).toEqual([])
-      expect(background().props.importantForAccessibility).not.toBe('no-hide-descendants')
-      expect(background().props.pointerEvents).not.toBe('none')
+      expect(background().some((node) => node.props.importantForAccessibility === 'no-hide-descendants' || node.props.pointerEvents === 'none')).toBe(false)
     } finally { await TestRenderer.act(() => tree.update(<></>)) }
   })
 

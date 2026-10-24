@@ -88,28 +88,34 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it('keeps every frequency choice within landscape safe bounds after scrolling', async () => {
+  it.each([0, 44])('keeps every frequency choice within landscape safe bounds with %ipx inline insets after scrolling', async (inlineInset) => {
     const page = await mount('frequency', 'en', 844, 390)
     try {
-      await page.locator('html').evaluate((root) => {
-        root.style.setProperty('--safe-left', '44px')
-        root.style.setProperty('--safe-right', '44px')
-        root.style.setProperty('--safe-bottom', '21px')
-      })
+      const bottomInset = inlineInset === 0 ? 0 : 21
+      await page.locator('html').evaluate((root, insets) => {
+        root.style.setProperty('--safe-left', `${insets.inline}px`)
+        root.style.setProperty('--safe-right', `${insets.inline}px`)
+        root.style.setProperty('--safe-bottom', `${insets.bottom}px`)
+      }, { inline: inlineInset, bottom: bottomInset })
       await page.getByRole('button', { name: en.habits.listOptions }).click()
+      const options = page.getByRole('dialog', { name: en.habits.listOptions, exact: true }).getByRole('menuitem')
+      expect(await options.count()).toBe(5)
+      for (const option of await options.all()) await option.scrollIntoViewIfNeeded()
       await page.getByRole('menuitem', { name: en.habits.frequencyFilter }).click()
-      await page.getByRole('dialog', { name: en.habits.frequencyFilter }).waitFor({ state: 'visible' })
-      const positioning = await page.getByRole('menu', { name: en.habits.frequencyFilter }).locator('..').evaluate((element) => getComputedStyle(element).position)
-      expect(['absolute', 'fixed']).not.toContain(positioning)
-      const choices = page.getByRole('menuitemcheckbox')
+      const frequency = page.getByRole('dialog', { name: en.habits.frequencyFilter })
+      await frequency.waitFor({ state: 'visible' })
+      const panel = (await frequency.boundingBox())!
+      expect(panel.height).toBeLessThanOrEqual(390 * 0.85)
+      expect(panel.y).toBeGreaterThanOrEqual(24)
+      const choices = frequency.getByRole('menuitemcheckbox')
       expect(await choices.count()).toBe(6)
       for (const choice of await choices.all()) {
         await choice.scrollIntoViewIfNeeded()
         const bounds = (await choice.boundingBox())!
-        expect(bounds.x).toBeGreaterThanOrEqual(44)
-        expect(bounds.x + bounds.width).toBeLessThanOrEqual(800)
+        expect(bounds.x).toBeGreaterThanOrEqual(inlineInset)
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(844 - inlineInset)
         expect(bounds.y).toBeGreaterThanOrEqual(0)
-        expect(bounds.y + bounds.height).toBeLessThanOrEqual(369)
+        expect(bounds.y + bounds.height).toBeLessThanOrEqual(390 - bottomInset)
       }
     } finally { await page.close() }
   })

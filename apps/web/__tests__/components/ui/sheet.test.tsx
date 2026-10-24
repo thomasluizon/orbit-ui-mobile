@@ -261,14 +261,6 @@ describe('Sheet', () => {
     unmount()
     expect(useUIStore.getState().openOverlayIds).toHaveLength(0)
   })
-  it('leaves at least a 24 pixel content peek while clearing the top inset on a long sheet', () => {
-    const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
-      .replaceAll('\r\n', '\n')
-
-    expect(stylesheet).toContain('padding-block-start: max(var(--space-6), var(--safe-top));')
-    expect(stylesheet).toContain('max-height: 85%;')
-  })
-
   it('keeps the body and fixed action row in separate slots', () => {
     render(
       <Sheet open title="Delete habit" actions={<button type="button">Delete</button>}>
