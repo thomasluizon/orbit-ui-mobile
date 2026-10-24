@@ -19,7 +19,7 @@ export interface PendingOperationCardLabels {
   reject: string
   remove: string
   rejected: (count: number) => string
-  summarize: (fields: readonly PendingOperationChange[]) => string
+  summarize: (fields: readonly PendingOperationChange[], actionKey?: string) => string
   save: string
   search: string
   invalid: string
@@ -64,6 +64,12 @@ export interface PendingOperationCardLabels {
 const COUNTED_ACTIONS = ['createHabits', 'logHabits', 'skipHabits', 'updateHabits', 'rescheduleHabits', 'deleteHabits', 'updateHabitEmojis']
 const COMPACT_ACTIONS = ['openBillingPortal', 'setCalendarSync', 'dismissCalendarImport', 'dismissCalendarSuggestion', 'manageCalendarSync', 'linkGoalsToHabit', 'markAllNotificationsRead', 'unsubscribePush', 'setProactiveAstra']
 
+function hasReusedSubHabit(proposal: unknown): boolean {
+  if (Array.isArray(proposal)) return proposal.some(hasReusedSubHabit)
+  return typeof proposal === 'object' && proposal !== null
+    && ('habit_id' in proposal || ('sub_habits' in proposal && hasReusedSubHabit(proposal.sub_habits)))
+}
+
 function getToggleOutcome(actionKey: string | null | undefined, fields: readonly PendingOperationChange[]): 'turnOn' | 'turnOff' | null {
   if (!actionKey || !PREVIEW_ACTION_KEYS.includes(actionKey)
     || !['setProactiveAstra', 'setAiSummary', 'setAiMemory'].includes(actionKey)) return null
@@ -98,6 +104,10 @@ export function buildPendingOperationCardLabels(
   const hasMixedDeletion = pendingOperation.items?.some((item) => item.removesData === true)
     && pendingOperation.items.some((item) => item.removesData !== true)
   const actionKey = pendingOperation.actionKey
+  const createsHabits = ['createHabit', 'createHabits', 'createSubHabit'].includes(actionKey ?? '')
+    && !hasMixedDeletion && !pendingOperation.items?.some((item) => item.removesData === true
+      || item.fields.some((field) => field.field === 'habit_id' || field.oldValue != null
+        || (field.field === 'sub_habits' && hasReusedSubHabit(field.proposedValue))))
   const toggleOutcome = getToggleOutcome(actionKey, pendingOperation.items?.length
     ? pendingOperation.items.flatMap((item) => item.fields) : pendingOperation.changes ?? [])
   const actionLabel = getApprovalLabel(actionKey, toggleOutcome, translate)
@@ -124,10 +134,10 @@ export function buildPendingOperationCardLabels(
     reject: translate('chat.operation.reject'),
     remove: translate('chat.operation.remove'),
     rejected: (count) => translate('chat.operation.rejected', { count }),
-    summarize: (fields) => {
+    summarize: (fields, summaryActionKey = actionKey ?? undefined) => {
       const outcome = getToggleOutcome(actionKey, fields)
       return outcome ? translate(`chat.operation.toggleSource.${actionKey}.${outcome}`)
-        : summarizePendingOperationItem(fields, translate, formatTime, locale, actionKey)
+        : summarizePendingOperationItem(fields, translate, formatTime, locale, summaryActionKey)
     },
     save: translate('common.save'),
     search: translate('common.search'),
@@ -162,7 +172,8 @@ export function buildPendingOperationCardLabels(
       ? translate(`chat.operation.deleteTitle.${deletionSubject}`, { count })
       : translate('chat.operation.confirmActionTitle', { action: confirm }),
     irreversible: translate('chat.operation.irreversible'),
-    name: translate(capabilityKey ?? 'chat.operation.unknown'),
+    name: createsHabits ? translate('chat.operation.newHabits', { count: pendingOperation.changeTargetCount ?? pendingOperation.items?.length ?? 1 })
+      : translate(capabilityKey ?? 'chat.operation.unknown'),
     pending: translate('chat.operation.pending'),
     pendingTitle: translate('chat.operation.pendingTitle'),
     proposed: translate('chat.preview.proposed'),
