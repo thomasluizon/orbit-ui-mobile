@@ -261,3 +261,35 @@ export async function inspectFocusedControlRings(page: Page) {
   const state = await focused.evaluate((element) => ({ focused: element.tagName.toLowerCase(), focusVisible: element.matches(':focus-visible') }))
   return { ...state, indicators: await inspectControlRings(focused, true) }
 }
+
+export async function expectOneControlRing(control: Locator, forcedColors: boolean): Promise<void> {
+  await expect(async () => {
+    await expect(control).toBeFocused()
+    const styles = await control.evaluate((element) => {
+      for (const animation of document.getAnimations()) animation.finish()
+      const controlStyle = getComputedStyle(element)
+      const wrapperStyle = getComputedStyle(element.parentElement!)
+      return {
+        focusVisible: element.matches(':focus-visible'),
+        controlOutlineStyle: controlStyle.outlineStyle,
+        controlOutlineWidth: controlStyle.outlineWidth,
+        controlOutlineColor: controlStyle.outlineColor,
+        systemOutlineColor: (() => {
+          const sample = document.createElement('span')
+          sample.style.color = 'CanvasText'
+          document.body.append(sample)
+          const color = getComputedStyle(sample).color
+          sample.remove()
+          return color
+        })(),
+        wrapperOutlineStyle: wrapperStyle.outlineStyle,
+        wrapperOutlineWidth: wrapperStyle.outlineWidth,
+      }
+    })
+    expect(styles.focusVisible).toBe(true)
+    expect(styles.controlOutlineStyle).toBe('solid')
+    expect(styles.controlOutlineWidth).toBe('2px')
+    expect(styles.controlOutlineColor).toBe(forcedColors ? styles.systemOutlineColor : 'rgb(196, 83, 15)')
+    expect(styles.wrapperOutlineStyle === 'none' || styles.wrapperOutlineWidth === '0px').toBe(true)
+  }).toPass({ timeout: 5000 })
+}

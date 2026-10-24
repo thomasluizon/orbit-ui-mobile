@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
 
@@ -32,23 +33,21 @@ describe('HabitRow menu replacement', () => {
       <HabitRow habit={createMockHabit({ id: 'b', title: 'Run' })} actions={{ onDelete: vi.fn() }} />
     </>)
     const [first, second] = screen.getAllByRole('button', { name: 'habits.actions.more' })
-    const press = (trigger: HTMLElement) => {
-      if (activation === 'pointer') {
-        fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false })
-        fireEvent.pointerUp(trigger, { button: 0, ctrlKey: false })
-        fireEvent.click(trigger)
-      } else fireEvent.keyDown(trigger, { key: 'Enter' })
+    const user = userEvent.setup()
+    const press = async (trigger: HTMLElement) => {
+      if (activation === 'pointer') await user.click(trigger)
+      else fireEvent.keyDown(trigger, { key: 'Enter' })
     }
-    press(first!)
+    await press(first!)
     await screen.findByRole('menuitem', { name: 'common.edit' })
     if (phase !== 'open') {
       fireEvent.keyDown(document, { key: 'Escape' })
       if (phase === 'reopened') {
-        press(first!)
+        await press(first!)
         await screen.findByRole('menuitem', { name: 'common.edit' })
       }
     }
-    press(second!)
+    await press(second!)
     await screen.findByRole('menuitem', { name: 'habits.actions.delete' })
     expect(screen.getAllByRole('menu')).toHaveLength(1)
     expect(screen.queryByRole('menuitem', { name: 'common.edit' })).toBeNull()

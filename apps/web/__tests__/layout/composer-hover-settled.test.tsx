@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, it } from 'vitest'
+import { afterAll, beforeAll, expect, it, vi } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -7,6 +7,7 @@ import tailwind from '@tailwindcss/postcss'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { hoverSettledComposerControl } from '@/e2e/layout/composer-hover-state'
+import { expectOneControlRing } from '@/e2e/layout/focus-indicators'
 
 let browserLaunch: BrowserLaunch | undefined
 let browser: Browser
@@ -79,6 +80,31 @@ it('exposes the first measurable menu box before anchoring', async () => {
     await hoverSettledComposerControl(control)
     expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
   } finally { await page.close() }
+})
+
+it('waits for keyboard focus visibility after the pointer has focused a menu item', async () => {
+  const page = await browser.newPage({ viewport: { width: 1280, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    await page.setContent(`<!doctype html><style>${stylesheet}</style><button>Outside</button><div id="root"></div>`)
+    await page.addScriptTag({ content: menuScript })
+    await page.getByRole('button', { name: 'Outside', exact: true }).click()
+    await page.getByRole('button', { name: 'Actions', exact: true }).click()
+    const control = page.getByRole('menuitem', { name: 'Voice', exact: true })
+    await page.waitForFunction(() => document.activeElement?.textContent === 'Voice')
+    expect(await control.evaluate((element) => element.matches(':focus-visible'))).toBe(false)
+    let sampled!: () => void
+    const firstSample = new Promise<void>((resolve) => { sampled = resolve })
+    const evaluate = control.evaluate.bind(control)
+    vi.spyOn(control, 'evaluate').mockImplementationOnce(async (callback, argument) => {
+      const result = await evaluate(callback, argument)
+      sampled()
+      return result
+    })
+    const checked = expectOneControlRing(control, false).then(() => null, (error: unknown) => error)
+    await firstSample
+    await page.keyboard.press('Home')
+    expect(await checked).toBeNull()
+  } finally { vi.restoreAllMocks(); await page.close() }
 })
 
 it('waits for the production menu opening transition before hovering', async () => {

@@ -115,12 +115,11 @@ describe('HabitRow overflow menus', () => {
     )
 
     const [firstTrigger, secondTrigger] = screen.getAllByRole('button', { name: 'habits.actions.more' })
-    fireEvent.pointerDown(firstTrigger!)
-    fireEvent.click(firstTrigger!)
+    const user = userEvent.setup()
+    await user.click(firstTrigger!)
     expect(await screen.findByRole('menuitem', { name: 'common.edit' })).toBeInTheDocument()
 
-    fireEvent.pointerDown(secondTrigger!)
-    fireEvent.click(secondTrigger!)
+    await user.click(secondTrigger!)
     expect(await screen.findByRole('menuitem', { name: 'habits.actions.delete' })).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'common.edit' })).toBeNull()
   })
