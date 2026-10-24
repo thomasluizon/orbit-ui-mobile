@@ -6,16 +6,18 @@ import { pathToFileURL, fileURLToPath } from "node:url"
 import ts from "typescript"
 import postcss from "postcss"
 
-const USAGE = `usage: check-surface-scope.mjs [--root <repository>]
+const USAGE = `usage: check-surface-scope.mjs [--root <repository>] [--files-stdin] [--graphic-floor-only]
 
   Derives each declared color token's permitted surfaces from the shipped
   theme values, then checks web and mobile token call sites with the
   repository TypeScript parser.
 
   --root <repository>  scan this repository instead of the script's repository
+  --files-stdin        scan only the nonempty JSON array of app source paths on stdin
+  --graphic-floor-only fail only for graphic floor findings; report other findings
   --help, -h           print this usage and exit 0
 
-exit codes: 0 no out-of-scope use, 1 violation found, 2 usage or declaration error`
+exit codes: 0 no blocking finding, 1 blocking finding, 2 usage or declaration error`
 
 const SKIPPED_DIRECTORIES = new Set([".expo", ".next", "__tests__", "coverage", "dist", "node_modules", "scripts"])
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"])
@@ -40,6 +42,8 @@ const SURFACE_TOKENS = new Map([
 
 function parseArguments(argv) {
   let repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+  let filesFromStdin = false
+  let graphicFloorOnly = false
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index]
     if (argument === "--help" || argument === "-h") {
@@ -53,9 +57,31 @@ function parseArguments(argv) {
       index += 1
       continue
     }
+    if (argument === "--files-stdin") {
+      filesFromStdin = true
+      continue
+    }
+    if (argument === "--graphic-floor-only") {
+      graphicFloorOnly = true
+      continue
+    }
     throw new Error(`unknown argument: ${argument}`)
   }
-  return repositoryRoot
+  return { repositoryRoot, filesFromStdin, graphicFloorOnly }
+}
+
+function selectedSourceFiles(repositoryRoot) {
+  const paths = JSON.parse(readFileSync(0, "utf8"))
+  if (!Array.isArray(paths) || paths.length === 0) throw new Error("--files-stdin requires a nonempty JSON array of app source paths")
+  return [...new Set(paths.map((path) => {
+    if (typeof path !== "string") throw new Error("source paths must be strings")
+    const file = resolve(repositoryRoot, path)
+    const localPath = relative(repositoryRoot, file).replaceAll("\\", "/")
+    if (!/^apps\/(web|mobile)\//.test(localPath) || !SOURCE_EXTENSIONS.has(extname(file)) || !existsSync(file)) {
+      throw new Error(`invalid app source path: ${path}`)
+    }
+    return file
+  }))]
 }
 
 function collectSourceFiles(directory) {
@@ -1677,8 +1703,7 @@ function foregroundSiteSurfaces(opening, context, node, state, openings) {
     : openingSurfaces(opening, opening.getSourceFile(), state, openings)
 }
 
-function inspectSources(repositoryRoot, declarations) {
-  const files = ["apps/web", "apps/mobile"].flatMap((path) => collectSourceFiles(resolve(repositoryRoot, path)))
+function inspectSources(repositoryRoot, declarations, files) {
   const program = ts.createProgram(files, { noLib: true, noResolve: true, target: ts.ScriptTarget.Latest, jsx: ts.JsxEmit.Preserve })
   const conditionKey = createConditionKey(program.getTypeChecker())
   const syntaxes = files.map((file) => program.getSourceFile(file))
@@ -1763,16 +1788,17 @@ function inspectSources(repositoryRoot, declarations) {
       }
     }
   }
-  return { files, usages, undeclared: [...new Set(undeclared)] }
+  return { usages, undeclared: [...new Set(undeclared)] }
 }
 
-let repositoryRoot
 try {
-  repositoryRoot = parseArguments(process.argv.slice(2))
+  const { repositoryRoot, filesFromStdin, graphicFloorOnly } = parseArguments(process.argv.slice(2))
+  const files = filesFromStdin ? selectedSourceFiles(repositoryRoot)
+    : ["apps/web", "apps/mobile"].flatMap((path) => collectSourceFiles(resolve(repositoryRoot, path)))
   const declarations = parseDeclarations(readFileSync(resolve(repositoryRoot, "DESIGN.md"), "utf8"))
   const { themes, measureStack } = await measuredThemes(repositoryRoot)
   validateDeclarations(declarations, themes)
-  const { files, usages, undeclared } = inspectSources(repositoryRoot, declarations)
+  const { usages, undeclared } = inspectSources(repositoryRoot, declarations, files)
   const violations = []
   const roleAmbiguities = [...undeclared]
   for (const usage of usages) {
@@ -1808,12 +1834,13 @@ try {
     }
   }
   for (const finding of [...new Set(roleAmbiguities)]) console.log(`UNDECLARED ${finding}`)
+  const blocking = graphicFloorOnly ? violations.filter((finding) => finding.includes(`GRAPHIC floor ${FLOORS.graphic.toFixed(2)}`)) : violations
   if (violations.length > 0) {
-    console.error("Surface scope guard failed.")
+    console.error(blocking.length > 0 ? "Surface scope guard failed." : "Advisory surface scope findings:")
     for (const violation of [...new Set(violations)]) console.error(violation)
-    process.exit(1)
   }
-  console.log(`Surface scope guard passed. ${files.length} source files checked.`)
+  console.log(`Surface scope guard ${blocking.length > 0 ? "failed" : "passed"}. ${files.length} source files checked.`)
+  if (blocking.length > 0) process.exit(1)
 } catch (error) {
   console.error(`check-surface-scope: ${error.message}\n`)
   console.error(USAGE)

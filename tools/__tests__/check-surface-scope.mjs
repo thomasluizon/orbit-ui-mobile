@@ -88,6 +88,40 @@ function stageUnsafeEmptyTrack(repository) {
 }
 
 export const cases = () => {
+  const scoped = stageRepository("selected-files", {
+    web: `export function Ring(){return <span className="bg-[var(--bg-card)] shadow-[inset_0_0_0_2px_var(--fg-4)]" />}`,
+    mobile: `export function Ring(){return <View style={{ backgroundColor: tokens.bgCard, borderColor: tokens.fg3 }} />}`,
+  })
+  check("check-surface-scope.mjs", "checks only the files supplied on stdin", ["--root", scoped, "--files-stdin"], {
+    status: 0, stdout: /1 source files checked/,
+  }, { input: JSON.stringify(["apps/mobile/example.tsx"]) })
+  check("check-surface-scope.mjs", "retains selected graphic violations", ["--root", scoped, "--files-stdin"], {
+    status: 1, stderr: /GRAPHIC floor 3\.00/,
+  }, { input: JSON.stringify(["apps/web/example.tsx"]) })
+  for (const input of ["not json", "{}", "[]", '[1]', '["DESIGN.md"]', '["apps/web/missing.tsx"]', '["apps/web/../../../outside.tsx"]']) {
+    check("check-surface-scope.mjs", `rejects an invalid source selection: ${input}`, ["--root", scoped, "--files-stdin"], {
+      status: 2,
+    }, { input })
+  }
+  check("check-surface-scope.mjs", "blocks a whole-tree graphic floor finding", ["--root", scoped, "--graphic-floor-only"], {
+    status: 1, stderr: /GRAPHIC floor 3\.00/,
+  })
+  const advisory = stageRepository("advisory-text", {
+    web: `export function Caption(){return <p className="bg-[var(--bg-card)] text-[var(--primary-soft)]">Copy</p>}`,
+  })
+  check("check-surface-scope.mjs", "keeps text findings advisory in graphic floor mode", ["--root", advisory, "--graphic-floor-only"], {
+    status: 0, stderr: /TEXT floor 4\.50/,
+  })
+  const unresolvedGraphic = stageRepository("advisory-unresolved-graphic", {
+    mobile: `export function Ring(){return <View style={{ borderColor: tokens.fg4 }} />}`,
+  })
+  check("check-surface-scope.mjs", "keeps unresolved surfaces advisory in graphic floor mode", ["--root", unresolvedGraphic, "--graphic-floor-only"], {
+    status: 0, stderr: /GRAPHIC surface is unresolved/,
+  })
+  writeFileSync(join(advisory, "DESIGN.md"), "missing declarations")
+  check("check-surface-scope.mjs", "keeps declaration errors blocking in graphic floor mode", ["--root", advisory, "--graphic-floor-only"], {
+    status: 2, stderr: /missing the surface-scope declaration table/,
+  })
   for (const [label, style] of [
     ["inline-composed-style", "{{ backgroundColor: 'var(--bg-well)', color: 'var(--fg-3)' }}"],
     ["named-composed-style", "captionStyle"],
