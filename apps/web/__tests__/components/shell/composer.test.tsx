@@ -203,6 +203,15 @@ describe('clipboard composer control', () => {
 })
 
 describe('Composer', () => {
+  it.each([false, true].flatMap(withOpener => ['idle', 'sending'].map(state => ({ withOpener, state }))))('uses one send icon with opener=$withOpener in $state', ({ withOpener, state }) => {
+    render(<Composer {...props({ state, value: 'Draft', suggestions: [], ...(withOpener ? { onOpenConversation: vi.fn(), conversationLabel: 'Open conversation' } : {}) })} />)
+    const send = screen.getByRole('button', { name: words.send })
+    expect(send.textContent).toBe('')
+    expect(send.querySelector('[data-asset^="astra-mark"]')).toBeNull()
+    expect(send.querySelectorAll('svg')).toHaveLength(1)
+    expect(send.querySelector('svg')).toHaveClass(state === 'sending' ? 'tabler-icon-loader-2' : 'tabler-icon-arrow-up')
+  })
+
   it.each([en, ptBR].flatMap(messages => (['idle', 'atLimit', 'offline', 'sending'] as const).map(state => ({ messages, state }))))(
     'owns the persistent input minimum and inert action reservation before effects while $state', ({ messages, state }) => {
       const configuration = props({ suggestions: [], words: { ...messages.shell.composer,
@@ -334,14 +343,13 @@ describe('Composer', () => {
   })
 
   it.each(['idle', 'sending', 'offline', 'atLimit', 'recording', 'transcribing'] as const)(
-    'reserves send progress but mounts its animation only while sending: %s', state => {
+    'replaces the send arrow with progress only while sending: %s', state => {
       const view = render(<Composer {...props({ state, value: 'Draft', limitReason: 'reason', onVoice: vi.fn(), voiceWords })} />)
       const send = screen.getByRole('button', { name: words.send })
-      const mark = send.querySelector('[data-asset="astra-mark"]')
-      expect(mark).toHaveAttribute('aria-hidden', 'true')
-      expect(send.querySelectorAll('svg')).toHaveLength(state === 'sending' ? 2 : 1)
+      expect(send.querySelector('[data-asset="astra-mark"]')).toBeNull()
+      expect(send.querySelectorAll('svg')).toHaveLength(1)
       expect(send.lastElementChild).toHaveAttribute('aria-hidden', 'true')
-      expect(send.lastElementChild).toHaveStyle({ visibility: state === 'sending' ? 'visible' : 'hidden' })
+      expect(send.querySelectorAll('.orbit-essential-loading')).toHaveLength(state === 'sending' ? 1 : 0)
       if (state === 'sending') expect(send).toHaveAttribute('aria-busy', 'true')
       else expect(send).not.toHaveAttribute('aria-busy')
       view.unmount()
@@ -628,8 +636,9 @@ describe('Composer', () => {
     if (_case === 'idle with text' || _case === 'idle with a file only') {
       expect(send).toHaveClass('enabled:hover:bg-[var(--primary-hover)]')
     }
-    expect(send.querySelector('span[aria-hidden="true"]')).toHaveStyle({ visibility: _case === 'sending' ? 'visible' : 'hidden' })
-    expect(send.querySelector('[data-asset^="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
+    expect(send.querySelectorAll('svg')).toHaveLength(1)
+    expect(send.querySelectorAll('.orbit-essential-loading')).toHaveLength(_case === 'sending' ? 1 : 0)
+    expect(send.querySelector('[data-asset^="astra-mark"]')).toBeNull()
     if (_case === 'sending') expect(send).not.toHaveClass('disabled:opacity-40')
     else if (disabled) expect(send).toHaveClass('disabled:opacity-40')
     if (disabled) expect(send).toBeDisabled()

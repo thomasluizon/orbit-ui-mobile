@@ -9,14 +9,17 @@ describe.each([en, ptBR])('assistant action copy', messages => {
     emptyHabitList: messages.habits.askAstra,
     habitMenu: messages.habits.actions.rescheduleAstra,
     habitInterpretation: messages.habits.form.askAstra,
-    dateInterpretation: messages.habits.form.suggestDate,
-    emojiTagAndRescheduleSuggestions: messages.habits.form.askDate,
     habitAnalysis: messages.habits.detail.askAstra,
     goalAnalysis: messages.goals.detail.askAstraEyebrow,
     summaryConversation: messages.summary.askAstra,
     conversationEmptyHeading: messages.chat.empty.title,
     onboardingImport: messages.onboarding.wizard.importButton,
   }
+
+  it.each([messages.habits.form.suggestDate, messages.habits.form.suggestEmoji, messages.habits.form.suggestTags, messages.habits.reschedule.suggestDate])('names the specific action in the accessible name: %s', name => {
+    expect(name).toMatch(/^(Suggest|Sugerir) /)
+    expect(name.match(/Astra/g)).toHaveLength(1)
+  })
 
   it.each(Object.entries(surfaces))('keeps %s meaningful without repeating the assistant name', (_surface, text) => {
     expect(text.trim().length).toBeGreaterThan(0)

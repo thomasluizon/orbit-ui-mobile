@@ -20,7 +20,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
-import { ChevronDown, Clipboard as ClipboardIcon, FileText, Image, Plus, Square, X } from '@/components/ui/icons'
+import { ArrowUp, ChevronDown, Clipboard as ClipboardIcon, FileText, Image, Plus, Square, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -517,7 +517,7 @@ function ComposerInputRow({ props, tokens, inputRef, disclosure }: Readonly<{ pr
           !canSend && props.state !== 'sending' ? styles.disabled : null,
         ]}
       >
-        <AstraGlyph size={20} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} /><View accessible={false} importantForAccessibility="no-hide-descendants" style={{ width: 20, opacity: props.state === 'sending' ? 1 : 0 }}><ActivityIndicator animating={props.state === 'sending'} size="small" color={tokens.fgOnPrimary} /></View>
+        {props.state === 'sending' ? <ActivityIndicator accessible={false} importantForAccessibility="no-hide-descendants" size="small" color={tokens.fgOnPrimary} /> : <ArrowUp size={20} strokeWidth={2} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} />}
       </InsetFocusPressable>
       </View>
     </View>
@@ -545,10 +545,9 @@ function RetryControl({ props, tokens }: Readonly<{ props: ComposerProps; tokens
       accessibilityRole="button"
       onPress={props.onRetry}
       accessibilityLabel={props.words.retry}
-      style={({ pressed }) => [styles.retry, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null]}
+      style={({ pressed }) => [styles.iconButton, { alignSelf: 'flex-start' }, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null]}
     >
-      <AstraGlyph size={16} color={tokens.fg2} />
-      <Text style={[styles.retryText, { color: tokens.fg2 }]}>{props.words.retry}</Text>
+      <AstraGlyph size={20} color={tokens.fg2} />
     </InsetFocusPressable>
   )
 }
@@ -812,7 +811,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: SPACING.s4,
+    gap: SPACING.s0,
   },
   textActionSlot: {
     width: 48,
@@ -824,7 +823,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
-    gap: 4,
+    gap: 0,
   },
   leadingControls: {
     flexGrow: 1,
@@ -878,12 +877,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   sendButton: {
-    minWidth: 48,
-    maxWidth: '100%',
-    flexDirection: 'row',
-    gap: SPACING.s8,
-    paddingHorizontal: SPACING.s8,
-    paddingVertical: SPACING.s4,
+    width: 48,
     minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',

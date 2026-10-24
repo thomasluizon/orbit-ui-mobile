@@ -16,7 +16,7 @@ import {
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
-import { ChevronDown, Clipboard, FileText, Image as ImageIcon, Loader2, Plus, Square, X } from '@/components/ui/icons'
+import { ArrowUp, ChevronDown, Clipboard, FileText, Image as ImageIcon, Loader2, Plus, Square, X } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
 import { Sheet } from '@/components/ui/sheet'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -271,7 +271,7 @@ function ComposerTextControls({ props, inMenu, onPasteText, onClear, disclosure 
       return
     } finally { scope.pending = false }
   }
-  return <div data-composer-text-controls className="flex min-w-12 min-h-12 shrink-0 items-end gap-[4px]">
+  return <div data-composer-text-controls className="flex min-w-12 min-h-12 shrink-0 items-end gap-0">
   {disclosure || (props.state !== 'recording' && props.state !== 'transcribing') ? <div data-composer-text-action-slot className="w-12 min-h-12 shrink-0">
     {disclosure ?? <ComposerTextAction words={props.words} canClear={canClear} canPaste={canPaste} inMenu={inMenu} onClear={onClear} onPaste={() => void pasteMessage()} />}
   </div> : null}
@@ -392,7 +392,7 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
         /></div>}
       </div>
 
-      <div data-composer-trailing-controls className="flex max-w-full flex-wrap justify-end shrink-0 items-end gap-[4px]">
+      <div data-composer-trailing-controls className="flex max-w-full flex-wrap justify-end shrink-0 items-end gap-0">
         <ComposerTextControls props={props} inMenu={Boolean(disclosure) || textActionInMenu} disclosure={disclosure} onClear={clearMessage} onPasteText={text => {
           pasteFocus.current = text
           props.onChangeValue(text)
@@ -408,9 +408,9 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
         onClick={() => {
           if (canSend) props.onSend()
         }}
-        className={`relative flex min-w-12 min-h-12 max-w-full shrink-0 items-center justify-center gap-2 px-2 py-1 overflow-hidden rounded-full border-0 transition-[background-color,opacity] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed ${props.state === 'sending' ? '' : 'disabled:opacity-40'} ${sendIsAccent ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-[var(--bg-well)] text-[var(--fg-3)]'}`}
+        className={`relative flex w-[48px] min-h-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-0 transition-[background-color,opacity] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed ${props.state === 'sending' ? '' : 'disabled:opacity-40'} ${sendIsAccent ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-[var(--bg-well)] text-[var(--fg-3)]'}`}
       >
-        <AstraGlyph size={20} color="currentColor" /><span aria-hidden="true" className="inline-flex w-5 shrink-0" style={{ visibility: props.state === 'sending' ? 'visible' : 'hidden' }}>{props.state === 'sending' ? <Loader2 size={20} strokeWidth={2} className="animate-spin orbit-essential-loading" /> : null}</span>
+        {props.state === 'sending' ? <Loader2 size={20} strokeWidth={2} aria-hidden="true" className="animate-spin orbit-essential-loading" /> : <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />}
       </button>
       </div>
     </div>
@@ -435,9 +435,9 @@ function RetryControl({ props }: Readonly<{ props: ComposerProps }>) {
       type="button"
       onClick={props.onRetry}
       aria-label={props.words.retry}
-      className="orbit-link-action flex min-h-[48px] items-center justify-center gap-2 self-start border-0 bg-transparent text-sm font-medium text-[var(--fg-2)] transition-[color] duration-[var(--dur-hover)] hover:text-[var(--fg-1)]"
+      className="flex w-[48px] min-h-[48px] items-center justify-center self-start rounded-full border-0 bg-transparent text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
     >
-      <AstraGlyph size={16} /><span>{props.words.retry}</span>
+      <AstraGlyph size={20} />
     </button>
   )
 }

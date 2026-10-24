@@ -60,6 +60,17 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         })
         expect(wrappedText.width).toBeGreaterThan(wrappedText.availableWidth)
         await field.fill(wrappedText.text)
+        const targets = await panel.locator('[data-composer-trailing-controls] button').evaluateAll(buttons => buttons.map(button => ({
+          ...button.getBoundingClientRect().toJSON(), text: button.textContent,
+          marks: button.querySelectorAll('[data-asset^="astra-mark"]').length,
+        })))
+        for (const [index, target] of targets.entries()) {
+          expect(target.width).toBe(48)
+          expect(target.height).toBe(48)
+          expect(target.text).toBe('')
+          expect(target.marks).toBe(0)
+          if (index > 0) expect(target.left - targets[index - 1]!.right).toBe(0)
+        }
         const typed = await field.evaluate((element) => {
           const input = element as HTMLTextAreaElement
           return { clientHeight: input.clientHeight, scrollHeight: input.scrollHeight }

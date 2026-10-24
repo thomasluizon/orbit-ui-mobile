@@ -214,6 +214,7 @@ function MenuItems({ items, sheetPresentation, onActivate }: Readonly<MenuItemsP
       <Pressable
         key={item.id}
         accessibilityRole={item.checked === undefined ? "menuitem" : "checkbox"}
+        accessibilityLabel={item.icon === 'astra' ? item.label : undefined}
         accessibilityState={{ disabled, checked: item.checked }}
         disabled={disabled}
         onPress={() => onActivate(item.id)}
@@ -221,18 +222,19 @@ function MenuItems({ items, sheetPresentation, onActivate }: Readonly<MenuItemsP
           styles.item,
           fontScale > 1.3 ? { alignItems: 'flex-start' } : null,
           sheetPresentation ? styles.sheetItem : null,
+          item.icon === 'astra' ? { width: 48, minHeight: 48, paddingHorizontal: 0, paddingVertical: 0, justifyContent: 'center' } : null,
           item.destructive ? { borderTopColor: tokens.hairline, borderTopWidth: 1 } : null,
           pressed ? { backgroundColor: tokens.bgHover } : null,
           disabled ? styles.disabled : null,
         ]}
       >
         {item.icon ? <Icon color={item.destructive ? tokens.statusBad : tokens.fg2} name={item.icon} size={20} strokeWidth={2} /> : null}
-        <Text
+        {item.icon === 'astra' ? null : <Text
           numberOfLines={fontScale > 1.3 ? undefined : 1}
           style={[styles.label, { color: item.destructive ? tokens.statusBadText : tokens.fg1 }]}
         >
           {item.label}
-        </Text>
+        </Text>}
         {item.checked ? <View style={{ height: 20 * fontScale, justifyContent: 'center' }}><Check size={20} color={tokens.fg1} strokeWidth={2} /></View> : null}
         {item.badge ? (
           <View style={[styles.badge, { backgroundColor: tokens.bgElev }]}>

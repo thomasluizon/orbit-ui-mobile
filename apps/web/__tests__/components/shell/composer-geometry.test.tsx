@@ -31,7 +31,7 @@ let translationMessages = en
 
 vi.mock('next-intl', async (importOriginal) => ({
   ...await importOriginal<typeof import('next-intl')>(),
-  useTranslations: () => (key: string) => key === 'nav.astra' ? translationMessages.nav.astra : key === 'habits.form.askDate' ? translationMessages.habits.form.askDate : key,
+  useTranslations: () => (key: string) => key === 'nav.astra' ? translationMessages.nav.astra : key === 'habits.form.suggestDate' ? translationMessages.habits.form.suggestDate : key,
 }))
 
 const cases = [320, 360, 384, 412].flatMap((width) =>
@@ -45,7 +45,7 @@ function geometryProps(scenario: GeometryScenario, messages: typeof en, withOpen
   const state = ['oneLine', 'typing', 'longText', 'tray1', 'tray2', 'tray3', 'retry'].includes(scenario) ? 'idle' : scenario
   return {
     state,
-    astraRequestLabel: messages.habits.form.askDate,
+    astraRequestLabel: messages.habits.form.suggestDate,
     ...(state === 'offline' ? { limitReason: messages.shell.composer.offline.reason } : {}),
     ...(state === 'atLimit' ? { limitReason: messages.shell.composer.limit.reason } : {}),
     value: scenario === 'oneLine' ? 'Oi' : scenario === 'typing' ? 'First\nSecond\nThird' : scenario === 'longText' ? 'Long message\n'.repeat(12) : '',
@@ -398,7 +398,7 @@ describe('Composer compact geometry in Chromium', () => {
         builder.onLoad({ filter: /.*/, namespace: 'sidebar' }, () => ({ contents: 'export const SidebarAccount = () => null; export const captureException = () => {};', loader: 'js' }));
         builder.onResolve({ filter: /^@\\/stores\\/auth-store$/ }, args => ({ path: args.path, namespace: 'boundary' }));
         builder.onLoad({ filter: /.*/, namespace: 'boundary' }, () => ({ contents:
-          'import React from "react"; export const useAuthStore = { getState: () => ({ isAuthenticated: true, user: { userId: "composer-account" } }) }; export const Menu = ({items}) => React.createElement("span", { hidden: true, "data-composer-menu-items": JSON.stringify(items.map(({id,label}) => ({id,label}))) }); export const Sheet = () => null; export const GoalDetailDrawer = () => null; export const MessageBubble = ({message}) => message.content; export const PromptLibrary = () => null; export const ProactiveAction = () => null; export const useRouter = () => ({}); export const useTranslations = () => key => key === \"nav.astra\" ? \"Astra\" : key === \"habits.form.askDate\" ? JSON.parse(document.getElementById(\"configuration\").textContent).astraRequestLabel : key;', loader: 'js', resolveDir: process.cwd() }));
+          'import React from "react"; export const useAuthStore = { getState: () => ({ isAuthenticated: true, user: { userId: "composer-account" } }) }; export const Menu = ({items}) => React.createElement("span", { hidden: true, "data-composer-menu-items": JSON.stringify(items.map(({id,label}) => ({id,label}))) }); export const Sheet = () => null; export const GoalDetailDrawer = () => null; export const MessageBubble = ({message}) => message.content; export const PromptLibrary = () => null; export const ProactiveAction = () => null; export const useRouter = () => ({}); export const useTranslations = () => key => key === \"nav.astra\" ? \"Astra\" : key === \"habits.form.suggestDate\" ? JSON.parse(document.getElementById(\"configuration\").textContent).astraRequestLabel : key;', loader: 'js', resolveDir: process.cwd() }));
       } }];
       const result = await build(options);
       process.stdout.write(result.outputFiles[0].text);
@@ -424,7 +424,7 @@ describe('Composer compact geometry in Chromium', () => {
       }))
       const first = await measure()
       expect(first.slot.width).toBe(48)
-      expect(first.controls.width).toBe(100)
+      expect(first.controls.width).toBe(96)
       await page.addScriptTag({ content: composerScript })
       await page.locator('#root[data-composer-test-ready]').waitFor()
       await expect.poll(measure).toEqual(first)

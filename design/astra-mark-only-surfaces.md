@@ -2,9 +2,20 @@
 
 > **At a glance** - assistant action owners, localized prompts, accessible action names and the habit-detail composer disclosure on web and Android.
 
-An assistant action carries the canonical Astra mark without repeating the brand name. Action text
-describes the request. A mark-only entry or submit has one accessible name describing its action.
-Suggestion names contain the suggestion once. The mark is decorative within a named control.
+A standalone assistant action uses the canonical Astra mark alone in a 48px icon target. Date,
+emoji, tag and reschedule requests have distinct localized accessible names. Habit and goal
+analysis, interpretation fallback, retry, empty-list entries and the reschedule menu use the same
+mark-only treatment. Loading retains the mark and busy announcement without an invisible spinner
+slot beside it. The mark is decorative within the named control.
+
+Suggestion chips, idea cards and proactive prose retain their request text without an appended
+brand name. Their accessible names contain the request once. These suggestions describe what a
+selection sends; they are distinct from the standalone form and object actions.
+
+Composer send shows one upward arrow, replaced by one spinner while sending. It has no Astra mark
+or visible text and keeps the localized Send name. Its 48px target shares zero gap with the other
+48px trailing targets, matching the adjacent targets in the composer drawing. The shared composer
+owns Hoje, habit detail and the full-screen conversation.
 
 | Surface | Web owner | Android owner |
 |---|---|---|
@@ -32,9 +43,13 @@ Owner paths are relative to each app. The sidebar's `SidebarAstraRow` owns only 
 use the shared lean-answer selection, at most two small ghost pills and one dispatch per selection.
 Their useful labels and accessible names each contain the action once, with no appended brand name.
 
+The form's reading preview retains its schedule sentence and proposed-field treatment. It omits
+the redundant visible understood status, so no status label floats beside the emoji control.
+
 Shared copy lives in both `packages/shared/src/i18n/en.json` and `pt-BR.json`. The composer asks
-what the person wants to do. Interpretation, date, emoji, tag, reschedule, habit, goal, summary and
-import actions use contextual verbs. Explanatory prose, AI disclosures, conversation participant
+what the person wants to do. Accessible action names use contextual verbs; date, emoji, tag and
+reschedule names identify their request and name Astra once. Interpretation, habit, goal, summary
+and import actions retain their contextual meanings. Explanatory prose, AI disclosures, conversation participant
 names and settings that name the assistant retain their meaning. The summary action's
 `summary.askAstra` catalog entry has the approved contextual verb even though the current summary
 entry is the proactive line. The Perfil settings entry retains its assistant name and neutral
@@ -55,7 +70,9 @@ needed. Enlarged text keeps the mark aligned with the input's bottom edge. The s
 placeholder uses normal word wrapping; typed drafts retain their spaces and line breaks.
 
 Vitest covers mark-only controls, localized action names, retained callbacks, disclosure state,
-draft retention and device persistence. Native geometry covers the Fold cover width. Hermetic
+draft retention and device persistence. The form, reschedule, habit, goal, empty-list and menu
+component cases reject visible action labels. Composer cases reject a send mark or text and measure
+adjacent targets on both platforms. Native geometry covers the Fold cover width. Hermetic
 Chromium composition covers the shell allocation, compact disclosure and mark-only actions.
 The hermetic layout specs resolve these controls from their current localized action names.
 They preserve their viewport, spacing, fit, focus and clearance assertions; mark-only entries assert

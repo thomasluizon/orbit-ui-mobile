@@ -103,7 +103,8 @@ describe('HabitListEmptyState', () => {
       />,
     )
     const texts = textStrings(tree)
-    expect(texts).toContain('Ask Astra')
+    expect(texts).not.toContain('Ask Astra')
+    expect(pressableWithLabel(tree, 'Ask Astra')).toBeTruthy()
     expect(texts).toContain('Create habit')
   })
 

@@ -79,7 +79,7 @@ window.OrbitNativeMobile = (() => {
           node('button', { type: 'button', className: 'native-send', 'aria-label': props.onRetry ? props.words.retry : props.words.send,
             disabled: blocked && !props.onRetry, onClick: send,
             style: { ...button, gap: 8, background: 'var(--primary)', color: 'var(--fg-on-primary)' } },
-            node(window.OrbitDesignSystem_918bd5.AstraGlyph, { size: 20 })))),
+            icon('arrow-up', 20)))),
       node(window.OrbitDesignSystem_918bd5.Menu, { open, title: t.attach, onClose: () => setOpen(false),
         items: menu.map((entry, index) => ({ id: String(index), label: entry.label })),
         onSelect: (id) => { setOpen(false); menu[Number(id)].run(); } }));

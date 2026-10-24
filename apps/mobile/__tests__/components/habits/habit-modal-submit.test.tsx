@@ -348,7 +348,7 @@ describe('controlled full editor checklist', () => {
     expect(suggestionMutation).toHaveBeenCalledOnce()
     await pressSubmit(submit)
     await settleMutation()
-    const emojiControl = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'habits.form.emoji: habits.form.askDate')[0]!
+    const emojiControl = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'habits.form.suggestEmoji')[0]!
     expect(emojiControl.props.disabled).toBe(true)
     const helpers = tree.root.findAll((node) => node.type === HabitFormFields)[0]!.props.formHelpers as import('@/hooks/use-habit-form').HabitFormHelpers
     const submitted = helpers.form.getValues()

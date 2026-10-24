@@ -43,7 +43,7 @@ function DateConsultation({ editor, snapshot }: Readonly<{ editor: HabitDateEdit
     {canAsk ? <View style={{ alignItems: 'flex-start', gap: 16 }}>
       {atLimit ? <CapacityNotice message={t('habits.form.aiSuggestLimitReached')} /> : null}
       {!isOnline ? <CapacityNotice message={t('shell.composer.offline.reason')} /> : null}
-      <PillButton minimumHeight={48} retainLeadingIcon leadingIcon={<AstraGlyph size={16} />} accessibleName={t('habits.form.suggestDate')} variant="ghost" disabled={disabled || !isOnline || atLimit || snapshot.pending || snapshot.capacity} loading={snapshot.pending} onClick={guard(() => void editor.ask(isOnline, atLimit))}>{t('habits.form.suggestDate')}</PillButton>
+      <PillButton minimumHeight={48} retainLeadingIcon iconOnly label={t('habits.form.suggestDate')} variant="ghost" disabled={disabled || !isOnline || atLimit || snapshot.pending || snapshot.capacity} loading={snapshot.pending} onClick={guard(() => void editor.ask(isOnline, atLimit))}><AstraGlyph size={20} /></PillButton>
       <Text style={{ color: tokens.fg3, fontSize: 12, fontFamily: 'Geist_400Regular' }}>{t('habits.form.askAstraCost', { allowance: profile?.aiMessagesLimit ?? 5 })}</Text>
     </View> : null}
     <Text accessibilityLiveRegion="polite" style={{ color: tokens.statusBadText, fontSize: 14, fontFamily: 'Geist_400Regular', ...(!snapshot.failure || snapshot.capacity ? { display: 'none' as const } : {}) }}>{snapshot.capacity ? '' : snapshot.failure ?? ''}</Text>

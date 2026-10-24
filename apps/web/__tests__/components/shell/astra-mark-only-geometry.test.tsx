@@ -7,6 +7,9 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { createTagSuggestionState } from '@orbit/shared/hooks'
+import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-emoji-selector'
+import { TagSuggestions } from '@/components/habits/habit-form-fields/tag-suggestions'
 import { Composer } from '@/components/shell/composer'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { PromptIdea } from '@/components/chat/prompt-idea'
@@ -162,6 +165,62 @@ it.each([320, 412, 480, 840].flatMap(width => [en, ptBR].map(messages => ({ widt
             shadow: style.boxShadow, before: getComputedStyle(element, '::before').outlineStyle, after: getComputedStyle(element, '::after').outlineStyle }
         })
         expect(indicator).toEqual({ width: '2px', offset: '2px', outline: 'solid', shadow: 'none', before: 'none', after: 'none' })
+      }
+    } finally { await page.close() }
+  },
+)
+
+it.each([320, 480, 800].flatMap(width => [en, ptBR].flatMap(messages =>
+  [1, 2].flatMap(fontScale => ['empty', 'draft', 'sending'].map(state => ({ width, messages, state, fontScale }))),
+)))('keeps adjacent 48px composer targets at $width in $state with text $fontScale', async ({ width, messages, state, fontScale }) => {
+  vi.stubGlobal('navigator', { clipboard: { readText: vi.fn().mockResolvedValue('Draft') } })
+  const view = render(<NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}>
+    <Composer {...(state === 'sending' ? { state: 'sending' as const } : { state: 'idle' as const })} value={state === 'empty' ? '' : 'Draft'}
+      words={messages.shell.composer} suggestions={[]} onChangeValue={vi.fn()} onSend={vi.fn()}
+      onAttachFile={vi.fn()} attachWords={{ ...messages.shell.composer.attach, remove: name => name }} />
+  </NextIntlClientProvider>)
+  const page = await browser.newPage({ viewport: { width, height: 640 } })
+  try {
+    await page.setContent(`<html class="dark" style="${themeVariables};font-size:${16 * fontScale}px"><style>${stylesheet}</style><body>${view.container.innerHTML}</body></html>`)
+    const targets = await page.locator('[data-composer-trailing-controls] button').evaluateAll(buttons => buttons.map(button => ({
+      ...button.getBoundingClientRect().toJSON(), text: button.textContent,
+      marks: button.querySelectorAll('[data-asset^="astra-mark"]').length,
+      name: button.getAttribute('aria-label'), icons: button.querySelectorAll('svg').length,
+    })))
+    expect(targets).toHaveLength(state === 'sending' ? 2 : 3)
+    for (const [index, target] of targets.entries()) {
+      expect(target.width).toBe(48)
+      expect(target.height).toBe(48)
+      expect(target.text).toBe('')
+      expect(target.name).toBeTruthy()
+      expect(target.marks).toBe(0)
+      expect(target.icons).toBe(1)
+      if (index > 0) expect(target.left - targets[index - 1]!.right).toBe(0)
+    }
+  } finally { await page.close() }
+})
+
+
+it.each([en, ptBR].flatMap(messages => [false, true].map(pending => ({ messages, pending }))))(
+  'keeps form suggestion marks alone in 48px targets while pending=$pending', async ({ messages, pending }) => {
+    const onSuggest = vi.fn()
+    const view = render(<NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}>
+      <HabitEmojiSelector onSuggest={onSuggest} canSuggest isSuggesting={pending} selectedEmoji="" onSelect={vi.fn()} />
+      <TagSuggestions atLimit={false} disabled={false} suggestions={{ ...createTagSuggestionState(), pending: pending ? 'suggest' : null,
+        canSuggest: !pending, needsTitle: false, suggest: vi.fn().mockResolvedValue(undefined), acceptSuggestion: vi.fn().mockResolvedValue(undefined) }} />
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width: 480, height: 640 } })
+    try {
+      await page.setContent(`<html class="dark" style="${themeVariables}"><style>${stylesheet}</style><body>${view.container.innerHTML}</body></html>`)
+      for (const name of [messages.habits.form.suggestEmoji, messages.habits.form.suggestTags]) {
+        const action = page.getByRole('button', { name, exact: true })
+        expect(await action.innerText()).toBe('')
+        expect(await action.locator('[data-asset="astra-mark"]').count()).toBe(1)
+        expect(await action.locator('svg').count()).toBe(1)
+        const bounds = (await action.boundingBox())!
+        expect(bounds.width).toBe(48)
+        expect(bounds.height).toBe(48)
+        expect(await action.getAttribute('aria-busy')).toBe(pending ? 'true' : null)
       }
     } finally { await page.close() }
   },

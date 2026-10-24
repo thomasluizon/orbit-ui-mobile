@@ -128,10 +128,7 @@ export function HabitUnderstanding({
       {showPreview ? (
         <Proposed inset proposed={proposed} scope="block" label={labels.proposed}>
           <section aria-label={labels.understood} className="flex flex-col rounded-[20px] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" style={{ gap: 16 }}>
-            <div className="flex flex-wrap items-center" style={{ gap: 12 }}>
-              {emojiControl}
-              <span className="text-xs text-[var(--fg-3)]">{proposed ? labels.understoodAstra : labels.understood}</span>
-            </div>
+            {emojiControl}
             <p className={`text-[17px] font-medium leading-[1.4] ${proposed ? 'text-[var(--fg-3)]' : 'text-[var(--fg-1)]'}`}>{sentence}</p>
             <ScheduleCorrections hidden={!showSchedule} proposed={proposed} days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible' && showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
           </section>

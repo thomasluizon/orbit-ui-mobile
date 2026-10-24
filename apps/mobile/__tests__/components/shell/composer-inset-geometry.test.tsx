@@ -345,7 +345,7 @@ it.each([320, 360, 384, 412, 480].flatMap(width => [en, ptBR].flatMap(messages =
 })
 
 it.each(allowanceCases)('retains the measured frame through allowance transitions at $width with $limit chips $withSuggestions and scale $fontScale', async ({ width, messages, limit, withSuggestions, fontScale }) => {
-  translation.words = { 'nav.astra': messages.nav.astra, 'habits.form.askDate': messages.habits.form.askDate,
+  translation.words = { 'nav.astra': messages.nav.astra, 'habits.form.suggestDate': messages.habits.form.suggestDate,
     'shell.composer.limit.placeholder': messages.shell.composer.limit.placeholder }
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
   const reason = messages.shell.composer.limit.reason.replace('{allowance}', String(limit))
@@ -386,7 +386,7 @@ it.each(allowanceCases)('retains the measured frame through allowance transition
 
 it.each([320, 412].flatMap(width => [en, ptBR].flatMap(messages => [1, 2].map(fontScale => ({ width, messages, fontScale })))))(
   'grows the actual typed input to five lines at $width and scale $fontScale', async ({ width, messages, fontScale }) => {
-    translation.words = { 'nav.astra': messages.nav.astra, 'habits.form.askDate': messages.habits.form.askDate }
+    translation.words = { 'nav.astra': messages.nav.astra, 'habits.form.suggestDate': messages.habits.form.suggestDate }
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
     let tree!: Tree
     await renderer.act(() => { tree = renderer.create(<Composer state="idle" value="Draft" suggestions={[]}

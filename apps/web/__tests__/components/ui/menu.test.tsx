@@ -27,6 +27,18 @@ const items = [
 ] as const
 
 describe('Menu', () => {
+  it('keeps an Astra menu action icon-only and named', () => {
+    setWide(false)
+    const onSelect = vi.fn()
+    render(<Menu open title="Actions" items={[{ id: 'reschedule', label: 'Suggest a new date with Astra', icon: 'astra' }]} onSelect={onSelect} />)
+    const action = screen.getByRole('menuitem', { name: 'Suggest a new date with Astra' })
+    expect(action.textContent).toBe('')
+    expect(action.style.width).toBe('48px')
+    expect(action.querySelector('[data-asset^="astra-mark"]')).not.toBeNull()
+    fireEvent.click(action)
+    expect(onSelect).toHaveBeenCalledWith('reschedule')
+  })
+
   beforeEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()

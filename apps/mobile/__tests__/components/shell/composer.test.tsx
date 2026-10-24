@@ -7,7 +7,7 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Square } from '@/components/ui/icons'
+import { ArrowUp, Square } from '@/components/ui/icons'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
@@ -24,8 +24,8 @@ import { measureInteractionFills } from '@/__tests__/support/interaction-fill-ge
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 const authSession = vi.hoisted(() => ({ isAuthenticated: true, user: { userId: 'account-a' } }))
-const astraCopy = vi.hoisted(() => ({ name: 'nav.astra', request: 'habits.form.askDate' }))
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key === 'nav.astra' ? astraCopy.name : key === 'habits.form.askDate' ? astraCopy.request : key, i18n: { language: 'en' } }) }))
+const astraCopy = vi.hoisted(() => ({ name: 'nav.astra', request: 'habits.form.suggestDate' }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key === 'nav.astra' ? astraCopy.name : key === 'habits.form.suggestDate' ? astraCopy.request : key, i18n: { language: 'en' } }) }))
 vi.mock('@/stores/auth-store', () => ({ useAuthStore: { getState: () => authSession } }))
 
 const clipboard = vi.hoisted(() => ({ getStringAsync: vi.fn().mockResolvedValue(''), hasStringAsync: vi.fn().mockResolvedValue(true) }))
@@ -194,7 +194,7 @@ describe('clipboard composer control', () => {
   it.each([320, 412].flatMap(width => [en, ptBR].map(messages => ({ width, messages }))))(
     'moves text actions only when the whole placeholder needs their slot at $width', ({ width, messages }) => {
       astraCopy.name = messages.nav.astra
-      astraCopy.request = messages.habits.form.askDate
+      astraCopy.request = messages.habits.form.suggestDate
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
       const configuration = props({ suggestions: [], words: messages.shell.composer,
         onAttachFile: vi.fn(), attachWords, onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation })
@@ -255,7 +255,7 @@ describe('clipboard composer control', () => {
           TestRenderer.act(() => measurement.props.onTextLayout({ nativeEvent: { lines: Array.from({ length: candidate.lines }, () => line) } }))
           expect(measure().contentWidth).toBe(empty.contentWidth)
         }
-      } finally { TestRenderer.act(() => tree.unmount()); astraCopy.name = 'nav.astra'; astraCopy.request = 'habits.form.askDate'; __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
+      } finally { TestRenderer.act(() => tree.unmount()); astraCopy.name = 'nav.astra'; astraCopy.request = 'habits.form.suggestDate'; __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
     },
   )
 
@@ -549,6 +549,32 @@ function applyComposerLayoutInsets(node: YogaNode, style: Record<string, unknown
 }
 
 describe('Composer (mobile)', () => {
+  it.each([320, 480, 800].flatMap(width => [en, ptBR].flatMap(messages => [1, 2].flatMap(fontScale => ['', 'Draft'].map(value => ({ width, messages, value, fontScale }))))))(
+    'keeps adjacent 48px targets at $width with draft=$value and text $fontScale', ({ width, messages, value, fontScale }) => {
+      __setWindowDimensions({ width, height: 640, scale: 1, fontScale })
+      const tree = renderComposer(props({ value, suggestions: [], words: messages.shell.composer, onAttachFile: vi.fn(), attachWords }))
+      try {
+        const parts = measureInteractionFills(tree.toJSON(), width, false, fontScale)
+        const names = [value ? messages.shell.composer.clear : messages.shell.composer.paste, messages.shell.composer.actions, messages.shell.composer.send]
+        const targets = names.map(name => parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === name)!)
+        for (const [index, target] of targets.entries()) {
+          expect(target.width).toBe(48)
+          expect(target.height).toBe(48)
+          if (index > 0) expect(target.left - targets[index - 1]!.right).toBe(0)
+        }
+      } finally { TestRenderer.act(() => tree.unmount()); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
+    },
+  )
+
+  it.each([false, true].flatMap(withOpener => ['idle', 'sending'].map(state => ({ withOpener, state }))))('uses one send icon with opener=$withOpener in $state', ({ withOpener, state }) => {
+    const tree = renderComposer(props({ state, value: 'Draft', suggestions: [], ...(withOpener ? { onOpenConversation: vi.fn(), conversationLabel: 'Open conversation' } : {}) }))
+    const send = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === words.send)[0]!
+    expect(send.findAllByType(ArrowUp)).toHaveLength(state === 'idle' ? 1 : 0)
+    expect(send.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ActivityIndicator')).toHaveLength(state === 'sending' ? 1 : 0)
+    expect(StyleSheet.flatten(send.props.style).width).toBe(48)
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it.each([
     { locale: 'pt-BR', messages: ptBR, name: 'Abrir conversa' },
     { locale: 'en', messages: en, name: 'Open the conversation' },
@@ -581,7 +607,7 @@ describe('Composer (mobile)', () => {
     expect(onSelect).toHaveBeenCalledOnce()
 
     const retry = renderComposer(props({ words: { ...words, retry: 'Retry' }, onRetry }))
-    const retryControl = retry.root.findAllByType('Pressable').find((node: { props: { accessibilityRole?: string }; findAllByType: (type: string) => { props: { children?: unknown } }[] }) => node.props.accessibilityRole === 'button' && node.findAllByType('Text').some((text) => text.props.children === 'Retry'))!
+    const retryControl = byLabel(retry.root, 'Retry')[0]!
     expectPressPaint(retryControl, { fill: tokens.bgHover, borderRadius: 999, scale: reducedMotion ? 1 : 0.96 })
     pressControl(retryControl)
     expect(onRetry).toHaveBeenCalledOnce()
