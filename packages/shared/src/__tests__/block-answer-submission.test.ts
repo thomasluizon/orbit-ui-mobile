@@ -38,6 +38,16 @@ describe('shared block answer submission', () => {
     expect(context.refreshProfile).not.toHaveBeenCalled()
   })
 
+  it('drops the prepared recovery request when the account changes', async () => {
+    const context = submissionContext()
+    context.run.mockResolvedValueOnce({ kind: 'failed', failure: { status: 500, error: 'Reply failed', code: null }, draftMessageId: null })
+    const submission = new BlockAnswerSubmission()
+    await submission.send(choice, context)
+    submission.reset()
+    expect(await submission.send(choice, { ...context, atMessageLimit: true })).toEqual({ ok: false, status: null })
+    expect(context.run).toHaveBeenCalledTimes(1)
+  })
+
   it.each(['choice', 'pickList'] as const)('reaches transport for an identical %s recovery at the limit and refreshes usage', async kind => {
     const context = submissionContext()
     const request = kind === 'choice' ? choice : { ...choice, kind, answer: { blockId: pickListBlockFixture.blockId, selectedIds: ['1', '3'] } }

@@ -1,3 +1,4 @@
+import { randomUUID } from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Linking } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
@@ -21,7 +22,10 @@ import {
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   AI_MESSAGE_COUNTER_THRESHOLD,
   CHAT_TEXT_FILE_PICKER_MIME_TYPES,
-  consumeChatSseStream,
+  sendChatStreamTurn,
+  needsNewChatTurn,
+  ChatTurnReconciliation,
+  type PreparedChatTurn,
   getChatImageValidationError,
   getChatTextFileValidationError,
   resolveChatImageMimeType,
@@ -44,6 +48,7 @@ import {
   classifySendFailure,
   sendInConversation,
   invalidateAgentQueries,
+  reconcileAgentQueries,
   selectActionInvalidations,
 } from "@orbit/shared/hooks";
 import {
@@ -71,6 +76,7 @@ function createChatMessageId(): string {
 }
 
 interface AttemptedSend {
+  turn?: PreparedChatTurn<FormData>;
   content: string;
   draftContent: string;
   image: ImagePicker.ImagePickerAsset | null;
@@ -109,9 +115,10 @@ interface ByteStream {
 }
 
 async function* streamTextChunks(
-  body: ByteStream,
+  body: ByteStream | null,
   onActivity: () => void,
 ): AsyncGenerator<string> {
+  if (!body) return;
   const reader = body.getReader();
   const decoder = new TextDecoder();
   try {
@@ -208,6 +215,8 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   const activeStepsRef = useRef<{ domain: string; access: string }[]>([]);
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null);
   const [dailyBudgetDate, setDailyBudgetDate] = useState<string | null>(null);
+  const [turnReconciliation] = useState(() => new ChatTurnReconciliation())
+  const [blockSubmission] = useState(() => new BlockAnswerSubmission())
   const [selectedImage, setSelectedImage] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -221,6 +230,8 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
    * itself, and every field added here is covered by the same subscription.
    */
   useResetOnAccountChange(() => {
+    turnReconciliation.reset()
+    blockSubmission.reset()
     activeStepsRef.current = [];
     setActiveSteps([]);
     setLastFailedSend(null);
@@ -551,7 +562,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       if (attempted.image) {
         formData.append(
           "image",
-          new File(attempted.image.uri),
+          new File(attempted.image.uri).slice(0, undefined, resolveChatImageMimeType(attempted.image) ?? undefined),
           buildImageFileName(attempted.image),
         );
       }
@@ -584,10 +595,10 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   }, [setIsTyping, setStreamingMessageId])
 
   const runStreamingSend = useCallback(
-    async (attempted: ChatStreamRequest<ImagePicker.ImagePickerAsset>, onAccepted?: () => void): Promise<ChatStreamResult> => {
+    async (attempted: ChatStreamRequest<ImagePicker.ImagePickerAsset> & { turn?: PreparedChatTurn<FormData> }, onAccepted?: () => void): Promise<ChatStreamResult> => {
       const startingAccountGeneration = getAccountGeneration();
       const ownsAccount = () => getAccountGeneration() === startingAccountGeneration;
-      const controller = new AbortController();
+      let controller = new AbortController();
       let idleTimer: ReturnType<typeof setTimeout> | undefined;
       const armIdleTimer = () => {
         clearTimeout(idleTimer);
@@ -614,27 +625,24 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       };
 
       try {
-        armIdleTimer();
-        const response = await openChatStream(buildChatFormData(attempted), controller.signal);
-
+        if (turnReconciliation.isPending) await turnReconciliation.reconcile(() => reconcileAgentQueries(queryClient));
         if (!ownsAccount()) return { kind: 'cancelled' };
-
-        if (!response.ok || !response.body) {
-          const errorBody = (await response.json().catch(() => null)) as
-            | { error?: string; errorCode?: string }
-            | null;
-          if (!ownsAccount()) return { kind: 'cancelled' };
-          return { kind: 'failed', failure: {
-              status: response.status,
-              error: errorBody?.error ?? t("chat.sendError"),
-              code: errorBody?.errorCode ?? null,
-            }, draftMessageId };
-        }
-
-        onAccepted?.();
-        const outcome = await consumeChatSseStream(
-          streamTextChunks(response.body, armIdleTimer),
-          {
+        attempted.turn ??= { key: randomUUID(), payload: buildChatFormData(attempted) };
+        const outcome = await sendChatStreamTurn({
+          turn: attempted.turn,
+          isCancelled: () => !ownsAccount(),
+          open: async (turn) => {
+            controller = new AbortController();
+            armIdleTimer();
+            const response = await openChatStream(turn.payload, controller.signal, turn.key);
+            if (!response.ok) {
+              const errorBody = (await response.json().catch(() => null)) as { error?: string; errorCode?: string; code?: string } | null;
+              return { kind: 'httpError', status: response.status, error: errorBody?.error ?? t("chat.sendError"), code: errorBody?.code ?? errorBody?.errorCode ?? null };
+            }
+            if (ownsAccount()) onAccepted?.();
+            return { kind: 'stream', chunks: streamTextChunks(response.body, armIdleTimer) };
+          },
+          callbacks: {
             onDelta: (text) => {
               if (!ownsAccount()) return;
               appendToMessageContent(ensureDraftMessage(), text);
@@ -651,16 +659,20 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
               setActiveSteps(activeStepsRef.current);
             },
           },
-        );
+        });
 
+        if (!ownsAccount() || outcome.kind === 'cancelled') return { kind: 'cancelled' };
+        if (needsNewChatTurn(outcome)) attempted.turn = undefined;
+        await turnReconciliation.reconcileAfterTurn(outcome, () => reconcileAgentQueries(queryClient));
         if (!ownsAccount()) return { kind: 'cancelled' };
+        if (outcome.kind === 'transportError') throw outcome.error;
 
         if (outcome.kind === "final") {
           finalReceived = true;
           await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal.completion, attempted.messageCost);
           return ownsAccount() ? { kind: 'final' } : { kind: 'cancelled' };
         }
-        if (outcome.kind === "error") {
+        if (outcome.kind === "error" || outcome.kind === "httpError") {
           return { kind: 'failed', failure: { status: outcome.status, error: outcome.error, code: outcome.code }, draftMessageId };
         }
         return { kind: 'failed', failure: { status: null, error: t("chat.sendError"), code: null }, draftMessageId };
@@ -682,6 +694,8 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       applyFinalResponse,
       buildChatFormData,
       finishStreamingSend,
+      turnReconciliation,
+      queryClient,
       scrollToBottom,
       setIsTyping,
       setStreamingMessageId,
@@ -717,7 +731,9 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       }
 
       const startingAccountGeneration = getAccountGeneration();
-      const result = await runStreamingSend({ ...attempted, messageCost: 1 });
+      const request = { ...attempted, messageCost: 1 as const };
+      const result = await runStreamingSend(request);
+      attempted.turn = request.turn;
       const succeeded = result.kind === 'final';
       if (result.kind === 'failed') handleFailedSend(result.failure, attempted, result.draftMessageId);
       if (succeeded && getAccountGeneration() === startingAccountGeneration && attempted.contextualRequest && useChatStore.getState().contextualSuggestion === attempted.contextualRequest) {
@@ -728,7 +744,6 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     [addMessage, beginSend, handleFailedSend, runStreamingSend],
   );
 
-  const [blockSubmission] = useState(() => new BlockAnswerSubmission())
   const sendBlockAnswer = useCallback((request: BlockAnswerRequest): Promise<BlockAnswerResult> =>
     blockSubmission.send(request, {
       isOnline, atMessageLimit, dailyBudgetReached, onDailyBudgetExceeded: handleDailyBudgetExceeded, locale: i18n.language,

@@ -37,7 +37,10 @@ import {
   resolveComposerChipSurface,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   AI_MESSAGE_COUNTER_THRESHOLD,
-  consumeChatSseStream,
+  sendChatStreamTurn,
+  needsNewChatTurn,
+  ChatTurnReconciliation,
+  type PreparedChatTurn,
 } from '@orbit/shared/chat'
 import {
   CHAT_DRAFT_STORAGE_KEY,
@@ -45,6 +48,7 @@ import {
   classifySendFailure,
   sendInConversation,
   invalidateAgentQueries,
+  reconcileAgentQueries,
   selectActionInvalidations,
 } from '@orbit/shared/hooks'
 import { sessionAwareFetch } from '@/lib/api-fetch'
@@ -69,6 +73,7 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 
 
 interface AttemptedSend {
+  turn?: PreparedChatTurn<FormData>
   intendedAccountId: string | null
   content: string
   draftContent: string
@@ -110,9 +115,10 @@ function readServerNetworkStatus(): boolean {
 }
 
 async function* streamTextChunks(
-  body: ReadableStream<Uint8Array>,
+  body: ReadableStream<Uint8Array> | null,
   onActivity: () => void,
 ): AsyncGenerator<string> {
+  if (!body) return
   const reader = body.getReader()
   const decoder = new TextDecoder()
   try {
@@ -183,6 +189,8 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   const activeStepsRef = useRef<{ domain: string; access: string }[]>([])
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null)
   const [dailyBudgetDate, setDailyBudgetDate] = useState<string | null>(null)
+  const [turnReconciliation] = useState(() => new ChatTurnReconciliation())
+  const [blockSubmission] = useState(() => new BlockAnswerSubmission())
 
   const {
     fileInputRef,
@@ -212,6 +220,8 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
    * itself.
    */
   useResetOnAccountChange(() => {
+    turnReconciliation.reset()
+    blockSubmission.reset()
     activeStepsRef.current = []
     setActiveSteps([])
     setLastFailedSend(null)
@@ -474,10 +484,10 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     if (useChatStore.getState().streamingMessageId === draftMessageId) setStreamingMessageId(null)
   }, [setIsTyping, setStreamingMessageId])
 
-  const runStreamingSend = useCallback(async (attempted: ChatStreamRequest<File>, onAccepted?: () => void): Promise<ChatStreamResult> => {
+  const runStreamingSend = useCallback(async (attempted: ChatStreamRequest<File> & { turn?: PreparedChatTurn<FormData> }, onAccepted?: () => void): Promise<ChatStreamResult> => {
     const startingAccountGeneration = getAccountGeneration()
     const ownsAccount = () => getAccountGeneration() === startingAccountGeneration
-    const controller = new AbortController()
+    let controller = new AbortController()
     let idleTimer: ReturnType<typeof setTimeout> | undefined
     const armIdleTimer = () => {
       clearTimeout(idleTimer)
@@ -498,31 +508,30 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     }
 
     try {
-      armIdleTimer()
-      const response = await sessionAwareFetch(API.chat.stream, {
-        method: 'POST',
-        ...(attempted.intendedAccountId ? { headers: { 'X-Orbit-Held-Account-Id': attempted.intendedAccountId } } : {}),
-        body: buildChatFormData(attempted),
-        signal: controller.signal,
-      })
+      if (turnReconciliation.isPending) await turnReconciliation.reconcile(() => reconcileAgentQueries(queryClient))
       if (!ownsAccount()) return { kind: 'cancelled' }
-      if (!response.ok || !response.body) {
-        const errorBody = (await response.json().catch(() => null)) as
-          | { error?: string; errorCode?: string }
-          | null
-        if (!ownsAccount()) return { kind: 'cancelled' }
-        useThrottleStore.getState().show(response.status, errorBody)
-        return { kind: 'failed', failure: {
-            status: response.status,
-            error: errorBody?.error ?? t('chat.sendError'),
-            code: errorBody?.errorCode ?? null,
-          }, draftMessageId }
-      }
-
-      onAccepted?.()
-      const outcome = await consumeChatSseStream(
-        streamTextChunks(response.body, armIdleTimer),
-        {
+      attempted.turn ??= { key: crypto.randomUUID(), payload: buildChatFormData(attempted) }
+      const outcome = await sendChatStreamTurn({
+        turn: attempted.turn,
+        isCancelled: () => !ownsAccount(),
+        open: async (turn) => {
+          controller = new AbortController()
+          armIdleTimer()
+          const response = await sessionAwareFetch(API.chat.stream, {
+            method: 'POST',
+            headers: { 'Idempotency-Key': turn.key, ...(attempted.intendedAccountId ? { 'X-Orbit-Held-Account-Id': attempted.intendedAccountId } : {}) },
+            body: turn.payload,
+            signal: controller.signal,
+          })
+          if (!response.ok) {
+            const errorBody = (await response.json().catch(() => null)) as { error?: string; errorCode?: string; code?: string } | null
+            useThrottleStore.getState().show(response.status, errorBody)
+            return { kind: 'httpError', status: response.status, error: errorBody?.error ?? t('chat.sendError'), code: errorBody?.code ?? errorBody?.errorCode ?? null }
+          }
+          if (ownsAccount()) onAccepted?.()
+          return { kind: 'stream', chunks: streamTextChunks(response.body, armIdleTimer) }
+        },
+        callbacks: {
           onDelta: (text) => {
             if (!ownsAccount()) return
             appendToMessageContent(ensureDraftMessage(), text)
@@ -539,16 +548,20 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
             setActiveSteps(activeStepsRef.current)
           },
         },
-      )
+      })
 
+      if (!ownsAccount() || outcome.kind === 'cancelled') return { kind: 'cancelled' }
+      if (needsNewChatTurn(outcome)) attempted.turn = undefined
+      await turnReconciliation.reconcileAfterTurn(outcome, () => reconcileAgentQueries(queryClient))
       if (!ownsAccount()) return { kind: 'cancelled' }
+      if (outcome.kind === 'transportError') throw outcome.error
 
       if (outcome.kind === 'final') {
         finalReceived = true
         await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal.completion, attempted.messageCost)
         return ownsAccount() ? { kind: 'final' } : { kind: 'cancelled' }
       }
-      if (outcome.kind === 'error') {
+      if (outcome.kind === 'error' || outcome.kind === 'httpError') {
         return { kind: 'failed', failure: { status: outcome.status, error: outcome.error, code: outcome.code }, draftMessageId }
       }
       return { kind: 'failed', failure: { status: null, error: t('chat.sendError'), code: null }, draftMessageId }
@@ -569,6 +582,8 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     applyFinalResponse,
     buildChatFormData,
     finishStreamingSend,
+    turnReconciliation,
+    queryClient,
     scrollToBottom,
     setIsTyping,
     setStreamingMessageId,
@@ -602,7 +617,9 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       }
 
       const startingAccountGeneration = getAccountGeneration()
-      const result = await runStreamingSend({ ...attempted, messageCost: 1 })
+      const request = { ...attempted, messageCost: 1 as const }
+      const result = await runStreamingSend(request)
+      attempted.turn = request.turn
       const succeeded = result.kind === 'final'
       if (result.kind === 'failed') handleFailedSend(result.failure, attempted, result.draftMessageId)
       if (succeeded && getAccountGeneration() === startingAccountGeneration && attempted.contextualRequest && useChatStore.getState().contextualSuggestion === attempted.contextualRequest) {
@@ -613,7 +630,6 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     [addMessage, beginSend, handleFailedSend, runStreamingSend],
   )
 
-  const [blockSubmission] = useState(() => new BlockAnswerSubmission())
   const sendBlockAnswer = useCallback((request: BlockAnswerRequest): Promise<BlockAnswerResult> =>
     blockSubmission.send(request, {
       isOnline, atMessageLimit, dailyBudgetReached, onDailyBudgetExceeded: handleDailyBudgetExceeded, locale, intendedAccountId: getHeldAccountId(),

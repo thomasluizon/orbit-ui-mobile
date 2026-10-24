@@ -97,6 +97,14 @@ export async function invalidateAgentQueries(queryClient: QueryClient): Promise<
   )
 }
 
+export async function reconcileAgentQueries(queryClient: QueryClient): Promise<void> {
+  await Promise.all(
+    AGENT_INVALIDATION_KEY_FAMILIES.map((queryKey) =>
+      queryClient.invalidateQueries({ queryKey, refetchType: 'all' }, { throwOnError: true }),
+    ),
+  )
+}
+
 type SendFailureKind = 'upgrade' | 'timeout' | 'limit' | 'dailyBudget' | 'generic'
 
 interface SendFailureInput {

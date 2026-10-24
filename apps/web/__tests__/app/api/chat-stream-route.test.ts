@@ -28,6 +28,15 @@ const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 describe('chat stream route', () => {
+  it('forwards the turn key to the upstream API', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({ token: tokenFor('account-a'), expiresAt: null, refreshed: false, refreshFailed: false })
+    mockFetch.mockResolvedValue(new Response('data: {"type":"started"}\n\n'))
+    await POST(new NextRequest('https://example.invalid/api/chat/stream', {
+      method: 'POST', headers: { 'x-orbit-held-account-id': 'account-a', 'Idempotency-Key': 'turn-key' }, body: new FormData(),
+    }))
+    expect(new Headers(mockFetch.mock.calls[0]![1].headers).get('Idempotency-Key')).toBe('turn-key')
+  })
+
   beforeEach(() => {
     vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
     mockFetch.mockReset()

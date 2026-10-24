@@ -35,6 +35,12 @@ interface BlockSubmissionContext {
 export class BlockAnswerSubmission {
   private inFlight = false
   private uncertainAnswer: BlockAnswer | null = null
+  private uncertainRequest: ChatStreamRequest<never> | null = null
+
+  reset(): void {
+    this.uncertainAnswer = null
+    this.uncertainRequest = null
+  }
 
   async send(request: BlockAnswerRequest, context: BlockSubmissionContext): Promise<BlockAnswerResult> {
     const chat = context.getChat()
@@ -44,10 +50,14 @@ export class BlockAnswerSubmission {
     this.inFlight = true
     this.uncertainAnswer = { ...request.answer, selectedIds: [...request.answer.selectedIds] }
     const content = formatBlockAnswer(request.labels, request.answer.freeText, context.locale)
+    if (!recovery || !this.uncertainRequest) {
+      this.uncertainRequest = { content, messageCost: request.kind === 'pickList' ? 0 : 1, image: null, blockAnswer: request.answer, intendedAccountId: context.intendedAccountId }
+    }
+    this.uncertainRequest = { ...this.uncertainRequest, messageCost: request.kind === 'pickList' || recovery ? 0 : 1 }
     try {
       if (!context.conversation.astraConversationOpen) context.conversation.setAstraConversationOpen(true)
       context.beginSend()
-      const outcome = await context.run({ content, messageCost: request.kind === 'pickList' || recovery ? 0 : 1, image: null, blockAnswer: request.answer, intendedAccountId: context.intendedAccountId }, () => {
+      const outcome = await context.run(this.uncertainRequest, () => {
         const current = context.getChat()
         if (current.messages.some(message => message.role === 'user' &&
           message.answerToBlockId === request.answer.blockId && message.content === content)) return
@@ -55,17 +65,19 @@ export class BlockAnswerSubmission {
           answerToBlockId: request.answer.blockId, id: context.createMessageId(), role: 'user', content, timestamp: new Date(),
         })
       })
+      if (outcome.kind === 'cancelled') return { ok: false, status: null }
       if (outcome.kind === 'failed' && outcome.failure.code === 'AI_DAILY_BUDGET_EXCEEDED') {
         this.uncertainAnswer = null
+        this.uncertainRequest = null
         context.onDailyBudgetExceeded(outcome.draftMessageId)
         return { ok: false, status: outcome.failure.status, dailyBudgetReached: true }
       }
       const result: BlockAnswerResult = outcome.kind === 'final'
         ? { ok: true }
-        : { ok: false, status: outcome.kind === 'failed' ? outcome.failure.status : null }
-      if (outcome.kind === 'cancelled') return result
+        : { ok: false, status: outcome.failure.status }
       if (outcome.kind === 'final') {
         this.uncertainAnswer = null
+        this.uncertainRequest = null
         if (recovery) await context.refreshProfile()
       }
       recordBlockAnswer(context.getChat(), request.answer.blockId, result,
