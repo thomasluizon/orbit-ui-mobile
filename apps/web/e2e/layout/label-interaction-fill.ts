@@ -95,10 +95,17 @@ export async function expectInteractionFill(control: Locator) {
   }, { message: 'hover paints the control fill', timeout: 3000 }).toBe(true)
   await expectFillShape(control, 'hover')
   try {
+    const menuTrigger = await control.evaluate((element) => element.hasAttribute('data-menu-trigger'))
     await page.mouse.down()
-    await expect.poll(() => control.evaluate((element) => element.matches(':active'))).toBe(true)
+    await expect.poll(() => control.evaluate((element, menuTrigger) => menuTrigger
+      ? element.getAttribute('data-state') === 'open' || element.getAttribute('aria-expanded') === 'true'
+      : element.matches(':active'), menuTrigger),
+    { message: 'control enters its observable press state' }).toBe(true)
+    if (menuTrigger) await page.mouse.move(0, 0)
     await settleFillTransitions(control)
     await expectFillShape(control, 'press')
+    await expect.poll(async () => (await readFill(control)).background,
+      { message: 'press paints a fill distinct from rest', timeout: 3000 }).not.toBe(resting.background)
   } finally {
     await page.mouse.move(0, 0)
     await page.mouse.up()

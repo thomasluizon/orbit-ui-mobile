@@ -8,6 +8,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { expectInteractionFill } from '@/e2e/layout/label-interaction-fill'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const branchTitle = 'Branch child with a long title about preparing the room and collecting every book and notebook for the next reading session'
@@ -50,6 +51,24 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     await page.addScriptTag({ content: script })
     return page
   }
+
+  it.each([320, 360, 384, 412].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale =>
+    (['dark', 'light'] as const).map(mode => ({ width, locale, mode })))))
+    ('checks the Today menu interaction fill at $width pixels in $locale, $mode', async ({ width, locale, mode }) => {
+      const page = await mount('frequency', locale, width, 915, mode)
+      const words = locale === 'en' ? en : ptBR
+      const trigger = page.getByRole('button', { name: words.habits.listOptions, exact: true, includeHidden: true })
+      await expectInteractionFill(trigger)
+      expect(await page.getByRole('menu').count()).toBe(0)
+    })
+
+  it('rejects a menu trigger with no opening press fill', async () => {
+    const page = await mount('frequency', 'en', 320, 915)
+    await page.addStyleTag({ content: '[data-menu-trigger][data-state="open"] { background-color: transparent !important; }' })
+    const trigger = page.getByRole('button', { name: en.habits.listOptions, exact: true, includeHidden: true })
+    await expect(expectInteractionFill(trigger)).rejects.toThrow('press: the fill paints a visible surface')
+    expect(await page.getByRole('menu').count()).toBe(0)
+  })
 
   it.each([320, 360, 384, 412].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale =>
     (['dark', 'light'] as const).map(mode => ({ width, locale, mode })))))
