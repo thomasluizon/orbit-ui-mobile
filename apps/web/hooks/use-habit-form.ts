@@ -12,7 +12,7 @@ import {
 } from '@orbit/shared/validation'
 import {
   HabitModeDrafts,
-  isWeeklyRecurrencePhrase,
+  readHabitRecurrencePhrase,
   applyHabitFormMode,
   buildHabitDaysList,
   buildHabitFrequencyUnits,
@@ -81,7 +81,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     return () => { if (dateValidation.current === validate) { dateValidation.current = null; dateTypeChange.current = undefined } }
   }, [])
   const [modeDrafts] = useState(() => new HabitModeDrafts())
-  const [retiredCadenceTitle, setRetiredCadenceTitle] = useState<string | undefined>(() => isWeeklyRecurrencePhrase(initialData?.datePhrase ?? '') ? initialData?.title : undefined)
+  const [retiredCadenceTitle, setRetiredCadenceTitle] = useState<string | undefined>(() => readHabitRecurrencePhrase(initialData?.datePhrase ?? '') ? initialData?.title : undefined)
   const [validationFocusRequest, setValidationFocusRequest] = useState(0)
   const form = useForm<HabitFormInput, unknown, HabitFormData>({
     resolver: zodResolver(habitFormSchema),
@@ -242,7 +242,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     const date = form.getValues('dueDate') ?? ''
     if (type === 'task') setOneTime()
     else applyHabitFormMode(modeDrafts.habitMode, { setOneTime, setRecurring, setFlexible, setGeneral })
-    if (type === 'habit' && isWeeklyRecurrencePhrase(phrase)) {
+    if (type === 'habit' && readHabitRecurrencePhrase(phrase)) {
       form.setValue('datePhrase', phrase, { shouldDirty: true })
       form.setValue('dueDate', date, { shouldDirty: true })
     }

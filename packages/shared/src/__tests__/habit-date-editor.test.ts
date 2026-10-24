@@ -29,7 +29,7 @@ function createAdapter(overrides: Partial<DateInterpretationContext> = {}) {
   const adapter = {
     owner: fields,
     generalLocked: false,
-    applyWeeklyRecurrence: () => { context.schedule = 'recurring'; context.cadence = { unit: 'Week', quantity: 1, days: [], intervalWeeks: 1 } },
+    applyRecurrence: (schedule: import('../utils/habit-recurrence-phrase').HabitRecurrence) => { context.schedule = schedule.flexible ? 'flexible' : 'recurring'; context.cadence = { unit: schedule.unit, quantity: schedule.quantity, days: schedule.days, intervalWeeks: schedule.intervalWeeks } },
     context: () => ({ ...context, date: fields.dueDate, phrase: fields.datePhrase }),
     write: (field: keyof typeof fields, value: string) => { fields[field] = value },
     request: (input: { phrase: string; language: string }, signal: AbortSignal) =>
@@ -49,6 +49,15 @@ function createEditor(overrides: Partial<DateInterpretationContext> = {}) {
 }
 
 describe('habit date editor lifecycle', () => {
+  it.each(['en', 'pt-BR'])('routes weekly counts in %s without a paid request', async (locale) => {
+    const { editor, context, fields, requests } = createEditor({ type: 'habit', schedule: 'recurring', locale })
+    editor.setPhrase('once a week')
+    expect(context.cadence).toEqual({ unit: 'Week', quantity: 1, days: [], intervalWeeks: 1 })
+    expect(fields.dateIssue).toBe('')
+    await editor.ask(true, false)
+    expect(requests).toHaveLength(0)
+  })
+
   it.each(['toda semana', 'todas as semanas', 'semanalmente', 'every week', 'weekly'])('handles %s without date arithmetic, a proposal or a paid action', async (phrase) => {
     const { editor, context, fields, requests } = createEditor({ type: 'habit', schedule: 'flexible', cadence: { unit: 'Month', quantity: 3, days: ['Monday'], intervalWeeks: 4 } })
     editor.setPhrase(phrase)

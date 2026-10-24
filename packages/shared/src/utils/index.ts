@@ -834,3 +834,5 @@ export type { MoveParentOption, MoveParentPickerProps, MoveParentRowProps, MoveT
 export { optimisticMoveHabitParent } from './habit-parent-optimistic'
 
 export { TODAY_LAUNCH_SPAN_NAME, sampleTodayLaunch, startTodayLaunchTiming, isTodayLaunchCache } from './today-launch'
+
+export { readHabitRecurrencePhrase, type HabitRecurrence, type HabitRecurrencePhrase } from './habit-recurrence-phrase'

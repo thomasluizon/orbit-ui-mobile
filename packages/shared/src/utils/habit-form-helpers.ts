@@ -1,3 +1,4 @@
+import type { HabitRecurrence } from './habit-recurrence-phrase'
 import { formatWeekdaySchedule } from './weekday-schedule'
 import { MAX_HABIT_INTERVAL_WEEKS, type ChecklistItem, type FrequencyUnit, type HabitSetupSuggestion, type NormalizedHabit } from '../types/habit'
 import type { HabitPhraseRead, HabitPhraseToken } from './habit-phrase-parser'
@@ -417,7 +418,7 @@ export interface HabitFormController {
   setQuantity: (quantity: number) => void
   setScheduleMode: (flexible: boolean) => void
   setSchedule: (unit: FrequencyUnit, quantity: number | null, flexible: boolean) => void
-  setWeeklyRecurrence: () => void
+  setRecurrence: (schedule: HabitRecurrence) => void
 }
 
 export function createHabitFormController({
@@ -506,16 +507,16 @@ export function createHabitFormController({
       applyHabitQuantityCorrection(quantity, lockedGeneral, target)
     },
     setScheduleMode,
-    setWeeklyRecurrence: (): void => {
+    setRecurrence: (schedule): void => {
       if (lockedGeneral === true) return
       onSuggestionContextChange?.()
       resolveSection('setup')
       releaseOwnership('cadence')
-      target.setRecurring(false)
-      target.setField('frequencyUnit', 'Week')
-      target.setField('frequencyQuantity', 1)
-      target.setField('days', [])
-      target.setField('intervalWeeks', 1)
+      target.setRecurring(schedule.flexible)
+      target.setField('frequencyUnit', schedule.unit)
+      target.setField('frequencyQuantity', schedule.quantity)
+      target.setField('days', schedule.days)
+      target.setField('intervalWeeks', schedule.intervalWeeks)
     },
     setSchedule: (unit, quantity, flexible): void => {
       if (lockedGeneral === true) return

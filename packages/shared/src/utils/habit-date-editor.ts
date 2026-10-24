@@ -1,13 +1,14 @@
 import { DateInterpretationSession, type DateInterpretationContext } from './date-interpretation-session'
 import type { DateInterpretation } from '../types/habit'
 import type { DatePhraseResult } from './date-phrase-parser'
-import { isWeeklyRecurrencePhrase } from './habit-phrase-parser'
+import { readHabitRecurrencePhrase, type HabitRecurrence, type HabitRecurrencePhrase } from './habit-recurrence-phrase'
+import { parseDatePhrase } from './date-phrase-parser'
 
 interface DateEditorAdapter {
   owner: object
   generalLocked: boolean
   context: () => DateInterpretationContext
-  applyWeeklyRecurrence: () => void
+  applyRecurrence: (schedule: HabitRecurrence) => void
   write: (field: 'dueDate' | 'datePhrase' | 'dateIssue', value: string) => void
   request: (input: { phrase: string; language: string }, signal: AbortSignal) => Promise<DateInterpretation>
   failure: (error: unknown) => string
@@ -52,7 +53,7 @@ export class HabitDateEditor {
     if (JSON.stringify({ ...context, generalLocked: this.adapter.generalLocked }) === this.context) return
     this.abort?.abort()
     this.rememberContext()
-    if (isWeeklyRecurrencePhrase(context.phrase)) {
+    if (readHabitRecurrencePhrase(context.phrase)) {
       this.setRecurrenceIssue(context)
       this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: 'recurrence' })
       return
@@ -70,8 +71,9 @@ export class HabitDateEditor {
     this.session.invalidate()
     this.adapter.write('datePhrase', phrase)
     const context = { ...this.adapter.context(), phrase }
-    if (isWeeklyRecurrencePhrase(phrase)) {
-      this.applyRecurrence(context, choosingType)
+    const recurrence = readHabitRecurrencePhrase(phrase)
+    if (recurrence) {
+      this.applyRecurrence(context, choosingType, recurrence)
       this.setRecurrenceIssue(context)
       this.rememberContext()
       this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: 'recurrence' })
@@ -84,12 +86,19 @@ export class HabitDateEditor {
     this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: result.status })
   }
 
-  private applyRecurrence(context: DateInterpretationContext, choosingType: boolean): void {
-    if (context.type === 'habit' && !this.adapter.generalLocked && (context.schedule !== 'general' || choosingType) && context.date) this.adapter.applyWeeklyRecurrence()
+  private applyRecurrence(context: DateInterpretationContext, choosingType: boolean, recurrence: HabitRecurrencePhrase): void {
+    const start = recurrence.startPhrase ? parseDatePhrase(recurrence.startPhrase, context) : null
+    if (start && start.status !== 'resolved') return
+    if (context.type === 'habit' && !this.adapter.generalLocked && (context.schedule !== 'general' || choosingType) && context.date) {
+      this.adapter.applyRecurrence(recurrence.schedule)
+      if (start?.status === 'resolved') this.adapter.write('dueDate', start.date)
+    }
   }
 
   private setRecurrenceIssue(context: DateInterpretationContext): void {
-    const issue = context.type === 'task' ? 'habits.form.recurrenceRequiresHabit' : context.type === 'habit' && this.adapter.generalLocked ? 'errors.api.generalMismatchWithParent' : ''
+    const startPhrase = readHabitRecurrencePhrase(context.phrase)?.startPhrase
+    const start = startPhrase ? parseDatePhrase(startPhrase, context) : null
+    const issue = context.type === 'task' ? 'habits.form.recurrenceRequiresHabit' : context.type === 'habit' && this.adapter.generalLocked ? 'errors.api.generalMismatchWithParent' : start && start.status !== 'resolved' ? start.status === 'invalid' ? 'habits.form.dateInvalid' : 'habits.form.datePhraseUnresolved' : ''
     this.adapter.write('dateIssue', issue)
   }
 
@@ -101,7 +110,7 @@ export class HabitDateEditor {
 
   chooseType(): void {
     const { phrase } = this.adapter.context()
-    if (isWeeklyRecurrencePhrase(phrase)) this.readPhrase(phrase, true)
+    if (readHabitRecurrencePhrase(phrase)) this.readPhrase(phrase, true)
     else this.sync()
   }
 
@@ -117,7 +126,7 @@ export class HabitDateEditor {
 
   async ask(online: boolean, atLimit: boolean): Promise<void> {
     const context = this.adapter.context()
-    if (isWeeklyRecurrencePhrase(context.phrase)) return
+    if (readHabitRecurrencePhrase(context.phrase)) return
     const ticket = this.session.begin(context, online, atLimit)
     if (!ticket) return
     const abort = new AbortController()
