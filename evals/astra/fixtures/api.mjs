@@ -1,0 +1,23 @@
+import { apiOrigin } from '../credentials.mjs'
+
+export function publicApi(credentialKey) {
+  return async (method, path, body, accepted = []) => {
+    const token = process.env[credentialKey]
+    if (!token) throw new Error('Fixture requires a refreshed credential.')
+    let response
+    let payload
+    try {
+      response = await fetch(`${apiOrigin()}/api/${path}`, {
+        method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'api-version': '2.0' },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        redirect: 'error', signal: AbortSignal.timeout(15000),
+      })
+      const text = await response.text()
+      payload = text ? JSON.parse(text) : null
+    } catch {
+      throw new Error('Fixture API transport or JSON response failed.')
+    }
+    if (!response.ok && !accepted.includes(payload?.errorCode)) throw new Error(`Fixture API ${method} failed with HTTP ${response.status}.`)
+    return { status: response.status, payload }
+  }
+}

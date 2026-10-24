@@ -134,7 +134,7 @@ test("Astra eval exports temporary paths before evaluation without job-level run
     })
     assert.equal(result.status, 0, result.stderr)
     assert.deepEqual(readFileSync(environmentFile, "utf8").trim().split("\n"), [
-      `ORBIT_EVAL_RESET_SCRIPT=${directory}/astra-reset.sh`,
+      `ORBIT_EVAL_CREDENTIALS_FILE=${directory}/astra-credentials.json`,
       `PROMPTFOO_CONFIG_DIR=${directory}/astra-promptfoo`,
     ])
   } finally {
