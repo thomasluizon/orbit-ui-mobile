@@ -1,0 +1,18 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "APPLE_TEAM_ID.org.useorbit.app",
+        "paths": ["/auth-callback", "/r/*"]
+      },
+      {
+        "appID": "APPLE_TEAM_ID.org.useorbit.app.staging",
+        "paths": ["/auth-callback", "/r/*"]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["APPLE_TEAM_ID.org.useorbit.app", "APPLE_TEAM_ID.org.useorbit.app.staging"]
+  }
+}
