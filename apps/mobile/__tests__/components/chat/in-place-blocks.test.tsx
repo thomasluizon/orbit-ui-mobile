@@ -2,7 +2,8 @@ import { ChatBlock } from '@/components/chat/block-registry'
 import { chatNavigationCases } from '@orbit/shared/test-support/chat-navigation-fixtures'
 import React from 'react'
 import { act, create } from 'react-test-renderer'
-import { Pressable, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
+import { Shell412 } from '@/components/shell/shell-412'
 import type { GeometryTree } from '../../support/safe-area-geometry'
 import { renderedText } from '../../support/react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -171,12 +172,24 @@ it.each(['child', 'bad'] as const)('keeps a completed %s row outside the parent 
 
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
 
-it.each(chatNavigationCases)('closes Astra before routing from $name', ({ part, label, mobile }) => {
+function NavigationApp({ part, destination = '/' }: Readonly<{ part: typeof chatNavigationCases[number]['part']; destination?: string }>) {
+  const open = useUIStore(state => state.astraConversationOpen)
+  return <Shell412 nav={false} conversation={<ChatBlock part={part} onActionChipClick={undefined} />} conversationOpen={open}
+    conversationLabel="Astra"><Text accessibilityRole="header">{destination}</Text></Shell412>
+}
+
+it.each(chatNavigationCases)('reveals the destination outside full-screen Astra from $name', ({ part, label, mobile, web }) => {
   state.push.mockImplementation(() => expect(useUIStore.getState().astraConversationOpen).toBe(false))
   state.goals.set('goal-1', createMockGoal({ id: 'goal-1' }))
-  const tree = render(<ChatBlock part={part} onActionChipClick={undefined} />)
+  const tree = render(<NavigationApp part={part} />)
+  expect(tree.root.findAll(node => node.type === View && node.props.testID === 'shell-conversation')).toHaveLength(1)
+  expect(tree.root.findAll(node => node.type === View && node.props.testID === 'shell-background')[0]!.props.importantForAccessibility).toBe('no-hide-descendants')
   press(tree, label)
   expect(state.push).toHaveBeenCalledWith(mobile)
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  void act(() => tree.update(<NavigationApp part={part} destination={web} />))
+  expect(tree.root.findAll(node => node.type === View && node.props.testID === 'shell-conversation')).toHaveLength(0)
+  expect(tree.root.findAll(node => node.type === View && node.props.testID === 'shell-background')[0]!.props.importantForAccessibility).toBe('auto')
+  expect(tree.root.findAll(node => node.type === Text && node.props.accessibilityRole === 'header' && node.props.children === web)).toHaveLength(1)
   void act(() => tree.unmount())
 })
