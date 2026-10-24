@@ -1,4 +1,4 @@
-import { makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle, type TextStyle } from 'react-native'
@@ -10,6 +10,7 @@ import { HabitListCard } from '@/components/chat/habit-list-card'
 import { Button } from '@/components/ui/pill-button'
 import { i18n } from '@/lib/i18n'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
+import { measureProfileRow } from '../../support/profile-row-geometry'
 import { renderedText } from '../../support/react-test-renderer'
 
 vi.unmock('react-i18next')
@@ -78,6 +79,25 @@ function expectTrailingLines(bounds: ReturnType<ReturnType<typeof Yoga.Node.crea
 afterEach(async () => { __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }); await i18n.changeLanguage('en'); vi.clearAllMocks() })
 
 describe('Pending preview geometry on Android', () => {
+  it.each([320, 412, 1352].flatMap(width => locales.flatMap(locale => [1, 2].map(scale => ({ width, locale, scale })))))('fits parent choices at $width in $locale with text scale $scale', async ({ width, locale, scale }) => {
+    __setWindowDimensions({ width, height: 1800, scale: 1, fontScale: scale })
+    await i18n.changeLanguage(locale)
+    const tree = render(<PendingOperationCard pendingOperation={makeParentChoicePreview(1)} {...handlers} />)
+    try {
+      const measured = measureProfileRow(tree.toJSON(), Math.min(width, 740) - 32, scale)
+      const options = measured.controls.filter(control => ['Post Lunch', i18n.t('habits.moveParent.toRoot')].includes(control.accessibilityLabel ?? ''))
+      expect(options).toHaveLength(3)
+      expect(measured.texts.find(text => text.label === i18n.t('habits.moveParent.toRoot'))?.clipped).toBe(false)
+      options.forEach((control, index) => {
+        expect(control.height).toBeGreaterThanOrEqual(48)
+        expect(control.left).toBeGreaterThanOrEqual(24)
+        expect(control.right).toBeLessThanOrEqual(Math.min(width, 740) - 32 - 24)
+        if (index) expect(control.top).toBeGreaterThanOrEqual(options[index - 1]!.bottom)
+      })
+      expect(renderedText(tree.toJSON())).toContain(i18n.t('chat.operation.parentChoiceRequired'))
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
   it.each([1352, 1100, 412, 320].flatMap((width) => locales.flatMap((locale) => [undefined, ...countedActions].map((counted) => ({ width, locale, counted })))))('keeps controls readable at $width in $locale with counted action $counted', async ({ width, locale, counted }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     await i18n.changeLanguage(locale)

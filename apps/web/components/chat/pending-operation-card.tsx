@@ -176,7 +176,7 @@ function ParentChoice({ itemName, field, labels, disabled, onSelect, selectedVal
   return <div className="flex min-w-0 flex-col gap-2">
     <p className="text-sm text-[var(--fg-2)]">{labels.fieldLabels.parent_habit_id}</p>
     <RadioGroup aria-label={`${labels.fieldLabels.parent_habit_id}: ${itemName}`} aria-required={field.required}>
-      {field.options.map((option, index) => <RadioRow key={index} wrapLabel textMode="personal"
+      {field.options.map((option, index) => <RadioRow key={index} wrapLabel textMode={option.value === null ? undefined : 'personal'}
         label={option.value === null ? labels.noParent : option.label} selected={selectedValue !== undefined && selectedValue === option.value}
         {...(disabled ? { disabled: true as const, reason: labels.acting } : { onSelect: () => onSelect(option.value) })} />)}
     </RadioGroup>

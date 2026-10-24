@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -196,6 +196,41 @@ describe('Pending preview geometry in Chromium', () => {
       expect(geometry.statusOverflow).toBeLessThanOrEqual(1)
       expect(geometry.statusRight).toBeLessThanOrEqual(geometry.trailingRight + 0.5)
       if (state === 'pending') await expectInteractionGeometry(page, name, geometry.metaLeft)
+    } finally { await page.close() }
+  })
+
+  it.each([320, 412, 1352].flatMap(width => locales.flatMap(locale => [1, 2].map(scale => ({ width, locale, scale })))))('fits parent choices at $width in $locale with text scale $scale', async ({ width, locale, scale }) => {
+    setViewport(width)
+    const messages = locale === 'en' ? en : pt
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><div style={{ width: Math.min(width, 740), padding: 16 }}><PendingOperationCard pendingOperation={makeParentChoicePreview(1)} onRevise={vi.fn()} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} /></div></NextIntlClientProvider>)
+    expect(screen.getAllByRole('radio')).toHaveLength(3)
+    const page = await browser.newPage({ viewport: { width, height: 1800 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div class="dark">${container.innerHTML}</div>`)
+      await page.evaluate(async (scale) => {
+        const textStyles = [...document.querySelectorAll<HTMLElement>('p,span,h3,button')].map(element => ({ element, fontSize: parseFloat(getComputedStyle(element).fontSize), lineHeight: parseFloat(getComputedStyle(element).lineHeight) }))
+        textStyles.forEach(({ element, fontSize, lineHeight }) => { element.style.fontSize = `${fontSize * scale}px`; if (Number.isFinite(lineHeight)) element.style.lineHeight = `${lineHeight * scale}px` })
+        await document.fonts.ready
+      }, scale)
+      const geometry = await page.evaluate(() => {
+        const frame = document.querySelector('section')!.getBoundingClientRect()
+        const controls = [...document.querySelectorAll<HTMLElement>('[role="radio"]')].map(control => {
+          const bounds = control.getBoundingClientRect()
+          const label = (control.querySelector<HTMLElement>('[data-slot="list-row-title"]') ?? control.parentElement!.querySelector<HTMLElement>('[data-slot="list-row-title"]'))!
+          return { labelOverflow: label.scrollHeight - label.clientHeight, left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom, height: bounds.height, overflow: control.scrollWidth - control.clientWidth }
+        })
+        return { frameLeft: frame.left, frameRight: frame.right, controls, pageOverflow: document.documentElement.scrollWidth - innerWidth }
+      })
+      expect(geometry.controls).toHaveLength(3)
+      expect(geometry.pageOverflow).toBeLessThanOrEqual(1)
+      geometry.controls.forEach((control, index) => {
+        expect(control.height).toBeGreaterThanOrEqual(48)
+        expect(control.left).toBeGreaterThanOrEqual(geometry.frameLeft)
+        expect(control.right).toBeLessThanOrEqual(geometry.frameRight)
+        expect(control.overflow).toBeLessThanOrEqual(1)
+        expect(control.labelOverflow).toBeLessThanOrEqual(1)
+        if (index) expect(control.top).toBeGreaterThanOrEqual(geometry.controls[index - 1]!.bottom)
+      })
     } finally { await page.close() }
   })
 

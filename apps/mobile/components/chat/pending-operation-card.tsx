@@ -189,7 +189,7 @@ function ParentChoice({ itemName, field, labels, disabled, onSelect, selectedVal
   return <View style={{ gap: SPACING.s8 }}>
     <Text style={{ color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{labels.fieldLabels.parent_habit_id}</Text>
     <RadioGroup accessibilityLabel={`${labels.fieldLabels.parent_habit_id}: ${itemName}`}>
-      {field.options.map((option, index) => <RadioRow key={index} wrapLabel textMode="personal"
+      {field.options.map((option, index) => <RadioRow key={index} wrapLabel textMode={option.value === null ? undefined : 'personal'}
         label={option.value === null ? labels.noParent : option.label} selected={selectedValue !== undefined && selectedValue === option.value}
         {...(disabled ? { disabled: true as const, reason: labels.acting } : { onSelect: () => onSelect(option.value) })} />)}
     </RadioGroup>
