@@ -1,0 +1,90 @@
+name: Desktop Build
+
+on:
+  pull_request:
+    branches: [main, redesign/main]
+    paths:
+      - "apps/desktop/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/desktop-build.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Desktop ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            target: aarch64-apple-darwin
+          - runner: macos-15
+            target: x86_64-apple-darwin
+          - runner: windows-2025
+            target: x86_64-pc-windows-msvc
+          - runner: windows-2025
+            target: aarch64-pc-windows-msvc
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --fund=false
+      - name: Install Rust and compilation target
+        env:
+          DESKTOP_TARGET: ${{ matrix.target }}
+        run: rustup toolchain install stable --profile minimal --target "$DESKTOP_TARGET" --default
+      - name: Validate desktop configuration
+        run: |
+          npm run type-check -w @orbit/desktop
+          npm run test -w @orbit/desktop
+      - name: Check target and test native context on the runner host
+        env:
+          DESKTOP_TARGET: ${{ matrix.target }}
+        working-directory: apps/desktop/src-tauri
+        run: |
+          cargo check --locked --target "$DESKTOP_TARGET"
+          cargo test --locked
+      - name: Package unsigned staging shell
+        env:
+          DESKTOP_TARGET: ${{ matrix.target }}
+        run: npm run build:staging -w @orbit/desktop -- --target "$DESKTOP_TARGET" --no-sign -- --locked
+      - name: Archive macOS app with executable permissions
+        if: runner.os == 'macOS'
+        env:
+          DESKTOP_TARGET: ${{ matrix.target }}
+        run: |
+          tar -czf "apps/desktop/orbit-staging-${DESKTOP_TARGET}.tar.gz" \
+            -C "apps/desktop/src-tauri/target/${DESKTOP_TARGET}/release/bundle/macos" "Orbit Staging.app"
+      - name: Upload macOS app
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v7
+        with:
+          name: orbit-staging-${{ matrix.target }}
+          path: apps/desktop/orbit-staging-${{ matrix.target }}.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload Windows installer
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: orbit-staging-${{ matrix.target }}
+          path: apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 14

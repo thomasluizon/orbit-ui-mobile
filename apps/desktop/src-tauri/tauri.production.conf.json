@@ -1,0 +1,17 @@
+{
+  "productName": "Orbit",
+  "identifier": "org.useorbit.desktop",
+  "build": {
+    "frontendDist": "https://app.useorbit.org"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Orbit",
+        "url": "https://app.useorbit.org",
+        "incognito": false
+      }
+    ]
+  }
+}
