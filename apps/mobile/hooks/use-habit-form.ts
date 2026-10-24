@@ -48,7 +48,7 @@ export interface HabitFormHelpers {
   retiredCadenceTitle?: string
   setOneTime: () => void
   setRecurring: (restoreDraft?: boolean) => void
-  setFlexible: () => void
+  setFlexible: (restoreDraft?: boolean) => void
   setGeneral: () => void
   formatTimeInput: (value: string) => string
   formatEndTimeInput: (value: string) => string
@@ -199,7 +199,8 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     if (restoreDraft && draft) for (const [field, value] of Object.entries(draft)) form.setValue(field as keyof HabitFormInput, value, { shouldDirty: true })
   }, [form, modeDrafts])
 
-  const setFlexible = useCallback(() => {
+  const setFlexible = useCallback((restoreDraft = true) => {
+    if (!restoreDraft) setRetiredCadenceTitle(form.getValues('title'))
     const draft = modeDrafts.switch(normalizeHabitFormData(form.getValues()), 'flexible')
     form.setValue('isGeneral', false)
     form.setValue('isFlexible', true)
@@ -211,7 +212,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     if (!quantity || quantity < 1) {
       form.setValue('frequencyQuantity', 3)
     }
-    if (draft) for (const [field, value] of Object.entries(draft)) form.setValue(field as keyof HabitFormInput, value, { shouldDirty: true })
+    if (restoreDraft && draft) for (const [field, value] of Object.entries(draft)) form.setValue(field as keyof HabitFormInput, value, { shouldDirty: true })
   }, [form, modeDrafts])
 
   const setGeneral = useCallback(() => {

@@ -1556,6 +1556,27 @@ describe('date candidate confirmation', () => {
   })
 })
 
+const repeatPhraseCases = [
+  { wording: "every day", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "daily", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "once a week", expected: {"frequencyUnit": "Week", "frequencyQuantity": 1, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "twice a week", expected: {"frequencyUnit": "Week", "frequencyQuantity": 2, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "3x a week", expected: {"frequencyUnit": "Week", "frequencyQuantity": 3, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "every Monday", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday"], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "weekdays", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "todo dia", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "todos os dias", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "uma vez por semana", expected: {"frequencyUnit": "Week", "frequencyQuantity": 1, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "duas vezes por semana", expected: {"frequencyUnit": "Week", "frequencyQuantity": 2, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "3x por semana", expected: {"frequencyUnit": "Week", "frequencyQuantity": 3, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "toda segunda", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday"], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "dias úteis", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "every week", expected: {"frequencyUnit": "Week", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "toda semana", expected: {"frequencyUnit": "Week", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "every Monday from next week", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday"], "intervalWeeks": 1, "dueDate": "2026-10-26"} },
+  { wording: "toda segunda a partir da próxima semana", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday"], "intervalWeeks": 1, "dueDate": "2026-10-26"} }
+]
+
 describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (owner) => {
   const closed = vi.fn()
   const originalTimeZone = process.env.TZ
@@ -1637,6 +1658,27 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
     const request = expect.objectContaining({ title: 'Read', frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-20' })
     expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+  })
+
+  it.each(['en', 'pt-BR'].flatMap((locale) => repeatPhraseCases.map((phrase) => ({ locale, ...phrase }))))('saves repeat phrase $locale $wording through the actual modal', async ({ locale, wording, expected }) => {
+    formLocale.realController = true
+    formLocale.language = locale
+    await mount('habit')
+    fireEvent.change(phraseInput(), { target: { value: wording } })
+    if (owner === 'create') fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+    expect(screen.queryByRole('button', { name: 'habits.form.askDate' })).toBeNull()
+    expect(screen.getByRole('radio', { name: expected.isFlexible ? 'habits.form.timesPerUnit' : 'habits.form.every' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: expected.frequencyUnit === 'Week' ? 'habits.form.unitWeek' : 'habits.form.unitDay' })).toBeChecked()
+    expect(screen.getByRole('spinbutton', { name: 'habits.form.frequency' })).toHaveValue(expected.frequencyQuantity)
+    for (const day of expected.days) expect(screen.getByRole('button', { name: `dates.daysLong.${day.toLowerCase()}` })).toHaveAttribute('aria-pressed', 'true')
+    expect(mutation()).not.toHaveBeenCalled()
+    await submit()
+    await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+    const { dueDate, days, isFlexible, ...schedule } = expected
+    const request = expect.objectContaining({ ...schedule, ...(days.length ? { days } : {}), ...(isFlexible || owner === 'edit' ? { isFlexible } : {}), title: 'Read', startDate: dueDate })
+    expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    expect(dateRequests.request).not.toHaveBeenCalled()
     expect(modalFeedback.showError).not.toHaveBeenCalled()
   })
 

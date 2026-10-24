@@ -55,7 +55,7 @@ export class HabitDateEditor {
     this.rememberContext()
     if (readHabitRecurrencePhrase(context.phrase)) {
       this.setRecurrenceIssue(context)
-      this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: 'recurrence' })
+      this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: this.recurrenceStatus(context) })
       return
     }
     if (context.phrase) {
@@ -76,7 +76,7 @@ export class HabitDateEditor {
       this.applyRecurrence(context, choosingType, recurrence)
       this.setRecurrenceIssue(context)
       this.rememberContext()
-      this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: 'recurrence' })
+      this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: this.recurrenceStatus(context) })
       return
     }
     const result = this.session.parse(context)
@@ -93,6 +93,12 @@ export class HabitDateEditor {
       this.adapter.applyRecurrence(recurrence.schedule)
       if (start?.status === 'resolved') this.adapter.write('dueDate', start.date)
     }
+  }
+
+  private recurrenceStatus(context: DateInterpretationContext): DateEditorSnapshot['status'] {
+    const startPhrase = readHabitRecurrencePhrase(context.phrase)?.startPhrase
+    const start = startPhrase ? parseDatePhrase(startPhrase, context) : null
+    return start && start.status !== 'resolved' ? start.status : 'recurrence'
   }
 
   private setRecurrenceIssue(context: DateInterpretationContext): void {
@@ -126,7 +132,7 @@ export class HabitDateEditor {
 
   async ask(online: boolean, atLimit: boolean): Promise<void> {
     const context = this.adapter.context()
-    if (readHabitRecurrencePhrase(context.phrase)) return
+    if (readHabitRecurrencePhrase(context.phrase) && this.recurrenceStatus(context) === 'recurrence') return
     const ticket = this.session.begin(context, online, atLimit)
     if (!ticket) return
     const abort = new AbortController()

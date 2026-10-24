@@ -70,6 +70,37 @@ describe('habit date editor lifecycle', () => {
     expect(requests).toHaveLength(0)
   })
 
+  it.each([
+    ['every Monday from next week', '2026-10-26'],
+    ['toda segunda a partir da próxima semana', '2026-10-26'],
+    ['daily from tomorrow', '2026-10-21'],
+    ['todo dia a partir de dia 23', '2026-10-23'],
+  ])('applies the explicit start in %s', (phrase, date) => {
+    const { editor, fields, context } = createEditor({ type: 'habit', schedule: 'recurring' })
+    editor.setPhrase(phrase)
+    expect(fields).toMatchObject({ dueDate: date, dateIssue: '' })
+    expect(context.cadence.unit).toBe('Day')
+  })
+
+  it.each(['daily from 31 February', 'every Monday from after vacation'])('keeps schedule and calendar unchanged for unresolved starts: %s', (phrase) => {
+    const { editor, fields, context } = createEditor({ type: 'habit', schedule: 'recurring' })
+    editor.setPhrase(phrase)
+    expect(fields.dueDate).toBe('2026-10-20')
+    expect(fields.dateIssue).not.toBe('')
+    expect(context.cadence.unit).toBeNull()
+  })
+
+  it('retains explicit Astra recovery for an unsupported recurrence start', async () => {
+    const { editor, requests } = createEditor({ type: 'habit', schedule: 'recurring' })
+    editor.setPhrase('every Monday from after vacation')
+    expect(editor.getSnapshot().status).toBe('unsupported')
+    const pending = editor.ask(true, false)
+    expect(requests).toHaveLength(1)
+    requests[0]!.resolve(interpretation)
+    await pending
+    expect(editor.getSnapshot().candidate).toBe('2026-10-26')
+  })
+
   it.each(['task', undefined, 'habit'])('does not schedule an ineligible type %s', async (type) => {
     const { editor, fields, context, requests } = createEditor({ type, schedule: type === 'habit' ? 'general' : 'oneTime' })
     editor.setPhrase('every week')

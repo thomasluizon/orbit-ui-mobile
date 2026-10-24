@@ -15,6 +15,7 @@ import { __focusHost, __getFocusedNativeTag, __setFocusImpl, __setTouchMode } fr
 import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selection'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { HabitScheduleFields } from '@/components/habits/habit-form-fields/habit-schedule-fields'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { HabitFormInteractionProvider } from '@/components/habits/habit-form-fields/habit-form-interaction'
 import { ListRow } from '@/components/ui/list-row'
@@ -1849,6 +1850,27 @@ it('keeps a native Astra date proposed until acceptance and moves focus to its c
   } finally { vi.useRealTimers(); await TestRenderer.act(() => tree.unmount()) }
 })
 
+const repeatPhraseCases = [
+  { wording: "every day", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "daily", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "once a week", expected: {"frequencyUnit": "Week", "frequencyQuantity": 1, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "twice a week", expected: {"frequencyUnit": "Week", "frequencyQuantity": 2, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "3x a week", expected: {"frequencyUnit": "Week", "frequencyQuantity": 3, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "every Monday", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday"], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "weekdays", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "todo dia", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "todos os dias", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "uma vez por semana", expected: {"frequencyUnit": "Week", "frequencyQuantity": 1, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "duas vezes por semana", expected: {"frequencyUnit": "Week", "frequencyQuantity": 2, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "3x por semana", expected: {"frequencyUnit": "Week", "frequencyQuantity": 3, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "toda segunda", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday"], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "dias úteis", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "every week", expected: {"frequencyUnit": "Week", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "toda semana", expected: {"frequencyUnit": "Week", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "every Monday from next week", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday"], "intervalWeeks": 1, "dueDate": "2026-10-26"} },
+  { wording: "toda segunda a partir da próxima semana", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday"], "intervalWeeks": 1, "dueDate": "2026-10-26"} }
+]
+
 describe.each(['create', 'edit'] as const)('actual native %s modal submit feedback', (owner) => {
   let tree: ReturnType<typeof TestRenderer.create>
   const closed = vi.fn()
@@ -1924,6 +1946,25 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     const request = expect.objectContaining({ title: 'Read', frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-20' })
     expect(mutation()).toHaveBeenCalledOnce()
     expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+  })
+
+  it.each(['en', 'pt-BR'].flatMap((locale) => repeatPhraseCases.map((phrase) => ({ locale, ...phrase }))))('saves repeat phrase $locale $wording through the actual native modal', async ({ locale, wording, expected }) => {
+    formLocale.realController = true
+    formLocale.language = locale
+    await mount('habit')
+    await TestRenderer.act(() => phraseInput().props.onChangeText(wording))
+    if (owner === 'create') await TestRenderer.act(() => tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.moreDetails')!.props.onClick())
+    const schedule = tree.root.findByType(HabitScheduleFields).props
+    expect(schedule).toMatchObject({ unit: expected.frequencyUnit, quantity: expected.frequencyQuantity, flexible: expected.isFlexible })
+    expect(tree.root.findByType(HabitUnderstanding).props.days).toEqual(expected.days)
+    expect(mutation()).not.toHaveBeenCalled()
+    await submit()
+    const { dueDate, days, isFlexible, ...cadence } = expected
+    const request = expect.objectContaining({ ...cadence, ...(days.length ? { days } : {}), ...(isFlexible || owner === 'edit' ? { isFlexible } : {}), title: 'Read', startDate: dueDate })
+    expect(mutation()).toHaveBeenCalledOnce()
+    expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    expect(dateRequests.request).not.toHaveBeenCalled()
     expect(modalFeedback.showError).not.toHaveBeenCalled()
   })
 

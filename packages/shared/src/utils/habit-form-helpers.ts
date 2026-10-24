@@ -377,7 +377,7 @@ type HabitControllerField =
 interface HabitFormControllerTarget {
   setOneTime: () => void
   setRecurring: (restoreDraft?: boolean) => void
-  setFlexible: () => void
+  setFlexible: (restoreDraft?: boolean) => void
   setGeneral: () => void
   getOwnership: () => HabitPhraseFormOwnership
   setOwnership: (ownership: HabitPhraseFormOwnership) => void
@@ -512,7 +512,8 @@ export function createHabitFormController({
       onSuggestionContextChange?.()
       resolveSection('setup')
       releaseOwnership('cadence')
-      target.setRecurring(schedule.flexible)
+      if (schedule.flexible) target.setFlexible(false)
+      else target.setRecurring(false)
       target.setField('frequencyUnit', schedule.unit)
       target.setField('frequencyQuantity', schedule.quantity)
       target.setField('days', schedule.days)
