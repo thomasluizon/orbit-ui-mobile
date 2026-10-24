@@ -16,10 +16,10 @@ import { HabitScheduleFields } from '@/components/habits/habit-form-fields/habit
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
-const expectedButtonCounts: Readonly<Record<string, number>> = { fixed: 8, flexible: 10, unresolved: 9, proposed: 8, locked: 10 }
+const expectedButtonCounts: Readonly<Record<string, number>> = { daily: 8, fixed: 8, flexible: 10, unresolved: 9, proposed: 8, locked: 10 }
 
-const cases = [320, 360, 412, 1280].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) =>
-  ['fixed', 'flexible', 'unresolved', 'proposed', 'locked'].map((cadence) => ({ width, locale, cadence })),
+const cases = [320, 360, 393, 412, 1280].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) =>
+  ['daily', 'fixed', 'flexible', 'unresolved', 'proposed', 'locked'].map((cadence) => ({ width, locale, cadence })),
 ))
 
 describe('habit understanding geometry', () => {
@@ -134,8 +134,8 @@ describe('habit understanding geometry', () => {
     const messages = locale === 'en' ? en : ptBR
     const translate = createTranslator({ locale, messages }) as (key: string, values?: Record<string, string | number>) => string
     const phrases = locale === 'en'
-      ? { fixed: 'Read every Monday and Thursday at 08:00', flexible: 'Run 3 times a week', unresolved: 'Read', proposed: 'Read every Monday and Thursday at 08:00' }
-      : { fixed: 'Ler toda segunda e quinta às 08:00', flexible: 'Correr 3 vezes por semana', unresolved: 'Ler', proposed: 'Ler toda segunda e quinta às 08:00' }
+      ? { daily: 'Read every day', fixed: 'Read every Monday and Thursday at 08:00', flexible: 'Run 3 times a week', unresolved: 'Read', proposed: 'Read every Monday and Thursday at 08:00' }
+      : { daily: 'Ler todo dia', fixed: 'Ler toda segunda e quinta às 08:00', flexible: 'Correr 3 vezes por semana', unresolved: 'Ler', proposed: 'Ler toda segunda e quinta às 08:00' }
     const value = phrases[(cadence === 'locked' ? 'flexible' : cadence) as keyof typeof phrases]
     const parsed = readHabitPhrase(value, locale)
     const dayOptions = Object.entries(messages.dates.daysShort).map(([day, label]) => ({
@@ -144,7 +144,7 @@ describe('habit understanding geometry', () => {
     }))
     const flexible = parsed.cadence === 'flexible'
     const sentence = buildHabitUnderstandingSentence(parsed.days, dayOptions, flexible,
-      parsed.cadence === 'fixed' ? 'Day' : flexible ? 'Week' : null, parsed.frequencyQuantity ?? 1,
+      (parsed.cadence === 'fixed' || parsed.cadence === 'daily') ? 'Day' : flexible ? 'Week' : null, parsed.frequencyQuantity ?? 1,
       parsed.dueTime ?? '', locale, translate)
     const view = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><HabitUnderstanding value={value} emoji="" days={parsed.days} dayOptions={dayOptions}
       proposed={cadence === 'proposed'} scheduleLocked={cadence === 'locked'} quantity={parsed.frequencyQuantity ?? 3} mode={flexible ? 'flexible' : 'fixed'} sentence={sentence}
@@ -173,23 +173,27 @@ describe('habit understanding geometry', () => {
       for (let index = 1; index < measured.dayTargets.length; index++) {
         const previous = measured.dayTargets[index - 1]!
         const target = measured.dayTargets[index]!
-        expect(target.top >= previous.bottom || target.left >= previous.right).toBe(true)
+        expect(target.top).toBe(measured.dayTargets[0]!.top)
+        expect(target.left).toBeGreaterThanOrEqual(previous.right)
       }
       for (const target of measured.dayTargets) {
-        expect(target).toMatchObject({ width: 48, height: 48, contained: true })
+        expect(target.contained).toBe(true)
+        expect(target.width).toBeGreaterThanOrEqual(24)
+        expect(target.height).toBeGreaterThanOrEqual(48)
+        expect(target.width).toBeCloseTo(measured.dayTargets[0]!.width, 1)
       }
       for (const control of await page.locator('main button:not([aria-haspopup])').all()) {
         expect(await control.isDisabled()).toBe(cadence === 'locked')
         await page.mouse.move(0, 0)
         const resting = await control.evaluate((element) => {
-          const style = getComputedStyle(element)
+          const style = getComputedStyle(element.querySelector('span[data-selected], span.orbit-selection-ring') ?? element)
           return { fill: style.backgroundColor, color: style.color }
         })
         const bounds = (await control.boundingBox())!
         await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
         await page.waitForTimeout(300)
         const hovered = await control.evaluate((element) => {
-          const style = getComputedStyle(element)
+          const style = getComputedStyle(element.querySelector('span[data-selected], span.orbit-selection-ring') ?? element)
           return { fill: style.backgroundColor, color: style.color }
         })
         if (cadence === 'locked') expect(hovered).toEqual(resting)

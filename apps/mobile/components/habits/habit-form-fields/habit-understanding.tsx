@@ -8,6 +8,7 @@ import type { HabitUnderstandingProps, HabitRepeatIntervalProps } from '@orbit/s
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
 import { Minus, Plus } from '@/components/ui/icons'
+import { WeekdayPicker } from '@/components/ui/weekday-picker'
 import { Proposed } from '@/components/ui/proposed'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -219,12 +220,6 @@ function createStyles(tokens: AppTokens) {
       fontSize: 17,
       lineHeight: 24,
     },
-    days: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-    day: { overflow: 'hidden', alignItems: 'center', borderRadius: radius.full, height: TOUCH_TARGET_MIN, justifyContent: 'center', width: TOUCH_TARGET_MIN },
-    dayIdle: { backgroundColor: tokens.bgWell, borderColor: tokens.hairline, borderWidth: 1 },
-    daySelected: { backgroundColor: tokens.primaryDim },
-    dayText: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 },
-    dayTextSelected: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
     stepper: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     stepButton: {
       overflow: 'hidden',
@@ -263,16 +258,7 @@ function ScheduleCorrections({ hidden = false, proposed = false, days, daily = f
   if (hidden) return null
   return (
     <>
-      <View accessibilityLabel={labels.days} style={styles.days}>
-        {dayOptions.map((day) => {
-          const selected = daily || days.includes(day.value)
-          return (
-            <Pressable focusInset selectionRingWidth={1.5} selectionRingColor={proposed ? tokens.fg3 : tokens.primary} key={day.value} accessibilityRole="button" accessibilityLabel={day.accessibleLabel} accessibilityState={{ selected, ...(scheduleLocked ? { disabled: true } : {}) }} disabled={scheduleLocked} style={({ pressed }) => [styles.day, selected ? proposed ? { backgroundColor: tokens.bgWell } : styles.daySelected : styles.dayIdle, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onToggleDay(day.value)}>
-              <Text style={selected && !proposed ? styles.dayTextSelected : styles.dayText}>{day.label.charAt(0)}</Text>
-            </Pressable>
-          )
-        })}
-      </View>
+      <WeekdayPicker label={labels.days} days={days} daily={daily} dayOptions={dayOptions} proposed={proposed} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} />
       {showCount ? (
         <View style={styles.stepper}>
           <Pressable accessibilityRole="button" accessibilityLabel={labels.less} disabled={scheduleLocked} style={({ pressed }) => [styles.stepButton, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onQuantityChange(Math.max(1, quantity - 1))}>
