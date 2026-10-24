@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
+import { beforeEach as prepareAttempt } from '../hooks.mjs'
 import { resetFixture, runReset } from '../fixtures/reset.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 
@@ -144,4 +145,18 @@ it('rejects a partial HTTP-successful bulk and an ignored reset write', async ()
   vi.stubGlobal('fetch', async (url, options) => options.method === 'PUT' && new URL(url).pathname.includes('/habits/')
     ? new Response(null, { status: 204 }) : intercepted(url, options))
   await expect(resetFixture(scenario('pro'))).rejects.toThrow('title readback')
+})
+
+it('drives refresh, default reset, independent readback and ID substitution through the real hook', async () => {
+  vi.stubEnv('ORBIT_EVAL_RESET_SCRIPT', '')
+  vi.stubEnv('ORBIT_EVAL_TOKEN', 'expired-access')
+  const source = structuredClone(corpus.find((entry) => entry.metadata.id === 'single-log-en'))
+  const { test } = await prepareAttempt({ test: source })
+  expect(requests[0].path).toBe('auth/refresh')
+  expect(requests.at(-1).path).toBe('profile/export')
+  const account = JSON.parse(readFileSync(process.env.ORBIT_EVAL_CREDENTIALS_FILE, 'utf8')).ORBIT_EVAL_TOKEN
+  expect(test.vars.input).toContain(account.habitId)
+  expect(test.vars.expectations.required[0].arguments.habit_id).toBe(account.habitId)
+  expect(test.vars.evalRequestId).toMatch(/^[0-9a-f-]{36}$/)
+  expect(process.env.ORBIT_EVAL_TOKEN).toBe('pro-access')
 })

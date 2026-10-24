@@ -399,7 +399,10 @@ separate authenticated step-up flow. The reset does not invent these states or b
 Logging can earn real achievement state, which persists across attempts; it is not reset to zero.
 Zero-history fixtures undo positive logs, rather than promising deletion of audit history. The
 composition analytics windows roll because the log API rejects writes older than seven days.
-These are explicit reproducibility assumptions, not evidence that stale/offline/revocation cases
+The public API also cannot enumerate or clear held proposals. Ordinary attempts start with empty
+client history; correction attempts use only their freshly verified setup turn. Server proposals
+retain their normal expiry, and strict call-scope checks still apply. No pending store is changed
+directly. These are explicit reproducibility assumptions, not evidence that stale/offline/revocation cases
 have passed. The gate keeps its strict assertions and genuine final acceptance remains required.
 
 The medical batch keeps the original message intact, with no setup or follow-up. It requires one

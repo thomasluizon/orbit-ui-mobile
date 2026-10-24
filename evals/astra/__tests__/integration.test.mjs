@@ -69,7 +69,7 @@ describe('HTTP provider wiring without a server', () => {
     ['ORBIT_EVAL_TOKEN', 200], ['ORBIT_EVAL_FREE_TOKEN', 200], ['ORBIT_EVAL_BUDGET_TOKEN', 403],
   ])('renders multipart and the selected credential: %s, status=%s', async (credentialKey, status) => {
     offlineCredentials()
-    vi.stubEnv(credentialKey, 'offline-token')
+    vi.stubEnv(credentialKey, 'expired-token')
     let requests = 0
     vi.stubGlobal('fetch', async (url, options) => {
       if (new URL(url).pathname === '/api/auth/refresh') return refreshResponse()
