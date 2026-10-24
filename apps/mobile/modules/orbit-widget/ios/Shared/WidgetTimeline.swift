@@ -52,7 +52,7 @@ struct WidgetTimeline {
             return
           }
           if (response as? HTTPURLResponse)?.statusCode == 401 {
-            try store.clearToken()
+            try store.clearToken(ifMatching: token)
             completion(readEntry())
             return
           }

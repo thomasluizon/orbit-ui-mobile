@@ -95,41 +95,47 @@ final class WidgetStore {
   }
 
   func token() throws -> String? {
-    guard FileManager.default.fileExists(atPath: file("session").path) else { return nil }
-    let session = try String(contentsOf: file("session"), encoding: .utf8)
-    guard let token = try credentials.read(), Self.sessionKey(token) == session else { return nil }
-    return token
+    try withCredentialLock { try readToken() }
   }
 
   func saveToken(_ token: String) throws {
-    if try self.token().map(Self.sessionKey) != Self.sessionKey(token) {
-      try remove("session")
-      try remove("habits.json")
+    try withCredentialLock {
+      if try readToken().map(Self.sessionKey) != Self.sessionKey(token) {
+        try remove("session")
+        try remove("habits.json")
+      }
+      try credentials.write(token)
+      try write(Data(Self.sessionKey(token).utf8), to: "session")
     }
-    try credentials.write(token)
-    try write(Data(Self.sessionKey(token).utf8), to: "session")
   }
 
-  func clearToken() throws {
-    try remove("session")
-    try credentials.delete()
-    try remove("habits.json")
+  func clearToken(ifMatching rejectedToken: String? = nil) throws {
+    try withCredentialLock {
+      if let rejectedToken, try readToken() != rejectedToken { return }
+      try remove("session")
+      try credentials.delete()
+      try remove("habits.json")
+    }
   }
 
   func savePayload(_ json: String, authorizingToken: String, updatedAt: Date = Date()) throws {
     let payload = try JSONDecoder().decode(WidgetPayload.self, from: Data(json.utf8))
     let session = Self.sessionKey(authorizingToken)
-    guard try token().map(Self.sessionKey) == session else { return }
-    let cache = WidgetCache(session: session, updatedAt: updatedAt, payload: payload)
-    try write(JSONEncoder().encode(cache), to: "habits.json")
-    try write(Data(payload.language.utf8), to: "language")
+    try withCredentialLock {
+      guard try readToken().map(Self.sessionKey) == session else { return }
+      let cache = WidgetCache(session: session, updatedAt: updatedAt, payload: payload)
+      try write(JSONEncoder().encode(cache), to: "habits.json")
+      try write(Data(payload.language.utf8), to: "language")
+    }
   }
 
   func cachedPayload() throws -> WidgetCache? {
-    guard let token = try token(), FileManager.default.fileExists(atPath: file("habits.json").path) else { return nil }
-    let cache = try JSONDecoder().decode(WidgetCache.self, from: Data(contentsOf: file("habits.json")))
-    guard cache.session == Self.sessionKey(token) else { return nil }
-    return cache
+    try withCredentialLock {
+      guard let token = try readToken(), FileManager.default.fileExists(atPath: file("habits.json").path) else { return nil }
+      let cache = try JSONDecoder().decode(WidgetCache.self, from: Data(contentsOf: file("habits.json")))
+      guard cache.session == Self.sessionKey(token) else { return nil }
+      return cache
+    }
   }
 
   func saveTheme(_ colors: [String: String]) throws {
@@ -147,6 +153,27 @@ final class WidgetStore {
   }
 
   private func file(_ name: String) -> URL { directory.appendingPathComponent(name) }
+
+  private func withCredentialLock<Value>(_ operation: () throws -> Value) throws -> Value {
+    let coordinator = NSFileCoordinator(filePresenter: nil)
+    var coordinationError: NSError?
+    var outcome: Result<Value, Error> = .failure(WidgetStoreError.unavailable)
+    coordinator.coordinate(writingItemAt: file("credentials.lock"), options: [], error: &coordinationError) { lockURL in
+      outcome = Result {
+        if !FileManager.default.fileExists(atPath: lockURL.path) { try Data().write(to: lockURL) }
+        return try operation()
+      }
+    }
+    if let coordinationError { throw coordinationError }
+    return try outcome.get()
+  }
+
+  private func readToken() throws -> String? {
+    guard FileManager.default.fileExists(atPath: file("session").path) else { return nil }
+    let session = try String(contentsOf: file("session"), encoding: .utf8)
+    guard let token = try credentials.read(), Self.sessionKey(token) == session else { return nil }
+    return token
+  }
 
   private func write(_ bytes: Data, to name: String) throws {
     #if os(iOS)

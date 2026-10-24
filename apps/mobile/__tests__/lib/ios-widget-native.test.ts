@@ -43,6 +43,7 @@ describe.skipIf(process.platform !== 'darwin')('compiled WidgetKit state and ses
       resolve('modules/orbit-widget/ios/Shared/WidgetState.swift'),
       resolve('modules/orbit-widget/ios/Shared/WidgetStore.swift'),
       resolve('modules/orbit-widget/ios/Shared/WidgetTimeline.swift'),
+      resolve('__tests__/support/ios-widget-revocation-driver.swift'),
       resolve('__tests__/support/ios-widget-timeline-driver.swift'),
       resolve('__tests__/support/ios-widget-driver.swift')], { encoding: 'utf8', timeout: 60000 })
   }, 65000)
@@ -145,6 +146,17 @@ describe.skipIf(process.platform !== 'darwin')('compiled WidgetKit state and ses
     const result = timeline([{ afterSeconds: 120, status, replaceSession: 'rotated' }])
     expect(result.steps[0]).toMatchObject({ tokenPresent: true,
       timeline: { signedOut: false, rows: ['foreground'] }, snapshot: { signedOut: false, rows: ['foreground'] } })
+  })
+
+  it.each(['rotated', 'other'])('preserves the %s credential published after validation and before revocation', (replacement) => {
+    const scenario = { foreground: payload([habit({ id: 'foreground' })]),
+      replacement: payload([habit({ id: 'replacement', isCompleted: true })]), account: replacement }
+    const result = JSON.parse(execFileSync(executable, ['revocation-race'], {
+      input: JSON.stringify(scenario), encoding: 'utf8', timeout: 10000,
+    })) as Record<string, unknown>
+    expect(result).toEqual({ validatedBeforeReplacement: true, replacementPublished: true,
+      tokenSurvived: true, cacheRows: ['replacement'], signedOut: false,
+      timelineRows: ['replacement'], refreshScheduled: true })
   })
 
   it('rejects an in-flight background success after logout', () => {

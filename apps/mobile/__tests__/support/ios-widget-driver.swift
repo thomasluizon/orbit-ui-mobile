@@ -15,6 +15,14 @@ final class MemoryWidgetCredentials: WidgetCredentials {
 struct WidgetDriver {
   static func main() throws {
     let input = FileHandle.standardInput.readDataToEndOfFile()
+    if CommandLine.arguments[1] == "revocation-race" {
+      try WidgetRevocationDriver.run(input)
+      return
+    }
+    if CommandLine.arguments[1] == "revocation-publish" {
+      try WidgetRevocationDriver.publish(input, directory: URL(fileURLWithPath: CommandLine.arguments[2]))
+      return
+    }
     if CommandLine.arguments[1] == "timeline" {
       try WidgetTimelineDriver.run(input)
       return
