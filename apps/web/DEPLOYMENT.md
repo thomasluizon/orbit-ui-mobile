@@ -61,11 +61,17 @@ The Render API request uses `POST /v1/services/{serviceId}/deploys` with `imageU
 
 ## Streaming shutdown
 
-The release workflow sets Render's `serviceDetails.maxShutdownDelaySeconds` to 300 before
-requesting each staging or production deployment. A failed configuration request stops
-the release. This uses the [Update service API](https://api-docs.render.com/reference/update-service),
-not a dashboard change. The [Render shutdown contract](https://render.com/docs/deploys#graceful-shutdown)
-allows up to 300 seconds after SIGTERM before SIGKILL.
+Terraform owns the production web shutdown delay: `render_web_service.production_web` in
+`orbit-api` `infra/production.tf` sets `max_shutdown_delay_seconds = 300`. Apply that resource
+before the next production web release. Read back `GET /v1/services/{serviceId}` for `orbit-web`;
+`serviceDetails.maxShutdownDelaySeconds` must be the number `300`. The production release
+workflow checks that value before requesting a deploy and fails if the read fails or the value
+is missing or different. It reports the Terraform resource to apply and never writes the setting.
+
+The free `orbit-web-staging` service has no configurable shutdown delay. Its release job neither
+sets nor checks that value, so staging cannot prove the production drain window. The
+[Render shutdown contract](https://render.com/docs/deploys#graceful-shutdown) allows up to
+300 seconds after SIGTERM before SIGKILL when the delay is configured.
 
 The standalone image runs Node directly. Next.js handles SIGTERM by closing the HTTP listener,
 waiting for active responses, then closing its runtime. Keep `NEXT_MANUAL_SIG_HANDLE` unset so
