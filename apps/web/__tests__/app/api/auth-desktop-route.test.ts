@@ -18,19 +18,20 @@ const account = { userId: 'user-1', token: 'access-token', name: 'Person', email
   wasReactivated: false, refreshToken: 'refresh-token' }
 
 function attempt(browserSession?: string) {
-  const started = start(new NextRequest(`${origin}/api/auth/google/start?purpose=signin&desktopState=${state}&codeChallenge=${codeChallenge}`, {
+  const site = process.env.NEXT_PUBLIC_SITE_URL
+  const started = start(new NextRequest(`${site}/api/auth/google/start?purpose=signin&desktopState=${state}&codeChallenge=${codeChallenge}`, {
     headers: browserSession ? { cookie: `auth_token=${browserSession}` } : undefined,
   }))
   const cookie = started.cookies.get(GOOGLE_OAUTH_COOKIE)!
   const googleState = new URL(started.headers.get('location')!).searchParams.get('state')!
-  const request = (query: string) => new NextRequest(`${origin}/api/auth/desktop/callback?${query}`, {
+  const request = (query: string) => new NextRequest(`${site}/api/auth/desktop/callback?${query}`, {
     headers: { cookie: `${GOOGLE_OAUTH_COOKIE}=${encodeURIComponent(cookie.value)}` },
   })
   return { cookie, googleState, request }
 }
 
 function redemption(body: unknown = { code: handoffCode, state, codeVerifier: verifier, redirectUri }, headers = {}) {
-  return new NextRequest(`${origin}/api/auth/desktop/exchange`, { method: 'POST', headers,
+  return new NextRequest(`${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/desktop/exchange`, { method: 'POST', headers,
     body: typeof body === 'string' ? body : JSON.stringify(body) })
 }
 
@@ -117,6 +118,19 @@ describe('desktop Google BFF handoff', () => {
     const response = await callback(pending.request(`code=google-code&state=${pending.googleState}`))
     expect(response.headers.get('location')).toBe(`${redirectUri}?state=${state}&code=${handoffCode}`)
     expect(response.cookies.get('auth_token')).toBeUndefined()
+  })
+
+  it('keeps production handoff and redemption on the production callback', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://app.useorbit.org')
+    const pending = attempt()
+    const productionRedirect = 'org.useorbit.desktop://auth/callback'
+    api.mockResolvedValueOnce(Response.json(account)).mockResolvedValueOnce(Response.json({ code: handoffCode, expiresIn: 60 }))
+    const response = await callback(pending.request(`code=google-code&state=${pending.googleState}`))
+    expect(response.headers.get('location')).toBe(`${productionRedirect}?state=${state}&code=${handoffCode}`)
+    api.mockResolvedValueOnce(Response.json(account))
+    const session = await exchange(redemption({ code: handoffCode, state, codeVerifier: verifier, redirectUri: productionRedirect }))
+    expect(session.status).toBe(200)
+    expect(session.cookies.get('auth_token')?.httpOnly).toBe(true)
   })
 
   it.each(['google', 'handoff', 'network', 'malformed'])('handles %s failures without leaking credentials', async (failure) => {
