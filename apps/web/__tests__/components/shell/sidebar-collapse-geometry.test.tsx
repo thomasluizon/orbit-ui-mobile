@@ -79,6 +79,9 @@ describe('collapsed sidebar geometry in Chromium', () => {
         expect(astra!.color === today!.color).toBe(false)
         const peer = page.getByRole('link', { name: messages.nav.calendar, exact: true })
         for (const target of [row, peer]) {
+          await target.evaluate(element => {
+            element.addEventListener('click', () => element.setAttribute('data-press-activated', 'true'), { once: true })
+          })
           await target.focus()
           expect(await target.evaluate(element => getComputedStyle(element).outlineStyle)).toBe('solid')
           await target.hover()
@@ -87,7 +90,9 @@ describe('collapsed sidebar geometry in Chromium', () => {
           await page.mouse.down()
           await target.evaluate(async element => { await Promise.all(element.getAnimations().map(animation => animation.finished)) })
           expect(await target.evaluate(element => getComputedStyle(element).scale)).toBe('0.96')
+          await page.mouse.move(0, 0)
           await page.mouse.up()
+          expect(await target.getAttribute('data-press-activated'), 'measuring a press must not activate the control').toBeNull()
         }
       }
     } finally { await page.close(); view.unmount() }
