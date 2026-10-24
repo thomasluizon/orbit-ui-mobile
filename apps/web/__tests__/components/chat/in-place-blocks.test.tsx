@@ -11,16 +11,20 @@ import { GoalListCard } from '@/components/chat/goal-list-card'
 import { MetricsCard } from '@/components/chat/metrics-card'
 import { useUIStore } from '@/stores/ui-store'
 import { StreakCard } from '@/components/chat/streak-card'
+import { DestinationShell } from '@/components/shell/destination-shell'
 
 const state = vi.hoisted(() => ({
-  push: vi.fn(), mutate: vi.fn(), refetch: vi.fn(), pro: true,
+  push: vi.fn(), mutate: vi.fn(), refetch: vi.fn(), pro: true, pathname: '/', wide: false,
   disconnected: false,
   query: { isPending: false, isError: false, isRefetchError: false },
   habits: new Map(), goals: new Map(),
 }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push }) }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push }), usePathname: () => state.pathname, useParams: () => ({}) }))
 vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string, values?: Record<string, unknown>) => values ? `${key}:${JSON.stringify(values)}` : key }))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: state.pro, timeZone: 'UTC', uses24HourClock: true } }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { name: 'Person', email: 'person@example.com', hasProAccess: state.pro, timeZone: 'UTC', uses24HourClock: true } }) }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
+vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
+vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => state.wide }))
 vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({ ...state.query, data: { habitsById: state.habits }, refetch: state.refetch }),
   useLogHabit: () => ({ mutate: state.mutate }),
@@ -37,6 +41,7 @@ vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({
 }) }))
 beforeEach(() => {
   vi.clearAllMocks()
+  state.pathname = '/'
   state.pro = true
   state.disconnected = false
   useUIStore.getState().setAstraConversationOpen(true)
@@ -164,15 +169,33 @@ it.each(['child', 'bad'] as const)('keeps a completed %s row outside the parent 
 
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
 
-it.each(chatNavigationCases)('closes Astra before routing from $name', ({ part, label, web }) => {
-  state.push.mockImplementation(() => expect(useUIStore.getState().astraConversationOpen).toBe(false))
+function NavigationApp({ part }: Readonly<{ part: typeof chatNavigationCases[number]['part'] }>) {
+  const open = useUIStore(state => state.astraConversationOpen)
+  return <DestinationShell conversation={<ChatBlock part={part} onActionChipClick={undefined} />} conversationOpen={open}
+    conversationLabel="Astra" onCreate={vi.fn()}><h1>{state.pathname}</h1></DestinationShell>
+}
+
+it.each(chatNavigationCases.flatMap(scenario => [false, true].map(wide => ({ ...scenario, wide }))))('reveals the destination outside full-screen Astra from $name with wide=$wide', ({ part, label, web, wide }) => {
+  state.wide = wide
+  const openAtNavigation: boolean[] = []
+  state.push.mockImplementation((pathname: string) => {
+    openAtNavigation.push(useUIStore.getState().astraConversationOpen)
+    state.pathname = pathname
+  })
   state.goals.set('goal-1', createMockGoal({ id: 'goal-1' }))
-  render(<ChatBlock part={part} onActionChipClick={undefined} />)
+  const view = render(<NavigationApp part={part} />)
+  expect(screen.getByRole('dialog', { name: 'Astra' })).toBeVisible()
+  expect(view.container.querySelector('[data-shell-destination]')).toHaveAttribute('inert')
   const action = screen.queryByRole('link', { name: label }) ?? screen.getByRole('button', { name: label })
   fireEvent.click(action)
   if (action.tagName === 'A') expect(action).toHaveAttribute('href', web)
   expect(state.push).toHaveBeenCalledWith(web)
+  expect(openAtNavigation).toEqual([false])
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  view.rerender(<NavigationApp part={part} />)
+  expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
+  expect(screen.getByRole('heading', { name: web })).toBeVisible()
+  expect(view.container.querySelector('[data-shell-destination]')).not.toHaveAttribute('inert')
 })
 
 vi.mock('next/link', () => ({ default: ({ href, onClick, onNavigate, children }: {
