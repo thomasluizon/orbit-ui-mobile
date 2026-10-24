@@ -47,9 +47,9 @@ const EXPECTED_ACTION_LABEL_KEYS = {
     success: 'chat.action.reorderedHabits',
     failed: 'chat.action.reorderHabitsFailed',
   },
-  UnlogHabit: { success: undefined, failed: 'chat.action.failedNamed' },
+  UnlogHabit: { success: 'chat.action.unlogged', failed: 'chat.action.unlogFailed' },
 } as const satisfies Readonly<Record<AiActionType, Readonly<{
-  success: string | undefined
+  success: string
   failed: string
 }>>>
 
@@ -76,19 +76,19 @@ describe('buildActionChipsModel', () => {
     expect(model.rows.map((row) => row.navigation.navigable)).toEqual([true, false, false])
   })
 
-  it('uses a non-success label for every failed action type', () => {
-    for (const type of aiActionTypeSchema.options) {
-      const expectedKeys = EXPECTED_ACTION_LABEL_KEYS[type]
-      const [successfulRow, failedRow] = buildActionChipsModel([
-        makeActionResult({ type, status: 'Success', entityName: 'Named attempt' }),
-        makeActionResult({ type, status: 'Failed', entityName: 'Named attempt' }),
-      ], false)
-        .rows
+  it.each(aiActionTypeSchema.options.flatMap(canonicalType => [
+    { canonicalType, type: canonicalType },
+    { canonicalType, type: canonicalType.replace(/[A-Z]/g, (letter, index) => `${index ? '_' : ''}${letter.toLowerCase()}`) },
+  ]))('localizes both outcomes for $type', ({ canonicalType, type }) => {
+    const expectedKeys = EXPECTED_ACTION_LABEL_KEYS[canonicalType]
+    const [successfulRow, failedRow] = buildActionChipsModel([
+      makeActionResult({ type, status: 'Success', entityName: 'Named attempt' }),
+      makeActionResult({ type, status: 'Failed', entityName: 'Named attempt' }),
+    ], false).rows
 
-      expect(successfulRow?.labelKey, `${type} success label`).toBe(expectedKeys.success)
-      expect(failedRow?.labelKey, `${type} failure label`).toBe(expectedKeys.failed)
-      expect(failedRow?.labelKey).not.toBe(expectedKeys.success)
-    }
+    expect(successfulRow?.labelKey).toBe(expectedKeys.success)
+    expect(failedRow?.labelKey).toBe(expectedKeys.failed)
+    expect(failedRow?.labelKey).not.toBe(expectedKeys.success)
   })
 
   it('uses generic failure labels for nameless and unknown failed actions', () => {
@@ -110,6 +110,7 @@ describe('buildActionChipsModel', () => {
       id: 'action-habit-1-0',
       labelKey: 'chat.action.logged',
       hasLegacyText: true,
+      field: undefined,
       messageKey: undefined,
       params: undefined,
       entityName: 'Meditate',
@@ -172,4 +173,8 @@ it.each([
     makeActionResult({ type, entityName: 'Leitura' }),
     makeActionResult({ type, status: 'Failed', entityName: 'Leitura' }),
   ], false).rows.map(row => row.labelKey)).toEqual([`chat.action.${success}`, `chat.action.${failed}`])
+})
+
+it.each(['DeleteHabit', 'delete_habit', 'DeleteGoal', 'delete_goal'])('does not navigate to a deleted %s result', type => {
+  expect(buildActionChipsModel([makeActionResult({ type })], true).rows[0]?.navigation).toEqual({ navigable: false })
 })

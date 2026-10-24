@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSPhotoLibraryUsageDescription": "Allow Orbit to access your photos so you can attach images in Astra.",
+    "NSMicrophoneUsageDescription": "Allow Orbit to use your microphone so you can talk to Astra."
+  }
+}

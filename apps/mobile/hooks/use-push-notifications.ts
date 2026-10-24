@@ -75,6 +75,7 @@ interface ExpoNotificationsModule {
     listener: (response: ExpoNotificationResponse) => void,
   ) => { remove: () => void }
   addNotificationReceivedListener: (listener: () => void) => { remove: () => void }
+  addPushTokenListener: (listener: (token: { type: string; data: string }) => void) => { remove: () => void }
 }
 type PushRegistrationStatus = NativePushRegistrationStatus
 
@@ -151,6 +152,7 @@ function isExpoNotificationsModule(value: unknown): value is ExpoNotificationsMo
     hasFunctionProperty(value, 'getLastNotificationResponse') &&
     hasFunctionProperty(value, 'clearLastNotificationResponse') &&
     hasFunctionProperty(value, 'addNotificationReceivedListener') &&
+    hasFunctionProperty(value, 'addPushTokenListener') &&
     hasFunctionProperty(value, 'addNotificationResponseReceivedListener')
   )
 }
@@ -258,8 +260,8 @@ async function delay(ms: number): Promise<void> {
   })
 }
 
-async function getNativeAndroidPushToken(): Promise<string | null> {
-  if (!notificationsModule || !isPhysicalDevice() || Platform.OS !== 'android') return null
+async function getCurrentPushToken(): Promise<string | null> {
+  if (!notificationsModule || !isPhysicalDevice() || (Platform.OS !== 'android' && Platform.OS !== 'ios')) return null
 
   await ensureAndroidChannel()
   let lastError: unknown = null
@@ -285,15 +287,12 @@ async function getNativeAndroidPushToken(): Promise<string | null> {
   return null
 }
 
-async function getCurrentPushToken(): Promise<string | null> {
-  return getNativeAndroidPushToken()
-}
-
 function buildNativePushPayload(token: string) {
+  const transport = Platform.OS === 'ios' ? 'apns' : 'fcm'
   return {
     endpoint: token,
-    p256dh: 'fcm',
-    auth: 'fcm',
+    p256dh: transport,
+    auth: transport,
   }
 }
 
@@ -673,6 +672,28 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
   useEffect(() => {
     void Promise.resolve().then(() => syncGrantedPermission())
   }, [syncGrantedPermission])
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !notificationsModule || !isAuthenticated || !isRegistered) return
+    const accountId = getAccountId()
+    const generation = getAccountGeneration()
+    const epoch = getSessionEpoch()
+    let active = true
+    const stillCurrent = () => active && useAuthStore.getState().isAuthenticated
+      && (useAuthStore.getState().user?.userId ?? null) === userId
+      && getAccountId() === accountId && getAccountGeneration() === generation && getSessionEpoch() === epoch
+    const subscription = notificationsModule.addPushTokenListener((token) => {
+      if (!stillCurrent() || !token.data || token.data === pushTokenRef.current) return
+      void readDisabledPreference().then(async (disabled) => {
+        if (!disabled && stillCurrent()) await syncRegistrationToken(token.data, stillCurrent)
+      }).catch((error: unknown) => {
+        if (!stillCurrent()) return
+        setRegistrationStatus('sync-failed')
+        setError(error instanceof Error ? error.message : i18n.t('settings.notifications.syncFailed'))
+      })
+    })
+    return () => { active = false; subscription.remove() }
+  }, [isAuthenticated, isRegistered, readDisabledPreference, syncRegistrationToken, userId])
 
   useEffect(() => {
     if (isAuthenticated && isGrantedStatus(permissionStatus ?? '') && !isRegistered) {

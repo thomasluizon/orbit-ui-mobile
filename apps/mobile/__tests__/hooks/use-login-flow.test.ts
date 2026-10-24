@@ -1,4 +1,5 @@
 import React from 'react'
+import { Platform } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInstance } from 'i18next'
 import ICUCommonJs from 'i18next-icu/cjs'
@@ -10,6 +11,9 @@ import { createApiClientError } from '@orbit/shared/utils'
 
 import { useLoginFlow } from '@/app/use-login-flow'
 import { LoginContent } from '@/components/auth/login-content'
+import LoginScreen from '@/app/login'
+import AuthCallbackScreen from '@/app/auth-callback'
+import { PillButton } from '@/components/ui/pill-button'
 
 vi.mock('react-i18next', async (importActual) => ({
   ...(await importActual<typeof import('react-i18next')>()),
@@ -114,7 +118,11 @@ vi.mock('@/lib/auth-flow', async (importOriginal) => ({
   storeReferralCode: vi.fn(),
 }))
 
-vi.mock('@/lib/google-auth', () => ({ startMobileGoogleAuth: mocks.startMobileGoogleAuth }))
+vi.mock('@/lib/google-auth', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/google-auth')>(),
+  startMobileGoogleAuth: mocks.startMobileGoogleAuth,
+}))
+vi.mock('expo-linking', () => ({ useLinkingURL: () => null }))
 vi.mock('expo-web-browser', () => ({
   openAuthSessionAsync: mocks.openGoogleBrowser,
   WebBrowserResultType: { DISMISS: 'dismiss', CANCEL: 'cancel' },
@@ -185,6 +193,7 @@ function bodyOf(options: { body: string }): Record<string, unknown> {
 }
 
 beforeEach(() => {
+  Platform.OS = 'android'
   vi.resetAllMocks()
   mocks.localized = false
   mocks.language = 'en'
@@ -801,6 +810,45 @@ describe('mobile auth state recovery', () => {
 })
 
 describe('Google dismissal through the owning login flow', () => {
+  it('completes iOS sign-in once from the login screen with only the native promise callback', async () => {
+    Platform.OS = 'ios'
+    vi.stubEnv('EXPO_PUBLIC_GOOGLE_CLIENT_ID', 'web-client-id')
+    const google = await vi.importActual<typeof import('@/lib/google-auth')>('@/lib/google-auth')
+    const callback = await import('@/lib/google-auth-callback')
+    await callback.clearPendingGoogleAuthSession()
+    mocks.params = { returnUrl: '/progress' }
+    mocks.getStoredAuthReturnUrl.mockResolvedValue('/progress')
+    mocks.createAuthReturnUrlAttempt.mockReturnValue('google-attempt')
+    mocks.startMobileGoogleAuth.mockImplementation(google.startMobileGoogleAuth)
+    mocks.apiClient.mockResolvedValue({ token: 'access', refreshToken: 'refresh', userId: 'google-user',
+      name: 'User', email: 'user@example.com' })
+    mocks.openGoogleBrowser.mockImplementation((authorizeUrl: string, redirect: string) => Promise.resolve({
+      type: 'success', url: `${redirect}?code=native-code&state=${new URL(authorizeUrl).searchParams.get('state')}`,
+    }))
+    let tree!: import('react-test-renderer').ReactTestRenderer & { unmount: () => void }
+    mocks.replace.mockImplementation((route: string) => {
+      if (route === '/auth-callback') tree.update(React.createElement(React.Fragment, null,
+        React.createElement(AuthCallbackScreen), React.createElement(AuthCallbackScreen)))
+    })
+    try {
+      await act(() => { tree = TestRenderer.create(React.createElement(LoginScreen)) })
+      const googleButton = tree.root.findAll((node) => node.type === PillButton)
+        .find((node) => node.props.children === 'auth.signInWithGoogle')
+      expect(googleButton).toBeDefined()
+      await act(() => (googleButton!.props.onClick as () => void)())
+      await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/progress'))
+      expect(mocks.replace.mock.calls).toEqual([['/auth-callback'], ['/progress']])
+      expect(mocks.apiClient).toHaveBeenCalledExactlyOnceWith(API.auth.googleCode, expect.objectContaining({
+        method: 'POST', body: expect.stringContaining('"code":"native-code"'),
+      }), expect.anything())
+      expect(mocks.login).toHaveBeenCalledOnce()
+      expect(mocks.startMobileGoogleAuth).toHaveBeenCalledWith({ returnUrl: '/progress' })
+    } finally {
+      await act(() => tree.unmount())
+      await callback.clearPendingGoogleAuthSession()
+    }
+  })
+
   it('removes the dismissal error when the same attempt App Link arrives', async () => {
     const google = await vi.importActual<typeof import('@/lib/google-auth')>('@/lib/google-auth')
     const callback = await import('@/lib/google-auth-callback')

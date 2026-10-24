@@ -2,11 +2,12 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
+import { Platform } from 'react-native'
 import { schemes } from '@orbit/shared/theme'
 import type { ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import { createTokensV2 } from '@/lib/theme'
-import { __setOrbitWidgetModuleForTests, syncWidgetData, toWidgetColors, toWidgetThemePreferences } from '@/lib/orbit-widget'
+import { __setOrbitWidgetModuleForTests, clearWidgetToken, saveWidgetToken, syncWidgetData, syncWidgetTheme, toWidgetColors, toWidgetThemePreferences } from '@/lib/orbit-widget'
 
 const mocks = vi.hoisted(() => ({
   getToken: vi.fn(),
@@ -32,6 +33,7 @@ function readWidgetSource(relativePath: string) {
 
 describe('syncWidgetData', () => {
   beforeEach(() => {
+    Platform.OS = 'android'
     mocks.getToken.mockReset().mockResolvedValue('account-a-token')
     mocks.fetch.mockReset().mockRejectedValue(new Error('Unexpected widget request'))
     vi.stubGlobal('fetch', mocks.fetch)
@@ -44,8 +46,22 @@ describe('syncWidgetData', () => {
   })
 
   afterEach(() => {
+    Platform.OS = 'android'
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+  })
+
+  it('skips all Android widget operations and API reads on iOS', async () => {
+    Platform.OS = 'ios'
+    const nativeModule = { saveToken: vi.fn(), clearToken: vi.fn(), syncTheme: vi.fn(), syncWidgetData: vi.fn() }
+    __setOrbitWidgetModuleForTests(nativeModule)
+    await saveWidgetToken('token')
+    await clearWidgetToken()
+    await syncWidgetTheme('orange')
+    await syncWidgetData()
+    for (const method of Object.values(nativeModule)) expect(method).not.toHaveBeenCalled()
+    expect(mocks.getToken).not.toHaveBeenCalled()
+    expect(mocks.fetch).not.toHaveBeenCalled()
   })
 
   it('pairs B payload with B credential when storage changes before request execution', async () => {

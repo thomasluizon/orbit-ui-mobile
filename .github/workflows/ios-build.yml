@@ -1,0 +1,57 @@
+name: Mobile iOS Build
+
+on:
+  pull_request:
+    branches: [main, redesign/main]
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/shared/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ios-build.yml'
+      - '.github/workflows/ios-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    name: iOS simulator compile
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      ORBIT_APP_VARIANT: staging
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_NO_METRO_WORKSPACE_ROOT: '1'
+      EXPO_PUBLIC_API_BASE: https://api-staging.useorbit.org
+      SENTRY_DISABLE_AUTO_UPLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v7
+      - name: Select Xcode
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
+          xcodebuild -version
+      - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate the iOS project and install pods
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform ios
+      - name: Compile without signing or launching a simulator
+        working-directory: apps/mobile
+        run: |
+          set -euo pipefail
+          xcodebuild -workspace ios/OrbitStaging.xcworkspace -scheme OrbitStaging \
+            -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/orbit-ios-build" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
