@@ -1,3 +1,4 @@
+export { composition } from './composition.mjs'
 import { assertions } from 'promptfoo'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'

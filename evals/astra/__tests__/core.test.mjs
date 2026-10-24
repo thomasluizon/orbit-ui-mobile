@@ -23,7 +23,7 @@ const context = (expectations) => ({
 })
 const attempt = (id, success = true, skipped = false) => ({
   testCase: { metadata: { id } }, success,
-  gradingResult: { componentResults: [{ metadata: { skipped } }] },
+  gradingResult: { componentResults: [{ pass: true, assertion: { metric: 'composition' }, metadata: { skipped } }] },
 })
 
 function exampleArguments(expected) {

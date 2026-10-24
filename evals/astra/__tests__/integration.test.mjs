@@ -32,7 +32,7 @@ describe('real promptfoo CLI with an offline provider', () => {
     writeFileSync(configPath, stringify({
       ...configuration,
       providers: [{ id: `file://${root}/__tests__/fixtures/target.mjs`, config: { tools: catalog } }],
-      defaultTest: { assert: assertions, options: { provider: `file://${root}/__tests__/fixtures/grader.mjs` } },
+      defaultTest: { vars: configuration.defaultTest.vars, assert: assertions, options: { provider: `file://${root}/__tests__/fixtures/grader.mjs` } },
       tests: [{ description: 'Offline Water case', metadata: { id: 'offline-water' }, vars: {
         input: 'Mark Water done', broken, noTrace, rubric: 'Describe Water only.',
         expectations: { required: [{ name: 'log_habit', arguments: { habit_id: 'water' } }] },

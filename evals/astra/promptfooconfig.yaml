@@ -20,9 +20,16 @@ providers:
             value: '{{prompt}}'
           - kind: field
             name: history
-            value: '[]'
+            value: '{{historyJson}}'
+          - kind: field
+            name: clientContext
+            value: '{{clientContextJson}}'
       transformResponse: file://response.mjs
 defaultTest:
+  vars:
+    historyJson: '[]'
+    clientContextJson: '{}'
+    composition: { mode: fallback }
   options:
     provider: '{{env.ORBIT_EVAL_GRADER}}'
   assert:
@@ -32,9 +39,18 @@ defaultTest:
     - type: javascript
       value: file://assertions.mjs:behavior
       metric: toolBehavior
+    - type: javascript
+      value: file://assertions.mjs:composition
+      metric: composition
     - type: llm-rubric
       transform: output.answer
-      value: '{{rubric}}'
+      value: >-
+        {{rubric}}
+        Grade only the final rendered answer projection, including its visible typed blocks and preview fields.
+        Missing prose is valid for a block-only answer. Fail any external text that repeats a figure or fact
+        already displayed in a block, including spelled-out numbers, ratios and semantic paraphrases.
+        A heading, unrequested list or caveat paragraph in a no-data answer fails.
+        Do not mistake a held proposal for a saved change. A prose claim never proves a block exists.
       metric: finalAnswer
 tests: file://scenarios.yaml
 evaluateOptions:

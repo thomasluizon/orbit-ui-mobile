@@ -15,6 +15,21 @@ export function extractTrace(response, responseRequestId) {
   }
 }
 
+const compositionKeys = ['aiMessage', 'parts', 'actions', 'operations', 'pendingOperations', 'policyDenials',
+  'relatedSurfaces', 'followUps', 'followUpContext']
+const privateKeys = new Set(['read', 'payload', 'refreshToken', 'queryToken', 'nextCursor', 'previewFingerprint',
+  'stateFingerprint', 'expiresAtUtc', 'correlationId'])
+
+function finalAnswer(composition) {
+  const visible = (value) => {
+    if (Array.isArray(value)) return value.map(visible)
+    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value)
+      .filter(([key]) => !privateKeys.has(key)).map(([key, child]) => [key, visible(child)]))
+    return value
+  }
+  return JSON.stringify(visible(composition))
+}
+
 export default function parseResponse(response, _text, context) {
   const httpStatus = context?.response?.status ?? 200
   const responseRequestId = context?.response?.headers?.['x-orbit-request-id']
@@ -22,10 +37,14 @@ export default function parseResponse(response, _text, context) {
     if (response?.errorCode !== 'PAY_GATE' || typeof response.error !== 'string' || !response.error.trim()) {
       return { error: 'Astra returned an unexpected refusal.' }
     }
-    return { answer: response.error, httpStatus, trace: { state: 'refused', responseRequestId } }
+    return { answer: response.error, composition: { aiMessage: response.error }, httpStatus, trace: { state: 'refused', responseRequestId } }
   }
-  if (!response || typeof response.aiMessage !== 'string' || !response.aiMessage.trim()) {
+  const composition = Object.fromEntries(compositionKeys.filter((key) => response && Object.hasOwn(response, key))
+    .map((key) => [key, response[key]]))
+  const hasSurface = (Array.isArray(response?.parts) && response.parts.some((part) => part?.type === 'block'))
+    || response?.pendingOperations?.length > 0 || response?.actions?.length > 0
+  if (!response || (!hasSurface && (typeof response.aiMessage !== 'string' || !response.aiMessage.trim()))) {
     return { error: 'Astra did not return a nonempty aiMessage final answer.' }
   }
-  return { answer: response.aiMessage, httpStatus, trace: extractTrace(response, responseRequestId) }
+  return { answer: hasSurface ? finalAnswer(composition) : response.aiMessage, composition, httpStatus, trace: extractTrace(response, responseRequestId) }
 }
