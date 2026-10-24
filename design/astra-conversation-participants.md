@@ -62,3 +62,10 @@ limit. Read queries retain absolute scope and identity without refresh or paging
 choice and pick-list context retains the question and options without adding unseen prose.
 Repeated operation states coalesce only by their supplied pending-operation identity. Catalog
 tool names are reusable; outcomes without an execution identity remain separate, including failures.
+
+Proactive entry requests on web and Android advertise the shared chat context. The shared store
+carries validated parts into the same message and block renderers, suppressing duplicate saved
+prose. Old entries can adopt their first valid block while retaining identity and acted state;
+existing typed snapshots keep their original read and refresh owner. Missing, malformed and
+unknown sole parts retain visible legacy content. Paired Vitest cases render every proactive
+trigger in both locales and verify one block without the legacy prose.

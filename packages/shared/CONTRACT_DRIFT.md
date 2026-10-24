@@ -166,3 +166,17 @@ visible. Query identities and absolute scopes remain in assistant history for co
 refresh tokens stay out of that serialization. #26 owns bilingual real-pipeline composition
 assertions and the TESTING.md harness instructions. Production activation follows the current
 `main` release workflow and the independently controlled API composition flag.
+
+## Proactive answer parts
+
+The proactive response accepts optional nullable `parts` using the existing chat part boundary.
+Both current-item requests send the shared parts-capable chat context as the JSON `clientContext`
+query parameter. Valid parts lead the conversation entry without repeating the saved notification
+text. Absent or rejected parts retain legacy content. Opened, acted and status reporting retain
+their existing owners. Signed read tokens and absolute scopes stay with the block and use the
+existing refresh path; saved notification facts never stand in for read results.
+
+The snapshot pins the deployed producer with catalog identity `orbit-http-v1-r2` and HTTP version
+`1.0`. Pin and generated output move together. Removing capability advertisement disables new
+emission while retaining historical parsing. The API deploys first; the independent #26 bilingual
+composition gate remains required before broad rollout through the `main` release workflows.
