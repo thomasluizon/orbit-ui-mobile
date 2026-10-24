@@ -167,6 +167,34 @@ pub fn session_cookies(
     Ok(cookies)
 }
 
+pub fn install_session<Failure>(
+    cookies: &[Cookie<'static>],
+    previous: &[Cookie<'static>],
+    mut set: impl FnMut(&Cookie<'static>) -> Result<(), Failure>,
+    mut delete: impl FnMut(&Cookie<'static>) -> Result<(), Failure>,
+) -> Result<(), &'static str> {
+    for cookie in cookies {
+        if set(cookie).is_err() {
+            let mut restored = true;
+            for installed in cookies {
+                restored &= delete(installed).is_ok();
+            }
+            for prior in previous
+                .iter()
+                .filter(|prior| matches!(prior.name(), "auth_token" | "refresh_token"))
+            {
+                restored &= set(prior).is_ok();
+            }
+            return Err(if restored {
+                "Cannot install desktop session"
+            } else {
+                "Cannot restore desktop session"
+            });
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -374,5 +402,55 @@ mod tests {
             invalid[0] = invalid[0].replace(old, new);
             assert!(session_cookies(&invalid, &origin).is_err(), "{old}");
         }
+    }
+
+    #[test]
+    fn failed_cookie_installation_restores_the_previous_session() {
+        use std::{cell::RefCell, collections::BTreeMap};
+        let origin = flow().origin;
+        let cookies = session_cookies(&headers(), &origin).unwrap();
+        let previous = vec![Cookie::new("refresh_token", "previous-refresh")];
+        let stored = RefCell::new(BTreeMap::from([(
+            "refresh_token".to_owned(),
+            "previous-refresh".to_owned(),
+        )]));
+        let result = install_session(
+            &cookies,
+            &previous,
+            |cookie| {
+                if cookie.name() == "refresh_token" && cookie.value() != "previous-refresh" {
+                    return Err(());
+                }
+                stored
+                    .borrow_mut()
+                    .insert(cookie.name().to_owned(), cookie.value().to_owned());
+                Ok(())
+            },
+            |cookie| {
+                stored.borrow_mut().remove(cookie.name());
+                Ok(())
+            },
+        );
+        assert_eq!(result, Err("Cannot install desktop session"));
+        assert_eq!(
+            stored.into_inner(),
+            BTreeMap::from([("refresh_token".to_owned(), "previous-refresh".to_owned())])
+        );
+        assert_eq!(
+            install_session(&cookies, &[], |_| Err(()), |_| Err(())),
+            Err("Cannot restore desktop session")
+        );
+        let mut installed = Vec::new();
+        assert!(install_session(
+            &cookies,
+            &[],
+            |cookie| {
+                installed.push(cookie.name().to_owned());
+                Ok::<_, ()>(())
+            },
+            |_| panic!("successful installation needs no rollback")
+        )
+        .is_ok());
+        assert_eq!(installed, vec!["auth_token", "refresh_token"]);
     }
 }

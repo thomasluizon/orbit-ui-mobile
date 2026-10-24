@@ -1,4 +1,4 @@
-use crate::auth::{cookie_owner, session_cookies, Attempt, AuthFlow};
+use crate::auth::{cookie_owner, install_session, session_cookies, Attempt, AuthFlow};
 use std::{
     sync::{Arc, Mutex},
     time::Duration,
@@ -122,11 +122,12 @@ async fn redeem(
     if !flow.lock().unwrap().accepts_session(attempt, &current) {
         return Ok(());
     }
-    for cookie in cookies {
-        window
-            .set_cookie(cookie)
-            .map_err(|_| "Cannot install desktop session")?;
-    }
+    install_session(
+        &cookies,
+        &current,
+        |cookie| window.set_cookie(cookie.clone()),
+        |cookie| window.delete_cookie(cookie.clone()),
+    )?;
     window
         .navigate(origin)
         .map_err(|_| "Cannot open signed-in desktop")?;

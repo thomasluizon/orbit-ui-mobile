@@ -17,8 +17,10 @@ const handoffCode = 'C'.repeat(64)
 const account = { userId: 'user-1', token: 'access-token', name: 'Person', email: 'person@example.com',
   wasReactivated: false, refreshToken: 'refresh-token' }
 
-function attempt() {
-  const started = start(new NextRequest(`${origin}/api/auth/google/start?purpose=signin&desktopState=${state}&codeChallenge=${codeChallenge}`))
+function attempt(browserSession?: string) {
+  const started = start(new NextRequest(`${origin}/api/auth/google/start?purpose=signin&desktopState=${state}&codeChallenge=${codeChallenge}`, {
+    headers: browserSession ? { cookie: `auth_token=${browserSession}` } : undefined,
+  }))
   const cookie = started.cookies.get(GOOGLE_OAUTH_COOKIE)!
   const googleState = new URL(started.headers.get('location')!).searchParams.get('state')!
   const request = (query: string) => new NextRequest(`${origin}/api/auth/desktop/callback?${query}`, {
@@ -107,6 +109,14 @@ describe('desktop Google BFF handoff', () => {
     const response = await callback(pending.request(`error=access_denied&state=${pending.googleState}`))
     expect(response.headers.get('location')).toBe(`${redirectUri}?state=${state}&error=authentication_failed`)
     expect(api).not.toHaveBeenCalled()
+  })
+
+  it('completes when the browser strict session cookie is absent on the Google redirect', async () => {
+    const pending = attempt('existing-browser-session')
+    api.mockResolvedValueOnce(Response.json(account)).mockResolvedValueOnce(Response.json({ code: handoffCode, expiresIn: 60 }))
+    const response = await callback(pending.request(`code=google-code&state=${pending.googleState}`))
+    expect(response.headers.get('location')).toBe(`${redirectUri}?state=${state}&code=${handoffCode}`)
+    expect(response.cookies.get('auth_token')).toBeUndefined()
   })
 
   it.each(['google', 'handoff', 'network', 'malformed'])('handles %s failures without leaking credentials', async (failure) => {

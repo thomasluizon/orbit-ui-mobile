@@ -4,10 +4,10 @@ import { googleCodeAuthResponseSchema } from '@orbit/shared/types/auth'
 import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { buildBffForwardingHeaders } from '@/app/api/_utils/bff-forwarding'
 import { desktopAttemptSchema, desktopRedirectUri } from '@/lib/desktop-auth'
-import { getGoogleOAuthSessionOwner, GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
+import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
 
 const pendingSchema = z.object({
-  state: z.string(), verifier: z.string(), redirectUri: z.string(), sessionOwner: z.string(),
+  state: z.string(), verifier: z.string(), redirectUri: z.string(),
   desktop: desktopAttemptSchema,
 })
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   const destination = new URL(attempt.desktop.redirectUri)
   destination.searchParams.set('state', attempt.desktop.state)
   try {
-    if (params.has('error') || !params.get('code') || attempt.sessionOwner !== getGoogleOAuthSessionOwner(request)) {
+    if (params.has('error') || !params.get('code')) {
       throw new Error('Google sign-in cancelled')
     }
     const login = await fetch(`${process.env.API_BASE ?? 'http://localhost:5000'}/api/auth/google/code`, {
