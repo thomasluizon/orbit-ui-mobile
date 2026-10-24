@@ -1983,6 +1983,7 @@
       "retry": "Tentar os {count} que falharam"
     },
     "operation": {
+      "parentChoiceRequired": "Escolha onde cada item fica antes de aprovar.",
       "batchFailed": "Alguns itens não foram salvos. Peça à Astra para tentar só os que falharam.",
       "unavailableRecovery": "Não funcionou. Peça uma nova prévia à Astra.",
       "unknown": "Operação da Astra",

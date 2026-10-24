@@ -100,15 +100,15 @@ function radioRowFill(selected: boolean, proposed: boolean): string {
   return proposed ? 'bg-[var(--bg-well)]' : 'bg-[rgba(var(--primary-rgb),0.10)]'
 }
 
-export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason, proposed = false }: Readonly<RadioRowProps>) {
+export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, description, selected = false, onSelect, onFocus, onBlur, leading, depth = 0, meta, tag, disabled = false, busy = false, reason, proposed = false }: Readonly<RadioRowProps>) {
   const contentId = useId()
   const [disclosed, setDisclosed] = useState(false)
-  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled, onSelect, selected })
+  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled: disabled || busy, onSelect, selected })
   const secondaryColor = selected ? 'var(--fg-2)' : 'var(--radio-row-secondary,var(--fg-3))'
-  const content = <RadioRowContent label={label} selection={selection} hideMeta={hideMeta} wrapLabel={wrapLabel} textMode={textMode} description={description} selected={selected} leading={leading} meta={meta} tag={tag} disabled={disabled} reason={reason} secondaryColor={secondaryColor} contentId={contentId} disclosed={disclosed} proposed={proposed} />
-  const style = radioRowStyle(depth, selected, disabled, proposed, wrapLabel, leading)
+  const content = <RadioRowContent label={label} selection={selection} hideMeta={hideMeta} wrapLabel={wrapLabel} textMode={textMode} description={description} selected={selected} leading={leading} meta={meta} tag={tag} disabled={disabled || busy} reason={reason} secondaryColor={secondaryColor} contentId={contentId} disclosed={disclosed} proposed={proposed} />
+  const style = radioRowStyle(depth, selected, disabled || busy, proposed, wrapLabel, leading)
   const accessibilityLabel = textMode === 'personal' || hideMeta
-    ? [label, description, meta, tag, disabled ? reason : null].filter(Boolean).join(', ')
+    ? [label, description, meta, tag, disabled || busy ? reason : null].filter(Boolean).join(', ')
     : undefined
   const contentRef = usePersonalTextContentRef(accessibilityLabel ?? label)
 
@@ -119,9 +119,12 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
     data-slot="list-row-body"
     aria-label={accessibilityLabel}
     aria-checked={selected}
-    tabIndex={tabIndex}
-    onClick={onActivate}
-    onKeyDown={onKeyDown}
+    tabIndex={busy ? -1 : tabIndex}
+    aria-disabled={busy || undefined}
+    onFocus={onFocus}
+    onBlur={onBlur}
+    onClick={busy ? undefined : onActivate}
+    onKeyDown={busy ? undefined : onKeyDown}
     className={`orbit-selection-ring orbit-selection-ring-thin orbit-radio-row flex w-full cursor-pointer items-center border-0 text-left ${textMode === 'personal' ? 'transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)]' : 'transition-[background-color,scale] duration-[var(--dur-hover),150ms] ease-[var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96]'} hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] ${radioRowFill(selected, proposed)} ${textMode === 'personal' ? 'absolute inset-0' : ''}`}
     style={style}
   >{textMode === 'personal' ? null : content}</button>

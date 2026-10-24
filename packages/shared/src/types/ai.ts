@@ -76,6 +76,19 @@ export const pendingOperationChangeSchema = z.object({
 })
 export type PendingOperationChange = z.infer<typeof pendingOperationChangeSchema>
 
+export const pendingOperationFieldOptionSchema = z.object({
+  value: z.json(),
+  label: z.string(),
+})
+export type PendingOperationFieldOption = z.infer<typeof pendingOperationFieldOptionSchema>
+
+export const pendingOperationFieldOptionsSchema = z.object({
+  field: z.string(),
+  required: z.boolean(),
+  options: z.array(pendingOperationFieldOptionSchema),
+})
+export type PendingOperationFieldOptions = z.infer<typeof pendingOperationFieldOptionsSchema>
+
 export const pendingOperationItemSchema = z.object({
   itemId: z.string(),
   entityId: z.string().nullable(),
@@ -83,6 +96,7 @@ export const pendingOperationItemSchema = z.object({
   fields: z.array(pendingOperationChangeSchema),
   stateFingerprint: z.string(),
   removesData: z.boolean().nullable().optional(),
+  fieldOptions: z.array(pendingOperationFieldOptionsSchema).nullable().optional(),
 })
 export type PendingOperationItem = z.infer<typeof pendingOperationItemSchema>
 

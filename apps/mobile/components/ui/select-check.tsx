@@ -45,21 +45,22 @@ export function RadioGlyph({
   )
 }
 
-export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason, proposed = false }: Readonly<RadioRowProps>) {
+export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, description, selected = false, onSelect, onFocus, onBlur, leading, depth = 0, meta, tag, disabled = false, busy = false, reason, proposed = false }: Readonly<RadioRowProps>) {
   const { fontScale } = useWindowDimensions()
+  const blocked = disabled || busy
   const [disclosed, setDisclosed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const themeTokens = createTokensV2(currentScheme, currentTheme)
   const tokens = proposed ? { ...themeTokens, primary: themeTokens.fg3, selectionBg: themeTokens.bgWell } : themeTokens
   const prefersReducedMotion = usePrefersReducedMotion()
-  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({
-    disabled,
+  const { elementRef, onActivate, onFocus: onRadioFocus, ...navigationProps } = useRadioGroupItem({
+    disabled: blocked,
     onSelect,
     selected,
   })
   const wrappingStyle = wrapLabel ? { lineHeight: 22.4 } : null
   const controlMinHeight = wrapLabel ? 22.4 * fontScale : undefined
-  const supportingReason = Boolean(disabled && textMode === 'personal' && reason)
+  const supportingReason = Boolean(blocked && textMode === 'personal' && reason)
   const content = (pressed = false) => {
     const labelColor = selection && !selected ? tokens.fg2 : tokens.fg1
     const secondaryColor = pressed || (selected && !proposed) ? tokens.fg2 : tokens.fg3
@@ -70,7 +71,7 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
         <View style={[styles.textBlock, radioTextBlockStyle(wrapLabel)]}>
           {textMode === 'personal' ? <PersonalText data-slot="list-row-title" expanded={disabled ? disclosed : selected} style={[styles.label, { color: personalColor, lineHeight: 22.4 }]}>{label}</PersonalText> : <Text data-slot="list-row-title" style={[styles.label, { color: optionColor }, wrappingStyle]}>{label}</Text>}
           {description ? <Text style={[styles.description, { color: secondaryColor }]}>{description}</Text> : null}
-          {!supportingReason && disabled && reason ? <Text style={[styles.reason, { color: secondaryColor }]}>{reason}</Text> : null}
+          {!supportingReason && blocked && reason ? <Text style={[styles.reason, { color: secondaryColor }]}>{reason}</Text> : null}
         </View>
       </>
     const metadata = <RadioRowMetadata meta={meta} hideMeta={hideMeta} tag={tag} secondaryColor={secondaryColor} supportingReason={supportingReason} />
@@ -91,10 +92,10 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
       paddingLeft: ROW_INDENTS[Math.min(5, Math.max(0, Math.trunc(depth)))],
       backgroundColor: selected ? tokens.selectionBg : 'transparent',
       borderColor: 'transparent',
-      opacity: disabled ? 0.5 : 1,
+      opacity: blocked ? 0.5 : 1,
     },
   ]
-  const accessibilityLabel = [label, description, meta, tag, disabled ? reason : null]
+  const accessibilityLabel = [label, description, meta, tag, blocked ? reason : null]
     .filter(Boolean).join(', ')
 
   return disabled ? (
@@ -106,8 +107,10 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
       ref={elementRef}
       accessibilityRole="radio"
       accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ checked: selected }}
-      onPress={onActivate}
+      {...radioPressProps(selected, busy, onActivate)}
+      focusable
+      onFocus={() => { onFocus?.(); onRadioFocus() }}
+      onBlur={onBlur}
       style={({ pressed }) => [
         ...rowStyle,
         pressed ? { backgroundColor: tokens.bgHover } : null,
@@ -115,6 +118,13 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
       ]}
     >{({ pressed }) => content(pressed)}</InsetFocusPressable>
   )
+}
+
+function radioPressProps(selected: boolean, busy: boolean, onActivate: () => void) {
+  return {
+    accessibilityState: busy ? { checked: selected, disabled: true } : { checked: selected },
+    onPress: busy ? undefined : onActivate,
+  }
 }
 
 function RadioRowMetadata({ meta, hideMeta, tag, secondaryColor, supportingReason }: Readonly<Pick<RadioRowProps, 'meta' | 'hideMeta' | 'tag'> & { secondaryColor: string; supportingReason: boolean }>) {

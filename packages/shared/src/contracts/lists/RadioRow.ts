@@ -9,6 +9,8 @@ export interface RadioRowBase {
   description?: string
   selected?: boolean
   onSelect?: () => void
+  onFocus?: () => void
+  onBlur?: () => void
   leading?: React.ReactNode
   depth?: number
   meta?: string
@@ -16,8 +18,9 @@ export interface RadioRowBase {
 }
 
 export type RadioRowDisabled =
-  | { disabled: true; reason: string }
-  | { disabled: true; reasonScope: 'group'; reason?: never }
-  | { disabled?: false; reason?: never }
+  | { disabled: true; busy?: false; reason: string }
+  | { disabled: true; busy?: false; reasonScope: 'group'; reason?: never }
+  | { disabled?: false; busy: true; reason: string }
+  | { disabled?: false; busy?: false; reason?: never }
 
 export type RadioRowProps = RadioRowBase & RadioRowDisabled
