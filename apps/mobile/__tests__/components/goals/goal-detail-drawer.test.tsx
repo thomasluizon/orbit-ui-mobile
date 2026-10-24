@@ -476,7 +476,7 @@ describe('GoalDetailDrawer', () => {
     expect(refetchDetail).toHaveBeenCalled()
   })
 
-  const astraLabel = 'goals.detail.askAstraEyebrow'
+  const astraLabel = 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault'
 
   it('opens Astra after sheet dismissal with the selected synced goal', () => {
     detailGoal = { ...detailGoal, title: 'Synced goal' }
