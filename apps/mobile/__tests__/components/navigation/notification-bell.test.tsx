@@ -23,6 +23,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useChatStore } from '@/stores/chat-store'
 import { useHabitCreateNavigationGuard } from '@/hooks/use-habit-create-navigation-guard'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { apiClient } from '@/lib/api-client'
 
 const TestRenderer = require('react-test-renderer')
 const testI18n = createInstance()
@@ -59,7 +60,12 @@ vi.mock('@/hooks/use-notifications', () => ({
 }))
 vi.mock('@/lib/haptics', () => ({ triggerHaptic: vi.fn() }))
 vi.mock('@/lib/api-client', () => ({
-  apiClient: (path: string) => Promise.resolve(path === API.proactive.current ? createMockProactiveItem() : undefined),
+  apiClient: vi.fn((path: string) => {
+    const url = new URL(path, 'https://example.test')
+    const context = url.searchParams.get('clientContext')
+    return Promise.resolve(url.pathname === API.proactive.current && context !== null && JSON.parse(context).platform === 'mobile'
+      ? createMockProactiveItem() : undefined)
+  }),
 }))
 
 type Node = {
@@ -645,6 +651,14 @@ describe('mobile alerts', () => {
     expect(state.push).toHaveBeenCalledWith(destination)
     expect(state.push).toHaveBeenCalledTimes(1)
     expect(useUIStore.getState().astraConversationOpen).toBe(url === '/chat')
+    if (url === '/chat') {
+      const [path] = vi.mocked(apiClient).mock.calls[0]!
+      const requestUrl = new URL(path, 'https://example.test')
+      expect(requestUrl.pathname).toBe(API.proactive.current)
+      expect(JSON.parse(requestUrl.searchParams.get('clientContext')!)).toMatchObject({ platform: 'mobile' })
+    } else {
+      expect(apiClient).not.toHaveBeenCalled()
+    }
     expect(useChatStore.getState().messages).toEqual(url === '/chat'
       ? [expect.objectContaining({ role: 'ai', content: createMockProactiveItem().text })]
       : [])

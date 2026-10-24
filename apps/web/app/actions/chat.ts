@@ -1,5 +1,7 @@
 'use server'
 
+import { getLocale } from 'next-intl/server'
+import { buildChatClientContext } from '@orbit/shared/chat'
 import { API, MAX_CLARIFICATION_VALUE_LENGTH } from '@orbit/shared/api'
 import type {
   AgentExecuteOperationResponse,
@@ -130,7 +132,9 @@ export async function resolveClarification(
 }
 
 export async function getCurrentProactiveItem() {
-  return serverAuthFetch(API.proactive.current, undefined, proactiveItemSchema.nullable())
+  const clientContext = buildChatClientContext({ platform: 'web', locale: await getLocale() })
+  const query = new URLSearchParams({ clientContext: JSON.stringify(clientContext) })
+  return serverAuthFetch(`${API.proactive.current}?${query.toString()}`, undefined, proactiveItemSchema.nullable())
 }
 
 export async function getProactiveItemStatus(id: string) {

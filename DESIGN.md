@@ -438,7 +438,7 @@ steps use the existing collapsed disclosure after their answer.
 
 Feature help, advice, small talk and no-data proactive nudges use one to three short lines without
 headings, unsolicited lists or caveat paragraphs. A relevant existing screen/tool action remains
-available. Proactive requests returning data use the same registered blocks. Data-backed proactive entries require their corresponding typed block; sparse notification facts cannot fabricate read results. Requested code explanations retain selectable Markdown and
+available. Proactive requests returning data use the same registered blocks. Data-backed proactive entries negotiate the shared chat capabilities on both platforms and lead with the validated block from the proactive response. They retain the registered block's original read scope and refresh behavior, without repeating the saved notification text. Missing or unusable parts retain the legacy entry. Sparse notification facts cannot fabricate read results. Requested code explanations retain selectable Markdown and
 independent code-block copying.
 
 The **habit ranking** block uses one BlockFrame with no header count, chart, totals or repeated
