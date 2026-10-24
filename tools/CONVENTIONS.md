@@ -26,8 +26,8 @@ A tool whose job is to answer "is this work done?" obeys one extra rule: **the v
 
 Every gate is registered in `gate-charter.json`. A pull request gate normally fails only for changed files.
 The dash and Sonar path inventories block across the whole tree so a deleted file cannot retain an exemption.
-The contract snapshot, architecture inventory and critical dependency audit retain their blocking
-whole-tree checks. Other whole-tree scans report findings without failing. A committed inventory
+The contract snapshot, architecture inventory, graphic contrast floor and critical dependency audit retain their blocking
+whole-tree checks. Other whole-tree findings remain advisory. A committed inventory
 declares its regeneration command, and every numeric threshold names the source that owns it. `check-gate-charter.mjs` enforces
 the closed registry across check tools, local ESLint rules, session hooks and the registered guard step groups in `guards.yml` and the separate `pr-metadata.yml` job.
 

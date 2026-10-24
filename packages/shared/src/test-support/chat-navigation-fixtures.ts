@@ -13,7 +13,13 @@ interface NavigationCase {
 }
 
 export const chatNavigationCases: readonly NavigationCase[] = [
+  { name: 'period insight', part: { type: 'block', kind: 'periodInsight', block: {
+    period: 'week', dateFrom: inPlaceDayFixture.date, dateTo: inPlaceDayFixture.date, completionRate: 50,
+    activeDays: 1, periodDays: 1, totalCompletions: 1, totalScheduled: 2, currentStreak: 1, bestStreak: 1,
+    topHabits: [], needsAttention: [], narrative: { highlights: '', trends: '', suggestion: '', missed: '' },
+  } }, label: 'chat.insight.progressLink', web: '/progress', mobile: '/progress' },
   { name: 'habit row', part: { type: 'block', kind: 'habitList', block: habitListCardFixture }, label: 'chat.habitList.open:{"name":"Water"}', web: '/habits/habit-1', mobile: { pathname: '/habits/[id]', params: { id: 'habit-1' } } },
+  { name: 'dated habit row', part: { type: 'block', kind: 'habitList', block: { ...habitListCardFixture, date: inPlaceDayFixture.date } }, label: 'chat.habitList.open:{"name":"Water"}', web: `/habits/habit-1?date=${inPlaceDayFixture.date}`, mobile: { pathname: '/habits/[id]', params: { id: 'habit-1', date: inPlaceDayFixture.date } } },
   { name: 'goal list', part: { type: 'block', kind: 'goalList', block: goalListCardFixture }, label: 'chat.goalList.progressLink', web: '/progress/goals', mobile: '/progress/goals' },
   { name: 'account metrics', part: { type: 'block', kind: 'metrics', block: metrics }, label: 'chat.metrics.progressLink', web: '/progress', mobile: '/progress' },
   { name: 'habit metrics', part: { type: 'block', kind: 'metrics', block: { ...metrics, period: 'habit', habitId: 'habit-1' } }, label: 'chat.metrics.habitLink', web: '/habits/habit-1', mobile: { pathname: '/habits/[id]', params: { id: 'habit-1' } } },

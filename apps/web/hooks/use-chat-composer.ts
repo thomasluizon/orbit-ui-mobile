@@ -37,7 +37,10 @@ import {
   resolveComposerChipSurface,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   AI_MESSAGE_COUNTER_THRESHOLD,
-  consumeChatSseStream,
+  sendChatStreamTurn,
+  needsNewChatTurn,
+  ChatTurnReconciliation,
+  type PreparedChatTurn,
 } from '@orbit/shared/chat'
 import {
   CHAT_DRAFT_STORAGE_KEY,
@@ -45,6 +48,7 @@ import {
   classifySendFailure,
   sendInConversation,
   invalidateAgentQueries,
+  reconcileAgentQueries,
   selectActionInvalidations,
 } from '@orbit/shared/hooks'
 import { sessionAwareFetch } from '@/lib/api-fetch'
@@ -60,7 +64,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
 import { useHabitDetail, useHabits } from '@/hooks/use-habit-queries'
 import { useChatImageAttachment } from '@/hooks/use-chat-image-attachment'
-import { useChatTextFileAttachment } from '@/hooks/use-chat-text-file-attachment'
+import { useChatTextFileAttachment, type SelectedChatTextFile } from '@/hooks/use-chat-text-file-attachment'
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
 import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { getHeldAccountId } from '@/stores/auth-store'
@@ -69,11 +73,13 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 
 
 interface AttemptedSend {
+  turn?: PreparedChatTurn<FormData>
   intendedAccountId: string | null
   content: string
   draftContent: string
   image: File | null
   preview: string | null
+  textFile: SelectedChatTextFile | null
   restoreDraftOnFailure: boolean
   clearDraftOnSuccess: boolean
   restoredDraftRevision: number | null
@@ -109,9 +115,10 @@ function readServerNetworkStatus(): boolean {
 }
 
 async function* streamTextChunks(
-  body: ReadableStream<Uint8Array>,
+  body: ReadableStream<Uint8Array> | null,
   onActivity: () => void,
 ): AsyncGenerator<string> {
+  if (!body) return
   const reader = body.getReader()
   const decoder = new TextDecoder()
   try {
@@ -181,6 +188,9 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   const [activeSteps, setActiveSteps] = useState<{ domain: string; access: string }[]>([])
   const activeStepsRef = useRef<{ domain: string; access: string }[]>([])
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null)
+  const [dailyBudgetDate, setDailyBudgetDate] = useState<string | null>(null)
+  const [turnReconciliation] = useState(() => new ChatTurnReconciliation())
+  const [blockSubmission] = useState(() => new BlockAnswerSubmission())
 
   const {
     fileInputRef,
@@ -191,6 +201,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     handlePaste,
     removeImage,
     clearImage,
+    restoreImage,
   } = useChatImageAttachment(setSendError)
 
   const {
@@ -199,6 +210,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     openTextFilePicker,
     handleTextFileSelect,
     removeTextFile,
+    restoreTextFile,
   } = useChatTextFileAttachment(setSendError)
 
   /**
@@ -208,9 +220,12 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
    * itself.
    */
   useResetOnAccountChange(() => {
+    turnReconciliation.reset()
+    blockSubmission.reset()
     activeStepsRef.current = []
     setActiveSteps([])
     setLastFailedSend(null)
+    setDailyBudgetDate(null)
     setSendError(null)
     useUIStore.getState().setAstraConversationOpen(false)
   })
@@ -224,7 +239,8 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   const hasProAccess = profile?.hasProAccess ?? false
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0
   const aiMessagesLimit = profile?.aiMessagesLimit ?? (hasProAccess ? 50 : 5)
-  const atMessageLimit = aiMessagesUsed >= aiMessagesLimit
+  const dailyBudgetReached = dailyBudgetDate === today
+  const atMessageLimit = dailyBudgetReached || aiMessagesUsed >= aiMessagesLimit
   const isSending = isTyping || streamingMessageId !== null
   const attachments = useMemo(
     () => [
@@ -274,6 +290,17 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     verifyStepUpForBubble,
   } = useChatPendingOperations(handleExecutedOperation)
 
+  const handleDailyBudgetExceeded = useCallback((draftMessageId: string | null, attempted?: AttemptedSend) => {
+    if (attempted?.clearDraftOnSuccess && attempted.restoredDraftRevision === useChatStore.getState().draftRevision) {
+      restoreImage(attempted.image, attempted.preview)
+      restoreTextFile(attempted.textFile)
+    }
+    setDailyBudgetDate(today)
+    setSendError(null)
+    setLastFailedSend(null)
+    if (draftMessageId) useChatStore.setState(state => ({ messages: state.messages.filter(message => message.id !== draftMessageId) }))
+  }, [restoreImage, restoreTextFile, today])
+
   const handleFailedSend = useCallback((
     failureInput: StreamSendFailure,
     attempted: AttemptedSend,
@@ -306,6 +333,11 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       code: failureInput.code,
       reason: resolvedError,
     })
+
+    if (failure.kind === 'dailyBudget') {
+      handleDailyBudgetExceeded(draftMessageId, failedAttempt)
+      return
+    }
 
     if (failure.kind === 'timeout') {
       setSendError(t('chat.timeoutError'))
@@ -341,7 +373,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       })
     }
     scrollToBottom()
-  }, [addMessage, scrollToBottom, setInput, setIsTyping, t, updateMessage])
+  }, [addMessage, handleDailyBudgetExceeded, scrollToBottom, setInput, setIsTyping, t, updateMessage])
 
   const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[], firstReveal: Promise<void>, messageCost: 0 | 1) => {
     if (draftMessageId && response.parts?.some(part => part?.type === 'block')) {
@@ -452,10 +484,10 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     if (useChatStore.getState().streamingMessageId === draftMessageId) setStreamingMessageId(null)
   }, [setIsTyping, setStreamingMessageId])
 
-  const runStreamingSend = useCallback(async (attempted: ChatStreamRequest<File>, onAccepted?: () => void): Promise<ChatStreamResult> => {
+  const runStreamingSend = useCallback(async (attempted: ChatStreamRequest<File> & { turn?: PreparedChatTurn<FormData> }, onAccepted?: () => void): Promise<ChatStreamResult> => {
     const startingAccountGeneration = getAccountGeneration()
     const ownsAccount = () => getAccountGeneration() === startingAccountGeneration
-    const controller = new AbortController()
+    let controller = new AbortController()
     let idleTimer: ReturnType<typeof setTimeout> | undefined
     const armIdleTimer = () => {
       clearTimeout(idleTimer)
@@ -476,31 +508,30 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     }
 
     try {
-      armIdleTimer()
-      const response = await sessionAwareFetch(API.chat.stream, {
-        method: 'POST',
-        ...(attempted.intendedAccountId ? { headers: { 'X-Orbit-Held-Account-Id': attempted.intendedAccountId } } : {}),
-        body: buildChatFormData(attempted),
-        signal: controller.signal,
-      })
+      if (turnReconciliation.isPending) await turnReconciliation.reconcile(() => reconcileAgentQueries(queryClient))
       if (!ownsAccount()) return { kind: 'cancelled' }
-      if (!response.ok || !response.body) {
-        const errorBody = (await response.json().catch(() => null)) as
-          | { error?: string; errorCode?: string }
-          | null
-        if (!ownsAccount()) return { kind: 'cancelled' }
-        useThrottleStore.getState().show(response.status, errorBody)
-        return { kind: 'failed', failure: {
-            status: response.status,
-            error: errorBody?.error ?? t('chat.sendError'),
-            code: errorBody?.errorCode ?? null,
-          }, draftMessageId }
-      }
-
-      onAccepted?.()
-      const outcome = await consumeChatSseStream(
-        streamTextChunks(response.body, armIdleTimer),
-        {
+      attempted.turn ??= { key: crypto.randomUUID(), payload: buildChatFormData(attempted) }
+      const outcome = await sendChatStreamTurn({
+        turn: attempted.turn,
+        isCancelled: () => !ownsAccount(),
+        open: async (turn) => {
+          controller = new AbortController()
+          armIdleTimer()
+          const response = await sessionAwareFetch(API.chat.stream, {
+            method: 'POST',
+            headers: { 'Idempotency-Key': turn.key, ...(attempted.intendedAccountId ? { 'X-Orbit-Held-Account-Id': attempted.intendedAccountId } : {}) },
+            body: turn.payload,
+            signal: controller.signal,
+          })
+          if (!response.ok) {
+            const errorBody = (await response.json().catch(() => null)) as { error?: string; errorCode?: string; code?: string } | null
+            useThrottleStore.getState().show(response.status, errorBody)
+            return { kind: 'httpError', status: response.status, error: errorBody?.error ?? t('chat.sendError'), code: errorBody?.code ?? errorBody?.errorCode ?? null }
+          }
+          if (ownsAccount()) onAccepted?.()
+          return { kind: 'stream', chunks: streamTextChunks(response.body, armIdleTimer) }
+        },
+        callbacks: {
           onDelta: (text) => {
             if (!ownsAccount()) return
             appendToMessageContent(ensureDraftMessage(), text)
@@ -517,16 +548,20 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
             setActiveSteps(activeStepsRef.current)
           },
         },
-      )
+      })
 
+      if (!ownsAccount() || outcome.kind === 'cancelled') return { kind: 'cancelled' }
+      if (needsNewChatTurn(outcome)) attempted.turn = undefined
+      await turnReconciliation.reconcileAfterTurn(outcome, () => reconcileAgentQueries(queryClient))
       if (!ownsAccount()) return { kind: 'cancelled' }
+      if (outcome.kind === 'transportError') throw outcome.error
 
       if (outcome.kind === 'final') {
         finalReceived = true
         await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal.completion, attempted.messageCost)
         return ownsAccount() ? { kind: 'final' } : { kind: 'cancelled' }
       }
-      if (outcome.kind === 'error') {
+      if (outcome.kind === 'error' || outcome.kind === 'httpError') {
         return { kind: 'failed', failure: { status: outcome.status, error: outcome.error, code: outcome.code }, draftMessageId }
       }
       return { kind: 'failed', failure: { status: null, error: t('chat.sendError'), code: null }, draftMessageId }
@@ -547,6 +582,8 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     applyFinalResponse,
     buildChatFormData,
     finishStreamingSend,
+    turnReconciliation,
+    queryClient,
     scrollToBottom,
     setIsTyping,
     setStreamingMessageId,
@@ -580,7 +617,9 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       }
 
       const startingAccountGeneration = getAccountGeneration()
-      const result = await runStreamingSend({ ...attempted, messageCost: 1 })
+      const request = { ...attempted, messageCost: 1 as const }
+      const result = await runStreamingSend(request)
+      attempted.turn = request.turn
       const succeeded = result.kind === 'final'
       if (result.kind === 'failed') handleFailedSend(result.failure, attempted, result.draftMessageId)
       if (succeeded && getAccountGeneration() === startingAccountGeneration && attempted.contextualRequest && useChatStore.getState().contextualSuggestion === attempted.contextualRequest) {
@@ -591,17 +630,16 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     [addMessage, beginSend, handleFailedSend, runStreamingSend],
   )
 
-  const [blockSubmission] = useState(() => new BlockAnswerSubmission())
   const sendBlockAnswer = useCallback((request: BlockAnswerRequest): Promise<BlockAnswerResult> =>
     blockSubmission.send(request, {
-      isOnline, atMessageLimit, locale, intendedAccountId: getHeldAccountId(),
+      isOnline, atMessageLimit, dailyBudgetReached, onDailyBudgetExceeded: handleDailyBudgetExceeded, locale, intendedAccountId: getHeldAccountId(),
       getChat: useChatStore.getState, createMessageId: () => crypto.randomUUID(),
       conversation: useUIStore.getState(), beginSend, run: runStreamingSend,
       refreshProfile: () => queryClient.invalidateQueries({ queryKey: profileKeys.all }),
       words: { answered: content => t('chat.choice.answered', { options: content }),
         closed: t('chat.choice.closed'), alreadyAnswered: t('chat.choice.alreadyAnswered') },
-    }), [atMessageLimit, beginSend, blockSubmission, isOnline, locale, queryClient, runStreamingSend, t])
-  const blockAnswerInteraction = { isOnline, isSending, atMessageLimit, allowance: aiMessagesLimit, send: sendBlockAnswer }
+    }), [atMessageLimit, beginSend, blockSubmission, dailyBudgetReached, handleDailyBudgetExceeded, isOnline, locale, queryClient, runStreamingSend, t])
+  const blockAnswerInteraction = { isOnline, isSending, atMessageLimit, dailyBudgetReached, allowance: aiMessagesLimit, send: sendBlockAnswer }
 
   const sendMessage = useCallback(
     async (content?: string, messageOrigin?: 'followUp', contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>) => {
@@ -624,6 +662,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
         setSendError(t('shell.composer.offline.reason'))
         return
       }
+      if (dailyBudgetReached) return
       if (atMessageLimit) {
         setSendError(null)
         addMessage({
@@ -642,6 +681,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
         draftContent: sendsComposerDraft ? input : typedContent,
         image: sendsComposerDraft ? selectedImage : null,
         preview: sendsComposerDraft ? imagePreview : null,
+        textFile: sendsComposerDraft ? selectedTextFile : null,
         restoreDraftOnFailure: content === undefined,
         clearDraftOnSuccess: content === undefined,
         restoredDraftRevision: null,
@@ -662,6 +702,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       attachments,
       addMessage,
       atMessageLimit,
+      dailyBudgetReached,
       imagePreview,
       input,
       isOnline,
@@ -723,11 +764,13 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
 
   const remainingMessages = aiMessagesLimit - aiMessagesUsed
   const nearMessageLimit = remainingMessages <= AI_MESSAGE_COUNTER_THRESHOLD
-  const renewalHint = nearMessageLimit ? t('shell.composer.limit.renewal') : undefined
-  const allowanceReason = nearMessageLimit ? t('shell.composer.limit.reason', { allowance: aiMessagesLimit }) : undefined
+  const renewalHint = nearMessageLimit && !dailyBudgetReached ? t('shell.composer.limit.renewal') : undefined
+  const allowanceReason = nearMessageLimit && !dailyBudgetReached ? t('shell.composer.limit.reason', { allowance: aiMessagesLimit }) : undefined
 
-  const usageMessage = nearMessageLimit && remainingMessages > 0
+  const usageMessage = nearMessageLimit && !dailyBudgetReached && remainingMessages > 0
     ? t('shell.composer.usage', { used: aiMessagesUsed, limit: aiMessagesLimit }) : undefined
+
+  const messageLimitReason = dailyBudgetReached ? t('chat.dailyBudgetReached') : t('shell.composer.limit.reason', { allowance: aiMessagesLimit })
 
   const composerProps = useMemo(() => {
     const words = {
@@ -787,7 +830,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
 
     if (atMessageLimit) {
       const limitWords = { ...words, placeholder: t('shell.composer.limit.placeholder') }
-      const limitReason = t('shell.composer.limit.reason', { allowance: aiMessagesLimit })
+      const limitReason = messageLimitReason
       return speechSupported
         ? { ...common, words: limitWords, suggestions: [] as const, state: 'atLimit', limitReason, onVoice: toggleRecording, voiceWords }
         : { ...common, words: limitWords, suggestions: [] as const, state: 'atLimit', limitReason }
@@ -801,9 +844,9 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     allowanceReason,
     usageMessage,
     renewalHint,
-    aiMessagesLimit,
     attachments,
     atMessageLimit,
+    messageLimitReason,
     canRetryLastSend,
     composerSuggestions,
     input,
@@ -861,6 +904,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     aiMessagesUsed,
     aiMessagesLimit,
     atMessageLimit,
+    dailyBudgetReached,
     canSend,
     isOnline,
     showSuggestions,

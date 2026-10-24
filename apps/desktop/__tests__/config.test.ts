@@ -43,14 +43,27 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
     expect(config.app.windows[0]).toHaveProperty('create', false)
     const entrypoint = readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
     expect(entrypoint).toMatch(/\.setup\([\s\S]*WebviewWindowBuilder::from_config[\s\S]*\.on_new_window\([\s\S]*open_new_window\([\s\S]*tauri_plugin_opener::open_url[\s\S]*\.build\(\)/)
-    expect(entrypoint).not.toMatch(/\.plugin\(|\.invoke_handler\(/)
+    expect(entrypoint).toContain('.on_navigation(')
+    expect(entrypoint).toMatch(/\.invoke_handler\(tauri::generate_handler!\[\s*desktop_login::commit_desktop_login\s*\]\)/)
   })
 
-  it('exposes no native commands, plugins or capability files', () => {
+  it('grants only session completion to its own origin and registers its callback scheme', () => {
     expect(config.app.withGlobalTauri).toBe(false)
-    expect(config.app.security.capabilities).toEqual([])
-    expect(config).not.toHaveProperty('plugins')
+    expect(config.app.security.capabilities).toEqual([{
+      identifier: 'desktop-auth', local: false, remote: { urls: [`${origin}/*`] },
+      windows: ['main'], permissions: ['allow-commit-desktop-login'],
+    }])
+    expect(config.plugins).toEqual({ 'deep-link': { desktop: { schemes: [identifier] } } })
     expect(existsSync(new URL('../src-tauri/capabilities', import.meta.url))).toBe(false)
+  })
+
+  it('keeps lifecycle operations native without granting plugin commands to the deployed page', () => {
+    const entrypoint = readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
+    expect(entrypoint).toContain('.on_menu_event(menus::handle)')
+    expect(entrypoint).toContain('.on_window_event(lifecycle::on_window_event)')
+    expect(entrypoint.indexOf('tauri_plugin_single_instance::init')).toBeLessThan(entrypoint.indexOf('tauri_plugin_deep_link::init'))
+    const permissions = config.app.security.capabilities.flatMap((capability) => capability.permissions)
+    expect(permissions).toEqual(['allow-commit-desktop-login'])
   })
 })
 

@@ -1,3 +1,4 @@
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { openTodayListOptions } from './hydration-guard'
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -73,7 +74,7 @@ for (const width of [320, 360, 384, 412, 1100, 1440]) {
         await page.getByRole('menu', { name: words.habits.listOptions, exact: true })
           .getByRole('menuitem', { name: words.habits.refresh, exact: true }).click()
         await expect(page.getByTestId('habit-row').getByText(title, { exact: true })).toBeVisible()
-        await page.getByRole('button', { name: words.todayAstra.openConversation, exact: true }).click()
+        await getShellConversationEntry(page, width, words).click()
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         const empty = conversation.getByRole('feed')
         await markRequiredLabels(empty.getByText(words.chat.empty.title, { exact: true }))

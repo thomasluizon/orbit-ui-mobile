@@ -1,3 +1,4 @@
+import { randomUUID } from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Linking } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
@@ -21,7 +22,10 @@ import {
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   AI_MESSAGE_COUNTER_THRESHOLD,
   CHAT_TEXT_FILE_PICKER_MIME_TYPES,
-  consumeChatSseStream,
+  sendChatStreamTurn,
+  needsNewChatTurn,
+  ChatTurnReconciliation,
+  type PreparedChatTurn,
   getChatImageValidationError,
   getChatTextFileValidationError,
   resolveChatImageMimeType,
@@ -44,6 +48,7 @@ import {
   classifySendFailure,
   sendInConversation,
   invalidateAgentQueries,
+  reconcileAgentQueries,
   selectActionInvalidations,
 } from "@orbit/shared/hooks";
 import {
@@ -71,10 +76,12 @@ function createChatMessageId(): string {
 }
 
 interface AttemptedSend {
+  turn?: PreparedChatTurn<FormData>;
   content: string;
   draftContent: string;
   image: ImagePicker.ImagePickerAsset | null;
   preview: string | null;
+  textFile: SelectedChatTextFile | null;
   restoreDraftOnFailure: boolean;
   clearDraftOnSuccess: boolean;
   restoredDraftRevision: number | null;
@@ -108,9 +115,10 @@ interface ByteStream {
 }
 
 async function* streamTextChunks(
-  body: ByteStream,
+  body: ByteStream | null,
   onActivity: () => void,
 ): AsyncGenerator<string> {
+  if (!body) return;
   const reader = body.getReader();
   const decoder = new TextDecoder();
   try {
@@ -206,6 +214,9 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   const [activeSteps, setActiveSteps] = useState<{ domain: string; access: string }[]>([]);
   const activeStepsRef = useRef<{ domain: string; access: string }[]>([]);
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null);
+  const [dailyBudgetDate, setDailyBudgetDate] = useState<string | null>(null);
+  const [turnReconciliation] = useState(() => new ChatTurnReconciliation())
+  const [blockSubmission] = useState(() => new BlockAnswerSubmission())
   const [selectedImage, setSelectedImage] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -219,9 +230,12 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
    * itself, and every field added here is covered by the same subscription.
    */
   useResetOnAccountChange(() => {
+    turnReconciliation.reset()
+    blockSubmission.reset()
     activeStepsRef.current = [];
     setActiveSteps([]);
     setLastFailedSend(null);
+    setDailyBudgetDate(null);
     setSendError(null);
     setSelectedImage(null);
     setImagePreview(null);
@@ -232,7 +246,8 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   const hasProAccess = profile?.hasProAccess ?? false;
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0;
   const aiMessagesLimit = profile?.aiMessagesLimit ?? (hasProAccess ? 50 : 5);
-  const atMessageLimit = aiMessagesUsed >= aiMessagesLimit;
+  const dailyBudgetReached = dailyBudgetDate === today;
+  const atMessageLimit = dailyBudgetReached || aiMessagesUsed >= aiMessagesLimit;
   const isSending = isTyping || streamingMessageId !== null;
   const imageName = selectedImage?.fileName ?? selectedImage?.uri.split("/").at(-1);
   const attachments = useMemo(
@@ -395,6 +410,18 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     setSelectedTextFile(null);
   }, []);
 
+  const handleDailyBudgetExceeded = useCallback((draftMessageId: string | null, attempted?: AttemptedSend) => {
+    if (attempted?.clearDraftOnSuccess && attempted.restoredDraftRevision === useChatStore.getState().draftRevision) {
+      setSelectedImage(attempted.image)
+      setImagePreview(attempted.preview)
+      setSelectedTextFile(attempted.textFile)
+    }
+    setDailyBudgetDate(today)
+    setSendError(null)
+    setLastFailedSend(null)
+    if (draftMessageId) useChatStore.setState(state => ({ messages: state.messages.filter(message => message.id !== draftMessageId) }))
+  }, [today])
+
   const handleFailedSend = useCallback(
     (
       failureInput: StreamSendFailure,
@@ -419,6 +446,11 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         code: failureInput.code,
         reason: resolvedError,
       });
+
+      if (failure.kind === 'dailyBudget') {
+        handleDailyBudgetExceeded(draftMessageId, failedAttempt)
+        return
+      }
 
       if (failure.kind === "timeout") {
         setSendError(t("chat.timeoutError"));
@@ -455,7 +487,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       }
       scrollToBottom();
     },
-    [addMessage, scrollToBottom, setInput, setIsTyping, t, updateMessage],
+    [addMessage, handleDailyBudgetExceeded, scrollToBottom, setInput, setIsTyping, t, updateMessage],
   );
 
   const applyFinalResponse = useCallback(
@@ -530,7 +562,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       if (attempted.image) {
         formData.append(
           "image",
-          new File(attempted.image.uri),
+          new File(attempted.image.uri).slice(0, undefined, resolveChatImageMimeType(attempted.image) ?? undefined),
           buildImageFileName(attempted.image),
         );
       }
@@ -563,10 +595,10 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   }, [setIsTyping, setStreamingMessageId])
 
   const runStreamingSend = useCallback(
-    async (attempted: ChatStreamRequest<ImagePicker.ImagePickerAsset>, onAccepted?: () => void): Promise<ChatStreamResult> => {
+    async (attempted: ChatStreamRequest<ImagePicker.ImagePickerAsset> & { turn?: PreparedChatTurn<FormData> }, onAccepted?: () => void): Promise<ChatStreamResult> => {
       const startingAccountGeneration = getAccountGeneration();
       const ownsAccount = () => getAccountGeneration() === startingAccountGeneration;
-      const controller = new AbortController();
+      let controller = new AbortController();
       let idleTimer: ReturnType<typeof setTimeout> | undefined;
       const armIdleTimer = () => {
         clearTimeout(idleTimer);
@@ -593,27 +625,24 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       };
 
       try {
-        armIdleTimer();
-        const response = await openChatStream(buildChatFormData(attempted), controller.signal);
-
+        if (turnReconciliation.isPending) await turnReconciliation.reconcile(() => reconcileAgentQueries(queryClient));
         if (!ownsAccount()) return { kind: 'cancelled' };
-
-        if (!response.ok || !response.body) {
-          const errorBody = (await response.json().catch(() => null)) as
-            | { error?: string; errorCode?: string }
-            | null;
-          if (!ownsAccount()) return { kind: 'cancelled' };
-          return { kind: 'failed', failure: {
-              status: response.status,
-              error: errorBody?.error ?? t("chat.sendError"),
-              code: errorBody?.errorCode ?? null,
-            }, draftMessageId };
-        }
-
-        onAccepted?.();
-        const outcome = await consumeChatSseStream(
-          streamTextChunks(response.body, armIdleTimer),
-          {
+        attempted.turn ??= { key: randomUUID(), payload: buildChatFormData(attempted) };
+        const outcome = await sendChatStreamTurn({
+          turn: attempted.turn,
+          isCancelled: () => !ownsAccount(),
+          open: async (turn) => {
+            controller = new AbortController();
+            armIdleTimer();
+            const response = await openChatStream(turn.payload, controller.signal, turn.key);
+            if (!response.ok) {
+              const errorBody = (await response.json().catch(() => null)) as { error?: string; errorCode?: string; code?: string } | null;
+              return { kind: 'httpError', status: response.status, error: errorBody?.error ?? t("chat.sendError"), code: errorBody?.code ?? errorBody?.errorCode ?? null };
+            }
+            if (ownsAccount()) onAccepted?.();
+            return { kind: 'stream', chunks: streamTextChunks(response.body, armIdleTimer) };
+          },
+          callbacks: {
             onDelta: (text) => {
               if (!ownsAccount()) return;
               appendToMessageContent(ensureDraftMessage(), text);
@@ -630,16 +659,20 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
               setActiveSteps(activeStepsRef.current);
             },
           },
-        );
+        });
 
+        if (!ownsAccount() || outcome.kind === 'cancelled') return { kind: 'cancelled' };
+        if (needsNewChatTurn(outcome)) attempted.turn = undefined;
+        await turnReconciliation.reconcileAfterTurn(outcome, () => reconcileAgentQueries(queryClient));
         if (!ownsAccount()) return { kind: 'cancelled' };
+        if (outcome.kind === 'transportError') throw outcome.error;
 
         if (outcome.kind === "final") {
           finalReceived = true;
           await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal.completion, attempted.messageCost);
           return ownsAccount() ? { kind: 'final' } : { kind: 'cancelled' };
         }
-        if (outcome.kind === "error") {
+        if (outcome.kind === "error" || outcome.kind === "httpError") {
           return { kind: 'failed', failure: { status: outcome.status, error: outcome.error, code: outcome.code }, draftMessageId };
         }
         return { kind: 'failed', failure: { status: null, error: t("chat.sendError"), code: null }, draftMessageId };
@@ -661,6 +694,8 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       applyFinalResponse,
       buildChatFormData,
       finishStreamingSend,
+      turnReconciliation,
+      queryClient,
       scrollToBottom,
       setIsTyping,
       setStreamingMessageId,
@@ -696,7 +731,9 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       }
 
       const startingAccountGeneration = getAccountGeneration();
-      const result = await runStreamingSend({ ...attempted, messageCost: 1 });
+      const request = { ...attempted, messageCost: 1 as const };
+      const result = await runStreamingSend(request);
+      attempted.turn = request.turn;
       const succeeded = result.kind === 'final';
       if (result.kind === 'failed') handleFailedSend(result.failure, attempted, result.draftMessageId);
       if (succeeded && getAccountGeneration() === startingAccountGeneration && attempted.contextualRequest && useChatStore.getState().contextualSuggestion === attempted.contextualRequest) {
@@ -707,17 +744,16 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     [addMessage, beginSend, handleFailedSend, runStreamingSend],
   );
 
-  const [blockSubmission] = useState(() => new BlockAnswerSubmission())
   const sendBlockAnswer = useCallback((request: BlockAnswerRequest): Promise<BlockAnswerResult> =>
     blockSubmission.send(request, {
-      isOnline, atMessageLimit, locale: i18n.language,
+      isOnline, atMessageLimit, dailyBudgetReached, onDailyBudgetExceeded: handleDailyBudgetExceeded, locale: i18n.language,
       getChat: useChatStore.getState, createMessageId: createChatMessageId,
       conversation: useUIStore.getState(), beginSend, run: runStreamingSend,
       refreshProfile: () => queryClient.invalidateQueries({ queryKey: profileKeys.all }),
       words: { answered: content => t('chat.choice.answered', { options: content }),
         closed: t('chat.choice.closed'), alreadyAnswered: t('chat.choice.alreadyAnswered') },
-    }), [atMessageLimit, beginSend, blockSubmission, isOnline, i18n.language, queryClient, runStreamingSend, t])
-  const blockAnswerInteraction = { isOnline, isSending, atMessageLimit, allowance: aiMessagesLimit, send: sendBlockAnswer }
+    }), [atMessageLimit, beginSend, blockSubmission, dailyBudgetReached, handleDailyBudgetExceeded, isOnline, i18n.language, queryClient, runStreamingSend, t])
+  const blockAnswerInteraction = { isOnline, isSending, atMessageLimit, dailyBudgetReached, allowance: aiMessagesLimit, send: sendBlockAnswer }
 
   const sendMessage = useCallback(
     async (content?: string, messageOrigin?: 'followUp', contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>) => {
@@ -740,6 +776,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         setSendError(t("shell.composer.offline.reason"));
         return;
       }
+      if (dailyBudgetReached) return;
       if (atMessageLimit) {
         setSendError(null);
         addMessage({
@@ -757,6 +794,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         draftContent: sendsComposerDraft ? input : typedContent,
         image: sendsComposerDraft ? selectedImage : null,
         preview: sendsComposerDraft ? imagePreview : null,
+        textFile: sendsComposerDraft ? selectedTextFile : null,
         restoreDraftOnFailure: content === undefined,
         clearDraftOnSuccess: content === undefined,
         restoredDraftRevision: null,
@@ -777,6 +815,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       attachments,
       addMessage,
       atMessageLimit,
+      dailyBudgetReached,
       imagePreview,
       input,
       isOnline,
@@ -841,11 +880,13 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
 
   const remainingMessages = aiMessagesLimit - aiMessagesUsed
   const nearMessageLimit = remainingMessages <= AI_MESSAGE_COUNTER_THRESHOLD
-  const renewalHint = nearMessageLimit ? t("shell.composer.limit.renewal") : undefined
-  const allowanceReason = nearMessageLimit ? t("shell.composer.limit.reason", { allowance: aiMessagesLimit }) : undefined
+  const renewalHint = nearMessageLimit && !dailyBudgetReached ? t("shell.composer.limit.renewal") : undefined
+  const allowanceReason = nearMessageLimit && !dailyBudgetReached ? t("shell.composer.limit.reason", { allowance: aiMessagesLimit }) : undefined
 
-  const usageMessage = nearMessageLimit && remainingMessages > 0
+  const usageMessage = nearMessageLimit && !dailyBudgetReached && remainingMessages > 0
     ? t("shell.composer.usage", { used: aiMessagesUsed, limit: aiMessagesLimit }) : undefined
+
+  const messageLimitReason = dailyBudgetReached ? t("chat.dailyBudgetReached") : t("shell.composer.limit.reason", { allowance: aiMessagesLimit })
 
   const composerProps = useMemo(() => {
     const words = {
@@ -907,7 +948,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
 
     if (atMessageLimit) {
       const limitWords = { ...words, placeholder: t("shell.composer.limit.placeholder") };
-      const limitReason = t("shell.composer.limit.reason", { allowance: aiMessagesLimit });
+      const limitReason = messageLimitReason;
       return speechSupported
         ? { ...common, words: limitWords, suggestions: [] as const, state: "atLimit", limitReason, onVoice: toggleRecording, voiceWords }
         : { ...common, words: limitWords, suggestions: [] as const, state: "atLimit", limitReason };
@@ -921,9 +962,9 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     allowanceReason,
     usageMessage,
     renewalHint,
-    aiMessagesLimit,
     attachments,
     atMessageLimit,
+    messageLimitReason,
     canRetryLastSend,
     composerSuggestions,
     input,
@@ -990,6 +1031,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     aiMessagesUsed,
     aiMessagesLimit,
     atMessageLimit,
+    dailyBudgetReached,
     showSuggestions,
     openFilePicker,
     removeImage,

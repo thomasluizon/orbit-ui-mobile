@@ -53,7 +53,7 @@ it.each([600, 1100, 1352])('renders routed links in the real shell at %ipx', asy
   const links = destinationLinks().getAllByRole('link')
   expect(links.map((link) => link.getAttribute('href'))).toEqual(destinations.map(({ href }) => href))
   expect(links.filter((link) => link.hasAttribute('aria-current'))).toEqual([links[1]])
-  if (width >= 1024) expect(screen.getByRole('button', { name: 'todayAstra.openConversation' })).not.toHaveAttribute('href')
+  if (width >= 1024) expect(screen.getByRole('button', { name: 'nav.astra' })).not.toHaveAttribute('href')
   await userEvent.click(links[2]!)
   expect(navigation.push).toHaveBeenCalledExactlyOnceWith('/progress')
 })

@@ -1,6 +1,9 @@
 import React, { useSyncExternalStore, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Text } from 'react-native'
+import type { NavigationState } from 'expo-router/react-navigation'
+import type { CommonActions } from 'expo-router/build/react-navigation/routers'
+import { StackRouter } from 'expo-router/build/react-navigation/routers/StackRouter'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
@@ -27,6 +30,8 @@ const routeState = vi.hoisted(() => ({
   contextEntry: false,
   replace: vi.fn(),
   setParams: vi.fn<(params: Record<string, string | undefined>) => void>(),
+  dispatch: vi.fn<(update: (state: NavigationState) => CommonActions.Action) => void>(),
+  navigationState: undefined as NavigationState | undefined,
   pathname: '/wrapped',
   segments: ['wrapped'],
 }))
@@ -43,6 +48,7 @@ const createState = vi.hoisted(() => ({
 }))
 
 vi.mock('expo-router', () => {
+  const navigation = { dispatch: routeState.dispatch }
   const Stack = Object.assign(
     ({ children }: Readonly<{ children?: ReactNode }>) => children,
     {
@@ -67,6 +73,7 @@ vi.mock('expo-router', () => {
       ? { code: routeState.pathname.slice(3) }
       : Object.fromEntries(new URL(routeState.pathname, 'https://orbit.test').searchParams),
     usePathname: () => routeState.pathname,
+    useNavigation: () => navigation,
     useRouter: () => ({ push: createState.push, replace: routeState.replace, setParams: routeState.setParams }),
     useSegments: () => routeState.segments,
   }
@@ -238,11 +245,20 @@ beforeEach(async () => {
   renderedRoutes.length = 0
   routeState.contextEntry = false
   routeState.replace.mockReset()
-  routeState.setParams.mockReset().mockImplementation((params) => {
+  routeState.setParams.mockReset()
+  routeState.navigationState = undefined
+  routeState.dispatch.mockReset().mockImplementation((update) => {
     const url = new URL(routeState.pathname, 'https://orbit.test')
-    for (const [key, value] of Object.entries(params)) {
-      if (value === undefined) url.searchParams.delete(key)
-      else url.searchParams.set(key, value)
+    const stack = StackRouter({})
+    const options = { routeNames: ['login'], routeParamList: {}, routeGetIdList: {} }
+    const state = stack.getRehydratedState({ routes: [{ name: 'login', path: url.pathname + url.search, params: Object.fromEntries(url.searchParams) }] }, options)
+    const nextState = stack.getStateForAction(state, update(state), options)
+    if (!nextState) throw new Error('Navigation action was not handled')
+    const rehydrated = stack.getRehydratedState(nextState, options)
+    routeState.navigationState = rehydrated
+    url.search = ''
+    for (const [key, value] of Object.entries(rehydrated.routes[rehydrated.index]!.params ?? {})) {
+      if (typeof value === 'string') url.searchParams.set(key, value)
     }
     routeState.pathname = url.pathname + url.search
   })
@@ -379,8 +395,12 @@ describe('explicit sign-in context through the root layout', () => {
     expect(cleaned.searchParams.has('email') || cleaned.searchParams.has('code')).toBe(false)
     expect(cleaned.searchParams.get('returnUrl')).toBe(entered.searchParams.get('returnUrl'))
     expect(cleaned.searchParams.get('ref')).toBe(entered.searchParams.get('ref'))
-    if (entered.searchParams.has('email')) expect(routeState.setParams).toHaveBeenCalledExactlyOnceWith({ email: undefined, code: undefined })
-    else expect(routeState.setParams).not.toHaveBeenCalled()
+    if (entered.searchParams.has('email')) {
+      expect(routeState.dispatch).toHaveBeenCalledTimes(1)
+      expect(routeState.navigationState?.routes).toHaveLength(1)
+      expect(routeState.navigationState?.routes[0]).toMatchObject({ name: 'login', path: undefined, params: { email: undefined, code: undefined } })
+    } else expect(routeState.dispatch).not.toHaveBeenCalled()
+    expect(routeState.setParams).not.toHaveBeenCalled()
     expect(findByTestId(mounted, 'login-context')[0]?.props.children).toContain(content)
     expect(await getStoredAuthReturnUrl(getAuthReturnUrlAttempt())).toBe(destination)
     expect(routeState.replace).not.toHaveBeenCalled()

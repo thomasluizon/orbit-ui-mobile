@@ -1,3 +1,4 @@
+import { pendingOperationSubHabits } from './pending-operation-sub-habits'
 import type { AgentOperationResult, PendingAgentOperation, PendingOperationChange, PendingOperationItem, PendingOperationFieldOptions } from '../types/ai'
 import type {
   PendingOperationCardStatus,
@@ -83,6 +84,7 @@ interface PendingOperationFrameBase<Node> {
     proposed?: boolean
     wrapLabel?: boolean
     wrapMeta?: boolean
+    indented?: boolean
     editable?: boolean
     body?: Node
     control?: Node
@@ -158,6 +160,7 @@ export interface PendingOperationCardActions {
     hasTitleDrafts?: boolean
     setTitleDraft?: (itemId: string, title: string | undefined) => void
     renameItem?: (itemId: string, title: string) => Promise<boolean>
+    rejectSubHabit?: (itemId: string, index: number) => Promise<boolean>
     rejectItem: (itemId: string) => Promise<boolean>
     rejectAll: () => Promise<boolean>
   }
@@ -306,14 +309,14 @@ function previewRows<Node>(
   const firstParentChoiceId = items.find((item) => item.fieldOptions?.some((field) => field.field === 'parent_habit_id'))?.itemId
   const results = getPendingOperationItemResults(card.completedOperation)
   const resultsByIndex = new Map(results?.map((result) => [result.index, result]))
-  const rows: PendingOperationFrame<Node>['items'][number][] = items.map((item, index) => {
+  const rows: PendingOperationFrame<Node>['items'][number][] = items.flatMap((item, index) => {
     const result = resultsByIndex.get(index)
     const status: PendingOperationCardStatus = result ? result.status === 'Success' ? 'done' : 'failed'
       : results || card.status === 'failed' ? undefined : card.status
     const edited = revision?.editedItemIds.includes(item.itemId) === true
     const parentChoice = item.fieldOptions?.find((field) => field.field === 'parent_habit_id')
     const summary = labels.summarize(item.fields.filter((field) => !parentChoice || field.field !== 'parent_habit_id')) || labels.pending
-    return {
+    const parent: PendingOperationFrame<Node>['items'][number] = {
       id: item.itemId,
       label: item.fields.find((field) => ['title', 'name'].includes(field.field))?.newValue || item.entityName || labels.name,
       icon: item.fields.find((field) => field.field === 'emoji')?.newValue ?? undefined,
@@ -334,6 +337,16 @@ function previewRows<Node>(
         ? itemControl(item, items.length, revision, card, labels, render, status, result?.habitId)
         : completedTargetControl(result?.habitId ?? (items.length === 1 ? card.completedOperation?.targetId ?? item.entityId : item.entityId), item.entityName, card, labels, render, status),
     }
+    return [parent, ...pendingOperationSubHabits(item.fields).map((child, childIndex) => ({
+      id: `${item.itemId}-child-${childIndex}`, label: child.title,
+      icon: child.fields.find((field) => field.field === 'emoji')?.newValue ?? undefined,
+      meta: labels.summarize(child.fields, 'createHabit'), indented: true,
+      status, irreversible: false, proposed: parent.proposed, wrapLabel: true, wrapMeta: true, editable: false,
+      control: revision?.canRevise && revision.rejectSubHabit && card.status == null && !revision.stale
+        && item.fields.some((field) => field.field === 'sub_habits' && field.isEditable === true)
+        ? render.removeItem(`${labels.remove} ${child.title}`, card.busy || revision.busy,
+          () => { void revision.rejectSubHabit!(item.itemId, childIndex) }) : undefined,
+    }))]
   })
   const remaining = Math.max(0, (pendingOperation.changeTargetCount ?? items.length) - items.length)
   if (remaining > 0) rows.push({

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, type ChangeEvent, type ClipboardEvent } from 'react'
+import { useCallback, useRef, useState, type ChangeEvent, type ClipboardEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import { getChatImageValidationError } from '@orbit/shared/chat'
 import { useResetOnAccountChange } from '@/hooks/use-session-reset'
@@ -82,6 +82,11 @@ export function useChatImageAttachment(setSendError: (message: string | null) =>
     setImagePreview(null)
   }
 
+  const restoreImage = useCallback((image: File | null, preview: string | null) => {
+    setSelectedImage(image)
+    setImagePreview(preview)
+  }, [])
+
   return {
     fileInputRef,
     selectedImage,
@@ -91,5 +96,6 @@ export function useChatImageAttachment(setSendError: (message: string | null) =>
     handlePaste,
     removeImage,
     clearImage,
+    restoreImage,
   }
 }

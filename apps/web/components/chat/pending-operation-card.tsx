@@ -1,5 +1,7 @@
 'use client'
 
+import { WeekdayPicker } from '@/components/ui/weekday-picker'
+
 import { toTime24 } from '@orbit/shared/utils'
 
 import { PreviewItemTitle } from './preview-item-title'
@@ -111,7 +113,7 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
         if (field.valueType === 'boolean') return <Switch key={field.field} label={label} checked={draft[field.field] === 'true'} disabled={busy} onChange={(value) => onChange(field.field, String(value))} />
         if (field.field === 'days') {
           const days = (draft.days ?? '').split(',').map((day) => day.trim())
-          return <fieldset key={field.field}><legend className="mb-2 text-sm">{label}</legend><div className="flex flex-wrap gap-2">{PENDING_OPERATION_WEEKDAYS.map((day) => <button key={day} type="button" aria-pressed={days.includes(day)} disabled={busy} onClick={() => onChange('days', PENDING_OPERATION_WEEKDAYS.filter((name) => name === day ? !days.includes(name) : days.includes(name)).join(', '))} className="min-h-[var(--touch-min)] rounded-full border border-[var(--hairline)] px-3 text-sm enabled:hover:bg-[var(--bg-hover)] aria-pressed:border-[var(--primary)] aria-pressed:bg-[var(--selection-bg)] aria-pressed:enabled:hover:bg-[var(--bg-hover)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]">{labels.dayLabels[day]}</button>)}</div></fieldset>
+          return <div key={field.field} className="flex flex-col gap-2"><p className="text-sm">{label}</p><WeekdayPicker label={label} days={days} scheduleLocked={busy} dayOptions={PENDING_OPERATION_WEEKDAYS.map(day => ({ value: day, label: labels.dayLabels[day]!, accessibleLabel: labels.dayLabels[day]! }))} onToggleDay={day => onChange('days', PENDING_OPERATION_WEEKDAYS.filter(name => name === day ? !days.includes(name) : days.includes(name)).join(', '))} /></div>
         }
         if (field.valueType === 'time') return <TimeField key={field.field} label={label} value={toTime24(draft[field.field])} onChange={(value) => onChange(field.field, value)} disabled={busy} error={error ? labels.invalid : undefined} />
         return <Input

@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => {
       isDevice: true,
     },
     expoGo: false,
+    platform: 'android',
     auth,
   }
 })
@@ -65,7 +66,7 @@ vi.mock('react-native', async (importOriginal) => {
     ...actual,
     Platform: {
       ...actual.Platform,
-      OS: 'android',
+      get OS() { return mocks.platform },
     },
     AppState: {
       addEventListener: vi.fn((_eventName: string, listener: (state: string) => void) => {
@@ -217,6 +218,7 @@ describe('usePushNotifications', () => {
     mocks.auth.isAuthenticated = true
     mocks.auth.user = { userId: 'user-1' }
     mocks.expoGo = false
+    mocks.platform = 'android'
     mocks.constants.executionEnvironment = 'standalone'
     notificationsModule = await import('expo-notifications')
     vi.mocked(notificationsModule.setNotificationHandler).mockClear()
@@ -237,7 +239,7 @@ describe('usePushNotifications', () => {
     })
     vi.mocked(notificationsModule.getDevicePushTokenAsync).mockReset()
     vi.mocked(notificationsModule.getDevicePushTokenAsync).mockResolvedValue({
-      type: 'fcm',
+      type: 'android',
       data: 'native-token',
     })
     vi.mocked(notificationsModule.unregisterForNotificationsAsync).mockReset()
@@ -250,6 +252,7 @@ describe('usePushNotifications', () => {
       remove: vi.fn(),
     }))
     vi.mocked(notificationsModule.addNotificationReceivedListener).mockReset()
+    vi.mocked(notificationsModule.addPushTokenListener).mockClear()
     vi.mocked(notificationsModule.addNotificationReceivedListener).mockImplementation(() => ({
       remove: vi.fn(),
     }))
@@ -257,6 +260,46 @@ describe('usePushNotifications', () => {
     pushNotificationsModule.__setNotificationsModuleForTests(notificationsModule)
     usePushNotifications = pushNotificationsModule.usePushNotifications
     PushNotificationsProvider = pushNotificationsModule.PushNotificationsProvider
+  })
+
+  it('subscribes and unsubscribes on iOS with the native APNs token', async () => {
+    mocks.platform = 'ios'
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(createPermissionResponse('granted'))
+    vi.mocked(notificationsModule.getDevicePushTokenAsync).mockResolvedValue({ type: 'ios', data: 'a'.repeat(64) })
+    const renderer = await renderHarness()
+    const payload = JSON.stringify({ endpoint: 'a'.repeat(64), p256dh: 'apns', auth: 'apns' })
+    expect(mocks.apiClient).toHaveBeenCalledWith(API.notifications.subscribe, expect.objectContaining({ body: payload }))
+    expect(notificationsModule.setNotificationChannelAsync).not.toHaveBeenCalled()
+    expect(notificationsModule.getExpoPushTokenAsync).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { await latestResult?.disablePushNotifications() })
+    expect(mocks.apiClient).toHaveBeenCalledWith(API.notifications.unsubscribe, expect.objectContaining({ body: payload }))
+    await TestRenderer.act(() => renderer.update(<></>))
+  })
+
+  it('registers a rotated APNs token without requesting another native token', async () => {
+    mocks.platform = 'ios'
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(createPermissionResponse('granted'))
+    const renderer = await renderHarness()
+    const listener = vi.mocked(notificationsModule.addPushTokenListener).mock.calls.at(-1)?.[0]
+    expect(listener).toBeTypeOf('function')
+    vi.mocked(notificationsModule.getDevicePushTokenAsync).mockClear()
+    mocks.apiClient.mockClear()
+    await TestRenderer.act(async () => { listener?.({ type: 'ios', data: 'rotated-apns-token' }); await Promise.resolve() })
+    expect(mocks.apiClient).toHaveBeenCalledWith(API.notifications.subscribe, expect.objectContaining({
+      body: JSON.stringify({ endpoint: 'rotated-apns-token', p256dh: 'apns', auth: 'apns' }),
+    }))
+    expect(notificationsModule.getDevicePushTokenAsync).not.toHaveBeenCalled()
+    mocks.apiClient.mockClear()
+    mocks.storage.set('orbit_push_disabled:user-1', '1')
+    await TestRenderer.act(async () => { listener?.({ type: 'ios', data: 'disabled-token' }); await Promise.resolve() })
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    mocks.storage.clear()
+    mocks.auth.isAuthenticated = false
+    await TestRenderer.act(async () => { listener?.({ type: 'ios', data: 'signed-out-token' }); await Promise.resolve() })
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    await TestRenderer.act(() => renderer.update(<></>))
+    const subscription = vi.mocked(notificationsModule.addPushTokenListener).mock.results.at(-1)?.value
+    expect(subscription?.remove).toHaveBeenCalled()
   })
 
   it('keeps Orbit notifications disabled after the user opted out locally', async () => {

@@ -46,7 +46,7 @@ it.each(cases)('keeps habit content clear with collapse $collapsed at $width by 
   const onSelect = vi.fn()
   const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>
     <ShellWide items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation}
-      astraRow={{ label: messages.todayAstra.openConversation, onOpen: vi.fn() }}
+      astraRow={{ label: messages.nav.astra, onOpen: vi.fn() }}
       header={<h1>Habit</h1>}
       composer={<Composer collapsible state="idle" value="Draft" onChangeValue={vi.fn()} onSend={vi.fn()}
         words={messages.shell.composer} onOpenConversation={vi.fn()} conversationLabel={messages.todayAstra.openConversation}
@@ -71,7 +71,7 @@ it.each(cases)('keeps habit content clear with collapse $collapsed at $width by 
       const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
       scroller.scrollTop = scroller.scrollHeight
       const last = document.querySelector('[data-last-habit-row]')!.getBoundingClientRect()
-      const controls = [...document.querySelectorAll('button')].filter(button => button.querySelector('[data-asset^="astra-mark"]') && button.getBoundingClientRect().height > 0)
+      const controls = [...document.querySelectorAll('button')].filter(button => !button.hasAttribute('data-shell-astra-row') && button.querySelector('[data-asset^="astra-mark"]') && button.getBoundingClientRect().height > 0)
       return {
         composerTop: composer.getBoundingClientRect().top,
         composerHeight: composer.getBoundingClientRect().height,

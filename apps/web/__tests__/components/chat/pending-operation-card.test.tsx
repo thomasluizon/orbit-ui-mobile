@@ -1,4 +1,4 @@
-import { resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { personalText } from '@/__tests__/support/personal-text'
 import en from '@orbit/shared/i18n/en.json'
@@ -73,6 +73,72 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
+  it.each(['en', 'pt-BR'])('keeps a neutral heading for nested reuse in %s', (locale) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    render(<PendingOperationCard pendingOperation={makeNestedHabitPreview(2, true)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getByRole('heading', { name: messages.chat.pendingOp.capability['habits-write'] })).toBeInTheDocument()
+  })
+
+  it.each(childSchedulePreviewCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))('preserves the child $name schedule in $locale', (scenario) => {
+    const { locale } = scenario
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const { container } = render(<PendingOperationCard pendingOperation={makeChildSchedulePreview(scenario.child)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    const row = container.querySelector('[data-indented]')!
+    expect(row.textContent).toContain(scenario.child.title)
+    expect(within(row as HTMLElement).getByText((locale === 'en' ? scenario.english : scenario.portuguese).replace('21:30', '9:30 PM').replace('23:00', '11:00 PM'))).toBeInTheDocument()
+  })
+
+  it.each(['en', 'pt-BR'])('shows every evening routine child and revises child removal in %s', async (locale) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const operation = makeEveningRoutinePreview(locale)
+    const children = operation.items![0]!.fields.find((field) => field.field === 'sub_habits')!.proposedValue as { title: string }[]
+    const revised = { ...operation, previewFingerprint: 'removed-child', items: operation.items!.map((item) => ({ ...item, fields: item.fields.map((field) => field.field === 'sub_habits' ? { ...field, proposedValue: children.slice(1), newValue: JSON.stringify(children.slice(1)) } : field) })) }
+    revise.mockResolvedValue({ ok: true, result: { cancelled: false, preview: revised } })
+    const { container } = render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(container.querySelectorAll('[data-indented]')).toHaveLength(3)
+    expect(screen.getAllByText(`${(locale === 'en' ? en : ptBR).habits.frequency.everyDay} · 9:30 PM`)).toHaveLength(3)
+    expect(screen.getByText(`${(locale === 'en' ? en : ptBR).habits.frequency.everyDay} · 11:00 PM`)).toBeInTheDocument()
+    for (const child of children) expect(screen.getByText(personalText(child.title))).toBeInTheDocument()
+    const messages = locale === 'en' ? en : ptBR
+    expect(container.textContent).not.toContain(messages.chat.preview.summary.buildHabit)
+    fireEvent.click(screen.getByRole('button', { name: `${messages.chat.operation.remove} ${children[0]!.title}` }))
+    await waitFor(() => expect(revise).toHaveBeenCalledWith(operation.id, {
+      previewFingerprint: operation.previewFingerprint,
+      items: [{ itemId: '0', edits: { sub_habits: children.slice(1) } }],
+    }))
+    await waitFor(() => expect(container.querySelectorAll('[data-indented]')).toHaveLength(2))
+    expect(screen.queryByText(personalText(children[0]!.title))).not.toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('retains all children after a failed removal and blocks actions while revising', async () => {
+    visibleLocale.actual = true
+    const operation = makeEveningRoutinePreview()
+    let complete!: (response: { ok: false; error: string }) => void
+    revise.mockReturnValue(new Promise((resolve) => { complete = resolve }))
+    const { container } = render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Read for 20 minutes' }))
+    expect(screen.getByRole('button', { name: 'Remove Lights out' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Create 1 habit' })).toBeDisabled()
+    complete({ ok: false, error: 'network_error' })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Remove Lights out' })).toBeEnabled())
+    expect(container.querySelectorAll('[data-indented]')).toHaveLength(3)
+    expect(screen.getByText(personalText('Read for 20 minutes'))).toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it.each([1, 3].flatMap(count => ['en', 'pt-BR'].map(locale => ({ count, locale }))))('names a create-only preview with $count habits in $locale', ({ count, locale }) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    render(<PendingOperationCard pendingOperation={makeCreateHabitsPreview(count)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getByRole('heading', { name: locale === 'en' ? count === 1 ? 'New habit' : 'New habits' : count === 1 ? 'Novo hábito' : 'Novos hábitos' })).toBeInTheDocument()
+    expect(screen.queryByText((locale === 'en' ? en : ptBR).chat.pendingOp.capability['habits-bulk-write'])).not.toBeInTheDocument()
+  })
+
   it.each([0, null, undefined].flatMap(count => ['en', 'pt-BR'].map(locale => ({ count, locale }))))('renders a zero-target preview as a notice without approval with count $count in $locale', ({ count, locale }) => {
     visibleLocale.actual = true
     visibleLocale.language = locale

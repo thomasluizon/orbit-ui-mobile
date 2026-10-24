@@ -36,6 +36,68 @@ describe('collapsed sidebar geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each(cases.filter(({ height }) => height === 600))('shows the Astra name with sibling row treatment at $width in $locale and $theme', async ({ locale, width, height, theme }) => {
+    const messages = locale === 'en' ? en : ptBR
+    const props = {
+      items: SHELL_DESTINATION_IDS.map(id => ({ id, href: '/', label: messages.nav[DESTINATION_ICONS[id].labelKey.split('.')[1] as keyof typeof messages.nav], icon: id })),
+      activeId: 'hoje', navLabel: messages.nav.mainNavigation,
+      astraRow: { label: messages.nav.astra, onOpen: vi.fn() },
+      conversation: <button type="button">Close conversation</button>, conversationLabel: messages.nav.astra,
+    }
+    const view = render(<NextIntlClientProvider locale={locale} messages={messages}><ShellWide {...props} /></NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height } })
+    try {
+      for (const open of [false, true]) {
+        view.rerender(<NextIntlClientProvider locale={locale} messages={messages}><ShellWide {...props} conversationOpen={open} /></NextIntlClientProvider>)
+        await page.setContent(`<html class="${theme}"><style>${stylesheet}</style>${view.container.innerHTML}</html>`)
+        await page.evaluate(variables => {
+          for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
+        }, resolveWebThemeVariables('orange', theme))
+        await page.mouse.move(0, 0)
+        const row = page.getByRole('button', { name: 'Astra', exact: true })
+        await row.evaluate(async element => {
+          element.getBoundingClientRect()
+          await Promise.all(element.getAnimations().map(animation => animation.finished))
+        })
+        expect(await row.innerText()).toBe('Astra')
+        expect(await row.getAttribute('aria-expanded')).toBe(String(open))
+        const anatomy = await page.locator('[data-shell-sidebar] nav').evaluate(element => {
+          return [...element.children].map(target => {
+            const label = target.querySelector('span')!
+            const bounds = target.getBoundingClientRect()
+            const textBounds = label.getBoundingClientRect()
+            const style = getComputedStyle(target)
+            return { height: bounds.height, width: bounds.width, radius: style.borderRadius, padding: style.paddingInline,
+              gap: style.gap, font: style.fontSize, weight: style.fontWeight, color: style.color,
+              textHeight: textBounds.height, textOffset: textBounds.left - bounds.left }
+          })
+        })
+        const [astra, today, calendar] = anatomy
+        expect(astra!.textHeight).toBeGreaterThan(1)
+        expect(astra).toEqual({ ...calendar, color: astra!.color })
+        expect(astra!.height).toBe(48)
+        expect(astra!.color === today!.color).toBe(false)
+        const peer = page.getByRole('link', { name: messages.nav.calendar, exact: true })
+        for (const target of [row, peer]) {
+          await target.evaluate(element => {
+            element.addEventListener('click', () => element.setAttribute('data-press-activated', 'true'), { once: true })
+          })
+          await target.focus()
+          expect(await target.evaluate(element => getComputedStyle(element).outlineStyle)).toBe('solid')
+          await target.hover()
+          await target.evaluate(async element => { await Promise.all(element.getAnimations().map(animation => animation.finished)) })
+          expect(await target.evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
+          await page.mouse.down()
+          await target.evaluate(async element => { await Promise.all(element.getAnimations().map(animation => animation.finished)) })
+          expect(await target.evaluate(element => getComputedStyle(element).scale)).toBe('0.96')
+          await page.mouse.move(0, 0)
+          await page.mouse.up()
+          expect(await target.getAttribute('data-press-activated'), 'measuring a press must not activate the control').toBeNull()
+        }
+      }
+    } finally { await page.close(); view.unmount() }
+  })
+
   it.each(cases)('keeps every target inside the rail at $width x $height in $locale and $theme', async ({ locale, width, height, theme }) => {
     const messages = locale === 'en' ? en : ptBR
     const view = render(<NextIntlClientProvider locale={locale} messages={messages}>

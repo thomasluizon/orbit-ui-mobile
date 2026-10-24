@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { QueryClient } from '@tanstack/query-core'
 import type {
   ActionResult,
 } from '../types/index'
@@ -6,6 +7,7 @@ import {
   classifySendFailure,
   findPremiumPolicyDenial,
   invalidateAgentQueries,
+  reconcileAgentQueries,
   selectActionInvalidations,
 } from '../hooks/chat-composer-core'
 
@@ -24,6 +26,10 @@ function makeAction(overrides: Partial<ActionResult> = {}): ActionResult {
 }
 
 describe('classifySendFailure', () => {
+  it('classifies a daily ceiling independently of the message allowance', () => {
+    expect(classifySendFailure({ status: 400, code: 'AI_DAILY_BUDGET_EXCEEDED', reason: 'Daily budget reached' }).kind).toBe('dailyBudget')
+  })
+
   it('classifies a 408 as a timeout', () => {
     const result = classifySendFailure({ status: 408, reason: 'CHAT_TIMEOUT' })
     expect(result.kind).toBe('timeout')
@@ -159,6 +165,22 @@ describe('selectActionInvalidations', () => {
 })
 
 describe('invalidateAgentQueries', () => {
+  it('refetches inactive affected queries before interruption recovery completes', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    let revision = 1
+    const habits = { queryKey: ['habits'], queryFn: () => Promise.resolve(revision) }
+    const goals = { queryKey: ['goals'], queryFn: () => Promise.resolve(revision) }
+    try {
+      await Promise.all([queryClient.fetchQuery(habits), queryClient.fetchQuery(goals)])
+      revision = 2
+      await reconcileAgentQueries(queryClient)
+      expect(queryClient.getQueryData(habits.queryKey)).toBe(2)
+      expect(queryClient.getQueryData(goals.queryKey)).toBe(2)
+    } finally {
+      queryClient.clear()
+    }
+  })
+
   it('keeps the surviving invalidations without the retired query family', async () => {
     const invalidatedKeys: (readonly unknown[])[] = []
     const queryClient = {

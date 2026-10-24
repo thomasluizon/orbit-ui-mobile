@@ -12,6 +12,7 @@ function submissionContext() {
     isOnline: true, atMessageLimit: false, locale: 'en',
     getChat: () => chat, createMessageId: () => 'answer-message',
     conversation: { astraConversationOpen: true, setAstraConversationOpen: vi.fn() },
+    onDailyBudgetExceeded: vi.fn(),
     beginSend: vi.fn(), refreshProfile: vi.fn(async () => {}),
     run: vi.fn(async (_request: unknown, accepted: () => void): Promise<ChatStreamResult> => { accepted(); return { kind: 'final' } }),
     words: { answered: (content: string) => `You chose ${content}`, closed: 'closed', alreadyAnswered: 'already answered' },
@@ -23,6 +24,30 @@ const choice: BlockAnswerRequest = {
 }
 
 describe('shared block answer submission', () => {
+  it.each(['choice', 'pickList'] as const)('does not recover a %s refused by the daily ceiling', async kind => {
+    const context = submissionContext()
+    context.run.mockResolvedValueOnce({ kind: 'failed', failure: { status: 400, error: 'Daily budget reached', code: 'AI_DAILY_BUDGET_EXCEEDED' }, draftMessageId: 'partial-reply' })
+    const request = { ...choice, kind }
+    const submission = new BlockAnswerSubmission()
+    expect(await submission.send(request, context)).toEqual({ ok: false, status: 400, dailyBudgetReached: true })
+    expect(context.onDailyBudgetExceeded).toHaveBeenCalledWith('partial-reply')
+    expect(await submission.send(request, { ...context, dailyBudgetReached: true })).toEqual({ ok: false, status: null })
+    expect(context.run).toHaveBeenCalledTimes(1)
+    await submission.send(request, context)
+    expect(context.run.mock.calls[1]?.[0]).toMatchObject({ messageCost: kind === 'choice' ? 1 : 0 })
+    expect(context.refreshProfile).not.toHaveBeenCalled()
+  })
+
+  it('drops the prepared recovery request when the account changes', async () => {
+    const context = submissionContext()
+    context.run.mockResolvedValueOnce({ kind: 'failed', failure: { status: 500, error: 'Reply failed', code: null }, draftMessageId: null })
+    const submission = new BlockAnswerSubmission()
+    await submission.send(choice, context)
+    submission.reset()
+    expect(await submission.send(choice, { ...context, atMessageLimit: true })).toEqual({ ok: false, status: null })
+    expect(context.run).toHaveBeenCalledTimes(1)
+  })
+
   it.each(['choice', 'pickList'] as const)('reaches transport for an identical %s recovery at the limit and refreshes usage', async kind => {
     const context = submissionContext()
     const request = kind === 'choice' ? choice : { ...choice, kind, answer: { blockId: pickListBlockFixture.blockId, selectedIds: ['1', '3'] } }

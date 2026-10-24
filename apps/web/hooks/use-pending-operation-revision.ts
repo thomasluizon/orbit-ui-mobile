@@ -150,6 +150,11 @@ export function usePendingOperationRevision(
       return revise(items, { itemId, values: { parent_habit_id: value } })
     },
     renameItem: (itemId: string, title: string) => revise(items, { itemId, values: { title } }),
+    rejectSubHabit: (itemId: string, index: number) => {
+      const field = items.find((item) => item.itemId === itemId)?.fields.find((entry) => entry.field === 'sub_habits')
+      if (field?.isEditable !== true || !Array.isArray(field.proposedValue) || index < 0 || index >= field.proposedValue.length) return Promise.resolve(false)
+      return revise(items, { itemId, values: { sub_habits: field.proposedValue.filter((_, childIndex) => childIndex !== index) } })
+    },
     rejectItem: (itemId: string) => revise(items.filter((item) => item.itemId !== itemId)),
     rejectAll: () => revise([]),
   }

@@ -134,7 +134,7 @@ test("Astra eval exports temporary paths before evaluation without job-level run
     })
     assert.equal(result.status, 0, result.stderr)
     assert.deepEqual(readFileSync(environmentFile, "utf8").trim().split("\n"), [
-      `ORBIT_EVAL_RESET_SCRIPT=${directory}/astra-reset.sh`,
+      `ORBIT_EVAL_CREDENTIALS_FILE=${directory}/astra-credentials.json`,
       `PROMPTFOO_CONFIG_DIR=${directory}/astra-promptfoo`,
     ])
   } finally {
@@ -194,7 +194,7 @@ test("every pull request runs the full-tree surface scope scan outside the cache
   const directory = mkdtempSync(join(tmpdir(), "surface-scope-step-"))
   try {
     mkdirSync(join(directory, "tools"))
-    for (const [checkerStatus, stepStatus] of [[0, 0], [1, 0], [2, 2]]) {
+    for (const [checkerStatus, stepStatus] of [[0, 0], [1, 1], [2, 2]]) {
       writeFileSync(join(directory, "tools/check-surface-scope.mjs"), `process.exit(${checkerStatus})\n`)
       const result = spawnSync("bash", ["--noprofile", "--norc", "-eo", "pipefail", "-c", step.run], { cwd: directory, encoding: "utf8" })
       assert.equal(result.status, stepStatus, `checker exit ${checkerStatus} must end the step with ${stepStatus}`)
@@ -202,4 +202,6 @@ test("every pull request runs the full-tree surface scope scan outside the cache
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
+  assert.match(step.run, /node tools\/check-surface-scope\.mjs --graphic-floor-only/)
+  assert.doesNotMatch(step.run, /--files-stdin/, "the owning floor check must scan the whole tree")
 })

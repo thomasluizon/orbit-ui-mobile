@@ -607,18 +607,24 @@ export type ChatResponse = z.infer<typeof chatResponseSchema>
  * rendering, final carries the complete ChatResponse (always authoritative over streamed
  * text), and error carries an HTTP-equivalent status.
  */
+const chatTurnIdentity = {
+  turnId: z.string().optional(),
+  state: z.string().optional(),
+}
+
 export const chatStreamEventSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('started') }),
+  z.object({ type: z.literal('started'), ...chatTurnIdentity, replayed: z.boolean().optional() }),
   z.object({ type: z.literal('round'), iteration: z.number() }),
   z.object({ type: z.literal('delta'), text: z.string() }),
   z.object({ type: z.literal('reset') }),
   z.object({ type: z.literal('step'), domain: z.string(), access: z.string() }),
-  z.object({ type: z.literal('final'), response: chatResponseSchema }),
+  z.object({ type: z.literal('final'), response: chatResponseSchema, ...chatTurnIdentity }),
   z.object({
     type: z.literal('error'),
     status: z.number(),
     error: z.string(),
     code: z.string().optional(),
+    ...chatTurnIdentity,
   }),
 ])
 

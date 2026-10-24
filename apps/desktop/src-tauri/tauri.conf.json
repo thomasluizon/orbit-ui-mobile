@@ -18,11 +18,18 @@
       }
     ],
     "security": {
-      "capabilities": []
+      "capabilities": [{
+        "identifier": "desktop-auth",
+        "local": false,
+        "remote": { "urls": ["https://app-staging.useorbit.org/*"] },
+        "windows": ["main"],
+        "permissions": ["allow-commit-desktop-login"]
+      }]
     }
   },
   "bundle": {
     "active": true,
     "icon": ["icons/icon.png", "icons/icon.icns", "icons/icon.ico"]
-  }
+  },
+  "plugins": { "deep-link": { "desktop": { "schemes": ["org.useorbit.desktop.staging"] } } }
 }

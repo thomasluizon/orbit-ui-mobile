@@ -25,6 +25,7 @@ const BLOCKING_INVENTORIES = new Set([
   ".github/workflows/guards.yml#workflow-syntax",
   "tools/check-dashes.mjs",
   "tools/check-sonar-paths.mjs",
+  "tools/check-surface-scope.mjs",
 ])
 const REQUIRED_FIELDS = ["scope", "snapshot", "constants"]
 const GUARD_WORKFLOWS = [".github/workflows/guards.yml", ".github/workflows/pr-metadata.yml"]
@@ -338,7 +339,7 @@ function validateEntry(id, entry) {
     problems.push(`${id}: scope must be changed-files, whole-tree-advisory, or whole-tree-blocking`)
   }
   if (entry.scope === "whole-tree-blocking" && !BLOCKING_INVENTORIES.has(id)) {
-    problems.push(`${id}: whole-tree-blocking is reserved for registered inventories, dependency audit and workflow syntax`)
+    problems.push(`${id}: whole-tree-blocking is reserved for registered inventories, graphic contrast, dependency audit and workflow syntax`)
   }
   if (entry.snapshot !== "none" && (typeof entry.snapshot !== "string" || entry.snapshot.trim() === "")) {
     problems.push(`${id}: snapshot must be none or a regeneration command`)

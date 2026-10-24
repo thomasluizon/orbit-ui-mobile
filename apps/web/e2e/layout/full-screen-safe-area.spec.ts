@@ -1,3 +1,4 @@
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { openTodayListOptions } from './hydration-guard'
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -48,7 +49,7 @@ for (const width of [320, 412, 600, 844]) {
             await page.locator('#orbit-main').getByRole('button', { name: messages.habits.detail.askAstra, exact: true }).click()
           } else {
             await page.goto('/')
-            await page.getByRole('button', { name: messages.todayAstra.openConversation, exact: true }).click()
+            await getShellConversationEntry(page, width, messages).click()
           }
           const conversation = page.locator('[data-shell-conversation="overlay"]')
           await expect(conversation).toBeVisible()

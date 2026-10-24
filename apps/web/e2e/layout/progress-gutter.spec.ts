@@ -1,3 +1,4 @@
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { openTodayListOptions } from './hydration-guard'
 import { expect, type Locator } from '@playwright/test'
 import { test } from './layout-test'
@@ -65,7 +66,7 @@ for (const width of [1352, 1100, 840, 412]) {
           const todayPanel = page.locator('.habit-panel').first()
           await expect(todayPanel).toBeVisible()
           if (panelOpen) {
-            await page.getByRole('button', { name: messages.todayAstra.openConversation, exact: true }).click()
+            await getShellConversationEntry(page, width, messages).click()
             await expect(page.locator('[data-shell-conversation="overlay"]')).toBeVisible()
             await expect(page.locator('[data-shell-scroller]')).toBeHidden()
             await page.getByRole('button', { name: messages.common.closeConversation }).click()

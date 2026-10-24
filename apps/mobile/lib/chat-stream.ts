@@ -13,10 +13,12 @@ async function executeStreamRequest(
   formData: FormData,
   signal: AbortSignal,
   token: string | null,
+  turnKey?: string,
 ): Promise<FetchResponse> {
   const eventOrigin = getAccountEventOrigin()
   const headers: Record<string, string> = {
     ...buildClientTimeZoneHeaders(),
+    ...(turnKey ? { 'Idempotency-Key': turnKey } : {}),
     ...(eventOrigin ? { 'X-Orbit-Event-Origin': eventOrigin } : {}),
   }
   if (token) {
@@ -43,9 +45,10 @@ async function executeStreamRequest(
 export async function openChatStream(
   formData: FormData,
   signal: AbortSignal,
+  turnKey?: string,
 ): Promise<FetchResponse> {
   const token = await getToken()
-  const response = await executeStreamRequest(formData, signal, token)
+  const response = await executeStreamRequest(formData, signal, token, turnKey)
 
   if (response.status !== 401) return response
 
@@ -53,5 +56,5 @@ export async function openChatStream(
   const refreshedToken = await refreshSessionToken()
   if (!refreshedToken) return response
 
-  return executeStreamRequest(formData, signal, refreshedToken)
+  return executeStreamRequest(formData, signal, refreshedToken, turnKey)
 }

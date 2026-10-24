@@ -1895,6 +1895,7 @@
       "ownedFiles": [
         "apps/web/app/(auth)/auth-callback/auth-callback-content.tsx",
         "apps/web/app/(auth)/auth-callback/page.tsx",
+        "apps/web/lib/desktop-auth.ts",
         "apps/web/lib/google-auth-app-intent.ts",
         "apps/web/lib/google-oauth-cookie.ts"
       ],
@@ -1911,6 +1912,7 @@
       "ownedFiles": [
         "apps/web/app/(auth)/auth-callback/auth-callback-content.tsx",
         "apps/web/app/(auth)/auth-callback/page.tsx",
+        "apps/web/lib/desktop-auth.ts",
         "apps/web/lib/google-auth-app-intent.ts",
         "apps/web/lib/google-oauth-cookie.ts"
       ],
@@ -1927,6 +1929,7 @@
       "ownedFiles": [
         "apps/web/app/(auth)/auth-callback/auth-callback-content.tsx",
         "apps/web/app/(auth)/auth-callback/page.tsx",
+        "apps/web/lib/desktop-auth.ts",
         "apps/web/lib/google-auth-app-intent.ts",
         "apps/web/lib/google-oauth-cookie.ts"
       ],
@@ -1943,6 +1946,7 @@
       "ownedFiles": [
         "apps/web/app/(auth)/auth-callback/auth-callback-content.tsx",
         "apps/web/app/(auth)/auth-callback/page.tsx",
+        "apps/web/lib/desktop-auth.ts",
         "apps/web/lib/google-auth-app-intent.ts",
         "apps/web/lib/google-oauth-cookie.ts"
       ],

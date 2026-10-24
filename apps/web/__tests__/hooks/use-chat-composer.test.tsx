@@ -1,3 +1,4 @@
+import type { InvalidateQueryFilters } from '@tanstack/react-query'
 import { choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { describe, expect, it, vi, beforeEach, afterEach, onTestFinished } from 'vitest'
 import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -43,7 +44,7 @@ const mocks = vi.hoisted(() => ({
   routerPush: vi.fn(),
   toggleRecording: vi.fn(),
   queryClient: {
-    invalidateQueries: vi.fn(async () => {}),
+    invalidateQueries: vi.fn(async (_filters?: InvalidateQueryFilters) => {}),
     setQueryData: vi.fn(),
     clear: vi.fn(),
   },
@@ -273,6 +274,352 @@ function ComposerConversationHarness({ conversationReady = true }: { conversatio
 }
 
 describe('web useChatComposer streaming send', () => {
+  it.each([
+    ['message', 'http'], ['message', 'sse'],
+    ['block answer', 'http'], ['block answer', 'sse'],
+  ] as const)('stops a replayed %s at the daily ceiling over %s despite failed reconciliation', async (submission, transport) => {
+    const refusal = { error: 'Your daily AI safety budget has been reached. Please try again tomorrow.', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }
+    mocks.fetch.mockResolvedValueOnce(sseResponse(frame('{"type":"delta","text":"Unfinished reply"}')))
+      .mockResolvedValueOnce(transport === 'http'
+        ? Response.json(refusal, { status: 400 })
+        : sseResponse(frame('{"type":"error","status":400,"error":"Daily budget reached","code":"AI_DAILY_BUDGET_EXCEEDED"}')))
+    mocks.queryClient.invalidateQueries.mockRejectedValue(new Error('Refetch unavailable'))
+    const { result: composer, rerender } = renderHook(({ today }) => useChatComposer({ today }), { initialProps: { today: '2026-09-12' } })
+    const request = { kind: 'choice' as const, answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: ['Evening'] }
+    const draft = '  Keep this draft\n  '
+    act(() => composer.current.setInput(draft))
+    await act(async () => {
+      if (submission === 'message') await composer.current.sendMessage()
+      else expect(await composer.current.blockAnswerInteraction.send(request)).toEqual({ ok: false, status: 400, dailyBudgetReached: true })
+    })
+    expect(composer.current.composerProps.state).toBe('atLimit')
+    if (composer.current.composerProps.state === 'atLimit') expect(composer.current.composerProps.limitReason).toBe('chat.dailyBudgetReached')
+    expect(composer.current.input).toBe(draft)
+    expect(composer.current.sendError).toBeNull()
+    expect(composer.current.messages.filter(message => message.role === 'ai')).toHaveLength(0)
+    expect(composer.current.composerProps.onRetry).toBeUndefined()
+    const readKey = (index: number) => new Headers((mocks.fetch.mock.calls[index]?.[1] as RequestInit).headers).get('Idempotency-Key')
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(readKey(0)).toBeTruthy()
+    expect(readKey(1)).toBe(readKey(0))
+    expect((mocks.fetch.mock.calls[1]?.[1] as RequestInit).body).toBe((mocks.fetch.mock.calls[0]?.[1] as RequestInit).body)
+    await act(async () => {
+      await composer.current.retryLastSend()
+      await composer.current.sendMessage()
+      await composer.current.sendMessage('Suggestion')
+      expect(await composer.current.blockAnswerInteraction.send(request)).toEqual({ ok: false, status: null })
+    })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse({ aiMessage: 'New day reply' }))))
+    rerender({ today: '2026-09-13' })
+    await act(async () => {
+      if (submission === 'message') await composer.current.sendMessage()
+      else expect(await composer.current.blockAnswerInteraction.send(request)).toEqual({ ok: true })
+    })
+    expect(mocks.fetch).toHaveBeenCalledTimes(3)
+    expect(readKey(2)).toBeTruthy()
+    expect(readKey(2)).not.toBe(readKey(0))
+    expect(composer.current.messages.some(message => message.content === 'New day reply')).toBe(true)
+    expect(composer.current.atMessageLimit).toBe(false)
+  })
+
+  it.each([['en', 'http'], ['pt-BR', 'http'], ['en', 'sse'], ['pt-BR', 'sse']] as const)('keeps a daily ceiling refusal single and nonretryable in %s over %s', async (locale, transport) => {
+    mocks.locale = locale
+    const words = locale === 'en' ? en : ptBR
+    mocks.translate = createTranslator({ locale, messages: words })
+    mocks.state.profile = createMockProfile({ hasProAccess: true, aiMessagesUsed: 1, aiMessagesLimit: 50 })
+    const refusal = { error: 'Your daily AI safety budget has been reached. Please try again tomorrow.', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }
+    mocks.fetch.mockResolvedValue(transport === 'http' ? new Response(JSON.stringify(refusal), { status: 400 }) : sseResponse(frame('{"type":"delta","text":"Unfinished reply"}'), frame('{"type":"error","status":400,"error":"Daily budget reached","code":"AI_DAILY_BUDGET_EXCEEDED"}')))
+    render(<ComposerConversationHarness />)
+    const draft = '  Plan my morning\n  '
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: draft } })
+    fireEvent.click(screen.getByRole('button', { name: words.shell.composer.send }))
+    await waitFor(() => expect(screen.getAllByText(words.chat.dailyBudgetReached).filter(node => !node.closest('[inert]'))).toHaveLength(1))
+    expect(screen.getByRole('textbox')).toHaveValue(draft)
+    expect(screen.queryByText(words.chat.aiError)).not.toBeInTheDocument()
+    expect(screen.queryByText(words.chat.sendError)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: words.shell.composer.retry })).not.toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: words.common.closeConversation }))
+    expect(screen.getAllByText(words.chat.dailyBudgetReached).filter(node => !node.closest('[inert]'))).toHaveLength(1)
+    expect(screen.getByRole('textbox')).toHaveValue(draft)
+  })
+
+  it.each(['http', 'sse'] as const)('blocks choice retries after a daily ceiling over %s', async transport => {
+    useChatStore.setState({ draft: 'Keep this draft', messages: [makeHeldHabitMessage({ id: 'question', content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'choice', block: choiceBlockFixture }] })] })
+    mocks.fetch.mockResolvedValue(transport === 'http'
+      ? Response.json({ error: 'Daily budget reached', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }, { status: 400 })
+      : sseResponse(frame('{"type":"delta","text":"Preparing"}'), frame('{"type":"error","status":400,"error":"Daily budget reached","code":"AI_DAILY_BUDGET_EXCEEDED"}')))
+    useUIStore.getState().setAstraConversationOpen(true)
+    render(<ComposerConversationHarness />)
+    fireEvent.click(screen.getAllByRole('radio')[2]!)
+    fireEvent.click(screen.getByRole('button', { name: 'submit' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'submit' })).toBeDisabled())
+    await waitFor(() => expect(screen.getAllByText('chat.dailyBudgetReached').filter(node => !node.closest('[inert]'))).toHaveLength(1))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText('Preparing')).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'shell.composer.inputLabel' })).toHaveValue('Keep this draft')
+    fireEvent.click(screen.getByRole('button', { name: 'submit' }))
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['image-plus-text', 'http'], ['image-plus-text', 'sse'],
+    ['file-only', 'http'], ['file-only', 'sse'],
+  ] as const)('preserves a refused %s draft and resends its attachments next date over %s', async (draftKind, transport) => {
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, {
+      createObjectURL: vi.fn(() => 'blob:draft-image'),
+      revokeObjectURL: vi.fn(),
+    }))
+    const image = new File(['image'], 'walk.png', { type: 'image/png' })
+    const draft = draftKind === 'image-plus-text' ? '  Import these\n  ' : ''
+    const message = `${draft.trim() ? 'Import these\n\n' : ''}chat.fileAttached:{"name":"notes.txt"}\nWalk\nRead`
+    mocks.fetch.mockResolvedValueOnce(transport === 'http'
+      ? Response.json({ error: 'Daily budget reached', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }, { status: 400 })
+      : sseResponse(frame('{"type":"error","status":400,"error":"Daily budget reached","code":"AI_DAILY_BUDGET_EXCEEDED"}')))
+      .mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    const { result, rerender } = renderHook(({ today }) => useChatComposer({ today }), { initialProps: { today: '2026-09-12' } })
+    await act(async () => { await result.current.handleTextFileSelect(fileChangeEvent(textFile('notes.txt', 'Walk\nRead'))) })
+    act(() => {
+      result.current.setInput(draft)
+      if (draftKind === 'image-plus-text') result.current.handleFileSelect(fileChangeEvent(image))
+    })
+    await act(async () => { result.current.composerProps.onSend(); await Promise.resolve() })
+    expect(result.current.input).toBe(draft)
+    expect(result.current.selectedTextFile).toEqual({ name: 'notes.txt', content: 'Walk\nRead' })
+    expect(result.current.selectedImage).toBe(draftKind === 'image-plus-text' ? image : null)
+    expect(result.current.imagePreview).toBe(draftKind === 'image-plus-text' ? 'blob:draft-image' : null)
+    expect(result.current.composerProps.attachments).toHaveLength(draftKind === 'image-plus-text' ? 2 : 1)
+    expect(result.current.composerProps.state).toBe('atLimit')
+    expect(result.current.canSend).toBe(false)
+    expect(result.current.canRetryLastSend).toBe(false)
+    await act(async () => {
+      await result.current.sendMessage()
+      await result.current.retryLastSend()
+    })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    rerender({ today: '2026-09-13' })
+    expect(result.current.canSend).toBe(true)
+    await act(async () => { result.current.composerProps.onSend(); await Promise.resolve() })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    for (const call of mocks.fetch.mock.calls) {
+      const payload = call[1].body as FormData
+      expect(payload.get('message')).toBe(message)
+      expect(payload.get('image')).toBe(draftKind === 'image-plus-text' ? image : null)
+    }
+    expect(result.current.input).toBe('')
+    expect(result.current.composerProps.attachments).toHaveLength(0)
+  })
+
+  it('releases the daily ceiling on the next local date', async () => {
+    mocks.fetch.mockResolvedValueOnce(Response.json({ error: 'Daily budget reached', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }, { status: 400 }))
+      .mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    const { result, rerender } = renderHook(({ today }) => useChatComposer({ today }), { initialProps: { today: '2026-09-12' } })
+    await act(async () => { await result.current.sendMessage('First request') })
+    expect(result.current.atMessageLimit).toBe(true)
+    rerender({ today: '2026-09-13' })
+    expect(result.current.atMessageLimit).toBe(false)
+    await act(async () => { await result.current.sendMessage('New day') })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['suggestion', 'followUp', 'pickList'] as const)('routes a daily ceiling from a %s request without retry', async entry => {
+    mocks.state.profile = createMockProfile()
+    mocks.fetch.mockResolvedValue(Response.json({ error: 'Daily budget reached', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }, { status: 400 }))
+    const { result } = renderHook(() => useChatComposer())
+    act(() => result.current.setInput('Keep this draft'))
+    const request = { kind: 'pickList' as const, answer: { blockId: pickListBlockFixture.blockId, selectedIds: ['1'] }, labels: ['Walk'] }
+    await act(async () => {
+      if (entry === 'pickList') await result.current.blockAnswerInteraction.send(request)
+      else if (entry === 'suggestion') { result.current.composerProps.suggestions[0]!.onSelect(); await Promise.resolve() }
+      else await result.current.sendMessage('Follow up', 'followUp')
+    })
+    expect(result.current.composerProps.state).toBe('atLimit')
+    expect(result.current.input).toBe('Keep this draft')
+    expect(result.current.composerProps.onRetry).toBeUndefined()
+    await act(async () => { await result.current.blockAnswerInteraction.send(request); await result.current.retryLastSend() })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['terminal', 'partial'] as const)('handles a daily ceiling in a %s SSE error without retry', async arrival => {
+    const stream = arrival === 'partial' ? [frame('{"type":"delta","text":"Unfinished reply"}')] : []
+    mocks.fetch.mockResolvedValue(sseResponse(...stream, frame('{"type":"error","status":400,"error":"Daily budget reached","code":"AI_DAILY_BUDGET_EXCEEDED"}')))
+    const { result } = renderHook(() => useChatComposer())
+    act(() => result.current.setInput('Keep this draft'))
+    await act(async () => { await result.current.sendMessage() })
+    expect(result.current.composerProps.state).toBe('atLimit')
+    if (result.current.composerProps.state === 'atLimit') expect(result.current.composerProps.limitReason).toBe('chat.dailyBudgetReached')
+    expect(result.current.input).toBe('Keep this draft')
+    expect(result.current.messages.filter(message => message.role === 'ai')).toHaveLength(0)
+    expect(result.current.composerProps.onRetry).toBeUndefined()
+    await act(async () => { await result.current.retryLastSend(); await result.current.sendMessage(); await result.current.sendMessage('Suggestion') })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([400, 409, 429])('does not automatically resend HTTP %s', async status => {
+    mocks.fetch.mockResolvedValue(Response.json({ code: 'CHAT_TURN_KEY_CONFLICT', error: 'The turn key belongs to another payload.' }, { status }))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.sendMessage('Plan my morning') })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['network', 'server'] as const)('resends once after a %s failure before acceptance', async failure => {
+    if (failure === 'network') mocks.fetch.mockRejectedValueOnce(new TypeError('Disconnected'))
+    else mocks.fetch.mockResolvedValueOnce(Response.json({ error: 'Unavailable' }, { status: 503 }))
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.sendMessage('Plan my morning') })
+    const readKey = (index: number) => new Headers((mocks.fetch.mock.calls[index]?.[1] as RequestInit).headers).get('Idempotency-Key')
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(readKey(0)).toBeTruthy()
+    expect(readKey(1)).toBe(readKey(0))
+    expect(useChatStore.getState().messages.filter(message => message.role === 'ai')).toHaveLength(1)
+  })
+
+  it('keeps the original keyed turn after two failed transport attempts and manual retry', async () => {
+    mocks.fetch.mockRejectedValueOnce(new TypeError('Disconnected')).mockRejectedValueOnce(new TypeError('Disconnected'))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.sendMessage('Plan my morning') })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(result.current.canRetryLastSend).toBe(true)
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    await act(async () => { await result.current.retryLastSend() })
+    const readKey = (index: number) => new Headers((mocks.fetch.mock.calls[index]?.[1] as RequestInit).headers).get('Idempotency-Key')
+    expect(mocks.fetch).toHaveBeenCalledTimes(3)
+    expect(readKey(1)).toBe(readKey(0))
+    expect(readKey(2)).toBe(readKey(0))
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
+  })
+
+  it.each(['terminal error', 'conflict', 'interrupted'] as const)('preserves manual retry identity and reconciliation for %s', async failure => {
+    const order: string[] = []
+    mocks.queryClient.invalidateQueries.mockImplementation(async () => { await Promise.resolve(); order.push('refetch') })
+    if (failure === 'conflict') mocks.fetch.mockResolvedValueOnce(Response.json({ code: 'CHAT_TURN_KEY_CONFLICT', error: 'The turn key belongs to another payload.' }, { status: 409 }))
+    else mocks.fetch.mockResolvedValueOnce(sseResponse(frame(JSON.stringify({ type: 'error', status: 503, error: 'Reply failed', ...(failure === 'interrupted' ? { code: 'CHAT_TURN_INTERRUPTED' } : {}) }))))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.sendMessage('Plan my morning') })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    if (failure === 'interrupted') {
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.all, refetchType: 'all' }, { throwOnError: true })
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: goalKeys.all, refetchType: 'all' }, { throwOnError: true })
+    }
+    order.length = 0
+    mocks.fetch.mockImplementationOnce(async () => { order.push('send'); return sseResponse(finalFrame(makeChatResponse())) })
+    await act(async () => { await result.current.retryLastSend() })
+    const readKey = (index: number) => new Headers((mocks.fetch.mock.calls[index]?.[1] as RequestInit).headers).get('Idempotency-Key')
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(readKey(1)).not.toBe(readKey(0))
+    expect(order).toEqual(['send'])
+  })
+
+  it.each(['message', 'block answer'] as const)('starts a new execution when retrying a stored terminal error for a %s', async submission => {
+    const stored = new Map<string, string>()
+    let executions = 0
+    const order: string[] = []
+    mocks.queryClient.invalidateQueries.mockImplementation(() => { order.push('refetch'); return Promise.resolve() })
+    mocks.fetch.mockImplementation(async (_url, options: RequestInit) => {
+      const submittedKey = new Headers(options.headers).get('Idempotency-Key')!
+      if (!stored.has(submittedKey)) {
+        executions += 1
+        stored.set(submittedKey, executions === 1
+          ? frame('{"type":"error","status":503,"error":"Reply failed"}')
+          : finalFrame(makeChatResponse({ aiMessage: 'Recovered reply.' })))
+      }
+      order.push('send')
+      return sseResponse(stored.get(submittedKey)!)
+    })
+    const { result: composer } = renderHook(() => useChatComposer())
+    const request = { kind: 'choice' as const, answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: ['Evening'] }
+    await act(async () => {
+      if (submission === 'message') await composer.current.sendMessage('Plan my morning')
+      else expect(await composer.current.blockAnswerInteraction.send(request)).toEqual({ ok: false, status: 503 })
+    })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    await act(async () => {
+      if (submission === 'message') await composer.current.retryLastSend()
+      else expect(await composer.current.blockAnswerInteraction.send(request)).toEqual({ ok: true })
+    })
+    expect(executions).toBe(2)
+    const readKey = (index: number) => new Headers((mocks.fetch.mock.calls[index]?.[1] as RequestInit).headers).get('Idempotency-Key')
+    expect(readKey(1)).not.toBe(readKey(0))
+    expect(order.slice(0, 12)).toEqual(['send', ...Array.from({ length: 10 }, () => 'refetch'), 'send'])
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
+    expect(useChatStore.getState().messages.some(message => message.content === 'Recovered reply.')).toBe(true)
+  })
+
+  it.each([
+    ['message', 'message'], ['message', 'block answer'],
+    ['block answer', 'message'], ['block answer', 'block answer'],
+  ] as const)('holds the account reconciliation fence from %s through a fresh %s', async (initial, next) => {
+    mocks.fetch.mockResolvedValueOnce(sseResponse(frame('{"type":"error","status":503,"error":"Interrupted","code":"CHAT_TURN_INTERRUPTED"}')))
+    mocks.queryClient.invalidateQueries.mockRejectedValue(new Error('Refetch unavailable'))
+    const { result: composer } = renderHook(() => useChatComposer())
+    const request = { kind: 'choice' as const, answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: ['Evening'] }
+    await act(async () => {
+      if (initial === 'message') await composer.current.sendMessage('Plan my morning')
+      else await composer.current.blockAnswerInteraction.send(request)
+    })
+    mocks.fetch.mockImplementation(async () => sseResponse(finalFrame(makeChatResponse())))
+    const submit = async () => {
+      if (next === 'message') await composer.current.sendMessage('A fresh message')
+      else await composer.current.blockAnswerInteraction.send({ ...request, answer: { ...request.answer, selectedIds: ['morning'] }, labels: ['Morning'] })
+    }
+    await act(submit)
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledTimes(20)
+    mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
+    await act(submit)
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(mocks.queryClient.invalidateQueries.mock.calls.filter(([filters]) => filters?.refetchType === 'all')).toHaveLength(30)
+    await act(async () => { await composer.current.sendMessage('After reconciliation') })
+    expect(mocks.fetch).toHaveBeenCalledTimes(3)
+    expect(mocks.queryClient.invalidateQueries.mock.calls.filter(([filters]) => filters?.refetchType === 'all')).toHaveLength(30)
+  })
+
+
+  it('clears pending reconciliation when the account is replaced', async () => {
+    mocks.fetch.mockResolvedValueOnce(sseResponse(frame('{"type":"error","status":503,"error":"Interrupted","code":"CHAT_TURN_INTERRUPTED"}')))
+    mocks.queryClient.invalidateQueries.mockRejectedValue(new Error('Refetch unavailable'))
+    const { result: composer } = renderHook(() => useChatComposer())
+    await act(async () => { await composer.current.sendMessage('Original account') })
+    await act(async () => { signInAs('replacement-account') })
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    await act(async () => { await composer.current.sendMessage('Replacement account') })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledTimes(10)
+  })
+
+  it('resends a dropped turn with the same key and payload and replaces one reply', async () => {
+    const replay = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(sseResponse(frame('{"type":"started","turnId":"fe4a8c19-9c97-481a-882d-ed7dea936ec0","state":"running","replayed":false}'), frame('{"type":"delta","text":"Partial"}')))
+      .mockResolvedValueOnce(replay.response)
+    const { result } = renderHook(() => useChatComposer())
+    let sending!: Promise<void>
+    act(() => { sending = result.current.sendMessage('Plan my morning') })
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(2))
+    const draft = useChatStore.getState().messages.find(message => message.role === 'ai')
+    expect(draft?.content).toBe('Partial')
+    await act(async () => {
+      replay.enqueue(frame('{"type":"started","turnId":"fe4a8c19-9c97-481a-882d-ed7dea936ec0","state":"completed","replayed":true}'))
+      replay.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Recovered' })))
+      replay.close()
+      await sending
+    })
+    expect(useChatStore.getState().messages.find(message => message.role === 'ai')?.id).toBe(draft?.id)
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    const first = mocks.fetch.mock.calls[0]![1] as RequestInit
+    const second = mocks.fetch.mock.calls[1]![1] as RequestInit
+    const key = new Headers(first.headers).get('Idempotency-Key')
+    expect(key).toBeTruthy()
+    expect(new Headers(second.headers).get('Idempotency-Key')).toBe(key)
+    expect(second.body).toBe(first.body)
+    expect(useChatStore.getState().messages.filter(message => message.role === 'ai')).toEqual([
+      expect.objectContaining({ content: 'Recovered' }),
+    ])
+  })
+
   it.each(['text', 'tool', 'error', 'block', 'cancel', 'limit', 'limit-notice'])('replaces the pending reply indicator on %s', async (arrival) => {
     const stream = controlledSseResponse()
     mocks.fetch.mockResolvedValue(stream.response)
@@ -419,7 +766,7 @@ describe('web useChatComposer streaming send', () => {
   })
 
   it('offers one retry action in the owning conversation after a transport failure', async () => {
-    mocks.fetch.mockRejectedValueOnce(new Error('network unavailable'))
+    mocks.fetch.mockRejectedValueOnce(new Error('network unavailable')).mockRejectedValueOnce(new Error('network unavailable'))
       .mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
     render(<ComposerConversationHarness />)
     const draft = '  Plan my morning\n  '
@@ -427,13 +774,13 @@ describe('web useChatComposer streaming send', () => {
     fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('chat.sendError'))
     expect(screen.getByRole('textbox')).toHaveValue(draft)
-    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
     const retries = screen.getAllByRole('button', { name: 'shell.composer.retry' })
     expect(retries).toHaveLength(1)
     expect(retries[0]!.closest('[data-composer-root]')).not.toBeNull()
     fireEvent.click(retries[0]!)
     await waitFor(() => expect(screen.getByText('Hi there', { selector: '[data-bubble-role="ai"] p' })).toBeVisible())
-    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(mocks.fetch).toHaveBeenCalledTimes(3)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'shell.composer.retry' })).not.toBeInTheDocument()
   })
@@ -571,6 +918,7 @@ describe('web useChatComposer streaming send', () => {
     useChatStore.setState({ messages: [makeHeldHabitMessage({ id: 'question', content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'choice', block: choiceBlockFixture }] })] })
     const stream = controlledSseResponse()
     mocks.fetch.mockResolvedValueOnce(stream.response)
+    if (scenario === 'lost final response') mocks.fetch.mockRejectedValueOnce(new Error('Replay disconnected'))
     function Harness() { const chat = useChatComposer(); return <AstraConversation chat={chat} /> }
     render(<Harness />)
     fireEvent.click(screen.getAllByRole('radio')[2]!)
@@ -587,19 +935,23 @@ describe('web useChatComposer streaming send', () => {
     expect(screen.queryByText('closed')).not.toBeInTheDocument()
     const replyText = scenario === 'lost final response' ? 'Stored reply.' : 'Retried reply.'
     const reply = makeChatResponse({ aiMessage: replyText })
-    mocks.fetch.mockResolvedValueOnce(scenario === 'conflicting retry'
-      ? Response.json({ error: 'Already answered', errorCode: 'AstraBlockAnswered' }, { status: 409 })
-      : sseResponse(finalFrame(reply)))
+    const completedKey = new Headers((mocks.fetch.mock.calls[0]?.[1] as RequestInit).headers).get('Idempotency-Key')
+    mocks.fetch.mockImplementationOnce(async (_url, options: RequestInit) => {
+      if (scenario !== 'lost final response' && new Headers(options.headers).get('Idempotency-Key') === completedKey) return sseResponse(frame('{"type":"error","error":"Reply failed","status":500}'))
+      return scenario === 'conflicting retry'
+        ? Response.json({ error: 'Already answered', errorCode: 'AstraBlockAnswered' }, { status: 409 })
+        : sseResponse(finalFrame(reply))
+    })
     await act(async () => {
       const submit = screen.getByRole('button', { name: 'submit' })
       fireEvent.click(submit); fireEvent.click(submit)
     })
-    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(mocks.fetch).toHaveBeenCalledTimes(scenario === 'lost final response' ? 3 : 2)
     const userMessages = useChatStore.getState().messages.filter(message => message.role === 'user')
     expect(userMessages.map(message => message.content)).toEqual([new Intl.ListFormat('en', { type: 'conjunction' }).format([choiceBlockFixture.options[2]!.label, 'After work'])])
     expect(userMessages[0]?.answerToBlockId).toBe(choiceBlockFixture.blockId)
     const answers = mocks.fetch.mock.calls.map(([, options]) => JSON.parse((options.body as FormData).get('blockAnswer') as string))
-    expect(answers).toEqual(Array.from({ length: 2 }, () => ({ blockId: choiceBlockFixture.blockId, selectedIds: ['evening'], freeText: 'After work' })))
+    expect(answers).toEqual(Array.from({ length: scenario === 'lost final response' ? 3 : 2 }, () => ({ blockId: choiceBlockFixture.blockId, selectedIds: ['evening'], freeText: 'After work' })))
     if (scenario === 'conflicting retry') {
       expect(screen.getByText('chat.choice.alreadyAnswered')).toBeInTheDocument()
       expect(screen.queryByText(/chat.choice.answered/)).not.toBeInTheDocument()
@@ -630,6 +982,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.fetch.mockResolvedValueOnce(scenario === 'refunded failure with a new reservation'
       ? Response.json({ error: 'Reply failed' }, { status: 500 })
       : sseResponse(frame('{"type":"started"}')))
+    mocks.fetch.mockRejectedValueOnce(new Error('Replay disconnected'))
     const { result, rerender } = renderHook(() => useChatComposer())
     const request = { kind: 'choice' as const, answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'], freeText: 'After work' }, labels: ['Evening'] }
     await act(async () => { expect(await result.current.blockAnswerInteraction.send(request)).toMatchObject({ ok: false }) })
@@ -640,7 +993,7 @@ describe('web useChatComposer streaming send', () => {
     serverUsage = authoritative
     mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse({ aiMessage: 'Recovered reply.' }))))
     await act(async () => { expect(await result.current.blockAnswerInteraction.send(request)).toEqual({ ok: true }) })
-    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(mocks.fetch).toHaveBeenCalledTimes(3)
     expect(cache.getQueryData<Profile>(profileKeys.detail())?.aiMessagesUsed).toBe(authoritative)
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
     expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
@@ -655,7 +1008,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
     await act(async () => { rerender(); await Promise.resolve() })
     await act(async () => { expect(await result.current.blockAnswerInteraction.send({ ...request, answer: { ...request.answer, selectedIds: ['morning'] } })).toEqual({ ok: false, status: null }) })
-    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
   })
 
   it('keeps the answered summary after the thread remounts', async () => {
@@ -942,7 +1295,7 @@ describe('web useChatComposer streaming send', () => {
     await act(async () => { await result.current.sendMessage('my streak reset') })
     await act(async () => { await result.current.sendMessage('can you help?') })
 
-    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(mocks.fetch).toHaveBeenCalledTimes(3)
     for (const [, request] of mocks.fetch.mock.calls) {
       const context = JSON.parse((request.body as FormData).get('clientContext') as string)
       expect(context.entryPointIntent).toBe('support')
@@ -1128,7 +1481,7 @@ describe('web useChatComposer streaming send', () => {
     const invalidations = new Promise<void>((resolve) => {
       resolveInvalidations = resolve
     })
-    mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
+    mocks.queryClient.invalidateQueries.mockImplementation(filters => filters?.refetchType === 'all' ? Promise.resolve() : invalidations)
     const firstStream = controlledSseResponse()
     const secondStream = controlledSseResponse()
     mocks.fetch
@@ -1221,7 +1574,7 @@ describe('web useChatComposer streaming send', () => {
 
     await act(async () => {
       const sendPromise = result.current.sendMessage('hello')
-      await vi.advanceTimersByTimeAsync(CHAT_STREAM_IDLE_TIMEOUT_MS)
+      await vi.advanceTimersByTimeAsync(CHAT_STREAM_IDLE_TIMEOUT_MS * 2)
       await sendPromise
     })
 
@@ -1325,7 +1678,7 @@ describe('web useChatComposer streaming send', () => {
     const invalidations = new Promise<void>((resolve) => {
       resolveInvalidations = resolve
     })
-    mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
+    mocks.queryClient.invalidateQueries.mockImplementation(filters => filters?.refetchType === 'all' ? Promise.resolve() : invalidations)
     mocks.fetch
       .mockResolvedValueOnce(sseResponse(
         frame('{"type":"error","status":500,"error":"boom"}'),
@@ -1366,7 +1719,7 @@ describe('web useChatComposer streaming send', () => {
     const invalidations = new Promise<void>((resolve) => {
       resolveInvalidations = resolve
     })
-    mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
+    mocks.queryClient.invalidateQueries.mockImplementation(filters => filters?.refetchType === 'all' ? Promise.resolve() : invalidations)
     mocks.fetch
       .mockResolvedValueOnce(sseResponse(
         frame('{"type":"error","status":500,"error":"boom"}'),
@@ -1501,12 +1854,13 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.canRetryLastSend).toBe(false)
   })
 
-  it('submits a pasted image with nonblank text through the rendered composer', async () => {
+  it.each([false, true])('submits a pasted image with fixed payload (resend: %s)', async resend => {
     const pastedImage = new File(['image'], 'pasted.jpg', { type: 'image/jpeg' })
     vi.stubGlobal('URL', Object.assign(class extends URL {}, {
       createObjectURL: vi.fn(() => 'blob:pasted-image'),
       revokeObjectURL: vi.fn(),
     }))
+    if (resend) mocks.fetch.mockRejectedValueOnce(new TypeError('Disconnected'))
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
 
     function ComposerHarness() {
@@ -1529,12 +1883,13 @@ describe('web useChatComposer streaming send', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
 
-    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(resend ? 2 : 1))
     const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
     expect(requestBody).toBeInstanceOf(FormData)
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
     expect(requestBody.get('message')).toBe('log my walk')
     expect(requestBody.get('image')).toBe(pastedImage)
+    if (resend) expect(mocks.fetch.mock.calls[1]?.[1].body).toBe(requestBody)
   })
 
   it('reads a valid text file, folds it into the sent message, and clears it', async () => {

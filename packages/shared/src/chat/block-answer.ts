@@ -2,7 +2,7 @@ import { formatConjunctionList } from '../utils/conjunction-list'
 import type { ChatStoreState } from '../stores/chat-store'
 import type { BlockAnswer, ChatMessage, ChoiceBlock, PickListBlock } from '../types/chat'
 
-export type BlockAnswerResult = { ok: true } | { ok: false; status: number | null }
+export type BlockAnswerResult = { ok: true } | { ok: false; status: number | null; dailyBudgetReached?: true }
 
 export interface BlockAnswerRequest {
   kind: 'choice' | 'pickList'
@@ -13,6 +13,7 @@ export interface BlockAnswerRequest {
 export interface BlockAnswerInteraction {
   isOnline: boolean
   isSending: boolean
+  dailyBudgetReached?: boolean
   atMessageLimit: boolean
   allowance: number
   send: (request: BlockAnswerRequest) => Promise<BlockAnswerResult>

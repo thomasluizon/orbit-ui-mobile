@@ -190,9 +190,12 @@ the lockup at the start and the Avisos bell with its neutral count pill followed
 control at the trailing edge, then the search control, the Astra row directly above Hoje, the four
 destinations in tab order, one filled create action, and the account row.
 The Astra row uses destination geometry: minimum height 48, radius 12, 12 inline padding,
-12 gap and a 20 Astra glyph with a localized accessible conversation-entry name. No visible brand label accompanies the glyph.
+12 gap, a 20 Astra glyph and a 14/500 `Astra` label with `translate="no"` in both locales.
+The visible label supplies the accessible name once. Collapsing the sidebar hides the label in
+the same way as the other destination names, retaining its accessible name and tooltip.
+Hover, press, focus and active treatment match the sibling destination rows.
 The list gap is 4. While the conversation is open, only the Astra row draws the current-position
-treatment: `--primary` glyph. The destination retains
+treatment: `--primary` glyph and `--primary-soft` label. The destination retains
 `aria-current="page"` because the route stays unchanged, but draws no current-position treatment.
 
 **The way in must be visible.** In the compact shell the Astra glyph at the leading edge inside
@@ -200,8 +203,8 @@ the composer pill is a real button with a hit area at the touch floor, a padded 
 fill and a focus ring, labelled `Abrir conversa`, with no visible brand word (#1668). On wide web the sidebar Astra row opens the
 conversation. Habit detail's own composer glyph remains an entry at every width.
 
-**Standalone Astra actions and conversation entries use the canonical glyph alone in a 48px icon target (#1668).** Date, emoji, tag and reschedule actions have specific accessible names. Interpretation fallback, habit and goal analysis, retry and empty-list entries show no visible label. Suggestion chips, idea cards and proactive prose keep their useful request text without appended branding. Composer send uses one upward arrow, replaced by the spinner while sending, with its localized Send name and no Astra mark. Input prompts do not repeat the brand. Keep useful action context, disabled reasons and request guards. Deterministic saves, accepting an existing proposal, static attribution, section headings and plan facts gain no mark. The wide sidebar, compact composer, habit-detail composer and Hoje slot retain their existing owners. Conversation headers, participant avatars and conversation-owned empty states keep
-their own rules. The Perfil Astra settings row uses the neutral `MessageCircle` icon, keeping the
+**Named Astra navigation rows retain the word `Astra`; standalone actions and composer controls use the canonical glyph alone in a 48px icon target (#1668, #1687).** Date, emoji, tag and reschedule actions have specific accessible names. Interpretation fallback, habit and goal analysis, retry and empty-list entries show no visible label. Suggestion chips, idea cards and proactive prose keep their useful request text without appended branding. Composer send uses one upward arrow, replaced by the spinner while sending, with its localized Send name and no Astra mark. Input prompts do not repeat the brand. Keep useful action context, disabled reasons and request guards. Deterministic saves, accepting an existing proposal, static attribution, section headings and plan facts gain no mark. The wide sidebar, compact composer, habit-detail composer and Hoje slot retain their existing owners. Conversation headers, participant avatars and conversation-owned empty states keep
+their own rules. The owner's copy authority for #1687 is: "i asked you to top putting Consultar astra string everywhere / what you did: removed the astra word from the app, including on the sidebar / fix this". This preserves navigation names while dropping appended branding from actions. The Perfil Astra settings row uses the neutral `MessageCircle` icon, keeping the
 shared row anatomy without repeating Astra's glyph.
 
 Habit detail's composer has one named disclosure control. Collapsing leaves one compact row with
@@ -1339,7 +1342,7 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 Hoje starts with its habit-view switch. In the Hoje view, its single Astra slot follows the switch,
 then the date and habits. The slot chooses an unread
 check-in, then returning guidance, then the daily summary, including its loading, retry and free-plan
-states. No second insight block belongs below the date. Request actions and conversation entries retain Astra's glyph without repeating the brand name under #1668.
+states. No second insight block belongs below the date. Request actions and composer controls retain Astra's glyph without appended branding under #1668. Named navigation rows retain `Astra` under #1687.
 
 - **Translucency ladder on dark:** 0.04 card / 0.06 field / 0.08 well / 0.12 elev-2, white-alpha over the canvas. Surfaces stack by alpha, not by lighter hexes.
 - **Opaque white cards on light.** Never translucent.
@@ -1712,6 +1715,7 @@ The floor is **WCAG 2.2 Level AA**, and **WCAG is the gate while APCA is the tie
 - **Every pointer interaction needs a keyboard path**, following the ARIA APG patterns: Escape closes overlays, arrow keys move within composite widgets, Tab moves between widgets, Enter and Space activate. Only `tabindex="0"` and `tabindex="-1"`, never a positive value. Composite widgets use roving tabindex.
 - **Provide a "Skip to main content" link as the first focusable element on the web shell**, and give in-page anchor targets `scroll-margin-top`. Web only.
 - **The WCAG 2.5.8 AA baseline is a 24x24 CSS-pixel target. Orbit's product floor is higher: **48 minimum, 56 comfortable**, from shared `TOUCH_TARGET_MIN` and `--touch-min`. Month-grid cells are the exception: they fill the column width and stay at least 44px high, because seven 48px columns do not fit at 320px.** Reach it by expanding with an absolutely-positioned pseudo-element on the wrapping label or button, never on the input itself, and never by growing the visible box. Keep visible control geometry unchanged. Give clipping or native hit-testing parents room for the extension and keep neighboring targets distinct.
+- **Seven-day row exception:** like the seven-column month grid (`MONTH_GRID_TARGET_MIN`), weekday options divide the available row width equally without wrapping, with distinct targets at least 24px wide and 48px high. Centre each visible chip within its target, cap it at its drawn size, and let the row grow vertically for accessibility text.
 - **Never let two hit areas overlap.** Shrink the expansion until they do not.
 - **A decorative layer gets `pointer-events: none` and `aria-hidden="true"`**, so it never swallows clicks meant for the control beneath. A scrim that dismisses on click is a control and keeps its pointer events.
 - **Add `touch-action: manipulation`** to interactive elements to remove the double-tap delay, and `touch-action: none` scoped to a surface implementing its own gestures. Set `-webkit-tap-highlight-color` to match the design.

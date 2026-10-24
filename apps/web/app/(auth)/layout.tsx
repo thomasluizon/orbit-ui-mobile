@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useOnboardingDraftHydrated, useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { AppToastHost } from '@/components/ui/app-toast-host'
+import { DesktopAuthBridge } from '@/components/auth/desktop-auth-bridge'
 
 export default function AuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const router = useRouter()
@@ -29,6 +30,7 @@ export default function AuthLayout({ children }: Readonly<{ children: React.Reac
   }, [hydrated, query, router, showOnboarding])
   if (!hydrated || showOnboarding) return null
   return <>
+    <DesktopAuthBridge />
     <main className="flex min-h-dvh w-full flex-col items-center justify-center bg-[var(--bg)] text-[var(--fg-1)]"
       style={{ paddingTop: 'var(--safe-top)', paddingBottom: 'var(--safe-bottom)', paddingLeft: 'var(--safe-left)', paddingRight: 'var(--safe-right)' }}>
       {children}
