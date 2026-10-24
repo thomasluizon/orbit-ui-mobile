@@ -1,3 +1,4 @@
+import type { InvalidateQueryFilters } from '@tanstack/react-query'
 import { choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import React from 'react'
 import Animated from 'react-native-reanimated'
@@ -48,7 +49,7 @@ const mocks = vi.hoisted(() => {
   }
 
   const queryClient = {
-    invalidateQueries: vi.fn(async () => {}),
+    invalidateQueries: vi.fn(async (_filters?: InvalidateQueryFilters) => {}),
     setQueryData: vi.fn(),
   }
 
@@ -419,7 +420,7 @@ describe('mobile useChatComposer', () => {
     expect(useChatStore.getState().messages.filter(message => message.role === 'ai')).toHaveLength(1)
   })
 
-  it('starts a new keyed turn only after two failed transport attempts and manual retry', async () => {
+  it('keeps the original keyed turn after two failed transport attempts and manual retry', async () => {
     mocks.openChatStream.mockRejectedValueOnce(new TypeError('Disconnected')).mockRejectedValueOnce(new TypeError('Disconnected'))
     const composer = await renderComposer()
     await TestRenderer.act(async () => { await composer.current.sendMessage('Plan my morning') })
@@ -430,7 +431,7 @@ describe('mobile useChatComposer', () => {
     const readKey = (index: number) => mocks.openChatStream.mock.calls[index]?.[2] as string
     expect(mocks.openChatStream).toHaveBeenCalledTimes(3)
     expect(readKey(1)).toBe(readKey(0))
-    expect(readKey(2)).not.toBe(readKey(0))
+    expect(readKey(2)).toBe(readKey(0))
     expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
   })
 
@@ -451,9 +452,85 @@ describe('mobile useChatComposer', () => {
     await TestRenderer.act(async () => { await composer.current.retryLastSend() })
     const readKey = (index: number) => mocks.openChatStream.mock.calls[index]?.[2] as string
     expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
-    if (failure === 'terminal error') expect(readKey(1)).toBe(readKey(0))
-    else expect(readKey(1)).not.toBe(readKey(0))
-    if (failure === 'interrupted') expect(order).toEqual([...Array.from({ length: 10 }, () => 'refetch'), 'send'])
+    expect(readKey(1)).not.toBe(readKey(0))
+    expect(order).toEqual(['send'])
+  })
+
+  it.each(['message', 'block answer'] as const)('starts a new execution when retrying a stored terminal error for a %s', async submission => {
+    const stored = new Map<string, string>()
+    let executions = 0
+    const order: string[] = []
+    mocks.queryClient.invalidateQueries.mockImplementation(() => { order.push('refetch'); return Promise.resolve() })
+    mocks.openChatStream.mockImplementation((_payload, _signal, key: string) => {
+      const submittedKey = key
+      if (!stored.has(submittedKey)) {
+        executions += 1
+        stored.set(submittedKey, executions === 1
+          ? frame('{"type":"error","status":503,"error":"Reply failed"}')
+          : finalFrame(makeChatResponse({ aiMessage: 'Recovered reply.' })))
+      }
+      order.push('send')
+      return Promise.resolve(sseStreamResponse(stored.get(submittedKey)!))
+    })
+    const composer = await renderComposer()
+    const request = { kind: 'choice' as const, answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: ['Evening'] }
+    await TestRenderer.act(async () => {
+      if (submission === 'message') await composer.current.sendMessage('Plan my morning')
+      else expect(await composer.current.blockAnswerInteraction.send(request)).toEqual({ ok: false, status: 503 })
+    })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
+    await TestRenderer.act(async () => {
+      if (submission === 'message') await composer.current.retryLastSend()
+      else expect(await composer.current.blockAnswerInteraction.send(request)).toEqual({ ok: true })
+    })
+    expect(executions).toBe(2)
+    const readKey = (index: number) => mocks.openChatStream.mock.calls[index]?.[2] as string
+    expect(readKey(1)).not.toBe(readKey(0))
+    expect(order.slice(0, 12)).toEqual(['send', ...Array.from({ length: 10 }, () => 'refetch'), 'send'])
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
+    expect(useChatStore.getState().messages.some(message => message.content === 'Recovered reply.')).toBe(true)
+  })
+
+  it.each([
+    ['message', 'message'], ['message', 'block answer'],
+    ['block answer', 'message'], ['block answer', 'block answer'],
+  ] as const)('holds the account reconciliation fence from %s through a fresh %s', async (initial, next) => {
+    mocks.openChatStream.mockResolvedValueOnce(sseStreamResponse(frame('{"type":"error","status":503,"error":"Interrupted","code":"CHAT_TURN_INTERRUPTED"}')))
+    mocks.queryClient.invalidateQueries.mockRejectedValue(new Error('Refetch unavailable'))
+    const composer = await renderComposer()
+    const request = { kind: 'choice' as const, answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: ['Evening'] }
+    await TestRenderer.act(async () => {
+      if (initial === 'message') await composer.current.sendMessage('Plan my morning')
+      else await composer.current.blockAnswerInteraction.send(request)
+    })
+    mocks.openChatStream.mockImplementation(() => Promise.resolve(sseStreamResponse(finalFrame(makeChatResponse()))))
+    const submit = async () => {
+      if (next === 'message') await composer.current.sendMessage('A fresh message')
+      else await composer.current.blockAnswerInteraction.send({ ...request, answer: { ...request.answer, selectedIds: ['morning'] }, labels: ['Morning'] })
+    }
+    await TestRenderer.act(submit)
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledTimes(20)
+    mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
+    await TestRenderer.act(submit)
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
+    expect(mocks.queryClient.invalidateQueries.mock.calls.filter(([filters]) => filters?.refetchType === 'all')).toHaveLength(30)
+    await TestRenderer.act(async () => { await composer.current.sendMessage('After reconciliation') })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(3)
+    expect(mocks.queryClient.invalidateQueries.mock.calls.filter(([filters]) => filters?.refetchType === 'all')).toHaveLength(30)
+  })
+
+
+  it('clears pending reconciliation when the account is replaced', async () => {
+    mocks.openChatStream.mockResolvedValueOnce(sseStreamResponse(frame('{"type":"error","status":503,"error":"Interrupted","code":"CHAT_TURN_INTERRUPTED"}')))
+    mocks.queryClient.invalidateQueries.mockRejectedValue(new Error('Refetch unavailable'))
+    const composer = await renderComposer()
+    await TestRenderer.act(async () => { await composer.current.sendMessage('Original account') })
+    await TestRenderer.act(() => { advanceAccountGeneration() })
+    mocks.openChatStream.mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
+    await TestRenderer.act(async () => { await composer.current.sendMessage('Replacement account') })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledTimes(10)
   })
 
   it('resends a dropped turn with the same key and payload and replaces one reply', async () => {
@@ -888,9 +965,13 @@ describe('mobile useChatComposer', () => {
     expect(visibleMessageTexts(thread)).not.toContain('chat.choice.closed')
     const replyText = scenario === 'lost final response' ? 'Stored reply.' : 'Retried reply.'
     const reply = makeChatResponse({ aiMessage: replyText })
-    mocks.openChatStream.mockResolvedValueOnce(scenario === 'conflicting retry'
-      ? Response.json({ error: 'Already answered', errorCode: 'AstraBlockAnswered' }, { status: 409 })
-      : sseStreamResponse(finalFrame(reply)))
+    const completedKey = mocks.openChatStream.mock.calls[0]?.[2]
+    mocks.openChatStream.mockImplementationOnce((_payload, _signal, key: string) => {
+      if (scenario !== 'lost final response' && key === completedKey) return Promise.resolve(sseStreamResponse(frame('{"type":"error","error":"Reply failed","status":500}')))
+      return Promise.resolve(scenario === 'conflicting retry'
+        ? Response.json({ error: 'Already answered', errorCode: 'AstraBlockAnswered' }, { status: 409 })
+        : sseStreamResponse(finalFrame(reply)))
+    })
     await TestRenderer.act(async () => { submit(); submit(); await Promise.resolve() })
     expect(mocks.openChatStream).toHaveBeenCalledTimes(scenario === 'lost final response' ? 3 : 2)
     const userMessages = useChatStore.getState().messages.filter(message => message.role === 'user')
@@ -1352,7 +1433,7 @@ describe('mobile useChatComposer', () => {
     const invalidations = new Promise<void>((resolve) => {
       resolveInvalidations = resolve
     })
-    mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
+    mocks.queryClient.invalidateQueries.mockImplementation(filters => filters?.refetchType === 'all' ? Promise.resolve() : invalidations)
     const firstStream = controlledSseStreamResponse()
     const secondStream = controlledSseStreamResponse()
     mocks.openChatStream
@@ -1613,7 +1694,7 @@ describe('mobile useChatComposer', () => {
     const invalidations = new Promise<void>((resolve) => {
       resolveInvalidations = resolve
     })
-    mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
+    mocks.queryClient.invalidateQueries.mockImplementation(filters => filters?.refetchType === 'all' ? Promise.resolve() : invalidations)
     mocks.openChatStream
       .mockResolvedValueOnce(sseStreamResponse(
         frame('{"type":"error","status":500,"error":"boom"}'),
@@ -1654,7 +1735,7 @@ describe('mobile useChatComposer', () => {
     const invalidations = new Promise<void>((resolve) => {
       resolveInvalidations = resolve
     })
-    mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
+    mocks.queryClient.invalidateQueries.mockImplementation(filters => filters?.refetchType === 'all' ? Promise.resolve() : invalidations)
     mocks.openChatStream
       .mockResolvedValueOnce(sseStreamResponse(
         frame('{"type":"error","status":500,"error":"boom"}'),

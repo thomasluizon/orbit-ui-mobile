@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { sendChatStreamTurn } from '../chat/stream-turn'
+import { ChatTurnReconciliation, needsNewChatTurn, sendChatStreamTurn } from '../chat/stream-turn'
 
 const turnId = 'fe4a8c19-9c97-481a-882d-ed7dea936ec0'
 const started = (state = 'running', replayed = false) => ({ type: 'started', turnId, state, replayed })
@@ -84,5 +84,59 @@ describe('sendChatStreamTurn', () => {
     open.mockResolvedValue({ kind: 'stream', chunks: chunks() })
     expect(await sendChatStreamTurn(options)).toMatchObject({ kind: 'transportError' })
     expect(open).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('manual chat turn recovery', () => {
+  it.each(['network', 'incomplete', 'server error'] as const)('retains the key after an unresolved %s', async failure => {
+    const { open, options } = setup()
+    if (failure === 'network') open.mockRejectedValue(new Error('Disconnected'))
+    else if (failure === 'incomplete') open.mockImplementation(async () => ({ kind: 'stream', chunks: events(started()) }))
+    else open.mockResolvedValue({ kind: 'httpError', status: 503, error: 'Unavailable', code: null })
+    expect(needsNewChatTurn(await sendChatStreamTurn(options))).toBe(false)
+  })
+
+  it.each([final, interrupted, { type: 'error', status: 503, error: 'Provider unavailable' }])('retires a completed key for $type', async terminal => {
+    const { open, options } = setup()
+    open.mockResolvedValue({ kind: 'stream', chunks: events(started(), terminal) })
+    expect(needsNewChatTurn(await sendChatStreamTurn(options))).toBe(true)
+    expect(open).toHaveBeenCalledTimes(1)
+  })
+
+  it('retires a conflicting key', async () => {
+    const { open, options } = setup()
+    open.mockResolvedValue({ kind: 'httpError', status: 409, error: 'The turn key belongs to another payload.', code: 'CHAT_TURN_KEY_CONFLICT' })
+    expect(needsNewChatTurn(await sendChatStreamTurn(options))).toBe(true)
+  })
+
+  it('holds reconciliation through failures and clears it after success', async () => {
+    const recovery = new ChatTurnReconciliation()
+    const { open, options } = setup()
+    open.mockResolvedValue({ kind: 'stream', chunks: events(started(), interrupted) })
+    recovery.observe(await sendChatStreamTurn(options))
+    const refresh = vi.fn().mockRejectedValueOnce(new Error('Refetch unavailable')).mockResolvedValue(undefined)
+    await expect(recovery.reconcile(refresh)).rejects.toThrow('Refetch unavailable')
+    await recovery.reconcile(refresh)
+    await recovery.reconcile(refresh)
+    expect(refresh).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not let an old account refresh clear a new account obligation', async () => {
+    const recovery = new ChatTurnReconciliation()
+    const { open, options } = setup()
+    open.mockResolvedValue({ kind: 'stream', chunks: events(interrupted) })
+    const outcome = await sendChatStreamTurn(options)
+    recovery.observe(outcome)
+    let complete!: () => void
+    const reconciling = recovery.reconcile(() => new Promise<void>(resolve => { complete = resolve }))
+    recovery.reset()
+    const refresh = vi.fn(async () => {})
+    await recovery.reconcile(refresh)
+    expect(refresh).not.toHaveBeenCalled()
+    recovery.observe(outcome)
+    complete()
+    await reconciling
+    await recovery.reconcile(refresh)
+    expect(refresh).toHaveBeenCalledOnce()
   })
 })

@@ -52,12 +52,35 @@ export async function sendChatStreamTurn<Payload>(options: ChatTurnOptions<Paylo
 }
 
 export function needsNewChatTurn(outcome: ChatTurnOutcome): boolean {
-  return outcome.kind === 'incomplete' || (outcome.kind === 'transportError' && !outcome.terminalReceived) ||
-    (outcome.kind === 'httpError' && outcome.status >= 500) ||
-    ((outcome.kind === 'error' || outcome.kind === 'httpError') &&
-      (outcome.code === 'CHAT_TURN_KEY_CONFLICT' || outcome.code === 'CHAT_TURN_INTERRUPTED'))
+  return outcome.kind === 'final' || outcome.kind === 'error' ||
+    (outcome.kind === 'transportError' && outcome.terminalReceived) ||
+    (outcome.kind === 'httpError' && outcome.code === 'CHAT_TURN_KEY_CONFLICT')
 }
 
-export function isChatTurnInterrupted(outcome: ChatTurnOutcome): boolean {
-  return 'code' in outcome && outcome.code === 'CHAT_TURN_INTERRUPTED'
+export class ChatTurnReconciliation {
+  private revision = 0
+  private pendingRevision: number | null = null
+
+  get isPending(): boolean {
+    return this.pendingRevision !== null
+  }
+
+  reset(): void {
+    this.revision += 1
+    this.pendingRevision = null
+  }
+
+  observe(outcome: ChatTurnOutcome): void {
+    if (outcome.kind === 'error' || (outcome.kind === 'transportError' && outcome.terminalReceived)) {
+      this.revision += 1
+      this.pendingRevision = this.revision
+    }
+  }
+
+  async reconcile(refresh: () => Promise<void>): Promise<void> {
+    const pendingRevision = this.pendingRevision
+    if (pendingRevision === null) return
+    await refresh()
+    if (this.pendingRevision === pendingRevision) this.pendingRevision = null
+  }
 }

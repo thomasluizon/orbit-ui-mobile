@@ -1,3 +1,4 @@
+import type { InvalidateQueryFilters } from '@tanstack/react-query'
 import { choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { describe, expect, it, vi, beforeEach, afterEach, onTestFinished } from 'vitest'
 import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -43,7 +44,7 @@ const mocks = vi.hoisted(() => ({
   routerPush: vi.fn(),
   toggleRecording: vi.fn(),
   queryClient: {
-    invalidateQueries: vi.fn(async () => {}),
+    invalidateQueries: vi.fn(async (_filters?: InvalidateQueryFilters) => {}),
     setQueryData: vi.fn(),
     clear: vi.fn(),
   },
@@ -293,7 +294,7 @@ describe('web useChatComposer streaming send', () => {
     expect(useChatStore.getState().messages.filter(message => message.role === 'ai')).toHaveLength(1)
   })
 
-  it('starts a new keyed turn only after two failed transport attempts and manual retry', async () => {
+  it('keeps the original keyed turn after two failed transport attempts and manual retry', async () => {
     mocks.fetch.mockRejectedValueOnce(new TypeError('Disconnected')).mockRejectedValueOnce(new TypeError('Disconnected'))
     const { result } = renderHook(() => useChatComposer())
     await act(async () => { await result.current.sendMessage('Plan my morning') })
@@ -304,7 +305,7 @@ describe('web useChatComposer streaming send', () => {
     const readKey = (index: number) => new Headers((mocks.fetch.mock.calls[index]?.[1] as RequestInit).headers).get('Idempotency-Key')
     expect(mocks.fetch).toHaveBeenCalledTimes(3)
     expect(readKey(1)).toBe(readKey(0))
-    expect(readKey(2)).not.toBe(readKey(0))
+    expect(readKey(2)).toBe(readKey(0))
     expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
   })
 
@@ -325,9 +326,85 @@ describe('web useChatComposer streaming send', () => {
     await act(async () => { await result.current.retryLastSend() })
     const readKey = (index: number) => new Headers((mocks.fetch.mock.calls[index]?.[1] as RequestInit).headers).get('Idempotency-Key')
     expect(mocks.fetch).toHaveBeenCalledTimes(2)
-    if (failure === 'terminal error') expect(readKey(1)).toBe(readKey(0))
-    else expect(readKey(1)).not.toBe(readKey(0))
-    if (failure === 'interrupted') expect(order).toEqual([...Array.from({ length: 10 }, () => 'refetch'), 'send'])
+    expect(readKey(1)).not.toBe(readKey(0))
+    expect(order).toEqual(['send'])
+  })
+
+  it.each(['message', 'block answer'] as const)('starts a new execution when retrying a stored terminal error for a %s', async submission => {
+    const stored = new Map<string, string>()
+    let executions = 0
+    const order: string[] = []
+    mocks.queryClient.invalidateQueries.mockImplementation(() => { order.push('refetch'); return Promise.resolve() })
+    mocks.fetch.mockImplementation(async (_url, options: RequestInit) => {
+      const submittedKey = new Headers(options.headers).get('Idempotency-Key')!
+      if (!stored.has(submittedKey)) {
+        executions += 1
+        stored.set(submittedKey, executions === 1
+          ? frame('{"type":"error","status":503,"error":"Reply failed"}')
+          : finalFrame(makeChatResponse({ aiMessage: 'Recovered reply.' })))
+      }
+      order.push('send')
+      return sseResponse(stored.get(submittedKey)!)
+    })
+    const { result: composer } = renderHook(() => useChatComposer())
+    const request = { kind: 'choice' as const, answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: ['Evening'] }
+    await act(async () => {
+      if (submission === 'message') await composer.current.sendMessage('Plan my morning')
+      else expect(await composer.current.blockAnswerInteraction.send(request)).toEqual({ ok: false, status: 503 })
+    })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    await act(async () => {
+      if (submission === 'message') await composer.current.retryLastSend()
+      else expect(await composer.current.blockAnswerInteraction.send(request)).toEqual({ ok: true })
+    })
+    expect(executions).toBe(2)
+    const readKey = (index: number) => new Headers((mocks.fetch.mock.calls[index]?.[1] as RequestInit).headers).get('Idempotency-Key')
+    expect(readKey(1)).not.toBe(readKey(0))
+    expect(order.slice(0, 12)).toEqual(['send', ...Array.from({ length: 10 }, () => 'refetch'), 'send'])
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
+    expect(useChatStore.getState().messages.some(message => message.content === 'Recovered reply.')).toBe(true)
+  })
+
+  it.each([
+    ['message', 'message'], ['message', 'block answer'],
+    ['block answer', 'message'], ['block answer', 'block answer'],
+  ] as const)('holds the account reconciliation fence from %s through a fresh %s', async (initial, next) => {
+    mocks.fetch.mockResolvedValueOnce(sseResponse(frame('{"type":"error","status":503,"error":"Interrupted","code":"CHAT_TURN_INTERRUPTED"}')))
+    mocks.queryClient.invalidateQueries.mockRejectedValue(new Error('Refetch unavailable'))
+    const { result: composer } = renderHook(() => useChatComposer())
+    const request = { kind: 'choice' as const, answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: ['Evening'] }
+    await act(async () => {
+      if (initial === 'message') await composer.current.sendMessage('Plan my morning')
+      else await composer.current.blockAnswerInteraction.send(request)
+    })
+    mocks.fetch.mockImplementation(async () => sseResponse(finalFrame(makeChatResponse())))
+    const submit = async () => {
+      if (next === 'message') await composer.current.sendMessage('A fresh message')
+      else await composer.current.blockAnswerInteraction.send({ ...request, answer: { ...request.answer, selectedIds: ['morning'] }, labels: ['Morning'] })
+    }
+    await act(submit)
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledTimes(20)
+    mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
+    await act(submit)
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(mocks.queryClient.invalidateQueries.mock.calls.filter(([filters]) => filters?.refetchType === 'all')).toHaveLength(30)
+    await act(async () => { await composer.current.sendMessage('After reconciliation') })
+    expect(mocks.fetch).toHaveBeenCalledTimes(3)
+    expect(mocks.queryClient.invalidateQueries.mock.calls.filter(([filters]) => filters?.refetchType === 'all')).toHaveLength(30)
+  })
+
+
+  it('clears pending reconciliation when the account is replaced', async () => {
+    mocks.fetch.mockResolvedValueOnce(sseResponse(frame('{"type":"error","status":503,"error":"Interrupted","code":"CHAT_TURN_INTERRUPTED"}')))
+    mocks.queryClient.invalidateQueries.mockRejectedValue(new Error('Refetch unavailable'))
+    const { result: composer } = renderHook(() => useChatComposer())
+    await act(async () => { await composer.current.sendMessage('Original account') })
+    await act(async () => { signInAs('replacement-account') })
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    await act(async () => { await composer.current.sendMessage('Replacement account') })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledTimes(10)
   })
 
   it('resends a dropped turn with the same key and payload and replaces one reply', async () => {
@@ -674,9 +751,13 @@ describe('web useChatComposer streaming send', () => {
     expect(screen.queryByText('closed')).not.toBeInTheDocument()
     const replyText = scenario === 'lost final response' ? 'Stored reply.' : 'Retried reply.'
     const reply = makeChatResponse({ aiMessage: replyText })
-    mocks.fetch.mockResolvedValueOnce(scenario === 'conflicting retry'
-      ? Response.json({ error: 'Already answered', errorCode: 'AstraBlockAnswered' }, { status: 409 })
-      : sseResponse(finalFrame(reply)))
+    const completedKey = new Headers((mocks.fetch.mock.calls[0]?.[1] as RequestInit).headers).get('Idempotency-Key')
+    mocks.fetch.mockImplementationOnce(async (_url, options: RequestInit) => {
+      if (scenario !== 'lost final response' && new Headers(options.headers).get('Idempotency-Key') === completedKey) return sseResponse(frame('{"type":"error","error":"Reply failed","status":500}'))
+      return scenario === 'conflicting retry'
+        ? Response.json({ error: 'Already answered', errorCode: 'AstraBlockAnswered' }, { status: 409 })
+        : sseResponse(finalFrame(reply))
+    })
     await act(async () => {
       const submit = screen.getByRole('button', { name: 'submit' })
       fireEvent.click(submit); fireEvent.click(submit)
@@ -1216,7 +1297,7 @@ describe('web useChatComposer streaming send', () => {
     const invalidations = new Promise<void>((resolve) => {
       resolveInvalidations = resolve
     })
-    mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
+    mocks.queryClient.invalidateQueries.mockImplementation(filters => filters?.refetchType === 'all' ? Promise.resolve() : invalidations)
     const firstStream = controlledSseResponse()
     const secondStream = controlledSseResponse()
     mocks.fetch
@@ -1413,7 +1494,7 @@ describe('web useChatComposer streaming send', () => {
     const invalidations = new Promise<void>((resolve) => {
       resolveInvalidations = resolve
     })
-    mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
+    mocks.queryClient.invalidateQueries.mockImplementation(filters => filters?.refetchType === 'all' ? Promise.resolve() : invalidations)
     mocks.fetch
       .mockResolvedValueOnce(sseResponse(
         frame('{"type":"error","status":500,"error":"boom"}'),
@@ -1454,7 +1535,7 @@ describe('web useChatComposer streaming send', () => {
     const invalidations = new Promise<void>((resolve) => {
       resolveInvalidations = resolve
     })
-    mocks.queryClient.invalidateQueries.mockReturnValue(invalidations)
+    mocks.queryClient.invalidateQueries.mockImplementation(filters => filters?.refetchType === 'all' ? Promise.resolve() : invalidations)
     mocks.fetch
       .mockResolvedValueOnce(sseResponse(
         frame('{"type":"error","status":500,"error":"boom"}'),

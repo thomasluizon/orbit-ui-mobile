@@ -39,7 +39,7 @@ import {
   AI_MESSAGE_COUNTER_THRESHOLD,
   sendChatStreamTurn,
   needsNewChatTurn,
-  isChatTurnInterrupted,
+  ChatTurnReconciliation,
   type PreparedChatTurn,
 } from '@orbit/shared/chat'
 import {
@@ -74,7 +74,6 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 
 interface AttemptedSend {
   turn?: PreparedChatTurn<FormData>
-  needsReconciliation?: boolean
   intendedAccountId: string | null
   content: string
   draftContent: string
@@ -188,6 +187,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   const [activeSteps, setActiveSteps] = useState<{ domain: string; access: string }[]>([])
   const activeStepsRef = useRef<{ domain: string; access: string }[]>([])
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null)
+  const [turnReconciliation] = useState(() => new ChatTurnReconciliation())
   const [blockSubmission] = useState(() => new BlockAnswerSubmission())
 
   const {
@@ -216,6 +216,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
    * itself.
    */
   useResetOnAccountChange(() => {
+    turnReconciliation.reset()
     blockSubmission.reset()
     activeStepsRef.current = []
     setActiveSteps([])
@@ -461,7 +462,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     if (useChatStore.getState().streamingMessageId === draftMessageId) setStreamingMessageId(null)
   }, [setIsTyping, setStreamingMessageId])
 
-  const runStreamingSend = useCallback(async (attempted: ChatStreamRequest<File> & { turn?: PreparedChatTurn<FormData>; needsReconciliation?: boolean }, onAccepted?: () => void): Promise<ChatStreamResult> => {
+  const runStreamingSend = useCallback(async (attempted: ChatStreamRequest<File> & { turn?: PreparedChatTurn<FormData> }, onAccepted?: () => void): Promise<ChatStreamResult> => {
     const startingAccountGeneration = getAccountGeneration()
     const ownsAccount = () => getAccountGeneration() === startingAccountGeneration
     let controller = new AbortController()
@@ -485,7 +486,8 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     }
 
     try {
-      if (attempted.needsReconciliation) await reconcileAgentQueries(queryClient)
+      if (turnReconciliation.isPending) await turnReconciliation.reconcile(() => reconcileAgentQueries(queryClient))
+      if (!ownsAccount()) return { kind: 'cancelled' }
       attempted.turn ??= { key: crypto.randomUUID(), payload: buildChatFormData(attempted) }
       const outcome = await sendChatStreamTurn({
         turn: attempted.turn,
@@ -526,14 +528,12 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
         },
       })
 
+      if (!ownsAccount() || outcome.kind === 'cancelled') return { kind: 'cancelled' }
       if (needsNewChatTurn(outcome)) attempted.turn = undefined
-      if (outcome.kind === 'cancelled') return { kind: 'cancelled' }
-      if (outcome.kind === 'transportError') throw outcome.error
-      if (isChatTurnInterrupted(outcome)) {
-        attempted.needsReconciliation = true
-        await reconcileAgentQueries(queryClient)
-      }
+      turnReconciliation.observe(outcome)
+      await turnReconciliation.reconcile(() => reconcileAgentQueries(queryClient))
       if (!ownsAccount()) return { kind: 'cancelled' }
+      if (outcome.kind === 'transportError') throw outcome.error
 
       if (outcome.kind === 'final') {
         finalReceived = true
@@ -561,6 +561,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     applyFinalResponse,
     buildChatFormData,
     finishStreamingSend,
+    turnReconciliation,
     queryClient,
     scrollToBottom,
     setIsTyping,
@@ -598,7 +599,6 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       const request = { ...attempted, messageCost: 1 as const }
       const result = await runStreamingSend(request)
       attempted.turn = request.turn
-      attempted.needsReconciliation = request.needsReconciliation
       const succeeded = result.kind === 'final'
       if (result.kind === 'failed') handleFailedSend(result.failure, attempted, result.draftMessageId)
       if (succeeded && getAccountGeneration() === startingAccountGeneration && attempted.contextualRequest && useChatStore.getState().contextualSuggestion === attempted.contextualRequest) {
