@@ -107,20 +107,11 @@ jobs:
       - name: Test CI workflow behavior
         run: node --test tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs
 
-      # The unit suite's contrast scan is skipped on a Turbo cache hit, so this step runs the
-      # full-tree scan on every pull request. Findings stay advisory; a scanner error fails.
-      - name: Report surface scope findings across the full tree
+      # This step owns the full-tree graphic floor assertion outside cached unit shards.
+      # Other findings stay advisory; graphic floor findings and scanner errors fail.
+      - name: Check graphic contrast across the full tree
         if: ${{ !cancelled() }}
-        run: |
-          set +e
-          node tools/check-surface-scope.mjs
-          checker_status=$?
-          set -e
-          if [ "$checker_status" -eq 1 ]; then
-            echo "Surface scope findings are reported and do not fail this step."
-            exit 0
-          fi
-          exit "$checker_status"
+        run: node tools/check-surface-scope.mjs --graphic-floor-only
 
       - name: Run tools harness
         if: ${{ !cancelled() }}

@@ -565,7 +565,7 @@
     "constants": "none"
   },
   "tools/check-surface-scope.mjs": {
-    "scope": "whole-tree-advisory",
+    "scope": "whole-tree-blocking",
     "snapshot": "none",
     "constants": [
       {
