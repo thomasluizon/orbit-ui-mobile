@@ -56,6 +56,7 @@ vi.mock('@react-native-async-storage/async-storage', () => {
   } }
 })
 vi.mock('expo-router', () => ({
+  useNavigation: () => ({ dispatch: vi.fn() }),
   router: { replace: mocks.replace },
   useRouter: () => ({ replace: mocks.replace, push: vi.fn(), canGoBack: () => false, setParams: mocks.setParams }),
   useLocalSearchParams: () => mocks.params,

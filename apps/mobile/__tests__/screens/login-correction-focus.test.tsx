@@ -71,6 +71,7 @@ vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isO
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError }) }))
 
 vi.mock('expo-router', () => ({
+  useNavigation: () => ({ dispatch: vi.fn() }),
   useRouter: () => ({ replace: mocks.replace, push: mocks.push }),
   useLocalSearchParams: () => mocks.params,
 }))
