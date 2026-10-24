@@ -289,7 +289,10 @@ describe('Wrapped root shell', () => {
   it.each([true, false])('hosts portals once inside app and navigation providers when authenticated is %s', async (authenticated) => {
     authState.isAuthenticated = authenticated
     const tree = await renderRoot()
-    expect(tree.root.findAll((node) => node.type === PortalHost)).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === PortalHost && node.props.name === undefined)).toHaveLength(1)
+    const windowHosts = tree.root.findAll((node) => node.type === PortalHost && node.props.name !== undefined)
+    expect(windowHosts).toHaveLength(1)
+    const windowHostName = windowHosts[0]!.props.name as string
     expect(findByTestId(tree, 'root-portal-probe')).toHaveLength(0)
     createState.portalVisible = true
     await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
@@ -298,7 +301,9 @@ describe('Wrapped root shell', () => {
     await TestRenderer.act(() => tree.update(React.createElement(React.Fragment)))
     createState.portalVisible = false
     await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
-    expect(tree.root.findAll((node) => node.type === PortalHost)).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === PortalHost && node.props.name === undefined)).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === PortalHost && node.props.name !== undefined)).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === PortalHost && node.props.name === windowHostName)).toHaveLength(0)
     expect(findByTestId(tree, 'root-portal-probe')).toHaveLength(0)
     await TestRenderer.act(() => tree.update(React.createElement(React.Fragment)))
   })

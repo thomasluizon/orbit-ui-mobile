@@ -116,7 +116,7 @@ describe('alerts', () => {
       for (const title of ['Streak saved', 'Achievement earned', 'Unknown destination']) {
         expect(screen.getByRole('button', { name: new RegExp(`^${title}\\.`) })).toBeInTheDocument()
       }
-      fireEvent.click(screen.getByRole('button', { name: en.notifications.options }))
+      fireEvent.pointerDown(screen.getByRole('button', { name: en.notifications.options }), { button: 0, ctrlKey: false })
       await act(async () => { await vi.dynamicImportSettled() })
       fireEvent.click(screen.getByRole('menuitem', { name: en.notifications.markAllReadMenu }))
       expect(state.markAll).toHaveBeenCalledOnce()
@@ -226,7 +226,7 @@ describe('alerts', () => {
     seed(1)
     showInbox()
     expect(screen.getByRole('button', { name: 'Delete: Alert 0' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: en.notifications.options }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: en.notifications.options }), { button: 0, ctrlKey: false })
     await act(async () => { await vi.dynamicImportSettled() })
     for (const name of [en.notifications.markAllReadMenu, en.notifications.deleteAll]) {
       expect(screen.getByRole('menuitem', { name })).toBeInTheDocument()
@@ -246,7 +246,7 @@ describe('alerts', () => {
     showInbox()
 
     const messages = locale === 'en' ? en : pt
-    fireEvent.click(screen.getByRole('button', { name: messages.notifications.options }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: messages.notifications.options }), { button: 0, ctrlKey: false })
     await act(async () => { await vi.dynamicImportSettled() })
     expect(screen.getByRole('dialog', { name: messages.notifications.options })).toBeInTheDocument()
     expect(within(screen.getByRole('menu', { name: messages.notifications.options })).getByRole('menuitem', { name: bulkLabel })).toBeInTheDocument()
@@ -378,7 +378,7 @@ describe('alerts', () => {
     view.rerender(<NotificationInbox />)
     expect(screen.queryByRole('button', { name: en.notifications.markAllReadMenu })).toBeNull()
     expect(screen.getAllByRole('button', { name: /Alert \d. read/ })).toHaveLength(2)
-    fireEvent.click(screen.getByRole('button', { name: en.notifications.options }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: en.notifications.options }), { button: 0, ctrlKey: false })
     await act(async () => { await vi.dynamicImportSettled() })
     expect(screen.getByRole('menuitem', { name: 'Clear all' })).toBeInTheDocument()
   })
@@ -504,7 +504,7 @@ describe('alerts', () => {
 
 async function chooseInboxAction(label: string) {
   const messages = state.locale === 'en' ? en : pt
-  fireEvent.click(screen.getByRole('button', { name: messages.notifications.options }))
+  fireEvent.pointerDown(screen.getByRole('button', { name: messages.notifications.options }), { button: 0, ctrlKey: false })
   await act(async () => { await vi.dynamicImportSettled() })
   fireEvent.click(screen.getByRole('menuitem', { name: label }))
 }

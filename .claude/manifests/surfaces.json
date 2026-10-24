@@ -16303,58 +16303,6 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "m-overlay-components-throttle-screen",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/throttle-screen.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/throttle-screen.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-components-throttle-screen",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/throttle-screen.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/throttle-screen.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-components-throttle-screen",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/throttle-screen.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/throttle-screen.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-components-throttle-screen",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/throttle-screen.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/throttle-screen.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
       "surfaceId": "m-overlay-today-today-date-control",
       "platform": "mobile",
       "kind": "overlay",
@@ -16771,6 +16719,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-ui-native-window-host",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/native-window-host.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/native-window-host.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-native-window-host",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/native-window-host.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/native-window-host.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-native-window-host",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/native-window-host.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/native-window-host.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-native-window-host",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/native-window-host.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/native-window-host.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-ui-personal-text-details",
       "platform": "mobile",
       "kind": "overlay",
@@ -17025,58 +17025,6 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/ui/trial-expired-modal.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-components-upgrade-required-screen",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/upgrade-required-screen.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/upgrade-required-screen.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-components-upgrade-required-screen",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/upgrade-required-screen.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/upgrade-required-screen.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-components-upgrade-required-screen",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/upgrade-required-screen.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/upgrade-required-screen.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-components-upgrade-required-screen",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/upgrade-required-screen.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/upgrade-required-screen.tsx"
       ],
       "state": "default",
       "theme": "dark",

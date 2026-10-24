@@ -60,6 +60,8 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
   const { titleExpanded, bodyRef, toggleTitle } = useSheetTitleDisclosure()
   const onBodyFocus = useSheetBodyFocusVisibility(virtualizedBody)
   const [presented, setPresented] = useState(true)
+  // WHY: A pointer-down menu can mount this sheet before its opening release. https://github.com/thomasluizon/orbit-tickets/issues/577
+  const [pointerDismissalReady, setPointerDismissalReady] = useState(false)
   const [modalFocusOwnerActive, setModalFocusOwnerActive] = useState(true)
   const overlayId = useId()
   const modalId = `modal:${overlayId}`
@@ -115,7 +117,7 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
     <Dialog.Root
       open={presented}
       modal
-      disablePointerDismissal={onClose == null && onAttemptDismiss == null}
+      disablePointerDismissal={!pointerDismissalReady || (onClose == null && onAttemptDismiss == null)}
       onOpenChange={(nextOpen: boolean) => {
         if (nextOpen) return
         if (onClose) requestClose()
@@ -128,7 +130,9 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
         }
       }}
     >
-      <Dialog.Portal className="orbit-sheet-portal">
+      <Dialog.Portal className="orbit-sheet-portal" onPointerDownCapture={() => setPointerDismissalReady(true)} onPointerUpCapture={(event) => {
+        if (!pointerDismissalReady) event.preventDefault()
+      }}>
         <Dialog.Backdrop className="orbit-sheet-backdrop" />
         <Dialog.Viewport className="orbit-sheet-viewport">
           <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus} finalFocus={finalFocus} style={minimumBodyWidth == null ? undefined : { containerType: 'inline-size', containerName: 'sheet-panel' }}>
@@ -241,10 +245,16 @@ function useSheetBodyFocusVisibility(virtualizedBody: boolean | undefined) {
     const body = event.currentTarget
     if (virtualizedBody || !body.contains(event.target)) return
     observerRef.current?.disconnect()
-    const observer = new ResizeObserver(() => revealSheetBodyFocus(body))
+    if (event.target.getAttribute('role') === 'menu') return
+    revealSheetBodyFocus(body)
+    let revealedScrollTop = body.scrollTop
+    const observer = new ResizeObserver(() => {
+      if (body.scrollTop !== revealedScrollTop) { observer.disconnect(); return }
+      revealSheetBodyFocus(body)
+      revealedScrollTop = body.scrollTop
+    })
     observerRef.current = observer
     observer.observe(body)
     observer.observe(event.target)
-    revealSheetBodyFocus(body)
   }
 }

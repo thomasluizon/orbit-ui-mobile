@@ -1532,13 +1532,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline-color: var(--fg-on-primary);
 }
 
-.orbit-menu-catcher {
-  position: fixed;
-  inset: 0;
-  z-index: calc(var(--z-index-dropdown) - 1);
-  background: transparent;
-}
-
 @layer components {
 .orbit-link-action {
   position: relative;

@@ -865,7 +865,7 @@ describe('Hoje header geometry', () => {
       menuHeading={messages.common.options} moreLabel={messages.habits.listOptions}
       selectLabel={messages.common.select} collapseLabel={messages.habits.collapseAll}
       refreshLabel={messages.habits.refresh} completedLabel={messages.habits.showCompletedMenu} /></NextIntlClientProvider>)
-    fireEvent.click(screen.getByRole('button', { name: messages.habits.listOptions }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: messages.habits.listOptions }), { button: 0, ctrlKey: false })
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${document.body.innerHTML}`)
@@ -910,7 +910,7 @@ describe('Hoje header geometry', () => {
     render(<NextIntlClientProvider locale={locale} messages={messages}><TodayDateControl {...props}
       menuHeading={messages.common.options} moreLabel={messages.habits.listOptions}
       refreshLabel={messages.habits.refresh} onRefresh={refresh} /></NextIntlClientProvider>)
-    fireEvent.click(screen.getByRole('button', { name: messages.habits.listOptions }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: messages.habits.listOptions }), { button: 0, ctrlKey: false })
     const menu = screen.getByRole('menu', { name: messages.habits.listOptions })
     expect(screen.getByRole('dialog', { name: messages.habits.listOptions })).toBeInTheDocument()
     fireEvent.click(within(menu).getByRole('menuitem', { name: messages.habits.refresh }))

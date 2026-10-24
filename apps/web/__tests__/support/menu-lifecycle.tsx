@@ -10,10 +10,12 @@ import { CompactComposerMenuContext, useCompactComposerMenu } from '@/components
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { useRef } from 'react'
 import { TodayDateControl } from '@/app/(app)/today-shell'
+import { SidebarAccount } from '@/components/shell/sidebar-account'
+import { CalendarOptions } from '@/app/(app)/calendar/_components/calendar-options'
 
 const configuration = JSON.parse(document.getElementById('configuration')!.textContent!) as {
   locale: 'en' | 'pt-BR'
-  surface: 'habit' | 'composer' | 'frequency'
+  surface: 'habit' | 'composer' | 'frequency' | 'account' | 'calendar'
 }
 const words = configuration.locale === 'en' ? en : ptBR
 const branchTitle = 'Branch child with a long title about preparing the room and collecting every book and notebook for the next reading session'
@@ -30,6 +32,7 @@ function HabitMenus() {
 }
 
 function ComposerMenu() {
+  const [selections, setSelections] = useState(0)
   const wide = useViewportMatch('(min-width: 1024px)')
   const bottomRef = useRef<HTMLDivElement>(null)
   const compactMenu = useCompactComposerMenu(wide, bottomRef)
@@ -38,10 +41,11 @@ function ComposerMenu() {
     <div ref={bottomRef} style={{ position: 'fixed', bottom: 96, width: '100%' }}>
       {!wide ? <CompactComposerMenuContext value={compactMenu}>
         <Composer state="idle" value="Retained draft" onChangeValue={() => {}} onSend={() => {}} words={words.shell.composer}
-          suggestions={[]} onAttachFile={() => {}} onAttachImage={() => {}} onVoice={() => {}}
+          suggestions={[]} onAttachFile={() => {}} onAttachImage={() => setSelections((count) => count + 1)} onVoice={() => {}}
           attachWords={{ ...words.shell.composer.attach, remove: (name) => name }} voiceWords={words.shell.composer.voice} />
       </CompactComposerMenuContext> : null}
     </div>
+    <output aria-label="Composer selections">{selections}</output>
   </div>
 }
 
@@ -57,6 +61,15 @@ function FrequencyMenu() {
     onGoToPreviousDay={noop} onGoToToday={noop} onGoToNextDay={noop} />
 }
 
-createRoot(document.getElementById('root')!).render(<NextIntlClientProvider locale={configuration.locale} messages={words} timeZone="UTC">
-  {configuration.surface === 'habit' ? <HabitMenus /> : configuration.surface === 'composer' ? <ComposerMenu /> : <FrequencyMenu />}
-</NextIntlClientProvider>)
+function Surface() {
+  const [clicks, setClicks] = useState(0)
+  return <>
+    {configuration.surface === 'habit' ? <HabitMenus /> : configuration.surface === 'composer' ? <ComposerMenu />
+      : configuration.surface === 'account' ? <SidebarAccount account="Person" accountEmail="person@example.com" collapsed={false} />
+        : configuration.surface === 'calendar' ? <CalendarOptions /> : <FrequencyMenu />}
+    <button style={{ position: 'fixed', left: 16, bottom: 16, minHeight: 48 }} onClick={() => setClicks(clicks + 1)}>After menu</button>
+    <output aria-label="Outside clicks">{clicks}</output>
+  </>
+}
+
+createRoot(document.getElementById('root')!).render(<NextIntlClientProvider locale={configuration.locale} messages={words} timeZone="UTC"><Surface /></NextIntlClientProvider>)

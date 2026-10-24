@@ -59,7 +59,7 @@ beforeEach(() => {
 })
 
 async function chooseFrequency(label: string) {
-  fireEvent.click(screen.getByRole('button', { name: en.habits.listOptions }))
+  fireEvent.pointerDown(screen.getByRole('button', { name: en.habits.listOptions }), { button: 0, ctrlKey: false })
   fireEvent.click(await screen.findByRole('menuitem', { name: en.habits.frequencyFilter }))
   fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: label }))
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())

@@ -132,7 +132,7 @@ async function expectNarrowMenuPaste(page: import('@playwright/test').Page, mess
   try {
     await act(() => document.fonts.dispatchEvent(new Event('loadingdone')))
     expect(screen.queryByRole('button', { name: messages.shell.composer.paste })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.actions }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: messages.shell.composer.actions }), { button: 0, ctrlKey: false })
     const menu = await screen.findByRole('menu')
     const paste = within(menu).getAllByRole('menuitem')[0]!
     expect(paste).toHaveAccessibleName(messages.shell.composer.paste)
@@ -1161,7 +1161,7 @@ describe('Composer compact geometry in Chromium', () => {
             expect(contrastOnSurface(outline.color, [outline.separatorColor])).toBeGreaterThanOrEqual(3)
           }
         }
-        fireEvent.click(screen.getByRole('button', { name: en.shell.composer.actions }))
+        fireEvent.pointerDown(screen.getByRole('button', { name: en.shell.composer.actions }), { button: 0, ctrlKey: false })
         const menu = await screen.findByRole('menu')
         const markup = width < 900 ? menu.closest('[role="dialog"]')!.outerHTML : menu.outerHTML
         await page.setContent(`<style>${stylesheet}</style>${markup}`)
@@ -1180,7 +1180,7 @@ describe('Composer compact geometry in Chromium', () => {
   it.each([412, 1280].flatMap((width) => (['dark', 'light'] as const).map((mode) => ({ width, mode }))))(
     'keeps disabled attachment menu fills at rest on hover at $width in $mode', async ({ width, mode }) => {
       const view = render(<Composer {...geometryProps('atLimit', en, false)} />)
-      fireEvent.click(screen.getByRole('button', { name: en.shell.composer.actions }))
+      fireEvent.pointerDown(screen.getByRole('button', { name: en.shell.composer.actions }), { button: 0, ctrlKey: false })
       const menu = await screen.findByRole('menu')
       const markup = width < 900 ? menu.closest('[role="dialog"]')!.outerHTML : menu.outerHTML
       const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
@@ -1274,7 +1274,9 @@ describe('Composer compact geometry in Chromium', () => {
       for (const surface of ['actions', 'attachment'] as const) {
         const props = geometryProps('tray1', messages, true)
         const view = render(<Composer {...props} />)
-        fireEvent.click(screen.getByRole('button', { name: surface === 'actions' ? messages.shell.composer.actions : props.attachments![0]!.name }))
+        const trigger = screen.getByRole('button', { name: surface === 'actions' ? messages.shell.composer.actions : props.attachments![0]!.name })
+        if (surface === 'actions') fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false })
+        else fireEvent.click(trigger)
         const dialog = await screen.findByRole('dialog')
         const markup = dialog.outerHTML
         view.unmount()

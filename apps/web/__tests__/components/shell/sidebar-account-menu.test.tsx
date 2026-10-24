@@ -62,9 +62,9 @@ it.each([false, true])('opens the account menu by pointer, Enter and Space with 
 it('dismisses on an outside press and returns focus to the card', async () => {
   render(<ShellWide {...props} />)
   const trigger = screen.getByRole('button', { name: accountLabel })
-  fireEvent.click(trigger)
+  await userEvent.click(trigger)
   await screen.findByRole('menu')
-  fireEvent.pointerDown(document.querySelector('.orbit-menu-catcher')!)
+  await userEvent.click(screen.getByRole('link', { name: 'Perfil' }))
   await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
   expect(trigger).toHaveFocus()
 })
@@ -77,7 +77,7 @@ it.each([false, true])('signs out through the existing account command with port
   try {
     render(<ShellWide {...props} />)
     expect(logout).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: accountLabel }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: accountLabel }), { button: 0, ctrlKey: false })
     const menu = await screen.findByRole('menu')
     fireEvent.click(within(menu).getByRole('menuitem', { name: (portuguese ? ptBR : en).profile.settingsRows.signOut }))
     expect(logout).toHaveBeenCalledOnce()

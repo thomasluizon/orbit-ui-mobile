@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { expect, it } from 'vitest'
 
-it('loads the headless menu behavior only after the trigger requests it', () => {
+it('keeps the headless trigger eager and defers the sheet presentation', () => {
   const graph = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', `
     import { build } from 'esbuild';
     const result = await build({
@@ -25,7 +25,8 @@ it('loads the headless menu behavior only after the trigger requests it', () => 
       deferred: Object.keys(outputs).filter(path => !initial.has(path)).flatMap(path => Object.keys(outputs[path].inputs)),
     }));
   `], { encoding: 'utf8', maxBuffer: 2 * 1024 * 1024 })) as { initial: string[]; deferred: string[] }
-  const behavior = /@radix-ui\/react-(dropdown-menu|menu|popper|focus-scope)\//
-  expect(graph.initial.filter((path) => behavior.test(path))).toEqual([])
-  expect(graph.deferred.some((path) => path.includes('@radix-ui/react-dropdown-menu/'))).toBe(true)
+  expect(graph.initial.some((path) => path.includes('@radix-ui/react-dropdown-menu/'))).toBe(true)
+  expect(graph.initial.some((path) => path.endsWith('components/ui/dropdown-menu-content.tsx'))).toBe(false)
+  expect(graph.initial.some((path) => path.endsWith('components/ui/sheet.tsx'))).toBe(false)
+  expect(graph.deferred.some((path) => path.endsWith('components/ui/sheet.tsx'))).toBe(true)
 })

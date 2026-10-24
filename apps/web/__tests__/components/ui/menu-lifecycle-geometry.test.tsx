@@ -41,8 +41,8 @@ describe('mounted headless menu lifecycle in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
-  async function mount(surface: 'habit' | 'composer' | 'frequency', locale: 'en' | 'pt-BR', width: number, height: number, mode: 'light' | 'dark' = 'dark') {
-    const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' })
+  async function mount(surface: 'habit' | 'composer' | 'frequency' | 'account' | 'calendar', locale: 'en' | 'pt-BR', width: number, height: number, mode: 'light' | 'dark' = 'dark', reducedMotion: 'reduce' | 'no-preference' = 'reduce') {
+    const page = await browser.newPage({ viewport: { width, height }, reducedMotion })
     onTestFinished(async () => { await page.close() })
     const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
     await page.setContent(`<html class="${mode}" style="${theme}"><style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ surface, locale })}</script></html>`)
@@ -50,6 +50,52 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     await page.addScriptTag({ content: script })
     return page
   }
+
+  it('lets the first outside pointer press dismiss the account menu and activate its destination', async () => {
+    const page = await mount('account', 'en', 1024, 900)
+    await page.getByRole('button', { name: 'Person, person@example.com', exact: true }).click()
+    await page.getByRole('menu').waitFor({ state: 'visible' })
+    const outside = page.getByRole('button', { name: 'After menu' })
+    const bounds = (await outside.boundingBox())!
+    await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+    await expect.poll(() => page.getByLabel('Outside clicks').textContent()).toBe('1')
+    await expect.poll(() => page.getByRole('menu').count()).toBe(0)
+  })
+
+  it.each([
+    { surface: 'account', width: 1024, trigger: 'Person, person@example.com' },
+    { surface: 'habit', width: 1280, trigger: '' },
+    { surface: 'composer', width: 412, trigger: en.shell.composer.actions },
+    { surface: 'frequency', width: 412, trigger: en.habits.listOptions },
+    { surface: 'calendar', width: 412, trigger: en.calendar.options },
+  ] as const)('releases $surface pointer input after Escape and outside dismissal', async ({ surface, width, trigger: label }) => {
+    const page = await mount(surface, 'en', width, 915)
+    const trigger = surface === 'habit' ? page.locator('[data-habit-row-control="menu"]') : page.getByRole('button', { name: label, exact: true })
+    const overlays = page.getByRole('menu').or(page.getByRole('dialog'))
+    const outside = page.getByRole('button', { name: 'After menu' })
+    for (const dismissal of ['Escape', 'outside'] as const) {
+      await trigger.hover()
+      await page.mouse.down()
+      await expect.poll(() => overlays.count()).toBeGreaterThan(0)
+      await page.mouse.move(0, 0)
+      await page.mouse.up()
+      await expect.poll(() => overlays.count()).toBeGreaterThan(0)
+      if (dismissal === 'Escape') await page.keyboard.press('Escape')
+      else {
+        const backdrop = page.locator('.orbit-sheet-backdrop')
+        if (await backdrop.count()) await page.mouse.click(4, 4)
+        else {
+          const bounds = (await outside.boundingBox())!
+          await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+        }
+      }
+      await expect.poll(() => overlays.count()).toBe(0)
+      await expect.poll(() => trigger.evaluate((element) => element === document.activeElement)).toBe(true)
+      const previous = Number(await page.getByLabel('Outside clicks').textContent())
+      await outside.click()
+      expect(await page.getByLabel('Outside clicks').textContent()).toBe(String(previous + 1))
+    }
+  })
 
   it.each((['en', 'pt-BR'] as const).flatMap((locale) => (['light', 'dark'] as const).map((mode) => ({ locale, mode }))))('drills through consecutive row menus at 320px with doubled $locale text in $mode', async ({ locale, mode }) => {
     const page = await mount('habit', locale, 320, 915, mode)
@@ -67,17 +113,41 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each(['en', 'pt-BR'] as const)('reopens the compact $locale composer menu after a wide-shell replacement', async (locale) => {
+  it('keeps the opening release from selecting a sheet item beneath its trigger', async () => {
+    const page = await mount('composer', 'en', 412, 915)
+    const trigger = page.getByRole('button', { name: en.shell.composer.actions, exact: true, includeHidden: true })
+    const bounds = (await trigger.boundingBox())!
+    const point = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
+    await page.mouse.move(point.x, point.y)
+    await page.mouse.down()
+    const menu = page.getByRole('menu', { name: en.shell.composer.actions, exact: true })
+    await menu.waitFor({ state: 'visible' })
+    await expect.poll(() => page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('[role="menuitem"]') != null, point)).toBe(true)
+    await page.mouse.up()
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+    expect(await page.getByRole('dialog').getAttribute('data-open')).not.toBeNull()
+    await expect.poll(() => trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(await page.getByLabel('Composer selections').textContent()).toBe('0')
+    await menu.getByRole('menuitem', { name: en.shell.composer.attach.image, exact: true }).click()
+    await expect.poll(() => page.getByLabel('Composer selections').textContent()).toBe('1')
+    await expect.poll(() => menu.count()).toBe(0)
+  })
+
+  it.each(['en', 'pt-BR'] as const)('reopens the compact %s composer menu after a wide-shell replacement', async (locale) => {
     const page = await mount('composer', locale, 412, 915)
     const words = locale === 'en' ? en : ptBR
     try {
-      const trigger = page.getByRole('button', { name: words.shell.composer.actions, exact: true })
+      const trigger = page.getByRole('button', { name: words.shell.composer.actions, exact: true, includeHidden: true })
       const menu = page.getByRole('menu', { name: words.shell.composer.actions, exact: true })
       await trigger.click()
       await expect.poll(() => menu.isVisible()).toBe(true)
+      expect(await trigger.getAttribute('aria-expanded')).toBe('true')
       await page.setViewportSize({ width: 1100, height: 915 })
       await expect.poll(() => menu.count()).toBe(0)
-      await expect.poll(() => page.locator('[data-shell-astra-row]').evaluate((element) => element === document.activeElement)).toBe(true)
+      await expect.poll(() => page.evaluate(() => {
+        const active = document.activeElement
+        return active?.hasAttribute('data-shell-astra-row') ? 'Astra' : `${active?.tagName}: ${active?.getAttribute('aria-label')} `
+      })).toBe('Astra')
       await page.setViewportSize({ width: 412, height: 915 })
       await trigger.click()
       await expect.poll(() => menu.isVisible()).toBe(true)
@@ -89,7 +159,7 @@ describe('mounted headless menu lifecycle in Chromium', () => {
   })
 
   it.each([0, 44])('keeps every frequency choice within landscape safe bounds with %ipx inline insets after scrolling', async (inlineInset) => {
-    const page = await mount('frequency', 'en', 844, 390)
+    const page = await mount('frequency', 'en', 844, 390, 'dark', 'no-preference')
     try {
       const bottomInset = inlineInset === 0 ? 0 : 21
       await page.locator('html').evaluate((root, insets) => {
@@ -118,5 +188,33 @@ describe('mounted headless menu lifecycle in Chromium', () => {
         expect(bounds.y + bounds.height).toBeLessThanOrEqual(390 - bottomInset)
       }
     } finally { await page.close() }
+  })
+
+  it('preserves the scrolled frequency choice when the focused sheet body resizes', async () => {
+    const page = await mount('frequency', 'en', 844, 390, 'dark', 'no-preference')
+    await page.getByRole('button', { name: en.habits.listOptions }).click()
+    await page.getByRole('menuitem', { name: en.habits.frequencyFilter }).click()
+    const choices = page.getByRole('menuitemcheckbox')
+    await expect.poll(() => choices.count()).toBe(6)
+    await choices.first().focus()
+    await expect.poll(() => choices.first().evaluate((element) => element === document.activeElement)).toBe(true)
+    const last = choices.last()
+    await last.scrollIntoViewIfNeeded()
+    const before = await last.evaluate((element) => {
+      const body = element.closest<HTMLElement>('[data-slot="sheet-body"]')!
+      return { scrollTop: body.scrollTop, clientHeight: body.clientHeight, scrollHeight: body.scrollHeight, bottom: element.getBoundingClientRect().bottom }
+    })
+    await choices.first().evaluate((element) => {
+      const body = element.closest<HTMLElement>('[data-slot="sheet-body"]')!
+      body.style.width = `${body.clientWidth - 1}px`
+    })
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+    const bounds = (await last.boundingBox())!
+    const after = await last.evaluate((element) => {
+      const body = element.closest<HTMLElement>('[data-slot="sheet-body"]')!
+      return { scrollTop: body.scrollTop, clientHeight: body.clientHeight, scrollHeight: body.scrollHeight, active: document.activeElement?.textContent }
+    })
+    expect(bounds.y).toBeGreaterThanOrEqual(0)
+    expect(bounds.y + bounds.height, JSON.stringify({ before, after })).toBeLessThanOrEqual(390)
   })
 })

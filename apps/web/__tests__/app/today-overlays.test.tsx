@@ -121,7 +121,7 @@ function TodayHarness() {
 }
 
 async function enterSelection() {
-  fireEvent.click(screen.getByRole('button', { name: 'habits.listOptions' }))
+  fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.listOptions' }), { button: 0, ctrlKey: false })
   fireEvent.click(await screen.findByRole('menuitem', { name: 'common.select' }))
 }
 

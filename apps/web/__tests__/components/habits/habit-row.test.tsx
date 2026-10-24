@@ -40,7 +40,7 @@ describe('HabitRow overflow menus', () => {
     localeMock.rescheduleLabel = label
     const onReschedule = vi.fn()
     render(<HabitRow habit={createMockHabit({ title: 'Run', isOverdue: true })} state="overdue" actions={{ onReschedule }} />)
-    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     const item = await screen.findByRole('menuitem', { name: label })
     expect(label).toBe(_locale === 'en' ? 'Reschedule with Astra' : 'Reagendar com a Astra')
     fireEvent.click(item)
@@ -53,7 +53,7 @@ describe('HabitRow overflow menus', () => {
     const row = screen.getByTestId('habit-row')
     const button = within(row).getByRole('button', { name: 'habits.actions.more' })
     expect(button).toHaveAttribute('aria-expanded', 'false')
-    fireEvent.click(button)
+    fireEvent.pointerDown(button, { button: 0, ctrlKey: false })
     expect(await screen.findByRole('menu')).toBeInTheDocument()
     expect(button).toHaveAttribute('aria-expanded', 'true')
     expect(document.getElementById(button.getAttribute('aria-controls')!)).toHaveAttribute('role', 'menu')
@@ -64,7 +64,7 @@ describe('HabitRow overflow menus', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Walk' })} state="overdue" hasSubHabits
       actions={{ onAddSubHabit: vi.fn(), onMoveParent: vi.fn(), onSkip: vi.fn(), onReschedule: vi.fn(),
         onEdit: vi.fn(), onDuplicate: vi.fn(), onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn() }} />)
-    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     const items = await screen.findAllByRole('menuitem')
     expect(document.querySelector('.orbit-menu-panel')).toHaveAttribute('aria-label', 'Walk')
     expect(items.map((item) => item.textContent)).toEqual([
@@ -85,7 +85,7 @@ describe('HabitRow overflow menus', () => {
     vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
     render(<HabitRow habit={createMockHabit({ title: 'Read' })} state="empty"
       actions={{ onAddSubHabit: vi.fn(), onReschedule: vi.fn(), onDrillInto: vi.fn(), onEnterSelectMode: vi.fn() }} />)
-    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     expect(await screen.findByRole('menuitem', { name: 'habits.actions.addSubHabit' })).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'habits.actions.rescheduleAstra' })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: 'habits.actions.openSubHabits' })).toBeNull()
@@ -370,7 +370,7 @@ describe('HabitRow check circle accessible name', () => {
       completionReason="Logging stops 7 days back."
       structuralColumn hasChildren hasSubHabits childProgress={{ done: 0, total: 1 }} actions={actions} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     for (const label of ['habits.actions.addSubHabit', 'habits.actions.moveUnder', 'common.edit',
       'habits.actions.duplicate', 'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete']) {
       expect(screen.getByRole('menuitem', { name: label })).toBeEnabled()
@@ -534,7 +534,7 @@ describe('HabitRow check circle accessible name', () => {
     fireEvent.click(rowButtons[0]!)
     fireEvent.click(rowButtons[1]!)
     fireEvent.click(rowButtons[2]!)
-    fireEvent.click(rowButtons[3]!)
+    fireEvent.pointerDown(rowButtons[3]!, { button: 0, ctrlKey: false })
     expect(onToggleExpand).toHaveBeenCalledOnce()
     expect(onDetail).toHaveBeenCalledOnce()
     expect(onLog).toHaveBeenCalledOnce()

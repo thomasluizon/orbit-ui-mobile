@@ -249,7 +249,7 @@ describe('Hoje date control', () => {
   it.each([['en', en], ['pt-BR', ptBr]] as const)('restores every frequency choice in %s', async (locale, messages) => {
     render(<NextIntlClientProvider locale={locale} messages={messages}><TodayDateControl {...baseProps} /></NextIntlClientProvider>)
     const openFrequencies = async () => {
-      fireEvent.click(screen.getByRole('button', { name: baseProps.moreLabel }))
+      fireEvent.pointerDown(screen.getByRole('button', { name: baseProps.moreLabel }), { button: 0, ctrlKey: false })
       fireEvent.click(await screen.findByRole('menuitem', { name: messages.habits.frequencyFilter }))
     }
     for (const [unit, label] of [
@@ -270,7 +270,7 @@ describe('Hoje date control', () => {
 
   it('keeps frequency choices usable while refresh is disabled', async () => {
     render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} isFetching /></NextIntlClientProvider>)
-    fireEvent.click(screen.getByRole('button', { name: baseProps.moreLabel }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: baseProps.moreLabel }), { button: 0, ctrlKey: false })
     expect(await screen.findByRole('menuitem', { name: baseProps.refreshLabel })).toBeDisabled()
     fireEvent.click(screen.getByRole('menuitem', { name: en.habits.frequencyFilter }))
     fireEvent.click(screen.getByRole('menuitemcheckbox', { name: en.habits.filter.weekly }))
@@ -345,7 +345,7 @@ describe('Hoje date control', () => {
   it('connects the list options button to its menu', async () => {
     render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} /></NextIntlClientProvider>)
     const button = screen.getByRole('button', { name: 'List options' })
-    fireEvent.click(button)
+    fireEvent.pointerDown(button, { button: 0, ctrlKey: false })
     expect(await screen.findByRole('menu')).toBeInTheDocument()
     expect(button).toHaveAttribute('aria-expanded', 'true')
     expect(document.getElementById(button.getAttribute('aria-controls')!)).toHaveAttribute('role', 'menu')
@@ -586,19 +586,19 @@ describe('Hoje date control', () => {
     ]))
   })
 
-  it('opens the four list actions from the header row', () => {
+  it('opens the four list actions from the header row', async () => {
     render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} /></NextIntlClientProvider>)
-    fireEvent.click(screen.getByRole('button', { name: 'List options' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'List options' }), { button: 0, ctrlKey: false })
 
     expect(screen.getByTestId('adjustments-icon')).toBeInTheDocument()
-    expect(screen.getByRole('menu', { name: 'List options' })).toBeInTheDocument()
+    expect(await screen.findByRole('menu', { name: 'List options' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Select' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Collapse all' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Refresh' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Show completed' })).toBeInTheDocument()
   })
 
-  it('renders the Portuguese list options labels and glyphs in both list states', () => {
+  it('renders the Portuguese list options labels and glyphs in both list states', async () => {
     const labels = ptBr.habits
     expect([labels.collapseAll, labels.expandAll]).toEqual(['Recolher tudo', 'Expandir tudo'])
     const controlProps = {
@@ -610,8 +610,8 @@ describe('Hoje date control', () => {
       completedLabel: labels.showCompleted,
     }
     const { rerender } = render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...controlProps} /></NextIntlClientProvider>)
-    fireEvent.click(screen.getByRole('button', { name: labels.listOptions }))
-    const menu = screen.getByRole('menu', { name: labels.listOptions })
+    fireEvent.pointerDown(screen.getByRole('button', { name: labels.listOptions }), { button: 0, ctrlKey: false })
+    const menu = await screen.findByRole('menu', { name: labels.listOptions })
     expect(menu).toBeInTheDocument()
     for (const [label, glyph] of [
       [ptBr.common.select, 'checkbox'],
