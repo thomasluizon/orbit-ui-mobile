@@ -3358,8 +3358,8 @@
     "fetchSubHabits": "Failed to fetch sub-habits",
     "offline": "Reconnect to the internet and try again.",
     "api": {
-      "accountChanged": "Your account changed. Reload this page before trying again.",
-      "appUpdated": "Orbit was updated. Reload the page and try again. Unsaved text will be lost.",
+      "accountChanged": "Your account changed. Reload to continue.",
+      "appUpdated": "Orbit updated. Reload to continue. Unsaved changes will be lost.",
       "edgeBlocked": "This request was blocked before it reached Orbit. Change the text and try again.",
       "edgeBlockedRetry": "This request was blocked before it reached Orbit. Try again in a few minutes. If it keeps happening, contact support.",
       "habitLimit": "You can have up to {limit, number} active habits. Sub-habits don't count. Delete a habit to add another.",
