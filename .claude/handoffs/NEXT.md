@@ -18,7 +18,7 @@ Finish the spec: every requested production fix, the Astra overhaul, the owner r
 
 ## In flight
 
-UI `main` is `928d1813`, API `main` is `32774987`, landing `main` is `0d5e3df4`. Production and staging web `e397f2a2`; staging and production API `63ab0e32`; production landing `0d5e3df4`; Android Open `1.3.94` (`153`) available. Open pull requests: UI `#2021`, `#2020`, `#2019`, `#2018`, `#2016`, `#2015`, `#1989` (relay docs), `#1984`; API `#898`; landing none.
+UI `main` is `928d1813`, API `main` is `32774987`, landing `main` is `0d5e3df4`. Production and staging web `e397f2a2`; staging and production API `63ab0e32`; production landing `0d5e3df4`; Android Open `1.3.94` (`153`) available. Open pull requests: UI `#2022`, `#2021`, `#2020`, `#2019`, `#2018`, `#2016`, `#2015`, `#1989` (relay docs), `#1984`; API `#898`; landing none.
 
 | Item | Disposition |
 | --- | --- |
@@ -29,7 +29,7 @@ UI `main` is `928d1813`, API `main` is `32774987`, landing `main` is `0d5e3df4`.
 | `ui#2019` (`#1645`), `ui#2020` (`#1638`) | Diffs read and accepted; their first runs failed only Guards on the old merge ref, so both were reopened on base `928d1813`. Merge on green, then close `#1645` (read Sentry `ORBIT-MOBILE-6` for `1.3.94` events) and `#1638`. |
 | `ui#2018` (`#1561` step 1) | Diff read and accepted, but its run fails `pullfrog-approval`, `Tool and Hook Tests` and `iOS simulator compile` besides Guards. Read the job logs (`joblogs.sh`) and the Pullfrog threads, then a review round at `default` with every red in one commit; push with a fresh base so Guards reruns. |
 | `ui#2021` (`#1620` proactive half) | Read the diff (both clients send the parts context to `/api/ai/proactive/current`), CI and review, merge, web release and the next Android Open; then `#1662`'s live proof. |
-| `#26` worker (`ticket-26-eval-live-environment`, `deep`) | Running at relay. Read its PR: token refresh through `ORBIT_EVAL_CREDENTIALS_FILE`, `evals/astra/fixtures/reset.mjs`, the composition fixture definitions, a windowed run. Then the live gate on staging in daily windows with the three eval accounts in `eval-env/accounts.json`; decide the grader credential (no OpenAI API key of the run's own exists). |
+| `ui#2022` (`#26` live eval environment) | Opened by the `deep` worker (249 Astra tests, type checks and dependency integrity pass; assumptions: UTC rolling history windows, disconnected calendar substitutes, preserved metadata and proposal expiry). Read its diff and body: token refresh through `ORBIT_EVAL_CREDENTIALS_FILE`, `evals/astra/fixtures/reset.mjs`, the composition fixture definitions, a windowed run. Then the live gate on staging in daily windows with the three eval accounts in `eval-env/accounts.json`; decide the grader credential (no OpenAI API key of the run's own exists). |
 | `#1623` | Started (spec bullet): finish the Astra capture, the pt-BR demo account and captures, the compositions in `thomas-brain/orbit/google-play/`, copy approval, Play Console upload. |
 | Web releases | After `ui#2016`, `ui#1984`, `ui#2015`, `ui#2019`, `ui#2020` and `ui#2021` merge: staging web, then production web (`-f sha=<40 hex>` copied from `gh api`). |
 | `#1658`, `#1660`, `#1641`, `#1624`, `#1602`, `#1610`, `#1595`, `#1586`, remaining rows | As the spec's Current state and order say. |
