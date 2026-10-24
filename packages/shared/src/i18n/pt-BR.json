@@ -3359,7 +3359,7 @@
     "offline": "Reconecte-se à internet e tente de novo.",
     "api": {
       "accountChanged": "Sua conta mudou. Recarregue para continuar.",
-      "appUpdated": "Orbit atualizado. Recarregue para continuar. Você perde o que não salvou.",
+      "appUpdated": "O Orbit foi atualizado. Recarregue para continuar.",
       "edgeBlocked": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Mude o texto e tente de novo.",
       "edgeBlockedRetry": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Tente de novo em alguns minutos. Se continuar acontecendo, fale com o suporte.",
       "habitLimit": "Você pode ter até {limit, number} hábitos ativos. Sub-hábitos não contam. Apague um hábito para adicionar outro.",
