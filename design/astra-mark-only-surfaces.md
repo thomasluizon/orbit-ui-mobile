@@ -26,7 +26,6 @@ centred inside its 48px target and neighbouring row content inset by at least 8p
 | Surface | Web owner | Android owner |
 |---|---|---|
 | Suggestion strip, conversation entry, submit and retry | `components/shell/composer.tsx` | `components/shell/composer.tsx` |
-| Wide sidebar conversation entry, including onboarding | `components/shell/shell-wide.tsx`, `components/shell/destination-shell.tsx`, `components/onboarding/onboarding-flow.tsx` | Shell composer entry |
 | Habit-detail disclosure registration | `app/(app)/layout.tsx` | `app/_layout.tsx` |
 | Complete ideas and live requests | `components/chat/prompt-idea.tsx` | `components/chat/prompt-idea.tsx` |
 | Deferred complete idea above the composer | `components/chat/conversation.tsx` | `components/chat/conversation.tsx` |
@@ -44,8 +43,8 @@ centred inside its 48px target and neighbouring row content inset by at least 8p
 | Onboarding import action | `app/(app)/layout.tsx` | `components/onboarding/astra-import-prompt.tsx` |
 | Setup checklist conversation prompt | `components/today/setup-checklist-card.tsx` | `components/today/setup-checklist-card.tsx` |
 
-Owner paths are relative to each app. The sidebar's `SidebarAstraRow` owns only its glyph color;
-`SidebarItem` retains paired resting and hover text colors for named destinations. Follow-up requests
+Owner paths are relative to each app. Named navigation rows are inventoried separately below.
+`SidebarAstraRow` and `SidebarItem` share row geometry, label styling and interaction treatment. Follow-up requests
 use the shared lean-answer selection, at most two small ghost pills and one dispatch per selection.
 Their useful labels and accessible names each contain the action once, with no appended brand name.
 
@@ -81,7 +80,31 @@ component cases reject visible action labels. Composer cases reject a send mark 
 adjacent targets on both platforms. Native geometry covers the Fold cover width. Hermetic
 Chromium composition covers the shell allocation, compact disclosure and mark-only actions.
 The hermetic layout specs resolve these controls from their current localized action names.
-They preserve their viewport, spacing, fit, focus and clearance assertions; mark-only entries assert
-that the brand word is absent beside the glyph. A wide habit-detail opener is scoped to its pinned
-composer because the sidebar and composer intentionally share the same accessible action name.
+They preserve their viewport, spacing, fit, focus and clearance assertions; mark-only actions and composer entries assert
+that the brand word is absent beside the glyph. The wide sidebar retains visible `Astra` text and
+its accessible name once; the composer keeps its contextual conversation-entry name.
 Device font rendering and production web and Android Open rollout remain release verification.
+
+
+## Named Astra navigation entries
+
+The copy authority for #1687 is the owner's instruction: "i asked you to top putting Consultar
+astra string everywhere / what you did: removed the astra word from the app, including on the
+sidebar / fix this". Navigation rows keep `Astra` wherever sibling destinations show their names.
+Only actions drop appended branding. This corrects the #1668 inventory's inclusion of the sidebar
+among mark-only controls. It does not add an Astra route or Android tab.
+
+| Entry | Web owner | Android owner | Visible name and behavior |
+|---|---|---|---|
+| Wide sidebar conversation row | `components/shell/shell-wide.tsx`, `components/shell/destination-shell.tsx` | No sidebar; composer owns the front door | `nav.astra` supplies `Astra` beside the glyph, with sibling row treatment; opens the conversation layer |
+| Onboarding shell conversation row | `components/onboarding/onboarding-flow.tsx`, rendered by `components/shell/shell-wide.tsx` | No sidebar | Uses the same `nav.astra` row; selects the existing Astra onboarding entry |
+| Command palette | `components/shell/destination-shell.tsx`, `components/command/command-groups.tsx` | No command palette | No Astra conversation entry exists; the supplied destinations are Hoje, Calendário, Progresso, Perfil, Todos and Geral |
+| Perfil settings navigation | `app/(app)/profile/_components/profile-settings-content.tsx` | `app/(tabs)/profile/_components/profile-settings-content.tsx` | `PROFILE_SUBMENUS` in `packages/shared/src/utils/profile-navigation.ts` supplies `profile.groups.astra`, already `Astra` in both locales; opens `/profile/astra` settings with the neutral `MessageCircle` icon |
+| Compact Hoje and habit-detail conversation entry | `components/shell/composer.tsx` | `components/shell/composer.tsx` | Retains the mark-only composer control and contextual accessible name; this input accessory has no sibling destination names |
+
+Android component coverage mounts Perfil with both locale catalogs, checks its visible and
+accessible `Astra` name and follows the row to `/profile/astra`. Web navigation coverage checks
+one named sidebar row before the four destinations and its retained open/close behavior.
+Chromium coverage checks visible text, matching sibling row geometry, hover, press, focus and
+active styling in both locales and appearances. Action-copy and composer tests retain the
+#1668 exclusions.

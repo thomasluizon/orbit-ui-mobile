@@ -318,21 +318,25 @@ export function Screen(){return <button className="${promotion} bg-[var(--bg)] h
   const interactionOwners = [
     { path: "apps/web/components/navigation/bottom-tab-bar.tsx", before: "group rounded-full", after: "group rounded-full hover:bg-[var(--bg-hover)]" },
     { path: "apps/web/components/shell/shell-wide.tsx", owner: "SidebarItem", before: "? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'", after: "? 'text-[var(--primary-soft)]'" },
+    { path: "apps/web/components/shell/shell-wide.tsx", owner: "SidebarAstraRow", before: "? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'", after: "? 'text-[var(--primary-soft)]'" },
     { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "styles.tab,", after: "styles.tab, hoveredId === item.id && { backgroundColor: tokens.bgHover }," },
   ]
   for (const [index, owner] of interactionOwners.entries()) {
     const label = owner.owner ? `${owner.path} ${owner.owner}` : owner.path
+    let violation = owner
     if (owner.owner) {
       const source = readFileSync(join(dirname(toolPath("check-surface-scope.mjs")), "..", owner.path), "utf8")
-      const ownerSource = source.slice(source.indexOf(`function ${owner.owner}(`), source.indexOf("function SidebarAstraRow("))
+      const start = source.indexOf(`function ${owner.owner}(`)
+      const ownerSource = source.slice(start, source.indexOf("\nfunction ", start + 1))
       T(`paired text fixture belongs to ${label}`, ownerSource.split(owner.before).length === 2)
+      violation = { path: owner.path, before: ownerSource, after: ownerSource.replace(owner.before, owner.after) }
     }
     const paired = stageProducerRepository(`paired-owner-${index}`, [owner.path])
     check("check-surface-scope.mjs", `accepts paired resting and interaction colors in ${label}`, ["--root", paired], {
       status: 0,
       stdout: /Surface scope guard passed/,
     })
-    const unpaired = stageProducerRepository(`unpaired-owner-${index}`, [owner.path], owner)
+    const unpaired = stageProducerRepository(`unpaired-owner-${index}`, [owner.path], violation)
     check("check-surface-scope.mjs", `rejects retained resting text on the interaction surface in ${label}`, ["--root", unpaired], {
       status: 1,
       stderr: /--primary-soft on hover, dark ratio 3\.385, TEXT floor 4\.50/,

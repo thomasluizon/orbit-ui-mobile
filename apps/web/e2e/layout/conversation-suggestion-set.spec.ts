@@ -1,3 +1,4 @@
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { openTodayListOptions } from './hydration-guard'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
@@ -36,7 +37,7 @@ for (const width of [412, 1280]) {
           await page.getByRole('menu', { name: words.habits.listOptions, exact: true })
             .getByRole('menuitem', { name: words.habits.refresh, exact: true }).click()
           await expect(page.locator(`[data-habit-title="${habitTitle}"]`)).toBeVisible()
-          await page.getByRole('button', { name: words.todayAstra.openConversation, exact: true }).click()
+          await getShellConversationEntry(page, width, words).click()
           const conversation = page.locator('[data-shell-conversation="overlay"]')
           await expect(conversation).toBeVisible()
           const empty = conversation.getByRole('feed', { name: words.chat.title })

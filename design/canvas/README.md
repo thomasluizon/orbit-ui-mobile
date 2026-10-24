@@ -13,9 +13,10 @@ Description shares the name field's leading edge; disclosure labels retain their
 When / Quando retains its question and manual picker, with In your own words / Escreva do seu jeito
 as the phrase placeholder. The picker owns its selected value without a second ordinary readback.
 
-Actual request actions and conversation entries show the canonical Astra glyph beside visible
-Astra wording within the same target. Context-specific requests reuse Ask Astra / Consultar Astra;
-reschedule entry uses Reschedule with Astra / Reagendar com a Astra. Follow-up and proactive targets
+Under #1668 and #1687, actual request actions and composer entries retain the canonical Astra
+glyph without appended branding. Named navigation rows retain visible `Astra` wording beside
+their glyph, matching sibling destinations. The wide sidebar and onboarding shell use this
+row; Perfil keeps its named settings row and neutral icon. Follow-up and proactive targets
 retain their specific text. Complete ideas send; slotted ideas only prepare a draft. Composer entry
 and send remain distinct, with input width and wrapping preserving every action at enlarged text.
 The composer reserves its text-action target when allowance disables that action, including when

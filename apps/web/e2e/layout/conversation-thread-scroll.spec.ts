@@ -1,3 +1,4 @@
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import pt from '@orbit/shared/i18n/pt-BR.json'
@@ -64,7 +65,7 @@ for (const width of [600, 1352]) {
       await page.mouse.wheel(0, -800)
       await expect.poll(() => feed.evaluate(element => element.scrollHeight - element.clientHeight - element.scrollTop)).toBeGreaterThan(100)
       await conversation.getByRole('button', { name: pt.common.closeConversation, exact: true }).click()
-      await page.getByRole('button', { name: pt.todayAstra.openConversation, exact: true }).click()
+      await getShellConversationEntry(page, width, pt).click()
       await expect.poll(() => feed.evaluate(element => element.scrollHeight - element.clientHeight - element.scrollTop)).toBeLessThanOrEqual(1)
     })
   })

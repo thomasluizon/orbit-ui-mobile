@@ -78,20 +78,19 @@ function SidebarItem({
       <span className={collapsed ? 'sr-only' : 'min-w-0 truncate'}>{item.label}</span>
     </>
   )
-  const className = [
-    'flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
-    'transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] active:scale-[0.96]',
-    active
-      ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'
-      : 'text-[var(--fg-3)]',
-    'orbit-hover-text hover:bg-[var(--bg-hover)] touch-manipulation',
-  ].join(' ')
 
   return (
     <a
       href={item.href}
       data-habit-create-navigation={onSelect ? '' : undefined}
-      className={className}
+      className={[
+        'flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
+        'transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] active:scale-[0.96]',
+        active
+          ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'
+          : 'text-[var(--fg-3)]',
+        'orbit-hover-text hover:bg-[var(--bg-hover)] touch-manipulation',
+      ].join(' ')}
       aria-current={current ? 'page' : undefined}
       title={collapsed ? item.label : undefined}
       onClick={(event) => {
@@ -114,14 +113,21 @@ function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
   return <button
             type="button"
             data-shell-astra-row=""
-            aria-label={row.label}
             aria-expanded={open}
             aria-controls={open ? conversationId : undefined}
             title={collapsed ? row.label : undefined}
             onClick={row.onOpen}
-            className={`orbit-sidebar-astra orbit-hover-text flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-start text-[14px] font-medium transition-[background-color,color,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96]`}
+            className={[
+              'flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
+              'transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] active:scale-[0.96]',
+              open
+                ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'
+                : 'text-[var(--fg-3)]',
+              'orbit-hover-text hover:bg-[var(--bg-hover)] touch-manipulation',
+            ].join(' ')}
           >
             <AstraGlyph size={20} color={open ? 'var(--primary)' : 'var(--fg-3)'} />
+            <span translate="no" className={collapsed ? 'sr-only' : 'min-w-0 truncate'}>{row.label}</span>
           </button>
 }
 

@@ -1,3 +1,4 @@
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { openTodayListOptions } from './hydration-guard'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
@@ -30,7 +31,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBR]] as const) {
         await page.getByRole('menu', { name: messages.habits.listOptions, exact: true })
           .getByRole('menuitem', { name: messages.habits.refresh }).click()
         await expect(page.locator('[data-habit-title="Reading"]')).toBeVisible()
-        await page.getByRole('button', { name: messages.todayAstra.openConversation, exact: true }).click()
+        await getShellConversationEntry(page, width, messages).click()
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         await expect(conversation).toBeVisible()
         const strip = conversation.getByRole('group', { name: messages.shell.composer.suggestionsLabel, exact: true })

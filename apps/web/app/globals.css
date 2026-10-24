@@ -2415,10 +2415,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 }
 
-.orbit-sidebar-astra:active {
-  --primary-soft: var(--primary-text);
-}
-
 .orbit-today-date-return:active:not([aria-disabled="true"]) {
   --fg-3: var(--fg-2);
 }
