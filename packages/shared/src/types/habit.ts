@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { utf16Length } from '../validation/utf16-length'
 import { MAX_BULK_OPERATION_SIZE } from '../api/constants'
 import { habitLogSchema } from './calendar'
 import { MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH, MAX_TAGS_PER_HABIT } from '../validation/constants'
@@ -305,8 +306,8 @@ export type NormalizedHabit = z.infer<typeof normalizedHabitSchema>
 
 export const createHabitRequestSchema = z.object({
   startDate: z.iso.date().optional(),
-  title: z.string().max(MAX_HABIT_TITLE_LENGTH),
-  description: z.string().max(MAX_HABIT_DESCRIPTION_LENGTH).optional(),
+  title: z.string().check(utf16Length('max', MAX_HABIT_TITLE_LENGTH)),
+  description: z.string().check(utf16Length('max', MAX_HABIT_DESCRIPTION_LENGTH)).optional(),
   emoji: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.optional(),
   frequencyQuantity: z.number().optional(),
@@ -357,8 +358,8 @@ export const updateHabitRequestSchema = z.object({
   parentId: z.uuid().nullish(),
   clearParent: z.boolean().nullish(),
   startDate: z.iso.date().optional(),
-  title: z.string().max(MAX_HABIT_TITLE_LENGTH),
-  description: z.string().max(MAX_HABIT_DESCRIPTION_LENGTH).optional(),
+  title: z.string().check(utf16Length('max', MAX_HABIT_TITLE_LENGTH)),
+  description: z.string().check(utf16Length('max', MAX_HABIT_DESCRIPTION_LENGTH)).optional(),
   emoji: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.optional(),
   frequencyQuantity: z.number().optional(),

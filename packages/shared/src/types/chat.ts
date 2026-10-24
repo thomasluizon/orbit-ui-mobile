@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { utf16Length } from '../validation/utf16-length'
 import { habitRankingCardSchema } from './habit-ranking'
 export { habitRankingCardSchema, habitRankingResponseSchema, type HabitRankingCard, type HabitRankingResponse } from './habit-ranking'
 import { proactiveItemSchema } from './proactive'
@@ -75,7 +76,7 @@ export type ActionStatus = z.infer<typeof actionStatusSchema>
 
 const quickActionSchema = z.object({
   label: z.string(),
-  value: z.string().min(1),
+  value: z.string().check(utf16Length('min', 1)),
   description: z.string().nullable().optional(),
 })
 
@@ -431,14 +432,14 @@ export const accountRowsCardSchema = z.object({
 export type AccountRowsCard = z.infer<typeof accountRowsCardSchema>
 
 const astraBlockOptionSchema = z.object({
-  id: z.string().min(1),
-  label: z.string().min(1).max(20),
-  description: z.string().max(24).nullable().optional(),
+  id: z.string().check(utf16Length('min', 1)),
+  label: z.string().check(utf16Length('min', 1)).check(utf16Length('max', 20)),
+  description: z.string().check(utf16Length('max', 24)).nullable().optional(),
 })
 
 export const choiceBlockSchema = z.object({
   blockId: z.uuid(),
-  question: z.string().min(1).max(120),
+  question: z.string().check(utf16Length('min', 1)).check(utf16Length('max', 120)),
   options: z.array(astraBlockOptionSchema).min(2).max(4),
   multiSelect: z.boolean(),
   allowFreeText: z.boolean(),
@@ -447,10 +448,10 @@ export const choiceBlockSchema = z.object({
 
 export const pickListBlockSchema = z.object({
   blockId: z.uuid(),
-  title: z.string().min(1),
+  title: z.string().check(utf16Length('min', 1)),
   items: z.array(z.object({
-    id: z.string().min(1),
-    label: z.string().min(1),
+    id: z.string().check(utf16Length('min', 1)),
+    label: z.string().check(utf16Length('min', 1)),
     detail: z.string().nullable(),
   })).min(1).max(10),
   action: z.enum(['create_habits', 'log_habits', 'skip_habits']),
@@ -459,8 +460,8 @@ export const pickListBlockSchema = z.object({
 
 export const blockAnswerSchema = z.object({
   blockId: z.uuid(),
-  selectedIds: z.array(z.string().min(1)),
-  freeText: z.string().max(500).optional(),
+  selectedIds: z.array(z.string().check(utf16Length('min', 1))),
+  freeText: z.string().check(utf16Length('max', 500)).optional(),
 })
 
 export type ChoiceBlock = z.infer<typeof choiceBlockSchema>
@@ -529,9 +530,9 @@ export type ReadBlockResponse = z.infer<typeof readBlockResponseSchema>
 export type ReadBlockPart = Exclude<ChatBlockPart, { kind: 'choice' | 'pickList' }>
 
 export const chatFollowUpSchema = z.object({
-  label: z.string().trim().min(1).max(40).regex(/^[^\r\n]+$/),
-  question: z.string().trim().min(1).max(240).regex(/^[^\r\n]+$/),
-  context: z.string().max(500).nullish(),
+  label: z.string().trim().check(utf16Length('min', 1)).check(utf16Length('max', 40)).regex(/^[^\r\n]+$/),
+  question: z.string().trim().check(utf16Length('min', 1)).check(utf16Length('max', 240)).regex(/^[^\r\n]+$/),
+  context: z.string().check(utf16Length('max', 500)).nullish(),
   target: z.enum(['habits', 'goals', 'progress', 'today', 'calendar', 'notifications', 'tags', 'checklistTemplates', 'apiKeys', 'profile']).nullish(),
   queryId: z.uuid().nullish(),
 })

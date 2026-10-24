@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { utf16Length } from './utf16-length'
 import { frequencyUnitSchema, MAX_HABIT_INTERVAL_WEEKS, scheduledReminderTimeRequestSchema, checklistItemSchema } from '../types/habit'
 import {
   MAX_CHECKLIST_ITEM_LENGTH,
@@ -19,16 +20,16 @@ export const habitFormSchema = z.object({
   title: z
     .string()
     .trim()
-    .min(1, 'habits.form.titleRequired')
-    .max(MAX_HABIT_TITLE_LENGTH, 'habits.form.titleTooLong'),
+    .check(utf16Length('min', 1, 'habits.form.titleRequired'))
+    .check(utf16Length('max', MAX_HABIT_TITLE_LENGTH, 'habits.form.titleTooLong')),
   description: z
     .string()
-    .max(MAX_HABIT_DESCRIPTION_LENGTH, 'habits.form.descriptionTooLong')
+    .check(utf16Length('max', MAX_HABIT_DESCRIPTION_LENGTH, 'habits.form.descriptionTooLong'))
     .optional()
     .default(''),
   emoji: z
     .string()
-    .max(MAX_HABIT_EMOJI_LENGTH, 'habits.form.emojiTooLong')
+    .check(utf16Length('max', MAX_HABIT_EMOJI_LENGTH, 'habits.form.emojiTooLong'))
     .optional()
     .default(''),
   frequencyUnit: frequencyUnitSchema.nullable().optional(),

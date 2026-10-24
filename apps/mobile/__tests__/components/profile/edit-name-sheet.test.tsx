@@ -153,10 +153,10 @@ describe('EditNameSheet', () => {
     expect(mockPerformQueuedApiMutation).not.toHaveBeenCalled()
   })
 
-  it('shows the tooLong error and skips the mutation for a 51-character name', async () => {
+  it.each(['a'.repeat(51), 'a'.repeat(49) + '😀'])('shows the tooLong error and skips the mutation for %s', async (name) => {
     const { tree } = await renderSheet()
 
-    await typeAndSave(tree, 'a'.repeat(51))
+    await typeAndSave(tree, name)
 
     expect(findByTestId(tree, 'edit-name-error').props.children).toBe(
       'profile.editName.tooLong',
@@ -164,22 +164,22 @@ describe('EditNameSheet', () => {
     expect(mockPerformQueuedApiMutation).not.toHaveBeenCalled()
   })
 
-  it('queues the trimmed name, patches optimistically, and closes on success', async () => {
+  it.each(['Ana Clara', 'a'.repeat(48) + '😀'])('queues the trimmed name, patches optimistically, and closes on success: %s', async (name) => {
     mockPerformQueuedApiMutation.mockResolvedValue(undefined)
     const { tree, onClose } = await renderSheet()
 
-    await typeAndSave(tree, '  Ana Clara  ')
+    await typeAndSave(tree, `  ${name}  `)
 
     expect(mockPerformQueuedApiMutation).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'setName',
         scope: 'profile',
         method: 'PUT',
-        payload: { name: 'Ana Clara' },
+        payload: { name },
         dedupeKey: 'profile-name',
       }),
     )
-    expect(mockPatchProfile).toHaveBeenCalledWith({ name: 'Ana Clara' })
+    expect(mockPatchProfile).toHaveBeenCalledWith({ name })
     expect(onClose).toHaveBeenCalled()
   })
 
