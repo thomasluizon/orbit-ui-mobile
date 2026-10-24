@@ -21,6 +21,7 @@ import {
   useBulkDeleteHabits,
   useBulkLogHabits,
   useBulkSkipHabits,
+  useBulkMoveHabitParent,
   useCreateHabit,
   useCreateSubHabit,
   useDeleteHabit,
@@ -163,6 +164,7 @@ const mocks = vi.hoisted(() => {
     cancelQueuedDeleteForUndo: vi.fn(() => Promise.resolve<'cancelled' | 'replayed' | 'dropped' | 'uncertain'>('cancelled')),
     runQueuedMutation: vi.fn(({ queuedResult, queuedResultFactory }: {
       mutation: { type: string }
+      execute: (mutation: { type: string }) => Promise<unknown>
       queuedResult?: unknown
       queuedResultFactory?: (mutationId: string, retained: boolean) => unknown
     }): Promise<unknown> => Promise.resolve(
@@ -3709,4 +3711,24 @@ it('does not attribute another bulk log extension to a cached no-op habit', asyn
   } finally {
     mocks.useRealUIStore = false
   }
+})
+
+describe('useBulkMoveHabitParent', () => {
+  it('sends three selected habits in one queued API execution', async () => {
+    const { apiClient } = await import('@/lib/api-client')
+    const request = { habitIds: [
+      '11111111-1111-4111-8111-111111111111',
+      '22222222-2222-4222-8222-222222222222',
+      '33333333-3333-4333-8333-333333333333',
+    ], parentId: null }
+    const response = { results: request.habitIds.map((habitId, index) => ({ index, habitId, status: 'Success' as const })) }
+    vi.mocked(apiClient).mockResolvedValue(response)
+    mocks.runQueuedMutation.mockImplementationOnce(({ mutation, execute }) => execute(mutation))
+    const mutation = useBulkMoveHabitParent() as unknown as MutationConfig<unknown, typeof request, unknown>
+    expect(await mutation.mutationFn(request)).toEqual(response)
+    expect(apiClient).toHaveBeenCalledExactlyOnceWith(API.habits.bulkParent,
+      { method: 'POST', body: JSON.stringify(request) }, expect.anything())
+    mutation.onSuccess?.(response, request, undefined)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.all })
+  })
 })

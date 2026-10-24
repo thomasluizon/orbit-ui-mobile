@@ -31,6 +31,7 @@ export const chatClientContextSchema = z.object({
   supportsPendingOperationChanges: z.boolean().optional(),
   supportsToolSteps: z.boolean().optional(),
   supportsFollowUps: z.boolean().optional(),
+  supportsFollowUpContext: z.boolean().optional(),
   supportsParts: z.boolean().optional(),
   partKinds: z.array(z.string()).optional(),
   messageOrigin: z.literal('followUp').optional(),
@@ -527,6 +528,16 @@ export const readBlockResponseSchema = z.discriminatedUnion('kind', [
 export type ReadBlockResponse = z.infer<typeof readBlockResponseSchema>
 export type ReadBlockPart = Exclude<ChatBlockPart, { kind: 'choice' | 'pickList' }>
 
+export const chatFollowUpSchema = z.object({
+  label: z.string().trim().min(1).max(40).regex(/^[^\r\n]+$/),
+  question: z.string().trim().min(1).max(240).regex(/^[^\r\n]+$/),
+  context: z.string().max(500).nullish(),
+  target: z.enum(['habits', 'goals', 'progress', 'today', 'calendar', 'notifications', 'tags', 'checklistTemplates', 'apiKeys', 'profile']).nullish(),
+  queryId: z.uuid().nullish(),
+})
+
+export type ChatFollowUp = z.infer<typeof chatFollowUpSchema>
+
 const replyCardFieldsShape = {
   correlationId: z.string().nullable().optional(),
   relatedSurfaces: z.array(z.string()).nullable().optional(),
@@ -540,6 +551,7 @@ const replyCardFieldsShape = {
   recordLists: z.array(recordListCardSchema).nullable().optional(),
   accountRows: accountRowsCardSchema.nullable().optional(),
   followUps: z.array(z.string()).nullable().optional(),
+  followUpContext: z.array(chatFollowUpSchema.nullable().catch(null)).nullish().catch(null),
 }
 
 export const chatMessageSchema = z.object({

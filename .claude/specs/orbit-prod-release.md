@@ -1153,3 +1153,14 @@ Milestone "562 Astra" and every Astra or MCP tool ticket not already in Batch 1.
 - `#33` Record the 7 demo clips and 2 landing videos
 - `#89` Map and migrate every third-party account onto contact@useorbit.org
 - `#311` Recheck the image-size advisories once a fixed version ships
+
+## Astra lean composition gate
+
+The #1617 API producer deploys before #1620's paired consumers, with #1618/#1619 read contracts
+and #24 approval surfaces retained. The consumer releases through the existing `main` production
+workflow. Broad activation of `astra_block_first` waits for #26's passing English and Portuguese
+real-pipeline composition gate, including every family, compound requests, legacy/missing-kind
+clients and block-only final success. Missing or skipped assertions cannot approve rollout.
+Rollback uses the existing API composition flag or capability negotiation, preserving history and
+approval mechanics without changing models, quota or plans. TESTING.md owns harness instructions;
+#26 owns the corpus and assertion implementation.

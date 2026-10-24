@@ -1,32 +1,33 @@
+import { useRef, useState } from 'react'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { getChatFollowUps } from '@orbit/shared/chat'
+import type { ChatMessage } from '@orbit/shared/types/chat'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { ActionRow } from '@/components/ui/action-row'
+import { Button } from '@/components/ui/pill-button'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, View } from 'react-native'
-import { useAppTheme } from '@/lib/use-app-theme'
-import { createTokensV2 } from '@/lib/theme'
+import { ScrollView } from 'react-native'
 
-export function FollowUpChips({ followUps, onSelect }: Readonly<{
+export function FollowUpChips({ followUps, followUpContext, onSelect }: Readonly<{
   followUps: readonly string[]
+  followUpContext?: ChatMessage['followUpContext']
   onSelect: (text: string) => void
 }>) {
   const { t } = useTranslation()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-  if (followUps.length < 2) return null
-  return <View style={{ gap: 8, paddingBottom: SPACING.s12 }}>
-    <Text style={{ color: tokens.fg3, fontSize: 12 }}>{t('chat.followUps.label')}</Text>
-    <View style={{ gap: 8 }}>
-      {followUps.slice(0, 3).map((text) => <Pressable
-        key={text}
-        accessibilityRole="button"
-        accessibilityLabel={`${text}, ${t('nav.astra')}`}
-        onPress={() => onSelect(text)}
-        style={({ pressed }) => ({
-          minHeight: TOUCH_TARGET_MIN, width: '100%', justifyContent: 'center', paddingVertical: SPACING.s12, paddingHorizontal: SPACING.s16, borderRadius: 12, overflow: 'hidden',
-          backgroundColor: pressed ? tokens.bgHover : tokens.bgWell,
-          borderWidth: 1, borderColor: tokens.hairline,
-        })}
-      ><Text style={{ color: tokens.fg2, fontSize: 14, lineHeight: 20, fontFamily: 'Geist_500Medium' }}>{text}</Text><View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.s8, paddingTop: SPACING.s8 }}><AstraGlyph size={16} color={tokens.fg2} /><Text style={{ color: tokens.fg2, fontSize: 14, fontFamily: 'Geist_500Medium' }}>{t('nav.astra')}</Text></View></Pressable>)}
-    </View>
-  </View>
+  const selected = useRef(false)
+  const [submitted, setSubmitted] = useState(false)
+  const chips = getChatFollowUps({ followUps: [...followUps], followUpContext })
+  if (!chips.length) return null
+  return <ScrollView horizontal style={{ width: '100%' }} showsHorizontalScrollIndicator={false} accessibilityLabel={t('chat.followUps.label')}
+    contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.s8, paddingVertical: SPACING.s8, minHeight: TOUCH_TARGET_MIN }}>
+    <ActionRow layout="scroll">{chips.map(item => <Button key={item.question} size="sm" variant="ghost" minimumHeight={TOUCH_TARGET_MIN} retainLeadingIcon
+      leadingIcon={<AstraGlyph size={16} />} accessibleName={`${item.label}, ${t('nav.astra')}`}
+      disabled={submitted} onClick={() => {
+        if (selected.current) return
+        selected.current = true
+        setSubmitted(true)
+        onSelect(item.question)
+      }}>{`${item.label} ${t('nav.astra')}`}</Button>)}
+    </ActionRow>
+  </ScrollView>
 }

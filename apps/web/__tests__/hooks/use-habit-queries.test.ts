@@ -1,3 +1,6 @@
+import { createMoveInventoryFixture } from '@orbit/shared/__tests__/move-inventory-fixtures'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
+import { resetAccountQueries } from '@orbit/shared/query'
 import reminderWire from '@orbit/shared/test-support/fixtures/habit-reminder-wire.json'
 import { createHabitViewItems, createHabitViewScheduleItems } from '@orbit/shared/__tests__/habit-view-fixtures'
 import { buildHabitDateBuckets, canLogHabitOnDate } from '@orbit/shared/utils'
@@ -132,6 +135,63 @@ afterEach(async () => {
 })
 
 describe('useHabits (query hook)', () => {
+  it.each([false, true])('loads every unfiltered inventory page, General=%s', async (isGeneral) => {
+    const fixture = createMoveInventoryFixture('2026-09-12')
+    mockFetch.mockImplementation(async (url: string) => Response.json(fixture.response(url)))
+    const { result } = renderHook(() => useHabits(isGeneral ? { isGeneral: true } : {}), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    const expected = isGeneral ? ['general-one', 'general-two', 'general-child']
+      : fixture.optionIds.filter((id): id is string => id !== null && !id.startsWith('general')).concat(['finished', 'finished-child'])
+    expect(new Set(result.current.data!.habitsById.keys())).toEqual(new Set(expected))
+    const urls = mockFetch.mock.calls.map(([url]) => String(url))
+    expect(urls).toEqual(isGeneral
+      ? ['/api/habits?isGeneral=true&pageSize=200', '/api/habits?isGeneral=true&page=2&pageSize=200']
+      : ['/api/habits?pageSize=200', '/api/habits?page=2&pageSize=200'])
+  })
+
+  it.each([false, true])('never publishes a first inventory page after a later failure, General=%s', async (isGeneral) => {
+    const fixture = createMoveInventoryFixture('2026-09-12')
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes('page=2')) throw new Error('page unavailable')
+      return Response.json(fixture.response(url))
+    })
+    const { result } = renderHook(() => useHabits(isGeneral ? { isGeneral: true } : {}), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.data).toBeUndefined()
+    expect(result.current.error?.message).toBe('page unavailable')
+  })
+
+  it.each([
+    { mode: 'signed-in', isGeneral: false, warm: false }, { mode: 'signed-out', isGeneral: false, warm: false },
+    { mode: 'signed-in', isGeneral: true, warm: true }, { mode: 'signed-out', isGeneral: false, warm: true },
+  ] as const)('rejects a late inventory page across actual $mode reset, General=$isGeneral warm=$warm', async ({ mode, isGeneral, warm }) => {
+    const fixture = createMoveInventoryFixture('2026-09-12')
+    const filters = isGeneral ? { isGeneral: true } : {}
+    let release: () => void = () => {}
+    const held = new Promise<void>((resolve) => { release = resolve })
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes('page=2')) await held
+      return Response.json(fixture.response(url))
+    })
+    const wrapper = createWrapper()
+    if (warm) queryClient.setQueryData(habitKeys.list(filters), (isGeneral ? fixture.general : fixture.scheduled).flat())
+    const { result, rerender } = renderHook(({ enabled }) => useHabits(filters, undefined, { enabled }), { wrapper, initialProps: { enabled: true } })
+    if (warm) act(() => { void queryClient.invalidateQueries({ queryKey: habitKeys.list(filters) }) })
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2))
+    rerender({ enabled: false })
+    await act(async () => { advanceAccountGeneration(); await resetAccountQueries(queryClient, mode) })
+    expect(queryClient.getQueryData(habitKeys.list(filters))).toBeUndefined()
+    expect(queryClient.getQueryData(habitKeys.listTotalCount(filters))).toBeUndefined()
+    await act(async () => { release(); await held })
+    await waitFor(() => expect(result.current.data).toBeUndefined())
+    expect(queryClient.getQueryData(habitKeys.list(filters))).toBeUndefined()
+    expect(queryClient.getQueryData(habitKeys.listTotalCount(filters))).toBeUndefined()
+    mockFetch.mockImplementation(async () => Response.json(makePaginatedResponse([createMockHabitScheduleItem({ id: 'next-account' })])))
+    rerender({ enabled: true })
+    await waitFor(() => expect(result.current.data?.habitsById.has('next-account')).toBe(true))
+    expect(Array.from(result.current.data!.habitsById.keys())).toEqual(['next-account'])
+  })
+
   beforeEach(() => {
     mockFetch.mockReset()
   })

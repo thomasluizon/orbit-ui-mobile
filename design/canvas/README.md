@@ -254,11 +254,11 @@ the existing detail destination. It adds no unsupported period parameters to tha
 
 | Paired web and Android surface | Contract and evidence |
 |---|---|
-| Streaming reply | One selectable text part, with blocks withheld until final delivery. |
+| Streaming reply | Withhold provisional prose and retain pending dots or running tool feedback until final delivery. |
 | Ordered final reply | Text and blocks retain server order with a 16 gap; every registered kind uses the platform registry. |
 | Unsupported or malformed block | The part is skipped while text and valid blocks remain; a fully skipped reply uses its joined text. |
 | Legacy and cached reply | Missing or null parts adapt the joined text and cards in their existing order, including every record list. |
-| Prose and trailing slots | Every text part uses the existing Markdown renderer and code-block copy controls; pending operations, outcomes and follow-ups keep their slots. |
+| Prose and trailing slots | Validated negotiated answers lead with their block or operation surface. Completed trace disclosure follows the answer. Zero to two short follow-up pills use the existing small Button. Markdown retains code-block copying. |
 
 Chromium unit geometry covers the first text offset and scroll position during final replacement.
 Controller tests drive final delivery and conversation resize callbacks on both platforms, retaining
@@ -551,3 +551,18 @@ never a halo, inside the transparent 48px target. Empty checks retain their stat
 `bg-hover`; completed checks layer `bg-hover-opaque` beneath the checkmark. Leaf and parent
 controls retain one 2px focus outline with a 2px outward offset and motion-aware press scale.
 Disabled, read-only and selection-status checks add no interaction paint.
+
+### Lean Astra answer amendment
+
+The active conversation drawing reuses its small ghost Button row for follow-ups and the
+existing neutral Show more disclosure for completed steps. These are the nearest drawn patterns;
+no new token, size, radius, shadow or component framework is introduced. Follow-ups hug their
+labels in one row with the existing 8 gap and an accessible group name, without a visible heading.
+The full contextual question is sent once. The populated composer has no generic suggestion strip;
+the empty state keeps its live starters and Ideas keeps its existing draft flow.
+
+Validated parts retain API order and suppress duplicate legacy cards and prose. Query identity
+suppresses repeated answer blocks. Pending previews keep approve, edit and reject, and later
+terminal results stay with their original preview. Block-only final delivery receives one localized
+completion announcement. Unknown sole blocks recover visibly. Short-text exceptions and the
+complete family policy remain in DESIGN.md; live bilingual composition acceptance belongs to #26.

@@ -1,8 +1,10 @@
 'use client'
 
+import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
+
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 
-import { Fragment, useMemo, useCallback, useEffect, useId, useState, useRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
+import { Fragment, Suspense, useMemo, useCallback, useEffect, useId, useState, useRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
@@ -41,12 +43,9 @@ import {
 } from './habit-list/empty-state'
 import { HabitDrill } from './habit-list/habit-drill'
 import { SearchEmpty } from '@/components/search/search-results'
-import type { MoveParentOption } from './habit-list/move-parent-overlay'
 import {
   buildDragItemsFlat,
-  buildMoveParentOptions,
   groupDragItemsByPanel,
-  validateMoveTarget as computeMoveTargetValidation,
   type DragItem,
   type HabitView,
 } from './habit-list/tree-helpers'
@@ -61,7 +60,6 @@ import {
   useDeleteHabit,
   useDuplicateHabit,
   useReorderHabits,
-  useMoveHabitParent,
 } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
 import { useToday } from '@/app/(app)/today-provider'
@@ -69,7 +67,6 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { addRecentCompletion, getRecentlyCompletedIdsForDate, removeRecentCompletion } from '@orbit/shared/utils/drill-navigation'
-import { useConfig } from '@/hooks/use-config'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import {
   DndContext,
@@ -87,7 +84,8 @@ import {
 } from '@dnd-kit/sortable'
 import { useDragAccessibility } from '@/components/ui/drag-accessibility'
 import { SortableHabitItem } from './habit-list/sortable-habit-item'
-import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
+import type { NormalizedHabit, HabitsFilter, BulkMoveHabitParentResult } from '@orbit/shared/types/habit'
+import type { MoveParentIntent } from './habit-list/move-parent-controller'
 import { useAccountGeneration, useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
@@ -105,8 +103,8 @@ const RescheduleSheet = dynamic(() =>
 const HabitListConfirmDialogs = dynamic(() =>
   import('./habit-list/confirm-dialogs').then((module) => module.HabitListConfirmDialogs),
 )
-const MoveParentOverlay = dynamic(() =>
-  import('./habit-list/move-parent-overlay').then((module) => module.MoveParentOverlay),
+const MoveParentController = dynamic(() =>
+  import('./habit-list/move-parent-controller').then((module) => module.MoveParentController),
 )
 
 function DeferredEditHabitModal(props: Readonly<ComponentProps<typeof EditHabitModal>>) {
@@ -134,10 +132,15 @@ function DeferredConfirmDialogs(
   return open || activated ? <HabitListConfirmDialogs {...props} /> : null
 }
 
-function DeferredMoveParentOverlay(
-  props: Readonly<ComponentProps<typeof MoveParentOverlay>>,
-) {
-  return props.open ? <MoveParentOverlay {...props} /> : null
+function PendingMoveParent({ onClose }: Readonly<{ onClose: () => void }>) {
+  useEffect(() => {
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', cancel)
+    return () => window.removeEventListener('keydown', cancel)
+  }, [onClose])
+  return null
 }
 
 interface HabitListProps {
@@ -147,6 +150,7 @@ interface HabitListProps {
   showCompleted?: boolean
   onShowCompleted?: () => void
   isSelectMode?: boolean
+  onBulkMove?: (habitIds: string[], parentId: string | null) => Promise<BulkMoveHabitParentResult | undefined>
   selectedHabitIds?: Set<string>
   searchQuery?: string
   onClearSearch?: () => void
@@ -172,6 +176,7 @@ function getListViewPanelStyle(view: HabitView, rootCount: number, isDragging: b
 }
 
 export interface HabitListHandle {
+  openBulkMove: () => void
   collapseAll: () => void
   expandAll: () => void
   allCollapsed: boolean
@@ -329,6 +334,7 @@ export function HabitList({
   onShowCompleted,
   isSelectMode = false,
   selectedHabitIds,
+  onBulkMove,
   searchQuery = '',
   onClearSearch,
   filters,
@@ -359,10 +365,6 @@ export function HabitList({
   const deleteHabitMut = useDeleteHabit()
   const duplicateHabitMut = useDuplicateHabit()
   const reorderHabitsMut = useReorderHabits()
-  const moveHabitParentMut = useMoveHabitParent()
-
-  const { config: appConfig } = useConfig()
-  const maxHabitDepth = appConfig.limits.maxHabitDepth
 
   const data = habitsQuery.data
   const habitsById = data?.habitsById ?? EMPTY_HABITS_BY_ID
@@ -748,10 +750,19 @@ export function HabitList({
   } | null>(null)
   const [habitToDuplicate, setHabitToDuplicate] = useAccountScopedState<NormalizedHabit | null>(null)
 
-  const [showMoveParentOverlay, setShowMoveParentOverlay] = useAccountScopedState(false)
-  const [movingHabitId, setMovingHabitId] = useAccountScopedState<string | null>(null)
-  const [selectedMoveParentId, setSelectedMoveParentId] = useAccountScopedState<string | null>(null)
-  const [isMovingParent, setIsMovingParent] = useAccountScopedState(false)
+  const [moveIntent, setMoveIntent] = useAccountScopedState<MoveParentIntent | null>(null)
+  const moveSequence = useRef(0)
+  function openMoveParentPicker(habitId: string) {
+    if (!habitsById.has(habitId)) return
+    setMoveIntent({ key: ++moveSequence.current, accountGeneration, habitId, bulkIds: null, sourceHabits: new Map(habitsById) })
+  }
+  function openBulkMove() {
+    const bulkIds = Array.from(selectedHabitIds ?? [])
+    if (bulkIds.length === 0 || bulkIds.length > MAX_BULK_OPERATION_SIZE || !onBulkMove) return
+    setMoveIntent({ key: ++moveSequence.current, accountGeneration, habitId: null, bulkIds, sourceHabits: new Map(habitsById) })
+  }
+  const closeMoveParentPicker = () => setMoveIntent((current) => current === moveIntent ? null : current)
+
 
   /**
    * The state above drops itself, but a ref carries the previous account's habit ids past an
@@ -767,7 +778,6 @@ export function HabitList({
     promptDataRef.current = null
     autoCollapsedOnDragRef.current = null
   })
-  const movingHabit = movingHabitId ? habitsById.get(movingHabitId) ?? null : null
   const deleteConfirmation = habitToDelete ?? { name: '', descendantCount: 0 }
 
   const surfaceOpen = Boolean(
@@ -779,7 +789,7 @@ export function HabitList({
     deletePending ||
     habitToDuplicate ||
     parentPrompt ||
-    showMoveParentOverlay,
+    moveIntent,
   )
   useEffect(() => {
     onSurfaceOpenChange?.(surfaceOpen)
@@ -972,26 +982,6 @@ export function HabitList({
     }
   }
 
-  function validateMoveTarget(targetParentId: string | null, draggedId: string) {
-    return computeMoveTargetValidation(
-      { habitsById, getChildren, maxHabitDepth, t },
-      targetParentId,
-      draggedId,
-    )
-  }
-
-  const moveParentOptions = ((): MoveParentOption[] => {
-    if (!movingHabitId) return []
-    return buildMoveParentOptions(
-      { topLevelHabits, getChildren, validateMoveTarget, t },
-      movingHabitId,
-    )
-  })()
-
-  const selectedMoveOption = moveParentOptions.find(
-    (option) => option.id === selectedMoveParentId,
-  ) ?? null
-
   const editHabitLockedGeneral = ((): boolean | null => {
     if (!habitToEdit) return null
     if (habitToEdit.parentId) {
@@ -1002,46 +992,6 @@ export function HabitList({
     }
     return null
   })()
-
-  const canSubmitMoveParent =
-    movingHabit !== null &&
-    !isMovingParent &&
-    selectedMoveParentId !== movingHabit.parentId &&
-    selectedMoveOption !== null &&
-    !selectedMoveOption.disabled
-
-  function openMoveParentPicker(habitId: string) {
-    const habit = habitsById.get(habitId)
-    if (!habit) return
-    setMovingHabitId(habitId)
-    setSelectedMoveParentId(habit.parentId)
-    setShowMoveParentOverlay(true)
-  }
-
-  function closeMoveParentPicker() {
-    if (isMovingParent) return
-    setShowMoveParentOverlay(false)
-    setMovingHabitId(null)
-    setSelectedMoveParentId(null)
-  }
-
-  async function confirmMoveParent() {
-    if (!movingHabitId || !canSubmitMoveParent) return
-
-    setIsMovingParent(true)
-    try {
-      await moveHabitParentMut.mutateAsync({
-        habitId: movingHabitId,
-        data: { parentId: selectedMoveParentId },
-      })
-      setShowMoveParentOverlay(false)
-      setMovingHabitId(null)
-      setSelectedMoveParentId(null)
-    } catch {
-    } finally {
-      setIsMovingParent(false)
-    }
-  }
 
   function openDetail(habit: NormalizedHabit) {
     router.push(`/habits/${habit.id}?date=${selectedDateStr}&from=today`)
@@ -1199,6 +1149,7 @@ export function HabitList({
     markRecentlyCompleted,
     checkAndPromptParentLog,
     settleBulkHabitResolutions,
+    openBulkMove,
   }))
 
   useEffect(() => {
@@ -1335,24 +1286,6 @@ export function HabitList({
     )
   }
 
-  if (habitsQuery.isLoading) {
-    return <HabitListSkeleton />
-  }
-
-  if (habitsQuery.isError && !habitsQuery.data) {
-    return (
-      <HabitListEmptyState
-        title={t('habits.loadError')}
-        description=""
-        actionLabel={t('common.retry')}
-        onAction={() => {
-          void habitsQuery.refetch()
-        }}
-        variant="secondary"
-      />
-    )
-  }
-
   const showAllDone = view === 'today' && !filters.frequencyUnit && !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
     selectedDateStr === todayStr &&
     getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
@@ -1467,8 +1400,13 @@ export function HabitList({
     )
   }
 
-  return (
-    <div
+  function renderList(): React.ReactNode {
+    if (habitsQuery.isLoading) return <HabitListSkeleton />
+    if (habitsQuery.isError && !habitsQuery.data) return <HabitListEmptyState
+      title={t('habits.loadError')} description="" actionLabel={t('common.retry')}
+      onAction={() => { void habitsQuery.refetch() }} variant="secondary" />
+
+    return <div
       ref={setListContainerRef}
       data-habit-list=""
       tabIndex={-1}
@@ -1532,20 +1470,16 @@ export function HabitList({
           (current) => shiftParentPrompt(current, selectedDateStr),
         )}
       />
-
-      <DeferredMoveParentOverlay
-        t={t}
-        open={showMoveParentOverlay}
-        isMoving={isMovingParent}
-        movingHabitTitle={movingHabit?.title ?? null}
-        movingHabitParentId={movingHabit?.parentId ?? null}
-        options={moveParentOptions}
-        selectedMoveParentId={selectedMoveParentId}
-        canSubmit={canSubmitMoveParent}
-        onClose={closeMoveParentPicker}
-        onConfirm={() => void confirmMoveParent()}
-        onSelectOption={setSelectedMoveParentId}
-      />
     </div>
-  )
+  }
+
+  return <>
+    {renderList()}
+    {moveIntent && moveIntent.accountGeneration === accountGeneration ? (
+      <Suspense fallback={<PendingMoveParent onClose={closeMoveParentPicker} />}>
+        <MoveParentController key={moveIntent.key} intent={moveIntent}
+          onBulkMove={onBulkMove} onClose={closeMoveParentPicker} />
+      </Suspense>
+    ) : null}
+  </>
 }

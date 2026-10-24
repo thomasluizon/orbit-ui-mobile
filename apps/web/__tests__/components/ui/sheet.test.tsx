@@ -18,6 +18,7 @@ import { apiKeySchema } from '@orbit/shared/types/api-key'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import en from '@orbit/shared/i18n/en.json'
+import { MoveParentOverlay } from '@/components/habits/habit-list/move-parent-overlay'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { useUIStore } from '@/stores/ui-store'
@@ -74,6 +75,27 @@ const habitMenuActionCases = [
 ] as const
 
 describe('Sheet', () => {
+  it('keeps focus inside the real move dialog without undoing the current-parent scroll', async () => {
+    const top = vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.dataset.currentParent === 'true' ? 640 : 0
+    })
+    const height = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(64)
+    try {
+      render(<MoveParentOverlay t={(key) => key} open isMoving={false} movingHabitTitle="Nested habit"
+        movingHabitParentId="p9" selectedMoveParentId="p9" canSubmit={false}
+        onClose={vi.fn()} onConfirm={vi.fn()} onSelectOption={vi.fn()}
+        options={[{ id: null, label: 'Top level', emoji: null, depth: 0, childCount: 0, disabled: false, reason: null },
+          ...Array.from({ length: 12 }, (_, index) => ({ id: `p${index}`, label: `Parent ${index}`, emoji: null,
+            depth: 0, childCount: 0, disabled: index === 9, reason: index === 9 ? 'Already here' : null }))]} />)
+      const dialog = await screen.findByRole('dialog', { name: 'habits.moveParent.title' })
+      await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true))
+      const scroll = dialog.querySelector<HTMLElement>('[data-slot="move-destinations-scroll"]')!
+      expect(scroll.scrollTop).toBe(576)
+      expect(screen.getByRole('radio', { name: /Parent 9/ })).not.toHaveFocus()
+      expect(scroll.style.scrollBehavior).not.toBe('smooth')
+    } finally { top.mockRestore(); height.mockRestore() }
+  })
+
   it('opens the complete typed title with one press and preserves the underlying sheet', async () => {
     const title = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'
     const onClose = vi.fn()

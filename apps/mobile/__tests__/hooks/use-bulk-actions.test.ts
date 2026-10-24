@@ -10,6 +10,7 @@ const TestRenderer = require('react-test-renderer')
 const bulkDelete = { mutateAsync: vi.fn() }
 const bulkLog = { mutateAsync: vi.fn() }
 const bulkSkip = { mutateAsync: vi.fn() }
+const bulkMove = { mutateAsync: vi.fn() }
 const showToast = vi.fn()
 const VIEWED_DATE = '2026-04-01'
 
@@ -31,6 +32,7 @@ vi.mock('@/hooks/use-habits', () => ({
   useBulkDeleteHabits: () => bulkDelete,
   useBulkLogHabits: () => bulkLog,
   useBulkSkipHabits: () => bulkSkip,
+  useBulkMoveHabitParent: () => bulkMove,
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({
@@ -626,5 +628,37 @@ describe('useBulkActions reversibility boundary', () => {
     expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['h-1'])
     expect(settleBulkHabitResolutions).not.toHaveBeenCalled()
     expect(onSuccess).toHaveBeenCalledOnce()
+  })
+})
+
+describe('bulk move selection settlement', () => {
+  it('moves three habits in one mutation without arming another confirmation', async () => {
+    bulkMove.mutateAsync.mockResolvedValue(bulkSuccess(['a', 'b', 'c']))
+    const { captured, onSuccess, onPartialFailure } = renderBulkActions(new Set(['a', 'b', 'c']))
+    await TestRenderer.act(async () => { await captured.current!.confirmBulkMove(['a', 'b', 'c'], 'parent') })
+    expect(bulkMove.mutateAsync).toHaveBeenCalledExactlyOnceWith({ habitIds: ['a', 'b', 'c'], parentId: 'parent' })
+    expect(onSuccess).toHaveBeenCalledOnce()
+    expect(onPartialFailure).not.toHaveBeenCalled()
+    expect(captured.current!.showBulkDeleteConfirm).toBe(false)
+  })
+
+  it('retains only failed ids and returns the API reasons for an inline retry', async () => {
+    bulkMove.mutateAsync.mockResolvedValue({ results: [
+      { habitId: 'a', status: 'Success' }, { habitId: 'b', status: 'Failed', error: 'Target no longer exists' },
+    ] })
+    const { captured, onSuccess, onPartialFailure } = renderBulkActions(new Set(['a', 'b']))
+    let response: Awaited<ReturnType<ReturnType<typeof useBulkActions>['confirmBulkMove']>>
+    await TestRenderer.act(async () => { response = await captured.current!.confirmBulkMove(['a', 'b'], null) })
+    expect(onPartialFailure).toHaveBeenCalledWith(['b'])
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(response!.results[1]?.error).toBe('Target no longer exists')
+  })
+
+  it('keeps the selection when the request fails', async () => {
+    bulkMove.mutateAsync.mockRejectedValue(new Error('network'))
+    const { captured, onSuccess, onPartialFailure } = renderBulkActions(new Set(['a']))
+    await expect(captured.current!.confirmBulkMove(['a'], null)).rejects.toThrow('network')
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(onPartialFailure).not.toHaveBeenCalled()
   })
 })

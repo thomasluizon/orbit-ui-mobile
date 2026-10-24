@@ -44,45 +44,25 @@ describe('Astra block layout in Chromium', () => {
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([320, 412, 1352])('keeps the first text and scroll offset when streaming becomes ordered parts at %s', async width => {
+  it.each([320, 412, 1352])('withholds provisional prose and retains the scroll offset on final delivery at %s', async width => {
     const message = makeChatPartsLayoutMessage()
     const surface = (streaming: boolean) => <NextIntlClientProvider locale="en" messages={en}>
       <div data-thread style={{ height: 400, overflowY: 'auto', padding: 16 }}>
-        <div style={{ height: 800 }} />
-        <div data-turn><MessageBubble message={message} isStreaming={streaming} /></div>
-        <div style={{ height: 800 }} />
+        <div style={{ height: 800 }} /><div data-turn><MessageBubble message={message} isStreaming={streaming} /></div><div style={{ height: 800 }} />
       </div>
     </NextIntlClientProvider>
     const { container, rerender } = render(surface(true))
+    expect(container.querySelector('[data-bubble-role="ai"]')).toBeNull()
     expect(container.querySelectorAll('section[data-state]')).toHaveLength(0)
-    const firstText = container.querySelector('[data-bubble-role]')
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      await loadAppFonts(page)
       await page.locator('[data-thread]').evaluate(element => { element.scrollTop = 780 })
-      const before = await page.locator('[data-thread]').evaluate(element => ({
-        scroll: element.scrollTop, top: element.querySelector('[data-bubble-role]')!.getBoundingClientRect().top,
-      }))
       rerender(surface(false))
-      expect(container.querySelector('[data-bubble-role]')).toBe(firstText)
-      const finalMarkup = container.querySelector('[data-turn]')!.innerHTML
-      await page.locator('[data-turn]').evaluate((element, markup) => { element.innerHTML = markup }, finalMarkup)
-      const after = await page.locator('[data-thread]').evaluate(element => ({
-        scroll: element.scrollTop, top: element.querySelector('[data-bubble-role]')!.getBoundingClientRect().top,
-        parts: [...element.querySelectorAll('[data-bubble-role], section[data-state]')].map(part => {
-          const rect = part.getBoundingClientRect()
-          return { top: rect.top, bottom: rect.bottom }
-        }),
-        animations: element.getAnimations({ subtree: true }).length,
-      }))
-      expect(after.scroll).toBe(before.scroll)
-      expect(after.top).toBeCloseTo(before.top, 1)
-      expect(after.parts).toHaveLength(4)
-      expect(after.animations).toBe(0)
-      for (let index = 1; index < after.parts.length; index++) {
-        expect(after.parts[index]!.top - after.parts[index - 1]!.bottom).toBeCloseTo(16, 1)
-      }
+      await page.locator('[data-turn]').evaluate((element, markup) => { element.innerHTML = markup }, container.querySelector('[data-turn]')!.innerHTML)
+      expect(await page.locator('[data-thread]').evaluate(element => element.scrollTop)).toBe(780)
+      expect(await page.locator('section[data-state]').count()).toBe(2)
+      expect(await page.locator('[data-turn]').evaluate(element => element.getAnimations({ subtree: true }).length)).toBe(0)
     } finally { await page.close() }
   })
 
@@ -285,7 +265,7 @@ describe('Astra block layout in Chromium', () => {
         return { previousProse: bounds(prose(turns[0]!)!), currentProse: prose(turns[1]!) ? bounds(prose(turns[1]!)!) : null,
           turn: bounds(turns[1]!), blocks: [...turns[1]!.querySelectorAll('section[data-state]')].map(bounds),
           composer: bounds(document.querySelector('[data-composer-input-row]')!),
-          chips: bounds(document.querySelector('[data-composer-root] [role="group"]')!),
+          chips: document.querySelector('[data-composer-root] [role="group"]') !== null,
           prose: [...turns[1]!.querySelectorAll('[data-bubble-role="ai"]')].map(bounds),
         }
       })
@@ -295,7 +275,7 @@ describe('Astra block layout in Chromium', () => {
       for (const [index, block] of geometry.blocks.entries()) {
         expect.soft(block.left).toBeCloseTo(geometry.composer.left, 1)
         expect.soft(block.right).toBeCloseTo(geometry.composer.right, 1)
-        expect.soft(block.right).toBeCloseTo(geometry.chips.right, 1)
+        expect(geometry.chips).toBe(false)
         if (index > 0) expect.soft(block.top - geometry.blocks[index - 1]!.bottom).toBeCloseTo(16, 1)
       }
       if (prose && width === 1352) expect(geometry.prose[0]!.width).toBeLessThanOrEqual(geometry.blocks[0]!.width)

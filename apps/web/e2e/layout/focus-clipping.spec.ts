@@ -161,8 +161,7 @@ for (const width of [412, 1352] as const) {
         await field.fill('Review my habits')
         await conversation.getByRole('button', { name: `${messages.shell.composer.send}, ${messages.habits.form.askDate}`, exact: true }).click()
         await expect(composer).toHaveAttribute('data-state', 'idle')
-        await expect(conversationChips.first()).toBeVisible()
-        await waitForSettledChips(conversationChips)
+        await expect(conversationChips).toHaveCount(0)
         for (let index = 0; index < await controls.count(); index += 1) {
           await expectCompleteTabIndicator(page, controls.nth(index), `conversation composer control ${index}`)
         }
