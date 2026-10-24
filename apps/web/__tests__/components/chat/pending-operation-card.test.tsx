@@ -1128,6 +1128,24 @@ describe('parent choice revision', () => {
     expect(screen.getByRole('button', { name: /approveCount/ })).toBeEnabled()
   })
 
+  it('discards a late choice response after replacement', async () => {
+    const operation = makeParentChoicePreview(1)
+    const settled = vi.fn()
+    let finish!: (response: PendingOperationRevisionResponse) => void
+    revise.mockReturnValue(new Promise<PendingOperationRevisionResponse>(resolve => { finish = resolve }))
+    const props = { onRevise: revise, onStateChange: settled, onConfirmExecute: confirm, onPrepareStepUp: prepareStepUp, onVerifyStepUp: verifyStepUp }
+    const view = render(<PendingOperationCard pendingOperation={operation} {...props} />)
+    fireEvent.click(screen.getAllByRole('radio')[0]!)
+    const replacement = { ...makeParentChoicePreview(1), previewFingerprint: 'replacement' }
+    replacement.items![0]!.fieldOptions![0]!.options = [{ value: null, label: 'No parent' }]
+    view.rerender(<PendingOperationCard pendingOperation={replacement} {...props} />)
+    await act(async () => { finish({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, preview: { ...resolveParentChoicePreview(operation, '0', null), changes: [], changeTargetCount: 1 }, cancelled: false } }) })
+    expect(settled).not.toHaveBeenCalled()
+    expect(screen.queryByRole('radio', { name: 'Post Lunch' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('radio')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: /approveCount/ })).toBeDisabled()
+  })
+
   it('retains unresolved options after a revision failure and replaces them on a new preview', async () => {
     revise.mockResolvedValue({ ok: false, error: 'option_not_offered' })
     const operation = makeParentChoicePreview(1)

@@ -68,7 +68,7 @@ export function makeParentChoicePreview(count = 2): PendingAgentOperation {
     fields: [...item.fields, { entityId: emptyId, entityName: item.entityName,
       field: 'parent_habit_id', oldValue: null, newValue: 'Post Lunch',
       proposedValue: 'Post Lunch', valueType: 'text', isEditable: true }],
-    validationErrors: [{ field: 'parent_habit_id', errorCode: 'parent_choice_required' }],
+    validationErrors: [{ field: 'parent_habit_id', errorCode: 'parent_choice_required', error: 'Choose a parent habit or No parent.' }],
     fieldOptions: [{ field: 'parent_habit_id', required: true, options: [
       { value: '11111111-1111-1111-1111-111111111111', label: 'Post Lunch' },
       { value: '22222222-2222-2222-2222-222222222222', label: 'Post Lunch' },

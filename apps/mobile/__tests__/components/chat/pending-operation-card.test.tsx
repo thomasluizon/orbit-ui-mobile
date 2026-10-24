@@ -1185,6 +1185,25 @@ describe('parent choice revision', () => {
     expect(press(tree, 'chat.operation.approveCount').props.disabled).toBe(false)
   })
 
+  it('discards a late choice response after replacement', async () => {
+    const operation = makeParentChoicePreview(1)
+    const settled = vi.fn()
+    let finish!: (response: PendingOperationRevisionResponse) => void
+    const revise = vi.fn().mockReturnValue(new Promise<PendingOperationRevisionResponse>(resolve => { finish = resolve }))
+    const { tree, handlers } = renderCard(operation, revise)
+    const props = { ...handlers, onRevise: revise, onStateChange: settled }
+    TestRenderer.act(() => { tree.update(<PendingOperationCard pendingOperation={operation} {...props} />) })
+    await TestRenderer.act(async () => { (radios(tree)[0]!.props.onPress as () => void)(); await Promise.resolve() })
+    const replacement = { ...makeParentChoicePreview(1), previewFingerprint: 'replacement' }
+    replacement.items![0]!.fieldOptions![0]!.options = [{ value: null, label: 'No parent' }]
+    TestRenderer.act(() => { tree.update(<PendingOperationCard pendingOperation={replacement} {...props} />) })
+    await TestRenderer.act(async () => { finish({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, preview: { ...resolveParentChoicePreview(operation, '0', null), changes: [], changeTargetCount: 1 }, cancelled: false } }); await Promise.resolve() })
+    expect(settled).not.toHaveBeenCalled()
+    expect(radios(tree)).toHaveLength(1)
+    expect(radios(tree)[0]!.props.accessibilityLabel).toBe('habits.moveParent.toRoot')
+    expect(press(tree, 'chat.operation.approveCount').props.disabled).toBe(true)
+  })
+
   it('retains unresolved options after a revision failure and replaces them on a new preview', async () => {
     const revise = vi.fn().mockResolvedValue({ ok: false, error: 'option_not_offered' })
     const { tree, handlers } = renderCard(makeParentChoicePreview(1), revise)
