@@ -1,7 +1,8 @@
 import { z } from 'zod'
+import { utf16Length } from './utf16-length'
 import { MAX_API_KEY_NAME_LENGTH } from './constants'
 
-const apiKeyNameSchema = z.string().trim().min(1, 'orbitMcp.keyNameRequired').max(MAX_API_KEY_NAME_LENGTH, 'orbitMcp.keyNameMaxLength')
+const apiKeyNameSchema = z.string().trim().check(utf16Length('min', 1, 'orbitMcp.keyNameRequired')).check(utf16Length('max', MAX_API_KEY_NAME_LENGTH, 'orbitMcp.keyNameMaxLength'))
 
 export function getApiKeyNameError(name: string): 'orbitMcp.keyNameRequired' | 'orbitMcp.keyNameMaxLength' | null {
   const result = apiKeyNameSchema.safeParse(name)

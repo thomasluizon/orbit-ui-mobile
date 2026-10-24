@@ -490,9 +490,18 @@ describe('setNameRequestSchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('rejects names longer than 50 characters', () => {
-    const result = setNameRequestSchema.safeParse({ name: 'a'.repeat(51) })
+  it.each(['a'.repeat(51), 'a'.repeat(49) + '😀'])('rejects names over 50 UTF-16 units: %s', (name) => {
+    const result = setNameRequestSchema.safeParse({ name })
     expect(result.success).toBe(false)
+    if (!result.success) expect(result.error.issues[0]).toMatchObject({
+      code: 'too_big', origin: 'string', maximum: 50,
+      message: 'Too big: expected string to have <=50 characters',
+    })
+  })
+
+  it('accepts 48 ASCII letters and an astral character after trimming', () => {
+    const name = 'a'.repeat(48) + '😀'
+    expect(setNameRequestSchema.parse({ name: `  ${name}  ` })).toEqual({ name })
   })
 
   it('accepts a 50-character name after trimming', () => {
