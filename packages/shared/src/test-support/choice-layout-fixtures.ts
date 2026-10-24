@@ -8,7 +8,8 @@ export const choiceLayoutCopy = {
 
 export function makeChoiceLayoutBlock(locale: keyof typeof choiceLayoutCopy, multiSelect: boolean): ChoiceBlock {
   const copy = choiceLayoutCopy[locale]
-  return { ...choiceBlockFixture, multiSelect, options: copy.labels.map((label, index) => ({ id: String(index), label, description: copy.description })) }
+  return { ...choiceBlockFixture, blockId: multiSelect ? '11111111-1111-4111-8111-111111111112' : choiceBlockFixture.blockId,
+    multiSelect, options: copy.labels.map((label, index) => ({ id: String(index), label, description: copy.description })) }
 }
 
 export function makePickListLayoutBlock(locale: keyof typeof choiceLayoutCopy): PickListBlock {

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { utf16Length } from './utf16-length'
 import {
   MAX_GOAL_DESCRIPTION_LENGTH,
   MAX_GOAL_TITLE_LENGTH,
@@ -9,14 +10,14 @@ export const goalFormSchema = z.object({
   title: z
     .string()
     .trim()
-    .min(1, 'goals.form.titleRequired')
-    .max(MAX_GOAL_TITLE_LENGTH, 'goals.form.titleTooLong'),
-  description: z.string().max(MAX_GOAL_DESCRIPTION_LENGTH).optional().default(''),
+    .check(utf16Length('min', 1, 'goals.form.titleRequired'))
+    .check(utf16Length('max', MAX_GOAL_TITLE_LENGTH, 'goals.form.titleTooLong')),
+  description: z.string().check(utf16Length('max', MAX_GOAL_DESCRIPTION_LENGTH)).optional().default(''),
   targetValue: z.number().positive().nullable().optional(),
   unit: z
     .string()
     .trim()
-    .max(MAX_GOAL_UNIT_LENGTH, 'goals.form.unitTooLong')
+    .check(utf16Length('max', MAX_GOAL_UNIT_LENGTH, 'goals.form.unitTooLong'))
     .optional()
     .default(''),
   deadline: z.string().optional().default(''),

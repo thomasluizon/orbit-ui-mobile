@@ -21,6 +21,7 @@ const { bindServerAction } = await import('@/lib/client-action')
 
 const bulkLogHabits = bindServerAction(habitServerActions.bulkLogHabits)
 const bulkSkipHabits = bindServerAction(habitServerActions.bulkSkipHabits)
+const bulkMoveHabitParent = bindServerAction(habitServerActions.bulkMoveHabitParent)
 const createSubHabit = bindServerAction(habitServerActions.createSubHabit)
 const moveHabitParent = bindServerAction(habitServerActions.moveHabitParent)
 const updateChecklist = bindServerAction(habitServerActions.updateChecklist)
@@ -43,6 +44,22 @@ describe('habit server actions (extended)', () => {
     })
   }
 
+
+  it('moves three selected habits through exactly one authenticated HTTP request', async () => {
+    const request = { habitIds: [
+      '11111111-1111-4111-8111-111111111111',
+      '22222222-2222-4222-8222-222222222222',
+      '33333333-3333-4333-8333-333333333333',
+    ], parentId: null }
+    const response = { results: request.habitIds.map((habitId, index) => ({
+      index, habitId, status: 'Success', error: null, errorCode: null,
+    })) }
+    mockApiResponse(response)
+    expect(await bulkMoveHabitParent(request, 'account-a')).toEqual(response)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('/api/habits/bulk/parent'),
+      expect.objectContaining({ method: 'POST', body: JSON.stringify(request) }))
+  })
 
   describe('bulkLogHabits', () => {
     it('sends POST to /api/habits/bulk/log with items', async () => {

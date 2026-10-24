@@ -45,3 +45,12 @@ Visual verification needs a live browser, which the calling session has and this
 ## Output
 
 A triaged list — **[Blocker] / [High] / [Medium] / [Nitpick]** — each with the `file:line` and the DESIGN.md rule it breaks, framed as the problem (not a prescription). End with the one-sentence scene-test verdict.
+
+## Astra composition review
+
+For #1620 consumers, check the active conversation amendment: the interactive answer leads,
+completed steps disclose after the answer, populated composer suggestions are absent and zero to
+two existing small follow-up pills hug their labels without a visible heading. Block-only turns
+complete and announce once. Preserve preview recovery, choice questions and requested code copying.
+#26 owns real-call bilingual composition acceptance after the carrying API and UI releases from
+`main`; a local render or a missing assertion cannot establish rollout readiness.

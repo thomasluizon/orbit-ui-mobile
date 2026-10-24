@@ -8,7 +8,7 @@ import { test } from './upgrade-fixtures'
 
 const clarification = makeClarificationPreviewMessage()
 const reply = chatStreamEventSchema.parse({ type: 'final', response: {
-  aiMessage: 'Podemos revisar a rotina com calma. '.repeat(80), actions: clarification.actions,
+  aiMessage: '', actions: clarification.actions,
 } })
 
 for (const width of [600, 1352]) {
@@ -25,7 +25,7 @@ for (const width of [600, 1352]) {
       test(sameTask ? 'brings all clarification preview actions above the composer after a same-task scroll and answer' : 'brings all clarification preview actions above the composer', async ({ page }) => {
         await page.goto('/?astra=open')
         const conversation = page.locator('[data-shell-conversation="overlay"]')
-        await conversation.locator('[data-composer-input]').fill('Quero criar um hábito')
+        await conversation.locator('[data-composer-input]').fill('Quero criar um hábito. '.repeat(80))
         await conversation.getByRole('button', { name: `${pt.shell.composer.send}, ${pt.habits.form.askDate}`, exact: true }).click()
         const answer = conversation.getByRole('button', { name: pt.habits.clarification.quickAction.daily, exact: true })
         await expect(answer).toBeVisible()
@@ -47,6 +47,12 @@ for (const width of [600, 1352]) {
     }
 
     test('reopens a long retained conversation at the newest content', async ({ page }) => {
+      const retainedReply = chatStreamEventSchema.parse({ type: 'final', response: {
+        aiMessage: 'Podemos revisar a rotina com calma. '.repeat(80), actions: clarification.actions,
+      } })
+      await page.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, route => route.fulfill({
+        contentType: 'text/event-stream', body: `data: ${JSON.stringify(retainedReply)}\n\n`,
+      }))
       await page.goto('/?astra=open')
       const conversation = page.locator('[data-shell-conversation="overlay"]')
       await conversation.locator('[data-composer-input]').fill('Quero criar um hábito')

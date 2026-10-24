@@ -44,7 +44,7 @@ function DateConsultation({ editor, snapshot }: Readonly<{ editor: HabitDateEdit
   </>
 }
 
-function DatedHabitField({ formHelpers }: Readonly<{ formHelpers: HabitFormHelpers }>) {
+function DatedHabitField({ formHelpers, onWeeklyRecurrence, generalLocked }: Readonly<{ formHelpers: HabitFormHelpers; onWeeklyRecurrence: () => void; generalLocked: boolean }>) {
   const t = useTranslations()
   const locale = useLocale()
   const { profile } = useProfile()
@@ -64,7 +64,7 @@ function DatedHabitField({ formHelpers }: Readonly<{ formHelpers: HabitFormHelpe
       cadence: { unit: values.frequencyUnit ?? null, quantity: values.frequencyQuantity ?? null, days: [...new Set(values.days ?? [])].sort((left, right) => left.localeCompare(right)), intervalWeeks: values.intervalWeeks ?? 1 },
       date: values.dueDate ?? '', endDate: values.endDate ?? '', phrase: values.datePhrase ?? '' }
   }
-  const adapter = { context,
+  const adapter = { context, owner: form, generalLocked, applyWeeklyRecurrence: onWeeklyRecurrence,
     write: (field: 'dueDate' | 'datePhrase' | 'dateIssue', value: string) => {
       form.setValue(field, value, { shouldDirty: true })
       form.clearErrors('datePhrase')
@@ -76,7 +76,7 @@ function DatedHabitField({ formHelpers }: Readonly<{ formHelpers: HabitFormHelpe
   const [editor] = useState(() => new HabitDateEditor(adapter))
   const snapshot = useSyncExternalStore(editor.subscribe, editor.getSnapshot, editor.getSnapshot)
   useLayoutEffect(() => { editor.configure(adapter); editor.sync() })
-  useLayoutEffect(() => registerDateValidation(() => editor.validate()), [editor, registerDateValidation])
+  useLayoutEffect(() => registerDateValidation(() => editor.validate(), () => editor.chooseType()), [editor, registerDateValidation])
   useEffect(() => { editor.open(); return () => editor.close() }, [editor])
   useEffect(() => {
     if (!formHelpers.isGeneral && !date && timeZone !== undefined) {
@@ -88,9 +88,9 @@ function DatedHabitField({ formHelpers }: Readonly<{ formHelpers: HabitFormHelpe
   const validationError = form.formState.errors.datePhrase?.message
   const error = issue || validationError
   const accept = () => { editor.accept(); setDateFocusRequest((request) => request + 1) }
-  if (formHelpers.isGeneral) return null
+  if (formHelpers.isGeneral) return issue === 'errors.api.generalMismatchWithParent' ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t(issue)}</p> : null
   return <section data-habit-date-field="" className="flex min-w-0 flex-col gap-4">
-    <Input label={t('habits.form.datePhrase')} placeholder={t('habits.form.datePhrasePlaceholder')} hint={t(type === 'habit' ? 'habits.form.habitDateQuestion' : 'habits.form.taskDateQuestion')} name="datePhrase" autoComplete="off" value={phrase} error={error ? t(error) : undefined} focusRequest={validationError ? formHelpers.validationFocusRequest : undefined} onChange={(value) => editor.setPhrase(value)} />
+    <Input label={t('habits.form.datePhrase')} placeholder={t('habits.form.datePhrasePlaceholder')} hint={t(type === 'habit' ? 'habits.form.habitDateQuestion' : 'habits.form.taskDateQuestion')} name="datePhrase" autoComplete="off" value={phrase} error={error ? t(error) : undefined} focusRequest={validationError && issue !== 'habits.form.recurrenceRequiresHabit' ? formHelpers.validationFocusRequest : undefined} onChange={(value) => editor.setPhrase(value)} />
     <div className="flex min-w-0 flex-col gap-2">
       <span className="form-label">{dateLabel}</span>
       <Proposed keepMounted inset proposed={Boolean(snapshot.candidate)} scope="field" label={t('habits.form.dateProposed')}>
@@ -103,6 +103,6 @@ function DatedHabitField({ formHelpers }: Readonly<{ formHelpers: HabitFormHelpe
   </section>
 }
 
-export function HabitDateField({ formHelpers }: Readonly<{ formHelpers: HabitFormHelpers }>) {
-  return <DatedHabitField formHelpers={formHelpers} />
+export function HabitDateField({ formHelpers, onWeeklyRecurrence, generalLocked }: Readonly<{ formHelpers: HabitFormHelpers; onWeeklyRecurrence: () => void; generalLocked: boolean }>) {
+  return <DatedHabitField generalLocked={generalLocked} formHelpers={formHelpers} onWeeklyRecurrence={onWeeklyRecurrence} />
 }

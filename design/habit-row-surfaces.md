@@ -8,7 +8,7 @@ The owner standard in landing Figma file `aLwwyaY3Dtw1NVesAWsNO7`, rows `7:72` a
 | Habit detail child list | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` | Each child owns its fill and border; the group adds neither |
 | Row completion | `components/habits/habit-check.tsx`, `habit-row-check-circle.tsx`, `habit-row-trailing.tsx` | Same paths | Empty, done, overdue, bad habit slip, partial parent progress, completed parent, disabled and unavailable |
 | Selection mode | `components/habits/habit-row-trailing.tsx` | Same path | Leaf and parent status glyphs retain the shape without becoming another action |
-| Keyboard focus | Habit check target and `app/globals.css` | Habit check target through `components/ui/inset-focus-pressable.tsx` | One inset indicator follows the check perimeter; no glyph indicator |
+| Keyboard focus | Habit check target and `app/globals.css` | Habit check target through `components/ui/inset-focus-pressable.tsx` | One outward-offset indicator follows the 28px check perimeter inside its target |
 
 Independently bordered rows have 4px separation within a Hoje family and 12px between families. Habit detail child rows retain 12px separation. Android spacing belongs to the unpainted wrapper so it does not enlarge the bordered body.
 
@@ -33,7 +33,8 @@ is independent. The glyph is 16px normally and 24px above 130% text, at stroke w
 metadata foreground. Empty checklists add no token, separator or gap. Checklist completion changes
 neither the habit's logged state nor its actions. The primary and selection naming paths reuse
 Checklist and the localized row-progress phrase once; visual metadata is hidden from accessibility. The same content reaches Hoje, Todos,
-Geral, search, inline children, drill lists, detail children and Astra-owned shared rows. Detail
+Geral, search, inline children, drill lists and detail children. Astra habit cards retain their distinct
+owners. Detail
 headers retain `Tarefa única` / `One-time task` or `Hábito` / `Habit` beneath their full-width
 rename heading, matching the full form choices. The row selector derives from the same schedule
 classification and uses the dedicated task caption key. Primary and selection accessible names
@@ -102,3 +103,13 @@ footer entry, selection replacement and return. Markup-only geometry does not pr
 path; frozen production rendering and physical Android acceptance remain separate requirements.
 
 At the narrow inline boundary, supporting type and metadata use the existing full-width footer even at normal text size. This keeps complete type words clear of the trailing controls. Boundary rows and rows with actual intrinsic metadata overflow align controls with the first title line; other normal rows retain whole-row centring.
+
+## Completion feedback shape
+
+Completion hover and press paint only inside the visible 28px radius-12 check, never a halo.
+Leaf completion and parent progress share this shape inside a transparent 48px target. Empty
+checks use `bg-hover` while retaining their 1px status border and readable partial progress;
+completed checks layer `bg-hover-opaque` over their resting neutral fill, beneath the checkmark.
+One 2px focus outline follows the check shape with a 2px outward offset, inside the target.
+Press retains scale 0.96 when motion is enabled and stays still with reduced motion. Disabled,
+read-only and presentational selection checks add no interaction paint.

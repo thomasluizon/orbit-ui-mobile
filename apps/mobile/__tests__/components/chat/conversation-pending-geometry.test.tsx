@@ -149,9 +149,10 @@ it.each([412, 1352])('replaces the native pending line at the same reply origin 
     expect(markPosition.left).toBe(pending!.left)
     expect(pending!.top - markPosition.bottom).toBe(8)
     chat.isTyping = false
-    chat.streamingMessageId = 'reply'
+    chat.streamingMessageId = null
     chat.messages = [...chat.messages, { id: 'reply', role: 'ai', content: 'Start with water', timestamp: new Date() }]
     await act(() => tree.update(<AstraConversation chat={chat} />))
+    expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-pending')).toHaveLength(0)
     const reply = measureSafeArea(tree.toJSON(), host => host.props.accessibilityLabel === 'chat.senderOrbit' ? 'reply' : undefined, { width, height: 915 }).get('reply')
     expect(reply).toBeDefined()
     expect(reply!.left).toBe(pending!.left)

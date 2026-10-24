@@ -134,7 +134,7 @@ it('keeps root available while searching a large destination inventory', () => {
   const inventory = getMoveParentInventory(query([source, target, child, ...siblings]), query([general]))
   expect(inventory.getChildren(target.id)).toEqual([child])
   expect(inventory.getChildren('missing')).toEqual([])
-  const options = buildMoveParentOptions({ ...inventory, t, validateMoveTarget: () => ({ valid: true, reason: null }) }, source.id)
+  const options = buildMoveParentOptions({ ...inventory, maxHabitDepth: 5, t, validateMoveTarget: () => ({ valid: true, reason: null }) }, source.id)
   expect(options.find((option) => option.id === target.id)).toMatchObject({ childCount: 1 })
   expect(options.find((option) => option.id === child.id)).toMatchObject({ depth: 1 })
   const matching = getMoveParentPickerRows(options, 'Nested')

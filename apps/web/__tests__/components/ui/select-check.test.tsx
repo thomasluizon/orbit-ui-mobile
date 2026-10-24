@@ -49,6 +49,23 @@ function CommitRows({
 }
 
 describe('select-check RadioRow group', () => {
+  it('focuses the enabled radio once per validation request', () => {
+    const onChange = vi.fn()
+    const rows = (selected: boolean) => <>
+      <RadioGroup aria-label="Type" focusRequest={1}>
+        <RadioRow label="Task" disabled reason="Locked" />
+        <RadioRow label="Habit" selected={selected} onSelect={onChange} />
+      </RadioGroup>
+      <button>Outside</button>
+    </>
+    const view = render(rows(true))
+    expect(screen.getByRole('radio', { name: 'Habit' })).toHaveFocus()
+    screen.getByRole('button', { name: 'Outside' }).focus()
+    view.rerender(rows(false))
+    expect(screen.getByRole('button', { name: 'Outside' })).toHaveFocus()
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
   it('scrolls expanded personal text without changing or committing the selection', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
@@ -102,6 +119,18 @@ describe('select-check RadioRow group', () => {
     expect(screen.getByRole('radio')).toHaveAccessibleName(disabled
       ? `${label}, Details, 3, Current, Sending`
       : `${label}, Details, 3, Current`)
+  })
+
+  it.each([false, true])('keeps group-disabled reasons at the group when personal=%s', (personal) => {
+    const label = 'A title written by a person'
+    const { container } = render(<RadioRow label={label} textMode={personal ? 'personal' : undefined}
+      meta="3" tag="Current" disabled reasonScope="group" />)
+    expect(screen.getByRole('radio')).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('radio').tabIndex).toBe(-1)
+    expect(screen.queryAllByRole('button')).toHaveLength(personal ? 1 : 0)
+    expect(container.querySelectorAll('[data-slot="list-row-title"]')).toHaveLength(1)
+    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText('Current')).toBeInTheDocument()
   })
 
   it('uses the selected row tint and the empty track ring', () => {

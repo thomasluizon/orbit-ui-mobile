@@ -52,12 +52,16 @@ export function RadioGroup({ children, onCommit, focusRequest, ...props }: Reado
 >) {
   const [items, setItems] = useState<RadioItemState[]>([])
   const elementsRef = useRef(new Map<string, View>())
+  const handledFocusRequest = useRef<number | undefined>(undefined)
   useEffect(() => {
-    if (!focusRequest) return
-    const firstElement = elementsRef.current.values().next().value
-    firstElement?.setNativeProps({ hasTVPreferredFocus: true })
-    if (firstElement) AccessibilityInfo.sendAccessibilityEvent(firstElement, 'focus')
-  }, [focusRequest])
+    if (!focusRequest || focusRequest === handledFocusRequest.current) return
+    const firstEnabled = items.find((item) => !item.disabled)
+    const firstElement = firstEnabled ? elementsRef.current.get(firstEnabled.id) : undefined
+    if (!firstElement) return
+    handledFocusRequest.current = focusRequest
+    firstElement.setNativeProps({ hasTVPreferredFocus: true })
+    AccessibilityInfo.sendAccessibilityEvent(firstElement, 'focus')
+  }, [focusRequest, items])
   const armedRedirectRef = useRef<ArmedRedirect | null>(null)
   const getPreviousFocusTarget = usePreviousFocusTarget()
   const onCommitRef = useRef(onCommit)

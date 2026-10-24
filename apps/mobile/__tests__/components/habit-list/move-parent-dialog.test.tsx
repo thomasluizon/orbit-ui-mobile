@@ -1,3 +1,5 @@
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
@@ -5,10 +7,11 @@ import {
   MoveParentDialog,
   type MoveParentOption,
 } from '@/components/habit-list/move-parent-dialog'
-import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
+import { __resetTestHostConfig, __setScrollToImpl, __setWindowDimensions } from '../../../test-mocks/react-native'
 import { Sheet as SheetDouble } from '@/__tests__/support/sheet-double'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
+import { measureProfileRow } from '../../support/profile-row-geometry'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
@@ -29,6 +32,7 @@ type RenderedNode = {
 }
 
 type RenderedTree = {
+  update: ReturnType<typeof TestRenderer.create>['update']
   root: {
     findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[]
   }
@@ -414,6 +418,111 @@ describe('MoveParentDialog', () => {
   })
 })
 
+
+describe('move picker initial positioning', () => {
+  beforeEach(() => __resetTestHostConfig())
+
+  it.each([false, true])('scrolls once without animation after loading=%s and resets after search', async (loading) => {
+    const scrollTo = vi.fn()
+    __setScrollToImpl(scrollTo)
+    const options = [makeOption({ id: null, label: 'Top level' }),
+      ...Array.from({ length: 12 }, (_, index) => makeOption({ id: `p${index}`, label: `Parent ${index}` }))]
+    const { tree, props } = renderDialog({ options: loading ? [] : options, movingHabitParentId: loading ? undefined : 'p9', inventoryState: loading ? 'loading' : undefined })
+    if (loading) {
+      expect(tree.root.findAll((node) => node.type === 'ScrollView')).toHaveLength(0)
+      await TestRenderer.act(() => tree.update(<MoveParentDialog {...props} options={options} inventoryState={undefined} movingHabitParentId="p9" />))
+    }
+    const layouts = tree.root.findAll((node) => node.type === View && String(node.props.testID).startsWith('move-target-'))
+    await TestRenderer.act(() => {
+      layouts.forEach((row, index) => (row.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { y: index * 64 + 4, height: 60 } } }))
+    })
+    expect(scrollTo).not.toHaveBeenCalled()
+    const scroll = tree.root.findAll((node) => node.type === 'ScrollView' && node.props.testID === 'move-destinations-scroll')[0]!
+    expect(scroll.props.nestedScrollEnabled).toBe(true)
+    await TestRenderer.act(() => {
+      (scroll.props.onLayout as () => void)()
+      expect(scrollTo).not.toHaveBeenCalled()
+      ;(scroll.props.onContentSizeChange as () => void)()
+    })
+    expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 520, animated: false })
+    await TestRenderer.act(() => {
+      (findSearchInputs(tree)[0]!.props.onChangeText as (query: string) => void)('Parent')
+    })
+    expect(scrollTo).toHaveBeenLastCalledWith({ y: 0, animated: false })
+  })
+
+  it('opens root at zero and uses the plural title and inline error region', async () => {
+    const scrollTo = vi.fn()
+    __setScrollToImpl(scrollTo)
+    const { tree } = renderDialog({ movingHabitParentId: null, movingHabitCount: 100, error: '2 habits did not move' })
+    const scroll = tree.root.findAll((node) => node.type === 'ScrollView' && node.props.testID === 'move-destinations-scroll')[0]!
+    await TestRenderer.act(() => { (scroll.props.onLayout as () => void)(); (scroll.props.onContentSizeChange as () => void)() })
+    expect(scrollTo).toHaveBeenCalledWith({ y: 0, animated: false })
+    expect(flattenRenderedText(tree.toJSON())).not.toContain('habits.moveParent.descriptionMany')
+    expect(flattenRenderedText(tree.toJSON())).toContain('2 habits did not move')
+    expect(tree.root.findAll((node) => node.type === 'Sheet')[0]!.props.title).toBe('habits.moveParent.titleMany')
+  })
+})
+
+
+describe('bulk move translated footer styles', () => {
+  it.each([{ locale: 'en', messages: en, expected: 'Move 100 habits' },
+    { locale: 'pt-BR', messages: ptBR, expected: 'Mover 100 hábitos' }])('keeps intrinsic pills for $locale with three digits', ({ messages, expected }) => {
+    const t = (key: string, params?: Record<string, unknown>) => {
+      let value: unknown = messages
+      for (const segment of key.split('.')) value = (value as Record<string, unknown>)[segment]
+      return String(value).replaceAll('{count}', String(params?.count))
+    }
+    const { tree } = renderDialog({ t, movingHabitCount: 100 })
+    expect(tree.root.findAll((node) => node.type === 'Sheet')[0]!.props.title).toBe(expected)
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual([messages.common.cancel, messages.habits.moveParent.confirm])
+    expect(flattenRenderedText(tree.toJSON())).not.toContain(messages === en ? 'Choose where to place the selected habits' : 'Escolha onde colocar os hábitos selecionados')
+    expectSmallSheetActions(tree.root)
+  })
+})
+
+it.each([320, 412])('keeps the empty live region out of native picker spacing at %s', async (width) => {
+  const { tree, props } = renderDialog({ movingHabitCount: 12 })
+  type Host = Parameters<typeof measureProfileRow>[0]
+  function findBody(host: Host): Host | undefined {
+    if (host.type === 'SheetBody') return host
+    return host.children?.filter((child): child is Host => typeof child !== 'string')
+      .map(findBody).find((child) => child !== undefined)
+  }
+  function contentGeometry() {
+    const host = tree.toJSON() as Host
+    const body = findBody(host)!
+    const content = body.children![0] as Host
+    return { content, measured: measureProfileRow(content, width - 48, 1) }
+  }
+  const before = contentGeometry()
+  const withoutStatus = { ...before.content, children: before.content.children!.filter((child) =>
+    typeof child === 'string' || !('accessibilityLiveRegion' in child.props)) }
+  expect(before.measured.height).toBe(measureProfileRow(withoutStatus, width - 48, 1).height)
+  const region = tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityLiveRegion === 'polite')[0]!
+  await TestRenderer.act(() => {
+    tree.update(withFocusProvenance(<MoveParentDialog {...props} error="Some habits did not move. Pick a place and try again." />))
+  })
+  expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityLiveRegion === 'polite')[0]).toBe(region)
+  const after = contentGeometry().measured
+  const beforeRoot = before.measured.controls.find((control) => control.labels.includes('Top level'))!
+  const afterRoot = after.controls.find((control) => control.labels.includes('Top level'))!
+  expect(afterRoot.top).toBe(beforeRoot.top)
+  expect(after.height).toBeGreaterThan(before.measured.height)
+  expect(after.texts.some((text) => text.label === 'Some habits did not move. Pick a place and try again.')).toBe(true)
+})
+
+
+it('clears a picker search after successful confirmation before reopening', async () => {
+  const { tree, props } = renderDialog({ options: Array.from({ length: 12 }, (_, index) => makeOption({ id: `p${index}`, label: `Parent ${index}` })),
+    onConfirm: vi.fn().mockResolvedValue(true) })
+  await TestRenderer.act(() => { (findSearchInputs(tree)[0]!.props.onChangeText as (query: string) => void)('Parent 1') })
+  const confirm = tree.root.findAll((node) => node.props.accessibilityRole === 'button'
+    && typeof node.props.onPress === 'function' && flattenInstanceText(node).includes('habits.moveParent.confirm')).at(-1)!
+  await TestRenderer.act(async () => { (confirm.props.onPress as () => void)(); await Promise.resolve() })
+  expect(props.onClose).toHaveBeenCalledOnce()
+  expect(findSearchInputs(tree)[0]!.props.value).toBe('')
+})
 describe('editor parent picker boundaries', () => {
   it.each([
     { width: 320, fontScale: 1, locale: 'pt-BR', mode: 'dark' },

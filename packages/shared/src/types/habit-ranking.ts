@@ -1,17 +1,18 @@
 import { z } from 'zod'
+import { utf16Length } from '../validation/utf16-length'
 
 const habitIdSchema = z.uuid().refine(value => value !== '00000000-0000-0000-0000-000000000000')
 
 export const habitRankingResponseSchema = z.object({
-  queryId: z.string().min(1),
-  queryToken: z.string().min(1),
-  revision: z.string().min(1),
+  queryId: z.string().check(utf16Length('min', 1)),
+  queryToken: z.string().check(utf16Length('min', 1)),
+  revision: z.string().check(utf16Length('min', 1)),
   query: z.object({
     dateFrom: z.iso.date(),
     dateToExclusive: z.iso.date(),
-    timeZone: z.string().min(1),
+    timeZone: z.string().check(utf16Length('min', 1)),
     metric: z.literal('completion_log_records'),
-    countDefinition: z.string().min(1),
+    countDefinition: z.string().check(utf16Length('min', 1)),
     scope: z.object({
       entityType: z.literal('positive_recurring_habits'),
       includeChildren: z.literal(true),
@@ -36,7 +37,7 @@ export const habitRankingResponseSchema = z.object({
   totalCount: z.number().int().nonnegative(),
   offset: z.number().int().nonnegative(),
   isComplete: z.boolean(),
-  nextCursor: z.string().min(1).nullable(),
+  nextCursor: z.string().check(utf16Length('min', 1)).nullable(),
 }).refine(page => {
   const end = page.offset + page.rows.length
   return page.query.dateFrom < page.query.dateToExclusive

@@ -146,6 +146,7 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
+| #1613 | Habit Create's When field routes the five recurrence-only weekly equivalents to fixed Week 1 for a deliberate dated Habit, retaining its chosen date and source words. Task retains one inline recovery to the existing Habit choice; blocked Submit focuses that group. Choosing Habit overrides an older General draft using the current Task date; inherited General locks retain parent mismatch guidance and block Submit. Manual corrections and reopened drafts win | Local recurrence is separate from calendar interpretation. It adds no summary, proposal, model call or schedule capability. |
 | #1607 | Balanced type choices, compact growing name, description immediately after name, natural-date prompt and canonical Astra identification on real request/entry targets | Explicit form presentation and action attribution order; request, acceptance, draft and save owners remain unchanged. |
 | #1619 focused totals and comparisons | A supplied number, unit and resolved window; two comparison windows, their values and supplied delta, without relative percentages for a zero baseline | A read answers its requested metric and dates. |
 | #1619 history and recovery | Dated rows retain zero values, signed paging and exact-query refresh; stale and partial reads use one compact state | Snapshot display stays separate from current action eligibility. |
@@ -253,11 +254,11 @@ the existing detail destination. It adds no unsupported period parameters to tha
 
 | Paired web and Android surface | Contract and evidence |
 |---|---|
-| Streaming reply | One selectable text part, with blocks withheld until final delivery. |
+| Streaming reply | Withhold provisional prose and retain pending dots or running tool feedback until final delivery. |
 | Ordered final reply | Text and blocks retain server order with a 16 gap; every registered kind uses the platform registry. |
 | Unsupported or malformed block | The part is skipped while text and valid blocks remain; a fully skipped reply uses its joined text. |
 | Legacy and cached reply | Missing or null parts adapt the joined text and cards in their existing order, including every record list. |
-| Prose and trailing slots | Every text part uses the existing Markdown renderer and code-block copy controls; pending operations, outcomes and follow-ups keep their slots. |
+| Prose and trailing slots | Validated negotiated answers lead with their block or operation surface. Completed trace disclosure follows the answer. Zero to two short follow-up pills use the existing small Button. Markdown retains code-block copying. |
 
 Chromium unit geometry covers the first text offset and scroll position during final replacement.
 Controller tests drive final delivery and conversation resize callbacks on both platforms, retaining
@@ -544,3 +545,24 @@ destination is covered explicitly. A hermetic Chromium Vitest composition counts
 at 412, 1024 and 1352 in English and Brazilian Portuguese for check-in, returning, loading, loaded,
 error, free-plan and absent states. Native component tests cover semantics and two-line prose;
 Android font rendering remains a device-verification boundary.
+
+Habit completion feedback in `Orbit Hoje.dc.html` paints only the visible 28px radius-12 check,
+never a halo, inside the transparent 48px target. Empty checks retain their status border over
+`bg-hover`; completed checks layer `bg-hover-opaque` beneath the checkmark. Leaf and parent
+controls retain one 2px focus outline with a 2px outward offset and motion-aware press scale.
+Disabled, read-only and selection-status checks add no interaction paint.
+
+### Lean Astra answer amendment
+
+The active conversation drawing reuses its small ghost Button row for follow-ups and the
+existing neutral Show more disclosure for completed steps. These are the nearest drawn patterns;
+no new token, size, radius, shadow or component framework is introduced. Follow-ups hug their
+labels in one row with the existing 8 gap and an accessible group name, without a visible heading.
+The full contextual question is sent once. The populated composer has no generic suggestion strip;
+the empty state keeps its live starters and Ideas keeps its existing draft flow.
+
+Validated parts retain API order and suppress duplicate legacy cards and prose. Query identity
+suppresses repeated answer blocks. Pending previews keep approve, edit and reject, and later
+terminal results stay with their original preview. Block-only final delivery receives one localized
+completion announcement. Unknown sole blocks recover visibly. Short-text exceptions and the
+complete family policy remain in DESIGN.md; live bilingual composition acceptance belongs to #26.

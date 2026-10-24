@@ -7,8 +7,9 @@ import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Input } from '@/components/ui/input'
 import { Loader2 } from '@/components/ui/icons'
+import { CheckCircle } from '@/components/habits/habit-row-check-circle'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { expectOneFieldIndicator, inspectControlAccentRings, inspectFocusedControlRings as inspectFocusedRing, readFieldIndicators, settleFocusAnimations } from '@/e2e/layout/focus-indicators'
+import { expectOneFieldIndicator, inspectControlAccentRings, inspectFocusedControlRings as inspectFocusedRing, readFieldIndicators, readOutlineVisibility, settleFocusAnimations } from '@/e2e/layout/focus-indicators'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
 
 describe('field indicator readers in Chromium', () => {
@@ -28,6 +29,29 @@ describe('field indicator readers in Chromium', () => {
   })
 
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each(['none', 'active'] as const)('measures the check child outline and rejects clipping and missing paint with forced colors %s', async (forcedColors) => {
+    const { container } = render(<CheckCircle state="empty" onToggle={() => {}} disabled={false} ariaLabel="Log reading" />)
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet}
+        :root { ${Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([property, value]) => `${property}: ${value};`).join(' ')} }
+        body { padding: 16px; }
+      </style>${container.innerHTML}`)
+      await page.emulateMedia({ forcedColors })
+      await page.keyboard.press('Tab')
+      const control = page.getByRole('button', { name: 'Log reading', exact: true })
+      expect(await readOutlineVisibility(control)).toEqual({ width: 2, offset: 2, visible: true, clippedBy: [] })
+      const glyph = control.locator('[data-habit-check]')
+      await glyph.evaluate(element => { element.parentElement!.style.overflow = 'hidden' })
+      expect((await readOutlineVisibility(control)).clippedBy).not.toHaveLength(0)
+      await glyph.evaluate(element => { element.parentElement!.style.overflow = 'visible' })
+      await page.addStyleTag({ content: '[data-habit-row-control="check"]:focus-visible [data-habit-check] { outline: none !important; }' })
+      expect(await readOutlineVisibility(control)).toMatchObject({ visible: false })
+    } finally {
+      await page.close()
+    }
+  })
 
   it('preserves the neutral outline on the real Today Astra control class', async () => {
     const page = await browser.newPage()

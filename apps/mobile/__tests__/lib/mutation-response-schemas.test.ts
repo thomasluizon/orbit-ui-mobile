@@ -66,6 +66,7 @@ describe('mutation response schema registry', () => {
       'bulkDeleteHabits',
       'bulkLogHabits',
       'bulkSkipHabits',
+      'bulkMoveHabitParent',
     ] as const) {
       expect(getMutationResponseSchema(type)).toBeDefined()
     }

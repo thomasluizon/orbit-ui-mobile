@@ -1,24 +1,33 @@
 'use client'
 
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { getChatFollowUps } from '@orbit/shared/chat'
+import type { ChatMessage } from '@orbit/shared/types/chat'
+import { ActionRow } from '@/components/ui/action-row'
+import { Button } from '@/components/ui/pill-button'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 
-export function FollowUpChips({ followUps, onSelect }: Readonly<{
+export function FollowUpChips({ followUps, followUpContext, onSelect }: Readonly<{
   followUps: readonly string[]
+  followUpContext?: ChatMessage['followUpContext']
   onSelect: (text: string) => void
 }>) {
   const t = useTranslations()
-  if (followUps.length < 2) return null
-  return <div aria-label={t('chat.followUps.label')} role="group" className="flex min-w-0 flex-col gap-[8px] pb-3">
-    <span className="text-xs text-[var(--fg-3)]">{t('chat.followUps.label')}</span>
-    <div className="flex min-w-0 flex-col gap-[8px]">
-      {followUps.slice(0, 3).map((text) => <button
-        key={text}
-        type="button"
-        onClick={() => onSelect(text)}
-        aria-label={`${text}, ${t('nav.astra')}`}
-        className="min-h-[var(--touch-min)] w-full min-w-0 max-w-full rounded-[12px] bg-[var(--bg-well)] px-4 py-3 text-start text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
-      ><span className="block whitespace-normal leading-[1.4] [overflow-wrap:anywhere]">{text}</span><span className="mt-2 flex items-center gap-2" translate="no"><AstraGlyph size={16} />{t('nav.astra')}</span></button>)}
-    </div>
+  const selected = useRef(false)
+  const [submitted, setSubmitted] = useState(false)
+  const chips = getChatFollowUps({ followUps: [...followUps], followUpContext })
+  if (!chips.length) return null
+  return <div aria-label={t('chat.followUps.label')} role="group" className="flex w-full min-w-0 gap-2 overflow-x-auto py-2">
+    <ActionRow layout="scroll">{chips.map(item => <Button key={item.question} size="sm" variant="ghost" minimumHeight={TOUCH_TARGET_MIN} retainLeadingIcon
+      leadingIcon={<AstraGlyph size={16} />} accessibleName={`${item.label}, ${t('nav.astra')}`}
+      disabled={submitted} onClick={() => {
+        if (selected.current) return
+        selected.current = true
+        setSubmitted(true)
+        onSelect(item.question)
+      }}>{`${item.label} ${t('nav.astra')}`}</Button>)}
+    </ActionRow>
   </div>
 }

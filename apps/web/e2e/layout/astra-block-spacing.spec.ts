@@ -49,19 +49,22 @@ for (const width of [412, 600, 1352]) {
               return { turn: bounds(article), previous: bounds(article.previousElementSibling!),
                 avatar: avatar ? bounds(avatar) : null, prose: prose ? bounds(prose) : null, blocks: [...article.querySelectorAll('section[data-state]')].map(bounds),
                 composer: bounds(document.querySelector('[data-shell-conversation] [data-composer-input-row]')!),
-                chips: bounds(document.querySelector('[data-shell-conversation] [data-composer-root] [role="group"]')!),
+                chips: document.querySelector('[data-shell-conversation] [data-composer-root] [role="group"]') !== null,
               }
             })
             expect(geometry.turn.top - geometry.previous.bottom).toBeCloseTo(16, 1)
             expect(geometry.avatar).not.toBeNull()
             expect(geometry.avatar!.left).toBeCloseTo(geometry.composer.left, 1)
-            expect(geometry.blocks[0]!.top - (geometry.prose?.bottom ?? geometry.avatar!.bottom)).toBeCloseTo(withProse ? 16 : 8, 1)
+            const operationFirst = scenario.kind !== 'lists and metrics'
+            const leadingProse = withProse && !operationFirst
+            expect(geometry.blocks[0]!.top - (leadingProse ? geometry.prose!.bottom : geometry.avatar!.bottom)).toBeCloseTo(leadingProse ? 16 : 8, 1)
+            if (withProse && operationFirst) expect(geometry.prose!.top - geometry.blocks.at(-1)!.bottom).toBeCloseTo(16, 1)
             for (const [index, block] of geometry.blocks.entries()) {
               expect(block.left).toBeCloseTo(geometry.composer.left, 1)
               expect(block.right).toBeCloseTo(geometry.composer.right, 1)
-              expect(block.right).toBeCloseTo(geometry.chips.right, 1)
               if (index > 0) expect(block.top - geometry.blocks[index - 1]!.bottom).toBeCloseTo(16, 1)
             }
+            expect(geometry.chips).toBe(false)
           }
         })
       })

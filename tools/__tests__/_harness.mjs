@@ -331,6 +331,7 @@ if (Array.isArray(match.responseSequence) && match.sequenceFile) {
 if (match.removePath) rmSync(match.removePath, { recursive: true, force: true })
 if (match.argvFile) writeFileSync(match.argvFile, JSON.stringify(argv))
 if (match.stdinFile) writeFileSync(match.stdinFile, readFileSync(0, "utf8"))
+if (match.delayMs) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, match.delayMs)
 if (Array.isArray(match.stdoutSequence) && match.sequenceFile) {
   const index = existsSync(match.sequenceFile) ? Number(readFileSync(match.sequenceFile, "utf8")) : 0
   const selected = match.stdoutSequence[Math.min(index, match.stdoutSequence.length - 1)]

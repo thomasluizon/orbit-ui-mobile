@@ -613,7 +613,13 @@
       "noSearchResults": "Nenhum hábito corresponde à busca",
       "invalidSelf": "Não dá para mover para dentro de si mesmo",
       "invalidDescendant": "Não dá para mover para dentro de um sub-hábito dele",
-      "invalidDepth": "Passaria do limite de profundidade ({max})"
+      "invalidDepth": "Passaria do limite de profundidade ({max})",
+      "titleMany": "Mover {count} hábito | Mover {count} hábitos",
+      "invalidForSome": "Alguns hábitos selecionados não podem ficar aqui",
+      "invalidCurrentParent": "Este hábito já está aqui",
+      "invalidCurrentParentMany": "Os hábitos selecionados já estão aqui",
+      "noDestinations": "Não há outro lugar para colocar esses hábitos",
+      "errorPartial": "Alguns hábitos não foram movidos. Escolha um lugar e tente de novo."
     },
     "actions": {
       "more": "Mais ações",
@@ -675,7 +681,9 @@
       "partialFailure": "Não foi possível atualizar {count} linha selecionada. | Não foi possível atualizar {count} linhas selecionadas.",
       "retryFailed": "Tentar de novo",
       "offlineFailure": "Nada mudou porque seu aparelho está sem conexão.",
-      "connectionRefreshed": "A conexão caiu. A lista foi atualizada."
+      "connectionRefreshed": "A conexão caiu. A lista foi atualizada.",
+      "move": "Mover selecionados",
+      "moveLimit": "Selecione até {limit, number} hábitos para mover de uma vez."
     },
     "skipHabit": "Pular",
     "frequency": {
@@ -767,6 +775,7 @@
       "datePhrase": "Quando",
       "taskDateQuestion": "Quando você quer fazer isso?",
       "habitDateQuestion": "Quando você quer começar?",
+      "recurrenceRequiresHabit": "Para repetir, escolha Hábito.",
       "datePhraseUnresolved": "Não consegui identificar a data. Escolha no calendário.",
       "dateInvalid": "Essa data não existe. Escolha outra.",
       "dateBudgetReached": "A Astra chegou ao limite de hoje. Escolha a data no calendário.",
@@ -1272,6 +1281,8 @@
     }
   },
   "chat": {
+    "operationUpdated": "Veja o resultado atualizado acima.",
+    "replyReady": "Resposta pronta.",
     "unreadableReply": "Não foi possível mostrar a resposta. Pergunte de novo.",
     "ranking": {
       "title": "Ranking de hábitos",

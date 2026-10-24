@@ -38,6 +38,30 @@ import {
 } from '../utils/habit-emoji-options'
 
 describe('habit form helpers', () => {
+  it.each([false, true])('routes weekly recurrence through cadence ownership with General lock %s', (lockedGeneral) => {
+    const values = normalizeHabitFormData({ itemType: 'habit', title: 'Read', description: 'Retain this', dueDate: '2026-10-20', endDate: '2026-12-01', dueTime: '08:00', frequencyUnit: 'Month', frequencyQuantity: 3, intervalWeeks: 4, days: ['Monday'], isFlexible: true })
+    let ownership = { cadence: true, dueTime: true }
+    const controller = createHabitFormController({ action: undefined, atLimit: true, lockedGeneral, target: {
+      getOwnership: () => ownership,
+      setOwnership: (next) => { ownership = next },
+      updateProposal: () => {},
+      setOneTime: () => {}, setFlexible: () => {}, setGeneral: () => {}, toggleDay: () => {},
+      setRecurring: () => { values.isFlexible = false },
+      setField: (field, value) => { Object.assign(values, { [field]: value }) },
+    } })
+    controller.setWeeklyRecurrence()
+    expect(values).toMatchObject({ title: 'Read', description: 'Retain this', dueDate: '2026-10-20', endDate: '2026-12-01', dueTime: '08:00' })
+    if (lockedGeneral) {
+      expect(values).toMatchObject({ frequencyUnit: 'Month', frequencyQuantity: 3, intervalWeeks: 4, days: ['Monday'], isFlexible: true })
+      expect(ownership.cadence).toBe(true)
+    } else {
+      expect(values).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, intervalWeeks: 1, days: [], isFlexible: false })
+      expect(ownership).toEqual({ cadence: false, dueTime: true })
+      expect(buildCreateHabitRequest(values, [], [], [], [])).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-20', endDate: '2026-12-01' })
+      expect(buildHabitUnderstandingSentence([], [], false, 'Week', 1, '', 'en', (key) => key)).toBe('habits.form.understoodEveryWeek')
+    }
+  })
+
   it.each([
     ['2026-08-20', '2026-08-20'],
     ['2026-08-28', '2026-08-28'],

@@ -2,10 +2,12 @@
 
 import { SPACING } from '@orbit/shared/theme'
 
-
-import { useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Home, Search } from '@/components/ui/icons'
-import { getMoveParentPickerRows } from '@orbit/shared/utils'
+import { plural } from '@/lib/plural'
+import { getMoveParentRowAvailability, getMoveParentPickerRows, getMoveParentScrollOffset, type MoveParentPickerProps, type MoveParentRowProps } from '@orbit/shared/utils/move-parent'
+import { ErrorState } from '@/components/ui/error-state'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
@@ -13,24 +15,12 @@ import { ActionRow } from '@/components/ui/action-row'
 import { RadioGroup } from '@/components/ui/radio-row'
 import { RadioRow } from '@/components/ui/select-check'
 
-import type { MoveParentOption } from '@orbit/shared/utils'
-export type { MoveParentOption } from '@orbit/shared/utils'
+export type { MoveParentOption } from '@orbit/shared/utils/move-parent'
 
-interface MoveParentOverlayProps {
-  selectionOnly?: boolean
-  inventoryState?: 'loading' | 'error'
-  onRetryInventory?: () => void
+interface MoveParentOverlayProps extends MoveParentPickerProps {
   t: (key: string, params?: Record<string, string | number | Date>) => string
   open: boolean
   isMoving: boolean
-  movingHabitTitle: string | null
-  movingHabitParentId: string | null | undefined
-  options: MoveParentOption[]
-  selectedMoveParentId: string | null | undefined
-  canSubmit: boolean
-  onClose: () => void
-  onConfirm: () => void
-  onSelectOption: (optionId: string | null) => void
 }
 
 const eyebrowStyle = {
@@ -49,23 +39,15 @@ function MoveTargetRow({
   isCurrentParent,
   currentLabel,
   onSelect,
-}: Readonly<{
-  option: MoveParentOption
-  selected: boolean
-  isCurrentParent: boolean
-  currentLabel: string
-  onSelect: (optionId: string | null) => void
-}>) {
-  const availability = option.disabled
-    ? { disabled: true as const, reason: option.reason ?? currentLabel }
-    : { disabled: false as const }
+}: Readonly<MoveParentRowProps>) {
+  const availability = getMoveParentRowAvailability(option, currentLabel)
 
   return (
     <RadioRow
       label={option.label}
       textMode={option.id === null ? undefined : 'personal'}
       description={undefined}
-      selected={selected}
+      selected={!option.disabled && selected}
       {...availability}
       depth={option.depth}
       meta={option.childCount > 0 ? String(option.childCount) : undefined}
@@ -78,28 +60,29 @@ function MoveTargetRow({
   )
 }
 
-/** Move-parent picker overlay (web). Presentational — the parent HabitList owns
- *  the move state and supplies the validated option list plus handlers. */
-function MoveInventoryStatus({ state, t, onRetry }: Readonly<{ state?: 'loading' | 'error'; t: MoveParentOverlayProps['t']; onRetry?: () => void }>) {
-  if (!state) return null
-  return <div role="status"><p>{t(state === 'loading' ? 'common.loading' : 'habits.loadError')}</p>{state === 'error' ? <PillButton variant="ghost" size="sm" onClick={onRetry}>{t('common.retry')}</PillButton> : null}</div>
-}
-
-function MoveParentActions({ selectionOnly, t, isMoving, canSubmit, onClose, onConfirm }: Readonly<Pick<MoveParentOverlayProps, 'selectionOnly' | 't' | 'isMoving' | 'canSubmit' | 'onConfirm'> & { onClose: () => void }>) {
-  if (selectionOnly) return null
-  return <ActionRow><PillButton size="sm" variant="ghost" disabled={isMoving} onClick={onClose}>{t('common.cancel')}</PillButton><PillButton size="sm" disabled={!canSubmit} loading={isMoving} onClick={onConfirm}>{t('habits.moveParent.confirm')}</PillButton></ActionRow>
+function MoveInventoryStatus({ state, onRetry, t, selectionOnly }: Readonly<{
+  selectionOnly: boolean; state: MoveParentPickerProps['inventoryState']; onRetry: MoveParentPickerProps['onRetryInventory']; t: MoveParentOverlayProps['t']
+}>) {
+  if (state === 'loading' && selectionOnly) return <div role="status"><p>{t('common.loading')}</p></div>
+  if (state === 'loading') return <Skeleton variant="habit-row" label={t('common.loading')} />
+  return <>
+    {state ? <ErrorState message={t(selectionOnly ? 'habits.loadError' : 'errors.fetchHabits')}
+      action={<PillButton size="sm" variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>} /> : null}
+  </>
 }
 
 export function MoveParentOverlay({
   selectionOnly = false,
-  inventoryState,
-  onRetryInventory,
   t,
   open,
   isMoving,
   movingHabitTitle,
   movingHabitParentId,
+  movingHabitCount,
+  error,
   options,
+  inventoryState,
+  onRetryInventory,
   selectedMoveParentId,
   canSubmit,
   onClose,
@@ -107,25 +90,63 @@ export function MoveParentOverlay({
   onSelectOption,
 }: Readonly<MoveParentOverlayProps>) {
   const [searchQuery, setSearchQuery] = useState('')
+  const hasPositionedRef = useRef(false)
+  useEffect(() => { if (!open || inventoryState) hasPositionedRef.current = false }, [open, inventoryState])
+  const title = selectionOnly ? t('habits.form.parentHabit') : movingHabitCount === undefined ? t('habits.moveParent.title')
+    : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
+  async function confirmMove() {
+    if (await onConfirm() === true) {
+      closeSheet(finishClose)
+    }
+  }
+
+  function finishClose() {
+    setSearchQuery('')
+    onClose()
+  }
   const { sheetRef, closeSheet } = useSheetHost()
+  const focusRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const positionOptions = useCallback((element: HTMLDivElement | null) => {
+    scrollRef.current = element
+    if (!element || hasPositionedRef.current) return
+    const current = element.querySelector<HTMLElement>('[data-current-parent="true"]')
+    const previous = current?.previousElementSibling as HTMLElement | null
+    element.scrollTop = getMoveParentScrollOffset(current ? { y: current.offsetTop, height: current.offsetHeight } : null, previous?.offsetHeight ?? 0)
+    hasPositionedRef.current = true
+  }, [])
 
-  const { rootOption, showSearch, treeRows, isSearchEmpty } = getMoveParentPickerRows(options, searchQuery)
+  const { rootOption, showSearch, treeRows, isSearchEmpty } = useMemo(
+    () => getMoveParentPickerRows(options, searchQuery), [options, searchQuery],
+  )
 
+  if (!open) return null
 
   return (
-    open ? (<Sheet
+    <Sheet
       ref={sheetRef}
+      virtualizedBody
+      boundedBody
+      initialFocus={focusRef}
       open
-      onClose={isMoving ? undefined : () => {
-        setSearchQuery('')
-        onClose()
-      }}
-      title={t(selectionOnly ? 'habits.form.parentHabit' : 'habits.moveParent.title')}
-      actions={selectionOnly ? undefined : <MoveParentActions selectionOnly={false} t={t} isMoving={isMoving} canSubmit={canSubmit} onClose={() => closeSheet()} onConfirm={onConfirm} />}
+      onClose={isMoving ? undefined : finishClose}
+      title={title}
+      actions={selectionOnly ? undefined :
+        <ActionRow>
+          <PillButton size="sm" variant="ghost" disabled={isMoving} onClick={() => closeSheet()}>
+            {t('common.cancel')}
+          </PillButton>
+          <PillButton size="sm" disabled={!canSubmit} loading={isMoving} onClick={() => void confirmMove()}>
+            {t('habits.moveParent.confirm')}
+          </PillButton>
+        </ActionRow>
+      }
     >
-      <div className="flex flex-col" style={{ gap: 8 }}>
-        <MoveInventoryStatus state={inventoryState} t={t} onRetry={onRetryInventory} />
-        {!selectionOnly && movingHabitTitle ? (
+      <div ref={focusRef} tabIndex={-1} className="flex flex-col min-h-0" style={{ gap: 8 }}>
+        <MoveInventoryStatus selectionOnly={selectionOnly} state={inventoryState} onRetry={onRetryInventory} t={t} />
+        {inventoryState !== 'loading' && inventoryState !== 'error' ? <>
+
+        {!selectionOnly && movingHabitCount === undefined && movingHabitTitle ? (
           <p className="text-sm text-[var(--fg-3)]">
             {t('habits.moveParent.description', { name: movingHabitTitle })}
           </p>
@@ -134,7 +155,10 @@ export function MoveParentOverlay({
           <Input
             label={t('habits.moveParent.searchPlaceholder')}
             value={searchQuery}
-            onChange={setSearchQuery}
+            onChange={(query) => {
+              setSearchQuery(query)
+              if (scrollRef.current) scrollRef.current.scrollTop = 0
+            }}
             placeholder={t('habits.moveParent.searchPlaceholder')}
             trailing={<Search size={20} strokeWidth={1.8} color="var(--fg-3)" />}
           />
@@ -146,7 +170,7 @@ export function MoveParentOverlay({
 
         <RadioGroup
           aria-label={t('habits.moveParent.destinations')}
-          className="flex flex-col"
+          className="flex flex-col min-h-0"
           style={{ gap: 4 }}
         >
           {rootOption && (
@@ -159,18 +183,25 @@ export function MoveParentOverlay({
             />
           )}
 
+          <div ref={positionOptions} data-slot="move-destinations-scroll" className="flex flex-col overflow-y-auto overscroll-contain min-h-0 relative" style={{ gap: 4 }}>
           {treeRows.map((option) => (
-            <MoveTargetRow
-              key={option.id}
-              option={option}
-              selected={option.id === selectedMoveParentId}
-              isCurrentParent={option.id === movingHabitParentId}
-              currentLabel={t('habits.moveParent.currentParent')}
-              onSelect={onSelectOption}
-            />
+            <div key={option.id} data-move-parent-id={option.id} data-current-parent={option.id === movingHabitParentId}>
+              <MoveTargetRow
+                option={option}
+                selected={option.id === selectedMoveParentId}
+                isCurrentParent={option.id === movingHabitParentId}
+                currentLabel={t('habits.moveParent.currentParent')}
+                onSelect={onSelectOption}
+              />
+            </div>
           ))}
+          </div>
         </RadioGroup>
 
+        <p role="status" className={error ? 'text-sm text-[var(--fg-2)]' : 'sr-only'}>{error}</p>
+        {options.length > 0 && options.every((option) => option.disabled) && (
+          <p className="text-sm text-[var(--fg-3)]">{t('habits.moveParent.noDestinations')}</p>
+        )}
         {isSearchEmpty && (
           <p
             className="text-center"
@@ -185,7 +216,8 @@ export function MoveParentOverlay({
             {t('habits.moveParent.noSearchResults')}
           </p>
         )}
+        </> : null}
       </div>
-    </Sheet>) : null
+    </Sheet>
   )
 }

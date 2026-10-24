@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { utf16Length } from '../validation/utf16-length'
+import { MAX_BULK_OPERATION_SIZE } from '../api/constants'
 import { habitLogSchema } from './calendar'
 import { MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH, MAX_TAGS_PER_HABIT } from '../validation/constants'
 
@@ -304,8 +306,8 @@ export type NormalizedHabit = z.infer<typeof normalizedHabitSchema>
 
 export const createHabitRequestSchema = z.object({
   startDate: z.iso.date().optional(),
-  title: z.string().max(MAX_HABIT_TITLE_LENGTH),
-  description: z.string().max(MAX_HABIT_DESCRIPTION_LENGTH).optional(),
+  title: z.string().check(utf16Length('max', MAX_HABIT_TITLE_LENGTH)),
+  description: z.string().check(utf16Length('max', MAX_HABIT_DESCRIPTION_LENGTH)).optional(),
   emoji: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.optional(),
   frequencyQuantity: z.number().optional(),
@@ -356,8 +358,8 @@ export const updateHabitRequestSchema = z.object({
   parentId: z.uuid().nullish(),
   clearParent: z.boolean().nullish(),
   startDate: z.iso.date().optional(),
-  title: z.string().max(MAX_HABIT_TITLE_LENGTH),
-  description: z.string().max(MAX_HABIT_DESCRIPTION_LENGTH).optional(),
+  title: z.string().check(utf16Length('max', MAX_HABIT_TITLE_LENGTH)),
+  description: z.string().check(utf16Length('max', MAX_HABIT_DESCRIPTION_LENGTH)).optional(),
   emoji: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.optional(),
   frequencyQuantity: z.number().optional(),
@@ -655,3 +657,20 @@ export const dateInterpretationRequestSchema = z.object({ phrase: z.string(), la
 export const dateInterpretationSchema = z.object({ date: z.iso.date().nullable(), referenceDate: z.iso.date() })
 export type DateInterpretationRequest = z.infer<typeof dateInterpretationRequestSchema>
 export type DateInterpretation = z.infer<typeof dateInterpretationSchema>
+
+export const bulkMoveHabitParentRequestSchema = z.object({
+  habitIds: z.array(z.string().uuid()).min(1).max(MAX_BULK_OPERATION_SIZE),
+  parentId: z.string().uuid().nullable(),
+})
+export type BulkMoveHabitParentRequest = z.infer<typeof bulkMoveHabitParentRequestSchema>
+
+export const bulkMoveHabitParentResultSchema = z.object({
+  results: z.array(z.object({
+    index: z.number().int(),
+    status: bulkItemStatusSchema,
+    habitId: z.string().uuid(),
+    error: z.string().nullable().optional(),
+    errorCode: z.string().nullable().optional(),
+  })),
+})
+export type BulkMoveHabitParentResult = z.infer<typeof bulkMoveHabitParentResultSchema>

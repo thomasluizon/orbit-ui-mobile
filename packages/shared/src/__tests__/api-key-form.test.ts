@@ -8,7 +8,15 @@ describe('getApiKeyNameError', () => {
 
   it('validates the trimmed name at the production length boundary', () => {
     expect(getApiKeyNameError(`  ${'x'.repeat(50)}  `)).toBeNull()
-    expect(getApiKeyNameError('x'.repeat(51))).toBe('orbitMcp.keyNameMaxLength')
+    expect(getApiKeyNameError('x'.repeat(48) + '😀')).toBeNull()
+    for (const name of ['x'.repeat(51), 'x'.repeat(49) + '😀']) {
+      expect(getApiKeyNameError(name)).toBe('orbitMcp.keyNameMaxLength')
+      const result = apiKeyFormSchema.safeParse({ name, expiresAt: '' })
+      expect(result.success).toBe(false)
+      if (!result.success) expect(result.error.issues[0]?.message).toBe('orbitMcp.keyNameMaxLength')
+    }
+    const name = 'x'.repeat(48) + '😀'
+    expect(apiKeyFormSchema.parse({ name: `  ${name}  `, expiresAt: '' }).name).toBe(name)
   })
 })
 
