@@ -23,3 +23,4 @@ export const updateChecklist = bindServerAction(serverActions.updateChecklist)
 export const linkGoalsToHabit = bindServerAction(serverActions.linkGoalsToHabit)
 
 export const interpretHabitDate = bindServerAction(serverActions.interpretHabitDate)
+export const bulkMoveHabitParent = bindServerAction(serverActions.bulkMoveHabitParent)

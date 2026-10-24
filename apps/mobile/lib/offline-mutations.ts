@@ -88,6 +88,7 @@ export class OfflineMutationPreflightError extends Error {
 
 const AUTOMATIC_REPLAY_BLOCKED_TYPES = new Set<string>([
   'bulkCascadeDeleteHabits',
+  'bulkMoveHabitParent',
 ])
 
 export function isAutomaticReplayBlocked(type: string): boolean {
@@ -636,7 +637,7 @@ const MUTATION_SCOPES = {
   logHabit: 'habits', skipHabit: 'habits', undoSkipHabit: 'habits', reorderHabits: 'habits', updateChecklist: 'habits',
   duplicateHabit: 'habits', moveHabitParent: 'habits', createSubHabit: 'habits',
   bulkCreateHabits: 'habits', bulkDeleteHabits: 'habits', bulkCascadeDeleteHabits: 'habits',
-  bulkLogHabits: 'habits', bulkSkipHabits: 'habits',
+  bulkLogHabits: 'habits', bulkSkipHabits: 'habits', bulkMoveHabitParent: 'habits',
   createGoal: 'goals', updateGoal: 'goals', deleteGoal: 'goals', restoreGoal: 'goals',
   updateGoalProgress: 'goals', updateGoalStatus: 'goals', reorderGoals: 'goals', linkGoalHabits: 'goals',
   createTag: 'tags', updateTag: 'tags', deleteTag: 'tags', restoreTag: 'tags', assignTags: 'tags',

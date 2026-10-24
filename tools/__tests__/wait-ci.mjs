@@ -37,6 +37,19 @@ const fixture = (label, overrides = []) => {
 const argumentsFor = (...extra) => ["--repo", "ui", "--pr", "12", ...extra]
 
 export const cases = async () => {
+  const rolloverSequence = stage("wait-ci/rollover-sequence", "")
+  const rolloverRate = (reset) => JSON.stringify({ ...recordedRate, resources: { ...recordedRate.resources,
+    core: { ...recordedRate.resources.core, limit: 3_600_000, remaining: 3_600_000, reset },
+  } })
+  const rollover = fixture("rollover", [{ kind: "first", match: "api rate_limit", sequenceFile: rolloverSequence,
+    stdoutSequence: [rolloverRate(Math.floor(Date.now() / 1000) - 1), rolloverRate(Math.ceil(Date.now() / 1000) + 3600)],
+  }])
+  const rolloverResult = run(TOOL, argumentsFor("--ceiling-minutes", "0.1"), { path: rollover.path, env: rollover.env })
+  T("wait-ci: an expired rate window refreshes and the waiter settles",
+    rolloverResult.status === 0 && JSON.parse(rolloverResult.stdout).reason === "SETTLED" &&
+    Number(readFileSync(rolloverSequence, "utf8")) === 2 && readWakeSources(rollover.base).length === 0,
+    rolloverResult.stdout)
+
   const callsWhileExhausted = stage("wait-ci/budget-pull-calls", "")
   const exhaustedBudget = fixture("budget-exhausted", [
     { kind: "first", match: "api rate_limit", stdout: JSON.stringify({ ...recordedRate, resources: { ...recordedRate.resources,

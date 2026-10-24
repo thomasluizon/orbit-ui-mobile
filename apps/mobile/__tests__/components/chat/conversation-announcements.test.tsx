@@ -3,6 +3,7 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 import { afterEach, expect, it, vi } from 'vitest'
 import { FlatList, type FlatListProps, type View } from 'react-native'
+import { habitListCardFixture } from '@orbit/shared/test-support/chat-fixtures'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import type { MessageBubbleProps } from '@orbit/shared/chat'
 import { AstraConversation } from '@/components/chat/conversation'
@@ -222,4 +223,20 @@ it('announces a reply already streaming when the conversation mounts', async () 
   chat.streamingMessageId = null
   await act(async () => { tree.update(<AstraConversation chat={chat} />); await Promise.resolve() })
   expect(renderedText(politeRegions()[0]!.props.children)).toBe('Completed reply')
+})
+
+it('announces block-only completion once and keeps the completed trace after the answer', async () => {
+  const chat = buildChat()
+  mount(chat)
+  chat.messages = [{ id: 'block-answer', role: 'ai', content: '', timestamp: new Date(),
+    parts: [{ type: 'block', kind: 'habitList', block: habitListCardFixture }], toolSteps: [{ domain: 'habits', access: 'read' }] }]
+  await act(async () => { tree.update(<AstraConversation chat={chat} />); await Promise.resolve() })
+  expect(politeRegions().filter(node => renderedText(node.props.children) === 'chat.replyReady')).toHaveLength(1)
+  const answer = tree.root.findAll(node => node.type === 'MessageBubbleStub')[0]!
+  let content = answer.parent
+  while (content && !content.findAll(node => node.props.testID === 'thinking-trace-completed').length) content = content.parent
+  const order = content!.findAll(node => node.type === 'MessageBubbleStub' || (typeof node.type === 'string' && node.props.testID === 'thinking-trace-completed'))
+  expect(order.map(node => node.type === 'MessageBubbleStub' ? 'answer' : 'trace')).toEqual(['answer', 'trace'])
+  await act(async () => { tree.update(<AstraConversation chat={chat} />); await Promise.resolve() })
+  expect(politeRegions().filter(node => renderedText(node.props.children) === 'chat.replyReady')).toHaveLength(1)
 })

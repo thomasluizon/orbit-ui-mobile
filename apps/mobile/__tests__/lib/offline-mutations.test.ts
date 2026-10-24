@@ -629,6 +629,7 @@ describe('offline mutations', () => {
 
   it.each([
     ['bulkCascadeDeleteHabits', '/api/habits/habit-1', 'DELETE'],
+    ['bulkMoveHabitParent', '/api/habits/bulk/parent', 'POST'],
   ] as const)('refuses offline %s without persisting it', async (type, endpoint, method) => {
     const execute = vi.fn(() => Promise.resolve(null))
 

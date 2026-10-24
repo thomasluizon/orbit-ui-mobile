@@ -1,9 +1,11 @@
 'use client'
 
 import { useId } from 'react'
+import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
 import {
   CheckCircle2,
   FastForward,
+  ArrowsMove,
   Trash2,
   X,
   type Icon,
@@ -36,6 +38,7 @@ export interface SelectionTrayProps {
   onDeselectAll: () => void
   onBulkLog: () => void
   onBulkSkip: () => void
+  onBulkMove: () => void
   onBulkDelete: () => void
   onCancel: () => void
   completionReadOnly?: boolean
@@ -48,9 +51,10 @@ interface BulkBtnProps {
   onClick: () => void
   disabled?: boolean
   reason?: string
+  descriptionId?: string
 }
 
-function BulkBtn({ icon: Icon, label, iconColor, onClick, disabled = false, reason }: Readonly<BulkBtnProps>) {
+function BulkBtn({ icon: Icon, label, iconColor, onClick, disabled = false, reason, descriptionId }: Readonly<BulkBtnProps>) {
   const reasonId = useId()
   return (
     <button
@@ -59,7 +63,7 @@ function BulkBtn({ icon: Icon, label, iconColor, onClick, disabled = false, reas
       aria-label={label}
       disabled={disabled && !reason}
       aria-disabled={disabled && reason ? true : undefined}
-      aria-describedby={disabled && reason ? reasonId : undefined}
+      aria-describedby={disabled && reason ? descriptionId ?? reasonId : undefined}
       title={disabled ? reason : undefined}
       className={`appearance-none border-0 bg-transparent shrink-0 overflow-hidden flex items-center justify-center transition-[background-color,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${
         disabled
@@ -74,7 +78,7 @@ function BulkBtn({ icon: Icon, label, iconColor, onClick, disabled = false, reas
       }}
     >
       <Icon size={20} strokeWidth={1.8} />
-      {disabled && reason ? <span id={reasonId} className="sr-only">{reason}</span> : null}
+      {disabled && reason && !descriptionId ? <span id={reasonId} className="sr-only">{reason}</span> : null}
     </button>
   )
 }
@@ -86,6 +90,7 @@ export function SelectionTray({
   onDeselectAll,
   onBulkLog,
   onBulkSkip,
+  onBulkMove,
   onBulkDelete,
   onCancel,
   completionReadOnly = false,
@@ -94,6 +99,9 @@ export function SelectionTray({
   const prefersReducedMotion = useReducedMotion()
   const motionPreset = resolveMotionPreset('selection', Boolean(prefersReducedMotion))
   const nothingSelected = selectedCount === 0
+  const moveLimitId = useId()
+  const moveLimitReason = selectedCount > MAX_BULK_OPERATION_SIZE
+    ? t('habits.bulkBar.moveLimit', { limit: MAX_BULK_OPERATION_SIZE }) : undefined
   const completionReason = completionReadOnly ? t('habits.todayBoundary.readOnly') : undefined
   return (
     <motion.div
@@ -177,6 +185,15 @@ export function SelectionTray({
           reason={completionReason}
         />
         <BulkBtn
+          icon={ArrowsMove}
+          label={t('habits.bulkBar.move')}
+          iconColor="var(--fg-2)"
+          onClick={onBulkMove}
+          disabled={nothingSelected || Boolean(moveLimitReason)}
+          reason={moveLimitReason}
+          descriptionId={moveLimitId}
+        />
+        <BulkBtn
           icon={Trash2}
           label={t('habits.bulkBar.delete')}
           iconColor="var(--status-bad)"
@@ -191,6 +208,7 @@ export function SelectionTray({
           onClick={onCancel}
         />
       </div>
+      {moveLimitReason ? <p id={moveLimitId} className="t-secondary text-pretty" style={{ margin: 0, color: 'var(--fg-2)' }}>{moveLimitReason}</p> : null}
     </motion.div>
   )
 }

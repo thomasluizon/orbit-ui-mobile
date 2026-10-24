@@ -12,9 +12,11 @@ const questions = [
   'Quer revisar os seus hábitos e planejar a rotina pra amanhã?',
   'Quer revisar os seus hábitos e planejar a rotina pra depois?',
 ]
+const labels = ['Revisar amanhã', 'Revisar depois']
 const profile = profileSchema.parse({ ...profileFixture, language: 'pt-BR', aiMessagesUsed: 0 })
 const finalEvent = chatStreamEventSchema.parse({ type: 'final', response: {
   aiMessage: 'Podemos revisar a sua rotina.', actions: [], followUps: questions,
+  followUpContext: questions.map((question, index) => ({ label: labels[index], question })),
 } })
 
 for (const width of [320, 412, 1352]) {
@@ -22,7 +24,7 @@ for (const width of [320, 412, 1352]) {
     test.describe(`follow-up questions at ${width} with text scale ${textScale}`, () => {
       test.use({ appLocale: 'pt-BR', layoutProfile: profile, viewport: { width, height: 915 } })
 
-      test('shows whole sentences on the message edge with a gap after prose', async ({ page, context }) => {
+      test('shows compact contextual chips after prose without a visible heading', async ({ page, context }) => {
         await context.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, route => route.fulfill({
           contentType: 'text/event-stream', body: `data: ${JSON.stringify(finalEvent)}\n\n`,
         }))
@@ -40,21 +42,22 @@ for (const width of [320, 412, 1352]) {
 
         const message = await conversation.locator('[data-bubble-role="ai"]').boundingBox()
         const prose = await conversation.locator('[data-bubble-role="ai"]').elementHandle()
-        const label = await group.getByText(pt.chat.followUps.label, { exact: true }).elementHandle()
+        const firstChip = await group.getByRole('button').first().elementHandle()
         expect(message).not.toBeNull()
         expect(prose).not.toBeNull()
-        expect(label).not.toBeNull()
-        const gap = await page.evaluate(({ proseElement, labelElement }) =>
-          labelElement.getBoundingClientRect().top - proseElement.getBoundingClientRect().bottom,
-        { proseElement: prose!, labelElement: label! })
+        expect(firstChip).not.toBeNull()
+        await expect(group.getByText(pt.chat.followUps.label, { exact: true })).toHaveCount(0)
+        const gap = await page.evaluate(({ proseElement, chipElement }) =>
+          chipElement.getBoundingClientRect().top - proseElement.getBoundingClientRect().bottom,
+        { proseElement: prose!, chipElement: firstChip! })
         expect(gap).toBeGreaterThanOrEqual(16)
-        for (const question of questions) {
+        for (const [index, question] of questions.entries()) {
           expect(question).toHaveLength(60)
-          const row = group.getByRole('button', { name: `${question}, ${pt.nav.astra}`, exact: true })
+          const row = group.getByRole('button', { name: `${labels[index]}, ${pt.nav.astra}`, exact: true })
           const geometry = await row.evaluate(element => {
             const text = element.querySelector('span')!
             const bounds = element.getBoundingClientRect()
-            return { left: bounds.left, title: element.getAttribute('title'),
+            return { left: bounds.left, width: bounds.width, groupWidth: element.closest('[role="group"]')!.getBoundingClientRect().width, title: element.getAttribute('title'),
               scrollWidth: text.scrollWidth, clientWidth: text.clientWidth,
               scrollHeight: text.scrollHeight, clientHeight: text.clientHeight,
               overflow: getComputedStyle(text).textOverflow, fontSize: parseFloat(getComputedStyle(text).fontSize) }
@@ -63,7 +66,9 @@ for (const width of [320, 412, 1352]) {
           expect(geometry.scrollHeight).toBeLessThanOrEqual(geometry.clientHeight)
           expect(geometry.overflow).not.toBe('ellipsis')
           expect(geometry.title).toBeNull()
-          expect(Math.abs(geometry.left - message!.x)).toBeLessThanOrEqual(1)
+          if (index === 0) expect(Math.abs(geometry.left - message!.x)).toBeLessThanOrEqual(1)
+          expect(geometry.width).toBeLessThanOrEqual(geometry.groupWidth)
+          if (textScale === 1) expect(geometry.width).toBeLessThan(geometry.groupWidth)
           expect(geometry.fontSize).toBe(14 * textScale)
         }
       })

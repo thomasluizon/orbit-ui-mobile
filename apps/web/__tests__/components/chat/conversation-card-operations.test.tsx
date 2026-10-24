@@ -199,12 +199,12 @@ it.each([false, true])('reveals the clarification preview actions unless reading
   if (reading) expect(owner.scrolling).not.toHaveBeenCalled()
 })
 
-it('keeps the completed trace above its own reply blocks and after its request', () => {
+it('keeps the completed trace after its own reply blocks and request', () => {
   const { container } = render(<CardConversation operations={['revise']} />)
   const trace = container.querySelector('[data-thinking-trace="completed"]')!
   const preview = container.querySelector('section[data-state]')!
   const request = screen.getByText('My request')
   expect(request.compareDocumentPosition(trace) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  expect(trace.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(preview.compareDocumentPosition(trace) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   expect(trace.closest('article')).toBe(preview.closest('article'))
 })

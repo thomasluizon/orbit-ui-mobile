@@ -72,3 +72,15 @@ and return that query's kind, snapshot and read metadata; signed paging must ret
 Historical replies without optional read metadata remain readable. No minimum client version
 change is needed. Roll back the carrying client or remove new-kind advertisement to stop new
 period cards. The existing lazy conversation import keeps these renderers out of Today loading.
+
+## Astra composition rollout
+
+Release the API composition producer and its query-bound reads before the paired web/Android
+consumer. Use the existing manually dispatched `release.yml` production path from `main` and the
+normal Android release workflow. Keep API flag `astra_block_first` restricted to evaluation
+accounts until #26 records passing English and Portuguese composition evidence against the real
+pipeline and carrying consumers. Local Vitest proves rendering and transport behavior only.
+Missing or skipped assertions cannot approve activation. Disable the same API flag or negotiated
+capability to roll back while preserving legacy history and approval gates. Model and quota
+configuration are independent. The harness instructions remain in TESTING.md under Astra capability
+eval; #26 owns their implementation.

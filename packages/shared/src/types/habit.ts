@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX_BULK_OPERATION_SIZE } from '../api/constants'
 import { habitLogSchema } from './calendar'
 import { MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH, MAX_TAGS_PER_HABIT } from '../validation/constants'
 
@@ -655,3 +656,20 @@ export const dateInterpretationRequestSchema = z.object({ phrase: z.string(), la
 export const dateInterpretationSchema = z.object({ date: z.iso.date().nullable(), referenceDate: z.iso.date() })
 export type DateInterpretationRequest = z.infer<typeof dateInterpretationRequestSchema>
 export type DateInterpretation = z.infer<typeof dateInterpretationSchema>
+
+export const bulkMoveHabitParentRequestSchema = z.object({
+  habitIds: z.array(z.string().uuid()).min(1).max(MAX_BULK_OPERATION_SIZE),
+  parentId: z.string().uuid().nullable(),
+})
+export type BulkMoveHabitParentRequest = z.infer<typeof bulkMoveHabitParentRequestSchema>
+
+export const bulkMoveHabitParentResultSchema = z.object({
+  results: z.array(z.object({
+    index: z.number().int(),
+    status: bulkItemStatusSchema,
+    habitId: z.string().uuid(),
+    error: z.string().nullable().optional(),
+    errorCode: z.string().nullable().optional(),
+  })),
+})
+export type BulkMoveHabitParentResult = z.infer<typeof bulkMoveHabitParentResultSchema>

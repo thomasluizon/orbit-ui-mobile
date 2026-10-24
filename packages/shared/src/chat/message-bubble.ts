@@ -9,6 +9,7 @@ import { getRelatedSurfaces } from './related-surfaces'
 import { partitionMessageActions } from './message-actions'
 import { selectMessageOperationBlocks } from './message-operation-blocks'
 import { attachClarificationPreview, updatePendingOperationMessage, type PendingOperationMessageState } from './pending-operation-message-state'
+import { pendingOperationExecutionPatch } from './pending-operation-message-state'
 
 export interface MessageBubbleProps {
   blockAnswerInteraction?: BlockAnswerInteraction
@@ -44,6 +45,7 @@ type MessageBubblePart = { type: 'block'; key: number; part: Extract<ChatPart, {
 export interface MessageBubbleView {
   isUser: boolean
   showUnreadableReply: boolean
+  showOperationUpdate: boolean
   parts: MessageBubblePart[]
   relatedSurfaces: ReturnType<typeof getRelatedSurfaces>
   nonSuggestionActions: ReturnType<typeof partitionMessageActions>['nonSuggestionActions']
@@ -55,6 +57,9 @@ export function getMessageBubbleView(props: MessageBubbleProps, dismissedBreakdo
   const { message, isStreaming = false, laterMessages } = props
   const isUser = message.role === 'user'
   const operationBlocks = selectMessageOperationBlocks(message)
+  const previewIds = new Set(canRenderPendingOperations(props)
+    ? [...(props.earlierMessages ?? []), message].flatMap(entry => messageOperationIds(entry, true)) : [])
+  const outcomes = operationBlocks.outcomes.filter(outcome => !outcome.pendingOperationId || !previewIds.has(outcome.pendingOperationId))
   const actions = partitionMessageActions(operationBlocks.actions, message.policyDenials)
   const parts = (isUser ? [{ type: 'text' as const, text: message.content }] : getChatMessageParts(message, isStreaming)).flatMap<MessageBubblePart>((part, key) => {
     if (!part) return []
@@ -66,8 +71,10 @@ export function getMessageBubbleView(props: MessageBubbleProps, dismissedBreakdo
   })
   return {
     isUser,
-    showUnreadableReply: !isUser && !isStreaming && parts.length === 0 && message.parts != null
-      && !message.imageUrl && !message.actions?.length && !message.operations?.length
+    showOperationUpdate: !isUser && !isStreaming && parts.length === 0 && outcomes.length === 0
+      && operationBlocks.outcomes.length > 0 && !operationBlocks.actions.length,
+    showUnreadableReply: !isUser && !isStreaming && parts.length === 0
+      && !message.imageUrl && !operationBlocks.actions.length && !operationBlocks.outcomes.length
       && !message.pendingOperations?.length && !message.policyDenials?.length
       && !Object.keys(message.clarificationPreviews ?? {}).length,
     parts,
@@ -78,8 +85,14 @@ export function getMessageBubbleView(props: MessageBubbleProps, dismissedBreakdo
       return dismissedBreakdowns.has(key) ? [] : [{ key, parentName: action.entityName || 'Habit',
         subHabits: action.suggestedSubHabits ?? [], warning: action.conflictWarning }]
     }),
-    outcomes: operationBlocks.outcomes,
+    outcomes,
   }
+}
+
+export function getChatCompletionText(message: ChatMessage, words: { ready: string; unreadable: string }): string {
+  const view = getMessageBubbleView({ message }, new Set())
+  if (view.showUnreadableReply) return words.unreadable
+  return view.parts.flatMap(part => part.type === 'text' ? [part.text] : []).join('\n').trim() || words.ready
 }
 
 function messageOperationIds(message: ChatMessage, canRenderPending: boolean): string[] {
@@ -87,15 +100,22 @@ function messageOperationIds(message: ChatMessage, canRenderPending: boolean): s
   return [...pendingOperations, ...Object.values(message.clarificationPreviews ?? {})].map(operation => operation.id)
 }
 
+function canRenderPendingOperations(props: MessageBubbleProps): boolean {
+  return Boolean(props.onPendingOperationConfirmExecute && props.onPendingOperationPrepareStepUp && props.onPendingOperationVerifyStepUp)
+}
+
 function selectOwnedOperationBlocks(props: MessageBubbleProps) {
-  const canRenderPending = Boolean(props.onPendingOperationConfirmExecute && props.onPendingOperationPrepareStepUp && props.onPendingOperationVerifyStepUp)
+  const canRenderPending = canRenderPendingOperations(props)
   const previousIds = new Set(props.earlierMessages?.flatMap(message => messageOperationIds(message, canRenderPending)))
   const pendingOperations = [...new Map((props.message.pendingOperations ?? []).map(operation => [operation.id, operation])).values()]
     .filter(operation => !previousIds.has(operation.id))
   const renderedOperations = canRenderPending ? pendingOperations : []
   const claimedIds = new Set([...previousIds, ...renderedOperations.map(operation => operation.id)])
+  const clarificationIds = new Set<string>()
   const clarifications = partitionMessageActions(selectMessageOperationBlocks(props.message).actions, props.message.policyDenials).clarificationActions
     .filter(action => {
+      if (clarificationIds.has(action.clarificationRequest.operationId)) return false
+      clarificationIds.add(action.clarificationRequest.operationId)
       const preview = props.message.clarificationPreviews?.[action.clarificationRequest.operationId]
       if (!preview) return true
       if (claimedIds.has(preview.id)) return false
@@ -103,6 +123,13 @@ function selectOwnedOperationBlocks(props: MessageBubbleProps) {
       return true
     })
   return { pendingOperations, clarifications }
+}
+
+function currentOperationState(props: MessageBubbleProps, operationId: string): PendingOperationMessageState | undefined {
+  const saved = props.message.pendingOperationStates?.[operationId]
+  const current = props.laterMessages?.flatMap(message => message.operations ?? [])
+    .filter(operation => operation.pendingOperationId === operationId && operation.status !== 'PendingConfirmation').at(-1)
+  return current ? { ...saved, ...pendingOperationExecutionPatch({ ok: current.status === 'Succeeded', response: { operation: current } }) } : saved
 }
 
 export function getMessageBubbleOperations(props: MessageBubbleProps, transitionMessage: ChatStoreState['transitionMessage']) {
@@ -116,7 +143,7 @@ export function getMessageBubbleOperations(props: MessageBubbleProps, transition
       clarificationRequest: action.clarificationRequest,
       entityName: action.entityName,
       pendingOperation: message.clarificationPreviews?.[action.clarificationRequest.operationId],
-      savedState: message.pendingOperationStates?.[message.clarificationPreviews?.[action.clarificationRequest.operationId]?.id ?? ''],
+      savedState: currentOperationState(props, message.clarificationPreviews?.[action.clarificationRequest.operationId]?.id ?? ''),
       onPreview: (operation: NonNullable<ChatMessage['pendingOperations']>[number]) => transitionMessage(message.id,
         current => attachClarificationPreview(current, action.clarificationRequest.operationId, operation)),
       onStateChange,
@@ -131,7 +158,7 @@ export function getMessageBubbleOperations(props: MessageBubbleProps, transition
       ? owned.pendingOperations.map(pendingOperation => ({
         key: pendingOperation.id,
         pendingOperation,
-        savedState: message.pendingOperationStates?.[pendingOperation.id],
+        savedState: currentOperationState(props, pendingOperation.id),
         onStateChange: (patch: PendingOperationMessageState) => onStateChange(pendingOperation.id, patch),
         onRevise: props.onPendingOperationRevise,
         onRefresh: props.onPendingOperationRefresh,

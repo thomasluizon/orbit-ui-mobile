@@ -1,7 +1,10 @@
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { useState, type ReactNode } from 'react'
+import { SPACING, TOUCH_TARGET_MIN, typeRoles } from '@orbit/shared/theme'
+import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
+import { useTranslation } from 'react-i18next'
 import { StyleSheet, Text, View } from 'react-native'
 import { Pressable } from 'react-native-gesture-handler'
-import { CheckCircle2, FastForward, Trash2, X } from '@/components/ui/icons'
+import { CheckCircle2, FastForward, ArrowsMove, Trash2, X } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
@@ -13,6 +16,7 @@ interface SelectionTrayProps {
   onDeselectAll: () => void
   onLog: () => void
   onSkip: () => void
+  onMove: () => void
   onDelete: () => void
   onClose: () => void
   countSuffixLabel: string
@@ -20,10 +24,49 @@ interface SelectionTrayProps {
   deselectAllLabel: string
   logLabel: string
   skipLabel: string
+  moveLabel: string
   deleteLabel: string
   closeLabel: string
   completionReadOnly?: boolean
   completionReason?: string
+}
+
+function SelectionAction({
+  label, hint, disabled, onPress, pressedFill, prefersReducedMotion, children,
+}: Readonly<{
+  label: string
+  hint?: string
+  disabled: boolean
+  onPress: () => void
+  pressedFill: string
+  prefersReducedMotion: boolean
+  children: ReactNode
+}>) {
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={hint}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      onHoverIn={() => setHovered(!disabled)}
+      onHoverOut={() => setHovered(false)}
+      onFocus={() => setFocused(!disabled)}
+      onBlur={() => setFocused(false)}
+      style={({ pressed }) => [
+        styles.actionBtn,
+        { backgroundColor: (pressed || hovered || focused) && !disabled ? pressedFill : 'transparent' },
+        pressed && !disabled && !prefersReducedMotion ? styles.pressedScale : null,
+        disabled ? styles.disabled : null,
+      ]}
+    >
+      {children}
+    </Pressable>
+  )
 }
 
 /**
@@ -37,6 +80,7 @@ export function SelectionTray({
   onDeselectAll,
   onLog,
   onSkip,
+  onMove,
   onDelete,
   onClose,
   countSuffixLabel,
@@ -44,16 +88,21 @@ export function SelectionTray({
   deselectAllLabel,
   logLabel,
   skipLabel,
+  moveLabel,
   deleteLabel,
   closeLabel,
   completionReadOnly = false,
   completionReason,
 }: Readonly<SelectionTrayProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
+  const { t } = useTranslation()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const prefersReducedMotion = usePrefersReducedMotion()
   const disabled = count === 0
   const completionDisabled = disabled || completionReadOnly
+  const moveLimitReason = count > MAX_BULK_OPERATION_SIZE
+    ? t('habits.bulkBar.moveLimit', { limit: MAX_BULK_OPERATION_SIZE }) : undefined
+  const moveDisabled = disabled || Boolean(moveLimitReason)
 
   return (
     <View
@@ -99,65 +148,45 @@ export function SelectionTray({
         </Pressable>
       </View>
       <View style={styles.actions}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={logLabel}
-          accessibilityHint={completionReadOnly ? completionReason : undefined}
-          accessibilityState={{ disabled: completionDisabled }}
+        <SelectionAction
+          label={logLabel}
           disabled={completionDisabled}
+          hint={completionReadOnly ? completionReason : undefined}
           onPress={onLog}
-          style={({ pressed }) => [
-            styles.actionBtn,
-            { backgroundColor: pressed && !completionDisabled ? tokens.bgHoverOpaque : 'transparent' },
-            pressed && !completionDisabled && !prefersReducedMotion ? styles.pressedScale : null,
-            completionDisabled ? styles.disabled : null,
-          ]}
+          pressedFill={tokens.bgHoverOpaque}
+          prefersReducedMotion={prefersReducedMotion}
         >
-          <CheckCircle2
-            size={20}
-            color={tokens.fg1}
-            strokeWidth={1.8}
-          />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={skipLabel}
-          accessibilityHint={completionReadOnly ? completionReason : undefined}
-          accessibilityState={{ disabled: completionDisabled }}
+          <CheckCircle2 size={20} color={tokens.fg1} strokeWidth={1.8} />
+        </SelectionAction>
+        <SelectionAction
+          label={skipLabel}
           disabled={completionDisabled}
+          hint={completionReadOnly ? completionReason : undefined}
           onPress={onSkip}
-          style={({ pressed }) => [
-            styles.actionBtn,
-            { backgroundColor: pressed && !completionDisabled ? tokens.bgHoverOpaque : 'transparent' },
-            pressed && !completionDisabled && !prefersReducedMotion ? styles.pressedScale : null,
-            completionDisabled ? styles.disabled : null,
-          ]}
+          pressedFill={tokens.bgHoverOpaque}
+          prefersReducedMotion={prefersReducedMotion}
         >
-          <FastForward
-            size={20}
-            color={tokens.fg3}
-            strokeWidth={1.8}
-          />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={deleteLabel}
-          accessibilityState={{ disabled }}
+          <FastForward size={20} color={tokens.fg3} strokeWidth={1.8} />
+        </SelectionAction>
+        <SelectionAction
+          label={moveLabel}
+          disabled={moveDisabled}
+          hint={moveLimitReason}
+          onPress={onMove}
+          pressedFill={tokens.bgHoverOpaque}
+          prefersReducedMotion={prefersReducedMotion}
+        >
+          <ArrowsMove size={20} color={tokens.fg2} strokeWidth={1.8} />
+        </SelectionAction>
+        <SelectionAction
+          label={deleteLabel}
           disabled={disabled}
           onPress={onDelete}
-          style={({ pressed }) => [
-            styles.actionBtn,
-            { backgroundColor: pressed && !disabled ? tokens.bgHoverOpaque : 'transparent' },
-            pressed && !disabled && !prefersReducedMotion ? styles.pressedScale : null,
-            disabled ? styles.disabled : null,
-          ]}
+          pressedFill={tokens.bgHoverOpaque}
+          prefersReducedMotion={prefersReducedMotion}
         >
-          <Trash2
-            size={20}
-            color={tokens.statusBad}
-            strokeWidth={1.8}
-          />
-        </Pressable>
+          <Trash2 size={20} color={tokens.statusBad} strokeWidth={1.8} />
+        </SelectionAction>
         <View style={styles.spacer} />
         <Pressable
           accessibilityRole="button"
@@ -172,6 +201,7 @@ export function SelectionTray({
           <X size={20} color={tokens.fg2} strokeWidth={1.8} />
         </Pressable>
       </View>
+      {moveLimitReason ? <Text style={[styles.moveLimit, { color: tokens.fg2 }]}>{moveLimitReason}</Text> : null}
     </View>
   )
 }
@@ -239,5 +269,10 @@ const styles = StyleSheet.create({
   },
   spacer: {
     flex: 1,
+  },
+  moveLimit: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: typeRoles.secondary.size,
+    lineHeight: typeRoles.secondary.size * typeRoles.secondary.lineHeight,
   },
 })
