@@ -6,9 +6,17 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { createTranslator } from 'next-intl'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+const visibleLocale = vi.hoisted(() => ({ language: '' }))
+
+vi.mock('next-intl', async (importOriginal) => ({
+  ...await importOriginal<typeof import('next-intl')>(),
+  useTranslations: () => visibleLocale.language
+    ? createTranslator({ locale: visibleLocale.language, messages: visibleLocale.language === 'pt-BR' ? ptBR : en })
+    : (key: string) => key,
 }))
 
 import { SelectionTray } from '@/components/habits/selection-tray'
@@ -22,6 +30,7 @@ function renderBar(overrides: Partial<Parameters<typeof SelectionTray>[0]> = {})
     onDeselectAll: vi.fn(),
     onBulkLog: vi.fn(),
     onBulkSkip: vi.fn(),
+    onBulkMove: vi.fn(),
     onBulkDelete: vi.fn(),
     onCancel: vi.fn(),
     ...overrides,
@@ -33,6 +42,21 @@ function renderBar(overrides: Partial<Parameters<typeof SelectionTray>[0]> = {})
 describe('SelectionTray', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
+    visibleLocale.language = ''
+  })
+
+  it.each([
+    ['en', 'Move selected', 'Select up to 100 habits to move at once.'],
+    ['pt-BR', 'Mover selecionados', 'Selecione até 100 hábitos para mover de uma vez.'],
+  ])('explains an oversized move in %s', (locale, label, message) => {
+    visibleLocale.language = locale
+    const props = renderBar({ selectedCount: 101 })
+    const move = screen.getByRole('button', { name: label })
+    expect(move).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByText(message)).toBeInTheDocument()
+    expect(move).toHaveAccessibleDescription(message)
+    fireEvent.click(move)
+    expect(props.onBulkMove).not.toHaveBeenCalled()
   })
 
   it('labels the action buttons with the selection-scoped accessible names', () => {
@@ -40,6 +64,7 @@ describe('SelectionTray', () => {
 
     expect(screen.getByRole('button', { name: 'habits.bulkBar.log' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'habits.bulkBar.skip' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'habits.bulkBar.move' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'habits.bulkBar.delete' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'common.cancel' })).toBeInTheDocument()
   })
@@ -49,10 +74,12 @@ describe('SelectionTray', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.bulkBar.log' }))
     fireEvent.click(screen.getByRole('button', { name: 'habits.bulkBar.skip' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.bulkBar.move' }))
     fireEvent.click(screen.getByRole('button', { name: 'habits.bulkBar.delete' }))
 
     expect(props.onBulkLog).toHaveBeenCalled()
     expect(props.onBulkSkip).toHaveBeenCalled()
+    expect(props.onBulkMove).toHaveBeenCalled()
     expect(props.onBulkDelete).toHaveBeenCalled()
   })
 
@@ -78,7 +105,7 @@ describe('SelectionTray', () => {
     expect(props.onBulkDelete).not.toHaveBeenCalled()
   })
 
-  it('explains the old-day limit while keeping bulk delete active', () => {
+  it('explains the old-day limit while keeping bulk move and delete active', () => {
     const props = renderBar({ completionReadOnly: true })
     for (const label of ['habits.bulkBar.log', 'habits.bulkBar.skip']) {
       const button = screen.getByRole('button', { name: label })
@@ -87,9 +114,13 @@ describe('SelectionTray', () => {
       fireEvent.click(button)
     }
     fireEvent.click(screen.getByRole('button', { name: 'habits.bulkBar.delete' }))
+    const move = screen.getByRole('button', { name: 'habits.bulkBar.move' })
+    expect(move).toBeEnabled()
+    fireEvent.click(move)
     expect(props.onBulkLog).not.toHaveBeenCalled()
     expect(props.onBulkSkip).not.toHaveBeenCalled()
     expect(props.onBulkDelete).toHaveBeenCalledOnce()
+    expect(props.onBulkMove).toHaveBeenCalledOnce()
   })
 
   it('toggles between select-all and deselect-all', () => {
@@ -199,7 +230,7 @@ describe('SelectionTray painted targets in Chromium', () => {
       await page.setContent(`<style>${stylesheet}:root{${declarations}} *{transition:none !important}</style>${markup}`)
       await page.getByTestId('bulk-action-bar').evaluate((element) => { element.style.transform = 'none' })
       const buttons = page.getByRole('button')
-      expect(await buttons.count()).toBe(5)
+      expect(await buttons.count()).toBe(6)
       for (const button of await buttons.all()) {
         const bounds = await button.boundingBox()
         expect(bounds!.width).toBeGreaterThanOrEqual(48)

@@ -829,6 +829,6 @@ export { readTypedHabitPhrase } from './habit-phrase-parser'
 export { getHabitChecklistProgress } from './habit-checklist-progress'
 
 export { getHabitInlineDepthLimit } from './habit-row-layout'
+export type { MoveParentOption, MoveParentPickerProps, MoveParentRowProps, MoveTargetValidation } from './move-parent'
 
-export { buildMoveParentOptions, getHabitDepth, getSubtreeMaxDepth, isHabitDescendant, validateMoveTarget, getMoveParentInventory, getMoveParentPickerRows, buildEditorParentChange, validateEditorParent, type MoveParentOption, type MoveTargetValidation } from './move-parent'
 export { optimisticMoveHabitParent } from './habit-parent-optimistic'

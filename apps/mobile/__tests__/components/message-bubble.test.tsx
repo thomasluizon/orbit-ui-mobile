@@ -482,7 +482,7 @@ describe('MessageBubble text copying (mobile)', () => {
     await TestRenderer.act(() => {
       tree.update(<MessageBubble message={makeMessage({ content: 'Hello [[orbit:habits:' })} isStreaming />)
     })
-    expect(renderedText(tree.root)).toContain('Hello')
+    expect(renderedText(tree.root)).not.toContain('Hello')
     expect(renderedText(tree.root)).not.toContain('[[orbit:')
     expect(tree.root.findAll(node => node.props.accessibilityRole === 'button')).toHaveLength(0)
   })
@@ -644,7 +644,7 @@ describe('MessageBubble habit-list card (mobile)', () => {
       streamingTree = TestRenderer.create(<MessageBubble message={message} isStreaming />)
     })
 
-    expect(collectStrings(streamingTree.root)).toContain('Keep this literal')
+    expect(collectStrings(streamingTree.root)).not.toContain('Keep this literal')
 
     let finalTree!: TestInstance
     await TestRenderer.act(() => {

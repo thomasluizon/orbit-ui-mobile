@@ -57,28 +57,31 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
     onSelect,
     selected,
   })
-  const labelColor = selection && !selected ? tokens.fg2 : tokens.fg1
   const wrappingStyle = wrapLabel ? { lineHeight: 22.4 } : null
   const controlMinHeight = wrapLabel ? 22.4 * fontScale : undefined
+  const supportingReason = Boolean(disabled && textMode === 'personal' && reason)
   const content = (pressed = false) => {
+    const labelColor = selection && !selected ? tokens.fg2 : tokens.fg1
     const secondaryColor = pressed || (selected && !proposed) ? tokens.fg2 : tokens.fg3
     const personalColor = proposed ? secondaryColor : tokens.fg1
     const optionColor = proposed ? secondaryColor : labelColor
-    const children = (
-      <>
+    const title = <>
         {leading ? <View data-slot="list-row-icon" style={styles.leading}>{leading}</View> : null}
         <View style={[styles.textBlock, radioTextBlockStyle(wrapLabel)]}>
           {textMode === 'personal' ? <PersonalText data-slot="list-row-title" expanded={disabled ? disclosed : selected} style={[styles.label, { color: personalColor, lineHeight: 22.4 }]}>{label}</PersonalText> : <Text data-slot="list-row-title" style={[styles.label, { color: optionColor }, wrappingStyle]}>{label}</Text>}
           {description ? <Text style={[styles.description, { color: secondaryColor }]}>{description}</Text> : null}
-          {disabled && reason ? <Text style={[styles.reason, { color: secondaryColor }]}>{reason}</Text> : null}
-        </View>
-        {meta && !hideMeta ? <Text style={[styles.meta, { color: secondaryColor }]}>{meta}</Text> : null}
-        {tag ? <Text style={[styles.tag, { color: secondaryColor }]}>{tag}</Text> : null}
-        <View data-slot="radio-row-control" style={{ justifyContent: 'center', minHeight: controlMinHeight }}>
-          <RadioGlyph selected={selected} size={24} tokens={tokens} pressed={pressed} />
+          {!supportingReason && disabled && reason ? <Text style={[styles.reason, { color: secondaryColor }]}>{reason}</Text> : null}
         </View>
       </>
-    )
+    const metadata = <RadioRowMetadata meta={meta} hideMeta={hideMeta} tag={tag} secondaryColor={secondaryColor} supportingReason={supportingReason} />
+    const glyph = <View data-slot="radio-row-control" style={{ justifyContent: 'center', minHeight: controlMinHeight }}>
+      <RadioGlyph selected={selected} size={24} tokens={tokens} pressed={pressed} />
+    </View>
+    const children = supportingReason ? <View style={{ flex: 1, minWidth: 0, gap: SPACING.s8 }}>
+      <View style={{ minHeight: 48, flexDirection: 'row', minWidth: 0, alignItems: 'flex-start', gap: SPACING.s12 }}>{title}{glyph}</View>
+      {metadata}
+      <Text style={[styles.reason, { color: secondaryColor }]}>{reason}</Text>
+    </View> : <>{title}{metadata}{glyph}</>
     return wrapLabel ? <View style={styles.wrappedContent}>{children}</View> : children
   }
   const rowStyle = [
@@ -95,7 +98,7 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
     .filter(Boolean).join(', ')
 
   return disabled ? (
-    <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><View data-slot="list-row-body" {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={[rowStyle, selectedBorderStyle(selected, false, 1.5, tokens.primary), { flex: 1, minWidth: 0 }]}>{content()}</View>{textMode === 'personal' ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ expanded: disclosed }} onPress={() => setDisclosed(!disclosed)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, padding: SPACING.s8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown accessible={false} color={tokens.fg2} size={20} strokeWidth={2} style={disclosed ? { transform: [{ rotate: '180deg' }] } : undefined} /></InsetFocusPressable> : null}</View>
+    <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><View data-slot="list-row-body" {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={[rowStyle, selectedBorderStyle(selected, false, 1.5, tokens.primary), { flex: 1, minWidth: 0 }]}>{content()}</View>{textMode === 'personal' ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ expanded: disclosed }} onPress={() => setDisclosed(!disclosed)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, ...(supportingReason && { alignSelf: 'flex-start' as const }), padding: SPACING.s8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown accessible={false} color={tokens.fg2} size={20} strokeWidth={2} style={disclosed ? { transform: [{ rotate: '180deg' }] } : undefined} /></InsetFocusPressable> : null}</View>
   ) : (
     <InsetFocusPressable selectionRingWidth={1.5} selectionRingColor={tokens.primary}
       data-slot="list-row-body"
@@ -112,6 +115,15 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
       ]}
     >{({ pressed }) => content(pressed)}</InsetFocusPressable>
   )
+}
+
+function RadioRowMetadata({ meta, hideMeta, tag, secondaryColor, supportingReason }: Readonly<Pick<RadioRowProps, 'meta' | 'hideMeta' | 'tag'> & { secondaryColor: string; supportingReason: boolean }>) {
+  if ((!meta || hideMeta) && !tag) return null
+  const metadata = <>
+    {meta && !hideMeta ? <Text style={[styles.meta, { color: secondaryColor }]}>{meta}</Text> : null}
+    {tag ? <Text style={[styles.tag, { color: secondaryColor }]}>{tag}</Text> : null}
+  </>
+  return supportingReason ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', minWidth: 0, alignItems: 'center', gap: SPACING.s12 }}>{metadata}</View> : metadata
 }
 
 const styles = StyleSheet.create({

@@ -7,6 +7,7 @@ export interface AgentOperationOutcome {
   riskClass: AgentOperationResult['riskClass']
   status: AgentOperationResult['status']
   policyReason?: string
+  pendingOperationId?: string
 }
 
 /** Coalesces the API's operation and denial records into one visible outcome per operation. */
@@ -14,14 +15,19 @@ export function coalesceAgentOperationOutcomes(
   operations: readonly AgentOperationResult[],
   denials: readonly AgentPolicyDenial[],
 ): AgentOperationOutcome[] {
-  const denialsByOperationId = new Map(denials.map((denial) => [denial.operationId, denial]))
-  const representedOperationIds = new Set<string>()
-  const outcomes = operations.map((operation): AgentOperationOutcome => {
-    representedOperationIds.add(operation.operationId)
-    const denial = denialsByOperationId.get(operation.operationId)
-    if (denial) {
+  const remainingDenials = new Set(denials)
+  const outcomes = operations.map((operation, index): AgentOperationOutcome => {
+    const isDenied = operation.status === 'Denied' || operation.status === 'UnsupportedByPolicy'
+    const denial = [...remainingDenials].find(entry => operation.pendingOperationId
+      ? entry.pendingOperationId === operation.pendingOperationId
+      : isDenied && !entry.pendingOperationId && entry.operationId === operation.operationId)
+    const identity = operation.pendingOperationId
+      ? { id: operation.pendingOperationId, pendingOperationId: operation.pendingOperationId }
+      : { id: `${operation.operationId}:${index}` }
+    if (denial) remainingDenials.delete(denial)
+    if (denial && isDenied) {
       return {
-        id: denial.operationId,
+        ...identity,
         source: denial.sourceName,
         target: null,
         riskClass: denial.riskClass,
@@ -31,7 +37,7 @@ export function coalesceAgentOperationOutcomes(
     }
 
     return {
-      id: operation.operationId,
+      ...identity,
       source: operation.sourceName,
       target: operation.targetName,
       riskClass: operation.riskClass,
@@ -40,10 +46,10 @@ export function coalesceAgentOperationOutcomes(
     }
   })
 
-  for (const denial of denials) {
-    if (representedOperationIds.has(denial.operationId)) continue
+  for (const [index, denial] of [...remainingDenials].entries()) {
     outcomes.push({
-      id: denial.operationId,
+      id: denial.pendingOperationId ?? `${denial.operationId}:denial:${index}`,
+      ...(denial.pendingOperationId ? { pendingOperationId: denial.pendingOperationId } : {}),
       source: denial.sourceName,
       target: null,
       riskClass: denial.riskClass,

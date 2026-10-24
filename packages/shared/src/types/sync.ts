@@ -5,7 +5,7 @@ export const mutationTypeSchema = z.enum([
   'createHabit', 'updateHabit', 'deleteHabit', 'restoreHabit', 'logHabit', 'skipHabit',
   'undoSkipHabit',
   'reorderHabits', 'updateChecklist', 'duplicateHabit', 'moveHabitParent', 'createSubHabit',
-  'bulkCreateHabits', 'bulkDeleteHabits', 'bulkCascadeDeleteHabits', 'bulkLogHabits', 'bulkSkipHabits',
+  'bulkCreateHabits', 'bulkDeleteHabits', 'bulkCascadeDeleteHabits', 'bulkLogHabits', 'bulkSkipHabits', 'bulkMoveHabitParent',
   'createGoal', 'updateGoal', 'deleteGoal', 'restoreGoal', 'updateGoalProgress', 'updateGoalStatus', 'reorderGoals', 'linkGoalHabits',
   'createTag', 'updateTag', 'deleteTag', 'restoreTag', 'assignTags',
   'markNotificationRead', 'markAllNotificationsRead', 'deleteNotification', 'deleteAllNotifications',

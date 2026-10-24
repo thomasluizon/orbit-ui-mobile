@@ -4572,6 +4572,17 @@ export const PostOauthConsentBody = zod.object({
 export const PostOauthConsentResponse = zod.unknown()
 
 
+export const PostOauthConsentCancelHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const PostOauthConsentCancelBody = zod.object({
+  "ticket": zod.string().optional()
+})
+
+export const PostOauthConsentCancelResponse = zod.unknown()
+
+
 export const GetApiAiProactiveCurrentQueryParams = zod.object({
   "clientContext": zod.string().optional()
 })

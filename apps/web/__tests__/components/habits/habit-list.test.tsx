@@ -1,3 +1,6 @@
+import { advanceAccountGeneration } from '@/lib/session-epoch'
+import { resetAccountQueries } from '@orbit/shared/query'
+import { createMoveInventoryFixture } from '@orbit/shared/__tests__/move-inventory-fixtures'
 import { createHabitViewItems, createHabitViewScheduleItems, createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from '@orbit/shared/__tests__/habit-view-fixtures'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { personalText } from '@/__tests__/support/personal-text'
@@ -38,6 +41,46 @@ const dragLocale = vi.hoisted(() => ({ portuguese: false, english: false }))
 const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined, hasProAccess: true }))
 const accountHabitCount = vi.hoisted(() => ({ count: 0, isLoaded: true }))
 const setFrequencyFilters = vi.hoisted(() => vi.fn())
+const moveControllerOwner = vi.hoisted(() => ({ loaded: vi.fn(), initialize: vi.fn() }))
+const moveModuleLoad = vi.hoisted(() => ({
+  generation: 0, hold: null as Promise<void> | null, pending: null as Promise<unknown> | null, requested: vi.fn(), ready: vi.fn(),
+}))
+
+vi.mock('next/dynamic', async () => {
+  const { default: dynamic } = await import('next/dist/shared/lib/app-dynamic')
+  return { default: <Props extends object,>(loader: () => Promise<React.ComponentType<Props>>) => {
+    const components = new Map<number, React.ComponentType<Props>>()
+    return function DeferredComponent(props: Props) {
+      let Component = components.get(moveModuleLoad.generation)
+      if (!Component) {
+        Component = dynamic(() => {
+          const pending = (async () => {
+            moveModuleLoad.requested()
+            if (moveModuleLoad.hold) await moveModuleLoad.hold
+            const component = await loader()
+            moveModuleLoad.ready()
+            return component
+          })()
+          moveModuleLoad.pending = pending
+          return pending
+        })
+        components.set(moveModuleLoad.generation, Component)
+      }
+      return <Component {...props} />
+    }
+  } }
+})
+
+vi.mock('@orbit/shared/hooks/move-parent-core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orbit/shared/hooks/move-parent-core')>()
+  moveControllerOwner.loaded()
+  return { ...actual, createMoveParentState: () => {
+    moveControllerOwner.initialize()
+    return actual.createMoveParentState()
+  } }
+})
+
+let moveInventoryFetch: ((url: string) => Promise<unknown>) | null = null
 
 const skipFlow = vi.hoisted(() => ({
   active: false,
@@ -53,7 +96,7 @@ vi.mock('@/lib/api-fetch', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api-fetch')>()
   return {
     ...actual,
-    fetchJson: async (...args: Parameters<typeof actual.fetchJson>) => skipFlow.retryRead
+    fetchJson: async (...args: Parameters<typeof actual.fetchJson>) => moveInventoryFetch ? moveInventoryFetch(String(args[0])) : skipFlow.retryRead
       ? actual.fetchJson(...args)
       : ({ items: String(args[0]).includes('dateFrom=') && skipFlow.scheduleItems ? skipFlow.scheduleItems : skipFlow.items, totalCount: skipFlow.items.length, totalPages: 1, page: 1, pageSize: 200 }),
   }
@@ -89,6 +132,21 @@ const mockHabitsData = {
   topLevelHabits: [] as NormalizedHabit[],
   totalCount: 0,
 }
+let moveInventoryStreams: { scheduled: ReturnType<typeof normalizeHabitQueryData>; general: ReturnType<typeof normalizeHabitQueryData> } | null = null
+
+let moveInventoryStatus = { scheduled: 'ready', general: 'ready' }
+
+function moveQueryResult(filters: import('@orbit/shared/types/habit').HabitsFilter) {
+  const inventory = moveInventoryStreams && (Object.keys(filters).length === 0 || (Object.keys(filters).length === 1 && filters.isGeneral === true))
+    ? (filters.isGeneral ? moveInventoryStreams.general : moveInventoryStreams.scheduled) : mockHabitsData
+  const state = moveInventoryStreams && inventory !== mockHabitsData ? moveInventoryStatus[filters.isGeneral ? 'general' : 'scheduled'] : 'ready'
+  return {
+    data: inventory, isSuccess: state === 'ready', isFetching: state === 'loading', isError: state === 'error',
+    getChildren: (parentId: string) => (inventory.childrenByParent.get(parentId) ?? [])
+      .map((id) => inventory.habitsById.get(id)!),
+  }
+}
+
 const logHabitMutateAsync = vi.fn()
 const reorderHabitsMutate = vi.fn()
 
@@ -96,6 +154,7 @@ const habitListRefetch = vi.fn()
 const skipHabitMutateAsync = vi.fn()
 const deleteHabitMutateAsync = vi.fn()
 const duplicateHabitMutateAsync = vi.fn()
+const moveHabitParentMutateAsync = vi.fn()
 const toggleSelectionSpy = vi.fn()
 const drillRefreshCurrent = vi.fn()
 const drillInto = vi.fn()
@@ -156,24 +215,19 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
   return ({
   ...actual,
   useHabits: (...args: Parameters<typeof actual.useHabits>) => skipFlow.active ? actual.useHabits(...args) : ({
-    data: mockHabitsData,
+    ...moveQueryResult(args[0]),
     isLoading: false,
     error: null,
     dataUpdatedAt: mockHabitsDataUpdatedAt,
     refetch: habitListRefetch,
-    getChildren: (parentId: string) => {
-      const childIds = mockHabitsData.childrenByParent.get(parentId) ?? []
-      return childIds
-        .map((id) => mockHabitsData.habitsById.get(id))
-        .filter(Boolean) as NormalizedHabit[]
-    },
+
   }),
   useLogHabit: () => ({ mutateAsync: logHabitMutateAsync, mutate: vi.fn(), isPending: false }),
   useSkipHabit: () => skipFlow.active ? actual.useSkipHabit() : ({ mutateAsync: skipHabitMutateAsync, isPending: false }),
   useDeleteHabit: () => ({ mutateAsync: deleteHabitMutateAsync, isPending: false }),
   useDuplicateHabit: () => ({ mutateAsync: duplicateHabitMutateAsync, isPending: false }),
   useReorderHabits: () => ({ mutate: reorderHabitsMutate, isPending: false }),
-  useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useMoveHabitParent: () => ({ mutateAsync: moveHabitParentMutateAsync, isPending: false }),
 })
 })
 
@@ -265,6 +319,7 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
       onDuplicate?: () => void
       onDetail?: () => void
       onAddSubHabit?: () => void
+      onMoveParent?: () => void
       onReschedule?: () => void
       onToggleSelection?: () => void
     }
@@ -305,6 +360,7 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
       <button data-testid={`duplicate-${habit.id}`} onClick={actions?.onDuplicate}>
         duplicate
       </button>
+      <button data-testid={`move-${habit.id}`} onClick={actions?.onMoveParent}>Move</button>
       <button data-testid={`detail-${habit.id}`} onClick={actions?.onDetail}>
         detail
       </button>
@@ -388,6 +444,7 @@ vi.mock('@dnd-kit/utilities', () => ({
 }))
 
 import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
+import { SelectionTray } from '@/components/habits/selection-tray'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import {
   holdAccount,
@@ -449,6 +506,12 @@ const defaultFilters = {
 
 describe('HabitList', () => {
   beforeEach(() => {
+    moveModuleLoad.generation++
+    moveModuleLoad.hold = null
+    moveModuleLoad.pending = null
+    moveInventoryStatus = { scheduled: 'ready', general: 'ready' }
+    moveInventoryStreams = null
+    moveInventoryFetch = null
     dragLocale.portuguese = false
     dragLocale.english = false
     skipFlow.active = false
@@ -497,6 +560,387 @@ describe('HabitList', () => {
     mockHabitsData.totalCount = 0
     accountHabitCount.count = 0
     accountHabitCount.isLoaded = true
+  })
+
+  it('initializes the Move controller only after the owning row opens it', async () => {
+    Object.assign(mockHabitsData, normalizeHabitQueryData(['source', 'target'].map((id) => createMockHabitScheduleItem({ id, title: id }))))
+    renderWithProviders(<HabitList filters={{ dateFrom: TODAY }} />)
+    expect(moveControllerOwner.initialize).not.toHaveBeenCalled()
+    expect(moveControllerOwner.loaded).not.toHaveBeenCalled()
+    expect(moveModuleLoad.requested).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('move-source'))
+    expect(await screen.findByRole('radio', { name: /^target/ })).toBeInTheDocument()
+    expect(moveControllerOwner.initialize).toHaveBeenCalled()
+    expect(moveControllerOwner.loaded).toHaveBeenCalledOnce()
+    expect(moveModuleLoad.ready).toHaveBeenCalledOnce()
+    expect(moveHabitParentMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it.each(['close', 'account', 'unmount'] as const)('discards late Move work after %s', async (boundary) => {
+    skipFlow.active = true
+    const fixture = createMoveInventoryFixture(TODAY)
+    let release: () => void = () => {}
+    const held = new Promise<void>((resolve) => { release = resolve })
+    moveInventoryFetch = async (url) => {
+      if (url.includes('page=2')) await held
+      return fixture.response(url)
+    }
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const rendered = render(<QueryClientProvider client={client}><HabitList filters={{ dateFrom: TODAY }} /></QueryClientProvider>)
+    fireEvent.click(await screen.findByTestId('move-source'))
+    expect(await screen.findByRole('progressbar', { name: 'common.loading' })).toBeInTheDocument()
+    if (boundary === 'close') fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
+    else if (boundary === 'account') await act(async () => { advanceAccountGeneration(); await resetAccountQueries(client, 'signed-out') })
+    else rendered.unmount()
+    await act(async () => { release(); await held })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(moveHabitParentMutateAsync).not.toHaveBeenCalled()
+    rendered.unmount()
+    client.clear()
+  })
+
+  it('keeps General sources captured across filters and recovers missing or stale inventory', async () => {
+    const source = createMockHabitScheduleItem({ id: 'source', title: 'source', isGeneral: true })
+    Object.assign(mockHabitsData, normalizeHabitQueryData([source]))
+    moveInventoryStreams = { scheduled: normalizeHabitQueryData([createMockHabitScheduleItem({ id: 'scheduled', title: 'Scheduled target' })]),
+      general: normalizeHabitQueryData([source, createMockHabitScheduleItem({ id: 'general-target', title: 'General target', isGeneral: true })]) }
+    const onBulkMove = vi.fn().mockResolvedValue({ results: [{ index: 0, habitId: 'source', status: 'Success' }] })
+    const ref = React.createRef<HabitListHandle>()
+    const list = () => <HabitList ref={ref} filters={{ dateFrom: TODAY, search: 'source' }} isSelectMode selectedHabitIds={new Set(['source'])} onBulkMove={onBulkMove} />
+    const rendered = renderWithProviders(list())
+    moveInventoryStatus.general = 'error'
+    act(() => ref.current!.openBulkMove())
+    expect(await screen.findByText('errors.fetchHabits')).toBeInTheDocument()
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+    expect(screen.queryByText('habits.moveParent.noDestinations')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(habitListRefetch).toHaveBeenCalledTimes(2)
+    moveInventoryStatus.general = 'ready'
+    rendered.rerenderWithProviders(list())
+    const target = screen.getByRole('radio', { name: /^General target/ })
+    expect(target).not.toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('radio', { name: /^Scheduled target/ })).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(target)
+    moveInventoryStreams.general = normalizeHabitQueryData([source])
+    rendered.rerenderWithProviders(list())
+    expect(screen.getByRole('button', { name: 'habits.moveParent.confirm' })).toBeDisabled()
+    expect(screen.getByText('errors.fetchHabits')).toBeInTheDocument()
+    moveInventoryStreams.general = normalizeHabitQueryData([])
+    rendered.rerenderWithProviders(list())
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+    moveInventoryStreams.general = normalizeHabitQueryData([source, createMockHabitScheduleItem({ id: 'general-target', title: 'General target', isGeneral: true })])
+    Object.assign(mockHabitsData, normalizeHabitQueryData([createMockHabitScheduleItem({ id: 'other-visible' })]))
+    rendered.rerenderWithProviders(<HabitList ref={ref} view="general" filters={{ isGeneral: true, isCompleted: true, page: 4 }}
+      isSelectMode selectedHabitIds={new Set(['other-visible'])} onBulkMove={onBulkMove} />)
+    expect(screen.getByRole('radio', { name: /^General target/ })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
+    await waitFor(() => expect(onBulkMove).toHaveBeenCalledExactlyOnceWith(['source'], 'general-target'))
+  })
+
+  it.each(['source', 'nested-source'])('waits for both complete streams and searches the actual paginated picker for %s', async (sourceId) => {
+    skipFlow.active = true
+    const fixture = createMoveInventoryFixture(TODAY)
+    const requests: string[] = []
+    let releaseScheduled: () => void = () => {}
+    let releaseGeneral: () => void = () => {}
+    const heldScheduled = new Promise<void>((resolve) => { releaseScheduled = resolve })
+    const heldGeneral = new Promise<void>((resolve) => { releaseGeneral = resolve })
+    moveInventoryFetch = async (url) => {
+      requests.push(url)
+      if (url.includes('page=2')) await (url.includes('isGeneral=true') ? heldGeneral : heldScheduled)
+      const response = fixture.response(url)
+      return url.includes('dateFrom=') && sourceId === 'nested-source'
+        ? { ...response, items: [createMockHabitScheduleItem({ id: sourceId, title: sourceId })] } : response
+    }
+    renderWithProviders(<HabitList filters={{ dateFrom: TODAY, dateTo: TODAY, search: 'source', isCompleted: false, frequencyUnit: 'Day', tagIds: ['tag'] }} />)
+    fireEvent.click(await screen.findByTestId(`move-${sourceId}`))
+    await waitFor(() => expect(requests).toHaveLength(5))
+    expect(screen.getByRole('progressbar', { name: 'common.loading' })).toBeInTheDocument()
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+    expect(screen.queryByText('habits.moveParent.noDestinations')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'habits.moveParent.confirm' })).toBeDisabled()
+    await act(async () => { releaseScheduled(); await heldScheduled })
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+    await act(async () => { releaseGeneral(); await heldGeneral })
+    await screen.findByRole('radio', { name: /^Future page two/ })
+    const renderedIds = [null, ...Array.from(document.querySelectorAll<HTMLElement>('[data-move-parent-id]'), (row) => row.dataset.moveParentId)]
+    expect(new Set(renderedIds)).toEqual(new Set(fixture.optionIds))
+    expect(screen.getAllByRole('radio')).toHaveLength(fixture.optionIds.length)
+    for (const name of ['Past destination', 'Future page two', 'Finished container', 'Completed recurring', 'Ação futura'])
+      expect(screen.getByRole('radio', { name: new RegExp('^' + name) })).toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: /^Finished 1/ })).not.toBeInTheDocument()
+    for (const name of sourceId === 'source' ? ['hidden-descendant', 'deep-3', 'General two'] : ['General two'])
+      expect(screen.getByRole('radio', { name: new RegExp('^' + name) })).toHaveAttribute('aria-disabled', 'true')
+    if (sourceId === 'nested-source') {
+      expect(screen.getByRole('radio', { name: /^current-parent/ })).toHaveAttribute('aria-disabled', 'true')
+      expect(screen.getByRole('radio', { name: /^current-parent/ })).toHaveAccessibleName(/habits.moveParent.currentParent/)
+    }
+    const search = screen.getByRole('textbox', { name: 'habits.moveParent.searchPlaceholder' })
+    fireEvent.change(search, { target: { value: 'ACAO FUTURA' } })
+    expect(screen.getAllByRole('radio')).toHaveLength(3)
+    expect(screen.getByRole('radio', { name: /^General two/ })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /^Ação futura/ })).toBeInTheDocument()
+    fireEvent.change(search, { target: { value: '' } })
+    expect(screen.getAllByRole('radio')).toHaveLength(fixture.optionIds.length)
+    expect(requests.filter((url) => !url.includes('dateFrom='))).toEqual(expect.arrayContaining([
+      '/api/habits?pageSize=200', '/api/habits?page=2&pageSize=200',
+      '/api/habits?isGeneral=true&pageSize=200', '/api/habits?isGeneral=true&page=2&pageSize=200',
+    ]))
+    expect(requests.filter((url) => !url.includes('dateFrom='))).toHaveLength(4)
+    expect(screen.queryByTestId('habit-card-future')).not.toBeInTheDocument()
+  })
+
+  it.each(['single', 'bulk'] as const)('offers complete account destinations through the actual %s picker', async (entry) => {
+    const visible = [createMockHabitScheduleItem({ id: 'source', title: 'source' })]
+    Object.assign(mockHabitsData, normalizeHabitQueryData(visible))
+    const scheduled = [
+      createMockHabitScheduleItem({ ...visible[0], children: [createMockHabitScheduleChild({ id: 'hidden-descendant', title: 'Hidden descendant' })] }),
+      createMockHabitScheduleItem({ id: 'past', title: 'Past destination', dueDate: YESTERDAY, scheduledDates: [] }),
+      createMockHabitScheduleItem({ id: 'future', title: 'Future page two', dueDate: TOMORROW, scheduledDates: [] }),
+    ].map((item) => habitScheduleItemSchema.parse(item))
+    moveInventoryStreams = { scheduled: normalizeHabitQueryData(scheduled), general: normalizeHabitQueryData([
+      habitScheduleItemSchema.parse(createMockHabitScheduleItem({ id: 'general', title: 'General destination', isGeneral: true })),
+    ]) }
+    const onBulkMove = vi.fn().mockResolvedValue({ results: [{ index: 0, habitId: 'source', status: 'Success' }] })
+    const ref = React.createRef<HabitListHandle>()
+    renderWithProviders(<HabitList ref={ref} filters={{ dateFrom: TODAY, dateTo: TODAY, search: 'source', tagIds: ['tag'], frequencyUnit: 'Day', isCompleted: false }}
+      isSelectMode={entry === 'bulk'} selectedHabitIds={new Set(['source'])} onBulkMove={onBulkMove} />)
+    if (entry === 'bulk') act(() => ref.current!.openBulkMove())
+    else fireEvent.click(screen.getByTestId('move-source'))
+    const past = await screen.findByRole('radio', { name: /^Past destination/ })
+    const future = screen.getByRole('radio', { name: /^Future page two/ })
+    expect(past).not.toHaveAttribute('aria-disabled', 'true')
+    expect(future).not.toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('radio', { name: /^Hidden descendant/ })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('radio', { name: /^General destination/ })).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(past)
+    expect(past).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(future)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    if (entry === 'bulk') expect(onBulkMove).toHaveBeenCalledExactlyOnceWith(['source'], 'future')
+    else expect(moveHabitParentMutateAsync).toHaveBeenCalledExactlyOnceWith({ habitId: 'source', data: { parentId: 'future' } })
+  })
+
+  it.each([100, 101])('enforces the bulk move boundary for %s selected ids', async (count) => {
+    dragLocale.english = true
+    const ids = Array.from({ length: count }, (_, index) => `habit-${index}`)
+    Object.assign(mockHabitsData, normalizeHabitQueryData([...ids, 'target'].map((id) => createMockHabitScheduleItem({ id, title: id }))))
+    const onBulkMove = vi.fn().mockResolvedValue({ results: ids.map((habitId, index) => ({ index, habitId, status: 'Success' })) })
+    const ref = React.createRef<HabitListHandle>()
+    renderWithProviders(<>
+      <SelectionTray selectedCount={count} allSelected onSelectAll={vi.fn()} onDeselectAll={vi.fn()}
+        onBulkLog={vi.fn()} onBulkSkip={vi.fn()} onBulkMove={() => ref.current?.openBulkMove()}
+        onBulkDelete={vi.fn()} onCancel={vi.fn()} />
+      <HabitList ref={ref} filters={{}} isSelectMode selectedHabitIds={new Set(ids)} onBulkMove={onBulkMove} />
+    </>)
+    const move = screen.getByRole('button', { name: 'Move selected' })
+    await act(async () => {
+      fireEvent.click(move)
+      await moveModuleLoad.pending
+    })
+    if (count === 101) {
+      expect.soft(move).toHaveAttribute('aria-disabled', 'true')
+      expect.soft(screen.queryByText('Select up to 100 habits to move at once.')).toBeInTheDocument()
+      act(() => ref.current!.openBulkMove())
+      expect.soft(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(onBulkMove).not.toHaveBeenCalled()
+      return
+    }
+    expect(move).not.toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(screen.getByRole('radio', { name: /^target/ }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Move' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(onBulkMove).toHaveBeenCalledExactlyOnceWith(ids, 'target')
+  })
+
+  it('still moves one habit from its row menu and closes through the picker', async () => {
+    Object.assign(mockHabitsData, normalizeHabitQueryData(['source', 'target'].map((id) => createMockHabitScheduleItem({ id, title: id }))))
+    moveHabitParentMutateAsync.mockResolvedValue(undefined)
+    renderWithProviders(<HabitList filters={{}} />)
+    fireEvent.click(screen.getByTestId('move-source'))
+    const target = await screen.findByRole('radio', { name: /^target/ })
+    expect(screen.getByRole('radio', { name: /^source/ })).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(target)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(moveHabitParentMutateAsync).toHaveBeenCalledExactlyOnceWith({ habitId: 'source', data: { parentId: 'target' } })
+  })
+
+  it('keeps a bulk move open with its destination and retries only the failed habit', async () => {
+    const child = createMockHabitScheduleChild({ id: 'b', title: 'b' })
+    const items = ['a', 'c', 'target'].map((id) => createMockHabitScheduleItem({ id, title: id === 'target' ? 'Destination' : id, children: id === 'a' ? [child] : [] }))
+    Object.assign(mockHabitsData, normalizeHabitQueryData(items))
+    const onBulkMove = vi.fn()
+      .mockResolvedValueOnce({ results: ['a', 'b', 'c'].map((habitId, index) => ({
+        index, habitId, status: habitId === 'b' ? 'Failed' : 'Success', error: habitId === 'b' ? 'Move refused by server' : null,
+      })) })
+      .mockResolvedValueOnce({ results: [{ index: 0, habitId: 'b', status: 'Success' }] })
+    const ref = React.createRef<HabitListHandle>()
+    renderWithProviders(<HabitList ref={ref} filters={{}} isSelectMode selectedHabitIds={new Set(['a', 'b', 'c'])} onBulkMove={onBulkMove} />)
+    act(() => ref.current!.openBulkMove())
+    const target = await screen.findByRole('radio', { name: /Destination/ })
+    expect(screen.queryByText('habits.moveParent.currentParent')).not.toBeInTheDocument()
+    fireEvent.click(target)
+    fireEvent.click(screen.getByRole('button', { name: /^habits.moveParent.confirm/ }))
+    await waitFor(() => expect(within(screen.getByRole('dialog')).getByRole('status').textContent).toBe('habits.moveParent.errorPartial'))
+    expect(onBulkMove).toHaveBeenNthCalledWith(1, ['a', 'b', 'c'], 'target')
+    expect(screen.getByRole('radio', { name: /Destination/ })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^habits.moveParent.confirm/ }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(onBulkMove).toHaveBeenNthCalledWith(2, ['b'], 'target')
+  })
+
+  it.each(['ready', 'error'] as const)('preserves the active Move operation across list loading and %s', async (outcome) => {
+    skipFlow.active = true
+    const fixture = createMoveInventoryFixture(TODAY)
+    let releaseList = () => {}
+    let heldList = new Promise<void>((resolve) => { releaseList = resolve })
+    const changedRequests = vi.fn()
+    moveInventoryFetch = async (url) => {
+      if (url.includes('dateFrom=') && !url.includes(`dateFrom=${TODAY}`)) {
+        changedRequests()
+        await heldList
+        if (outcome === 'error') throw new Error('List unavailable')
+      }
+      return fixture.response(url)
+    }
+    let releaseMove = (_result: import('@orbit/shared/types/habit').BulkMoveHabitParentResult) => {}
+    const heldMove = new Promise<import('@orbit/shared/types/habit').BulkMoveHabitParentResult>((resolve) => { releaseMove = resolve })
+    const onBulkMove = vi.fn().mockReturnValueOnce(heldMove)
+      .mockResolvedValueOnce({ results: [{ index: 0, habitId: 'past', status: 'Success' }] })
+    const ref = React.createRef<HabitListHandle>()
+    const list = (date: string) => <HabitList ref={ref} filters={{ dateFrom: date }} isSelectMode
+      selectedHabitIds={new Set(['source', 'past'])} onBulkMove={onBulkMove} />
+    const rendered = renderWithProviders(list(TODAY))
+    await screen.findByTestId('move-source')
+    act(() => ref.current!.openBulkMove())
+    const target = await screen.findByRole('radio', { name: /^Future page two/ })
+    const search = screen.getByRole('textbox', { name: 'habits.moveParent.searchPlaceholder' })
+    fireEvent.change(search, { target: { value: 'Future page' } })
+    fireEvent.click(target)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
+    expect(onBulkMove).toHaveBeenCalledExactlyOnceWith(['source', 'past'], 'future')
+    rendered.rerenderWithProviders(list(TOMORROW))
+    await waitFor(() => expect(changedRequests).toHaveBeenCalledOnce())
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /^Future page two/ })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('textbox', { name: 'habits.moveParent.searchPlaceholder' })).toHaveValue('Future page')
+    expect(screen.getByRole('button', { name: 'habits.moveParent.confirm' })).toBeDisabled()
+    await act(async () => { releaseList(); await heldList })
+    if (outcome === 'error') await screen.findByText('habits.loadError')
+    else await screen.findByTestId('move-source')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
+    expect(onBulkMove).toHaveBeenCalledOnce()
+    expect(moveControllerOwner.initialize).toHaveBeenCalledOnce()
+    await act(async () => { releaseMove({ results: [
+      { index: 0, habitId: 'source', status: 'Success' },
+      { index: 1, habitId: 'past', status: 'Failed', error: 'Move refused by server' },
+    ] }); await heldMove })
+    await waitFor(() => expect(within(screen.getByRole('dialog')).getByRole('status')).toHaveTextContent('habits.moveParent.errorPartial'))
+    changedRequests.mockClear()
+    heldList = new Promise<void>((resolve) => { releaseList = resolve })
+    rendered.rerenderWithProviders(list(YESTERDAY))
+    await waitFor(() => expect(changedRequests).toHaveBeenCalledOnce())
+    expect(screen.getByRole('radio', { name: /^Future page two/ })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('textbox', { name: 'habits.moveParent.searchPlaceholder' })).toHaveValue('Future page')
+    expect(within(screen.getByRole('dialog')).getByRole('status')).toHaveTextContent('habits.moveParent.errorPartial')
+    await act(async () => { releaseList(); await heldList })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(onBulkMove).toHaveBeenNthCalledWith(2, ['past'], 'future')
+    expect(moveControllerOwner.initialize).toHaveBeenCalledOnce()
+  })
+
+  it.each(['single', 'bulk'] as const)('captures the %s source before a delayed Move import and a changed view', async (entry) => {
+    const items = ['source', 'replacement', 'target'].map((id) => createMockHabitScheduleItem({ id, title: id }))
+    Object.assign(mockHabitsData, normalizeHabitQueryData(items.slice(0, 1)))
+    moveInventoryStreams = { scheduled: normalizeHabitQueryData(items), general: normalizeHabitQueryData([]) }
+    let release = () => {}
+    moveModuleLoad.hold = new Promise<void>((resolve) => { release = resolve })
+    const onBulkMove = vi.fn(() => new Promise<import('@orbit/shared/types/habit').BulkMoveHabitParentResult>(() => {}))
+    moveHabitParentMutateAsync.mockImplementation(() => new Promise<void>(() => {}))
+    const ref = React.createRef<HabitListHandle>()
+    const rendered = renderWithProviders(<HabitList ref={ref} filters={{ dateFrom: TODAY }}
+      isSelectMode={entry === 'bulk'} selectedHabitIds={new Set(['source'])} onBulkMove={onBulkMove} />)
+    expect(moveModuleLoad.requested).not.toHaveBeenCalled()
+    if (entry === 'bulk') act(() => ref.current!.openBulkMove())
+    else fireEvent.click(screen.getByTestId('move-source'))
+    expect(moveModuleLoad.requested).toHaveBeenCalledOnce()
+    expect(moveControllerOwner.initialize).not.toHaveBeenCalled()
+    Object.assign(mockHabitsData, normalizeHabitQueryData(items.slice(1, 2)))
+    rendered.rerenderWithProviders(<HabitList ref={ref} view="all" selectedDate={new Date(TOMORROW)}
+      filters={{ search: 'replacement', tagIds: ['other'], page: 4 }} isSelectMode
+      selectedHabitIds={new Set(['replacement'])} onBulkMove={onBulkMove} />)
+    await act(async () => { release() })
+    fireEvent.click(await screen.findByRole('radio', { name: /^target/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
+    if (entry === 'bulk') expect(onBulkMove).toHaveBeenCalledExactlyOnceWith(['source'], 'target')
+    else expect(moveHabitParentMutateAsync).toHaveBeenCalledExactlyOnceWith({ habitId: 'source', data: { parentId: 'target' } })
+    rendered.unmount()
+  })
+
+  it.each(['close', 'account', 'unmount'] as const)('cancels the delayed Move import lifetime after %s', async (boundary) => {
+    Object.assign(mockHabitsData, normalizeHabitQueryData(['source', 'target'].map((id) => createMockHabitScheduleItem({ id, title: id }))))
+    let release = () => {}
+    moveModuleLoad.hold = new Promise<void>((resolve) => { release = resolve })
+    const onSurfaceOpenChange = vi.fn()
+    const rendered = renderWithProviders(<HabitList filters={{ dateFrom: TODAY }} onSurfaceOpenChange={onSurfaceOpenChange} />)
+    fireEvent.click(screen.getByTestId('move-source'))
+    expect(moveModuleLoad.requested).toHaveBeenCalledOnce()
+    if (boundary === 'close') fireEvent.keyDown(window, { key: 'Escape' })
+    else if (boundary === 'account') act(() => { advanceAccountGeneration() })
+    else rendered.unmount()
+    if (boundary !== 'unmount') expect(onSurfaceOpenChange).toHaveBeenLastCalledWith(false)
+    await act(async () => { release() })
+    await waitFor(() => expect(moveModuleLoad.ready).toHaveBeenCalledOnce())
+    expect(moveControllerOwner.initialize).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(moveHabitParentMutateAsync).not.toHaveBeenCalled()
+    rendered.unmount()
+  })
+
+  it('keeps a reopened Move intent when the canceled import completes', async () => {
+    Object.assign(mockHabitsData, normalizeHabitQueryData(['source', 'replacement', 'target'].map((id) => createMockHabitScheduleItem({ id, title: id }))))
+    let release = () => {}
+    moveModuleLoad.hold = new Promise<void>((resolve) => { release = resolve })
+    moveHabitParentMutateAsync.mockImplementation(() => new Promise<void>(() => {}))
+    renderWithProviders(<HabitList filters={{ dateFrom: TODAY }} />)
+    fireEvent.click(screen.getByTestId('move-source'))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.click(screen.getByTestId('move-replacement'))
+    await act(async () => { release() })
+    fireEvent.click(await screen.findByRole('radio', { name: /^target/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
+    expect(moveHabitParentMutateAsync).toHaveBeenCalledExactlyOnceWith({ habitId: 'replacement', data: { parentId: 'target' } })
+  })
+
+  it.each(['single', 'bulk'] as const)('rejects late %s completion after replacing the account and opening another Move', async (entry) => {
+    Object.assign(mockHabitsData, normalizeHabitQueryData(['source', 'replacement', 'target'].map((id) => createMockHabitScheduleItem({ id, title: id }))))
+    let rejectOld = (_error: Error) => {}
+    const pending = new Promise<never>((_resolve, reject) => { rejectOld = reject })
+    moveHabitParentMutateAsync.mockReturnValue(pending)
+    const onBulkMove = vi.fn(() => pending)
+    const ref = React.createRef<HabitListHandle>()
+    const rendered = renderWithProviders(<HabitList ref={ref} filters={{}} selectedHabitIds={new Set(['source'])} onBulkMove={onBulkMove} />)
+    if (entry === 'bulk') act(() => ref.current!.openBulkMove())
+    else fireEvent.click(screen.getByTestId('move-source'))
+    fireEvent.click(await screen.findByRole('radio', { name: /^target/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
+    expect(entry === 'bulk' ? onBulkMove : moveHabitParentMutateAsync).toHaveBeenCalledOnce()
+    act(() => { advanceAccountGeneration() })
+    rendered.rerenderWithProviders(<HabitList ref={ref} filters={{}} selectedHabitIds={new Set(['replacement'])} onBulkMove={onBulkMove} />)
+    if (entry === 'bulk') act(() => ref.current!.openBulkMove())
+    else fireEvent.click(screen.getByTestId('move-replacement'))
+    const target = await screen.findByRole('radio', { name: /^target/ })
+    fireEvent.click(target)
+    await act(async () => { rejectOld(new Error('old account request failed')); await pending.catch(() => {}) })
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(target).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('button', { name: 'habits.moveParent.confirm' })).toBeEnabled()
+    expect(within(screen.getByRole('dialog')).getByRole('status')).toBeEmptyDOMElement()
+    expect(entry === 'bulk' ? onBulkMove : moveHabitParentMutateAsync).toHaveBeenCalledOnce()
   })
 
   it.each(['today', 'all', 'general'] as const)('offers search recovery instead of first run in %s', (view) => {
@@ -4264,6 +4708,11 @@ describe('HabitList across an account change', () => {
   const ACCOUNT_A_TITLE = 'Account A morning run'
 
   beforeEach(() => {
+    rowImplementation.actual = false
+    dragLocale.english = false
+    dragLocale.portuguese = false
+    skipFlow.active = false
+    moveModuleLoad.hold = null
     vi.clearAllMocks()
     vi.stubGlobal('fetch', vi.fn())
     sheetTestControls.defer(false)

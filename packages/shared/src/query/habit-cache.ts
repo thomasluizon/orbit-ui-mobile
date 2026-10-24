@@ -381,6 +381,10 @@ export function updateCachedHabitDetails(
   return updates
 }
 
+export function invalidateBulkMoveParentQueries(queryClient: QueryClient): Promise<void> {
+  return queryClient.invalidateQueries({ queryKey: habitKeys.all })
+}
+
 export function invalidateHabitParentDetails(queryClient: QueryClient, updates: HabitDetailUpdates | undefined, habitId: string): void {
   for (const { queryKey } of updates ?? []) {
     if (queryKey[2] !== habitId) void queryClient.invalidateQueries({ queryKey, exact: true })

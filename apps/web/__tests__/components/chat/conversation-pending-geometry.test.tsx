@@ -127,7 +127,7 @@ describe('Astra pending reply geometry in Chromium', () => {
         expect(parseFloat(animation.duration) * Number(animation.iterations)).toBeLessThanOrEqual(5)
       }
       chat.isTyping = false
-      chat.streamingMessageId = 'reply'
+      chat.streamingMessageId = null
       chat.messages = [...chat.messages, { id: 'reply', role: 'ai', content: 'Start with water', timestamp: new Date() }]
       rerender(content())
       await page.locator(`.${theme}`).evaluate((element, markup) => { element.innerHTML = markup }, container.innerHTML)
