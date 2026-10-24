@@ -1,13 +1,4 @@
-use tauri::{AppHandle, Manager, Url};
-
-pub fn show_main(app: &AppHandle) -> tauri::Result<()> {
-    if let Some(window) = app.get_webview_window("main") {
-        window.show()?;
-        window.unminimize()?;
-        window.set_focus()?;
-    }
-    Ok(())
-}
+use tauri::Url;
 
 pub fn destination(origin: &Url, identifier: &str, link: &Url) -> Option<Url> {
     if link.scheme() != identifier

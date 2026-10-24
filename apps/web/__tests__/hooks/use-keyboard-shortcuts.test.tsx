@@ -49,6 +49,7 @@ function Harness({ enabled = true }: Readonly<{ enabled?: boolean }>) {
 }
 
 beforeEach(() => {
+  vi.resetModules()
   overlayOpen = false
   modalFocusOwnerOpen = false
   paletteOpen = false
@@ -62,6 +63,26 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers())
 
 describe('useKeyboardShortcuts', () => {
+  it.each([false, true])('opens from the real desktop menu bridge with a typing target: %s', async (typing) => {
+    const view = render(<Harness />)
+    if (typing) view.getByTestId('field').focus()
+    await act(async () => { await import('../../../desktop/src-tauri/src/palette.js') })
+    expect(mockTogglePalette).toHaveBeenCalledExactlyOnceWith()
+  })
+
+  it('keeps desktop menu palette actions behind the existing modal focus guard', async () => {
+    modalFocusOwnerOpen = true
+    render(<Harness />)
+    await act(async () => { await import('../../../desktop/src-tauri/src/palette.js') })
+    expect(mockTogglePalette).not.toHaveBeenCalled()
+  })
+
+  it('does not open from the desktop menu when shell navigation is disabled', async () => {
+    render(<Harness enabled={false} />)
+    await act(async () => { await import('../../../desktop/src-tauri/src/palette.js') })
+    expect(mockTogglePalette).not.toHaveBeenCalled()
+  })
+
   it('toggles the palette on Meta+K', () => {
     render(<Harness />)
     fireEvent.keyDown(document, { key: 'k', metaKey: true })

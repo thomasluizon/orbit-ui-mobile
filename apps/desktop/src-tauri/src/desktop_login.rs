@@ -61,7 +61,7 @@ pub fn start(app: AppHandle, flow: SharedAuth) {
 fn receive(app: &AppHandle, flow: SharedAuth, url: Url) {
     let origin = flow.lock().unwrap().origin.clone();
     if let Some(destination) = crate::links::destination(&origin, &app.config().identifier, &url) {
-        let result = crate::links::show_main(app).and_then(|()| {
+        let result = crate::lifecycle::show_main(app).and_then(|()| {
             if let Some(window) = app.get_webview_window("main") {
                 window.navigate(destination)?;
             }
@@ -78,7 +78,7 @@ fn receive(app: &AppHandle, flow: SharedAuth, url: Url) {
         let Some((attempt, code)) = claimed else {
             return;
         };
-        if let Err(error) = crate::links::show_main(&handle) {
+        if let Err(error) = crate::lifecycle::show_main(&handle) {
             eprintln!("Cannot restore sign-in window: {error}");
         }
         let Some(window) = handle.get_webview_window("main") else {
@@ -148,7 +148,7 @@ async fn redeem(
         guard.ready = Some((attempt.clone(), cookies));
     }
     notify(window, "ready", &attempt.state)?;
-    if let Err(error) = crate::links::show_main(window.app_handle()) {
+    if let Err(error) = crate::lifecycle::show_main(window.app_handle()) {
         eprintln!("Cannot focus signed-in desktop: {error}");
     }
     Ok(())

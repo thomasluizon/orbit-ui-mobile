@@ -56,6 +56,15 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
     expect(config.plugins).toEqual({ 'deep-link': { desktop: { schemes: [identifier] } } })
     expect(existsSync(new URL('../src-tauri/capabilities', import.meta.url))).toBe(false)
   })
+
+  it('keeps lifecycle operations native without granting plugin commands to the deployed page', () => {
+    const entrypoint = readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
+    expect(entrypoint).toContain('.on_menu_event(menus::handle)')
+    expect(entrypoint).toContain('.on_window_event(lifecycle::on_window_event)')
+    expect(entrypoint.indexOf('tauri_plugin_single_instance::init')).toBeLessThan(entrypoint.indexOf('tauri_plugin_deep_link::init'))
+    const permissions = config.app.security.capabilities.flatMap((capability) => capability.permissions)
+    expect(permissions).toEqual(['allow-commit-desktop-login'])
+  })
 })
 
 it('gives staging and production separate persistent webview identities', () => {

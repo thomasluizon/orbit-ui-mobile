@@ -6,19 +6,37 @@ use tauri::Manager;
 
 mod auth;
 mod desktop_login;
+mod lifecycle;
 mod links;
+mod localization;
+mod menus;
+mod settings;
 
 fn main() {
+    let context = context();
+    let identifier = context.config().identifier.clone();
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             desktop_login::commit_desktop_login
         ])
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            if let Err(error) = links::show_main(app) {
+            if let Err(error) = lifecycle::show_main(app) {
                 eprintln!("Cannot restore desktop window: {error}");
             }
         }))
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .app_name(identifier)
+                .build(),
+        )
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                .with_state_flags(lifecycle::window_state_flags())
+                .build(),
+        )
+        .on_menu_event(menus::handle)
+        .on_window_event(lifecycle::on_window_event)
         .setup(|app| {
             let tauri::utils::config::WebviewUrl::External(origin) =
                 &app.config().app.windows[0].url
@@ -33,6 +51,7 @@ fn main() {
             app.manage(flow.clone());
             let callbacks_flow = flow.clone();
             let handle = app.handle().clone();
+            menus::install(app.handle())?;
             tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
                 .on_navigation(move |url| {
                     if auth::intercepts(&navigation_origin, url) {
@@ -45,11 +64,20 @@ fn main() {
                     open_new_window(url, |url| tauri_plugin_opener::open_url(url, None::<&str>))
                 })
                 .build()?;
+            lifecycle::show_main(app.handle())?;
             desktop_login::attach_callbacks(app.handle(), callbacks_flow)?;
             Ok(())
         })
-        .run(context())
-        .expect("desktop application failed");
+        .build(context)
+        .expect("desktop application failed")
+        .run(|_app, _event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = _event {
+                if let Err(error) = lifecycle::show_main(_app) {
+                    eprintln!("Cannot reopen desktop window: {error}");
+                }
+            }
+        });
 }
 
 fn open_new_window(
