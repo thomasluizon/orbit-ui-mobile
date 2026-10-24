@@ -36,7 +36,7 @@ describe('completion control paint stack', () => {
         const tokens = createTokensV2('orange', mode)
         const onToggle = vi.fn()
         const element = kind === 'habit check'
-          ? <CheckCircle state="empty" tokens={tokens} disabled={false} onToggle={onToggle} accessibilityLabel="Log habit" />
+          ? <CheckCircle state="empty" disabled={false} onToggle={onToggle} accessibilityLabel="Log habit" />
           : <StatusDot state="empty" onToggle={onToggle} accessibilityLabel="Log habit" />
         let tree!: ReactTestRenderer
         await act(() => { tree = create(element) })
@@ -53,7 +53,8 @@ describe('completion control paint stack', () => {
           expect(color).toBe(tokens.statusEmpty)
           for (const pressed of [false, true, false]) {
             await act(() => { props()[pressed ? 'onPressIn' : 'onPressOut']() })
-            const parent = style(props().style)
+            const target = style(props().style)
+            const parent = kind === 'habit check' ? { ...target, ...style(tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'habit-check')[0]!.props.style) } : target
             const trackStyle = style(track().props.style)
             expect(trackStyle.borderColor).toBe(color)
             for (const surface of [tokens.bgCard, tokens.bg]) {
@@ -61,13 +62,13 @@ describe('completion control paint stack', () => {
               expect(measured.graphic).toBeGreaterThanOrEqual(3)
               if (pressed) expect(measured.step).toBeGreaterThanOrEqual(1.25)
             }
-            expect(parent.width ?? parent.minWidth).toBe(48)
-            expect(parent.minHeight).toBe(48)
+            expect(target.width ?? target.minWidth).toBe(48)
+            expect(target.minHeight).toBe(48)
           }
           await act(() => { props().onPress!() })
           expect(onToggle).toHaveBeenCalledOnce()
           const disabled = kind === 'habit check'
-            ? <CheckCircle state="empty" tokens={tokens} disabled onToggle={onToggle} accessibilityLabel="Log habit" />
+            ? <CheckCircle state="empty" disabled onToggle={onToggle} accessibilityLabel="Log habit" />
             : <StatusDot state="empty" disabled onToggle={onToggle} accessibilityLabel="Log habit" />
           await act(() => { tree.update(disabled); })
           await act(() => { props().onPressIn() })

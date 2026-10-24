@@ -14,6 +14,7 @@ const mutations = vi.hoisted(() => ({ delete: vi.fn(), log: vi.fn(), skip: vi.fn
 vi.mock('@/hooks/use-habits', () => ({
   useBulkDeleteHabits: () => ({ mutateAsync: mutations.delete }),
   useBulkLogHabits: () => ({ mutateAsync: mutations.log }),
+  useBulkMoveHabitParent: () => ({ mutateAsync: vi.fn() }),
   useBulkSkipHabits: () => ({ mutateAsync: mutations.skip }),
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))

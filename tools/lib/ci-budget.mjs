@@ -67,7 +67,7 @@ export const createCiBudget = ({ owner, environment, repoRoot = REPO_ROOT, now =
     const response = await readRate({ ...options, rest: undefined })
     const rate = response?.resources?.core
     if (!rate || ![rate.limit, rate.remaining, rate.reset].every(Number.isInteger) ||
-        rate.limit <= 0 || rate.remaining < 0 || rate.remaining > rate.limit || rate.reset * 1000 <= now()) {
+        rate.limit <= 0 || rate.remaining < 0 || rate.remaining > rate.limit || rate.reset < 0) {
       throw new Error("GitHub REST rate limit had an unexpected shape")
     }
     state.rate = { limit: rate.limit, remaining: rate.remaining, reset: rate.reset }
@@ -90,7 +90,8 @@ export const createCiBudget = ({ owner, environment, repoRoot = REPO_ROOT, now =
           }
           return reservation.at
         }
-        await pause(reservation.refreshAt, options)
+        // A just-expired window can remain visible briefly while GitHub rolls it over.
+        await pause(Math.max(reservation.refreshAt, now() + 1000), options)
       }
     },
     afterResponse: (response, reservation, options) => locked(options, (state) => {

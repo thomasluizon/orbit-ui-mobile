@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { utf16Length } from '../validation/utf16-length'
 import { calendarAutoSyncStatusSchema } from './calendar'
 
 export type ColorScheme = 'purple' | 'blue' | 'green' | 'rose' | 'orange' | 'cyan'
@@ -129,7 +130,7 @@ export const setMarketingEmailConsentRequestSchema = z.object({
 export type SetMarketingEmailConsentRequest = z.infer<typeof setMarketingEmailConsentRequestSchema>
 
 export const setNameRequestSchema = z.object({
-  name: z.string().trim().min(1).max(50),
+  name: z.string().trim().check(utf16Length('min', 1)).check(utf16Length('max', 50)),
 })
 
 export type SetNameRequest = z.infer<typeof setNameRequestSchema>

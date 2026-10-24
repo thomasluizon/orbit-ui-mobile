@@ -62,10 +62,9 @@ channels.
 The API retains the `redesign` response key and seed for older installed Android builds.
 Retiring client readers does not authorize deleting that compatibility key. Coordinate an
 append-only API compatibility plan with the supported mobile floor before changing the seed.
-The routing Worker route is detached separately through
-[#1626](https://github.com/thomasluizon/orbit-tickets/issues/1626), after client retirement in
-[#1635](https://github.com/thomasluizon/orbit-tickets/issues/1635). Changing an account flag
-does not publish a build, change routing infrastructure, or change an API contract.
+Web releases select production from `main` or staging from a selected branch; both serve
+the promoted redesign without account-based build routing. Changing an account flag does
+not publish a build or change an API contract.
 
 ## Adding a plain flag
 

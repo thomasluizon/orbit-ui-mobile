@@ -15,6 +15,7 @@ import { __focusHost, __getFocusedNativeTag, __setFocusImpl, __setTouchMode } fr
 import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selection'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { HabitScheduleFields } from '@/components/habits/habit-form-fields/habit-schedule-fields'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { HabitFormInteractionProvider } from '@/components/habits/habit-form-fields/habit-form-interaction'
 import { ListRow } from '@/components/ui/list-row'
@@ -47,7 +48,7 @@ const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn(), dele
 const formLocale = vi.hoisted((): { language: string; realController: boolean; realDates: boolean; realDateCopy: boolean; theme: 'dark' | 'light' } => ({ language: 'en', realController: false, realDates: false, realDateCopy: false, theme: 'dark' }))
 const dateRequests = vi.hoisted(() => ({ request: vi.fn() }))
 const connection = vi.hoisted(() => ({ isOnline: true }))
-const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false, timeZone: 'UTC' }))
+const mockProfileState = vi.hoisted((): { aiMessagesUsed: number; hasProAccess: boolean; timeZone: string | null | undefined } => ({ aiMessagesUsed: 0, hasProAccess: false, timeZone: 'UTC' }))
 const modalFeedback = vi.hoisted(() => ({ showError: vi.fn(), create: vi.fn(), update: vi.fn() }))
 const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 }
 const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false, checklistItems: 1, subHabitItems: 0 }
@@ -1849,6 +1850,27 @@ it('keeps a native Astra date proposed until acceptance and moves focus to its c
   } finally { vi.useRealTimers(); await TestRenderer.act(() => tree.unmount()) }
 })
 
+const repeatPhraseCases = [
+  { wording: "every day", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "daily", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "once a week", expected: {"frequencyUnit": "Week", "frequencyQuantity": 1, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "twice a week", expected: {"frequencyUnit": "Week", "frequencyQuantity": 2, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "3x a week", expected: {"frequencyUnit": "Week", "frequencyQuantity": 3, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "every Monday", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday"], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "weekdays", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "todo dia", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "todos os dias", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "uma vez por semana", expected: {"frequencyUnit": "Week", "frequencyQuantity": 1, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "duas vezes por semana", expected: {"frequencyUnit": "Week", "frequencyQuantity": 2, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "3x por semana", expected: {"frequencyUnit": "Week", "frequencyQuantity": 3, "isFlexible": true, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "toda segunda", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday"], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "dias úteis", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "every week", expected: {"frequencyUnit": "Week", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "toda semana", expected: {"frequencyUnit": "Week", "frequencyQuantity": 1, "isFlexible": false, "days": [], "intervalWeeks": 1, "dueDate": "2026-10-20"} },
+  { wording: "every Monday from next week", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday"], "intervalWeeks": 1, "dueDate": "2026-10-26"} },
+  { wording: "toda segunda a partir da próxima semana", expected: {"frequencyUnit": "Day", "frequencyQuantity": 1, "isFlexible": false, "days": ["Monday"], "intervalWeeks": 1, "dueDate": "2026-10-26"} }
+]
+
 describe.each(['create', 'edit'] as const)('actual native %s modal submit feedback', (owner) => {
   let tree: ReturnType<typeof TestRenderer.create>
   const closed = vi.fn()
@@ -1895,6 +1917,41 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     await TestRenderer.act(() => action(owner === 'create' ? 'habits.createHabit' : 'common.save').props.onPress())
   }
 
+  it.each(['en', 'pt-BR'])('saves the entered cadence with an accepted Astra start in %s', async (locale) => {
+    formLocale.realController = true
+    formLocale.language = locale
+    await mount('habit')
+    await TestRenderer.act(() => phraseInput().props.onChangeText('every Monday from after vacation'))
+    await TestRenderer.act(() => action('habits.form.askDate').props.onPress())
+    await TestRenderer.act(() => action('habits.form.acceptDate').props.onPress())
+    expect(phraseInput().props.value).toBe('')
+    await submit()
+    expect(mutation()).toHaveBeenCalledOnce()
+    const request = expect.objectContaining({ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], startDate: '2026-10-26' })
+    expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+  })
+
+  it.each(['en', 'pt-BR'])('blocks an unapplied explicit start after profile loading until reread in %s', async (locale) => {
+    formLocale.realController = true
+    formLocale.language = locale
+    mockProfileState.timeZone = undefined
+    const view = await mount('habit')
+    await TestRenderer.act(() => phraseInput().props.onChangeText('every Monday from next week'))
+    mockProfileState.timeZone = 'UTC'
+    await view.refresh()
+    await submit()
+    expect(mutation()).not.toHaveBeenCalled()
+    expect(phraseInput().props.accessibilityHint).toContain((locale === 'en' ? en : ptBR).habits.form.datePhraseUnresolved)
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('habits.form.habitStartDate,'))[0]!.props.disabled).toBeFalsy()
+    await TestRenderer.act(() => phraseInput().props.onChangeText('every Monday from next week '))
+    await submit()
+    expect(mutation()).toHaveBeenCalledOnce()
+    const request = expect.objectContaining({ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], startDate: '2026-10-26' })
+    expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
   if (owner === 'create') it('keeps native weekly wording behind the required explicit type choice', async () => {
     formLocale.realController = true
     await mount(null)
@@ -1924,6 +1981,25 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     const request = expect.objectContaining({ title: 'Read', frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-20' })
     expect(mutation()).toHaveBeenCalledOnce()
     expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+  })
+
+  it.each(['en', 'pt-BR'].flatMap((locale) => repeatPhraseCases.map((phrase) => ({ locale, ...phrase }))))('saves repeat phrase $locale $wording through the actual native modal', async ({ locale, wording, expected }) => {
+    formLocale.realController = true
+    formLocale.language = locale
+    await mount('habit')
+    await TestRenderer.act(() => phraseInput().props.onChangeText(wording))
+    if (owner === 'create') await TestRenderer.act(() => tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.moreDetails')!.props.onClick())
+    const schedule = tree.root.findByType(HabitScheduleFields).props
+    expect(schedule).toMatchObject({ unit: expected.frequencyUnit, quantity: expected.frequencyQuantity, flexible: expected.isFlexible })
+    expect(tree.root.findByType(HabitUnderstanding).props.days).toEqual(expected.days)
+    expect(mutation()).not.toHaveBeenCalled()
+    await submit()
+    const { dueDate, days, isFlexible, ...cadence } = expected
+    const request = expect.objectContaining({ ...cadence, ...(days.length ? { days } : {}), ...(isFlexible || owner === 'edit' ? { isFlexible } : {}), title: 'Read', startDate: dueDate })
+    expect(mutation()).toHaveBeenCalledOnce()
+    expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    expect(dateRequests.request).not.toHaveBeenCalled()
     expect(modalFeedback.showError).not.toHaveBeenCalled()
   })
 

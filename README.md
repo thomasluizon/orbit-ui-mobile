@@ -34,11 +34,13 @@ This repo is the product frontend monorepo. The backend lives in a separate `orb
 | Workspace | Purpose | Main tech |
 | --- | --- | --- |
 | `apps/web` | Browser app | Next.js 16, React 19, App Router |
+| `apps/desktop` | macOS and Windows shell loading the deployed web app | Tauri 2, Rust, system webview |
 | `apps/mobile` | Native app | Expo 56, React Native 0.85, Expo Router |
 | `packages/shared` | Shared product logic | Zod schemas, API paths, query keys, i18n, theme, validation |
 
 ```text
 apps/
+  desktop/   Desktop webview shell
   mobile/    Mobile product
   web/       Web product
 packages/
@@ -95,7 +97,7 @@ The codebase currently expects these variables when you want to override default
 
 | Command | What it does |
 | --- | --- |
-| `npm run build` | Build all workspaces |
+| `npm run build` | Build web and shared workspaces; [desktop packaging](apps/desktop/README.md) uses native build scripts |
 | `npm run dev` | Run all workspace `dev` tasks |
 | `npm run lint` | Run lint tasks across workspaces |
 | `npm run type-check` | Run TypeScript checks across workspaces |

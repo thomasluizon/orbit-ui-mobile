@@ -1,9 +1,10 @@
 import { z } from 'zod'
+import { utf16Length } from '../validation/utf16-length'
 
 export const notionAuthorizeRequestSchema = z.object({ redirectUri: z.string().url() })
 export const notionCallbackRequestSchema = notionAuthorizeRequestSchema.extend({
-  code: z.string().min(1),
-  state: z.string().min(1),
+  code: z.string().check(utf16Length('min', 1)),
+  state: z.string().check(utf16Length('min', 1)),
 })
 export const notionAuthorizationSchema = z.object({
   authorizeUrl: z.string().url().refine((value) => {

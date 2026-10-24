@@ -62,7 +62,7 @@ export const styles = StyleSheet.create({
   parentRingButton: {
     width: 48,
     minHeight: 48,
-    borderRadius: 22,
+    borderRadius: 12,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',

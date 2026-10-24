@@ -1,6 +1,6 @@
 # Orbit
 
-Personal habit tracker. Turborepo monorepo: `apps/web`, `apps/mobile` (Android-only), `packages/shared`. Siblings `orbit-api` and `orbit-landing-page` carry their own `CLAUDE.md`, and each workspace has a scoped one, so this root holds only cross-cutting rules.
+Personal habit tracker. Turborepo monorepo: `apps/web`, `apps/mobile` (Android-only), `apps/desktop` (Tauri webview shell), `packages/shared`. Siblings `orbit-api` and `orbit-landing-page` carry their own `CLAUDE.md`, and each workspace has a scoped one, so this root holds only cross-cutting rules.
 
 ## Maximum implementation (overrides global rule 4, "surgical changes")
 
@@ -82,7 +82,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `tools/feature-parity-rules.json` | Exact capability relocations, owner removal citations and restoration tickets; the checker derives completion from source. |
 | `.claude/specs/orbit-prod-release.md` | Production release rules, capability restoration scope and release verification. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
-| `apps/web/DEPLOYMENT.md` | Web image build, GitHub settings, and Render releases with redesign Worker route verification. |
+| `apps/web/DEPLOYMENT.md` | Web image build, GitHub settings, and production and staging Render releases. |
 | `packages/shared/CONTRACT_DRIFT.md` | Pinned API snapshot check and automated rebaseline. |
 | `.claude/skills/pr-review/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |
 | `gating-matrix.json` | Generated inventory of PayGate methods, config keys, and feature flags at the `thomasluizon/orbit-api` repository root; run `node tools/gating-matrix.mjs` there to create it. |
@@ -104,7 +104,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `.claude/rules/visual-delivery.md` | Visual inventory and critic gates; D90 moves human inspection to the whole-redesign review. |
 | `.claude/skills/android-generate/SKILL.md` | Local APK build, and the emulator install path. Read before building or running the Android app. |
 | `.claude/skills/android-release/SKILL.md` | Dispatching `android-release.yml` to a Google Play track. |
-| `.claude/skills/release/SKILL.md` | Planning production, opt-in redesign web, and staging gaps, with Worker route verification and go-live dependencies. |
+| `.claude/skills/release/SKILL.md` | Planning production and staging gaps, with pinned releases and live commit verification. |
 | **D1..D42 register** | Historical decision record in the brain vault: `2 Areas/20-29 Orbit Engineering/Decisions/`. Current ticket routing is defined here. |
 
 **Research reports do not live in this repo**: they go stale silently, then get cited as authority long after they expire. Durable knowledge is an ADR in the brain vault; `/deep-research` writes there.

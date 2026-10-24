@@ -1,9 +1,11 @@
 import type { ChatMessage } from '../types/chat'
+import { getChatMessageParts } from '../chat/final-message'
 
 interface ChatHistoryEntry {
   id?: ChatMessage['id']
   role: ChatMessage['role']
   content: string | null
+  parts?: ChatMessage['parts']
   proactiveContextAfterMessageId?: ChatMessage['proactiveContextAfterMessageId']
 }
 
@@ -31,9 +33,28 @@ export function buildRecentChatHistory(
     recentMessages.push(openedItem)
   }
   return recentMessages
-    .filter((message): message is ChatHistoryEntry & { content: string } => message.content !== null)
     .map((message) => ({
       role: toChatHistoryRole(message.role),
-      content: message.content,
+      content: historyContent(message),
     }))
+    .filter(message => message.content.trim().length > 0)
+}
+
+function historyContent(message: ChatHistoryEntry): string {
+  if (message.role !== 'ai' || !message.parts) return message.content ?? ''
+  const parts = getChatMessageParts({ ...message, content: message.content ?? '', id: message.id ?? '', timestamp: new Date(0) })
+  const text = parts.flatMap(part => part?.type === 'text' ? [part.text] : []).join('\n')
+  const blocks = parts.flatMap<unknown>(part => {
+    if (part?.type !== 'block') return []
+    if ('read' in part.block && part.block.read) {
+      const { queryId, queryFamily, scope } = part.block.read
+      return [{ kind: part.kind, queryId, queryFamily, scope }]
+    }
+    if (part.kind === 'habitRanking') {
+      const { queryId, query } = part.block.ranking
+      return [{ kind: part.kind, queryId, query }]
+    }
+    return [{ kind: part.kind, block: part.block }]
+  })
+  return [text, blocks.length ? JSON.stringify(blocks) : ''].filter(Boolean).join('\n').slice(0, 4000)
 }

@@ -1,3 +1,9 @@
+import { TodayLaunchContent } from '@/components/today/today-launch-content'
+import { getFriendlyErrorMessage, isTodayLaunchCache } from '@orbit/shared/utils'
+import { getMoveParentInventory } from '@orbit/shared/utils/move-parent'
+import { createMoveParentActions, createMoveParentState } from '@orbit/shared/hooks/move-parent-core'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { PADDING, SPACING } from '@orbit/shared/theme'
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 import {
@@ -51,7 +57,7 @@ import {
   type HabitResolution,
   type HabitResolutionMode,
 } from '@orbit/shared/utils'
-import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
+import type { NormalizedHabit, HabitsFilter, BulkMoveHabitParentResult } from '@orbit/shared/types/habit'
 import {
   EMPTY_HABITS_BY_ID,
   EMPTY_NORMALIZED_HABITS,
@@ -83,11 +89,10 @@ import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { HabitDrill } from './habit-list/habit-drill'
 import {
   MoveParentDialog,
-  type MoveParentOption,
 } from './habit-list/move-parent-dialog'
 import {
   buildFlatHabitItems,
-  buildMoveParentOptions,
+  getMoveParentSelection,
   validateMoveTarget as computeMoveTargetValidation,
   type DragItem,
 } from './habit-list/tree-helpers'
@@ -104,6 +109,7 @@ interface HabitListProps {
   searchQuery?: string
   onClearSearch?: () => void
   isSelectMode?: boolean
+  onBulkMove?: (habitIds: string[], parentId: string | null) => Promise<BulkMoveHabitParentResult | undefined>
   selectedHabitIds?: Set<string>
   listHeader?: ReactElement | null
   onCreatePress: () => void
@@ -195,6 +201,7 @@ function ActionRow({
 export interface HabitListHandle {
   allCollapsed: boolean
   allLoadedIds: Set<string>
+  openBulkMove: () => void
   collapseAll: () => void
   expandAll: () => void
   markRecentlyCompleted: (habitId: string) => void
@@ -425,6 +432,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       onClearSearch,
       isSelectMode,
       selectedHabitIds,
+      onBulkMove,
       listHeader = null,
       onCreatePress,
       onSeeUpcoming,
@@ -486,6 +494,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const { config: appConfig } = useConfig()
     const maxHabitDepth = appConfig.limits.maxHabitDepth
     const habitsQuery = useHabits(filters, habitViewQueryOptions(view, todayStr))
+    const [launchCache] = useState({ available: habitsQuery.data !== undefined, updatedAt: habitsQuery.dataUpdatedAt })
+    const launchFromCache = isTodayLaunchCache(launchCache, habitsQuery.dataUpdatedAt)
     const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
     const topLevelHabits =
       habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
@@ -557,11 +567,19 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const [showRescheduleSheet, setShowRescheduleSheet] = useState(false)
     const [habitToReschedule, setHabitToReschedule] =
       useState<NormalizedHabit | null>(null)
-    const [showMoveParentDialog, setShowMoveParentDialog] = useState(false)
-    const [movingHabitId, setMovingHabitId] = useState<string | null>(null)
-    const [selectedMoveParentId, setSelectedMoveParentId] = useState<
-      string | null
-    >(null)
+    const [moveState, setMoveState] = useAccountScopedState(createMoveParentState)
+    const { bulkIds: bulkMovingIds, habitId: movingHabitId, selectedParentId: selectedMoveParentId,
+      error: moveError, pending: isMovingParent, open: showMoveParentDialog } = moveState
+    const scheduledMoveQuery = useHabits({}, { enabled: showMoveParentDialog })
+    const generalMoveQuery = useHabits({ isGeneral: true }, { enabled: showMoveParentDialog })
+    const moveInventory = getMoveParentInventory(scheduledMoveQuery, generalMoveQuery)
+    const retryMoveInventory = () => { void scheduledMoveQuery.refetch(); void generalMoveQuery.refetch() }
+    const moveOperation = useRef<object | null>(null)
+    useLayoutEffect(() => {
+      moveOperation.current = moveState.operation
+      return () => { moveOperation.current = null }
+    }, [moveState.operation])
+
     const deleteConfirmation = habitToDelete ?? { name: '', descendantCount: 0 }
     const selectedIds = useMemo(
       () => selectedHabitIds ?? new Set<string>(),
@@ -1241,48 +1259,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       skipMutation,
     ])
 
-    const validateMoveTarget = useCallback(
-      (targetParentId: string | null, draggedId: string) =>
-        computeMoveTargetValidation(
-          { habitsById, getChildren, maxHabitDepth, t },
-          targetParentId,
-          draggedId,
-        ),
-      // react-doctor-disable-next-line exhaustive-deps -- getChildren/habitsById/maxHabitDepth are extracted habitsQuery/appConfig members already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-      [getChildren, habitsById, maxHabitDepth, t],
+    const { moveIds, sharedMoveParentId, moveParentOptions, selectedMoveOption, inventoryState } = getMoveParentSelection(
+      { ...moveInventory, maxHabitDepth, t, validateMoveTarget: (target, source) =>
+        computeMoveTargetValidation({ ...moveInventory, maxHabitDepth, t }, target, source) },
+      bulkMovingIds ?? movingHabitId, selectedMoveParentId, moveState.targetChosen,
     )
 
-    const moveParentOptions = useMemo<MoveParentOption[]>(() => {
-      if (!movingHabitId) return []
-      return buildMoveParentOptions(
-        { topLevelHabits, getChildren, validateMoveTarget, t },
-        movingHabitId,
-      )
-    // react-doctor-disable-next-line exhaustive-deps -- topLevelHabits/getChildren are extracted habitsQuery members already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    }, [getChildren, movingHabitId, t, topLevelHabits, validateMoveTarget])
 
-    const selectedMoveOption = useMemo(
-      () =>
-        moveParentOptions.find(
-          (option) => option.id === selectedMoveParentId,
-        ) ?? null,
-      [moveParentOptions, selectedMoveParentId],
-    )
-
-    const canSubmitMoveParent = useMemo(
-      () =>
-        movingHabit !== null &&
-        !moveParentMutation.isPending &&
-        selectedMoveParentId !== movingHabit.parentId &&
-        selectedMoveOption !== null &&
-        !selectedMoveOption.disabled,
-      [
-        moveParentMutation.isPending,
-        movingHabit,
-        selectedMoveOption,
-        selectedMoveParentId,
-      ],
-    )
+    const canSubmitMoveParent = !inventoryState && moveState.targetChosen && moveIds.length > 0 && !isMovingParent &&
+      !moveParentMutation.isPending && selectedMoveOption !== null && !selectedMoveOption.disabled
 
     const promptDelete = useCallback((habitId: string) => {
       setHabitToDelete({ id: habitId, ...getDeleteConfirmation(habitId, habitsById, childrenByParent) })
@@ -1299,44 +1284,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       }
     }, [duplicateMutation, habitToDuplicate])
 
-    const closeMoveParentDialog = useCallback(() => {
-      if (moveParentMutation.isPending) return
-
-      setShowMoveParentDialog(false)
-      setMovingHabitId(null)
-      setSelectedMoveParentId(null)
-    }, [moveParentMutation.isPending])
-
-    const openMoveParentDialog = useCallback(
-      (habitId: string) => {
-        const habit = habitsById.get(habitId)
-        if (!habit) return
-
-        setMovingHabitId(habitId)
-        setSelectedMoveParentId(habit.parentId)
-        setShowMoveParentDialog(true)
-      },
-      [habitsById],
-    )
-
-    const confirmMoveParent = useCallback(async () => {
-      if (!movingHabitId || !canSubmitMoveParent) return
-
-      try {
-        await moveParentMutation.mutateAsync({
-          habitId: movingHabitId,
-          data: { parentId: selectedMoveParentId },
-        })
-        closeMoveParentDialog()
-      } catch {
-      }
-    }, [
-      canSubmitMoveParent,
-      closeMoveParentDialog,
-      moveParentMutation,
-      movingHabitId,
-      selectedMoveParentId,
-    ])
+    const { openBulk: openBulkMove, openSingle: openMoveParentDialog, close: closeMoveParentDialog,
+      confirm: executeMoveParent, select: selectMoveParent } = createMoveParentActions({
+      state: moveState, applyState: setMoveState, habitsById, selectedHabitIds, canSubmit: canSubmitMoveParent, getAccountGeneration,
+      moveBulk: onBulkMove,
+      moveSingle: (habitId, parentId) => moveParentMutation.mutateAsync({ habitId, data: { parentId } }),
+      partialError: t('habits.moveParent.errorPartial'),
+      formatError: (error) => getFriendlyErrorMessage(error, t, 'habits.moveParent.errorPartial'),
+    })
+    const confirmMoveParent = () => executeMoveParent(() => moveOperation.current === moveState.operation)
 
     const startAddSubHabit = useCallback(
       (parentId: string) => {
@@ -1449,6 +1405,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         markRecentlyCompleted,
         checkAndPromptParentLog,
         settleBulkHabitResolutions,
+        openBulkMove,
         refetch: () => {
           void refetch()
         },
@@ -1466,6 +1423,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         collapseAll,
         expandAll,
         markRecentlyCompleted,
+        openBulkMove,
         refetch,
       ],
     )
@@ -1561,7 +1519,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       ({ item, drag, getIndex }: RenderItemParams<DragItem>) => {
         const index = getIndex() ?? 0
         const nextItem = activeDragItems[index + 1]
-        return renderHabitCard(
+        return <TodayLaunchContent enabled={view === 'today' && index === 0} fromCache={launchFromCache} empty={false}>{renderHabitCard(
           item.habit,
           item.depth,
           item.hasChildren,
@@ -1572,13 +1530,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               : undefined,
             panelEnd: !nextItem || nextItem.depth === 0,
           },
-        )
+        )}</TodayLaunchContent>
       },
       [
         activeDragItems,
         isDndEnabled,
         prepareDrag,
         renderHabitCard,
+        view,
+        launchFromCache,
       ],
     )
 
@@ -1676,17 +1636,19 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <MoveParentDialog
           t={t}
           visible={showMoveParentDialog}
-          isPending={moveParentMutation.isPending}
-          movingHabitTitle={movingHabit?.title ?? null}
-          movingHabitParentId={movingHabit?.parentId ?? null}
+          isPending={isMovingParent}
+          movingHabitTitle={moveInventory.habitsById.get(movingHabitId ?? '')?.title ?? movingHabit?.title ?? null}
+          movingHabitParentId={sharedMoveParentId}
+            movingHabitCount={bulkMovingIds?.length}
+            error={moveError}
+          inventoryState={inventoryState}
+          onRetryInventory={retryMoveInventory}
           options={moveParentOptions}
           selectedMoveParentId={selectedMoveParentId}
           canSubmit={canSubmitMoveParent}
           onClose={closeMoveParentDialog}
-          onConfirm={() => {
-            void confirmMoveParent()
-          }}
-          onSelectOption={setSelectedMoveParentId}
+          onConfirm={confirmMoveParent}
+          onSelectOption={selectMoveParent}
         />
       </>
     )
@@ -1835,7 +1797,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           refreshControl={refreshControl}
           onDragEnd={(params) => void handleDragEnd(params)}
           ListHeaderComponent={activeListHeader}
-          ListEmptyComponent={renderCurrentViewEmptyState()}
+          ListEmptyComponent={<TodayLaunchContent enabled={view === 'today'} fromCache={launchFromCache} empty>{renderCurrentViewEmptyState()}</TodayLaunchContent>}
           // WHY: DraggableFlatList overwrites any caller onScroll with its own reanimated handler; onScrollOffsetChange is its supported scroll-offset API https://github.com/computerjazz/react-native-draggable-flatlist/blob/v4.0.3/src/components/DraggableFlatList.tsx#L396
           onScrollOffsetChange={handleMainListOffsetChange}
           onScrollBeginDrag={onScrollBeginDrag}

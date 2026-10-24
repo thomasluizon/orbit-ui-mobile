@@ -72,6 +72,13 @@ export function parseDatePhrase(input: string, context: DatePhraseContext): Date
   if (/\d+[/.\-]\d+/.test(phrase)) return { status: 'ambiguous' }
   if (context.timeZone === undefined || !isCalendarDate(context.referenceDate)) return { status: 'unavailable' }
   if (phrase === 'today' || phrase === 'hoje') return resolved(context.referenceDate)
+  if (phrase === 'next week' || phrase === 'proxima semana' || phrase === 'semana que vem') {
+    const [year = 0, month = 0, day = 0] = context.referenceDate.split('-').map(Number)
+    const calendar = new Date(0)
+    calendar.setUTCFullYear(year, month - 1, day)
+    calendar.setUTCDate(day + (8 - (calendar.getUTCDay() || 7)))
+    return resolved(calendarDate(calendar.getUTCFullYear(), calendar.getUTCMonth() + 1, calendar.getUTCDate()))
+  }
   const offset = /^(?:in (\d+) days?|em (\d+) dias?)$/.exec(phrase)
   if (phrase === 'tomorrow' || phrase === 'amanha' || offset) {
     const days = offset ? Number(offset[1] ?? offset[2]) : 1

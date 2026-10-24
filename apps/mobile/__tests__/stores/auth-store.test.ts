@@ -2510,6 +2510,25 @@ describe('mobile auth store security paths', () => {
     })
   })
 
+  it('finishes initialize while widget publication is still pending', async () => {
+    getTokenMock.mockResolvedValue(makeJwtWithClaims(Math.floor(Date.now() / 1000) + 3600, 'user-1', 'user@example.com'))
+    apiClientMock.mockResolvedValue({ name: 'User', email: 'user@example.com' })
+    let finishWidget!: () => void
+    saveWidgetTokenMock.mockImplementationOnce(() => new Promise<void>((resolve) => { finishWidget = resolve }))
+    let initialized = false
+    const initialization = useAuthStore.getState().initialize().then(() => { initialized = true })
+    try {
+      await vi.waitFor(() => expect(initialized).toBe(true), { timeout: 1000 })
+      expect(saveWidgetTokenMock).toHaveBeenCalledOnce()
+      expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: true, isLoading: false })
+      expect(setQueryCacheScopeMock).toHaveBeenCalledWith('user-1')
+    } finally {
+      finishWidget()
+      await initialization
+      await whenProfileHydrated()
+    }
+  })
+
   it('hydrates the cached profile and merges its name and email after initialize', async () => {
     getTokenMock.mockResolvedValue(makeJwtWithClaims(Math.floor(Date.now() / 1000) + 3600, 'user-1', 'stale@example.com'))
     getRefreshTokenMock.mockResolvedValue('refresh-token')

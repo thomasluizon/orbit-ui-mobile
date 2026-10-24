@@ -142,7 +142,8 @@ function AuthInitializer({
 
       if (isAuthenticated) {
         try { await restoreQueryCache() } catch {}
-        await queryClient.prefetchQuery({
+        const hasCachedProfile = queryClient.getQueryData(profileKeys.detail()) !== undefined
+        const profileRefresh = queryClient.prefetchQuery({
           queryKey: profileKeys.detail(),
           queryFn: async ({ signal }) => {
             const controller = new AbortController()
@@ -160,6 +161,7 @@ function AuthInitializer({
           retry: false,
           networkMode: 'always',
         })
+        if (!hasCachedProfile) await profileRefresh
         syncWidgetDataSafely()
       } else {
         await resetAccountQueries(queryClient, 'signed-out')

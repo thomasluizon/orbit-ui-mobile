@@ -7,6 +7,7 @@ import { createTokensV2 } from '@/lib/theme'
 export interface InsetFocusPressableProps extends Omit<PressableProps, 'children'> {
   children?: ReactNode | ((state: PressableStateCallbackType & { focused: boolean }) => ReactNode)
   ref?: Ref<View>
+  focusInset?: number
   focusOffset?: number
   focusColor?: ColorValue
   focusContrastColor?: ColorValue
@@ -19,6 +20,7 @@ export function InsetFocusPressable({
   onFocus,
   onBlur,
   children,
+  focusInset = 0,
   focusOffset = -4,
   focusColor,
   focusContrastColor,
@@ -51,6 +53,10 @@ export function InsetFocusPressable({
             style={[
               StyleSheet.absoluteFill,
               {
+                top: focusInset,
+                right: focusInset,
+                bottom: focusInset,
+                left: focusInset,
                 borderRadius: shape?.borderRadius,
                 borderTopLeftRadius: shape?.borderTopLeftRadius,
                 borderTopRightRadius: shape?.borderTopRightRadius,

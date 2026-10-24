@@ -9,6 +9,7 @@ import {
   updateCachedHabitDetails,
   invalidateHabitParentDetails,
   habitKeys,
+  invalidateBulkMoveParentQueries,
   goalKeys,
   gamificationKeys,
   profileKeys,
@@ -56,6 +57,8 @@ import type {
   BulkLogResult,
   BulkSkipItemRequest,
   BulkSkipResult,
+  BulkMoveHabitParentRequest,
+  BulkMoveHabitParentResult,
   CalendarMonthResponse,
 } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
@@ -1583,5 +1586,22 @@ export function useBulkSkipHabits() {
     },
 
     onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error, { includeProfile: true }),
+  })
+}
+
+export function useBulkMoveHabitParent() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: BulkMoveHabitParentRequest) =>
+      performQueuedApiMutation<BulkMoveHabitParentResult, never>({
+        type: 'bulkMoveHabitParent',
+        scope: 'habits',
+        endpoint: API.habits.bulkParent,
+        method: 'POST',
+        payload: input,
+        entityType: 'habit',
+        dependsOn: [...input.habitIds, ...(input.parentId ? [input.parentId] : [])],
+      }),
+    onSuccess: () => invalidateBulkMoveParentQueries(queryClient),
   })
 }

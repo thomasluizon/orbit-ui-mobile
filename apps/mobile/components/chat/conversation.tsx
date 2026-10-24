@@ -18,7 +18,7 @@ import { useChatNavigation } from "@/hooks/use-chat-navigation";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types";
 import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
-import { chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason, getChatReplyState } from "@orbit/shared/chat";
+import { getChatCompletionText, resolveConversationSuggestions, chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason, getChatReplyState } from "@orbit/shared/chat";
 import type { useChatComposer } from "@/hooks/use-chat-composer";
 import { MessageBubble } from "@/components/message-bubble";
 import { Composer } from "@/components/shell/composer";
@@ -270,8 +270,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         <AstraGlyph size={24} />
       </View> : null}
       <View style={styles.messageContent}>
-      {item.role === 'ai' ? <TurnAnnouncement messageId={item.id} claimAnnouncement={claimAnnouncement} content={item.content} complete={(!initialMessageIds.has(item.id) || item.id === initialStreamingMessageId) && item.id !== streamingMessageId && !isTyping} /> : null}
-      {item.role === 'ai' && item.toolSteps?.length ? <ThinkingTrace steps={item.toolSteps} running={false} /> : null}
+      {item.role === 'ai' ? <TurnAnnouncement messageId={item.id} claimAnnouncement={claimAnnouncement} content={getChatCompletionText(item, { ready: t('chat.replyReady'), unreadable: t('chat.unreadableReply') })} complete={(!initialMessageIds.has(item.id) || item.id === initialStreamingMessageId) && item.id !== streamingMessageId && !isTyping} /> : null}
       <MessageBubble
         message={item}
         earlierMessages={messages.slice(0, index)}
@@ -287,8 +286,9 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         onPendingOperationPrepareStepUp={prepareStepUpForBubble}
         onPendingOperationVerifyStepUp={verifyStepUpForBubble}
       />
+      {item.role === 'ai' && item.toolSteps?.length ? <ThinkingTrace steps={item.toolSteps} running={false} /> : null}
       {item.proactiveItem ? <ProactiveAction isOnline={chat.isOnline} item={item.proactiveItem} acted={item.proactiveActed ?? false} onSend={sendMessage} /> : null}
-      {item.role === 'ai' && item.id === messages.at(-1)?.id && canShowFollowUps && item.followUps ? <FollowUpChips followUps={item.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
+      {item.role === 'ai' && item.id === messages.at(-1)?.id && canShowFollowUps ? <FollowUpChips followUps={item.followUps ?? []} followUpContext={item.followUpContext} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
       </View>
       </View>
     ),
@@ -311,6 +311,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       isTyping,
       verifyStepUpForBubble,
       styles,
+      t,
     ],
   );
 
@@ -394,7 +395,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
             {...composerProps}
             onChangeValue={value => { setInputSelection(undefined); composerProps.onChangeValue(value); }}
             autoFocus
-            suggestions={composerProps.suggestions}
+            suggestions={resolveConversationSuggestions(messages.length, composerProps.suggestions)}
             onInputFocus={keyboardScroll.onComposerFocus}
             onInputBlur={keyboardScroll.onComposerBlur}
           />
