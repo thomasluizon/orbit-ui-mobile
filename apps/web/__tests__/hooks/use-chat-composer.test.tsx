@@ -422,9 +422,12 @@ describe('web useChatComposer streaming send', () => {
     mocks.fetch.mockRejectedValueOnce(new Error('network unavailable'))
       .mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
     render(<ComposerConversationHarness />)
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Plan my morning' } })
+    const draft = '  Plan my morning\n  '
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: draft } })
     fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send, habits.form.askDate' }))
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('chat.sendError'))
+    expect(screen.getByRole('textbox')).toHaveValue(draft)
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
     const retries = screen.getAllByRole('button', { name: 'shell.composer.retry, nav.astra' })
     expect(retries).toHaveLength(1)
     expect(retries[0]!.closest('[data-composer-root]')).not.toBeNull()
