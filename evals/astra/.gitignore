@@ -1,2 +1,4 @@
 reports/
 .promptfoo/
+credentials.local.json
+credentials.local.json.*

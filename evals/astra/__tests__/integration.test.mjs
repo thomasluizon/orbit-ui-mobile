@@ -47,7 +47,7 @@ describe('real promptfoo CLI with an offline provider', () => {
       } }],
       extensions: [`file://${root}/hooks.mjs:beforeEach`, `file://${root}/hooks.mjs:afterAll`],
     }))
-    const run = spawnSync(process.execPath, ['--import', resolve(root, '__tests__/fixtures/auth-preload.mjs'), cli, 'eval', '--config', configPath, '--no-write', '--no-share', '--no-cache', '--no-table'], {
+    const run = spawnSync(process.execPath, ['--import', resolve(root, '__tests__/fixtures/auth-preload.mjs'), cli, 'eval', '--config', configPath, '--no-write', '--no-share', '--no-cache', '--no-table', '--filter-metadata', 'id=offline-water'], {
       cwd: directory, encoding: 'utf8', timeout: 45000,
       env: { ...process.env, ORBIT_EVAL_RESET_SCRIPT: '/usr/bin/true', PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'),
         PROMPTFOO_DISABLE_TELEMETRY: '1', PROMPTFOO_DISABLE_SHARING: '1' },
@@ -58,6 +58,7 @@ describe('real promptfoo CLI with an offline provider', () => {
     if (status !== 'pass') expect(run.status, run.stdout + run.stderr).not.toBe(0)
     else expect(run.status, run.stdout + run.stderr).toBe(0)
     expect(summary.status).toBe(status)
+    if (status === 'pass') expect(summary.gateStatus).toBe('incomplete')
     expect(summary.cases[0]).toMatchObject({ attempts: 3, passed: broken || noTrace || ['prose-first', 'repeated-figure'].includes(responseMode) ? 0 : 3, skipped: responseMode === 'skipped-composition' ? 3 : 0, unavailable: noTrace ? 3 : 0 })
     expect(readFileSync(summaryPath, 'utf8')).not.toContain('TOOL_TRACE_SECRET')
   })
@@ -106,6 +107,11 @@ describe('corpus and execution constraints', () => {
   it('has a manual-dispatch-only Action that publishes summary files only', () => {
     const workflow = parse(readFileSync(resolve(root, '../../.github/workflows/astra-eval.yml'), 'utf8'))
     expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
+    expect(workflow.on.workflow_dispatch.inputs.case_ids.required).toBe(true)
+    const steps = workflow.jobs.evaluate.steps
+    expect(steps.find((step) => step.name?.startsWith('Evaluate selected')).run).toContain('--filter-metadata')
+    expect(steps.findIndex((step) => step.name?.startsWith('Persist rotated'))).toBeLessThan(steps.findIndex((step) => step.name?.startsWith('Remove local')))
+    expect(steps.find((step) => step.name?.startsWith('Persist rotated')).if).toBe('always()')
     const upload = workflow.jobs.evaluate.steps.find((step) => step.uses?.startsWith('actions/upload-artifact@'))
     expect(upload.with.path.trim().split('\n')).toEqual(['evals/astra/reports/summary.json', 'evals/astra/reports/summary.md'])
   })

@@ -5,6 +5,7 @@ import { parse } from 'yaml'
 import { assertions, loadApiProvider } from 'promptfoo'
 import { beforeEach } from '../hooks.mjs'
 import { summarize } from '../report.mjs'
+import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, preview, toolCall } from './fixtures/producer.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -28,6 +29,7 @@ function batchPreview(arguments_) {
 }
 
 it.each(['en', 'pt-BR'])('runs setup, held correction, every assertion and pass^3 reporting: %s', async (locale) => {
+  offlineCredentials()
   vi.stubEnv('ORBIT_EVAL_RESET_SCRIPT', '/usr/bin/true')
   vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
@@ -41,6 +43,7 @@ it.each(['en', 'pt-BR'])('runs setup, held correction, every assertion and pass^
   let correctionStatus = 'PendingConfirmation'
   let extraCall = false
   vi.stubGlobal('fetch', async (url, options) => {
+    if (new URL(url).pathname === '/api/auth/refresh') return refreshResponse()
     const request = new Request(url, options)
     const requestId = request.headers.get('x-orbit-request-id')
     const form = await request.formData()

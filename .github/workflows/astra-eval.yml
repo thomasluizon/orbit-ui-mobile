@@ -2,6 +2,12 @@ name: Astra eval
 
 on:
   workflow_dispatch:
+    inputs:
+      case_ids:
+        description: Comma-separated corpus case IDs for this daily window
+        required: true
+        default: single-read-en,single-create-pt
+        type: string
 
 permissions:
   contents: read
@@ -19,15 +25,10 @@ jobs:
         working-directory: evals/astra
     env:
       ORBIT_EVAL_BASE_URL: ${{ secrets.ORBIT_EVAL_BASE_URL }}
-      ORBIT_EVAL_TOKEN: ${{ secrets.ORBIT_EVAL_TOKEN }}
-      ORBIT_EVAL_FREE_TOKEN: ${{ secrets.ORBIT_EVAL_FREE_TOKEN }}
-      ORBIT_EVAL_BUDGET_TOKEN: ${{ secrets.ORBIT_EVAL_BUDGET_TOKEN }}
       ORBIT_EVAL_GRADER: ${{ secrets.ORBIT_EVAL_GRADER }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      ORBIT_EVAL_HABIT_ID: ${{ secrets.ORBIT_EVAL_HABIT_ID }}
-      ORBIT_EVAL_SECOND_HABIT_ID: ${{ secrets.ORBIT_EVAL_SECOND_HABIT_ID }}
-      ORBIT_EVAL_OVERDUE_DATE: ${{ secrets.ORBIT_EVAL_OVERDUE_DATE }}
-      ORBIT_EVAL_RESET_SCRIPT_CONTENT: ${{ secrets.ORBIT_EVAL_RESET_SCRIPT_CONTENT }}
+      ORBIT_EVAL_CREDENTIALS_JSON: ${{ secrets.ORBIT_EVAL_CREDENTIALS_JSON }}
+      ORBIT_EVAL_CASE_IDS: ${{ inputs.case_ids }}
       PROMPTFOO_DISABLE_TELEMETRY: '1'
       PROMPTFOO_DISABLE_SHARING: '1'
     steps:
@@ -35,7 +36,7 @@ jobs:
         shell: bash
         working-directory: ${{ runner.temp }}
         run: |
-          printf 'ORBIT_EVAL_RESET_SCRIPT=%s/astra-reset.sh\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'ORBIT_EVAL_CREDENTIALS_FILE=%s/astra-credentials.json\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
           printf 'PROMPTFOO_CONFIG_DIR=%s/astra-promptfoo\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -48,16 +49,29 @@ jobs:
           cache-dependency-path: evals/astra/package-lock.json
       - name: Install the isolated eval package
         run: npm ci --workspaces=false
-      - name: Prepare the fixture reset executable
+      - name: Prepare private rotating credentials
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.ORBIT_EVAL_SECRETS_TOKEN }}
         run: |
           set -euo pipefail
-          test -n "$ORBIT_EVAL_RESET_SCRIPT_CONTENT"
+          test -n "$ORBIT_EVAL_CREDENTIALS_JSON"
+          test -n "$GH_TOKEN"
           umask 077
-          printf '%s\n' "$ORBIT_EVAL_RESET_SCRIPT_CONTENT" > "$ORBIT_EVAL_RESET_SCRIPT"
-          chmod 700 "$ORBIT_EVAL_RESET_SCRIPT"
-      - name: Evaluate all cases with three attempts
-        run: npx promptfoo eval
+          printf '%s\n' "$ORBIT_EVAL_CREDENTIALS_JSON" > "$ORBIT_EVAL_CREDENTIALS_FILE"
+          chmod 600 "$ORBIT_EVAL_CREDENTIALS_FILE"
+      - name: Evaluate selected cases with three attempts
+        run: npx promptfoo eval --filter-metadata "id=$ORBIT_EVAL_CASE_IDS"
+      - name: Persist rotated credentials for the next window
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.ORBIT_EVAL_SECRETS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -f "$ORBIT_EVAL_CREDENTIALS_FILE" ]; then
+            gh secret set ORBIT_EVAL_CREDENTIALS_JSON --repo "$GITHUB_REPOSITORY" < "$ORBIT_EVAL_CREDENTIALS_FILE"
+          fi
       - name: Upload the sanitized gate report
         if: always()
         uses: actions/upload-artifact@v7
@@ -73,4 +87,4 @@ jobs:
         shell: bash
         run: |
           rm -rf "$PROMPTFOO_CONFIG_DIR"
-          rm -f "$ORBIT_EVAL_RESET_SCRIPT"
+          rm -f "$ORBIT_EVAL_CREDENTIALS_FILE" "$ORBIT_EVAL_CREDENTIALS_FILE.lock"

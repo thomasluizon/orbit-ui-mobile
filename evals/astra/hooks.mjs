@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { apiOrigin, readCredentials, refreshCredential } from './credentials.mjs'
 import { dateOffset, resetFixture } from './fixtures/reset.mjs'
 import { prepareCorrection } from './setup.mjs'
+import { descriptors } from './merge-reports.mjs'
 import { summarize, writeReport } from './report.mjs'
 
 export function beforeAll({ suite }) {
@@ -57,6 +58,8 @@ export async function beforeEach({ test }) {
 
 export function afterAll({ results, suite }) {
   const summary = summarize(results, suite.tests.map((test) => test.metadata))
+  const completeCorpus = descriptors.every(({ id }) => summary.cases.some((entry) => entry.id === id))
+  summary.gateStatus = !completeCorpus && summary.status === 'pass' ? 'incomplete' : summary.status
   const markdown = writeReport(summary)
   process.stdout.write(`${markdown}\n`)
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`)

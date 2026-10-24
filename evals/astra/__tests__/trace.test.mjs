@@ -5,6 +5,7 @@ import { parse } from 'yaml'
 import { loadApiProvider } from 'promptfoo'
 import { behavior, structural } from '../assertions.mjs'
 import { beforeEach } from '../hooks.mjs'
+import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, toolCall } from './fixtures/producer.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -153,11 +154,13 @@ describe('source-derived trace through the installed HTTP provider', () => {
       ? 'Astra returned an unexpected refusal.' : 'Astra did not return a nonempty aiMessage final answer.' })
   })
 
-  it('generates a fresh request identity after each reset', () => {
+  it('generates a fresh request identity after each reset', async () => {
+    offlineCredentials()
+    vi.stubGlobal('fetch', async () => refreshResponse())
     vi.stubEnv('ORBIT_EVAL_RESET_SCRIPT', '/usr/bin/true')
-    const test = { metadata: { id: 'offline' }, vars: {} }
-    const first = beforeEach({ test }).test.vars.evalRequestId
-    const second = beforeEach({ test }).test.vars.evalRequestId
+    const test = { metadata: { id: 'offline' }, vars: { credentialKey: 'ORBIT_EVAL_TOKEN' } }
+    const first = (await beforeEach({ test })).test.vars.evalRequestId
+    const second = (await beforeEach({ test })).test.vars.evalRequestId
     expect(first).toMatch(/^[0-9a-f-]{36}$/)
     expect(second).not.toBe(first)
   })

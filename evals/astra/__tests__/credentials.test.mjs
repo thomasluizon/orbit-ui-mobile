@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { refreshCredential } from '../credentials.mjs'
 import { beforeEach } from '../hooks.mjs'
 
 const directories = []
@@ -49,4 +50,32 @@ it.each(['missing', 'permissions', 'rejected', 'malformed', 'network'])('stops b
   await expect(beforeEach(attempt())).rejects.toThrow(/credential|refresh/i)
   expect(process.env.ORBIT_EVAL_TOKEN).toBeUndefined()
   if (['missing', 'permissions'].includes(failure)) expect(request).not.toHaveBeenCalled()
+})
+
+it('preserves other accounts and consumes the rotated refresh on the next attempt', async () => {
+  const path = credentials()
+  const other = { refreshToken: 'other-refresh', habitId: 'other-habit' }
+  writeFileSync(path, JSON.stringify({ ORBIT_EVAL_TOKEN: { refreshToken: 'old-refresh' }, ORBIT_EVAL_FREE_TOKEN: other }))
+  let refresh = 'old-refresh'
+  vi.stubGlobal('fetch', async (_, options) => {
+    expect(JSON.parse(options.body).refreshToken).toBe(refresh)
+    refresh += '-rotated'
+    return Response.json({ token: 'fresh-access', refreshToken: refresh })
+  })
+  await refreshCredential('ORBIT_EVAL_TOKEN')
+  await refreshCredential('ORBIT_EVAL_TOKEN')
+  expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual({ ORBIT_EVAL_TOKEN: { refreshToken: refresh }, ORBIT_EVAL_FREE_TOKEN: other })
+})
+it('rejects a concurrent rotation and never reveals transport secrets', async () => {
+  const path = credentials()
+  writeFileSync(`${path}.lock`, '', { mode: 0o600 })
+  const request = vi.fn(async () => { throw new Error('SECRET_TOKEN') })
+  vi.stubGlobal('fetch', request)
+  await expect(refreshCredential('ORBIT_EVAL_TOKEN')).rejects.toThrow('Credential refresh failed')
+  expect(request).not.toHaveBeenCalled()
+  rmSync(`${path}.lock`)
+  try { await refreshCredential('ORBIT_EVAL_TOKEN') } catch (error) {
+    expect(error.message).not.toContain('SECRET_TOKEN')
+  }
+  expect(process.env.ORBIT_EVAL_TOKEN).toBeUndefined()
 })
