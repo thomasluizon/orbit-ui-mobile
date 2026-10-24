@@ -48,7 +48,7 @@ const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn(), dele
 const formLocale = vi.hoisted((): { language: string; realController: boolean; realDates: boolean; realDateCopy: boolean; theme: 'dark' | 'light' } => ({ language: 'en', realController: false, realDates: false, realDateCopy: false, theme: 'dark' }))
 const dateRequests = vi.hoisted(() => ({ request: vi.fn() }))
 const connection = vi.hoisted(() => ({ isOnline: true }))
-const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false, timeZone: 'UTC' }))
+const mockProfileState = vi.hoisted((): { aiMessagesUsed: number; hasProAccess: boolean; timeZone: string | null | undefined } => ({ aiMessagesUsed: 0, hasProAccess: false, timeZone: 'UTC' }))
 const modalFeedback = vi.hoisted(() => ({ showError: vi.fn(), create: vi.fn(), update: vi.fn() }))
 const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 }
 const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false, checklistItems: 1, subHabitItems: 0 }
@@ -1916,6 +1916,41 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
   async function submit() {
     await TestRenderer.act(() => action(owner === 'create' ? 'habits.createHabit' : 'common.save').props.onPress())
   }
+
+  it.each(['en', 'pt-BR'])('saves the entered cadence with an accepted Astra start in %s', async (locale) => {
+    formLocale.realController = true
+    formLocale.language = locale
+    await mount('habit')
+    await TestRenderer.act(() => phraseInput().props.onChangeText('every Monday from after vacation'))
+    await TestRenderer.act(() => action('habits.form.askDate').props.onPress())
+    await TestRenderer.act(() => action('habits.form.acceptDate').props.onPress())
+    expect(phraseInput().props.value).toBe('')
+    await submit()
+    expect(mutation()).toHaveBeenCalledOnce()
+    const request = expect.objectContaining({ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], startDate: '2026-10-26' })
+    expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+  })
+
+  it.each(['en', 'pt-BR'])('blocks an unapplied explicit start after profile loading until reread in %s', async (locale) => {
+    formLocale.realController = true
+    formLocale.language = locale
+    mockProfileState.timeZone = undefined
+    const view = await mount('habit')
+    await TestRenderer.act(() => phraseInput().props.onChangeText('every Monday from next week'))
+    mockProfileState.timeZone = 'UTC'
+    await view.refresh()
+    await submit()
+    expect(mutation()).not.toHaveBeenCalled()
+    expect(phraseInput().props.accessibilityHint).toContain((locale === 'en' ? en : ptBR).habits.form.datePhraseUnresolved)
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('habits.form.habitStartDate,'))[0]!.props.disabled).toBeFalsy()
+    await TestRenderer.act(() => phraseInput().props.onChangeText('every Monday from next week '))
+    await submit()
+    expect(mutation()).toHaveBeenCalledOnce()
+    const request = expect.objectContaining({ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], startDate: '2026-10-26' })
+    expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
 
   if (owner === 'create') it('keeps native weekly wording behind the required explicit type choice', async () => {
     formLocale.realController = true

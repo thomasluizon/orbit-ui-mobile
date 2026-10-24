@@ -1626,6 +1626,42 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     else await user.click(submitButton())
   }
 
+  it.each(['en', 'pt-BR'])('saves the entered cadence with an accepted Astra start in %s', async (locale) => {
+    formLocale.realController = true
+    formLocale.language = locale
+    await mount('habit')
+    fireEvent.change(phraseInput(), { target: { value: 'every Monday from after vacation' } })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'habits.form.acceptDate' }))
+    expect(phraseInput()).toHaveValue('')
+    await submit()
+    await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+    const request = expect.objectContaining({ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], startDate: '2026-10-26' })
+    expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+  })
+
+  it.each(['en', 'pt-BR'])('blocks an unapplied explicit start after profile loading until reread in %s', async (locale) => {
+    formLocale.realController = true
+    formLocale.language = locale
+    mockProfileState.timeZone = undefined
+    const view = await mount('habit')
+    fireEvent.change(phraseInput(), { target: { value: 'every Monday from next week' } })
+    mockProfileState.timeZone = 'UTC'
+    view.refresh()
+    await submit()
+    expect(mutation()).not.toHaveBeenCalled()
+    expect(phraseInput()).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByText((locale === 'en' ? en : ptBR).habits.form.datePhraseUnresolved)).toBeVisible()
+    expect(screen.getByRole('button', { name: /habits.form.habitStartDate/ })).toBeEnabled()
+    fireEvent.change(phraseInput(), { target: { value: 'every Monday from next week ' } })
+    await submit()
+    await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+    const request = expect.objectContaining({ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], startDate: '2026-10-26' })
+    expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
   if (owner === 'create') it('keeps weekly wording behind the required explicit type choice', async () => {
     formLocale.realController = true
     await mount(null)

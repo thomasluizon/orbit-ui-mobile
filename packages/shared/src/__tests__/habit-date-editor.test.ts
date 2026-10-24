@@ -91,7 +91,7 @@ describe('habit date editor lifecycle', () => {
   })
 
   it('retains explicit Astra recovery for an unsupported recurrence start', async () => {
-    const { editor, requests } = createEditor({ type: 'habit', schedule: 'recurring' })
+    const { editor, requests, context, fields } = createEditor({ type: 'habit', schedule: 'recurring', cadence: { unit: 'Day', quantity: 1, days: [], intervalWeeks: 1 } })
     editor.setPhrase('every Monday from after vacation')
     expect(editor.getSnapshot().status).toBe('unsupported')
     const pending = editor.ask(true, false)
@@ -99,6 +99,47 @@ describe('habit date editor lifecycle', () => {
     requests[0]!.resolve(interpretation)
     await pending
     expect(editor.getSnapshot().candidate).toBe('2026-10-26')
+    expect(editor.accept()).toBe(true)
+    editor.validate()
+    expect(context.cadence).toEqual({ unit: 'Day', quantity: 1, days: ['Monday'], intervalWeeks: 1 })
+    expect(fields).toEqual({ dueDate: '2026-10-26', datePhrase: '', dateIssue: '' })
+  })
+
+  it('keeps an unapplied explicit recurrence start unresolved after account context loads', () => {
+    const { editor, context, fields } = createEditor({ type: 'habit', schedule: 'recurring', timeZone: undefined, referenceDate: '', cadence: { unit: 'Day', quantity: 1, days: [], intervalWeeks: 1 } })
+    editor.setPhrase('every Monday from next week')
+    expect(editor.getSnapshot().status).toBe('unavailable')
+    context.timeZone = 'UTC'
+    context.referenceDate = '2026-10-20'
+    editor.sync()
+    editor.validate()
+    expect(fields.dateIssue).not.toBe('')
+    expect(fields.dueDate).toBe('2026-10-20')
+    expect(context.cadence.days).toEqual([])
+    editor.setPhrase(fields.datePhrase)
+    editor.validate()
+    expect(fields.dateIssue).toBe('')
+    expect(fields.dueDate).toBe('2026-10-26')
+    expect(context.cadence.days).toEqual(['Monday'])
+  })
+
+  it.each(['account', 'cadence', 'type', 'general', 'lock'])('does not apply a recurrence from a stale proposal after %s changes', async (boundary) => {
+    const { editor, adapter, context, fields, requests } = createEditor({ type: 'habit', schedule: 'recurring', cadence: { unit: 'Day', quantity: 1, days: [], intervalWeeks: 1 } })
+    editor.setPhrase('every Monday from after vacation')
+    const pending = editor.ask(true, false)
+    requests[0]!.resolve(interpretation)
+    await pending
+    if (boundary === 'account') context.account++
+    if (boundary === 'cadence') context.cadence.unit = 'Month'
+    if (boundary === 'type') context.type = 'task'
+    if (boundary === 'general') context.schedule = 'general'
+    if (boundary === 'lock') adapter.generalLocked = true
+    expect(editor.accept()).toBe(false)
+    editor.validate()
+    expect(fields.dateIssue).not.toBe('')
+    expect(fields.dueDate).toBe('2026-10-20')
+    expect(context.cadence.days).toEqual([])
+    expect(editor.getSnapshot().candidate).toBeNull()
   })
 
   it.each(['task', undefined, 'habit'])('does not schedule an ineligible type %s', async (type) => {
