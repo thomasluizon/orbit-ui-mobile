@@ -26,7 +26,8 @@ UI `main` is `928d1813`, API `main` is `32774987`, landing `main` is `0d5e3df4`.
 | `orbit-api#898` (`#1675`) | Read the diff, `base-overlap.sh 898` against `32774987`, CI and review, merge, release with `#1682`'s API. |
 | `ui#2016` (`#24`, `7de439a5`) | Round 1 pushed, thread resolved, body published. Wait on CI and a fresh review (`wait-ci.mjs --repo ui --pr 2016`); merge on green; web releases. |
 | `ui#1984` (`#577`), `ui#2015` (`#1560` step 2) | Reopened on base `928d1813`; Pullfrog APPROVED at `de5299fb` and `83e6558b`. Merge each on green; a second SonarCloud out-of-memory on `ui#1984` makes `sonar.javascript.node.maxspace` the next harness fix on `main`. `#579` follows `ui#1984`. |
-| `ui#2018` (`#1561` step 1), `ui#2019` (`#1645`), `ui#2020` (`#1638`) | Diffs read and accepted. Their first runs used the old merge ref and fail Guards on the stale parity key: read `gh api .../pulls/<n>`, then close and reopen each on the current `main`; merge on green. Then close `#1645` (read Sentry `ORBIT-MOBILE-6` for `1.3.94` events) and `#1638`. |
+| `ui#2019` (`#1645`), `ui#2020` (`#1638`) | Diffs read and accepted; their first runs failed only Guards on the old merge ref, so both were reopened on base `928d1813`. Merge on green, then close `#1645` (read Sentry `ORBIT-MOBILE-6` for `1.3.94` events) and `#1638`. |
+| `ui#2018` (`#1561` step 1) | Diff read and accepted, but its run fails `pullfrog-approval`, `Tool and Hook Tests` and `iOS simulator compile` besides Guards. Read the job logs (`joblogs.sh`) and the Pullfrog threads, then a review round at `default` with every red in one commit; push with a fresh base so Guards reruns. |
 | `ui#2021` (`#1620` proactive half) | Read the diff (both clients send the parts context to `/api/ai/proactive/current`), CI and review, merge, web release and the next Android Open; then `#1662`'s live proof. |
 | `#26` worker (`ticket-26-eval-live-environment`, `deep`) | Running at relay. Read its PR: token refresh through `ORBIT_EVAL_CREDENTIALS_FILE`, `evals/astra/fixtures/reset.mjs`, the composition fixture definitions, a windowed run. Then the live gate on staging in daily windows with the three eval accounts in `eval-env/accounts.json`; decide the grader credential (no OpenAI API key of the run's own exists). |
 | `#1623` | Started (spec bullet): finish the Astra capture, the pt-BR demo account and captures, the compositions in `thomas-brain/orbit/google-play/`, copy approval, Play Console upload. |
@@ -37,7 +38,7 @@ UI `main` is `928d1813`, API `main` is `32774987`, landing `main` is `0d5e3df4`.
 
 1. Answer any owner message first, in his language, and give each order a ticket or a rescope before the turn ends.
 2. `orbit-api#897` to staging and the `#1682` recheck; `orbit-api#898` review and merge; production API.
-3. Reopen `ui#2018`, `ui#2019`, `ui#2020`; drive `ui#2016`, `ui#1984`, `ui#2015`, `ui#2021` to merge; web releases.
+3. The `ui#2018` review round; drive `ui#2019`, `ui#2020`, `ui#2016`, `ui#1984`, `ui#2015`, `ui#2021` to merge; web releases.
 4. The `#26` harness PR, then the live composition gate in daily windows.
 5. `#1623` and `#1624` (root asset work), then the rest of `## The order`, pool full under the load gate and the disk floor (206 GiB free at this relay).
 
