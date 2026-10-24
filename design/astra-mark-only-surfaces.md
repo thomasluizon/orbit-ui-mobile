@@ -9,7 +9,7 @@ Suggestion names contain the suggestion once. The mark is decorative within a na
 | Surface | Web owner | Android owner |
 |---|---|---|
 | Suggestion strip, conversation entry, submit and retry | `components/shell/composer.tsx` | `components/shell/composer.tsx` |
-| Wide sidebar conversation entry, including onboarding | `components/shell/shell-wide.tsx` | Shell composer entry |
+| Wide sidebar conversation entry, including onboarding | `components/shell/shell-wide.tsx`, `components/shell/destination-shell.tsx`, `components/onboarding/onboarding-flow.tsx` | Shell composer entry |
 | Habit-detail disclosure registration | `app/(app)/layout.tsx` | `app/_layout.tsx` |
 | Complete ideas and live requests | `components/chat/prompt-idea.tsx` | `components/chat/prompt-idea.tsx` |
 | Deferred complete idea above the composer | `components/chat/conversation.tsx` | `components/chat/conversation.tsx` |
@@ -17,18 +17,28 @@ Suggestion names contain the suggestion once. The mark is decorative within a na
 | Proactive requests | `components/chat/proactive-action.tsx` | `components/chat/proactive-action.tsx` |
 | Habit interpretation fallback | `components/habits/habit-form-fields.tsx` | `components/habits/habit-form-fields.tsx` |
 | Date interpretation | `components/habits/habit-form-fields/habit-date-field.tsx` | `components/habits/habit-form-fields/habit-date-field.tsx` |
-| Emoji and tag suggestions | `components/habits/habit-form-fields/habit-emoji-selector.tsx`, `tag-suggestions.tsx` | Same relative owners |
+| Emoji and tag suggestions | `components/habits/habit-form-fields/habit-emoji-selector.tsx`, `components/habits/habit-form-fields/tag-suggestions.tsx` | `components/habits/habit-form-fields/habit-emoji-selector.tsx`, `components/habits/habit-form-fields/tag-suggestions.tsx` |
 | Habit analysis and rescue retry | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` |
 | Reschedule retry | `components/habits/reschedule-sheet.tsx` | `components/habits/reschedule-sheet.tsx` |
 | Overdue reschedule menu item | `components/habits/habit-row-trailing.tsx` | `components/habits/habit-row.tsx` |
 | Goal analysis | `components/goals/goal-detail-drawer.tsx` | `components/goals/goal-detail-drawer.tsx` |
 | Empty habit list conversation entry | `components/habits/habit-list/empty-state.tsx` | `components/habit-list/empty-state.tsx` |
 | Conversation empty heading | `components/chat/chat-empty-state.tsx` | `components/chat/chat-empty-state.tsx` |
+| Onboarding import action | `app/(app)/layout.tsx` | `components/onboarding/astra-import-prompt.tsx` |
+| Setup checklist conversation prompt | `components/today/setup-checklist-card.tsx` | `components/today/setup-checklist-card.tsx` |
+
+Owner paths are relative to each app. The sidebar's `SidebarAstraRow` owns only its glyph color;
+`SidebarItem` retains paired resting and hover text colors for named destinations. Follow-up requests
+use the shared lean-answer selection, at most two small ghost pills and one dispatch per selection.
+Their useful labels and accessible names each contain the action once, with no appended brand name.
 
 Shared copy lives in both `packages/shared/src/i18n/en.json` and `pt-BR.json`. The composer asks
 what the person wants to do. Interpretation, date, emoji, tag, reschedule, habit, goal, summary and
 import actions use contextual verbs. Explanatory prose, AI disclosures, conversation participant
-names and settings that name the assistant retain their meaning.
+names and settings that name the assistant retain their meaning. The summary action's
+`summary.askAstra` catalog entry has the approved contextual verb even though the current summary
+entry is the proactive line. The Perfil settings entry retains its assistant name and neutral
+`MessageCircle` icon through `PROFILE_SUBMENUS`; it has no adjacent Astra mark.
 
 Habit detail adds one disclosure control. Collapsed, it occupies one compact row with the mark.
 Expanded, the collapse icon shares the suggestion row, leaving the scroll strip room beside it.
@@ -43,4 +53,8 @@ habit scroller, preserving the final content row in narrow and short viewports.
 Vitest covers mark-only controls, localized action names, retained callbacks, disclosure state,
 draft retention and device persistence. Native geometry covers the Fold cover width. Hermetic
 Chromium composition covers the shell allocation, compact disclosure and mark-only actions.
+The hermetic layout specs resolve these controls from their current localized action names.
+They preserve their viewport, spacing, fit, focus and clearance assertions; mark-only entries assert
+that the brand word is absent beside the glyph. A wide habit-detail opener is scoped to its pinned
+composer because the sidebar and composer intentionally share the same accessible action name.
 Device font rendering and production web and Android Open rollout remain release verification.
