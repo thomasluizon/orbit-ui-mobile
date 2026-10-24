@@ -75,6 +75,7 @@ interface AttemptedSend {
   draftContent: string;
   image: ImagePicker.ImagePickerAsset | null;
   preview: string | null;
+  textFile: SelectedChatTextFile | null;
   restoreDraftOnFailure: boolean;
   clearDraftOnSuccess: boolean;
   restoredDraftRevision: number | null;
@@ -398,7 +399,12 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     setSelectedTextFile(null);
   }, []);
 
-  const handleDailyBudgetExceeded = useCallback((draftMessageId: string | null) => {
+  const handleDailyBudgetExceeded = useCallback((draftMessageId: string | null, attempted?: AttemptedSend) => {
+    if (attempted?.clearDraftOnSuccess && attempted.restoredDraftRevision === useChatStore.getState().draftRevision) {
+      setSelectedImage(attempted.image)
+      setImagePreview(attempted.preview)
+      setSelectedTextFile(attempted.textFile)
+    }
     setDailyBudgetDate(today)
     setSendError(null)
     setLastFailedSend(null)
@@ -431,7 +437,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       });
 
       if (failure.kind === 'dailyBudget') {
-        handleDailyBudgetExceeded(draftMessageId)
+        handleDailyBudgetExceeded(draftMessageId, failedAttempt)
         return
       }
 
@@ -773,6 +779,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         draftContent: sendsComposerDraft ? input : typedContent,
         image: sendsComposerDraft ? selectedImage : null,
         preview: sendsComposerDraft ? imagePreview : null,
+        textFile: sendsComposerDraft ? selectedTextFile : null,
         restoreDraftOnFailure: content === undefined,
         clearDraftOnSuccess: content === undefined,
         restoredDraftRevision: null,

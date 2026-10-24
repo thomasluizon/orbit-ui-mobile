@@ -60,7 +60,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
 import { useHabitDetail, useHabits } from '@/hooks/use-habit-queries'
 import { useChatImageAttachment } from '@/hooks/use-chat-image-attachment'
-import { useChatTextFileAttachment } from '@/hooks/use-chat-text-file-attachment'
+import { useChatTextFileAttachment, type SelectedChatTextFile } from '@/hooks/use-chat-text-file-attachment'
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
 import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { getHeldAccountId } from '@/stores/auth-store'
@@ -74,6 +74,7 @@ interface AttemptedSend {
   draftContent: string
   image: File | null
   preview: string | null
+  textFile: SelectedChatTextFile | null
   restoreDraftOnFailure: boolean
   clearDraftOnSuccess: boolean
   restoredDraftRevision: number | null
@@ -192,6 +193,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     handlePaste,
     removeImage,
     clearImage,
+    restoreImage,
   } = useChatImageAttachment(setSendError)
 
   const {
@@ -200,6 +202,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     openTextFilePicker,
     handleTextFileSelect,
     removeTextFile,
+    restoreTextFile,
   } = useChatTextFileAttachment(setSendError)
 
   /**
@@ -277,12 +280,16 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     verifyStepUpForBubble,
   } = useChatPendingOperations(handleExecutedOperation)
 
-  const handleDailyBudgetExceeded = useCallback((draftMessageId: string | null) => {
+  const handleDailyBudgetExceeded = useCallback((draftMessageId: string | null, attempted?: AttemptedSend) => {
+    if (attempted?.clearDraftOnSuccess && attempted.restoredDraftRevision === useChatStore.getState().draftRevision) {
+      restoreImage(attempted.image, attempted.preview)
+      restoreTextFile(attempted.textFile)
+    }
     setDailyBudgetDate(today)
     setSendError(null)
     setLastFailedSend(null)
     if (draftMessageId) useChatStore.setState(state => ({ messages: state.messages.filter(message => message.id !== draftMessageId) }))
-  }, [today])
+  }, [restoreImage, restoreTextFile, today])
 
   const handleFailedSend = useCallback((
     failureInput: StreamSendFailure,
@@ -318,7 +325,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     })
 
     if (failure.kind === 'dailyBudget') {
-      handleDailyBudgetExceeded(draftMessageId)
+      handleDailyBudgetExceeded(draftMessageId, failedAttempt)
       return
     }
 
@@ -658,6 +665,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
         draftContent: sendsComposerDraft ? input : typedContent,
         image: sendsComposerDraft ? selectedImage : null,
         preview: sendsComposerDraft ? imagePreview : null,
+        textFile: sendsComposerDraft ? selectedTextFile : null,
         restoreDraftOnFailure: content === undefined,
         clearDraftOnSuccess: content === undefined,
         restoredDraftRevision: null,

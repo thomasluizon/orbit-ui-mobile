@@ -314,6 +314,54 @@ describe('web useChatComposer streaming send', () => {
     expect(mocks.fetch).toHaveBeenCalledTimes(1)
   })
 
+  it.each([
+    ['image-plus-text', 'http'], ['image-plus-text', 'sse'],
+    ['file-only', 'http'], ['file-only', 'sse'],
+  ] as const)('preserves a refused %s draft and resends its attachments next date over %s', async (draftKind, transport) => {
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, {
+      createObjectURL: vi.fn(() => 'blob:draft-image'),
+      revokeObjectURL: vi.fn(),
+    }))
+    const image = new File(['image'], 'walk.png', { type: 'image/png' })
+    const draft = draftKind === 'image-plus-text' ? '  Import these\n  ' : ''
+    const message = `${draft.trim() ? 'Import these\n\n' : ''}chat.fileAttached:{"name":"notes.txt"}\nWalk\nRead`
+    mocks.fetch.mockResolvedValueOnce(transport === 'http'
+      ? Response.json({ error: 'Daily budget reached', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }, { status: 400 })
+      : sseResponse(frame('{"type":"error","status":400,"error":"Daily budget reached","code":"AI_DAILY_BUDGET_EXCEEDED"}')))
+      .mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    const { result, rerender } = renderHook(({ today }) => useChatComposer({ today }), { initialProps: { today: '2026-09-12' } })
+    await act(async () => { await result.current.handleTextFileSelect(fileChangeEvent(textFile('notes.txt', 'Walk\nRead'))) })
+    act(() => {
+      result.current.setInput(draft)
+      if (draftKind === 'image-plus-text') result.current.handleFileSelect(fileChangeEvent(image))
+    })
+    await act(async () => { result.current.composerProps.onSend(); await Promise.resolve() })
+    expect(result.current.input).toBe(draft)
+    expect(result.current.selectedTextFile).toEqual({ name: 'notes.txt', content: 'Walk\nRead' })
+    expect(result.current.selectedImage).toBe(draftKind === 'image-plus-text' ? image : null)
+    expect(result.current.imagePreview).toBe(draftKind === 'image-plus-text' ? 'blob:draft-image' : null)
+    expect(result.current.composerProps.attachments).toHaveLength(draftKind === 'image-plus-text' ? 2 : 1)
+    expect(result.current.composerProps.state).toBe('atLimit')
+    expect(result.current.canSend).toBe(false)
+    expect(result.current.canRetryLastSend).toBe(false)
+    await act(async () => {
+      await result.current.sendMessage()
+      await result.current.retryLastSend()
+    })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    rerender({ today: '2026-09-13' })
+    expect(result.current.canSend).toBe(true)
+    await act(async () => { result.current.composerProps.onSend(); await Promise.resolve() })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    for (const call of mocks.fetch.mock.calls) {
+      const payload = call[1].body as FormData
+      expect(payload.get('message')).toBe(message)
+      expect(payload.get('image')).toBe(draftKind === 'image-plus-text' ? image : null)
+    }
+    expect(result.current.input).toBe('')
+    expect(result.current.composerProps.attachments).toHaveLength(0)
+  })
+
   it('releases the daily ceiling on the next local date', async () => {
     mocks.fetch.mockResolvedValueOnce(Response.json({ error: 'Daily budget reached', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }, { status: 400 }))
       .mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))

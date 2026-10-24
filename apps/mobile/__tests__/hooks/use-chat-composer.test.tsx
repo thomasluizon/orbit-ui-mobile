@@ -442,6 +442,62 @@ describe('mobile useChatComposer', () => {
     expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
   })
 
+  it.each([
+    ['image-plus-text', 'http'], ['image-plus-text', 'sse'],
+    ['file-only', 'http'], ['file-only', 'sse'],
+  ] as const)('preserves a refused %s draft and resends its attachments next date over %s', async (draftKind, transport) => {
+    const image = { uri: 'file:///pic.jpg', mimeType: 'image/jpeg', fileName: 'pic.jpg', fileSize: 2048 }
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    mocks.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [image] })
+    mocks.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [documentPickerAsset()] })
+    mocks.readFileText.mockResolvedValue('Walk\nRead')
+    const draft = draftKind === 'image-plus-text' ? '  Import these\n  ' : ''
+    const message = `${draft.trim() ? 'Import these\n\n' : ''}chat.fileAttached:{"name":"notes.txt"}\nWalk\nRead`
+    mocks.openChatStream.mockResolvedValueOnce(transport === 'http'
+      ? Response.json({ error: 'Daily budget reached', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }, { status: 400 })
+      : sseStreamResponse(frame('{"type":"error","status":400,"error":"Daily budget reached","code":"AI_DAILY_BUDGET_EXCEEDED"}')))
+      .mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
+    const options = { today: '2026-09-12' }
+    const composer = await renderComposer(options)
+    await TestRenderer.act(async () => {
+      composer.current.composerProps.onAttachFile?.()
+      await vi.waitFor(() => expect(mocks.readFileText).toHaveBeenCalledOnce())
+      if (draftKind === 'image-plus-text') await composer.current.openFilePicker()
+    })
+    TestRenderer.act(() => composer.current.setInput(draft))
+    await TestRenderer.act(async () => { composer.current.composerProps.onSend(); await Promise.resolve() })
+    expect(composer.current.input).toBe(draft)
+    expect(composer.current.selectedTextFile).toEqual({ name: 'notes.txt', content: 'Walk\nRead' })
+    expect(composer.current.selectedImage).toEqual(draftKind === 'image-plus-text' ? image : null)
+    expect(composer.current.imagePreview).toBe(draftKind === 'image-plus-text' ? image.uri : null)
+    expect(composer.current.composerProps.attachments).toHaveLength(draftKind === 'image-plus-text' ? 2 : 1)
+    expect(composer.current.composerProps.state).toBe('atLimit')
+    expect(composer.current.atMessageLimit).toBe(true)
+    expect(composer.current.canRetryLastSend).toBe(false)
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+      await composer.current.retryLastSend()
+    })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
+    options.today = '2026-09-13'
+    composer.rerender()
+    expect(composer.current.atMessageLimit).toBe(false)
+    expect(composer.current.composerProps.state).toBe('idle')
+    await TestRenderer.act(async () => { composer.current.composerProps.onSend(); await Promise.resolve() })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
+    for (const call of mocks.openChatStream.mock.calls) {
+      const payload = call[0] as { get(name: string): string | Blob | null }
+      expect(payload.get('message')).toBe(message)
+      const sentImage = payload.get('image')
+      if (draftKind === 'image-plus-text') {
+        expect(sentImage).toBeInstanceOf(Blob)
+        expect((sentImage as File).name).toBe('pic.jpg')
+      } else expect(sentImage).toBeNull()
+    }
+    expect(composer.current.input).toBe('')
+    expect(composer.current.composerProps.attachments).toHaveLength(0)
+  })
+
   it('releases the daily ceiling on the next local date', async () => {
     mocks.openChatStream.mockResolvedValueOnce(Response.json({ error: 'Daily budget reached', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }, { status: 400 }))
       .mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
