@@ -131,9 +131,10 @@ async fn redeem(
     window
         .navigate(origin)
         .map_err(|_| "Cannot open signed-in desktop")?;
-    window
-        .set_focus()
-        .map_err(|_| "Cannot focus signed-in desktop")
+    if window.set_focus().is_err() {
+        eprintln!("Cannot focus signed-in desktop");
+    }
+    Ok(())
 }
 
 fn show_failure(window: &WebviewWindow, origin: &Url) {
