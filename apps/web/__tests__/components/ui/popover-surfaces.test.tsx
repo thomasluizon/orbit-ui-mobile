@@ -33,7 +33,7 @@ describe('Today controls and habit menu ownership', () => {
     const rowTrigger = screen.getByRole('button', { name: 'habits.actions.more' })
     const press = (trigger: HTMLElement) => {
       if (activation === 'pointer') fireEvent.pointerDown(trigger)
-      fireEvent.click(trigger)
+      fireEvent.click(trigger, { detail: activation === 'pointer' ? 1 : 0 })
     }
     const prepare = async (trigger: HTMLElement, label: string) => {
       press(trigger)
@@ -68,7 +68,7 @@ describe('Today controls and habit menu ownership', () => {
     const rowTrigger = screen.getByRole('button', { name: 'habits.actions.more' })
     const press = (trigger: HTMLElement) => {
       if (activation === 'pointer') fireEvent.pointerDown(trigger)
-      fireEvent.click(trigger)
+      fireEvent.click(trigger, { detail: activation === 'pointer' ? 1 : 0 })
     }
     controlsTrigger.focus()
     press(controlsTrigger)

@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { ShellWide } from '@/components/shell/shell-wide'
+import SearchPage from '@/app/(app)/search/page'
 import { useShellStore } from '@/stores/shell-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { ASTRA_GLYPH_PATHS } from '@orbit/shared/contracts/brand'
@@ -9,6 +10,9 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 const locale = vi.hoisted(() => ({ portuguese: false }))
+const navigation = vi.hoisted(() => ({ back: vi.fn(), push: vi.fn() }))
+vi.mock('next/navigation', () => ({ useRouter: () => navigation }))
+vi.mock('@/hooks/use-habit-search', () => ({ useHabitSearch: () => ({ text: '', query: '', changeText: vi.fn() }) }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key === 'profile.settingsRows.signOut'
   ? (locale.portuguese ? ptBR : en).profile.settingsRows.signOut : key }))
 
@@ -23,6 +27,7 @@ const accountLabel = `${props.account}, ${props.accountEmail}`
 
 beforeEach(() => {
   locale.portuguese = false
+  navigation.back.mockClear()
   useShellStore.persist.clearStorage()
   useShellStore.setState({ sidebarCollapsed: false })
   vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
@@ -31,6 +36,25 @@ beforeEach(() => {
   })))
 })
 afterEach(() => vi.unstubAllGlobals())
+
+it.each([false, true])('dismisses the account menu before leaving search with portuguese=%s', async (portuguese) => {
+  locale.portuguese = portuguese
+  const user = userEvent.setup()
+  render(<ShellWide {...props}><SearchPage /></ShellWide>)
+  const trigger = screen.getByRole('button', { name: accountLabel })
+  for (const input of ['pointer', '{Enter}']) {
+    if (input === 'pointer') await user.click(trigger)
+    else await user.keyboard(input)
+    expect(await screen.findByRole('menu', { name: accountLabel })).toBeVisible()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    expect(navigation.back).not.toHaveBeenCalled()
+    expect(trigger).toBeVisible()
+    expect(trigger).toHaveFocus()
+  }
+  await user.keyboard('{Escape}')
+  expect(navigation.back).toHaveBeenCalledOnce()
+})
 
 it.each([false, true])('opens the account menu by pointer, Enter and Space with collapsed=%s', async (collapsed) => {
   useShellStore.setState({ sidebarCollapsed: collapsed })

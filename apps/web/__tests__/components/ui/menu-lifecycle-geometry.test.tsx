@@ -41,8 +41,8 @@ describe('mounted headless menu lifecycle in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
-  async function mount(surface: 'habit' | 'composer' | 'frequency' | 'account' | 'calendar', locale: 'en' | 'pt-BR', width: number, height: number, mode: 'light' | 'dark' = 'dark', reducedMotion: 'reduce' | 'no-preference' = 'reduce') {
-    const page = await browser.newPage({ viewport: { width, height }, reducedMotion })
+  async function mount(surface: 'habit' | 'composer' | 'frequency' | 'account' | 'calendar', locale: 'en' | 'pt-BR', width: number, height: number, mode: 'light' | 'dark' = 'dark', reducedMotion: 'reduce' | 'no-preference' = 'reduce', hasTouch = false) {
+    const page = await browser.newPage({ viewport: { width, height }, reducedMotion, hasTouch })
     onTestFinished(async () => { await page.close() })
     const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
     await page.setContent(`<html class="${mode}" style="${theme}"><style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ surface, locale })}</script></html>`)
@@ -50,6 +50,36 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     await page.addScriptTag({ content: script })
     return page
   }
+
+  it.each([320, 360, 384, 412].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale =>
+    (['dark', 'light'] as const).map(mode => ({ width, locale, mode })))))
+    ('paints the Today trigger throughout an opening press at $width pixels in $locale, $mode', async ({ width, locale, mode }) => {
+      const page = await mount('frequency', locale, width, 915, mode, 'reduce', true)
+      const words = locale === 'en' ? en : ptBR
+      const trigger = page.getByRole('button', { name: words.habits.listOptions, exact: true, includeHidden: true })
+      await trigger.waitFor({ state: 'visible' })
+      const radius = await trigger.evaluate(element => getComputedStyle(element).borderRadius)
+      const bounds = (await trigger.boundingBox())!
+      const touch = await page.context().newCDPSession(page)
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }] })
+      await page.getByRole('menu').waitFor({ state: 'visible' })
+      const expectedFill = mode === 'dark' ? 'rgba(250, 250, 250, 0.13)' : 'rgba(9, 9, 11, 0.11)'
+      await expect.poll(() => trigger.evaluate(element => getComputedStyle(element).backgroundColor)).toBe(expectedFill)
+      const pressed = await trigger.evaluate(element => ({
+        nativeActive: element.matches(':active'),
+        fill: getComputedStyle(element).backgroundColor,
+        radius: getComputedStyle(element).borderRadius,
+        width: element.getBoundingClientRect().width,
+        height: element.getBoundingClientRect().height,
+      }))
+      expect(pressed.fill, JSON.stringify(pressed)).toBe(expectedFill)
+      expect(pressed.radius).toBe(radius)
+      expect(pressed.width).toBe(48)
+      expect(pressed.height).toBe(48)
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+      await page.keyboard.press('Escape')
+      await expect.poll(() => trigger.evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+    })
 
   it('lets the first outside pointer press dismiss the account menu and activate its destination', async () => {
     const page = await mount('account', 'en', 1024, 900)
@@ -70,7 +100,7 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     { surface: 'calendar', width: 412, trigger: en.calendar.options },
   ] as const)('releases $surface pointer input after Escape and outside dismissal', async ({ surface, width, trigger: label }) => {
     const page = await mount(surface, 'en', width, 915)
-    const trigger = surface === 'habit' ? page.locator('[data-habit-row-control="menu"]') : page.getByRole('button', { name: label, exact: true })
+    const trigger = surface === 'habit' ? page.locator('[data-habit-row-control="menu"]') : page.getByRole('button', { name: label, exact: true, includeHidden: true })
     const overlays = page.getByRole('menu').or(page.getByRole('dialog'))
     const outside = page.getByRole('button', { name: 'After menu' })
     for (const dismissal of ['Escape', 'outside'] as const) {
@@ -78,6 +108,7 @@ describe('mounted headless menu lifecycle in Chromium', () => {
       await page.mouse.down()
       await expect.poll(() => overlays.count()).toBeGreaterThan(0)
       await page.mouse.move(0, 0)
+      expect(await trigger.evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgba(250, 250, 250, 0.13)')
       await page.mouse.up()
       await expect.poll(() => overlays.count()).toBeGreaterThan(0)
       if (dismissal === 'Escape') await page.keyboard.press('Escape')

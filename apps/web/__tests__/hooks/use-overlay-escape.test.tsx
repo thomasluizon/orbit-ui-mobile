@@ -14,12 +14,27 @@ function Layer({
 
 function pressEscape() {
   act(() => {
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
   })
 }
 
 describe('useOverlayescape', () => {
   afterEach(cleanup)
+
+  it('leaves an Escape consumed by a primitive to that primitive', () => {
+    const onDismiss = vi.fn()
+    render(<Layer open onDismiss={onDismiss} id="route" />)
+    const consumeEscape = (event: KeyboardEvent) => event.preventDefault()
+    document.addEventListener('keydown', consumeEscape, { capture: true })
+    try {
+      pressEscape()
+      expect(onDismiss).not.toHaveBeenCalled()
+    } finally {
+      document.removeEventListener('keydown', consumeEscape, { capture: true })
+    }
+    pressEscape()
+    expect(onDismiss).toHaveBeenCalledOnce()
+  })
 
   it('resolves Escape to the most recently opened layer (LIFO)', () => {
     const first = vi.fn()

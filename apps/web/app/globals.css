@@ -549,6 +549,14 @@
 
 .orbit-sheet-close:active { background: var(--bg-hover); }
 
+[data-menu-trigger][data-state="open"]:not(:disabled) {
+  background-color: var(--bg-hover);
+}
+
+.light [data-menu-trigger].orbit-hover-text[data-state="open"]:not(:disabled) {
+  --fg-3: var(--fg-2);
+}
+
 .orbit-menu-item:active:not(:disabled) {
   background: var(--bg-hover);
 }

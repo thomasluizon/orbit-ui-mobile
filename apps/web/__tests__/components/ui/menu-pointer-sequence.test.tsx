@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import * as Menu from '@/components/ui/dropdown-menu'
@@ -53,4 +53,30 @@ it.each(['{Enter}', ' ', '{ArrowDown}'])('retains keyboard opening with %s and f
   await user.keyboard('{Escape}')
   await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
   await waitFor(() => expect(trigger).toHaveFocus())
+})
+
+it.each(['anchored', 'sheet'] as const)('opens %s from a virtual click and retains pointer and keyboard activation', async presentation => {
+  const user = userEvent.setup()
+  render(<Example presentation={presentation} />)
+  const trigger = screen.getByRole('button', { name: 'Actions' })
+  for (const activation of ['virtual', 'pointer', 'keyboard']) {
+    if (activation === 'virtual') act(() => trigger.click())
+    else if (activation === 'pointer') await user.click(trigger)
+    else await user.keyboard('{Enter}')
+    expect(await screen.findByRole('menu', { name: 'Actions' })).toBeVisible()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    await waitFor(() => expect(trigger).toHaveFocus())
+  }
+})
+
+it.each(['disabled', 'prevented'] as const)('keeps a %s trigger closed on virtual activation', async state => {
+  const onClick = vi.fn((event: React.MouseEvent) => { if (state === 'prevented') event.preventDefault() })
+  render(<Menu.Root><Menu.Trigger disabled={state === 'disabled'} onClick={onClick}>Actions</Menu.Trigger>
+    <Menu.Content title="Actions" items={[{ id: 'edit', label: 'Edit' }]} /></Menu.Root>)
+  const trigger = screen.getByRole('button', { name: 'Actions' })
+  act(() => trigger.click())
+  expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  if (state === 'prevented') expect(onClick).toHaveBeenCalledOnce()
 })

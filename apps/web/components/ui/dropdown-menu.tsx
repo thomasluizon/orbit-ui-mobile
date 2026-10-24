@@ -52,10 +52,15 @@ export function Root({ open, onOpenChange, children }: Readonly<{ open?: boolean
 
 type TriggerProps = ComponentProps<typeof Primitive.Trigger>
 
-export function Trigger({ ref, onPointerEnter, onFocus, ...props }: TriggerProps) {
-  const { triggerRef, triggerId, contentId, open } = useMenu()
+export function Trigger({ ref, onPointerEnter, onFocus, onClick, ...props }: TriggerProps) {
+  const { triggerRef, triggerId, contentId, open, changeOpen } = useMenu()
   const composedRef = useComposedRefs(triggerRef, ref)
-  return <Primitive.Trigger ref={composedRef} id={triggerId} aria-controls={open ? contentId : undefined} {...props}
+  return <Primitive.Trigger ref={composedRef} id={triggerId} aria-controls={open ? contentId : undefined} {...props} data-menu-trigger=""
+    onClick={(event) => {
+      onClick?.(event)
+      // Virtual activation has no pointer or key event for the primitive: https://github.com/thomasluizon/orbit-tickets/issues/577
+      if (event.detail === 0 && !props.disabled && !event.defaultPrevented) changeOpen(!open)
+    }}
     onPointerEnter={(event) => { void loadContent().catch(captureException); onPointerEnter?.(event) }}
     onFocus={(event) => { void loadContent().catch(captureException); onFocus?.(event) }} />
 }

@@ -15,6 +15,7 @@ keyboard navigation and dismissal. Orbit retains its menu paint and the compact 
 | Breakdown preview actions | `components/chat/breakdown-suggestion.tsx` | `components/chat/breakdown-suggestion.tsx` |
 | Goal filter | `app/(app)/progress/_components/progress-content.tsx` | `components/progress/progress-content.tsx` |
 | Calendar wide options | `app/(app)/calendar/_components/calendar-options.tsx` | The calendar options Sheet remains the compact platform owner |
+| Wide sidebar account | `components/shell/sidebar-account.tsx` | Profile remains the compact platform account owner |
 | Onboarding decisions, completion and plan | `components/onboarding/onboarding-flow.tsx` | `components/onboarding/onboarding-flow.tsx`, through `ui/native-dialog.tsx` and `ui/native-window-host.tsx` |
 | Required upgrade and request throttle | The existing blocking error surfaces | `components/upgrade-required-screen.tsx`, `components/throttle-screen.tsx`, through the same native dialog and window host |
 | Destructive confirmation | `components/ui/confirm-sheet.tsx`, `components/ui/sheet.tsx` | Same owners |
@@ -31,8 +32,9 @@ The root host isolates its screen siblings while an anchored menu is registered.
 owners and screen reservations retain their own presentation and remain reachable.
 
 Web triggers retain their focus and identity while menu content loads on pointer intent or focus.
-The headless root, item behavior, positioning and focus modules load with that content. The
-headless trigger receives the existing button as its anchor without replacing the button.
+The headless root and trigger are available immediately; item behavior, positioning and focus
+modules load with the content. The headless trigger receives the existing button as its anchor
+without replacing the button.
 Within a Sheet, the headless positioner uses `display: contents`, leaving its menu in the
 primitive's single body scroller. The panel's viewport height bound, nonshrinking header and
 shrinkable body preserve scrolling and safe-area clearance at zero and nonzero insets.
@@ -52,7 +54,17 @@ Vitest covers menu names, item state, selection, dismissal, focus, replacement o
 existing interaction geometry. Native keyboard, TalkBack and native window stacking still require
 installed-device verification; host mocks cannot establish those outcomes.
 
-All ten surface groups have their behavior owners migrated. The native full-screen owners use
+All web menu triggers share their open fill through the primitive's `data-state`, including
+habit actions, Today options and frequency, composer actions, inbox actions, breakdown actions,
+goal filters, calendar options and the sidebar account. The existing control radius clips the
+`--bg-hover` fill. Light account text uses the same foreground promotion as hover and press.
+This feedback survives the primitive consuming pointer-down before native `:active` can apply.
+Virtual clicks enter the controlled Root directly because they carry no pointer or key event;
+pointer and keyboard gestures retain the primitive's handlers and activate only once.
+Route Escape handlers leave an already consumed event to the headless overlay; a later Escape
+can still leave Search. Dismissing its sidebar menu therefore retains the route and trigger focus.
+
+All eleven surface groups have their behavior owners migrated. The native full-screen owners use
 rn-primitives Dialog Root, Portal, Overlay, Content and Title. A single app-owned native window
 contains their named PortalHost and is visible only while a dialog targets it. Its Back request
 reaches the topmost dialog's current open-change callback. Upgrade and throttle retain their
