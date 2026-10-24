@@ -273,6 +273,92 @@ function ComposerConversationHarness({ conversationReady = true }: { conversatio
 }
 
 describe('web useChatComposer streaming send', () => {
+  it.each([400, 409, 429])('does not automatically resend HTTP %s', async status => {
+    mocks.fetch.mockResolvedValue(Response.json({ code: 'CHAT_TURN_KEY_CONFLICT', error: 'The turn key belongs to another payload.' }, { status }))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.sendMessage('Plan my morning') })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['network', 'server'] as const)('resends once after a %s failure before acceptance', async failure => {
+    if (failure === 'network') mocks.fetch.mockRejectedValueOnce(new TypeError('Disconnected'))
+    else mocks.fetch.mockResolvedValueOnce(Response.json({ error: 'Unavailable' }, { status: 503 }))
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.sendMessage('Plan my morning') })
+    const readKey = (index: number) => new Headers((mocks.fetch.mock.calls[index]?.[1] as RequestInit).headers).get('Idempotency-Key')
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(readKey(0)).toBeTruthy()
+    expect(readKey(1)).toBe(readKey(0))
+    expect(useChatStore.getState().messages.filter(message => message.role === 'ai')).toHaveLength(1)
+  })
+
+  it('starts a new keyed turn only after two failed transport attempts and manual retry', async () => {
+    mocks.fetch.mockRejectedValueOnce(new TypeError('Disconnected')).mockRejectedValueOnce(new TypeError('Disconnected'))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.sendMessage('Plan my morning') })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(result.current.canRetryLastSend).toBe(true)
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    await act(async () => { await result.current.retryLastSend() })
+    const readKey = (index: number) => new Headers((mocks.fetch.mock.calls[index]?.[1] as RequestInit).headers).get('Idempotency-Key')
+    expect(mocks.fetch).toHaveBeenCalledTimes(3)
+    expect(readKey(1)).toBe(readKey(0))
+    expect(readKey(2)).not.toBe(readKey(0))
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
+  })
+
+  it.each(['terminal error', 'conflict', 'interrupted'] as const)('preserves manual retry identity and reconciliation for %s', async failure => {
+    const order: string[] = []
+    mocks.queryClient.invalidateQueries.mockImplementation(async () => { await Promise.resolve(); order.push('refetch') })
+    if (failure === 'conflict') mocks.fetch.mockResolvedValueOnce(Response.json({ code: 'CHAT_TURN_KEY_CONFLICT', error: 'The turn key belongs to another payload.' }, { status: 409 }))
+    else mocks.fetch.mockResolvedValueOnce(sseResponse(frame(JSON.stringify({ type: 'error', status: 503, error: 'Reply failed', ...(failure === 'interrupted' ? { code: 'CHAT_TURN_INTERRUPTED' } : {}) }))))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.sendMessage('Plan my morning') })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    if (failure === 'interrupted') {
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.all, refetchType: 'all' }, { throwOnError: true })
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: goalKeys.all, refetchType: 'all' }, { throwOnError: true })
+    }
+    order.length = 0
+    mocks.fetch.mockImplementationOnce(async () => { order.push('send'); return sseResponse(finalFrame(makeChatResponse())) })
+    await act(async () => { await result.current.retryLastSend() })
+    const readKey = (index: number) => new Headers((mocks.fetch.mock.calls[index]?.[1] as RequestInit).headers).get('Idempotency-Key')
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    if (failure === 'terminal error') expect(readKey(1)).toBe(readKey(0))
+    else expect(readKey(1)).not.toBe(readKey(0))
+    if (failure === 'interrupted') expect(order).toEqual([...Array.from({ length: 10 }, () => 'refetch'), 'send'])
+  })
+
+  it('resends a dropped turn with the same key and payload and replaces one reply', async () => {
+    const replay = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(sseResponse(frame('{"type":"started","turnId":"fe4a8c19-9c97-481a-882d-ed7dea936ec0","state":"running","replayed":false}'), frame('{"type":"delta","text":"Partial"}')))
+      .mockResolvedValueOnce(replay.response)
+    const { result } = renderHook(() => useChatComposer())
+    let sending!: Promise<void>
+    act(() => { sending = result.current.sendMessage('Plan my morning') })
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(2))
+    const draft = useChatStore.getState().messages.find(message => message.role === 'ai')
+    expect(draft?.content).toBe('Partial')
+    await act(async () => {
+      replay.enqueue(frame('{"type":"started","turnId":"fe4a8c19-9c97-481a-882d-ed7dea936ec0","state":"completed","replayed":true}'))
+      replay.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Recovered' })))
+      replay.close()
+      await sending
+    })
+    expect(useChatStore.getState().messages.find(message => message.role === 'ai')?.id).toBe(draft?.id)
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    const first = mocks.fetch.mock.calls[0]![1] as RequestInit
+    const second = mocks.fetch.mock.calls[1]![1] as RequestInit
+    const key = new Headers(first.headers).get('Idempotency-Key')
+    expect(key).toBeTruthy()
+    expect(new Headers(second.headers).get('Idempotency-Key')).toBe(key)
+    expect(second.body).toBe(first.body)
+    expect(useChatStore.getState().messages.filter(message => message.role === 'ai')).toEqual([
+      expect.objectContaining({ content: 'Recovered' }),
+    ])
+  })
+
   it.each(['text', 'tool', 'error', 'block', 'cancel', 'limit', 'limit-notice'])('replaces the pending reply indicator on %s', async (arrival) => {
     const stream = controlledSseResponse()
     mocks.fetch.mockResolvedValue(stream.response)
@@ -419,7 +505,7 @@ describe('web useChatComposer streaming send', () => {
   })
 
   it('offers one retry action in the owning conversation after a transport failure', async () => {
-    mocks.fetch.mockRejectedValueOnce(new Error('network unavailable'))
+    mocks.fetch.mockRejectedValueOnce(new Error('network unavailable')).mockRejectedValueOnce(new Error('network unavailable'))
       .mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
     render(<ComposerConversationHarness />)
     const draft = '  Plan my morning\n  '
@@ -427,13 +513,13 @@ describe('web useChatComposer streaming send', () => {
     fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('chat.sendError'))
     expect(screen.getByRole('textbox')).toHaveValue(draft)
-    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
     const retries = screen.getAllByRole('button', { name: 'shell.composer.retry' })
     expect(retries).toHaveLength(1)
     expect(retries[0]!.closest('[data-composer-root]')).not.toBeNull()
     fireEvent.click(retries[0]!)
     await waitFor(() => expect(screen.getByText('Hi there', { selector: '[data-bubble-role="ai"] p' })).toBeVisible())
-    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(mocks.fetch).toHaveBeenCalledTimes(3)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'shell.composer.retry' })).not.toBeInTheDocument()
   })
@@ -571,6 +657,7 @@ describe('web useChatComposer streaming send', () => {
     useChatStore.setState({ messages: [makeHeldHabitMessage({ id: 'question', content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'choice', block: choiceBlockFixture }] })] })
     const stream = controlledSseResponse()
     mocks.fetch.mockResolvedValueOnce(stream.response)
+    if (scenario === 'lost final response') mocks.fetch.mockRejectedValueOnce(new Error('Replay disconnected'))
     function Harness() { const chat = useChatComposer(); return <AstraConversation chat={chat} /> }
     render(<Harness />)
     fireEvent.click(screen.getAllByRole('radio')[2]!)
@@ -594,12 +681,12 @@ describe('web useChatComposer streaming send', () => {
       const submit = screen.getByRole('button', { name: 'submit' })
       fireEvent.click(submit); fireEvent.click(submit)
     })
-    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(mocks.fetch).toHaveBeenCalledTimes(scenario === 'lost final response' ? 3 : 2)
     const userMessages = useChatStore.getState().messages.filter(message => message.role === 'user')
     expect(userMessages.map(message => message.content)).toEqual([new Intl.ListFormat('en', { type: 'conjunction' }).format([choiceBlockFixture.options[2]!.label, 'After work'])])
     expect(userMessages[0]?.answerToBlockId).toBe(choiceBlockFixture.blockId)
     const answers = mocks.fetch.mock.calls.map(([, options]) => JSON.parse((options.body as FormData).get('blockAnswer') as string))
-    expect(answers).toEqual(Array.from({ length: 2 }, () => ({ blockId: choiceBlockFixture.blockId, selectedIds: ['evening'], freeText: 'After work' })))
+    expect(answers).toEqual(Array.from({ length: scenario === 'lost final response' ? 3 : 2 }, () => ({ blockId: choiceBlockFixture.blockId, selectedIds: ['evening'], freeText: 'After work' })))
     if (scenario === 'conflicting retry') {
       expect(screen.getByText('chat.choice.alreadyAnswered')).toBeInTheDocument()
       expect(screen.queryByText(/chat.choice.answered/)).not.toBeInTheDocument()
@@ -630,6 +717,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.fetch.mockResolvedValueOnce(scenario === 'refunded failure with a new reservation'
       ? Response.json({ error: 'Reply failed' }, { status: 500 })
       : sseResponse(frame('{"type":"started"}')))
+    mocks.fetch.mockRejectedValueOnce(new Error('Replay disconnected'))
     const { result, rerender } = renderHook(() => useChatComposer())
     const request = { kind: 'choice' as const, answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'], freeText: 'After work' }, labels: ['Evening'] }
     await act(async () => { expect(await result.current.blockAnswerInteraction.send(request)).toMatchObject({ ok: false }) })
@@ -640,7 +728,7 @@ describe('web useChatComposer streaming send', () => {
     serverUsage = authoritative
     mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse({ aiMessage: 'Recovered reply.' }))))
     await act(async () => { expect(await result.current.blockAnswerInteraction.send(request)).toEqual({ ok: true }) })
-    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(mocks.fetch).toHaveBeenCalledTimes(3)
     expect(cache.getQueryData<Profile>(profileKeys.detail())?.aiMessagesUsed).toBe(authoritative)
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
     expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
@@ -655,7 +743,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
     await act(async () => { rerender(); await Promise.resolve() })
     await act(async () => { expect(await result.current.blockAnswerInteraction.send({ ...request, answer: { ...request.answer, selectedIds: ['morning'] } })).toEqual({ ok: false, status: null }) })
-    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
   })
 
   it('keeps the answered summary after the thread remounts', async () => {
@@ -942,7 +1030,7 @@ describe('web useChatComposer streaming send', () => {
     await act(async () => { await result.current.sendMessage('my streak reset') })
     await act(async () => { await result.current.sendMessage('can you help?') })
 
-    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(mocks.fetch).toHaveBeenCalledTimes(3)
     for (const [, request] of mocks.fetch.mock.calls) {
       const context = JSON.parse((request.body as FormData).get('clientContext') as string)
       expect(context.entryPointIntent).toBe('support')
@@ -1221,7 +1309,7 @@ describe('web useChatComposer streaming send', () => {
 
     await act(async () => {
       const sendPromise = result.current.sendMessage('hello')
-      await vi.advanceTimersByTimeAsync(CHAT_STREAM_IDLE_TIMEOUT_MS)
+      await vi.advanceTimersByTimeAsync(CHAT_STREAM_IDLE_TIMEOUT_MS * 2)
       await sendPromise
     })
 
@@ -1501,12 +1589,13 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.canRetryLastSend).toBe(false)
   })
 
-  it('submits a pasted image with nonblank text through the rendered composer', async () => {
+  it.each([false, true])('submits a pasted image with fixed payload (resend: %s)', async resend => {
     const pastedImage = new File(['image'], 'pasted.jpg', { type: 'image/jpeg' })
     vi.stubGlobal('URL', Object.assign(class extends URL {}, {
       createObjectURL: vi.fn(() => 'blob:pasted-image'),
       revokeObjectURL: vi.fn(),
     }))
+    if (resend) mocks.fetch.mockRejectedValueOnce(new TypeError('Disconnected'))
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
 
     function ComposerHarness() {
@@ -1529,12 +1618,13 @@ describe('web useChatComposer streaming send', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
 
-    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(resend ? 2 : 1))
     const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
     expect(requestBody).toBeInstanceOf(FormData)
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
     expect(requestBody.get('message')).toBe('log my walk')
     expect(requestBody.get('image')).toBe(pastedImage)
+    if (resend) expect(mocks.fetch.mock.calls[1]?.[1].body).toBe(requestBody)
   })
 
   it('reads a valid text file, folds it into the sent message, and clears it', async () => {

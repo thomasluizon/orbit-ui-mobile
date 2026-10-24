@@ -16,13 +16,27 @@ function setup() {
 }
 
 describe('sendChatStreamTurn', () => {
+  it('resends an aborted body after parsing its acknowledgement and deltas', async () => {
+    const { open, callbacks, options } = setup()
+    async function* aborted() {
+      yield* events(started(), { type: 'delta', text: 'Partial' })
+      throw new DOMException('Body aborted', 'AbortError')
+    }
+    open.mockResolvedValueOnce({ kind: 'stream', chunks: aborted() })
+      .mockResolvedValueOnce({ kind: 'stream', chunks: events(started('completed', true), final) })
+    expect(await sendChatStreamTurn(options)).toMatchObject({ kind: 'final' })
+    expect(open).toHaveBeenCalledTimes(2)
+    expect(callbacks.onDelta).toHaveBeenCalledExactlyOnceWith('Partial')
+    expect(callbacks.onReset).not.toHaveBeenCalled()
+  })
+
   it.each(['running', 'completed'])('joins a %s replay without clearing rendered deltas', async state => {
     const { open, callbacks, options } = setup()
     open.mockResolvedValueOnce({ kind: 'stream', chunks: events(started(), { type: 'delta', text: 'Partial' }) })
       .mockResolvedValueOnce({ kind: 'stream', chunks: events(started(state, true), final) })
     expect(await sendChatStreamTurn(options)).toMatchObject({ kind: 'final', response: { aiMessage: 'Reply' } })
     expect(open).toHaveBeenCalledTimes(2)
-    expect(open.mock.calls[1][0]).toBe(open.mock.calls[0][0])
+    expect(open.mock.calls[1]?.[0]).toBe(open.mock.calls[0]?.[0])
     expect(callbacks.onDelta).toHaveBeenCalledExactlyOnceWith('Partial')
     expect(callbacks.onReset).not.toHaveBeenCalled()
   })

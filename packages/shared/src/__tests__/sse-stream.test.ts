@@ -59,11 +59,13 @@ describe('createChatSseParser', () => {
     const parser = createChatSseParser()
     const response = { aiMessage: 'done', actions: [], correlationId: 'trace-1' }
 
-    const events = parser.feed(frame(JSON.stringify({ type: 'final', response })))
+    const events = parser.feed(frame(JSON.stringify({ type: 'final', response, turnId: 'fe4a8c19-9c97-481a-882d-ed7dea936ec0', state: 'completed' })))
 
     expect(events).toEqual([
       {
         type: 'final',
+        turnId: 'fe4a8c19-9c97-481a-882d-ed7dea936ec0',
+        state: 'completed',
         response: expect.objectContaining({ aiMessage: 'done', correlationId: 'trace-1' }),
       },
     ])

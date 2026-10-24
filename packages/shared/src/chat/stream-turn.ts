@@ -11,7 +11,7 @@ type ChatStreamConnection =
 
 type ChatTurnOutcome = ChatStreamOutcome | Exclude<ChatStreamConnection, { kind: 'stream' }>
   | { kind: 'cancelled' }
-  | { kind: 'transportError'; error: unknown }
+  | { kind: 'transportError'; error: unknown; terminalReceived: boolean }
 
 interface ChatTurnOptions<Payload> {
   turn: PreparedChatTurn<Payload>
@@ -45,15 +45,19 @@ export async function sendChatStreamTurn<Payload>(options: ChatTurnOptions<Paylo
       if (attempt === 1 || !canResend(outcome)) return outcome
     } catch (error: unknown) {
       if (options.isCancelled()) return { kind: 'cancelled' }
-      if (terminal.received || attempt === 1) return { kind: 'transportError', error }
+      if (terminal.received || attempt === 1) return { kind: 'transportError', error, terminalReceived: terminal.received }
     }
   }
   return { kind: 'incomplete' }
 }
 
 export function needsNewChatTurn(outcome: ChatTurnOutcome): boolean {
-  return outcome.kind === 'incomplete' || outcome.kind === 'transportError' ||
+  return outcome.kind === 'incomplete' || (outcome.kind === 'transportError' && !outcome.terminalReceived) ||
     (outcome.kind === 'httpError' && outcome.status >= 500) ||
     ((outcome.kind === 'error' || outcome.kind === 'httpError') &&
       (outcome.code === 'CHAT_TURN_KEY_CONFLICT' || outcome.code === 'CHAT_TURN_INTERRUPTED'))
+}
+
+export function isChatTurnInterrupted(outcome: ChatTurnOutcome): boolean {
+  return 'code' in outcome && outcome.code === 'CHAT_TURN_INTERRUPTED'
 }

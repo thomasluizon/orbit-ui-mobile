@@ -21,10 +21,12 @@ async function forwardStream(
   token: string,
 ): Promise<Response> {
   const eventOrigin = request.headers.get('x-orbit-event-origin')
+  const turnKey = request.headers.get('Idempotency-Key')
   return fetch(`${API_BASE}/api/chat/stream`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
+      ...(turnKey ? { 'Idempotency-Key': turnKey } : {}),
       ...(eventOrigin && eventOrigin.length <= 128 ? { 'X-Orbit-Event-Origin': eventOrigin } : {}),
       ...buildForwardedClientHeaders(request),
       ...API_VERSION_HEADERS,
