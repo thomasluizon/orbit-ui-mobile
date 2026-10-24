@@ -2,7 +2,8 @@ import { unmappedBackendFormError } from '@orbit/shared/hooks'
 import { extractBackendFieldErrors, extractBackendErrorDetails, extractBackendErrorCode, getBackendFieldError } from '@orbit/shared/utils'
 import { useEffect, useRef, useState } from 'react'
 import { Platform } from 'react-native'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
+import type { NavigationProp, ParamListBase } from 'expo-router/react-navigation'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { ApiClientError, extractAuthBackendMessage, isValidEmail, resolveAuthLoginErrorKey,
@@ -47,6 +48,7 @@ export function useLoginFlow(isAuthCallback = false) {
   const { t, i18n } = useTranslation()
   const params = useLocalSearchParams<{ ref?: string; returnUrl?: string; email?: string; code?: string; from?: string; googleError?: string }>()
   const router = useRouter()
+  const navigation = useNavigation<NavigationProp<ParamListBase>>()
   const login = useAuthStore((s) => s.login)
   const isAuthLoading = useAuthStore((s) => s.isLoading)
   const { isOnline } = useOffline()
@@ -138,8 +140,16 @@ export function useLoginFlow(isAuthCallback = false) {
   useEffect(() => {
     if (isAuthCallback || (queryEmail === undefined && queryCode === undefined)) return
     if (!readLoginEmailLink(queryEmail, queryCode)) { attemptScope.invalidate(); pendingAutoCode.current = null }
-    router.setParams({ email: undefined, code: undefined })
-  }, [attemptScope, isAuthCallback, queryEmail, queryCode, router])
+    navigation.dispatch((state) => ({
+      type: 'RESET',
+      payload: {
+        ...state,
+        routes: state.routes.map((route) => route.name === 'login'
+          ? { ...route, path: undefined, params: { ...route.params, email: undefined, code: undefined } }
+          : route),
+      },
+    }))
+  }, [attemptScope, isAuthCallback, navigation, queryEmail, queryCode])
 
   useEffect(() => {
     if (!incomingLink || isAuthLoading || !isOnline || (turnstileSiteKey && !turnstileToken) || isSubmitting) return

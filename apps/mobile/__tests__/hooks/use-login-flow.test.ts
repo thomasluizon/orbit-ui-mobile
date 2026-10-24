@@ -1,10 +1,13 @@
 import React from 'react'
+import { createRequire, Module } from 'node:module'
 import { Platform } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInstance } from 'i18next'
 import ICUCommonJs from 'i18next-icu/cjs'
 import { setI18n } from 'react-i18next'
 import { API } from '@orbit/shared/api'
+import { StackRouter } from 'expo-router/build/react-navigation/routers/StackRouter'
+import { CommonActions } from 'expo-router/build/react-navigation/routers'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createApiClientError } from '@orbit/shared/utils'
@@ -40,6 +43,7 @@ const mocks = vi.hoisted(() => ({
   epoch: 0,
   authListeners: new Set<() => void>(),
   setParams: vi.fn(),
+  dispatch: vi.fn(),
   localized: false,
   language: 'en',
   params: {},
@@ -100,6 +104,7 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({ replace: mocks.replace, push: mocks.push, setParams: mocks.setParams }),
+  useNavigation: () => ({ dispatch: mocks.dispatch }),
   useLocalSearchParams: () => mocks.params,
 }))
 
@@ -982,13 +987,66 @@ describe('email-link attempt ownership', () => {
   const issuedResponse = { token: 'test-token', refreshToken: null, userId: 'user-id', name: 'Person', email: 'user@test.com', wasReactivated: false }
   const verificationCount = () => mocks.apiClient.mock.calls.filter(([endpoint]) => endpoint === API.auth.verifyCode).length
 
+  it.each(['cold', 'warm'])('removes captured secrets from real %s native route history while retaining the pending attempt', async (entry) => {
+    vi.stubEnv('EXPO_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
+    const nativeRequire = createRequire(import.meta.url)
+    const nativePath = nativeRequire.resolve('expo-router/build/react-navigation/native')
+    const previous = nativeRequire.cache[nativePath]
+    const native = new Module(nativePath)
+    native.exports = nativeRequire('expo-router/build/react-navigation/core/validatePathConfig')
+    native.loaded = true
+    nativeRequire.cache[nativePath] = native
+    let getStateFromPath: typeof import('expo-router/build/fork/getStateFromPath').getStateFromPath
+    let getPathFromState: typeof import('expo-router/build/fork/getPathFromState').getPathFromState
+    try {
+      getStateFromPath = nativeRequire('expo-router/build/fork/getStateFromPath').getStateFromPath
+      getPathFromState = nativeRequire('expo-router/build/fork/getPathFromState').getPathFromState
+    } finally {
+      if (previous) nativeRequire.cache[nativePath] = previous
+      else delete nativeRequire.cache[nativePath]
+    }
+    const query = new URLSearchParams({ email: 'user@test.com', code: '123456', returnUrl: '/progress', ref: 'REF123' })
+    const linking = { screens: { login: 'login', about: 'about' }, ...(entry === 'warm' ? { initialRouteName: 'about' } : {}) }
+    const stack = StackRouter({})
+    const options = { routeNames: ['login', 'about'], routeParamList: {}, routeGetIdList: {} }
+    const parsed = getStateFromPath(`/login?${query.toString()}`, linking)
+    if (!parsed) throw new Error('Login link did not produce navigation state')
+    let state = stack.getRehydratedState({ routes: parsed.routes }, options)
+    const originalKeys = state.routes.map((route) => route.key)
+    mocks.params = state.routes[state.index]!.params ?? {}
+    mocks.setParams.mockImplementation((params) => {
+      state = stack.getRehydratedState(stack.getStateForAction(state, CommonActions.setParams(params), options)!, options)
+    })
+    mocks.dispatch.mockImplementation((update) => {
+      state = stack.getRehydratedState(stack.getStateForAction(state, update(state), options)!, options)
+    })
+    mocks.apiClient.mockResolvedValue(issuedResponse)
+    const harness = await renderLoginFlow()
+    const serialized = JSON.stringify(state)
+    expect(serialized.includes(query.get('code')!)).toBe(false)
+    expect(serialized.includes(encodeURIComponent(query.get('email')!))).toBe(false)
+    expect(state.routes.length).toBe(entry === 'warm' ? 2 : 1)
+    expect(state.routes.map((route) => route.key)).toEqual(originalKeys)
+    const navigable = new URL(getPathFromState(state, linking), 'https://app.example.test')
+    expect(navigable.pathname).toBe('/login')
+    expect(navigable.searchParams.has('email') || navigable.searchParams.has('code')).toBe(false)
+    expect(navigable.searchParams.get('returnUrl') === '/progress').toBe(true)
+    expect(navigable.searchParams.get('ref') === 'REF123').toBe(true)
+    expect(verificationCount()).toBe(0)
+    mocks.params = state.routes[state.index]!.params ?? {}
+    await act(() => harness.rerender())
+    await act(() => harness.current.onTurnstileToken('fresh-widget-token'))
+    expect(verificationCount()).toBe(1)
+    expect(mocks.login).toHaveBeenCalledTimes(1)
+  })
+
   it('waits for protection, strips route secrets and deduplicates repeat delivery', async () => {
     vi.stubEnv('EXPO_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
     mocks.params = { email: 'user@test.com', code: '123456', returnUrl: '/progress' }
     mocks.apiClient.mockResolvedValue(issuedResponse)
     const harness = await renderLoginFlow()
     expect(verificationCount()).toBe(0)
-    expect(mocks.setParams).toHaveBeenCalledWith({ email: undefined, code: undefined })
+    expect(mocks.dispatch).toHaveBeenCalled()
     mocks.params = { returnUrl: '/progress' }
     await act(() => harness.rerender())
     await act(() => harness.current.onTurnstileToken('fresh-widget-token'))
@@ -1043,6 +1101,7 @@ describe('email-link attempt ownership', () => {
     await renderLoginFlow(true)
     expect(verificationCount()).toBe(0)
     expect(mocks.setParams).not.toHaveBeenCalled()
+    expect(mocks.dispatch).not.toHaveBeenCalled()
   })
 
   it.each(['email', 'cancel', 'account'])('invalidates delayed protection on %s change', async (change) => {
