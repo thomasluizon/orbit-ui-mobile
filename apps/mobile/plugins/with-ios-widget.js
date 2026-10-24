@@ -4,7 +4,7 @@ const path = require('node:path')
 const plist = require('@expo/plist')
 
 const TARGET = 'OrbitWidgetExtension'
-const SOURCES = ['WidgetState.swift', 'WidgetStore.swift', 'WidgetColors.generated.swift', 'OrbitWidget.swift']
+const SOURCES = ['WidgetState.swift', 'WidgetStore.swift', 'WidgetTimeline.swift', 'WidgetColors.generated.swift', 'OrbitWidget.swift']
 
 function widgetIdentifiers(config) {
   const bundleIdentifier = config.ios.bundleIdentifier

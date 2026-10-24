@@ -67,13 +67,13 @@ describe('WidgetKit prebuild plugin using the installed Expo project template', 
     const projectRoot = project.getFirstProject().firstProject
     const widgetGroup = objects.PBXGroup[projectRoot.mainGroup]?.children.find((child) => child.comment === 'OrbitWidgetExtension')
     expect(widgetGroup).toBeDefined()
-    expect(objects.PBXGroup[widgetGroup!.value]?.children).toHaveLength(6)
+    expect(objects.PBXGroup[widgetGroup!.value]?.children).toHaveLength(7)
     expect(projectRoot.knownRegions).toContain('"pt-BR"')
     const dependency = objects.PBXTargetDependency[app.dependencies[0]!.value]!
     expect(objects.PBXNativeTarget[dependency.target]).toEqual(widget)
     const phases = widget.buildPhases.map((phase) => objects.PBXSourcesBuildPhase[phase.value]).filter(Boolean)
     expect(phases).toHaveLength(1)
-    expect(phases[0]?.files).toHaveLength(4)
+    expect(phases[0]?.files).toHaveLength(5)
     const embed = Object.values(objects.PBXCopyFilesBuildPhase).filter((phase) => typeof phase === 'object')
     expect(embed).toEqual([expect.objectContaining({ dstSubfolderSpec: 13, files: [expect.any(Object)] })])
     const targetRoot = join(root, 'ios/OrbitWidgetExtension')

@@ -1,6 +1,6 @@
 import type { OtpInputProps } from '@orbit/shared/contracts/forms'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Platform, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Platform, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useKeyboardAwareInputReveal } from '@/components/ui/keyboard-aware-scroll-view'
@@ -19,6 +19,7 @@ export function OtpInput({
   length = 6,
 }: Readonly<OtpInputProps>) {
   const inputRef = useRef<TextInput>(null)
+  const { fontScale } = useWindowDimensions()
   const keyboardAware = useKeyboardAwareInputReveal()
   const [focused, setFocused] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
@@ -81,7 +82,7 @@ export function OtpInput({
                     : tokens.borderControl,
                 borderWidth: error || (focused && !disabled && index === activeIndex) ? 2 : 1,
               },
-              Platform.OS === 'ios' && styles.resizableCell,
+              fontScale > 1.3 && styles.resizableCell,
             ]}
           >
             <Text style={[styles.digit, { color: tokens.fg1 }]}>{digits[index] ?? ''}</Text>
@@ -105,8 +106,8 @@ const styles = StyleSheet.create({
   root: { gap: 8 },
   cellRow: { position: 'relative', flexDirection: 'row', justifyContent: 'center', gap: 8 },
   realInput: { ...StyleSheet.absoluteFill, zIndex: 1, opacity: 0.01 },
-  cell: { width: 44, height: 56, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  resizableCell: { height: undefined, minHeight: 56, flexShrink: 1, paddingVertical: 8 },
+  cell: { width: 44, height: 56, flexShrink: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  resizableCell: { height: undefined, minHeight: 56, paddingVertical: 8 },
   digit: { fontFamily: 'GeistMono_500Medium', fontSize: 28, fontVariant: ['tabular-nums'] },
   caption: { fontFamily: 'Geist_400Regular', fontSize: 12 },
 })

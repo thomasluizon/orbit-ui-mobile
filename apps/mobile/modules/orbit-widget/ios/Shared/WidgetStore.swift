@@ -116,12 +116,13 @@ final class WidgetStore {
     try remove("habits.json")
   }
 
-  func savePayload(_ json: String, authorizingToken: String) throws {
+  func savePayload(_ json: String, authorizingToken: String, updatedAt: Date = Date()) throws {
     let payload = try JSONDecoder().decode(WidgetPayload.self, from: Data(json.utf8))
     let session = Self.sessionKey(authorizingToken)
     guard try token().map(Self.sessionKey) == session else { return }
-    let cache = WidgetCache(session: session, updatedAt: Date(), payload: payload)
+    let cache = WidgetCache(session: session, updatedAt: updatedAt, payload: payload)
     try write(JSONEncoder().encode(cache), to: "habits.json")
+    try write(Data(payload.language.utf8), to: "language")
   }
 
   func cachedPayload() throws -> WidgetCache? {
@@ -133,6 +134,11 @@ final class WidgetStore {
 
   func saveTheme(_ colors: [String: String]) throws {
     try write(JSONEncoder().encode(colors), to: "theme.json")
+  }
+
+  func language() throws -> String? {
+    guard FileManager.default.fileExists(atPath: file("language").path) else { return nil }
+    return try String(contentsOf: file("language"), encoding: .utf8)
   }
 
   func theme() throws -> [String: String] {

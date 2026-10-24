@@ -15,6 +15,10 @@ final class MemoryWidgetCredentials: WidgetCredentials {
 struct WidgetDriver {
   static func main() throws {
     let input = FileHandle.standardInput.readDataToEndOfFile()
+    if CommandLine.arguments[1] == "timeline" {
+      try WidgetTimelineDriver.run(input)
+      return
+    }
     if CommandLine.arguments[1] == "map" {
       let payload = try JSONDecoder().decode(WidgetPayload.self, from: input)
       let result: [String: Any] = [
@@ -86,7 +90,7 @@ struct WidgetDriver {
     FileHandle.standardOutput.write(try JSONSerialization.data(withJSONObject: observations))
   }
 
-  private static func jwt(_ account: String, generation: Int) -> String {
+  static func jwt(_ account: String, generation: Int) -> String {
     let payload = Data("{\"http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier\":\"\(account)\",\"exp\":\(generation)}".utf8).base64EncodedString()
       .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
     return "header.\(payload).signature"

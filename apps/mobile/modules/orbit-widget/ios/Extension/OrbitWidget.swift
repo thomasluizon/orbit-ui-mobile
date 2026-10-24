@@ -1,74 +1,22 @@
-import OSLog
 import SwiftUI
 import WidgetKit
 
-private let logger = Logger(subsystem: "org.useorbit.widget", category: "timeline")
-
-struct OrbitEntry: TimelineEntry {
-  let date: Date
-  let payload: WidgetPayload?
-  let signedOut: Bool
-  let colors: [String: String]
-}
+extension OrbitEntry: TimelineEntry {}
 
 struct OrbitProvider: TimelineProvider {
+  private let timeline = WidgetTimeline()
+
   func placeholder(in context: Context) -> OrbitEntry {
     OrbitEntry(date: Date(), payload: nil, signedOut: false, colors: [:])
   }
 
   func getSnapshot(in context: Context, completion: @escaping (OrbitEntry) -> Void) {
-    completion(readEntry())
+    completion(timeline.readEntry())
   }
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<OrbitEntry>) -> Void) {
-    do {
-      let store = try WidgetStore.configured()
-      guard let token = try store.token() else { finish(readEntry(), completion); return }
-      if let cache = try store.cachedPayload(), Date().timeIntervalSince(cache.updatedAt) < 60 {
-        finish(readEntry(), completion)
-        return
-      }
-      guard let base = Bundle.main.object(forInfoDictionaryKey: "OrbitWidgetAPIBase") as? String,
-            let url = URL(string: "\(base)/api/habits/widget") else { throw WidgetStoreError.unavailable }
-      var request = URLRequest(url: url, timeoutInterval: 10)
-      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-      request.setValue("application/json", forHTTPHeaderField: "Accept")
-      URLSession.shared.dataTask(with: request) { bytes, response, error in
-        do {
-          if let error { throw error }
-          guard try store.token().map(WidgetStore.sessionKey) == WidgetStore.sessionKey(token) else {
-            finish(readEntry(), completion)
-            return
-          }
-          guard (response as? HTTPURLResponse)?.statusCode == 200, let bytes else {
-            throw WidgetStoreError.unavailable
-          }
-          let payload = try JSONDecoder().decode(WidgetPayload.self, from: bytes)
-          finish(OrbitEntry(date: Date(), payload: payload, signedOut: false, colors: try store.theme()), completion)
-        } catch {
-          logger.error("Widget refresh failed: \(String(describing: error), privacy: .public)")
-          finish(readEntry(), completion)
-        }
-      }.resume()
-    } catch {
-      logger.error("Widget storage unavailable: \(String(describing: error), privacy: .public)")
-      finish(readEntry(), completion)
-    }
-  }
-
-  private func finish(_ entry: OrbitEntry, _ completion: (Timeline<OrbitEntry>) -> Void) {
-    completion(Timeline(entries: [entry], policy: entry.signedOut ? .never : .after(Date().addingTimeInterval(900))))
-  }
-
-  private func readEntry() -> OrbitEntry {
-    do {
-      let store = try WidgetStore.configured()
-      let signedOut = try store.token() == nil
-      return OrbitEntry(date: Date(), payload: signedOut ? nil : try store.cachedPayload()?.payload,
-                        signedOut: signedOut, colors: try store.theme())
-    } catch {
-      logger.error("Widget snapshot unavailable: \(String(describing: error), privacy: .public)")
-      return OrbitEntry(date: Date(), payload: nil, signedOut: false, colors: [:])
+    timeline.getTimeline { entry in
+      completion(Timeline(entries: timeline.entries(for: entry), policy: entry.signedOut ? .never : .after(Date().addingTimeInterval(900))))
     }
   }
 }
@@ -79,7 +27,7 @@ struct OrbitWidgetView: View {
   @Environment(\.widgetFamily) private var family
   @Environment(\.dynamicTypeSize) private var typeSize
 
-  private var language: String { entry.payload?.language ?? Locale.current.identifier }
+  private var language: String { entry.language }
   private var locale: Locale { Locale(identifier: language) }
   private var rowLimit: Int { typeSize.isAccessibilitySize || family == .systemSmall ? 1 : (family == .systemLarge ? 5 : 2) }
 
