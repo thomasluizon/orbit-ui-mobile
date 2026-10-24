@@ -546,6 +546,12 @@ at 412, 1024 and 1352 in English and Brazilian Portuguese for check-in, returnin
 error, free-plan and absent states. Native component tests cover semantics and two-line prose;
 Android font rendering remains a device-verification boundary.
 
+Habit completion feedback in `Orbit Hoje.dc.html` paints only the visible 28px radius-12 check,
+never a halo, inside the transparent 48px target. Empty checks retain their status border over
+`bg-hover`; completed checks layer `bg-hover-opaque` beneath the checkmark. Leaf and parent
+controls retain one 2px focus outline with a 2px outward offset and motion-aware press scale.
+Disabled, read-only and selection-status checks add no interaction paint.
+
 ### Lean Astra answer amendment
 
 The active conversation drawing reuses its small ghost Button row for follow-ups and the

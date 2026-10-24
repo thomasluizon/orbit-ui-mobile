@@ -145,3 +145,13 @@ covering independent columns, overlapping press and focus, stable date keys and 
 cleanup. Feedback stays static, including under reduced motion. This JS boundary does not execute
 native attachment or Android MotionEvents; physical pointer and accessibility acceptance remain
 device checks.
+
+## Habit completion shape
+
+Completion hover and press paint only inside the visible 28px radius-12 check, never a halo.
+Leaf completion and parent progress share this shape inside a transparent 48px target. Empty
+checks use `bg-hover` while retaining their 1px status border and readable partial progress;
+completed checks layer `bg-hover-opaque` over their resting neutral fill, beneath the checkmark.
+One 2px focus outline follows the check shape with a 2px outward offset, inside the target.
+Press retains scale 0.96 when motion is enabled and stays still with reduced motion. Disabled,
+read-only and presentational selection checks add no interaction paint.
