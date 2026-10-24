@@ -49,6 +49,29 @@ Build on the target operating system with the matching Rust target installed. ma
 
 The `Desktop Build` workflow compiles and packages all four targets on native runners. It uploads macOS bundles as tar archives to preserve executable permissions and uploads Windows installers directly. It never opens the application, signs a release, publishes downloads or changes the web release pipeline.
 
+## Publish an updater release
+
+The manual `Desktop Release` workflow takes a `variant` (`staging` or `production`) and an increasing `version` with three numeric components, such as `0.2.0`. Production dispatches must use `main`. The workflow serializes each channel, tests the shell, builds all four targets, then collects macOS `.app.tar.gz` bundles and Windows NSIS `.exe` installers. Operating system signing stays off. The pinned CLI's `--no-sign` also disables updater signatures, so a separate `tauri signer sign --app-version` step signs every package after the build. The release script verifies the payload, public key, trusted comment and version before publishing.
+
+In this repository's Settings > Environments, create `desktop-staging` and `desktop-production`. Each environment needs its own encrypted updater key pair, provisioned through the [Tauri signer](https://v2.tauri.app/plugin/updater/#signing-updates):
+
+| Kind | Exact key | Value |
+| --- | --- | --- |
+| Environment variable | `TAURI_SIGNING_PUBLIC_KEY` | Complete base64 contents of that channel's `.pub` file |
+| Environment secret | `TAURI_SIGNING_PRIVATE_KEY` | Complete base64 contents of that channel's encrypted private key file |
+| Environment secret | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Nonempty password for that private key |
+
+Retain the private key and password outside the repository. Changing a public key after distributing a shell needs a key migration for existing installations. Missing credentials or a mismatched key fail the workflow before channel publication. The public key is embedded through `release-config.json`; the private key and password are exposed only to credential validation and signing steps. No Apple account or Windows signing certificate is required for this workflow.
+
+The workflow publishes versioned files under `https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-<variant>-v<version>/`, with a complete four-platform `latest.json` and detached `latest.json.sig`. Only after that release succeeds does it advance the channel:
+
+- [Staging manifest](https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-staging/latest.json)
+- [Production manifest](https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-production/latest.json)
+
+The stable channel releases must remain mutable. In repository Settings > General > Releases, keep Enable release immutability off when creating those channel releases. Versioned artifacts are never overwritten by this workflow. Every shell checks the signed artifact references in the manifest; its detached signature is also published for independent verification. The channel manifest is uploaded last so it never points to incomplete artifacts. A transient failure while replacing that asset can leave it unavailable until another publication; existing shells retain their current version and retry. A failed publication can leave a versioned release behind. Use a fresh higher version for the next dispatch, rather than replacing that version's artifacts.
+
+Successful publication leaves four updater packages, four package signatures and both manifest files on the versioned release. Downloading a channel manifest without GitHub authentication proves the public endpoint is reachable. An installed release build then checks, downloads and offers Restart to update through its own channel. This workflow is separate from `release.yml` until web release integration lands; it does not publish landing-page downloads or notarized DMGs.
+
 Icons derive from the existing web app icon with `npx tauri icon ../web/public/pwa-512x512.png --output src-tauri/icons` from this workspace. Retain only `icon.png`, `icon.icns` and `icon.ico`.
 
 ## Verification

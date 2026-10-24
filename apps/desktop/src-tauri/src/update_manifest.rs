@@ -91,4 +91,51 @@ mod tests {
         candidate.allow_downgrades = true;
         assert!(validate_config("staging", &candidate).is_err());
     }
+
+    fn manifest(production: bool) -> serde_json::Value {
+        serde_json::from_str(if production {
+            include_str!("../../__fixtures__/latest-production.json")
+        } else {
+            include_str!("../../__fixtures__/latest-staging.json")
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn publisher_manifests_are_parsed_by_the_pinned_plugin_for_all_four_targets() {
+        for (channel, production) in [("staging", false), ("production", true)] {
+            assert!(validate_manifest(channel, manifest(production)).is_ok());
+            assert!(validate_manifest(channel, manifest(!production)).is_err());
+        }
+    }
+
+    #[test]
+    fn malformed_incomplete_and_cross_channel_manifests_are_rejected() {
+        for invalid in ["version", "platforms"] {
+            let mut candidate = manifest(false);
+            candidate.as_object_mut().unwrap().remove(invalid);
+            assert!(validate_manifest("staging", candidate).is_err());
+        }
+        for target in TARGETS {
+            let mut candidate = manifest(false);
+            candidate["platforms"]
+                .as_object_mut()
+                .unwrap()
+                .remove(target);
+            assert!(validate_manifest("staging", candidate).is_err());
+            for (field, value) in [
+                ("signature", ""),
+                ("url", "http://github.com/untrusted"),
+                ("url", "https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-production-v2.0.0/package"),
+                ("url", "https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-staging-v1.0.0/package"),
+            ] {
+                let mut candidate = manifest(false);
+                candidate["platforms"][target][field] = serde_json::json!(value);
+                assert!(validate_manifest("staging", candidate).is_err());
+            }
+        }
+        let mut candidate = manifest(false);
+        candidate["version"] = serde_json::json!("invalid");
+        assert!(validate_manifest("staging", candidate).is_err());
+    }
 }
