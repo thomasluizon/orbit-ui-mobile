@@ -18,9 +18,11 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 
 const expectedButtonCounts: Readonly<Record<string, number>> = { daily: 8, fixed: 8, flexible: 10, unresolved: 9, proposed: 8, locked: 10 }
 
-const cases = [320, 360, 393, 412, 1280].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) =>
-  ['daily', 'fixed', 'flexible', 'unresolved', 'proposed', 'locked'].map((cadence) => ({ width, locale, cadence })),
+const defaultCases = [320, 360, 393, 412, 1280].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) =>
+  ['daily', 'fixed', 'flexible', 'unresolved', 'proposed', 'locked'].map((cadence) => ({ width, locale, cadence, scale: 1 })),
 ))
+
+const cases = [...defaultCases, ...[320, 360, 393, 412].flatMap(width => (['en', 'pt-BR'] as const).map(locale => ({ width, locale, cadence: 'daily', scale: 2 })))]
 
 describe('habit understanding geometry', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -130,7 +132,7 @@ describe('habit understanding geometry', () => {
     } finally { await page.close(); view.unmount() }
   })
 
-  it.each(cases)('fits $cadence corrections in $locale at $width', async ({ width, locale, cadence }) => {
+  it.each(cases)('fits $cadence corrections in $locale at $width with text scale $scale', async ({ width, locale, cadence, scale }) => {
     const messages = locale === 'en' ? en : ptBR
     const translate = createTranslator({ locale, messages }) as (key: string, values?: Record<string, string | number>) => string
     const phrases = locale === 'en'
@@ -152,7 +154,7 @@ describe('habit understanding geometry', () => {
       onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} /></NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 1000 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style><main style="width:${Math.min(width - 32, 560)}px;margin:16px">${view.container.innerHTML}</main>`)
+      await page.setContent(`<style>${stylesheet}:root{font-size:${16 * scale}px}</style><main style="width:${Math.min(width - 32, 560)}px;margin:16px">${view.container.innerHTML}</main>`)
       await loadAppFonts(page)
       const measured = await page.evaluate(() => {
         const main = document.querySelector('main')!
@@ -163,9 +165,10 @@ describe('habit understanding geometry', () => {
           return { width: bounds.width, height: bounds.height, top: bounds.top, bottom: bounds.bottom, left: bounds.left, right: bounds.right, contained: bounds.left >= parent.left && bounds.right <= parent.right }
         })
         const emoji = main.querySelector('button[aria-haspopup="dialog"]')
-        return { overflowing: main.scrollWidth > main.clientWidth, dayTargets, radius: emoji ? getComputedStyle(emoji).borderRadius : null,
+        return { wrap: getComputedStyle(fieldset).flexWrap, overflowing: main.scrollWidth > main.clientWidth, dayTargets, radius: emoji ? getComputedStyle(emoji).borderRadius : null,
           radioGroups: main.querySelectorAll('[role="radiogroup"]').length, buttonCount: main.querySelectorAll('button').length }
       })
+      expect(measured.wrap).toBe('nowrap')
       expect(measured.overflowing).toBe(false)
       expect(measured.radioGroups).toBe(0)
       expect(measured.radius).toBe(cadence === 'unresolved' ? null : '12px')

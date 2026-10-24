@@ -11,7 +11,7 @@ import type { PendingOperationRevisionResponse, RefreshPendingOperation, ReviseP
 import { makeHeldHabitMessage, makePendingAgentOperation, pendingWriteSummaryCases, makePendingWriteSummaryOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '@orbit/shared/test-support/chat-fixtures'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { renderedText } from '../../support/react-test-renderer'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { sheetTestControls } from '../../support/sheet-double'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
 import { __resetTestHostConfig, __setFocusImpl, __setTouchMode, __focusHost, __getFocusedNativeTag } from '../../../test-mocks/react-native'
@@ -663,7 +663,7 @@ describe('PendingOperationCard (mobile)', () => {
     TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
     const body = tree.root.findByProps({ testID: 'sheet-body-slot' })
     const foreground = createTokensV2('purple', 'dark').fg1
-    for (const label of ['chat.operation.field.reminder_enabled', 'chat.operation.field.days', 'dates.daysLong.monday']) {
+    for (const label of ['chat.operation.field.reminder_enabled', 'chat.operation.field.days']) {
       const text = body.findAllByType(Text).find((node: any) => node.props.children === label)
       expect(StyleSheet.flatten(text?.props.style)).toMatchObject({ color: foreground })
     }
@@ -676,11 +676,14 @@ describe('PendingOperationCard (mobile)', () => {
     const { tree } = renderCard({ ...preview, items: [{ ...firstItem, fields }] }, revise)
     TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
     const tokens = createTokensV2('purple', 'dark')
-    const chip = (label: string) => tree.root.findAllByType(Pressable).find((node: any) => renderedText(node.props.children) === label)
-    const fill = (label: string, pressed: boolean) => StyleSheet.flatten(chip(label).props.style({ pressed }))
+    const chip = (label: string) => tree.root.findAllByType(Pressable).find((node: ReactTestInstance) => node.props.accessibilityLabel === label)
+    const fill = (label: string, pressed: boolean) => {
+      TestRenderer.act(() => pressed ? chip(label).props.onPressIn() : chip(label).props.onPressOut())
+      return StyleSheet.flatten(chip(label).props.style)
+    }
 
-    expect(fill('dates.daysLong.monday', false)).toMatchObject({ borderRadius: 999, overflow: 'hidden', borderColor: tokens.primary, backgroundColor: tokens.selectionBg })
-    expect(fill('dates.daysLong.tuesday', false)).toMatchObject({ borderRadius: 999, overflow: 'hidden', borderColor: tokens.hairlineStrong, backgroundColor: 'transparent' })
+    expect(fill('dates.daysLong.monday', false)).toMatchObject({ borderRadius: radius.full, overflow: 'hidden', borderColor: tokens.primary, backgroundColor: tokens.primaryDim })
+    expect(fill('dates.daysLong.tuesday', false)).toMatchObject({ borderRadius: radius.full, overflow: 'hidden', borderColor: tokens.hairline, backgroundColor: tokens.bgWell })
     expect(fill('dates.daysLong.monday', true).backgroundColor).toBe(tokens.bgHover)
     expect(fill('dates.daysLong.tuesday', true).backgroundColor).toBe(tokens.bgHover)
 

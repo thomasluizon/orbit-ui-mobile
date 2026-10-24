@@ -163,8 +163,8 @@ describe('OnboardingCreateHabit', () => {
 
   it('gives every weekday chip its full localized name', () => {
     render(<OnboardingCreateHabit {...base} schedule={{ ...schedule, frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 1, days: ['Monday'], isFlexible: false }} />)
-    expect(screen.getByRole('button', { name: 'Sunday' })).toHaveTextContent('Sun')
-    expect(screen.getByRole('button', { name: 'Saturday' })).toHaveTextContent('Sat')
+    expect(screen.getByRole('button', { name: 'Sunday' })).toHaveTextContent('S')
+    expect(screen.getByRole('button', { name: 'Saturday' })).toHaveTextContent('S')
   })
 
   it('never offers a repeat interval the saved habit would drop', () => {

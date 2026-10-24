@@ -1,3 +1,4 @@
+import { WeekdayPicker } from '@/components/ui/weekday-picker'
 import { toTime24 } from '@orbit/shared/utils'
 import { PreviewItemTitle } from './preview-item-title'
 import { ActionRow } from '@/components/ui/action-row'
@@ -122,7 +123,7 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
         if (field.valueType === 'boolean') return <Switch key={field.field} label={label} checked={draft[field.field] === 'true'} disabled={busy} onChange={(value) => onChange(field.field, String(value))} />
         if (field.field === 'days') {
           const days = (draft.days ?? '').split(',').map((day) => day.trim())
-          return <View key={field.field} style={{ gap: 8 }}><Text style={{ color: tokens.fg1 }}>{label}</Text><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{PENDING_OPERATION_WEEKDAYS.map((day) => <Pressable key={day} accessibilityRole="button" accessibilityState={{ selected: days.includes(day), disabled: busy }} disabled={busy} onPress={() => onChange('days', PENDING_OPERATION_WEEKDAYS.filter((name) => name === day ? !days.includes(name) : days.includes(name)).join(', '))} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, paddingHorizontal: SPACING.s12, justifyContent: 'center', borderRadius: 999, overflow: 'hidden', borderWidth: 1.5, borderColor: days.includes(day) ? tokens.primary : tokens.hairlineStrong, backgroundColor: pressed ? tokens.bgHover : days.includes(day) ? tokens.selectionBg : 'transparent' })}><Text style={{ color: tokens.fg1 }}>{labels.dayLabels[day]}</Text></Pressable>)}</View></View>
+          return <View key={field.field} style={{ gap: 8 }}><Text style={{ color: tokens.fg1 }}>{label}</Text><WeekdayPicker label={label} days={days} scheduleLocked={busy} dayOptions={PENDING_OPERATION_WEEKDAYS.map(day => ({ value: day, label: labels.dayLabels[day]!, accessibleLabel: labels.dayLabels[day]! }))} onToggleDay={day => onChange('days', PENDING_OPERATION_WEEKDAYS.filter(name => name === day ? !days.includes(name) : days.includes(name)).join(', '))} /></View>
         }
         if (field.valueType === 'time') return <TimeField key={field.field} label={label} value={toTime24(draft[field.field])} onChange={(value) => onChange(field.field, value)} disabled={busy} error={error ? labels.invalid : undefined} />
         return <Input
