@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { appendFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
+import { prepareCorrection } from './setup.mjs'
 import { summarize, writeReport } from './report.mjs'
 
 export function beforeAll({ suite }) {
@@ -34,12 +35,14 @@ export function beforeEach({ test }) {
     return value
   }
   test.vars = substitute(test.vars)
+  test.vars.clientContextJson = JSON.stringify(test.vars.clientContext ?? {})
+  test.vars.historyJson = JSON.stringify(test.vars.history ?? [])
   test.vars.evalRequestId = randomUUID()
-  return { test }
+  return test.vars.setup ? prepareCorrection(test) : { test }
 }
 
 export function afterAll({ results, suite }) {
-  const summary = summarize(results, suite.tests.map((test) => test.metadata.id))
+  const summary = summarize(results, suite.tests.map((test) => test.metadata))
   const markdown = writeReport(summary)
   process.stdout.write(`${markdown}\n`)
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`)

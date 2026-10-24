@@ -7,7 +7,7 @@ import { summarize } from '../report.mjs'
 import { toolCall } from './fixtures/producer.mjs'
 
 const catalog = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
-const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
+const scenarios = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) => parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')))
 let callNumber = 0
 const call = (name, arguments_, overrides = {}) => {
   const writes = catalog.find((tool) => tool.function.name === name)?.writes
@@ -23,7 +23,7 @@ const context = (expectations) => ({
 })
 const attempt = (id, success = true, skipped = false) => ({
   testCase: { metadata: { id } }, success,
-  gradingResult: { componentResults: [{ metadata: { skipped } }] },
+  gradingResult: { componentResults: [{ pass: true, assertion: { metric: 'composition' }, metadata: { skipped } }] },
 })
 
 function exampleArguments(expected) {
@@ -58,7 +58,7 @@ describe('production scenario mutation scope', () => {
   it('rejects every catalog mutation in a production read scenario', async () => {
     const { expectations } = scenarios.find((scenario) => scenario.metadata.id === 'single-read-en').vars
     for (const tool of catalog.filter((tool) => tool.writes)) {
-      const extra = call(tool.function.name, { title: 'Unrequested', habit_id: 'other', habit_ids: ['other'] })
+      const extra = call(tool.function.name, { title: 'Unrequested', habit_id: 'other', habit_ids: ['other'], habits: [{ title: 'Unrequested' }] })
       expect((await structural(envelope([extra]), context(expectations))).pass).toBe(true)
       expect(behavior(envelope([call('query_habits', { date: 'today' }), extra]), context(expectations)).pass).toBe(false)
     }
