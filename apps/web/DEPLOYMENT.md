@@ -62,7 +62,7 @@ The Render API request uses `POST /v1/services/{serviceId}/deploys` with `imageU
 ## Streaming shutdown
 
 The release workflow sets Render's `serviceDetails.maxShutdownDelaySeconds` to 300 before
-requesting each staging, production or redesign deployment. A failed configuration request stops
+requesting each staging or production deployment. A failed configuration request stops
 the release. This uses the [Update service API](https://api-docs.render.com/reference/update-service),
 not a dashboard change. The [Render shutdown contract](https://render.com/docs/deploys#graceful-shutdown)
 allows up to 300 seconds after SIGTERM before SIGKILL.
@@ -72,6 +72,12 @@ waiting for active responses, then closing its runtime. Keep `NEXT_MANUAL_SIG_HA
 Next.js retains this handler. Streams that exceed the platform window can still be interrupted;
 failed sends retain the original composer draft and require an explicit Retry on web and Android.
 Automatic resend requires the API idempotency contract tracked by #1675.
+
+PostHog's `/ingest` route streams through a Route Handler instead of Next.js's external
+rewrite proxy. Static SDK and `/array` configuration requests use the US asset host; all
+other paths use the US ingestion host. The handler strips application credentials and
+hop-by-hop headers and restores the content encoding decoded by Node's fetch before
+streaming the response. Keep the SDK's `api_host` at `/ingest` and preserve trailing slashes.
 
 ## Focused read block rollout
 

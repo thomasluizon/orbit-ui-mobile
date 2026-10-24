@@ -164,8 +164,17 @@ describe('proxy', () => {
     expect(NextResponse.redirect).not.toHaveBeenCalled()
   })
 
-  it('keeps trailing slashes on PostHog requests for the rewrite', () => {
+  it('keeps trailing slashes on PostHog requests', () => {
     expect(nextConfig.skipTrailingSlashRedirect).toBe(true)
+  })
+
+  it('keeps PostHog off the external rewrite proxy', async () => {
+    const configured = await nextConfig.rewrites?.()
+    const rewrites = Array.isArray(configured)
+      ? configured
+      : [...configured?.beforeFiles ?? [], ...configured?.afterFiles ?? [], ...configured?.fallback ?? []]
+
+    expect(rewrites.filter(({ source }) => source.startsWith('/ingest'))).toEqual([])
   })
 
   it('rejects a stale login action before session redirects or action execution', async () => {
