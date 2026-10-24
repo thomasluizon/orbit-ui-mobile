@@ -64,6 +64,12 @@ export interface PendingOperationCardLabels {
 const COUNTED_ACTIONS = ['createHabits', 'logHabits', 'skipHabits', 'updateHabits', 'rescheduleHabits', 'deleteHabits', 'updateHabitEmojis']
 const COMPACT_ACTIONS = ['openBillingPortal', 'setCalendarSync', 'dismissCalendarImport', 'dismissCalendarSuggestion', 'manageCalendarSync', 'linkGoalsToHabit', 'markAllNotificationsRead', 'unsubscribePush', 'setProactiveAstra']
 
+function hasReusedSubHabit(proposal: unknown): boolean {
+  if (Array.isArray(proposal)) return proposal.some(hasReusedSubHabit)
+  return typeof proposal === 'object' && proposal !== null
+    && ('habit_id' in proposal || ('sub_habits' in proposal && hasReusedSubHabit(proposal.sub_habits)))
+}
+
 function getToggleOutcome(actionKey: string | null | undefined, fields: readonly PendingOperationChange[]): 'turnOn' | 'turnOff' | null {
   if (!actionKey || !PREVIEW_ACTION_KEYS.includes(actionKey)
     || !['setProactiveAstra', 'setAiSummary', 'setAiMemory'].includes(actionKey)) return null
@@ -100,7 +106,8 @@ export function buildPendingOperationCardLabels(
   const actionKey = pendingOperation.actionKey
   const createsHabits = ['createHabit', 'createHabits', 'createSubHabit'].includes(actionKey ?? '')
     && !hasMixedDeletion && !pendingOperation.items?.some((item) => item.removesData === true
-      || item.fields.some((field) => field.field === 'habit_id' || field.oldValue != null))
+      || item.fields.some((field) => field.field === 'habit_id' || field.oldValue != null
+        || (field.field === 'sub_habits' && hasReusedSubHabit(field.proposedValue))))
   const toggleOutcome = getToggleOutcome(actionKey, pendingOperation.items?.length
     ? pendingOperation.items.flatMap((item) => item.fields) : pendingOperation.changes ?? [])
   const actionLabel = getApprovalLabel(actionKey, toggleOutcome, translate)

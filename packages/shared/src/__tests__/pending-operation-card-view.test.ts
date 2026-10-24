@@ -1,4 +1,4 @@
-import { makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
+import { makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -12,6 +12,7 @@ import {
   type PendingOperationVerificationProps,
 } from '../chat/pending-operation-card-view'
 import { buildPendingOperationCardLabels, type PendingOperationCardLabels } from '../chat/pending-operation-card'
+import { pendingOperationSubHabits } from '../chat/pending-operation-sub-habits'
 import { pendingAgentOperationSchema } from '../types/ai'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
@@ -26,6 +27,18 @@ function translateMessages(messages: typeof en, key: string, values?: Record<str
 const translateEnglish = (key: string, values?: Record<string, string | number>) => translateMessages(en, key, values)
 const compareStrings = (left: string, right: string) => left.localeCompare(right)
 
+it('projects every supplied child schedule input without losing typed values', () => {
+  const child = { title: 'Scheduled child', frequency_unit: 'Day', frequency_quantity: 1,
+    interval_weeks: 2, days: ['Tuesday'], due_date: '2026-10-25', start_date: '2026-10-25',
+    end_date: '2026-11-25', due_time: '21:30', due_end_time: '23:00', is_general: false,
+    is_flexible: false, reminder_enabled: true, reminder_times: [30],
+    scheduled_reminders: [{ when: 'day_before', time: '19:30' }],
+    relative_reminders: [{ minutes_before: 30 }], slip_alert_enabled: true }
+  const operation = makeChildSchedulePreview(child)
+  const projected = pendingOperationSubHabits(operation.items![0]!.fields)[0]!
+  expect(Object.fromEntries(projected.fields.map((field) => [field.field, field.proposedValue]))).toEqual(child)
+})
+
 describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('create preview heading in $locale', ({ locale, messages }) => {
   it.each([1, 3])('names a create-only preview with %s habits', (count) => {
     const operation = makeCreateHabitsPreview(count)
@@ -34,6 +47,29 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
     expect(record.frame?.title).toBe(locale === 'en' ? count === 1 ? 'New habit' : 'New habits' : count === 1 ? 'Novo hábito' : 'Novos hábitos')
     expect(record.frame?.count).toBe(count)
+  })
+
+  it.each([1, 2, 3])('keeps a neutral heading for reuse at depth %s', (depth) => {
+    const operation = makeNestedHabitPreview(depth, true)
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.title).toBe(messages.chat.pendingOp.capability['habits-write'])
+  })
+
+  it('keeps the create heading for a nested proposal without reuse', () => {
+    const operation = makeNestedHabitPreview(3, false)
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    expect(labels.name).toBe(locale === 'en' ? 'New habit' : 'Novo hábito')
+  })
+
+  it.each(childSchedulePreviewCases)('preserves the child $name schedule', (scenario) => {
+    const operation = makeChildSchedulePreview(scenario.child)
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items[1]).toMatchObject({ label: scenario.child.title, indented: true,
+      meta: locale === 'en' ? scenario.english : scenario.portuguese })
   })
 
   it('lists each nested create with its schedule under the parent', () => {

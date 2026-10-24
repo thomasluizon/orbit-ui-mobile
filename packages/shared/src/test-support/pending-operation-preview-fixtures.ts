@@ -257,3 +257,29 @@ export function makeEveningRoutinePreview(locale = 'en'): PendingAgentOperation 
     (title) => titles[title]!,
   )))
 }
+
+export function makeNestedHabitPreview(depth: number, reuse: boolean): PendingAgentOperation {
+  let child: Record<string, unknown> = { title: 'Read', ...(reuse ? { habit_id: '00000000-0000-4000-8000-000000000002' } : {}) }
+  for (let level = 1; level < depth; level++) child = { title: 'Routine', sub_habits: [child] }
+  const operation = makeCreateHabitsPreview(1)
+  const item = operation.items![0]!
+  const field = { ...item.fields[0]!, field: 'sub_habits', newValue: JSON.stringify([child]), proposedValue: [child] }
+  return pendingAgentOperationSchema.parse({ ...operation, actionKey: 'createSubHabit', capabilityId: 'habits.write',
+    changes: [field], items: [{ ...item, fields: [field] }],
+  })
+}
+
+export const childSchedulePreviewCases = [
+  { name: 'weekday', child: { title: 'Tuesday child', frequency_unit: 'Day', frequency_quantity: 1, days: ['Tuesday'], is_flexible: false }, english: 'Tue', portuguese: 'Ter' },
+  { name: 'one-time date', child: { title: 'Dated child', frequency_unit: 'OneTime', due_date: '2026-10-25', due_time: '21:30' }, english: 'Oct 25, 2026 · 21:30', portuguese: '25 de out. de 2026 · 21:30' },
+  { name: 'week interval', child: { title: 'Fortnightly child', frequency_unit: 'Day', frequency_quantity: 1, days: ['Tuesday'], interval_weeks: 2, is_flexible: false }, english: 'Tue · Every 2 weeks', portuguese: 'Ter · A cada 2 semanas' },
+  { name: 'end date and time', child: { title: 'Timed child', frequency_unit: 'Day', frequency_quantity: 1, due_time: '21:30', due_end_time: '23:00', end_date: '2026-10-25' }, english: 'Every day · 21:30 · Until 23:00 · Until Oct 25, 2026', portuguese: 'Todo dia · 21:30 · Até 23:00 · Até 25 de out. de 2026' },
+] as const
+
+export function makeChildSchedulePreview(child: Readonly<Record<string, unknown>>): PendingAgentOperation {
+  const operation = makeEveningRoutinePreview()
+  return pendingAgentOperationSchema.parse({ ...operation, items: operation.items!.map((item) => ({ ...item,
+    fields: item.fields.map((field) => field.field === 'sub_habits'
+      ? { ...field, newValue: JSON.stringify([child]), proposedValue: [child] } : field),
+  })) })
+}

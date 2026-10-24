@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { PendingOperationChange } from '../types/ai'
 
-const subHabitSchema = z.object({
+const subHabitSchema = z.looseObject({
   title: z.string(),
   emoji: z.string().nullable().optional(),
   due_time: z.string().nullable().optional(),
@@ -22,7 +22,7 @@ export function pendingOperationSubHabits(fields: readonly PendingOperationChang
     title: child.title,
     fields: Object.entries(child).map(([name, value]) => ({
       entityId: field.entityId, entityName: child.title, field: name,
-      oldValue: null, newValue: value == null ? null : String(value), proposedValue: value,
+      oldValue: null, newValue: value == null ? null : typeof value === 'string' ? value : JSON.stringify(value), proposedValue: value,
       valueType: typeof value === 'boolean' ? 'boolean' : typeof value === 'number' ? 'number' : 'text',
       isEditable: false,
     })),

@@ -1,4 +1,4 @@
-import { makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -78,6 +78,24 @@ beforeEach(() => { vi.clearAllMocks(); __resetTestHostConfig(); visibleLocale.ac
 afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
+  it.each(['en', 'pt-BR'])('keeps a neutral heading for nested reuse in %s', (locale) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const reused = renderCard(makeNestedHabitPreview(2, true))
+    expect(renderedText(reused.tree.toJSON())).toContain(messages.chat.pendingOp.capability['habits-write'])
+  })
+
+  it.each(childSchedulePreviewCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))('preserves the child $name schedule in $locale', (scenario) => {
+    const { locale } = scenario
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const { tree } = renderCard(makeChildSchedulePreview(scenario.child))
+    const row = tree.root.findByProps({ testID: 'block-frame-item-0-child-0-pending-proposed' })
+    expect(renderedText(row)).toContain(scenario.child.title)
+    expect(row.findAllByType(Text).map((node: ReactTestInstance) => renderedText(node))).toContain((locale === 'en' ? scenario.english : scenario.portuguese).replace('21:30', '9:30 PM').replace('23:00', '11:00 PM'))
+  })
+
   it.each(['en', 'pt-BR'])('shows every evening routine child and revises child removal in %s', async (locale) => {
     visibleLocale.actual = true
     visibleLocale.language = locale
@@ -121,11 +139,11 @@ describe('PendingOperationCard (mobile)', () => {
     expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
   })
 
-  it.each(['en', 'pt-BR'])('names a new habit preview in %s', (locale) => {
+  it.each([1, 3].flatMap(count => ['en', 'pt-BR'].map(locale => ({ count, locale }))))('names a create-only preview with $count habits in $locale', ({ count, locale }) => {
     visibleLocale.actual = true
     visibleLocale.language = locale
-    const { tree } = renderCard(makeCreateHabitsPreview(1))
-    expect(renderedText(tree.toJSON())).toContain(locale === 'en' ? 'New habit' : 'Novo hábito')
+    const { tree } = renderCard(makeCreateHabitsPreview(count))
+    expect(renderedText(tree.toJSON())).toContain(locale === 'en' ? count === 1 ? 'New habit' : 'New habits' : count === 1 ? 'Novo hábito' : 'Novos hábitos')
     expect(renderedText(tree.toJSON())).not.toContain((locale === 'en' ? en : ptBR).chat.pendingOp.capability['habits-bulk-write'])
   })
 

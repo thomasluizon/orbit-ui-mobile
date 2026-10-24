@@ -1,4 +1,4 @@
-import { makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { personalText } from '@/__tests__/support/personal-text'
 import en from '@orbit/shared/i18n/en.json'
@@ -73,6 +73,24 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
+  it.each(['en', 'pt-BR'])('keeps a neutral heading for nested reuse in %s', (locale) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    render(<PendingOperationCard pendingOperation={makeNestedHabitPreview(2, true)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getByRole('heading', { name: messages.chat.pendingOp.capability['habits-write'] })).toBeInTheDocument()
+  })
+
+  it.each(childSchedulePreviewCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))('preserves the child $name schedule in $locale', (scenario) => {
+    const { locale } = scenario
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const { container } = render(<PendingOperationCard pendingOperation={makeChildSchedulePreview(scenario.child)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    const row = container.querySelector('[data-indented]')!
+    expect(row.textContent).toContain(scenario.child.title)
+    expect(within(row as HTMLElement).getByText((locale === 'en' ? scenario.english : scenario.portuguese).replace('21:30', '9:30 PM').replace('23:00', '11:00 PM'))).toBeInTheDocument()
+  })
+
   it.each(['en', 'pt-BR'])('shows every evening routine child and revises child removal in %s', async (locale) => {
     visibleLocale.actual = true
     visibleLocale.language = locale
@@ -113,11 +131,11 @@ describe('PendingOperationCard', () => {
     expect(confirm).not.toHaveBeenCalled()
   })
 
-  it.each(['en', 'pt-BR'])('names a new habit preview in %s', (locale) => {
+  it.each([1, 3].flatMap(count => ['en', 'pt-BR'].map(locale => ({ count, locale }))))('names a create-only preview with $count habits in $locale', ({ count, locale }) => {
     visibleLocale.actual = true
     visibleLocale.language = locale
-    render(<PendingOperationCard pendingOperation={makeCreateHabitsPreview(1)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
-    expect(screen.getByRole('heading', { name: locale === 'en' ? 'New habit' : 'Novo hábito' })).toBeInTheDocument()
+    render(<PendingOperationCard pendingOperation={makeCreateHabitsPreview(count)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getByRole('heading', { name: locale === 'en' ? count === 1 ? 'New habit' : 'New habits' : count === 1 ? 'Novo hábito' : 'Novos hábitos' })).toBeInTheDocument()
     expect(screen.queryByText((locale === 'en' ? en : ptBR).chat.pendingOp.capability['habits-bulk-write'])).not.toBeInTheDocument()
   })
 
