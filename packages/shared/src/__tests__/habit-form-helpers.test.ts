@@ -49,7 +49,7 @@ describe('habit form helpers', () => {
       setRecurring: () => { values.isFlexible = false },
       setField: (field, value) => { Object.assign(values, { [field]: value }) },
     } })
-    controller.setWeeklyRecurrence()
+    controller.setRecurrence({ unit: 'Week', quantity: 1, days: [], flexible: false, intervalWeeks: 1 })
     expect(values).toMatchObject({ title: 'Read', description: 'Retain this', dueDate: '2026-10-20', endDate: '2026-12-01', dueTime: '08:00' })
     if (lockedGeneral) {
       expect(values).toMatchObject({ frequencyUnit: 'Month', frequencyQuantity: 3, intervalWeeks: 4, days: ['Monday'], isFlexible: true })

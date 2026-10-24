@@ -546,18 +546,20 @@ locale, timezone, day, phrase, picker, type, schedule, end-date and form changes
 interpretations. Only the paid action depends on AI capacity. Offline editing and manual picking
 remain available; web saving retains its connection requirement and Android retains offline saving.
 
-Recurrence-only wording in When has its own local route. `toda semana`, `todas as semanas`,
-`semanalmente`, `every week` and `weekly` select fixed Every week for an explicitly selected dated
-Habit, preserving its chosen date. The existing schedule control shows Week 1; the entered words
-stay in the input without a second summary or Astra attribution. A Task keeps its type and date,
-with one inline recovery: `To repeat, choose Habit.` / `Para repetir, escolha Hábito.` Submit focuses
-the actual type group without marking the selected Task as missing. Selecting Habit is deliberate;
-clearing or replacing the wording and manual date selection also recover. This choice takes precedence
-over a retained General draft and keeps the Task's current date as the weekly start date. Inherited
-General locks keep the child undated with the existing parent mismatch guidance and block Submit.
-Manual cadence changes,
-form reopening and context replacement never replay an old weekly read. Mixed wording stays with
-the existing date recovery and never guesses a cadence.
+Recurrence wording in When has its own local route in English and Portuguese, independent of
+interface language. Daily phrases select fixed Day 1, weekly counts select count-based Week with
+the stated quantity, and named weekdays or weekdays/dias úteis select the existing weekday controls.
+Weekly equivalents such as `toda semana` and `weekly` retain fixed Week 1. The entered words stay
+in the input without a second summary or Astra attribution. Repetition preserves the chosen date;
+an explicit start such as `every Monday from next week` also updates the calendar anchor locally.
+A Task keeps its type and date, with one inline recovery: `To repeat, choose Habit.` /
+`Para repetir, escolha Hábito.` Submit focuses the actual type group without marking the selected
+Task as missing. Selecting Habit is deliberate; clearing or replacing the wording and manual date
+selection also recover. This choice takes precedence over a retained General draft and keeps the
+Task's current date as the start date unless the phrase supplies one. Inherited General locks keep
+the child undated with the existing parent mismatch guidance and block Submit. Manual cadence
+changes, form reopening and context replacement never replay an old recurrence read. Unknown
+wording keeps date recovery and never guesses a cadence.
 
 Exact time, reminders, end date, checklist, sub-habits, tags, goals and avoidance
 controls retain their existing homes behind one disclosure. Read-only DateRow remains a valid
