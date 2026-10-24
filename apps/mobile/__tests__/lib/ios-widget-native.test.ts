@@ -26,10 +26,11 @@ interface NativeDay {
 interface NativeEntry { signedOut: boolean; completed: number; rows: string[] }
 interface TimelineResult {
   foreground: NativeEntry
-  steps: { timeline: NativeEntry; snapshot: NativeEntry; tokenPresent: boolean; requestCount: number; language: string; snapshotLanguage: string }[]
+  steps: { timeline: NativeEntry; snapshot: NativeEntry; tokenPresent: boolean; requestCount: number; language: string; snapshotLanguage: string; reloadPolicy: string }[]
   requests: { path: string; authorized: boolean }[]
   scheduled: NativeEntry[]
   scheduledAfterSeconds: number[]
+  scheduledPolicies: string[]
 }
 
 describe.skipIf(process.platform !== 'darwin')('compiled WidgetKit state and session storage', () => {
@@ -51,9 +52,9 @@ describe.skipIf(process.platform !== 'darwin')('compiled WidgetKit state and ses
   }
   const map = (snapshot: ReturnType<typeof payload>) => run('map', snapshot) as NativeDay
 
-  function timeline(steps: { afterSeconds: number; status?: number; replaceSession?: string; responseAfterSeconds?: number }[], secondsBeforeMidnight?: number, language = 'pt-BR') {
+  function timeline(steps: { afterSeconds: number; status?: number; replaceSession?: string; responseAfterSeconds?: number }[], secondsBeforeMidnight?: number, language = 'pt-BR', initialState?: 'no-token' | 'token-only') {
     const scenario = { foreground: payload([habit({ id: 'foreground' })], { language }),
-      background: payload([habit({ id: 'background', isCompleted: true })], { language }), steps, secondsBeforeMidnight }
+      background: payload([habit({ id: 'background', isCompleted: true })], { language }), steps, secondsBeforeMidnight, initialState }
     return JSON.parse(execFileSync(executable, ['timeline'], { input: JSON.stringify(scenario), encoding: 'utf8' })) as TimelineResult
   }
 
@@ -64,6 +65,7 @@ describe.skipIf(process.platform !== 'darwin')('compiled WidgetKit state and ses
       expect(step.timeline).toEqual({ signedOut: true, completed: -1, rows: [] })
       expect(step.snapshot).toEqual(step.timeline)
       expect(step.tokenPresent).toBe(false)
+      expect(step.reloadPolicy).toBe('never')
       expect([step.language, step.snapshotLanguage]).toEqual(['pt-BR', 'pt-BR'])
     }
     expect(result.requests).toEqual([{ path: '/api/habits/widget', authorized: true }])
@@ -80,6 +82,7 @@ describe.skipIf(process.platform !== 'darwin')('compiled WidgetKit state and ses
       expect(step.timeline).toEqual(result.foreground)
       expect(step.snapshot).toEqual(result.foreground)
       expect(step.tokenPresent).toBe(true)
+      expect(step.reloadPolicy).toBe('after900')
     }
   })
 
@@ -89,10 +92,11 @@ describe.skipIf(process.platform !== 'darwin')('compiled WidgetKit state and ses
     expect(result.steps[1]).toMatchObject({ requestCount: 1, timeline: { rows: ['background'] }, snapshot: { rows: ['background'] } })
   })
 
-  it('schedules a localized open-app entry at midnight even without another refresh', () => {
-    const result = timeline([], 20)
-    expect(result.scheduled).toEqual([result.foreground, { signedOut: true, completed: -1, rows: [] }])
+  it.each(['en', 'pt-BR'])('schedules a loading entry at midnight even without another refresh (%s)', (language) => {
+    const result = timeline([], 20, language)
+    expect(result.scheduled).toEqual([result.foreground, { signedOut: false, completed: -1, rows: [] }])
     expect(result.scheduledAfterSeconds).toEqual([0, 20])
+    expect(result.scheduledPolicies).toEqual(['after900', 'after900'])
   })
 
   it('discards an authorized response requested on the previous day', () => {
@@ -100,7 +104,8 @@ describe.skipIf(process.platform !== 'darwin')('compiled WidgetKit state and ses
     expect(result.steps[0]?.requestCount).toBe(0)
     const crossing = timeline([{ afterSeconds: 60, status: 200, responseAfterSeconds: 120 }], 90)
     expect(crossing.steps[0]).toMatchObject({ requestCount: 1,
-      timeline: { signedOut: true, rows: [] }, snapshot: { signedOut: true, rows: [] } })
+      reloadPolicy: 'after900',
+      timeline: { signedOut: false, rows: [] }, snapshot: { signedOut: false, rows: [] } })
   })
 
   it('persists background success for the next snapshot and offline or server-error fallback', () => {
@@ -113,11 +118,21 @@ describe.skipIf(process.platform !== 'darwin')('compiled WidgetKit state and ses
     }
   })
 
-  it.each([30, 120])('never republishes yesterday’s cache after midnight with an offline app (%s)', (afterSeconds) => {
-    const result = timeline([{ afterSeconds }], 20)
+  it.each([{ afterSeconds: 30 }, { afterSeconds: 120 }, { afterSeconds: 120, status: 503 }])('loads after midnight while keeping refreshes enabled on failure (%j)', (step) => {
+    const result = timeline([step], 20)
     expect(result.foreground.rows).toEqual(['foreground'])
-    expect(result.steps[0]?.snapshot.rows).toEqual([])
-    expect(result.steps[0]?.timeline.rows).toEqual([])
+    expect(result.steps[0]).toMatchObject({ tokenPresent: true, reloadPolicy: 'after900',
+      snapshot: { signedOut: false, completed: -1, rows: [] }, timeline: { signedOut: false, completed: -1, rows: [] } })
+  })
+
+  it.each(['no-token', 'token-only'] as const)('distinguishes sign-in from loading without a payload (%s)', (initialState) => {
+    const result = timeline([{ afterSeconds: 120 }], undefined, 'pt-BR', initialState)
+    const signedOut = initialState === 'no-token'
+    expect(result.foreground).toEqual({ signedOut, completed: -1, rows: [] })
+    expect(result.steps[0]).toMatchObject({ tokenPresent: !signedOut,
+      timeline: result.foreground, snapshot: result.foreground, requestCount: signedOut ? 0 : 1,
+      reloadPolicy: signedOut ? 'never' : 'after900' })
+    expect(result.scheduledPolicies).toEqual([signedOut ? 'never' : 'after900'])
   })
 
   it.each([200, 401])('ignores an old account response (%s) after an account switch', (status) => {
@@ -135,6 +150,7 @@ describe.skipIf(process.platform !== 'darwin')('compiled WidgetKit state and ses
   it('rejects an in-flight background success after logout', () => {
     const result = timeline([{ afterSeconds: 120, status: 200, replaceSession: 'logout' }])
     expect(result.steps[0]).toMatchObject({ tokenPresent: false,
+      reloadPolicy: 'never',
       timeline: { signedOut: true, rows: [] }, snapshot: { signedOut: true, rows: [] } })
   })
 

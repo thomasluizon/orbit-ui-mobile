@@ -1,9 +1,11 @@
 import Foundation
+import WidgetKit
 
 private struct TimelineScenario: Decodable {
   let foreground: WidgetPayload
   let background: WidgetPayload
   let secondsBeforeMidnight: Double?
+  let initialState: String?
   let steps: [TimelineStep]
 }
 
@@ -41,7 +43,8 @@ struct WidgetTimelineDriver {
       ?? calendar.startOfDay(for: Date()).addingTimeInterval(12 * 3600)
     var now = seededAt
     let token = WidgetDriver.jwt("account-a", generation: 0)
-    try seed(scenario.foreground, token: token, store: store, at: now)
+    if scenario.initialState == "token-only" { try store.saveToken(token) }
+    else if scenario.initialState != "no-token" { try seed(scenario.foreground, token: token, store: store, at: now) }
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [WidgetResponseProtocol.self]
     let session = URLSession(configuration: configuration)
@@ -84,6 +87,7 @@ struct WidgetTimelineDriver {
       }
       steps.append(["timeline": observation(result), "snapshot": observation(provider.readEntry()),
                     "tokenPresent": try store.token() != nil, "requestCount": WidgetResponseProtocol.requests.count,
+                    "reloadPolicy": policy(result),
                     "language": result.language, "snapshotLanguage": provider.readEntry().language])
     }
     let requests = WidgetResponseProtocol.requests.map {
@@ -92,6 +96,7 @@ struct WidgetTimelineDriver {
     FileHandle.standardOutput.write(try JSONSerialization.data(withJSONObject: [
       "foreground": foreground, "steps": steps, "requests": requests,
       "scheduled": scheduled.map(observation), "scheduledAfterSeconds": scheduled.map { $0.date.timeIntervalSince(seededAt) },
+      "scheduledPolicies": scheduled.map(policy),
     ]))
   }
 
@@ -103,5 +108,11 @@ struct WidgetTimelineDriver {
   private static func observation(_ entry: OrbitEntry) -> [String: Any] {
     ["signedOut": entry.signedOut, "completed": entry.payload?.completedCount ?? -1,
      "rows": entry.payload?.rows.map(\.id) ?? []]
+  }
+
+  private static func policy(_ entry: OrbitEntry) -> String {
+    if entry.reloadPolicy == .never { return "never" }
+    if entry.reloadPolicy == .after(entry.date.addingTimeInterval(900)) { return "after900" }
+    return "unexpected"
   }
 }

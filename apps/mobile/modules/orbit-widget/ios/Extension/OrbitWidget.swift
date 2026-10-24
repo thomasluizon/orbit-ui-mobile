@@ -16,7 +16,7 @@ struct OrbitProvider: TimelineProvider {
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<OrbitEntry>) -> Void) {
     timeline.getTimeline { entry in
-      completion(Timeline(entries: timeline.entries(for: entry), policy: entry.signedOut ? .never : .after(Date().addingTimeInterval(900))))
+      completion(Timeline(entries: timeline.entries(for: entry), policy: entry.reloadPolicy))
     }
   }
 }

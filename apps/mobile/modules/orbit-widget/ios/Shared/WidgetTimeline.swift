@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import WidgetKit
 
 private let logger = Logger(subsystem: "org.useorbit.widget", category: "timeline")
 
@@ -9,6 +10,10 @@ struct OrbitEntry {
   let signedOut: Bool
   let colors: [String: String]
   var language: String = Locale.current.identifier
+
+  var reloadPolicy: TimelineReloadPolicy {
+    signedOut ? .never : .after(date.addingTimeInterval(900))
+  }
 }
 
 struct WidgetTimeline {
@@ -21,7 +26,7 @@ struct WidgetTimeline {
     guard entry.payload != nil, let midnight = Calendar.current.dateInterval(of: .day, for: entry.date)?.end else {
       return [entry]
     }
-    return [entry, OrbitEntry(date: midnight, payload: nil, signedOut: true, colors: entry.colors, language: entry.language)]
+    return [entry, OrbitEntry(date: midnight, payload: nil, signedOut: false, colors: entry.colors, language: entry.language)]
   }
 
   func getTimeline(completion: @escaping (OrbitEntry) -> Void) {
@@ -77,7 +82,7 @@ struct WidgetTimeline {
       let now = currentDate()
       let cache = try store.cachedPayload()
       let current = cache.flatMap { Calendar.current.isDate($0.updatedAt, inSameDayAs: now) ? $0.payload : nil }
-      let signedOut = try store.token() == nil || (cache != nil && current == nil)
+      let signedOut = try store.token() == nil
       return OrbitEntry(date: now, payload: signedOut ? nil : current, signedOut: signedOut, colors: try store.theme(),
                         language: try cache?.payload.language ?? store.language() ?? Locale.current.identifier)
     } catch {
