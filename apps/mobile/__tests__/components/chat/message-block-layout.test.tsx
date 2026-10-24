@@ -1,3 +1,6 @@
+import { useChatStore } from '@/stores/chat-store'
+import { chatMessageSchema } from '@orbit/shared/types/chat'
+import { makeProactiveBlockItem, proactiveBlockCases } from '@orbit/shared/test-support/chat-block-layout'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import React from 'react'
 import { FlatList, Text, View, type FlatListProps } from 'react-native'
@@ -201,3 +204,20 @@ vi.mock('@/hooks/use-recap', () => ({ useProgressRecap: () => ({ isPending: fals
 vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({ streakInfo: null, streakQuery: { isPending: false, isError: false, isRefetchError: false } }) }))
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+
+it.each(proactiveBlockCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))(
+  'renders the proactive $trigger block once on Android in $locale without legacy prose', async scenario => {
+    await i18n.changeLanguage(scenario.locale)
+    const item = makeProactiveBlockItem(scenario)
+    useChatStore.setState({ messages: [], proactiveOutcomes: {} })
+    useChatStore.getState().openProactiveItem(item)
+    const message = chatMessageSchema.parse(useChatStore.getState().messages[0])
+    let tree!: GeometryTree
+    await renderer.act(() => { tree = renderer.create(<MessageBubble message={message} />) as GeometryTree })
+    try {
+      expect(tree.root.findAll(node => node.type === BlockFrame)).toHaveLength(1)
+      expect(tree.root.findAll(node => node.type === View && node.props.testID === 'message-prose')).toHaveLength(0)
+      expect(JSON.stringify(tree.toJSON())).not.toContain(item.text)
+    } finally { await renderer.act(() => { tree.unmount() }) }
+  },
+)

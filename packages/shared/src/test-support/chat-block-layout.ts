@@ -1,3 +1,5 @@
+import { proactiveItemSchema } from '../types/proactive'
+import { createMockProactiveItem } from '../__tests__/factories'
 import type { ChatMessage } from '../types/chat'
 import { buildChatFinalMessageFields } from '../chat/final-message'
 import { createChatSseParser } from '../chat/sse-stream'
@@ -61,4 +63,20 @@ export function makeChatPartsLayoutMessage(scenario = chatPartsLayoutCases[0]!):
   const [event] = createChatSseParser().feed(`data: ${JSON.stringify({ type: 'final', response: { ...partsFixture.response, parts: scenario.parts } })}\n\n`)
   if (event?.type !== 'final') throw new Error('Expected a final event')
   return makeHeldHabitMessage({ pendingOperations: [], ...buildChatFinalMessageFields(event.response, []) })
+}
+
+const proactiveReadBlocks = chatBlockLayoutCases[5]!.fields
+export const proactiveBlockCases = [
+  { trigger: 'MorningPlan', kind: 'habitList', block: proactiveReadBlocks.habitList },
+  { trigger: 'EveningCheckin', kind: 'habitList', block: proactiveReadBlocks.habitList },
+  { trigger: 'RestartAfterMiss', kind: 'daySummary', block: proactiveReadBlocks.daySummary },
+  { trigger: 'BusyCalendarDay', kind: 'calendar', block: proactiveReadBlocks.calendar },
+  { trigger: 'GoalBehind', kind: 'goalList', block: proactiveReadBlocks.goalList },
+  { trigger: 'WeeklyReview', kind: 'periodInsight', block: proactiveReadBlocks.periodInsight },
+]
+
+export function makeProactiveBlockItem(scenario: typeof proactiveBlockCases[number]) {
+  return proactiveItemSchema.parse({ ...createMockProactiveItem(), trigger: scenario.trigger,
+    parts: [{ type: 'block', kind: scenario.kind, block: scenario.block }],
+  })
 }

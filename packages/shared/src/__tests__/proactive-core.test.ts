@@ -6,8 +6,9 @@ import { proactiveKeys } from '../query/keys'
 import { createChatStoreState, type ChatStoreState } from '../stores/chat-store'
 import { proactiveItemSchema, type ProactiveItemStatus } from '../types/proactive'
 import { createMockProactiveItem } from './factories'
-import { habitListCardFixture } from '../test-support/chat-fixtures'
+import { focusedDatedHabitListFixture, habitListCardFixture } from '../test-support/chat-fixtures'
 import { getChatMessageParts } from '../chat/final-message'
+import { makeProactiveBlockItem, proactiveBlockCases } from '../test-support/chat-block-layout'
 import { chatMessageSchema } from '../types/chat'
 
 const item = proactiveItemSchema.parse(createMockProactiveItem())
@@ -137,6 +138,51 @@ describe('shared proactive item', () => {
     expect(report).toHaveBeenCalledExactlyOnceWith(item.id)
     expect(openConversation).toHaveBeenCalledTimes(2)
     expect(getChat().messages).toEqual([expect.objectContaining({ role: 'ai', content: item.text })])
+  })
+
+  it('keeps the original dated query and refresh token when a typed item is reopened', async () => {
+    const { controller, client, requestCurrent, getChat } = setup()
+    const parts = [{ type: 'block', kind: 'habitList', block: focusedDatedHabitListFixture }]
+    requestCurrent.mockResolvedValue(proactiveItemSchema.parse({ ...item, parts }))
+    await controller.openCurrentProactiveItem(client)
+    requestCurrent.mockResolvedValue(proactiveItemSchema.parse({ ...item, parts: [
+      { type: 'block', kind: 'habitList', block: habitListCardFixture },
+    ] }))
+    await controller.openCurrentProactiveItem(client)
+    expect(getChatMessageParts(chatMessageSchema.parse(getChat().messages[0]))).toEqual(parts)
+  })
+
+  it('upgrades an already opened legacy item without another opened report or losing acted state', async () => {
+    const { controller, client, requestCurrent, report, getChat } = setup()
+    await controller.openCurrentProactiveItem(client)
+    getChat().claimProactiveAction(item.id)
+    const response = makeProactiveBlockItem(proactiveBlockCases[0]!)
+    requestCurrent.mockResolvedValue(response)
+    await controller.openCurrentProactiveItem(client)
+    expect(getChat().messages).toHaveLength(1)
+    const message = chatMessageSchema.parse(getChat().messages[0])
+    expect(getChatMessageParts(message)).toEqual(response.parts)
+    expect(message.proactiveActed).toBe(true)
+    expect(report).toHaveBeenCalledExactlyOnceWith(item.id)
+  })
+
+  it.each(proactiveBlockCases)('retains the $trigger answer block and its action on replay', async scenario => {
+    const { controller, client, requestCurrent, getChat } = setup()
+    const response = makeProactiveBlockItem(scenario)
+    requestCurrent.mockResolvedValue(response)
+    await controller.openCurrentProactiveItem(client)
+    const message = chatMessageSchema.parse(getChat().messages[0])
+    expect(getChatMessageParts(message)).toEqual(response.parts)
+    expect(message.proactiveItem?.actionPrompt).toBe(response.actionPrompt)
+  })
+
+  it.each([undefined, null, [], {}, [{ type: 'block', kind: 'future', block: {} }],
+    [{ type: 'block', kind: 'habitList', block: {} }]])('keeps legacy recovery for unusable parts %j', async parts => {
+    const { controller, client, requestCurrent, getChat } = setup()
+    requestCurrent.mockResolvedValue(proactiveItemSchema.parse({ ...item, parts }))
+    await controller.openCurrentProactiveItem(client)
+    expect(getChatMessageParts(chatMessageSchema.parse(getChat().messages[0])))
+      .toEqual([{ type: 'text', text: item.text }])
   })
 
   it.each([true, false])('opens offline immediately with cached item: %s', async (cached) => {

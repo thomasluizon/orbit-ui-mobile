@@ -566,3 +566,9 @@ suppresses repeated answer blocks. Pending previews keep approve, edit and rejec
 terminal results stay with their original preview. Block-only final delivery receives one localized
 completion announcement. Unknown sole blocks recover visibly. Short-text exceptions and the
 complete family policy remain in DESIGN.md; live bilingual composition acceptance belongs to #26.
+
+Proactive entries use the same leading block treatment after capability negotiation. The saved
+notification text remains the Hoje entry label and the legacy recovery when parts are absent or
+unusable. Inside the conversation a valid block replaces that prose, while the existing proactive
+action and its opened, acted and status behavior retain their owners. Existing legacy entries can
+adopt their first valid block without duplicating the message or resetting the action.

@@ -1,3 +1,6 @@
+import { useChatStore } from '@/stores/chat-store'
+import { chatMessageSchema } from '@orbit/shared/types/chat'
+import { makeProactiveBlockItem, proactiveBlockCases } from '@orbit/shared/test-support/chat-block-layout'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { createRef } from 'react'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -302,3 +305,18 @@ vi.mock('@/hooks/use-recap', () => ({ useProgressRecap: () => ({ isPending: fals
 vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({ streakInfo: null, streakQuery: { isPending: false, isError: false, isRefetchError: false } }) }))
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+
+it.each(proactiveBlockCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))(
+  'renders the proactive $trigger block once in $locale without legacy prose', scenario => {
+    const item = makeProactiveBlockItem(scenario)
+    useChatStore.setState({ messages: [], proactiveOutcomes: {} })
+    useChatStore.getState().openProactiveItem(item)
+    const message = chatMessageSchema.parse(useChatStore.getState().messages[0])
+    const { container } = render(<NextIntlClientProvider locale={scenario.locale} messages={scenario.locale === 'en' ? en : pt}>
+      <MessageBubble message={message} />
+    </NextIntlClientProvider>)
+    expect(container.querySelectorAll('section[data-state]')).toHaveLength(1)
+    expect(container.textContent).not.toContain(item.text)
+    expect(container.querySelector('[data-bubble-role="ai"]')).toBeNull()
+  },
+)
