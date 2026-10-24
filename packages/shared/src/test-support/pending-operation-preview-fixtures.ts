@@ -60,3 +60,31 @@ export function makeMixedHabitsPreview(): PendingAgentOperation {
   return { ...create, riskClass: 'Destructive', previewFingerprint: 'mixed-preview',
     items: [...create.items!, ...deletion.items!], changeTargetCount: 5 }
 }
+
+export function makeParentChoicePreview(count = 2): PendingAgentOperation {
+  const operation = makeCreateHabitsPreview(count)
+  return pendingAgentOperationSchema.parse({ ...operation, previewFingerprint: 'parent-choice-preview', items: operation.items!.map((item) => ({
+    ...item,
+    fields: [...item.fields, { entityId: emptyId, entityName: item.entityName,
+      field: 'parent_habit_id', oldValue: null, newValue: 'Post Lunch',
+      proposedValue: 'Post Lunch', valueType: 'text', isEditable: true }],
+    validationErrors: [{ field: 'parent_habit_id', errorCode: 'parent_choice_required' }],
+    fieldOptions: [{ field: 'parent_habit_id', required: true, options: [
+      { value: '11111111-1111-1111-1111-111111111111', label: 'Post Lunch' },
+      { value: '22222222-2222-2222-2222-222222222222', label: 'Post Lunch' },
+      { value: null, label: 'No parent' },
+    ] }],
+  })) })
+}
+
+export function resolveParentChoicePreview(operation: PendingAgentOperation, itemId: string, value: string | null): PendingAgentOperation {
+  return pendingAgentOperationSchema.parse({ ...operation,
+    previewFingerprint: `${operation.previewFingerprint}-${itemId}`,
+    items: operation.items!.map((item) => item.itemId !== itemId ? item : {
+      ...item, fieldOptions: undefined,
+      fields: item.fields.map((field) => field.field !== 'parent_habit_id' ? field : {
+        ...field, proposedValue: value, newValue: value === null ? 'No parent' : 'Post Lunch',
+      }),
+    }),
+  })
+}

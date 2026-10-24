@@ -104,6 +104,9 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
           : <RadioRow key={entry.itemId} label={entry.entityName} textMode="personal" selected={entry.itemId === item.itemId} onSelect={() => onSelectItem(entry.itemId)} />)}</RadioGroup></div> : null}
       {item.fields.filter(isPendingOperationEditableField).map((field) => {
         const label = labels.fieldLabels[field.field] ?? field.field
+        const choices = item.fieldOptions?.find((entry) => entry.field === field.field && entry.field === 'parent_habit_id')
+        if (choices) return <ParentChoice key={field.field} itemName={item.entityName} field={choices} labels={labels} disabled={busy}
+          selectedValue={draft[field.field] === '' ? null : draft[field.field]} onSelect={(value) => { if (value === null || typeof value === 'string') onChange(field.field, value ?? '') }} />
         if (field.field === 'checklist_items' || field.field === 'reminder_times' || field.field === 'scheduled_reminders') return <ListFieldEditor key={field.field} field={field.field} value={draft[field.field] ?? '[]'} labels={labels} busy={busy} error={error} onChange={(value) => onChange(field.field, value)} />
         if (field.valueType === 'boolean') return <Switch key={field.field} label={label} checked={draft[field.field] === 'true'} disabled={busy} onChange={(value) => onChange(field.field, String(value))} />
         if (field.field === 'days') {
@@ -169,6 +172,17 @@ function StepUpVerificationSheet({
   )
 }
 
+function ParentChoice({ itemName, field, labels, disabled, onSelect, selectedValue }: Readonly<Parameters<PendingOperationCardRenderers['parentChoice']>[0] & { selectedValue?: unknown }>) {
+  return <div className="flex min-w-0 flex-col gap-2">
+    <p className="text-sm text-[var(--fg-2)]">{labels.fieldLabels.parent_habit_id}</p>
+    <RadioGroup aria-label={`${labels.fieldLabels.parent_habit_id}: ${itemName}`} aria-required={field.required}>
+      {field.options.map((option, index) => <RadioRow key={index} wrapLabel textMode="personal"
+        label={option.value === null ? labels.noParent : option.label} selected={selectedValue !== undefined && selectedValue === option.value}
+        {...(disabled ? { disabled: true as const, reason: labels.acting } : { onSelect: () => onSelect(option.value) })} />)}
+    </RadioGroup>
+  </div>
+}
+
 const pendingOperationRenderers = {
   blockFrame: (props) => <BlockFrame {...props} items={props.items.map((item) => ({ ...item, label: typeof item.label === 'string' && item.id !== 'remaining' ? <PreviewItemTitle key={item.id} title={item.label} icon={item.icon} rename={item.rename} proposed={item.proposed} /> : item.label }))} />,
   button: ({ label, ...props }) => <PreviewButton label={label} {...props} />,
@@ -176,6 +190,7 @@ const pendingOperationRenderers = {
   stepUp: (props) => <div className="basis-full min-w-0"><StepUp {...props} /></div>,
   verification: (props) => <StepUpVerificationSheet {...props} />,
   editSheet: (props) => <EditPendingOperationSheet {...props} />,
+  parentChoice: (props) => <ParentChoice {...props} />,
   removeItem: (label, disabled, onClick) => <button
     type="button" aria-label={label} disabled={disabled} onClick={onClick}
     className="flex size-[var(--touch-min)] shrink-0 items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] disabled:opacity-40 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"

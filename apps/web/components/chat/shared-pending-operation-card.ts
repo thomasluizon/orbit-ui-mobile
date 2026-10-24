@@ -62,7 +62,7 @@ export function SharedPendingOperationCard({
       return result
     },
   })
-  const approvalBlocked = revision.stale || revision.busy || revision.hasTitleDrafts
+  const approvalBlocked = revision.stale || revision.busy || revision.hasTitleDrafts || revision.hasRequiredChoices
   const approvalBlockedRef = useRef(approvalBlocked)
   useLayoutEffect(() => { approvalBlockedRef.current = approvalBlocked }, [approvalBlocked])
 

@@ -139,6 +139,12 @@ export function usePendingOperationRevision(
     closeEdit: () => setRevision((current) => ({ ...current, editingItemId: undefined })),
     startEdit,
     saveEdit,
+    hasRequiredChoices: items.some((item) => item.fieldOptions?.some((field) => field.required)),
+    chooseParent: (itemId: string, value: unknown) => {
+      const field = items.find((item) => item.itemId === itemId)?.fieldOptions?.find((entry) => entry.field === 'parent_habit_id')
+      if (!field?.options.some((option) => option.value === value)) return Promise.resolve(false)
+      return revise(items, { itemId, values: { parent_habit_id: value } })
+    },
     renameItem: (itemId: string, title: string) => revise(items, { itemId, values: { title } }),
     rejectItem: (itemId: string) => revise(items.filter((item) => item.itemId !== itemId)),
     rejectAll: () => revise([]),

@@ -124,6 +124,7 @@ function FrameRowContent(props: FrameRowProps) {
 function FrameRow(props: FrameRowProps) {
   return <Proposed proposed={props.item.proposed === true} scope="row" label={props.proposedLabel ?? ''} keepMounted>
     <FrameRowContent {...props} />
+    {props.item.body ? <View style={{ paddingHorizontal: SPACING.s12, paddingBottom: SPACING.s12 }}>{props.item.body}</View> : null}
   </Proposed>
 }
 

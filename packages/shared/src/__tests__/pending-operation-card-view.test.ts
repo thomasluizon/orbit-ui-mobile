@@ -265,6 +265,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
 })
 
 const labels: PendingOperationCardLabels = {
+  parentChoiceRequired: 'Choose a parent or No parent', noParent: 'No parent',
   formatTime: (value) => value,
   empty: 'No changes to approve.', approve: () => 'Approve', acting: 'Working', cancel: 'Cancel', confirm: 'Delete habit',
   edit: 'Edit item', edited: 'Edited', editTitle: 'Edit', reject: 'Reject', remove: 'Remove',
@@ -388,6 +389,7 @@ function createRenderers() {
     confirmSheet: (props) => { record.confirm = props; return 'confirm' },
     stepUp: (props) => { record.stepUp = props; return 'step-up' },
     verification: (props) => { record.verification = props; return 'verification' },
+    parentChoice: () => 'parent-choice',
     editSheet: () => 'edit-sheet',
     removeItem: (label, _disabled, onClick) => { record.buttons.push({ label, onClick }); return label },
     notice: (message) => message,

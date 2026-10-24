@@ -1,4 +1,4 @@
-import { makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -1131,4 +1131,84 @@ it('reveals full deletion names without opening the rename editor', () => {
     expect(tree.root.findAllByType(TextInput)).toHaveLength(0)
     TestRenderer.act(() => control().props.onPress())
   }
+})
+
+describe('parent choice previews', () => {
+  it.each(['en', 'pt-BR'])('requires only offered parents before approval in %s', async locale => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const revise = vi.fn().mockReturnValue(new Promise(() => {}))
+    const operation = makeParentChoicePreview()
+    const { tree, handlers } = renderCard(operation, revise)
+    const groups = tree.root.findAll((node: ReactTestInstance) => node.type === ('View' as unknown) && node.props.accessibilityRole === 'radiogroup')
+    expect(groups).toHaveLength(2)
+    const radios = tree.root.findAll((node: ReactTestInstance) => node.type === ('Pressable' as unknown) && node.props.accessibilityRole === 'radio')
+    expect(radios).toHaveLength(6)
+    expect(press(tree, locale === 'en' ? 'Create 2 habits' : 'Criar 2 hábitos').props.disabled).toBe(true)
+    expect(renderedText(tree.root)).toContain(locale === 'en' ? 'Before approving, choose a parent or “No parent” where options are shown.' : 'Antes de aprovar, escolha um hábito principal ou “Sem hábito principal” onde houver opções.')
+    await TestRenderer.act(async () => { radios[0]!.props.onPress(); await Promise.resolve() })
+    expect(revise).toHaveBeenCalledWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [
+      { itemId: '0', edits: { parent_habit_id: '11111111-1111-1111-1111-111111111111' } }, { itemId: '1' },
+    ] })
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+  })
+})
+
+describe('parent choice revision', () => {
+  const radios = (tree: ReactTestRenderer) => tree.root.findAll((node) => node.type === ('Pressable' as unknown) && node.props.accessibilityRole === 'radio')
+
+  it.each(['11111111-1111-1111-1111-111111111111', null])('resolves every item through revision, including %s', async value => {
+    const operation = makeParentChoicePreview()
+    let accepted = operation
+    const revise = vi.fn().mockImplementation((_id, request) => {
+      const edit = request.items.find((item: { edits?: Record<string, unknown> }) => item.edits)
+      accepted = resolveParentChoicePreview(accepted, edit.itemId, edit.edits.parent_habit_id)
+      return Promise.resolve({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, preview: accepted, cancelled: false } })
+    })
+    const { tree, handlers } = renderCard(operation, revise)
+    handlers.onConfirmExecute.mockResolvedValue({ ok: true })
+    await TestRenderer.act(async () => { (radios(tree)[value === null ? 2 : 0]!.props.onPress as () => void)(); await Promise.resolve() })
+    expect(radios(tree)).toHaveLength(3)
+    expect(press(tree, 'chat.operation.approveCount').props.disabled).toBe(true)
+    await TestRenderer.act(async () => { (radios(tree)[value === null ? 2 : 0]!.props.onPress as () => void)(); await Promise.resolve() })
+    expect(radios(tree)).toHaveLength(0)
+    expect(revise).toHaveBeenLastCalledWith(operation.id, { previewFingerprint: 'parent-choice-preview-0', items: [{ itemId: '0' }, { itemId: '1', edits: { parent_habit_id: value } }] })
+    expect(press(tree, 'chat.operation.approveCount').props.disabled).toBe(false)
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approveCount').props.onPress(); await Promise.resolve() })
+    expect(handlers.onConfirmExecute).toHaveBeenCalledWith(operation.id)
+  })
+
+  it('shows a resolved parent name without choices', () => {
+    const { tree } = renderCard(resolveParentChoicePreview(makeParentChoicePreview(1), '0', '11111111-1111-1111-1111-111111111111'), vi.fn())
+    expect(radios(tree)).toHaveLength(0)
+    expect(renderedText(tree.root)).toContain('Post Lunch')
+    expect(press(tree, 'chat.operation.approveCount').props.disabled).toBe(false)
+  })
+
+  it('retains unresolved options after a revision failure and replaces them on a new preview', async () => {
+    const revise = vi.fn().mockResolvedValue({ ok: false, error: 'option_not_offered' })
+    const { tree, handlers } = renderCard(makeParentChoicePreview(1), revise)
+    await TestRenderer.act(async () => { (radios(tree)[0]!.props.onPress as () => void)(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('chat.operation.invalid')
+    expect(press(tree, 'chat.operation.approveCount').props.disabled).toBe(true)
+    expect(radios(tree)).toHaveLength(3)
+    const replacement = makeParentChoicePreview(1)
+    replacement.previewFingerprint = 'replacement'
+    replacement.items![0]!.fieldOptions![0]!.options = [{ value: null, label: 'No parent' }]
+    TestRenderer.act(() => { tree.update(<PendingOperationCard pendingOperation={replacement} onRevise={revise} {...handlers} />) })
+    expect(radios(tree)).toHaveLength(1)
+    expect(radios(tree)[0]!.props.accessibilityLabel).toBe('habits.moveParent.toRoot')
+    expect(press(tree, 'chat.operation.approveCount').props.disabled).toBe(true)
+  })
+
+  it('keeps older previews unchanged and permits rejection of an unresolved batch', async () => {
+    const revise = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: null, preview: null, cancelled: true } })
+    const { tree, handlers } = renderCard(makeCreateHabitsPreview(1), revise)
+    expect(radios(tree)).toHaveLength(0)
+    expect(press(tree, 'chat.operation.approveCount').props.disabled).toBe(false)
+    TestRenderer.act(() => { tree.update(<PendingOperationCard pendingOperation={makeParentChoicePreview(1)} onRevise={revise} {...handlers} />) })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.reject').props.onPress(); await Promise.resolve() })
+    expect(revise).toHaveBeenCalledWith(expect.any(String), { previewFingerprint: 'parent-choice-preview', items: [] })
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+  })
 })

@@ -1980,6 +1980,7 @@
       "retry": "Retry the {count} that failed"
     },
     "operation": {
+      "parentChoiceRequired": "Before approving, choose a parent or “No parent” where options are shown.",
       "batchFailed": "Some items could not be saved. Ask Astra to try only the failed items.",
       "unavailableRecovery": "That didn't work. Ask Astra for a new preview.",
       "unknown": "Astra operation",
