@@ -16,7 +16,7 @@ describe('Android app variant', () => {
       ...appJson.expo,
       updates: { ...appJson.expo.updates, enabled: false },
       android: { ...appJson.expo.android, allowBackup: false },
-      plugins: [...appJson.expo.plugins, './plugins/with-android-release-build-fixes', './plugins/with-react-native-imperative-focus'],
+      plugins: [...appJson.expo.plugins, './plugins/with-android-release-build-fixes', './plugins/with-react-native-imperative-focus', './plugins/with-ios-widget'],
     }
     expect(JSON.stringify(createConfig())).toBe(JSON.stringify(expected))
   })

@@ -37,6 +37,7 @@ jobs:
       ORBIT_APPLE_TEAM_ID: ${{ vars.ORBIT_APPLE_TEAM_ID }}
       ORBIT_IOS_APP_STORE_ID: ${{ vars.ORBIT_IOS_APP_STORE_ID }}
       IOS_PROVISIONING_PROFILE_NAME: ${{ vars.IOS_PROVISIONING_PROFILE_NAME }}
+      IOS_WIDGET_PROVISIONING_PROFILE_NAME: ${{ vars.IOS_WIDGET_PROVISIONING_PROFILE_NAME }}
       EXPO_PUBLIC_API_BASE: ${{ inputs.variant == 'staging' && 'https://api-staging.useorbit.org' || 'https://api.useorbit.org' }}
       EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}
       EXPO_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.EXPO_PUBLIC_TURNSTILE_SITE_KEY }}
@@ -71,6 +72,7 @@ jobs:
             exit 1
           fi
           for key in ORBIT_APPLE_TEAM_ID ORBIT_IOS_APP_STORE_ID IOS_PROVISIONING_PROFILE_NAME \
+            IOS_WIDGET_PROVISIONING_PROFILE_NAME \
             EXPO_PUBLIC_GOOGLE_CLIENT_ID EXPO_PUBLIC_TURNSTILE_SITE_KEY EXPO_PUBLIC_SENTRY_DSN \
             SENTRY_AUTH_TOKEN APP_STORE_CONNECT_API_KEY_ID APP_STORE_CONNECT_API_ISSUER_ID; do
             if [ -z "${!key}" ]; then echo "::error::Missing $key"; exit 1; fi
@@ -93,11 +95,12 @@ jobs:
           IOS_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
           IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
           IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          IOS_WIDGET_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_WIDGET_PROVISIONING_PROFILE_BASE64 }}
           APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           for key in IOS_DISTRIBUTION_CERTIFICATE_BASE64 IOS_DISTRIBUTION_CERTIFICATE_PASSWORD \
-            IOS_PROVISIONING_PROFILE_BASE64 APP_STORE_CONNECT_API_PRIVATE_KEY; do
+            IOS_PROVISIONING_PROFILE_BASE64 IOS_WIDGET_PROVISIONING_PROFILE_BASE64 APP_STORE_CONNECT_API_PRIVATE_KEY; do
             if [ -z "${!key}" ]; then echo "::error::Missing $key"; exit 1; fi
           done
           umask 077
@@ -115,6 +118,7 @@ jobs:
           profiles="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$profiles" "$HOME/.appstoreconnect/private_keys"
           printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$profiles/Orbit.mobileprovision"
+          printf '%s' "$IOS_WIDGET_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$profiles/OrbitWidget.mobileprovision"
           printf '%s' "$APP_STORE_CONNECT_API_PRIVATE_KEY" > "$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
       - name: Generate the iOS project and install pods
         working-directory: apps/mobile
@@ -128,7 +132,7 @@ jobs:
           xcodebuild -workspace "ios/$scheme.xcworkspace" -scheme "$scheme" -configuration Release \
             -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Orbit.xcarchive" \
             DEVELOPMENT_TEAM="$ORBIT_APPLE_TEAM_ID" CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY='Apple Distribution' PROVISIONING_PROFILE_SPECIFIER="$IOS_PROVISIONING_PROFILE_NAME" \
+            CODE_SIGN_IDENTITY='Apple Distribution' \
             archive
       - name: Upload dSYMs to Sentry
         run: |
@@ -145,7 +149,10 @@ jobs:
           options = {
               'method': 'app-store-connect', 'destination': 'export', 'signingStyle': 'manual',
               'teamID': os.environ['ORBIT_APPLE_TEAM_ID'], 'signingCertificate': 'Apple Distribution',
-              'provisioningProfiles': {bundle_id: os.environ['IOS_PROVISIONING_PROFILE_NAME']},
+              'provisioningProfiles': {
+                  bundle_id: os.environ['IOS_PROVISIONING_PROFILE_NAME'],
+                  bundle_id + '.widget': os.environ['IOS_WIDGET_PROVISIONING_PROFILE_NAME'],
+              },
               'manageAppVersionAndBuildNumber': False, 'uploadSymbols': True,
           }
           with open(os.path.join(os.environ['RUNNER_TEMP'], 'ExportOptions.plist'), 'wb') as output:
@@ -169,4 +176,5 @@ jobs:
           fi
           rm -f "$RUNNER_TEMP/orbit-distribution.p12" \
             "$HOME/Library/MobileDevice/Provisioning Profiles/Orbit.mobileprovision" \
+            "$HOME/Library/MobileDevice/Provisioning Profiles/OrbitWidget.mobileprovision" \
             "$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"

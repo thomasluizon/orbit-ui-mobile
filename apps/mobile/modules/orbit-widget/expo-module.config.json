@@ -1,5 +1,8 @@
 {
-  "platforms": ["android"],
+  "platforms": ["android", "apple"],
+  "apple": {
+    "modules": ["OrbitWidgetModule"]
+  },
   "android": {
     "modules": ["org.useorbit.app.widget.OrbitWidgetModule"]
   }

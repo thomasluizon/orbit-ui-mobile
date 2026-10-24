@@ -51,8 +51,8 @@ describe('syncWidgetData', () => {
     vi.unstubAllGlobals()
   })
 
-  it('skips all Android widget operations and API reads on iOS', async () => {
-    Platform.OS = 'ios'
+  it('skips native widget operations and API reads on web', async () => {
+    Platform.OS = 'web'
     const nativeModule = { saveToken: vi.fn(), clearToken: vi.fn(), syncTheme: vi.fn(), syncWidgetData: vi.fn() }
     __setOrbitWidgetModuleForTests(nativeModule)
     await saveWidgetToken('token')
@@ -62,6 +62,22 @@ describe('syncWidgetData', () => {
     for (const method of Object.values(nativeModule)) expect(method).not.toHaveBeenCalled()
     expect(mocks.getToken).not.toHaveBeenCalled()
     expect(mocks.fetch).not.toHaveBeenCalled()
+  })
+
+  it('shares the iOS session, theme and authorized habit snapshot with the native adapter', async () => {
+    Platform.OS = 'ios'
+    const nativeModule = { saveToken: vi.fn(), clearToken: vi.fn(), syncTheme: vi.fn(), syncWidgetData: mocks.syncWidgetData }
+    __setOrbitWidgetModuleForTests(nativeModule)
+    const payload = { dayOffset: 0, language: 'pt-BR', currentStreak: 2, items: [], emptyReason: 'all-done', uses24HourClock: true }
+    mocks.fetch.mockResolvedValue(new Response(JSON.stringify(payload)))
+    await saveWidgetToken('account-a-token')
+    await syncWidgetTheme('orange')
+    await syncWidgetData()
+    await clearWidgetToken()
+    expect(nativeModule.saveToken).toHaveBeenCalledExactlyOnceWith('account-a-token')
+    expect(nativeModule.syncTheme).toHaveBeenCalledExactlyOnceWith(toWidgetThemePreferences('orange'))
+    expect(nativeModule.syncWidgetData).toHaveBeenCalledExactlyOnceWith(JSON.stringify(payload), 'account-a-token')
+    expect(nativeModule.clearToken).toHaveBeenCalledOnce()
   })
 
   it('pairs B payload with B credential when storage changes before request execution', async () => {

@@ -11,7 +11,9 @@ const noopModule: OrbitWidgetModuleType = {
 
 let orbitWidgetModule: OrbitWidgetModuleType | null = null
 
-if (Platform.OS === 'android') {
+if (Platform.OS === 'ios') {
+  orbitWidgetModule = requireNativeModule<OrbitWidgetModuleType>('OrbitWidget')
+} else if (Platform.OS === 'android') {
   try {
     orbitWidgetModule = requireNativeModule<OrbitWidgetModuleType>('OrbitWidget')
   } catch {

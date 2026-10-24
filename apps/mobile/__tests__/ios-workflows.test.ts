@@ -17,6 +17,16 @@ interface Workflow<Job extends string> {
 const readWorkflow = <Job extends string>(name: string) => parse(readFileSync(resolve(`../../.github/workflows/${name}.yml`), 'utf8')) as Workflow<Job>
 
 describe('iOS build and release boundaries', () => {
+  it('signs the containing app and widget with separate provisioning profiles', () => {
+    const workflow = readWorkflow<'release'>('ios-release')
+    expect(workflow.jobs.release.env.IOS_WIDGET_PROVISIONING_PROFILE_NAME).toBeDefined()
+    const archive = workflow.jobs.release.steps.find((step) => step.name === 'Archive the embedded app')?.run
+    expect(archive).not.toContain('PROVISIONING_PROFILE_SPECIFIER=')
+    const install = workflow.jobs.release.steps.find((step) => step.name === 'Install signing credentials')?.run
+    expect(install).toContain('IOS_WIDGET_PROVISIONING_PROFILE_BASE64')
+    const exportArchive = workflow.jobs.release.steps.find((step) => step.name === 'Export the App Store package')?.run
+    expect(exportArchive).toContain("bundle_id + '.widget'")
+  })
   it.each(['ios-build', 'ios-release'])('%s resolves the updates entry against the configured Metro root', (name) => {
     const workflow = readWorkflow<string>(name)
     const job = Object.values(workflow.jobs)[0]!
@@ -64,6 +74,7 @@ describe('iOS build and release boundaries', () => {
         PATH: process.env.PATH ?? '', NODE_ENV: 'test', ORBIT_APP_VARIANT: variant, GITHUB_REF: ref,
         ORBIT_APPLE_TEAM_ID: 'TESTTEAM01', ORBIT_IOS_APP_STORE_ID: '1234567890',
         IOS_PROVISIONING_PROFILE_NAME: 'Orbit Distribution', EXPO_PUBLIC_GOOGLE_CLIENT_ID: 'client',
+        IOS_WIDGET_PROVISIONING_PROFILE_NAME: 'Orbit Widget Distribution',
         EXPO_PUBLIC_TURNSTILE_SITE_KEY: 'site', EXPO_PUBLIC_SENTRY_DSN: 'dsn',
         SENTRY_AUTH_TOKEN: 'test-token', APP_STORE_CONNECT_API_KEY_ID: 'test-key',
         APP_STORE_CONNECT_API_ISSUER_ID: 'test-issuer', APP_VERSION: '2.0.0', IOS_BUILD_NUMBER: '42',
