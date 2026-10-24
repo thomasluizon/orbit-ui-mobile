@@ -3259,15 +3259,6 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
-    "web:display:habits.form.askDate": {
-      "targets": [
-        "web:display:habits.form.suggestTags"
-      ],
-      "owners": [
-        "apps/web/components/habits/habit-form-fields/tag-suggestions.tsx"
-      ],
-      "reason": "#1668 names the existing tag-suggestion status region with its contextual tag action instead of the shared Ask Astra label."
-    },
     "web:display:habits.form.dateProposed": {
       "targets": [
         "web:content:habits.form.dateProposed"
