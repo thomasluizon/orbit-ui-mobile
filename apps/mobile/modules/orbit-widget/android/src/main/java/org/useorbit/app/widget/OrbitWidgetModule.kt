@@ -13,6 +13,7 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import java.security.MessageDigest
 import java.util.concurrent.Executors
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import org.json.JSONObject
 
@@ -23,7 +24,7 @@ class OrbitWidgetModule : Module() {
     private const val CACHE_PREFS_NAME = "orbit_widget_cache"
     internal val accountRenderLock = Any()
     internal val widgetPublisher = WidgetPublisher(accountRenderLock)
-    private val moduleQueue = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher())
+    private val moduleQueue = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + SupervisorJob())
     const val COLOR_KEY_PREFIX = "color_"
     private val NAME_IDENTIFIER_CLAIMS = listOf(
       "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",

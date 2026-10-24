@@ -932,7 +932,7 @@ describe('Android widget header', () => {
 
   it('dispatches every widget bridge call on its own serial queue', () => {
     const module = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetModule.kt'), 'utf8')
-    expect(module).toContain('private val moduleQueue = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher())')
+    expect(module).toContain('private val moduleQueue = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + SupervisorJob())')
     for (const name of ['saveToken', 'clearToken', 'syncTheme', 'syncWidgetData']) {
       const start = module.indexOf(`AsyncFunction("${name}")`)
       const body = kotlinBlockBody(module, start)
