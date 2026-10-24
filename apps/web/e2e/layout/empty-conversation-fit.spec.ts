@@ -1,3 +1,4 @@
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { openTodayListOptions } from './hydration-guard'
 import { expect } from '@playwright/test'
 import { test } from './layout-test'
@@ -39,7 +40,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', pt]] as const) {
         await page.getByRole('menu', { name: messages.habits.listOptions, exact: true })
           .getByRole('menuitem', { name: messages.habits.refresh }).click()
         await expect(page.locator('[data-habit-title="Rotina da casa"]')).toBeVisible()
-        await page.getByRole('button', { name: messages.todayAstra.openConversation, exact: true }).click()
+        await getShellConversationEntry(page, viewport.width, messages).click()
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         await expect(conversation).toBeVisible()
         const scroller = conversation.getByRole('feed', { name: messages.chat.title })

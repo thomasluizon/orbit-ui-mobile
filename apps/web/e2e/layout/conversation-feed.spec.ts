@@ -1,3 +1,4 @@
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import pt from '@orbit/shared/i18n/pt-BR.json'
@@ -22,7 +23,7 @@ for (const width of [412, 1352]) {
         contentType: 'text/event-stream', body: `data: ${JSON.stringify(finalEvent)}\n\n`,
       }))
       await page.goto('/')
-      await page.getByRole('button', { name: pt.todayAstra.openConversation, exact: true }).click()
+      await getShellConversationEntry(page, width, pt).click()
       const conversation = page.locator('[data-shell-conversation="overlay"]')
       const feed = conversation.getByRole('feed', { name: pt.chat.title, exact: true })
       await expect(feed).toBeVisible()

@@ -1,3 +1,4 @@
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
@@ -25,7 +26,7 @@ for (const width of [320, 412, 1352]) {
       test('keeps the action beside the first line and reveals the full name in its editor', async ({ page, context }) => {
         await context.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, route => route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(event)}\n\n` }))
         await page.goto('/')
-        await page.getByRole('button', { name: messages.todayAstra.openConversation, exact: true }).click()
+        await getShellConversationEntry(page, width, messages).click()
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         await conversation.locator('[data-composer-input]').fill(name)
         await conversation.getByRole('button', { name: messages.shell.composer.send, exact: true }).click()

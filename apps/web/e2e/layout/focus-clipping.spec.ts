@@ -1,3 +1,4 @@
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { openTodayListOptions } from './hydration-guard'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { test } from './layout-test'
@@ -138,7 +139,7 @@ for (const width of [412, 1352] as const) {
           await pinned.locator('[data-composer-input]').focus()
         } else {
           await expect(pinned).toHaveCount(0)
-          const astra = page.getByRole('button', { name: messages.todayAstra.openConversation, exact: true })
+          const astra = getShellConversationEntry(page, width, messages)
           await expectCompleteTabIndicator(page, astra, 'sidebar Astra row')
           await astra.click()
         }

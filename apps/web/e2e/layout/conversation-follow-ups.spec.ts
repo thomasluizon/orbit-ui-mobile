@@ -1,3 +1,4 @@
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { settleAnimations } from './settle-animations'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -29,7 +30,7 @@ for (const width of [320, 412, 1352]) {
           contentType: 'text/event-stream', body: `data: ${JSON.stringify(finalEvent)}\n\n`,
         }))
         await page.goto('/')
-        await page.getByRole('button', { name: pt.todayAstra.openConversation, exact: true }).click()
+        await getShellConversationEntry(page, width, pt).click()
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         await conversation.locator('[data-composer-input]').fill('Como posso revisar a minha rotina?')
         await conversation.getByRole('button', { name: pt.shell.composer.send, exact: true }).click()
