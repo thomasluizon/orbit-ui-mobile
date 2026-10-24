@@ -21,6 +21,7 @@ import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibilit
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { MoveParentDialog } from '@/components/habit-list/move-parent-dialog'
 import { SelectionTray } from '@/components/habits/selection-tray'
+import { TodayLaunchContent } from '@/components/today/today-launch-content'
 import { HabitRow } from '@/components/habits/habit-row'
 import { __resetTestHostConfig, __setMeasureInWindowImpl, __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
@@ -1162,6 +1163,21 @@ describe('HabitList', () => {
       if (tree) TestRenderer.act(() => (tree as unknown as { unmount: () => void }).unmount())
       queryClient.clear()
       vi.useRealTimers()
+    }
+  })
+
+  it.each(['rows', 'empty', 'loading', 'error'] as const)('marks first Hoje content only after its %s surface renders', (surface) => {
+    seedHabits(surface === 'empty' ? [] : [createMockHabit({ id: 'launch-habit', title: 'Habit' })])
+    listQueryState.isLoading = surface === 'loading'
+    listQueryState.isError = surface === 'error'
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = createTestTree(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />) })
+    const markers = tree.root.findAllByType(TodayLaunchContent)
+    if (surface === 'loading' || surface === 'error') {
+      expect(markers).toHaveLength(0)
+    } else {
+      expect(markers).toHaveLength(1)
+      expect(markers[0].props).toMatchObject({ enabled: true, fromCache: true, empty: surface === 'empty' })
     }
   })
 

@@ -10,7 +10,7 @@ import {
 } from '@orbit/shared/validation'
 import {
   HabitModeDrafts,
-  isWeeklyRecurrencePhrase,
+  readHabitRecurrencePhrase,
   applyHabitFormMode,
   buildHabitDaysList,
   buildHabitFrequencyUnits,
@@ -48,7 +48,7 @@ export interface HabitFormHelpers {
   retiredCadenceTitle?: string
   setOneTime: () => void
   setRecurring: (restoreDraft?: boolean) => void
-  setFlexible: () => void
+  setFlexible: (restoreDraft?: boolean) => void
   setGeneral: () => void
   formatTimeInput: (value: string) => string
   formatEndTimeInput: (value: string) => string
@@ -74,7 +74,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     return () => { if (dateValidation.current === validate) { dateValidation.current = null; dateTypeChange.current = undefined } }
   }, [])
   const [modeDrafts] = useState(() => new HabitModeDrafts())
-  const [retiredCadenceTitle, setRetiredCadenceTitle] = useState<string | undefined>(() => isWeeklyRecurrencePhrase(initialData?.datePhrase ?? '') ? initialData?.title : undefined)
+  const [retiredCadenceTitle, setRetiredCadenceTitle] = useState<string | undefined>(() => readHabitRecurrencePhrase(initialData?.datePhrase ?? '') ? initialData?.title : undefined)
   const [validationFocusRequest, setValidationFocusRequest] = useState(0)
   const form = useForm<HabitFormInput, unknown, HabitFormData>({
     resolver: zodResolver(habitFormSchema),
@@ -199,7 +199,8 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     if (restoreDraft && draft) for (const [field, value] of Object.entries(draft)) form.setValue(field as keyof HabitFormInput, value, { shouldDirty: true })
   }, [form, modeDrafts])
 
-  const setFlexible = useCallback(() => {
+  const setFlexible = useCallback((restoreDraft = true) => {
+    if (!restoreDraft) setRetiredCadenceTitle(form.getValues('title'))
     const draft = modeDrafts.switch(normalizeHabitFormData(form.getValues()), 'flexible')
     form.setValue('isGeneral', false)
     form.setValue('isFlexible', true)
@@ -211,7 +212,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     if (!quantity || quantity < 1) {
       form.setValue('frequencyQuantity', 3)
     }
-    if (draft) for (const [field, value] of Object.entries(draft)) form.setValue(field as keyof HabitFormInput, value, { shouldDirty: true })
+    if (restoreDraft && draft) for (const [field, value] of Object.entries(draft)) form.setValue(field as keyof HabitFormInput, value, { shouldDirty: true })
   }, [form, modeDrafts])
 
   const setGeneral = useCallback(() => {
@@ -235,7 +236,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     const date = form.getValues('dueDate') ?? ''
     if (type === 'task') setOneTime()
     else applyHabitFormMode(modeDrafts.habitMode, { setOneTime, setRecurring, setFlexible, setGeneral })
-    if (type === 'habit' && isWeeklyRecurrencePhrase(phrase)) {
+    if (type === 'habit' && readHabitRecurrencePhrase(phrase)) {
       form.setValue('datePhrase', phrase, { shouldDirty: true })
       form.setValue('dueDate', date, { shouldDirty: true })
     }

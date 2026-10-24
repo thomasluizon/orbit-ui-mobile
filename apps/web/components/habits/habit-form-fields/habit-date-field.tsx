@@ -1,5 +1,7 @@
 'use client'
 
+import type { HabitRecurrence } from '@orbit/shared/utils'
+
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react'
 import { HabitDateEditor, isPayGateError, extractBackendErrorCode, getAccountDay, getFriendlyErrorMessage, isHabitAstraLimitReached, resolveHabitFormMode } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
@@ -44,7 +46,7 @@ function DateConsultation({ editor, snapshot }: Readonly<{ editor: HabitDateEdit
   </>
 }
 
-function DatedHabitField({ formHelpers, onWeeklyRecurrence, generalLocked }: Readonly<{ formHelpers: HabitFormHelpers; onWeeklyRecurrence: () => void; generalLocked: boolean }>) {
+function DatedHabitField({ formHelpers, onRecurrence, generalLocked }: Readonly<{ formHelpers: HabitFormHelpers; onRecurrence: (schedule: HabitRecurrence) => void; generalLocked: boolean }>) {
   const t = useTranslations()
   const locale = useLocale()
   const { profile } = useProfile()
@@ -64,7 +66,7 @@ function DatedHabitField({ formHelpers, onWeeklyRecurrence, generalLocked }: Rea
       cadence: { unit: values.frequencyUnit ?? null, quantity: values.frequencyQuantity ?? null, days: [...new Set(values.days ?? [])].sort((left, right) => left.localeCompare(right)), intervalWeeks: values.intervalWeeks ?? 1 },
       date: values.dueDate ?? '', endDate: values.endDate ?? '', phrase: values.datePhrase ?? '' }
   }
-  const adapter = { context, owner: form, generalLocked, applyWeeklyRecurrence: onWeeklyRecurrence,
+  const adapter = { context, owner: form, generalLocked, applyRecurrence: onRecurrence,
     write: (field: 'dueDate' | 'datePhrase' | 'dateIssue', value: string) => {
       form.setValue(field, value, { shouldDirty: true })
       form.clearErrors('datePhrase')
@@ -103,6 +105,6 @@ function DatedHabitField({ formHelpers, onWeeklyRecurrence, generalLocked }: Rea
   </section>
 }
 
-export function HabitDateField({ formHelpers, onWeeklyRecurrence, generalLocked }: Readonly<{ formHelpers: HabitFormHelpers; onWeeklyRecurrence: () => void; generalLocked: boolean }>) {
-  return <DatedHabitField generalLocked={generalLocked} formHelpers={formHelpers} onWeeklyRecurrence={onWeeklyRecurrence} />
+export function HabitDateField({ formHelpers, onRecurrence, generalLocked }: Readonly<{ formHelpers: HabitFormHelpers; onRecurrence: (schedule: HabitRecurrence) => void; generalLocked: boolean }>) {
+  return <DatedHabitField generalLocked={generalLocked} formHelpers={formHelpers} onRecurrence={onRecurrence} />
 }

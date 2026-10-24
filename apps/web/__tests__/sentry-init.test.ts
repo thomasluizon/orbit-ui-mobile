@@ -4,6 +4,7 @@ import { beforeSendEvent } from '@/lib/sentry-scrub'
 
 vi.mock('@sentry/nextjs', () => ({
   init: vi.fn(),
+  startInactiveSpan: vi.fn(() => ({ setAttribute: vi.fn(), end: vi.fn() })),
   captureRouterTransitionStart: vi.fn(),
 }))
 
@@ -31,7 +32,7 @@ describe.each([
   ['browser', () => import('../instrumentation-client'), 'NEXT_PUBLIC_SENTRY_DSN'],
   ['server', () => import('../sentry.server.config'), 'SENTRY_DSN'],
   ['edge', () => import('../sentry.edge.config'), 'SENTRY_DSN'],
-] as const)('Sentry %s deployment environment', (_runtime, initialize, dsnKey) => {
+] as const)('Sentry %s deployment environment', (runtime, initialize, dsnKey) => {
   it.each(['staging', 'production', undefined, ''])(
     'reports the build environment %s with a production default',
     async (environment) => {
@@ -45,7 +46,7 @@ describe.each([
         dsn: 'https://public@example.com/1',
         enabled: true,
         environment: environment || 'production',
-        tracesSampleRate: 0,
+        ...(runtime === 'browser' ? { tracesSampler: expect.any(Function) } : { tracesSampleRate: 0 }),
         sendDefaultPii: false,
         beforeSend: beforeSendEvent,
       })

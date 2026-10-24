@@ -832,3 +832,7 @@ export { getHabitInlineDepthLimit } from './habit-row-layout'
 export type { MoveParentOption, MoveParentPickerProps, MoveParentRowProps, MoveTargetValidation } from './move-parent'
 
 export { optimisticMoveHabitParent } from './habit-parent-optimistic'
+
+export { TODAY_LAUNCH_SPAN_NAME, sampleTodayLaunch, startTodayLaunchTiming, isTodayLaunchCache } from './today-launch'
+
+export { readHabitRecurrencePhrase, type HabitRecurrence, type HabitRecurrencePhrase } from './habit-recurrence-phrase'

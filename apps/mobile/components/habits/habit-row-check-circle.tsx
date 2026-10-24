@@ -7,7 +7,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import { usePrefersReducedMotion } from '@/lib/motion'
-import type { createTokensV2 } from '@/lib/theme'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { HabitCheck } from './habit-check'
 
@@ -18,7 +17,6 @@ interface CheckCircleProps {
   disabled: boolean
   accessibilityLabel: string
   accessibilityHint?: string
-  tokens: ReturnType<typeof createTokensV2>
 }
 
 export function CheckCircle({
@@ -28,7 +26,6 @@ export function CheckCircle({
   disabled,
   accessibilityLabel,
   accessibilityHint,
-  tokens,
 }: Readonly<CheckCircleProps>) {
   const [hovered, setHovered] = useState(false)
   const prefersReducedMotion = usePrefersReducedMotion()
@@ -56,7 +53,8 @@ export function CheckCircle({
       onHoverOut={() => setHovered(false)}
       disabled={disabled}
       hitSlop={0}
-      focusOffset={-10}
+      focusInset={(48 - 28) / 2}
+      focusOffset={2}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={disabled ? accessibilityHint : undefined}
@@ -65,19 +63,20 @@ export function CheckCircle({
         return {
           width: 48,
           minHeight: 48,
-          borderRadius: 22,
+          borderRadius: 12,
           overflow: 'hidden',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: (pressed || hovered) && !disabled ? tokens.bgHover : 'transparent',
+          backgroundColor: 'transparent',
           opacity: disabled ? 0.4 : 1,
           transform: [{ scale: pressed && !disabled && !prefersReducedMotion ? 0.96 : 1 }],
         }
       }}
     >
-      <Animated.View style={popStyle} accessible={false}>
-        <HabitCheck status={state} unavailable={unavailable} label={unavailable ? undefined : accessibilityLabel} />
-      </Animated.View>
+      {({ pressed }) => <Animated.View style={popStyle} accessible={false}>
+        <HabitCheck status={state} unavailable={unavailable} label={unavailable ? undefined : accessibilityLabel}
+          feedback={(pressed || hovered) && !disabled} />
+      </Animated.View>}
     </Pressable>
   )
 }

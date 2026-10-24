@@ -67,7 +67,7 @@ function editorHarness(capacity = false) {
   let resolve!: (value: typeof response) => void
   let reject!: (reason: Error) => void
   const request = vi.fn(() => new Promise<typeof response>((done, fail) => { resolve = done; reject = fail }))
-  const editor = new HabitDateEditor({ owner: current, generalLocked: false, applyWeeklyRecurrence: () => {}, context: () => current,
+  const editor = new HabitDateEditor({ owner: current, generalLocked: false, applyRecurrence: () => {}, context: () => current,
     write: (field, value) => { writes[field] = value; if (field === 'dueDate') current.date = value; if (field === 'datePhrase') current.phrase = value },
     request, failure: () => 'provider failure', isCapacity: () => capacity })
   editor.sync()

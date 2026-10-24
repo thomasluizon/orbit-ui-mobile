@@ -93,11 +93,11 @@ describe('EditNameSheet', () => {
     expect(mockUpdateName).not.toHaveBeenCalled()
   })
 
-  it('shows the tooLong error and skips the action for a 51-character name', () => {
+  it.each(['a'.repeat(51), 'a'.repeat(49) + '😀'])('shows the tooLong error and skips the action for %s', (name) => {
     renderSheet()
 
     fireEvent.change(screen.getByDisplayValue('Alex'), {
-      target: { value: 'a'.repeat(51) },
+      target: { value: name },
     })
     fireEvent.click(screen.getByText('common.save'))
 
@@ -105,18 +105,18 @@ describe('EditNameSheet', () => {
     expect(mockUpdateName).not.toHaveBeenCalled()
   })
 
-  it('saves a valid name trimmed, patches optimistically, and closes', async () => {
+  it.each(['Ana Clara', 'a'.repeat(48) + '😀'])('saves a valid name trimmed, patches optimistically, and closes: %s', async (name) => {
     mockUpdateName.mockResolvedValue(undefined)
     const onOpenChange = renderSheet()
 
     fireEvent.change(screen.getByDisplayValue('Alex'), {
-      target: { value: '  Ana Clara  ' },
+      target: { value: `  ${name}  ` },
     })
     fireEvent.click(screen.getByText('common.save'))
 
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
-    expect(mockUpdateName).toHaveBeenCalledWith({ name: 'Ana Clara' }, 'account-a')
-    expect(mockPatchProfile).toHaveBeenCalledWith({ name: 'Ana Clara' })
+    expect(mockUpdateName).toHaveBeenCalledWith({ name }, 'account-a')
+    expect(mockPatchProfile).toHaveBeenCalledWith({ name })
     expect(mockInvalidate).toHaveBeenCalled()
   })
 

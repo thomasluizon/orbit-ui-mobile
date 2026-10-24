@@ -15,6 +15,7 @@
     "./types/*": "./src/types/*.ts",
     "./contracts/*": "./src/contracts/*/index.ts",
     "./utils": "./src/utils/index.ts",
+    "./utils/today-launch": "./src/utils/today-launch.ts",
     "./utils/move-parent": "./src/utils/move-parent.ts",
     "./stores": "./src/stores/index.ts",
     "./i18n": "./src/i18n/index.ts",
@@ -43,7 +44,7 @@
     "date-fns": "^4.4.0",
     "html-entities": "2.6.0",
     "marked": "18.0.9",
-    "zod": "^4.4.3"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@fast-check/vitest": "^0.4.1",

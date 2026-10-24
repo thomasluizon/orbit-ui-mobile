@@ -10,6 +10,7 @@
 apps/web/e2e
 apps/web/playwright.config.ts
 apps/mobile
+apps/desktop
 architecture.json
 architecture.html
 architecture.mmd

@@ -135,7 +135,7 @@ function renderRowInPanel(row: ReactNode): HTMLElement {
   return document.querySelector('.habit-panel')!
 }
 
-function matchingRowBackgrounds(element: Element, selectorMarker = 'data-habit-row'): string[] {
+function matchingRowBackgrounds(element: Element, selectorMarker = 'data-habit-row', property = 'background'): string[] {
   const backgrounds: string[] = []
 
   function visitRules(rules: CSSRuleList): void {
@@ -146,7 +146,7 @@ function matchingRowBackgrounds(element: Element, selectorMarker = 'data-habit-r
           styleRule.selectorText.includes(selectorMarker) &&
           element.matches(styleRule.selectorText)
         ) {
-          const background = styleRule.style.getPropertyValue('background')
+          const background = styleRule.style.getPropertyValue(property)
           if (background) backgrounds.push(background)
         }
       } else if ('cssRules' in rule) {
@@ -451,7 +451,8 @@ describe('HabitRow check circle accessible name', () => {
     fireEvent.mouseOver(ring)
 
     expect(ring).toHaveAttribute('data-habit-row-control', 'check')
-    expect(matchingRowBackgrounds(ring)).toEqual(['var(--bg-hover)'])
+    expect(matchingRowBackgrounds(ring)).toEqual([])
+    expect(matchingRowBackgrounds(ring, 'data-habit-row', '--habit-check-feedback')).toEqual(['var(--bg-hover)'])
     expect(matchingRowBackgrounds(panel)).toEqual([])
   })
 

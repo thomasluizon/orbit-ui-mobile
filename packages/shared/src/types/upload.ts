@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { utf16Length } from '../validation/utf16-length'
 
 export const UPLOAD_ALLOWED_CONTENT_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
 
@@ -12,7 +13,7 @@ export const SignUploadRequestSchema = z.object({
 export type SignUploadRequest = z.infer<typeof SignUploadRequestSchema>
 
 export const SignUploadResponseSchema = z.object({
-  key: z.string().min(1),
+  key: z.string().check(utf16Length('min', 1)),
   signedUrl: z.url(),
   publicUrl: z.url(),
 })

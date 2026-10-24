@@ -10,7 +10,7 @@
 | Date | `habit-form-fields/habit-date-field.tsx` | When input, type-specific question and editable date before More details; General hides only the date group |
 | Schedule | `habit-form-fields/habit-schedule-fields.tsx` | Fixed, count-based and No schedule choices with a reachable return and tree locks |
 | Date interpretation | Shared `date-phrase-parser.ts`, `date-interpretation-session.ts`, `habit-date-editor.ts`; app `use-date-interpretation.ts` | Local calendar arithmetic, explicit metered request, separate candidate, acceptance, stale rejection, direct transport and terminal allowance refresh |
-| Weekly intent | Shared `habit-phrase-parser.ts`, `habit-date-editor.ts`, `habit-form-helpers.ts`; paired date/type fields and form hooks | Recurrence-only wording routes to fixed Week 1 for a deliberately selected dated Habit; Task retains its date and one inline recovery toward the existing Habit choice |
+| Recurrence intent | Shared `habit-recurrence-phrase.ts`, `habit-phrase-parser.ts`, `habit-date-editor.ts`, `habit-form-helpers.ts`; paired date/type fields and form hooks | Bilingual daily, weekly count and weekday wording writes the existing schedule for a deliberately selected dated Habit; Task retains its date and one inline recovery toward the existing Habit choice |
 | Type readback | `habit-row-content.tsx`, `habit-detail-screen.tsx` | Whole quiet vocabulary beneath the full-width title; original controls and counts retained |
 
 All component paths above are relative to each app's `components/habits/` unless another owner is
@@ -27,15 +27,18 @@ ambiguous dates do not offer it. Consultation ownership includes the semantic ca
 quantity, sorted distinct weekdays and interval, in addition to mode and type. A changed cadence
 retires both delayed responses and visible candidates without another consultation.
 
-The five weekly equivalents are `toda semana`, `todas as semanas`, `semanalmente`, `every week`
-and `weekly`, with safe case, spacing and edge punctuation normalization. They preserve the chosen
-date and input source, retire date consultations and never offer a paid date action. Only typing
-or deliberately choosing Habit can apply that cadence. Sync, validation, remount and account
+English and Portuguese repetition phrases share the title parser's daily, weekly count and weekday
+vocabulary through a complete-phrase reader, independent of the interface language. Weekdays and
+dias úteis select Monday through Friday. Weekly equivalents retain fixed Week 1. Counts select the
+count-based schedule and retain the stated quantity. Safe case, accents, spacing and edge punctuation
+normalization do not consume unknown trailing words. A local explicit start suffix updates the
+calendar anchor; recurrence alone preserves the chosen date. Unresolved starts retain date recovery.
+Only typing or deliberately choosing Habit can apply cadence. Sync, validation, remount and account
 replacement cannot apply it. Manual scheduling releases title cadence ownership; returning between
-mode drafts keeps later corrections. No weekly variant enters the title or onboarding parser.
+mode drafts keeps later corrections. Title and onboarding parser behavior stays unchanged.
 Task mismatch uses the input's single error region and focuses the real named type group on
 blocked Submit; the valid Task selection is retained. Choosing a date or clearing the wording
-clears the mismatch. A deliberate Habit choice resolves retained Task weekly wording before an older
+clears the mismatch. A deliberate Habit choice resolves retained Task recurrence wording before an older
 General draft can win, using the current Task date as its start date. An inherited General lock
 keeps the child General, shows the existing parent mismatch guidance and blocks Submit. Manual
 General decisions otherwise retain their draft without replaying recognition.
