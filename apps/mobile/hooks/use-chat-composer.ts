@@ -754,7 +754,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
 
       const attempted: AttemptedSend = {
         content: messageContent,
-        draftContent: typedContent,
+        draftContent: sendsComposerDraft ? input : typedContent,
         image: sendsComposerDraft ? selectedImage : null,
         preview: sendsComposerDraft ? imagePreview : null,
         restoreDraftOnFailure: content === undefined,

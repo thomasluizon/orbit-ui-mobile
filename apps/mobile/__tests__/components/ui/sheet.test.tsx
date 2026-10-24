@@ -278,8 +278,10 @@ describe('Sheet (mobile)', () => {
         const items = body.findAllByType('Pressable').filter(
           (node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'menuitem',
         )
-        expect(items.map((item: { findAllByType: (type: string) => { props: { children?: string } }[] }) =>
-          item.findAllByType('Text')[0]!.props.children)).toEqual(labels)
+        expect(items.map((item: { props: { accessibilityLabel?: string }; findAllByType: (type: string) => { props: { children?: string } }[] }) =>
+          item.props.accessibilityLabel ?? item.findAllByType('Text')[0]!.props.children)).toEqual(labels)
+        expect(items[3].props.accessibilityLabel).toBe('habits.actions.rescheduleAstra')
+        expect(items[3].findAllByType('Text')).toHaveLength(0)
         expect(items.every((item: { props: { disabled?: boolean } }) => !item.props.disabled)).toBe(true)
         await TestRenderer.act(() => items[index].props.onPress())
         expect(Object.values(actions)[index]).not.toHaveBeenCalled()

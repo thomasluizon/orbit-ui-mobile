@@ -8,7 +8,7 @@ vi.unmock('react-i18next')
 
 const TestRenderer = require('react-test-renderer')
 
-type TestNode = { props: Record<string, unknown>; findByType(type: string): TestNode }
+type TestNode = { props: Record<string, unknown>; findByType(type: string): TestNode; findAllByType(type: string): TestNode[] }
 
 vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (value: string) => value }),
@@ -42,9 +42,10 @@ describe('mobile habit row on an old day', () => {
     const more = tree!.root.findByProps({ accessibilityLabel: i18n.t('habits.actions.more') })
     TestRenderer.act(() => more.props.onPress())
     const items = tree!.root.findAllByProps({ accessibilityRole: 'menuitem' })
-    const item = items.find((candidate: TestNode) => candidate.findByType('Text').props.children === label)
+    const item = items.find((candidate: TestNode) => candidate.props.accessibilityLabel === label)
     expect(i18n.t('habits.actions.rescheduleAstra')).toBe(label)
     expect(item).toBeDefined()
+    expect(item!.findAllByType('Text')).toHaveLength(0)
     TestRenderer.act(() => item!.props.onPress())
     expect(onReschedule).toHaveBeenCalledOnce()
   })

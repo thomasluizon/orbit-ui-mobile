@@ -1649,7 +1649,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     formLocale.language = locale
     await mount('habit')
     fireEvent.change(phraseInput(), { target: { value: 'every Monday from after vacation' } })
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
     fireEvent.click(await screen.findByRole('button', { name: 'habits.form.acceptDate' }))
     expect(phraseInput()).toHaveValue('')
     await submit()
@@ -1721,7 +1721,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     await mount('habit')
     fireEvent.change(phraseInput(), { target: { value: wording } })
     if (owner === 'create') fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
-    expect(screen.queryByRole('button', { name: 'habits.form.askDate' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.suggestDate' })).toBeNull()
     expect(screen.getByRole('radio', { name: expected.isFlexible ? 'habits.form.timesPerUnit' : 'habits.form.every' })).toBeChecked()
     expect(screen.getByRole('radio', { name: expected.frequencyUnit === 'Week' ? 'habits.form.unitWeek' : 'habits.form.unitDay' })).toBeChecked()
     expect(screen.getByRole('spinbutton', { name: 'habits.form.frequency' })).toHaveValue(expected.frequencyQuantity)

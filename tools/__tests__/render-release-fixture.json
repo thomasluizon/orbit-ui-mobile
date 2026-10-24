@@ -5,7 +5,8 @@
     "health": "apps/web/app/api/health/route.ts",
     "variable": "gh api repos/thomasluizon/orbit-api/actions/variables/RENDER_PRODUCTION_SERVICE_ID",
     "serviceList": "GET https://api.render.com/v1/services?limit=100 with Authorization: Bearer <RENDER_MCP_TOKEN>",
-    "stagingLandingDeploy": "GET https://api.render.com/v1/services/{staging-landing-service-id}/deploys?status=live&limit=1"
+    "stagingLandingDeploy": "GET https://api.render.com/v1/services/{staging-landing-service-id}/deploys?status=live&limit=1",
+    "shutdownService": "GET https://api.render.com/v1/services/{production-api-service-id} with Authorization: Bearer <RENDER_MCP_TOKEN>; service ID from GET /v1/services?limit=100 filtered by name orbit-api"
   },
   "variable": {
     "created_at": "<ISO-8601 timestamp>",
@@ -346,5 +347,66 @@
       }
     }
   ],
-  "stagingLandingCommit": "e778ecac8a916d5960b4fa3469117539ce73f2d7"
+  "stagingLandingCommit": "e778ecac8a916d5960b4fa3469117539ce73f2d7",
+  "shutdownService": {
+    "autoDeploy": "<string>",
+    "autoDeployTrigger": "<string>",
+    "branch": "<string>",
+    "createdAt": "<ISO-8601 timestamp>",
+    "dashboardUrl": "<string>",
+    "environmentId": "<string>",
+    "id": "<string>",
+    "name": "<string>",
+    "notifyOnFail": "<string>",
+    "ownerId": "<string>",
+    "repo": "<string>",
+    "rootDir": "<string>",
+    "serviceDetails": {
+      "buildPlan": "<string>",
+      "cache": {
+        "profile": "<string>"
+      },
+      "env": "<string>",
+      "envSpecificDetails": {
+        "dockerCommand": "<string>",
+        "dockerContext": "<string>",
+        "dockerfilePath": "<string>",
+        "preDeployCommand": "<string>"
+      },
+      "healthCheckPath": "<string>",
+      "ipAllowList": [
+        {
+          "cidrBlock": "<string>",
+          "description": "<string>"
+        }
+      ],
+      "maintenanceMode": {
+        "enabled": false,
+        "uri": "<string>"
+      },
+      "maxShutdownDelaySeconds": 300,
+      "numInstances": 1,
+      "openPorts": [
+        {
+          "port": 8080,
+          "protocol": "<string>"
+        }
+      ],
+      "plan": "<string>",
+      "previews": {
+        "generation": "<string>"
+      },
+      "pullRequestPreviewsEnabled": "<string>",
+      "region": "<string>",
+      "renderSubdomainPolicy": "<string>",
+      "runtime": "<string>",
+      "sshAddress": "<string>",
+      "url": "<string>"
+    },
+    "slug": "<string>",
+    "suspended": "<string>",
+    "suspenders": [],
+    "type": "<string>",
+    "updatedAt": "<ISO-8601 timestamp>"
+  }
 }

@@ -262,9 +262,9 @@
     ".claude/skills/release/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "e3d98208df248668",
-      "calibratedAt": "2026-10-23",
-      "verdict": "current: sequences production and staging releases across services, carries each reviewed plan's full planned SHA through dispatch and verification, requires staging to serve that commit healthy before production, and stops on ambiguous runs; high effort is right for decisions that control outward dispatch."
+      "digest": "260e29af90101f6b",
+      "calibratedAt": "2026-10-24",
+      "verdict": "current: sequences production and staging releases across services, checks live deployment evidence, and stops on ambiguous runs; high effort is right for decisions that control outward dispatch."
     },
     ".claude/skills/second-opinion/SKILL.md": {
       "model": null,

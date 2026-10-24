@@ -1930,7 +1930,7 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     formLocale.language = locale
     await mount('habit')
     await TestRenderer.act(() => phraseInput().props.onChangeText('every Monday from after vacation'))
-    await TestRenderer.act(() => action('habits.form.askDate').props.onPress())
+    await TestRenderer.act(() => action('habits.form.suggestDate').props.onPress())
     await TestRenderer.act(() => action('habits.form.acceptDate').props.onPress())
     expect(phraseInput().props.value).toBe('')
     await submit()
