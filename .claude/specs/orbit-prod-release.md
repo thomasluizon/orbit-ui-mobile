@@ -178,9 +178,6 @@ These are the gates every later batch runs through. Re-read each ticket against 
 
 - `#556` The standing `orbit-ui-mobile` `main` into `redesign/main` sync (cherry-pick with `-x` only the `main` commits added since the last carry).
 - `#746` The standing `orbit-api` `main` into `redesign/main` sync (same rule).
-- `#1691` Stop the GitHub-tree signal cases in the tools harness from failing unrelated UI pull requests. Merged as `ui#2032` (`eefbf270`). Close after one more UI run passes `Tool and Hook Tests` on a base carrying it.
-- `#1692` Make the tools-harness startup-deadline descendant cleanup assertion deterministic. Delivered as `ui#2034` (`63db3d61`: the cleanup wait now observes the fixture's unreported tree pids, and macOS counts a zombie as terminated; red 2 cases before, 20 loaded runs green after). CI, Pullfrog, merge, close.
-- `#1693` Keep every web unit shard inside its 15 minute step limit. Delivered as `ui#2033`; its own 260 s per-file gate then rejected `habit-row-standard-geometry.test.tsx` at 322 s in CI, so review round 1 (`dbb2f2ab`, pushed) split it into five files (161 cases before and after: 40, 61, 36, 12, 12; budget unchanged). The one layout red in that run (`label-fit-sheet-title.spec.ts`, pt-BR 320 scale 2, dialog not found) is in a file the PR does not touch; if it recurs on another PR, file it as a flaky layout case. Next: CI, a fresh approval, merge, close.
 
 ### Batch 0c: live defects in the shipped product, on `main`
 
@@ -201,8 +198,10 @@ The Astra block-first overhaul leads this batch (owner order): every Astra answe
 - `#1619` Show focused, query-faithful read blocks on web and Android (blocked by `#1616`; delivered as `ui#1958`; level-only and achievement-only reads wait on `#1631`).
 - `#1662` Give proactive Astra items typed answer parts so they lead with a data block (`orbit-api#880`, live on staging and production API). Close when a client receives `parts` on staging after `ui#2021` deploys; the staging account had no current proactive item at the last read (204 with and without the context).
 - `#1620` Make every completed Astra answer lean on web and Android. The lean answers are live (`ui#1993`). The proactive half is `ui#2021` (approved at `cf91409a`, 0 threads, all checks green); it shares `DESIGN.md` with merged `ui#2029` and `packages/shared/src/types/chat.ts` with main, so run the combined check or base-merge, then merge and releases. Rollout of block-first answers waits on `#26`'s composition gate.
-- `#1695` Let Astra and MCP read back every field they can write. Merged as `orbit-api#904` (`3d4a7e7b`). Live on staging API `918141de`. Next: production API (read the `/api/chat` log first), close.
 - `#1610` Complete issued email-link sign-in through the guarded login path and support native email-code autofill plus verified login App Links. `ui#2030` merged (`f59355eb`); Android Open 1.3.96 (155) carries it. Next: the App Link and autofill check on the throwaway AVD with a staging build, then close. The same AVD run checks airplane mode shows the offline state (post on the closed `#32`; a missing offline state becomes a new ticket) and the `#1595` streak moment on Android.
+
+- `#1696` Let the Claude connector confirm destructive MCP actions, and return a typed refusal to manual API keys (found from `ORBIT-API-1H`). Merged as `orbit-api#907` (`eae3c20e`), live on staging API; staging acceptance criterion 1 passed (connector delete, confirm, retry, readback gone). Production is HELD: the owner's production connector still authenticates with a legacy `Claude.ai` key with a null `OAuthFamilyId`, which `#907` treats as a manual key. Next: after the owner removes and re-adds the connector with "Entrar agora" (a family key appears in production `ApiKeys`), or after a follow-up that treats legacy `Claude.ai` OAuth keys correctly, release production API, check criterion 2 (step-up), resolve `ORBIT-API-1H`, close.
+- `#1697` Answer an unauthenticated MCP initialize with the OAuth challenge so Claude detects sign-in (owner report: the connector dialog preselects "Sem login"; `IsMcpUnauthenticatedMethod` in `WebApplicationExtensions.cs:514-525` lets `initialize` through with 200, and the path-suffixed protected resource metadata is 404). Next: launch at default, staging, the dialog check, production API.
 
 Defects a person hits in the shipped build today. They target `main`; an Android fix is followed by `/android-release` to the open track.
 
@@ -271,7 +270,6 @@ A deletion ships as a deprecation, then a code removal, then a table drop, each 
 - `#685` Contract the API after the MinSupportedVersion raise: delete the colour-scheme write path and the ad reward profile field and user columns (folds `#765`), and remove the `redesign` flag seed row and the `features.redesign` config key (from `#1626`, closed: the flag is off with no accounts in both environments).
 - `#753` Drop the legacy AdMob privacy disclosure once 1.3.35 is the minimum supported version.
 - `#732` Remove the legacy bulk replay lookup (waits: 30 days after the replay fix reached production).
-- `#1694` Keep a retried transaction from revoking an MCP connection when a commit acknowledgement is lost (found from `ORBIT-API-1G`). Merged as `orbit-api#906` (`918141de`, additive `TransactionCommits` table); live on staging API. Next: production API, then resolve `ORBIT-API-1G` and close.
 - `#1113` Take the upstream fixes when they ship: node-forge, braces, sprintf-js and the image-size advisories (folds `#1182`, `#1331`, `#311`).
 
 ### Batch 7: the production readiness run
@@ -511,7 +509,7 @@ Current operational rules above take precedence when a record conflicts.
 - A Linux replay of a Chromium test runs in Docker on the `mcr.microsoft.com/playwright` image with its bundled Chromium (Google Chrome stable does not install on Linux arm64); it reproduced a Linux-only raster red exactly.
 ## Current state
 
-Latest handoff: a relay with the chain open; no owner message arrived. Merged: `ui#2030` (`#1610`, `f59355eb`), `ui#2025` (`#1687`, `d36522a7`), `orbit-api#904` (`#1695`, `3d4a7e7b`), `orbit-api#906` (`#1694`, `918141de`). Released: staging and production web `d36522a7` (after `721ad446`). Android Open 1.3.96 (155) from `d36522a7` is submitted to Play (run 40131451169; availability unverified). In flight at this handoff: the `ui#2023`/`ui#2021`/`ui#1984` combined check (`check-trio` in the durable scratchpad; `wait-done.sh` on it), Pushed review rounds: `orbit-api#905` main carry (`d1007d67`), `ui#2033` (`dbb2f2ab`), `ui#2031` (`f50d0bd7`). Delivered: `ui#2034` (`#1692`). Closed: `#1638`, `#1686`. Root acceptance done: `#1690` limit message and `#1595` web (both posted). After staging API is green, release production API (read `/api/chat` first). Reconciliation: open 49, placed 49, unplaced 0, placed twice 0. API `main` is `918141de`, UI `main` is `d36522a7`, landing `main` is `0d5e3df4`. The en demo account (America/New_York) resets its daily AI ceiling at New York midnight. The session chain ledger lives untracked at .git/orbit-session-chain.json.
+Latest handoff: a relay with the chain open. Merged this session: `ui#2034` (`#1692`), `ui#2035` (contract snapshot), `ui#2031` (`#1560` step 3), `ui#2033` (`#1693`), `ui#2023` (`#1683`), `ui#2021` (`#1620`), `ui#2037` (`#1560` step 5, desktop updates), `orbit-api#905` (`#227` step 3), `orbit-api#907` (`#1696`). Released: production API `918141de` then `bf6e59e2`; staging API `eae3c20e`; staging web `6b1fcfa3` (production web is still `d36522a7`, so `#1683` and `#1620` need a production web release before closing). Closed: `#1691`, `#1692`, `#1693`, `#1694`, `#1695`; Sentry `ORBIT-API-1G` resolved. Filed: `#1696`, `#1697`. Android Open 1.3.96 (155) was still "Em análise" in Play at the last read. API `main` is `eae3c20e`, UI `main` is `728b83ac`, landing `main` is `0d5e3df4`. Reconciliation: open 46, placed 46, unplaced 0, placed twice 0. The session chain ledger lives untracked at .git/orbit-session-chain.json.
 
 `#1624`'s asset consolidation is root work: the worker launcher refuses `thomas-brain` because it is not a configured repository. The canonical banner set is the newer headline set in its untracked `orbit/brand/` (self-contained `banner-sources/` HTML with relative fonts, LinkedIn 1512x256 built to LinkedIn's company image spec); the older launch layouts there in `previous-banners/` are byte-identical to the carried scratch `brand-launch/` outputs, which still supply the OG image (already live on the landing page) and the profile marks. The prepared order in the durable scratchpad (`order-1624-assets.md`) lists the destinations, deletions, reference updates and the five bilingual `@useorbitapp` drafts.
 
@@ -581,9 +579,8 @@ Full local/ignored inventories, failed and successful receipts, source reports, 
 
 ## Open questions
 
-- Open, owner: in Google Cloud Console, Google Auth Platform > Branding (project `orbit-490614`), click "Verificar marca" so Google reviews the new app logo (already uploaded and saved; the old verified brand keeps showing until approval). On the same page, optionally point the Terms link at `https://app.useorbit.org/terms` and remove the two `supabase.co` authorized domains; the run's attempt at those edits and at the submit was refused by the permission classifier. Blocks the `#1624` sign-in logo.
+- Decided by the owner: "Verificar marca" in Google Auth Platform > Branding (project `orbit-490614`) and the Instagram `@useorbitapp` picture check are run work through `claude-in-chrome`, not owner items (`#1624`). If the permission classifier refuses a step, record its refusal text on `#1624`.
 
-- Open, owner: confirm the Instagram `@useorbitapp` profile picture is the current mark (`thomas-brain` `orbit/brand/exports/profile-mark-1024.png`); the permission classifier refused the run's Instagram step after the Facebook cover save. Blocks closing `#1624`.
 
 - Decided by the owner: no Render MCP API key rotation, ever; a key seen in a redacted log is never raised with him.
 
@@ -597,7 +594,7 @@ Full local/ignored inventories, failed and successful receipts, source reports, 
 
 - Answered: the staging Orbit MCP connector is connected and answers real tool calls as the owner's account, and it refreshes its token on API `4050b5c6`. `#1612` staging acceptance and `#1626` staging listing can use it; `#1660` closes after one fresh production consent.
 
-- Open, owner: reconnect the Orbit connector in Claude once (Google and the email code) so production records a fresh OAuth consent; the run never enters his sign-in code. Blocks closing `#1660`.
+- Open, owner: in Claude, remove the production Orbit connector (`https://api.useorbit.org/mcp`), add it again, switch Authentication to "Entrar agora" before saving (the dialog wrongly detects "Sem login" until `#1697` ships), and sign in with Google and the email code. A reconnect alone reuses the legacy pre-family connector key. Blocks closing `#1660` and the production release of `#1696`.
 
 - Open, owner: Google asks for the `contact@useorbit.org` password before the Admin console opens (`admin.google.com/u/1/` shows "Digite sua senha"); the run cannot type a password. After he enters it, the run does Diretório > Configurações do diretório > Edição do perfil, ticks Imagem do perfil and Descoberta de perfil, then Salvar. Blocks `#1641`'s photo half.
 
