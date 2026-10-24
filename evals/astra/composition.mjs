@@ -121,7 +121,7 @@ export function composition(output, context) {
     return result(false, 'Correction changed fields outside the requested time or lacks its baseline preview.')
   }
   const outcome = (response.actions?.length ?? 0) > 0 || (response.policyDenials?.length ?? 0) > 0
-    || (response.operations ?? []).some((operation) => operation.status !== 'PendingConfirmation' && operation.readBlock == null)
+    || (response.operations ?? []).some((operation) => ['Failed', 'Denied', 'UnsupportedByPolicy'].includes(operation.status))
   if (expected.mode === 'fallback') {
     if (blocks.length || !text(response.aiMessage)) return result(false, 'Missing readable capability fallback or unsupported block.')
   } else if (expected.mode === 'text') {

@@ -133,5 +133,7 @@ it('accepts a typed operation-only outcome and rejects an unknown composition po
     riskClass: 'Low', confirmationRequirement: 'FreshConfirmation', status: 'Denied', summary: null,
     targetId: null, targetName: null, policyReason: 'unsupported_by_policy', pendingOperationId: null, payload: null }] })
   expect((await gate(produced, { composition: { mode: 'outcome' } })).pass).toBe(true)
+  produced.operations[0].status = 'Succeeded'
+  expect((await gate(produced, { composition: { mode: 'outcome' } })).pass).toBe(false)
   expect((await gate(response([block]), { composition: { mode: 'unknown' } })).pass).toBe(false)
 })
