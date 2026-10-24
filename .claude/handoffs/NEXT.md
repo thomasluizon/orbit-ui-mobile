@@ -22,7 +22,7 @@ UI `main` is `028d0ee0`, API `main` is `63ab0e32`, landing `main` is `0d5e3df4`.
 
 | Item | Disposition |
 | --- | --- |
-| `ui#2017` (`#1681`, head `ab8b8897`) | Round 1 (`default`, commit-only) for P2 thread `PRRT_kwDOR5Siws6v4vKg` was running at relay in `ticket-1681-stale-parity-mapping`; read its launcher outcome (`b2srdy8nz`) and worker log (`#1681-*.log`), read the diff, merge the report into the body (`body-merge.sh ui 2017 <log>`), write `reply-PRRT_kwDOR5Siws6v4vKg.md`, resolve and push once (`answer-push.sh`). Merge on green with a fresh approval. |
+| `ui#2017` (`#1681`, head `fc656d1e`) | Round 1 is pushed with thread `PRRT_kwDOR5Siws6v4vKg` resolved and the report in the body: in `--ci` the candidate must keep the base's `provenance.legacyProduction` and every retained snapshot (349 parity assertions, 4,733 tool assertions, hooks exit 0). Wait on CI and a fresh Pullfrog review (`wait-ci.mjs --repo ui --pr 2017`); merge on green at the exact approved head. |
 | After `ui#2017` merges | `ui#2016`: publish `pr-2016-body-new.md`, then `answer-push.sh ui 2016 <worktree ticket-24-chat-surface-finish> PRRT_kwDOR5Siws6v4XfK` (local `7de439a5`). `ui#1984` (`de5299fb`, Pullfrog APPROVED, Lighthouse and layout green) and `ui#2015` (`83e6558b`, APPROVED): close and reopen at the same head for a fresh run; merge each on green. A second SonarCloud out-of-memory on `ui#1984` makes `sonar.javascript.node.maxspace` the next harness fix on `main`. `#579` follows `ui#1984`'s merge; staging and production web releases follow the merges. |
 | `#1561` step 1 (`deep`) | Relaunched at relay in `ticket-1561-ios-foundation` (launcher `bc144dksa`); read the outcome, the diff and its pull request, then drive it to merge. |
 | `#1612` | The prepared runner refuses (`AUTH_RECEIPT_BYTES_MISMATCH`; binding preflight refuses with its error withheld). Do the direct check instead (decision D20 in the carried log): send "add an icon to every habit without one" (en, then pt-BR) through staging `/api/chat` with the `sweep-1151/state.json` session, approve the preview through `POST /api/ai/pending-operations/{id}/confirm` then `/execute` (read the request shapes from `orbit-api` `src/Orbit.Api/Controllers/AiController.cs:173` and `:287`), and read every icon back through the staging Orbit MCP. Close only on a passing readback. Then `astra-compound.mts cleanup`. |
@@ -34,7 +34,7 @@ UI `main` is `028d0ee0`, API `main` is `63ab0e32`, landing `main` is `0d5e3df4`.
 ## Then, in this order
 
 1. Answer any owner message first, in his language, and give each order a ticket or a rescope before the turn ends.
-2. `ui#2017` round 1 push and merge; then `ui#2016` push, `ui#1984` and `ui#2015` reruns and merges; web releases.
+2. `ui#2017` CI and merge; then `ui#2016` push, `ui#1984` and `ui#2015` reruns and merges; web releases.
 3. `#1612` direct check, then fixture cleanup; then `#1675` (stream idempotency, now unblocked by `#1671`).
 4. `#1561` step 1 pull request to merge.
 5. The full real-call Astra staging sweep with `#26`'s composition gate (`/astra-eval`), staging AI budget permitting (32 of 50 used today before `#1612`).
@@ -55,7 +55,7 @@ Unattended run. Never ask the owner; decide with the recommended option and log 
 - Root Android acceptance lane: done for `#1668`, `#1673`, `#1604`, `#1606`, `#1609`, `#1635` (fresh install), `#1658` (spans); AVD deletion carried.
 - Android Open `1.3.94` availability and `#1669`: done (available; `#1669`, `#1672`, `#1677`, `#1603` closed).
 - `#1612` root acceptance: done differently (the prepared runner refuses); the direct check is carried. The full real-call Astra sweep: carried.
-- New this relay: `#1681` filed and placed in Batch 0b, delivered as `ui#2017`.
+- New this relay: `#1681` filed and placed in Batch 0b, delivered as `ui#2017` (round 1 pushed at `fc656d1e`).
 - Remaining rows and the rest of `## The order`: carried.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
