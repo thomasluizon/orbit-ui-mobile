@@ -358,9 +358,9 @@ jobs:
               }
 
               const sourceFile = line.slice(3).replace(/\\/g, '/')
-              const normalized = sourceFile.startsWith(report.prefix)
+              const normalized = path.posix.normalize(sourceFile.startsWith(report.prefix)
                 ? sourceFile
-                : `${report.prefix}/${sourceFile}`
+                : `${report.prefix}/${sourceFile}`)
 
               merged.push(`SF:${normalized}`)
             }

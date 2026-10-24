@@ -55,6 +55,7 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
+      allowExternal: true,
       reporter: ['text', 'lcov'],
       reportsDirectory: './coverage',
       include: [
@@ -63,6 +64,7 @@ export default defineConfig({
         'hooks/**/*.{ts,tsx}',
         'stores/**/*.ts',
         'lib/**/*.{ts,tsx}',
+        path.resolve(__dirname, '../desktop/src-tauri/src/*.js').replaceAll('\\', '/'),
       ],
       exclude: [
         '**/*.d.ts',
