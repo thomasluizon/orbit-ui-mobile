@@ -5,8 +5,9 @@ import { GET } from '@/app/api/auth/google/start/route'
 import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
 import AuthCallbackPage from '@/app/(auth)/auth-callback/page'
 
-const mocks = vi.hoisted(() => ({ cookies: vi.fn() }))
+const mocks = vi.hoisted(() => ({ cookies: vi.fn(), redirect: vi.fn((url: string) => { throw new Error(`redirect:${url}`) }) }))
 vi.mock('next/headers', () => ({ cookies: mocks.cookies }))
+vi.mock('next/navigation', () => ({ redirect: mocks.redirect }))
 vi.mock('@/app/(auth)/auth-callback/auth-callback-content', () => ({
   AuthCallbackContent: ({ pendingWebState }: { pendingWebState: string | null }) =>
     <div>{pendingWebState ?? 'no web attempt'}</div>,
@@ -14,6 +15,19 @@ vi.mock('@/app/(auth)/auth-callback/auth-callback-content', () => ({
 
 describe('Google callback web ownership', () => {
   afterEach(() => vi.unstubAllEnvs())
+  it('routes a desktop Google callback to the server without rendering credentials', async () => {
+    vi.stubEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID', 'test-client')
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://app.useorbit.org')
+    const started = GET(new NextRequest(`https://app.useorbit.org/api/auth/google/start?purpose=signin&desktopState=${'a'.repeat(64)}&codeChallenge=${'b'.repeat(43)}`))
+    const pending = started.cookies.get(GOOGLE_OAUTH_COOKIE)!
+    const callbackRequest = new NextRequest('https://app.useorbit.org/auth-callback', {
+      headers: { cookie: `${GOOGLE_OAUTH_COOKIE}=${encodeURIComponent(pending.value)}` },
+    })
+    mocks.cookies.mockResolvedValue(callbackRequest.cookies)
+    const state = new URL(started.headers.get('location')!).searchParams.get('state')!
+    await expect(AuthCallbackPage({ searchParams: Promise.resolve({ code: 'google-code', state }) }))
+      .rejects.toThrow(`redirect:/api/auth/desktop/callback?code=google-code&state=${state}`)
+  })
   it('passes only the state of the attempt created by the web start route', async () => {
     vi.stubEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID', 'test-client')
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://app.useorbit.org')
