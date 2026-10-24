@@ -72,17 +72,19 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
         style={({ pressed }) => [styles.iconButton, pressed && { backgroundColor: tokens.bgHover }]}>
         <ChevronLeft size={20} strokeWidth={1.8} color={tokens.fg2} />
       </Pressable>
-      <InsetFocusPressable accessibilityRole="button"
-        accessibilityLabel={`${props.dayName}, ${props.numericDate}${props.isTodaySelected ? '' : `, ${props.goToTodayLabel}`}`}
-        accessibilityState={{ disabled: props.isTodaySelected }}
-        onHoverIn={() => setDateHovered(true)} onHoverOut={() => setDateHovered(false)}
-        onPress={() => { if (!props.isTodaySelected) props.onGoToToday() }}
-        style={({ pressed }) => [styles.dateText, (pressed || dateHovered) && !props.isTodaySelected && { backgroundColor: tokens.bgHover }]}>
-        {({ pressed }) => <>
-          <Text style={[styles.dayName, { color: tokens.fg1 }]}>{dayName}</Text>
-          <Text style={[styles.numericDate, { color: (pressed || dateHovered) && !props.isTodaySelected ? tokens.fg2 : tokens.fg3 }]}>{props.numericDate}</Text>
-        </>}
-      </InsetFocusPressable>
+      <View style={styles.dateSlot}>
+        <InsetFocusPressable accessibilityRole="button"
+          accessibilityLabel={`${props.dayName}, ${props.numericDate}${props.isTodaySelected ? '' : `, ${props.goToTodayLabel}`}`}
+          accessibilityState={{ disabled: props.isTodaySelected }}
+          onHoverIn={() => setDateHovered(true)} onHoverOut={() => setDateHovered(false)}
+          onPress={() => { if (!props.isTodaySelected) props.onGoToToday() }}
+          style={({ pressed }) => [styles.dateText, (pressed || dateHovered) && !props.isTodaySelected && { backgroundColor: tokens.bgHover }]}>
+          {({ pressed }) => <>
+            <Text style={[styles.dayName, { color: tokens.fg1 }]}>{dayName}</Text>
+            <Text style={[styles.numericDate, { color: (pressed || dateHovered) && !props.isTodaySelected ? tokens.fg2 : tokens.fg3 }]}>{props.numericDate}</Text>
+          </>}
+        </InsetFocusPressable>
+      </View>
       <Pressable accessibilityRole="button" accessibilityLabel={props.nextLabel}
         accessibilityState={{ disabled: props.nextDisabled }} disabled={props.nextDisabled} onPress={props.onGoToNextDay}
         style={({ pressed }) => [styles.iconButton, pressed && !props.nextDisabled && { backgroundColor: tokens.bgHover }, props.nextDisabled && styles.disabled]}>
@@ -97,7 +99,8 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
   row: { alignItems: 'center', flexDirection: 'row', gap: 12, minHeight: 56, paddingVertical: SPACING.s4 },
   iconButton: { alignItems: 'center', borderRadius: 999, overflow: 'hidden', minHeight: 48, justifyContent: 'center', width: 48, flexShrink: 0 },
-  dateText: { minWidth: 48, minHeight: 48, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', flexGrow: 1, flexShrink: 1 },
+  dateSlot: { flex: 1, minWidth: 0, alignItems: 'center' },
+  dateText: { minWidth: 48, minHeight: 48, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', maxWidth: '100%', flexShrink: 1 },
   dayName: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, letterSpacing: -0.44, textAlign: 'center' },
   numericDate: { fontFamily: 'GeistMono_400Regular', fontSize: 12, letterSpacing: 0.24, fontVariant: ['tabular-nums'], textAlign: 'center' },
   disabled: { opacity: 0.5 },
