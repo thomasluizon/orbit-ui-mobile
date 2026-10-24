@@ -21,6 +21,19 @@ export async function prepareCorrection(test) {
     throw new Error('Correction setup failed its tool or composition gate.')
   }
   test.vars.baselinePreview = response.output.composition.pendingOperations
+  const correction = test.vars.composition?.correction
+  const operation = test.vars.expectations?.required?.[0]
+  if (correction && operation?.exactArguments === true) {
+    const original = response.output.trace.calls.find((call) => call.name === operation.name)
+    const revised = structuredClone(original?.arguments)
+    const targets = revised?.habits?.filter((habit) => typeof habit.title === 'string'
+      && habit.title.toLocaleLowerCase().includes(correction.titleContains.toLocaleLowerCase()))
+    if (targets?.length !== 1 || !Object.hasOwn(targets[0], correction.field)) {
+      throw new Error('Correction setup lacks one verifiable tool argument target.')
+    }
+    targets[0][correction.field] = correction.value
+    operation.arguments = revised
+  }
   test.vars.historyJson = JSON.stringify([{ role: 'user', content: setup.input }, { role: 'assistant', content: response.output.answer }])
   return { test }
 }

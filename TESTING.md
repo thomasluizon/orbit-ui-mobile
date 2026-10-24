@@ -298,6 +298,10 @@ one to three short lines, without headings, unsolicited lists or caveat paragrap
 require an available relevant screen action. Follow-ups are limited to two. A missing composition
 result, unavailable evidence or any skipped assertion prevents a pass even if promptfoo reports
 success. The rubric handles semantic repetition independently of these structural checks.
+The text mirror uses the producer's double-newline join for multiple text parts; data-answer
+line limits still apply. Help actions resolve through the same shared surface map as web and
+Android: schedule help uses `today`, and plan help uses `subscriptions`. A block's arbitrary
+`surfaceId` is not action evidence; calendar blocks have their own rendered calendar action.
 
 The reset executable must prepare these additional fixtures in the requested case locale:
 
@@ -322,6 +326,10 @@ original request using the same installed HTTP provider and capabilities, with a
 request identity. Structure, behavior and composition must all pass before the correction runs.
 The actual final answer becomes chat history, and the actual preview becomes the comparison
 baseline. The correction requires 16:00 and preserves every other preview field and item identity.
+A correction requires exactly one held `bulk_create_habits` call. Setup derives its full argument
+scope from the verified original trace, changing only the named exam's `due_time`; exact argument
+matching rejects added fields, changed siblings and additional mutations. Successful writes
+cannot satisfy the required `PendingConfirmation` outcome.
 A missing baseline or failed setup stops the attempt. This setup adds one paid request per attempt;
 it never approves a write or resets spend or message allowance. The full corpus can exceed the
 historical starter-run cost estimate. Stay within existing ceilings and report incomplete runs.

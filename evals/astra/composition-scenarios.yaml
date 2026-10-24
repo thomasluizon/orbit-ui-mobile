@@ -1149,7 +1149,7 @@
       kinds:
         - habitList
       actionSurfaces:
-        - habits
+        - today
     expectations:
       required: &a47
         - name: query_habits
@@ -1392,7 +1392,7 @@
     composition: &a56
       mode: text
       actionSurfaces:
-        - profile
+        - subscriptions
     expectations:
       required: &a57
         - name: describe_feature
@@ -1441,7 +1441,7 @@
     composition: &a58
       mode: text
       actionSurfaces:
-        - habits
+        - today
     expectations:
       required: &a59
         - name: describe_feature
@@ -2013,7 +2013,17 @@
         field: due_time
         value: 16:00
     expectations:
-      allowed: []
+      required:
+        - name: bulk_create_habits
+          exactArguments: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_create_habits
+      counts:
+        bulk_create_habits: 1
+      forbidden:
+        - create_habit
     rubric: Answer in English. Only the cholesterol exam time changes to 16:00. All
       dates, other times, one-time types, preparation bounds and names remain
       exactly the same. No duplicate or saved change. Canonical dates inside
@@ -2180,7 +2190,17 @@
         field: due_time
         value: 16:00
     expectations:
-      allowed: []
+      required:
+        - name: bulk_create_habits
+          exactArguments: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_create_habits
+      counts:
+        bulk_create_habits: 1
+      forbidden:
+        - create_habit
     rubric: Answer in Brazilian Portuguese. Only the cholesterol exam time changes
       to 16:00. All dates, other times, one-time types, preparation bounds and
       names remain exactly the same. No duplicate or saved change. Canonical

@@ -69,14 +69,25 @@ describe('production composition gate', () => {
   it.each(['', 'One\nTwo\nThree\nFour', '# Heading', '- Unrequested list', 'x'.repeat(181), 'First.\n\nCaveat paragraph.'])('rejects invalid no-data text: %s', async (text) => {
     expect((await gate(response([{ type: 'text', text }], text), { composition: { mode: 'text' } })).pass).toBe(false)
   })
-  it('requires an available relevant action for help', async () => {
-    const produced = response([{ type: 'text', text: 'Open habits.' }], 'Open habits.')
-    const vars = { composition: { mode: 'text', actionSurfaces: ['habits'] } }
+  it.each(['today', 'subscriptions'])('requires an available relevant action for help: %s', async (surface) => {
+    const produced = response([{ type: 'text', text: 'Open the screen.' }], 'Open the screen.')
+    const vars = { composition: { mode: 'text', actionSurfaces: [surface] } }
     expect((await gate(produced, vars)).pass).toBe(false)
     produced.relatedSurfaces = ['settings']
     expect((await gate(produced, vars)).pass).toBe(false)
-    produced.relatedSurfaces = ['habits']
+    produced.relatedSurfaces = [surface]
     expect((await gate(produced, vars)).pass).toBe(true)
+  })
+  it.each(['habits', 'profile'])('rejects an unmapped help action even when policy names it: %s', async (surface) => {
+    const produced = response([{ type: 'text', text: 'Open the screen.' }], 'Open the screen.', { relatedSurfaces: [surface] })
+    expect((await gate(produced, { composition: { mode: 'text', actionSurfaces: [surface] } })).pass).toBe(false)
+  })
+  it('accepts the producer text mirror for compound missing-kind fallback only', async () => {
+    const parts = ['Water is pending.', 'Goal is on track.'].map((text) => ({ type: 'text', text }))
+    const vars = { clientContext: { supportsParts: true, partKinds: [] }, composition: { mode: 'fallback' } }
+    expect(await gate(response(parts, 'Water is pending.\n\nGoal is on track.'), vars)).toMatchObject({ pass: true })
+    expect((await gate(response(parts, 'Water is pending.\nGoal is on track.'), vars)).pass).toBe(false)
+    expect((await gate(response([block, ...parts], 'Water is pending.\n\nGoal is on track.'))).pass).toBe(false)
   })
   it('requires readable fallback and rejects blocks for legacy or missing-kind clients', async () => {
     for (const clientContext of [{ supportsParts: false }, { supportsParts: true, partKinds: [] }]) {

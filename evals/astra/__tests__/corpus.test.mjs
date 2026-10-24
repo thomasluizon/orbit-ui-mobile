@@ -37,6 +37,10 @@ it('binds the reported parent and medical cases to strict scope and genuine setu
     expect(correction.setup.input).toBe(medical.input)
     expect(correction.setup.expectations).toEqual(medical.expectations)
     expect(correction.composition.correction.value).toBe('16:00')
+    expect(correction.expectations.required).toEqual([{ name: 'bulk_create_habits', exactArguments: true, resultStatus: 'PendingConfirmation' }])
+    expect(correction.expectations.counts).toEqual({ bulk_create_habits: 1 })
+    expect(find('plan').composition.actionSurfaces).toEqual(['subscriptions'])
+    expect(find('feature-help').composition.actionSurfaces).toEqual(['today'])
   }
 })
 it('reports pass^3 for each family and locale and carries a failure into its group', () => {

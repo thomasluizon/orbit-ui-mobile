@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util'
+import { getRelatedSurfaces } from '../../packages/shared/src/chat/related-surfaces.ts'
 
 const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 const text = (value) => typeof value === 'string' && value.trim().length > 0
@@ -112,7 +113,7 @@ export function composition(output, context) {
     return result(false, 'Malformed or unsupported response part.')
   }
   const blocks = (parts ?? []).filter((part) => part.type === 'block')
-  const external = (parts ?? []).filter((part) => part.type === 'text').map((part) => part.text).join('\n')
+  const external = (parts ?? []).filter((part) => part.type === 'text').map((part) => part.text).join('\n\n')
   if (client?.supportsParts === true && (response.aiMessage ?? '').trim() !== external.trim()) {
     return result(false, 'Final prose differs from the ordered text parts.')
   }
@@ -142,7 +143,8 @@ export function composition(output, context) {
       }
     }
   }
-  if (expected.actionSurfaces?.length && !expected.actionSurfaces.some((surface) => response.relatedSurfaces?.includes(surface)
-    || blocks.some((part) => part.block.surfaceId === surface))) return result(false, 'Missing available relevant screen action.')
+  const routed = getRelatedSurfaces(response.relatedSurfaces).filter((surface) => text(surface.webRoute) && text(surface.mobileRoute))
+  if (expected.actionSurfaces?.length && !expected.actionSurfaces.some((surface) => routed.some((action) => action.id === surface)
+    || (surface === 'calendar' && blocks.some((part) => part.kind === 'calendar')))) return result(false, 'Missing available relevant screen action.')
   return result(true, 'Composition structure and negotiated capabilities matched.')
 }

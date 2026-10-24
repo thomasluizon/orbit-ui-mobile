@@ -2,6 +2,7 @@ export { composition } from './composition.mjs'
 import { assertions } from 'promptfoo'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
+import { isDeepStrictEqual } from 'node:util'
 
 const catalog = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
 const toolWrites = new Map(catalog.map((tool) => [tool.function.name, tool.writes]))
@@ -87,7 +88,8 @@ function matchesArguments(actual, expected) {
 function matchesOperation(call, expected) {
   return call.name === expected.name
     && (expected.argumentsAnyOf ?? [expected.arguments ?? {}])
-      .some((arguments_) => matchesArguments(call.arguments, arguments_))
+      .some((arguments_) => expected.exactArguments === true
+        ? isDeepStrictEqual(call.arguments, arguments_) : matchesArguments(call.arguments, arguments_))
 }
 
 function checkMutationScope(calls, expectations) {
