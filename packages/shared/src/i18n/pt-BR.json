@@ -1899,6 +1899,7 @@
         "complete": "Marcar como feito",
         "keepOpen": "Manter pendente",
         "buildHabit": "Fortalecer este hábito",
+        "habitToAvoid": "Hábito a evitar",
         "reduceHabit": "Reduzir este hábito",
         "anytime": "Fazer a qualquer hora",
         "onSchedule": "Seguir um horário",

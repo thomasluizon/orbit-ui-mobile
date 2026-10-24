@@ -88,3 +88,172 @@ export function resolveParentChoicePreview(operation: PendingAgentOperation, ite
     }),
   })
 }
+
+const eveningRoutinePreview = {
+  "id": "00000000-0000-4000-8000-000000000001",
+  "capabilityId": "habits.bulk.write",
+  "displayName": "Bulk Habit Updates",
+  "summary": "Bulk Create Habits requested via Chat",
+  "riskClass": "Low",
+  "confirmationRequirement": "FreshConfirmation",
+  "expiresAtUtc": "2026-10-01T12:00:00Z",
+  "changes": [],
+  "changeTargetCount": 1,
+  "items": [
+    {
+      "itemId": "0",
+      "entityId": null,
+      "entityName": "Evening routine",
+      "fields": [
+        {
+          "entityId": "00000000-0000-0000-0000-000000000000",
+          "entityName": "Evening routine",
+          "field": "title",
+          "oldValue": null,
+          "newValue": "Evening routine",
+          "valueType": "text",
+          "proposedValue": "Evening routine",
+          "isEditable": true
+        },
+        {
+          "entityId": "00000000-0000-0000-0000-000000000000",
+          "entityName": "Evening routine",
+          "field": "due_time",
+          "oldValue": null,
+          "newValue": "21:30",
+          "valueType": "time",
+          "proposedValue": "21:30",
+          "isEditable": true
+        },
+        {
+          "entityId": "00000000-0000-0000-0000-000000000000",
+          "entityName": "Evening routine",
+          "field": "emoji",
+          "oldValue": null,
+          "newValue": "🌙",
+          "valueType": "emoji",
+          "proposedValue": "🌙",
+          "isEditable": true
+        },
+        {
+          "entityId": "00000000-0000-0000-0000-000000000000",
+          "entityName": "Evening routine",
+          "field": "frequency_quantity",
+          "oldValue": null,
+          "newValue": "1",
+          "valueType": "number",
+          "proposedValue": 1,
+          "isEditable": true
+        },
+        {
+          "entityId": "00000000-0000-0000-0000-000000000000",
+          "entityName": "Evening routine",
+          "field": "frequency_unit",
+          "oldValue": null,
+          "newValue": "Day",
+          "valueType": "text",
+          "proposedValue": "Day",
+          "isEditable": true
+        },
+        {
+          "entityId": "00000000-0000-0000-0000-000000000000",
+          "entityName": "Evening routine",
+          "field": "is_bad_habit",
+          "oldValue": null,
+          "newValue": "False",
+          "valueType": "boolean",
+          "proposedValue": false,
+          "isEditable": true
+        },
+        {
+          "entityId": "00000000-0000-0000-0000-000000000000",
+          "entityName": "Evening routine",
+          "field": "is_flexible",
+          "oldValue": null,
+          "newValue": "False",
+          "valueType": "boolean",
+          "proposedValue": false,
+          "isEditable": true
+        },
+        {
+          "entityId": "00000000-0000-0000-0000-000000000000",
+          "entityName": "Evening routine",
+          "field": "is_general",
+          "oldValue": null,
+          "newValue": "False",
+          "valueType": "boolean",
+          "proposedValue": false,
+          "isEditable": true
+        },
+        {
+          "entityId": "00000000-0000-0000-0000-000000000000",
+          "entityName": "Evening routine",
+          "field": "sub_habits",
+          "oldValue": null,
+          "newValue": "[{\"due_time\":\"21:30\",\"emoji\":\"\\uD83D\\uDCD6\",\"frequency_quantity\":1,\"frequency_unit\":\"Day\",\"is_bad_habit\":false,\"is_flexible\":false,\"is_general\":false,\"title\":\"Read for 20 minutes\"},{\"due_time\":\"21:30\",\"emoji\":\"\\uD83E\\uDDD8\",\"frequency_quantity\":1,\"frequency_unit\":\"Day\",\"is_bad_habit\":false,\"is_flexible\":false,\"is_general\":false,\"title\":\"Stretch for 10 minutes\"},{\"due_time\":\"23:00\",\"emoji\":\"\\uD83D\\uDECF\\uFE0F\",\"frequency_quantity\":1,\"frequency_unit\":\"Day\",\"is_bad_habit\":false,\"is_flexible\":false,\"is_general\":false,\"title\":\"Lights out\"}]",
+          "valueType": "text",
+          "proposedValue": [
+            {
+              "title": "Read for 20 minutes",
+              "emoji": "📖",
+              "frequency_unit": "Day",
+              "frequency_quantity": 1,
+              "due_time": "21:30",
+              "is_bad_habit": false,
+              "is_general": false,
+              "is_flexible": false
+            },
+            {
+              "title": "Stretch for 10 minutes",
+              "emoji": "🧘",
+              "frequency_unit": "Day",
+              "frequency_quantity": 1,
+              "due_time": "21:30",
+              "is_bad_habit": false,
+              "is_general": false,
+              "is_flexible": false
+            },
+            {
+              "title": "Lights out",
+              "emoji": "🛏️",
+              "frequency_unit": "Day",
+              "frequency_quantity": 1,
+              "due_time": "23:00",
+              "is_bad_habit": false,
+              "is_general": false,
+              "is_flexible": false
+            }
+          ],
+          "isEditable": true
+        },
+        {
+          "entityId": "00000000-0000-0000-0000-000000000000",
+          "entityName": "Evening routine",
+          "field": "parent_habit_id",
+          "oldValue": null,
+          "newValue": "No parent",
+          "valueType": "text",
+          "proposedValue": null,
+          "isEditable": true
+        }
+      ],
+      "stateFingerprint": "evening-state",
+      "removesData": false
+    }
+  ],
+  "previewFingerprint": "evening-preview",
+  "actionKey": "createHabits"
+}
+
+export function makeEveningRoutinePreview(locale = 'en'): PendingAgentOperation {
+  const operation = pendingAgentOperationSchema.parse(eveningRoutinePreview)
+  if (locale === 'en') return operation
+  const titles: Readonly<Record<string, string>> = {
+    'Evening routine': 'Rotina da noite', 'Read for 20 minutes': 'Ler por 20 minutos',
+    'Stretch for 10 minutes': 'Alongar por 10 minutos', 'Lights out': 'Apagar as luzes',
+  }
+  return pendingAgentOperationSchema.parse(JSON.parse(JSON.stringify(operation).replace(
+    /Evening routine|Read for 20 minutes|Stretch for 10 minutes|Lights out/g,
+    (title) => titles[title]!,
+  )))
+}

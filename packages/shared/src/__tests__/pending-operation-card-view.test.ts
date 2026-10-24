@@ -1,4 +1,4 @@
-import { makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
+import { makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -42,6 +42,38 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     const { record, render } = createRenderers()
     renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
     expect(record.frame?.title).toBe(messages.chat.pendingOp.capability['habits-bulk-write'])
+  })
+})
+
+describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('create summaries from the evening payload in $locale', ({ locale, messages }) => {
+  const operation = makeEveningRoutinePreview(locale)
+  const fields = operation.items![0]!.fields
+  const summarize = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => `clock:${value}`, locale).summarize
+
+  it('shows the resulting cadence and time for a create with children and a null parent', () => {
+    expect(summarize(fields)).toBe(`${messages.habits.frequency.everyDay} · clock:21:30`)
+  })
+
+  it('keeps the cadence when an explicit null parent is the only optional field', () => {
+    expect(summarize(fields.filter((field) => field.field !== 'sub_habits'))).toBe(`${messages.habits.frequency.everyDay} · clock:21:30`)
+  })
+
+  it('describes a bad habit without an edit verb', () => {
+    expect(summarize(fields.map((field) => field.field === 'is_bad_habit' ? { ...field, newValue: 'True', proposedValue: true } : field)))
+      .toBe(`${messages.habits.frequency.everyDay} · clock:21:30 · ${locale === 'en' ? 'Habit to avoid' : 'Hábito a evitar'}`)
+  })
+
+  it('shows a dated task without a cadence or default changes', () => {
+    const taskFields = fields.filter((field) => !['frequency_quantity', 'frequency_unit', 'sub_habits'].includes(field.field))
+    taskFields.push({ ...fields[0]!, field: 'due_date', valueType: 'date', newValue: '2026-10-25', proposedValue: '2026-10-25' })
+    expect(summarize(taskFields)).toBe(`${locale === 'en' ? 'Oct 25, 2026' : '25 de out. de 2026'} · clock:21:30`)
+  })
+
+  it('keeps a complete update cadence and its explicit boolean change', () => {
+    const updateFields = fields.filter((field) => !['sub_habits', 'parent_habit_id'].includes(field.field)).map((field) => ({ ...field, oldValue: field.field === 'frequency_quantity' ? '2' : field.newValue }))
+    updateFields.push({ ...fields[0]!, field: 'days', newValue: '[]', proposedValue: [] })
+    const update = buildPendingOperationCardLabels({ ...operation, actionKey: 'updateHabit' }, (key, values) => translateMessages(messages, key, values), (value) => `clock:${value}`, locale)
+    expect(update.summarize(updateFields)).toBe(`${messages.habits.frequency.everyDay} · ${messages.chat.preview.atTime.replace('{time}', 'clock:21:30')} · ${messages.chat.preview.summary.buildHabit}`)
   })
 })
 

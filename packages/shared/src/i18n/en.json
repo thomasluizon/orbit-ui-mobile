@@ -1899,6 +1899,7 @@
         "complete": "Mark complete",
         "keepOpen": "Keep open",
         "buildHabit": "Build this habit",
+        "habitToAvoid": "Habit to avoid",
         "reduceHabit": "Reduce this habit",
         "anytime": "Do it anytime",
         "onSchedule": "Follow a schedule",
