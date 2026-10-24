@@ -23,6 +23,7 @@ function checkProductionSteps() {
   T("deployment records use the requested environment", workflow.includes("RELEASE_ENVIRONMENT: ${{ inputs.environment }}"))
   T("smoke remains limited to the main production service", /smoke:\n[\s\S]*?if: inputs.environment == 'production'\n/.test(workflow))
   const servicePath = stage("release-workflow/service.json", JSON.stringify(renderFixture.service))
+  const shutdownServicePath = stage("release-workflow/shutdown-service.json", JSON.stringify(renderFixture.shutdownService))
   const healthPath = stage("release-workflow/health.json", JSON.stringify(renderFixture.health))
   const deploymentPath = stage("release-workflow/deployment.json", JSON.stringify(releaseFixture.deployment))
   const output = stage("release-workflow/output", "")
@@ -32,7 +33,7 @@ function checkProductionSteps() {
     ...process.env, SERVICE_RESPONSE: servicePath, HEALTH_RESPONSE: healthPath, DEPLOYMENT_RESPONSE: deploymentPath,
     GITHUB_OUTPUT: output, GITHUB_STEP_SUMMARY: summary, CALLS: calls,
     SOURCE_SHA: renderFixture.health.commit, SERVICE_ID: "srv-production", SERVICE_VARIABLE: "RENDER_WEB_SERVICE_ID",
-    RENDER_API_KEY: "fixture", IMAGE: "ghcr.io/thomasluizon/orbit-web", DIGEST: "sha256:fixture",
+    RENDER_API_KEY: "fixture", IMAGE: "ghcr.io/thomasluizon/orbit-web", DIGEST: "sha256:fixture", SERVICE_FAILURE: "false",
     PRODUCTION_WEB_HOST: "public.example.invalid", GH_TOKEN: "fixture", GITHUB_REPOSITORY: "example/repository",
   }
   const run = (name, stub, overrides = {}) => spawnSync(BASH, ["-c", `${stub}\n${stepScript(name)}`], {
@@ -65,6 +66,15 @@ function checkProductionSteps() {
   const deployStub = `
     curl() {
       printf '%s\\n' "$*" >> "$CALLS"
+      local endpoint argument
+      for argument in "$@"; do
+        if [[ "$argument" == https://api.render.com/* ]]; then endpoint="$argument"; fi
+      done
+      if [[ "$endpoint" == "https://api.render.com/v1/services/$SERVICE_ID" ]]; then
+        if [[ "$SERVICE_FAILURE" == true ]]; then return 22; fi
+        cat "$SERVICE_RESPONSE"
+        return
+      fi
       if [[ "$*" == *'-X POST'* ]]; then
         local response
         while (( $# )); do
@@ -81,10 +91,38 @@ function checkProductionSteps() {
   `
   for (const status of ["live", "canceled"]) {
     stage("release-workflow/calls", "")
-    const result = run("Deploy web digest", deployStub, { DEPLOY_STATUS: status })
+    const result = run("Deploy web digest", deployStub, { DEPLOY_STATUS: status, SERVICE_RESPONSE: shutdownServicePath })
     T(`production follows its own deploy to ${status}`, result.status === (status === "live" ? 0 : 1) &&
       readFileSync(calls, "utf8").includes("services/srv-production/deploys/fixture-deploy"), result.stderr)
+    const requests = readFileSync(calls, "utf8").trim().split("\n")
+    T("production reads the shutdown delay before requesting a deploy without changing it",
+      requests[0].includes("https://api.render.com/v1/services/srv-production ") &&
+      requests[1]?.includes("-X POST") && !requests.some((request) => request.includes("PATCH")))
   }
+  for (const [label, response, failure] of [
+    ["missing", readFileSync(servicePath, "utf8"), false],
+    ["short", JSON.stringify({ ...renderFixture.shutdownService,
+      serviceDetails: { ...renderFixture.shutdownService.serviceDetails, maxShutdownDelaySeconds: 30 } }), false],
+    ["string", JSON.stringify({ ...renderFixture.shutdownService,
+      serviceDetails: { ...renderFixture.shutdownService.serviceDetails, maxShutdownDelaySeconds: "300" } }), false],
+    ["malformed", "{", false],
+    ["empty", "", false],
+    ["unavailable", "", true],
+  ]) {
+    stage("release-workflow/calls", "")
+    const result = run("Deploy web digest", deployStub, { DEPLOY_STATUS: "live", SERVICE_FAILURE: String(failure),
+      SERVICE_RESPONSE: stage("release-workflow/shutdown-readback.json", response) })
+    const requests = readFileSync(calls, "utf8").trim().split("\n")
+    T(`production rejects ${label} shutdown readback before deploying`, result.status !== 0 &&
+      result.stderr.includes("render_web_service.production_web") && result.stderr.includes("orbit-api") &&
+      result.stderr.includes("infra/production.tf") && requests.length === 1 && !requests[0].includes("-X POST"), result.stdout + result.stderr)
+  }
+  stage("release-workflow/calls", "")
+  const staging = run("Deploy staging web digest", deployStub, { DEPLOY_STATUS: "live" })
+  const stagingRequests = readFileSync(calls, "utf8").trim().split("\n")
+  T("free staging deploys without reading or writing a shutdown setting", staging.status === 0 &&
+    stagingRequests.length === 2 && stagingRequests[0].includes("-X POST") &&
+    stagingRequests[1].includes("/deploys/fixture-deploy") && !stagingRequests.some((request) => request.includes("PATCH")), staging.stderr)
   const missing = run("Deploy web digest", "curl() { return 99; }", { SERVICE_ID: "" })
   T("missing production service fails before any request", missing.status === 1 && missing.stderr.includes("Missing RENDER_WEB_SERVICE_ID"))
   const payload = stage("release-workflow/payload", "")

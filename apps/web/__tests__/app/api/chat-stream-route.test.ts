@@ -1,3 +1,5 @@
+import { pipeToNodeResponse } from 'next/dist/server/pipe-readable'
+import { createRequestResponseMocks } from 'next/dist/server/lib/mock-request'
 import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
@@ -204,6 +206,30 @@ describe('chat stream route', () => {
       path: '/api/chat/stream', status: 500, upstreamStatus: null,
       apiRequestId: null, renderRequestId: null, elapsedMs: expect.any(Number),
     })
+  })
+
+  it('keeps two response-close listeners throughout a long BFF stream and releases them on completion', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({ token: tokenFor('account-a'), expiresAt: null, refreshed: false, refreshFailed: false })
+    let upstream!: ReadableStreamDefaultController<Uint8Array>
+    mockFetch.mockResolvedValue(new Response(new ReadableStream<Uint8Array>({ start(controller) { upstream = controller } })))
+    const request = new NextRequest('https://example.invalid/api/chat/stream', {
+      method: 'POST', headers: { 'x-orbit-held-account-id': 'account-a' }, body: new FormData(),
+    })
+    const response = await POST(request)
+    const { res } = createRequestResponseMocks({ url: '/api/chat/stream', method: 'POST' })
+    let chunks = 0
+    vi.spyOn(res, 'write').mockImplementation(() => { chunks += 1; return true })
+    const piping = pipeToNodeResponse(response.body!, res as unknown as Parameters<typeof pipeToNodeResponse>[1])
+    const encoder = new TextEncoder()
+    for (let chunk = 0; chunk < 50; chunk += 1) {
+      upstream.enqueue(encoder.encode(`data: {"type":"delta","text":"${chunk}"}\n\n`))
+      await vi.waitFor(() => expect(chunks).toBe(chunk + 1))
+      expect(res.listenerCount('close')).toBe(2)
+    }
+    upstream.close()
+    await piping
+    await vi.waitFor(() => expect(res.listenerCount('close')).toBe(0))
+    expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 
 })

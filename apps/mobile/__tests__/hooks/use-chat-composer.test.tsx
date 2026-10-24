@@ -645,9 +645,12 @@ describe('mobile useChatComposer', () => {
     mocks.openChatStream.mockRejectedValueOnce(new Error('network unavailable'))
       .mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
     const tree = await renderConversationHarness()
-    TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Plan my morning'))
+    const draft = '  Plan my morning\n  '
+    TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText(draft))
     await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
     expect(visibleMessageTexts(tree)).toContain('chat.sendError')
+    expect(inputHosts(tree)[0].props.value).toBe(draft)
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
     const retries = visibleComposerRoot(tree).findAll((node: { type: unknown; findAll: (predicate: (child: { type: unknown; props: { children?: unknown } }) => boolean) => unknown[] }) =>
       node.type === 'Pressable' && node.findAll((child) => child.type === 'Text' && child.props.children === 'shell.composer.retry').length > 0)
     expect(retries).toHaveLength(1)
