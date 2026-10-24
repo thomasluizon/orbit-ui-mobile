@@ -172,9 +172,11 @@ jobs:
         run: |
           for shard in $(seq 1 2); do
             test -s "apps/web/.artifacts/unit-tests/blobs/jsdom-${shard}.json"
+            test -s "apps/web/.artifacts/unit-tests/timings/jsdom-${shard}.json"
           done
           for shard in $(seq 1 8); do
             test -s "apps/web/.artifacts/unit-tests/blobs/chromium-${shard}.json"
+            test -s "apps/web/.artifacts/unit-tests/timings/chromium-${shard}.json"
           done
 
       # The five next-slowest healthy files in run 40121666845 have a median of 129.165s.
