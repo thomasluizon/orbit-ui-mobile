@@ -36,6 +36,20 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(record.frame?.count).toBe(count)
   })
 
+  it('lists each nested create with its schedule under the parent', () => {
+    const operation = makeEveningRoutinePreview(locale)
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items).toHaveLength(4)
+    expect(record.frame?.items.slice(1).map((row) => [row.indented, row.meta])).toEqual([
+      [true, `${messages.habits.frequency.everyDay} · 21:30`],
+      [true, `${messages.habits.frequency.everyDay} · 21:30`],
+      [true, `${messages.habits.frequency.everyDay} · 23:00`],
+    ])
+    expect(record.frame?.count).toBe(1)
+  })
+
   it('keeps a neutral heading for a mixed preview', () => {
     const operation = makeMixedHabitsPreview()
     const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
@@ -207,7 +221,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
       change('habit_id', 'habit-1', 'habit-1'),
       change('days', '["Thursday"]', ['Thursday'], 'Monday, Wednesday'),
       change('frequency_quantity', '1', 1, '1'),
-    ])).toBe(locale === 'en' ? 'Thu · Change the frequency number to 1' : 'Qui · Mudar o número da frequência para 1')
+    ])).toBe(locale === 'en' ? 'Thu · Frequency: 1' : 'Qui · Frequência: 1')
   })
 
   it('uses the complete supplied schedule when flexibility is explicit', () => {

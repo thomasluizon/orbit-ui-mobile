@@ -19,7 +19,7 @@ export interface PendingOperationCardLabels {
   reject: string
   remove: string
   rejected: (count: number) => string
-  summarize: (fields: readonly PendingOperationChange[]) => string
+  summarize: (fields: readonly PendingOperationChange[], actionKey?: string) => string
   save: string
   search: string
   invalid: string
@@ -127,10 +127,10 @@ export function buildPendingOperationCardLabels(
     reject: translate('chat.operation.reject'),
     remove: translate('chat.operation.remove'),
     rejected: (count) => translate('chat.operation.rejected', { count }),
-    summarize: (fields) => {
+    summarize: (fields, summaryActionKey = actionKey ?? undefined) => {
       const outcome = getToggleOutcome(actionKey, fields)
       return outcome ? translate(`chat.operation.toggleSource.${actionKey}.${outcome}`)
-        : summarizePendingOperationItem(fields, translate, formatTime, locale, actionKey)
+        : summarizePendingOperationItem(fields, translate, formatTime, locale, summaryActionKey)
     },
     save: translate('common.save'),
     search: translate('common.search'),
