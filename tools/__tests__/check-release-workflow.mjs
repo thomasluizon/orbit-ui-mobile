@@ -51,13 +51,13 @@ function checkProductionSteps() {
   `
   stage("release-workflow/calls", "")
   const health = run("Check web health", healthStub, { RELEASE_ENVIRONMENT: "production" })
-  const observed = readFileSync(calls, "utf8").trim().split("\n")
+  const observed = new Set(readFileSync(calls, "utf8").trim().split("\n"))
   T("production checks service and public health and records the public URL", health.status === 0 &&
-    observed.includes(`${renderFixture.service.serviceDetails.url}/api/health`) &&
-    observed.includes("https://public.example.invalid/api/health") &&
+    observed.has(`${renderFixture.service.serviceDetails.url}/api/health`) &&
+    observed.has("https://public.example.invalid/api/health") &&
     readFileSync(output, "utf8").includes("deployment_url=https://public.example.invalid\n"), health.stderr)
   T("production health does not request the retired application route",
-    !observed.includes(`${renderFixture.service.serviceDetails.url}/login`))
+    !observed.has(`${renderFixture.service.serviceDetails.url}/login`))
   const staleHealth = stage("release-workflow/stale-health.json", JSON.stringify({ ...renderFixture.health, commit: "b".repeat(40) }))
   const mismatch = run("Check web health", healthStub, { RELEASE_ENVIRONMENT: "production", HEALTH_RESPONSE: staleHealth })
   T("production rejects a healthy service running another commit", mismatch.status === 1 && mismatch.stderr.includes("did not report status ok and commit"), mismatch.stderr)
