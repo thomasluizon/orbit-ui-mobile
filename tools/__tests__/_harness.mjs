@@ -342,9 +342,10 @@ if (Array.isArray(match.stdoutSequence) && match.sequenceFile) {
 }
 if (match.hangTreePidFile) {
   if (match.stderr) writeSync(2, match.stderr)
-  const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" })
+  const descendantSource = 'require("node:fs").writeFileSync(' + JSON.stringify(match.hangTreePidFile) + ', String(process.pid)); setInterval(() => {}, 1000)'
+  // The descendant publishes readiness itself and must not redispatch the CLI preload with empty argv.
+  spawn(process.execPath, ["-e", descendantSource], { stdio: "ignore", env: { ...process.env, NODE_OPTIONS: "" } })
   if (match.hangPidFile) writeFileSync(match.hangPidFile, String(process.pid))
-  writeFileSync(match.hangTreePidFile, String(child.pid))
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
 }
 if (match.overflowStdoutBytes) {
