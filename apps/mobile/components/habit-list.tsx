@@ -1,4 +1,5 @@
-import { getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { TodayLaunchContent } from '@/components/today/today-launch-content'
+import { getFriendlyErrorMessage, isTodayLaunchCache } from '@orbit/shared/utils'
 import { getMoveParentInventory } from '@orbit/shared/utils/move-parent'
 import { createMoveParentActions, createMoveParentState } from '@orbit/shared/hooks/move-parent-core'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -493,6 +494,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const { config: appConfig } = useConfig()
     const maxHabitDepth = appConfig.limits.maxHabitDepth
     const habitsQuery = useHabits(filters, habitViewQueryOptions(view, todayStr))
+    const [launchCache] = useState({ available: habitsQuery.data !== undefined, updatedAt: habitsQuery.dataUpdatedAt })
+    const launchFromCache = isTodayLaunchCache(launchCache, habitsQuery.dataUpdatedAt)
     const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
     const topLevelHabits =
       habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
@@ -1516,7 +1519,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       ({ item, drag, getIndex }: RenderItemParams<DragItem>) => {
         const index = getIndex() ?? 0
         const nextItem = activeDragItems[index + 1]
-        return renderHabitCard(
+        return <TodayLaunchContent enabled={view === 'today' && index === 0} fromCache={launchFromCache} empty={false}>{renderHabitCard(
           item.habit,
           item.depth,
           item.hasChildren,
@@ -1527,13 +1530,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               : undefined,
             panelEnd: !nextItem || nextItem.depth === 0,
           },
-        )
+        )}</TodayLaunchContent>
       },
       [
         activeDragItems,
         isDndEnabled,
         prepareDrag,
         renderHabitCard,
+        view,
+        launchFromCache,
       ],
     )
 
@@ -1792,7 +1797,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           refreshControl={refreshControl}
           onDragEnd={(params) => void handleDragEnd(params)}
           ListHeaderComponent={activeListHeader}
-          ListEmptyComponent={renderCurrentViewEmptyState()}
+          ListEmptyComponent={<TodayLaunchContent enabled={view === 'today'} fromCache={launchFromCache} empty>{renderCurrentViewEmptyState()}</TodayLaunchContent>}
           // WHY: DraggableFlatList overwrites any caller onScroll with its own reanimated handler; onScrollOffsetChange is its supported scroll-offset API https://github.com/computerjazz/react-native-draggable-flatlist/blob/v4.0.3/src/components/DraggableFlatList.tsx#L396
           onScrollOffsetChange={handleMainListOffsetChange}
           onScrollBeginDrag={onScrollBeginDrag}

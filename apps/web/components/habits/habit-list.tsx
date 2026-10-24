@@ -1,5 +1,7 @@
 'use client'
 
+import { TodayLaunchContent } from '@/components/today/today-launch-content'
+
 import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
 
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
@@ -28,6 +30,7 @@ import {
   getTodayBoundary,
   hasAncestorInSet,
   isHabitDoneForRange,
+  isTodayLaunchCache,
   sortNormalizedHabits,
   type HabitResolution,
   type HabitResolutionMode,
@@ -359,6 +362,8 @@ export function HabitList({
   const dndContextId = useId()
 
   const habitsQuery = useHabits(filters, undefined, habitViewQueryOptions(view, todayStr))
+  const [launchCache] = useState({ available: habitsQuery.data !== undefined, updatedAt: habitsQuery.dataUpdatedAt })
+  const launchFromCache = isTodayLaunchCache(launchCache, habitsQuery.dataUpdatedAt)
   const accountHabitCount = useHabitCountLoaded()
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()
@@ -1406,7 +1411,7 @@ export function HabitList({
       title={t('habits.loadError')} description="" actionLabel={t('common.retry')}
       onAction={() => { void habitsQuery.refetch() }} variant="secondary" />
 
-    return <div
+    return <TodayLaunchContent enabled={view === 'today'} fromCache={launchFromCache} empty={habits.length === 0}><div
       ref={setListContainerRef}
       data-habit-list=""
       tabIndex={-1}
@@ -1470,7 +1475,7 @@ export function HabitList({
           (current) => shiftParentPrompt(current, selectedDateStr),
         )}
       />
-    </div>
+    </div></TodayLaunchContent>
   }
 
   return <>
