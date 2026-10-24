@@ -6,6 +6,7 @@ use tauri::Manager;
 
 mod auth;
 mod desktop_login;
+mod links;
 
 fn main() {
     tauri::Builder::default()
@@ -13,10 +14,8 @@ fn main() {
             desktop_login::commit_desktop_login
         ])
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            if let Some(window) = app.get_webview_window("main") {
-                if window.set_focus().is_err() {
-                    eprintln!("Cannot focus desktop window");
-                }
+            if let Err(error) = links::show_main(app) {
+                eprintln!("Cannot restore desktop window: {error}");
             }
         }))
         .plugin(tauri_plugin_deep_link::init())
