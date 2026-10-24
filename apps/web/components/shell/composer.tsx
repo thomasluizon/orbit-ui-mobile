@@ -15,6 +15,7 @@ import {
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { ArrowUp, ChevronDown, Clipboard, FileText, Image as ImageIcon, Loader2, Plus, Square, X } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
@@ -271,7 +272,7 @@ function ComposerTextControls({ props, inMenu, onPasteText, onClear, disclosure 
       return
     } finally { scope.pending = false }
   }
-  return <div data-composer-text-controls className="flex min-w-12 min-h-12 shrink-0 items-end gap-0">
+  return <div data-composer-text-controls style={{ gap: INTERACTION_FILL_CLEARANCE }} className="flex min-w-12 min-h-12 shrink-0 items-end">
   {disclosure || (props.state !== 'recording' && props.state !== 'transcribing') ? <div data-composer-text-action-slot className="w-12 min-h-12 shrink-0">
     {disclosure ?? <ComposerTextAction words={props.words} canClear={canClear} canPaste={canPaste} inMenu={inMenu} onClear={onClear} onPaste={() => void pasteMessage()} />}
   </div> : null}
@@ -392,7 +393,7 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
         /></div>}
       </div>
 
-      <div data-composer-trailing-controls className="flex max-w-full flex-wrap justify-end shrink-0 items-end gap-0">
+      <div data-composer-trailing-controls style={{ gap: INTERACTION_FILL_CLEARANCE }} className="flex max-w-full flex-wrap justify-end shrink-0 items-end">
         <ComposerTextControls props={props} inMenu={Boolean(disclosure) || textActionInMenu} disclosure={disclosure} onClear={clearMessage} onPasteText={text => {
           pasteFocus.current = text
           props.onChangeValue(text)

@@ -13,9 +13,15 @@ brand name. Their accessible names contain the request once. These suggestions d
 selection sends; they are distinct from the standalone form and object actions.
 
 Composer send shows one upward arrow, replaced by one spinner while sending. It has no Astra mark
-or visible text and keeps the localized Send name. Its 48px target shares zero gap with the other
-48px trailing targets, matching the adjacent targets in the composer drawing. The shared composer
-owns Hoje, habit detail and the full-screen conversation.
+or visible text and keeps the localized Send name. Its 48px target shares one equal gap of the shared
+fill clearance (`INTERACTION_FILL_CLEARANCE`) with the other 48px trailing targets, including the
+text-action slot or disclosure and the attach control. The composer drawing uses the matching
+`--s-1` spacing token. The shared composer owns Hoje, habit detail and the full-screen conversation.
+
+Other action owners retain clearance on both platforms: the emoji picker and suggestion targets
+have a 12px gap; date, tag, interpretation and analysis actions occupy separate rows; reschedule
+and rescue retry use the 12px ActionRow gap. Menu Astra items occupy their own row, with the mark
+centred inside its 48px target and neighbouring row content inset by at least 8px.
 
 | Surface | Web owner | Android owner |
 |---|---|---|

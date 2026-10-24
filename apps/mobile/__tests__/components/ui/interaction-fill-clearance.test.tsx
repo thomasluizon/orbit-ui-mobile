@@ -129,8 +129,12 @@ describe('Android interaction fill clearance', () => {
         const parts = measureInteractionFills(pinned, columnWidth, state === 'pressed')
         const field = parts.find(part => part.host.props.testID === 'composer-field')!
         const paint = fillBox(parts, field)
-        const retryText = parts.find(part => part.host.type === 'Text' && part.host.children?.includes(messages.shell.composer.retry))!
-        const retry = parts.find(part => part.host.type === 'Pressable' && retryText.ancestors.includes(part.slot))!
+        const retry = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === messages.shell.composer.retry)!
+        expect(retry.width).toBe(48)
+        expect(retry.height).toBe(48)
+        const retryContents = parts.filter(part => part.ancestors.includes(retry.slot))
+        expect(retryContents.filter(part => part.host.type === 'Text')).toHaveLength(0)
+        expect(retryContents.filter(part => part.host.props.testID === 'astra-mark')).toHaveLength(1)
         expect(paint.left).toBe(PADDING.screenGutter)
         expect(columnWidth - paint.right).toBe(PADDING.screenGutter)
         expect(paint.left).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)

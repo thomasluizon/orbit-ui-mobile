@@ -8,6 +8,7 @@ import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createTagSuggestionState } from '@orbit/shared/hooks'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-emoji-selector'
 import { TagSuggestions } from '@/components/habits/habit-form-fields/tag-suggestions'
 import { Composer } from '@/components/shell/composer'
@@ -171,11 +172,13 @@ it.each([320, 412, 480, 840].flatMap(width => [en, ptBR].map(messages => ({ widt
 )
 
 it.each([320, 480, 800].flatMap(width => [en, ptBR].flatMap(messages =>
-  [1, 2].flatMap(fontScale => ['empty', 'draft', 'sending'].map(state => ({ width, messages, state, fontScale }))),
-)))('keeps adjacent 48px composer targets at $width in $state with text $fontScale', async ({ width, messages, state, fontScale }) => {
+  [1, 2].flatMap(fontScale => ['empty', 'draft', 'sending'].flatMap(state =>
+    [false, true].map(collapsible => ({ width, messages, state, fontScale, collapsible })))),
+)))('keeps equal fill clearance between 48px composer targets at $width in $state with text $fontScale and disclosure=$collapsible', async ({ width, messages, state, fontScale, collapsible }) => {
+  useUIStore.setState({ habitComposerCollapsed: false })
   vi.stubGlobal('navigator', { clipboard: { readText: vi.fn().mockResolvedValue('Draft') } })
   const view = render(<NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}>
-    <Composer {...(state === 'sending' ? { state: 'sending' as const } : { state: 'idle' as const })} value={state === 'empty' ? '' : 'Draft'}
+    <Composer collapsible={collapsible} {...(state === 'sending' ? { state: 'sending' as const } : { state: 'idle' as const })} value={state === 'empty' ? '' : 'Draft'}
       words={messages.shell.composer} suggestions={[]} onChangeValue={vi.fn()} onSend={vi.fn()}
       onAttachFile={vi.fn()} attachWords={{ ...messages.shell.composer.attach, remove: name => name }} />
   </NextIntlClientProvider>)
@@ -187,7 +190,7 @@ it.each([320, 480, 800].flatMap(width => [en, ptBR].flatMap(messages =>
       marks: button.querySelectorAll('[data-asset^="astra-mark"]').length,
       name: button.getAttribute('aria-label'), icons: button.querySelectorAll('svg').length,
     })))
-    expect(targets).toHaveLength(state === 'sending' ? 2 : 3)
+    expect(targets).toHaveLength(state === 'sending' && !collapsible ? 2 : 3)
     for (const [index, target] of targets.entries()) {
       expect(target.width).toBe(48)
       expect(target.height).toBe(48)
@@ -195,7 +198,7 @@ it.each([320, 480, 800].flatMap(width => [en, ptBR].flatMap(messages =>
       expect(target.name).toBeTruthy()
       expect(target.marks).toBe(0)
       expect(target.icons).toBe(1)
-      if (index > 0) expect(target.left - targets[index - 1]!.right).toBe(0)
+      if (index > 0) expect(target.left - targets[index - 1]!.right).toBe(INTERACTION_FILL_CLEARANCE)
     }
   } finally { await page.close() }
 })

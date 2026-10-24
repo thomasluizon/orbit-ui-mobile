@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ArrowUp, Square } from '@/components/ui/icons'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { useUIStore } from '@/stores/ui-store'
 import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
 import { Composer } from '@/components/shell/composer'
 import { Menu } from '@/components/ui/menu'
@@ -549,18 +550,23 @@ function applyComposerLayoutInsets(node: YogaNode, style: Record<string, unknown
 }
 
 describe('Composer (mobile)', () => {
-  it.each([320, 480, 800].flatMap(width => [en, ptBR].flatMap(messages => [1, 2].flatMap(fontScale => ['', 'Draft'].map(value => ({ width, messages, value, fontScale }))))))(
-    'keeps adjacent 48px targets at $width with draft=$value and text $fontScale', ({ width, messages, value, fontScale }) => {
+  it.each([320, 480, 800].flatMap(width => [en, ptBR].flatMap(messages => [1, 2].flatMap(fontScale =>
+    ['empty', 'draft', 'sending'].flatMap(state => [false, true].map(collapsible => ({ width, messages, state, fontScale, collapsible })))))))(
+    'keeps equal fill clearance between 48px targets at $width in $state with text $fontScale and disclosure=$collapsible', ({ width, messages, state, fontScale, collapsible }) => {
+      useUIStore.setState({ habitComposerCollapsed: false })
       __setWindowDimensions({ width, height: 640, scale: 1, fontScale })
-      const tree = renderComposer(props({ value, suggestions: [], words: messages.shell.composer, onAttachFile: vi.fn(), attachWords }))
+      const tree = renderComposer(props({ collapsible, state: state === 'sending' ? 'sending' : 'idle', value: state === 'empty' ? '' : 'Draft',
+        suggestions: [], words: messages.shell.composer, onAttachFile: vi.fn(), attachWords }))
       try {
         const parts = measureInteractionFills(tree.toJSON(), width, false, fontScale)
-        const names = [value ? messages.shell.composer.clear : messages.shell.composer.paste, messages.shell.composer.actions, messages.shell.composer.send]
+        const textActions = state === 'sending' && !collapsible ? []
+          : [collapsible ? 'shell.composer.collapse' : state === 'empty' ? messages.shell.composer.paste : messages.shell.composer.clear]
+        const names = [...textActions, messages.shell.composer.actions, messages.shell.composer.send]
         const targets = names.map(name => parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === name)!)
         for (const [index, target] of targets.entries()) {
           expect(target.width).toBe(48)
           expect(target.height).toBe(48)
-          if (index > 0) expect(target.left - targets[index - 1]!.right).toBe(0)
+          if (index > 0) expect(target.left - targets[index - 1]!.right).toBe(INTERACTION_FILL_CLEARANCE)
         }
       } finally { TestRenderer.act(() => tree.unmount()); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
     },

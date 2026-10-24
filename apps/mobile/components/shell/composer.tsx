@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { SPACING } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { PersonalText } from '@/components/ui/personal-text'
 import {
@@ -811,7 +811,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: SPACING.s0,
+    gap: INTERACTION_FILL_CLEARANCE,
   },
   textActionSlot: {
     width: 48,
@@ -823,7 +823,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
-    gap: 0,
+    gap: INTERACTION_FILL_CLEARANCE,
   },
   leadingControls: {
     flexGrow: 1,

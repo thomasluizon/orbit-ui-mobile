@@ -424,7 +424,7 @@ describe('Composer compact geometry in Chromium', () => {
       }))
       const first = await measure()
       expect(first.slot.width).toBe(48)
-      expect(first.controls.width).toBe(96)
+      expect(first.controls.width).toBe(2 * 48 + INTERACTION_FILL_CLEARANCE)
       await page.addScriptTag({ content: composerScript })
       await page.locator('#root[data-composer-test-ready]').waitFor()
       await expect.poll(measure).toEqual(first)

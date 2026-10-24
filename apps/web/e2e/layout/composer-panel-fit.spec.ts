@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test'
 import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { profileSchema } from '@orbit/shared/types/profile'
@@ -69,7 +70,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           expect(target.height).toBe(48)
           expect(target.text).toBe('')
           expect(target.marks).toBe(0)
-          if (index > 0) expect(target.left - targets[index - 1]!.right).toBe(0)
+          if (index > 0) expect(target.left - targets[index - 1]!.right).toBe(INTERACTION_FILL_CLEARANCE)
         }
         const typed = await field.evaluate((element) => {
           const input = element as HTMLTextAreaElement
