@@ -1,5 +1,6 @@
 'use client'
 
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { TypedTextarea } from '@/components/ui/typed-textarea'
 import { useId, useMemo, useState, type ReactNode, type Ref } from 'react'
 import type { HabitUnderstandingProps, HabitRepeatIntervalProps } from '@orbit/shared/utils'
@@ -86,34 +87,37 @@ export function HabitUnderstanding({
     <div className="flex flex-col" style={{ gap: 24 }}>
       <div className="flex flex-col" style={{ gap: 8 }}>
         <label htmlFor={phraseId} className="form-label">{labels.field}</label>
-        <div data-habit-phrase-field="" data-focus-perimeter="" className="orbit-field-hover relative rounded-[12px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
-          <p
-            aria-hidden="true"
-            className="pointer-events-none min-h-[54px] w-full whitespace-pre-wrap break-words px-4 py-3 text-start text-base leading-[1.45] text-transparent"
-          >
-            {hasValue ? segments.map((segment, index) => segment.consumed ? (
-              <span
-                key={`${segment.text}-${index}`}
-                data-consumed="true"
-                className="rounded-[8px] bg-[var(--bg-well)] shadow-[inset_0_-2px_0_var(--hairline-strong)]"
-              >
-                {segment.text}
-              </span>
-            ) : segment.text) : labels.placeholder}{'\u200b'}
-          </p>
-          <TypedTextarea
-            ref={inputRef}
-            id={phraseId}
-            value={value}
-            rows={1}
-            maxLength={200}
-            spellCheck={false}
-            placeholder={labels.placeholder}
-            aria-invalid={!!error}
-            aria-describedby={error ? errorId : undefined}
-            className="absolute inset-0 h-full min-h-[54px] w-full resize-none rounded-[12px] border-0 bg-transparent px-4 py-3 text-base leading-[1.45] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] caret-[var(--fg-1)] focus-visible:outline-none"
-            onChange={(event) => onValueChange(event.target.value)}
-          />
+        <div data-habit-title-row="" className="flex min-w-0 items-start gap-3">
+          <div data-habit-phrase-field="" data-focus-perimeter="" className="orbit-field-hover relative min-w-0 flex-1 rounded-[12px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
+            <p
+              aria-hidden="true"
+              className="pointer-events-none min-h-[54px] w-full whitespace-pre-wrap break-words px-4 py-3 text-start text-base leading-[1.45] text-transparent"
+            >
+              {hasValue ? segments.map((segment, index) => segment.consumed ? (
+                <span
+                  key={`${segment.text}-${index}`}
+                  data-consumed="true"
+                  className="rounded-[8px] bg-[var(--bg-well)] shadow-[inset_0_-2px_0_var(--hairline-strong)]"
+                >
+                  {segment.text}
+                </span>
+              ) : segment.text) : labels.placeholder}{'\u200b'}
+            </p>
+            <TypedTextarea
+              ref={inputRef}
+              id={phraseId}
+              value={value}
+              rows={1}
+              maxLength={200}
+              spellCheck={false}
+              placeholder={labels.placeholder}
+              aria-invalid={!!error}
+              aria-describedby={error ? errorId : undefined}
+              className="absolute inset-0 h-full min-h-[54px] w-full resize-none rounded-[12px] border-0 bg-transparent px-4 py-3 text-base leading-[1.45] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] caret-[var(--fg-1)] focus-visible:outline-none"
+              onChange={(event) => onValueChange(event.target.value)}
+            />
+          </div>
+          <div className="shrink-0" style={{ width: onSuggestEmoji ? TOUCH_TARGET_MIN * 2 + 12 : TOUCH_TARGET_MIN }}>{emojiControl}</div>
         </div>
         {error ? (
           <p id={errorId} role="alert" className="text-sm text-[var(--status-bad-text)]">
@@ -124,12 +128,9 @@ export function HabitUnderstanding({
 
       {children}
 
-      {onSuggestEmoji && !showPreview ? emojiControl : null}
-
       {showPreview ? (
         <Proposed inset proposed={proposed} scope="block" label={labels.proposed}>
           <section aria-label={labels.understood} className="flex flex-col rounded-[20px] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" style={{ gap: 16 }}>
-            {emojiControl}
             <p className={`text-[17px] font-medium leading-[1.4] ${proposed ? 'text-[var(--fg-3)]' : 'text-[var(--fg-1)]'}`}>{sentence}</p>
             <ScheduleCorrections hidden={!showSchedule} proposed={proposed} days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible' && showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
           </section>

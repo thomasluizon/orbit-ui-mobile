@@ -87,30 +87,31 @@ export function HabitEmojiSelector({
   return (
     <>
       <div className="flex max-w-full min-w-0 flex-col gap-2">
-        <span className="form-label">{t('habits.form.emoji')}</span>
-        <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          className="habit-control-motion grid shrink-0 cursor-pointer place-items-center border-0 bg-[var(--bg-well)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45"
-          style={{
-            width: Math.max(wellSize, TOUCH_TARGET_MIN),
-            height: Math.max(wellSize, TOUCH_TARGET_MIN),
-            borderRadius: 'var(--r-well)',
-            fontSize: wellSize === 76 ? 34 : 22,
-          }}
-          disabled={isDisabled}
-          onClick={() => {
-            if (!isDisabled) setPickerOpen(true)
-          }}
-          aria-haspopup="dialog"
-          aria-expanded={pickerOpen}
-          aria-label={t('habits.form.emojiOpenPicker')}
-        >
-          {selectedEmoji || <Plus size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
-        </button>
-        <EmojiSuggestionButton onSuggest={onSuggest} canSuggest={canSuggest} isSuggesting={isSuggesting} isDisabled={isDisabled} suggestionHint={suggestionHint} suggestionError={suggestionError} hintId={hintId} errorId={errorId} />
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            className="habit-control-motion group/emoji grid shrink-0 cursor-pointer place-items-center border-0 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45"
+            style={{
+              width: Math.max(wellSize, TOUCH_TARGET_MIN),
+              height: Math.max(wellSize, TOUCH_TARGET_MIN),
+              borderRadius: 'var(--r-well)',
+              fontSize: wellSize === 76 ? 34 : 22,
+            }}
+            disabled={isDisabled}
+            onClick={() => {
+              if (!isDisabled) setPickerOpen(true)
+            }}
+            aria-haspopup="dialog"
+            aria-expanded={pickerOpen}
+            aria-label={t('habits.form.emojiOpenPicker')}
+          >
+            <span data-emoji-well="" aria-hidden="true" className="habit-control-motion grid place-items-center rounded-[var(--r-well)] bg-[var(--bg-well)] group-hover/emoji:bg-[var(--bg-hover)] group-active/emoji:bg-[var(--bg-hover)]" style={{ width: wellSize, height: wellSize }}>
+              {selectedEmoji || <Plus size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
+            </span>
+          </button>
+          <EmojiSuggestionButton onSuggest={onSuggest} canSuggest={canSuggest} isSuggesting={isSuggesting} isDisabled={isDisabled} suggestionHint={suggestionHint} suggestionError={suggestionError} hintId={hintId} errorId={errorId} />
         </div>
-        {onSuggest && suggestionHint ? <p id={hintId} className="text-sm text-[var(--fg-2)]">{suggestionHint}</p> : null}
+        {onSuggest && suggestionHint ? <p id={hintId} hidden>{suggestionHint}</p> : null}
         {onSuggest ? <p id={errorId} role="alert" className="empty:absolute text-sm text-[var(--status-bad-text)]">{suggestionError}</p> : null}
       </div>
 

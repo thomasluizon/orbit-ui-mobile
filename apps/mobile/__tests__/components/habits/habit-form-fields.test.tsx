@@ -416,7 +416,7 @@ describe('HabitFormFields mobile', () => {
     useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
   })
 
-  it.each([false, true])('selects and clears an emoji inside the preview, schedule locked: %s', async (lockedGeneral) => {
+  it.each([false, true])('selects and clears an emoji beside the title, schedule locked: %s', async (lockedGeneral) => {
     const formHelpers = createFormHelpers({ title: 'Run every day', frequencyUnit: 'Day', frequencyQuantity: 1 })
     const renderNode = () => <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} lockedGeneral={lockedGeneral} />
     let tree: ReturnType<typeof TestRenderer.create>
@@ -433,30 +433,30 @@ describe('HabitFormFields mobile', () => {
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '', { shouldDirty: true })
   })
 
-  it.each(['', '   '])('hides the preview and emoji well for an empty phrase %j even with a saved schedule', async (title) => {
+  it.each(['', '   '])('hides the preview and retains the emoji well for an empty phrase %j even with a saved schedule', async (title) => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ title, emoji: '🏃', frequencyUnit: 'Day', frequencyQuantity: 1 })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />)
     })
     expect(tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.understood')).toHaveLength(0)
-    expect(tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.emojiOpenPicker')).toHaveLength(0)
+    expect(tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.emojiOpenPicker')).toHaveLength(1)
   })
 
-  it('hides the preview and emoji well while Astra reads a phrase with an existing schedule', async () => {
+  it('hides the preview and retains the emoji well while Astra reads a phrase with an existing schedule', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ title: 'Run every day', frequencyUnit: 'Day', frequencyQuantity: 1 })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} isSuggesting />)
     })
-    expect(tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.emojiOpenPicker')).toHaveLength(0)
+    expect(tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.emojiOpenPicker')).toHaveLength(1)
     expect(tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.understood')).toHaveLength(0)
   })
 
-  it('shows no emoji well in a fresh empty form', async () => {
+  it('shows the emoji well in a fresh empty form', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ title: '' })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />)
     })
-    expect(tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.emojiOpenPicker')).toHaveLength(0)
+    expect(tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.emojiOpenPicker')).toHaveLength(1)
   })
 
   it('keeps a chosen emoji through clearing, parsing and losing the understood schedule', async () => {
@@ -470,7 +470,7 @@ describe('HabitFormFields mobile', () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(<CreateFormHarness />) })
     const buttons = (label: string) => tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)
-    expect(buttons('habits.form.emojiOpenPicker')).toHaveLength(0)
+    expect(buttons('habits.form.emojiOpenPicker')).toHaveLength(1)
     await TestRenderer.act(() => tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!.props.onChangeText('Run every day'))
     expect(buttons('habits.form.emojiOpenPicker')).toHaveLength(1)
     await TestRenderer.act(() => buttons('habits.form.emojiOpenPicker')[0]!.props.onPress())
@@ -478,7 +478,7 @@ describe('HabitFormFields mobile', () => {
     expect(formHelpers.form.getValues('emoji')).toBe('🌱')
 
     const expectHidden = () => {
-      expect(buttons('habits.form.emojiOpenPicker')).toHaveLength(0)
+      expect(buttons('habits.form.emojiOpenPicker')).toHaveLength(1)
       expect(tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.understood')).toHaveLength(0)
       expect(formHelpers.form.getValues('emoji')).toBe('🌱')
     }
@@ -1264,7 +1264,8 @@ describe('habit tag suggestions', () => {
     const view = await renderTagForm(title, '', ids)
     expect(button('habits.form.suggestTags').props.disabled).toBe(true)
     expect(tagMutations.suggest).not.toHaveBeenCalled()
-    expect(text(title.trim() ? 'habits.form.tagLimit' : 'habits.form.titleRequired').filter((node: { props: { accessibilityLiveRegion?: string } }) => node.props.accessibilityLiveRegion === 'polite')).toHaveLength(1)
+    expect(button('habits.form.suggestTags').props.accessibilityHint).toBe(title.trim() ? 'habits.form.tagLimit' : 'habits.form.titleRequired')
+    expect(text(title.trim() ? 'habits.form.tagLimit' : 'habits.form.titleRequired').filter((node: { props: { accessibilityLiveRegion?: string } }) => node.props.accessibilityLiveRegion === 'polite')).toHaveLength(0)
     if (!title.trim()) {
       await TestRenderer.act(() => { view.helpers.form.setValue('title', 'Run'); view.refresh() })
       expect(button('habits.form.suggestTags').props.disabled).toBe(false)

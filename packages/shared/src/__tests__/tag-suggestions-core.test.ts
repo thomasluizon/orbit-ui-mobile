@@ -158,8 +158,8 @@ describe('tag suggestion status', () => {
   const cases: { label: string; state: Partial<TagSuggestionState>; atLimit: boolean; needsTitle: boolean; expected: string | null }[] = [
     { label: 'suggestion loading before acceptance constraints', state: { pending: 'suggest', noResults: true, suggestions: [proposal] }, atLimit: true, needsTitle: true, expected: 'habits.form.suggestingTags' },
     { label: 'acceptance loading before acceptance constraints', state: { pending: 'accept', noResults: true, suggestions: [proposal] }, atLimit: true, needsTitle: true, expected: 'common.loading' },
-    { label: 'tag limit before missing title or results', state: { noResults: true, suggestions: [proposal] }, atLimit: true, needsTitle: true, expected: 'habits.form.tagLimit' },
-    { label: 'missing title before results', state: { noResults: true, suggestions: [proposal] }, atLimit: false, needsTitle: true, expected: 'habits.form.titleRequired' },
+    { label: 'tag limit before missing title or results', state: { noResults: true, suggestions: [proposal] }, atLimit: true, needsTitle: true, expected: null },
+    { label: 'missing title before results', state: { noResults: true, suggestions: [proposal] }, atLimit: false, needsTitle: true, expected: null },
     { label: 'empty result', state: { noResults: true }, atLimit: false, needsTitle: false, expected: 'habits.form.noTagSuggestions' },
     { label: 'available suggestions', state: { suggestions: [proposal] }, atLimit: false, needsTitle: false, expected: 'habits.form.suggestedTagsLabel' },
     { label: 'idle', state: {}, atLimit: false, needsTitle: false, expected: null },

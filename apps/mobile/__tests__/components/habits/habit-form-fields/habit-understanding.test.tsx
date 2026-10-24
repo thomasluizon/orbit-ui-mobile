@@ -218,7 +218,7 @@ describe("HabitUnderstanding mobile", () => {
     TestRenderer.act(() => tree.update(<HabitUnderstanding {...props} sentence={null} />));
     expect(tree.root.findAll((node) => node.type === "Proposed")).toHaveLength(0);
     const emojiSelectors = tree.root.findAll((node) => node.type === "HabitEmojiSelector");
-    expect(emojiSelectors).toHaveLength(0);
+    expect(emojiSelectors).toHaveLength(1);
     TestRenderer.act(() => tree.update(<HabitUnderstanding {...props} />));
     const restoredSelector = tree.root.findAll((node) => node.type === "HabitEmojiSelector")[0]!;
     expect(restoredSelector.props.selectedEmoji).toBe("🏃");

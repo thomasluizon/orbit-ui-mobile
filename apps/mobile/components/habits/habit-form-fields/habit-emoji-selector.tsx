@@ -98,35 +98,32 @@ export function HabitEmojiSelector({
   return (
     <>
       <View style={{ gap: 8, maxWidth: '100%' }}>
-        <Text style={{ color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{t('habits.form.emoji')}</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
-        <Pressable focusInset
-          style={({ pressed }) => [
-            styles.emojiWell,
-            { width: Math.max(wellSize, TOUCH_TARGET_MIN), height: Math.max(wellSize, TOUCH_TARGET_MIN), borderRadius: 12, overflow: 'hidden' },
-            pressed
-              ? {
-                  backgroundColor: tokens.bgHover,
-                  transform: [{ scale: 0.96 }],
-                }
-              : null,
-            isDisabled ? { opacity: 0.45 } : null,
-          ]}
-          disabled={isDisabled}
-          onPress={() => setPickerOpen(true)}
-          accessibilityRole="button"
-          accessibilityLabel={t("habits.form.emojiOpenPicker")}
-          accessibilityState={{ disabled: isDisabled }}
-        >
-          {selectedEmoji ? (
-            <Text style={[styles.emojiWellText, wellSize === 76 ? { fontSize: 34 } : null]}>{selectedEmoji}</Text>
-          ) : (
-            <Plus size={20} color={tokens.fg3} strokeWidth={1.8} />
-          )}
-        </Pressable>
-        <EmojiSuggestionButton onSuggest={onSuggest} canSuggest={canSuggest} isSuggesting={isSuggesting} isDisabled={isDisabled} suggestionHint={suggestionHint} suggestionError={suggestionError} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Pressable focusInset
+            style={({ pressed }) => [
+              styles.emojiWell,
+              { width: Math.max(wellSize, TOUCH_TARGET_MIN), height: Math.max(wellSize, TOUCH_TARGET_MIN), borderRadius: 12, overflow: 'hidden', backgroundColor: 'transparent' },
+              pressed ? { transform: [{ scale: 0.96 }] } : null,
+              isDisabled ? { opacity: 0.45 } : null,
+            ]}
+            disabled={isDisabled}
+            onPress={() => setPickerOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t("habits.form.emojiOpenPicker")}
+            accessibilityState={{ disabled: isDisabled }}
+          >
+            {({ pressed }) => (
+              <View testID="habit-emoji-well" data-press-fill="" accessible={false} pointerEvents="none" style={{ width: wellSize, height: wellSize, borderRadius: 12, backgroundColor: pressed ? tokens.bgHover : tokens.bgWell, alignItems: 'center', justifyContent: 'center' }}>
+                {selectedEmoji ? (
+                  <Text style={[styles.emojiWellText, wellSize === 76 ? { fontSize: 34 } : null]}>{selectedEmoji}</Text>
+                ) : (
+                  <Plus size={20} color={tokens.fg3} strokeWidth={1.8} />
+                )}
+              </View>
+            )}
+          </Pressable>
+          <EmojiSuggestionButton onSuggest={onSuggest} canSuggest={canSuggest} isSuggesting={isSuggesting} isDisabled={isDisabled} suggestionHint={suggestionHint} suggestionError={suggestionError} />
         </View>
-        {onSuggest && suggestionHint ? <Text style={{ color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{suggestionHint}</Text> : null}
         {onSuggest ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[{ color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14 }, !suggestionError ? { position: 'absolute', width: 0, height: 0 } : null]}>{suggestionError}</Text> : null}
       </View>
 

@@ -46,9 +46,17 @@ describe('HabitEmojiSelector', () => {
     mockCloseSheet.mockClear()
   })
 
-  it('offers no emoji picker without an understood preview', async () => {
+  it('keeps the disabled suggestion reason accessible without a visible caption', () => {
+    render(<HabitEmojiSelector selectedEmoji="" onSelect={vi.fn()} onSuggest={vi.fn()} suggestionHint="Title required" />)
+    expect(screen.getByRole('button', { name: 'habits.form.suggestEmoji' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'habits.form.suggestEmoji' })).toHaveAccessibleDescription('Title required')
+    expect(screen.getByText('Title required')).not.toBeVisible()
+    expect(screen.queryByText('habits.form.emoji')).toBeNull()
+  })
+
+  it('opens the title emoji picker before a schedule is understood', async () => {
     render(<UnderstandingWithEmoji resolved={false} />)
-    expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
     const user = userEvent.setup()
     await user.tab()
