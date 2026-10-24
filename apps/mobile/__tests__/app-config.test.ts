@@ -127,6 +127,11 @@ describe('Android app variant', () => {
   it.each(['production', 'staging'])('configures the iOS %s identity, minimum OS and embedded updates', async (variant) => {
     process.env.ORBIT_APP_VARIANT = variant
     const config = createConfig()
+    expect(config.ios.supportsTablet).toBe(true)
+    expect(IOSConfig.Orientation.setOrientation(config as Parameters<typeof IOSConfig.Orientation.setOrientation>[0], {}).UISupportedInterfaceOrientations).toEqual([
+      'UIInterfaceOrientationPortrait', 'UIInterfaceOrientationPortraitUpsideDown',
+      'UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight',
+    ])
     const host = variant === 'staging' ? 'app-staging.useorbit.org' : 'app.useorbit.org'
     expect(config.ios.bundleIdentifier).toBe(variant === 'staging' ? 'org.useorbit.app.staging' : 'org.useorbit.app')
     expect(config.ios.deploymentTarget).toBe('17.4')
