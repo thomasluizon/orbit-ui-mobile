@@ -43,7 +43,6 @@ const labels = {
   field: "Describe the habit",
   placeholder: "Run every weekday",
   understood: "Orbit understood",
-  understoodAstra: "Astra proposed",
   unresolved: "Choose a schedule",
   days: "Active days",
   less: "Less often",
@@ -177,9 +176,9 @@ describe("HabitUnderstanding mobile", () => {
       tree.root.findAll(
         (node) =>
           node.type === "Text" &&
-          node.props.children === labels.understoodAstra,
+          node.props.children === "Astra proposed",
       ),
-    ).toHaveLength(1);
+    ).toHaveLength(0);
     expect(
       tree.root.findAll(
         (node) =>

@@ -15,7 +15,6 @@ import { useAppTheme } from '@/lib/use-app-theme'
 const intentIcons = { Sun, Moon, Plus, Target, Bell, ListTree, Clock, List, ArrowsMove, SkipForward, CheckCheck, Tag, CalendarDays, RotateCcw, Minus, CircleDot, ChartLine, Repeat, Snowflake, CalendarClock, Download, Calendar }
 
 export function PromptIdea({ label, icon, example, invokesAstra = true, catalogId, disabled, onSelect }: Readonly<PromptIdeaProps<ReactNode>>) {
-  const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [focused, setFocused] = useState(false)
@@ -28,7 +27,7 @@ export function PromptIdea({ label, icon, example, invokesAstra = true, catalogI
     .onBegin(() => setHovered(!disabled))
     .onFinalize(() => setHovered(false)), [disabled])
   if (disabled && hovered) setHovered(false)
-  const accessibilityHint = [example, invokesAstra ? t('chat.title') : undefined].filter(Boolean).join(' ') || undefined
+  const accessibilityHint = example || undefined
   return <GestureDetector gesture={hoverGesture}><InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityHint={accessibilityHint} accessibilityState={{ disabled }} disabled={disabled}
     testID={catalogId ? `prompt-idea:${catalogId}` : 'prompt-live-idea'} onPress={() => { if (!disabled) onSelect() }} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
     style={({ pressed }) => [styles.action, { backgroundColor: !disabled && (pressed || hovered || focused) ? tokens.bgHover : catalogId ? tokens.bgCard : 'transparent', opacity: disabled ? 0.5 : 1 }]}>
@@ -39,7 +38,7 @@ export function PromptIdea({ label, icon, example, invokesAstra = true, catalogI
         {example ? <Text testID="prompt-example" style={[styles.example, { color: tokens.fg2 }]}>{promptExampleParts(example).map((part, index) => <Text key={index} testID={part.slot ? 'prompt-slot' : undefined} style={part.slot ? { fontFamily: 'Geist_500Medium' } : undefined}>{part.text}</Text>)}</Text> : null}
       </View>
     </View>
-    {invokesAstra ? <View testID="prompt-attribution" style={styles.attribution}><AstraGlyph size={20} color={tokens.fg2} /><Text style={[styles.example, { color: tokens.fg2 }]}>{t('chat.title')}</Text></View> : null}
+    {invokesAstra ? <View testID="prompt-attribution" style={styles.attribution}><AstraGlyph size={20} color={tokens.fg2} /></View> : null}
   </InsetFocusPressable></GestureDetector>
 }
 

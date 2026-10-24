@@ -327,3 +327,15 @@ describe("mobile ui store", () => {
 
 
 });
+
+ it("rehydrates the habit composer choice from device storage", async () => {
+  await setUIAccountScope("composer-preference");
+  useUIStore.getState().setHabitComposerCollapsed(true);
+  await setUIAccountScope("composer-preference");
+  expect(useUIStore.getState().habitComposerCollapsed).toBe(true);
+  await setUIAccountScope(null);
+  expect(useUIStore.getState().habitComposerCollapsed).toBe(false);
+  await setUIAccountScope("composer-preference");
+  expect(useUIStore.getState().habitComposerCollapsed).toBe(true);
+  useUIStore.persist.setOptions({ name: "orbit-ui-store" });
+ });

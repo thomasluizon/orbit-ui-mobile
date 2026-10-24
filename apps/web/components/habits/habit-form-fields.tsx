@@ -118,7 +118,7 @@ function AstraFallback({
         <Skeleton variant="settings" label={readingLabel} />
       ) : (
         <div className="flex flex-col items-start" style={{ gap: 8 }}>
-          <PillButton leadingIcon={<AstraGlyph size={16} />} variant="secondary" disabled={atLimit} onClick={onAsk}>{askLabel}</PillButton>
+          <PillButton minimumHeight={48} iconOnly label={askLabel} variant="secondary" disabled={atLimit} onClick={onAsk}><AstraGlyph size={20} /></PillButton>
           {!atLimit ? <p className="text-xs text-[var(--fg-3)]">{costLabel}</p> : null}
         </div>
       )}

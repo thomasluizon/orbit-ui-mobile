@@ -24,10 +24,9 @@ function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled
   const t = useTranslations()
   return onSuggest ? (
     <PillButton
-      accessibleName={`${t('habits.form.emoji')}: ${t('habits.form.askDate')}`}
+      iconOnly label={t('habits.form.suggestEmoji')}
       variant="ghost"
       retainLeadingIcon
-      leadingIcon={<AstraGlyph size={16} />}
       minimumHeight={TOUCH_TARGET_MIN}
       loading={isSuggesting}
       focusableWhenLoading
@@ -36,7 +35,7 @@ function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled
       descriptionId={[suggestionHint ? hintId : '', suggestionError ? errorId : ''].filter(Boolean).join(' ') || undefined}
       onClick={() => { if (canSuggest && !isDisabled && !isSuggesting) onSuggest() }}
     >
-      {t('habits.form.askDate')}
+      <AstraGlyph size={20} />
     </PillButton>
   ) : null
 }

@@ -887,7 +887,7 @@ describe('DestinationShell', () => {
     const view = render(<App />)
     expect(screen.getByRole('textbox')).toBeInTheDocument()
     expect(screen.getByRole('group', { name: en.shell.composer.suggestionsLabel })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Open conversation, nav.astra' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open conversation' }))
     expect(screen.getByTestId('conversation')).toBeInTheDocument()
     for (const pathname of ['/calendar', '/progress', '/profile']) {
       mocks.pathname = pathname

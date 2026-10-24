@@ -569,6 +569,24 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:control:habits.form.askDate": {
+      "targets": [
+        "mobile:control:habits.form.suggestDate",
+        "mobile:control:habits.form.suggestEmoji",
+        "mobile:control:habits.form.suggestTags",
+        "mobile:control:habits.reschedule.suggestDate",
+        "mobile:content:shell.composer.send"
+      ],
+      "owners": [
+        "apps/mobile/components/habits/habit-form-fields/habit-date-field.tsx",
+        "apps/mobile/components/habits/habit-form-fields/habit-emoji-selector.tsx",
+        "apps/mobile/components/habits/habit-form-fields/tag-suggestions.tsx",
+        "apps/mobile/components/habits/reschedule-sheet.tsx",
+        "apps/mobile/components/habits/habit-detail-screen.tsx",
+        "apps/mobile/components/ui/inset-focus-pressable.tsx"
+      ],
+      "reason": "#1668 retains date, emoji, tag and reschedule requests under contextual accessible names on mark-only actions, and composer sending under Send on its arrow target."
+    },
     "mobile:control:habits.form.descriptionPlaceholder": {
       "targets": [
         "mobile:control:habits.form.description"
@@ -607,12 +625,12 @@
     },
     "mobile:control:habits.form.suggestTags": {
       "targets": [
-        "mobile:control:habits.form.askDate"
+        "mobile:control:habits.form.suggestTags"
       ],
       "owners": [
         "apps/mobile/components/habits/habit-form-fields/tag-suggestions.tsx"
       ],
-      "reason": "#1607 identifies the existing suggestions.suggest action with Ask Astra in Tags; ordinary tag picking and proposal acceptance remain separate."
+      "reason": "#1668 retains suggestions.suggest on the mark-only tag action with its contextual accessible name; picking and accepting tags remain separate."
     },
     "mobile:control:habits.form.templates": {
       "targets": [
@@ -673,12 +691,12 @@
     },
     "mobile:control:habits.reschedule.retry": {
       "targets": [
-        "mobile:control:habits.form.askDate"
+        "mobile:control:habits.reschedule.suggestDate"
       ],
       "owners": [
         "apps/mobile/components/habits/reschedule-sheet.tsx"
       ],
-      "reason": "#1607 identifies the error-branch retry with Ask Astra while retaining its refetch callback, eligibility and capacity branches."
+      "reason": "#1668 retains the reschedule error-branch refetch callback on the mark-only action with its contextual accessible name."
     },
     "mobile:control:habits.reschedule.title": {
       "targets": [
@@ -2292,6 +2310,24 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "web:control:habits.form.askDate": {
+      "targets": [
+        "web:control:habits.form.suggestDate",
+        "web:control:habits.form.suggestEmoji",
+        "web:control:habits.form.suggestTags",
+        "web:control:habits.reschedule.suggestDate",
+        "web:content:shell.composer.send"
+      ],
+      "owners": [
+        "apps/web/components/habits/habit-form-fields/habit-date-field.tsx",
+        "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx",
+        "apps/web/components/habits/habit-form-fields/tag-suggestions.tsx",
+        "apps/web/components/habits/reschedule-sheet.tsx",
+        "apps/web/components/habits/habit-detail-screen.tsx",
+        "apps/web/components/shell/composer.tsx"
+      ],
+      "reason": "#1668 retains date, emoji, tag and reschedule requests under contextual accessible names on mark-only actions, and composer sending under Send on its arrow target."
+    },
     "web:control:habits.form.createDescription": {
       "targets": [
         "web:control:habits.form.newHabit"
@@ -2318,12 +2354,12 @@
     },
     "web:control:habits.form.emojiSuggest": {
       "targets": [
-        "web:control:habits.form.askDate"
+        "web:control:habits.form.suggestEmoji"
       ],
       "owners": [
         "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx"
       ],
-      "reason": "#1607 identifies emoji generation with Ask Astra in EmojiSuggestionButton, retaining the guarded onSuggest callback and the separate manual picker."
+      "reason": "#1668 retains the guarded emoji suggestion callback on the mark-only action with its contextual accessible name and keeps the manual picker separate."
     },
     "web:control:habits.form.emojiSuggesting": {
       "targets": [
@@ -2357,12 +2393,12 @@
     },
     "web:control:habits.form.suggestTags": {
       "targets": [
-        "web:control:habits.form.askDate"
+        "web:control:habits.form.suggestTags"
       ],
       "owners": [
         "apps/web/components/habits/habit-form-fields/tag-suggestions.tsx"
       ],
-      "reason": "#1607 identifies the existing suggestions.suggest action with Ask Astra in Tags; ordinary tag picking and proposal acceptance remain separate."
+      "reason": "#1668 retains suggestions.suggest on the mark-only tag action with its contextual accessible name; picking and accepting tags remain separate."
     },
     "web:control:habits.form.templates": {
       "targets": [
@@ -2405,12 +2441,12 @@
     },
     "web:control:habits.reschedule.retry": {
       "targets": [
-        "web:control:habits.form.askDate"
+        "web:control:habits.reschedule.suggestDate"
       ],
       "owners": [
         "apps/web/components/habits/reschedule-sheet.tsx"
       ],
-      "reason": "#1607 identifies the error-branch retry with Ask Astra while retaining its refetch callback, eligibility and capacity branches."
+      "reason": "#1668 retains the reschedule error-branch refetch callback on the mark-only action with its contextual accessible name."
     },
     "web:control:habits.searchPlaceholder": {
       "targets": [
@@ -3223,6 +3259,15 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
+    "web:display:habits.form.askDate": {
+      "targets": [
+        "web:display:habits.form.suggestTags"
+      ],
+      "owners": [
+        "apps/web/components/habits/habit-form-fields/tag-suggestions.tsx"
+      ],
+      "reason": "#1668 names the existing tag-suggestion status region with its contextual tag action instead of the shared Ask Astra label."
+    },
     "web:display:habits.form.dateProposed": {
       "targets": [
         "web:content:habits.form.dateProposed"
@@ -3273,13 +3318,22 @@
     },
     "web:display:habits.form.suggestTags": {
       "targets": [
-        "web:control:habits.form.askDate",
+        "web:control:habits.form.suggestTags",
         "web:control:habits.form.suggestingTags"
       ],
       "owners": [
         "apps/web/components/habits/habit-form-fields/tag-suggestions.tsx"
       ],
-      "reason": "#1607 retains tag-generation context in the actual Ask Astra action and its pending hint; a duplicate heading, ordinary picker or independent status cannot retain that action."
+      "reason": "#1668 retains tag-generation context in the mark-only action accessible name and its pending hint."
+    },
+    "web:display:habits.form.tags": {
+      "targets": [
+        "web:control:habits.form.tags"
+      ],
+      "owners": [
+        "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx"
+      ],
+      "reason": "#1668 retains the Tags field name on its picker row; the separate tag-suggestion status region uses its contextual suggestion name."
     },
     "web:display:habits.form.timesPerUnit": {
       "targets": [

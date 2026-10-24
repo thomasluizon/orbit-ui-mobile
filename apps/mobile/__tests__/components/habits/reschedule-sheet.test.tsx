@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockRescheduleSuggestion } from '@orbit/shared/__tests__/factories'
 import type { RescheduleSuggestion } from '@orbit/shared/types/habit'
@@ -84,8 +85,14 @@ describe('RescheduleSheet (mobile)', () => {
     expect(actions.findAll((node) => node.type === 'View' && node.props.testID === 'action-row')).toHaveLength(1)
     expect(actions.findAll((node) => node.type === 'Pressable' && typeof node.props.testID === 'string').map((node) => node.props.testID)).toEqual(['button-ghost-sm', 'button-primary-sm'])
     const terminalAction = state === 'free' ? 'upgrade' : state === 'error' ? 'askDate' : 'accept'
-    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['habits.reschedule.dismiss', terminalAction === 'askDate' ? 'habits.form.askDate' : `habits.reschedule.${terminalAction}`])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['habits.reschedule.dismiss', terminalAction === 'askDate' ? 'habits.reschedule.suggestDate' : `habits.reschedule.${terminalAction}`])
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+    if (state === 'error') {
+      const action = tree.root.findAll(node => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.reschedule.suggestDate')[0]!
+      expect(action.findAll(node => node.type === 'Text')).toHaveLength(0)
+      const style = action.props.style as (state: { pressed: boolean }) => import('react-native').ViewStyle[]
+      expect(StyleSheet.flatten(style({ pressed: false })).width).toBe(48)
+    }
   })
   it.each(['free', 'error'] as const)('dismisses the %s footer without applying or navigating', (state) => {
     if (state === 'free') mockProfile = { hasProAccess: false, language: 'en' }
@@ -234,7 +241,7 @@ describe('RescheduleSheet (mobile)', () => {
 
     expect(hasText(tree.root, 'habits.reschedule.error')).toBe(true)
     TestRenderer.act(() => {
-      pressButton(tree.root, 'habits.form.askDate')
+      pressButton(tree.root, 'habits.reschedule.suggestDate')
     })
     expect(mockRefetch).toHaveBeenCalled()
   })

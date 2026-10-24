@@ -77,7 +77,7 @@ it('returns accessibility focus to the Hoje glyph after a header close', async (
   let tree!: GeometryTree
   await renderer.act(() => { tree = renderer.create(<App />) as GeometryTree })
   try {
-    const trigger = () => tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === `${en.todayAstra.openConversation}, nav.astra`)[0]!
+    const trigger = () => tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === `${en.todayAstra.openConversation}`)[0]!
     await renderer.act(() => (trigger().props.onPress as () => void)())
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
     focus.mockClear()

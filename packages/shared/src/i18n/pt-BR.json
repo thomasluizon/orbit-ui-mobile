@@ -234,8 +234,10 @@
     "closeRail": "Fechar painel",
     "openPalette": "Abrir paleta de comandos",
     "composer": {
+      "collapse": "Recolher campo de mensagem",
+      "expand": "Expandir campo de mensagem",
       "usage": "Mensagens hoje: {used} de {limit}",
-      "placeholder": "Peça à Astra",
+      "placeholder": "O que você quer fazer?",
       "send": "Enviar",
       "clear": "Limpar mensagem",
       "paste": "Colar",
@@ -325,7 +327,7 @@
           "rename": "Renomear o hábito \"{title}\""
         }
       },
-      "inputLabel": "Peça à Astra",
+      "inputLabel": "O que você quer fazer?",
       "actions": "Adicionar"
     }
   },
@@ -569,7 +571,7 @@
       "loadError": "Não foi possível carregar os hábitos."
     },
     "createHabit": "Criar hábito",
-    "askAstra": "Pedir à Astra",
+    "askAstra": "Iniciar conversa",
     "createManually": "Criar manualmente",
     "createSubHabit": "Criar sub-hábito",
     "editHabit": "Editar hábito",
@@ -631,10 +633,11 @@
       "skip": "Pular",
       "openSubHabits": "Abrir os sub-hábitos",
       "unlog": "Marcar como não feito",
-      "rescheduleAstra": "Reagendar com a Astra",
+      "rescheduleAstra": "Reagendar",
       "reschedule": "Reagendar"
     },
     "reschedule": {
+      "suggestDate": "Sugerir outra data com a Astra",
       "title": "Reagendar com IA",
       "loading": "Procurando um plano realista.",
       "error": "Não foi possível sugerir um plano.",
@@ -719,9 +722,8 @@
       "describe": "O que você quer acompanhar",
       "describePlaceholder": "Correr 3 vezes por semana",
       "understood": "O Orbit entendeu",
-      "understoodAstra": "A Astra entendeu",
       "unresolved": "O Orbit não encontrou a frequência nessa frase. Escolha os dias ou um número de vezes por semana.",
-      "askAstra": "Perguntar à Astra",
+      "askAstra": "Sugerir frequência",
       "askAstraCost": "Usa 1 das {allowance} mensagens de hoje.",
       "astraReading": "A Astra está lendo a frase",
       "localReadLimit": "As {allowance} mensagens da Astra de hoje foram usadas. O Orbit lê a frase neste aparelho, e criar um hábito não usa mensagem. Escolha os dias ou um número de vezes por semana.",
@@ -780,7 +782,8 @@
       "dateInvalid": "Essa data não existe. Escolha outra.",
       "dateBudgetReached": "A Astra chegou ao limite de hoje. Escolha a data no calendário.",
       "dateStale": "Escolha a data no calendário.",
-      "askDate": "Consultar Astra",
+      "suggestEmoji": "Sugerir um emoji com a Astra",
+      "suggestDate": "Sugerir uma data com a Astra",
       "acceptDate": "Usar data",
       "dateProposed": "Astra sugeriu esta data.",
       "dateConfirmationRequired": "Use a data sugerida ou escolha outra no calendário.",
@@ -907,7 +910,7 @@
       "tagNameRequired": "Dê um nome à tag",
       "tagNameTooLong": "Encurte o nome da tag para até 50 caracteres.",
       "tagColorInvalid": "Escolha uma cor da paleta",
-      "suggestTags": "Sugerir tags",
+      "suggestTags": "Sugerir tags com a Astra",
       "suggestingTags": "Sugerindo…",
       "suggestedTagsLabel": "Sugeridas",
       "noTagSuggestions": "Nenhuma sugestão encontrada",
@@ -1003,7 +1006,7 @@
       "inside": "O que tem dentro",
       "addSubHabit": "Adicionar sub-hábito",
       "linkedGoals": "Metas",
-      "askAstra": "Perguntar à Astra",
+      "askAstra": "Analisar hábito",
       "moreDetails": "Mais detalhes",
       "schedule": "Frequência",
       "noValue": "Não definido",
@@ -1562,7 +1565,7 @@
       }
     },
     "empty": {
-      "title": "Fale com a Astra"
+      "title": "Iniciar conversa"
     },
     "attachImage": "Anexar imagem",
     "send": "Enviar mensagem",
@@ -2874,7 +2877,7 @@
     "loading": "Dando uma olhada no seu dia...",
     "error": "Não consegui carregar o resumo. Tente de novo.",
     "retry": "Tentar de novo",
-    "askAstra": "Pergunte à Astra",
+    "askAstra": "Analisar resumo",
     "upgrade": "Fazer upgrade",
     "freePrompt": "No Pro, você recebe um resumo diário dos seus hábitos."
   },
@@ -3041,7 +3044,7 @@
       "calendarButton": "Importar calendário",
       "importTitle": "Importar de outro app?",
       "importDescription": "Usava outro app de hábitos? A Astra pode recriar seus hábitos. Anexe um arquivo ou cole sua lista.",
-      "importButton": "Importar com a Astra",
+      "importButton": "Importar hábitos",
       "importNotNow": "Agora não"
     },
     "featureGuide": {
@@ -3499,7 +3502,7 @@
       "historyDate": "Data: {date}",
       "historyDelta": "Mudança: {delta} {unit}",
       "historyProgress": "Progresso: {current} de {target} {unit}",
-      "askAstraEyebrow": "Pergunte à Astra",
+      "askAstraEyebrow": "Analisar meta",
       "askAstraDefault": "Quer um plano de acompanhamento semanal para isso?",
       "askAstraSeedDefault": "Me ajuda a montar um plano de acompanhamento semanal para a meta \"{title}\".",
       "statusLabel": "Status"
@@ -3991,7 +3994,7 @@
       "items": {
         "createHabit": "Crie seu primeiro hábito",
         "logHabit": "Registre um hábito hoje",
-        "tryAstra": "Pergunte algo à Astra"
+        "tryAstra": "O que você quer fazer?"
       },
       "progress": "{done} de {total} concluídos",
       "complete": "Tudo pronto.",

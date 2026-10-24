@@ -15,11 +15,11 @@ conversation column, centred, maximum 740
 ├──────────────────────────────────────────────┤
 │ For you now                                  │ only supplied live suggestions
 │   supplied icon  supplied label              │ unframed single target
-│   Astra glyph  Astra                         │ current request callback
+│   Astra glyph                                │ current request callback
 │                                              │ 24 between groups
 │ ┌──────────────────────────────────────────┐ │ 16 screen gutter
 │ │ Sun  Plan my morning                      │ │ inline 24 icon, 12 text gap
-│ │ Astra glyph  Astra                       │ │ plain attribution, 12 above
+│ │ Astra glyph                              │ │ plain attribution, 12 above
 │ └──────────────────────────────────────────┘ │ radius 20 neutral card
 │                                              │ 12 between cards
 │ ┌──────────────────────────────────────────┐ │ 16 record inset
@@ -58,7 +58,7 @@ selection still receives the exact original translated prompt and its original s
 Empty example content adds no line or gap.
 
 Complete prompts and the current live producer invoke Astra through their existing owners, so
-one plain 20px glyph and the existing Astra title identify her within the action. Slots only
+one plain 20px glyph identifies her within the action without repeating the brand name. Slots only
 prepare input and carry no request attribution. This composition changes no allowance, request,
 preview or confirmation policy.
 

@@ -73,7 +73,7 @@ for (const width of [320, 360, 384, 412, 1100, 1440]) {
         await page.getByRole('menu', { name: words.habits.listOptions, exact: true })
           .getByRole('menuitem', { name: words.habits.refresh, exact: true }).click()
         await expect(page.getByTestId('habit-row').getByText(title, { exact: true })).toBeVisible()
-        await page.getByRole('button', { name: width >= 1024 ? words.chat.title : `${words.todayAstra.openConversation}, ${words.nav.astra}`, exact: true }).click()
+        await page.getByRole('button', { name: words.todayAstra.openConversation, exact: true }).click()
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         const empty = conversation.getByRole('feed')
         await markRequiredLabels(empty.getByText(words.chat.empty.title, { exact: true }))
@@ -101,9 +101,9 @@ for (const width of [320, 360, 384, 412, 1100, 1440]) {
         })
         await expect(strip.getByRole('button')).toHaveCount(Object.values(words.shell.composer.chips.habitDetail).length)
         for (const label of Object.values(words.shell.composer.chips.habitDetail)) {
-          const chip = strip.getByRole('button', { name: `${label}, ${words.nav.astra}`, exact: true })
+          const chip = strip.getByRole('button', { name: label, exact: true })
           await expect(chip).toHaveCount(1)
-          await expect(chip).toHaveText(`${label} ${words.nav.astra}`)
+          await expect(chip).toHaveText(label)
           await expect(chip.locator('[data-asset="astra-mark-16"]')).toHaveCount(1)
           await markRequiredLabels(chip)
         }

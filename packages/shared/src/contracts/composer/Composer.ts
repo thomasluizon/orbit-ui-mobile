@@ -75,6 +75,7 @@ export function toComposerSuggestions(chips: readonly ComposerSuggestion[]): Com
 }
 
 type ComposerBase = {
+  collapsible?: boolean
   words: ComposerWords
   value: string
   onChangeValue: (value: string) => void

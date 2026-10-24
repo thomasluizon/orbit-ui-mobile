@@ -45,6 +45,20 @@ function menuItemLabels(tree: any): string[] {
 }
 
 describe('Menu (mobile)', () => {
+  it('keeps an Astra menu action icon-only and named', async () => {
+    __setWindowDimensions({ width: 480, height: 900, scale: 1, fontScale: 1 })
+    const onSelect = vi.fn()
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<Menu open presentation="anchored" anchorRef={{ current: null }} title="Actions" items={[{ id: 'reschedule', label: 'Suggest a new date with Astra', icon: 'astra' }]} onSelect={onSelect} />) })
+    try {
+      const action = tree.root.findAll((node: ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Suggest a new date with Astra')[0]!
+      expect(action.findAllByType('Text')).toHaveLength(0)
+      expect(StyleSheet.flatten(action.props.style({ pressed: false })).width).toBe(48)
+      await TestRenderer.act(() => action.props.onPress())
+      expect(onSelect).toHaveBeenCalledWith('reschedule')
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
   it('discloses the full name from a real habit row menu without an edit action', async () => {
     __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale: 2 })
     const title = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'

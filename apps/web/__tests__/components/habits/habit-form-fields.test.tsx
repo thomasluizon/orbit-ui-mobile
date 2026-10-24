@@ -179,6 +179,18 @@ function renderForm(
 }
 
 describe('HabitFormFields', () => {
+  it('renders every form Astra action without visible text', () => {
+    const helpers = createFormHelpers({ itemType: 'habit', title: 'Build a stronger routine', datePhrase: 'after my vacation' })
+    const view = renderForm(helpers, vi.fn(() => SETUP_PROPOSAL), false, false, null, undefined, { onSuggestEmoji: vi.fn() })
+    const actions = [...view.container.querySelectorAll('button')].filter(button => button.querySelector('[data-asset^="astra-mark"]'))
+    expect(actions).toHaveLength(3)
+    for (const action of actions) {
+      expect(action.textContent).toBe('')
+      expect(action).toHaveAccessibleName()
+      expect(action.style.width).toBe('48px')
+    }
+  })
+
   it.each(['en', 'pt-BR'])('keeps natural date guidance and a single selected date in %s', (locale) => {
     formLocale.language = locale
     const messages = locale === 'en' ? en : ptBR
@@ -227,7 +239,7 @@ describe('HabitFormFields', () => {
   it.each(['', '   ', 'Swim'])('reaches the emoji action without replacing setup for title %j', async (title) => {
     const onSuggestEmoji = vi.fn().mockResolvedValue(SETUP_PROPOSAL)
     renderForm(createFormHelpers({ title }), undefined, false, false, null, undefined, { onSuggestEmoji })
-    const button = screen.getByRole('button', { name: 'habits.form.emoji: habits.form.askDate' })
+    const button = screen.getByRole('button', { name: 'habits.form.suggestEmoji' })
     expect(button.hasAttribute('disabled')).toBe(!title.trim())
     if (title.trim()) {
       const user = userEvent.setup()
@@ -246,12 +258,12 @@ describe('HabitFormFields', () => {
     const emojiOptions = { onSuggestEmoji, isEmojiSuggesting: false }
     const view = renderForm(createFormHelpers({ title: 'Swim', frequencyUnit: 'Day', frequencyQuantity: 1 }), undefined, false, false, null, undefined, emojiOptions)
     const user = userEvent.setup()
-    const button = screen.getByRole('button', { name: 'habits.form.emoji: habits.form.askDate' })
+    const button = screen.getByRole('button', { name: 'habits.form.suggestEmoji' })
     button.focus()
     await user.keyboard('{Enter}')
     emojiOptions.isEmojiSuggesting = true
     view.rerenderForm(true)
-    const busy = screen.getByRole('button', { name: 'habits.form.emoji: habits.form.askDate' })
+    const busy = screen.getByRole('button', { name: 'habits.form.suggestEmoji' })
     expect(busy).toBe(button)
     expect(busy.querySelector('[data-asset^="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
     expect(busy).toHaveAttribute('aria-busy', 'true')
@@ -265,7 +277,7 @@ describe('HabitFormFields', () => {
     await act(async () => { complete(SETUP_PROPOSAL); await pending })
     emojiOptions.isEmojiSuggesting = false
     view.rerenderForm()
-    expect(screen.getByRole('button', { name: 'habits.form.emoji: habits.form.askDate' })).toBe(button)
+    expect(screen.getByRole('button', { name: 'habits.form.suggestEmoji' })).toBe(button)
     expect(button.closest('[data-proposed]')).toBeInTheDocument()
     expect(moveFocus ? phrase : button).toHaveFocus()
   })
@@ -273,7 +285,7 @@ describe('HabitFormFields', () => {
   it('keeps the emoji request visible and busy while blocking competing emoji edits', () => {
     const onSuggestEmoji = vi.fn()
     renderForm(createFormHelpers({ title: 'Swim', frequencyUnit: 'Day', frequencyQuantity: 1 }), undefined, false, false, null, undefined, { onSuggestEmoji, isEmojiSuggesting: true })
-    const button = screen.getByRole('button', { name: 'habits.form.emoji: habits.form.askDate' })
+    const button = screen.getByRole('button', { name: 'habits.form.suggestEmoji' })
     expect(button).not.toBeDisabled()
     expect(button).toHaveAttribute('aria-disabled', 'true')
     expect(button).toHaveAttribute('aria-busy', 'true')
@@ -291,7 +303,7 @@ describe('HabitFormFields', () => {
     emojiOptions.emojiSuggestionError = 'Try again'
     view.rerenderForm()
     expect(screen.getByRole('alert')).toBe(alert)
-    const button = screen.getByRole('button', { name: 'habits.form.emoji: habits.form.askDate' })
+    const button = screen.getByRole('button', { name: 'habits.form.suggestEmoji' })
     expect(button).toBeDisabled()
     expect(button.getAttribute('aria-describedby')).toBeTruthy()
     expect(screen.getByRole('alert')).toHaveTextContent('Try again')
@@ -727,11 +739,11 @@ describe('HabitFormFields', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
-    await waitFor(() => expect(screen.getByText('habits.form.understoodAstra')).toBeDefined())
+    await waitFor(() => expect(screen.getByRole('region', { name: 'habits.form.understood' }).closest('[data-proposed]')).toBeInTheDocument())
 
     await correct()
 
-    expect(screen.getByText('habits.form.understood')).toBeDefined()
+    expect(screen.getByRole('region', { name: 'habits.form.understood' }).closest('[data-proposed]')).toBeNull()
   })
 
   it('allows Astra again after the proposed phrase changes', async () => {
@@ -778,7 +790,7 @@ describe('HabitFormFields', () => {
       return SETUP_PROPOSAL
     }, true)
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
-    await waitFor(() => expect(screen.getByText('habits.form.understoodAstra')).toBeDefined())
+    await waitFor(() => expect(screen.getByRole('region', { name: 'habits.form.understood' }).closest('[data-proposed]')).toBeInTheDocument())
     expect(screen.getByText('checklist-editor').closest('[data-proposed]')).toBeNull()
   })
 
@@ -928,7 +940,10 @@ it('keeps rejected tag Name validation beside its input in the owning habit edit
 it('exposes tag suggestions from the owning habit form', () => {
   renderForm(createFormHelpers({ title: 'Run', description: 'Outside' }), undefined, true)
   fireEvent.click(screen.getByRole('button', { name: /^habits.form.tags/ }))
-  expect(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' })).toBeEnabled()
+  const action = screen.getByRole('button', { name: 'habits.form.suggestTags' })
+  expect(action).toBeEnabled()
+  expect(action.textContent).toBe('')
+  expect(action.style.width).toBe('48px')
 })
 
 describe('habit tag suggestions', () => {
@@ -969,7 +984,7 @@ describe('habit tag suggestions', () => {
       view.refresh()
       return Promise.resolve()
     })
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
     if (phase === 'settled') await act(async () => complete(proposals))
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'habits.form.deleteTag: Health' })) })
     expect(tagMutations.delete).toHaveBeenCalledWith('existing')
@@ -984,7 +999,7 @@ describe('habit tag suggestions', () => {
     await waitFor(() => {
       expect(screen.getByLabelText('Selected tags')).toHaveTextContent('outdoors')
       expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeEnabled()
-      expect(screen.getByRole('status', { name: 'habits.form.tags: habits.form.askDate' })).toHaveTextContent('habits.form.suggestedTagsLabel')
+      expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestedTagsLabel')
     })
     tagMutations.create.mockResolvedValue({ id: 'created' })
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Reading', pressed: false })) })
@@ -999,14 +1014,14 @@ describe('habit tag suggestions', () => {
     tagMutations.suggest.mockImplementation(() => new Promise((resolve) => { complete = resolve }))
     if (phase === 'error') tagMutations.suggest.mockRejectedValueOnce(new Error('Unavailable'))
     renderTagForm()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
     const proposals = { tags: [{ name: 'Reading', color: '#000000', isExisting: false, id: null }] }
     if (phase === 'settled') await act(async () => complete(proposals))
     if (phase === 'error') expect(await screen.findByRole('alert')).toHaveTextContent('habits.form.suggestTagsError')
     fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.searchTags' }), { target: { value: 'Tag 24' } })
     if (phase === 'pending') {
-      expect(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' })).toBeDisabled()
-      expect(screen.getByRole('status', { name: 'habits.form.tags: habits.form.askDate' })).toHaveTextContent('habits.form.suggestingTags')
+      expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
+      expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestingTags')
       await act(async () => complete(proposals))
     }
     if (phase === 'error') expect(screen.getByRole('alert')).toHaveTextContent('habits.form.suggestTagsError')
@@ -1028,12 +1043,12 @@ describe('habit tag suggestions', () => {
       view.refresh()
       return new Promise((resolve, reject) => { complete = resolve; fail = reject })
     })
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Reading', pressed: false }))
     expect(screen.getByRole('textbox', { name: 'habits.form.searchTags' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Outdoors', pressed: false })).toBeDisabled()
-    expect(screen.getByRole('status', { name: 'habits.form.tags: habits.form.askDate' })).toHaveTextContent('common.loading')
-    expect(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' })).toBeDisabled()
+    expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('common.loading')
+    expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
     if (outcome === 'success') {
       await act(async () => complete({ id: 'created' }))
       expect(screen.getByLabelText('Selected tags')).toHaveTextContent('created')
@@ -1060,7 +1075,7 @@ describe('habit tag suggestions', () => {
     ] })
     tagMutations.create.mockResolvedValue({ id: 'created' })
     renderTagForm()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
     expect(await screen.findByRole('group', { name: 'habits.form.suggestedTagsLabel' })).toHaveAttribute('data-proposed')
     expect(tagMutations.suggest).toHaveBeenCalledWith({ title: 'Run', description: 'Outside', language: 'en' })
     expect(screen.getByLabelText('Selected tags')).toHaveTextContent('')
@@ -1079,18 +1094,18 @@ describe('habit tag suggestions', () => {
     tagMutations.suggest.mockImplementation(() => new Promise((complete) => { resolve = complete }))
     formLocale.language = 'pt-BR'
     renderTagForm('Run', '   ')
-    const action = screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' })
+    const action = screen.getByRole('button', { name: 'habits.form.suggestTags' })
     expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
     fireEvent.click(action)
     expect(action).toBeDisabled()
     expect(action).toHaveAttribute('aria-busy', 'true')
     expect(action).toHaveAccessibleDescription('habits.form.suggestingTags')
-    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.tags: habits.form.askDate' })).toHaveTextContent('habits.form.suggestingTags')
+    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestingTags')
     fireEvent.click(action)
     expect(tagMutations.suggest).toHaveBeenCalledTimes(1)
     expect(tagMutations.suggest).toHaveBeenCalledWith({ title: 'Run', description: null, language: 'pt-BR' })
     await act(async () => resolve({ tags: [] }))
-    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.tags: habits.form.askDate' })).toHaveTextContent('habits.form.noTagSuggestions')
+    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.noTagSuggestions')
     expect(action).toBeEnabled()
     expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
   })
@@ -1098,10 +1113,10 @@ describe('habit tag suggestions', () => {
   it('shows request failure inline and permits a successful retry', async () => {
     tagMutations.suggest.mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValueOnce({ tags: [] })
     renderTagForm()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('habits.form.suggestTagsError')
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
-    await waitFor(() => expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.tags: habits.form.askDate' })).toHaveTextContent('habits.form.noTagSuggestions'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    await waitFor(() => expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.noTagSuggestions'))
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
@@ -1110,11 +1125,11 @@ describe('habit tag suggestions', () => {
     let reject!: (error: Error) => void
     tagMutations.create.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail })).mockResolvedValueOnce({ id: 'created' })
     renderTagForm()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Reading', pressed: false }))
     expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeDisabled()
-    expect(screen.getByRole('status', { name: 'habits.form.tags: habits.form.askDate' })).toHaveTextContent('common.loading')
-    expect(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' })).toBeDisabled()
+    expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('common.loading')
+    expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
     await act(async () => reject(new Error('Unavailable')))
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(screen.getByLabelText('Selected tags')).toBeEmptyDOMElement()
@@ -1124,12 +1139,12 @@ describe('habit tag suggestions', () => {
 
   it.each([['   ', []], ['Run', ['1', '2', '3', '4', '5']]])('disables suggestions with an empty title or full selection: %s', (title, ids) => {
     const view = renderTagForm(title, '', ids)
-    const action = screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' })
+    const action = screen.getByRole('button', { name: 'habits.form.suggestTags' })
     expect(action).toBeDisabled()
     fireEvent.click(action)
     expect(tagMutations.suggest).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'habits.form.newTag' })).toBeInTheDocument()
-    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.tags: habits.form.askDate' })).toHaveTextContent(title.trim() ? 'habits.form.tagLimit' : 'habits.form.titleRequired')
+    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent(title.trim() ? 'habits.form.tagLimit' : 'habits.form.titleRequired')
     if (!title.trim()) {
       view.helpers.testValues.title = 'Run'
       view.refresh()
@@ -1145,7 +1160,7 @@ describe('habit tag suggestions', () => {
       { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
     ] })
     renderTagForm('Run', '', ['1', '2', '3', '4'])
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
     fireEvent.click(within(await screen.findByRole('group', { name: 'habits.form.suggestedTagsLabel' })).getByRole('button', { name: 'Health', pressed: false }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeDisabled())
     expect(tagMutations.create).not.toHaveBeenCalled()
@@ -1155,7 +1170,7 @@ describe('habit tag suggestions', () => {
     let resolve!: (response: { tags: { name: string; color: string; isExisting: boolean; id: null }[] }) => void
     tagMutations.suggest.mockImplementation(() => new Promise((complete) => { resolve = complete }))
     const view = renderTagForm()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
     await act(async () => {
       if (context === 'locale') formLocale.language = 'pt-BR'
       else if (context === 'account') advanceAccountGeneration()
@@ -1165,7 +1180,10 @@ describe('habit tag suggestions', () => {
     if (context === 'returning title') await act(async () => { view.helpers.testValues.title = ' Run '; view.refresh() })
     await act(async () => resolve({ tags: [{ name: 'Outdoors', color: '#7c3aed', isExisting: false, id: null }] }))
     expect(screen.queryByRole('button', { name: 'Outdoors', pressed: false })).toBeNull()
-    expect(screen.getByRole('button', { name: 'habits.form.tags: habits.form.askDate' })).toBeEnabled()
+    const action = screen.getByRole('button', { name: 'habits.form.suggestTags' })
+  expect(action).toBeEnabled()
+  expect(action.textContent).toBe('')
+  expect(action.style.width).toBe('48px')
 
   })
 })
@@ -1411,7 +1429,7 @@ it('blocks an unaccepted Astra date, preserves the saved date and focuses its ca
   try {
     render(<QueryClientProvider client={new QueryClient()}><OwningForm /></QueryClientProvider>)
     fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.datePhrase' }), { target: { value: 'after vacation' } })
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'habits.form.acceptDate' })).toBeVisible())
     act(() => { expect(helpers.validateAll()).toBe('habits.form.dateConfirmationRequired') })
     expect(helpers.form.getValues('dueDate')).toBe('2026-10-20')
@@ -1462,7 +1480,7 @@ describe('date candidate confirmation', () => {
   const phraseInput = () => screen.getByRole('textbox', { name: 'habits.form.datePhrase' })
   async function propose() {
     fireEvent.change(phraseInput(), { target: { value: 'after vacation' } })
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
     await screen.findByRole('button', { name: 'habits.form.acceptDate' })
   }
 
@@ -1472,12 +1490,12 @@ describe('date candidate confirmation', () => {
     mount()
     fireEvent.change(phraseInput(), { target: { value: 'after vacation' } })
     expect(screen.getByText(messages.habits.form.datePhraseUnresolved)).toBeVisible()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
     await screen.findByRole('button', { name: 'habits.form.acceptDate' })
     expect(screen.queryByText(messages.habits.form.datePhraseUnresolved)).toBeNull()
     expect(phraseInput()).not.toHaveAttribute('aria-invalid')
     expect(screen.getByRole('status')).toHaveTextContent(messages.habits.form.dateProposed)
-    expect(screen.queryByRole('button', { name: 'habits.form.askDate' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.suggestDate' })).toBeNull()
     expect(screen.queryByText(/^habits.form.askAstraCost/)).toBeNull()
     expect(helpers.form.getValues()).toMatchObject({ dueDate: '2026-10-20', datePhrase: 'after vacation', dateIssue: '' })
     expect(dateRequests.request).toHaveBeenCalledOnce()
@@ -1504,11 +1522,11 @@ describe('date candidate confirmation', () => {
   it('offers another paid consultation only after the proposed phrase changes', async () => {
     mount()
     await propose()
-    expect(screen.queryByRole('button', { name: 'habits.form.askDate' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.suggestDate' })).toBeNull()
     expect(screen.queryByText(/^habits.form.askAstraCost/)).toBeNull()
     fireEvent.change(phraseInput(), { target: { value: 'after my next vacation' } })
     expect(screen.queryByRole('button', { name: 'habits.form.acceptDate' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'habits.form.askDate' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'habits.form.suggestDate' })).toBeEnabled()
     expect(dateRequests.request).toHaveBeenCalledOnce()
   })
 
@@ -1516,14 +1534,14 @@ describe('date candidate confirmation', () => {
     dateRequests.request.mockRejectedValueOnce(new Error('provider timeout'))
     mount()
     fireEvent.change(phraseInput(), { target: { value: 'after vacation' } })
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'habits.form.askDate' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'habits.form.suggestDate' })).toBeEnabled())
     expect(screen.getByText(en.habits.form.datePhraseUnresolved)).toBeVisible()
     expect(screen.queryByRole('button', { name: 'habits.form.acceptDate' })).toBeNull()
     fireEvent.submit(screen.getByRole('button', { name: 'Save' }).closest('form')!)
     await waitFor(() => expect(phraseInput()).toHaveAttribute('aria-invalid', 'true'))
     expect(saved).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
     await screen.findByRole('button', { name: 'habits.form.acceptDate' })
     expect(phraseInput()).not.toHaveAttribute('aria-invalid')
     expect(screen.queryByText(en.habits.form.datePhraseUnresolved)).toBeNull()
@@ -1631,7 +1649,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     formLocale.language = locale
     await mount('habit')
     fireEvent.change(phraseInput(), { target: { value: 'every Monday from after vacation' } })
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
     fireEvent.click(await screen.findByRole('button', { name: 'habits.form.acceptDate' }))
     expect(phraseInput()).toHaveValue('')
     await submit()
@@ -1687,7 +1705,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     fireEvent.change(phraseInput(), { target: { value: wording } })
     expect(phraseInput()).toHaveValue(wording)
     expect(screen.getByRole('radio', { name: 'habits.form.typeHabit' })).toBeChecked()
-    expect(screen.queryByRole('button', { name: 'habits.form.askDate' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.suggestDate' })).toBeNull()
     expect(mutation()).not.toHaveBeenCalled()
     expect(dateRequests.request).not.toHaveBeenCalled()
     await submit()
@@ -1703,7 +1721,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     await mount('habit')
     fireEvent.change(phraseInput(), { target: { value: wording } })
     if (owner === 'create') fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
-    expect(screen.queryByRole('button', { name: 'habits.form.askDate' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.suggestDate' })).toBeNull()
     expect(screen.getByRole('radio', { name: expected.isFlexible ? 'habits.form.timesPerUnit' : 'habits.form.every' })).toBeChecked()
     expect(screen.getByRole('radio', { name: expected.frequencyUnit === 'Week' ? 'habits.form.unitWeek' : 'habits.form.unitDay' })).toBeChecked()
     expect(screen.getByRole('spinbutton', { name: 'habits.form.frequency' })).toHaveValue(expected.frequencyQuantity)
@@ -1823,7 +1841,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     await opening
     expect(screen.getByRole('button', { name: 'common.close' })).toHaveFocus()
     fireEvent.change(phraseInput(), { target: { value: 'after vacation' } })
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
     await screen.findByRole('button', { name: 'habits.form.acceptDate' })
     await submit('form')
     await waitFor(() => expect(phraseInput()).toHaveAttribute('aria-invalid', 'true'))
@@ -1845,7 +1863,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     const messages = locale === 'en' ? en : ptBR
     await mount(type)
     fireEvent.change(phraseInput(), { target: { value: 'after vacation' } })
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
     await screen.findByRole('button', { name: 'habits.form.acceptDate' })
     await submit(method)
     await waitFor(() => expect(phraseInput()).toHaveAttribute('aria-invalid', 'true'))
@@ -2017,7 +2035,7 @@ describe('date ownership across form transitions', () => {
     act(() => { expect(owner.helpers().validateAll()).toBeNull() })
     expect(screen.getByRole('textbox', { name: 'habits.form.datePhrase' })).toHaveValue(phrase)
     expect(screen.queryByText('habits.form.datePhraseUnresolved')).toBeNull()
-    expect(screen.queryByRole('button', { name: 'habits.form.askDate' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.suggestDate' })).toBeNull()
     expect(dateRequests.request).not.toHaveBeenCalled()
     const values = habitFormSchema.parse(owner.values())
     expect(buildCreateHabitRequest(values, [], [], [], [])).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-20' })
@@ -2031,7 +2049,7 @@ describe('date ownership across form transitions', () => {
     const owner = mountDateForm()
     owner.phrase('weekly')
     expect(owner.values()).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, dueDate: '2026-10-20', dateIssue: '' })
-    expect(screen.queryByRole('button', { name: 'habits.form.askDate' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.suggestDate' })).toBeNull()
     expect(dateRequests.request).not.toHaveBeenCalled()
   })
 
@@ -2076,7 +2094,7 @@ describe('date ownership across form transitions', () => {
     expect(input).toHaveFocus()
     expect(owner.values()).toMatchObject({ itemType: 'task', frequencyUnit: null, frequencyQuantity: null, dueDate: '2026-10-20', dateIssue: 'habits.form.recurrenceRequiresHabit' })
     expect(screen.getAllByText('habits.form.recurrenceRequiresHabit')).toHaveLength(1)
-    expect(screen.queryByRole('button', { name: 'habits.form.askDate' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.suggestDate' })).toBeNull()
     act(() => { expect(owner.helpers().validateAll()).toBe('habits.form.recurrenceRequiresHabit') })
     expect(screen.getByRole('radio', { name: 'habits.form.typeTask' })).toHaveFocus()
     expect(screen.getByRole('radio', { name: 'habits.form.typeTask' })).toBeChecked()
@@ -2165,12 +2183,12 @@ describe('date ownership across form transitions', () => {
     dateRequests.request.mockImplementation(() => new Promise((resolve) => { finish = resolve }))
     const owner = mountDateForm()
     owner.phrase('after vacation')
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
     owner.phrase('weekly')
     await act(async () => { finish(response) })
     expect(owner.values()).toMatchObject({ frequencyUnit: 'Week', dueDate: '2026-10-20', dateIssue: '' })
     expect(screen.queryByRole('button', { name: 'habits.form.acceptDate' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'habits.form.askDate' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.suggestDate' })).toBeNull()
     expect(dateRequests.request).toHaveBeenCalledOnce()
   })
 
@@ -2193,7 +2211,7 @@ describe('date ownership across form transitions', () => {
     expect(screen.queryByRole('textbox', { name: 'habits.form.datePhrase' })).toBeNull()
     owner.recurring()
     expect(owner.values().datePhrase).toBe(phrase)
-    expect(Boolean(screen.queryByRole('button', { name: 'habits.form.askDate' }))).toBe(phrase === 'after my vacation')
+    expect(Boolean(screen.queryByRole('button', { name: 'habits.form.suggestDate' }))).toBe(phrase === 'after my vacation')
     expect(screen.getByRole('button', { name: /habits.form.habitStartDate/ })).toBeEnabled()
     expect(dateRequests.request).not.toHaveBeenCalled()
   })
@@ -2232,7 +2250,7 @@ describe('date ownership across form transitions', () => {
     dateRequests.request.mockImplementation(() => new Promise((resolve) => { finish = resolve }))
     const owner = mountDateForm()
     owner.phrase('after my vacation')
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
     changeCadence(change, owner)
     await act(async () => { finish({ date: '2026-10-26', referenceDate: '2026-10-20' }) })
     expect(screen.queryByRole('button', { name: 'habits.form.acceptDate' })).toBeNull()
@@ -2244,7 +2262,7 @@ describe('date ownership across form transitions', () => {
     dateRequests.request.mockResolvedValue({ date: '2026-10-26', referenceDate: '2026-10-20' })
     const owner = mountDateForm()
     owner.phrase('after my vacation')
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'habits.form.acceptDate' })).toBeVisible())
     changeCadence(change, owner)
     expect(screen.queryByRole('button', { name: 'habits.form.acceptDate' })).toBeNull()
@@ -2255,7 +2273,7 @@ describe('date ownership across form transitions', () => {
     dateRequests.request.mockResolvedValue({ date: '2026-10-26', referenceDate: '2026-10-20' })
     const owner = mountDateForm()
     owner.phrase('after my vacation')
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
     const accept = await screen.findByRole('button', { name: 'habits.form.acceptDate' })
     expect(accept.closest('[data-slot="action-row"]')).toHaveStyle({ flexDirection: 'row', justifyContent: 'flex-end' })
     expect(accept.style.width).toBe('auto')
@@ -2268,7 +2286,7 @@ describe('date ownership across form transitions', () => {
     const owner = mountDateForm()
     const picker = () => screen.getByRole('button', { name: /habits.form.habitStartDate/ })
     owner.phrase('after my vacation')
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
     const accept = await screen.findByRole('button', { name: 'habits.form.acceptDate' })
     expect(picker().closest('[data-proposed]')).not.toBeNull()
     expect(getComputedStyle(picker().querySelector('span')!).color).toBe('var(--fg-3)')
@@ -2279,7 +2297,7 @@ describe('date ownership across form transitions', () => {
     expect(getComputedStyle(picker().querySelector('span')!).color).toBe('var(--fg-1)')
     expect(picker()).toHaveFocus()
     owner.phrase('after my vacation')
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
     await screen.findByRole('button', { name: 'habits.form.acceptDate' })
     fireEvent.click(picker())
     fireEvent.click(document.querySelector<HTMLButtonElement>('button[data-day="2026-10-26"]')!)

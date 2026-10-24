@@ -190,19 +190,25 @@ the lockup at the start and the Avisos bell with its neutral count pill followed
 control at the trailing edge, then the search control, the Astra row directly above Hoje, the four
 destinations in tab order, one filled create action, and the account row.
 The Astra row uses destination geometry: minimum height 48, radius 12, 12 inline padding,
-12 gap, a 20 Astra glyph and a 14/500 `Astra` label with `translate="no"` in both locales.
+12 gap and a 20 Astra glyph with a localized accessible conversation-entry name. No visible brand label accompanies the glyph.
 The list gap is 4. While the conversation is open, only the Astra row draws the current-position
-treatment: `--primary` glyph and `--primary-soft` label. The destination retains
+treatment: `--primary` glyph. The destination retains
 `aria-current="page"` because the route stays unchanged, but draws no current-position treatment.
 
 **The way in must be visible.** In the compact shell the Astra glyph at the leading edge inside
 the composer pill is a real button with a hit area at the touch floor, a padded hover and press
-fill and a focus ring, labelled `Abrir conversa`, with visible `Astra` beside the glyph (#1607). On wide web the sidebar Astra row opens the
+fill and a focus ring, labelled `Abrir conversa`, with no visible brand word (#1668). On wide web the sidebar Astra row opens the
 conversation. Habit detail's own composer glyph remains an entry at every width.
 
-**Astra invocation and conversation-entry controls pair the canonical glyph with visible Astra wording in the same target (#1607).** Keep useful action context, disabled reasons and request guards. Deterministic saves, accepting an existing proposal, static attribution, section headings and plan facts gain no mark. The wide sidebar, compact composer, habit-detail composer and Hoje slot retain their existing owners. Conversation headers, participant avatars and conversation-owned empty states keep
+**Standalone Astra actions and conversation entries use the canonical glyph alone in a 48px icon target (#1668).** Date, emoji, tag and reschedule actions have specific accessible names. Interpretation fallback, habit and goal analysis, retry and empty-list entries show no visible label. Suggestion chips, idea cards and proactive prose keep their useful request text without appended branding. Composer send uses one upward arrow, replaced by the spinner while sending, with its localized Send name and no Astra mark. Input prompts do not repeat the brand. Keep useful action context, disabled reasons and request guards. Deterministic saves, accepting an existing proposal, static attribution, section headings and plan facts gain no mark. The wide sidebar, compact composer, habit-detail composer and Hoje slot retain their existing owners. Conversation headers, participant avatars and conversation-owned empty states keep
 their own rules. The Perfil Astra settings row uses the neutral `MessageCircle` icon, keeping the
 shared row anatomy without repeating Astra's glyph.
+
+Habit detail's composer has one named disclosure control. Collapsing leaves one compact row with
+its mark, retains the mounted draft and attachments, and persists the choice in device preferences.
+The same control expands it again. Both states remain in the shell's pinned allocation outside the
+habit scroller. Other composer surfaces stay expanded. The owner inventory lives in
+`design/astra-mark-only-surfaces.md`.
 
 The composer's text composition reserves one inert text-action slot across inline and Add-menu
 routing, clipboard availability and allowance states. Its persistent input label has an intrinsic
@@ -1199,7 +1205,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | CheckRow | whole-row checkbox hit target, required label, error replaces description, trailing mono value | `ui/check-row.tsx` | `ui/check-row.tsx` |
 | TimeField | min-height 54, radius 12, 24-hour wire value with `h23` or `h12` presentation | `ui/time-field.tsx` | `ui/time-field.tsx` |
 | DateRow | formatted immutable date and optional reason, with no control role, focus or chevron | `ui/date-row.tsx` | `ui/date-row.tsx` |
-| Composer | a growing pill, minimum height 56 (`--touch-comfy`): the Astra glyph and visible name in the entry button at the leading edge inside (Hoje in the compact shell and habit detail at every width), one input, an attach `+` icon button, and one filled send action with Astra glyph and wording at the trailing edge, hit areas adjacent. The field retains usable input width and the row wraps when its named controls need more room (#1607). Photo, document and voice open from the `+` Menu, which follows the Menu width rule. The input grows to 5 lines, then scrolls inside. Recording shows the timer and a visible stop; transcribing shows a one-line status; attachments show as a tray inside the container; at limit and offline show the reason and recovery above the pill; retry takes the send position. The top rule stays. State exposed without class hooks | `shell/composer.tsx` | `shell/composer.tsx` |
+| Composer | a growing pill, minimum height 56 (`--touch-comfy`): a mark-only Astra entry button at the leading edge inside (Hoje in the compact shell and habit detail at every width), one input, an attach `+` icon button, and one filled send arrow at the trailing edge, replaced by the spinner while sending. Trailing controls have adjacent 48px targets with one equal gap of the shared fill clearance (`INTERACTION_FILL_CLEARANCE`). The field retains usable input width and the row wraps when its named controls need more room (#1607). Photo, document and voice open from the `+` Menu, which follows the Menu width rule. The input grows to 5 lines, then scrolls inside. Recording shows the timer and a visible stop; transcribing shows a one-line status; attachments show as a tray inside the container; at limit and offline show the reason and recovery above the pill; retry takes the send position. The top rule stays. State exposed without class hooks | `shell/composer.tsx` | `shell/composer.tsx` |
 | Overlay | see **Overlay** | `ui/sheet.tsx` | `ui/sheet.tsx` |
 | Toast | brief confirmation and undo only; stable live region; timed confirmation uses a 5000ms minimum; action toasts dismiss after the standard duration, manually, or on destination change; done uses `--status-done`; actionable errors and sync failures stay in a persistent surface | `ui/toast.tsx` | `ui/app-toast.tsx` |
 | Skeleton | one accessible busy unit shaped as habit row / settings row / stat tile / grid; opacity pulse only | `ui/skeleton.tsx` | same |
@@ -1333,7 +1339,7 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 Hoje starts with its habit-view switch. In the Hoje view, its single Astra slot follows the switch,
 then the date and habits. The slot chooses an unread
 check-in, then returning guidance, then the daily summary, including its loading, retry and free-plan
-states. No second insight block belongs below the date. Request actions and conversation entries also pair Astra's glyph with visible Astra wording under #1607.
+states. No second insight block belongs below the date. Request actions and conversation entries retain Astra's glyph without repeating the brand name under #1668.
 
 - **Translucency ladder on dark:** 0.04 card / 0.06 field / 0.08 well / 0.12 elev-2, white-alpha over the canvas. Surfaces stack by alpha, not by lighter hexes.
 - **Opaque white cards on light.** Never translucent.
@@ -1583,8 +1589,10 @@ Android haptic. Milestone days show only their milestone panel; queue priority a
 
 **Motion is never the only feedback channel.** Every animated state change also carries a static cue: a colour change, an icon swap, or a label.
 
-Actions retaining their leading Astra glyph reserve a trailing status slot. A moving loader mounts
-only while busy; an idle action carries no looping status animation, including while focused (#1607).
+Labelled actions retaining their leading glyph reserve a trailing status slot. Standalone mark-only
+Astra actions retain the mark and busy announcement without that slot. Composer send replaces its
+arrow with one spinner while busy. An idle action carries no looping status animation, including
+while focused (#1607, #1668).
 
 **A high-frequency interaction gets instant feedback or an `opacity` / `background-color` transition of 150ms or less.** Never a full entrance on a hover or a keystroke.
 

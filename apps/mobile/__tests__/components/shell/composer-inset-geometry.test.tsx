@@ -8,6 +8,7 @@ import { AI_MESSAGE_COUNTER_THRESHOLD, buildComposerChips } from '@orbit/shared/
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
+import { useUIStore } from '@/stores/ui-store'
 import { SPACING } from '@orbit/shared/theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -78,13 +79,14 @@ function build(host: Host, nodes: Map<string, YogaNode>, fontScale = 1, inField 
   const declared = host.props.style
   const style = declared === undefined ? {} : StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared)
   applyStyle(node, style)
+  if (style.display === 'none') node.setDisplay(Yoga.DISPLAY_NONE)
   if (host.type === 'Svg' && host.props.width !== undefined && host.props.height !== undefined) {
     node.setWidth(host.props.width)
     node.setHeight(host.props.height)
   }
   if (host.props.testID) nodes.set(host.props.testID, node)
   if (insideField && host.props.accessibilityRole === 'button') nodes.set(`button:${host.props.accessibilityLabel}`, node)
-  if (host.props.accessibilityLabel === `${en.todayAstra.openConversation}, nav.astra`) nodes.set('open-conversation', node)
+  if (host.props.accessibilityLabel === `${en.todayAstra.openConversation}`) nodes.set('open-conversation', node)
   if (host.type === 'TextInput') {
     nodes.set('input', node)
     node.setMeasureFunc(() => ({ width: 80, height: (style.lineHeight ?? 24) * fontScale }))
@@ -264,11 +266,11 @@ function assertMountedActions(tree: Tree, messages: typeof en, state: 'idle' | '
   const names = controls.map(node => String(node.props.accessibilityLabel))
   const menu = field.findAll(node => node.type === Menu)[0]!
   const items = menu.props.items as { id: string }[]
-  const expected = [`${messages.todayAstra.openConversation}, ${messages.nav.astra}`, messages.shell.composer.actions,
-    `${messages.shell.composer.send}, ${messages.habits.form.askDate}`]
+  const expected = [messages.todayAstra.openConversation, messages.shell.composer.actions,
+    messages.shell.composer.send]
   if (state === 'idle' && !items.some(item => item.id === 'paste')) expected.push(messages.shell.composer.paste)
   expect([...names].sort((left, right) => left.localeCompare(right))).toEqual(expected.sort((left, right) => left.localeCompare(right)))
-  const send = controls.find(node => node.props.accessibilityLabel === `${messages.shell.composer.send}, ${messages.habits.form.askDate}`)!
+  const send = controls.find(node => node.props.accessibilityLabel === messages.shell.composer.send)!
   expect(send.props.disabled).toBe(true)
 }
 
@@ -301,8 +303,49 @@ async function replayTextMeasurements(tree: Tree, width: number, fontScale: numb
   }
 }
 
+it.each([320, 360, 384, 412, 480].flatMap(width => [en, ptBR].flatMap(messages =>
+  ['today', 'habitDetail'].map(surface => ({ width, messages, surface })),
+)))('keeps the entry with the readable input at $width on $surface', async ({ width, messages, surface }) => {
+  useUIStore.setState({ habitComposerCollapsed: false })
+  let tree!: Tree
+  const configuration = { state: 'idle' as const, value: '', words: messages.shell.composer,
+    suggestions: surface === 'habitDetail' ? dailySuggestions(messages) : [] as const,
+    collapsible: surface === 'habitDetail', onSend: vi.fn(), onChangeValue: vi.fn(),
+    onAttachFile: vi.fn(), attachWords: { ...messages.shell.composer.attach, remove: (name: string) => name },
+    onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation }
+  await renderer.act(() => { tree = renderer.create(<Composer {...configuration} />) as Tree })
+  try {
+    for (const fontScale of [1, 1.5, 2, 1]) {
+      await renderer.act(() => {
+        __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
+        tree.update(<Composer {...configuration} />)
+      })
+      await replayTextMeasurements(tree, width, fontScale)
+      readMountedFrame(tree, width, fontScale)
+      const nodes = new Map<string, YogaNode>()
+      const layout = build(tree.toJSON(), nodes, fontScale)
+      try {
+        layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
+        const input = bounds(nodes.get('input')!)
+        const entry = bounds(nodes.get(`button:${messages.todayAstra.openConversation}`)!)
+        const placeholder = nodes.get('composer-placeholder')!
+        const label = tree.root.findAll(node => node.props.testID === 'composer-placeholder')[0]!
+        const text = measureText({ type: 'Text', props: {}, children: [messages.shell.composer.placeholder] },
+          StyleSheet.flatten(label.props.style as TextStyle), fontScale, placeholder.getComputedWidth())
+        const evidence = JSON.stringify({ width, fontScale, input, entry, text })
+        expect(entry.bottom, evidence).toBe(input.bottom)
+        expect(entry.right, evidence).toBeLessThanOrEqual(input.left)
+        expect(text.height, evidence).toBeLessThanOrEqual(input.bottom - input.top - 24)
+      } finally { layout.freeRecursive() }
+    }
+  } finally {
+    await renderer.act(() => tree.unmount())
+    __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
+  }
+})
+
 it.each(allowanceCases)('retains the measured frame through allowance transitions at $width with $limit chips $withSuggestions and scale $fontScale', async ({ width, messages, limit, withSuggestions, fontScale }) => {
-  translation.words = { 'nav.astra': messages.nav.astra, 'habits.form.askDate': messages.habits.form.askDate,
+  translation.words = { 'nav.astra': messages.nav.astra, 'habits.form.suggestDate': messages.habits.form.suggestDate,
     'shell.composer.limit.placeholder': messages.shell.composer.limit.placeholder }
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
   const reason = messages.shell.composer.limit.reason.replace('{allowance}', String(limit))
@@ -343,7 +386,7 @@ it.each(allowanceCases)('retains the measured frame through allowance transition
 
 it.each([320, 412].flatMap(width => [en, ptBR].flatMap(messages => [1, 2].map(fontScale => ({ width, messages, fontScale })))))(
   'grows the actual typed input to five lines at $width and scale $fontScale', async ({ width, messages, fontScale }) => {
-    translation.words = { 'nav.astra': messages.nav.astra, 'habits.form.askDate': messages.habits.form.askDate }
+    translation.words = { 'nav.astra': messages.nav.astra, 'habits.form.suggestDate': messages.habits.form.suggestDate }
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
     let tree!: Tree
     await renderer.act(() => { tree = renderer.create(<Composer state="idle" value="Draft" suggestions={[]}
@@ -385,3 +428,59 @@ it.each([['en', en], ['pt-BR', ptBR]] as const)('keeps the 50-message counter on
     expect(counter.getComputedWidth()).toBeLessThanOrEqual(288)
   } finally { layout.freeRecursive(); await renderer.act(() => tree.unmount()) }
 })
+
+it.each([320, 412, 480, 840].flatMap(width => [en, ptBR].flatMap(messages => [false, true].map(withSuggestions => ({ width, messages, withSuggestions }))))) (
+  'adds no expanded composer height at $width with suggestions=$withSuggestions in both locales', async ({ width, messages, withSuggestions }) => {
+    useUIStore.setState({ habitComposerCollapsed: false })
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    const heights: number[] = []
+    for (const collapsible of [false, true]) {
+      let tree!: Tree
+      await renderer.act(() => { tree = renderer.create(<Composer collapsible={collapsible} state="idle" value="Draft"
+        onChangeValue={vi.fn()} onSend={vi.fn()} words={messages.shell.composer}
+        onOpenConversation={vi.fn()} conversationLabel={messages.todayAstra.openConversation}
+        onAttachFile={vi.fn()} attachWords={{ ...messages.shell.composer.attach, remove: (name: string) => name }}
+        suggestions={withSuggestions ? [
+          { id: 'pause', label: messages.shell.composer.chips.habitDetail.pauseThisWeek, onSelect: vi.fn() },
+          { id: 'rename', label: messages.shell.composer.chips.habitDetail.rename, onSelect: vi.fn() },
+        ] : []} />) as Tree })
+      const nodes = new Map<string, YogaNode>()
+      const layout = build(tree.toJSON(), nodes)
+      try {
+        layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
+        heights.push(layout.getComputedHeight())
+        if (collapsible) {
+          const toggle = bounds(nodes.get('composer-collapse-control')!)
+          const row = bounds(nodes.get(withSuggestions ? 'composer-suggestion-row' : 'composer-field')!)
+          expect(toggle.right - toggle.left).toBe(48)
+          expect(toggle.bottom - toggle.top).toBe(48)
+          expect(toggle.top).toBeGreaterThanOrEqual(row.top)
+          expect(toggle.bottom).toBeLessThanOrEqual(row.bottom)
+          if (withSuggestions) expect(bounds(nodes.get('composer-suggestions-layout')!).right).toBeLessThanOrEqual(toggle.left - 4)
+          else {
+            expect(toggle.left).toBeGreaterThanOrEqual(row.left + 4)
+            expect(toggle.right).toBeLessThanOrEqual(row.right - 4)
+          }
+        }
+      } finally { layout.freeRecursive(); await renderer.act(() => tree.unmount()) }
+    }
+    expect(heights[1]).toBeLessThanOrEqual(heights[0]!)
+  },
+)
+
+it.each([320, 412, 480, 840].flatMap(width => [en, ptBR].map(messages => ({ width, messages }))))(
+  'keeps one collapsed row with doubled text at $width in both locales', async ({ width, messages }) => {
+    useUIStore.setState({ habitComposerCollapsed: true })
+    __setWindowDimensions({ width, height: 640, scale: 1, fontScale: 2 })
+    let tree!: Tree
+    await renderer.act(() => { tree = renderer.create(<Composer collapsible state="idle" value="Draft" onChangeValue={vi.fn()} onSend={vi.fn()} words={messages.shell.composer} suggestions={[]} />) as Tree })
+    const nodes = new Map<string, YogaNode>()
+    const layout = build(tree.toJSON(), nodes, 2)
+    try {
+      layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
+      const row = bounds(nodes.get('composer-collapse-row')!)
+      expect(row.bottom - row.top).toBe(48)
+      expect(layout.getComputedHeight()).toBeLessThanOrEqual(64)
+    } finally { layout.freeRecursive(); await renderer.act(() => tree.unmount()); useUIStore.setState({ habitComposerCollapsed: false }) }
+  },
+)

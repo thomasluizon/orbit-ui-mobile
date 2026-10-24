@@ -483,6 +483,8 @@ describe('GoalDetailDrawer', () => {
     const onClose = vi.fn()
     sheetTestControls.defer(true)
     const tree = renderDrawer(onClose)
+    const astraAction = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === astraLabel)[0]!
+    expect(astraAction.findAllByType('Text')).toHaveLength(0)
     press(tree, astraLabel)
     expect(sheetTestControls.isDismissPending).toBe(true)
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
