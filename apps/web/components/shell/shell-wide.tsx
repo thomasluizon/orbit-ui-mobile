@@ -51,17 +51,6 @@ type WithDestinationHrefs<Props> = Props extends { items: ShellWideItem[] }
 
 type ResponsiveShellProps = WithDestinationHrefs<ShellWideProps> & { registerHeaderHost?: RefCallback<HTMLDivElement>; compactComposer?: ReactNode; tabBar?: ReactNode; fab?: ReactNode; fabPending?: boolean; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void }
 
-function sidebarRowClassName(active: boolean) {
-  return [
-    'flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
-    'transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] active:scale-[0.96]',
-    active
-      ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'
-      : 'text-[var(--fg-3)]',
-    'orbit-hover-text hover:bg-[var(--bg-hover)] touch-manipulation',
-  ].join(' ')
-}
-
 function SidebarItem({
   item,
   active,
@@ -94,7 +83,14 @@ function SidebarItem({
     <a
       href={item.href}
       data-habit-create-navigation={onSelect ? '' : undefined}
-      className={sidebarRowClassName(active)}
+      className={[
+        'flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
+        'transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] active:scale-[0.96]',
+        active
+          ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'
+          : 'text-[var(--fg-3)]',
+        'orbit-hover-text hover:bg-[var(--bg-hover)] touch-manipulation',
+      ].join(' ')}
       aria-current={current ? 'page' : undefined}
       title={collapsed ? item.label : undefined}
       onClick={(event) => {
@@ -121,7 +117,14 @@ function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
             aria-controls={open ? conversationId : undefined}
             title={collapsed ? row.label : undefined}
             onClick={row.onOpen}
-            className={sidebarRowClassName(open)}
+            className={[
+              'flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
+              'transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] active:scale-[0.96]',
+              open
+                ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'
+                : 'text-[var(--fg-3)]',
+              'orbit-hover-text hover:bg-[var(--bg-hover)] touch-manipulation',
+            ].join(' ')}
           >
             <AstraGlyph size={20} color={open ? 'var(--primary)' : 'var(--fg-3)'} />
             <span translate="no" className={collapsed ? 'sr-only' : 'min-w-0 truncate'}>{row.label}</span>

@@ -71,21 +71,6 @@ function stageProducerRepository(label, paths, violation) {
   return repository
 }
 
-function stageInteractionOwner(label, owner, violation) {
-  const repository = stageProducerRepository(label, [owner.path], violation)
-  if (!owner.owner) return repository
-  const path = join(repository, owner.path)
-  const source = readFileSync(path, "utf8")
-  const start = source.indexOf(`function ${owner.owner}(`)
-  const ownerSource = source.slice(start, source.indexOf("\nfunction ", start + 1))
-  const returnedClasses = ownerSource.match(/\{\s*return ([\s\S]+)\n\}/)?.[1]
-  if (!returnedClasses) throw new Error(`class owner changed: ${owner.path} ${owner.owner}`)
-  writeFileSync(path, `export function InteractionOwner({ active }) {
-    return <button className={${returnedClasses}}>Destination</button>
-  }`)
-  return repository
-}
-
 function stageUnsafeEmptyTrack(repository) {
   const themePath = join(repository, "packages/shared/src/theme/neutral-ramp.ts")
   writeFileSync(themePath, readFileSync(themePath, "utf8").replace("trackEmpty: '#7E7E82'", "trackEmpty: '#7F7F83'"))
@@ -332,23 +317,26 @@ export function Screen(){return <button className="${promotion} bg-[var(--bg)] h
   })
   const interactionOwners = [
     { path: "apps/web/components/navigation/bottom-tab-bar.tsx", before: "group rounded-full", after: "group rounded-full hover:bg-[var(--bg-hover)]" },
-    { path: "apps/web/components/shell/shell-wide.tsx", owner: "sidebarRowClassName", before: "? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'", after: "? 'text-[var(--primary-soft)]'" },
+    { path: "apps/web/components/shell/shell-wide.tsx", owner: "SidebarItem", before: "? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'", after: "? 'text-[var(--primary-soft)]'" },
+    { path: "apps/web/components/shell/shell-wide.tsx", owner: "SidebarAstraRow", before: "? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'", after: "? 'text-[var(--primary-soft)]'" },
     { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "styles.tab,", after: "styles.tab, hoveredId === item.id && { backgroundColor: tokens.bgHover }," },
   ]
   for (const [index, owner] of interactionOwners.entries()) {
     const label = owner.owner ? `${owner.path} ${owner.owner}` : owner.path
+    let violation = owner
     if (owner.owner) {
       const source = readFileSync(join(dirname(toolPath("check-surface-scope.mjs")), "..", owner.path), "utf8")
       const start = source.indexOf(`function ${owner.owner}(`)
       const ownerSource = source.slice(start, source.indexOf("\nfunction ", start + 1))
       T(`paired text fixture belongs to ${label}`, ownerSource.split(owner.before).length === 2)
+      violation = { path: owner.path, before: ownerSource, after: ownerSource.replace(owner.before, owner.after) }
     }
-    const paired = stageInteractionOwner(`paired-owner-${index}`, owner)
+    const paired = stageProducerRepository(`paired-owner-${index}`, [owner.path])
     check("check-surface-scope.mjs", `accepts paired resting and interaction colors in ${label}`, ["--root", paired], {
       status: 0,
       stdout: /Surface scope guard passed/,
     })
-    const unpaired = stageInteractionOwner(`unpaired-owner-${index}`, owner, owner)
+    const unpaired = stageProducerRepository(`unpaired-owner-${index}`, [owner.path], violation)
     check("check-surface-scope.mjs", `rejects retained resting text on the interaction surface in ${label}`, ["--root", unpaired], {
       status: 1,
       stderr: /--primary-soft on hover, dark ratio 3\.385, TEXT floor 4\.50/,
