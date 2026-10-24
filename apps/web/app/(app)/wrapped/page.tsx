@@ -112,8 +112,8 @@ function WrappedPageContent({ initialSelection }: Readonly<{
           onClose={() => setIsPlaying(false)}
           notice={(
             <>
-              <UpdateAvailableBanner />
-              <div className="px-4"><AppToastHost /></div>
+              <UpdateAvailableBanner inset="inline" />
+              <div className="px-4 pt-3 empty:hidden"><AppToastHost /></div>
             </>
           )}
         />

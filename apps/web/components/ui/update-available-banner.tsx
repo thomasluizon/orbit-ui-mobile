@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 import { PillButton } from '@/components/ui/pill-button'
 
-export function UpdateAvailableBanner({ modalId, active = true, inset = true }: Readonly<{ modalId?: string; active?: boolean; inset?: boolean }>) {
+export function UpdateAvailableBanner({ modalId, active = true, inset = true }: Readonly<{ modalId?: string; active?: boolean; inset?: boolean | 'inline' }>) {
   const t = useTranslations()
   const [mounted, setMounted] = useState(false)
   useEffect(() => { queueMicrotask(() => setMounted(true)) }, [])
@@ -16,11 +16,12 @@ export function UpdateAvailableBanner({ modalId, active = true, inset = true }: 
   const activeModalId = useUIStore((state) => [...state.openOverlayIds].reverse().find((id) => id.startsWith('modal:')))
   const ownsNotice = modalId ? activeModalId === modalId : !activeModalId
   const visible = mounted && active && ownsNotice && (reloadReason !== null || (upgradeRequired && !updateDismissed))
+  const insetClassName = inset === 'inline' ? 'px-4' : 'p-4'
   const reloadMessage = reloadReason === 'accountChanged'
     ? t('errors.api.accountChanged')
     : reloadReason === 'appUpdated' ? t('errors.api.appUpdated') : null
   return (
-    <div role="status" data-update-live-region="" data-update-banner={visible ? '' : undefined} className={visible && inset ? 'p-4' : undefined}>
+    <div role="status" data-update-live-region="" data-update-banner={visible ? '' : undefined} className={visible && inset ? insetClassName : undefined}>
       {visible ? (
         <div className="rounded-[var(--r-card)] bg-[var(--bg-elev)] p-4 text-[var(--fg-1)]"><ActionRow>
           <div className="min-w-0 flex-1 basis-[240px]">
