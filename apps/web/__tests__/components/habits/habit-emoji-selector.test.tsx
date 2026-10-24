@@ -20,11 +20,12 @@ vi.mock('@/components/ui/sheet', () => ({
 const firstCategory = HABIT_EMOJI_CATEGORIES[0]!
 const firstEmoji = firstCategory.emojis[0]!
 
-function UnderstandingWithEmoji({ resolved }: Readonly<{ resolved: boolean }>) {
+function UnderstandingWithEmoji({ resolved, proposed = false }: Readonly<{ resolved: boolean; proposed?: boolean }>) {
   const [emoji, setEmoji] = useState('')
   return (
     <HabitUnderstanding
       value="Run"
+      proposed={proposed}
       emoji={emoji}
       days={[]}
       dayOptions={[]}
@@ -44,6 +45,13 @@ function UnderstandingWithEmoji({ resolved }: Readonly<{ resolved: boolean }>) {
 describe('HabitEmojiSelector', () => {
   beforeEach(() => {
     mockCloseSheet.mockClear()
+  })
+
+  it('marks a setup-proposed emoji beside the title', () => {
+    render(<UnderstandingWithEmoji resolved proposed />)
+    const well = screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })
+    expect(well.closest('[data-proposed]')).not.toBeNull()
+    expect(well.closest('[data-habit-title-row]')).not.toBeNull()
   })
 
   it('keeps the disabled suggestion reason accessible without a visible caption', () => {

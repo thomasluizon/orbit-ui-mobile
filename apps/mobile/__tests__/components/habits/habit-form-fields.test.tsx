@@ -1574,6 +1574,19 @@ describe('native date ownership across form transitions', () => {
     expect(buildUpdateHabitRequest(values, false, '2026-12-01', [], [])).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-20' })
   })
 
+  it.each([0, 5])('keeps the native offline date reason accessible with %s messages used', async (used) => {
+    connection.isOnline = false
+    mockProfileState.aiMessagesUsed = used
+    await mount()
+    await phrase('after my vacation')
+    const suggestion = action('habits.form.suggestDate')[0]!
+    expect(suggestion.props.disabled).toBe(true)
+    expect(suggestion.props.accessibilityHint).toBe('shell.composer.offline.reason')
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'shell.composer.offline.reason')).toHaveLength(0)
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'habits.form.aiSuggestLimitReached')).toHaveLength(used === 5 ? 1 : 0)
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
   it.each([false, true])('recognizes native weekly wording offline at capacity with Pro access %s', async (hasProAccess) => {
     connection.isOnline = false
     mockProfileState.aiMessagesUsed = 5
