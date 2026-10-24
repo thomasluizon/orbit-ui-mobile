@@ -21,17 +21,22 @@ const directories: string[] = []
 const publicationTest = it.skipIf(process.platform === 'win32')
 afterEach(() => directories.splice(0).forEach((directory) => rmSync(directory, { recursive: true, force: true })))
 
-function publishAttempt(previous: string | null, failVersion = false) {
+function publishAttempt(previous: string | null, failVersion = false, failFirstLookup = false) {
   const directory = mkdtempSync(join(tmpdir(), 'orbit-desktop-publish-'))
   directories.push(directory)
   const executable = join(directory, 'gh')
   writeFileSync(executable, `#!/usr/bin/env node
-const { appendFileSync, writeFileSync } = require('node:fs')
+const { appendFileSync, readFileSync, writeFileSync } = require('node:fs')
 const args = process.argv.slice(2)
 appendFileSync(process.env.COMMAND_LOG, JSON.stringify(args) + '\\n')
-if (args[1] === 'view') process.exit(process.env.PREVIOUS_VERSION ? 0 : 1)
+if (args[1] === 'view') {
+  const lookups = readFileSync(process.env.COMMAND_LOG, 'utf8').trim().split('\\n').map(JSON.parse).filter(command => command[1] === 'view')
+  if (process.env.FAIL_FIRST_LOOKUP === 'true' && lookups.length === 1) process.exit(1)
+  process.exit(process.env.PREVIOUS_VERSION ? 0 : 1)
+}
 if (args[1] === 'download') writeFileSync(args[args.indexOf('--output') + 1], JSON.stringify({version: process.env.PREVIOUS_VERSION}))
 if (args[1] === 'create' && args[2].includes('-v') && process.env.FAIL_VERSION === 'true') process.exit(1)
+if (args[1] === 'create' && args[2] === 'desktop-staging' && process.env.PREVIOUS_VERSION) process.exit(1)
 `)
   chmodSync(executable, 0o755)
   const log = join(directory, 'commands.jsonl')
@@ -41,7 +46,7 @@ if (args[1] === 'create' && args[2].includes('-v') && process.env.FAIL_VERSION =
     env: { ...process.env, PATH: `${directory}:${process.env.PATH}`, RUNNER_TEMP: directory,
       DESKTOP_VARIANT: 'staging', DESKTOP_VERSION: '2.0.0', GITHUB_SHA: 'a'.repeat(40),
       GITHUB_REPOSITORY: 'thomasluizon/orbit-ui-mobile', PREVIOUS_VERSION: previous ?? '',
-      FAIL_VERSION: String(failVersion), COMMAND_LOG: log },
+      FAIL_VERSION: String(failVersion), FAIL_FIRST_LOOKUP: String(failFirstLookup), COMMAND_LOG: log },
   })
   const commands = readFileSync(log, 'utf8').trim().split('\n').map((line) => JSON.parse(line) as string[])
   return { result, commands }
@@ -86,4 +91,10 @@ publicationTest.each(['2.0.0', '2.1.0'])('does not publish or overwrite version 
   const { result, commands } = publishAttempt(version)
   expect(result.status).not.toBe(0)
   expect(commands.some((command) => ['create', 'upload'].includes(command[1]!))).toBe(false)
+})
+
+publicationTest('cannot skip the version gate when a channel lookup fails transiently', () => {
+  const { result, commands } = publishAttempt('3.0.0', false, true)
+  expect(result.status).not.toBe(0)
+  expect(commands.some((command) => command[1] === 'upload')).toBe(false)
 })

@@ -167,7 +167,9 @@ jobs:
           set -euo pipefail
           channel="desktop-${DESKTOP_VARIANT}"
           tag="${channel}-v${DESKTOP_VERSION}"
+          channel_exists=false
           if gh release view "$channel" --repo "$GITHUB_REPOSITORY" >/dev/null; then
+            channel_exists=true
             gh release download "$channel" --repo "$GITHUB_REPOSITORY" \
               --pattern latest.json --output "$RUNNER_TEMP/previous.json"
             node --experimental-strip-types apps/desktop/scripts/release.ts newer \
@@ -177,7 +179,7 @@ jobs:
             --target "$GITHUB_SHA" --title "Orbit desktop ${DESKTOP_VARIANT} ${DESKTOP_VERSION}" \
             --notes "Desktop shell ${DESKTOP_VERSION}. Updater signatures are separate from operating system signing." \
             --prerelease --latest=false
-          if gh release view "$channel" --repo "$GITHUB_REPOSITORY" >/dev/null; then
+          if [ "$channel_exists" = true ]; then
             gh release upload "$channel" desktop-assets/latest.json.sig \
               --repo "$GITHUB_REPOSITORY" --clobber
             gh release upload "$channel" desktop-assets/latest.json \
