@@ -78,6 +78,14 @@ beforeEach(() => { vi.clearAllMocks(); __resetTestHostConfig(); visibleLocale.ac
 afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
+  it.each(['en', 'pt-BR'])('names a new habit preview in %s', (locale) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const { tree } = renderCard(makeCreateHabitsPreview(1))
+    expect(renderedText(tree.toJSON())).toContain(locale === 'en' ? 'New habit' : 'Novo hábito')
+    expect(renderedText(tree.toJSON())).not.toContain((locale === 'en' ? en : ptBR).chat.pendingOp.capability['habits-bulk-write'])
+  })
+
   it.each([0, null, undefined].flatMap(count => ['en', 'pt-BR'].map(locale => ({ count, locale }))))('renders a zero-target preview as a notice without approval with count $count in $locale', ({ count, locale }) => {
     visibleLocale.actual = true
     visibleLocale.language = locale

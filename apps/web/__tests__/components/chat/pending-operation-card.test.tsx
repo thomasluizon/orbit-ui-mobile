@@ -73,6 +73,14 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
+  it.each(['en', 'pt-BR'])('names a new habit preview in %s', (locale) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    render(<PendingOperationCard pendingOperation={makeCreateHabitsPreview(1)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getByRole('heading', { name: locale === 'en' ? 'New habit' : 'Novo hábito' })).toBeInTheDocument()
+    expect(screen.queryByText((locale === 'en' ? en : ptBR).chat.pendingOp.capability['habits-bulk-write'])).not.toBeInTheDocument()
+  })
+
   it.each([0, null, undefined].flatMap(count => ['en', 'pt-BR'].map(locale => ({ count, locale }))))('renders a zero-target preview as a notice without approval with count $count in $locale', ({ count, locale }) => {
     visibleLocale.actual = true
     visibleLocale.language = locale

@@ -98,6 +98,9 @@ export function buildPendingOperationCardLabels(
   const hasMixedDeletion = pendingOperation.items?.some((item) => item.removesData === true)
     && pendingOperation.items.some((item) => item.removesData !== true)
   const actionKey = pendingOperation.actionKey
+  const createsHabits = ['createHabit', 'createHabits', 'createSubHabit'].includes(actionKey ?? '')
+    && !hasMixedDeletion && !pendingOperation.items?.some((item) => item.removesData === true
+      || item.fields.some((field) => field.field === 'habit_id' || field.oldValue != null))
   const toggleOutcome = getToggleOutcome(actionKey, pendingOperation.items?.length
     ? pendingOperation.items.flatMap((item) => item.fields) : pendingOperation.changes ?? [])
   const actionLabel = getApprovalLabel(actionKey, toggleOutcome, translate)
@@ -162,7 +165,8 @@ export function buildPendingOperationCardLabels(
       ? translate(`chat.operation.deleteTitle.${deletionSubject}`, { count })
       : translate('chat.operation.confirmActionTitle', { action: confirm }),
     irreversible: translate('chat.operation.irreversible'),
-    name: translate(capabilityKey ?? 'chat.operation.unknown'),
+    name: createsHabits ? translate('chat.operation.newHabits', { count: pendingOperation.changeTargetCount ?? pendingOperation.items?.length ?? 1 })
+      : translate(capabilityKey ?? 'chat.operation.unknown'),
     pending: translate('chat.operation.pending'),
     pendingTitle: translate('chat.operation.pendingTitle'),
     proposed: translate('chat.preview.proposed'),

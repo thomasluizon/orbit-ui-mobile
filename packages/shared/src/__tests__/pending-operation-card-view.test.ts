@@ -26,6 +26,25 @@ function translateMessages(messages: typeof en, key: string, values?: Record<str
 const translateEnglish = (key: string, values?: Record<string, string | number>) => translateMessages(en, key, values)
 const compareStrings = (left: string, right: string) => left.localeCompare(right)
 
+describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('create preview heading in $locale', ({ locale, messages }) => {
+  it.each([1, 3])('names a create-only preview with %s habits', (count) => {
+    const operation = makeCreateHabitsPreview(count)
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.title).toBe(locale === 'en' ? count === 1 ? 'New habit' : 'New habits' : count === 1 ? 'Novo hábito' : 'Novos hábitos')
+    expect(record.frame?.count).toBe(count)
+  })
+
+  it('keeps a neutral heading for a mixed preview', () => {
+    const operation = makeMixedHabitsPreview()
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.title).toBe(messages.chat.pendingOp.capability['habits-bulk-write'])
+  })
+})
+
 describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('item summaries in $locale', ({ locale, messages }) => {
   const summarize = buildPendingOperationCardLabels(makePendingAgentOperation(), (key, values) => translateMessages(messages, key, values), (value) => `clock:${value}`, locale).summarize
   const change = (field: string, newValue: string | null, proposedValue?: unknown, oldValue: string | null = null) => ({ entityId: 'habit-1', entityName: 'Read', field, oldValue, newValue, valueType: 'text', proposedValue })

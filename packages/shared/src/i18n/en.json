@@ -1987,6 +1987,7 @@
       "batchFailed": "Some items could not be saved. Ask Astra to try only the failed items.",
       "unavailableRecovery": "That didn't work. Ask Astra for a new preview.",
       "unknown": "Astra operation",
+      "newHabits": "{count, plural, one {New habit} other {New habits}}",
       "pendingTitle": "Awaiting confirmation",
       "pending": "Nothing has changed yet",
       "irreversible": "Permanent",
