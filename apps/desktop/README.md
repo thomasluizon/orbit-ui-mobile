@@ -26,6 +26,14 @@ Launch at login is a checkable setting under App or File and defaults to off. It
 
 The official window-state plugin remembers size, position, maximized and full-screen state in the environment's application configuration directory. Geometry is saved on close and Quit. Hidden visibility is excluded so an ordinary launch always opens the window. The plugin checks monitor availability when restoring position. Lifecycle integrations run in Rust and grant no additional JavaScript permissions.
 
+## Updates
+
+The Rust updater checks at launch and every six hours while the process is running, including when its main window is hidden. It downloads and verifies the complete package before enabling Restart to update in the App or File menu and the tray. A local system notification announces availability without focusing or reloading the webview. Finish an open Astra conversation before choosing restart. Closing the window or choosing Quit never installs an update. A failed check can be retried from the menu; a failed installation retains the verified package for another explicit attempt.
+
+Staging and production use separate `desktop-staging/latest.json` and `desktop-production/latest.json` assets under this repository's GitHub Releases downloads. Each manifest points to versioned artifacts in its own channel. The plugin verifies artifact signatures and their signed version, and accepts only newer releases. All four platform entries must belong to that channel and version. Updater and notification commands have no webview permissions.
+
+Source configurations deliberately have empty public keys, disabling updates in development builds. Release packaging supplies each environment's actual public key in a Tauri config overlay. No private key belongs in the repository or application.
+
 ## Build
 
 Install the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/), Rust and the repository npm dependencies. From the repository root:
@@ -60,4 +68,4 @@ These tests do not prove operating-system protocol delivery, native menu dispatc
 
 ## Remaining desktop work
 
-Tracks #1560. Background notifications, signed updates, web release integration, signed and notarized DMGs and landing downloads, performance comparison, installed-app recording and screen-reader acceptance belong to subsequent steps.
+Tracks #1560. Background reminders, web release integration, signed and notarized DMGs and landing downloads, performance comparison, installed-app recording and screen-reader acceptance belong to subsequent steps.

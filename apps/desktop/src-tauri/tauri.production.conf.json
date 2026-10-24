@@ -24,5 +24,13 @@
       }
     ]
   },
-  "plugins": { "deep-link": { "desktop": { "schemes": ["org.useorbit.desktop"] } } }
+  "plugins": {
+    "deep-link": { "desktop": { "schemes": ["org.useorbit.desktop"] } },
+    "updater": {
+      "endpoints": ["https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-production/latest.json"],
+      "pubkey": "",
+      "requireSignedVersion": true,
+      "windows": { "installMode": "passive" }
+    }
+  }
 }

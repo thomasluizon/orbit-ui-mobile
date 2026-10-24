@@ -29,5 +29,17 @@
   "fullscreen": "Entrar em tela cheia",
   "bringAllToFront": "Trazer todas para a frente",
   "palette": "Paleta de comandos",
-  "support": "Suporte do Orbit"
+  "support": "Suporte do Orbit",
+  "updateCheck": "Buscar atualizações",
+  "updateUnavailable": "Atualizações indisponíveis nesta versão",
+  "updateCurrent": "Tudo atualizado. Buscar novamente",
+  "updateChecking": "Buscando atualizações...",
+  "updateReady": "Atualização pronta",
+  "updateInstalling": "Instalando atualização...",
+  "updateCheckRetry": "Buscar atualizações (tentar novamente)",
+  "updateRestart": "Reiniciar para atualizar",
+  "updateRestartRetry": "Reiniciar para atualizar (tentar novamente)",
+  "updateNotice": "A atualização está pronta. Termine sua conversa e escolha Reiniciar para atualizar no menu do aplicativo.",
+  "updateFailed": "Não foi possível instalar a atualização",
+  "updateRetryNotice": "Sua conversa continua aberta. Escolha Reiniciar para atualizar no menu do aplicativo para tentar novamente."
 }
