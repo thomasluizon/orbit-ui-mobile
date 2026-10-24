@@ -69,7 +69,7 @@ export const stage = (relativePath, body) => {
   return path
 }
 
-/** `kill(pid, 0)` also succeeds for a defunct child on Linux. A zombie has terminated and cannot
+/** `kill(pid, 0)` also succeeds for a defunct child. A zombie has terminated and cannot
  * retain work or ports, so process-tree assertions must not call it alive while PID 1 delays reaping. */
 export const processIsRunning = (pid) => {
   if (!Number.isInteger(pid) || pid <= 0) return false
@@ -77,6 +77,10 @@ export const processIsRunning = (pid) => {
     process.kill(pid, 0)
   } catch {
     return false
+  }
+  if (process.platform === "darwin") {
+    const state = spawnSync("ps", ["-p", String(pid), "-o", "stat="], { encoding: "utf8" })
+    return state.status === 0 && !state.stdout.trim().startsWith("Z")
   }
   if (process.platform !== "linux") return true
   try {
@@ -89,7 +93,7 @@ export const processIsRunning = (pid) => {
 }
 
 /** Interrupt only after the fake GitHub read has started its complete process tree. */
-export const interruptGithubRead = async ({ path, args, env, signal, pidFile, descendantPidFile, startupTimeoutMs = 60000 }) => {
+export const interruptGithubRead = async ({ path, args, env, signal, pidFile, descendantPidFile, startupTimeoutMs = 60000, cleanupPids = () => [] }) => {
   const child = spawn(process.execPath, [path, ...args], {
     env: { ...process.env, ...env }, detached: process.platform !== "win32",
   })
@@ -124,6 +128,8 @@ export const interruptGithubRead = async ({ path, args, env, signal, pidFile, de
   const watchdog = setTimeout(killTree, 3000)
   const exit = await closed
   clearTimeout(watchdog)
+  // Extra cleanup pids must not turn an unreported process tree into successful GitHub startup.
+  pids = [...pids, child.pid, ...cleanupPids()]
   const cleanupDeadline = Date.now() + 1000
   while (pids.some(processIsRunning) && Date.now() < cleanupDeadline) {
     await new Promise((resolve) => setTimeout(resolve, 20))
