@@ -1,4 +1,4 @@
-import { proactiveItemSchema } from '../types/proactive'
+import { proactiveItemSchema, type ProactiveItem } from '../types/proactive'
 import { createMockProactiveItem } from '../__tests__/factories'
 import type { ChatMessage } from '../types/chat'
 import { buildChatFinalMessageFields } from '../chat/final-message'
@@ -75,7 +75,7 @@ export const proactiveBlockCases = [
   { trigger: 'WeeklyReview', kind: 'periodInsight', block: proactiveReadBlocks.periodInsight },
 ]
 
-export function makeProactiveBlockItem(scenario: typeof proactiveBlockCases[number]) {
+export function makeProactiveBlockItem(scenario: typeof proactiveBlockCases[number]): ProactiveItem {
   return proactiveItemSchema.parse({ ...createMockProactiveItem(), trigger: scenario.trigger,
     parts: [{ type: 'block', kind: scenario.kind, block: scenario.block }],
   })
