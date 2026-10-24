@@ -930,6 +930,17 @@ describe('Android widget header', () => {
     expect(clear).toContain('saveToken = { getEncryptedPrefs(context).edit().remove(KEY_TOKEN).apply() }')
   })
 
+  it('dispatches every widget bridge call on its own serial queue', () => {
+    const module = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetModule.kt'), 'utf8')
+    expect(module).toContain('private val moduleQueue = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher())')
+    for (const name of ['saveToken', 'clearToken', 'syncTheme', 'syncWidgetData']) {
+      const start = module.indexOf(`AsyncFunction("${name}")`)
+      const body = kotlinBlockBody(module, start)
+      const after = module.slice(start + module.slice(start).indexOf(body) + body.length + 1)
+      expect(after.trimStart().startsWith('.runOnQueue(moduleQueue)')).toBe(true)
+    }
+  })
+
   it('keeps a newer render when an older factory resumes after an account switch', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
     const load = kotlinFunctionBody(service, 'loadWidgetData')

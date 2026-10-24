@@ -640,7 +640,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const restored = await withCredentialMutationLock(async () => {
       if (!isCurrentSessionEpoch(ownership.epoch)) return false
       if (!ownsSessionEstablishment && get().sessionPhase === 'establishing') return true
-      await saveWidgetToken(token).catch(() => {})
+      void saveWidgetToken(token).catch(() => {})
       if (accountId) bindStepUpStateToAccount(accountId)
       await setQueryCacheScope(accountId)
       if (!isCurrentSessionEpoch(ownership.epoch)) return false
