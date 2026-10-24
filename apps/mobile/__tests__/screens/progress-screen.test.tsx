@@ -1234,6 +1234,45 @@ describe('mobile ProgressContent', () => {
     dimensions.mockRestore()
   })
 
+  it.each([
+    { locale: 'en', dates: ['2026-09-08', '2026-09-09'], label: 'Tuesday, Sep 8 and Wednesday, Sep 9' },
+    { locale: 'en', dates: ['2026-09-07', '2026-09-08', '2026-09-09'], label: 'Monday, Sep 7, Tuesday, Sep 8, and Wednesday, Sep 9' },
+    { locale: 'pt-BR', dates: ['2026-09-08', '2026-09-09'], label: 'terça-feira, 8 de set. e quarta-feira, 9 de set.' },
+    { locale: 'pt-BR', dates: ['2026-09-07', '2026-09-08', '2026-09-09'], label: 'segunda-feira, 7 de set., terça-feira, 8 de set. e quarta-feira, 9 de set.' },
+  ])('confirms a repair without native ListFormat in $locale for $dates', async ({ locale, dates, label }) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(progressStreakNow))
+    const descriptor = Object.getOwnPropertyDescriptor(Intl, 'ListFormat')!
+    Object.defineProperty(Intl, 'ListFormat', { configurable: true, writable: true, value: undefined })
+    mocks.usePortugueseCatalog = true
+    Object.assign(mocks.freeze.streakInfo, {
+      currentStreak: 0, repairableGapDates: dates, streakFreezesAccumulated: 3,
+    })
+    mocks.freeze.freezesAvailable = 3
+    mocks.freeze.streakFreezesAccumulated = 3
+    await i18n.changeLanguage(locale)
+    try {
+      const tree = await renderProgress(undefined, 'streak', false)
+      const entry = tree.root.findAll((node) => node.type === 'Pressable'
+        && node.props.accessibilityLabel === i18n.t('progressScreen.streak.freezesCount', { banked: 3, ceiling: 3 }))[0]!
+      await TestRenderer.act(() => (entry.props.onPress as () => void)())
+      const text = tree.root.findAll((node) => node.type === 'Text').map((node) => node.props.children)
+      expect(text).toContain(i18n.t('progressScreen.streak.gapBody', { count: dates.length }))
+      const action = findPill(tree.root, i18n.t('progressScreen.streak.repairAction', { dates: label }))
+      expect(mocks.repair.mutate).not.toHaveBeenCalled()
+      await TestRenderer.act(() => (action.props.onPress as () => void)())
+      const confirm = tree.root.findAll((node) => node.type === 'ConfirmSheet')[0]!
+      expect(confirm.props.title).toBe(i18n.t('progressScreen.streak.repairConfirmTitle', { dates: label }))
+      expect(mocks.repair.mutate).not.toHaveBeenCalled()
+      await TestRenderer.act(() => (confirm.props.onConfirm as () => void)())
+      expect(mocks.repair.mutate).toHaveBeenCalledExactlyOnceWith(dates)
+    } finally {
+      Object.defineProperty(Intl, 'ListFormat', descriptor)
+      mocks.usePortugueseCatalog = false
+      await i18n.changeLanguage('en')
+    }
+  })
+
   it('keeps goal creation off the streak detail', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))

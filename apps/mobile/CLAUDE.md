@@ -1,6 +1,6 @@
 # apps/mobile — Expo SDK 57 + Expo Router
 
-Mobile client (Android only — no iOS app exists). Direct calls to `orbit-api` (no BFF). Auth via SecureStore. SQLite offline queue.
+Mobile client for Android and iOS 17.4 or later. Direct calls to `orbit-api` (no BFF). Auth via SecureStore. SQLite offline queue.
 
 ## Conventions
 
@@ -26,7 +26,8 @@ Mobile client (Android only — no iOS app exists). Direct calls to `orbit-api` 
 
 ## Platform reality
 
-- **Android only.** No iOS app ships. Don't write iOS-specific branches in new code; if you see one in pre-existing code, leave it unless explicitly tasked with iOS removal.
+- **Native platforms.** Android ships through Google Play. The iOS foundation targets internal TestFlight; its adapters use Universal Links, APNs and an install marker to reset surviving Keychain credentials. Keep Android-only native modules behind platform guards.
+- **iOS variants.** The bundle identifiers are `org.useorbit.app` and `org.useorbit.app.staging`, with Associated Domains matching each variant's web host. `ORBIT_APPLE_TEAM_ID` supplies the enrolled team and `ORBIT_IOS_APP_STORE_ID` supplies that variant's numeric store listing ID. OTA updates stay disabled. Release through `/ios-release` after signing credentials exist.
 - **Android release variants.** `ORBIT_APP_VARIANT=staging` selects the internal-track app `org.useorbit.app.staging`, launcher name "Orbit Staging", scheme `orbit-staging`, and App Links on `app-staging.useorbit.org`. The default production variant keeps `org.useorbit.app`, launcher name "Orbit", scheme `orbit`, and App Links on `app.useorbit.org`; the open and production tracks use it. `app.config.js` derives both from `app.json`. The widget library namespace `org.useorbit.app.widget` is independent of the installed app package.
 - **The Play build cannot run on an x86_64 emulator, and that is deliberate.** `app.json`'s `buildArchs` is ARM-only, so the bundle carries no `lib/x86_64/`; SoLoader then fails to load `libreactnative.so` and the process dies in `MainApplication.onCreate`. Build for the emulator with `npm run android:apk:emulator`, which adds the ABI through Gradle's `-PreactNativeArchitectures` for that build alone. **Never add `x86_64` to `app.json`** - prebuild regenerates `gradle.properties` from it, so that ships the slice to Play. Full path: `/android-generate --emulator`.
 - **Bottom-sheet modals use TrueSheet (`@lodev09/react-native-true-sheet`), NOT `@gorhom/bottom-sheet`.** gorhom's `present()` + portal silently no-op on the New Architecture (Fabric/Bridgeless) in release builds (rAF-gated mount never flushes). The shared wrapper is `components/ui/sheet.tsx` — the single styling seam for all sheets; sheet content uses core `ScrollView`/`TextInput`. Don't reintroduce gorhom.

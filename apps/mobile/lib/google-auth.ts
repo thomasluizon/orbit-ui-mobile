@@ -1,5 +1,6 @@
 import * as WebBrowser from 'expo-web-browser'
 import * as Crypto from 'expo-crypto'
+import { Platform } from 'react-native'
 import { API } from '@orbit/shared/api'
 import { googleCodeAuthResponseSchema, type GoogleCodeAuthResponse } from '@orbit/shared/types/auth'
 import { buildGoogleAuthorizeUrl, bytesToHex } from '@orbit/shared/utils'
@@ -56,7 +57,9 @@ export async function completeGoogleAuthFromUrl(
 }
 
 async function openGoogleAuthSession(authorizeUrl: string, returnUrlAttemptId: string): Promise<MobileGoogleAuthResult> {
-  const result = await WebBrowser.openAuthSessionAsync(authorizeUrl, AUTH_CALLBACK_URL)
+  const result = Platform.OS === 'ios'
+    ? await WebBrowser.openAuthSessionAsync(authorizeUrl, AUTH_CALLBACK_URL, { preferUniversalLinks: true })
+    : await WebBrowser.openAuthSessionAsync(authorizeUrl, AUTH_CALLBACK_URL)
   if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) {
     return { type: WebBrowser.WebBrowserResultType.CANCEL }
   }

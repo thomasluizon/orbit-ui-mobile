@@ -18,6 +18,10 @@ export function summarize(results, expectedCases) {
     return { id, family, locale, missingComposition, attempts: attempts.length, passed, skipped, unavailable, pass3: status }
   })
   const unexpected = results.some((entry) => !descriptors.some((expected) => expected.id === entry.testCase.metadata.id))
+  return aggregate(cases, unexpected)
+}
+
+export function aggregate(cases, unexpected = false) {
   const status = cases.some((entry) => entry.pass3 === 'fail') ? 'fail'
     : unexpected || !cases.length || cases.some((entry) => entry.pass3 === 'incomplete') ? 'incomplete' : 'pass'
   const groups = [...new Set(cases.map((entry) => `${entry.family}/${entry.locale}`))].map((key) => {
@@ -33,7 +37,8 @@ export function summarize(results, expectedCases) {
 export function writeReport(summary, directory = 'reports') {
   mkdirSync(directory, { recursive: true })
   const markdown = [
-    `Astra launch gate: ${summary.status}`,
+    `Astra launch gate: ${summary.gateStatus ?? summary.status}`,
+    `Selected cases: ${summary.status}`,
     '',
     '| Case | Family | Locale | Attempts passed | Evidence skipped | Evidence unavailable | Composition missing | pass^3 |',
     '|---|---|---|---|---|---|---|---|',
@@ -43,6 +48,7 @@ export function writeReport(summary, directory = 'reports') {
     '|---|---|---|---|',
     ...summary.groups.map((entry) => `| ${entry.family} | ${entry.locale} | ${entry.passed}/${entry.cases} | ${entry.pass3} |`),
     '',
+    'Subset summaries cover selected cases only. Merge all windows before a launch decision.',
     'Incomplete is not a launch pass. PendingConfirmation proves a held proposal, never a persisted write.',
   ].join('\n')
   writeFileSync(`${directory}/summary.json`, `${JSON.stringify(summary, null, 2)}\n`)

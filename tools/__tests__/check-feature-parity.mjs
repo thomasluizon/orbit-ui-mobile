@@ -140,6 +140,52 @@ function promotionFixture(catalog) {
   return { directory, put, git, route, legacy, current, legacyRevision, promoted, rules, check }
 }
 
+function provenanceRegressions(catalog) {
+  for (const section of ['legacyProduction', 'productionSnapshots']) {
+    const directory = join(root, `parity-provenance-${section}`)
+    const put = (path, source) => stage(`parity-provenance-${section}/${path}`, source)
+    const git = (args) => execFileSync('git', args, { cwd: directory, encoding: 'utf8' }).trim()
+    const route = 'apps/web/app/page.tsx'
+    const rulesPath = 'tools/feature-parity-rules.json'
+    const control = "export default function Home() { return <button onClick={open}>{t('common.save')}</button> }"
+    const rendered = "export default function Home() { return <p>{t('common.all')}</p> }"
+    put('packages/shared/src/i18n/en.json', catalog)
+    put(route, section === 'legacyProduction' ? control : 'export default function Home() { return null }')
+    put(rulesPath, '{}')
+    git(['init', '-q', '--initial-branch=main'])
+    git(['config', 'user.email', 'gate@orbit.test'])
+    git(['config', 'user.name', 'Orbit Gate'])
+    git(['add', route, rulesPath, 'packages/shared/src/i18n/en.json'])
+    git(['commit', '-q', '-m', 'Legacy provenance source'])
+    const legacyProduction = git(['rev-parse', 'HEAD'])
+    put(route, control)
+    git(['add', route])
+    git(['commit', '-q', '--allow-empty', '-m', 'Production control source'])
+    const snapshot = git(['rev-parse', 'HEAD'])
+    const provenance = { legacyProduction, ...(section === 'productionSnapshots' ? { productionSnapshots: [snapshot] } : {}) }
+    const rules = { provenance, mappings: { 'web:control:common.save': { targets: ['web:content:common.all'], reason: 'Relocated to rendered content' } } }
+    put(route, rendered)
+    put(rulesPath, JSON.stringify(rules))
+    git(['add', route, rulesPath])
+    git(['commit', '-q', '-m', 'Retain the relocated production control'])
+    const base = git(['rev-parse', 'HEAD'])
+    const check = () => run('check-feature-parity.mjs', ['--root', directory, '--production', base, '--base', base, '--ci'])
+    const valid = check()
+    T(`${section} retains a valid inherited relocation in CI`, valid.status === 0, valid.stdout + valid.stderr)
+    put(rulesPath, JSON.stringify({ ...rules, provenance: { ...provenance, productionSnapshots: [base, ...(provenance.productionSnapshots ?? [])] } }))
+    const extended = check()
+    T(`${section} permits extending retained production snapshots in CI`, extended.status === 0, extended.stdout + extended.stderr)
+    put(rulesPath, JSON.stringify(rules))
+    put(route, 'export default function Home() { return null }')
+    const deletion = check()
+    T(`${section} rejects a deleted relocation target with unchanged provenance`, deletion.status === 1 && deletion.stdout.includes('web:control:common.save |'), deletion.stdout + deletion.stderr)
+    const changed = section === 'legacyProduction' ? { legacyProduction: base } : { legacyProduction }
+    put(rulesPath, JSON.stringify({ ...rules, provenance: changed }))
+    const bypass = check()
+    T(`${section} rejects candidate provenance shrinkage before stale rules become advisory`, bypass.status === 2 && bypass.stderr.includes(`provenance.${section}`) && bypass.stderr.includes(section === 'legacyProduction' ? legacyProduction : snapshot) && !bypass.stdout.includes('advisory'), `exit ${bypass.status}\n${bypass.stdout}${bypass.stderr}`)
+  }
+}
+
 function promotionRegressions(catalog) {
   const fixture = promotionFixture(catalog)
   const { directory, put, git, route, legacy, current, legacyRevision, promoted, rules, check } = fixture
@@ -175,6 +221,44 @@ function promotionRegressions(catalog) {
   put(route, current)
   postlegacyRelocation(fixture)
   invalidPromotionInputs(fixture)
+  staleRuleRegressions(fixture)
+}
+
+function staleRuleRegressions({ directory, put, git, route, current, rules, check }) {
+  const id = 'web:control:common.save'
+  put(route, current.replace("t('chat.attachFile')", "t('common.save')"))
+  git(['add', route, 'tools/feature-parity-rules.json'])
+  git(['commit', '-q', '-m', 'Ship a postlegacy control'])
+  const production = git(['rev-parse', 'HEAD'])
+  const variants = {
+    mappings: { targets: ['web:control:common.all'], reason: 'Relocated control' },
+    removals: { citation: 'DESIGN.md', rule: 'Verified removal permission', reason: 'Removed control' },
+    tickets: '#1423',
+  }
+  for (const [section, rule] of Object.entries(variants)) {
+    put(route, current)
+    put('tools/feature-parity-rules.json', JSON.stringify(rules))
+    git(['add', route, 'tools/feature-parity-rules.json'])
+    git(['commit', '-q', '--allow-empty', '-m', 'Retire the postlegacy control'])
+    const cleanBase = git(['rev-parse', 'HEAD'])
+    const candidate = { ...rules, [section]: { ...rules[section], [id]: rule } }
+    put('tools/feature-parity-rules.json', JSON.stringify(candidate))
+    const unknown = check(cleanBase, cleanBase)
+    T(`${section} rejects a newly added unknown capability`, unknown.status === 2 && unknown.stderr.includes(`${section}: no production capability ${id}`), unknown.stdout + unknown.stderr)
+    git(['add', 'tools/feature-parity-rules.json'])
+    git(['commit', '-q', '-m', 'Inherit the postlegacy rule'])
+    const base = git(['rev-parse', 'HEAD'])
+    const valid = check(production, base)
+    T(`${section} accepts a rule backed by production source`, valid.status === 0, valid.stdout + valid.stderr)
+    const inherited = check(base, base)
+    T(`${section} reports the inherited stale capability as advisory with its exact retirement ID`, inherited.status === 0 && inherited.stdout.includes(`${section}: ${id}`) && /advisory.*retire/i.test(inherited.stdout), inherited.stdout + inherited.stderr)
+    const strict = run('check-feature-parity.mjs', ['--root', directory, '--production', base])
+    T(`${section} still reports stale keys outside CI`, strict.status === 2 && strict.stderr.includes(`${section}: no production capability ${id}`), strict.stdout + strict.stderr)
+    const otherSection = section === 'tickets' ? 'mappings' : 'tickets'
+    put('tools/feature-parity-rules.json', JSON.stringify({ ...rules, [otherSection]: { ...rules[otherSection], [id]: variants[otherSection] } }))
+    const moved = check(base, base)
+    T(`${section} cannot exempt an unknown key added to another rule section`, moved.status === 2 && moved.stderr.includes(`${otherSection}: no production capability ${id}`), moved.stdout + moved.stderr)
+  }
 }
 
 function postlegacyRelocation({ directory, put, git, route, current, promoted, rules, check }) {
@@ -206,14 +290,13 @@ function postlegacyRelocation({ directory, put, git, route, current, promoted, r
   put('tools/feature-parity-rules.json', JSON.stringify(rules))
 }
 
-function invalidPromotionInputs({ put, git, check, rules, legacyRevision, promoted }) {
+function invalidPromotionInputs({ directory, put, git, check, rules, legacyRevision, promoted }) {
   const invalidRules = [
     ['missing provenance', { ...rules, provenance: undefined }, /provenance/],
     ['unknown provenance field', { ...rules, provenance: { ...rules.provenance, ignored: legacyRevision } }, /provenance/],
     ['floating legacy reference', { ...rules, provenance: { legacyProduction: 'main' } }, /immutable/],
     ['missing legacy object', { ...rules, provenance: { legacyProduction: 'f'.repeat(40) } }, /./],
     ['noncommit legacy object', { ...rules, provenance: { legacyProduction: git(['rev-parse', `${legacyRevision}^{tree}`]) } }, /./],
-    ['wrong era provenance', { ...rules, provenance: { legacyProduction: promoted } }, /no production capability/],
     ['unknown source ID', { ...rules, tickets: { 'web:control:invented': '#1423' } }, /no production capability/],
     ['cross-platform mapping', { ...rules, mappings: { 'web:control:habits.viewAll': { reason: 'Moved', targets: ['mobile:control:common.all'] } } }, /same platform/],
     ['invalid mapping kind', { ...rules, mappings: { 'web:control:habits.viewAll': { reason: 'Moved', targets: ['web:invented:common.all'] } } }, /mapping targets/],
@@ -226,6 +309,11 @@ function invalidPromotionInputs({ put, git, check, rules, legacyRevision, promot
     const result = check()
     T(`${name} is rejected before comparison`, result.status === 2 && message.test(result.stderr), result.stdout + result.stderr)
   }
+  put('tools/feature-parity-rules.json', JSON.stringify({ ...rules, provenance: { legacyProduction: promoted } }))
+  const wrongEra = run('check-feature-parity.mjs', ['--root', directory, '--production', promoted])
+  T('wrong era provenance reports stale legacy rules outside CI', wrongEra.status === 2 && /no production capability/.test(wrongEra.stderr), wrongEra.stdout + wrongEra.stderr)
+  const wrongEraCi = check()
+  T('wrong era provenance is rejected in CI', wrongEraCi.status === 2 && /provenance.legacyProduction/.test(wrongEraCi.stderr), `exit ${wrongEraCi.status}\n${wrongEraCi.stdout}${wrongEraCi.stderr}`)
   put('tools/feature-parity-rules.json', JSON.stringify(rules))
   T('an invalid active production reference fails closed', check('missing-production').status === 2)
   T('an invalid queued base fails closed', check(legacyRevision, 'missing-base').status === 2)
@@ -415,6 +503,7 @@ export const cases = () => {
   const artifact = workflow.jobs.guards.steps.find((step) => step.id === 'feature-parity__2')
   T('Guards uploads the generated inventory from its hidden directory', artifact.with.path === manifestPath && artifact.with['include-hidden-files'] === true)
   const catalog = readFileSync(join(REPO_ROOT, 'packages/shared/src/i18n/en.json'), 'utf8')
+  provenanceRegressions(catalog)
   promotionRegressions(catalog)
   mappedOwnerRegressions(catalog)
   const snapshot = (source, extra = {}) => {

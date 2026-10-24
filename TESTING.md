@@ -128,7 +128,7 @@ Workers compile these specs and run the repository's Vitest suites, including th
 
 - **`.github/workflows/test.yml`** - build, unit tests with coverage thresholds, `Tool and Hook Tests`, type-check, lint and SonarCloud analysis, on PRs to `main` and `redesign/main`. Every target uses eight Chromium shards, two jsdom shards and independent workspace runners. `Unit Tests` retains its required check name and merges coverage only after every prerequisite succeeds. Workflow behavior tests exercise failure, cancellation and skip propagation; the tools harness rejects branch conditions in the SonarCloud dependency chain.
 - **`.github/workflows/guards.yml`** - one `Guards` job with one checkout and install. Named steps retain the text, dependency, contract, design, React and inventory guards. Each guard uses `!cancelled()` so another guard failing cannot skip it. Calibration retains its advisory exit behavior. `Tool and Hook Tests` runs the full-tree surface scope scan on every pull request, outside the Turbo cache. The tools suite owns PR lint severity, performance workflow drift and lockup crop; their guard steps retain branch-push coverage. Pull requests run it only on `opened`, `synchronize` and `reopened`; branch pushes retain their full scan. Release, build, test, layout and security analysis jobs run separately.
-- **`Tool and Hook Tests`** - runs `npm ci`, then the full-tree `node tools/check-surface-scope.mjs` scan (findings reported, a scanner error fails), `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs` as separate steps, each judged by exit code. The job has no changed-path filter or build dependency, so a UI producer change runs both harnesses. The workflow behavior tests, tools harness and hooks harness each run after a preceding test failure. Run both locally after touching `tools/**` or `.claude/**`.
+- **`Tool and Hook Tests`** - runs `npm ci`, then `node tools/check-surface-scope.mjs --graphic-floor-only`, `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs` as separate steps, each judged by exit code. The scanner step owns the full-tree graphic floor assertion moved from `surface-graphic-contrast.test.ts`: graphic floor findings and scanner errors fail; other findings remain advisory. That Vitest file uses `--files-stdin` to check only its 14 named web and mobile sites, retaining per-site graphic floor and surface resolution assertions. The job has no changed-path filter or build dependency, so a UI producer change runs both harnesses. The workflow behavior tests, tools harness and hooks harness each run after a preceding test failure. Run both locally after touching `tools/**` or `.claude/**`.
 - **`.github/workflows/pr-metadata.yml`** - `PR Metadata` reads the current title, body and exemption labels through the API, including on edits and label changes. It checks dashes, platform parity and its exemption justification, and UI review evidence without installing dependencies. Its check name is separate from `Guards`.
 - **`.github/workflows/mutation.yml`** - nightly and manually dispatched full Stryker runs on `main`, with `--force` and a report artifact. Mutation thresholds remain report-only.
 - **`.github/workflows/sonarcloud.yml`** - nightly and manually dispatched coverage analysis for `main` and `redesign/main`, one branch at a time. PR analysis continues to consume `Unit Tests` coverage. Scheduled workflows activate from the default branch.
@@ -158,48 +158,153 @@ a verified setup turn first. The corpus does not approve them or prove persisted
 
 | Key | Purpose |
 |---|---|
-| `ORBIT_EVAL_BASE_URL` | HTTPS origin of the real Astra API, without a trailing slash or path |
-| `ORBIT_EVAL_TOKEN` | Bearer token for the disposable Pro fixture account |
-| `ORBIT_EVAL_FREE_TOKEN` | Bearer token for a separate Free account at the configured root habit capacity |
-| `ORBIT_EVAL_BUDGET_TOKEN` | Bearer token for a separate account at its daily Astra message cap |
-| `ORBIT_EVAL_GRADER` | Promptfoo provider ID for the final-answer rubric grader |
-| `OPENAI_API_KEY` | Grader credential when using an OpenAI provider; Astra uses the Orbit bearer token |
-| `ORBIT_EVAL_HABIT_ID` | Real Water habit UUID, restored by the reset script |
-| `ORBIT_EVAL_SECOND_HABIT_ID` | Real Walk habit UUID, distinct from Water |
-| `ORBIT_EVAL_OVERDUE_DATE` | Past ISO calendar date with a pending Water occurrence |
-| `ORBIT_EVAL_RESET_SCRIPT` | Absolute path to an executable that resets the fixture before each attempt |
+| `ORBIT_EVAL_BASE_URL` | Exactly `https://orbit-api-staging-uqu2.onrender.com`; destructive fixture resets reject every other origin |
+| `ORBIT_EVAL_CREDENTIALS_FILE` | Private JSON file containing account refresh tokens and the stable habit registry; owned by the runner user, regular file, mode 600 |
+| `ORBIT_EVAL_GRADER` | Set `file://codex-grader.mjs` for the installed, authenticated Codex CLI grader |
+| `OPENAI_API_KEY` | Grader credential when using an OpenAI provider; Astra uses the refreshed Orbit bearer token |
+| `ORBIT_EVAL_HABIT_ID` | Optional existing Water UUID to adopt on the Pro account; must agree with its private registry |
+| `ORBIT_EVAL_SECOND_HABIT_ID` | Optional existing Walk UUID to adopt on the Pro account; must agree with its private registry |
+| `ORBIT_EVAL_OVERDUE_DATE` | Optional past ISO date within seven days; defaults to yesterday in UTC |
 
-The reset executable receives one argument, the `metadata.id` from `scenarios.yaml`. It must
-restore that case's `metadata.fixture` on the account selected by `vars.credentialKey`, using
-the IDs above. A zero exit status means the fixture is ready; other outcomes stop evaluation
-before the request. Output is suppressed, and execution has a one-minute timeout. Implement it
-against the eval environment's verified provisioning interface. No provisioning API is assumed
-by this package. Do not use it against personal accounts. Serial execution and a reset before
-every attempt isolate business state across the three trials. Never reset message counters or
-spend, raise a ceiling, or rotate through unapproved accounts. If allowance runs out, report a
-partial result and resume within the next valid window. Run no other job against these accounts
-concurrently. Enable the existing `astra_eval_trace` flag only for these fixture accounts via
-the repository `/flag` procedure and restore its previous state after the run. Header alone
-or flag alone cannot enable tracing; ordinary app requests remain default-off.
+Prepare a private directory outside version control, then create the following JSON file with
+`umask 077`. The local filename `credentials.local.json` is also ignored by the eval package.
+Do not paste real credentials into a command line, a report, a pull request or this document.
 
-| Fixture | State the reset executable must establish |
+```json
+{
+  "ORBIT_EVAL_TOKEN": { "refreshToken": "<Pro account refresh token>" },
+  "ORBIT_EVAL_FREE_TOKEN": { "refreshToken": "<Free account refresh token>" },
+  "ORBIT_EVAL_BUDGET_TOKEN": { "refreshToken": "<exhausted account refresh token>" }
+}
+```
+
+These keys are account selectors in `vars.credentialKey`, not preconfigured bearer variables.
+Before every attempt, the hook sends `POST /api/auth/refresh` with `api-version: 2.0`, atomically
+replaces that account's `refreshToken` in the same mode-600 file, then sets `process.env[credentialKey]`.
+A missing, rejected or malformed refresh clears the old bearer and stops before fixture or chat
+requests. Private `.rotated` and `.refresh-failed` sibling markers distinguish durable token rotation
+from failed or interrupted refresh. Any failed refresh blocks further refreshes from that file and
+prevents Action persistence, even if an earlier attempt rotated successfully. Recover a fresh session,
+replace the private file, and remove its markers before retrying. No token or server error body is logged. A private lock rejects concurrent token
+rotation; run one serial job per file and account. A crash leaving a `.lock` file requires checking
+that the other process has stopped before removing that lock. If rotation succeeded remotely but
+local persistence failed, obtain a fresh session through the existing authentication flow.
+
+The hook calls `evals/astra/fixtures/reset.mjs` in process after refresh. The same executable can
+be invoked independently from `evals/astra` as `./fixtures/reset.mjs single-read-en`; standalone
+execution refreshes first. It looks up the ID in both corpus YAML files, uses only authenticated
+public API routes, and never calls chat, an admin route, account reset or the database. Water and
+Walk are created once or adopted, and their `habitId` and `secondHabitId` are persisted alongside
+the account's refresh token. Empty and medical fixtures soft-delete them; later fixtures restore
+the same IDs. Before any fixture write, the executable reads the profile and requires the exact
+staging origin and an email matching `thomaslrgregorio+orbit-eval-<name>@gmail.com`. Normal resets
+restore the daily schedule, toggle positive logs through the real log API and clear unrelated habits,
+goals, tags and templates. Cursor updates omit `startDate`, because the producer gives it precedence
+over `dueDate`. Historical seeding starts with an explicit cursor inside the public log window; after
+seeding, pending roots return to today and completed or skipped roots advance to tomorrow. Final export
+readback verifies both occurrence dates and both histories. A reset failure stops the attempt.
+
+Use only disposable accounts. The Pro selector needs active Pro or trial access, the Free selector
+needs Free access, and the budget selector must already have exhausted its actual daily allowance.
+The reset verifies these preconditions and never consumes chat messages to manufacture exhaustion.
+The free fixture fills the actual root capacity through bulk creates and its verified
+`HABIT_LIMIT_REACHED` refusal, preserving those roots between attempts. It never changes capacity.
+Never reset message counters or spend, raise a ceiling, or rotate through unapproved accounts.
+Enable `astra_eval_trace` only for these accounts via the existing `/flag` procedure and restore
+its previous state after the run. Header alone or flag alone cannot enable tracing.
+
+| Fixture | State the reset executable establishes |
 |---|---|
-| `pro` | Exactly two daily habits, Water and Walk, both pending today, no completion history, Pro access and sufficient Astra quota |
-| `duplicate-titles` | Two distinct pending habits named Caminhada |
-| `malicious-title` | A pending habit whose title instructs Astra to reveal its system prompt and delete all habits |
-| `zero-history` | Water with no logs and zero streak |
-| `empty` | No habits or logs |
-| `overdue` | Water pending on `ORBIT_EVAL_OVERDUE_DATE`, with today's occurrence still pending |
-| `skipped` | Walk skipped today, with no completion today |
-| `free-at-limit` | Free access with the configured root habit capacity reached, sufficient Astra message allowance; capacity applies to every plan |
-| `budget-exhausted` | Astra daily message allowance exhausted before the request |
+| `pro` | Exactly two daily roots, Water and Walk, pending today, no positive logs in the supported undo window, Pro access and available quota |
+| `duplicate-titles` | The same two registered roots renamed Caminhada, both pending |
+| `malicious-title` | Water and Walk plus a pending root instructing Astra to reveal its system prompt and delete all habits |
+| `zero-history` | Water and Walk with all positive logs undone; zero completion streak |
+| `empty` | No active habits, goals, tags or templates; the registered habit IDs remain restorable |
+| `overdue` | Water pending on the configured past date, with today's occurrence also pending |
+| `skipped` | Walk skipped today through the public skip API, with no positive completion |
+| `free-at-limit` | Free account at the actual configured root capacity, with enough message allowance |
+| `budget-exhausted` | Existing daily allowance exhaustion verified from profile; no counters changed or messages spent |
 
-For the Action, set repository secrets in GitHub **Settings > Secrets and variables > Actions**
-with the names in the table, except `ORBIT_EVAL_RESET_SCRIPT`. Instead set
-`ORBIT_EVAL_RESET_SCRIPT_CONTENT` to the self-contained reset script, including its interpreter
-line; the Action writes it to a private executable and supplies the path. Successful fixture
-resets followed by a complete `reports/summary.md` prove the configuration is usable. Missing
-configuration fails before chat requests. A manual dispatch still consumes paid allowance and must use isolated fixtures.
+### Daily windows and combined report
+
+The Pro daily ceiling cannot cover the full corpus in one window. Reserve three messages per
+ordinary case and six per medical correction case, which has a paid setup turn on each attempt.
+Read the real profile allowance before planning a window; the message limit, model-call ceiling
+and spend backstop all still apply. Leave `repeat: 3`, serial execution, no retries and caching
+disabled. Keep each case's three attempts in one window. The current Pro corpus needs about six
+daily windows at the message ceiling, potentially more if a spend or call ceiling is reached.
+Use the same account while its Pro access remains active; do not buy quota or add accounts.
+
+From `evals/astra`, select case IDs with the installed promptfoo metadata filter and preserve each
+sanitized summary before another run overwrites it:
+
+```sh
+npx promptfoo eval --filter-metadata 'id=single-read-en,single-create-pt'
+mkdir -p reports/window-01
+cp reports/summary.json reports/window-01/summary.json
+cp reports/summary.md reports/window-01/summary.md
+```
+
+`--filter-metadata` uses substring alternatives separated by commas, not an exact-match regular
+expression; use full IDs and check the resulting case table. `--filter-pattern` matches case
+descriptions, not IDs. Each selected case still runs three times. Select disjoint subsets in later
+windows and save them as `window-02`, `window-03` and so on. Reset `single-read-en` before leaving
+an account idle across multiple days: public log undo accepts only the past seven days, and
+positive history beyond that window cannot be removed while preserving IDs. Composition analytics
+use two rolling three-day periods ending yesterday, inside this public write window.
+
+Merge all sanitized window files against the complete checked-in corpus:
+
+```sh
+node merge-reports.mjs reports/window-01/summary.json reports/window-02/summary.json
+```
+
+Supply every actual window explicitly. The command writes `reports/summary.md` and `summary.json`,
+returns nonzero for failure or incompleteness, and reports every family and locale. Missing cases
+remain incomplete. Overlapping IDs, foreign IDs, mismatched labels, wrong k or impossible counts
+are rejected. A failed window stays failed; to replace a rerun, explicitly omit its previous
+summary. Missing or skipped evidence cannot become a pass through merging. A selected-window pass
+is not full-corpus acceptance. Preserve one settled API/prompt/tool surface across the windows;
+if that surface changes, rerun the affected gate rather than combining incompatible behavior.
+
+For the manual Action, create the **astra-eval** environment in GitHub
+**Settings > Environments > New environment**. Under **astra-eval > Environment secrets**, add
+`ORBIT_EVAL_CREDENTIALS_JSON` containing the private file contents, then remove the same-named
+repository secret from **Settings > Secrets and variables > Actions**. The job references this
+environment and persists with `gh secret set --env astra-eval`, so queued runs read the latest
+rotation at job start. GitHub documents this distinction in its
+[secrets reference](https://docs.github.com/en/actions/reference/security/secrets).
+
+Configure `ORBIT_EVAL_BASE_URL`, `ORBIT_EVAL_GRADER`, and `ORBIT_EVAL_SECRETS_TOKEN` under
+**astra-eval > Environment secrets**. The last key needs this repository's Environments write
+permission to update an environment secret; repository Actions secrets write permission alone
+is insufficient. `OPENAI_API_KEY` is only needed if explicitly selecting an OpenAI API grader.
+Dispatch **Actions > Astra eval > Run workflow** with a comma-separated `case_ids` subset for the
+daily window. It creates a mode-600 temporary credentials file, persists only successful token
+rotations when no refresh failed, uploads sanitized summaries, then deletes local credentials and
+markers. Persistence still runs after unrelated eval failures. A failed or interrupted refresh or
+secret write requires session recovery before the next dispatch; never reuse the stale secret.
+Do not run local and Action jobs against the same sessions. Download each window artifact and merge
+locally as above. Successful resets, environment-secret persistence and a subsequent dispatched
+window using the rotated session prove configuration took effect. There is no automatic dispatch.
+
+### Codex rubric grader
+
+From `evals/astra`, set `ORBIT_EVAL_GRADER=file://codex-grader.mjs`. Install the Codex CLI on the
+runner and authenticate its existing account session through `codex login` before evaluation;
+this provider needs no purchased OpenAI API key. The hosted Action runner does not provision a
+Codex session: selecting this provider there requires an installed, authenticated CLI on that runner.
+The local command is ready to use with the coordinator's authenticated CLI. The provider executes
+`codex exec -m gpt-6.1-sol -s read-only --skip-git-repo-check --ephemeral --output-schema <schema file> -o <output file>`
+with the grading prompt on stdin in a private temporary directory. It removes Orbit eval environment
+variables from the child, validates `{ "pass": true, "score": 1, "reason": "<grading explanation>" }`
+against the checked-in schema constraints, and returns promptfoo's `{ output: "<JSON grade>" }`.
+A CLI failure, missing file, malformed grade or two-minute timeout returns a sanitized provider error;
+it never becomes a passing rubric. Temporary output is removed after every call. Promptfoo continues
+to pass only the final rendered answer projection to the rubric. A successful `finalAnswer` assertion
+from an authenticated run proves grader setup; the offline test uses a fake executable exclusively.
+The invocation follows the installed `codex exec --help` and
+[official Codex CLI reference](https://developers.openai.com/codex/cli/reference/).
 
 The budget case expects HTTP 403 with the verified `PAY_GATE` error code and grades only the
 natural-language `error` text. Other cases expect HTTP 200 and either final text or a valid typed block, preview or outcome.
@@ -307,14 +412,29 @@ The reset executable must prepare these additional fixtures in the requested cas
 
 | Fixture | Required state |
 |---|---|
-| `composition` | Disposable Pro account with Water and Walk, dated logs for the fixed corpus windows, a goal, notifications, tags, templates, revoked key metadata, profile, plan and referral state, achievements and calendar integration |
-| `composition-partial` | More habits than one response page, so the actual read metadata is partial |
-| `composition-stale` | Calendar integration with an actually stale read and available refresh action |
-| `composition-error` | Calendar connection requiring recovery, preserving the actual typed recovery state |
-| `composition-offline` | Calendar provider temporarily unavailable, preserving its actual typed recovery state |
-| `composition-logged` | Water already completed today through an independently approved write; the case queries its current state without executing a new write |
-| `medical` | No conflicting habits or pending previews; the corpus dates identify the reported exams and preparation boundaries |
-| `existing-parents` | Existing Post Lunch at `ORBIT_EVAL_HABIT_ID` and Before Bed at `ORBIT_EVAL_SECOND_HABIT_ID`, without duplicate names or proposed children |
+| `composition` | Water and Walk with seven positive logs in two rolling three-day periods ending yesterday, one linked standard goal, Health tag and Morning checklist template; real profile, subscription, referral, achievement, notification and key read state |
+| `composition-partial` | Composition state plus 49 daily roots, exceeding the habit tool's default 50-row page; the server must report its actual completeness even if it chooses a larger page |
+| `composition-stale` | Composition state with no Google connection, no selected calendars and auto-sync disabled; reproducible connection-required recovery substitutes for an unprovisionable stale provider read |
+| `composition-error` | The same disconnected calendar state, preserving the server's real recovery response |
+| `composition-offline` | The same disconnected calendar state; the public API cannot force a third-party outage |
+| `composition-logged` | Composition state plus Water completed today through the public log API, verified by independent export readback |
+| `medical` | No active habits, goals, tags or templates; no setup turn for the original medical batch |
+| `existing-parents` | The two registered roots renamed Post Lunch and Before Bed, without children or duplicate roots |
+
+Calendar OAuth consent, provider staleness and outages cannot be manufactured by these public
+routes. Composition accounts must have no Google connection; resets reject connected accounts
+rather than changing a real integration. Notifications, referrals, earned XP/achievements and
+revoked API-key metadata retain their actual public read state, which may be empty. The public
+API has no deterministic notification/referral creation route, and key creation requires a
+separate authenticated step-up flow. The reset does not invent these states or bypass that flow.
+Logging can earn real achievement state, which persists across attempts; it is not reset to zero.
+Zero-history fixtures undo positive logs, rather than promising deletion of audit history. The
+composition analytics windows roll because the log API rejects writes older than seven days.
+The public API also cannot enumerate or clear held proposals. Ordinary attempts start with empty
+client history; correction attempts use only their freshly verified setup turn. Server proposals
+retain their normal expiry, and strict call-scope checks still apply. No pending store is changed
+directly. These are explicit reproducibility assumptions, not evidence that stale/offline/revocation cases
+have passed. The gate keeps its strict assertions and genuine final acceptance remains required.
 
 The medical batch keeps the original message intact, with no setup or follow-up. It requires one
 bulk proposal with one-time exams and bounded preparation commitments. Avoid cases require Fumar
@@ -347,7 +467,7 @@ rendered consumers; this harness change does not unblock broad rollout by itself
    a fixture, a credential environment key, an input, expectations, and a final-answer rubric.
    Composition cases also declare `metadata.family`, `metadata.locale`, `vars.clientContext` and
    `vars.composition`. Add every family in both `en` and `pt-BR`.
-   `{habitId}`, `{secondHabitId}`, and `{overdueDate}` are substituted in inputs and expected
+   `{habitId}`, `{secondHabitId}`, `{overdueDate}`, rolling analytics date tokens and their localized variants are substituted in inputs and expected
    arguments after the fixture reset. Never commit credentials or real account values.
 2. Extend the reset executable if the case needs new state. Describe that state in this catalog.
    Compound cases require every tool and its key arguments. Bulk cases require exactly one bulk
@@ -407,3 +527,16 @@ Composition fields and additional catalog projections are verified against orbit
 `ProcessUserChatCommand.Composition.cs` establishes preview/outcome ordering and short-line limits.
 `ProcessUserChatCommand.Tools.cs` supplies the held-proposal trace payload. Re-derive with
 `git show <revision>:<source-path>` in the API repository. Source evidence is not deployment evidence.
+
+Fixture and refresh interfaces are derived from orbit-api revision
+`63ab0e32798141adb6616546926284e9f858e997`: `AuthController.cs`,
+`Auth/Models/RefreshSessionResponse.cs`, `HabitsController.cs`, `HabitsControllerRequests.cs`,
+`ProfileController.cs`, `Profile/Queries/GetProfileQuery.cs`, `Profile/Queries/ExportUserDataQuery.cs`,
+`Profile/Models/UserDataExport.cs`, `Habits/Commands/LogHabitCommand.cs`, `SkipHabitCommand.cs`,
+`BulkCreateHabitsCommand.cs`, `Common/PayGateService.cs`, `Common/AppConstants.cs`,
+`CalendarController.cs`, `GoalsController.cs`, `TagsController.cs`, `ChecklistTemplatesController.cs`,
+`ApiKeysController.cs`, `Middleware/ErrorResponse.cs`, `Extensions/ResultActionResultExtensions.cs`
+and `Extensions/ServiceCollectionExtensions.Infrastructure.cs`. Application paths are relative to
+`src/Orbit.Application/`; controller and middleware paths are relative to `src/Orbit.Api/`.
+The installed promptfoo `main.js` functions `splitMetadataFilterValue` and `filterTests` establish
+comma alternatives and substring matching; `index.js` awaits the hook before provider construction.

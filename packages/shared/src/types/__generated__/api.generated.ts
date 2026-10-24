@@ -2159,6 +2159,7 @@ export const PostApiChatResponse = zod.object({
 
 export const PostApiChatStreamHeader = zod.object({
   "X-Orbit-Eval-Trace": zod.string().optional(),
+  "Idempotency-Key": zod.string().optional(),
   "api-version": zod.string().optional()
 })
 

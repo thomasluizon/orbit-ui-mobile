@@ -22,9 +22,17 @@ function withLocalPlugins(plugins) {
 module.exports = () => {
   const baseConfig = appJson.expo ?? {};
   const captureMode = readBooleanEnv("EXPO_PUBLIC_CAPTURE_MODE", false);
+  const appleTeamId = process.env.ORBIT_APPLE_TEAM_ID?.trim();
+  const appStoreId = process.env.ORBIT_IOS_APP_STORE_ID?.trim();
+  if (appStoreId && !/^\d+$/.test(appStoreId)) throw new Error('Invalid iOS App Store id');
   const productionConfig = {
     ...baseConfig,
     updates: { ...baseConfig.updates, enabled: false },
+    ios: {
+      ...baseConfig.ios,
+      ...(appleTeamId ? { appleTeamId } : {}),
+      ...(appStoreId ? { appStoreUrl: `https://apps.apple.com/app/id${appStoreId}` } : {}),
+    },
     android: {
       ...baseConfig.android,
       allowBackup: false,
@@ -44,6 +52,11 @@ module.exports = () => {
     updates: { ...productionConfig.updates, enabled: false },
     name: 'Orbit Staging',
     scheme: 'orbit-staging',
+    ios: {
+      ...productionConfig.ios,
+      bundleIdentifier: packageName,
+      associatedDomains: [`applinks:${linkHost}`, `webcredentials:${linkHost}`],
+    },
     android: {
       ...productionConfig.android,
       package: packageName,

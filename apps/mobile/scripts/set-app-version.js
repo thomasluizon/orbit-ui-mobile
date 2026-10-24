@@ -3,10 +3,11 @@ const path = require("node:path");
 
 const nextVersion = process.argv[2];
 const nextVersionCodeRaw = process.argv[3];
+const nextIosBuildNumber = process.argv[4];
 
 if (!nextVersion) {
   console.error(
-    "Usage: node scripts/set-app-version.js <major.minor.patch> [androidVersionCode]"
+    "Usage: node scripts/set-app-version.js <major.minor.patch> [androidVersionCode] [iosBuildNumber]"
   );
   process.exit(1);
 }
@@ -25,6 +26,11 @@ if (nextVersionCodeRaw && (!Number.isInteger(nextVersionCode) || nextVersionCode
   console.error(
     `Invalid Android versionCode "${nextVersionCodeRaw}". Expected a positive integer`
   );
+  process.exit(1);
+}
+
+if (nextIosBuildNumber && !/^[1-9]\d{0,17}$/.test(nextIosBuildNumber)) {
+  console.error("Invalid iOS buildNumber. Expected a positive integer of at most 18 digits");
   process.exit(1);
 }
 
@@ -49,29 +55,19 @@ if (nextVersionCode !== null && appJson.expo.android && typeof appJson.expo.andr
   appJson.expo.android.versionCode = nextVersionCode;
 }
 
-if (previousVersion !== nextVersion || previousVersionCode !== nextVersionCode) {
-  const nextAppJsonRaw = appJsonRaw.replace(
-    /"version"\s*:\s*"[^"]+"/,
-    `"version": "${nextVersion}"`
-  );
-
-  const finalAppJsonRaw =
-    nextVersionCode !== null
-      ? nextAppJsonRaw.replace(
-          /"versionCode"\s*:\s*\d+/,
-          `"versionCode": ${nextVersionCode}`
-        )
-      : nextAppJsonRaw;
-
-  if (finalAppJsonRaw === appJsonRaw) {
-    console.error("Failed to update app.json app version data");
-    process.exit(1);
-  }
-
-  fs.writeFileSync(appJsonPath, finalAppJsonRaw);
+const previousIosBuildNumber = appJson.expo.ios?.buildNumber;
+if (nextIosBuildNumber) {
+  appJson.expo.ios ??= {};
+  appJson.expo.ios.buildNumber = nextIosBuildNumber;
 }
+
+const finalAppJsonRaw = `${JSON.stringify(appJson, null, 2)}\n`;
+if (finalAppJsonRaw !== appJsonRaw) fs.writeFileSync(appJsonPath, finalAppJsonRaw);
 
 const versionCodeSummary =
   nextVersionCode === null ? "unchanged" : `${previousVersionCode ?? "unknown"} -> ${nextVersionCode}`;
 
-console.log(`Synced app version ${previousVersion} -> ${nextVersion} and versionCode ${versionCodeSummary}`);
+const iosBuildSummary = nextIosBuildNumber
+  ? `${previousIosBuildNumber ?? "unknown"} -> ${nextIosBuildNumber}` : "unchanged";
+
+console.log(`Synced app version ${previousVersion} -> ${nextVersion}, versionCode ${versionCodeSummary}, iOS buildNumber ${iosBuildSummary}`);
