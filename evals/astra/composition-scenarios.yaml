@@ -111,7 +111,7 @@
     fixture: composition
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Show Water ({habitId}) logs from October 1 to October 7, 2026.
+    input: Show Water ({habitId}) logs from {historyFromLocalized} to {historyToLocalized}.
     clientContext: *a4
     composition: &a6
       mode: data
@@ -123,8 +123,8 @@
         - name: get_habit_history
           arguments:
             habit_id: "{habitId}"
-            date_from: 2026-10-01
-            date_to: 2026-10-07
+            date_from: "{historyFrom}"
+            date_to: "{historyTo}"
       allowed:
         - query_habits
         - get_habit_history
@@ -141,7 +141,7 @@
     fixture: composition
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Mostre os registros de Water ({habitId}) de 1 a 7 de outubro de 2026.
+    input: Mostre os registros de Water ({habitId}) de {historyFromLocalized} a {historyToLocalized}.
     clientContext: *a5
     composition: *a6
     expectations:
@@ -312,7 +312,7 @@
     fixture: composition
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: How many positive completion logs from October 1 to October 7, 2026?
+    input: How many positive completion logs from {historyFromLocalized} to {historyToLocalized}?
     clientContext: *a4
     composition: &a14
       mode: data
@@ -322,8 +322,8 @@
       required: &a15
         - name: get_period_analytics
           arguments:
-            date_from: 2026-10-01
-            date_to: 2026-10-07
+            date_from: "{historyFrom}"
+            date_to: "{historyTo}"
             metric: positiveLogRecords
       allowed:
         - query_habits
@@ -341,7 +341,7 @@
     fixture: composition
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Quantos registros positivos de conclusão de 1 a 7 de outubro de 2026?
+    input: Quantos registros positivos de conclusão de {historyFromLocalized} a {historyToLocalized}?
     clientContext: *a5
     composition: *a14
     expectations:
@@ -363,7 +363,7 @@
     fixture: composition
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Compare positive completion logs October 8 to 14 with October 1 to 7, 2026.
+    input: Compare positive completion logs {comparisonFromLocalized} to {comparisonToLocalized} with {historyFromLocalized} to {historyToLocalized}.
     clientContext: *a4
     composition: &a16
       mode: data
@@ -373,10 +373,10 @@
       required: &a17
         - name: get_period_analytics
           arguments:
-            date_from: 2026-10-08
-            date_to: 2026-10-14
-            baseline_from: 2026-10-01
-            baseline_to: 2026-10-07
+            date_from: "{comparisonFrom}"
+            date_to: "{comparisonTo}"
+            baseline_from: "{historyFrom}"
+            baseline_to: "{historyTo}"
             metric: positiveLogRecords
       allowed:
         - query_habits
@@ -394,8 +394,7 @@
     fixture: composition
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Compare os registros positivos de conclusão de 8 a 14 com 1 a 7 de
-      outubro de 2026.
+    input: Compare os registros positivos de conclusão de {comparisonFromLocalized} a {comparisonToLocalized} com {historyFromLocalized} a {historyToLocalized}.
     clientContext: *a5
     composition: *a16
     expectations:
