@@ -9,6 +9,8 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { actionResultSchema } from '@orbit/shared/types/chat'
 import { makeEmojiToolResult, toolResultRegressionCases } from '../../../../../packages/shared/src/test-support/tool-result-fixtures'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
+import { expandedTextControls, pressTextControl } from '@/__tests__/support/personal-text'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { Button } from '@/components/ui/pill-button'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { makeClarificationPreviewMessage } from '@orbit/shared/test-support/chat-fixtures'
@@ -106,8 +108,31 @@ describe.each([
 
   it.each(['frequency_quantity', 'frequencyQuantity'])('names the localized validation field %s without a message key', async (field) => {
     const tree = await renderAction({ type: 'CreateHabit', status: 'Failed', field })
-    expect(renderedText(tree.root)).toContain(locale === 'en' ? 'Check Frequency count and try again.' : 'Confira Número da frequência e tente de novo.')
+    expect(renderedText(tree.root)).toContain(locale === 'en' ? 'Check the Frequency count field and try again.' : 'Confira o campo Número da frequência e tente de novo.')
     expect(renderedText(tree.root)).toContain(locale === 'en' ? en.chat.operation.status.Failed : ptBR.chat.operation.status.Failed)
+  })
+
+  it.each(['frequency_quantity', 'private_engine_property'])('discloses each target in named validation failures for %s', async field => {
+    const messages = locale === 'en' ? en : ptBR
+    const onChipClick = vi.fn()
+    const names = ['Morning walk', 'Read ten pages']
+    const tree = await renderElement(<ActionChips actions={names.map(entityName => actionResultSchema.parse({ type: 'CreateHabit', status: 'Failed', entityName, field }))} onChipClick={onChipClick} />)
+    const guidance = field === 'private_engine_property'
+      ? messages.chat.toolResult.invalidDetails
+      : locale === 'en'
+        ? 'Check the Frequency count field and try again.'
+        : 'Confira o campo Número da frequência e tente de novo.'
+    const labels = names.map(name => `${messages.chat.action.createFailed.replace('{name}', name)}. ${guidance}`)
+
+    expect(tree.root.findAll(node => node.type === PersonalTextDetails).map(node => node.props.children)).toEqual(labels)
+    for (const label of labels) {
+      expect(renderedText(tree.root)).toContain(label)
+      await act(() => pressTextControl(expandedTextControls(tree.root, label, false)[0]!))
+      expect(expandedTextControls(tree.root, label, true)).toHaveLength(1)
+    }
+    expect(tree.root.findAll(node => node.type === Button).some(button => button.props.children === messages.chat.action.open)).toBe(false)
+    expect(renderedText(tree.root)).not.toContain(field)
+    expect(onChipClick).not.toHaveBeenCalled()
   })
 
   it('keeps an unknown validation field private and renders a localized failure', async () => {

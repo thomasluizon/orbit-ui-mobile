@@ -1601,7 +1601,7 @@
       "logFailed": "Não foi possível registrar {name}",
       "unlogged": "Desfez o registro de {name}",
       "unlogFailed": "Não foi possível desfazer o registro de {name}",
-      "invalidField": "Confira {fieldName} e tente de novo.",
+      "invalidField": "Confira o campo {fieldName} e tente de novo.",
       "updated": "Atualizou {name}",
       "updateFailed": "Não foi possível atualizar {name}",
       "deleted": "Apagou {name}",

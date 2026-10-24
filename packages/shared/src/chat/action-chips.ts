@@ -67,7 +67,7 @@ export interface ActionChipRow {
   messageKey: ActionResult['messageKey']
   params: ActionResult['params']
   hasLegacyText: boolean
-  field?: ActionResult['field']
+  field: ActionResult['field']
 }
 
 interface ActionChipTranslations {
@@ -86,9 +86,12 @@ export function resolveActionChipText(row: ActionChipRow, { translate, has }: Ac
   }
   if (row.status === 'failed' && row.field) {
     const fieldName = getToolResultFieldLabel(row.field, translate)
+    const guidance = fieldName ? translate('chat.action.invalidField', { fieldName }) : translate('chat.toolResult.invalidDetails')
     return {
-      label: fieldName ? translate('chat.action.invalidField', { fieldName }) : translate('chat.toolResult.invalidDetails'),
-      personal: false,
+      label: row.entityName
+        ? `${translate(row.labelKey ?? 'chat.action.failedNamed', { name: row.entityName })}. ${guidance}`
+        : guidance,
+      personal: Boolean(row.entityName),
       wrapLabel: true,
     }
   }

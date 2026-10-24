@@ -82,6 +82,48 @@ describe.each([{ locale: 'en', catalog: en }, { locale: 'pt-BR', catalog: ptBR }
     return resolveActionChipText(row, translations)
   }
 
+  it.each(['frequency_quantity', 'frequencyQuantity', 'private_engine_property'])('keeps named validation failures distinct for %s', (field) => {
+    const names = ['Morning walk', 'Read ten pages']
+    const actions = names.map(entityName => actionResultSchema.parse({ type: 'CreateHabit', status: 'Failed', entityName, field }))
+    const model = buildActionChipsModel(actions, true)
+    const guidance = field === 'private_engine_property'
+      ? catalog.chat.toolResult.invalidDetails
+      : locale === 'en'
+        ? 'Check the Frequency count field and try again.'
+        : 'Confira o campo Número da frequência e tente de novo.'
+    const resolved = model.rows.map(row => resolveActionChipText(row, translations))
+
+    expect(resolved).toEqual(names.map(name => ({
+      label: `${catalog.chat.action.createFailed.replace('{name}', name)}. ${guidance}`,
+      personal: true,
+      wrapLabel: true,
+    })))
+    expect(model.rows.map(row => row.navigation)).toEqual([{ navigable: false }, { navigable: false }])
+    expect(JSON.stringify(resolved)).not.toContain(field)
+  })
+
+  it.each(['frequency_quantity', 'private_engine_property'])('keeps nameless validation guidance for %s', (field) => {
+    expect(textFor({ type: 'CreateHabit', status: 'Failed', field })).toEqual({
+      label: field === 'private_engine_property'
+        ? catalog.chat.toolResult.invalidDetails
+        : locale === 'en'
+          ? 'Check the Frequency count field and try again.'
+          : 'Confira o campo Número da frequência e tente de novo.',
+      personal: false,
+      wrapLabel: true,
+    })
+  })
+
+  it('gives keyed failures precedence over legacy field guidance', () => {
+    expect(textFor({ type: 'CreateHabit', status: 'Failed', entityName: 'Legacy name', field: 'frequency_quantity', messageKey: 'chat.toolResult.toolFailure', params: {} }))
+      .toEqual({ label: catalog.chat.toolResult.toolFailure, personal: false, wrapLabel: true })
+  })
+
+  it('does not turn a successful result with a field into validation guidance', () => {
+    expect(textFor({ type: 'CreateHabit', status: 'Success', entityName: 'Morning walk', field: 'frequency_quantity' }))
+      .toEqual({ label: catalog.chat.action.created.replace('{name}', 'Morning walk'), personal: true, wrapLabel: true })
+  })
+
   it.each(apiToolResultKeys)('uses legacy text when any required parameter for %s is missing', (suffix) => {
     const required = new Set(placeholders(parse(String(leaf(catalog.chat.toolResult, suffix)))))
     const parameters = { entityName: 'Habit', count: 1, totalCount: 2, skippedCount: 1, hours: 24, weekStartDay: 0, fieldName: 'title', language: 'en', timeZone: 'America/Sao_Paulo', referralCode: 'CODE' }

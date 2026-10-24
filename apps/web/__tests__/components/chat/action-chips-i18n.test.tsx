@@ -80,8 +80,32 @@ describe.each([
 
   it.each(['frequency_quantity', 'frequencyQuantity'])('names the localized validation field %s without a message key', (field) => {
     const { container } = renderAction({ type: 'CreateHabit', status: 'Failed', field })
-    expect(container).toHaveTextContent(locale === 'en' ? 'Check Frequency count and try again.' : 'Confira Número da frequência e tente de novo.')
+    expect(container).toHaveTextContent(locale === 'en' ? 'Check the Frequency count field and try again.' : 'Confira o campo Número da frequência e tente de novo.')
     expect(container.querySelector('[data-state="partiallyFailed"]')).toBeInTheDocument()
+  })
+
+  it.each(['frequency_quantity', 'private_engine_property'])('discloses each target in named validation failures for %s', field => {
+    const onChipClick = vi.fn()
+    const names = ['Morning walk', 'Read ten pages']
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>
+      <ActionChips actions={names.map(entityName => actionResultSchema.parse({ type: 'CreateHabit', status: 'Failed', entityName, field }))} onChipClick={onChipClick} />
+    </NextIntlClientProvider>)
+    const guidance = field === 'private_engine_property'
+      ? messages.chat.toolResult.invalidDetails
+      : locale === 'en'
+        ? 'Check the Frequency count field and try again.'
+        : 'Confira o campo Número da frequência e tente de novo.'
+
+    for (const name of names) {
+      const label = `${messages.chat.action.createFailed.replace('{name}', name)}. ${guidance}`
+      const disclosure = screen.getByRole('button', { name: label, expanded: false })
+      expect(container.querySelector(`[data-personal-text][aria-label="${label}"]`)).toBeInTheDocument()
+      fireEvent.click(disclosure)
+      expect(screen.getByRole('button', { name: label, expanded: true })).toBeInTheDocument()
+    }
+    expect(screen.queryByRole('button', { name: messages.chat.action.open })).not.toBeInTheDocument()
+    expect(container).not.toHaveTextContent(field)
+    expect(onChipClick).not.toHaveBeenCalled()
   })
 
   it('keeps an unknown validation field private and renders a localized failure', () => {

@@ -1601,7 +1601,7 @@
       "logFailed": "Could not log {name}",
       "unlogged": "Undid log for {name}",
       "unlogFailed": "Could not undo the log for {name}",
-      "invalidField": "Check {fieldName} and try again.",
+      "invalidField": "Check the {fieldName} field and try again.",
       "updated": "Updated {name}",
       "updateFailed": "Could not update {name}",
       "deleted": "Deleted {name}",
