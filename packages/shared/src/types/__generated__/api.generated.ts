@@ -873,7 +873,15 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "emoji": zod.string().nullable(),
   "depth": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockOneItemsItemDepthRegExpTwo)]),
   "isBadHabit": zod.boolean(),
-  "status": zod.string()
+  "status": zod.string(),
+  "startDate": zod.iso.date().nullish(),
+  "parentHabitId": zod.uuid().nullish(),
+  "parentTitle": zod.string().nullish(),
+  "tags": zod.array(zod.object({
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "color": zod.string()
+})).nullish()
 })),
   "date": zod.iso.date().nullish(),
   "read": zod.union([zod.null(),zod.object({
@@ -901,7 +909,11 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "progressPercentage": zod.union([zod.number(),zod.stringFormat('double', postApiChatReadsRefreshResponseBlockTwoItemsItemProgressPercentageRegExpTwo)]).nullish(),
   "projectedCompletionDate": zod.string().nullish(),
   "daysToDeadline": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockTwoItemsItemDaysToDeadlineRegExpTwo)]).nullish(),
-  "status": zod.string().nullish()
+  "status": zod.string().nullish(),
+  "linkedHabits": zod.array(zod.object({
+  "id": zod.uuid(),
+  "title": zod.string()
+})).nullish()
 })),
   "read": zod.union([zod.null(),zod.object({
   "queryId": zod.uuid(),
@@ -1039,7 +1051,15 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "emoji": zod.string().nullable(),
   "depth": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockFiveRowsItemDepthRegExpTwo)]),
   "isBadHabit": zod.boolean(),
-  "status": zod.string()
+  "status": zod.string(),
+  "startDate": zod.iso.date().nullish(),
+  "parentHabitId": zod.uuid().nullish(),
+  "parentTitle": zod.string().nullish(),
+  "tags": zod.array(zod.object({
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "color": zod.string()
+})).nullish()
 })).nullish(),
   "totalRows": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockFiveTotalRowsRegExpTwo)]).nullish(),
   "read": zod.union([zod.null(),zod.object({
@@ -1720,7 +1740,15 @@ export const PostApiChatResponse = zod.object({
   "emoji": zod.string().nullable(),
   "depth": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseHabitListTwoItemsItemDepthRegExpTwo)]),
   "isBadHabit": zod.boolean(),
-  "status": zod.string()
+  "status": zod.string(),
+  "startDate": zod.iso.date().nullish(),
+  "parentHabitId": zod.uuid().nullish(),
+  "parentTitle": zod.string().nullish(),
+  "tags": zod.array(zod.object({
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "color": zod.string()
+})).nullish()
 })),
   "date": zod.iso.date().nullish(),
   "read": zod.union([zod.null(),zod.object({
@@ -1749,7 +1777,11 @@ export const PostApiChatResponse = zod.object({
   "progressPercentage": zod.union([zod.number(),zod.stringFormat('double', postApiChatResponseGoalListTwoItemsItemProgressPercentageRegExpTwo)]).nullish(),
   "projectedCompletionDate": zod.string().nullish(),
   "daysToDeadline": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseGoalListTwoItemsItemDaysToDeadlineRegExpTwo)]).nullish(),
-  "status": zod.string().nullish()
+  "status": zod.string().nullish(),
+  "linkedHabits": zod.array(zod.object({
+  "id": zod.uuid(),
+  "title": zod.string()
+})).nullish()
 })),
   "read": zod.union([zod.null(),zod.object({
   "queryId": zod.uuid(),
@@ -1890,7 +1922,15 @@ export const PostApiChatResponse = zod.object({
   "emoji": zod.string().nullable(),
   "depth": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseDaySummaryTwoRowsItemDepthRegExpTwo)]),
   "isBadHabit": zod.boolean(),
-  "status": zod.string()
+  "status": zod.string(),
+  "startDate": zod.iso.date().nullish(),
+  "parentHabitId": zod.uuid().nullish(),
+  "parentTitle": zod.string().nullish(),
+  "tags": zod.array(zod.object({
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "color": zod.string()
+})).nullish()
 })).nullish(),
   "totalRows": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseDaySummaryTwoTotalRowsRegExpTwo)]).nullish(),
   "read": zod.union([zod.null(),zod.object({
@@ -3136,7 +3176,9 @@ export const GetApiHabitsResponse = zod.object({
   "when": zod.union([zod.null(),zod.union([zod.enum(['SameDay', 'DayBefore']),zod.int().min(getApiHabitsResponseItemsItemChildrenItemRelativeRemindersItemWhenTwoTwoMin).max(getApiHabitsResponseItemsItemChildrenItemRelativeRemindersItemWhenTwoTwoMax)])]).optional(),
   "time": zod.iso.time({}).nullish()
 })).nullish(),
-  "slipAlertEnabled": zod.boolean().nullish()
+  "slipAlertEnabled": zod.boolean().nullish(),
+  "parentHabitId": zod.uuid().nullish(),
+  "parentTitle": zod.string().nullish()
 })),
   "hasSubHabits": zod.boolean(),
   "flexibleTarget": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponseItemsItemFlexibleTargetRegExpTwo)]).nullable(),
@@ -3159,7 +3201,9 @@ export const GetApiHabitsResponse = zod.object({
   "time": zod.iso.time({}).nullish()
 })).nullish(),
   "schedule": zod.union([zod.null(),zod.enum(['OneTime', 'Recurring', 'Flexible', 'General'])]).optional(),
-  "startDate": zod.iso.date().nullish()
+  "startDate": zod.iso.date().nullish(),
+  "parentHabitId": zod.uuid().nullish(),
+  "parentTitle": zod.string().nullish()
 })),
   "page": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponsePageRegExpTwo)]),
   "pageSize": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponsePageSizeRegExpTwo)]),
@@ -3392,7 +3436,9 @@ export const GetApiHabitsCalendarMonthResponse = zod.object({
   "when": zod.union([zod.null(),zod.union([zod.enum(['SameDay', 'DayBefore']),zod.int().min(getApiHabitsCalendarMonthResponseHabitsItemChildrenItemRelativeRemindersItemWhenTwoTwoMin).max(getApiHabitsCalendarMonthResponseHabitsItemChildrenItemRelativeRemindersItemWhenTwoTwoMax)])]).optional(),
   "time": zod.iso.time({}).nullish()
 })).nullish(),
-  "slipAlertEnabled": zod.boolean().nullish()
+  "slipAlertEnabled": zod.boolean().nullish(),
+  "parentHabitId": zod.uuid().nullish(),
+  "parentTitle": zod.string().nullish()
 })),
   "hasSubHabits": zod.boolean(),
   "flexibleTarget": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsCalendarMonthResponseHabitsItemFlexibleTargetRegExpTwo)]).nullable(),
@@ -3415,7 +3461,9 @@ export const GetApiHabitsCalendarMonthResponse = zod.object({
   "time": zod.iso.time({}).nullish()
 })).nullish(),
   "schedule": zod.union([zod.null(),zod.enum(['OneTime', 'Recurring', 'Flexible', 'General'])]).optional(),
-  "startDate": zod.iso.date().nullish()
+  "startDate": zod.iso.date().nullish(),
+  "parentHabitId": zod.uuid().nullish(),
+  "parentTitle": zod.string().nullish()
 })),
   "logs": zod.record(zod.string(), zod.array(zod.object({
   "id": zod.uuid(),
@@ -3582,7 +3630,9 @@ export const GetApiHabitsIdResponse = zod.object({
   "when": zod.union([zod.null(),zod.union([zod.enum(['SameDay', 'DayBefore']),zod.int().min(getApiHabitsIdResponseChildrenItemRelativeRemindersItemWhenTwoTwoMin).max(getApiHabitsIdResponseChildrenItemRelativeRemindersItemWhenTwoTwoMax)])]).optional(),
   "time": zod.iso.time({}).nullish()
 })).nullish(),
-  "slipAlertEnabled": zod.boolean().nullish()
+  "slipAlertEnabled": zod.boolean().nullish(),
+  "parentHabitId": zod.uuid().nullish(),
+  "parentTitle": zod.string().nullish()
 })),
   "emoji": zod.string().nullish(),
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseIntervalWeeksRegExpTwo)]).nullish(),
@@ -3605,7 +3655,9 @@ export const GetApiHabitsIdResponse = zod.object({
 })).nullish(),
   "scheduledStartDate": zod.iso.date().nullish(),
   "originalDayOfMonth": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseOriginalDayOfMonthRegExpTwo)]).nullish(),
-  "parentId": zod.uuid().nullish()
+  "parentId": zod.uuid().nullish(),
+  "parentHabitId": zod.uuid().nullish(),
+  "parentTitle": zod.string().nullish()
 })
 
 
@@ -3826,7 +3878,9 @@ export const GetApiHabitsIdDetailResponse = zod.object({
   "when": zod.union([zod.null(),zod.union([zod.enum(['SameDay', 'DayBefore']),zod.int().min(getApiHabitsIdDetailResponseHabitChildrenItemRelativeRemindersItemWhenTwoTwoMin).max(getApiHabitsIdDetailResponseHabitChildrenItemRelativeRemindersItemWhenTwoTwoMax)])]).optional(),
   "time": zod.iso.time({}).nullish()
 })).nullish(),
-  "slipAlertEnabled": zod.boolean().nullish()
+  "slipAlertEnabled": zod.boolean().nullish(),
+  "parentHabitId": zod.uuid().nullish(),
+  "parentTitle": zod.string().nullish()
 })),
   "emoji": zod.string().nullish(),
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitIntervalWeeksRegExpTwo)]).nullish(),
@@ -3849,7 +3903,9 @@ export const GetApiHabitsIdDetailResponse = zod.object({
 })).nullish(),
   "scheduledStartDate": zod.iso.date().nullish(),
   "originalDayOfMonth": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitOriginalDayOfMonthRegExpTwo)]).nullish(),
-  "parentId": zod.uuid().nullish()
+  "parentId": zod.uuid().nullish(),
+  "parentHabitId": zod.uuid().nullish(),
+  "parentTitle": zod.string().nullish()
 }),
   "metrics": zod.object({
   "currentStreak": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseMetricsCurrentStreakRegExpTwo)]),
