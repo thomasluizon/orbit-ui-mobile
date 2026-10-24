@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { PendingAgentOperation, PendingOperationItem } from '@orbit/shared/types/ai'
 import type { PendingOperationMessageState } from '@orbit/shared/chat'
 import {
@@ -40,6 +40,8 @@ export function usePendingOperationRevision(
   const items = useMemo(() => operation.items ?? [], [operation.items])
   const editingItem = items.find((item) => item.itemId === editingItemId)
   const canRevise = Boolean(onRevise && operation.previewFingerprint && operation.items)
+  const operationRef = useRef(operation)
+  useLayoutEffect(() => { operationRef.current = operation }, [operation])
 
   const revise = useCallback(async (selected: readonly PendingOperationItem[], edits?: { itemId: string; values: Record<string, unknown> }): Promise<boolean> => {
     if (!onRevise || !operation.previewFingerprint || busy) return false
@@ -48,6 +50,7 @@ export function usePendingOperationRevision(
     setRevisionError(undefined)
     try {
       const response = await onRevise(operation.id, pendingOperationRevisionRequest(requestFingerprint, selected, edits))
+      if (operationRef.current.id !== operation.id || operationRef.current.previewFingerprint !== requestFingerprint) return false
       if (!response.ok) {
         setStaleFingerprint(response.stale ? requestFingerprint : undefined)
         if (response.stale) onSettled?.({ stale: true })
@@ -84,6 +87,7 @@ export function usePendingOperationRevision(
     setRevisionError(undefined)
     try {
       const response = await onRefresh(operation.id)
+      if (operationRef.current.id !== operation.id || operationRef.current.previewFingerprint !== requestFingerprint) return
       if (!response.ok) {
         if (response.stale) { setRefreshUnavailableFingerprint(requestFingerprint); onSettled?.({ refreshUnavailable: true }) }
         else setRevisionError({ fingerprint: requestFingerprint, message: response.error, source: 'refresh' })
@@ -139,6 +143,12 @@ export function usePendingOperationRevision(
     closeEdit: () => setRevision((current) => ({ ...current, editingItemId: undefined })),
     startEdit,
     saveEdit,
+    hasRequiredChoices: items.some((item) => item.fieldOptions?.some((field) => field.required)),
+    chooseParent: (itemId: string, value: unknown) => {
+      const field = items.find((item) => item.itemId === itemId)?.fieldOptions?.find((entry) => entry.field === 'parent_habit_id')
+      if (!field?.options.some((option) => option.value === value)) return Promise.resolve(false)
+      return revise(items, { itemId, values: { parent_habit_id: value } })
+    },
     renameItem: (itemId: string, title: string) => revise(items, { itemId, values: { title } }),
     rejectItem: (itemId: string) => revise(items.filter((item) => item.itemId !== itemId)),
     rejectAll: () => revise([]),

@@ -21,13 +21,15 @@ type ExpectedBase = {
   description?: string
   selected?: boolean
   onSelect?: () => void
+  onFocus?: () => void
+  onBlur?: () => void
   leading?: React.ReactNode
   depth?: number
   meta?: string
   tag?: string
 }
-type ExpectedDisabledVariant = ExpectedBase & ({ disabled: true; reason: string } | { disabled: true; reasonScope: 'group'; reason?: never })
-type ExpectedEnabledVariant = ExpectedBase & { disabled?: false; reason?: never }
+type ExpectedDisabledVariant = ExpectedBase & ({ disabled: true; busy?: false; reason: string } | { disabled: true; busy?: false; reasonScope: 'group'; reason?: never })
+type ExpectedEnabledVariant = ExpectedBase & ({ disabled?: false; busy: true; reason: string } | { disabled?: false; busy?: false; reason?: never })
 
 type Accepts<
   Actual extends Expected & Record<Exclude<keyof Actual, keyof Expected>, never>,

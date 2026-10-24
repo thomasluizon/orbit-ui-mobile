@@ -1,4 +1,4 @@
-import { createElement, Fragment, useLayoutEffect, useRef, type ReactNode } from 'react'
+import { createElement, Fragment, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { usePendingOperationCardState } from '@/hooks/use-pending-operation-card-state'
 import { pendingOperationExecutionPatch, renderPendingOperationCard, type PendingOperationCardLabels, type PendingOperationCardRenderers as CoreRenderers, type PendingOperationVerificationProps, type PendingOperationMessageState } from '@orbit/shared/chat'
 import type { PendingOperationExecutionResult, PendingOperationStepUpPreparationResult, RefreshPendingOperation, RevisePendingOperation } from '@orbit/shared/hooks'
@@ -62,13 +62,19 @@ export function SharedPendingOperationCard({
       return result
     },
   })
-  const approvalBlocked = revision.stale || revision.busy || revision.hasTitleDrafts
+  const [parentChoiceFocus, setParentChoiceFocus] = useState<{ request: number; shouldFocus: () => boolean; sourceId: string; sourceFingerprint: string | null | undefined; authorizationVersion: number }>()
+  const chooseParent = async (itemId: string, value: unknown, ownsFocus?: () => boolean) => {
+    const accepted = await revision.chooseParent(itemId, value)
+    if (accepted && ownsFocus?.()) setParentChoiceFocus((current) => ({ request: (current?.request ?? 0) + 1, shouldFocus: ownsFocus, sourceId: pendingOperation.id, sourceFingerprint: pendingOperation.previewFingerprint, authorizationVersion: revision.authorizationVersion + 1 }))
+    return accepted
+  }
+  const approvalBlocked = revision.stale || revision.busy || revision.hasTitleDrafts || revision.hasRequiredChoices
   const approvalBlockedRef = useRef(approvalBlocked)
   useLayoutEffect(() => { approvalBlockedRef.current = approvalBlocked }, [approvalBlocked])
 
   return renderPendingOperationCard({
     card: {
-      ...card, revision, onOpenTarget, focusTitleOnMount,
+      ...card, revision: { ...revision, chooseParent }, onOpenTarget, focusTitleOnMount, parentChoiceFocus: parentChoiceFocus?.sourceId === pendingOperation.id && parentChoiceFocus.sourceFingerprint === pendingOperation.previewFingerprint && parentChoiceFocus.authorizationVersion === revision.authorizationVersion ? parentChoiceFocus : undefined,
       completeStepUp: (result) => { card.completeStepUp(result); onStateChange?.(pendingOperationExecutionPatch(result)) },
       dismiss: () => { card.dismiss(); onStateChange?.({ dismissed: true }) },
       confirmOpen: card.confirmOpen && !revision.stale,

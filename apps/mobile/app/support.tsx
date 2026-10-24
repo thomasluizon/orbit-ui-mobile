@@ -166,7 +166,7 @@ function SupportForm({
                 key={option.id}
                 label={t(option.labelKey)}
                 selected={subject === option.id}
-                disabled
+                busy
                 reason={t('profile.support.subjectSendingReason')}
               />
             ) : (

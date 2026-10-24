@@ -1,4 +1,4 @@
-import { makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
+import { makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -265,6 +265,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
 })
 
 const labels: PendingOperationCardLabels = {
+  parentChoiceRequired: 'Choose a parent or No parent', noParent: 'No parent',
   formatTime: (value) => value,
   empty: 'No changes to approve.', approve: () => 'Approve', acting: 'Working', cancel: 'Cancel', confirm: 'Delete habit',
   edit: 'Edit item', edited: 'Edited', editTitle: 'Edit', reject: 'Reject', remove: 'Remove',
@@ -388,6 +389,7 @@ function createRenderers() {
     confirmSheet: (props) => { record.confirm = props; return 'confirm' },
     stepUp: (props) => { record.stepUp = props; return 'step-up' },
     verification: (props) => { record.verification = props; return 'verification' },
+    parentChoice: () => 'parent-choice',
     editSheet: () => 'edit-sheet',
     removeItem: (label, _disabled, onClick) => { record.buttons.push({ label, onClick }); return label },
     notice: (message) => message,
@@ -835,4 +837,36 @@ it('keeps approval blocked by title drafts and wires each inline rename to its i
   expect(card.revision.startEdit).toHaveBeenCalledWith('0')
   record.buttons.find(button => button.label === 'Reject')!.onClick()
   expect(card.revision.rejectAll).toHaveBeenCalledOnce()
+})
+
+
+describe('parent choice presentation and focus intent', () => {
+  it.each([false, true])('passes offered choices and stable item identities with busy=%s', busy => {
+    const operation = makeParentChoicePreview()
+    const card = createCard()
+    const chooseParent = vi.fn().mockResolvedValue(true)
+    card.parentChoiceFocus = { request: 3, shouldFocus: () => true }
+    card.revision = {
+      operation, canRevise: true, items: operation.items!, editingItem: undefined,
+      draft: {}, editedItemIds: [], busy, stale: false, canRefresh: false, refresh: vi.fn(), rejected: false, error: undefined,
+      setDraftField: vi.fn(), closeEdit: vi.fn(), startEdit: vi.fn(), saveEdit: vi.fn(), chooseParent, rejectItem: vi.fn(), rejectAll: vi.fn(),
+    }
+    const { record, render } = createRenderers()
+    const choices = vi.fn<PendingOperationCardRenderers<string>['parentChoice']>(() => 'parent-choice')
+    renderPendingOperationCard({ card, labels, onVerifyStepUp: vi.fn(), pendingOperation: operation, render: { ...render, parentChoice: choices } })
+    expect(choices).toHaveBeenCalledTimes(2)
+    const first = choices.mock.calls[0]![0]
+    expect(first).toMatchObject({ itemId: '0', disabled: busy, focusRequest: 3, field: operation.items![0]!.fieldOptions![0] })
+    expect(choices.mock.calls[1]![0].focusRequest).toBeUndefined()
+    const ownsFocus = () => true
+    first.onSelect(null, ownsFocus)
+    expect(chooseParent).toHaveBeenCalledWith('0', null, ownsFocus)
+    expect(record.frame?.body).toBe(labels.parentChoiceRequired)
+    expect(record.frame?.items[0]?.meta).not.toContain('Post Lunch')
+    expect(record.buttons.find(button => button.label === 'Approve')).toMatchObject({ disabled: true, hint: labels.parentChoiceRequired, focusRequest: undefined })
+    const resolved = resolveParentChoicePreview(resolveParentChoicePreview(operation, '0', null), '1', null)
+    const complete = createRenderers()
+    renderPendingOperationCard({ card: { ...card, revision: { ...card.revision, busy: false, operation: resolved, items: resolved.items! } }, labels, onVerifyStepUp: vi.fn(), pendingOperation: resolved, render: complete.render })
+    expect(complete.record.buttons.find(button => button.label === 'Approve')).toMatchObject({ disabled: false, focusRequest: 3 })
+  })
 })

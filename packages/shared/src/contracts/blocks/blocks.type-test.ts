@@ -20,6 +20,7 @@ type ExpectedBlockFrameItem = {
   readonly meta?: string
   readonly status?: 'done' | 'acting' | 'failed'
   readonly statusLabel?: string
+  readonly body?: React.ReactNode
   readonly control?: React.ReactNode
   readonly editable?: boolean
   readonly proposed?: boolean

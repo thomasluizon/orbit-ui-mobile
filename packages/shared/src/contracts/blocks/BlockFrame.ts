@@ -13,6 +13,7 @@ export type BlockFrameItem = {
   readonly meta?: string
   readonly status?: BlockFrameItemStatus
   readonly statusLabel?: string
+  readonly body?: React.ReactNode
   readonly control?: React.ReactNode
   readonly editable?: boolean
   readonly proposed?: boolean
