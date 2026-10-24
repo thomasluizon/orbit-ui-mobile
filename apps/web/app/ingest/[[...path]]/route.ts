@@ -1,6 +1,8 @@
 import { Duplex } from 'node:stream'
 import { createBrotliCompress, createDeflate, createGzip } from 'node:zlib'
 
+const CLIENT_CLOSED_REQUEST = 499
+
 const CONTENT_ENCODERS: Record<string, (() => Duplex) | undefined> = {
   gzip: createGzip,
   'x-gzip': createGzip,
@@ -54,7 +56,13 @@ async function forwardPostHog(request: Request): Promise<Response> {
     cache: 'no-store',
     duplex: 'half',
   }
-  const upstream = await fetch(url, options)
+  let upstream: Response
+  try {
+    upstream = await fetch(url, options)
+  } catch (error) {
+    if (request.signal.aborted) return new Response(null, { status: CLIENT_CLOSED_REQUEST })
+    throw error
+  }
   return new Response(restoreFetchContentEncoding(upstream), {
     status: upstream.status,
     statusText: upstream.statusText,

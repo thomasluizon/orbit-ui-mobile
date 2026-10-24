@@ -122,6 +122,25 @@ describe('PostHog streaming proxy', () => {
     expect(Buffer.concat(chunks).toString()).toBe(Array.from({ length: 50 }, (_, chunk) => `chunk ${chunk}\n`).join(''))
   })
 
+  it('ends quietly when the client disconnects before PostHog answers', async () => {
+    const client = new AbortController()
+    fetchUpstream.mockImplementation((_destination, init) => new Promise((_resolve, reject) => {
+      init!.signal!.addEventListener('abort', () => reject(new Error('ResponseAborted')))
+    }))
+    const pending = POST(new Request('https://app.example.test/ingest/flags/?v=2', {
+      method: 'POST', body: '{}', signal: client.signal,
+    }))
+    client.abort(new Error('ResponseAborted'))
+    const response = await pending
+    expect(response.status).toBe(499)
+    expect(response.body).toBeNull()
+  })
+
+  it('reports an upstream failure while the client is still connected', async () => {
+    fetchUpstream.mockRejectedValue(new TypeError('fetch failed'))
+    await expect(GET(new Request('https://app.example.test/ingest/static/array.js'))).rejects.toThrow('fetch failed')
+  })
+
   it('cancels upstream when the downstream stream is canceled', async () => {
     const cancel = vi.fn()
     fetchUpstream.mockResolvedValue(new Response(new ReadableStream({ cancel })))
