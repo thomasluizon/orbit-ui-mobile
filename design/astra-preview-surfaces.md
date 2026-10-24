@@ -73,6 +73,14 @@ in its bounds. The 24px frame inset, 24px header gap, 12px row inset, first-line
 alignment and overflow bounds apply in every state. Android's BlockFrame style and
 Yoga suites retain the matching row and frame contracts.
 
+Create previews describe the proposed cadence and time with the habit row's frequency
+formatter. Default booleans and an explicit null parent stay out of the summary.
+Nested habits appear as indented named rows with their own cadence and time. Removing
+one revises the parent's `sub_habits` field through the held preview fingerprint;
+failed revisions retain every row. The header and approval count retain the producer's
+top-level target count. Shared and paired component suites use the captured evening
+routine proposal in both locales.
+
 ## Focused read surfaces
 
 | Family | Paired owner and behavior |

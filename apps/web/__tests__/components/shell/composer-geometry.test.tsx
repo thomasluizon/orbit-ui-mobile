@@ -345,44 +345,50 @@ describe('Composer compact geometry in Chromium', () => {
         import { createChatThreadScroll } from '@orbit/shared/hooks';
         const props = JSON.parse(document.getElementById('configuration').textContent);
         if (props.clipboardText) Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { readText: async () => props.clipboardText } });
-        function MountedComposer() {
-          const [currentProps, setCurrentProps] = useState(props);
+        function MountedComposer({ initialProps = props }) {
+          const [currentProps, setCurrentProps] = useState(initialProps);
           React.useEffect(() => {
             const update = event => setCurrentProps(event.detail);
             document.addEventListener('composer-test-props', update);
             document.getElementById('root').setAttribute('data-composer-test-ready', '');
             return () => document.removeEventListener('composer-test-props', update);
           }, []);
-          const [value, setValue] = useState(props.value);
+          const [value, setValue] = useState(initialProps.value);
           const composerProps = {
           ...currentProps, value, onChangeValue: setValue, onSend: () => {},
-          onOpenConversation: props.conversationLabel ? () => {} : undefined,
-          onAttachFile: props.attachWords ? () => {} : undefined,
-          onAttachImage: props.attachWords ? () => {} : undefined,
+          onOpenConversation: initialProps.conversationLabel ? () => {} : undefined,
+          onAttachFile: initialProps.attachWords ? () => {} : undefined,
+          onAttachImage: initialProps.attachWords ? () => {} : undefined,
           onAttachRemove: () => {},
-          onVoice: props.voiceWords ? () => {} : undefined,
-          attachWords: props.attachWords ? { ...props.attachWords,
-            remove: name => props.attachmentRemoveTemplate.replace('{name}', name) } : undefined,
+          onVoice: initialProps.voiceWords ? () => {} : undefined,
+          attachWords: initialProps.attachWords ? { ...initialProps.attachWords,
+            remove: name => initialProps.attachmentRemoveTemplate.replace('{name}', name) } : undefined,
           suggestions: currentProps.suggestions.map(chip => ({ ...chip, onSelect: () => {},
             icon: React.createElement('svg', { width: 20, height: 20, 'aria-hidden': true }) }))
           };
-          if (props.testSurface) {
+          if (initialProps.testSurface) {
             const composer = React.createElement(Composer, composerProps);
-            return React.createElement(ShellWide, { items: [], activeId: 'hoje', navLabel: props.words.actions,
+            return React.createElement(ShellWide, { items: [], activeId: 'hoje', navLabel: initialProps.words.actions,
               header: React.createElement('div', { style: { height: 48 } }),
               tabBar: React.createElement('div', { style: { height: 80 } }),
-              ...props.testSurface === 'today' ? { compactComposer: composer, fab: React.createElement('div') } : { composer },
+              ...initialProps.testSurface === 'today' ? { compactComposer: composer, fab: React.createElement('div') } : { composer },
             }, React.createElement('div', { style: { height: 900 } }));
           }
-          if (props.withMessages === undefined) return React.createElement(Composer, composerProps);
+          if (initialProps.withMessages === undefined) return React.createElement(Composer, composerProps);
           return React.createElement(AstraConversation, { chat: {
             composerProps, threadScroll: createChatThreadScroll(), chatContainerRef: { current: null },
-            messages: props.withMessages ? [{ id: 'previous', role: 'user', content: props.value, timestamp: new Date(0) }] : [],
-            activeSteps: [], canShowFollowUps: false, showSuggestions: !props.withMessages,
+            messages: initialProps.withMessages ? [{ id: 'previous', role: 'user', content: initialProps.value, timestamp: new Date(0) }] : [],
+            activeSteps: [], canShowFollowUps: false, showSuggestions: !initialProps.withMessages,
             isTyping: false, streamingMessageId: null, scrollToBottom: () => {},
           } });
         }
-        createRoot(document.getElementById('root')).render(React.createElement(MountedComposer));`, resolveDir: process.cwd(), loader: 'tsx' },
+        const root = createRoot(document.getElementById('root'));
+        let revision = 0;
+        document.addEventListener('composer-test-remount', event => {
+          document.getElementById('root').removeAttribute('data-composer-test-ready');
+          root.render(React.createElement(MountedComposer, { initialProps: event.detail, key: ++revision }));
+        });
+        root.render(React.createElement(MountedComposer));`, resolveDir: process.cwd(), loader: 'tsx' },
       bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
       define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' },
     }
@@ -1354,11 +1360,17 @@ describe('Composer compact geometry in Chromium', () => {
   it.each(cases)('keeps controls inside one pill at $width and $fontScale text size in both locales', async ({ width, messages, fontScale }) => {
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
+      const initial = geometryProps('idle', messages, true)
+      await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify(initial)}</script>`)
+      await loadAppFonts(page)
+      await page.addScriptTag({ content: composerScript })
+      await page.locator('[data-composer-test-ready]').waitFor()
       for (const withOpener of [true, false]) for (const scenario of ['idle', 'oneLine', 'typing', 'longText', 'sending', 'recording', 'transcribing', 'tray1', 'tray2', 'tray3', 'atLimit', 'offline', 'retry'] as const) {
         const props = geometryProps(scenario, messages, withOpener)
-        await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ ...props, attachmentRemoveTemplate: messages.shell.composer.attach.remove })}</script>`)
-        await page.addScriptTag({ content: composerScript })
-        await loadAppFonts(page)
+        await page.evaluate(configuration => {
+          document.dispatchEvent(new CustomEvent('composer-test-remount', { detail: configuration }))
+        }, JSON.parse(JSON.stringify({ ...props, attachmentRemoveTemplate: messages.shell.composer.attach.remove })))
+        await page.locator('[data-composer-test-ready]').waitFor()
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
         const measured = await page.evaluate(() => {
           const pill = document.querySelector<HTMLElement>('[data-composer-input-row]')!

@@ -556,7 +556,7 @@ const replyCardFieldsShape = {
 }
 
 export const chatMessageSchema = z.object({
-  proactiveItem: proactiveItemSchema.optional(),
+  proactiveItem: z.lazy(() => proactiveItemSchema).optional(),
   proactiveActed: z.boolean().optional(),
   proactiveContextAfterMessageId: z.string().nullable().optional(),
   id: z.string(),

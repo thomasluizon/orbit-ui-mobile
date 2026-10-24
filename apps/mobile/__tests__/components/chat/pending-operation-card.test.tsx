@@ -1,4 +1,4 @@
-import { resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -78,6 +78,75 @@ beforeEach(() => { vi.clearAllMocks(); __resetTestHostConfig(); visibleLocale.ac
 afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
+  it.each(['en', 'pt-BR'])('keeps a neutral heading for nested reuse in %s', (locale) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const reused = renderCard(makeNestedHabitPreview(2, true))
+    expect(renderedText(reused.tree.toJSON())).toContain(messages.chat.pendingOp.capability['habits-write'])
+  })
+
+  it.each(childSchedulePreviewCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))('preserves the child $name schedule in $locale', (scenario) => {
+    const { locale } = scenario
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const { tree } = renderCard(makeChildSchedulePreview(scenario.child))
+    const row = tree.root.findByProps({ testID: 'block-frame-item-0-child-0-pending-proposed' })
+    expect(renderedText(row)).toContain(scenario.child.title)
+    expect(row.findAllByType(Text).map((node: ReactTestInstance) => renderedText(node))).toContain((locale === 'en' ? scenario.english : scenario.portuguese).replace('21:30', '9:30 PM').replace('23:00', '11:00 PM'))
+  })
+
+  it.each(['en', 'pt-BR'])('shows every evening routine child and revises child removal in %s', async (locale) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const operation = makeEveningRoutinePreview(locale)
+    const children = operation.items![0]!.fields.find((field) => field.field === 'sub_habits')!.proposedValue as { title: string }[]
+    const revised = { ...operation, previewFingerprint: 'removed-child', items: operation.items!.map((item) => ({ ...item, fields: item.fields.map((field) => field.field === 'sub_habits' ? { ...field, proposedValue: children.slice(1), newValue: JSON.stringify(children.slice(1)) } : field) })) }
+    const revise = vi.fn().mockResolvedValue({ ok: true, result: { cancelled: false, preview: revised } })
+    const { tree, handlers } = renderCard(operation, revise)
+    for (const [index, child] of children.entries()) {
+      const row = tree.root.findByProps({ testID: `block-frame-item-0-child-${index}-pending-proposed` })
+      expect(StyleSheet.flatten(row.props.style).paddingStart).toBe(24)
+      expect(renderedText(row)).toContain(child.title)
+      expect(renderedText(row)).toContain(`${(locale === 'en' ? en : ptBR).habits.frequency.everyDay} · ${index === 2 ? '11:00 PM' : '9:30 PM'}`)
+    }
+    const messages = locale === 'en' ? en : ptBR
+    expect(renderedText(tree.toJSON())).not.toContain(messages.chat.preview.summary.buildHabit)
+    const remove = tree.root.findAllByType(Pressable).find((node: ReactTestInstance) => node.props.accessibilityLabel === `${messages.chat.operation.remove} ${children[0]!.title}`)!
+    await TestRenderer.act(() => { remove.props.onPress() })
+    expect(revise).toHaveBeenCalledWith(operation.id, {
+      previewFingerprint: operation.previewFingerprint,
+      items: [{ itemId: '0', edits: { sub_habits: children.slice(1) } }],
+    })
+    expect(renderedText(tree.toJSON())).not.toContain(children[0]!.title)
+    expect(renderedText(tree.toJSON())).toContain(children[1]!.title)
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+  })
+
+  it('retains all children after a failed removal and blocks actions while revising', async () => {
+    visibleLocale.actual = true
+    let complete!: (response: { ok: false; error: string }) => void
+    const revise = vi.fn().mockReturnValue(new Promise((resolve) => { complete = resolve }))
+    const { tree, handlers } = renderCard(makeEveningRoutinePreview(), revise)
+    const remove = (title: string) => tree.root.findAllByType(Pressable).find((node: ReactTestInstance) => node.props.accessibilityLabel === `Remove ${title}`)!
+    await TestRenderer.act(() => { remove('Read for 20 minutes').props.onPress() })
+    expect(remove('Lights out').props.disabled).toBe(true)
+    expect(press(tree, 'Create 1 habit').props.disabled).toBe(true)
+    await TestRenderer.act(() => { complete({ ok: false, error: 'network_error' }) })
+    expect(remove('Lights out').props.disabled).toBe(false)
+    expect(renderedText(tree.toJSON())).toContain('Read for 20 minutes')
+    expect(renderedText(tree.toJSON())).toContain('Stretch for 10 minutes')
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+  })
+
+  it.each([1, 3].flatMap(count => ['en', 'pt-BR'].map(locale => ({ count, locale }))))('names a create-only preview with $count habits in $locale', ({ count, locale }) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const { tree } = renderCard(makeCreateHabitsPreview(count))
+    expect(renderedText(tree.toJSON())).toContain(locale === 'en' ? count === 1 ? 'New habit' : 'New habits' : count === 1 ? 'Novo hábito' : 'Novos hábitos')
+    expect(renderedText(tree.toJSON())).not.toContain((locale === 'en' ? en : ptBR).chat.pendingOp.capability['habits-bulk-write'])
+  })
+
   it.each([0, null, undefined].flatMap(count => ['en', 'pt-BR'].map(locale => ({ count, locale }))))('renders a zero-target preview as a notice without approval with count $count in $locale', ({ count, locale }) => {
     visibleLocale.actual = true
     visibleLocale.language = locale

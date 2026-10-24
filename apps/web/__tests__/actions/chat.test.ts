@@ -1,11 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockServerAuthMutate = vi.fn()
+const mockServerAuthFetch = vi.fn()
+vi.mock('next-intl/server', () => ({ getLocale: async () => 'pt-BR' }))
 vi.mock('@/lib/server-fetch', () => ({
   serverAuthMutate: mockServerAuthMutate,
+  serverAuthFetch: mockServerAuthFetch,
 }))
 
 const {
+  getCurrentProactiveItem,
   confirmPendingOperation,
   issuePendingOperationStepUp,
   verifyPendingOperationStepUp,
@@ -15,6 +19,18 @@ const {
 describe('chat server actions', () => {
   beforeEach(() => {
     mockServerAuthMutate.mockReset()
+  })
+
+  it('negotiates proactive parts using the shared chat capabilities', async () => {
+    await getCurrentProactiveItem()
+    const [path] = mockServerAuthFetch.mock.calls[0]!
+    const url = new URL(path, 'https://example.test')
+    expect(url.pathname).toBe('/api/ai/proactive/current')
+    expect(JSON.parse(url.searchParams.get('clientContext')!)).toMatchObject({
+      platform: 'web', locale: 'pt-BR', supportsParts: true,
+      partKinds: expect.arrayContaining(['habitList', 'goalList', 'calendar', 'daySummary', 'periodInsight']),
+      supportsDatedHabitListCard: true,
+    })
   })
 
   describe('pending-operation actions', () => {

@@ -105,7 +105,7 @@ jobs:
       - run: npm ci
 
       - name: Test CI workflow behavior
-        run: node --test tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs
+        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs
 
       # This step owns the full-tree graphic floor assertion outside cached unit shards.
       # Other findings stay advisory; graphic floor findings and scanner errors fail.
@@ -172,10 +172,17 @@ jobs:
         run: |
           for shard in $(seq 1 2); do
             test -s "apps/web/.artifacts/unit-tests/blobs/jsdom-${shard}.json"
+            test -s "apps/web/.artifacts/unit-tests/timings/jsdom-${shard}.json"
           done
           for shard in $(seq 1 8); do
             test -s "apps/web/.artifacts/unit-tests/blobs/chromium-${shard}.json"
+            test -s "apps/web/.artifacts/unit-tests/timings/chromium-${shard}.json"
           done
+
+      # The five next-slowest healthy files in run 40121666845 have a median of 129.165s.
+      # Double that median for headroom and round up to ten seconds: 260s per file.
+      - name: Enforce web test file budget
+        run: node .github/scripts/check-web-test-budget.mjs apps/web/.artifacts/unit-tests/timings 260000
 
       - name: Merge web reports and enforce coverage thresholds
         working-directory: apps/web
@@ -239,7 +246,7 @@ jobs:
           cache: npm
       - run: npm ci
       # Partial runs collect coverage; Unit Tests applies the unchanged gate to their union.
-      # Completed shards reach 671 seconds; reserve 15 minutes for tests and ten for setup and reports.
+      # The slow shard measured 900.08 seconds in run 40121666845; file budgets protect the 15 minute step limit.
       - name: Run web shard with coverage
         timeout-minutes: 15
         working-directory: apps/web
@@ -358,9 +365,9 @@ jobs:
               }
 
               const sourceFile = line.slice(3).replace(/\\/g, '/')
-              const normalized = sourceFile.startsWith(report.prefix)
+              const normalized = path.posix.normalize(sourceFile.startsWith(report.prefix)
                 ? sourceFile
-                : `${report.prefix}/${sourceFile}`
+                : `${report.prefix}/${sourceFile}`)
 
               merged.push(`SF:${normalized}`)
             }
