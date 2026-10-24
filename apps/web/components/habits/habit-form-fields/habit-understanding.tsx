@@ -1,12 +1,13 @@
 'use client'
 
 import { TypedTextarea } from '@/components/ui/typed-textarea'
-import { useId, useMemo, useState, type ReactNode, type Ref, type CSSProperties } from 'react'
+import { useId, useMemo, useState, type ReactNode, type Ref } from 'react'
 import type { HabitUnderstandingProps, HabitRepeatIntervalProps } from '@orbit/shared/utils'
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
 import { Minus, Plus } from '@/components/ui/icons'
 import { HabitEmojiSelector } from './habit-emoji-selector'
+import { WeekdayPicker } from '@/components/ui/weekday-picker'
 import { Proposed } from '@/components/ui/proposed'
 
 type HabitUnderstandingWithDisabledEmojiProps = HabitUnderstandingProps & {
@@ -150,17 +151,7 @@ function ScheduleCorrections({ hidden = false, proposed = false, days, daily = f
   if (hidden) return null
   return (
     <>
-      <fieldset aria-label={labels.days} className="flex flex-wrap" style={{ gap: 4 }}>
-        {dayOptions.map((day) => {
-          const selected = daily || days.includes(day.value)
-          return (
-            <button key={day.value} type="button" aria-pressed={selected} aria-label={day.accessibleLabel} disabled={scheduleLocked}
-              style={proposed ? { '--selection-ring-color': 'var(--fg-3)' } as CSSProperties : undefined}
-              className={`orbit-selection-ring orbit-selection-ring-thin habit-control-motion grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full border-0 text-sm font-medium enabled:hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40 ${selected ? proposed ? 'bg-[var(--bg-well)] text-[var(--fg-2)]' : 'bg-[var(--primary-dim)] text-[var(--fg-1)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)]'}`}
-              onClick={() => onToggleDay(day.value)}>{day.label.charAt(0)}</button>
-          )
-        })}
-      </fieldset>
+      <WeekdayPicker label={labels.days} days={days} daily={daily} dayOptions={dayOptions} proposed={proposed} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} />
       {showCount ? (
         <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
           <button type="button" aria-label={labels.less} disabled={scheduleLocked} className="habit-control-motion grid size-[var(--touch-min)] place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40" onClick={() => onQuantityChange(Math.max(1, quantity - 1))}>

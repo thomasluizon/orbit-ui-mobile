@@ -13,7 +13,7 @@ vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({ H
 
 
 describe('native habit understanding geometry', () => {
-  it.each([320, 360, 412, 1280].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) => [false, true].map((proposed) => ({ width, proposed, locale })))))('keeps seven day targets contained without overlap in $locale at $width, proposed: $proposed', ({ width, proposed, locale }) => {
+  it.each([320, 360, 393, 412, 1280].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) => [false, true].map((proposed) => ({ width, proposed, locale })))))('keeps seven day targets contained without overlap in $locale at $width, proposed: $proposed', ({ width, proposed, locale }) => {
     const messages = locale === 'en' ? en : ptBR
     const labels = buildHabitUnderstandingLabels((key) => key.split('.').reduce<unknown>((value, part) => (value as Record<string, unknown>)[part], messages) as string)
     const dayOptions = Object.entries(messages.dates.daysShort).map(([day, label]) => ({ value: day.charAt(0).toUpperCase() + day.slice(1), label, accessibleLabel: day }))
@@ -27,25 +27,33 @@ describe('native habit understanding geometry', () => {
     const previewStyle = StyleSheet.flatten(preview.props.style) as ViewStyle
     const dayRow = tree.root.findAll((node) => String(node.type) === 'View' && node.props.accessibilityLabel === labels.days)[0]!
     const dayStyle = StyleSheet.flatten(dayRow.props.style) as ViewStyle
-    const wrapper = Yoga.Node.create()
+    const config = Yoga.Config.create()
+    config.setPointScaleFactor(0)
+    const wrapper = Yoga.Node.createWithConfig(config)
     wrapper.setWidth(Math.min(width, 592) - 32)
     const proposal = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'proposed-block')[0]
     if (proposal) wrapper.setBorder(Yoga.EDGE_ALL, (StyleSheet.flatten(proposal.props.style) as ViewStyle).borderWidth ?? 0)
-    const card = Yoga.Node.create()
+    const card = Yoga.Node.createWithConfig(config)
     card.setPadding(Yoga.EDGE_ALL, previewStyle.padding as number)
     card.setBorder(Yoga.EDGE_ALL, previewStyle.borderWidth ?? 0)
     wrapper.insertChild(card, 0)
-    const row = Yoga.Node.create()
+    const row = Yoga.Node.createWithConfig(config)
     row.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
-    row.setFlexWrap(Yoga.WRAP_WRAP)
-    row.setGap(Yoga.GUTTER_ALL, dayStyle.gap as number)
+    row.setMaxWidth(dayStyle.maxWidth as number)
+    row.setFlexWrap(dayStyle.flexWrap === 'wrap' ? Yoga.WRAP_WRAP : Yoga.WRAP_NO_WRAP)
+    row.setGap(Yoga.GUTTER_ALL, (dayStyle.gap as number | undefined) ?? 0)
     card.insertChild(row, 0)
     const targets = dayOptions.map((day, index) => {
       const host = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === day.accessibleLabel)[0]!
       const style = StyleSheet.flatten(typeof host.props.style === 'function' ? host.props.style({ pressed: false }) : host.props.style) as ViewStyle
-      const target = Yoga.Node.create()
+      const target = Yoga.Node.createWithConfig(config)
       target.setWidth(style.width as number)
       target.setHeight(style.height as number)
+      target.setMinHeight(style.minHeight as number)
+      target.setMinWidth(style.minWidth as number)
+      target.setFlexGrow(style.flexGrow)
+      target.setFlexShrink(style.flexShrink)
+      target.setFlexBasis(style.flexBasis as number)
       row.insertChild(target, index)
       return target
     })
@@ -53,18 +61,21 @@ describe('native habit understanding geometry', () => {
       wrapper.calculateLayout(undefined, undefined, Yoga.DIRECTION_LTR)
       for (const target of targets) {
         expect(target.getComputedLeft()).toBeGreaterThanOrEqual(0)
-        expect(target.getComputedLeft() + target.getComputedWidth()).toBeLessThanOrEqual(row.getComputedWidth())
+        expect(target.getComputedLeft() + target.getComputedWidth()).toBeLessThanOrEqual(row.getComputedWidth() + 0.001)
         expect(target.getComputedHeight()).toBeGreaterThanOrEqual(48)
+        expect(target.getComputedWidth()).toBeGreaterThanOrEqual(24)
+        expect(target.getComputedTop()).toBe(targets[0]!.getComputedTop())
       }
       for (let index = 1; index < targets.length; index++) {
         const previous = targets[index - 1]!
         const target = targets[index]!
-        expect(target.getComputedTop() >= previous.getComputedTop() + previous.getComputedHeight()
-          || target.getComputedLeft() >= previous.getComputedLeft() + previous.getComputedWidth()).toBe(true)
+        expect(target.getComputedLeft()).toBeGreaterThanOrEqual(previous.getComputedLeft() + previous.getComputedWidth())
       }
-      expect(targets.every((target) => target.getComputedWidth() === 48)).toBe(true)
+      expect(dayStyle.flexWrap).toBe('nowrap')
+      for (const target of targets) expect(target.getComputedWidth()).toBeCloseTo(targets[0]!.getComputedWidth(), 0)
     } finally {
       wrapper.freeRecursive()
+      config.free()
       void renderer.act(() => tree.update(<></>))
     }
   })

@@ -209,12 +209,6 @@ describe("HabitUnderstanding mobile", () => {
     const tuesday = button(tree, "Terça-feira");
     expect(monday.props.accessibilityState).toEqual({ selected: true });
     expect(tuesday.props.accessibilityState).toEqual({ selected: false });
-    (monday.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: true,
-    });
-    (tuesday.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: false,
-    });
     TestRenderer.act(() => {
       (monday.props.onPress as () => void)();
     });
@@ -264,7 +258,16 @@ describe('schedule press fills', () => {
   it('fills selected and idle weekdays controls', () => {
     const { tree } = renderUnderstanding({ value: 'Run', days: ['Monday'] });
     for (const label of ['Segunda-feira', 'Terça-feira']) {
-      expectPressFill(tree, label, tokens.bgHover, radius.full);
+      const target = tree.root.findAll(node => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!;
+      const targetStyle = StyleSheet.flatten(target.props.style as ViewStyle);
+      expect(targetStyle.minWidth).toBe(24);
+      expect(targetStyle.minHeight).toBe(48);
+      const fill = () => target;
+      const resting = StyleSheet.flatten(fill().props.style as ViewStyle).backgroundColor;
+      TestRenderer.act(() => (target.props.onPressIn as () => void)());
+      expect(StyleSheet.flatten(fill().props.style as ViewStyle).backgroundColor).toBe(tokens.bgHover);
+      TestRenderer.act(() => (target.props.onPressOut as () => void)());
+      expect(StyleSheet.flatten(fill().props.style as ViewStyle).backgroundColor).toBe(resting);
     }
   });
   it('fills both quantity controls in flexible mode', () => {
