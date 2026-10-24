@@ -155,10 +155,11 @@ function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, ch
   loading: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; sizeSpec: typeof BUTTON_SIZES.sm
 }>) {
   const { fontScale } = useWindowDimensions()
+  const iconColor = isValidElement<{ color?: string }>(children) ? children.props.color : undefined
   return <>
       {loading && !retainLeadingIcon ? (
         <ActivityIndicator size="small" color={textColor} />
-      ) : iconOnly ? children : leadingGlyph}
+      ) : iconOnly ? buttonLeadingGlyph(children, iconColor ?? textColor) : leadingGlyph}
       {iconOnly ? null : (
         <Text
           numberOfLines={retainLeadingIcon && fontScale > 1.3 ? undefined : 1}
@@ -171,7 +172,7 @@ function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, ch
           {children}
         </Text>
       )}
-      {retainLeadingIcon ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={{ width: sizeSpec.iconSize, height: sizeSpec.iconSize }}>{loading ? <ActivityIndicator animating size="small" color={textColor} /> : null}</View> : null}
+      {retainLeadingIcon && !iconOnly ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={{ width: sizeSpec.iconSize, height: sizeSpec.iconSize }}>{loading ? <ActivityIndicator animating size="small" color={textColor} /> : null}</View> : null}
   </>
 }
 

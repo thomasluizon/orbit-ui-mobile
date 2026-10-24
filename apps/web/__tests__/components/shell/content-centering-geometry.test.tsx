@@ -295,13 +295,22 @@ describe('page content centring and add control clearance', () => {
           const box = (element: Element) => { const r = element.getBoundingClientRect(); return { left: r.left, right: r.right } }
           const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
           const column = { left: scroller.getBoundingClientRect().left, right: scroller.getBoundingClientRect().left + scroller.clientWidth }
-          const actions = [...document.querySelectorAll('[data-slot="action-row"] button')].map((button) => ({ ...box(button), top: button.getBoundingClientRect().top }))
-          const lines = [...new Set(actions.map(({ top }) => top))].map((top) => {
-            const row = actions.filter((action) => action.top === top)
+          const actions = [...document.querySelectorAll('[data-slot="action-row"] button')].map((button) => {
+            const bounds = button.getBoundingClientRect()
+            return { ...box(button), centre: bounds.top + bounds.height / 2 }
+          })
+          const lines = [...new Set(actions.map(({ centre }) => centre))].map((centre) => {
+            const row = actions.filter((action) => action.centre === centre)
             return { left: Math.min(...row.map((action) => action.left)), right: Math.max(...row.map((action) => action.right)) }
           })
           return { column, lines, form: box(document.querySelector('form')!), submit: box(document.querySelector('[data-habit-create-action] button')!) }
         })
+        const astraAction = page.getByRole('button', { name: messages.habits.askAstra, exact: true })
+        expect(await astraAction.textContent()).toBe('')
+        expect(await astraAction.locator('[data-asset^="astra-mark"]').count()).toBe(1)
+        const target = await astraAction.boundingBox()
+        expect(target?.width).toBe(48)
+        expect(target?.height).toBe(48)
         expect(geometry.lines.length).toBeGreaterThan(0)
         for (const line of geometry.lines) expectCentred(line, geometry.column)
         expectCentred(geometry.form, geometry.column)

@@ -21,13 +21,13 @@ export function FollowUpChips({ followUps, followUpContext, onSelect }: Readonly
   if (!chips.length) return null
   return <div aria-label={t('chat.followUps.label')} role="group" className="flex w-full min-w-0 gap-2 overflow-x-auto py-2">
     <ActionRow layout="scroll">{chips.map(item => <Button key={item.question} size="sm" variant="ghost" minimumHeight={TOUCH_TARGET_MIN} retainLeadingIcon
-      leadingIcon={<AstraGlyph size={16} />} accessibleName={`${item.label}, ${t('nav.astra')}`}
+      leadingIcon={<AstraGlyph size={16} />} accessibleName={item.label}
       disabled={submitted} onClick={() => {
         if (selected.current) return
         selected.current = true
         setSubmitted(true)
         onSelect(item.question)
-      }}>{`${item.label} ${t('nav.astra')}`}</Button>)}
+      }}>{item.label}</Button>)}
     </ActionRow>
   </div>
 }

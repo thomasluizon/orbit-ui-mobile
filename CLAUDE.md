@@ -74,6 +74,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `design/astra-conversation-participants.md` | Astra participant avatar owners, continuation spacing, text, block and running tool trace alignment, and pending reply replacement. |
 | `design/astra-block-copy-surfaces.md` | Astra reply code-block copy owners, independent confirmations, user and description exclusions, and platform verification boundaries. |
 | `design/astra-pending-reply-surfaces.md` | Astra pending reply owners, terminal replacements, polite announcement ownership and hermetic verification boundaries. |
+| `design/astra-mark-only-surfaces.md` | Assistant action marks, localized prompts, accessible names and habit-detail composer disclosure owners. |
 | `design/astra-preview-surfaces.md` | Astra preview item semantics, counted actions, breakdown footer disclosure, deletion confirmation, revision, terminal outcomes and responsive parity. |
 | `design/mcp-web-guide-surfaces.md` | Claude Web connection guide client selector, settings entry, OAuth steps, confirmed endpoint copy states and platform verification owners. |
 | `design/progress-surfaces.md` | Progresso overview and sub-screen owners, retained figures and actions, states and verification coverage. |

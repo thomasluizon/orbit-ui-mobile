@@ -59,6 +59,32 @@ Production releases require `https://<PRODUCTION_WEB_HOST>/api/health` to return
 
 The Render API request uses `POST /v1/services/{serviceId}/deploys` with `imageUrl` set to `ghcr.io/thomasluizon/orbit-web@sha256:...`. Each job reads the deploy ID from Render's HTTP 201 response to that request, checks that the response names the same image reference, and polls that deploy. Any other response status fails the job, because an HTTP 202 (queued) response has no body and so cannot name the deploy the release created. A later deploy that supersedes this one leaves it `canceled`. Both jobs accept Render's `live` status and fail on terminal failure statuses, `canceled` included.
 
+## Streaming shutdown
+
+Terraform owns the production web shutdown delay: `render_web_service.production_web` in
+`orbit-api` `infra/production.tf` sets `max_shutdown_delay_seconds = 300`. Apply that resource
+before the next production web release. Read back `GET /v1/services/{serviceId}` for `orbit-web`;
+`serviceDetails.maxShutdownDelaySeconds` must be the number `300`. The production release
+workflow checks that value before requesting a deploy and fails if the read fails or the value
+is missing or different. It reports the Terraform resource to apply and never writes the setting.
+
+The free `orbit-web-staging` service has no configurable shutdown delay. Its release job neither
+sets nor checks that value, so staging cannot prove the production drain window. The
+[Render shutdown contract](https://render.com/docs/deploys#graceful-shutdown) allows up to
+300 seconds after SIGTERM before SIGKILL when the delay is configured.
+
+The standalone image runs Node directly. Next.js handles SIGTERM by closing the HTTP listener,
+waiting for active responses, then closing its runtime. Keep `NEXT_MANUAL_SIG_HANDLE` unset so
+Next.js retains this handler. Streams that exceed the platform window can still be interrupted;
+failed sends retain the original composer draft and require an explicit Retry on web and Android.
+Automatic resend requires the API idempotency contract tracked by #1675.
+
+PostHog's `/ingest` route streams through a Route Handler instead of Next.js's external
+rewrite proxy. Static SDK and `/array` configuration requests use the US asset host; all
+other paths use the US ingestion host. The handler strips application credentials and
+hop-by-hop headers and restores the content encoding decoded by Node's fetch before
+streaming the response. Keep the SDK's `api_host` at `/ingest` and preserve trailing slashes.
+
 ## Focused read block rollout
 
 Deploy #1616's API contracts before shipping the client advertisement for `periodTotal`,

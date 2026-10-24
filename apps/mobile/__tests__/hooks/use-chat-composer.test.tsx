@@ -645,17 +645,22 @@ describe('mobile useChatComposer', () => {
     mocks.openChatStream.mockRejectedValueOnce(new Error('network unavailable'))
       .mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
     const tree = await renderConversationHarness()
-    TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Plan my morning'))
+    const draft = '  Plan my morning\n  '
+    TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText(draft))
     await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
     expect(visibleMessageTexts(tree)).toContain('chat.sendError')
-    const retries = visibleComposerRoot(tree).findAll((node: { type: unknown; findAll: (predicate: (child: { type: unknown; props: { children?: unknown } }) => boolean) => unknown[] }) =>
-      node.type === 'Pressable' && node.findAll((child) => child.type === 'Text' && child.props.children === 'shell.composer.retry').length > 0)
+    expect(inputHosts(tree)[0].props.value).toBe(draft)
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
+    const retryActions = () => visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
+      node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.retry')
+    const retries = retryActions()
     expect(retries).toHaveLength(1)
+    expect(retries[0].findAllByType('Text')).toHaveLength(0)
     await TestRenderer.act(async () => { retries[0].props.onPress(); await Promise.resolve() })
     expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
     expect(visibleMessageTexts(tree)).toContain('Hi there')
     expect(visibleMessageTexts(tree)).not.toContain('chat.sendError')
-    expect(visibleMessageTexts(tree)).not.toContain('shell.composer.retry')
+    expect(retryActions()).toHaveLength(0)
   })
 
   it('opens the conversation when sending a finished voice transcript', async () => {
@@ -2492,7 +2497,7 @@ describe('mobile useChatComposer', () => {
     const group = tree.root.findByProps({ accessibilityLabel: 'shell.composer.suggestionsLabel' })
     const chips = group.findAllByType('Pressable')
     expect(chips.length).toBeGreaterThanOrEqual(3)
-    expect(chips[0].props.accessibilityLabel).toBe('Create a goal, nav.astra')
+    expect(chips[0].props.accessibilityLabel).toBe('Create a goal')
     TestRenderer.act(() => chips[0].props.onPress())
     await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
     expect(appendFormPart).toHaveBeenCalledWith('message', 'Help me make a goal')

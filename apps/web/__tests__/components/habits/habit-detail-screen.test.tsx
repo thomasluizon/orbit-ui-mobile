@@ -201,7 +201,8 @@ vi.mock('@/components/ui/pill-button', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/ui/pill-button')>()
   return ({
   ...(await importOriginal<typeof import('@/components/ui/pill-button')>()),
-  PillButton: ({ children, disabled, label, variant, size, loading, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; variant?: string; size?: string; loading?: boolean; onClick?: () => void }) => mocks.realEditorPencil && label === 'habits.editHabit' ? <actual.PillButton label={label} iconOnly minimumHeight={48} variant="ghost" onClick={onClick}>{children}</actual.PillButton> : <button type="button" disabled={disabled} aria-label={label} aria-busy={loading} data-variant={variant} data-size={size} onClick={onClick}>{children}</button>,
+  PillButton: (props: React.ComponentProps<typeof actual.PillButton>) => props.label === 'habits.detail.askAstra' || props.label === 'habits.reschedule.suggestDate' || (mocks.realEditorPencil && props.label === 'habits.editHabit')
+    ? <actual.PillButton {...props} /> : <button type="button" disabled={props.disabled} aria-label={props.label} aria-busy={props.loading} data-variant={props.variant} data-size={props.size} onClick={props.onClick}>{props.children}</button>,
   Button: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) => <button type="button" onClick={onClick}>{children}</button>,
 }) })
 vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
@@ -607,7 +608,7 @@ describe('HabitDetailScreen', () => {
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
     expect(within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')).toHaveTextContent('habits.detail.rescheduleError')
     expect(screen.queryByRole('button', { name: 'habits.detail.rescheduleAccept' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.suggestDate' }))
     expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.dismiss' }))
     expect(screen.queryByText('habits.detail.rescheduleError')).not.toBeInTheDocument()
@@ -640,7 +641,7 @@ describe('HabitDetailScreen', () => {
     if (requestState === 'retry') mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
     const view = render(<HabitDetailScreen habitId="habit-1" />)
     if (requestState === 'retry') {
-      fireEvent.click(screen.getByRole('button', { name: 'habits.form.askDate' }))
+      fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.suggestDate' }))
       expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
       mocks.rescheduleError = null
       view.rerender(<HabitDetailScreen habitId="habit-1" />)
@@ -1421,7 +1422,10 @@ describe('HabitDetailScreen', () => {
     useChatStore.getState().setContextualSuggestion(null)
     useUIStore.getState().setAstraConversationOpen(false)
     render(<HabitDetailScreen habitId="habit-1" />)
-    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.askAstra' }))
+    const astraAction = screen.getByRole('button', { name: 'habits.detail.askAstra' })
+    expect(astraAction.textContent).toBe('')
+    expect(astraAction.style.width).toBe('48px')
+    fireEvent.click(astraAction)
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
     const prompt = 'habits.detail.askAstraSeedDefault:{"title":"Read"}'
     if (draft) {

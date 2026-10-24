@@ -518,3 +518,15 @@ describe('ui store', () => {
 
 
 })
+
+ it("rehydrates the habit composer choice from device storage", () => {
+  setUIAccountScope("composer-preference");
+  useUIStore.getState().setHabitComposerCollapsed(true);
+  setUIAccountScope("composer-preference");
+  expect(useUIStore.getState().habitComposerCollapsed).toBe(true);
+  setUIAccountScope(null);
+  expect(useUIStore.getState().habitComposerCollapsed).toBe(false);
+  setUIAccountScope("composer-preference");
+  expect(useUIStore.getState().habitComposerCollapsed).toBe(true);
+  useUIStore.persist.setOptions({ name: "orbit-ui-store" });
+ });

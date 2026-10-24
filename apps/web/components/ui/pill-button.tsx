@@ -168,7 +168,7 @@ export function Button({
     >
       <ButtonIcon size={size} loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingIcon={leadingIcon}>{children}</ButtonIcon>
       {iconOnly ? null : <span>{children}</span>}
-      <PersistentLoadingIndicator visible={retainLeadingIcon} loading={loading} size={size} />
+      <PersistentLoadingIndicator visible={retainLeadingIcon && !iconOnly} loading={loading} size={size} />
     </button>{hint ? <span id={hintId} hidden>{hint}</span> : null}</>
   )
 }

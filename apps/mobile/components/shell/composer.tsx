@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { SPACING } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { PersonalText } from '@/components/ui/personal-text'
 import {
@@ -11,7 +11,7 @@ import {
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { ActivityIndicator, AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, type TextInput, type LayoutChangeEvent, View, useWindowDimensions } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import { captureError } from '@/lib/sentry'
@@ -20,7 +20,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
-import { Clipboard as ClipboardIcon, FileText, Image, Plus, Square, X } from '@/components/ui/icons'
+import { ArrowUp, ChevronDown, Clipboard as ClipboardIcon, FileText, Image, Plus, Square, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -86,8 +86,8 @@ function SuggestionStrip({
   label,
   tokens,
   focusTarget,
-}: Readonly<Pick<ComposerProps, 'suggestions'> & { label: string; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null> }>) {
-  const { t } = useTranslation()
+  disclosure,
+}: Readonly<Pick<ComposerProps, 'suggestions'> & { label: string; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null>; disclosure?: React.ReactNode }>) {
   const { fontScale } = useWindowDimensions()
   const [availableWidth, setAvailableWidth] = useState(0)
   const [measurements, setMeasurements] = useState<Record<string, number>>({})
@@ -95,43 +95,46 @@ function SuggestionStrip({
   const layout = resolveComposerStripLayout(availableWidth, widths)
   const maxWidth = availableWidth > 0 ? availableWidth - COMPOSER_CHIP_GAP - COMPOSER_CHIP_PEEK : undefined
   return (
-    <View testID="composer-suggestions-layout" onLayout={event => setAvailableWidth(event.nativeEvent.layout.width)}>
-      <ScrollView
-        horizontal
-        accessibilityLabel={label}
-        showsHorizontalScrollIndicator={false}
-        style={{ flexGrow: 0 }}
-        contentContainerStyle={[styles.suggestions, { gap: layout.gap }]}
-      >
-        {suggestions.map(suggestion => (
-          <InsetFocusPressable
-            key={suggestion.id}
-            accessibilityRole="button"
-            accessibilityLabel={`${suggestion.label}, ${t('nav.astra')}`}
-            onPress={() => {
-              if (focusTarget.current) AccessibilityInfo.sendAccessibilityEvent(focusTarget.current, 'focus')
-              suggestion.onSelect()
-            }}
-            style={({ pressed }) => [
-              styles.suggestion,
-              { maxWidth,
-                backgroundColor: pressed ? tokens.bgHover : tokens.bgWell, borderColor: tokens.hairline },
-            ]}
-          >
-            <View
-              testID="composer-suggestion-content"
-              onLayout={event => {
-                const width = event.nativeEvent.layout.width + 2 * (styles.suggestion.paddingHorizontal + styles.suggestion.borderWidth)
-                setMeasurements(previous => previous[suggestion.id] === width ? previous : { ...previous, [suggestion.id]: width })
+    <View testID="composer-suggestion-row" style={styles.suggestionRow}>
+      <View style={styles.suggestionStrip} testID="composer-suggestions-layout" onLayout={event => setAvailableWidth(event.nativeEvent.layout.width)}>
+        <ScrollView
+          horizontal
+          accessibilityLabel={label}
+          showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0 }}
+          contentContainerStyle={[styles.suggestions, { gap: layout.gap }]}
+        >
+          {suggestions.map(suggestion => (
+            <InsetFocusPressable
+              key={suggestion.id}
+              accessibilityRole="button"
+              accessibilityLabel={suggestion.label}
+              onPress={() => {
+                if (focusTarget.current) AccessibilityInfo.sendAccessibilityEvent(focusTarget.current, 'focus')
+                suggestion.onSelect()
               }}
-              style={styles.suggestionContent}
+              style={({ pressed }) => [
+                styles.suggestion,
+                { maxWidth: disclosure ? undefined : maxWidth,
+                  backgroundColor: pressed ? tokens.bgHover : tokens.bgWell, borderColor: tokens.hairline },
+              ]}
             >
-              {suggestion.icon ? <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}>{suggestion.icon}</View> : null}
-              <AstraGlyph size={16} color={tokens.fg2} /><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{`${suggestion.label} ${t('nav.astra')}`}</Text>
-            </View>
-          </InsetFocusPressable>
-        ))}
-      </ScrollView>
+              <View
+                testID="composer-suggestion-content"
+                onLayout={event => {
+                  const width = event.nativeEvent.layout.width + 2 * (styles.suggestion.paddingHorizontal + styles.suggestion.borderWidth)
+                  setMeasurements(previous => previous[suggestion.id] === width ? previous : { ...previous, [suggestion.id]: width })
+                }}
+                style={[styles.suggestionContent, disclosure ? { flexShrink: 0 } : null]}
+              >
+                {suggestion.icon ? <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}>{suggestion.icon}</View> : null}
+                <AstraGlyph size={16} color={tokens.fg2} /><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
+              </View>
+            </InsetFocusPressable>
+          ))}
+        </ScrollView>
+      </View>
+      {disclosure}
     </View>
   )
 }
@@ -157,7 +160,7 @@ function VoiceStatus({
   )
 }
 
-function AllowanceStatus({ props, tokens, focusTarget }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null> }>) {
+function AllowanceStatus({ props, tokens, focusTarget, disclosure }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null>; disclosure?: React.ReactNode }>) {
   const atLimit = props.state === 'atLimit'
   const withSuggestions = props.state === 'idle' && props.suggestions.length > 0
   return <View testID="composer-status-slot" style={[styles.limitStatus, styles.allowanceSlot]}>
@@ -170,7 +173,7 @@ function AllowanceStatus({ props, tokens, focusTarget }: Readonly<{ props: Compo
       <Text testID="composer-renewal" style={[styles.allowanceText, { color: tokens.fg2 }]}>{props.renewalHint}</Text>
     </View>
     {!atLimit ? <View style={[styles.limitStatus, styles.allowanceUsage]}>
-      {withSuggestions ? <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} tokens={tokens} focusTarget={focusTarget} /> : null}
+      {withSuggestions ? <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} tokens={tokens} focusTarget={focusTarget} disclosure={disclosure} /> : null}
       {props.usageMessage ? <Text testID="composer-usage" style={[styles.usage, { color: tokens.fg3 }]}>{props.usageMessage}</Text> : null}
       {!withSuggestions ? <Text style={[styles.allowanceText, { color: tokens.fg2 }]}>{props.renewalHint}</Text> : null}
     </View> : null}
@@ -178,7 +181,7 @@ function AllowanceStatus({ props, tokens, focusTarget }: Readonly<{ props: Compo
   </View>
 }
 
-function ComposerStatus({ props, tokens, focusTarget }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null> }>) {
+function ComposerStatus({ props, tokens, focusTarget, disclosure }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null>; disclosure?: React.ReactNode }>) {
   if (props.state === 'atLimit' || props.state === 'offline') {
     return (
       <View style={styles.limitStatus}>
@@ -200,6 +203,7 @@ function ComposerStatus({ props, tokens, focusTarget }: Readonly<{ props: Compos
       label={props.words.suggestionsLabel}
       tokens={tokens}
       focusTarget={focusTarget}
+      disclosure={disclosure}
     />
   )
 }
@@ -366,7 +370,6 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange, availableWi
 }
 
 function OpenConversationControl({ props, tokens, onLayout }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; onLayout: (event: LayoutChangeEvent) => void }>) {
-  const { t } = useTranslation()
   const triggerRef = useRef<View>(null)
   const returnFocusPending = useRef(false)
   const conversationOpen = useUIStore(state => state.astraConversationOpen)
@@ -388,12 +391,12 @@ function OpenConversationControl({ props, tokens, onLayout }: Readonly<{ props: 
       easing: toAnimatedEasing(mobileMotion.easings.enter), useNativeDriver: true,
     }).start()
   }
-  return <InsetFocusPressable ref={triggerRef} accessibilityRole="button" accessibilityLabel={`${props.conversationLabel}, ${t('nav.astra')}`}
+  return <InsetFocusPressable ref={triggerRef} accessibilityRole="button" accessibilityLabel={props.conversationLabel}
       onLayout={onLayout}
       onPress={() => { returnFocusPending.current = true; props.onOpenConversation?.() }}
       onPressIn={() => animate(mobileMotion.orbital.press.scale)} onPressOut={() => animate(1)}
       style={({ pressed }) => [styles.openConversation, pressed ? { backgroundColor: tokens.bgHover } : null]}>
-      <Animated.View style={{ transform: [{ scale }] }}><AstraGlyph size={20} color={tokens.fg3} /></Animated.View><Text style={{ color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{t('nav.astra')}</Text>
+      <Animated.View style={{ transform: [{ scale }] }}><AstraGlyph size={20} color={tokens.fg3} /></Animated.View>
     </InsetFocusPressable>
 }
 
@@ -409,7 +412,7 @@ function ComposerTextAction({ words, tokens, canClear, canPaste, inMenu, onClear
   </InsetFocusPressable>
 }
 
-function ComposerTextControls({ props, tokens, inMenu, onPasteText, onClear, onLayout }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; inMenu: boolean; onPasteText: (text: string) => void; onClear: () => void; onLayout: (event: LayoutChangeEvent) => void }>) {
+function ComposerTextControls({ props, tokens, inMenu, onPasteText, onClear, onLayout, disclosure }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; inMenu: boolean; disclosure?: React.ReactNode; onPasteText: (text: string) => void; onClear: () => void; onLayout: (event: LayoutChangeEvent) => void }>) {
   const canClear = props.state === 'idle' && props.value.length > 0
   const canPaste = props.state === 'idle' && props.value.length === 0
   const accountGeneration = useSyncExternalStore(subscribeToAccountGeneration, getAccountGeneration, getAccountGeneration)
@@ -438,16 +441,15 @@ function ComposerTextControls({ props, tokens, inMenu, onPasteText, onClear, onL
     } finally { scope.pending = false }
   }
   return <View testID="composer-text-controls" onLayout={onLayout} style={styles.textControls}>
-  {props.state !== 'recording' && props.state !== 'transcribing' ? <View testID="composer-text-action-slot" accessible={false} style={styles.textActionSlot}>
-    <ComposerTextAction words={props.words} tokens={tokens} canClear={canClear} canPaste={canPaste} inMenu={inMenu} onClear={onClear} onPaste={() => void pasteMessage()} />
+  {disclosure || (props.state !== 'recording' && props.state !== 'transcribing') ? <View testID="composer-text-action-slot" accessible={false} style={styles.textActionSlot}>
+    {disclosure ?? <ComposerTextAction words={props.words} tokens={tokens} canClear={canClear} canPaste={canPaste} inMenu={inMenu} onClear={onClear} onPaste={() => void pasteMessage()} />}
   </View> : null}
   <ComposerControls props={props} tokens={tokens} onPaste={canPaste && inMenu ? () => void pasteMessage() : undefined}
     onClear={canClear && inMenu ? onClear : undefined} />
   </View>
 }
 
-function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null> }>) {
-  const { t } = useTranslation()
+function ComposerInputRow({ props, tokens, inputRef, disclosure }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null>; disclosure?: React.ReactNode }>) {
   const [focused, setFocused] = useState(false)
   const [pasteInMenu, setPasteInMenu] = useState(false)
   const [widths, setWidths] = useState({ field: 0, entry: 0, actions: 0, send: 0 })
@@ -479,13 +481,15 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
   return (
     <View testID="composer-field" onLayout={event => measureWidth('field', event)} style={[styles.field, { backgroundColor: tokens.bgField }]}>
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.fieldOutline, composerFieldStyle(tokens, focused, inputDisabled)]} />
+      <View testID="composer-leading-controls" style={styles.leadingControls}>
       {props.onOpenConversation && props.conversationLabel ? (
           <OpenConversationControl props={props} tokens={tokens} onLayout={event => measureWidth('entry', event)} />
       ) : null}
         {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} tokens={tokens} /> : <ComposerTextInput props={props} tokens={tokens} inputRef={inputRef} onFocusChange={setFocused} availableWidth={availableWidth} onPasteFit={fits => setPasteInMenu(!fits)} />}
+      </View>
 
       <View style={styles.trailingControls}>
-        <ComposerTextControls props={props} tokens={tokens} inMenu={pasteInMenu} onLayout={event => measureWidth('actions', event)} onClear={clearMessage} onPasteText={text => {
+        <ComposerTextControls props={props} tokens={tokens} inMenu={Boolean(disclosure) || pasteInMenu} disclosure={disclosure} onLayout={event => measureWidth('actions', event)} onClear={clearMessage} onPasteText={text => {
           pasteFocus.current = text
           props.onChangeValue(text)
         }} />
@@ -496,7 +500,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
         focusColor={tokens.primary}
         focusContrastColor={sendIsAccent ? tokens.bg : undefined}
         accessibilityRole="button"
-        accessibilityLabel={`${props.words.send}, ${t('habits.form.askDate')}`}
+        accessibilityLabel={props.words.send}
         accessibilityState={{ disabled: !canSend, busy: props.state === 'sending' }}
         disabled={!canSend}
         onPress={() => {
@@ -514,7 +518,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
           !canSend && props.state !== 'sending' ? styles.disabled : null,
         ]}
       >
-        <AstraGlyph size={20} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} /><Text style={{ flexShrink: 1, color: sendIsAccent ? tokens.fgOnPrimary : tokens.fg3, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{t('habits.form.askDate')}</Text><View accessible={false} importantForAccessibility="no-hide-descendants" style={{ width: 20, opacity: props.state === 'sending' ? 1 : 0 }}><ActivityIndicator animating={props.state === 'sending'} size="small" color={tokens.fgOnPrimary} /></View>
+        {props.state === 'sending' ? <ActivityIndicator accessible={false} importantForAccessibility="no-hide-descendants" size="small" color={tokens.fgOnPrimary} /> : <ArrowUp size={20} strokeWidth={2} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} />}
       </InsetFocusPressable>
       </View>
     </View>
@@ -535,33 +539,81 @@ function ComposerError({ props, tokens }: Readonly<{ props: ComposerProps; token
 }
 
 function RetryControl({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
-  const { t } = useTranslation()
   const prefersReducedMotion = usePrefersReducedMotion()
   if (!props.onRetry) return null
   return (
     <InsetFocusPressable
       accessibilityRole="button"
       onPress={props.onRetry}
-      accessibilityLabel={`${props.words.retry}, ${t('nav.astra')}`}
-      style={({ pressed }) => [styles.retry, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null]}
+      accessibilityLabel={props.words.retry}
+      style={({ pressed }) => [styles.iconButton, { alignSelf: 'flex-start' }, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null]}
     >
-      <AstraGlyph size={16} color={tokens.fg2} />
-      <Text style={[styles.retryText, { color: tokens.fg2 }]}>{props.words.retry}</Text><Text style={[styles.retryText, { color: tokens.fg2 }]}>{t('nav.astra')}</Text>
+      <AstraGlyph size={20} color={tokens.fg2} />
     </InsetFocusPressable>
   )
 }
 
+function ComposerDisclosure({ collapsed, tokens, onToggle, ref }: Readonly<{ collapsed: boolean; tokens: AppTokensV2; onToggle: () => void; ref: React.Ref<View> }>) {
+  const { t } = useTranslation()
+  return <InsetFocusPressable ref={ref} testID={collapsed ? 'composer-collapse-row' : 'composer-collapse-control'} accessibilityRole="button"
+    accessibilityLabel={t(collapsed ? 'shell.composer.expand' : 'shell.composer.collapse')} accessibilityState={{ expanded: !collapsed }}
+    onPress={onToggle}
+    style={({ pressed }) => [collapsed ? styles.collapseRow : styles.collapseControl, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>
+    {collapsed ? <AstraGlyph size={20} color={tokens.fg2} /> : null}
+    <ChevronDown size={20} color={tokens.fg2} style={collapsed ? { transform: [{ rotate: '180deg' }] } : undefined} />
+  </InsetFocusPressable>
+}
+
+function ComposerContent({ props, tokens, focusTarget, disclosure }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null>; disclosure?: React.ReactNode }>) {
+  const attachments = props.attachments ?? []
+  const hasAttachments = attachments.length > 0
+  const showAllowanceStatus = Boolean(props.allowanceReason && props.renewalHint)
+    && (props.state === 'idle' || props.state === 'sending' || props.state === 'atLimit')
+  const withSuggestions = props.state === 'idle' && props.suggestions.length > 0
+  return <>
+      {hasAttachments && props.attachWords && props.onAttachRemove ? (
+        <AttachmentTray
+          attachments={attachments}
+          words={props.attachWords}
+          onRemove={props.onAttachRemove}
+          tokens={tokens}
+        />
+      ) : null}
+
+      <ComposerError props={props} tokens={tokens} />
+      {showAllowanceStatus ? <AllowanceStatus props={props} tokens={tokens} focusTarget={focusTarget} disclosure={disclosure} /> : <ComposerStatus props={props} tokens={tokens} focusTarget={focusTarget} disclosure={disclosure} />}
+      <ComposerInputRow props={props} tokens={tokens} inputRef={focusTarget} disclosure={withSuggestions ? undefined : disclosure} />
+      {!showAllowanceStatus && props.usageMessage ? <Text testID="composer-usage" style={[styles.usage, { color: tokens.fg3 }]}>{props.usageMessage}</Text> : null}
+      <RetryControl props={props} tokens={tokens} />
+  </>
+}
+
 export function Composer(props: Readonly<MobileComposerProps>) {
+  const contentId = useId()
+  const savedCollapsed = useUIStore(state => state.habitComposerCollapsed)
+  const collapsed = Boolean(props.collapsible && savedCollapsed)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const inputDisabled = props.state !== 'idle'
   const attachments = props.attachments ?? []
   const hasAttachments = attachments.length > 0
   const canRetry = props.onRetry !== undefined
-  const showAllowanceStatus = Boolean(props.allowanceReason && props.renewalHint)
-    && (props.state === 'idle' || props.state === 'sending' || props.state === 'atLimit')
+
   const focusTarget = useRef<TextInput>(null)
   const composerRef = useRef<View>(null)
+  const expandedDisclosureRef = useRef<View>(null)
+  const collapsedDisclosureRef = useRef<View>(null)
+  const disclosureFocusPending = useRef(false)
+  function toggleCollapsed() {
+    disclosureFocusPending.current = true
+    useUIStore.getState().setHabitComposerCollapsed(!collapsed)
+  }
+  useEffect(() => {
+    if (!disclosureFocusPending.current) return
+    disclosureFocusPending.current = false
+    const target = collapsed ? collapsedDisclosureRef.current : expandedDisclosureRef.current
+    if (target) AccessibilityInfo.sendAccessibilityEvent(target, 'focus')
+  }, [collapsed])
   const focusedTarget = useRef<'container' | 'input' | null>(null)
   const autoFocusApplied = useRef(false)
   useEffect(() => {
@@ -591,6 +643,8 @@ export function Composer(props: Readonly<MobileComposerProps>) {
     canRetry ? 'retry' : null,
   ].filter(Boolean).join('-')
 
+  const disclosure = props.collapsible ? <ComposerDisclosure collapsed={false} tokens={tokens} onToggle={toggleCollapsed} ref={expandedDisclosureRef} /> : undefined
+  const content = <ComposerContent props={props} tokens={tokens} focusTarget={focusTarget} disclosure={disclosure} />
   return (
     <View
       ref={composerRef}
@@ -604,22 +658,11 @@ export function Composer(props: Readonly<MobileComposerProps>) {
       onBlur={() => { focusedTarget.current = null }}
       testID={testID}
       accessibilityState={{ busy: props.state === 'sending' }}
-      style={[styles.root, { backgroundColor: tokens.bg, borderTopColor: tokens.hairline }]}
+      style={[styles.root, collapsed ? styles.collapsed : null, { backgroundColor: tokens.bg, borderTopColor: tokens.hairline }]}
     >
-      {hasAttachments && props.attachWords && props.onAttachRemove ? (
-        <AttachmentTray
-          attachments={attachments}
-          words={props.attachWords}
-          onRemove={props.onAttachRemove}
-          tokens={tokens}
-        />
-      ) : null}
-
-      <ComposerError props={props} tokens={tokens} />
-      {showAllowanceStatus ? <AllowanceStatus props={props} tokens={tokens} focusTarget={focusTarget} /> : <ComposerStatus props={props} tokens={tokens} focusTarget={focusTarget} />}
-      <ComposerInputRow props={props} tokens={tokens} inputRef={focusTarget} />
-      {!showAllowanceStatus && props.usageMessage ? <Text testID="composer-usage" style={[styles.usage, { color: tokens.fg3 }]}>{props.usageMessage}</Text> : null}
-      <RetryControl props={props} tokens={tokens} />
+      {collapsed ? <ComposerDisclosure collapsed tokens={tokens} onToggle={toggleCollapsed} ref={collapsedDisclosureRef} /> : null}
+      {props.collapsible ? <View nativeID={contentId} accessibilityElementsHidden={collapsed} importantForAccessibility={collapsed ? 'no-hide-descendants' : 'auto'}
+        style={{ display: collapsed ? 'none' : 'flex', gap: 12 }}>{content}</View> : content}
     </View>
   )
 }
@@ -631,6 +674,11 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: SPACING.s16,
   },
+  collapsed: { paddingVertical: SPACING.s4, gap: 0 },
+  collapseControl: { width: 48, height: 48, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden' },
+  suggestionRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.s12 },
+  suggestionStrip: { flex: 1, minWidth: 0 },
+  collapseRow: { height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.s8, borderRadius: 12, overflow: 'hidden' },
   tray: {
     gap: 8,
   },
@@ -764,7 +812,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: SPACING.s4,
+    gap: INTERACTION_FILL_CLEARANCE,
   },
   textActionSlot: {
     width: 48,
@@ -776,11 +824,20 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
-    gap: 4,
+    gap: INTERACTION_FILL_CLEARANCE,
+  },
+  leadingControls: {
+    flexGrow: 1,
+    flexShrink: 0,
+    flexBasis: 'auto',
+    minWidth: 0,
+    maxWidth: '100%',
+    flexDirection: 'row',
+    alignItems: 'flex-end',
   },
   textSlot: {
     flexGrow: 1,
-    flexShrink: 0,
+    flexShrink: 1,
     flexBasis: 'auto',
     minWidth: 0,
     maxWidth: '100%',
@@ -821,12 +878,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   sendButton: {
-    minWidth: 48,
-    maxWidth: '100%',
-    flexDirection: 'row',
-    gap: SPACING.s8,
-    paddingHorizontal: SPACING.s8,
-    paddingVertical: SPACING.s4,
+    width: 48,
     minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',

@@ -55,6 +55,40 @@ function menuItemLabels(tree: any): string[] {
 }
 
 describe('Menu (mobile)', () => {
+  it.each((['anchored', 'sheet'] as const).flatMap(presentation => [1, 2].map(fontScale => ({ presentation, fontScale }))))(
+    'keeps an Astra action mark-only, named and centred in $presentation at font scale $fontScale',
+    async ({ presentation, fontScale }) => {
+      __setWindowDimensions({ width: 480, height: 900, scale: 1, fontScale })
+      const onSelect = vi.fn()
+      const label = 'Suggest a new date with Astra'
+      let tree!: ReactTestRenderer
+      await TestRenderer.act(() => { tree = TestRenderer.create(<><PortalHost /><Menu.Root open><Menu.Trigger accessibilityLabel="Menu trigger" />
+        <Menu.Content presentation={presentation} title="Actions" onSelect={onSelect} items={[
+          { id: 'edit', label: 'Edit', icon: 'pencil' },
+          { id: 'reschedule', label, icon: 'astra' },
+        ]} />
+      </Menu.Root></>) })
+      try {
+        const action = tree.root.findAll(node => String(node.type) === 'Pressable' && node.props['aria-label'] === label)[0]!
+        expect(action.props.accessibilityRole).toBe('menuitem')
+        expect(action.props.accessibilityLabel).toBe(label)
+        expect(action.findAll(node => String(node.type) === 'Text')).toHaveLength(0)
+        expect(action.findAll(node => node.type === Icon)[0]!.props.name).toBe('astra')
+        const rowStyle = action.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+        const resting = StyleSheet.flatten(rowStyle({ pressed: false }))
+        expect(resting).toMatchObject({ width: 48, minHeight: 48, paddingHorizontal: 0, paddingVertical: 0, justifyContent: 'center', alignItems: 'center' })
+        expect(StyleSheet.flatten(rowStyle({ pressed: true }))).toEqual({ ...resting, backgroundColor: createTokensV2('orange', 'dark').bgHover })
+        expect(tree.root.findAll(node => String(node.type) === 'Text' && node.props.children === 'Edit')).toHaveLength(1)
+        await TestRenderer.act(() => (action.props.onPress as () => void)())
+        if (presentation === 'sheet') {
+          const sheet = tree.root.findAll(node => node.type === TrueSheet)[0]!
+          await TestRenderer.act(() => (sheet.props.onDidDismiss as () => void)())
+        }
+        expect(onSelect).toHaveBeenCalledExactlyOnceWith('reschedule')
+      } finally { await TestRenderer.act(() => tree.update(<></>)) }
+    },
+  )
+
   it('focuses Cancel after a destructive confirmation is presented', async () => {
     let tree!: ReactTestRenderer
     await TestRenderer.act(() => {

@@ -141,10 +141,7 @@ export function HabitUnderstanding({
       {showPreview ? (
         <Proposed inset proposed={proposed} scope="block" label={labels.proposed}>
           <View accessibilityLabel={labels.understood} style={styles.preview}>
-            <View style={styles.previewHeader}>
-              {emojiControl}
-              <Text style={styles.meta}>{proposed ? labels.understoodAstra : labels.understood}</Text>
-            </View>
+            {emojiControl}
             <Text style={[styles.sentence, proposed ? { color: tokens.fg3 } : null]}>{sentence}</Text>
             <ScheduleCorrections hidden={!showSchedule} proposed={proposed} days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible' && showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} tokens={tokens} styles={styles} />
           </View>
@@ -215,7 +212,6 @@ function createStyles(tokens: AppTokens) {
       outlineStyle: 'solid',
       backgroundColor: tokens.bgCard,
     },
-    previewHeader: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
     meta: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 },
     sentence: {
       color: tokens.fg1,

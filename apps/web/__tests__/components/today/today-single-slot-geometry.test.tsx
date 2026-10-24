@@ -190,12 +190,17 @@ describe('Hoje one Astra place at each shell width', () => {
             }
           })
           const slotAbsent = state === 'none' || state === 'all' || state === 'general'
-          const shellGlyphs = mocks.wide ? 1 : 2
+          const shellGlyphs = 1
           const composerEntries = Number(!mocks.wide)
           const slotCount = Number(!slotAbsent)
           expect(geometry, state).toMatchObject({ glyphs: shellGlyphs + slotCount,
-            composerGlyphs: composerEntries * 2, entryGlyphs: composerEntries, sendGlyphs: composerEntries,
+            composerGlyphs: composerEntries, entryGlyphs: composerEntries, sendGlyphs: 0,
             slots: slotCount, slotGlyphs: slotCount, overflow: false, retiredHeading: false })
+          if (!mocks.wide) {
+            const send = page.getByRole('button', { name: messages.shell.composer.send, exact: true })
+            expect(await send.textContent()).toBe('')
+            expect(await send.locator('svg.tabler-icon-arrow-up').count()).toBe(1)
+          }
           if (!slotAbsent) {
             expect(geometry.lineHeight).toBeGreaterThanOrEqual(48)
             expect(geometry.proseHeight).toBeLessThanOrEqual(geometry.proseLineHeight * 2 + 1)

@@ -1899,7 +1899,10 @@ describe('HabitList', () => {
   it('keeps first-run actions on another day when the account has no habits', () => {
     renderWithProviders(<HabitList filters={defaultFilters} selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} onCreate={vi.fn()} />)
     expect(screen.getByText('habits.emptyState')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'habits.askAstra' })).toBeInTheDocument()
+    const astraAction = screen.getByRole('button', { name: 'habits.askAstra' })
+    expect(astraAction).toBeInTheDocument()
+    expect(astraAction.textContent).toBe('')
+    expect(astraAction.style.width).toBe('48px')
     expect(screen.getByRole('button', { name: 'habits.createManually' })).toBeInTheDocument()
   })
 

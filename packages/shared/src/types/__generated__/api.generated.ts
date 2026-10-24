@@ -130,7 +130,15 @@ export const PostApiAiPendingOperationsIdPreviewRefreshResponse = zod.object({
   "field": zod.string(),
   "errorCode": zod.string(),
   "error": zod.string()
-})).nullish()
+})).nullish(),
+  "fieldOptions": zod.array(zod.object({
+  "field": zod.string(),
+  "required": zod.boolean(),
+  "options": zod.array(zod.object({
+  "value": zod.unknown(),
+  "label": zod.string()
+}))
+})).nullish().describe('Only present for a required unresolved parent choice. Options contain exactly the matching parent habits and No parent; resolved or root items omit this field.')
 })).nullish(),
   "previewFingerprint": zod.string().nullish()
 })]),
@@ -1638,7 +1646,15 @@ export const PostApiChatResponse = zod.object({
   "field": zod.string(),
   "errorCode": zod.string(),
   "error": zod.string()
-})).nullish()
+})).nullish(),
+  "fieldOptions": zod.array(zod.object({
+  "field": zod.string(),
+  "required": zod.boolean(),
+  "options": zod.array(zod.object({
+  "value": zod.unknown(),
+  "label": zod.string()
+}))
+})).nullish().describe('Only present for a required unresolved parent choice. Options contain exactly the matching parent habits and No parent; resolved or root items omit this field.')
 })).nullish(),
   "previewFingerprint": zod.string().nullish(),
   "actionKey": zod.string().nullish()

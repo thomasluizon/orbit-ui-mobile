@@ -12,11 +12,11 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
       test('shares destination geometry and opens, closes and navigates with focus', async ({ page }) => {
         await page.goto('/')
         const sidebar = page.locator('[data-shell-sidebar]')
-        const row = sidebar.getByRole('button', { name: words.chat.title, exact: true })
+        const row = sidebar.getByRole('button', { name: words.todayAstra.openConversation, exact: true })
         const today = sidebar.getByRole('link', { name: words.nav.today, exact: true })
         const calendar = sidebar.getByRole('link', { name: words.nav.calendar, exact: true })
         await expect(row).toBeVisible()
-        await expect(sidebar.locator('nav > button').first()).toHaveAccessibleName(words.chat.title)
+        await expect(sidebar.locator('nav > button').first()).toHaveAccessibleName(words.todayAstra.openConversation)
         await page.evaluate(() => document.fonts.ready)
         const astraBox = (await row.boundingBox())!
         const todayBox = (await today.boundingBox())!
@@ -26,8 +26,17 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
         expect(astraBox.y + astraBox.height + 4).toBeCloseTo(todayBox.y, 1)
         await expect(row.locator('svg')).toHaveAttribute('width', '20')
         await expect(row.locator('svg')).toHaveAttribute('height', '20')
-        await expect(row.locator('span')).toHaveAttribute('translate', 'no')
-        expect(await row.locator('span').evaluate(element => element.getBoundingClientRect().height / parseFloat(getComputedStyle(element).lineHeight))).toBeCloseTo(1, 1)
+        await expect(row).not.toContainText(words.nav.astra)
+        const markGeometry = await row.locator('svg').evaluate(element => {
+          const mark = element.getBoundingClientRect()
+          const row = element.closest('button')!.getBoundingClientRect()
+          return { height: mark.height, left: mark.left, right: mark.right, rowLeft: row.left, rowRight: row.right,
+            centerOffset: Math.abs(mark.top + mark.height / 2 - row.top - row.height / 2) }
+        })
+        expect(markGeometry.height).toBe(20)
+        expect(markGeometry.left).toBeGreaterThanOrEqual(markGeometry.rowLeft)
+        expect(markGeometry.right).toBeLessThanOrEqual(markGeometry.rowRight)
+        expect(markGeometry.centerOffset).toBeLessThanOrEqual(0.5)
         await expectInteractionFill(row)
         await page.keyboard.press('Tab')
         await row.focus()

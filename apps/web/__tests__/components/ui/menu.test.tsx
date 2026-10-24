@@ -37,6 +37,30 @@ async function openMenu(waitForContent = true) {
 describe('headless Menu', () => {
   beforeEach(() => { vi.restoreAllMocks(); setWide(true) })
 
+  it.each(['anchored', 'sheet'] as const)('keeps an Astra action mark-only, named and keyboard reachable in %s', async (presentation) => {
+    const onSelect = vi.fn()
+    const label = 'Suggest a new date with Astra'
+    render(<Example presentation={presentation} onSelect={onSelect} items={[
+      { id: 'edit', label: 'Edit', icon: 'pencil' },
+      { id: 'reschedule', label, icon: 'astra' },
+    ]} />)
+    await openMenu()
+    const action = screen.getByRole('menuitem', { name: label })
+    expect(action).toHaveAttribute('aria-label', label)
+    expect(action.textContent).toBe('')
+    expect(action).toHaveStyle({ width: '48px', minHeight: '48px', padding: '0px', justifyContent: 'center' })
+    expect(action.querySelector('[data-asset^="astra-mark"]')).not.toBeNull()
+    expect(screen.getByRole('menuitem', { name: 'Edit' })).toHaveTextContent('Edit')
+    await userEvent.keyboard('{ArrowDown}')
+    expect(action).toHaveFocus()
+    await userEvent.keyboard('{Home}s')
+    await waitFor(() => expect(action).toHaveFocus())
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith('reschedule')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'More' })).toHaveFocus())
+  })
+
   it('renders open content on the server without reading the browser viewport', () => {
     const viewport = vi.spyOn(window, 'matchMedia').mockImplementation(() => { throw new Error('Browser viewport is unavailable during server rendering') })
     expect(() => renderToString(<Menu.Root open><Menu.Trigger>More</Menu.Trigger><LoadedContent title="Habit actions" items={items} firstItemRef={createRef()}>{null}</LoadedContent></Menu.Root>)).not.toThrow()

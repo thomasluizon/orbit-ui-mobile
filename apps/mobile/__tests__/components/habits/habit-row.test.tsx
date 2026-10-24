@@ -656,6 +656,11 @@ describe('HabitRow menu (mobile)', () => {
     ])
     expect(icons.every((icon: { props: { size: number; strokeWidth: number } }) =>
       icon.props.size === 20 && icon.props.strokeWidth === 2)).toBe(true)
+    const items = renderer!.root.findAll((node: import('react-test-renderer').ReactTestInstance) => typeof node.type === 'string' && node.props.accessibilityRole === 'menuitem')
+    expect(items).toHaveLength(9)
+    expect(items[3]!.props.accessibilityLabel).toBe('habits.actions.rescheduleAstra')
+    expect(items[3]!.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Text')).toHaveLength(0)
+    expect(items[3]!.findAllByType(Icon)).toHaveLength(1)
     expect(icons[8].props.color).toBe(createTokensV2('purple', 'dark').statusBad)
   })
 

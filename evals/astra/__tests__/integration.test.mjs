@@ -20,21 +20,27 @@ afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); for (const path of 
 
 describe('real promptfoo CLI with an offline provider', () => {
   it.each([
-    [false, false, 'pass'], [true, false, 'fail'], [false, true, 'incomplete'],
-  ])('runs the production assertions and pass^3 reporter; broken=%s, noTrace=%s', (broken, noTrace, status) => {
+    [false, false, 'pass', undefined], [true, false, 'fail', undefined], [false, true, 'incomplete', undefined],
+    [false, false, 'fail', 'prose-first'], [false, false, 'pass', 'block-only'], [false, false, 'fail', 'repeated-figure'],
+    [false, false, 'incomplete', 'missing-composition'], [false, false, 'incomplete', 'skipped-composition'],
+  ])('runs the production assertions and pass^3 reporter; broken=%s, noTrace=%s, status=%s, mode=%s', (broken, noTrace, status, responseMode) => {
     const directory = mkdtempSync(resolve(tmpdir(), 'astra-eval-'))
     scratch.push(directory)
     const configPath = resolve(directory, 'config.yaml')
-    const assertions = configuration.defaultTest.assert.map((assertion) => ({
-      ...assertion, ...(assertion.type === 'javascript'
+    const assertions = configuration.defaultTest.assert.filter((assertion) => responseMode !== 'missing-composition' || assertion.metric !== 'composition').map((assertion) => ({
+      ...assertion, ...(responseMode === 'skipped-composition' && assertion.metric === 'composition'
+        ? { value: "({ pass: true, score: 1, reason: 'Calibration skip.', metadata: { skipped: true } })" } : assertion.type === 'javascript'
         ? { value: assertion.value.replace('file://', `file://${root}/`) } : {}),
     }))
     writeFileSync(configPath, stringify({
       ...configuration,
       providers: [{ id: `file://${root}/__tests__/fixtures/target.mjs`, config: { tools: catalog } }],
-      defaultTest: { assert: assertions, options: { provider: `file://${root}/__tests__/fixtures/grader.mjs` } },
+      defaultTest: { vars: configuration.defaultTest.vars, assert: assertions, options: { provider: `file://${root}/__tests__/fixtures/grader.mjs` } },
       tests: [{ description: 'Offline Water case', metadata: { id: 'offline-water' }, vars: {
-        input: 'Mark Water done', broken, noTrace, rubric: 'Describe Water only.',
+        input: 'Mark Water done', broken, noTrace, responseMode,
+        ...(responseMode && ['prose-first', 'block-only', 'repeated-figure'].includes(responseMode) ? {
+          clientContext: { supportsParts: true, partKinds: ['habitList'], supportsHabitListCard: true }, composition: { mode: 'data', kinds: ['habitList'] },
+        } : {}), rubric: 'Describe Water only.',
         expectations: { required: [{ name: 'log_habit', arguments: { habit_id: 'water' } }] },
       } }],
       extensions: [`file://${root}/hooks.mjs:beforeEach`, `file://${root}/hooks.mjs:afterAll`],
@@ -50,7 +56,7 @@ describe('real promptfoo CLI with an offline provider', () => {
     if (status !== 'pass') expect(run.status, run.stdout + run.stderr).not.toBe(0)
     else expect(run.status, run.stdout + run.stderr).toBe(0)
     expect(summary.status).toBe(status)
-    expect(summary.cases[0]).toMatchObject({ attempts: 3, passed: broken || noTrace ? 0 : 3, skipped: 0, unavailable: noTrace ? 3 : 0 })
+    expect(summary.cases[0]).toMatchObject({ attempts: 3, passed: broken || noTrace || ['prose-first', 'repeated-figure'].includes(responseMode) ? 0 : 3, skipped: responseMode === 'skipped-composition' ? 3 : 0, unavailable: noTrace ? 3 : 0 })
     expect(readFileSync(summaryPath, 'utf8')).not.toContain('TOOL_TRACE_SECRET')
   })
 })

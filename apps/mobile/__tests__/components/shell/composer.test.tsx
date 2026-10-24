@@ -7,9 +7,11 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Square } from '@/components/ui/icons'
+import { ArrowUp, Square } from '@/components/ui/icons'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { useUIStore } from '@/stores/ui-store'
 import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
 import { Composer } from '@/components/shell/composer'
 import * as Menu from '@/components/ui/dropdown-menu'
@@ -24,8 +26,8 @@ import { measureInteractionFills } from '@/__tests__/support/interaction-fill-ge
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 const authSession = vi.hoisted(() => ({ isAuthenticated: true, user: { userId: 'account-a' } }))
-const astraCopy = vi.hoisted(() => ({ name: 'nav.astra', request: 'habits.form.askDate' }))
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key === 'nav.astra' ? astraCopy.name : key === 'habits.form.askDate' ? astraCopy.request : key, i18n: { language: 'en' } }) }))
+const astraCopy = vi.hoisted(() => ({ name: 'nav.astra', request: 'habits.form.suggestDate' }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key === 'nav.astra' ? astraCopy.name : key === 'habits.form.suggestDate' ? astraCopy.request : key, i18n: { language: 'en' } }) }))
 vi.mock('@/stores/auth-store', () => ({ useAuthStore: { getState: () => authSession } }))
 
 const clipboard = vi.hoisted(() => ({ getStringAsync: vi.fn().mockResolvedValue(''), hasStringAsync: vi.fn().mockResolvedValue(true) }))
@@ -126,17 +128,17 @@ function renderComposer(composerProps: ComposerProps) {
   return tree
 }
 
-it.each([en, ptBR])('attributes each suggestion once with the canonical decorative Astra mark', messages => {
+it.each([en, ptBR])('shows each suggestion action with only the decorative mark', messages => {
   astraCopy.name = messages.nav.astra
   const chips = suggestions(3)
   const tree = renderComposer(props({ suggestions: chips }))
   try {
     const controls = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
-      node.type === 'Pressable' && chips.some(chip => node.props.accessibilityLabel === `${chip.label}, ${messages.nav.astra}`))
+      node.type === 'Pressable' && chips.some(chip => node.props.accessibilityLabel === chip.label))
     expect(controls).toHaveLength(chips.length)
     for (const [index, control] of controls.entries()) {
-      expect(control.props.accessibilityLabel).toBe(`${chips[index]!.label}, ${messages.nav.astra}`)
-      expect(textValues(control)).toEqual([`${chips[index]!.label} ${messages.nav.astra}`])
+      expect(control.props.accessibilityLabel).toBe(chips[index]!.label)
+      expect(textValues(control)).toEqual([chips[index]!.label])
       const marks = control.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
         typeof node.type === 'string' && node.props.testID === 'astra-mark-16')
       expect(marks).toHaveLength(1)
@@ -175,7 +177,8 @@ describe('clipboard composer control', () => {
           const intrinsic = measureProfileRow({ type: 'View', props: { style: { alignItems: 'flex-start' } }, children: [
             { type: 'Text', props: { style: StyleSheet.flatten(minimum.props.style) }, children: [messages.shell.composer.inputLabel] },
           ] }, 412, fontScale).texts[0]!
-          expect(textSlot.width).toBeGreaterThanOrEqual(intrinsic.width)
+          const field = parts.find(part => part.host.props.testID === 'composer-field')!
+          expect(textSlot.width).toBeGreaterThanOrEqual(Math.min(intrinsic.width, field.width - 8))
           expect(parts.find(part => part.host.props.testID === 'composer-text-action-slot')!.width).toBe(48)
         }
         const measurement = tree.root.findByProps({ testID: 'composer-paste-measure' })
@@ -193,7 +196,7 @@ describe('clipboard composer control', () => {
   it.each([320, 412].flatMap(width => [en, ptBR].map(messages => ({ width, messages }))))(
     'moves text actions only when the whole placeholder needs their slot at $width', ({ width, messages }) => {
       astraCopy.name = messages.nav.astra
-      astraCopy.request = messages.habits.form.askDate
+      astraCopy.request = messages.habits.form.suggestDate
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
       const configuration = props({ suggestions: [], words: messages.shell.composer,
         onAttachFile: vi.fn(), attachWords, onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation })
@@ -254,7 +257,7 @@ describe('clipboard composer control', () => {
           TestRenderer.act(() => measurement.props.onTextLayout({ nativeEvent: { lines: Array.from({ length: candidate.lines }, () => line) } }))
           expect(measure().contentWidth).toBe(empty.contentWidth)
         }
-      } finally { TestRenderer.act(() => tree.unmount()); astraCopy.name = 'nav.astra'; astraCopy.request = 'habits.form.askDate'; __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
+      } finally { TestRenderer.act(() => tree.unmount()); astraCopy.name = 'nav.astra'; astraCopy.request = 'habits.form.suggestDate'; __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
     },
   )
 
@@ -496,7 +499,7 @@ it('keeps one complete suggestion focus outline inside the scroller without resi
 function byLabel(root: ReturnType<typeof TestRenderer.create>['root'], label: string) {
   return root.findAll(
     (node: { type?: unknown; props?: Record<string, unknown> }) =>
-      typeof node.type === 'string' && [label, `${label}, nav.astra`, `${label}, habits.form.askDate`].includes(String(node.props?.accessibilityLabel)),
+      typeof node.type === 'string' && [label, label, label].includes(String(node.props?.accessibilityLabel)),
   )
 }
 
@@ -548,6 +551,39 @@ function applyComposerLayoutInsets(node: YogaNode, style: Record<string, unknown
 }
 
 describe('Composer (mobile)', () => {
+  it.each([320, 480, 800].flatMap(width => [en, ptBR].flatMap(messages => [1, 2].flatMap(fontScale =>
+    ['empty', 'draft', 'sending'].flatMap(state => [false, true].map(collapsible => ({ width, messages, state, fontScale, collapsible })))))))(
+    'keeps equal fill clearance between 48px targets at $width in $state with text $fontScale and disclosure=$collapsible', ({ width, messages, state, fontScale, collapsible }) => {
+      useUIStore.setState({ habitComposerCollapsed: false })
+      __setWindowDimensions({ width, height: 640, scale: 1, fontScale })
+      const tree = renderComposer(props({ collapsible, state: state === 'sending' ? 'sending' : 'idle', value: state === 'empty' ? '' : 'Draft',
+        suggestions: [], words: messages.shell.composer, onAttachFile: vi.fn(), attachWords }))
+      try {
+        const parts = measureInteractionFills(tree.toJSON(), width, false, fontScale)
+        const textActions = state === 'sending' && !collapsible ? []
+          : [collapsible ? 'shell.composer.collapse' : state === 'empty' ? messages.shell.composer.paste : messages.shell.composer.clear]
+        const names = [...textActions, messages.shell.composer.actions, messages.shell.composer.send]
+        const targets = names.map(name => parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === name)!)
+        for (const [index, target] of targets.entries()) {
+          expect(target.width).toBe(48)
+          expect(target.height).toBe(48)
+          if (index > 0) expect(target.left - targets[index - 1]!.right).toBe(INTERACTION_FILL_CLEARANCE)
+        }
+      } finally { TestRenderer.act(() => tree.unmount()); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
+    },
+  )
+
+  it.each([false, true].flatMap(withOpener => ['idle', 'sending'].map(state => ({ withOpener, state }))))('uses one send icon with opener=$withOpener in $state', ({ withOpener, state }) => {
+    const tree = renderComposer(props({ state, value: 'Draft', suggestions: [], ...(withOpener ? { onOpenConversation: vi.fn(), conversationLabel: 'Open conversation' } : {}) }))
+    const send = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === words.send)[0]!
+    expect(send.findAllByType(ArrowUp)).toHaveLength(state === 'idle' ? 1 : 0)
+    expect(send.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ActivityIndicator')).toHaveLength(state === 'sending' ? 1 : 0)
+    expect(send.findAllByType(AstraGlyph)).toHaveLength(0)
+    expect(send.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Text')).toHaveLength(0)
+    expect(StyleSheet.flatten(send.props.style).width).toBe(48)
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it.each([
     { locale: 'pt-BR', messages: ptBR, name: 'Abrir conversa' },
     { locale: 'en', messages: en, name: 'Open the conversation' },
@@ -580,7 +616,7 @@ describe('Composer (mobile)', () => {
     expect(onSelect).toHaveBeenCalledOnce()
 
     const retry = renderComposer(props({ words: { ...words, retry: 'Retry' }, onRetry }))
-    const retryControl = retry.root.findAllByType('Pressable').find((node: { props: { accessibilityRole?: string }; findAllByType: (type: string) => { props: { children?: unknown } }[] }) => node.props.accessibilityRole === 'button' && node.findAllByType('Text').some((text) => text.props.children === 'Retry'))!
+    const retryControl = byLabel(retry.root, 'Retry')[0]!
     expectPressPaint(retryControl, { fill: tokens.bgHover, borderRadius: 999, scale: reducedMotion ? 1 : 0.96 })
     pressControl(retryControl)
     expect(onRetry).toHaveBeenCalledOnce()
@@ -755,7 +791,7 @@ describe('Composer (mobile)', () => {
           expect(style.minHeight).toBe(48)
           expect(style.height).toBeUndefined()
           expect(style.alignItems).toBe('flex-start')
-          expect(text.props.children).toBe(`${suggestion.label} nav.astra`)
+          expect(text.props.children).toBe(suggestion.label)
           expect(suggestion.label).not.toContain(title)
           expect(text.props.numberOfLines).toBeUndefined()
           expect(StyleSheet.flatten(text.props.style)).toMatchObject({ flexShrink: 1, lineHeight: 20 })
@@ -1033,7 +1069,7 @@ describe('Composer (mobile)', () => {
     const chips = suggestions(3)
     const tree = await renderComposer(props({ suggestions: chips }))
     const chip = tree.root.findAllByType('Pressable').find(
-      (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === `${chips[0]!.label}, nav.astra`,
+      (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === chips[0]!.label,
     )
     if (!chip) throw new Error('Expected first chip')
     pressControl(chip)
@@ -1044,7 +1080,7 @@ describe('Composer (mobile)', () => {
     const chips = suggestions(3)
     const tree = await renderComposer(props({ suggestions: chips }))
     const secondChip = tree.root.findAllByType('Pressable').find(
-      (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === `${chips[1]!.label}, nav.astra`,
+      (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === chips[1]!.label,
     )
     if (secondChip) pressControl(secondChip)
     expect(chips[1]!.onSelect).toHaveBeenCalledOnce()
@@ -1088,7 +1124,7 @@ describe('Composer (mobile)', () => {
     const tree = await renderComposer(props({ value: 'Draft', onAttachFile: vi.fn(), attachWords }))
     const tokens = createTokensV2('purple', 'dark')
     for (const name of [words.actions, words.send]) {
-      const control = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Pressable' && [name, `${name}, nav.astra`, `${name}, habits.form.askDate`].includes(String(node.props.accessibilityLabel)))[0]
+      const control = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Pressable' && [name, name, name].includes(String(node.props.accessibilityLabel)))[0]
       const target = {}
       TestRenderer.act(() => control.props.onFocus({ target, currentTarget: target }))
       const ring = control.findAllByType('View').at(-1)
@@ -1319,8 +1355,8 @@ describe('Composer (mobile)', () => {
   })
 
   it.each([
-    ['pt-BR', ptBR.shell.composer.placeholder, 'Peça à Astra'],
-    ['en', en.shell.composer.placeholder, 'Ask Astra'],
+    ['pt-BR', ptBR.shell.composer.placeholder, 'O que você quer fazer?'],
+    ['en', en.shell.composer.placeholder, 'What would you like to do?'],
   ])('shows the %s composer placeholder', async (_locale, placeholder, expected) => {
     const tree = await renderComposer(props({ words: { ...words, placeholder } }))
     expect(placeholder).toBe(expected)

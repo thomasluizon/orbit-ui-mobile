@@ -111,6 +111,7 @@ type ExpectedComposerSuggestions =
       ExpectedComposerSuggestion,
     ]
 type ExpectedComposerBase = {
+  collapsible?: boolean
   words: ExpectedComposerWords
   value: string
   onChangeValue: (value: string) => void

@@ -93,6 +93,7 @@ function FrameRowContent(props: ResolvedBlockFrameRow) {
 function FrameRow(props: ResolvedBlockFrameRow) {
   return <Proposed proposed={props.item.proposed === true} scope="row" label={props.proposedLabel ?? ''} keepMounted>
     <FrameRowContent {...props} />
+    {props.item.body ? <div className="px-3 pb-3">{props.item.body}</div> : null}
   </Proposed>
 }
 

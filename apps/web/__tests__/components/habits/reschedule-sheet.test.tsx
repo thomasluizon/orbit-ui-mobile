@@ -43,11 +43,16 @@ describe('RescheduleSheet', () => {
     if (state === 'free') h.profile = { hasProAccess: false, language: 'en' }
     if (state === 'error') h.reschedule.error = new Error('unavailable')
     render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
-    const primary = state === 'free' ? 'habits.reschedule.upgrade' : state === 'error' ? 'habits.form.askDate' : 'habits.reschedule.accept'
+    const primary = state === 'free' ? 'habits.reschedule.upgrade' : state === 'error' ? 'habits.reschedule.suggestDate' : 'habits.reschedule.accept'
     const footer = screen.getByTestId('sheet').querySelector('[data-slot="sheet-actions"]')!
     expect(footer.querySelectorAll('[data-slot="action-row"]')).toHaveLength(1)
     const actions = footer.querySelector('[data-slot="action-row"]')!
-    expect(Array.from(actions.children).map((button) => button.textContent)).toEqual(['habits.reschedule.dismiss', primary])
+    expect(Array.from(actions.querySelectorAll('button')).map((button) => button.getAttribute('aria-label') ?? button.textContent)).toEqual(['habits.reschedule.dismiss', primary])
+    if (state === 'error') {
+      const action = screen.getByRole('button', { name: primary })
+      expect(action.textContent).toBe('')
+      expect(action.style.width).toBe('48px')
+    }
     expect(Array.from(actions.querySelectorAll('button')).map((button) => button.getAttribute('data-size'))).toEqual(['sm', 'sm'])
     expect(Array.from(actions.querySelectorAll('button')).map((button) => button.getAttribute('data-variant'))).toEqual(['ghost', 'primary'])
   })
@@ -126,7 +131,7 @@ describe('RescheduleSheet', () => {
     render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
 
     expect(screen.getByTestId('reschedule-error')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('habits.form.askDate'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.suggestDate' }))
     expect(h.reschedule.refetch).toHaveBeenCalled()
   })
 

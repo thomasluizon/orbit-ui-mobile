@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test'
 import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { profileSchema } from '@orbit/shared/types/profile'
@@ -20,7 +21,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         const profile = profileSchema.parse({ ...profileFixture, language: locale })
         await setLayoutProfileSession(context, profile)
         await page.goto('/')
-        await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : `${messages.todayAstra.openConversation}, ${messages.nav.astra}`, exact: true }).click()
+        await page.getByRole('button', { name: messages.todayAstra.openConversation, exact: true }).click()
 
         const panel = page.locator('[data-shell-conversation="overlay"]')
         await expect(panel).toBeVisible()
@@ -60,6 +61,17 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         })
         expect(wrappedText.width).toBeGreaterThan(wrappedText.availableWidth)
         await field.fill(wrappedText.text)
+        const targets = await panel.locator('[data-composer-trailing-controls] button').evaluateAll(buttons => buttons.map(button => ({
+          ...button.getBoundingClientRect().toJSON(), text: button.textContent,
+          marks: button.querySelectorAll('[data-asset^="astra-mark"]').length,
+        })))
+        for (const [index, target] of targets.entries()) {
+          expect(target.width).toBe(48)
+          expect(target.height).toBe(48)
+          expect(target.text).toBe('')
+          expect(target.marks).toBe(0)
+          if (index > 0) expect(target.left - targets[index - 1]!.right).toBe(INTERACTION_FILL_CLEARANCE)
+        }
         const typed = await field.evaluate((element) => {
           const input = element as HTMLTextAreaElement
           return { clientHeight: input.clientHeight, scrollHeight: input.scrollHeight }
@@ -69,7 +81,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
 
         for (const name of [
           messages.shell.composer.actions,
-          `${messages.shell.composer.send}, ${messages.habits.form.askDate}`,
+          messages.shell.composer.send,
         ]) {
           const control = panel.getByRole('button', { name, exact: true })
           await expect(control).toBeVisible()
@@ -173,7 +185,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         expect(empty.clientHeight).toBe(empty.singleLineHeight)
 
         const draft = 'Astra '.repeat(10)
-        await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : `${messages.todayAstra.openConversation}, ${messages.nav.astra}`, exact: true }).click()
+        await page.getByRole('button', { name: messages.todayAstra.openConversation, exact: true }).click()
         const overlay = page.locator('[data-shell-conversation="overlay"]')
         await overlay.locator('[data-composer-input]').fill(draft)
         await page.getByRole('button', { name: messages.common.closeConversation }).click()

@@ -1,4 +1,4 @@
-// Contract: orbit-api d0bed4eb, ChatResponse, ChatEvalTrace and AiToolCallResult.
+// Contract: orbit-api 5e376417, ChatResponse, ChatEvalTrace and AiToolCallResult.
 export function toolCall(name, arguments_, status = 'Succeeded', id = 'call-1') {
   return {
     id, name, arguments: arguments_, status,
@@ -10,8 +10,8 @@ export function toolCall(name, arguments_, status = 'Succeeded', id = 'call-1') 
       error: null,
       payload: status === 'PendingConfirmation' ? {
         status: 'awaiting_confirmation', item_count: null, habit_count: null, date_count: null,
-        proposed_titles: null, proposed_values: {}, resolved_habits: [], dates: null,
-        instruction: 'This is a proposal. Nothing has changed until approval. Use only the returned numbers, names, and dates.',
+        proposed_titles: null, preview_items: null, dates: null,
+        instruction: 'The preview is the entire answer. Emit no prose before or after it. All preview facts come exclusively from preview_items.',
       } : null,
     },
   }
@@ -25,4 +25,20 @@ export function chatResponse(requestId, toolCalls = []) {
     calendar: null, recordLists: null, accountRows: null, followUps: null,
     evalTrace: { traceId: requestId, toolCalls },
   }
+}
+
+export const habitBlock = { type: 'block', kind: 'habitList', block: { scope: 'today', items: [
+  { id: 'water', title: 'Water', emoji: null, depth: 0, isBadHabit: false, status: 'today' },
+], totalCount: 1 } }
+
+export function preview(name = 'Cholesterol exam') {
+  return { id: '11111111-1111-4111-8111-111111111111', capabilityId: 'habits.bulk.write', displayName: 'bulk_create_habits',
+    summary: 'Create proposed habits', riskClass: 'Low', confirmationRequirement: 'FreshConfirmation', expiresAtUtc: '2026-10-26T20:00:00Z',
+    changes: null, changeTargetCount: 1, previewFingerprint: 'preview', actionKey: 'createHabits', items: [{
+      itemId: 'exam', entityId: null, entityName: name, stateFingerprint: 'state', removesData: null,
+      fields: [
+        { entityId: '00000000-0000-0000-0000-000000000000', entityName: name, field: 'due_time', oldValue: null, newValue: '15:50', valueType: 'time', proposedValue: '15:50', isEditable: true },
+        { entityId: '00000000-0000-0000-0000-000000000000', entityName: name, field: 'frequency_unit', oldValue: null, newValue: 'OneTime', valueType: 'enum', proposedValue: 'OneTime', isEditable: true },
+      ],
+    }] }
 }

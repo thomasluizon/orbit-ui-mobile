@@ -828,7 +828,7 @@ describe('SupportScreen', () => {
       (findSendButton(tree.root)!.props.accessibilityState as { busy?: boolean }).busy,
     ).toBe(true)
     const choices = tree.root.findAll(
-      (node) => node.type === View && node.props.accessibilityRole === 'radio',
+      (node) => node.type === Pressable && node.props.accessibilityRole === 'radio',
     )
     expect(choices).toHaveLength(4)
     expect(
@@ -836,7 +836,7 @@ describe('SupportScreen', () => {
         (choice.props.accessibilityState as { disabled?: boolean }).disabled === true),
     ).toBe(true)
     expect(choices.every((choice) => choice.props.onPress === undefined)).toBe(true)
-    expect(choices.every((choice) => choice.props.focusable === false)).toBe(true)
+    expect(choices.every((choice) => choice.props.focusable === true)).toBe(true)
     expect(choices.every((choice) => choice.props.accessibilityHint === 'profile.support.subject common.required')).toBe(true)
     expect(
       (choices[0]!.props.accessibilityState as { checked: boolean }).checked,

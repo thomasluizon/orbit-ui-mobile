@@ -133,7 +133,7 @@ function AstraFallback({
         <Skeleton variant="settings" label={readingLabel} />
       ) : (
         <View style={{ alignItems: 'flex-start', gap: 8 }}>
-          <PillButton leadingIcon={<AstraGlyph size={16} />} variant="secondary" disabled={disabled || atLimit} onClick={guard(onAsk)}>{askLabel}</PillButton>
+          <PillButton minimumHeight={48} iconOnly label={askLabel} variant="secondary" disabled={disabled || atLimit} onClick={guard(onAsk)}><AstraGlyph size={20} /></PillButton>
           {!atLimit ? <Text style={{ color: tokens.fg3, fontSize: 12 }}>{costLabel}</Text> : null}
         </View>
       )}

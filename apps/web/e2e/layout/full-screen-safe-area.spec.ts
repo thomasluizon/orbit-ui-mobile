@@ -44,11 +44,11 @@ for (const width of [320, 412, 600, 844]) {
             await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habit.id)}`, (route) => route.fulfill({ json: metrics }))
             await page.goto(`/habits/${habit.id}`)
             await expect(page.getByRole('group', { name: messages.shell.composer.suggestionsLabel, exact: true })
-              .getByRole('button', { name: `${messages.shell.composer.chips.habitDetail.pauseThisWeek}, ${messages.nav.astra}`, exact: true })).toBeVisible()
+              .getByRole('button', { name: messages.shell.composer.chips.habitDetail.pauseThisWeek, exact: true })).toBeVisible()
             await page.locator('#orbit-main').getByRole('button', { name: messages.habits.detail.askAstra, exact: true }).click()
           } else {
             await page.goto('/')
-            await page.getByRole('button', { name: `${messages.todayAstra.openConversation}, ${messages.nav.astra}`, exact: true }).click()
+            await page.getByRole('button', { name: messages.todayAstra.openConversation, exact: true }).click()
           }
           const conversation = page.locator('[data-shell-conversation="overlay"]')
           await expect(conversation).toBeVisible()

@@ -103,13 +103,15 @@ function MenuSheet({ id, children, onSelect, onClose, title, shortTitle, titleMo
 export function Item({ item, onActivate, buttonRef, children }: Readonly<{ children: ReactNode; buttonRef?: RefObject<HTMLButtonElement | null>; item: MenuItem; onActivate: (id: string) => void }>) {
   const disabled = Boolean(item.disabled && !item.badge)
   const props = { disabled, textValue: item.label, onSelect: (event: Event) => { event.preventDefault(); onActivate(item.id) }, 'data-destructive': item.destructive || undefined, className: 'orbit-menu-item' }
-  const content = <span className="orbit-menu-content">
+  const content = <span className="orbit-menu-content" style={item.icon === 'astra' ? { flex: 'none' } : undefined}>
     {item.icon ? <Icon name={item.icon} size={20} strokeWidth={2} /> : null}
     {children}
     {item.checked ? <span className="orbit-menu-check" aria-hidden="true"><Check size={20} strokeWidth={2} /></span> : null}
     {item.badge ? <Badge>{item.badge}</Badge> : null}
   </span>
+  const button = <button ref={buttonRef} type="button" disabled={disabled} aria-label={item.icon === 'astra' ? item.label : undefined}
+    style={item.icon === 'astra' ? { width: 48, minHeight: 48, padding: 0, justifyContent: 'center' } : undefined}>{content}</button>
   return item.checked === undefined
-    ? <Primitive.Item {...props} asChild><button ref={buttonRef} type="button" disabled={disabled}>{content}</button></Primitive.Item>
-    : <Primitive.CheckboxItem {...props} checked={item.checked} asChild><button ref={buttonRef} type="button" disabled={disabled}>{content}</button></Primitive.CheckboxItem>
+    ? <Primitive.Item {...props} asChild>{button}</Primitive.Item>
+    : <Primitive.CheckboxItem {...props} checked={item.checked} asChild>{button}</Primitive.CheckboxItem>
 }

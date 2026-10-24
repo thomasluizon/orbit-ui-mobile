@@ -21,13 +21,13 @@ export function FollowUpChips({ followUps, followUpContext, onSelect }: Readonly
   return <ScrollView horizontal style={{ width: '100%' }} showsHorizontalScrollIndicator={false} accessibilityLabel={t('chat.followUps.label')}
     contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.s8, paddingVertical: SPACING.s8, minHeight: TOUCH_TARGET_MIN }}>
     <ActionRow layout="scroll">{chips.map(item => <Button key={item.question} size="sm" variant="ghost" minimumHeight={TOUCH_TARGET_MIN} retainLeadingIcon
-      leadingIcon={<AstraGlyph size={16} />} accessibleName={`${item.label}, ${t('nav.astra')}`}
+      leadingIcon={<AstraGlyph size={16} />} accessibleName={item.label}
       disabled={submitted} onClick={() => {
         if (selected.current) return
         selected.current = true
         setSubmitted(true)
         onSelect(item.question)
-      }}>{`${item.label} ${t('nav.astra')}`}</Button>)}
+      }}>{item.label}</Button>)}
     </ActionRow>
   </ScrollView>
 }

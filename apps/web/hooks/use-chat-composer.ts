@@ -639,7 +639,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       const attempted: AttemptedSend = {
         intendedAccountId: getHeldAccountId(),
         content: messageContent,
-        draftContent: typedContent,
+        draftContent: sendsComposerDraft ? input : typedContent,
         image: sendsComposerDraft ? selectedImage : null,
         preview: sendsComposerDraft ? imagePreview : null,
         restoreDraftOnFailure: content === undefined,

@@ -125,6 +125,7 @@ function writeOutcome(field: PendingOperationChange, translate: PreviewTranslati
   const text = field.newValue
   if (['note', 'subject', 'message', 'email', 'text', 'summary'].includes(field.field) && text) return [text]
   if (['parent_id', 'new_parent_id'].includes(field.field)) return [translate(`chat.preview.summary.${text ? 'moveUnderHabit' : 'moveToTop'}`)]
+  if (field.field === 'parent_habit_id') return [field.proposedValue === null ? translate('habits.moveParent.toRoot') : text ?? '']
   if (field.field === 'color' && text) return [translate('chat.preview.summary.tagColor', { color: text })]
   if (field.field === 'action' && text) return actionOutcome(text, translate)
   return [...goalOutcome(field, translate), ...collectionOutcome(field, translate), ...preferenceOutcome(field, translate), ...dateOutcome(field, translate, formatTime, locale)]

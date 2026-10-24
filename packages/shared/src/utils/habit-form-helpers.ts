@@ -238,7 +238,6 @@ export interface HabitUnderstandingLabels {
   field: string
   placeholder: string
   understood: string
-  understoodAstra: string
   unresolved: string
   days: string
   less: string
@@ -633,7 +632,6 @@ export function buildHabitUnderstandingLabels(
     field: translate('habits.form.describe'),
     placeholder: translate('habits.form.describePlaceholder'),
     understood: translate('habits.form.understood'),
-    understoodAstra: translate('habits.form.understoodAstra'),
     unresolved: translate('habits.form.unresolved'),
     days: translate('habits.form.activeDays'),
     less: translate('habits.form.lessOften'),
