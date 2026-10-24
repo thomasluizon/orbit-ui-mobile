@@ -538,6 +538,49 @@ export const PostApiAuthConfirmDeletionBody = zod.object({
 export const PostApiAuthConfirmDeletionResponse = zod.unknown()
 
 
+export const PostApiAuthDesktopHandoffHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const PostApiAuthDesktopHandoffBody = zod.object({
+  "state": zod.string(),
+  "codeChallenge": zod.string(),
+  "codeChallengeMethod": zod.string(),
+  "redirectUri": zod.string()
+})
+
+export const postApiAuthDesktopHandoffResponseExpiresInRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const PostApiAuthDesktopHandoffResponse = zod.object({
+  "code": zod.string(),
+  "expiresIn": zod.union([zod.int(),zod.stringFormat('int32', postApiAuthDesktopHandoffResponseExpiresInRegExpTwo)])
+})
+
+
+export const PostApiAuthDesktopExchangeHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const PostApiAuthDesktopExchangeBody = zod.object({
+  "code": zod.string(),
+  "state": zod.string(),
+  "codeVerifier": zod.string(),
+  "redirectUri": zod.string()
+})
+
+export const postApiAuthDesktopExchangeResponseWasReactivatedDefault = false;
+
+export const PostApiAuthDesktopExchangeResponse = zod.object({
+  "userId": zod.uuid(),
+  "token": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "wasReactivated": zod.boolean().default(postApiAuthDesktopExchangeResponseWasReactivatedDefault),
+  "refreshToken": zod.string().nullish()
+})
+
+
 export const getApiCalendarEventsQueryIncludeImportedDefault = false;
 
 export const GetApiCalendarEventsQueryParams = zod.object({

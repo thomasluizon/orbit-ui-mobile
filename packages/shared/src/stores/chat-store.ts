@@ -63,6 +63,7 @@ export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
           id: `proactive-${item.id}`,
           role: 'ai',
           content: item.text,
+          parts: item.parts,
           proactiveItem: item,
           proactiveContextAfterMessageId,
           proactiveActed: state.proactiveOutcomes[item.id] === 'acted',

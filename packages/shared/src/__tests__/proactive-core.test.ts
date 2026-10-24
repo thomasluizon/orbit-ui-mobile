@@ -6,6 +6,9 @@ import { proactiveKeys } from '../query/keys'
 import { createChatStoreState, type ChatStoreState } from '../stores/chat-store'
 import { proactiveItemSchema, type ProactiveItemStatus } from '../types/proactive'
 import { createMockProactiveItem } from './factories'
+import { habitListCardFixture } from '../test-support/chat-fixtures'
+import { getChatMessageParts } from '../chat/final-message'
+import { chatMessageSchema } from '../types/chat'
 
 const item = proactiveItemSchema.parse(createMockProactiveItem())
 const clients: QueryClient[] = []
@@ -114,6 +117,18 @@ describe('shared proactive action', () => {
 })
 
 describe('shared proactive item', () => {
+  it('opens negotiated proactive parts once and preserves the block in replay', async () => {
+    const { controller, client, requestCurrent, report, getChat } = setup()
+    const parts = [{ type: 'block', kind: 'habitList', block: habitListCardFixture }]
+    requestCurrent.mockResolvedValue(proactiveItemSchema.parse({ ...item, parts }))
+    await controller.openCurrentProactiveItem(client)
+    await controller.openCurrentProactiveItem(client)
+    expect(getChat().messages).toHaveLength(1)
+    const message = chatMessageSchema.parse(getChat().messages[0])
+    expect(getChatMessageParts(message)).toEqual(parts)
+    expect(report).toHaveBeenCalledExactlyOnceWith(item.id)
+  })
+
   it('opens full content and reports once without turning a report failure into an error', async () => {
     const { controller, client, report, openConversation, getChat } = setup()
     report.mockRejectedValue(new Error('Report unavailable'))
