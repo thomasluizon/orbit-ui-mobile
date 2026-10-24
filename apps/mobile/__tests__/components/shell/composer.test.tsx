@@ -8,6 +8,7 @@ import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ArrowUp, Square } from '@/components/ui/icons'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -577,6 +578,8 @@ describe('Composer (mobile)', () => {
     const send = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === words.send)[0]!
     expect(send.findAllByType(ArrowUp)).toHaveLength(state === 'idle' ? 1 : 0)
     expect(send.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ActivityIndicator')).toHaveLength(state === 'sending' ? 1 : 0)
+    expect(send.findAllByType(AstraGlyph)).toHaveLength(0)
+    expect(send.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Text')).toHaveLength(0)
     expect(StyleSheet.flatten(send.props.style).width).toBe(48)
     TestRenderer.act(() => tree.unmount())
   })

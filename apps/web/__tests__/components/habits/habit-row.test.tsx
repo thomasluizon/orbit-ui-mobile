@@ -67,11 +67,14 @@ describe('HabitRow overflow menus', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
     const items = await screen.findAllByRole('menuitem')
     expect(document.querySelector('.orbit-menu-panel')).toHaveAttribute('aria-label', 'Walk')
-    expect(items.map((item) => item.textContent)).toEqual([
+    const labels = [
       'habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
       'habits.actions.rescheduleAstra', 'common.edit', 'habits.actions.duplicate',
       'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete',
-    ])
+    ]
+    expect(items).toHaveLength(labels.length)
+    for (const [index, label] of labels.entries()) expect(items[index]).toHaveAccessibleName(label)
+    expect(items.map((item) => item.textContent)).toEqual(labels.map((label, index) => index === 3 ? '' : label))
     expect(items.map((item) => item.querySelector('[data-icon]')?.getAttribute('data-icon'))).toEqual([
       'subtask', 'arrows-move', 'player-skip-forward', 'astra', 'pencil',
       'copy', 'checkbox', 'list-tree', 'trash',

@@ -73,10 +73,15 @@ it.each(windows)('centres Todos actions, calendar navigation and figures at $wid
   try {
     const row = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'action-row')[0]!
     expect(StyleSheet.flatten(row.props.style as StyleProp<ViewStyle>).justifyContent).toBe('center')
+    const astraAction = row.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === ptBR.habits.askAstra)[0]!
+    expect(astraAction.findAll(node => String(node.type) === 'Text')).toHaveLength(0)
     const figures = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-figure-default')
     expect(figures).toHaveLength(3)
     for (const figure of figures) expect(StyleSheet.flatten(figure.props.style as StyleProp<ViewStyle>).alignItems).toBe('flex-start')
-    const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.testID, viewport)
+    const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.accessibilityLabel === ptBR.habits.askAstra ? 'astra-action' : host.props.testID, viewport)
+    const actionBounds = boxes.get('astra-action')!
+    expect(actionBounds.width).toBe(48)
+    expect(actionBounds.bottom - actionBounds.top).toBe(48)
     for (const key of ['calendar-header-group', 'calendar-month-navigation', 'calendar-stats']) {
       const box = boxes.get(key)!
       expect(box.left + box.width / 2).toBeCloseTo(viewport.width / 2, 0)
