@@ -58,48 +58,57 @@ pub fn start(app: AppHandle, flow: SharedAuth) {
     });
 }
 
-fn receive(app: &AppHandle, flow: SharedAuth, url: Url) {
-    let origin = flow.lock().unwrap().origin.clone();
-    if let Some(destination) = crate::links::destination(&origin, &app.config().identifier, &url) {
-        let result = crate::lifecycle::show_main(app).and_then(|()| {
-            if let Some(window) = app.get_webview_window("main") {
-                window.navigate(destination)?;
-            }
-            Ok(())
-        });
-        if let Err(error) = result {
-            eprintln!("Cannot open desktop destination: {error}");
-        }
-        return;
-    }
-    let handle = app.clone();
-    tauri::async_runtime::spawn(async move {
-        let claimed = flow.lock().unwrap().claim(&url);
-        let Some((attempt, code)) = claimed else {
-            return;
-        };
-        if let Err(error) = crate::lifecycle::show_main(&handle) {
-            eprintln!("Cannot restore sign-in window: {error}");
-        }
-        let Some(window) = handle.get_webview_window("main") else {
-            return;
-        };
+fn dispatch_link(flow: SharedAuth, route: impl FnOnce(SharedAuth, Url) + Send + 'static) {
+    tauri::async_runtime::spawn_blocking(move || {
         let origin = flow.lock().unwrap().origin.clone();
-        if let Ok(current) = window.cookies_for_url(origin.clone()) {
-            if !flow.lock().unwrap().accepts_session(&attempt, &current) {
+        route(flow, origin);
+    });
+}
+
+fn receive(app: &AppHandle, flow: SharedAuth, url: Url) {
+    let app = app.clone();
+    dispatch_link(flow, move |flow, origin| {
+        if let Some(destination) = crate::links::destination(&origin, &app.config().identifier, &url) {
+            let result = crate::lifecycle::show_main(&app).and_then(|()| {
+                if let Some(window) = app.get_webview_window("main") {
+                    window.navigate(destination)?;
+                }
+                Ok(())
+            });
+            if let Err(error) = result {
+                eprintln!("Cannot open desktop destination: {error}");
+            }
+            return;
+        }
+        let handle = app.clone();
+        tauri::async_runtime::spawn(async move {
+            let claimed = flow.lock().unwrap().claim(&url);
+            let Some((attempt, code)) = claimed else {
+                return;
+            };
+            if let Err(error) = crate::lifecycle::show_main(&handle) {
+                eprintln!("Cannot restore sign-in window: {error}");
+            }
+            let Some(window) = handle.get_webview_window("main") else {
+                return;
+            };
+            let origin = flow.lock().unwrap().origin.clone();
+            if let Ok(current) = window.cookies_for_url(origin.clone()) {
+                if !flow.lock().unwrap().accepts_session(&attempt, &current) {
+                    return;
+                }
+            } else {
+                show_failure(&window, &origin);
                 return;
             }
-        } else {
-            show_failure(&window, &origin);
-            return;
-        }
-        let result = match code {
-            Some(code) => redeem(&window, &flow, &attempt, &code).await,
-            None => Err("Desktop sign-in cancelled or expired"),
-        };
-        if result.is_err() && flow.lock().unwrap().owns(&attempt.state) {
-            show_failure(&window, &origin);
-        }
+            let result = match code {
+                Some(code) => redeem(&window, &flow, &attempt, &code).await,
+                None => Err("Desktop sign-in cancelled or expired"),
+            };
+            if result.is_err() && flow.lock().unwrap().owns(&attempt.state) {
+                show_failure(&window, &origin);
+            }
+        });
     });
 }
 
@@ -205,5 +214,89 @@ fn show_failure(window: &WebviewWindow, origin: &Url) {
         .is_err()
     {
         eprintln!("Cannot show desktop sign-in failure");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::mpsc;
+
+    #[test]
+    fn url_callback_returns_before_a_queued_cookie_read_is_serviced() {
+        let mut auth = AuthFlow::new(
+            "https://app-staging.useorbit.org/".parse().unwrap(),
+            "org.useorbit.desktop.staging",
+        )
+        .unwrap();
+        let browser = auth.begin(Vec::new()).unwrap();
+        let state = browser
+            .query_pairs()
+            .find(|(key, _)| key == "desktopState")
+            .unwrap()
+            .1
+            .into_owned();
+        let callback = format!(
+            "org.useorbit.desktop.staging://auth/callback?state={state}&code={}",
+            "A".repeat(64)
+        )
+        .parse()
+        .unwrap();
+        let (attempt, _) = auth.claim(&callback).unwrap();
+        let flow = Arc::new(Mutex::new(auth));
+        let (queued, cookie_request) = mpsc::channel();
+        let (reply, cookie_reply) = mpsc::channel();
+        let rescue = reply.clone();
+        let worker_flow = flow.clone();
+        let worker = std::thread::spawn(move || {
+            commit_session(
+                &worker_flow,
+                &attempt,
+                &[],
+                || {
+                    queued.send(()).unwrap();
+                    cookie_reply
+                        .recv_timeout(Duration::from_secs(5))
+                        .map(|()| Vec::new())
+                },
+                |_| Ok(()),
+                |_| Ok(()),
+            )
+        });
+        cookie_request.recv_timeout(Duration::from_secs(5)).unwrap();
+        let (returned, callback_returned) = mpsc::channel();
+        let (routed, destination) = mpsc::channel();
+        let event_loop = std::thread::spawn(move || {
+            dispatch_link(flow, move |flow, origin| {
+                let flow = flow.lock().unwrap();
+                assert!(flow.owns(&state));
+                let link = "org.useorbit.desktop.staging://app/calendar"
+                    .parse()
+                    .unwrap();
+                routed
+                    .send(crate::links::destination(
+                        &origin,
+                        "org.useorbit.desktop.staging",
+                        &link,
+                    ))
+                    .unwrap();
+            });
+            returned.send(()).unwrap();
+            let _ = reply.send(());
+        });
+        let responsive = callback_returned.recv_timeout(Duration::from_secs(1));
+        if responsive.is_err() {
+            let _ = rescue.send(());
+        }
+        event_loop.join().unwrap();
+        assert_eq!(worker.join().unwrap(), Ok(true));
+        assert!(
+            responsive.is_ok(),
+            "URL callback blocked event-loop progress while auth awaited a cookie read"
+        );
+        assert_eq!(
+            destination.recv_timeout(Duration::from_secs(5)).unwrap(),
+            Some("https://app-staging.useorbit.org/calendar".parse().unwrap())
+        );
     }
 }
