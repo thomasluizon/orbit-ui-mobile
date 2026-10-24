@@ -15,7 +15,7 @@ The granted Astra conversation canvas defines the item rows, action order and ou
 | Proposed icon | The proposed icon sits beside the title in both locales, without a verb or redundant metadata label. Icon removal retains its summary. |
 | Item editing sheet | Existing typed editing, per-item removal and batch revision remain available. |
 | Irreversible confirmation and identity verification | Reversible previews approve directly; deletion confirmation names the deletion count and act, including in a mixed preview. Existing identity verification remains available. |
-| Unresolved parent | Each affected item shows the existing Parent habit label and a single column of RadioRow options beneath its summary. Only API-offered parents appear; the offered null value uses the existing localized No parent label. Every option retains a 48px target. A choice revises the whole retained batch through its current fingerprint, replacing the preview before approval. Approval and identity verification stay disabled while required choices remain, with a visible localized reason and an approval hint. Busy, stale and terminal items cannot choose. Failed revisions retain the options and recovery; replacement previews discard the previous choices. Resolved and legacy items carry no choice control. |
+| Unresolved parent | Each affected item shows the existing Parent habit label and a single column of RadioRow options beneath its summary. Only API-offered parents appear; the offered null value uses the existing localized No parent label. Every option retains a 48px target. A choice revises the whole retained batch through its current fingerprint, replacing the preview before approval. Approval and identity verification stay disabled while required choices remain, with a visible localized reason and an approval hint. Busy, stale and terminal items cannot choose. Busy rows retain their focused control; success moves focus to the next unresolved group’s checked or first option, or to enabled approval after the last choice. Failure retains focus on the chosen option. Moving focus elsewhere cancels this continuation. Failed revisions retain the options and recovery; replacement previews discard the previous choices. Resolved and legacy items carry no choice control. |
 | Revised preview | Removal and editing update the action count, irreversible marks and deletion count from the returned items. |
 | Terminal operation outcomes | Failed, denied and policy-blocked outcomes retain their status and recovery without pending deletion marks or notes. |
 | Busy, saved and failed preview | Every mutation action disables during work, every row shows progress and the frame announces busy. Completed-target navigation and retry remain available. |
@@ -118,3 +118,11 @@ replacement, rejection, revision failure, resolved names and historical response
 The hermetic Chromium and Yoga cases cover parent controls at phone and desktop
 widths in both locales and at enlarged text. Native fonts and TalkBack remain device
 verification boundaries.
+
+
+RadioRow has a focus-preserving busy state shared by inline choices, Full Edit item
+selection and reminder choices, and Support subjects. Busy rows expose their reason
+and block selection and commits without replacing the focused native control. Static
+refusals keep their existing disabled disclosure. Other RadioGroup consumers do not
+switch rows to disabled during requests; move-parent refusals describe inventory
+constraints rather than request state.

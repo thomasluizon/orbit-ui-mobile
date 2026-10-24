@@ -1087,7 +1087,7 @@ describe('parent choice previews', () => {
     expect(screen.getAllByRole('radio')).toHaveLength(6)
     const approve = () => screen.getByRole('button', { name: locale === 'en' ? 'Create 2 habits' : 'Criar 2 hábitos' })
     expect(approve()).toBeDisabled()
-    expect(approve()).toHaveAccessibleDescription(locale === 'en' ? 'Before approving, choose a parent or “No parent” where options are shown.' : 'Antes de aprovar, escolha um hábito principal ou “Sem hábito principal” onde houver opções.')
+    expect(approve()).toHaveAccessibleDescription(locale === 'en' ? 'Choose an option for each parent before approving.' : 'Escolha uma opção de hábito principal para cada item antes de aprovar.')
     fireEvent.click(screen.getAllByRole('radio', { name: 'Post Lunch' })[0]!)
     expect(revise).toHaveBeenCalledWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [
       { itemId: '0', edits: { parent_habit_id: '11111111-1111-1111-1111-111111111111' } }, { itemId: '1' },
@@ -1175,4 +1175,60 @@ describe('parent choice revision', () => {
     await waitFor(() => expect(revise).toHaveBeenCalledWith(expect.any(String), { previewFingerprint: 'parent-choice-preview', items: [] }))
     expect(confirm).not.toHaveBeenCalled()
   })
+})
+
+
+describe('parent choice keyboard focus', () => {
+  beforeEach(() => { visibleLocale.actual = false; visibleLocale.language = 'en' })
+  it.each([2, 1])('continues after resolving a choice with %i items', async count => {
+    const operation = makeParentChoicePreview(count)
+    let finish!: (response: PendingOperationRevisionResponse) => void
+    const onRevise = vi.fn().mockReturnValue(new Promise<PendingOperationRevisionResponse>(resolve => { finish = resolve }))
+    render(<PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    const chosen = screen.getAllByRole('radio')[0]!
+    chosen.focus()
+    await userEvent.keyboard('{Enter}')
+    expect.soft(chosen).toHaveFocus()
+    expect(onRevise).toHaveBeenCalledOnce()
+    await act(async () => { finish({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, preview: { ...resolveParentChoicePreview(operation, '0', '11111111-1111-1111-1111-111111111111'), changes: [], changeTargetCount: count || 1 }, cancelled: false } }) })
+    await waitFor(() => expect(count === 2 ? screen.getAllByRole('radio')[0] : screen.getByRole('button', { name: /approveCount/ })).toHaveFocus())
+  })
+
+  it('keeps the chosen option focused after a failed revision', async () => {
+    let finish!: (response: PendingOperationRevisionResponse) => void
+    const onRevise = vi.fn().mockReturnValue(new Promise<PendingOperationRevisionResponse>(resolve => { finish = resolve }))
+    render(<PendingOperationCard pendingOperation={makeParentChoicePreview()} onRevise={onRevise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    const chosen = screen.getAllByRole('radio')[0]!
+    chosen.focus()
+    await userEvent.keyboard('{Enter}')
+    expect.soft(chosen).toHaveFocus()
+    await act(async () => { finish({ ok: false, error: 'option_not_offered' }) })
+    expect(screen.getAllByRole('radio')[0]).toHaveFocus()
+  })
+
+  it('preserves focus moved outside the preview during revision', async () => {
+    const operation = makeParentChoicePreview()
+    let finish!: (response: PendingOperationRevisionResponse) => void
+    const onRevise = vi.fn().mockReturnValue(new Promise<PendingOperationRevisionResponse>(resolve => { finish = resolve }))
+    render(<><button>Elsewhere</button><PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} /></>)
+    screen.getAllByRole('radio')[0]!.focus()
+    await userEvent.keyboard('{Enter}')
+    screen.getByRole('button', { name: 'Elsewhere' }).focus()
+    await act(async () => { finish({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, preview: { ...resolveParentChoicePreview(operation, '0', null), changes: [], changeTargetCount: 2 }, cancelled: false } }) })
+    expect(screen.getByRole('button', { name: 'Elsewhere' })).toHaveFocus()
+  })
+})
+
+
+it('edits an offered parent in Full Edit before saving the preview', async () => {
+  visibleLocale.actual = false
+  const operation = makeParentChoicePreview(1)
+  const onRevise = vi.fn().mockResolvedValue({ ok: false, error: 'invalid_revision' })
+  render(<PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+  fireEvent.click(screen.getByRole('button', { name: 'chat.operation.edit' }))
+  const groups = screen.getAllByRole('radiogroup')
+  fireEvent.click(within(groups[groups.length - 1]!).getByRole('radio', { name: 'habits.moveParent.toRoot' }))
+  expect(onRevise).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+  await waitFor(() => expect(onRevise).toHaveBeenCalledWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [{ itemId: '0', edits: { parent_habit_id: null } }] }))
 })

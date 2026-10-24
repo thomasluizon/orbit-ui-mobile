@@ -19,6 +19,8 @@ export interface PreviewItemTitleProps {
 
 export interface PendingOperationButtonSpec {
   disabled?: boolean
+  focusRequest?: number
+  shouldFocus?: () => boolean
   label: string
   hint?: string
   accessibleName?: string
@@ -105,7 +107,7 @@ export interface PendingOperationCardRenderers<Node> {
   stepUp: (props: { message: string; actionLabel: string; onAction: () => void; busy: boolean }) => Node
   verification: (props: PendingOperationVerificationProps) => Node
   editSheet: (props: PendingOperationEditSheetProps) => Node
-  parentChoice: (props: { itemName: string; field: PendingOperationFieldOptions; labels: PendingOperationCardLabels; disabled: boolean; onSelect: (value: unknown) => void }) => Node
+  parentChoice: (props: { itemId: string; focusRequest?: number; shouldFocus?: () => boolean; itemName: string; field: PendingOperationFieldOptions; labels: PendingOperationCardLabels; disabled: boolean; onSelect: (value: unknown, ownsFocus?: () => boolean) => void }) => Node
   removeItem: (label: string, disabled: boolean, onClick: () => void) => Node
   notice: (message: string) => Node
   fragment: (...children: (Node | null | undefined)[]) => Node
@@ -114,6 +116,7 @@ export interface PendingOperationCardRenderers<Node> {
 
 export interface PendingOperationCardActions {
   busy: boolean
+  parentChoiceFocus?: { request: number; shouldFocus: () => boolean }
   hasRequiredChoices?: boolean
   confirmOpen: boolean
   dismissed: boolean
@@ -151,7 +154,7 @@ export interface PendingOperationCardActions {
     startEdit: (itemId: string) => void
     saveEdit: () => Promise<boolean>
     hasRequiredChoices?: boolean
-    chooseParent?: (itemId: string, value: unknown) => Promise<boolean>
+    chooseParent?: (itemId: string, value: unknown, ownsFocus?: () => boolean) => Promise<boolean>
     hasTitleDrafts?: boolean
     setTitleDraft?: (itemId: string, title: string | undefined) => void
     renameItem?: (itemId: string, title: string) => Promise<boolean>
@@ -250,6 +253,8 @@ function pendingActions<Node>(
   })
   const approve = render.button({
     label: labels.approve(count),
+    focusRequest: card.hasRequiredChoices ? undefined : card.parentChoiceFocus?.request,
+    shouldFocus: card.parentChoiceFocus?.shouldFocus,
     hint: card.hasRequiredChoices ? labels.parentChoiceRequired : undefined,
     variant: 'primary',
     disabled: card.busy || revision?.busy === true || revision?.hasTitleDrafts === true || card.hasRequiredChoices === true || (revision?.canRevise === true && revision.items.length === 0),
@@ -270,6 +275,25 @@ function pendingActions<Node>(
   )
 }
 
+function parentChoiceBody<Node>(
+  item: PreviewItem,
+  field: PendingOperationFieldOptions | undefined,
+  firstParentChoiceId: string | undefined,
+  card: PendingOperationCardActions,
+  labels: PendingOperationCardLabels,
+  render: PendingOperationCardRenderers<Node>,
+): Node | undefined {
+  if (!field || card.status != null) return undefined
+  const revision = card.revision
+  return render.parentChoice({
+    itemId: item.itemId, itemName: item.entityName, field, labels,
+    focusRequest: item.itemId === firstParentChoiceId ? card.parentChoiceFocus?.request : undefined,
+    shouldFocus: card.parentChoiceFocus?.shouldFocus,
+    disabled: card.busy || revision?.busy === true || revision?.stale === true || !revision?.canRevise,
+    onSelect: (value, ownsFocus) => { void revision?.chooseParent?.(item.itemId, value, ownsFocus) },
+  })
+}
+
 function previewRows<Node>(
   pendingOperation: PendingAgentOperation,
   card: PendingOperationCardActions,
@@ -279,6 +303,7 @@ function previewRows<Node>(
   const revision = card.revision
   const items = pendingOperation.items?.length ? pendingOperation.items : groupedChanges(pendingOperation.changes ?? [])
   if (!items.length) return null
+  const firstParentChoiceId = items.find((item) => item.fieldOptions?.some((field) => field.field === 'parent_habit_id'))?.itemId
   const results = getPendingOperationItemResults(card.completedOperation)
   const resultsByIndex = new Map(results?.map((result) => [result.index, result]))
   const rows: PendingOperationFrame<Node>['items'][number][] = items.map((item, index) => {
@@ -297,11 +322,7 @@ function previewRows<Node>(
         ? { label: labels.fieldLabels.title!, disabled: card.busy || revision.busy,
             onSave: (title: string) => revision.renameItem!(item.itemId, title),
             onDraftChange: (title: string | undefined) => revision.setTitleDraft?.(item.itemId, title) } : undefined,
-      body: parentChoice && card.status == null ? render.parentChoice({
-        itemName: item.entityName, field: parentChoice, labels,
-        disabled: card.busy || revision?.busy === true || revision?.stale === true || !revision?.canRevise,
-        onSelect: (value) => { void revision?.chooseParent?.(item.itemId, value) },
-      }) : undefined,
+      body: parentChoiceBody(item, parentChoice, firstParentChoiceId, card, labels, render),
       meta: edited ? `${labels.edited} · ${summary}` : summary,
       status,
       irreversible: item.removesData === true && card.status == null,

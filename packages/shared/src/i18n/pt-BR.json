@@ -1980,7 +1980,7 @@
       "retry": "Tentar os {count} que falharam"
     },
     "operation": {
-      "parentChoiceRequired": "Antes de aprovar, escolha um hábito principal ou “Sem hábito principal” onde houver opções.",
+      "parentChoiceRequired": "Escolha uma opção de hábito principal para cada item antes de aprovar.",
       "batchFailed": "Alguns itens não foram salvos. Peça à Astra para tentar só os que falharam.",
       "unavailableRecovery": "Não funcionou. Peça uma nova prévia à Astra.",
       "unknown": "Operação da Astra",

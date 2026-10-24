@@ -14,7 +14,7 @@ import { renderedText } from '../../support/react-test-renderer'
 import { createTokensV2 } from '@/lib/theme'
 import { sheetTestControls } from '../../support/sheet-double'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
-import { __resetTestHostConfig, __setFocusImpl, __setTouchMode } from '../../../test-mocks/react-native'
+import { __resetTestHostConfig, __setFocusImpl, __setTouchMode, __focusHost, __getFocusedNativeTag } from '../../../test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -615,7 +615,7 @@ describe('PendingOperationCard (mobile)', () => {
     for (const row of rows) {
       expect(row.props.accessibilityState).toMatchObject({ disabled: true })
       expect(row.props.accessibilityLabel).toContain('blockFrame.status.acting')
-      expect(row.props.focusable).toBe(false)
+      expect(row.props.focusable).toBe(true)
       expect(row.props.onPress).toBeUndefined()
       TestRenderer.act(() => focusHost(tree, row))
     }
@@ -1145,7 +1145,7 @@ describe('parent choice previews', () => {
     const radios = tree.root.findAll((node: ReactTestInstance) => node.type === ('Pressable' as unknown) && node.props.accessibilityRole === 'radio')
     expect(radios).toHaveLength(6)
     expect(press(tree, locale === 'en' ? 'Create 2 habits' : 'Criar 2 hábitos').props.disabled).toBe(true)
-    expect(renderedText(tree.root)).toContain(locale === 'en' ? 'Before approving, choose a parent or “No parent” where options are shown.' : 'Antes de aprovar, escolha um hábito principal ou “Sem hábito principal” onde houver opções.')
+    expect(renderedText(tree.root)).toContain(locale === 'en' ? 'Choose an option for each parent before approving.' : 'Escolha uma opção de hábito principal para cada item antes de aprovar.')
     await TestRenderer.act(async () => { radios[0]!.props.onPress(); await Promise.resolve() })
     expect(revise).toHaveBeenCalledWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [
       { itemId: '0', edits: { parent_habit_id: '11111111-1111-1111-1111-111111111111' } }, { itemId: '1' },
@@ -1230,4 +1230,55 @@ describe('parent choice revision', () => {
     expect(revise).toHaveBeenCalledWith(expect.any(String), { previewFingerprint: 'parent-choice-preview', items: [] })
     expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
   })
+})
+
+
+describe('parent choice keyboard focus', () => {
+  const radios = (tree: ReactTestRenderer) => tree.root.findAll((node: ReactTestInstance) => node.type === ('Pressable' as unknown) && node.props.accessibilityRole === 'radio')
+  it.each([2, 1, 0])('retains native focus through revision with continuation %i', async count => {
+    __setTouchMode(false)
+    const operation = makeParentChoicePreview(count || 1)
+    let finish!: (response: PendingOperationRevisionResponse) => void
+    const onRevise = vi.fn().mockReturnValue(new Promise<PendingOperationRevisionResponse>(resolve => { finish = resolve }))
+    const { tree } = renderCard(operation, onRevise, undefined, undefined, true)
+    const chosen = radios(tree)[0]!
+    const chosenTag = chosen.props.__nativeTag as number
+    TestRenderer.act(() => { __focusHost(chosenTag) })
+    await TestRenderer.act(async () => { (chosen.props.onPress as () => void)(); await Promise.resolve() })
+    expect.soft(__getFocusedNativeTag()).toBe(chosenTag)
+    expect(onRevise).toHaveBeenCalledOnce()
+    await TestRenderer.act(async () => { finish(count === 0 ? { ok: false, error: 'option_not_offered' } : { ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, preview: { ...resolveParentChoicePreview(operation, '0', '11111111-1111-1111-1111-111111111111'), changes: [], changeTargetCount: count || 1 }, cancelled: false } }); await Promise.resolve() })
+    const destination = count === 2 ? radios(tree)[0]! : count === 0 ? radios(tree)[0]! : tree.root.findAll((node: ReactTestInstance) => node.type === ('Pressable' as unknown) && node.props.accessibilityRole === 'button' && renderedText(node.props.children).includes('chat.operation.approveCount'))[0]!
+    expect(__getFocusedNativeTag()).toBe(destination.props.__nativeTag)
+  })
+})
+
+
+it('preserves native focus moved elsewhere during a parent revision', async () => {
+  __setTouchMode(false)
+  const operation = makeParentChoicePreview()
+  let finish!: (response: PendingOperationRevisionResponse) => void
+  const onRevise = vi.fn().mockReturnValue(new Promise<PendingOperationRevisionResponse>(resolve => { finish = resolve }))
+  let tree!: ReactTestRenderer
+  TestRenderer.act(() => { tree = TestRenderer.create(withFocusProvenance(<><Pressable accessibilityLabel="Elsewhere" /><PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} /></>)) })
+  const chosen = tree.root.findAll((node: ReactTestInstance) => node.type === ('Pressable' as unknown) && node.props.accessibilityRole === 'radio')[0]!
+  TestRenderer.act(() => { __focusHost(chosen.props.__nativeTag as number) })
+  await TestRenderer.act(async () => { (chosen.props.onPress as () => void)(); await Promise.resolve() })
+  const elsewhere = tree.root.findAll((node: ReactTestInstance) => node.type === ('Pressable' as unknown) && node.props.accessibilityLabel === 'Elsewhere')[0]!
+  TestRenderer.act(() => { __focusHost(elsewhere.props.__nativeTag as number) })
+  await TestRenderer.act(async () => { finish({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, preview: { ...resolveParentChoicePreview(operation, '0', null), changes: [], changeTargetCount: 2 }, cancelled: false } }); await Promise.resolve() })
+  expect(__getFocusedNativeTag()).toBe(elsewhere.props.__nativeTag)
+})
+
+
+it('edits an offered parent in Full Edit before saving the preview', async () => {
+  const operation = makeParentChoicePreview(1)
+  const onRevise = vi.fn().mockResolvedValue({ ok: false, error: 'invalid_revision' })
+  const { tree } = renderCard(operation, onRevise)
+  TestRenderer.act(() => { press(tree, 'chat.operation.edit').props.onPress() })
+  const choices = tree.root.findAll((node: ReactTestInstance) => node.type === ('Pressable' as unknown) && node.props.accessibilityRole === 'radio')
+  TestRenderer.act(() => { (choices[choices.length - 1]!.props.onPress as () => void)() })
+  expect(onRevise).not.toHaveBeenCalled()
+  await TestRenderer.act(async () => { press(tree, 'common.save').props.onPress(); await Promise.resolve() })
+  expect(onRevise).toHaveBeenCalledWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [{ itemId: '0', edits: { parent_habit_id: null } }] })
 })
