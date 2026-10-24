@@ -22,7 +22,7 @@ UI `main` is `928d1813`, API `main` is `32774987`, landing `main` is `0d5e3df4`.
 
 | Item | Disposition |
 | --- | --- |
-| `orbit-api#899` (`#1682` zero-target, `46bc7f30`) | The worker's diff deleted `ResolveSearchFilter` and the `meditação` missing-name case, so a search that matches nothing would answer "No habits need changes." A coordinator review round (`note-899-r1.md`, `default`, commit-only) was running at relay: read its commit and report, `body-merge.sh api 899 <log>`, push once, then CI and review, merge, staging API, recheck with `check-1612.mts en` while no open habit lacks an icon (expect the short "every habit already has an icon" answer and no failure), production API (read the `/api/chat` log first), close `#1682`. |
+| `orbit-api#899` (`#1682` zero-target) | Coordinator round pushed at `6d567ac8`: the missing-name answer for a search that matches nothing is restored (`ResolveSearchFilter`), the no-changes answer stays for structural or no-op zero targets, its strings live in `ErrorCopy`; Infrastructure 5,524, Application 7,390, Domain 1,002 exit 0. Wait on CI and review, merge, staging API, recheck with `check-1612.mts en` while no open habit lacks an icon (expect the short "every habit already has an icon" answer, no failure) and a missing-name prompt, production API (read the `/api/chat` log first), close `#1682`. |
 | `orbit-api#898` (`#1675`) | Round 1 pushed at `d887a97c` (the replay ledger is erased with account reset and retention; Infrastructure, Application and Domain exit 0; thread resolved). Wait on CI and a fresh review; merge (it shares no file with `32774987`), then staging and production API with `#899`; then the UI automatic resend half of `#1675`. |
 | `ui#2023` (`#1683`) | The worker shipped only the create-only header and asked for the real payload (NEEDS_DECISION). Capture the staging pending-operation JSON for "Every evening at 9:30 PM: read 20 minutes, stretch for 10 minutes, and lights out at 11 PM, as one evening routine" (demo account, `eval-env`), save it in the scratchpad, then relaunch `#1683` on the same branch with the payload path for the summary and child-row scope; approve new copy with `/second-opinion`. |
 | `ui#2018` (`#1561` step 1) | Round 1 pushed at `cb8ae851` with a base merge of `928d1813` (native iOS OAuth handoff, npm cache bound, `EXPO_NO_METRO_WORKSPACE_ROOT=1`; P1 thread resolved). Wait on CI (watch `iOS simulator compile`) and a fresh review; merge on green. |
@@ -37,7 +37,7 @@ UI `main` is `928d1813`, API `main` is `32774987`, landing `main` is `0d5e3df4`.
 ## Then, in this order
 
 1. Answer any owner message first, in his language, and give each order a ticket or a rescope before the turn ends.
-2. Push `orbit-api#899`'s round; drive `orbit-api#898` and `#899` to merge; staging API, the zero-target check, production API.
+2. Drive `orbit-api#898` and `#899` to merge; staging API, the zero-target check, production API.
 3. Drive the UI pull requests above to merge; web releases; close `#1645`, `#1638`, `#1586`, `#1595`, `#1602` on evidence.
 4. `#1683`'s payload capture and relaunch; `ui#2022`'s round, then the live composition gate in daily windows.
 5. `#1623` and `#1624` (root asset work), then the rest of `## The order`, pool full under the load gate and the disk floor (202 GiB free at this relay).
