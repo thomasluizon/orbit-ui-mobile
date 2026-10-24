@@ -15,7 +15,7 @@ import {
 const { getItemAsyncMock, setItemAsyncMock, deleteItemAsyncMock } = vi.hoisted(() => ({
   getItemAsyncMock: vi.fn(),
   setItemAsyncMock: vi.fn(),
-  deleteItemAsyncMock: vi.fn(),
+  deleteItemAsyncMock: vi.fn<(key: string) => Promise<void>>(),
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => {
@@ -48,7 +48,7 @@ describe('mobile secure store helpers', () => {
     const store = await import('@/lib/secure-store')
     getItemAsyncMock.mockImplementation(() => Promise.resolve(deleteItemAsyncMock.mock.calls.length === 4 ? null : 'old-token'))
     await expect(store.getToken()).resolves.toBeNull()
-    expect(deleteItemAsyncMock.mock.calls.map(([key]: [string]) => key).sort((left, right) => left.localeCompare(right))).toEqual([
+    expect(deleteItemAsyncMock.mock.calls.map(([key]) => key).sort((left, right) => left.localeCompare(right))).toEqual([
       'account_config', 'auth_token', 'google_auth_attempt', 'refresh_token',
     ])
     await store.setToken('new-token')

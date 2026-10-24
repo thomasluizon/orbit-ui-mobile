@@ -1,0 +1,165 @@
+name: iOS Release
+run-name: iOS Release ${{ inputs.app_version }} (${{ inputs.build_number }}) for ${{ inputs.variant }} on ${{ github.ref_name }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: Internal TestFlight app variant
+        type: choice
+        required: true
+        default: staging
+        options: [staging, production]
+      app_version:
+        description: User-facing app version
+        type: string
+        required: true
+      build_number:
+        description: Unused positive iOS build number
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-release-${{ inputs.variant }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Archive and upload to internal TestFlight
+    runs-on: macos-15
+    timeout-minutes: 60
+    environment: ios-${{ inputs.variant }}
+    env:
+      ORBIT_APP_VARIANT: ${{ inputs.variant }}
+      ORBIT_APPLE_TEAM_ID: ${{ vars.ORBIT_APPLE_TEAM_ID }}
+      ORBIT_IOS_APP_STORE_ID: ${{ vars.ORBIT_IOS_APP_STORE_ID }}
+      IOS_PROVISIONING_PROFILE_NAME: ${{ vars.IOS_PROVISIONING_PROFILE_NAME }}
+      EXPO_PUBLIC_API_BASE: ${{ inputs.variant == 'staging' && 'https://api-staging.useorbit.org' || 'https://api.useorbit.org' }}
+      EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}
+      EXPO_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.EXPO_PUBLIC_TURNSTILE_SITE_KEY }}
+      EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_ORG: orbit-ai-habit-tracker
+      SENTRY_PROJECT: orbit-mobile
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Validate the release configuration
+        env:
+          APP_VERSION: ${{ inputs.app_version }}
+          IOS_BUILD_NUMBER: ${{ inputs.build_number }}
+        run: |
+          set -euo pipefail
+          if [ "$ORBIT_APP_VARIANT" = production ] && [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo '::error::Production iOS releases must run from main'
+            exit 1
+          fi
+          for key in ORBIT_APPLE_TEAM_ID ORBIT_IOS_APP_STORE_ID IOS_PROVISIONING_PROFILE_NAME \
+            EXPO_PUBLIC_GOOGLE_CLIENT_ID EXPO_PUBLIC_TURNSTILE_SITE_KEY EXPO_PUBLIC_SENTRY_DSN \
+            SENTRY_AUTH_TOKEN APP_STORE_CONNECT_API_KEY_ID APP_STORE_CONNECT_API_ISSUER_ID; do
+            if [ -z "${!key}" ]; then echo "::error::Missing $key"; exit 1; fi
+          done
+          node apps/mobile/scripts/set-app-version.js "$APP_VERSION" '' "$IOS_BUILD_NUMBER"
+      - name: Install dependencies
+        run: npm ci
+      - name: Select analytics for the variant
+        env:
+          STAGING_POSTHOG_KEY: ${{ vars.STAGING_EXPO_PUBLIC_POSTHOG_KEY }}
+          PRODUCTION_POSTHOG_KEY: ${{ vars.PRODUCTION_EXPO_PUBLIC_POSTHOG_KEY }}
+        run: |
+          if [ "$ORBIT_APP_VARIANT" = staging ]; then
+            echo "EXPO_PUBLIC_POSTHOG_KEY=$STAGING_POSTHOG_KEY" >> "$GITHUB_ENV"
+          else
+            echo "EXPO_PUBLIC_POSTHOG_KEY=$PRODUCTION_POSTHOG_KEY" >> "$GITHUB_ENV"
+          fi
+      - name: Install signing credentials
+        env:
+          IOS_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          for key in IOS_DISTRIBUTION_CERTIFICATE_BASE64 IOS_DISTRIBUTION_CERTIFICATE_PASSWORD \
+            IOS_PROVISIONING_PROFILE_BASE64 APP_STORE_CONNECT_API_PRIVATE_KEY; do
+            if [ -z "${!key}" ]; then echo "::error::Missing $key"; exit 1; fi
+          done
+          umask 077
+          certificate="$RUNNER_TEMP/orbit-distribution.p12"
+          keychain="$RUNNER_TEMP/orbit-signing.keychain-db"
+          keychain_password=$(openssl rand -hex 32)
+          printf '%s' "$IOS_DISTRIBUTION_CERTIFICATE_BASE64" | base64 --decode > "$certificate"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$certificate" -P "$IOS_DISTRIBUTION_CERTIFICATE_PASSWORD" -t cert -f pkcs12 \
+            -k "$keychain" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -k "$keychain_password" "$keychain"
+          security list-keychains -d user -s "$keychain"
+          profiles="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$profiles" "$HOME/.appstoreconnect/private_keys"
+          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$profiles/Orbit.mobileprovision"
+          printf '%s' "$APP_STORE_CONNECT_API_PRIVATE_KEY" > "$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+      - name: Generate the iOS project and install pods
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform ios
+      - name: Archive the embedded app
+        working-directory: apps/mobile
+        run: |
+          set -euo pipefail
+          scheme=Orbit
+          if [ "$ORBIT_APP_VARIANT" = staging ]; then scheme=OrbitStaging; fi
+          xcodebuild -workspace "ios/$scheme.xcworkspace" -scheme "$scheme" -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Orbit.xcarchive" \
+            DEVELOPMENT_TEAM="$ORBIT_APPLE_TEAM_ID" CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY='Apple Distribution' PROVISIONING_PROFILE_SPECIFIER="$IOS_PROVISIONING_PROFILE_NAME" \
+            archive
+      - name: Upload dSYMs to Sentry
+        run: |
+          test -d "$RUNNER_TEMP/Orbit.xcarchive/dSYMs"
+          node_modules/.bin/sentry-cli debug-files upload --type dsym "$RUNNER_TEMP/Orbit.xcarchive/dSYMs"
+      - name: Export the App Store package
+        working-directory: apps/mobile
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import plistlib
+          bundle_id = 'org.useorbit.app.staging' if os.environ['ORBIT_APP_VARIANT'] == 'staging' else 'org.useorbit.app'
+          options = {
+              'method': 'app-store-connect', 'destination': 'export', 'signingStyle': 'manual',
+              'teamID': os.environ['ORBIT_APPLE_TEAM_ID'], 'signingCertificate': 'Apple Distribution',
+              'provisioningProfiles': {bundle_id: os.environ['IOS_PROVISIONING_PROFILE_NAME']},
+              'manageAppVersionAndBuildNumber': False, 'uploadSymbols': True,
+          }
+          with open(os.path.join(os.environ['RUNNER_TEMP'], 'ExportOptions.plist'), 'wb') as output:
+              plistlib.dump(options, output)
+          PY
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Orbit.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/orbit-export"
+      - name: Upload to TestFlight with the App Store Connect API key
+        run: |
+          set -euo pipefail
+          packages=("$RUNNER_TEMP"/orbit-export/*.ipa)
+          test "${#packages[@]}" -eq 1
+          test -f "${packages[0]}"
+          xcrun altool --upload-app --type ios --file "${packages[0]}" \
+            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID"
+      - name: Remove signing credentials
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/orbit-signing.keychain-db" ]; then
+            security delete-keychain "$RUNNER_TEMP/orbit-signing.keychain-db"
+          fi
+          rm -f "$RUNNER_TEMP/orbit-distribution.p12" \
+            "$HOME/Library/MobileDevice/Provisioning Profiles/Orbit.mobileprovision" \
+            "$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"

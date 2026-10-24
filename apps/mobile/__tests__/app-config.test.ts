@@ -133,7 +133,7 @@ describe('Android app variant', () => {
     expect(config.plugins).toContainEqual(['expo-build-properties', expect.objectContaining({ ios: { deploymentTarget: '17.4' } })])
     expect(config.ios.config.usesNonExemptEncryption).toBe(false)
     expect(config.updates.enabled).toBe(false)
-    const configured = IOSConfig.Entitlements.withAssociatedDomains(config)
+    const configured = IOSConfig.Entitlements.withAssociatedDomains({ name: config.name, slug: config.slug, ios: config.ios })
     const generated = await compileModsAsync(configured, { projectRoot: process.cwd(), platforms: ['ios'], introspect: true })
     expect(generated.ios?.entitlements?.['com.apple.developer.associated-domains']).toEqual([`applinks:${host}`, `webcredentials:${host}`])
     expect(config.ios.privacyManifests.NSPrivacyTracking).toBe(false)
