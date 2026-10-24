@@ -14,7 +14,7 @@ function messageTemplate(messageKey: string): string | undefined {
   return typeof template === 'string' ? template : undefined
 }
 
-function fieldLabel(fieldName: string, translate: TranslateResult): string | undefined {
+export function getToolResultFieldLabel(fieldName: string, translate: TranslateResult): string | undefined {
   if (fieldName === 'habitIds' || fieldName === 'habit_ids') return translate('nav.habits')
   const field = fieldName.replaceAll(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
   return Object.hasOwn(en.chat.operation.field, field)
@@ -25,7 +25,7 @@ function mapParameters(
   messageKey: string, parameters: Record<string, string | number>, translate: TranslateResult,
 ): { messageKey: string; parameters: Record<string, string | number> } {
   if (typeof parameters.fieldName === 'string') {
-    const label = fieldLabel(parameters.fieldName, translate)
+    const label = getToolResultFieldLabel(parameters.fieldName, translate)
     if (!label) return {
       messageKey: messageKey.endsWith('Required') ? 'chat.toolResult.needsClarification' : 'chat.toolResult.invalidDetails', parameters: {},
     }

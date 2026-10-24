@@ -1,5 +1,5 @@
-import { resolveToolResultMessage } from './tool-result-message'
-import type { ActionResult, ConflictWarning } from '../types/chat'
+import { getToolResultFieldLabel, resolveToolResultMessage } from './tool-result-message'
+import type { ActionResult, AiActionType, ConflictWarning } from '../types/chat'
 
 interface ActionLabelKeys {
   success: string
@@ -11,22 +11,10 @@ function labelKeys(success: string, failed: string): Readonly<ActionLabelKeys> {
 }
 
 const ACTION_LABEL_KEYS: Readonly<Record<string, Readonly<ActionLabelKeys>>> = {
-  link_goals_to_habit: labelKeys('chat.action.linkedHabitGoals', 'chat.action.linkHabitGoalsFailed'),
   LinkGoalsToHabit: labelKeys('chat.action.linkedHabitGoals', 'chat.action.linkHabitGoalsFailed'),
-  move_habit_parent: labelKeys('chat.action.changedHabitParent', 'chat.action.changeHabitParentFailed'),
   MoveHabitParent: labelKeys('chat.action.changedHabitParent', 'chat.action.changeHabitParentFailed'),
-  update_checklist: labelKeys('chat.action.updatedChecklist', 'chat.action.updateChecklistFailed'),
   UpdateChecklist: labelKeys('chat.action.updatedChecklist', 'chat.action.updateChecklistFailed'),
-  log_habit: labelKeys('chat.action.logged', 'chat.action.logFailed'),
-  create_habit: labelKeys('chat.action.created', 'chat.action.createFailed'),
-  update_habit: labelKeys('chat.action.updated', 'chat.action.updateFailed'),
-  delete_habit: labelKeys('chat.action.deleted', 'chat.action.deleteFailed'),
-  skip_habit: labelKeys('chat.action.skipped', 'chat.action.skipFailed'),
-  create_sub_habit: labelKeys('chat.action.createdSubHabit', 'chat.action.createSubHabitFailed'),
-  suggest_breakdown: labelKeys('chat.action.breakdown', 'chat.action.breakdownFailed'),
-  assign_tags: labelKeys('chat.action.tagsUpdated', 'chat.action.tagsUpdateFailed'),
-  duplicate_habit: labelKeys('chat.action.duplicated', 'chat.action.duplicateFailed'),
-  move_habit: labelKeys('chat.action.moved', 'chat.action.moveFailed'),
+  UnlogHabit: labelKeys('chat.action.unlogged', 'chat.action.unlogFailed'),
   LogHabit: labelKeys('chat.action.logged', 'chat.action.logFailed'),
   CreateHabit: labelKeys('chat.action.created', 'chat.action.createFailed'),
   UpdateHabit: labelKeys('chat.action.updated', 'chat.action.updateFailed'),
@@ -45,31 +33,24 @@ const ACTION_LABEL_KEYS: Readonly<Record<string, Readonly<ActionLabelKeys>>> = {
   UpdateGoalProgress: labelKeys('chat.action.updatedGoalProgress', 'chat.action.updateGoalProgressFailed'),
   UpdateGoalStatus: labelKeys('chat.action.updatedGoalStatus', 'chat.action.updateGoalStatusFailed'),
   LinkHabitsToGoal: labelKeys('chat.action.linkedGoalHabits', 'chat.action.linkGoalHabitsFailed'),
-  create_tag: labelKeys('chat.action.createdTag', 'chat.action.createTagFailed'),
-  update_tag: labelKeys('chat.action.updatedTag', 'chat.action.updateTagFailed'),
-  delete_tag: labelKeys('chat.action.deletedTag', 'chat.action.deleteTagFailed'),
-  reorder_goals: labelKeys('chat.action.reorderedGoals', 'chat.action.reorderGoalsFailed'),
-  reorder_habits: labelKeys('chat.action.reorderedHabits', 'chat.action.reorderHabitsFailed'),
   CreateTag: labelKeys('chat.action.createdTag', 'chat.action.createTagFailed'),
   UpdateTag: labelKeys('chat.action.updatedTag', 'chat.action.updateTagFailed'),
   DeleteTag: labelKeys('chat.action.deletedTag', 'chat.action.deleteTagFailed'),
   ReorderGoals: labelKeys('chat.action.reorderedGoals', 'chat.action.reorderGoalsFailed'),
   ReorderHabits: labelKeys('chat.action.reorderedHabits', 'chat.action.reorderHabitsFailed'),
+} satisfies Record<AiActionType | 'LinkGoalsToHabit' | 'MoveHabitParent' | 'UpdateChecklist', Readonly<ActionLabelKeys>>
+
+function canonicalActionType(type: string): string {
+  return type.split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join('')
 }
 
 const NON_NAVIGABLE_ACTION_TYPES = new Set([
-  'delete_habit',
   'DeleteHabit',
   'DeleteGoal',
-  'delete_sub_habit',
   'DeleteSubHabit',
-  'suggest_breakdown',
   'SuggestBreakdown',
-  'create_tag',
   'CreateTag',
-  'update_tag',
   'UpdateTag',
-  'delete_tag',
   'DeleteTag',
 ])
 
@@ -86,6 +67,7 @@ export interface ActionChipRow {
   messageKey: ActionResult['messageKey']
   params: ActionResult['params']
   hasLegacyText: boolean
+  field?: ActionResult['field']
 }
 
 interface ActionChipTranslations {
@@ -99,6 +81,14 @@ export function resolveActionChipText(row: ActionChipRow, { translate, has }: Ac
     return {
       label: message,
       personal: Boolean(row.params?.entityName || row.params?.referralCode),
+      wrapLabel: true,
+    }
+  }
+  if (row.status === 'failed' && row.field) {
+    const fieldName = getToolResultFieldLabel(row.field, translate)
+    return {
+      label: fieldName ? translate('chat.action.invalidField', { fieldName }) : translate('chat.toolResult.invalidDetails'),
+      personal: false,
       wrapLabel: true,
     }
   }
@@ -129,7 +119,7 @@ export function getActionChipNavigation(action: ActionResult, hasHandler: boolea
     hasHandler &&
     action.status === 'Success' &&
     action.entityId &&
-    !NON_NAVIGABLE_ACTION_TYPES.has(action.type)
+    !NON_NAVIGABLE_ACTION_TYPES.has(canonicalActionType(action.type))
   ) {
     return { navigable: true, entityId: action.entityId, actionType: action.type }
   }
@@ -137,7 +127,7 @@ export function getActionChipNavigation(action: ActionResult, hasHandler: boolea
 }
 
 function getLabelKey(action: ActionResult): string | undefined {
-  const keys = ACTION_LABEL_KEYS[action.type]
+  const keys = ACTION_LABEL_KEYS[canonicalActionType(action.type)]
   if (action.status !== 'Failed') return keys?.success
   if (!action.entityName) return 'chat.action.failed'
   return keys?.failed ?? 'chat.action.failedNamed'
@@ -165,6 +155,7 @@ export function buildActionChipsModel(
       messageKey: action.messageKey,
       params: action.params,
       hasLegacyText: Boolean(action.entityName || action.error),
+      field: action.field,
     })),
     conflicts: visibleActions.flatMap((action, index) =>
       action.conflictWarning?.hasConflict

@@ -1,22 +1,28 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { actionResultSchema } from '@orbit/shared/types/chat'
 import { makeEmojiToolResult, toolResultRegressionCases } from '../../../../../packages/shared/src/test-support/tool-result-fixtures'
+import { makeClarificationPreviewMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { MessageBubble } from '@/components/chat/message-bubble'
 import { ActionChips } from '@/components/chat/action-chips'
+
+const resolveClarification = vi.hoisted(() => vi.fn(() => new Promise(() => {})))
+vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: resolveClarification, isPending: false }) }))
+vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
 describe.each([
   { locale: 'en', messages: en, zero: '0 habits', singular: '1 habit', plural: '185 habits' },
   { locale: 'pt-BR', messages: ptBR, zero: '0 hábitos', singular: '1 hábito', plural: '185 hábitos' },
 ])('ActionChips result messages in $locale', ({ locale, messages, zero, singular, plural }) => {
-  function renderAction(payload: unknown) {
+  function renderAction(payload: unknown, onChipClick?: (entityId: string, actionType: string) => void) {
     return render(<NextIntlClientProvider locale={locale} messages={messages}>
-      <ActionChips actions={[actionResultSchema.parse(payload)]} />
+      <ActionChips actions={[actionResultSchema.parse(payload)]} onChipClick={onChipClick} />
     </NextIntlClientProvider>)
   }
-
 
   it.each(toolResultRegressionCases)('handles $name through the real translator', (scenario) => {
     const { container } = renderAction(scenario.payload)
@@ -47,6 +53,64 @@ describe.each([
     expect(container.querySelector('[data-state="partiallyFailed"]')).toBeInTheDocument()
     expect(container).toHaveTextContent(locale === 'en' ? 'I could not complete that. Try again.' : 'Não consegui concluir. Tente de novo.')
     expect(container).not.toHaveTextContent('database unavailable')
+  })
+
+  it.each([
+    ['UnlogHabit', 'Success', 'Undid log for Leitura', 'Desfez o registro de Leitura'],
+    ['unlog_habit', 'Failed', 'Could not undo the log for Leitura', 'Não foi possível desfazer o registro de Leitura'],
+    ['bulk_log_habits', 'Success', 'Logged Leitura', 'Registrou Leitura'],
+    ['bulk_skip_habits', 'Failed', 'Could not skip Leitura', 'Não foi possível pular Leitura'],
+    ['create_goal', 'Success', 'Created goal: Leitura', 'Meta criada: Leitura'],
+    ['update_goal', 'Failed', 'Could not update goal: Leitura', 'Não foi possível atualizar a meta: Leitura'],
+    ['delete_goal', 'Success', 'Deleted goal: Leitura', 'Meta apagada: Leitura'],
+    ['update_goal_progress', 'Success', 'Updated goal progress: Leitura', 'Progresso da meta atualizado: Leitura'],
+    ['update_goal_status', 'Success', 'Updated goal status: Leitura', 'Status da meta atualizado: Leitura'],
+    ['link_habits_to_goal', 'Success', 'Linked habits to goal: Leitura', 'Hábitos vinculados à meta: Leitura'],
+  ])('localizes the legacy %s %s action', (type, status, english, portuguese) => {
+    const { container } = renderAction({ type, status, entityName: 'Leitura', error: status === 'Failed' ? 'arbitrary engine failure' : undefined })
+    expect(container).toHaveTextContent(locale === 'en' ? english : portuguese)
+  })
+
+  it('keeps a snake case deleted goal from opening a removed target', () => {
+    const open = vi.fn()
+    renderAction({ type: 'delete_goal', status: 'Success', entityName: 'Leitura', entityId: 'removed-goal' }, open)
+    expect(screen.queryByRole('button', { name: messages.chat.action.open })).not.toBeInTheDocument()
+    expect(open).not.toHaveBeenCalled()
+  })
+
+  it.each(['frequency_quantity', 'frequencyQuantity'])('names the localized validation field %s without a message key', (field) => {
+    const { container } = renderAction({ type: 'CreateHabit', status: 'Failed', field })
+    expect(container).toHaveTextContent(locale === 'en' ? 'Check Frequency count and try again.' : 'Confira Número da frequência e tente de novo.')
+    expect(container.querySelector('[data-state="partiallyFailed"]')).toBeInTheDocument()
+  })
+
+  it('keeps an unknown validation field private and renders a localized failure', () => {
+    const { container } = renderAction({ type: 'CreateHabit', status: 'Failed', field: 'private_engine_property' })
+    expect(container).toHaveTextContent(locale === 'en' ? en.chat.toolResult.invalidDetails : ptBR.chat.toolResult.invalidDetails)
+    expect(container).not.toHaveTextContent('private_engine_property')
+  })
+
+  it('keeps a clarification question and its tappable answer separate from failure', () => {
+    const message = makeClarificationPreviewMessage()
+    message.actions![0]!.error = 'Days can only be set when frequency quantity is 1.'
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}><MessageBubble message={message} /></NextIntlClientProvider>)
+    expect(screen.getByRole('heading', { name: messages.habits.clarification.questionFallback })).toBeInTheDocument()
+    expect(container.querySelector('[data-state="partiallyFailed"]')).not.toBeInTheDocument()
+    expect(container.querySelector('[data-status="failed"]')).not.toBeInTheDocument()
+    expect(container).not.toHaveTextContent(message.actions![0]!.error)
+    fireEvent.click(screen.getByRole('button', { name: messages.habits.clarification.quickAction.daily }))
+    expect(resolveClarification).toHaveBeenCalledWith({ operationId: message.actions![0]!.clarificationRequest!.operationId, value: 'daily' })
+  })
+
+  it.each(['Days can only be set when frequency quantity is 1.', 'Unrecognized engine complaint'])('keeps a Failed result a localized failure regardless of error text: %s', error => {
+    const message = makeClarificationPreviewMessage()
+    message.actions = [{ ...message.actions![0]!, status: 'Failed', error, messageKey: 'chat.toolResult.toolFailure', params: {} }]
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}><MessageBubble message={message} /></NextIntlClientProvider>)
+    expect(container.querySelector('[data-state="partiallyFailed"]')).toBeInTheDocument()
+    expect(container).toHaveTextContent(messages.chat.toolResult.toolFailure)
+    expect(container).not.toHaveTextContent(error)
+    expect(screen.queryByRole('button', { name: messages.habits.clarification.quickAction.daily })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: messages.habits.clarification.questionFallback })).not.toBeInTheDocument()
   })
 
   it('preserves user authored names and referral values', () => {
