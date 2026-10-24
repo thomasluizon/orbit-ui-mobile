@@ -16,7 +16,7 @@ type ReactTestRenderer = NativeTestRenderer & { unmount: () => void }
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({ api: vi.fn(), online: true, used: 0, ended: false, epoch: 0 }))
-vi.mock('@/lib/i18n', () => ({ i18n: { language: 'pt-BR' } }))
+vi.mock('i18next', () => ({ default: { language: 'pt-BR' } }))
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.api }))
 vi.mock('@/stores/auth-store', () => ({ useAuthStore: (selector: (state: { isAuthenticated: boolean }) => unknown) => selector({ isAuthenticated: true }) }))
 vi.mock('@/lib/session-epoch', () => ({ getSessionEpoch: () => mocks.epoch }))
