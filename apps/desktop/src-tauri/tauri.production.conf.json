@@ -14,5 +14,6 @@
         "incognito": false
       }
     ]
-  }
+  },
+  "plugins": { "deep-link": { "desktop": { "schemes": ["org.useorbit.desktop"] } } }
 }

@@ -1,15 +1,47 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::sync::{Arc, Mutex};
 use tauri::webview::NewWindowResponse;
+use tauri::Manager;
+
+mod auth;
+mod desktop_login;
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            if let Some(window) = app.get_webview_window("main") {
+                if window.set_focus().is_err() {
+                    eprintln!("Cannot focus desktop window");
+                }
+            }
+        }))
+        .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
+            let tauri::utils::config::WebviewUrl::External(origin) =
+                &app.config().app.windows[0].url
+            else {
+                return Err("Desktop requires a deployed origin".into());
+            };
+            let flow = Arc::new(Mutex::new(auth::AuthFlow::new(
+                origin.clone(),
+                &app.config().identifier,
+            )?));
+            let navigation_flow = flow.clone();
+            let handle = app.handle().clone();
             tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
+                .on_navigation(move |url| {
+                    if navigation_flow.lock().unwrap().intercepts(url) {
+                        desktop_login::start(handle.clone(), navigation_flow.clone());
+                        return false;
+                    }
+                    true
+                })
                 .on_new_window(|url, _features| {
                     open_new_window(url, |url| tauri_plugin_opener::open_url(url, None::<&str>))
                 })
                 .build()?;
+            desktop_login::attach_callbacks(app.handle(), flow)?;
             Ok(())
         })
         .run(context())
