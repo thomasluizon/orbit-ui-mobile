@@ -1,23 +1,27 @@
 import { execFileSync } from 'node:child_process'
 import { appendFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
+import { apiOrigin, readCredentials, refreshCredential } from './credentials.mjs'
 import { prepareCorrection } from './setup.mjs'
 import { summarize, writeReport } from './report.mjs'
 
 export function beforeAll({ suite }) {
-  const required = ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_RESET_SCRIPT',
+  const required = ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_CREDENTIALS_FILE', 'ORBIT_EVAL_RESET_SCRIPT',
     'ORBIT_EVAL_HABIT_ID', 'ORBIT_EVAL_SECOND_HABIT_ID', 'ORBIT_EVAL_OVERDUE_DATE',
-    ...suite.tests.map((test) => test.vars.credentialKey)]
+  ]
   for (const key of new Set(required)) {
     if (!process.env[key]) throw new Error(`Missing required environment variable: ${key}`)
   }
-  const endpoint = new URL(process.env.ORBIT_EVAL_BASE_URL)
-  if (endpoint.protocol !== 'https:' || endpoint.username || endpoint.password || endpoint.search || endpoint.hash
-    || endpoint.pathname !== '/') throw new Error('ORBIT_EVAL_BASE_URL must be an HTTPS origin without credentials or a path.')
+  apiOrigin()
+  const credentials = readCredentials()
+  for (const test of suite.tests) {
+    if (!credentials[test.vars.credentialKey]?.refreshToken) throw new Error(`Missing refresh credential: ${test.vars.credentialKey}`)
+  }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(process.env.ORBIT_EVAL_OVERDUE_DATE)) throw new Error('ORBIT_EVAL_OVERDUE_DATE must be an ISO calendar date.')
 }
 
-export function beforeEach({ test }) {
+export async function beforeEach({ test }) {
+  await refreshCredential(test.vars.credentialKey)
   try {
     execFileSync(process.env.ORBIT_EVAL_RESET_SCRIPT, [test.metadata.id], { stdio: 'ignore', timeout: 60000 })
   } catch {

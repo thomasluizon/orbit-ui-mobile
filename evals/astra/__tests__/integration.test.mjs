@@ -8,6 +8,7 @@ import { parse, stringify } from 'yaml'
 import { loadApiProvider } from 'promptfoo'
 import { beforeAll, beforeEach } from '../hooks.mjs'
 import { behavior } from '../assertions.mjs'
+import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, toolCall } from './fixtures/producer.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -24,6 +25,7 @@ describe('real promptfoo CLI with an offline provider', () => {
     [false, false, 'fail', 'prose-first'], [false, false, 'pass', 'block-only'], [false, false, 'fail', 'repeated-figure'],
     [false, false, 'incomplete', 'missing-composition'], [false, false, 'incomplete', 'skipped-composition'],
   ])('runs the production assertions and pass^3 reporter; broken=%s, noTrace=%s, status=%s, mode=%s', (broken, noTrace, status, responseMode) => {
+    offlineCredentials()
     const directory = mkdtempSync(resolve(tmpdir(), 'astra-eval-'))
     scratch.push(directory)
     const configPath = resolve(directory, 'config.yaml')
@@ -37,7 +39,7 @@ describe('real promptfoo CLI with an offline provider', () => {
       providers: [{ id: `file://${root}/__tests__/fixtures/target.mjs`, config: { tools: catalog } }],
       defaultTest: { vars: configuration.defaultTest.vars, assert: assertions, options: { provider: `file://${root}/__tests__/fixtures/grader.mjs` } },
       tests: [{ description: 'Offline Water case', metadata: { id: 'offline-water' }, vars: {
-        input: 'Mark Water done', broken, noTrace, responseMode,
+        input: 'Mark Water done', credentialKey: 'ORBIT_EVAL_TOKEN', broken, noTrace, responseMode,
         ...(responseMode && ['prose-first', 'block-only', 'repeated-figure'].includes(responseMode) ? {
           clientContext: { supportsParts: true, partKinds: ['habitList'], supportsHabitListCard: true }, composition: { mode: 'data', kinds: ['habitList'] },
         } : {}), rubric: 'Describe Water only.',
@@ -45,7 +47,7 @@ describe('real promptfoo CLI with an offline provider', () => {
       } }],
       extensions: [`file://${root}/hooks.mjs:beforeEach`, `file://${root}/hooks.mjs:afterAll`],
     }))
-    const run = spawnSync(process.execPath, [cli, 'eval', '--config', configPath, '--no-write', '--no-share', '--no-cache', '--no-table'], {
+    const run = spawnSync(process.execPath, ['--import', resolve(root, '__tests__/fixtures/auth-preload.mjs'), cli, 'eval', '--config', configPath, '--no-write', '--no-share', '--no-cache', '--no-table'], {
       cwd: directory, encoding: 'utf8', timeout: 45000,
       env: { ...process.env, ORBIT_EVAL_RESET_SCRIPT: '/usr/bin/true', PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'),
         PROMPTFOO_DISABLE_TELEMETRY: '1', PROMPTFOO_DISABLE_SHARING: '1' },
@@ -65,10 +67,11 @@ describe('HTTP provider wiring without a server', () => {
   it.each([
     ['ORBIT_EVAL_TOKEN', 200], ['ORBIT_EVAL_FREE_TOKEN', 200], ['ORBIT_EVAL_BUDGET_TOKEN', 403],
   ])('renders multipart and the selected credential: %s, status=%s', async (credentialKey, status) => {
-    vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
+    offlineCredentials()
     vi.stubEnv(credentialKey, 'offline-token')
     let requests = 0
     vi.stubGlobal('fetch', async (url, options) => {
+      if (new URL(url).pathname === '/api/auth/refresh') return refreshResponse()
       requests++
       const request = new Request(url, options)
       expect(request.url).toBe('https://astra.invalid/api/chat')
@@ -87,7 +90,7 @@ describe('HTTP provider wiring without a server', () => {
         transformResponse: `file://${root}/response.mjs`,
     } } })
     vi.stubEnv('ORBIT_EVAL_RESET_SCRIPT', '/usr/bin/true')
-    const { test } = beforeEach({ test: { metadata: { id: 'offline-http' }, vars: { credentialKey,
+    const { test } = await beforeEach({ test: { metadata: { id: 'offline-http' }, vars: { credentialKey,
       expectedHttpStatus: status, expectations: status === 403 ? { allowed: [] }
         : { required: [{ name: 'query_habits', arguments: { date: 'today' } }] },
     } } })
@@ -115,6 +118,7 @@ describe('corpus and execution constraints', () => {
     for (const scenario of scenarios) expect(scenario.vars.rubric.trim()).not.toBe('')
   })
   it('requires credentials and an HTTPS origin before requests', () => {
+    offlineCredentials()
     for (const key of ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_RESET_SCRIPT', 'ORBIT_EVAL_HABIT_ID',
       'ORBIT_EVAL_SECOND_HABIT_ID', 'ORBIT_EVAL_OVERDUE_DATE', 'ORBIT_EVAL_TOKEN', 'ORBIT_EVAL_FREE_TOKEN', 'ORBIT_EVAL_BUDGET_TOKEN']) {
       vi.stubEnv(key, key === 'ORBIT_EVAL_BASE_URL' ? 'https://astra.invalid' : key === 'ORBIT_EVAL_OVERDUE_DATE' ? '2026-01-01' : 'offline')
@@ -122,16 +126,19 @@ describe('corpus and execution constraints', () => {
     expect(() => beforeAll({ suite: { tests: scenarios } })).not.toThrow()
     vi.stubEnv('ORBIT_EVAL_BASE_URL', 'http://astra.invalid')
     expect(() => beforeAll({ suite: { tests: scenarios } })).toThrow('HTTPS')
-    vi.stubEnv('ORBIT_EVAL_TOKEN', '')
+    vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
+    writeFileSync(process.env.ORBIT_EVAL_CREDENTIALS_FILE, '{}')
     expect(() => beforeAll({ suite: { tests: scenarios } })).toThrow('ORBIT_EVAL_TOKEN')
   })
-  it('resets before each attempt and resolves IDs in prompts and expectations', () => {
+  it('resets before each attempt and resolves IDs in prompts and expectations', async () => {
+    offlineCredentials()
+    vi.stubGlobal('fetch', async () => refreshResponse())
     vi.stubEnv('ORBIT_EVAL_RESET_SCRIPT', '/usr/bin/true')
     vi.stubEnv('ORBIT_EVAL_HABIT_ID', 'actual-water')
     const test = structuredClone(scenarios.find((scenario) => scenario.metadata.id === 'single-log-en'))
-    expect(beforeEach({ test }).test.vars.expectations.required[0].arguments.habit_id).toBe('actual-water')
+    expect((await beforeEach({ test })).test.vars.expectations.required[0].arguments.habit_id).toBe('actual-water')
     expect(test.vars.input).toContain('actual-water')
     vi.stubEnv('ORBIT_EVAL_RESET_SCRIPT', '/usr/bin/false')
-    expect(() => beforeEach({ test })).toThrow('Fixture reset failed')
+    await expect(beforeEach({ test })).rejects.toThrow('Fixture reset failed')
   })
 })

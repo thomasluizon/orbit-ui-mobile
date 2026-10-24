@@ -1,13 +1,16 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { beforeEach } from '../hooks.mjs'
+import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, preview, toolCall } from './fixtures/producer.mjs'
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 it.each([false, true])('verifies the real setup turn before a correction; wrongRequest=%s', async (wrongRequest) => {
+  offlineCredentials()
   vi.stubEnv('ORBIT_EVAL_RESET_SCRIPT', '/usr/bin/true')
   vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
   let setupRequestId
   vi.stubGlobal('fetch', async (url, options) => {
+    if (new URL(url).pathname === '/api/auth/refresh') return refreshResponse()
     const request = new Request(url, options)
     setupRequestId = request.headers.get('x-orbit-request-id')
     const form = await request.formData()
