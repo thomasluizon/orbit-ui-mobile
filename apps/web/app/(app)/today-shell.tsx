@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { buildTodayHeaderMenuItems, selectTodayHeaderMenuItem, type TodayDateControlProps as SharedTodayDateControlProps } from '@orbit/shared/utils/today-header-menu'
 import { useUIStore } from '@/stores/ui-store'
 import { MoreVertical, ChevronLeft, ChevronRight, Search } from '@/components/ui/icons'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
 import { ShellHeader } from '@/components/shell/shell-header'
@@ -28,27 +28,31 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
   const [frequencyMenu, setFrequencyMenu] = useState(false)
   const menuId = useId()
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
-  return <DestinationHeaderRow data-today-header-actions="" gap={4} className="flex-wrap">
+  function changeMenuOpen(nextOpen: boolean) {
+    if (nextOpen) setFrequencyMenu(false)
+    setMenuOpen(nextOpen)
+  }
+  return <Menu.Root open={menuOpen} onOpenChange={changeMenuOpen}><DestinationHeaderRow data-today-header-actions="" gap={4} className="flex-wrap">
 
     <div className="flex-1" />
     <div className="flex shrink-0 items-center gap-[4px]">
       <button type="button" aria-label={props.searchLabel} aria-expanded={props.searchOpen} aria-controls={props.searchControlsId} onClick={props.onSearch}
         className={DATE_ICON_BUTTON_CLASS_NAME}><Search size={20} aria-hidden="true" /></button>
-      <button ref={menuAnchorRef} type="button" aria-label={props.moreLabel} aria-expanded={menuOpen}
-        aria-controls={menuId} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={() => { setFrequencyMenu(false); setMenuOpen((open) => !open) }}>
+      <Menu.Trigger asChild><button ref={menuAnchorRef} type="button" aria-label={props.moreLabel} aria-expanded={menuOpen}
+        aria-controls={menuId} className={DATE_ICON_BUTTON_CLASS_NAME}>
         <MoreVertical size={20} strokeWidth={1.8} aria-hidden="true" />
-      </button>
+      </button></Menu.Trigger>
       <div className="lg:hidden"><NotificationBell /></div>
     </div>
-    <Menu key={frequencyMenu ? 'frequency' : 'options'} id={menuId} open={menuOpen} anchorRef={menuAnchorRef}
+    <Menu.Content key={frequencyMenu ? 'frequency' : 'options'} id={menuId}
       title={frequencyMenu ? t('habits.frequencyFilter') : props.moreLabel}
       shortTitle={frequencyMenu ? t('common.options') : props.menuHeading}
       items={buildTodayHeaderMenuItems(props, frequencyMenu, frequencyUnit, t)}
-      onClose={() => setMenuOpen(false)} onSelect={(id) => selectTodayHeaderMenuItem(id, frequencyMenu, frequencyUnit, {
+      onSelect={(id) => selectTodayHeaderMenuItem(id, frequencyMenu, frequencyUnit, {
         ...props, setFrequencyUnit: (value) => setFilters({ frequencyUnit: value }),
         openFrequencyMenu: () => { setFrequencyMenu(true); setMenuOpen(true) },
       })} />
-  </DestinationHeaderRow>
+  </DestinationHeaderRow></Menu.Root>
 }
 
 export function TodayDateControl(props: Readonly<TodayDateControlProps>) {

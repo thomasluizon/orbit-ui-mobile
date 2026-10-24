@@ -1,6 +1,6 @@
 import { SPACING, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
-import { useEffect, useId, useState } from 'react'
-import { Linking, Modal, ScrollView, Text, View } from 'react-native'
+import { useState } from 'react'
+import { Linking, ScrollView, Text, View } from 'react-native'
 import Constants from 'expo-constants'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -11,7 +11,7 @@ import { getAppVersion } from '@/lib/app-version'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useVersionGateStore } from '@/stores/version-gate-store'
-import { useUIStore } from '@/stores/ui-store'
+import { NativeDialog } from '@/components/ui/native-dialog'
 
 export function UpgradeRequiredScreen() {
   const { t } = useTranslation()
@@ -20,14 +20,6 @@ export function UpgradeRequiredScreen() {
   const { currentScheme, currentTheme } = useAppTheme()
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
-  const overlayId = useId()
-  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
-  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
-  useEffect(() => {
-    if (!upgradeRequired) return
-    registerOpenOverlay(overlayId)
-    return () => unregisterOpenOverlay(overlayId)
-  }, [overlayId, registerOpenOverlay, unregisterOpenOverlay, upgradeRequired])
   if (!upgradeRequired) return null
   const tokens = createTokensV2(currentScheme, currentTheme)
   const currentVersion = getAppVersion()
@@ -43,7 +35,7 @@ export function UpgradeRequiredScreen() {
     finally { setBusy(false) }
   }
   return (
-    <Modal visible animationType="none" onRequestClose={() => {}}>
+    <NativeDialog open title={t('forceUpdate.title')} onOpenChange={() => {}}>
       <SafeAreaView style={{ flex: 1, backgroundColor: tokens.bg }}>
         <ScrollView contentContainerStyle={{ alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH, flexGrow: 1, justifyContent: 'center', gap: 24, padding: SPACING.s32 }}>
           <OrbitMark size={40} />
@@ -55,6 +47,6 @@ export function UpgradeRequiredScreen() {
           <View style={{ alignItems: 'flex-start' }}><PillButton loading={busy} onClick={() => { void openStore() }}>{t('forceUpdate.cta')}</PillButton></View>
         </ScrollView>
       </SafeAreaView>
-    </Modal>
+    </NativeDialog>
   )
 }

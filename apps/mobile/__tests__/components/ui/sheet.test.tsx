@@ -2,7 +2,7 @@ import { PersonalText } from '@/components/ui/personal-text'
 import { expectPressFill } from '../../support/press-feedback'
 import { createTokensV2 } from '@/lib/theme'
 import React from 'react'
-import { Pressable, StyleSheet, Text } from 'react-native'
+import { AccessibilityInfo, Pressable, StyleSheet, Text } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import {
@@ -29,6 +29,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { measureProfileRow } from '../../support/profile-row-geometry'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DescriptionViewer } from '@/components/habits/description-viewer'
+import { OverlayHost } from '@/components/ui/overlay-host'
+import { focusHost, withFocusProvenance } from '@/__tests__/support/focus-provenance'
 import type { HabitFormHelpers, HabitFormOptions } from '@/hooks/use-habit-form'
 
 vi.unmock('@/components/ui/sheet')
@@ -698,6 +700,41 @@ describe('Sheet close path (mobile)', () => {
     dismiss.mockReset()
     dismiss.mockResolvedValue(undefined)
     didDismiss.reset()
+  })
+
+  it.each([false, true])('restores trigger focus after native dismissal unless replaced=%s', async (replaced) => {
+    vi.useFakeTimers()
+    const restoreFocus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus')
+    let tree: any
+    function Host() {
+      const [open, setOpen] = React.useState(false)
+      const { sheetRef, closeSheet } = useSheetHost()
+      return <OverlayHost>
+        <Pressable accessibilityLabel="Open" onPress={() => setOpen(true)}><Text>Open</Text></Pressable>
+        {open ? <Sheet ref={sheetRef} open onClose={() => setOpen(false)}>
+          <Pressable accessibilityLabel="Close" onPress={() => closeSheet()}><Text>Close</Text></Pressable>
+        </Sheet> : null}
+      </OverlayHost>
+    }
+    await TestRenderer.act(() => { tree = TestRenderer.create(withFocusProvenance(<Host />)) })
+    try {
+      const trigger = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'Open')[0]
+      await TestRenderer.act(() => { focusHost(tree, trigger); trigger.props.onPress() })
+      const close = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'Close')[0]
+      await TestRenderer.act(() => {
+        if (replaced) useUIStore.getState().registerOpenOverlay('menu:replacement')
+        close.props.onPress()
+      })
+      expect(restoreFocus).not.toHaveBeenCalled()
+      await TestRenderer.act(() => { didDismiss.complete() })
+      await TestRenderer.act(() => { vi.advanceTimersByTime(50) })
+      if (replaced) expect(restoreFocus).not.toHaveBeenCalled()
+      else expect(restoreFocus).toHaveBeenCalledWith(trigger.props.__nativeTag)
+    } finally {
+      await TestRenderer.act(() => { tree.unmount(); useUIStore.getState().unregisterOpenOverlay('menu:replacement') })
+      restoreFocus.mockRestore()
+      vi.useRealTimers()
+    }
   })
 
   it('reports close only once the native dismissal completes', async () => {

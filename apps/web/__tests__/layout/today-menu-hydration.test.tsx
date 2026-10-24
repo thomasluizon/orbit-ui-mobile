@@ -1,4 +1,5 @@
 import { act, fireEvent, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { hydrateRoot, type Root } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -60,8 +61,7 @@ describe('Today list options hydration', () => {
       await act(async () => { root = hydrateRoot(container, surface('en')) })
       expect(within(container).queryByRole('menu')).toBeNull()
       expect(trigger.closest('[data-shell-header]')).not.toBeNull()
-      fireEvent.pointerDown(trigger)
-      fireEvent.click(trigger)
+      await userEvent.click(trigger)
       const menu = await within(document.body).findByRole('menu', { name: en.habits.listOptions })
       for (const isFetching of [true, false]) {
         await act(async () => { root?.render(surface('en', isFetching)) })
@@ -95,8 +95,8 @@ describe('Today list options hydration', () => {
     try {
       await page.exposeFunction('pressTodayOptions', async () => {
         presses += 1
-        fireEvent.pointerDown(trigger)
-        fireEvent.click(trigger)
+        await userEvent.click(trigger)
+        await within(document.body).findByRole('menu', { name: words.habits.listOptions })
         await synchronize()
       })
       await synchronize()

@@ -19,7 +19,7 @@ beforeEach(() => {
 afterEach(() => sheetTestControls.defer(false))
 
 function openOptions() {
-  fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+  fireEvent.pointerDown(screen.getByRole('button', { name: 'calendar.options' }), { button: 0, ctrlKey: false })
   return screen.getByRole('dialog', { name: 'calendar.options' })
 }
 

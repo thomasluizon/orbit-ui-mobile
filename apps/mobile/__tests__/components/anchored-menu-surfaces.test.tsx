@@ -4,14 +4,15 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
 import { TodayDateControl } from '@/components/today/today-date-control'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
-import { Menu, useAnchoredMenu } from '@/components/ui/menu'
-import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
+import * as Menu from '@/components/ui/dropdown-menu'
+import { PortalHost } from '@rn-primitives/portal'
+import { BackHandler, __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
 interface RenderedNode {
   props: { accessibilityLabel?: string; open?: boolean; items: { id: string }[]; onPress: () => void; onClose: () => void; onDidDismiss: () => void; onRequestClose: () => void }
-  findAllByType: (type: string | typeof Menu | typeof TrueSheet) => RenderedNode[]
+  findAllByType: (type: string | typeof Menu.Content | typeof Menu.Root | typeof TrueSheet) => RenderedNode[]
 }
 interface RenderedTree {
   root: RenderedNode
@@ -51,7 +52,7 @@ function trigger(tree: RenderedTree, label: string): RenderedNode {
 }
 
 function openMenus(tree: RenderedTree): RenderedNode[] {
-  return tree.root.findAllByType(Menu).filter((node) => node.props.open)
+  return tree.root.findAllByType(Menu.Root).filter((node) => node.props.open).map((node) => node.findAllByType(Menu.Content)[0]!)
 }
 
 const cases = (['sheet', 'anchored'] as const).flatMap((presentation) =>
@@ -61,7 +62,7 @@ describe('redesign menu ownership on Android', () => {
   it.each(cases)('replaces the $phase $presentation controls menu with a row and back', async ({ presentation, phase }) => {
     __setWindowDimensions({ width: presentation === 'sheet' ? 412 : 1280, height: 915, scale: 1, fontScale: 1 })
     let tree!: RenderedTree
-    await TestRenderer.act(() => { tree = TestRenderer.create(<>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<><PortalHost />
       <TodayControls />
       <HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onEdit: vi.fn() }} />
     </>) as unknown as RenderedTree })
@@ -78,7 +79,7 @@ describe('redesign menu ownership on Android', () => {
         expect(openMenus(tree)).toHaveLength(1)
         if (phase === 'reopened') await TestRenderer.act(() => complete())
       } else {
-        await TestRenderer.act(() => tree.root.findAllByType('Modal')[0]!.props.onRequestClose())
+        await TestRenderer.act(() => { BackHandler.emitBackPress() })
         expect(openMenus(tree)).toHaveLength(0)
       }
       if (phase === 'reopened') await TestRenderer.act(() => trigger(tree, label).props.onPress())
@@ -94,7 +95,7 @@ describe('redesign menu ownership on Android', () => {
       expect(openMenus(tree)).toHaveLength(1)
       expect(openMenus(tree)[0]!.props.items.map((item: { id: string }) => item.id)).toContain('select')
       expect(JSON.stringify(tree.toJSON())).not.toContain('common.edit')
-      expect(tree.root.findAllByType('Modal')).toHaveLength(presentation === 'anchored' ? 1 : 0)
+      expect(tree.root.findAllByType('Modal')).toHaveLength(0)
       for (const complete of pendingDismissals) await TestRenderer.act(() => complete())
       expect(openMenus(tree)).toHaveLength(1)
       expect(openMenus(tree)[0]!.props.items.map((item: { id: string }) => item.id)).toContain('select')
@@ -113,7 +114,7 @@ describe('redesign menu ownership on Android', () => {
       </>
     }
     let tree!: RenderedTree
-    await TestRenderer.act(() => { tree = TestRenderer.create(<Rows showFirst />) as unknown as RenderedTree })
+    await TestRenderer.act(() => { tree = TestRenderer.create(<><Rows showFirst /><PortalHost /></>) as unknown as RenderedTree })
     let pendingDismissal: (() => void) | undefined
     const triggers = () => tree.root.findAllByType('Pressable').filter((node) => node.props.accessibilityLabel === 'habits.actions.more')
     try {
@@ -126,7 +127,7 @@ describe('redesign menu ownership on Android', () => {
           expect(openMenus(tree)).toHaveLength(1)
           if (phase === 'reopened') await TestRenderer.act(() => pendingDismissal?.())
         } else {
-          await TestRenderer.act(() => tree.root.findAllByType('Modal')[0]!.props.onRequestClose())
+          await TestRenderer.act(() => { BackHandler.emitBackPress() })
           expect(openMenus(tree)).toHaveLength(0)
         }
         if (phase === 'reopened') await TestRenderer.act(() => triggers()[0]!.props.onPress())
@@ -135,7 +136,7 @@ describe('redesign menu ownership on Android', () => {
       expect(openMenus(tree)).toHaveLength(1)
       expect(JSON.stringify(tree.toJSON())).toContain('habits.actions.delete')
       expect(JSON.stringify(tree.toJSON())).not.toContain('common.edit')
-      await TestRenderer.act(() => tree.update(<Rows showFirst={false} />))
+      await TestRenderer.act(() => tree.update(<><Rows showFirst={false} /><PortalHost /></>))
       await TestRenderer.act(() => triggers()[1]!.props.onPress())
       expect(openMenus(tree)).toHaveLength(1)
       expect(JSON.stringify(tree.toJSON())).toContain('habits.actions.duplicate')
@@ -147,10 +148,26 @@ describe('redesign menu ownership on Android', () => {
     }
   })
 
+  it('keeps frequency choices open and resets options after native dismissal', async () => {
+    __setWindowDimensions({ width: 1280, height: 915, scale: 1, fontScale: 1 })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<><TodayControls /><PortalHost /></>) })
+    try {
+      const more = () => tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'List options')[0]!
+      await TestRenderer.act(() => (more().props.onPress as () => void)())
+      const frequency = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'menuitem' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === 'habits.frequencyFilter').length > 0)[0]!
+      await TestRenderer.act(() => (frequency.props.onPress as () => void)())
+      expect(tree.root.findAll((node) => node.type === Menu.Content)[0]!.props.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'Day' })]))
+      await TestRenderer.act(() => { BackHandler.emitBackPress() })
+      await TestRenderer.act(() => (more().props.onPress as () => void)())
+      expect(tree.root.findAll((node) => node.type === Menu.Content)[0]!.props.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'refresh' })]))
+    } finally { await TestRenderer.act(() => tree.update(<></>)) }
+  })
+
   it('ignores native dismissal from a replaced sheet after the same row reopens', async () => {
     __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
     let tree!: RenderedTree
-    await TestRenderer.act(() => { tree = TestRenderer.create(<>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<><PortalHost />
       <TodayControls />
       <HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onEdit: vi.fn() }} />
     </>) as unknown as RenderedTree })
@@ -173,23 +190,4 @@ describe('redesign menu ownership on Android', () => {
     }
   })
 
-  it('does not let a stale unmounted close release a replacement owner', async () => {
-    const controllers: ReturnType<typeof useAnchoredMenu>[] = []
-    function Owner({ index }: { index: number }) {
-      const menu = useAnchoredMenu()
-      React.useEffect(() => { controllers[index] = menu })
-      return null
-    }
-    let tree!: RenderedTree
-    await TestRenderer.act(() => { tree = TestRenderer.create(<Owner index={0} />) as unknown as RenderedTree })
-    await TestRenderer.act(() => controllers[0]!.open())
-    const staleClose = controllers[0]!.close
-    await TestRenderer.act(() => tree.update(<><Owner key="b" index={1} /><Owner key="c" index={2} /></>))
-    await TestRenderer.act(() => controllers[1]!.open())
-    await TestRenderer.act(() => staleClose())
-    await TestRenderer.act(() => controllers[2]!.open())
-    expect(controllers[1]!.visible).toBe(false)
-    expect(controllers[2]!.visible).toBe(true)
-    await TestRenderer.act(() => tree.unmount())
-  })
 })

@@ -3,7 +3,7 @@ import { resolveComposerDockSuggestions } from '@orbit/shared/chat'
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { BackHandler, Platform, StyleSheet, View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { PortalHost } from '@rn-primitives/portal'
+import { OverlayHost } from '@/components/ui/overlay-host'
 import {
   DarkTheme,
   DefaultTheme,
@@ -506,11 +506,11 @@ function RootLayoutContent() {
           { backgroundColor: surfaces.screen.backgroundColor },
         ]}
       >
-        <RootLayoutNav />
-        <ThrottleScreen />
-        <UpgradeRequiredScreen />
-        {/* WHY: Root portals inherit app providers and render last: https://rnprimitives.com/portal/ */}
-        <PortalHost />
+        <OverlayHost>
+          <RootLayoutNav />
+          <ThrottleScreen />
+          <UpgradeRequiredScreen />
+        </OverlayHost>
       </FocusProvenanceView>
     </NavigationThemeProvider>
   )

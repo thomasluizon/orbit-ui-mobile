@@ -20,13 +20,10 @@ export function bundleHabitRowMetadata() {
           actions={{ onEdit: () => {}, onToggleSelection: () => {}, onToggleExpand: () => {} }} />))}</>;
     }
     createRoot(root).render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC"><Rows /></NextIntlClientProvider>);`
-  const options = { stdin: { contents, resolveDir: process.cwd(), loader: 'tsx' }, bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic', define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' } }
+  const options = { stdin: { contents, resolveDir: process.cwd(), loader: 'tsx' }, bundle: true, write: false, format: 'iife', platform: 'browser', conditions: ['browser'], alias: { '@sentry/nextjs': '@sentry/react' }, jsx: 'automatic', define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' } }
   return execFileSync(process.execPath, ['--input-type=module', '-e', `
     import { build } from 'esbuild';
-    const result = await build({ ...${JSON.stringify(options)}, plugins: [{ name: 'row-menu-boundary', setup(builder) {
-      builder.onResolve({ filter: /^@\\/components\\/ui\\/menu$/ }, args => ({ path: args.path, namespace: 'boundary' }));
-      builder.onLoad({ filter: /.*/, namespace: 'boundary' }, () => ({ contents: 'export const Menu = () => null;', loader: 'js' }));
-    } }] });
+    const result = await build(${JSON.stringify(options)});
     process.stdout.write(result.outputFiles[0].text);
   `], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
 }

@@ -88,8 +88,8 @@ describe('page content centring and add control clearance', () => {
       '@sentry/nextjs': 'export const captureException = () => {};',
       '@/stores/auth-store': 'import { create } from "zustand"; export const useAuthStore = create(() => ({ isAuthenticated: true, user: { userId: "shell-account" }, logout: async () => {} }));',
       './notification-bell': 'export const NotificationBell = () => null;',
-      '@/components/ui/menu': 'export const Menu = () => null;',
-      '@/components/ui/sheet': 'export const Sheet = () => null;',
+      '@/components/ui/dropdown-menu': 'export const Root = ({children}) => children; export const Trigger = ({children}) => children; export const Content = () => null;',
+      '@/components/ui/sheet': 'export const Sheet = () => null; export const useSheetHost = () => ({});',
     })
   })
   afterEach(cleanup)

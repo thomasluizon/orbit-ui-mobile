@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
+import { ShellWide } from '@/components/shell/shell-wide'
 import { useState } from 'react'
 import { renderToString } from 'react-dom/server'
 import userEvent from '@testing-library/user-event'
@@ -11,7 +12,9 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 const authSession = vi.hoisted(() => ({ isAuthenticated: true, user: { userId: 'account-a' } }))
-vi.mock('@/stores/auth-store', () => ({ useAuthStore: { getState: () => authSession } }))
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: Object.assign((select: (session: typeof authSession) => unknown) => select(authSession), { getState: () => authSession }),
+}))
 
 const astraCopy = vi.hoisted(() => ({ name: 'nav.astra' }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key === 'nav.astra' ? astraCopy.name : key }))
@@ -295,7 +298,7 @@ describe('Composer', () => {
       expect(screen.getAllByRole('button', { name: messages.shell.composer.paste })).toHaveLength(1)
       width = 380
       await measure()
-      fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.actions }))
+      fireEvent.pointerDown(screen.getByRole('button', { name: messages.shell.composer.actions }), { button: 0, ctrlKey: false })
       const menu = await screen.findByRole('menu')
       expect(within(menu).getAllByRole('menuitem')[0]).toHaveAccessibleName(messages.shell.composer.paste)
       expect(within(menu).getAllByRole('menuitem', { name: messages.shell.composer.paste })).toHaveLength(1)
@@ -305,7 +308,7 @@ describe('Composer', () => {
       await waitFor(() => expect(field).toHaveFocus())
       expect([field.selectionStart, field.selectionEnd]).toEqual([14, 14])
       expect(readText).toHaveBeenCalledOnce()
-      fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.actions }))
+      fireEvent.pointerDown(screen.getByRole('button', { name: messages.shell.composer.actions }), { button: 0, ctrlKey: false })
       const clearMenu = await screen.findByRole('menu')
       expect(within(clearMenu).getAllByRole('menuitem')[0]).toHaveAccessibleName(messages.shell.composer.clear)
       expect(within(clearMenu).getAllByRole('menuitem', { name: messages.shell.composer.clear })).toHaveLength(1)
@@ -404,8 +407,15 @@ describe('Composer', () => {
   })
 
   it('opens and names its menu from the keyboard without changing the draft', async () => {
+    const viewport = vi.spyOn(window, 'matchMedia').mockImplementation(query => ({
+      matches: 1280 >= Number(query.match(/min-width: (\d+)px/)?.[1] ?? Infinity), media: query, onchange: null,
+      addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn(),
+    }))
     const user = userEvent.setup()
-    render(<Composer {...props({ value: 'Keep this draft', onVoice: vi.fn(), voiceWords, onAttachImage: vi.fn(), onAttachFile: vi.fn(), attachWords })} />)
+    const view = render(<ShellWide items={[]} activeId="hoje" navLabel="Main navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }} conversationOpen conversationLabel="Astra"
+      conversation={<Composer {...props({ value: 'Keep this draft', onVoice: vi.fn(), voiceWords, onAttachImage: vi.fn(), onAttachFile: vi.fn(), attachWords })} />}>
+      <h1>Today</h1>
+    </ShellWide>)
     const trigger = screen.getByRole('button', { name: words.actions })
     const input = screen.getByRole('textbox')
     act(() => trigger.focus())
@@ -423,9 +433,28 @@ describe('Composer', () => {
     }
     await user.keyboard('{Home}')
     expect(rows[0]).toHaveFocus()
-    await user.keyboard('{Escape}')
-    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
-    expect(trigger).toHaveFocus()
+    expect(screen.queryByRole('dialog', { name: words.actions })).not.toBeInTheDocument()
+    vi.useFakeTimers()
+    try {
+      const closingUser = userEvent.setup({ delay: null })
+      fireEvent.keyDown(rows[0]!, { key: 'Escape' })
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      expect(trigger).toHaveFocus()
+      const tabbing = closingUser.tab()
+      await act(async () => { await Promise.resolve() })
+      const send = screen.getByRole('button', { name: words.send })
+      expect(send).toHaveFocus()
+      await act(() => vi.runOnlyPendingTimersAsync())
+      await tabbing
+      expect(screen.getByRole('button', { name: words.send })).toBe(send)
+      expect(send).toHaveFocus()
+      expect(input).toHaveValue('Keep this draft')
+    } finally {
+      view.unmount()
+      await act(() => vi.runOnlyPendingTimersAsync())
+      vi.useRealTimers()
+      viewport.mockRestore()
+    }
   })
 
   it('opens the full attachment name without removing it or changing the draft', async () => {
@@ -464,7 +493,7 @@ describe('Composer', () => {
     expect(screen.getByRole('button', { name: voiceWords.stop })).toHaveFocus()
   })
 
-  it.each(['', 'Draft'])('keeps the focused Add control mounted as recording starts with %j', value => {
+  it.each(['', 'Draft'])('keeps the focused Add control mounted as recording starts with %j', async value => {
     const capability = { onVoice: vi.fn(), voiceWords, value }
     const view = render(<Composer {...props(capability)} />)
     const add = screen.getByRole('button', { name: words.actions })
@@ -473,6 +502,11 @@ describe('Composer', () => {
     const stop = screen.getByRole('button', { name: voiceWords.stop })
     expect(stop).toBe(add)
     expect(stop).toHaveFocus()
+    expect(stop).toBeEnabled()
+    expect(stop).not.toHaveAttribute('aria-haspopup')
+    await userEvent.keyboard('{Enter}')
+    expect(capability.onVoice).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
   it('runs the recording clock, freezes it for transcription, and restores the transcript', async () => {
@@ -716,7 +750,7 @@ describe('Composer', () => {
   it('opens the voice handler from the menu only when supported', async () => {
     const onVoice = vi.fn()
     const { rerender } = render(<Composer {...props({ onVoice, voiceWords })} />)
-    fireEvent.click(screen.getByRole('button', { name: words.actions }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: words.actions }), { button: 0, ctrlKey: false })
     fireEvent.click(await screen.findByRole('menuitem', { name: voiceWords.start }))
     await waitFor(() => expect(onVoice).toHaveBeenCalledOnce())
     rerender(<Composer {...props()} />)
@@ -754,7 +788,7 @@ describe('Composer', () => {
     render(<Composer {...props({ value: 'Keep this draft', onAttachFile, onAttachImage, attachWords })} />)
     expect(screen.queryByLabelText(attachWords.trayLabel)).not.toBeInTheDocument()
     for (const [name, handler] of [[attachWords.image, onAttachImage], [attachWords.file, onAttachFile]] as const) {
-      fireEvent.click(screen.getByRole('button', { name: words.actions }))
+      fireEvent.pointerDown(screen.getByRole('button', { name: words.actions }), { button: 0, ctrlKey: false })
       expect(await screen.findByRole('dialog')).toBeInTheDocument()
       fireEvent.click(screen.getByRole('menuitem', { name }))
       await waitFor(() => expect(handler).toHaveBeenCalledOnce())
@@ -868,7 +902,7 @@ describe('Composer', () => {
     const onVoice = vi.fn()
     const onAttachFile = vi.fn()
     render(<Composer {...props({ state: 'atLimit', limitReason: 'limit sentinel', onVoice, voiceWords, onAttachFile, attachWords })} />)
-    fireEvent.click(screen.getByRole('button', { name: words.actions }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: words.actions }), { button: 0, ctrlKey: false })
     expect(await screen.findByRole('menuitem', { name: attachWords.file })).toBeDisabled()
     fireEvent.click(screen.getByRole('menuitem', { name: voiceWords.start }))
     await waitFor(() => expect(onVoice).toHaveBeenCalledOnce())
@@ -879,7 +913,7 @@ describe('Composer', () => {
     const onSend = vi.fn()
     const onChangeValue = vi.fn()
     render(<Composer {...props({ value: 'Keep this draft', onSend, onChangeValue, onVoice: vi.fn(), voiceWords })} />)
-    fireEvent.click(screen.getByRole('button', { name: words.actions }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: words.actions }), { button: 0, ctrlKey: false })
     await screen.findByRole('dialog')
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())

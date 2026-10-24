@@ -2,7 +2,7 @@ import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { neutralColors } from '@orbit/shared/theme'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { Icon } from '@/components/ui/icon'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { StyleSheet } from 'react-native'
@@ -375,7 +375,7 @@ describe('HabitRow status control names (mobile)', () => {
     expect(button().props.accessibilityState).toMatchObject({ expanded: false })
     TestRenderer.act(() => button().props.onPress())
     expect(button().props.accessibilityState).toMatchObject({ expanded: true })
-    TestRenderer.act(() => renderer!.root.findByType(Menu).props.onClose())
+    TestRenderer.act(() => renderer!.root.findByType(Menu.Root).props.onOpenChange(false))
     expect(button().props.accessibilityState).toMatchObject({ expanded: false })
   })
   it('announces why child completion is unavailable while keeping its body openable', () => {
@@ -635,7 +635,7 @@ describe('HabitRow menu (mobile)', () => {
           onSkip: vi.fn(), onReschedule: vi.fn(), onEdit: vi.fn(), onDuplicate: vi.fn(),
           onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn() }} />)
     })
-    const menu = renderer!.root.findByType(Menu)
+    const menu = renderer!.root.findByType(Menu.Content)
     expect(menu.props.title).toBe('Walk')
     expect(menu.props.items.map((item: { label: string }) => item.label)).toEqual([
       'habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
@@ -670,7 +670,7 @@ describe('HabitRow menu (mobile)', () => {
       renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read' })}
         actions={{ onAddSubHabit: vi.fn(), onReschedule: vi.fn(), onDrillInto: vi.fn(), onEnterSelectMode: vi.fn() }} />)
     })
-    const menu = renderer!.root.findByType(Menu)
+    const menu = renderer!.root.findByType(Menu.Content)
     expect(menu.props.items.map((item: { id: string }) => item.id)).toEqual(['add', 'select'])
     expect(menu.props.items[0].badge).toBeUndefined()
     expect(menu.props.title).toBe('Read')
@@ -686,7 +686,7 @@ describe('HabitRow menu (mobile)', () => {
       )
     })
 
-    const menu = renderer!.root.findByType(Menu)
+    const menu = renderer!.root.findByType(Menu.Content)
     expect(menu.props.items.map((item: { id: string }) => item.id)).toContain('drill')
     TestRenderer.act(() => menu.props.onSelect('drill'))
     expect(onDrillInto).toHaveBeenCalledOnce()
@@ -698,7 +698,7 @@ describe('HabitRow menu (mobile)', () => {
       renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Walk' })} isSelectMode
         actions={{ onEnterSelectMode: vi.fn(), onEdit: vi.fn() }} />)
     })
-    expect(renderer!.root.findByType(Menu).props.open).toBe(false)
+    expect(renderer!.root.findByType(Menu.Root).props.open).toBe(false)
     expect(renderer!.root.findAllByProps({ accessibilityLabel: 'habits.actions.more' })).toHaveLength(0)
   })
 

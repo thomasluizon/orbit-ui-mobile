@@ -3,15 +3,23 @@ import React from 'react'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { Icon } from '@/components/ui/icon'
 import { createTokensV2 } from '@/lib/theme'
-import { StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
-import { describe, expect, it, vi } from 'vitest'
-import { Menu } from '@/components/ui/menu'
+import { AccessibilityInfo, findNodeHandle, StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { TrueSheet } from '@lodev09/react-native-true-sheet'
+import { PortalHost } from '@rn-primitives/portal'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { HabitRow } from '@/components/habits/habit-row'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { HABIT_CREATE_OVERLAY_ID } from '@orbit/shared/utils'
+import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
+import { OverlayHost } from '@/components/ui/overlay-host'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
-import { __setWindowDimensions } from '@/test-mocks/react-native'
+import { Composer } from '@/components/shell/composer'
+import { BackHandler, __focusHost, __getFocusedNativeTag, __setTouchMode, __setWindowDimensions } from '@/test-mocks/react-native'
 import { Checkbox } from '@/components/ui/icons'
 import { useUIStore } from '@/stores/ui-store'
+import { withFocusProvenance } from '@/__tests__/support/focus-provenance'
+import en from '@orbit/shared/i18n/en.json'
 
 const theme = vi.hoisted<{ mode: 'dark' | 'light' }>(() => ({ mode: 'dark' }))
 vi.mock('@/lib/use-app-theme', () => ({
@@ -33,6 +41,8 @@ vi.mock('@lodev09/react-native-true-sheet', () => ({
 
 const TestRenderer = require('react-test-renderer')
 
+afterEach(() => __setWindowDimensions({ width: 412, height: 900, scale: 1, fontScale: 1 }))
+
 const items = [
   { id: 'delete', label: 'Delete', destructive: true },
   { id: 'edit', label: 'Edit' },
@@ -45,20 +55,55 @@ function menuItemLabels(tree: any): string[] {
 }
 
 describe('Menu (mobile)', () => {
-  it('keeps an Astra menu action icon-only and named', async () => {
-    __setWindowDimensions({ width: 480, height: 900, scale: 1, fontScale: 1 })
-    const onSelect = vi.fn()
-    let tree!: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(() => { tree = TestRenderer.create(<Menu open presentation="anchored" anchorRef={{ current: null }} title="Actions" items={[{ id: 'reschedule', label: 'Suggest a new date with Astra', icon: 'astra' }]} onSelect={onSelect} />) })
-    try {
-      const action = tree.root.findAll((node: ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Suggest a new date with Astra')[0]!
-      expect(action.findAllByType('Text')).toHaveLength(0)
-      expect(StyleSheet.flatten(action.props.style({ pressed: false })).width).toBe(48)
-      await TestRenderer.act(() => action.props.onPress())
-      expect(onSelect).toHaveBeenCalledWith('reschedule')
-    } finally { await TestRenderer.act(() => tree.unmount()) }
-  })
+  it.each((['anchored', 'sheet'] as const).flatMap(presentation => [1, 2].map(fontScale => ({ presentation, fontScale }))))(
+    'keeps an Astra action mark-only, named and centred in $presentation at font scale $fontScale',
+    async ({ presentation, fontScale }) => {
+      __setWindowDimensions({ width: 480, height: 900, scale: 1, fontScale })
+      const onSelect = vi.fn()
+      const label = 'Suggest a new date with Astra'
+      let tree!: ReactTestRenderer
+      await TestRenderer.act(() => { tree = TestRenderer.create(<><PortalHost /><Menu.Root open><Menu.Trigger accessibilityLabel="Menu trigger" />
+        <Menu.Content presentation={presentation} title="Actions" onSelect={onSelect} items={[
+          { id: 'edit', label: 'Edit', icon: 'pencil' },
+          { id: 'reschedule', label, icon: 'astra' },
+        ]} />
+      </Menu.Root></>) })
+      try {
+        const action = tree.root.findAll(node => String(node.type) === 'Pressable' && node.props['aria-label'] === label)[0]!
+        expect(action.props.accessibilityRole).toBe('menuitem')
+        expect(action.props.accessibilityLabel).toBe(label)
+        expect(action.findAll(node => String(node.type) === 'Text')).toHaveLength(0)
+        expect(action.findAll(node => node.type === Icon)[0]!.props.name).toBe('astra')
+        const rowStyle = action.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+        const resting = StyleSheet.flatten(rowStyle({ pressed: false }))
+        expect(resting).toMatchObject({ width: 48, minHeight: 48, paddingHorizontal: 0, paddingVertical: 0, justifyContent: 'center', alignItems: 'center' })
+        expect(StyleSheet.flatten(rowStyle({ pressed: true }))).toEqual({ ...resting, backgroundColor: createTokensV2('orange', 'dark').bgHover })
+        expect(tree.root.findAll(node => String(node.type) === 'Text' && node.props.children === 'Edit')).toHaveLength(1)
+        await TestRenderer.act(() => (action.props.onPress as () => void)())
+        if (presentation === 'sheet') {
+          const sheet = tree.root.findAll(node => node.type === TrueSheet)[0]!
+          await TestRenderer.act(() => (sheet.props.onDidDismiss as () => void)())
+        }
+        expect(onSelect).toHaveBeenCalledExactlyOnceWith('reschedule')
+      } finally { await TestRenderer.act(() => tree.update(<></>)) }
+    },
+  )
 
+  it('focuses Cancel after a destructive confirmation is presented', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<ConfirmSheet open destructive title="Delete" message="Clear alerts" confirmLabel="Delete" onCancel={vi.fn()} onConfirm={vi.fn()} />)
+    })
+    try {
+      const sheet = tree.root.findAll((node) => node.type === TrueSheet)[0]!
+      await TestRenderer.act(() => {
+        const onDidPresent = sheet.props.onDidPresent
+        if (typeof onDidPresent === 'function') onDidPresent()
+      })
+      const cancel = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.testID === 'button-ghost-sm')[0]!
+      expect(__getFocusedNativeTag()).toBe(cancel.props.__nativeTag)
+    } finally { await TestRenderer.act(() => tree.update(<></>)) }
+  })
   it('discloses the full name from a real habit row menu without an edit action', async () => {
     __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale: 2 })
     const title = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'
@@ -67,7 +112,7 @@ describe('Menu (mobile)', () => {
     await TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title })} actions={{ onDelete }} />) })
     const more = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'habits.actions.more')[0]!
     await TestRenderer.act(() => (more.props.onPress as () => void)())
-    const sheet = tree.root.findAll((node) => typeof node.type !== 'string' && node.type.name === 'TrueSheet')[0]!
+    const sheet = tree.root.findAll((node) => node.type === TrueSheet)[0]!
     const header = sheet.props.header as React.ReactElement<{ children: React.ReactElement<{ onPress: () => void; children: React.ReactElement<{ numberOfLines?: number }> }>[] }>
     const titleButton = header.props.children[0]!
     expect(titleButton.props.children.type).toBe(PersonalText)
@@ -83,8 +128,8 @@ describe('Menu (mobile)', () => {
   it('discloses the original typed title even when a short heading is supplied', async () => {
     const title = 'Ler um capítulo inteiro do livro de história antes de dormir'
     let tree!: ReactTestRenderer
-    await TestRenderer.act(() => { tree = TestRenderer.create(<Menu open presentation="sheet" title={title} shortTitle="Ler" titleMode="typed" items={[{ id: 'edit', label: 'Edit' }]} />) })
-    const sheet = tree.root.findAll((node) => typeof node.type !== 'string' && node.type.name === 'TrueSheet')[0]!
+    await TestRenderer.act(() => { tree = TestRenderer.create(<><PortalHost /><Menu.Root open={true}><Menu.Trigger accessibilityLabel="Menu trigger" /><Menu.Content presentation="sheet" title={title} shortTitle="Ler" titleMode="typed" items={[{ id: 'edit', label: 'Edit' }]}  /></Menu.Root></>) })
+    const sheet = tree.root.findAll((node) => node.type === TrueSheet)[0]!
     const header = sheet.props.header as React.ReactElement<{ children: React.ReactElement<{ onPress: () => void; accessibilityLabel: string }>[] }>
     const trigger = header.props.children[0]!
     expect(trigger.props.accessibilityLabel).toBe(title)
@@ -116,10 +161,10 @@ describe('Menu (mobile)', () => {
         const menuPresentation = presentation === 'sheet'
           ? { presentation: 'sheet' as const }
           : { presentation: 'anchored' as const, anchorRef: React.createRef() }
-        tree = TestRenderer.create(<Menu open {...menuPresentation} items={[
+        tree = TestRenderer.create(<><PortalHost /><Menu.Root open={true}><Menu.Trigger accessibilityLabel="Menu trigger" /><Menu.Content {...menuPresentation} items={[
           { id: 'delete', label: 'Delete', icon: 'trash', destructive: true },
           { id: 'disabled', label: 'Unavailable', icon: 'trash', destructive: true, disabled: true },
-        ]} />)
+        ]}  /></Menu.Root></>)
         await Promise.resolve()
       })
       const rows = tree.root.findAll((node: ReactTestInstance) =>
@@ -132,6 +177,7 @@ describe('Menu (mobile)', () => {
       const pressed = StyleSheet.flatten(rowStyle({ pressed: true }))
       expect(pressed).toEqual({ ...resting, backgroundColor: tokens.bgHover })
       expect(rows[1]!.props.disabled).toBe(true)
+      expect(rows[1]!.props['aria-disabled']).toBe(true)
       await TestRenderer.act(() => tree.update(<></>))
       theme.mode = 'dark'
     },
@@ -140,10 +186,10 @@ describe('Menu (mobile)', () => {
   it('names the native menu sheet after the trigger while showing a short heading', async () => {
     let tree!: ReactTestRenderer
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<Menu open title="List options" shortTitle="Options" items={items} />)
+      tree = TestRenderer.create(<><PortalHost /><Menu.Root open={true}><Menu.Trigger accessibilityLabel="Menu trigger" /><Menu.Content title="List options" shortTitle="Options" items={items}  /></Menu.Root></>)
       await Promise.resolve()
     })
-    const header = tree.root.findAll((node: ReactTestInstance) => typeof node.type !== 'string' && node.type.name === 'TrueSheet')[0]!.props.header as React.ReactElement<{
+    const header = tree.root.findAll((node: ReactTestInstance) => node.type === TrueSheet)[0]!.props.header as React.ReactElement<{
       accessibilityLabel?: string
       children: React.ReactElement<{ accessibilityLabel?: string; children?: React.ReactNode }>[]
     }>
@@ -156,12 +202,14 @@ describe('Menu (mobile)', () => {
   it.each([true, false])('announces a checked menu row as %s', async (checked) => {
     let tree!: ReactTestRenderer
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<Menu open items={[{ id: 'recurring', label: 'Recurring habits', checked }]} />)
+      tree = TestRenderer.create(<><PortalHost /><Menu.Root open={true}><Menu.Trigger accessibilityLabel="Menu trigger" /><Menu.Content items={[{ id: 'recurring', label: 'Recurring habits', checked }]}  /></Menu.Root></>)
       await Promise.resolve()
     })
     const rows = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'checkbox')
     expect(rows).toHaveLength(1)
     expect(rows[0]!.props.accessibilityState).toEqual({ disabled: false, checked })
+    expect(rows[0]!.props.role).toBe('checkbox')
+    expect(rows[0]!.props['aria-checked']).toBe(checked)
     await TestRenderer.act(() => tree.update(<></>))
   })
 
@@ -169,7 +217,7 @@ describe('Menu (mobile)', () => {
     __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale: 2 })
     let tree!: ReactTestRenderer
     await TestRenderer.act(() => {
-      tree = TestRenderer.create(<Menu open items={[{ id: 'repeat', label: 'Mostrar hábitos que se repetem', checked: true }]} />)
+      tree = TestRenderer.create(<><PortalHost /><Menu.Root open={true}><Menu.Trigger accessibilityLabel="Menu trigger" /><Menu.Content items={[{ id: 'repeat', label: 'Mostrar hábitos que se repetem', checked: true }]}  /></Menu.Root></>)
     })
     const label = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.children === 'Mostrar hábitos que se repetem')[0]!
     expect(label.props.numberOfLines).toBeUndefined()
@@ -182,17 +230,64 @@ describe('Menu (mobile)', () => {
   it('matches menu icon stroke to medium-weight labels', async () => {
     let tree: any
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<Menu open title="List options" items={[{ id: 'select', label: 'Select', icon: 'checkbox' }]} />)
+      tree = TestRenderer.create(<><PortalHost /><Menu.Root open={true}><Menu.Trigger accessibilityLabel="Menu trigger" /><Menu.Content title="List options" items={[{ id: 'select', label: 'Select', icon: 'checkbox' }]}  /></Menu.Root></>)
       await Promise.resolve()
     })
     expect(tree.root.findByType(Checkbox).props.strokeWidth).toBe(2)
     await TestRenderer.act(() => tree.update(<></>))
   })
 
+  it('opens through the root portal without a native modal', async () => {
+    __setWindowDimensions({ width: 1280, height: 900, scale: 1, fontScale: 1 })
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(<><HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onEdit: vi.fn() }} /><PortalHost /></>) })
+    try {
+      const more = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'habits.actions.more')[0]!
+      await TestRenderer.act(() => (more.props.onPress as () => void)())
+      expect(tree.root.findAll((node) => String(node.type) === 'Modal')).toHaveLength(0)
+      expect(menuItemLabels(tree)).toContain('common.edit')
+    } finally { await TestRenderer.act(() => tree.update(<></>)) }
+  })
+
+  it('keeps the active habit creation screen reachable while its overlay reservation is registered', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<OverlayHost><HabitCreateFrame open presentation="screen" fromConversation={false} leaving={false} title="Create"><Text>Active form</Text></HabitCreateFrame></OverlayHost>)
+    })
+    try {
+      expect(useUIStore.getState().openOverlayIds).toContain(HABIT_CREATE_OVERLAY_ID)
+      const background = tree.root.findAll((node) => String(node.type) === 'View' && node.findAll((child) => child.type === Text && child.props.children === 'Active form').length > 0)[0]!
+      expect(background.props.pointerEvents).not.toBe('none')
+      expect(background.props.importantForAccessibility).not.toBe('no-hide-descendants')
+    } finally { await TestRenderer.act(() => tree.update(<></>)) }
+  })
+
+  it('isolates the portalled Android menu from background touch and accessibility until dismissal', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<OverlayHost><Menu.Root><Menu.Trigger accessibilityLabel="Actions" /><Menu.Content presentation="anchored" title="Actions" items={items} /></Menu.Root><Text>Background</Text></OverlayHost>)
+    })
+    try {
+      const background = () => tree.root.findAll((node) => String(node.type) === 'View' && node.findAll((child) => child.type === Text && child.props.children === 'Background').length > 0)
+      expect(background().some((node) => node.props.importantForAccessibility === 'no-hide-descendants')).toBe(false)
+      const trigger = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Actions')[0]!
+      await TestRenderer.act(() => (trigger.props.onPress as () => void)())
+      expect(menuItemLabels(tree)).toEqual(['Edit', 'Delete'])
+      expect(background().some((node) => node.props.importantForAccessibility === 'no-hide-descendants' && node.props.pointerEvents === 'none')).toBe(true)
+      const panel = tree.root.findAll((node) => String(node.type) === 'View' && node.props.accessibilityViewIsModal === true)[0]!
+      expect(panel).toBeDefined()
+      expect(panel.props.importantForAccessibility).not.toBe('no-hide-descendants')
+      expect(panel.findAll((node) => node.props.children === 'Background')).toHaveLength(0)
+      await TestRenderer.act(() => BackHandler.emitBackPress())
+      expect(menuItemLabels(tree)).toEqual([])
+      expect(background().some((node) => node.props.importantForAccessibility === 'no-hide-descendants' || node.props.pointerEvents === 'none')).toBe(false)
+    } finally { await TestRenderer.act(() => tree.update(<></>)) }
+  })
+
   it('uses a sheet at 412 and keeps the destructive item last', async () => {
     let tree: any
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<Menu open title="Habit actions" items={items} />)
+      tree = TestRenderer.create(<><PortalHost /><Menu.Root open={true}><Menu.Trigger accessibilityLabel="Menu trigger" /><Menu.Content title="Habit actions" items={items}  /></Menu.Root></>)
       await Promise.resolve()
     })
     expect(menuItemLabels(tree)).toEqual(['Edit', 'Delete'])
@@ -200,7 +295,7 @@ describe('Menu (mobile)', () => {
     expect(rows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).minHeight)).toEqual([56, 56])
     expect(rows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).height)).toEqual([undefined, undefined])
     expect(tree.root.findAllByType('ScrollView')).toHaveLength(1)
-    const sheet = tree.root.findAll((node: any) => typeof node.type !== 'string' && node.type.name === 'TrueSheet')[0]
+    const sheet = tree.root.findAll((node: any) => node.type === TrueSheet)[0]
     if (!sheet) throw new Error('Sheet presentation did not render its native backdrop')
     expect(sheet.props.dimmed).toBe(true)
     await TestRenderer.act(() => tree.update(<></>))
@@ -218,14 +313,14 @@ describe('Menu (mobile)', () => {
     let tree: any
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(
-        <Menu
-          open
+        <><PortalHost /><Menu.Root open={true} onOpenChange={(nextOpen) => { if (!nextOpen) onClose() }}><Menu.Trigger accessibilityLabel="Menu trigger" /><Menu.Content
+
           presentation="anchored"
-          anchorRef={anchorRef}
+
           items={items}
           onSelect={onSelect}
-          onClose={onClose}
-        />,
+
+         /></Menu.Root></>,
       )
       await Promise.resolve()
     })
@@ -249,4 +344,63 @@ describe('Menu (mobile)', () => {
     await TestRenderer.act(() => tree.update(<></>))
     expect(useUIStore.getState().openOverlayIds).toHaveLength(0)
   })
+  it('returns native accessibility focus to the trigger after Back dismissal', async () => {
+    vi.useFakeTimers()
+    const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus')
+    const triggerRef = React.createRef<import('@rn-primitives/dropdown-menu').TriggerRef>()
+    let tree!: ReactTestRenderer
+    try {
+      await TestRenderer.act(() => { tree = TestRenderer.create(<><Menu.Root><Menu.Trigger ref={triggerRef} accessibilityLabel="Actions" /><Menu.Content title="Actions" presentation="anchored" items={items} /></Menu.Root><PortalHost /></>) })
+      const trigger = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Actions')[0]!
+      await TestRenderer.act(() => (trigger.props.onPress as () => void)())
+      await TestRenderer.act(() => vi.advanceTimersByTime(60))
+      expect(menuItemLabels(tree)).toEqual(['Edit', 'Delete'])
+      expect(focus).toHaveBeenCalled()
+      focus.mockClear()
+      await TestRenderer.act(() => { BackHandler.emitBackPress() })
+      await TestRenderer.act(() => vi.advanceTimersByTime(60))
+      expect(menuItemLabels(tree)).toEqual([])
+      expect(focus).toHaveBeenCalledWith(findNodeHandle(triggerRef.current))
+    } finally {
+      await TestRenderer.act(() => tree.update(<></>))
+      vi.useRealTimers()
+      focus.mockRestore()
+    }
+  })
+
+  it('keeps keyboard focus on Send after the wide composer menu closes and accessibility restoration settles', async () => {
+    vi.useFakeTimers()
+    __setWindowDimensions({ width: 1280, height: 900, scale: 1, fontScale: 1 })
+    __setTouchMode(false)
+    let tree!: ReactTestRenderer
+    try {
+      await TestRenderer.act(() => {
+        tree = TestRenderer.create(withFocusProvenance(<OverlayHost>
+          <Composer state="idle" value="Keep this draft" onChangeValue={vi.fn()} onSend={vi.fn()} suggestions={[]}
+            words={en.shell.composer} onAttachFile={vi.fn()}
+            attachWords={{ ...en.shell.composer.attach, remove: name => name }} />
+        </OverlayHost>))
+      })
+      const trigger = tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.accessibilityLabel === en.shell.composer.actions)[0]!
+      const send = tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.testID === 'composer-send-accent')[0]!
+      const triggerTag = trigger.props.__nativeTag as number
+      const sendTag = send.props.__nativeTag as number
+      await TestRenderer.act(() => { __focusHost(triggerTag); (trigger.props.onPress as () => void)() })
+      await TestRenderer.act(() => vi.advanceTimersByTime(60))
+      expect(menuItemLabels(tree)).toEqual([en.shell.composer.attach.file])
+      await TestRenderer.act(() => { expect(BackHandler.emitBackPress()).toBe(true) })
+      expect(menuItemLabels(tree)).toEqual([])
+      await TestRenderer.act(() => __focusHost(sendTag))
+      expect(__getFocusedNativeTag()).toBe(sendTag)
+      await TestRenderer.act(() => vi.runOnlyPendingTimers())
+      expect(tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.testID === 'composer-send-accent')[0]).toBe(send)
+      expect(__getFocusedNativeTag()).toBe(sendTag)
+      expect(tree.root.findAll(node => String(node.type) === 'TextInput')[0]!.props.value).toBe('Keep this draft')
+    } finally {
+      await TestRenderer.act(() => tree.update(<></>))
+      vi.useRealTimers()
+      __setTouchMode(true)
+    }
+  })
+
 })
