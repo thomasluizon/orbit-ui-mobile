@@ -18,6 +18,8 @@ export type ChatStreamResult =
 
 interface BlockSubmissionContext {
   isOnline: boolean
+  dailyBudgetReached?: boolean
+  onDailyBudgetExceeded: (draftMessageId: string | null) => void
   atMessageLimit: boolean
   locale: string
   intendedAccountId?: string | null
@@ -43,7 +45,7 @@ export class BlockAnswerSubmission {
   async send(request: BlockAnswerRequest, context: BlockSubmissionContext): Promise<BlockAnswerResult> {
     const chat = context.getChat()
     const recovery = isSameBlockAnswer(request.answer, this.uncertainAnswer)
-    if (this.inFlight || chat.isTyping || chat.streamingMessageId !== null || !context.isOnline ||
+    if (context.dailyBudgetReached || this.inFlight || chat.isTyping || chat.streamingMessageId !== null || !context.isOnline ||
       (request.kind === 'choice' && context.atMessageLimit && !recovery)) return { ok: false, status: null }
     this.inFlight = true
     this.uncertainAnswer = { ...request.answer, selectedIds: [...request.answer.selectedIds] }
@@ -63,10 +65,16 @@ export class BlockAnswerSubmission {
           answerToBlockId: request.answer.blockId, id: context.createMessageId(), role: 'user', content, timestamp: new Date(),
         })
       })
+      if (outcome.kind === 'cancelled') return { ok: false, status: null }
+      if (outcome.kind === 'failed' && outcome.failure.code === 'AI_DAILY_BUDGET_EXCEEDED') {
+        this.uncertainAnswer = null
+        this.uncertainRequest = null
+        context.onDailyBudgetExceeded(outcome.draftMessageId)
+        return { ok: false, status: outcome.failure.status, dailyBudgetReached: true }
+      }
       const result: BlockAnswerResult = outcome.kind === 'final'
         ? { ok: true }
-        : { ok: false, status: outcome.kind === 'failed' ? outcome.failure.status : null }
-      if (outcome.kind === 'cancelled') return result
+        : { ok: false, status: outcome.failure.status }
       if (outcome.kind === 'final') {
         this.uncertainAnswer = null
         this.uncertainRequest = null

@@ -236,6 +236,11 @@ function validationFailure(property: string, message: string) {
 }
 
 describe('getFriendlyErrorKey (extended coverage)', () => {
+  it('localizes the daily Astra ceiling from a JSON refusal', () => {
+    const refusal = codedError('AI_DAILY_BUDGET_EXCEEDED', 'Your daily AI safety budget has been reached. Please try again tomorrow.')
+    expect(getFriendlyErrorKey(refusal, 'chat.sendError')).toBe('chat.dailyBudgetReached')
+  })
+
   it.each(['SOCIAL_DISABLED', 'BLOCKED', 'NOT_CHALLENGE_PARTICIPANT'])('uses the generic fallback for an unlocalized API 403 code %s', (code) => {
     expect(getFriendlyErrorKey(new ApiClientError(403, 'Denied', { code }), 'errors.createHabit'))
       .toBe('errors.createHabit')

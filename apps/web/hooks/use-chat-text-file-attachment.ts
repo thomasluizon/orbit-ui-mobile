@@ -62,5 +62,6 @@ export function useChatTextFileAttachment(setSendError: (message: string | null)
     openTextFilePicker,
     handleTextFileSelect,
     removeTextFile,
+    restoreTextFile: setSelectedTextFile,
   }
 }

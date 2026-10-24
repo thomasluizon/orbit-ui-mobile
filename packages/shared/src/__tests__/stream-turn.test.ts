@@ -88,6 +88,17 @@ describe('sendChatStreamTurn', () => {
 })
 
 describe('manual chat turn recovery', () => {
+  it.each(['http', 'sse'] as const)('retires a daily ceiling refusal without resending over %s', async transport => {
+    const { open, options } = setup()
+    open.mockResolvedValue(transport === 'http'
+      ? { kind: 'httpError', status: 400, error: 'Your daily AI safety budget has been reached. Please try again tomorrow.', code: 'AI_DAILY_BUDGET_EXCEEDED' }
+      : { kind: 'stream', chunks: events({ type: 'error', status: 400, error: 'Daily budget reached', code: 'AI_DAILY_BUDGET_EXCEEDED' }) })
+    const outcome = await sendChatStreamTurn(options)
+    expect(outcome).toMatchObject({ status: 400, code: 'AI_DAILY_BUDGET_EXCEEDED' })
+    expect(open).toHaveBeenCalledOnce()
+    expect(needsNewChatTurn(outcome)).toBe(true)
+  })
+
   it.each(['network', 'incomplete', 'server error'] as const)('retains the key after an unresolved %s', async failure => {
     const { open, options } = setup()
     if (failure === 'network') open.mockRejectedValue(new Error('Disconnected'))

@@ -274,6 +274,190 @@ function ComposerConversationHarness({ conversationReady = true }: { conversatio
 }
 
 describe('web useChatComposer streaming send', () => {
+  it.each([
+    ['message', 'http'], ['message', 'sse'],
+    ['block answer', 'http'], ['block answer', 'sse'],
+  ] as const)('stops a replayed %s at the daily ceiling over %s despite failed reconciliation', async (submission, transport) => {
+    const refusal = { error: 'Your daily AI safety budget has been reached. Please try again tomorrow.', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }
+    mocks.fetch.mockResolvedValueOnce(sseResponse(frame('{"type":"delta","text":"Unfinished reply"}')))
+      .mockResolvedValueOnce(transport === 'http'
+        ? Response.json(refusal, { status: 400 })
+        : sseResponse(frame('{"type":"error","status":400,"error":"Daily budget reached","code":"AI_DAILY_BUDGET_EXCEEDED"}')))
+    mocks.queryClient.invalidateQueries.mockRejectedValue(new Error('Refetch unavailable'))
+    const { result: composer, rerender } = renderHook(({ today }) => useChatComposer({ today }), { initialProps: { today: '2026-09-12' } })
+    const request = { kind: 'choice' as const, answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: ['Evening'] }
+    const draft = '  Keep this draft\n  '
+    act(() => composer.current.setInput(draft))
+    await act(async () => {
+      if (submission === 'message') await composer.current.sendMessage()
+      else expect(await composer.current.blockAnswerInteraction.send(request)).toEqual({ ok: false, status: 400, dailyBudgetReached: true })
+    })
+    expect(composer.current.composerProps.state).toBe('atLimit')
+    if (composer.current.composerProps.state === 'atLimit') expect(composer.current.composerProps.limitReason).toBe('chat.dailyBudgetReached')
+    expect(composer.current.input).toBe(draft)
+    expect(composer.current.sendError).toBeNull()
+    expect(composer.current.messages.filter(message => message.role === 'ai')).toHaveLength(0)
+    expect(composer.current.composerProps.onRetry).toBeUndefined()
+    const readKey = (index: number) => new Headers((mocks.fetch.mock.calls[index]?.[1] as RequestInit).headers).get('Idempotency-Key')
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(readKey(0)).toBeTruthy()
+    expect(readKey(1)).toBe(readKey(0))
+    expect((mocks.fetch.mock.calls[1]?.[1] as RequestInit).body).toBe((mocks.fetch.mock.calls[0]?.[1] as RequestInit).body)
+    await act(async () => {
+      await composer.current.retryLastSend()
+      await composer.current.sendMessage()
+      await composer.current.sendMessage('Suggestion')
+      expect(await composer.current.blockAnswerInteraction.send(request)).toEqual({ ok: false, status: null })
+    })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse({ aiMessage: 'New day reply' }))))
+    rerender({ today: '2026-09-13' })
+    await act(async () => {
+      if (submission === 'message') await composer.current.sendMessage()
+      else expect(await composer.current.blockAnswerInteraction.send(request)).toEqual({ ok: true })
+    })
+    expect(mocks.fetch).toHaveBeenCalledTimes(3)
+    expect(readKey(2)).toBeTruthy()
+    expect(readKey(2)).not.toBe(readKey(0))
+    expect(composer.current.messages.some(message => message.content === 'New day reply')).toBe(true)
+    expect(composer.current.atMessageLimit).toBe(false)
+  })
+
+  it.each([['en', 'http'], ['pt-BR', 'http'], ['en', 'sse'], ['pt-BR', 'sse']] as const)('keeps a daily ceiling refusal single and nonretryable in %s over %s', async (locale, transport) => {
+    mocks.locale = locale
+    const words = locale === 'en' ? en : ptBR
+    mocks.translate = createTranslator({ locale, messages: words })
+    mocks.state.profile = createMockProfile({ hasProAccess: true, aiMessagesUsed: 1, aiMessagesLimit: 50 })
+    const refusal = { error: 'Your daily AI safety budget has been reached. Please try again tomorrow.', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }
+    mocks.fetch.mockResolvedValue(transport === 'http' ? new Response(JSON.stringify(refusal), { status: 400 }) : sseResponse(frame('{"type":"delta","text":"Unfinished reply"}'), frame('{"type":"error","status":400,"error":"Daily budget reached","code":"AI_DAILY_BUDGET_EXCEEDED"}')))
+    render(<ComposerConversationHarness />)
+    const draft = '  Plan my morning\n  '
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: draft } })
+    fireEvent.click(screen.getByRole('button', { name: words.shell.composer.send }))
+    await waitFor(() => expect(screen.getAllByText(words.chat.dailyBudgetReached).filter(node => !node.closest('[inert]'))).toHaveLength(1))
+    expect(screen.getByRole('textbox')).toHaveValue(draft)
+    expect(screen.queryByText(words.chat.aiError)).not.toBeInTheDocument()
+    expect(screen.queryByText(words.chat.sendError)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: words.shell.composer.retry })).not.toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: words.common.closeConversation }))
+    expect(screen.getAllByText(words.chat.dailyBudgetReached).filter(node => !node.closest('[inert]'))).toHaveLength(1)
+    expect(screen.getByRole('textbox')).toHaveValue(draft)
+  })
+
+  it.each(['http', 'sse'] as const)('blocks choice retries after a daily ceiling over %s', async transport => {
+    useChatStore.setState({ draft: 'Keep this draft', messages: [makeHeldHabitMessage({ id: 'question', content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'choice', block: choiceBlockFixture }] })] })
+    mocks.fetch.mockResolvedValue(transport === 'http'
+      ? Response.json({ error: 'Daily budget reached', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }, { status: 400 })
+      : sseResponse(frame('{"type":"delta","text":"Preparing"}'), frame('{"type":"error","status":400,"error":"Daily budget reached","code":"AI_DAILY_BUDGET_EXCEEDED"}')))
+    useUIStore.getState().setAstraConversationOpen(true)
+    render(<ComposerConversationHarness />)
+    fireEvent.click(screen.getAllByRole('radio')[2]!)
+    fireEvent.click(screen.getByRole('button', { name: 'submit' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'submit' })).toBeDisabled())
+    await waitFor(() => expect(screen.getAllByText('chat.dailyBudgetReached').filter(node => !node.closest('[inert]'))).toHaveLength(1))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText('Preparing')).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'shell.composer.inputLabel' })).toHaveValue('Keep this draft')
+    fireEvent.click(screen.getByRole('button', { name: 'submit' }))
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['image-plus-text', 'http'], ['image-plus-text', 'sse'],
+    ['file-only', 'http'], ['file-only', 'sse'],
+  ] as const)('preserves a refused %s draft and resends its attachments next date over %s', async (draftKind, transport) => {
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, {
+      createObjectURL: vi.fn(() => 'blob:draft-image'),
+      revokeObjectURL: vi.fn(),
+    }))
+    const image = new File(['image'], 'walk.png', { type: 'image/png' })
+    const draft = draftKind === 'image-plus-text' ? '  Import these\n  ' : ''
+    const message = `${draft.trim() ? 'Import these\n\n' : ''}chat.fileAttached:{"name":"notes.txt"}\nWalk\nRead`
+    mocks.fetch.mockResolvedValueOnce(transport === 'http'
+      ? Response.json({ error: 'Daily budget reached', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }, { status: 400 })
+      : sseResponse(frame('{"type":"error","status":400,"error":"Daily budget reached","code":"AI_DAILY_BUDGET_EXCEEDED"}')))
+      .mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    const { result, rerender } = renderHook(({ today }) => useChatComposer({ today }), { initialProps: { today: '2026-09-12' } })
+    await act(async () => { await result.current.handleTextFileSelect(fileChangeEvent(textFile('notes.txt', 'Walk\nRead'))) })
+    act(() => {
+      result.current.setInput(draft)
+      if (draftKind === 'image-plus-text') result.current.handleFileSelect(fileChangeEvent(image))
+    })
+    await act(async () => { result.current.composerProps.onSend(); await Promise.resolve() })
+    expect(result.current.input).toBe(draft)
+    expect(result.current.selectedTextFile).toEqual({ name: 'notes.txt', content: 'Walk\nRead' })
+    expect(result.current.selectedImage).toBe(draftKind === 'image-plus-text' ? image : null)
+    expect(result.current.imagePreview).toBe(draftKind === 'image-plus-text' ? 'blob:draft-image' : null)
+    expect(result.current.composerProps.attachments).toHaveLength(draftKind === 'image-plus-text' ? 2 : 1)
+    expect(result.current.composerProps.state).toBe('atLimit')
+    expect(result.current.canSend).toBe(false)
+    expect(result.current.canRetryLastSend).toBe(false)
+    await act(async () => {
+      await result.current.sendMessage()
+      await result.current.retryLastSend()
+    })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    rerender({ today: '2026-09-13' })
+    expect(result.current.canSend).toBe(true)
+    await act(async () => { result.current.composerProps.onSend(); await Promise.resolve() })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    for (const call of mocks.fetch.mock.calls) {
+      const payload = call[1].body as FormData
+      expect(payload.get('message')).toBe(message)
+      expect(payload.get('image')).toBe(draftKind === 'image-plus-text' ? image : null)
+    }
+    expect(result.current.input).toBe('')
+    expect(result.current.composerProps.attachments).toHaveLength(0)
+  })
+
+  it('releases the daily ceiling on the next local date', async () => {
+    mocks.fetch.mockResolvedValueOnce(Response.json({ error: 'Daily budget reached', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }, { status: 400 }))
+      .mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    const { result, rerender } = renderHook(({ today }) => useChatComposer({ today }), { initialProps: { today: '2026-09-12' } })
+    await act(async () => { await result.current.sendMessage('First request') })
+    expect(result.current.atMessageLimit).toBe(true)
+    rerender({ today: '2026-09-13' })
+    expect(result.current.atMessageLimit).toBe(false)
+    await act(async () => { await result.current.sendMessage('New day') })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['suggestion', 'followUp', 'pickList'] as const)('routes a daily ceiling from a %s request without retry', async entry => {
+    mocks.state.profile = createMockProfile()
+    mocks.fetch.mockResolvedValue(Response.json({ error: 'Daily budget reached', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }, { status: 400 }))
+    const { result } = renderHook(() => useChatComposer())
+    act(() => result.current.setInput('Keep this draft'))
+    const request = { kind: 'pickList' as const, answer: { blockId: pickListBlockFixture.blockId, selectedIds: ['1'] }, labels: ['Walk'] }
+    await act(async () => {
+      if (entry === 'pickList') await result.current.blockAnswerInteraction.send(request)
+      else if (entry === 'suggestion') { result.current.composerProps.suggestions[0]!.onSelect(); await Promise.resolve() }
+      else await result.current.sendMessage('Follow up', 'followUp')
+    })
+    expect(result.current.composerProps.state).toBe('atLimit')
+    expect(result.current.input).toBe('Keep this draft')
+    expect(result.current.composerProps.onRetry).toBeUndefined()
+    await act(async () => { await result.current.blockAnswerInteraction.send(request); await result.current.retryLastSend() })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['terminal', 'partial'] as const)('handles a daily ceiling in a %s SSE error without retry', async arrival => {
+    const stream = arrival === 'partial' ? [frame('{"type":"delta","text":"Unfinished reply"}')] : []
+    mocks.fetch.mockResolvedValue(sseResponse(...stream, frame('{"type":"error","status":400,"error":"Daily budget reached","code":"AI_DAILY_BUDGET_EXCEEDED"}')))
+    const { result } = renderHook(() => useChatComposer())
+    act(() => result.current.setInput('Keep this draft'))
+    await act(async () => { await result.current.sendMessage() })
+    expect(result.current.composerProps.state).toBe('atLimit')
+    if (result.current.composerProps.state === 'atLimit') expect(result.current.composerProps.limitReason).toBe('chat.dailyBudgetReached')
+    expect(result.current.input).toBe('Keep this draft')
+    expect(result.current.messages.filter(message => message.role === 'ai')).toHaveLength(0)
+    expect(result.current.composerProps.onRetry).toBeUndefined()
+    await act(async () => { await result.current.retryLastSend(); await result.current.sendMessage(); await result.current.sendMessage('Suggestion') })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+  })
+
   it.each([400, 409, 429])('does not automatically resend HTTP %s', async status => {
     mocks.fetch.mockResolvedValue(Response.json({ code: 'CHAT_TURN_KEY_CONFLICT', error: 'The turn key belongs to another payload.' }, { status }))
     const { result } = renderHook(() => useChatComposer())

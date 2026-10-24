@@ -1585,6 +1585,7 @@
     "fileAttached": "Attached file \"{name}\":",
     "sendError": "Failed to send message. Please try again.",
     "timeoutError": "The request timed out. Please try again.",
+    "dailyBudgetReached": "Astra has reached today's limit. You can use Astra again tomorrow.",
     "limitReachedError": "You've used today's Astra messages. More arrive at midnight, your time.",
     "aiError": "Sorry, something went wrong. Please try again.",
     "operationDone": "Done.",

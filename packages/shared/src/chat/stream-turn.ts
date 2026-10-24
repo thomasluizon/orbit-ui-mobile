@@ -31,6 +31,7 @@ async function readChatTurn<Payload>(options: ChatTurnOptions<Payload>, terminal
 }
 
 function canResend(outcome: ChatTurnOutcome): boolean {
+  if (isDailyBudgetRefusal(outcome)) return false
   return outcome.kind === 'incomplete' ||
     (outcome.kind === 'httpError' && outcome.status >= 500 && outcome.status < 600)
 }
@@ -51,8 +52,12 @@ export async function sendChatStreamTurn<Payload>(options: ChatTurnOptions<Paylo
   return { kind: 'incomplete' }
 }
 
+function isDailyBudgetRefusal(outcome: ChatTurnOutcome): boolean {
+  return (outcome.kind === 'error' || outcome.kind === 'httpError') && outcome.code === 'AI_DAILY_BUDGET_EXCEEDED'
+}
+
 export function needsNewChatTurn(outcome: ChatTurnOutcome): boolean {
-  return outcome.kind === 'final' || outcome.kind === 'error' ||
+  return isDailyBudgetRefusal(outcome) || outcome.kind === 'final' || outcome.kind === 'error' ||
     (outcome.kind === 'transportError' && outcome.terminalReceived) ||
     (outcome.kind === 'httpError' && outcome.code === 'CHAT_TURN_KEY_CONFLICT')
 }
@@ -75,6 +80,11 @@ export class ChatTurnReconciliation {
       this.revision += 1
       this.pendingRevision = this.revision
     }
+  }
+
+  async reconcileAfterTurn(outcome: ChatTurnOutcome, refresh: () => Promise<void>): Promise<void> {
+    this.observe(outcome)
+    if (!isDailyBudgetRefusal(outcome)) await this.reconcile(refresh)
   }
 
   async reconcile(refresh: () => Promise<void>): Promise<void> {
