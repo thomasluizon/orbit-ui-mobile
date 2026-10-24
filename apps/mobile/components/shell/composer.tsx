@@ -480,10 +480,12 @@ function ComposerInputRow({ props, tokens, inputRef, disclosure }: Readonly<{ pr
   return (
     <View testID="composer-field" onLayout={event => measureWidth('field', event)} style={[styles.field, { backgroundColor: tokens.bgField }]}>
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.fieldOutline, composerFieldStyle(tokens, focused, inputDisabled)]} />
+      <View testID="composer-leading-controls" style={styles.leadingControls}>
       {props.onOpenConversation && props.conversationLabel ? (
           <OpenConversationControl props={props} tokens={tokens} onLayout={event => measureWidth('entry', event)} />
       ) : null}
         {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} tokens={tokens} /> : <ComposerTextInput props={props} tokens={tokens} inputRef={inputRef} onFocusChange={setFocused} availableWidth={availableWidth} onPasteFit={fits => setPasteInMenu(!fits)} />}
+      </View>
 
       <View style={styles.trailingControls}>
         <ComposerTextControls props={props} tokens={tokens} inMenu={Boolean(disclosure) || pasteInMenu} disclosure={disclosure} onLayout={event => measureWidth('actions', event)} onClear={clearMessage} onPasteText={text => {
@@ -824,9 +826,18 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 4,
   },
-  textSlot: {
+  leadingControls: {
     flexGrow: 1,
     flexShrink: 0,
+    flexBasis: 'auto',
+    minWidth: 0,
+    maxWidth: '100%',
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  textSlot: {
+    flexGrow: 1,
+    flexShrink: 1,
     flexBasis: 'auto',
     minWidth: 0,
     maxWidth: '100%',

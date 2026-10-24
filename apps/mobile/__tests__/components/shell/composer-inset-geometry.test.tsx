@@ -303,6 +303,47 @@ async function replayTextMeasurements(tree: Tree, width: number, fontScale: numb
   }
 }
 
+it.each([320, 360, 384, 412, 480].flatMap(width => [en, ptBR].flatMap(messages =>
+  ['today', 'habitDetail'].map(surface => ({ width, messages, surface })),
+)))('keeps the entry with the readable input at $width on $surface', async ({ width, messages, surface }) => {
+  useUIStore.setState({ habitComposerCollapsed: false })
+  let tree!: Tree
+  const configuration = { state: 'idle' as const, value: '', words: messages.shell.composer,
+    suggestions: surface === 'habitDetail' ? dailySuggestions(messages) : [] as const,
+    collapsible: surface === 'habitDetail', onSend: vi.fn(), onChangeValue: vi.fn(),
+    onAttachFile: vi.fn(), attachWords: { ...messages.shell.composer.attach, remove: (name: string) => name },
+    onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation }
+  await renderer.act(() => { tree = renderer.create(<Composer {...configuration} />) as Tree })
+  try {
+    for (const fontScale of [1, 1.5, 2, 1]) {
+      await renderer.act(() => {
+        __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
+        tree.update(<Composer {...configuration} />)
+      })
+      await replayTextMeasurements(tree, width, fontScale)
+      readMountedFrame(tree, width, fontScale)
+      const nodes = new Map<string, YogaNode>()
+      const layout = build(tree.toJSON(), nodes, fontScale)
+      try {
+        layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
+        const input = bounds(nodes.get('input')!)
+        const entry = bounds(nodes.get(`button:${messages.todayAstra.openConversation}`)!)
+        const placeholder = nodes.get('composer-placeholder')!
+        const label = tree.root.findAll(node => node.props.testID === 'composer-placeholder')[0]!
+        const text = measureText({ type: 'Text', props: {}, children: [messages.shell.composer.placeholder] },
+          StyleSheet.flatten(label.props.style as TextStyle), fontScale, placeholder.getComputedWidth())
+        const evidence = JSON.stringify({ width, fontScale, input, entry, text })
+        expect(entry.bottom, evidence).toBe(input.bottom)
+        expect(entry.right, evidence).toBeLessThanOrEqual(input.left)
+        expect(text.height, evidence).toBeLessThanOrEqual(input.bottom - input.top - 24)
+      } finally { layout.freeRecursive() }
+    }
+  } finally {
+    await renderer.act(() => tree.unmount())
+    __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
+  }
+})
+
 it.each(allowanceCases)('retains the measured frame through allowance transitions at $width with $limit chips $withSuggestions and scale $fontScale', async ({ width, messages, limit, withSuggestions, fontScale }) => {
   translation.words = { 'nav.astra': messages.nav.astra, 'habits.form.askDate': messages.habits.form.askDate,
     'shell.composer.limit.placeholder': messages.shell.composer.limit.placeholder }

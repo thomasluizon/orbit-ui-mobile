@@ -50,6 +50,10 @@ mounted. The local UI preference persists through the existing device storage ad
 composer surfaces stay expanded. The shell continues to allocate the pinned content outside the
 habit scroller, preserving the final content row in narrow and short viewports.
 
+The leading mark and input reflow as one group, with the trailing controls on a separate line when
+needed. Enlarged text keeps the mark aligned with the input's bottom edge. The static web
+placeholder uses normal word wrapping; typed drafts retain their spaces and line breaks.
+
 Vitest covers mark-only controls, localized action names, retained callbacks, disclosure state,
 draft retention and device persistence. Native geometry covers the Fold cover width. Hermetic
 Chromium composition covers the shell allocation, compact disclosure and mark-only actions.

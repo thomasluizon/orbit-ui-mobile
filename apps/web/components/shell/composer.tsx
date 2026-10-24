@@ -360,6 +360,7 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
 
   return (
     <div data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex flex-wrap justify-end min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] [&_button:focus-visible]:outline-2 [&_button:focus-visible]:-outline-offset-2 [&_button:focus-visible]:outline-[var(--primary)] [&_button[data-focus-on-primary]:focus-visible]:shadow-[inset_0_0_0_4px_var(--bg)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
+      <div data-composer-leading-controls className="flex w-max min-w-0 max-w-full grow shrink-0 items-end">
       {props.onOpenConversation && props.conversationLabel ? (
         <button
           type="button"
@@ -372,7 +373,7 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
         </button>
       ) : null}
 
-        {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} /> : <div data-composer-input-slot className="grid grid-cols-1 w-max min-w-0 max-w-full grow shrink-0">
+        {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} /> : <div data-composer-input-slot className="grid grid-cols-1 w-max min-w-0 max-w-full grow shrink">
         <span data-composer-input-minimum aria-hidden="true" className={`pointer-events-none invisible col-start-1 row-start-1 w-max max-w-full overflow-hidden whitespace-pre ${composerInputMetrics}`}>{inputLabel}</span>
         <TypedTextarea
           ref={inputRef}
@@ -387,8 +388,9 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
           onKeyDown={(event) => handleSendKeyDown(event, canSend, props.onSend)}
           onPaste={props.onPaste}
           onFocus={props.onOpenConversation}
-          className={`col-start-1 row-start-1 w-0 min-w-full max-h-[calc(5lh+24px)] min-h-[48px] resize-none appearance-none border-0 bg-transparent ${composerInputMetrics} text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]`}
+          className={`col-start-1 row-start-1 w-0 min-w-full max-h-[calc(5lh+24px)] min-h-[48px] resize-none appearance-none border-0 bg-transparent ${composerInputMetrics} text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] placeholder:whitespace-normal disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]`}
         /></div>}
+      </div>
 
       <div data-composer-trailing-controls className="flex max-w-full flex-wrap justify-end shrink-0 items-end gap-[4px]">
         <ComposerTextControls props={props} inMenu={Boolean(disclosure) || textActionInMenu} disclosure={disclosure} onClear={clearMessage} onPasteText={text => {

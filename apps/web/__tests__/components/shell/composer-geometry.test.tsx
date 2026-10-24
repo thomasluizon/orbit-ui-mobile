@@ -89,7 +89,26 @@ async function readTextActionLayout(page: import('@playwright/test').Page) {
     context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
     context.letterSpacing = style.letterSpacing
     const metrics = context.measureText(element.getAttribute('placeholder')!)
+    const placeholderStyle = getComputedStyle(element, '::placeholder')
+    const mirror = document.createElement('div')
+    Object.assign(mirror.style, { width: `${element.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)}px`,
+      font: style.font, lineHeight: style.lineHeight, letterSpacing: style.letterSpacing,
+      whiteSpace: placeholderStyle.whiteSpace, overflowWrap: placeholderStyle.overflowWrap })
+    mirror.textContent = element.getAttribute('placeholder')
+    document.body.append(mirror)
+    const range = document.createRange()
+    range.selectNodeContents(mirror)
+    const placeholderFragments = [...range.getClientRects()].map(rectangle => ({ left: rectangle.left, right: rectangle.right, width: rectangle.width, height: rectangle.height }))
+    const mirrorBounds = mirror.getBoundingClientRect().toJSON()
+    mirror.remove()
     return { clientWidth: element.clientWidth, rowWidth: row.clientWidth, entryWidth, sendWidth, inlineWidth, slotWidth, gap, minimumWidth,
+      height: element.clientHeight, scrollHeight: element.scrollHeight, scrollWidth: element.scrollWidth, placeholderFragments, mirrorBounds,
+      contentWidth: element.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd),
+      placeholderInkWidth: metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight,
+      rowItems: [...row.children].map(child => ({
+        owner: child.hasAttribute('data-composer-leading-controls') ? 'leading' : 'trailing',
+        ...child.getBoundingClientRect().toJSON(),
+      })),
       menuItems: JSON.parse(controls.querySelector('[data-composer-menu-items]')?.getAttribute('data-composer-menu-items') ?? '[]') as { id: string; label: string }[],
       rowPaddingStart: rowStyle.paddingInlineStart, rowPaddingEnd: rowStyle.paddingInlineEnd,
       trailingGap: getComputedStyle(trailing).columnGap,
@@ -321,6 +340,7 @@ describe('Composer compact geometry in Chromium', () => {
     const buildOptions = {
       stdin: { contents: `import React, { useState } from 'react'; import { createRoot } from 'react-dom/client';
         import { Composer } from './components/shell/composer';
+        import { ShellWide } from './components/shell/shell-wide';
         import { AstraConversation } from './components/chat/conversation';
         import { createChatThreadScroll } from '@orbit/shared/hooks';
         const props = JSON.parse(document.getElementById('configuration').textContent);
@@ -346,6 +366,14 @@ describe('Composer compact geometry in Chromium', () => {
           suggestions: currentProps.suggestions.map(chip => ({ ...chip, onSelect: () => {},
             icon: React.createElement('svg', { width: 20, height: 20, 'aria-hidden': true }) }))
           };
+          if (props.testSurface) {
+            const composer = React.createElement(Composer, composerProps);
+            return React.createElement(ShellWide, { items: [], activeId: 'hoje', navLabel: props.words.actions,
+              header: React.createElement('div', { style: { height: 48 } }),
+              tabBar: React.createElement('div', { style: { height: 80 } }),
+              ...props.testSurface === 'today' ? { compactComposer: composer, fab: React.createElement('div') } : { composer },
+            }, React.createElement('div', { style: { height: 900 } }));
+          }
           if (props.withMessages === undefined) return React.createElement(Composer, composerProps);
           return React.createElement(AstraConversation, { chat: {
             composerProps, threadScroll: createChatThreadScroll(), chatContainerRef: { current: null },
@@ -366,6 +394,8 @@ describe('Composer compact geometry in Chromium', () => {
         builder.onResolve({ filter: /^(next-intl|next\\/navigation)$/ }, args => ({ path: args.path, namespace: 'boundary' }));
         builder.onResolve({ filter: /^@\\/components\\/(goals\\/goal-detail-drawer|chat\\/message-bubble|chat\\/prompt-library)$/ }, args => ({ path: args.path, namespace: 'boundary' }));
         builder.onResolve({ filter: /^\\.\\/proactive-action$/ }, args => ({ path: args.path, namespace: 'boundary' }));
+        builder.onResolve({ filter: /^(\\.\\/sidebar-account|@sentry\\/nextjs)$/ }, args => ({ path: args.path, namespace: 'sidebar' }));
+        builder.onLoad({ filter: /.*/, namespace: 'sidebar' }, () => ({ contents: 'export const SidebarAccount = () => null; export const captureException = () => {};', loader: 'js' }));
         builder.onResolve({ filter: /^@\\/stores\\/auth-store$/ }, args => ({ path: args.path, namespace: 'boundary' }));
         builder.onLoad({ filter: /.*/, namespace: 'boundary' }, () => ({ contents:
           'import React from "react"; export const useAuthStore = { getState: () => ({ isAuthenticated: true, user: { userId: "composer-account" } }) }; export const Menu = ({items}) => React.createElement("span", { hidden: true, "data-composer-menu-items": JSON.stringify(items.map(({id,label}) => ({id,label}))) }); export const Sheet = () => null; export const GoalDetailDrawer = () => null; export const MessageBubble = ({message}) => message.content; export const PromptLibrary = () => null; export const ProactiveAction = () => null; export const useRouter = () => ({}); export const useTranslations = () => key => key === \"nav.astra\" ? \"Astra\" : key === \"habits.form.askDate\" ? JSON.parse(document.getElementById(\"configuration\").textContent).astraRequestLabel : key;', loader: 'js', resolveDir: process.cwd() }));
@@ -571,6 +601,40 @@ describe('Composer compact geometry in Chromium', () => {
       expect(geometry.colors).toEqual(geometry.neutral)
     } finally { view.unmount(); await page.close() }
   })
+  it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }].flatMap(({ locale, messages }) =>
+    ['today', 'habitDetail', 'habitDetailWithoutSuggestions'].map(surface => ({ locale, messages, surface })),
+  ))(
+    'fits the approved $locale placeholder across adjacent compact widths on $surface', async ({ messages, surface }) => {
+      const configuration = { ...geometryProps('idle', messages, true), clipboardText: 'Pasted message', testSurface: surface,
+        collapsible: surface !== 'today',
+        suggestions: surface === 'habitDetail' ? liveChipSuggestions('habitDetail', messages).suggestions : [],
+      }
+      const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+      try {
+        const measurements = []
+        const input = page.locator('[data-composer-input]')
+        for (const width of [320, 360, 384, 412, 480]) {
+          await page.setViewportSize({ width, height: 915 })
+          await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
+          await page.addScriptTag({ content: composerScript })
+          await loadAppFonts(page)
+          for (const fontScale of [1, 1.5, 2, 1]) {
+            await page.evaluate(scale => { document.documentElement.style.fontSize = `${16 * scale}px` }, fontScale)
+            await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+            measurements.push({ width, fontScale, layout: await readTextActionLayout(page), fits: await input.evaluate(composerPlaceholderFits, fontScale) })
+          }
+        }
+        for (const measured of measurements) {
+          expect(measured.fits, JSON.stringify({ surface, placeholder: messages.shell.composer.placeholder, measurements })).toBe(true)
+        }
+        await input.fill('Keep this draft\n'.repeat(8))
+        expect(await input.inputValue()).toBe('Keep this draft\n'.repeat(8))
+        await input.fill('')
+        expect(await input.evaluate(composerPlaceholderFits, 1)).toBe(true)
+      } finally { await page.close() }
+    },
+  )
+
   it.each([320, 412].flatMap(width => [en, ptBR].map(messages => ({ width, messages }))))(
     'moves text actions only when the whole placeholder needs their slot at $width', async ({ width, messages }) => {
       const configuration = { ...geometryProps('idle', messages, true), clipboardText: 'Pasted message' }
