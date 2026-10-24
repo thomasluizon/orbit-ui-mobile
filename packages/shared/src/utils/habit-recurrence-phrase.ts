@@ -31,8 +31,10 @@ function readParsedSchedule(phrase: string, locale: SupportedLocale, schedule: H
   const read = readHabitPhrase(phrase, locale)
   if ((!read.cadence && read.intervalWeeks === null) || read.dueTime) return null
   const remainder = segmentHabitPhrase(phrase, read.consumed).filter((segment) => !segment.consumed).map((segment) => segment.text).join(' ')
-  const connectors = read.cadence === 'fixed' ? /\b(?:every|each|on|and|toda|todo|todas|todos|as|os|e)\b/gu : /$^/gu
-  if (remainder.replace(connectors, '').replace(/[\s,.!?:;]+/gu, '')) return null
+  const unread = read.cadence === 'fixed'
+    ? remainder.replace(/\b(?:every|each|on|and|toda|todo|todas|todos|as|os|e)\b/gu, '')
+    : remainder
+  if (unread.replace(/[\s,.!?:;]+/gu, '')) return null
   if (!read.cadence) return { ...schedule, quantity: read.intervalWeeks ?? 1 }
   return { ...schedule, unit: read.cadence === 'flexible' ? 'Week' : 'Day', quantity: read.frequencyQuantity ?? 1,
     days: read.days, flexible: read.cadence === 'flexible', intervalWeeks: read.intervalWeeks ?? 1 }
