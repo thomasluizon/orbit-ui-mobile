@@ -143,7 +143,7 @@
     ".claude/skills/astra-eval/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "11837074bdae6863",
+      "digest": "ea8b9accfef467fb",
       "calibratedAt": "2026-10-24",
       "verdict": "undeclared, inherits the session: runs or extends the configured Astra eval corpus and distinguishes failed behavior from incomplete tool evidence; it declares no model or effort override."
     },
@@ -216,6 +216,13 @@
       "digest": "9e633595abd89253",
       "calibratedAt": "2026-10-17",
       "verdict": "undeclared, inherits the session: root-causing a production incident across Sentry, Render, Postgres and the LSP is judgement, so this is a follow-up candidate."
+    },
+    ".claude/skills/ios-release/SKILL.md": {
+      "model": null,
+      "effort": null,
+      "digest": "f4555a506a83ebd9",
+      "calibratedAt": "2026-10-24",
+      "verdict": "undeclared, inherits the session: verifies iOS signing prerequisites, release parameters and internal TestFlight processing through the manual workflow; it declares no model or effort override."
     },
     ".claude/skills/lesson/SKILL.md": {
       "model": null,

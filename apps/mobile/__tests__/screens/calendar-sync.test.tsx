@@ -26,7 +26,7 @@ function CalendarSyncScreen({ inSheet = false }: Readonly<{ inSheet?: boolean }>
   const actionRef = React.useRef<CalendarImportActionHandle>(null);
   const { t } = useTranslation();
   const content = <>
-    <CalendarImportContent reviewMode={'mode' in mocks.searchParams && mocks.searchParams.mode === "review"} initialEventId={mocks.initialEventId} onClose={() => {}} onGoToHabits={mocks.goToHabits} actionRef={actionRef} onActionStateChange={setAction} />
+    <CalendarImportContent reviewMode={'mode' in mocks.searchParams && mocks.searchParams.mode === "review"} initialEventId={mocks.initialEventId} onClose={(afterClose) => afterClose?.()} onGoToHabits={mocks.goToHabits} actionRef={actionRef} onActionStateChange={setAction} />
     {action ? <PillButton disabled={action.disabled} onClick={() => actionRef.current?.importSelected()}>{t('calendar.importButton', { count: action.count })}</PillButton> : null}
   </>;
   return inSheet ? <Sheet title={t(calendarImportTitleKey(false))} onClose={() => {}}>{content}</Sheet> : content;
@@ -319,6 +319,7 @@ vi.mock("react-native", async (importOriginal) => {
 describe("CalendarSyncScreen", () => {
   afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
   beforeEach(() => {
+    ReactNative.Platform.OS = 'android';
     mocks.reducedMotion = false;
     mocks.realPressTokens = false;
     vi.clearAllMocks();
@@ -699,6 +700,39 @@ describe("CalendarSyncScreen", () => {
       });
       await clearPendingGoogleAuthSession();
       vi.unstubAllEnvs();
+    }
+  });
+
+  it("completes iOS calendar consent once from only the native promise callback", async () => {
+    ReactNative.Platform.OS = 'ios';
+    vi.stubEnv("EXPO_PUBLIC_GOOGLE_CLIENT_ID", "web-client-id");
+    await clearPendingGoogleAuthSession();
+    const { startMobileGoogleAuth } = await vi.importActual<typeof import("@/lib/google-auth")>("@/lib/google-auth");
+    mocks.startGoogleAuth.mockImplementation(startMobileGoogleAuth);
+    mocks.eventsQuery.data = { status: "not-connected" };
+    mocks.login.mockResolvedValue(() => true);
+    mocks.apiClient.mockResolvedValue({ token: "access", refreshToken: "refresh", userId: "calendar-user",
+      name: "Calendar", email: "calendar@example.com" });
+    const callbacks: ReturnType<typeof TestRenderer.create>[] = [];
+    mocks.router.replace.mockImplementation((route: string) => {
+      if (route === '/auth-callback') {
+        callbacks.push(TestRenderer.create(<AuthCallbackScreen />));
+        callbacks.push(TestRenderer.create(<AuthCallbackScreen />));
+      }
+    });
+    mocks.openBrowser.mockImplementation((authorizeUrl: string, redirect: string) => Promise.resolve({
+      type: "success", url: `${redirect}?code=calendar-code&state=${new URL(authorizeUrl).searchParams.get("state")}`,
+    }));
+    try {
+      callbacks.push(await pressConnect());
+      await vi.waitFor(() => expect(mocks.router.replace).toHaveBeenCalledWith("/calendar?import=1"));
+      expect(mocks.router.replace.mock.calls).toEqual([['/auth-callback'], ['/calendar?import=1']]);
+      expect(mocks.apiClient.mock.calls.filter(([endpoint]) => endpoint === "/api/auth/google/code")).toHaveLength(1);
+      expect(mocks.login).toHaveBeenCalledOnce();
+    } finally {
+      TestRenderer.act(() => { callbacks.forEach((callback) => callback.unmount()); });
+      mocks.router.replace.mockReset();
+      await clearPendingGoogleAuthSession();
     }
   });
 

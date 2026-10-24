@@ -86,6 +86,14 @@ describe('proxy', () => {
     vi.unstubAllEnvs()
   })
 
+  it.each(['app.useorbit.org', 'app-staging.useorbit.org'])('passes the Apple association through on %s without redirects or authentication', async (host) => {
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', `https://${host}`)
+    const response = await proxy(createRequest('/.well-known/apple-app-site-association', { host }))
+    expect(response).toMatchObject({ type: 'next' })
+    expect(NextResponse.redirect).not.toHaveBeenCalled()
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
+  })
+
   it('allows public legal pages and unknown paths beneath them without resolving a session', async () => {
     for (const path of ['/terms', '/terms/x', '/privacy', '/privacy/x', '/delete-account', '/about']) {
       const response = await proxy(createRequest(path))

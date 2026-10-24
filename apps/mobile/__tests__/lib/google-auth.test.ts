@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Platform } from 'react-native'
 import { googleCodeAuthResponseSchema } from '@orbit/shared/types/auth'
 import { clearPendingGoogleAuthSession, hasPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl } from '@/lib/google-auth-callback'
 import { completeGoogleAuthFromUrl, getGoogleAuthRedirectUrl, startMobileGoogleAuth } from '@/lib/google-auth'
@@ -34,6 +35,7 @@ function authorizeUrl() {
 
 describe('mobile Google authorization code flow', () => {
   beforeEach(async () => {
+    Platform.OS = 'android'
     mocks.saveAttempt.mockReset().mockResolvedValue(undefined)
     mocks.deleteAttempt.mockReset().mockResolvedValue(undefined)
     mocks.readAttempt.mockReset().mockResolvedValue(null)
@@ -49,6 +51,12 @@ describe('mobile Google authorization code flow', () => {
       return Promise.resolve({ type: 'success', url: `${redirect}?code=google-code&state=${state}` })
     })
     mocks.apiClient.mockReset().mockResolvedValue(loginResponse)
+  })
+
+  it('uses an HTTPS Universal Link callback on iOS', async () => {
+    Platform.OS = 'ios'
+    await startMobileGoogleAuth({})
+    expect(mocks.open).toHaveBeenCalledWith(expect.any(String), callback, { preferUniversalLinks: true })
   })
 
   it.each([false, true])('builds a %s authorize URL and exchanges the code', async (forceConsent) => {

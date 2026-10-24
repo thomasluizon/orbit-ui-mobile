@@ -6,6 +6,7 @@ import { CalendarSyncBoundary } from '@/app/(tabs)/calendar/_components/calendar
 import { ActionRow } from '@/components/ui/action-row'
 import { useCallback, useEffect, useImperativeHandle, useMemo, useState, type ComponentProps, type Ref } from 'react'
 import {
+  Platform,
   Pressable,
   Text,
   View,
@@ -96,7 +97,7 @@ interface ImportResult {
 }
 
 // react-doctor-disable-next-line no-giant-component -- Screen orchestration is already decomposed into calendar-sync-* section components; the remaining wizard state + JSX tree is inherently long, and further splitting is a regression-prone refactor with cross-platform parity cost. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-export function CalendarImportContent({ reviewMode, initialEventId, onClose, onGoToHabits, actionRef, onActionStateChange }: Readonly<{ reviewMode: boolean; initialEventId: string | null; onClose: () => void; onGoToHabits: () => void; actionRef: Ref<CalendarImportActionHandle>; onActionStateChange: (state: CalendarImportActionState | null) => void }>) {
+export function CalendarImportContent({ reviewMode, initialEventId, onClose, onGoToHabits, actionRef, onActionStateChange }: Readonly<{ reviewMode: boolean; initialEventId: string | null; onClose: (afterClose?: () => void) => void; onGoToHabits: () => void; actionRef: Ref<CalendarImportActionHandle>; onActionStateChange: (state: CalendarImportActionState | null) => void }>) {
   const [firstLineCentre, setFirstLineCentre] = useState(12)
   const prefersReducedMotion = usePrefersReducedMotion()
   const router = useRouter()
@@ -227,7 +228,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
 
   const importedCount = importResult?.imported ?? 0
 
-  const handleBack = onClose
+  const handleBack = () => onClose()
 
   const toggleAll = useCallback(() => {
     setSelectedIds(() => {
@@ -271,13 +272,14 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
         router.replace('/login?googleError=1')
         return
       }
+      if (Platform.OS === 'ios') onClose(() => router.replace('/auth-callback'))
     } catch {
       allowGoogleErrorLogin()
       router.replace('/login?googleError=1')
     } finally {
       setIsConnecting(false)
     }
-  }, [isConnecting, isOnline, isReviewMode, router, setActionError, setErrorMessage, setIsConnecting])
+  }, [isConnecting, isOnline, isReviewMode, onClose, router, setActionError, setErrorMessage, setIsConnecting])
 
   const handleImportSelected = useCallback(async () => {
     if (!hasProAccess || !isOnline) {

@@ -1,6 +1,6 @@
 # Orbit
 
-Personal habit tracker. Turborepo monorepo: `apps/web`, `apps/mobile` (Android-only), `apps/desktop` (Tauri webview shell), `packages/shared`. Siblings `orbit-api` and `orbit-landing-page` carry their own `CLAUDE.md`, and each workspace has a scoped one, so this root holds only cross-cutting rules.
+Personal habit tracker. Turborepo monorepo: `apps/web`, `apps/mobile` (Android and iOS), `apps/desktop` (Tauri webview shell), `packages/shared`. Siblings `orbit-api` and `orbit-landing-page` carry their own `CLAUDE.md`, and each workspace has a scoped one, so this root holds only cross-cutting rules.
 
 ## Maximum implementation (overrides global rule 4, "surgical changes")
 
