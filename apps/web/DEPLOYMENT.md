@@ -63,6 +63,20 @@ Production releases require `https://<PRODUCTION_WEB_HOST>/api/health` to return
 
 The Render API request uses `POST /v1/services/{serviceId}/deploys` with `imageUrl` set to `ghcr.io/thomasluizon/orbit-web@sha256:...`. Each job reads the deploy ID from Render's HTTP 201 response to that request, checks that the response names the same image reference, and polls that deploy. Any other response status fails the job, because an HTTP 202 (queued) response has no body and so cannot name the deploy the release created. A later deploy that supersedes this one leaves it `canceled`. Both jobs accept Render's `live` status and fail on terminal failure statuses, `canceled` included.
 
+## Streaming shutdown
+
+The release workflow sets Render's `serviceDetails.maxShutdownDelaySeconds` to 300 before
+requesting each staging, production or redesign deployment. A failed configuration request stops
+the release. This uses the [Update service API](https://api-docs.render.com/reference/update-service),
+not a dashboard change. The [Render shutdown contract](https://render.com/docs/deploys#graceful-shutdown)
+allows up to 300 seconds after SIGTERM before SIGKILL.
+
+The standalone image runs Node directly. Next.js handles SIGTERM by closing the HTTP listener,
+waiting for active responses, then closing its runtime. Keep `NEXT_MANUAL_SIG_HANDLE` unset so
+Next.js retains this handler. Streams that exceed the platform window can still be interrupted;
+failed sends retain the original composer draft and require an explicit Retry on web and Android.
+Automatic resend requires the API idempotency contract tracked by #1675.
+
 ## Focused read block rollout
 
 Deploy #1616's API contracts before shipping the client advertisement for `periodTotal`,
