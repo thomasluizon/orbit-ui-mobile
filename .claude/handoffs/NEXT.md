@@ -18,13 +18,13 @@ Finish the spec: every requested production fix, the Astra overhaul, the owner r
 
 ## In flight
 
-UI `main` is `028d0ee0`, API `main` is `63ab0e32`, landing `main` is `0d5e3df4`. Production and staging web `e397f2a2`; staging API `63ab0e32`; production API `63ab0e32` (run 40100023772, Healthy); production landing `0d5e3df4`; Android Open `1.3.94` (`153`) available. Open pull requests: UI `#2017`, `#2016`, `#2015`, `#1989` (relay docs), `#1984`; API none; landing none.
+UI `main` is `028d0ee0`, API `main` is `63ab0e32`, landing `main` is `0d5e3df4`. Production and staging web `e397f2a2`; staging API `63ab0e32`; production API `63ab0e32` (run 40100023772, Healthy); production landing `0d5e3df4`; Android Open `1.3.94` (`153`) available. Open pull requests: UI `#2018`, `#2017`, `#2016`, `#2015`, `#1989` (relay docs), `#1984`; API none; landing none.
 
 | Item | Disposition |
 | --- | --- |
 | `ui#2017` (`#1681`, head `fc656d1e`) | Round 1 is pushed with thread `PRRT_kwDOR5Siws6v4vKg` resolved and the report in the body: in `--ci` the candidate must keep the base's `provenance.legacyProduction` and every retained snapshot (349 parity assertions, 4,733 tool assertions, hooks exit 0). Wait on CI and a fresh Pullfrog review (`wait-ci.mjs --repo ui --pr 2017`); merge on green at the exact approved head. |
 | After `ui#2017` merges | `ui#2016`: publish `pr-2016-body-new.md`, then `answer-push.sh ui 2016 <worktree ticket-24-chat-surface-finish> PRRT_kwDOR5Siws6v4XfK` (local `7de439a5`). `ui#1984` (`de5299fb`, Pullfrog APPROVED, Lighthouse and layout green) and `ui#2015` (`83e6558b`, APPROVED): close and reopen at the same head for a fresh run; merge each on green. A second SonarCloud out-of-memory on `ui#1984` makes `sonar.javascript.node.maxspace` the next harness fix on `main`. `#579` follows `ui#1984`'s merge; staging and production web releases follow the merges. |
-| `#1561` step 1 (`deep`) | Relaunched at relay in `ticket-1561-ios-foundation` (launcher `bc144dksa`); read the outcome, the diff and its pull request, then drive it to merge. |
+| `ui#2018` (`#1561` step 1, head `f3e36475`) | Opened by the relaunched `deep` worker: iOS variants, Universal Links, iOS auth, APNs subscribe with the `apns` marker, CI compile and an internal TestFlight preparation; 334 focused tests, type checks, both harnesses and both iOS prebuild variants pass; native compilation is CI's, TestFlight waits on the Apple Developer enrollment (owner, last possible moment). Read the diff, then CI and review to merge. |
 | `#1612` | The prepared runner refuses (`AUTH_RECEIPT_BYTES_MISMATCH`; binding preflight refuses with its error withheld). Do the direct check instead (decision D20 in the carried log): send "add an icon to every habit without one" (en, then pt-BR) through staging `/api/chat` with the `sweep-1151/state.json` session, approve the preview through `POST /api/ai/pending-operations/{id}/confirm` then `/execute` (read the request shapes from `orbit-api` `src/Orbit.Api/Controllers/AiController.cs:173` and `:287`), and read every icon back through the staging Orbit MCP. Close only on a passing readback. Then `astra-compound.mts cleanup`. |
 | Throwaway AVD `orbit_accept_throwaway` | Running headless with Orbit Staging `1.3.95` signed in to the staging account. Optional before deletion: open Astra on the device and send the owner's English message to see the preview with its parents on Android (do not approve). Then kill the emulator (`adb emu kill`) and delete the AVD. |
 | `#1658` | One open item: a signed-in before figure on the same device class (see its comment). |
@@ -36,7 +36,7 @@ UI `main` is `028d0ee0`, API `main` is `63ab0e32`, landing `main` is `0d5e3df4`.
 1. Answer any owner message first, in his language, and give each order a ticket or a rescope before the turn ends.
 2. `ui#2017` CI and merge; then `ui#2016` push, `ui#1984` and `ui#2015` reruns and merges; web releases.
 3. `#1612` direct check, then fixture cleanup; then `#1675` (stream idempotency, now unblocked by `#1671`).
-4. `#1561` step 1 pull request to merge.
+4. `ui#2018` (`#1561` step 1): read the diff, CI, review, merge.
 5. The full real-call Astra staging sweep with `#26`'s composition gate (`/astra-eval`), staging AI budget permitting (32 of 50 used today before `#1612`).
 6. Follow `## The order` for everything else, pool full under the load gate and the disk floor (213 GiB free at this relay).
 
@@ -51,7 +51,7 @@ Unattended run. Never ask the owner; decide with the recommended option and log 
 - `orbit-api#895` to staging and the owner-message rerun: done (round 1 fixed the P1 duplicate-write thread, merged as `63ab0e32`, staging run 40099329082, both messages pass). Production API: done (run 40100023772, `63ab0e32` Healthy); `#1671` and `#1680` closed. `astra-compound.mts cleanup`: carried (after `#1612`'s direct check). `#1675`: carried.
 - `ui#1984` push on a green root run: done (`de5299fb`, root 440 of 440). CI: carried behind `#1681`.
 - `ui#2016` round: done locally (`7de439a5`); push carried behind `#1681`. `ui#2015` CI: green except Guards; rerun carried behind `#1681`.
-- `#1680`: done (`orbit-api#896`, `f844076f`). `#1561` step 1: relaunched, outcome carried.
+- `#1680`: done (`orbit-api#896`, `f844076f`). `#1561` step 1: relaunched, delivered as `ui#2018`; review and merge carried.
 - Root Android acceptance lane: done for `#1668`, `#1673`, `#1604`, `#1606`, `#1609`, `#1635` (fresh install), `#1658` (spans); AVD deletion carried.
 - Android Open `1.3.94` availability and `#1669`: done (available; `#1669`, `#1672`, `#1677`, `#1603` closed).
 - `#1612` root acceptance: done differently (the prepared runner refuses); the direct check is carried. The full real-call Astra sweep: carried.
