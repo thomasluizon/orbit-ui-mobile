@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-commit-desktop-login"
+description = "Enables the commit_desktop_login command without any pre-configured scope."
+commands.allow = ["commit_desktop_login"]
+
+[[permission]]
+identifier = "deny-commit-desktop-login"
+description = "Denies the commit_desktop_login command without any pre-configured scope."
+commands.deny = ["commit_desktop_login"]

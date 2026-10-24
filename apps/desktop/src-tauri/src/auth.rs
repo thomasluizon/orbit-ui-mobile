@@ -5,6 +5,7 @@ use tauri::{webview::cookie::SameSite, webview::Cookie, Url};
 
 pub type CookieOwner = Vec<(String, String)>;
 
+#[derive(Clone)]
 pub struct Attempt {
     pub state: String,
     pub verifier: String,
@@ -17,6 +18,7 @@ pub struct AuthFlow {
     callback: Url,
     pending: Option<Attempt>,
     active: Option<String>,
+    pub ready: Option<(Attempt, Vec<Cookie<'static>>)>,
 }
 
 impl AuthFlow {
@@ -34,17 +36,8 @@ impl AuthFlow {
             callback: format!("{identifier}://auth/callback").parse().unwrap(),
             pending: None,
             active: None,
+            ready: None,
         })
-    }
-
-    pub fn intercepts(&self, url: &Url) -> bool {
-        url.origin() == self.origin.origin()
-            && url.username().is_empty()
-            && url.password().is_none()
-            && url.path() == "/api/auth/google/start"
-            && url
-                .query_pairs()
-                .any(|(key, value)| key == "purpose" && value == "signin")
     }
 
     pub fn begin(&mut self, owner: CookieOwner) -> Result<Url, &'static str> {
@@ -62,6 +55,7 @@ impl AuthFlow {
             .append_pair("desktopState", &state)
             .append_pair("codeChallenge", &challenge);
         self.active = Some(state.clone());
+        self.ready = None;
         self.pending = Some(Attempt {
             state,
             verifier,
@@ -120,6 +114,16 @@ impl AuthFlow {
         serde_json::json!({ "code": code, "state": attempt.state,
             "codeVerifier": attempt.verifier, "redirectUri": self.callback.as_str() })
     }
+}
+
+pub fn intercepts(origin: &Url, url: &Url) -> bool {
+    url.origin() == origin.origin()
+        && url.username().is_empty()
+        && url.password().is_none()
+        && url.path() == "/api/auth/google/start"
+        && url
+            .query_pairs()
+            .any(|(key, value)| key == "purpose" && value == "signin")
 }
 
 pub fn cookie_owner(cookies: &[Cookie<'_>]) -> CookieOwner {
@@ -195,6 +199,24 @@ pub fn install_session<Failure>(
     Ok(())
 }
 
+pub fn commit_session<Failure>(
+    flow: &std::sync::Mutex<AuthFlow>,
+    attempt: &Attempt,
+    cookies: &[Cookie<'static>],
+    read: impl FnOnce() -> Result<Vec<Cookie<'static>>, Failure>,
+    set: impl FnMut(&Cookie<'static>) -> Result<(), Failure>,
+    delete: impl FnMut(&Cookie<'static>) -> Result<(), Failure>,
+) -> Result<bool, &'static str> {
+    let guard = flow.lock().unwrap();
+    let current = read().map_err(|_| "Cannot read desktop session")?;
+    if !guard.accepts_session(attempt, &current) {
+        return Ok(false);
+    }
+    install_session(cookies, &current, set, delete)?;
+    drop(guard);
+    Ok(true)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -248,7 +270,8 @@ mod tests {
     #[test]
     fn only_owned_google_signin_navigation_is_intercepted() {
         let flow = flow();
-        assert!(flow.intercepts(
+        assert!(intercepts(
+            &flow.origin,
             &flow
                 .origin
                 .join("/api/auth/google/start?purpose=signin")
@@ -262,7 +285,7 @@ mod tests {
             "https://app-staging.useorbit.org/api/auth/google/start?purpose=calendar",
             "https://app-staging.useorbit.org/api/auth/verify-code",
         ] {
-            assert!(!flow.intercepts(&url.parse().unwrap()), "{url}");
+            assert!(!intercepts(&flow.origin, &url.parse().unwrap()), "{url}");
         }
     }
 
@@ -380,8 +403,103 @@ mod tests {
         assert!(flow.accepts_session(&attempt, &[]));
         let signed_in = session_cookies(&headers(), &flow.origin).unwrap();
         assert!(!flow.accepts_session(&attempt, &signed_in));
+        let cookies = signed_in.clone();
+        let flow = std::sync::Mutex::new(flow);
+        assert_eq!(
+            commit_session(
+                &flow,
+                &attempt,
+                &cookies,
+                || Ok::<_, ()>(signed_in),
+                |_| panic!("email session must not be overwritten"),
+                |_| panic!("email session must not be deleted")
+            ),
+            Ok(false)
+        );
+        let mut flow = flow.into_inner().unwrap();
         flow.begin(Vec::new()).unwrap();
         assert!(!flow.accepts_session(&attempt, &[]));
+        assert_eq!(
+            commit_session(
+                &std::sync::Mutex::new(flow),
+                &attempt,
+                &cookies,
+                || Ok::<_, ()>(Vec::new()),
+                |_| panic!("stale attempt must not write"),
+                |_| panic!("stale attempt must not delete")
+            ),
+            Ok(false)
+        );
+    }
+
+    #[test]
+    fn superseding_during_cookie_commit_keeps_the_newer_session_intact() {
+        use std::sync::{mpsc, Arc, Mutex, TryLockError};
+        let mut auth = flow();
+        auth.begin(Vec::new()).unwrap();
+        let state = auth.pending.as_ref().unwrap().state.clone();
+        let (attempt, _) = auth
+            .claim(&callback(&state, &format!("code={}", "A".repeat(64))))
+            .unwrap();
+        let cookies = session_cookies(&headers(), &auth.origin).unwrap();
+        let flow = Arc::new(Mutex::new(auth));
+        let stored = Arc::new(Mutex::new(Vec::<Cookie<'static>>::new()));
+        let (checked, pause) = mpsc::channel();
+        let (resume, resumed) = mpsc::channel();
+        let writing_flow = flow.clone();
+        let writing_store = stored.clone();
+        let writer = std::thread::spawn(move || {
+            let mut first = true;
+            commit_session(
+                &writing_flow,
+                &attempt,
+                &cookies,
+                || Ok::<_, ()>(writing_store.lock().unwrap().clone()),
+                |cookie| {
+                    if first {
+                        first = false;
+                        checked.send(()).unwrap();
+                        resumed.recv().unwrap();
+                    }
+                    let mut stored = writing_store.lock().unwrap();
+                    stored.retain(|prior| prior.name() != cookie.name());
+                    stored.push(cookie.clone());
+                    Ok(())
+                },
+                |_| Ok(()),
+            )
+            .unwrap()
+        });
+        pause.recv().unwrap();
+        let (superseding, superseded) = mpsc::channel();
+        let newer_store = stored.clone();
+        let newer = std::thread::spawn(move || {
+            let mut guard = match flow.try_lock() {
+                Ok(guard) => guard,
+                Err(TryLockError::WouldBlock) => {
+                    superseding.send(()).unwrap();
+                    flow.lock().unwrap()
+                }
+                Err(error) => panic!("{error}"),
+            };
+            guard.begin(Vec::new()).unwrap();
+            *newer_store.lock().unwrap() = vec![
+                Cookie::new("auth_token", "new-access"),
+                Cookie::new("refresh_token", "new-refresh"),
+            ];
+            let _ = superseding.send(());
+        });
+        superseded.recv().unwrap();
+        resume.send(()).unwrap();
+        assert!(writer.join().unwrap());
+        newer.join().unwrap();
+        assert_eq!(
+            cookie_owner(&stored.lock().unwrap()),
+            vec![
+                ("auth_token".into(), "new-access".into()),
+                ("refresh_token".into(), "new-refresh".into())
+            ]
+        );
     }
 
     #[test]

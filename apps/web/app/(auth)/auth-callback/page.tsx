@@ -8,7 +8,7 @@ import { AuthCallbackContent } from './auth-callback-content'
 
 export default async function AuthCallbackPage({ searchParams }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>
-} = {}) {
+}) {
   const pendingRaw = (await cookies()).get(GOOGLE_OAUTH_COOKIE)?.value
   let pendingWebState: string | null = null
   let desktop = false

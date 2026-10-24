@@ -37,7 +37,7 @@ describe('Google callback web ownership', () => {
       headers: { cookie: `${GOOGLE_OAUTH_COOKIE}=${encodeURIComponent(pending.value)}` },
     })
     mocks.cookies.mockResolvedValue(callbackRequest.cookies)
-    render(await AuthCallbackPage())
+    render(await AuthCallbackPage({}))
     const state = new URL(started.headers.get('location')!).searchParams.get('state')!
     expect(screen.getByText(state)).toBeInTheDocument()
     const verifier = JSON.parse(pending.value).verifier as string
@@ -49,7 +49,7 @@ describe('Google callback web ownership', () => {
       headers: pending === null ? {} : { cookie: `${GOOGLE_OAUTH_COOKIE}=${encodeURIComponent(pending)}` },
     })
     mocks.cookies.mockResolvedValue(callbackRequest.cookies)
-    render(await AuthCallbackPage())
+    render(await AuthCallbackPage({}))
     expect(screen.getByText('no web attempt')).toBeInTheDocument()
   })
 })

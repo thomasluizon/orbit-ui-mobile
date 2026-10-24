@@ -39,7 +39,7 @@ describe('desktop Google BFF handoff', () => {
   beforeEach(() => {
     vi.stubEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID', 'web-client')
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', origin)
-    api.mockReset()
+    api.mockReset().mockResolvedValue(new Response(null, { status: 200 }))
     vi.stubGlobal('fetch', api)
   })
   afterEach(() => {
@@ -73,8 +73,9 @@ describe('desktop Google BFF handoff', () => {
     const session = await exchange(redemption())
     expect(session.status).toBe(200)
     expect(await session.json()).toEqual({})
-    expect(api.mock.calls[2]?.[0]).toBe('http://localhost:5000/api/auth/desktop/exchange')
-    expect(JSON.parse(api.mock.calls[2]?.[1].body)).toEqual({ code: handoffCode, state, codeVerifier: verifier, redirectUri })
+    const redemptionCall = api.mock.calls.find(([url]) => url === 'http://localhost:5000/api/auth/desktop/exchange')
+    expect(redemptionCall).toBeDefined()
+    expect(JSON.parse(redemptionCall?.[1].body)).toEqual({ code: handoffCode, state, codeVerifier: verifier, redirectUri })
     for (const name of ['auth_token', 'refresh_token']) {
       expect(session.cookies.get(name)).toMatchObject({ httpOnly: true, secure: true, sameSite: 'strict', path: '/' })
     }
@@ -110,6 +111,21 @@ describe('desktop Google BFF handoff', () => {
     const response = await callback(pending.request(`error=access_denied&state=${pending.googleState}`))
     expect(response.headers.get('location')).toBe(`${redirectUri}?state=${state}&error=authentication_failed`)
     expect(api).not.toHaveBeenCalled()
+  })
+
+  it.each(['success', 'handoff failure', 'revoke rejection', 'revoke network failure'])
+  ('revokes the temporary browser session after %s without losing a granted code', async (outcome) => {
+    const pending = attempt()
+    api.mockResolvedValueOnce(Response.json(account)).mockResolvedValueOnce(
+      outcome === 'handoff failure' ? new Response(null, { status: 503 }) : Response.json({ code: handoffCode, expiresIn: 60 }),
+    )
+    if (outcome === 'revoke network failure') api.mockRejectedValueOnce(new Error('unavailable'))
+    else api.mockResolvedValueOnce(new Response(null, { status: outcome === 'revoke rejection' ? 503 : 200 }))
+    const response = await callback(pending.request(`code=google-code&state=${pending.googleState}`))
+    expect(response.headers.get('location')).toBe(`${redirectUri}?state=${state}&${outcome === 'handoff failure' ? 'error=authentication_failed' : `code=${handoffCode}`}`)
+    const revocation = api.mock.calls.find(([url]) => url === 'http://localhost:5000/api/auth/logout')
+    expect(revocation).toBeDefined()
+    expect(revocation?.[1]).toMatchObject({ method: 'POST', body: JSON.stringify({ refreshToken: account.refreshToken }) })
   })
 
   it('completes when the browser strict session cookie is absent on the Google redirect', async () => {

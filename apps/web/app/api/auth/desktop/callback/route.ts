@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { z } from 'zod'
+import * as Sentry from '@sentry/nextjs'
 import { googleCodeAuthResponseSchema } from '@orbit/shared/types/auth'
 import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { buildBffForwardingHeaders } from '@/app/api/_utils/bff-forwarding'
@@ -10,6 +11,18 @@ const pendingSchema = z.object({
   state: z.string(), verifier: z.string(), redirectUri: z.string(),
   desktop: desktopAttemptSchema,
 })
+
+async function revokeBrowserSession(refreshToken: string, request: NextRequest) {
+  try {
+    const response = await fetch(`${process.env.API_BASE ?? 'http://localhost:5000'}/api/auth/logout`, {
+      method: 'POST', headers: { ...API_VERSION_HEADERS, ...buildBffForwardingHeaders(request), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }), signal: AbortSignal.timeout(5000),
+    })
+    if (!response.ok) throw new Error('Cannot revoke desktop browser session')
+  } catch (error: unknown) {
+    Sentry.captureException(error)
+  }
+}
 
 export async function GET(request: NextRequest) {
   let pendingValue: unknown = null
@@ -24,6 +37,7 @@ export async function GET(request: NextRequest) {
   const attempt = pending.data
   const destination = new URL(attempt.desktop.redirectUri)
   destination.searchParams.set('state', attempt.desktop.state)
+  let browserRefreshToken: string | null = null
   try {
     if (params.has('error') || !params.get('code')) {
       throw new Error('Google sign-in cancelled')
@@ -35,6 +49,7 @@ export async function GET(request: NextRequest) {
     })
     if (!login.ok) throw new Error('Google sign-in failed')
     const account = googleCodeAuthResponseSchema.parse(await login.json())
+    browserRefreshToken = account.refreshToken ?? null
     const handoff = await fetch(`${process.env.API_BASE ?? 'http://localhost:5000'}/api/auth/desktop/handoff`, {
       method: 'POST', headers: { ...API_VERSION_HEADERS, ...buildBffForwardingHeaders(request),
         'Content-Type': 'application/json', Authorization: `Bearer ${account.token}` },
@@ -45,6 +60,8 @@ export async function GET(request: NextRequest) {
     destination.searchParams.set('code', grant.code)
   } catch {
     destination.searchParams.set('error', 'authentication_failed')
+  } finally {
+    if (browserRefreshToken) await revokeBrowserSession(browserRefreshToken, request)
   }
   const response = NextResponse.redirect(destination, { status: 303, headers })
   response.cookies.delete(GOOGLE_OAUTH_COOKIE)

@@ -1,4 +1,4 @@
-use crate::auth::{cookie_owner, install_session, session_cookies, Attempt, AuthFlow};
+use crate::auth::{commit_session, cookie_owner, session_cookies, Attempt, AuthFlow};
 use std::{
     sync::{Arc, Mutex},
     time::Duration,
@@ -34,15 +34,23 @@ pub fn start(app: AppHandle, flow: SharedAuth) {
         };
         let origin = flow.lock().unwrap().origin.clone();
         let result = (|| {
-            let cookies = window
-                .cookies_for_url(origin.clone())
-                .map_err(|_| "Cannot read desktop session")?;
-            let url = flow.lock().unwrap().begin(cookie_owner(&cookies))?;
+            let (url, state) = {
+                let mut guard = flow.lock().unwrap();
+                let cookies = window
+                    .cookies_for_url(origin.clone())
+                    .map_err(|_| "Cannot read desktop session")?;
+                let url = guard.begin(cookie_owner(&cookies))?;
+                let state = url
+                    .query_pairs()
+                    .find(|(key, _)| key == "desktopState")
+                    .unwrap()
+                    .1
+                    .into_owned();
+                (url, state)
+            };
+            notify(&window, "begin", &state)?;
             tauri_plugin_opener::open_url(url.as_str(), None::<&str>)
-                .map_err(|_| "Cannot open sign-in browser")?;
-            window
-                .navigate(origin.join("/login").unwrap())
-                .map_err(|_| "Cannot reset desktop login")
+                .map_err(|_| "Cannot open sign-in browser")
         })();
         if result.is_err() {
             show_failure(&window, &origin);
@@ -51,12 +59,12 @@ pub fn start(app: AppHandle, flow: SharedAuth) {
 }
 
 fn receive(app: &AppHandle, flow: SharedAuth, url: Url) {
-    let claimed = flow.lock().unwrap().claim(&url);
-    let Some((attempt, code)) = claimed else {
-        return;
-    };
     let handle = app.clone();
     tauri::async_runtime::spawn(async move {
+        let claimed = flow.lock().unwrap().claim(&url);
+        let Some((attempt, code)) = claimed else {
+            return;
+        };
         let Some(window) = handle.get_webview_window("main") else {
             return;
         };
@@ -116,25 +124,59 @@ async fn redeem(
         })
         .collect::<Result<Vec<_>, _>>()?;
     let cookies = session_cookies(&headers, &origin)?;
-    let current = window
-        .cookies_for_url(origin.clone())
-        .map_err(|_| "Cannot read desktop session")?;
-    if !flow.lock().unwrap().accepts_session(attempt, &current) {
-        return Ok(());
+    {
+        let mut guard = flow.lock().unwrap();
+        if !guard.owns(&attempt.state) {
+            return Ok(());
+        }
+        guard.ready = Some((attempt.clone(), cookies));
     }
-    install_session(
-        &cookies,
-        &current,
-        |cookie| window.set_cookie(cookie.clone()),
-        |cookie| window.delete_cookie(cookie.clone()),
-    )?;
-    window
-        .navigate(origin)
-        .map_err(|_| "Cannot open signed-in desktop")?;
+    notify(window, "ready", &attempt.state)?;
     if window.set_focus().is_err() {
         eprintln!("Cannot focus signed-in desktop");
     }
     Ok(())
+}
+
+fn notify(window: &WebviewWindow, phase: &str, state: &str) -> Result<(), &'static str> {
+    let detail = serde_json::json!({ "phase": phase, "state": state });
+    window
+        .eval(format!(
+            "window.dispatchEvent(new CustomEvent('orbit-desktop-auth', {{detail:{detail}}}))"
+        ))
+        .map_err(|_| "Cannot complete desktop sign-in")
+}
+
+#[tauri::command]
+pub async fn commit_desktop_login(
+    window: WebviewWindow,
+    flow: tauri::State<'_, SharedAuth>,
+    state: String,
+) -> Result<bool, &'static str> {
+    let (origin, ready) = {
+        let mut guard = flow.lock().unwrap();
+        let url = window.url().map_err(|_| "Cannot read desktop origin")?;
+        if window.label() != "main" || url.origin() != guard.origin.origin() {
+            return Err("Invalid desktop origin");
+        }
+        if !guard.owns(&state)
+            || guard
+                .ready
+                .as_ref()
+                .is_none_or(|(attempt, _)| attempt.state != state)
+        {
+            return Ok(false);
+        }
+        (guard.origin.clone(), guard.ready.take().unwrap())
+    };
+    commit_session(
+        &flow,
+        &ready.0,
+        &ready.1,
+        || window.cookies_for_url(origin),
+        |cookie| window.set_cookie(cookie.clone()),
+        |cookie| window.delete_cookie(cookie.clone()),
+    )
 }
 
 fn show_failure(window: &WebviewWindow, origin: &Url) {

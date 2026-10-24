@@ -5,6 +5,15 @@
     "frontendDist": "https://app.useorbit.org"
   },
   "app": {
+    "security": {
+      "capabilities": [{
+        "identifier": "desktop-auth",
+        "local": false,
+        "remote": { "urls": ["https://app.useorbit.org/*"] },
+        "windows": ["main"],
+        "permissions": ["allow-commit-desktop-login"]
+      }]
+    },
     "windows": [
       {
         "label": "main",

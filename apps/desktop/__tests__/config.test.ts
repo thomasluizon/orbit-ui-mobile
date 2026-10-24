@@ -44,12 +44,15 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
     const entrypoint = readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
     expect(entrypoint).toMatch(/\.setup\([\s\S]*WebviewWindowBuilder::from_config[\s\S]*\.on_new_window\([\s\S]*open_new_window\([\s\S]*tauri_plugin_opener::open_url[\s\S]*\.build\(\)/)
     expect(entrypoint).toContain('.on_navigation(')
-    expect(entrypoint).not.toMatch(/\.invoke_handler\(/)
+    expect(entrypoint).toMatch(/\.invoke_handler\(tauri::generate_handler!\[\s*desktop_login::commit_desktop_login\s*\]\)/)
   })
 
-  it('grants no JavaScript privileges and registers only its own callback scheme', () => {
+  it('grants only session completion to its own origin and registers its callback scheme', () => {
     expect(config.app.withGlobalTauri).toBe(false)
-    expect(config.app.security.capabilities).toEqual([])
+    expect(config.app.security.capabilities).toEqual([{
+      identifier: 'desktop-auth', local: false, remote: { urls: [`${origin}/*`] },
+      windows: ['main'], permissions: ['allow-commit-desktop-login'],
+    }])
     expect(config.plugins).toEqual({ 'deep-link': { desktop: { schemes: [identifier] } } })
     expect(existsSync(new URL('../src-tauri/capabilities', import.meta.url))).toBe(false)
   })

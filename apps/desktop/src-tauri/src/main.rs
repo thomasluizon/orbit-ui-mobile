@@ -9,6 +9,9 @@ mod desktop_login;
 
 fn main() {
     tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![
+            desktop_login::commit_desktop_login
+        ])
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(window) = app.get_webview_window("main") {
                 if window.set_focus().is_err() {
@@ -27,12 +30,14 @@ fn main() {
                 origin.clone(),
                 &app.config().identifier,
             )?));
-            let navigation_flow = flow.clone();
+            let navigation_origin = origin.clone();
+            app.manage(flow.clone());
+            let callbacks_flow = flow.clone();
             let handle = app.handle().clone();
             tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
                 .on_navigation(move |url| {
-                    if navigation_flow.lock().unwrap().intercepts(url) {
-                        desktop_login::start(handle.clone(), navigation_flow.clone());
+                    if auth::intercepts(&navigation_origin, url) {
+                        desktop_login::start(handle.clone(), flow.clone());
                         return false;
                     }
                     true
@@ -41,7 +46,7 @@ fn main() {
                     open_new_window(url, |url| tauri_plugin_opener::open_url(url, None::<&str>))
                 })
                 .build()?;
-            desktop_login::attach_callbacks(app.handle(), flow)?;
+            desktop_login::attach_callbacks(app.handle(), callbacks_flow)?;
             Ok(())
         })
         .run(context())
@@ -90,12 +95,12 @@ mod tests {
     }
 
     #[test]
-    fn webview_uses_persistent_storage_without_native_privileges() {
+    fn webview_uses_persistent_storage_with_only_session_completion() {
         let context = super::context();
         let config = context.config();
         assert!(!config.app.windows[0].incognito);
         assert!(!config.app.with_global_tauri);
-        assert!(config.app.security.capabilities.is_empty());
+        assert_eq!(config.app.security.capabilities.len(), 1);
     }
 
     #[test]
