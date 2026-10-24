@@ -194,7 +194,9 @@ describe('habit understanding geometry', () => {
         })
         const bounds = (await control.boundingBox())!
         await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
-        await page.waitForTimeout(300)
+        await control.evaluate(async element => {
+          await Promise.all(element.getAnimations().map(animation => animation.finished))
+        })
         const hovered = await control.evaluate((element) => {
           const style = getComputedStyle(element.querySelector('span[data-selected], span.orbit-selection-ring') ?? element)
           return { fill: style.backgroundColor, color: style.color }
