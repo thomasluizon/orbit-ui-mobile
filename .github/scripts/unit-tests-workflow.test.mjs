@@ -171,6 +171,24 @@ test("Unit Tests preserves merged coverage thresholds and Sonar consumes the com
   assert.ok(workflow.jobs.sonarcloud.steps.some((step) => step.with?.name === "unit-test-coverage"))
 })
 
+test("Sonar coverage merge normalizes desktop scripts measured by the web workspace", () => {
+  const step = workflow.jobs.sonarcloud.steps.find((candidate) => candidate.name === "Merge Coverage Reports")
+  const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
+  const desktopPath = "apps/desktop/src-tauri/src/palette.js"
+  const record = (source) => `TN:\nSF:${source}\nFNF:0\nFNH:0\nDA:1,4\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\n`
+  try {
+    mkdirSync(join(directory, "apps/web/coverage"), { recursive: true })
+    for (const source of ["../desktop/src-tauri/src/palette.js", "..\\desktop\\src-tauri\\src\\palette.js", "apps/web/../desktop/src-tauri/src/palette.js"]) {
+      writeFileSync(join(directory, "apps/web/coverage/lcov.info"), record(source))
+      const result = spawnSync("bash", ["-e", "-c", step.run], { cwd: directory, encoding: "utf8" })
+      assert.equal(result.status, 0, result.stderr)
+      assert.equal(readFileSync(join(directory, "coverage/lcov.info"), "utf8"), record(desktopPath))
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
 test("aggregate downloads retain attempt directories until selection before verification", () => {
   const steps = workflow.jobs["unit-tests"].steps
   const download = steps.find((step) => step.name === "Download web shard reports")
