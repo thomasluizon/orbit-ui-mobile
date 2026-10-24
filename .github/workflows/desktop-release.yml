@@ -1,0 +1,193 @@
+name: Desktop Release
+run-name: Desktop ${{ inputs.version }} for ${{ inputs.variant }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: Desktop update channel
+        type: choice
+        required: true
+        default: staging
+        options: [staging, production]
+      version:
+        description: New desktop shell version with three numeric components
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-release-${{ inputs.variant }}
+  cancel-in-progress: false
+
+env:
+  DESKTOP_VARIANT: ${{ inputs.variant }}
+  DESKTOP_VERSION: ${{ inputs.version }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    environment: desktop-${{ inputs.variant }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+      - name: Validate variant, version and updater credentials
+        env:
+          TAURI_SIGNING_PUBLIC_KEY: ${{ vars.TAURI_SIGNING_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ "$DESKTOP_VARIANT" = production ] && [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo '::error::Production desktop releases must run from main'
+            exit 1
+          fi
+          for key in TAURI_SIGNING_PUBLIC_KEY TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD; do
+            if [ -z "${!key}" ]; then echo "::error::Missing $key"; exit 1; fi
+          done
+          node --experimental-strip-types apps/desktop/scripts/release.ts prepare \
+            "$DESKTOP_VARIANT" "$DESKTOP_VERSION" "$RUNNER_TEMP/release-config.json"
+
+  build:
+    needs: validate
+    name: Release ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    environment: desktop-${{ inputs.variant }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            target: aarch64-apple-darwin
+          - runner: macos-15
+            target: x86_64-apple-darwin
+          - runner: windows-2025
+            target: x86_64-pc-windows-msvc
+          - runner: windows-2025
+            target: aarch64-pc-windows-msvc
+    defaults:
+      run:
+        shell: bash
+    env:
+      DESKTOP_TARGET: ${{ matrix.target }}
+      TAURI_SIGNING_PUBLIC_KEY: ${{ vars.TAURI_SIGNING_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --fund=false
+      - name: Install Rust and compilation target
+        run: |
+          rustup toolchain install stable --profile minimal --target "$DESKTOP_TARGET"
+          rustup default stable
+      - name: Validate shell and prepare channel config
+        run: |
+          npm run type-check -w @orbit/desktop
+          npm run test -w @orbit/desktop
+          cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
+          node --experimental-strip-types apps/desktop/scripts/release.ts prepare \
+            "$DESKTOP_VARIANT" "$DESKTOP_VERSION" apps/desktop/release-config.json
+      - name: Package without operating system or updater signing
+        run: |
+          npm run "build:${DESKTOP_VARIANT}" -w @orbit/desktop -- \
+            --config release-config.json --target "$DESKTOP_TARGET" --no-sign --ci -- --locked
+      - name: Collect the updater package
+        run: |
+          node --experimental-strip-types apps/desktop/scripts/release.ts collect \
+            "$DESKTOP_VARIANT" "$DESKTOP_VERSION" "$DESKTOP_TARGET" \
+            "apps/desktop/src-tauri/target/${DESKTOP_TARGET}/release/bundle" "$RUNNER_TEMP/desktop-assets"
+      - name: Sign and verify the updater package
+        working-directory: apps/desktop
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          for artifact in "$RUNNER_TEMP"/desktop-assets/*; do
+            npx tauri signer sign --app-version "$DESKTOP_VERSION" "$artifact"
+            node --experimental-strip-types scripts/release.ts verify \
+              "$DESKTOP_VARIANT" "$DESKTOP_VERSION" "$artifact"
+          done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-${{ matrix.target }}
+          path: ${{ runner.temp }}/desktop-assets/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: desktop-${{ inputs.variant }}
+    permissions:
+      contents: write
+    env:
+      TAURI_SIGNING_PUBLIC_KEY: ${{ vars.TAURI_SIGNING_PUBLIC_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --fund=false
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: desktop-release-*
+          path: desktop-assets
+          merge-multiple: true
+      - name: Verify all platforms and write the manifest
+        run: |
+          node --experimental-strip-types apps/desktop/scripts/release.ts manifest \
+            "$DESKTOP_VARIANT" "$DESKTOP_VERSION" desktop-assets
+      - name: Sign and verify the manifest
+        working-directory: apps/desktop
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          npx tauri signer sign --app-version "$DESKTOP_VERSION" ../../desktop-assets/latest.json
+          node --experimental-strip-types scripts/release.ts verify \
+            "$DESKTOP_VARIANT" "$DESKTOP_VERSION" ../../desktop-assets/latest.json
+      - name: Publish versioned artifacts before advancing the channel
+        run: |
+          set -euo pipefail
+          channel="desktop-${DESKTOP_VARIANT}"
+          tag="${channel}-v${DESKTOP_VERSION}"
+          channel_exists=false
+          if gh release view "$channel" --repo "$GITHUB_REPOSITORY" >/dev/null; then
+            channel_exists=true
+            gh release download "$channel" --repo "$GITHUB_REPOSITORY" \
+              --pattern latest.json --output "$RUNNER_TEMP/previous.json"
+            node --experimental-strip-types apps/desktop/scripts/release.ts newer \
+              "$DESKTOP_VARIANT" "$DESKTOP_VERSION" "$RUNNER_TEMP/previous.json"
+          fi
+          gh release create "$tag" desktop-assets/* --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --title "Orbit desktop ${DESKTOP_VARIANT} ${DESKTOP_VERSION}" \
+            --notes "Desktop shell ${DESKTOP_VERSION}. Updater signatures are separate from operating system signing." \
+            --prerelease --latest=false
+          if [ "$channel_exists" = true ]; then
+            gh release upload "$channel" desktop-assets/latest.json.sig \
+              --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "$channel" desktop-assets/latest.json \
+              --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$channel" desktop-assets/latest.json desktop-assets/latest.json.sig \
+              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "Orbit desktop ${DESKTOP_VARIANT} update channel" \
+              --notes 'Stable updater endpoint. Versioned artifacts live in their own releases.' \
+              --prerelease --latest=false
+          fi

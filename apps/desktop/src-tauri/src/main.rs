@@ -11,6 +11,9 @@ mod links;
 mod localization;
 mod menus;
 mod settings;
+mod update_manifest;
+mod update_state;
+mod updates;
 
 fn main() {
     let context = context();
@@ -25,6 +28,8 @@ fn main() {
             }
         }))
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
         .plugin(
             tauri_plugin_autostart::Builder::new()
                 .app_name(identifier)
@@ -66,6 +71,7 @@ fn main() {
                 .build()?;
             lifecycle::show_main(app.handle())?;
             desktop_login::attach_callbacks(app.handle(), callbacks_flow)?;
+            updates::start(app.handle())?;
             Ok(())
         })
         .build(context)

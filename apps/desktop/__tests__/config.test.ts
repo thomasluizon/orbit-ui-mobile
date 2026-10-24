@@ -53,8 +53,19 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
       identifier: 'desktop-auth', local: false, remote: { urls: [`${origin}/*`] },
       windows: ['main'], permissions: ['allow-commit-desktop-login'],
     }])
-    expect(config.plugins).toEqual({ 'deep-link': { desktop: { schemes: [identifier] } } })
+    expect(config.plugins['deep-link']).toEqual({ desktop: { schemes: [identifier] } })
     expect(existsSync(new URL('../src-tauri/capabilities', import.meta.url))).toBe(false)
+  })
+
+  it('pins signed updates to its own public channel without granting updater or notification IPC', () => {
+    const channel = identifier.endsWith('.staging') ? 'staging' : 'production'
+    expect(config.plugins.updater).toEqual({
+      endpoints: [`https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-${channel}/latest.json`],
+      pubkey: '',
+      requireSignedVersion: true,
+      windows: { installMode: 'passive' },
+    })
+    expect(config.bundle.createUpdaterArtifacts).toBe(true)
   })
 
   it('keeps lifecycle operations native without granting plugin commands to the deployed page', () => {

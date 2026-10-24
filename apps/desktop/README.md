@@ -26,6 +26,14 @@ Launch at login is a checkable setting under App or File and defaults to off. It
 
 The official window-state plugin remembers size, position, maximized and full-screen state in the environment's application configuration directory. Geometry is saved on close and Quit. Hidden visibility is excluded so an ordinary launch always opens the window. The plugin checks monitor availability when restoring position. Lifecycle integrations run in Rust and grant no additional JavaScript permissions.
 
+## Updates
+
+The Rust updater checks at launch and every six hours while the process is running, including when its main window is hidden. It downloads and verifies the complete package before enabling Restart to update in the App or File menu and the tray. A local system notification announces availability without focusing or reloading the webview. Finish an open Astra conversation before choosing restart. Closing the window or choosing Quit never installs an update. A failed check can be retried from the menu; a failed installation retains the verified package for another explicit attempt.
+
+Staging and production use separate `desktop-staging/latest.json` and `desktop-production/latest.json` assets under this repository's GitHub Releases downloads. Each manifest points to versioned artifacts in its own channel. The plugin verifies artifact signatures and their signed version, and accepts only newer releases. All four platform entries must belong to that channel and version. Updater and notification commands have no webview permissions.
+
+Source configurations deliberately have empty public keys, disabling updates in development builds. Release packaging supplies each environment's actual public key in a Tauri config overlay. No private key belongs in the repository or application.
+
 ## Build
 
 Install the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/), Rust and the repository npm dependencies. From the repository root:
@@ -40,6 +48,29 @@ npm run build:staging -w @orbit/desktop -- --no-sign --target aarch64-pc-windows
 Build on the target operating system with the matching Rust target installed. macOS produces an app bundle; Windows produces an NSIS installer that installs WebView2 if required. Build output lives under `src-tauri/target/<target>/release/bundle`. `--debug` selects the debug output directory. These development artifacts are unsigned and are not landing-page downloads.
 
 The `Desktop Build` workflow compiles and packages all four targets on native runners. It uploads macOS bundles as tar archives to preserve executable permissions and uploads Windows installers directly. It never opens the application, signs a release, publishes downloads or changes the web release pipeline.
+
+## Publish an updater release
+
+The manual `Desktop Release` workflow takes a `variant` (`staging` or `production`) and an increasing `version` with three numeric components, such as `0.2.0`. Production dispatches must use `main`. The workflow serializes each channel, tests the shell, builds all four targets, then collects macOS `.app.tar.gz` bundles and Windows NSIS `.exe` installers. Operating system signing stays off. The pinned CLI's `--no-sign` also disables updater signatures, so a separate `tauri signer sign --app-version` step signs every package after the build. The release script verifies the payload, public key, trusted comment and version before publishing.
+
+In this repository's Settings > Environments, create `desktop-staging` and `desktop-production`. Each environment needs its own encrypted updater key pair, provisioned through the [Tauri signer](https://v2.tauri.app/plugin/updater/#signing-updates):
+
+| Kind | Exact key | Value |
+| --- | --- | --- |
+| Environment variable | `TAURI_SIGNING_PUBLIC_KEY` | Complete base64 contents of that channel's `.pub` file |
+| Environment secret | `TAURI_SIGNING_PRIVATE_KEY` | Complete base64 contents of that channel's encrypted private key file |
+| Environment secret | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Nonempty password for that private key |
+
+Retain the private key and password outside the repository. Changing a public key after distributing a shell needs a key migration for existing installations. Missing credentials or a mismatched key fail the workflow before channel publication. The public key is embedded through `release-config.json`; the private key and password are exposed only to credential validation and signing steps. No Apple account or Windows signing certificate is required for this workflow.
+
+The workflow publishes versioned files under `https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-<variant>-v<version>/`, with a complete four-platform `latest.json` and detached `latest.json.sig`. Only after that release succeeds does it advance the channel:
+
+- [Staging manifest](https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-staging/latest.json)
+- [Production manifest](https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-production/latest.json)
+
+The stable channel releases must remain mutable. In repository Settings > General > Releases, keep Enable release immutability off when creating those channel releases. Versioned artifacts are never overwritten by this workflow. Every shell checks the signed artifact references in the manifest; its detached signature is also published for independent verification. The channel manifest is uploaded last so it never points to incomplete artifacts. A transient failure while replacing that asset can leave it unavailable until another publication; existing shells retain their current version and retry. A failed publication can leave a versioned release behind. Use a fresh higher version for the next dispatch, rather than replacing that version's artifacts.
+
+Successful publication leaves four updater packages, four package signatures and both manifest files on the versioned release. Downloading a channel manifest without GitHub authentication proves the public endpoint is reachable. An installed release build then checks, downloads and offers Restart to update through its own channel. This workflow is separate from `release.yml` until web release integration lands; it does not publish landing-page downloads or notarized DMGs.
 
 Icons derive from the existing web app icon with `npx tauri icon ../web/public/pwa-512x512.png --output src-tauri/icons` from this workspace. Retain only `icon.png`, `icon.icns` and `icon.ico`.
 
@@ -60,4 +91,4 @@ These tests do not prove operating-system protocol delivery, native menu dispatc
 
 ## Remaining desktop work
 
-Tracks #1560. Background notifications, signed updates, web release integration, signed and notarized DMGs and landing downloads, performance comparison, installed-app recording and screen-reader acceptance belong to subsequent steps.
+Tracks #1560. Background reminders, web release integration, signed and notarized DMGs and landing downloads, performance comparison, installed-app recording and screen-reader acceptance belong to subsequent steps.
