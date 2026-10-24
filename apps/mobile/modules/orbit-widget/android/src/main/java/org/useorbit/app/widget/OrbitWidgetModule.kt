@@ -11,6 +11,10 @@ import androidx.security.crypto.MasterKey
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.security.MessageDigest
+import java.util.concurrent.Executors
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
 import org.json.JSONObject
 
 class OrbitWidgetModule : Module() {
@@ -20,6 +24,7 @@ class OrbitWidgetModule : Module() {
     private const val CACHE_PREFS_NAME = "orbit_widget_cache"
     internal val accountRenderLock = Any()
     internal val widgetPublisher = WidgetPublisher(accountRenderLock)
+    private val moduleQueue = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + SupervisorJob())
     const val COLOR_KEY_PREFIX = "color_"
     private val NAME_IDENTIFIER_CLAIMS = listOf(
       "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
@@ -149,7 +154,7 @@ class OrbitWidgetModule : Module() {
           clearCache = { clearWidgetCache(context) },
           repaint = { refreshWidgetsInBackground(context) }
         )
-    }
+    }.runOnQueue(moduleQueue)
 
     AsyncFunction("clearToken") {
       val context = moduleContext()
@@ -160,7 +165,7 @@ class OrbitWidgetModule : Module() {
           clearCache = { clearWidgetCache(context) },
           repaint = { refreshWidgetsInBackground(context) }
         )
-    }
+    }.runOnQueue(moduleQueue)
 
     AsyncFunction("syncTheme") { colors: Map<String, String> ->
       val context = moduleContext()
@@ -171,7 +176,7 @@ class OrbitWidgetModule : Module() {
       }
       editor.apply()
       refreshWidgets(context)
-    }
+    }.runOnQueue(moduleQueue)
 
     AsyncFunction("syncWidgetData") { json: String, token: String? ->
       val context = moduleContext()
@@ -194,7 +199,7 @@ class OrbitWidgetModule : Module() {
         }
       }
       refreshWidgets(context)
-    }
+    }.runOnQueue(moduleQueue)
 
     OnActivityEntersBackground {
       appContext.reactContext?.let { refreshWidgets(it) }

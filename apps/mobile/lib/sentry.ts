@@ -1,5 +1,7 @@
 import * as Sentry from '@sentry/react-native'
 import type { ErrorEvent } from '@sentry/react-native'
+import { sampleTodayLaunch } from '@orbit/shared/utils/today-launch'
+import { startTodayLaunch } from './today-launch'
 import { scrubAuthNavigation } from '@orbit/shared/utils/auth-navigation-privacy'
 
 const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN
@@ -47,9 +49,10 @@ export function initSentry(): void {
     enabled: Boolean(dsn),
     environment: process.env.EXPO_PUBLIC_SENTRY_ENVIRONMENT || 'production',
     sendDefaultPii: false,
-    tracesSampleRate: 0,
+    tracesSampler: sampleTodayLaunch,
     beforeSend: scrubEvent,
   })
+  startTodayLaunch()
 }
 
 /**

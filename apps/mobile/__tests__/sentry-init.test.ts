@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as Sentry from '@sentry/react-native'
 
-vi.mock('@sentry/react-native', () => ({ init: vi.fn() }))
+vi.mock('@sentry/react-native', () => ({ init: vi.fn(), startInactiveSpan: vi.fn(() => ({ setAttribute: vi.fn(), end: vi.fn() })) }))
 vi.unmock('@/lib/sentry')
 
 beforeEach(() => {
@@ -29,7 +29,7 @@ describe('initSentry deployment environment', () => {
         enabled: true,
         environment: environment || 'production',
         sendDefaultPii: false,
-        tracesSampleRate: 0,
+        tracesSampler: expect.any(Function),
         beforeSend: scrubEvent,
       })
     },
