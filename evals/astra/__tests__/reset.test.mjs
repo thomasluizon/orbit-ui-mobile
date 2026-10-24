@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { randomUUID } from 'node:crypto'
+import { fixtureFetch } from './fixtures/public-api.mjs'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { beforeEach as prepareAttempt } from '../hooks.mjs'
@@ -7,69 +7,17 @@ import { resetFixture, runReset } from '../fixtures/reset.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 
 const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((file) => parse(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')))
-let habits, goals, tags, templates, requests, pro, exhausted, capacity
-const exportedHabit = (body) => ({ id: randomUUID(), title: body.title, description: body.description, emoji: null,
-  isBadHabit: false, isGeneral: false, dueDate: body.dueDate, endDate: null, frequencyUnit: 'Day', frequencyQuantity: 1,
-  days: [], checklistItems: [], createdAtUtc: '2026-10-01T00:00:00Z', logs: [], intervalWeeks: null })
+let habits, goals, tags, templates, requests, pro, exhausted, capacity, email
 beforeEach(() => {
   offlineCredentials()
+  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-10-24T12:00:00Z'))
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'pro-access')
   vi.stubEnv('ORBIT_EVAL_FREE_TOKEN', 'free-access')
   vi.stubEnv('ORBIT_EVAL_BUDGET_TOKEN', 'budget-access')
-  habits = []; goals = []; tags = []; templates = []; requests = []; pro = true; exhausted = false; capacity = 100
-  vi.stubGlobal('fetch', async (url, options) => {
-    const path = new URL(url).pathname.slice(5)
-    const body = options.body ? JSON.parse(options.body) : undefined
-    const method = options.method
-    requests.push({ path, method, body })
-    expect(options.headers['api-version']).toBe('2.0')
-    if (path === 'auth/refresh') return Response.json({ token: 'pro-access', refreshToken: 'rotated-refresh' })
-    expect(options.headers.Authorization).toMatch(/^Bearer (pro|free|budget)-access$/)
-    if (path === 'profile' && method === 'GET') return Response.json({ hasProAccess: pro, hasGoogleConnection: false, aiMessagesUsed: exhausted ? 50 : 0, aiMessagesLimit: 50 })
-    if (path === 'profile/export') return Response.json({ exportedAtUtc: '2026-10-24T12:00:00Z', account: {}, settings: {}, subscription: {},
-      habits: habits.filter((habit) => !habit.deleted).map(({ deleted, ...habit }) => habit), goals, tags, checklistTemplates: templates,
-      notifications: [], achievements: [], streakFreezes: [], referrals: [], apiKeys: [], friendships: [], cheers: [], blockedUsers: [], reports: [], friendFeedEvents: [], proactiveItems: [], notionConnection: null, notionTasks: [], conversations: [] })
-    if (['profile/timezone', 'profile/language', 'calendar/selected-calendars', 'calendar/auto-sync'].includes(path)) return new Response(null, { status: 204 })
-    if (path === 'habits' && method === 'POST') {
-      const habit = exportedHabit(body)
-      habits.push(habit)
-      return Response.json({ id: habit.id }, { status: 201 })
-    }
-    if (path === 'habits/bulk' && method === 'POST') {
-      if (habits.filter((habit) => !habit.deleted).length + body.habits.length > capacity) return Response.json({ error: 'Capacity reached.', errorCode: 'HABIT_LIMIT_REACHED' }, { status: 400 })
-      const results = body.habits.map((entry, index) => { const habit = exportedHabit(entry); habits.push(habit); return { index, status: 'Success', habitId: habit.id, title: habit.title, error: null, field: null, errorCode: null } })
-      return Response.json({ results, applied_count: results.length, total_matched: results.length, skipped_count: 0, partial: false }, { status: 201 })
-    }
-    if (['goals', 'tags', 'checklist-templates'].includes(path) && method === 'POST') {
-      const item = { id: randomUUID(), ...body }
-      ;({ goals, tags, 'checklist-templates': templates })[path].push(item)
-      return Response.json({ id: item.id }, { status: 201 })
-    }
-    const [resource, id, operation] = path.split('/')
-    if (resource === 'habits') {
-      const habit = habits.find((entry) => entry.id === id)
-      if (!habit) throw new Error('Unknown habit at the HTTP boundary.')
-      if (operation === 'restore') habit.deleted = false
-      else if (operation === 'log') {
-        const existing = habit.logs.findIndex((log) => log.date === body.date && log.value > 0)
-        if (existing >= 0) habit.logs.splice(existing, 1)
-        else habit.logs.push({ date: body.date, value: 1, note: null, createdAtUtc: '2026-10-24T12:00:00Z' })
-      } else if (operation === 'skip') habit.dueDate = '2026-10-25'
-      else if (method === 'PUT') Object.assign(habit, { title: body.title, dueDate: body.dueDate })
-      else if (method === 'DELETE') habit.deleted = true
-      else throw new Error('Unexpected habit request.')
-      return new Response(null, { status: 204 })
-    }
-    if (resource === 'tags' && operation === 'assign') return new Response(null, { status: 204 })
-    if (method === 'DELETE' && ['goals', 'tags', 'checklist-templates'].includes(resource)) {
-      const collection = ({ goals, tags, 'checklist-templates': templates })[resource]
-      collection.splice(collection.findIndex((entry) => entry.id === id), 1)
-      return new Response(null, { status: 204 })
-    }
-    throw new Error(`Unexpected intercepted fixture route: ${method} ${path}`)
-  })
+  habits = []; goals = []; tags = []; templates = []; requests = []; pro = true; exhausted = false; capacity = 100; email = 'thomaslrgregorio+orbit-eval-pro@gmail.com'
+  vi.stubGlobal('fetch', fixtureFetch(() => ({ habits, goals, tags, templates, requests, pro, exhausted, capacity, email })))
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const scenario = (fixture) => structuredClone(corpus.find((entry) => entry.metadata.fixture === fixture))
@@ -99,7 +47,7 @@ it('preserves registered IDs across completion, skip, empty and restoration rese
   await resetFixture(scenario('pro'))
   const restored = habits.filter((habit) => !habit.deleted)
   expect(restored.map((habit) => habit.id)).toEqual([original.habitId, original.secondHabitId])
-  expect(restored.every((habit) => habit.logs.length === 0 && habit.dueDate === '2026-10-18')).toBe(true)
+  expect(restored.every((habit) => habit.logs.length === 0 && habit.dueDate === '2026-10-24')).toBe(true)
   expect(requests.filter(({ path, method }) => path === 'habits' && method === 'POST')).toHaveLength(2)
   expect(requests.some(({ path }) => path.endsWith('/restore'))).toBe(true)
 })
@@ -148,7 +96,6 @@ it('rejects a partial HTTP-successful bulk and an ignored reset write', async ()
 })
 
 it('drives refresh, default reset, independent readback and ID substitution through the real hook', async () => {
-  vi.stubEnv('ORBIT_EVAL_RESET_SCRIPT', '')
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'expired-access')
   const source = structuredClone(corpus.find((entry) => entry.metadata.id === 'single-log-en'))
   const { test } = await prepareAttempt({ test: source })
@@ -159,4 +106,37 @@ it('drives refresh, default reset, independent readback and ID substitution thro
   expect(test.vars.expectations.required[0].arguments.habit_id).toBe(account.habitId)
   expect(test.vars.evalRequestId).toMatch(/^[0-9a-f-]{36}$/)
   expect(process.env.ORBIT_EVAL_TOKEN).toBe('pro-access')
+})
+
+it.each(['skipped', 'composition', 'composition-logged'])('restores occurrence cursors for repeated %s attempts', async (fixture) => {
+  await resetFixture(scenario(fixture))
+  const ids = habits.map((habit) => habit.id)
+  await resetFixture(scenario(fixture))
+  expect(habits.map((habit) => habit.id)).toEqual(ids)
+  expect(habits.map((habit) => habit.dueDate)).toEqual([fixture === 'composition-logged' ? '2026-10-25' : '2026-10-24', fixture === 'skipped' ? '2026-10-25' : '2026-10-24'])
+})
+it('prepares composition again across a UTC day boundary without replacing IDs', async () => {
+  await resetFixture(scenario('composition'))
+  const ids = habits.map((habit) => habit.id)
+  vi.setSystemTime(new Date('2026-10-25T00:01:00Z'))
+  await resetFixture(scenario('composition'))
+  expect(habits.map((habit) => habit.id)).toEqual(ids)
+  expect(habits.map((habit) => habit.dueDate)).toEqual(['2026-10-25', '2026-10-25'])
+  expect(habits[0].logs.map((log) => log.date).sort()).toEqual(['2026-10-19', '2026-10-21', '2026-10-22', '2026-10-23', '2026-10-24'])
+})
+it.each(['origin', 'email'])('refuses every reset write for an unsafe %s', async (unsafe) => {
+  await resetFixture(scenario('pro'))
+  requests.length = 0
+  if (unsafe === 'origin') vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://api.useorbit.org')
+  else email = 'thomaslrgregorio@gmail.com'
+  await expect(resetFixture(scenario('empty'))).rejects.toThrow(/disposable|staging/)
+  expect(requests.every((request) => request.method === 'GET')).toBe(true)
+})
+it('rejects an ignored occurrence cursor update on independent readback', async () => {
+  await resetFixture(scenario('pro'))
+  habits[0].dueDate = '2026-10-25'
+  const intercepted = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => options.method === 'PUT' && new URL(url).pathname.includes('/habits/')
+    ? new Response(null, { status: 204 }) : intercepted(url, options))
+  await expect(resetFixture(scenario('pro'))).rejects.toThrow(/occurrence/)
 })

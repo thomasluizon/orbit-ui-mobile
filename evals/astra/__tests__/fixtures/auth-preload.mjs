@@ -1,6 +1,5 @@
-globalThis.fetch = async (url) => {
-  if (new URL(url).pathname === '/api/auth/refresh') {
-    return Response.json({ token: 'offline-token', refreshToken: 'offline-refresh' })
-  }
-  throw new Error('Unexpected offline HTTP request.')
-}
+import { fixtureFetch } from './public-api.mjs'
+
+const state = { habits: [], goals: [], tags: [], templates: [], requests: [], pro: true, exhausted: false, capacity: 100,
+  email: 'thomaslrgregorio+orbit-eval-pro@gmail.com' }
+globalThis.fetch = fixtureFetch(() => state)

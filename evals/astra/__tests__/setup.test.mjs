@@ -5,7 +5,6 @@ import { chatResponse, preview, toolCall } from './fixtures/producer.mjs'
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 it.each([false, true])('verifies the real setup turn before a correction; wrongRequest=%s', async (wrongRequest) => {
   offlineCredentials()
-  vi.stubEnv('ORBIT_EVAL_RESET_SCRIPT', '/usr/bin/true')
   vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
   let setupRequestId
@@ -36,3 +35,5 @@ it.each([false, true])('verifies the real setup turn before a correction; wrongR
     expect(history[1].content).not.toContain('evalTrace')
   }
 })
+
+vi.mock('../fixtures/reset.mjs', async (importOriginal) => ({ ...await importOriginal(), resetFixture: vi.fn() }))

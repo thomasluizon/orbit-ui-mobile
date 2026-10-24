@@ -10,10 +10,11 @@ const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =
 const fixtures = new Set(['pro', 'duplicate-titles', 'malicious-title', 'zero-history', 'empty', 'overdue', 'skipped',
   'free-at-limit', 'budget-exhausted', 'composition', 'composition-partial', 'composition-stale', 'composition-error',
   'composition-offline', 'composition-logged', 'medical', 'existing-parents'])
+export const disposableStagingOrigin = 'https://orbit-api-staging-uqu2.onrender.com'
 export const dateOffset = (today, offset) => new Date(Date.parse(`${today}T12:00:00Z`) + offset * 86400000).toISOString().slice(0, 10)
 
-function dailyHabit(title, startDate) {
-  return { title, description: null, frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: startDate, startDate,
+function dailyHabit(title, dueDate) {
+  return { title, description: null, frequencyUnit: 'Day', frequencyQuantity: 1, dueDate,
     days: [], isBadHabit: false, isGeneral: false, isFlexible: false,
     reminderEnabled: false, reminderTimes: [], scheduledReminders: [], relativeReminders: [], slipAlertEnabled: false,
     checklistItems: [], tagIds: [], goalIds: [] }
@@ -59,7 +60,8 @@ async function cleanCollections(api, exported, keep) {
 }
 async function restoreHabits(api, exported, account, fixture, today) {
   for (const [id, title] of [[account.habitId, 'Water'], [account.secondHabitId, 'Walk']]) {
-    const start = fixture === 'overdue' ? process.env.ORBIT_EVAL_OVERDUE_DATE : dateOffset(today, -6)
+    const start = fixture === 'overdue' ? process.env.ORBIT_EVAL_OVERDUE_DATE
+      : fixture.startsWith('composition') ? dateOffset(today, -6) : today
     const name = fixture === 'existing-parents' ? (id === account.habitId ? 'Post Lunch' : 'Before Bed')
       : fixture === 'duplicate-titles' ? 'Caminhada' : title
     await api('PUT', `habits/${id}`, { ...dailyHabit(name, start), clearEndDate: true, clearParent: true })
@@ -72,8 +74,9 @@ async function restoreHabits(api, exported, account, fixture, today) {
   }
 }
 async function seedComposition(api, account, today, fixture) {
-  for (const [id, offsets] of [[account.habitId, [-6, -4, -3, -2, -1]], [account.secondHabitId, [-5, -2]]]) {
+  for (const [id, title, offsets] of [[account.habitId, 'Water', [-6, -4, -3, -2, -1]], [account.secondHabitId, 'Walk', [-5, -2]]]) {
     for (const offset of offsets) await api('POST', `habits/${id}/log`, { date: dateOffset(today, offset) })
+    await api('PUT', `habits/${id}`, dailyHabit(title, today))
   }
   const tag = idFrom((await api('POST', 'tags', { name: 'Health', color: '#22c55e' })).payload)
   await api('PUT', `tags/${account.habitId}/assign`, { tagIds: [tag] })
@@ -107,12 +110,19 @@ async function verifyFixture(api, account, fixture, today) {
   const expectedCount = fixture === 'composition-partial' ? 51 : fixture === 'malicious-title' ? 3 : 2
   if (fixture !== 'free-at-limit' && restored.habits.length !== expectedCount) throw new Error('Fixture habit count readback failed.')
   if (fixture.startsWith('composition')) {
-    const dates = water.logs.filter((log) => log.value > 0).map((log) => log.date).sort()
-    const expected = [-6, -4, -3, -2, -1, ...(fixture === 'composition-logged' ? [0] : [])].map((offset) => dateOffset(today, offset)).sort()
-    if (JSON.stringify(dates) !== JSON.stringify(expected) || restored.goals.length !== 1
+    for (const [habit, offsets] of [[water, [-6, -4, -3, -2, -1, ...(fixture === 'composition-logged' ? [0] : [])]], [walk, [-5, -2]]]) {
+      const dates = habit.logs.filter((log) => log.value > 0).map((log) => log.date).sort()
+      const expected = offsets.map((offset) => dateOffset(today, offset)).sort()
+      if (JSON.stringify(dates) !== JSON.stringify(expected)) throw new Error('Composition fixture history readback failed.')
+    }
+    if (restored.goals.length !== 1
       || restored.tags.length !== 1 || restored.checklistTemplates.length !== 1) throw new Error('Composition fixture readback failed.')
   } else if ([water, walk].some((habit) => habit.logs.some((log) => log.value > 0))) throw new Error('Pending fixture retains positive history.')
-  if (fixture === 'skipped' && walk.dueDate !== dateOffset(today, 1)) throw new Error('Skip fixture readback failed.')
+  for (const habit of [water, walk]) {
+    const advanced = (fixture === 'skipped' && habit === walk) || (fixture === 'composition-logged' && habit === water)
+    const expected = fixture === 'overdue' ? process.env.ORBIT_EVAL_OVERDUE_DATE : dateOffset(today, advanced ? 1 : 0)
+    if (habit.dueDate !== expected) throw new Error('Fixture occurrence readback failed.')
+  }
 }
 
 export async function resetFixture(test) {
@@ -121,10 +131,14 @@ export async function resetFixture(test) {
   const key = test.vars.credentialKey
   const api = publicApi(key)
   const today = new Date().toISOString().slice(0, 10)
+  const { payload: profile } = await api('GET', 'profile')
+  if (process.env.ORBIT_EVAL_BASE_URL !== disposableStagingOrigin
+    || typeof profile?.email !== 'string' || !/^thomaslrgregorio\+orbit-eval-[a-z0-9-]+@gmail\.com$/.test(profile.email)) {
+    throw new Error('Fixture reset requires the staging origin and a disposable eval account.')
+  }
+  if (typeof profile?.hasProAccess !== 'boolean' || !Number.isInteger(profile.aiMessagesUsed) || !Number.isInteger(profile.aiMessagesLimit)) throw new Error('Fixture profile lacks access or allowance evidence.')
   await api('PUT', 'profile/timezone', { timeZone: 'UTC' })
   await api('PUT', 'profile/language', { language: test.metadata.locale ?? 'en' })
-  const { payload: profile } = await api('GET', 'profile')
-  if (typeof profile?.hasProAccess !== 'boolean' || !Number.isInteger(profile.aiMessagesUsed) || !Number.isInteger(profile.aiMessagesLimit)) throw new Error('Fixture profile lacks access or allowance evidence.')
   if (fixture === 'budget-exhausted') {
     if (profile.aiMessagesUsed < profile.aiMessagesLimit) throw new Error('Budget fixture is not exhausted; the reset never consumes messages.')
     return

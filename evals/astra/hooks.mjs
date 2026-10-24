@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process'
 import { appendFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { apiOrigin, readCredentials, refreshCredential } from './credentials.mjs'
@@ -25,8 +24,7 @@ export async function beforeEach({ test }) {
   const today = new Date().toISOString().slice(0, 10)
   process.env.ORBIT_EVAL_OVERDUE_DATE ??= dateOffset(today, -1)
   try {
-    if (process.env.ORBIT_EVAL_RESET_SCRIPT) execFileSync(process.env.ORBIT_EVAL_RESET_SCRIPT, [test.metadata.id], { stdio: 'ignore', timeout: 60000 })
-    else await resetFixture(test)
+    await resetFixture(test)
   } catch {
     throw new Error(`Fixture reset failed for ${test.metadata.id}; no chat request should run.`)
   }

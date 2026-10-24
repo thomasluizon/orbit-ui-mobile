@@ -1,12 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 import { parse, stringify } from 'yaml'
 import { loadApiProvider } from 'promptfoo'
 import { beforeAll, beforeEach } from '../hooks.mjs'
+import { resetFixture } from '../fixtures/reset.mjs'
 import { behavior } from '../assertions.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, toolCall } from './fixtures/producer.mjs'
@@ -38,7 +39,7 @@ describe('real promptfoo CLI with an offline provider', () => {
       ...configuration,
       providers: [{ id: `file://${root}/__tests__/fixtures/target.mjs`, config: { tools: catalog } }],
       defaultTest: { vars: configuration.defaultTest.vars, assert: assertions, options: { provider: `file://${root}/__tests__/fixtures/grader.mjs` } },
-      tests: [{ description: 'Offline Water case', metadata: { id: 'offline-water' }, vars: {
+      tests: [{ description: 'Offline Water case', metadata: { id: 'offline-water', fixture: 'pro', locale: 'en' }, vars: {
         input: 'Mark Water done', credentialKey: 'ORBIT_EVAL_TOKEN', broken, noTrace, responseMode,
         ...(responseMode && ['prose-first', 'block-only', 'repeated-figure'].includes(responseMode) ? {
           clientContext: { supportsParts: true, partKinds: ['habitList'], supportsHabitListCard: true }, composition: { mode: 'data', kinds: ['habitList'] },
@@ -49,11 +50,12 @@ describe('real promptfoo CLI with an offline provider', () => {
     }))
     const run = spawnSync(process.execPath, ['--import', resolve(root, '__tests__/fixtures/auth-preload.mjs'), cli, 'eval', '--config', configPath, '--no-write', '--no-share', '--no-cache', '--no-table', '--filter-metadata', 'id=offline-water'], {
       cwd: directory, encoding: 'utf8', timeout: 45000,
-      env: { ...process.env, ORBIT_EVAL_RESET_SCRIPT: '/usr/bin/true', PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'),
+      env: { ...process.env, ORBIT_EVAL_BASE_URL: 'https://orbit-api-staging-uqu2.onrender.com', PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'),
         PROMPTFOO_DISABLE_TELEMETRY: '1', PROMPTFOO_DISABLE_SHARING: '1' },
     })
     const summaryPath = resolve(directory, 'reports/summary.json')
     expect(run.error, run.stdout + run.stderr).toBeUndefined()
+    expect(existsSync(summaryPath), run.stdout + run.stderr).toBe(true)
     const summary = JSON.parse(readFileSync(summaryPath, 'utf8'))
     if (status !== 'pass') expect(run.status, run.stdout + run.stderr).not.toBe(0)
     else expect(run.status, run.stdout + run.stderr).toBe(0)
@@ -90,8 +92,7 @@ describe('HTTP provider wiring without a server', () => {
         url: 'https://astra.invalid/api/chat',
         transformResponse: `file://${root}/response.mjs`,
     } } })
-    vi.stubEnv('ORBIT_EVAL_RESET_SCRIPT', '/usr/bin/true')
-    const { test } = await beforeEach({ test: { metadata: { id: 'offline-http' }, vars: { credentialKey,
+      const { test } = await beforeEach({ test: { metadata: { id: 'offline-http' }, vars: { credentialKey,
       expectedHttpStatus: status, expectations: status === 403 ? { allowed: [] }
         : { required: [{ name: 'query_habits', arguments: { date: 'today' } }] },
     } } })
@@ -125,7 +126,7 @@ describe('corpus and execution constraints', () => {
   })
   it('requires credentials and an HTTPS origin before requests', () => {
     offlineCredentials()
-    for (const key of ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_RESET_SCRIPT', 'ORBIT_EVAL_HABIT_ID',
+    for (const key of ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_HABIT_ID',
       'ORBIT_EVAL_SECOND_HABIT_ID', 'ORBIT_EVAL_OVERDUE_DATE', 'ORBIT_EVAL_TOKEN', 'ORBIT_EVAL_FREE_TOKEN', 'ORBIT_EVAL_BUDGET_TOKEN']) {
       vi.stubEnv(key, key === 'ORBIT_EVAL_BASE_URL' ? 'https://astra.invalid' : key === 'ORBIT_EVAL_OVERDUE_DATE' ? '2026-01-01' : 'offline')
     }
@@ -139,12 +140,13 @@ describe('corpus and execution constraints', () => {
   it('resets before each attempt and resolves IDs in prompts and expectations', async () => {
     offlineCredentials()
     vi.stubGlobal('fetch', async () => refreshResponse())
-    vi.stubEnv('ORBIT_EVAL_RESET_SCRIPT', '/usr/bin/true')
-    vi.stubEnv('ORBIT_EVAL_HABIT_ID', 'actual-water')
+      vi.stubEnv('ORBIT_EVAL_HABIT_ID', 'actual-water')
     const test = structuredClone(scenarios.find((scenario) => scenario.metadata.id === 'single-log-en'))
     expect((await beforeEach({ test })).test.vars.expectations.required[0].arguments.habit_id).toBe('actual-water')
     expect(test.vars.input).toContain('actual-water')
-    vi.stubEnv('ORBIT_EVAL_RESET_SCRIPT', '/usr/bin/false')
+    vi.mocked(resetFixture).mockRejectedValueOnce(new Error('reset failed'))
     await expect(beforeEach({ test })).rejects.toThrow('Fixture reset failed')
   })
 })
+
+vi.mock('../fixtures/reset.mjs', async (importOriginal) => ({ ...await importOriginal(), resetFixture: vi.fn() }))

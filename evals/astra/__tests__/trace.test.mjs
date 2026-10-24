@@ -157,11 +157,12 @@ describe('source-derived trace through the installed HTTP provider', () => {
   it('generates a fresh request identity after each reset', async () => {
     offlineCredentials()
     vi.stubGlobal('fetch', async () => refreshResponse())
-    vi.stubEnv('ORBIT_EVAL_RESET_SCRIPT', '/usr/bin/true')
-    const test = { metadata: { id: 'offline' }, vars: { credentialKey: 'ORBIT_EVAL_TOKEN' } }
+      const test = { metadata: { id: 'offline' }, vars: { credentialKey: 'ORBIT_EVAL_TOKEN' } }
     const first = (await beforeEach({ test })).test.vars.evalRequestId
     const second = (await beforeEach({ test })).test.vars.evalRequestId
     expect(first).toMatch(/^[0-9a-f-]{36}$/)
     expect(second).not.toBe(first)
   })
 })
+
+vi.mock('../fixtures/reset.mjs', async (importOriginal) => ({ ...await importOriginal(), resetFixture: vi.fn() }))

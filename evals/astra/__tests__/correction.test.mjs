@@ -30,7 +30,6 @@ function batchPreview(arguments_) {
 
 it.each(['en', 'pt-BR'])('runs setup, held correction, every assertion and pass^3 reporting: %s', async (locale) => {
   offlineCredentials()
-  vi.stubEnv('ORBIT_EVAL_RESET_SCRIPT', '/usr/bin/true')
   vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
   const scenario = corpus.find((entry) => entry.metadata.family === 'medical-correction' && entry.metadata.locale === locale)
@@ -95,3 +94,5 @@ it.each(['en', 'pt-BR'])('runs setup, held correction, every assertion and pass^
     expect((await grade(prepared)).pass).toBe(false)
   }
 })
+
+vi.mock('../fixtures/reset.mjs', async (importOriginal) => ({ ...await importOriginal(), resetFixture: vi.fn() }))

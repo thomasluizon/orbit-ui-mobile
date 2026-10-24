@@ -1,4 +1,4 @@
-import { constants, closeSync, fstatSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
+import { constants, closeSync, existsSync, fstatSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 
 export const credentialKeys = ['ORBIT_EVAL_TOKEN', 'ORBIT_EVAL_FREE_TOKEN', 'ORBIT_EVAL_BUDGET_TOKEN']
@@ -55,6 +55,11 @@ export async function refreshCredential(key) {
   if (!credentialKeys.includes(key)) throw new Error('Unknown eval credential key.')
   delete process.env[key]
   try {
+    const path = process.env.ORBIT_EVAL_CREDENTIALS_FILE
+    if (!path) throw new Error('Missing credentials file.')
+    if (existsSync(`${path}.refresh-failed`)) throw new Error('A refresh already failed; recover the session before another run.')
+    writeFileSync(`${path}.refresh-failed`, '', { mode: 0o600, flag: 'wx' })
+    let rotated = false
     const token = await updateCredentials(async (credentials) => {
       const account = credentials[key]
       if (typeof account?.refreshToken !== 'string' || !account.refreshToken.trim()) throw new Error('Missing refresh token.')
@@ -66,9 +71,12 @@ export async function refreshCredential(key) {
       const session = await response.json()
       if (typeof session.token !== 'string' || !session.token.trim()
         || typeof session.refreshToken !== 'string' || !session.refreshToken.trim()) throw new Error('Malformed refresh response.')
+      rotated = account.refreshToken !== session.refreshToken
       account.refreshToken = session.refreshToken
       return session.token
     })
+    if (rotated) writeFileSync(`${path}.rotated`, '', { mode: 0o600 })
+    unlinkSync(`${path}.refresh-failed`)
     process.env[key] = token
   } catch {
     throw new Error(`Credential refresh failed for ${key}; no chat request should run.`)

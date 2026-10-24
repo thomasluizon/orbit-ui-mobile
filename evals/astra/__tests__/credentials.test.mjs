@@ -18,7 +18,6 @@ function credentials(mode = 0o600) {
   writeFileSync(path, JSON.stringify({ ORBIT_EVAL_TOKEN: { refreshToken: 'old-refresh' } }), { mode })
   vi.stubEnv('ORBIT_EVAL_CREDENTIALS_FILE', path)
   vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
-  vi.stubEnv('ORBIT_EVAL_RESET_SCRIPT', '/usr/bin/true')
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'expired-access')
   return path
 }
@@ -79,3 +78,5 @@ it('rejects a concurrent rotation and never reveals transport secrets', async ()
   }
   expect(process.env.ORBIT_EVAL_TOKEN).toBeUndefined()
 })
+
+vi.mock('../fixtures/reset.mjs', async (importOriginal) => ({ ...await importOriginal(), resetFixture: vi.fn() }))

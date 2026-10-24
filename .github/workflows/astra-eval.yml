@@ -19,6 +19,7 @@ concurrency:
 jobs:
   evaluate:
     runs-on: ubuntu-latest
+    environment: astra-eval
     timeout-minutes: 25
     defaults:
       run:
@@ -60,6 +61,7 @@ jobs:
           umask 077
           printf '%s\n' "$ORBIT_EVAL_CREDENTIALS_JSON" > "$ORBIT_EVAL_CREDENTIALS_FILE"
           chmod 600 "$ORBIT_EVAL_CREDENTIALS_FILE"
+          rm -f "$ORBIT_EVAL_CREDENTIALS_FILE.rotated" "$ORBIT_EVAL_CREDENTIALS_FILE.refresh-failed"
       - name: Evaluate selected cases with three attempts
         run: npx promptfoo eval --filter-metadata "id=$ORBIT_EVAL_CASE_IDS"
       - name: Persist rotated credentials for the next window
@@ -69,8 +71,8 @@ jobs:
           GH_TOKEN: ${{ secrets.ORBIT_EVAL_SECRETS_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -f "$ORBIT_EVAL_CREDENTIALS_FILE" ]; then
-            gh secret set ORBIT_EVAL_CREDENTIALS_JSON --repo "$GITHUB_REPOSITORY" < "$ORBIT_EVAL_CREDENTIALS_FILE"
+          if [ -f "$ORBIT_EVAL_CREDENTIALS_FILE.rotated" ] && [ ! -f "$ORBIT_EVAL_CREDENTIALS_FILE.refresh-failed" ]; then
+            gh secret set ORBIT_EVAL_CREDENTIALS_JSON --repo "$GITHUB_REPOSITORY" --env astra-eval < "$ORBIT_EVAL_CREDENTIALS_FILE"
           fi
       - name: Upload the sanitized gate report
         if: always()
@@ -87,4 +89,4 @@ jobs:
         shell: bash
         run: |
           rm -rf "$PROMPTFOO_CONFIG_DIR"
-          rm -f "$ORBIT_EVAL_CREDENTIALS_FILE" "$ORBIT_EVAL_CREDENTIALS_FILE.lock"
+          rm -f "$ORBIT_EVAL_CREDENTIALS_FILE" "$ORBIT_EVAL_CREDENTIALS_FILE.lock" "$ORBIT_EVAL_CREDENTIALS_FILE.rotated" "$ORBIT_EVAL_CREDENTIALS_FILE.refresh-failed"

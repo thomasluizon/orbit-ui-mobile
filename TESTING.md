@@ -158,14 +158,13 @@ a verified setup turn first. The corpus does not approve them or prove persisted
 
 | Key | Purpose |
 |---|---|
-| `ORBIT_EVAL_BASE_URL` | HTTPS origin of the real Astra API, without a trailing slash or path |
+| `ORBIT_EVAL_BASE_URL` | Exactly `https://orbit-api-staging-uqu2.onrender.com`; destructive fixture resets reject every other origin |
 | `ORBIT_EVAL_CREDENTIALS_FILE` | Private JSON file containing account refresh tokens and the stable habit registry; owned by the runner user, regular file, mode 600 |
-| `ORBIT_EVAL_GRADER` | Promptfoo provider ID for the final-answer rubric grader |
+| `ORBIT_EVAL_GRADER` | Set `file://codex-grader.mjs` for the installed, authenticated Codex CLI grader |
 | `OPENAI_API_KEY` | Grader credential when using an OpenAI provider; Astra uses the refreshed Orbit bearer token |
 | `ORBIT_EVAL_HABIT_ID` | Optional existing Water UUID to adopt on the Pro account; must agree with its private registry |
 | `ORBIT_EVAL_SECOND_HABIT_ID` | Optional existing Walk UUID to adopt on the Pro account; must agree with its private registry |
 | `ORBIT_EVAL_OVERDUE_DATE` | Optional past ISO date within seven days; defaults to yesterday in UTC |
-| `ORBIT_EVAL_RESET_SCRIPT` | Optional executable override receiving the case ID; normally omit to use the repository reset implementation |
 
 Prepare a private directory outside version control, then create the following JSON file with
 `umask 077`. The local filename `credentials.local.json` is also ignored by the eval package.
@@ -183,7 +182,10 @@ These keys are account selectors in `vars.credentialKey`, not preconfigured bear
 Before every attempt, the hook sends `POST /api/auth/refresh` with `api-version: 2.0`, atomically
 replaces that account's `refreshToken` in the same mode-600 file, then sets `process.env[credentialKey]`.
 A missing, rejected or malformed refresh clears the old bearer and stops before fixture or chat
-requests. No token or server error body is logged. A private lock rejects concurrent token
+requests. Private `.rotated` and `.refresh-failed` sibling markers distinguish durable token rotation
+from failed or interrupted refresh. Any failed refresh blocks further refreshes from that file and
+prevents Action persistence, even if an earlier attempt rotated successfully. Recover a fresh session,
+replace the private file, and remove its markers before retrying. No token or server error body is logged. A private lock rejects concurrent token
 rotation; run one serial job per file and account. A crash leaving a `.lock` file requires checking
 that the other process has stopped before removing that lock. If rotation succeeded remotely but
 local persistence failed, obtain a fresh session through the existing authentication flow.
@@ -194,10 +196,13 @@ execution refreshes first. It looks up the ID in both corpus YAML files, uses on
 public API routes, and never calls chat, an admin route, account reset or the database. Water and
 Walk are created once or adopted, and their `habitId` and `secondHabitId` are persisted alongside
 the account's refresh token. Empty and medical fixtures soft-delete them; later fixtures restore
-the same IDs. Normal resets restore the daily schedule, toggle positive logs through the real
-log API and clear unrelated habits, goals, tags and templates. Final export readback verifies the
-state. A reset failure stops the attempt. The optional executable override has suppressed output
-and a one-minute deadline; it receives the refreshed bearer and must not rotate the session itself.
+the same IDs. Before any fixture write, the executable reads the profile and requires the exact
+staging origin and an email matching `thomaslrgregorio+orbit-eval-<name>@gmail.com`. Normal resets
+restore the daily schedule, toggle positive logs through the real log API and clear unrelated habits,
+goals, tags and templates. Cursor updates omit `startDate`, because the producer gives it precedence
+over `dueDate`. Historical seeding starts with an explicit cursor inside the public log window; after
+seeding, pending roots return to today and completed or skipped roots advance to tomorrow. Final export
+readback verifies both occurrence dates and both histories. A reset failure stops the attempt.
 
 Use only disposable accounts. The Pro selector needs active Pro or trial access, the Free selector
 needs Free access, and the budget selector must already have exhausted its actual daily allowance.
@@ -262,18 +267,44 @@ summary. Missing or skipped evidence cannot become a pass through merging. A sel
 is not full-corpus acceptance. Preserve one settled API/prompt/tool surface across the windows;
 if that surface changes, rerun the affected gate rather than combining incompatible behavior.
 
-For the manual Action, configure GitHub **Settings > Secrets and variables > Actions** with
-`ORBIT_EVAL_BASE_URL`, `ORBIT_EVAL_GRADER`, `OPENAI_API_KEY`, `ORBIT_EVAL_CREDENTIALS_JSON`
-(the private file contents), and `ORBIT_EVAL_SECRETS_TOKEN`. The last key is a credential scoped
-to this repository with Actions secrets write permission, used only to persist the rotated JSON
-through `gh secret set`. Dispatch **Actions > Astra eval > Run workflow** with a comma-separated
-`case_ids` subset for the current daily window. It creates a mode-600 temporary credentials file,
-persists rotations back to `ORBIT_EVAL_CREDENTIALS_JSON` even after an eval failure, uploads only
-sanitized summaries, then deletes local credentials. A failed secret write requires a fresh
-session before the next dispatch; never reuse the stale secret. Do not run local and Action jobs
-against the same sessions. Download each window artifact and merge locally as above. Successful
-resets, credential persistence and the complete merged summary prove configuration took effect.
-There is no schedule or automatic dispatch.
+For the manual Action, create the **astra-eval** environment in GitHub
+**Settings > Environments > New environment**. Under **astra-eval > Environment secrets**, add
+`ORBIT_EVAL_CREDENTIALS_JSON` containing the private file contents, then remove the same-named
+repository secret from **Settings > Secrets and variables > Actions**. The job references this
+environment and persists with `gh secret set --env astra-eval`, so queued runs read the latest
+rotation at job start. GitHub documents this distinction in its
+[secrets reference](https://docs.github.com/en/actions/reference/security/secrets).
+
+Configure `ORBIT_EVAL_BASE_URL`, `ORBIT_EVAL_GRADER`, and `ORBIT_EVAL_SECRETS_TOKEN` under
+**astra-eval > Environment secrets**. The last key needs this repository's Environments write
+permission to update an environment secret; repository Actions secrets write permission alone
+is insufficient. `OPENAI_API_KEY` is only needed if explicitly selecting an OpenAI API grader.
+Dispatch **Actions > Astra eval > Run workflow** with a comma-separated `case_ids` subset for the
+daily window. It creates a mode-600 temporary credentials file, persists only successful token
+rotations when no refresh failed, uploads sanitized summaries, then deletes local credentials and
+markers. Persistence still runs after unrelated eval failures. A failed or interrupted refresh or
+secret write requires session recovery before the next dispatch; never reuse the stale secret.
+Do not run local and Action jobs against the same sessions. Download each window artifact and merge
+locally as above. Successful resets, environment-secret persistence and a subsequent dispatched
+window using the rotated session prove configuration took effect. There is no automatic dispatch.
+
+### Codex rubric grader
+
+From `evals/astra`, set `ORBIT_EVAL_GRADER=file://codex-grader.mjs`. Install the Codex CLI on the
+runner and authenticate its existing account session through `codex login` before evaluation;
+this provider needs no purchased OpenAI API key. The hosted Action runner does not provision a
+Codex session: selecting this provider there requires an installed, authenticated CLI on that runner.
+The local command is ready to use with the coordinator's authenticated CLI. The provider executes
+`codex exec -m gpt-6.1-sol -s read-only --skip-git-repo-check --ephemeral --output-schema <schema file> -o <output file>`
+with the grading prompt on stdin in a private temporary directory. It removes Orbit eval environment
+variables from the child, validates `{ "pass": true, "score": 1, "reason": "<grading explanation>" }`
+against the checked-in schema constraints, and returns promptfoo's `{ output: "<JSON grade>" }`.
+A CLI failure, missing file, malformed grade or two-minute timeout returns a sanitized provider error;
+it never becomes a passing rubric. Temporary output is removed after every call. Promptfoo continues
+to pass only the final rendered answer projection to the rubric. A successful `finalAnswer` assertion
+from an authenticated run proves grader setup; the offline test uses a fake executable exclusively.
+The invocation follows the installed `codex exec --help` and
+[official Codex CLI reference](https://developers.openai.com/codex/cli/reference/).
 
 The budget case expects HTTP 403 with the verified `PAY_GATE` error code and grades only the
 natural-language `error` text. Other cases expect HTTP 200 and either final text or a valid typed block, preview or outcome.
