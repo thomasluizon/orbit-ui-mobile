@@ -25,12 +25,13 @@ window.OrbitNativeMobile = (() => {
   function AstraRow({ current = false, onOpen = () => window.location.assign('Orbit Astra Conversation.dc.html') }) {
     return node(React.Fragment, null,
       node('style', null, '.native-astra-row:hover,.native-astra-row:active{background:var(--bg-hover)}.native-astra-row:focus-visible{outline:2px solid var(--primary);outline-offset:2px}'),
-      node('button', { type: 'button', className: 'native-astra-row', 'aria-label': words().open, 'aria-expanded': current,
+      node('button', { type: 'button', className: 'native-astra-row', 'aria-expanded': current,
         onClick: onOpen, style: { ...button, width: '100%', minHeight: 48, borderRadius: 12,
           paddingInline: 12, gap: 12, justifyContent: 'flex-start', fontSize: 14, fontWeight: 500,
           color: current ? 'var(--primary-soft)' : 'var(--fg-3)' } },
         node('span', { 'aria-hidden': true, style: { display: 'flex', color: current ? 'var(--primary)' : 'inherit' } },
-          node(window.OrbitDesignSystem_918bd5.AstraGlyph, { size: 20 }))));
+          node(window.OrbitDesignSystem_918bd5.AstraGlyph, { size: 20 })),
+        node('span', { translate: 'no' }, 'Astra')));
   }
   function Composer(props) {
     const iconButton = { ...button, minWidth: 48, minHeight: 48, padding: 0 };
