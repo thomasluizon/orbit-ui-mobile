@@ -105,7 +105,7 @@ jobs:
       - run: npm ci
 
       - name: Test CI workflow behavior
-        run: node --test tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/unit-tests-workflow.test.mjs
+        run: node --test tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs
 
       # The unit suite's contrast scan is skipped on a Turbo cache hit, so this step runs the
       # full-tree scan on every pull request. Findings stay advisory; a scanner error fails.
@@ -205,6 +205,7 @@ jobs:
         run: |
           test -s apps/web/coverage/lcov.info
           test -s apps/mobile/coverage/lcov.info
+          test -s apps/desktop/coverage/lcov.info
           test -s packages/shared/coverage/lcov.info
           test -s eslint-rules/coverage/lcov.info
 
@@ -215,6 +216,7 @@ jobs:
           path: |
             apps/web/coverage/lcov.info
             apps/mobile/coverage/lcov.info
+            apps/desktop/coverage/lcov.info
             packages/shared/coverage/lcov.info
             eslint-rules/coverage/lcov.info
           if-no-files-found: error
@@ -276,6 +278,8 @@ jobs:
         include:
           - workspace: mobile
             directory: apps/mobile
+          - workspace: desktop
+            directory: apps/desktop
           - workspace: shared
             directory: packages/shared
           - workspace: eslint-rules
@@ -341,6 +345,7 @@ jobs:
           const reports = [
             { file: 'apps/web/coverage/lcov.info', prefix: 'apps/web' },
             { file: 'apps/mobile/coverage/lcov.info', prefix: 'apps/mobile' },
+            { file: 'apps/desktop/coverage/lcov.info', prefix: 'apps/desktop' },
             { file: 'packages/shared/coverage/lcov.info', prefix: 'packages/shared' },
           ]
 

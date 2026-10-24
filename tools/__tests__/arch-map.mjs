@@ -20,6 +20,8 @@ export const cases = () => {
       a: { live: "live", deadSibling: "dead sibling", barrelStranger: "barrel stranger" },
     }),
     "packages/shared/src/api/endpoints.ts": 'export const API = {\n  ping: "/api/ping",\n} as const\n',
+    "apps/desktop/window.ts": 'import { origin } from "./src/environment"\nexport const windowUrl = origin\n',
+    "apps/desktop/src/environment.ts": 'export const origin = "https://app-staging.useorbit.org"\n',
     "apps/web/app/dashboard/page.tsx": [
       "import { Live } from '@/components/kit'",
       "export default function Page() {",
@@ -110,9 +112,16 @@ export const cases = () => {
     JSON.stringify({ declared: [...declaredIds], edges: edgePairs.map(([, from, to]) => `${from} --> ${to}`) }),
   )
   T(
-    `${TOOL}: one subgraph per workspace present in the fixture`,
-    [...mermaid.matchAll(/^\s{2}subgraph /gm)].length === 3,
+    `${TOOL}: every registered workspace has its own subgraph`,
+    JSON.stringify([...mermaid.matchAll(/^\s{2}subgraph \w+\["([^"\n]+)"\]/gm)].map(([, workspace]) => workspace).sort()) ===
+      JSON.stringify(["apps/desktop", "apps/mobile", "apps/web", "packages/shared"]),
     mermaid,
+  )
+  T(
+    `${TOOL}: desktop imports belong to the desktop dependency inventory`,
+    JSON.stringify(map.dependencies["apps/desktop"]) ===
+      JSON.stringify([{ from: "apps/desktop/(root)", to: "apps/desktop/src" }]),
+    JSON.stringify(map.dependencies),
   )
   T(`${TOOL}: the node count stays at or under the cap`, declaredIds.size <= 64, `${declaredIds.size} nodes`)
 

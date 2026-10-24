@@ -56,6 +56,7 @@ jobs:
           const reports = [
             { file: 'apps/web/coverage/lcov.info', prefix: 'apps/web' },
             { file: 'apps/mobile/coverage/lcov.info', prefix: 'apps/mobile' },
+            { file: 'apps/desktop/coverage/lcov.info', prefix: 'apps/desktop' },
             { file: 'packages/shared/coverage/lcov.info', prefix: 'packages/shared' },
           ]
 
