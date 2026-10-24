@@ -49,7 +49,9 @@ jobs:
       - name: Install Rust and compilation target
         env:
           DESKTOP_TARGET: ${{ matrix.target }}
-        run: rustup toolchain install stable --profile minimal --target "$DESKTOP_TARGET" --default
+        run: |
+          rustup toolchain install stable --profile minimal --target "$DESKTOP_TARGET"
+          rustup default stable
       - name: Validate desktop configuration
         run: |
           npm run type-check -w @orbit/desktop

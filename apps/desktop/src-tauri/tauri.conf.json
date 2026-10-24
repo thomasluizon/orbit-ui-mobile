@@ -11,6 +11,7 @@
     "windows": [
       {
         "label": "main",
+        "create": false,
         "title": "Orbit Staging",
         "url": "https://app-staging.useorbit.org",
         "incognito": false

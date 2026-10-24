@@ -39,6 +39,13 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
     expect(window.incognito).toBe(false)
   })
 
+  it('creates the window in Rust with the system browser handler attached', () => {
+    expect(config.app.windows[0]).toHaveProperty('create', false)
+    const entrypoint = readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
+    expect(entrypoint).toMatch(/\.setup\([\s\S]*WebviewWindowBuilder::from_config[\s\S]*\.on_new_window\([\s\S]*open_new_window\([\s\S]*tauri_plugin_opener::open_url[\s\S]*\.build\(\)/)
+    expect(entrypoint).not.toMatch(/\.plugin\(|\.invoke_handler\(/)
+  })
+
   it('exposes no native commands, plugins or capability files', () => {
     expect(config.app.withGlobalTauri).toBe(false)
     expect(config.app.security.capabilities).toEqual([])

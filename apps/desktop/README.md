@@ -2,6 +2,8 @@
 
 A Tauri 2 webview loads the deployed Orbit app directly. Staging opens `https://app-staging.useorbit.org`; production opens `https://app.useorbit.org`. There is no bundled copy of the UI or local server. Requests, Server Actions and Astra streaming stay on the web app's BFF, using its secure httpOnly cookies. A persistent webview retains sign-in between launches. Separate application identifiers isolate staging and production storage.
 
+Links requesting a new window, including invoice downloads, open HTTP and HTTPS destinations in the system browser on both platforms. Rust attaches the handler before creating the configured window. Other schemes cannot launch local files or protocol handlers. The pinned opener crate supplies only its Rust function; its plugin is never registered, so it adds no JavaScript bridge or injected script. No IPC capabilities are granted.
+
 ## Build
 
 Install the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/), Rust and the repository npm dependencies. From the repository root:
@@ -29,8 +31,8 @@ cargo check --locked
 cargo test --locked
 ```
 
-Vitest validates the merged environment and platform configurations against the installed Tauri schema, including storage and privilege constraints. Rust tests inspect the generated native context. Neither proves installed-webview behavior. Email-code sign-in, persistent sessions, habit logging and Astra streaming still require installed-app acceptance on macOS and Windows.
+Vitest validates the merged environment and platform configurations against the installed Tauri schema, including storage, privilege constraints and attachment of the native new-window handler. Its workspace coverage job publishes configuration LCOV alongside the other workspaces. Rust tests inspect the generated native context and exercise accepted links, rejected schemes and system opener failure without launching a browser. Neither proves installed-webview behavior. Email-code sign-in, persistent sessions, habit logging, Astra streaming and system browser handoff still require installed-app acceptance on macOS and Windows.
 
 ## Remaining desktop work
 
-Tracks #1560. Google sign-in handoff and keychain integration, desktop lifecycle and deep links, background notifications, signed updates, web release integration, signed and notarized DMGs and landing downloads, performance comparison, installed-app recording and screen-reader acceptance belong to subsequent steps. This shell exposes no native commands or plugins.
+Tracks #1560. Google sign-in handoff and keychain integration, desktop lifecycle and deep links, background notifications, signed updates, web release integration, signed and notarized DMGs and landing downloads, performance comparison, installed-app recording and screen-reader acceptance belong to subsequent steps. This shell exposes no native commands or registered plugins.

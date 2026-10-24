@@ -8,6 +8,7 @@
     "windows": [
       {
         "label": "main",
+        "create": false,
         "title": "Orbit",
         "url": "https://app.useorbit.org",
         "incognito": false
