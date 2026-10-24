@@ -1087,7 +1087,7 @@ describe('parent choice previews', () => {
     expect(screen.getAllByRole('radio')).toHaveLength(6)
     const approve = () => screen.getByRole('button', { name: locale === 'en' ? 'Create 2 habits' : 'Criar 2 hábitos' })
     expect(approve()).toBeDisabled()
-    expect(approve()).toHaveAccessibleDescription(locale === 'en' ? 'Choose an option for each parent before approving.' : 'Escolha uma opção de hábito principal para cada item antes de aprovar.')
+    expect(approve()).toHaveAccessibleDescription(locale === 'en' ? 'Choose where each item goes before approving.' : 'Escolha onde cada item fica antes de aprovar.')
     fireEvent.click(screen.getAllByRole('radio', { name: 'Post Lunch' })[0]!)
     expect(revise).toHaveBeenCalledWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [
       { itemId: '0', edits: { parent_habit_id: '11111111-1111-1111-1111-111111111111' } }, { itemId: '1' },
