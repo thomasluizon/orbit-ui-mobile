@@ -22,9 +22,11 @@ The GitHub environments `ios-staging` and `ios-production`, under Settings > Env
 | Variable | `ORBIT_APPLE_TEAM_ID` | Apple Developer > Membership details > Team ID |
 | Variable | `ORBIT_IOS_APP_STORE_ID` | App Store Connect > Apps > matching app > App Information > Apple ID |
 | Variable | `IOS_PROVISIONING_PROFILE_NAME` | Apple Developer > Certificates, Identifiers & Profiles > Profiles; the matching App Store distribution profile's name |
+| Variable | `IOS_WIDGET_PROVISIONING_PROFILE_NAME` | The distribution profile name for that variant's `<bundleIdentifier>.widget` extension |
 | Secret | `IOS_DISTRIBUTION_CERTIFICATE_BASE64` | Base64 of the Apple Distribution certificate and private key exported as a password-protected PKCS#12 file |
 | Secret | `IOS_DISTRIBUTION_CERTIFICATE_PASSWORD` | Password used for that PKCS#12 export |
 | Secret | `IOS_PROVISIONING_PROFILE_BASE64` | Base64 of that variant's distribution provisioning profile |
+| Secret | `IOS_WIDGET_PROVISIONING_PROFILE_BASE64` | Base64 of the widget extension's distribution provisioning profile |
 | Secret | `APP_STORE_CONNECT_API_KEY_ID` | App Store Connect > Users and Access > Integrations > App Store Connect API > Team Keys |
 | Secret | `APP_STORE_CONNECT_API_ISSUER_ID` | Issuer ID on the same screen |
 | Secret | `APP_STORE_CONNECT_API_PRIVATE_KEY` | Raw downloaded `.p8` contents for that team key |
@@ -37,12 +39,30 @@ The Google web OAuth client must allow that variant's HTTPS `/auth-callback` red
 
 Enrollment and signing are prerequisites for an upload, not for the unsigned compile job.
 Do not request enrollment while compilation and repository tests can still proceed.
-Once enrolled, enable Push Notifications and Associated Domains for both bundle identifiers,
+Once enrolled, enable Push Notifications and Associated Domains for both app bundle identifiers,
 create their App Store Connect records, and replace `APPLE_TEAM_ID` in
 `apps/web/public/.well-known/apple-app-site-association` with the enrolled application identifier
 prefix. Verify both web hosts serve it as JSON with status 200 and no redirect. In App Store
 Connect > Pricing and Availability > iPhone and iPad Apps on Apple Silicon Mac, opt out of Mac
 availability before distribution. Keep testers internal; this workflow does not submit for review.
+
+Register `org.useorbit.app.widget` and `org.useorbit.app.staging.widget` as explicit extension
+identifiers in Apple Developer > Certificates, Identifiers & Profiles > Identifiers. Register
+App Groups `group.org.useorbit.app.widget` and `group.org.useorbit.app.staging.widget`, associating
+each group with its containing app and extension. The App Group also grants Keychain access to
+the group name; no team prefix or change to the app's default Keychain group is needed. Generate
+separate App Store distribution profiles for all four targets after enabling their capabilities.
+The workflow installs both profiles for the selected variant and exports both bundle identifiers.
+The plugin sets each target's profile so an app profile never applies to the extension.
+
+The unsigned macOS compile job needs no Apple membership, certificate, profile or upload key.
+It compiles the widget's Swift state and storage behavior tests through Vitest, then builds the
+containing app and its embedded extension without launching a simulator. Complete that check
+before enrollment. After signing becomes available, verify a completed habit appears after one
+WidgetKit refresh, sign-out clears the widget, and reinstall opens login. Measure iPad at 744,
+820, 1032 and 1366 points, including Split View, Slide Over and 200 percent Dynamic Type; check
+labels, safe areas, landscape, sheet dismissal, VoiceOver focus and Reduce Motion on the device.
+Repository tests and unsigned compilation do not establish those rendered or device results.
 
 Confirm the installed `gh workflow run` interface before dispatching. The command shape is:
 

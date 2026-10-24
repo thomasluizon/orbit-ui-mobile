@@ -3,12 +3,29 @@ import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
-import { Platform } from 'react-native'
+import { Platform, StyleSheet } from 'react-native'
 import { OtpInput } from '@/components/ui/otp-input'
 
 const TestRenderer = require('react-test-renderer')
 
 describe('mobile OtpInput', () => {
+  it('lets iOS code cells shrink horizontally and grow with text', async () => {
+    const previous = Platform.OS
+    Platform.OS = 'ios'
+    let tree: ReturnType<typeof TestRenderer.create>
+    try {
+      await TestRenderer.act(() => { tree = TestRenderer.create(<OtpInput label="Código" value="123456" onChange={vi.fn()} />) })
+      const cell = tree!.root.findByProps({ testID: 'otp-cell-0' })
+      const style = StyleSheet.flatten(cell.props.style)
+      expect(style.height).toBeUndefined()
+      expect(style.minHeight).toBe(56)
+      expect(style.flexShrink).toBe(1)
+      expect(style.paddingVertical).toBeGreaterThan(0)
+    } finally {
+      await TestRenderer.act(() => tree!.unmount())
+      Platform.OS = previous
+    }
+  })
   it('keeps one inset ring on the focused cell', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {

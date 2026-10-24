@@ -1,0 +1,16 @@
+"description" = "See your habits for today";
+"today" = "Today";
+"tomorrow" = "Tomorrow";
+"progress" = "%d of %d completed";
+"day" = "day";
+"days" = "days";
+"allClear" = "All clear";
+"nothingScheduled" = "Nothing scheduled";
+"signIn" = "Open Orbit to sign in";
+"loading" = "Loading";
+"done" = "Done";
+"overdue" = "Overdue";
+"pending" = "Not done";
+"more" = "%d more";
+"checklist" = "list %@";
+"inside" = "+%d inside";

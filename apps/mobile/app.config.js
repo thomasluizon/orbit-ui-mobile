@@ -11,6 +11,7 @@ function withLocalPlugins(plugins) {
   for (const pluginPath of [
     './plugins/with-android-release-build-fixes',
     './plugins/with-react-native-imperative-focus',
+    './plugins/with-ios-widget',
   ]) {
     if (!nextPlugins.some((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin) === pluginPath)) {
       nextPlugins.push(pluginPath)

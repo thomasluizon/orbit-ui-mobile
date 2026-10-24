@@ -1,6 +1,6 @@
 import { SPACING } from '@orbit/shared/theme'
 import type { PageHeaderProps } from '@orbit/shared/contracts/navigation'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import { ArrowLeft } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -14,7 +14,7 @@ export function PageHeader({ title, backLabel, onBack, action, footer }: Readonl
         style={({ pressed }) => [styles.back, pressed ? { backgroundColor: tokens.bgHover } : null]}>
         <ArrowLeft size={20} color={tokens.fg1} />
       </Pressable>
-      <Text accessibilityRole="header" numberOfLines={1} style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
+      <Text accessibilityRole="header" numberOfLines={Platform.OS === 'ios' ? undefined : 1} style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
       {action}
     </View>
     {footer}
