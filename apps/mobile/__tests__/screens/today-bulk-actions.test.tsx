@@ -300,6 +300,33 @@ describe('Hoje production bulk action path', () => {
     mocks.store.selectedHabitIds = new Set(['habit-1'])
   })
 
+  it('clears a permanent skip rejection through the Today selection owner without Retry', async () => {
+    await renderToday()
+    mocks.execute.mockResolvedValueOnce({ results: [
+      { index: 0, status: 'Failed', habitId: 'habit-1', error: 'Already completed', errorCode: 'HABIT_ALREADY_COMPLETED' },
+    ] })
+    await press(mocks.bulkBarProps?.onSkip)
+    expect(mocks.clearSelection).toHaveBeenCalledOnce()
+    expect(mocks.settleBulkHabitResolutions).not.toHaveBeenCalled()
+    expect(mocks.showToast).toHaveBeenCalledExactlyOnceWith({ kind: 'neutral', message: 'errors.api.habitAlreadyDone' })
+  })
+
+  it('retains a transient skip rejection through the Today selection owner with Retry', async () => {
+    await renderToday()
+    mocks.store.selectAllHabits.mockClear()
+    mocks.execute.mockResolvedValueOnce({ results: [
+      { index: 0, status: 'Failed', habitId: 'habit-1', error: 'Mutation failed', errorCode: 'MUTATION_FAILED' },
+    ] })
+    await press(mocks.bulkBarProps?.onSkip)
+    expect(mocks.clearSelection).not.toHaveBeenCalled()
+    expect(mocks.store.selectAllHabits).toHaveBeenCalledWith(['habit-1'])
+    const toast = mocks.showToast.mock.calls[0]?.[0]
+    expect(toast?.actionLabel).toBe('habits.bulkBar.retryFailed')
+    expect(toast?.onAction).toBeTypeOf('function')
+    await press(toast?.onAction)
+    expect(mocks.clearSelection).toHaveBeenCalledOnce()
+  })
+
   it('consumes rejected log and skip executions without an unhandled rejection', async () => {
     const unhandledRejection = vi.fn()
     process.on('unhandledRejection', unhandledRejection)

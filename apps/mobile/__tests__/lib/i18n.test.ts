@@ -177,3 +177,18 @@ it.each([
 afterAll(async () => {
   await i18n.changeLanguage('en')
 })
+
+describe('native plural messages', () => {
+  it.each([
+    { locale: 'en', suffix: ['selected', 'selected', 'selected'], unit: ['days', 'day', 'days'], habit: ['no habits', 'one habit', '2 habits'], trial: ['0 days remaining', '1 day remaining', '2 days remaining'] },
+    { locale: 'pt-BR', suffix: ['selecionados', 'selecionado', 'selecionados'], unit: ['dias', 'dia', 'dias'], habit: ['nenhum hábito', 'um hábito', '2 hábitos'], trial: ['faltam 0 dias', 'falta 1 dia', 'faltam 2 dias'] },
+  ])('renders count, n and days selectors without a plural wrapper in $locale', async ({ locale, suffix, unit, habit, trial }) => {
+    await i18n.changeLanguage(locale)
+    for (const count of [0, 1, 2]) {
+      expect(i18n.t('common.selectedSuffix', { count })).toBe(suffix[count])
+      expect(i18n.t('celebration.streak.unit', { count })).toBe(unit[count])
+      expect(i18n.t('habits.count', { n: count })).toBe(habit[count])
+      expect(i18n.t('profile.subscription.trialDaysLeft', { days: count })).toBe(trial[count])
+    }
+  })
+})

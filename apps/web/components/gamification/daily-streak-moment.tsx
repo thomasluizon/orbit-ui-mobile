@@ -15,7 +15,7 @@ export function DailyStreakMoment({ streak, entering }: { streak: number; enteri
           <span data-previous-streak={entering ? '' : undefined} className="daily-streak-previous">{format.format(streak - 1)}</span>
           <span data-current-streak="" className="daily-streak-number">{format.format(streak)}</span>
         </div>
-        <span className="text-sm leading-[1.55] text-[var(--fg-2)]">{plural(t('celebration.streak.unit'), streak)}</span>
+        <span className="text-sm leading-[1.55] text-[var(--fg-2)]">{plural(t('celebration.streak.unit', { count: streak }), streak)}</span>
       </div>
     </div>
   )
