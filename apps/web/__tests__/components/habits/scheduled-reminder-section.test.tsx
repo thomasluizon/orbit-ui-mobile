@@ -53,7 +53,7 @@ const sameDay = (time: string) => ({ when: 'same_day' as ScheduledReminderWhen, 
 describe('ScheduledReminderSection', () => {
   it('collapses the body when disabled', () => {
     renderSection({ reminderEnabled: false })
-    expect(screen.queryByText('habits.form.scheduledReminderAdd')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.scheduledReminderAdd' })).toBeNull()
   })
 
   it('drops its own switch when nested beside the offset-reminder card', () => {
@@ -93,12 +93,12 @@ describe('ScheduledReminderSection', () => {
       ],
     })
     expect(screen.getByText('habits.form.scheduledReminderMax')).toBeInTheDocument()
-    expect(screen.queryByText('habits.form.scheduledReminderAdd')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.scheduledReminderAdd' })).toBeNull()
   })
 
   it('adds a valid scheduled reminder from the form', async () => {
     const props = renderSection({ scheduledReminders: [] })
-    fireEvent.click(screen.getByText('habits.form.scheduledReminderAdd'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.scheduledReminderAdd' }))
     const group = screen.getByRole('radiogroup', { name: 'habits.form.scheduledReminder' })
     const dayBefore = screen.getByRole('radio', { name: 'habits.form.scheduledReminderDayBefore' })
     const sameDayOption = screen.getByRole('radio', { name: 'habits.form.scheduledReminderSameDay' })
@@ -130,7 +130,7 @@ describe('ScheduledReminderSection', () => {
 
   it('reports a duplicate reminder through the validation callback', () => {
     const props = renderSection({ scheduledReminders: [sameDay('08:00')] })
-    fireEvent.click(screen.getByText('habits.form.scheduledReminderAdd'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.scheduledReminderAdd' }))
     fireEvent.change(screen.getByLabelText('habits.form.scheduledReminderTimePlaceholder'), {
       target: { value: '08:00' },
     })
@@ -141,7 +141,7 @@ describe('ScheduledReminderSection', () => {
 
   it('reports an invalid reminder time through the validation callback', () => {
     const props = renderSection({ scheduledReminders: [] })
-    fireEvent.click(screen.getByText('habits.form.scheduledReminderAdd'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.scheduledReminderAdd' }))
     fireEvent.change(screen.getByLabelText('habits.form.scheduledReminderTimePlaceholder'), {
       target: { value: '25:61' },
     })
@@ -151,13 +151,13 @@ describe('ScheduledReminderSection', () => {
 
   it('cancels the form and clears the drafted time', () => {
     renderSection({ scheduledReminders: [] })
-    fireEvent.click(screen.getByText('habits.form.scheduledReminderAdd'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.scheduledReminderAdd' }))
     fireEvent.change(screen.getByLabelText('habits.form.scheduledReminderTimePlaceholder'), {
       target: { value: '09:30' },
     })
     fireEvent.click(screen.getByLabelText('common.cancel'))
     expect(screen.queryByRole('button', { name: 'common.add' })).toBeNull()
-    expect(screen.getByText('habits.form.scheduledReminderAdd')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'habits.form.scheduledReminderAdd' })).toBeInTheDocument()
   })
 
   it('toggles scheduled reminders through the switch', () => {
