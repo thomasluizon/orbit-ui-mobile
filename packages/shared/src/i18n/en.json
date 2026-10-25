@@ -4005,6 +4005,9 @@
     "readyDescription": "A new version of Orbit finished downloading. Restart to finish updating.",
     "restartCta": "Restart now"
   },
+  "desktopUpdate": {
+    "required": "This version of Orbit needs an update. In the app menu, choose Check for updates, then Restart to update."
+  },
   "forceUpdate": {
     "title": "This version of Orbit has stopped working",
     "description": "Update in the store to carry on.",

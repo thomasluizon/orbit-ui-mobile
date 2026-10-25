@@ -17,6 +17,7 @@ import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixture
 import { createTranslator } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { canReloadDesktopWeb } from '@/lib/desktop-web-release'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -44,6 +45,7 @@ const mocks = vi.hoisted(() => ({
   routerPush: vi.fn(),
   toggleRecording: vi.fn(),
   queryClient: {
+    isMutating: () => 0,
     invalidateQueries: vi.fn(async (_filters?: InvalidateQueryFilters) => {}),
     setQueryData: vi.fn(),
     clear: vi.fn(),
@@ -274,6 +276,30 @@ function ComposerConversationHarness({ conversationReady = true }: { conversatio
 }
 
 describe('web useChatComposer streaming send', () => {
+  it('keeps desktop reloads blocked through a real streamed send and voice input', async () => {
+    useUIStore.setState({ showCreateModal: false, openOverlayIds: [], selectedHabitIds: new Set() })
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(stream.response)
+    const { result, rerender } = renderHook(() => useChatComposer())
+    expect(canReloadDesktopWeb()).toBe(true)
+    let pending!: Promise<void>
+    await act(async () => { pending = result.current.sendMessage('Help me plan'); await Promise.resolve() })
+    expect(canReloadDesktopWeb()).toBe(false)
+    await act(async () => { stream.enqueue(frame('{"type":"delta","text":"Start"}')) })
+    expect(canReloadDesktopWeb()).toBe(false)
+    await act(async () => { stream.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Start with water' }))); stream.close(); await pending })
+    expect(canReloadDesktopWeb()).toBe(true)
+    mocks.state.isRecording = true
+    rerender()
+    expect(canReloadDesktopWeb()).toBe(false)
+    mocks.state.isRecording = false
+    mocks.state.isTranscribing = true
+    rerender()
+    expect(canReloadDesktopWeb()).toBe(false)
+    mocks.state.isTranscribing = false
+    rerender()
+    expect(canReloadDesktopWeb()).toBe(true)
+  })
   it.each([
     ['message', 'http'], ['message', 'sse'],
     ['block answer', 'http'], ['block answer', 'sse'],
@@ -1242,6 +1268,32 @@ describe('web useChatComposer streaming send', () => {
     await act(async () => { await result.current.confirmAndExecutePendingOperation('pending-1') })
     expect(useChatStore.getState().messages).toHaveLength(0)
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalled()
+  })
+
+  it('blocks release reloads through confirmation, execution and result invalidation', async () => {
+    let confirm!: (value: Awaited<ReturnType<typeof confirmPendingOperation>>) => void
+    let execute!: (value: Awaited<ReturnType<typeof executePendingOperation>>) => void
+    let invalidate!: () => void
+    vi.mocked(confirmPendingOperation).mockImplementationOnce(() => new Promise(resolve => { confirm = resolve }))
+    vi.mocked(executePendingOperation).mockImplementationOnce(() => new Promise(resolve => { execute = resolve }))
+    mocks.queryClient.invalidateQueries.mockImplementationOnce(() => new Promise<void>(resolve => { invalidate = resolve }))
+    const { result, unmount } = renderHook(() => useChatComposer())
+    expect(canReloadDesktopWeb()).toBe(true)
+    let pending!: ReturnType<typeof result.current.confirmAndExecutePendingOperation>
+    await act(async () => { pending = result.current.confirmAndExecutePendingOperation('pending-1') })
+    expect(result.current.isPendingOperationBusy).toBe(true)
+    expect(canReloadDesktopWeb()).toBe(false)
+    await act(async () => { confirm({ ok: true, data: { pendingOperationId: 'pending-1', confirmationToken: 'token-1', expiresAtUtc: '2026-09-29T12:00:00Z' } }) })
+    expect(canReloadDesktopWeb()).toBe(false)
+    await act(async () => { execute({ ok: true, data: { operation: {
+      operationId: 'operation-1', sourceName: 'CreateHabit', riskClass: 'Low', confirmationRequirement: 'None', status: 'Succeeded', targetId: 'habit-created',
+    } } }) })
+    expect(canReloadDesktopWeb()).toBe(false)
+    await act(async () => { invalidate(); await pending })
+    expect(result.current.isPendingOperationBusy).toBe(false)
+    expect(canReloadDesktopWeb()).toBe(true)
+    unmount()
+    expect(canReloadDesktopWeb()).toBe(true)
   })
 
   it('shows reload guidance and disables retry after an account switch refusal', async () => {

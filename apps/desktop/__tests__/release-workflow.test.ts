@@ -12,7 +12,7 @@ interface Step { name?: string; run?: string }
 interface Workflow {
   on: Record<string, unknown>
   concurrency: { 'cancel-in-progress': boolean }
-  jobs: Record<string, { needs?: string; steps: Step[]; strategy?: { matrix: { include: { target: string }[] } } }>
+  jobs: Record<string, { needs?: string | string[]; steps: Step[]; strategy?: { matrix: { include: { target: string }[] } } }>
 }
 const workflow = load(readFileSync(new URL('../../../.github/workflows/desktop-release.yml', import.meta.url), 'utf8'))
 const publish = workflow.jobs.publish!.steps.find((step) => step.name === 'Publish versioned artifacts before advancing the channel')!.run!
@@ -44,7 +44,7 @@ if (args[1] === 'create' && args[2] === 'desktop-staging' && process.env.PREVIOU
     cwd: fileURLToPath(new URL('../../..', import.meta.url)),
     encoding: 'utf8',
     env: { ...process.env, PATH: `${directory}:${process.env.PATH}`, RUNNER_TEMP: directory,
-      DESKTOP_VARIANT: 'staging', DESKTOP_VERSION: '2.0.0', GITHUB_SHA: 'a'.repeat(40),
+      DESKTOP_VARIANT: 'staging', DESKTOP_VERSION: '2.0.0', SOURCE_SHA: 'b'.repeat(40), GITHUB_SHA: 'a'.repeat(40),
       GITHUB_REPOSITORY: 'thomasluizon/orbit-ui-mobile', PREVIOUS_VERSION: previous ?? '',
       FAIL_VERSION: String(failVersion), FAIL_FIRST_LOOKUP: String(failFirstLookup), COMMAND_LOG: log },
   })
@@ -52,11 +52,12 @@ if (args[1] === 'create' && args[2] === 'desktop-staging' && process.env.PREVIOU
   return { result, commands }
 }
 
-it('dispatches only manually, serializes each channel and requires every target before publication', () => {
-  expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
+it('supports pinned automatic releases and requires every target before publication', () => {
+  expect(Object.keys(workflow.on).sort()).toEqual(['workflow_call', 'workflow_dispatch'])
+  expect(workflow.jobs.validate!.steps.some(step => step.name === 'Plan shell publication')).toBe(true)
   expect(workflow.concurrency['cancel-in-progress']).toBe(false)
   expect(workflow.jobs.build!.needs).toBe('validate')
-  expect(workflow.jobs.publish!.needs).toBe('build')
+  expect(workflow.jobs.publish!.needs).toEqual(['validate', 'build'])
   expect(workflow.jobs.build!.strategy!.matrix.include.map((entry) => entry.target).sort()).toEqual([
     'aarch64-apple-darwin', 'aarch64-pc-windows-msvc', 'x86_64-apple-darwin', 'x86_64-pc-windows-msvc',
   ])
@@ -71,6 +72,7 @@ publicationTest('publishes artifacts before advancing an existing channel, with 
     ['upload', 'desktop-staging', 'desktop-assets/latest.json.sig'],
     ['upload', 'desktop-staging', 'desktop-assets/latest.json'],
   ])
+  expect(writes[0]![writes[0]!.indexOf('--target') + 1]).toBe('b'.repeat(40))
 })
 
 publicationTest('creates the first public channel only after its artifact release exists', () => {
@@ -97,4 +99,19 @@ publicationTest('cannot skip the version gate when a channel lookup fails transi
   const { result, commands } = publishAttempt('3.0.0', false, true)
   expect(result.status).not.toBe(0)
   expect(commands.some((command) => command[1] === 'upload')).toBe(false)
+})
+
+publicationTest.each([
+  { plan: 'success', changed: 'false', build: 'skipped', publish: 'skipped', accepted: true },
+  { plan: 'success', changed: 'true', build: 'success', publish: 'success', accepted: true },
+  { plan: 'failure', changed: '', build: 'skipped', publish: 'skipped', accepted: false },
+  { plan: 'success', changed: 'true', build: 'failure', publish: 'skipped', accepted: false },
+  { plan: 'success', changed: 'true', build: 'success', publish: 'failure', accepted: false },
+  { plan: 'success', changed: 'true', build: 'success', publish: 'cancelled', accepted: false },
+  { plan: 'success', changed: 'true', build: 'skipped', publish: 'skipped', accepted: false },
+])('admits web only after a valid desktop result: $plan/$changed/$build/$publish', ({ plan, changed, build, publish, accepted }) => {
+  const script = workflow.jobs.ready!.steps.find(step => step.name === 'Require completed desktop admission')!.run!
+  const result = spawnSync('bash', ['-c', script], { env: { ...process.env,
+    PLAN_RESULT: plan, SHELL_CHANGED: changed, BUILD_RESULT: build, PUBLISH_RESULT: publish } })
+  expect(result.status === 0).toBe(accepted)
 })

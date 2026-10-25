@@ -72,6 +72,7 @@ import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 import { getAccountGeneration } from '@/lib/session-epoch'
+import { blockDesktopWebReload } from '@/lib/web-reload-state'
 
 
 interface AttemptedSend {
@@ -291,6 +292,10 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     prepareStepUpForBubble,
     verifyStepUpForBubble,
   } = useChatPendingOperations(handleExecutedOperation)
+
+  useEffect(() => {
+    if (isRecording || isTranscribing || selectedImage || selectedTextFile || lastFailedSend || isPendingOperationBusy) return blockDesktopWebReload()
+  }, [isRecording, isTranscribing, selectedImage, selectedTextFile, lastFailedSend, isPendingOperationBusy])
 
   const handleDailyBudgetExceeded = useCallback((draftMessageId: string | null, attempted?: AttemptedSend) => {
     if (attempted?.clearDraftOnSuccess && attempted.restoredDraftRevision === useChatStore.getState().draftRevision) {
