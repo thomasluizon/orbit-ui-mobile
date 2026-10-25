@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const schemaPath = fileURLToPath(new URL('./grader-schema.json', import.meta.url))
@@ -14,6 +14,11 @@ export default class CodexGrader {
     const outputPath = join(directory, 'grade.json')
     try {
       const environment = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('ORBIT_EVAL_')))
+      environment.PATH = (environment.PATH ?? '').split(delimiter).filter((directory) => {
+        if (!directory) return false
+        const segments = resolve(directory).split(sep)
+        return !segments.some((segment, index) => segment === 'node_modules' && segments[index + 1] === '.bin')
+      }).join(delimiter)
       await new Promise((resolve, reject) => {
         const child = execFile('codex', ['exec', '-m', 'gpt-6.1-sol', '-s', 'read-only',
           '--skip-git-repo-check', '--ephemeral', '--output-schema', schemaPath, '-o', outputPath], {
