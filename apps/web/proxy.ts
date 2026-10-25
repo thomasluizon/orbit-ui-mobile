@@ -69,7 +69,7 @@ function createContentSecurityPolicy(nonce: string): string {
     "frame-src https://challenges.cloudflare.com",
     `img-src 'self' blob: data: ${apiOrigin}${uploadBucketOrigin ? ` ${uploadBucketOrigin}` : ''}`,
     "font-src 'self' data:",
-    `connect-src 'self' ${apiOrigin}${uploadBucketOrigin ? ` ${uploadBucketOrigin}` : ''}`,
+    `connect-src 'self' ${apiOrigin}${uploadBucketOrigin ? ` ${uploadBucketOrigin}` : ''} blob:`,
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",

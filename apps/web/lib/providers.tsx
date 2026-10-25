@@ -8,6 +8,7 @@ import { clearDesignCookie } from './design-cookie'
 import { getQueryClient } from './query-client'
 import type { ReactNode } from 'react'
 import { ShellScrollerProvider } from '@/components/shell/shell-scroller-context'
+import { DesktopReleaseBoundary } from '@/components/desktop-release-boundary'
 
 export function Providers({ children }: Readonly<{ children: ReactNode }>) {
   const queryClient = getQueryClient()
@@ -19,8 +20,10 @@ export function Providers({ children }: Readonly<{ children: ReactNode }>) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ShellScrollerProvider>{children}</ShellScrollerProvider>
-      <ServiceWorkerBridge />
+      <DesktopReleaseBoundary monitor>
+        <ShellScrollerProvider>{children}</ShellScrollerProvider>
+        <ServiceWorkerBridge />
+      </DesktopReleaseBoundary>
     </QueryClientProvider>
   )
 }

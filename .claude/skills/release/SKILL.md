@@ -33,6 +33,12 @@ For a staging Git-backed Render service (API or landing), its workflow first upd
 
 After success, verify the live service. API: require `https://api.useorbit.org/health` to report `status: Healthy` for production, or the staging service URL's `/health` to be healthy for staging; confirm the Render live deploy commit equals the planned SHA. Web: require the selected Render service URL's `/api/health` to report `status: ok` and the planned `commit`. Landing: require a successful GitHub Deployment for the planned SHA and its URL's `orbit-build` meta tag to equal the SHA. Stop with the run URL and observed value on a mismatch.
 
+## Desktop with web
+
+The UI `release.yml` owns desktop admission for both environments. Its reusable `desktop-build.yml` checks out the exact planned web SHA, runs the shell and web bridge unit tests, and compiles all four native targets. After production staging admission succeeds, reusable `desktop-release.yml` compares that commit's shell inputs with the immutable version tag named by the channel's verified manifest. Unchanged inputs keep the published shell. Changed inputs automatically select a higher version, package and sign every target, and advance the selected channel before web deployment. A failed desktop check or publication stops the web release. Do not dispatch a separate Desktop Release during `/release`.
+
+Read the Desktop summary for the selected SHA, channel and published or unchanged version. The signed channel manifest remains the update endpoint. A web-only release reaches running desktop windows through `/api/desktop-release`: reload waits for streaming, edits, attachments and mutations to settle, and a one-use account-bound checkpoint restores Astra. `apps/web/web-compatibility.json` declares the web build's `minimumShellVersion`; raise it with an incompatible shell requirement. The automatic shell version must meet that floor before web deployment. Server rendering and hydration retain the application content; an older running shell switches to the native menu update instructions after hydration.
+
 ## Android
 
 Follow `.claude/skills/android-release/SKILL.md` to derive the next version and Play versionCode across all tracks. Confirm the exact inputs with the owner before dispatch. Production uses `open` by default or explicitly requested `production`, always from `main`. Staging uses only `internal`, from the selected branch. Never promote a binary across tracks.
