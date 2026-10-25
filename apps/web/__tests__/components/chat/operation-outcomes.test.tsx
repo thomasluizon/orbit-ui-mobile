@@ -1,3 +1,4 @@
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { useUIStore } from '@/stores/ui-store'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
@@ -21,6 +22,8 @@ vi.mock('@/components/ui/block-frame', () => ({
     {actions}
   </section>,
 }))
+
+beforeEach(() => measureClampedPersonalText())
 
 describe('OperationOutcomes on web', () => {
 

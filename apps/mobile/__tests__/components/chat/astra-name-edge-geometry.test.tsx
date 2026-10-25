@@ -56,9 +56,9 @@ function expectEdges(tree: Tree, width: number) {
   expect(rows.length).toBeGreaterThan(0)
   for (const row of rows) {
     const geometry = measureProfileRow(row, Math.min(width - 32, 740) - 50, 1)
-    const control = geometry.controls.find(control => control.accessibilityLabel && geometry.texts.some(text => text.label === control.accessibilityLabel))!
+    const control = geometry.controls.find(control => control.accessibilityLabel && geometry.texts.some(text => text.label && control.accessibilityLabel!.startsWith(text.label)))!
     expect(control).toBeDefined()
-    const name = geometry.texts.find(text => text.label === control.accessibilityLabel)!
+    const name = geometry.texts.find(text => text.label && control.accessibilityLabel!.startsWith(text.label))!
     const words = row.children![0] as Host
     const meta = words.children?.find(child => typeof child !== 'string' && child.type === 'Text') as Host | undefined
     const metadata = meta ? geometry.texts.find(text => text.label === meta.children?.filter(child => typeof child === 'string').join('')) : undefined

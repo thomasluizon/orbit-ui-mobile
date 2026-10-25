@@ -1,3 +1,4 @@
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PeriodInsightCard as PeriodInsightData } from '@orbit/shared/types/chat'
@@ -29,6 +30,8 @@ beforeEach(() => {
     constructor(private callback: (entries: { contentRect: { width: number } }[]) => void) {}
   })
 })
+
+beforeEach(() => measureClampedPersonalText())
 
 describe('period insight card on web', () => {
   it('starts with scoped figures and reveals all useful detail deliberately', () => {

@@ -40,6 +40,11 @@ describe('expanded RadioRow personal text in Chromium', () => {
           import { useTranslations } from 'next-intl';
           import { PersonalTextDetails } from './components/ui/personal-text-details';
           import { PickerRow } from './components/ui/picker-row';
+          import { GoalLinkingField } from './components/habits/goal-linking-field';
+          import { HabitDrill } from './components/habits/habit-list/habit-drill';
+          import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+          import { goalKeys } from '@orbit/shared/query';
+          import { createMockGoal } from '../../packages/shared/src/__tests__/factories';
           import { HabitRow } from './components/habits/habit-row';
           import { createMockHabit } from '../../packages/shared/src/__tests__/factories';
           import { SupportReplyEmail } from './app/(app)/support/_components/support-reply-email';
@@ -56,6 +61,8 @@ describe('expanded RadioRow personal text in Chromium', () => {
             const [parentId, setParentId] = useState('destination-0');
             const label = document.getElementById('root').dataset.label;
             const composition = document.getElementById('root').dataset.composition;
+            const language = document.getElementById('root').dataset.locale || 'en';
+            const copy = language === 'pt-BR' ? portuguese : messages;
             useLayoutEffect(() => {
               requestAnimationFrame(() => {
                 const root = document.getElementById('root');
@@ -95,6 +102,15 @@ describe('expanded RadioRow personal text in Chromium', () => {
             if (composition === 'list') return <ListRow title={label} textMode="personal" />;
             if (composition === 'settings') return <ListRow title={label} textMode="personal" />;
             if (composition === 'settingsGroup') return <ListRow title={label} textMode="personal" />;
+            if (composition === 'goalPicker') {
+              const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+              client.setQueryData(goalKeys.lists(), [createMockGoal({ title: label })]);
+              return <NextIntlClientProvider locale={language} messages={copy} timeZone="UTC"><QueryClientProvider client={client}><GoalLinkingField selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={() => document.getElementById('commits').textContent += 'toggle'} /></QueryClientProvider></NextIntlClientProvider>;
+            }
+            if (composition === 'drill') {
+              const drill = { drillStack: ['parent'], currentParentId: 'parent', currentParent: createMockHabit({ title: label }), drillChildren: [], hasUnfilteredChildren: false, canRevealCompletedChildren: false, completedCount: 0, drillLoading: false, drillError: '', drillBack: () => document.getElementById('commits').textContent += 'back', getDrillChildren: () => [] };
+              return <NextIntlClientProvider locale={language} messages={copy} timeZone="UTC"><div className="relative mx-auto w-full max-w-[740px]"><HabitDrill drill={drill} t={(key) => copy.common[key.split('.').pop()] || key} renderHabitCard={() => null} onAddSubHabit={() => {}} /></div></NextIntlClientProvider>;
+            }
             if (composition === 'pickerDetails') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><PickerRow name={label} selected disabled={false} onToggle={() => document.getElementById('commits').textContent += 'toggle'} value="3" valueClassName="" controlClassName="w-full min-w-0" actionsClassName="flex justify-between" /></NextIntlClientProvider>;
             if (composition === 'details') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><PersonalTextDetails>{label}</PersonalTextDetails></NextIntlClientProvider>;
             return <RadioGroup aria-label="Subjects" onCommit={() => document.getElementById('commits').textContent += 'commit'}>
@@ -131,12 +147,42 @@ describe('expanded RadioRow personal text in Chromium', () => {
     await page.locator('#root').evaluate((root, kind) => { (root as HTMLElement).dataset.composition = kind }, composition)
     await page.locator('#root').evaluate((root, language) => { (root as HTMLElement).dataset.locale = language }, locale)
     await page.addScriptTag({ content: componentScript })
-    if (composition === 'details' || composition === 'pickerDetails') await page.locator('[data-personal-text]').first().waitFor({ timeout: 2_000 })
+    if (composition === 'goalPicker') await page.getByRole('button').click()
+    if (['details', 'pickerDetails', 'goalPicker', 'drill'].includes(composition)) await page.locator('[data-personal-text]').first().waitFor({ timeout: 2_000 })
     else if (composition === 'editorParentOwner') await page.locator('form fieldset').first().waitFor({ timeout: 2_000 })
     else await page.getByRole(composition === 'radio' ? 'radio' : 'button', { name: label, exact: !['support', 'habit', 'calendarEvent'].includes(composition) && !composition.startsWith('editorParent') }).waitFor({ timeout: 2_000 })
     await page.evaluate(() => new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame()))))
     return page
   }
+
+  const wideCases = ['goalPicker', 'drill'].flatMap((composition) => (['en', 'pt-BR'] as const).flatMap((locale) =>
+    ['sentence', 'token'].map((kind) => ({ composition, locale, kind }))))
+  it.each(wideCases)('discloses only clipped $kind text in $composition after reflow in $locale', async ({ composition, locale, kind }) => {
+    const label = kind === 'token' ? token : 'Read the books I chose to learn about all the places and people around the world before breakfast every morning'
+    const copy = locale === 'en' ? (await import('@orbit/shared/i18n/en.json')).default : (await import('@orbit/shared/i18n/pt-BR.json')).default
+    const page = await mount(label, 'light', composition, locale)
+    try {
+      await loadAppFonts(page)
+      const disclosure = page.getByRole('button', { name: copy.common.showFullText.replace('{name}', label), exact: true })
+      await expect.poll(() => disclosure.count()).toBe(1)
+      await disclosure.click()
+      const fullText = page.getByRole('dialog', { name: label, exact: true })
+      expect(await fullText.locator('[data-personal-text-expanded]').last().textContent()).toBe(label)
+      expect(await page.locator('#commits').textContent()).toBe('')
+      await fullText.getByRole('button', { name: copy.common.close, exact: true }).click()
+      await page.setViewportSize({ width: 1352, height: 915 })
+      await expect.poll(() => disclosure.count()).toBe(kind === 'token' ? 1 : 0)
+      const text = page.locator('[data-personal-text]').filter({ hasText: label }).first()
+      const geometry = await text.evaluate((element) => ({
+        height: element.clientHeight, scrollHeight: element.scrollHeight,
+        width: element.clientWidth, scrollWidth: element.scrollWidth,
+      }))
+      expect(geometry.scrollHeight > geometry.height || geometry.scrollWidth > geometry.width, JSON.stringify(geometry)).toBe(kind === 'token')
+      await page.setViewportSize({ width: 320, height: 915 })
+      await expect.poll(() => disclosure.count()).toBe(1)
+      expect(await page.locator('#commits').textContent()).toBe('')
+    } finally { await page.close() }
+  })
 
   it('renders fitting disclosure text without a button or chevron at phone width', async () => {
     const page = await mount('Read for 20 minutes', 'dark', 'details')
