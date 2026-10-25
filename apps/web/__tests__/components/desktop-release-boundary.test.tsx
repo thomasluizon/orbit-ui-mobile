@@ -1,8 +1,12 @@
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
+import { renderToString } from 'react-dom/server'
+import { hydrateRoot } from 'react-dom/client'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import shellEn from '../../../desktop/locales/en.json'
+import shellPtBR from '../../../desktop/locales/pt-BR.json'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { DesktopReleaseBoundary } from '@/components/desktop-release-boundary'
 import { Providers } from '@/lib/providers'
@@ -38,6 +42,47 @@ function Conversation() {
     <textarea aria-label="Draft" value={draft} readOnly />
   </section>
 }
+
+it.each([false, true])('renders application children on the server with shell discovery %s', shell => {
+  if (shell) {
+    vi.stubGlobal('__TAURI_INTERNALS__', {})
+    vi.stubGlobal('__ORBIT_DESKTOP_VERSION__', '0.1.2')
+  }
+  const html = renderToString(<NextIntlClientProvider locale="en" messages={en}>
+    <DesktopReleaseBoundary minimum="1.0.0"><Providers><p>Hoje</p></Providers></DesktopReleaseBoundary>
+  </NextIntlClientProvider>)
+  expect(html).toContain('<p>Hoje</p>')
+  expect(html).not.toContain(en.desktopUpdate.required)
+})
+
+it('hydrates server children before showing an incompatible shell update without a mismatch', async () => {
+  const application = <NextIntlClientProvider locale="en" messages={en}>
+    <DesktopReleaseBoundary minimum="1.0.0"><p>Hoje</p></DesktopReleaseBoundary>
+  </NextIntlClientProvider>
+  const container = document.createElement('div')
+  container.innerHTML = renderToString(application)
+  expect(container).toHaveTextContent('Hoje')
+  document.body.append(container)
+  vi.stubGlobal('__TAURI_INTERNALS__', {})
+  vi.stubGlobal('__ORBIT_DESKTOP_VERSION__', '0.1.2')
+  const onRecoverableError = vi.fn()
+  const root = hydrateRoot(container, application, { onRecoverableError })
+  try {
+    await act(async () => {})
+    expect(container).toHaveTextContent(en.desktopUpdate.required)
+    expect(onRecoverableError).not.toHaveBeenCalled()
+  } finally {
+    await act(async () => { root.unmount() })
+    container.remove()
+  }
+})
+
+it.each([{ messages: en, shell: shellEn }, { messages: ptBR, shell: shellPtBR }])(
+  'names the installed shell update menu actions in the page copy', ({ messages, shell }) => {
+    expect(messages.desktopUpdate.required).toContain(shell.updateCheck)
+    expect(messages.desktopUpdate.required).toContain(shell.updateRestart)
+  },
+)
 
 it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])(
   'blocks an incompatible shell before mounting the application in $locale', ({ locale, messages }) => {

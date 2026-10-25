@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { releaseSettings, repository, verifyArtifact } from './release.ts'
 
 export const shellPaths = [
-  'apps/desktop', 'package.json', 'package-lock.json',
+  'apps/desktop', 'apps/web/web-compatibility.json', 'package.json', 'package-lock.json',
   '.github/workflows/desktop-build.yml', '.github/workflows/desktop-release.yml',
 ]
 
@@ -70,7 +70,7 @@ export async function channelVersion(variant: string): Promise<string | null> {
 async function main() {
   const variant = process.env.DESKTOP_VARIANT ?? ''
   const source = process.env.SOURCE_SHA ?? ''
-  const compatibility: { minimumShellVersion: string } = JSON.parse(readFileSync(new URL('../web-compatibility.json', import.meta.url), 'utf8'))
+  const compatibility: { minimumShellVersion: string } = JSON.parse(readFileSync(new URL('../../web/web-compatibility.json', import.meta.url), 'utf8'))
   const previous = await channelVersion(variant)
   const planned = planShellRelease(variant, source, previous, git('tag', '--list', `desktop-${variant}-v*`).split('\n'), compatibility.minimumShellVersion)
   const requested = process.env.DESKTOP_VERSION

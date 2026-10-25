@@ -7,6 +7,7 @@ import type { BlockAnswerInteraction } from '@orbit/shared/chat'
 import { pickListBlockSchema } from '@orbit/shared/types/chat'
 import { ChoiceBlock } from '@/components/chat/choice-block'
 import { PickListBlock } from '@/components/chat/pick-list-block'
+import { canReloadDesktopWeb } from '@/lib/desktop-web-release'
 
 const words = pt.chat.choice
 function interaction(overrides: Partial<BlockAnswerInteraction> = {}): BlockAnswerInteraction {
@@ -16,6 +17,47 @@ function choice(context = interaction(), multiSelect = false, expired = false) {
   return <NextIntlClientProvider locale="pt-BR" messages={pt}><ChoiceBlock block={{ ...choiceBlockFixture, multiSelect }} interaction={context} expired={expired} /></NextIntlClientProvider>
 }
 afterEach(cleanup)
+
+it.each(['choice', 'pickList'])('blocks release reloads for unsent %s answers after focus leaves, then clears on discard', kind => {
+  const { unmount } = render(<NextIntlClientProvider locale="pt-BR" messages={pt}>
+    {kind === 'choice' ? <ChoiceBlock block={choiceBlockFixture} interaction={interaction()} />
+      : <PickListBlock block={pickListBlockFixture} interaction={interaction()} />}
+    <button>Outside</button>
+  </NextIntlClientProvider>)
+  expect(canReloadDesktopWeb()).toBe(true)
+  fireEvent.click(screen.getAllByRole(kind === 'choice' ? 'radio' : 'checkbox')[0]!)
+  if (kind === 'choice') fireEvent.change(screen.getByLabelText(words.freeText), { target: { value: 'After work' } })
+  screen.getByRole('button', { name: 'Outside' }).focus()
+  expect(canReloadDesktopWeb()).toBe(false)
+  unmount()
+  expect(canReloadDesktopWeb()).toBe(true)
+})
+
+it('keeps a failed answer blocked until it settles', async () => {
+  const context = interaction({ send: vi.fn().mockResolvedValueOnce({ ok: false, status: 500 }).mockResolvedValueOnce({ ok: true }) })
+  render(choice(context))
+  fireEvent.click(screen.getAllByRole('radio')[0]!)
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: words.submit })) })
+  expect(canReloadDesktopWeb()).toBe(false)
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: words.submit })) })
+  expect(canReloadDesktopWeb()).toBe(true)
+})
+
+it('releases an expired unsent answer and an unchecked pick-list selection', () => {
+  const context = interaction()
+  const { rerender, unmount } = render(choice(context))
+  fireEvent.click(screen.getAllByRole('radio')[0]!)
+  expect(canReloadDesktopWeb()).toBe(false)
+  rerender(choice(context, false, true))
+  expect(canReloadDesktopWeb()).toBe(true)
+  unmount()
+  render(<NextIntlClientProvider locale="pt-BR" messages={pt}><PickListBlock block={pickListBlockFixture} interaction={context} /></NextIntlClientProvider>)
+  const checkbox = screen.getAllByRole('checkbox')[0]!
+  fireEvent.click(checkbox)
+  expect(canReloadDesktopWeb()).toBe(false)
+  fireEvent.click(checkbox)
+  expect(canReloadDesktopWeb()).toBe(true)
+})
 
 describe('choice and pick list answers', () => {
   it('roves and selects with arrows, then sends once on Enter and focuses the localized answer', async () => {

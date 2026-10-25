@@ -1270,6 +1270,32 @@ describe('web useChatComposer streaming send', () => {
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalled()
   })
 
+  it('blocks release reloads through confirmation, execution and result invalidation', async () => {
+    let confirm!: (value: Awaited<ReturnType<typeof confirmPendingOperation>>) => void
+    let execute!: (value: Awaited<ReturnType<typeof executePendingOperation>>) => void
+    let invalidate!: () => void
+    vi.mocked(confirmPendingOperation).mockImplementationOnce(() => new Promise(resolve => { confirm = resolve }))
+    vi.mocked(executePendingOperation).mockImplementationOnce(() => new Promise(resolve => { execute = resolve }))
+    mocks.queryClient.invalidateQueries.mockImplementationOnce(() => new Promise<void>(resolve => { invalidate = resolve }))
+    const { result, unmount } = renderHook(() => useChatComposer())
+    expect(canReloadDesktopWeb()).toBe(true)
+    let pending!: ReturnType<typeof result.current.confirmAndExecutePendingOperation>
+    await act(async () => { pending = result.current.confirmAndExecutePendingOperation('pending-1') })
+    expect(result.current.isPendingOperationBusy).toBe(true)
+    expect(canReloadDesktopWeb()).toBe(false)
+    await act(async () => { confirm({ ok: true, data: { pendingOperationId: 'pending-1', confirmationToken: 'token-1', expiresAtUtc: '2026-09-29T12:00:00Z' } }) })
+    expect(canReloadDesktopWeb()).toBe(false)
+    await act(async () => { execute({ ok: true, data: { operation: {
+      operationId: 'operation-1', sourceName: 'CreateHabit', riskClass: 'Low', confirmationRequirement: 'None', status: 'Succeeded', targetId: 'habit-created',
+    } } }) })
+    expect(canReloadDesktopWeb()).toBe(false)
+    await act(async () => { invalidate(); await pending })
+    expect(result.current.isPendingOperationBusy).toBe(false)
+    expect(canReloadDesktopWeb()).toBe(true)
+    unmount()
+    expect(canReloadDesktopWeb()).toBe(true)
+  })
+
   it('shows reload guidance and disables retry after an account switch refusal', async () => {
     signInAs('account-a')
     mocks.fetch.mockResolvedValue(Response.json({

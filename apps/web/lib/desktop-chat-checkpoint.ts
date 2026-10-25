@@ -24,7 +24,7 @@ async function durableImageUrl(url: string | null | undefined) {
   if (!url?.startsWith('blob:')) return url
   const response = await fetch(url)
   if (!response.ok) throw new Error('Cannot retain conversation image across web release')
-  const blob = await response.blob()
+  const blob = new Blob([await response.arrayBuffer()], { type: response.headers.get('Content-Type') ?? '' })
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onerror = () => reject(reader.error ?? new Error('Cannot read conversation image'))

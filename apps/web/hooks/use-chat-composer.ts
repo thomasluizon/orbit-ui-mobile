@@ -214,10 +214,6 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     restoreTextFile,
   } = useChatTextFileAttachment(setSendError)
 
-  useEffect(() => {
-    if (isRecording || isTranscribing || selectedImage || selectedTextFile || lastFailedSend) return blockDesktopWebReload()
-  }, [isRecording, isTranscribing, selectedImage, selectedTextFile, lastFailedSend])
-
   /**
    * The app shell keeps this hook mounted through an account change, so the previous account's
    * attempted send would otherwise stay armed behind Retry and post its text under the next
@@ -294,6 +290,10 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     prepareStepUpForBubble,
     verifyStepUpForBubble,
   } = useChatPendingOperations(handleExecutedOperation)
+
+  useEffect(() => {
+    if (isRecording || isTranscribing || selectedImage || selectedTextFile || lastFailedSend || isPendingOperationBusy) return blockDesktopWebReload()
+  }, [isRecording, isTranscribing, selectedImage, selectedTextFile, lastFailedSend, isPendingOperationBusy])
 
   const handleDailyBudgetExceeded = useCallback((draftMessageId: string | null, attempted?: AttemptedSend) => {
     if (attempted?.clearDraftOnSuccess && attempted.restoredDraftRevision === useChatStore.getState().draftRevision) {

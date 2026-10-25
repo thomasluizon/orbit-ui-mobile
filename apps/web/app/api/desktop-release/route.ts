@@ -1,4 +1,4 @@
-import compatibility from '../../../../desktop/web-compatibility.json'
+import compatibility from '@/web-compatibility.json'
 
 export function GET() {
   return Response.json({ commit: process.env.WEB_COMMIT_SHA ?? null, ...compatibility }, {

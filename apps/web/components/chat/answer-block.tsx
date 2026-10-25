@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useId, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useId, useState, useSyncExternalStore } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { AnswerBlockController, getAnswerBlockView, type AnswerBlockProps, type AnswerBlockView, type AnswerBlockState } from '@orbit/shared/chat'
 import { BlockFrame } from '@/components/ui/block-frame'
@@ -11,6 +11,7 @@ import { Proposed } from '@/components/ui/proposed'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/pill-button'
 import { Check, Lock, ArrowUp } from '@/components/ui/icons'
+import { blockDesktopWebReload } from '@/lib/desktop-web-release'
 
 type AnswerContentProps = Readonly<{
   view: AnswerBlockView
@@ -67,6 +68,10 @@ export function AnswerBlock(props: AnswerBlockProps) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
   const view = getAnswerBlockView(props, state, t)
   const submit = () => controller.submit(props, t, locale)
+  const pendingAnswer = state.acting || (!view.closed && (state.selectedIds.length > 0 || state.freeText.length > 0))
+  useEffect(() => {
+    if (pendingAnswer) return blockDesktopWebReload()
+  }, [pendingAnswer])
 
   return <div className="min-w-0" data-answer-block={props.definition.kind}>
     {view.closed ? <TerminalAnswer text={view.closed} answered={view.answered} focus={controller.focusWhenClosed} /> : <BlockFrame state={view.acting ? 'acting' : 'resting'} title={view.title} wrapTitle items={[]}

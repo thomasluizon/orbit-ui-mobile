@@ -81,6 +81,13 @@ it('publishes changed shell sources and skips reserved versions after a failed p
   expect(planShellRelease('staging', source, '0.1.1', [], '1.0.0')).toBe('1.0.0')
 })
 
+it('publishes a shell meeting a raised web-owned compatibility floor', () => {
+  repository()
+  mkdirSync('apps/web', { recursive: true })
+  const source = commit('apps/web/web-compatibility.json', JSON.stringify({ minimumShellVersion: '1.0.0' }))
+  expect(planShellRelease('staging', source, '0.1.1', [], '1.0.0')).toBe('1.0.0')
+})
+
 it('fails if the baseline tag is unavailable or checkout is not the selected commit', () => {
   const source = repository()
   expect(() => planShellRelease('staging', source, '0.1.2', [])).toThrow()

@@ -4006,7 +4006,7 @@
     "restartCta": "Reiniciar agora"
   },
   "desktopUpdate": {
-    "required": "Esta versão do Orbit precisa de uma atualização para computador. No menu do app, escolha Buscar atualizações e depois Reiniciar para atualizar."
+    "required": "Esta versão do Orbit precisa ser atualizada. No menu do app, escolha Buscar atualizações e depois Reiniciar para atualizar."
   },
   "forceUpdate": {
     "title": "Esta versão do Orbit parou de funcionar",

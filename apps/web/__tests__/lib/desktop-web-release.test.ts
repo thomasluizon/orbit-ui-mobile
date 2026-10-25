@@ -9,6 +9,7 @@ import {
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { holdAccount } from '@/__tests__/support/account-change'
+import compatibility from '@/web-compatibility.json'
 
 vi.mock('@/lib/posthog', () => ({ identifyPostHogUser: vi.fn(), resetPostHogUser: vi.fn() }))
 vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }))
@@ -42,7 +43,7 @@ afterEach(() => {
 it('publishes uncached build identity through the real route and admits legacy shells at the initial floor', async () => {
   const response = GET()
   expect(response.headers.get('cache-control')).toBe('no-store')
-  expect(desktopWebReleaseSchema.parse(await response.json())).toEqual({ commit: nextCommit, minimumShellVersion: '0.0.0' })
+  expect(desktopWebReleaseSchema.parse(await response.json())).toEqual({ commit: nextCommit, ...compatibility })
   expect(desktopShellVersion()).toBeNull()
   vi.stubGlobal('__TAURI_INTERNALS__', {})
   expect(desktopShellVersion()).toBe('0.0.0')
@@ -156,11 +157,21 @@ it('does not reload or retain a checkpoint when the account changes during image
   useChatStore.getState().addMessage({ id: 'image', role: 'user', content: 'Look', imageUrl: 'blob:preview', timestamp: new Date() })
   const pending = reloadDesktopWeb(reload)
   holdAccount('replacement-account')
-  complete(new Response(new Blob(['image'], { type: 'image/png' })))
+  complete(new Response('image', { headers: { 'Content-Type': 'image/png' } }))
   await vi.advanceTimersByTimeAsync(50)
   expect(await pending).toBe(false)
   expect(reload).not.toHaveBeenCalled()
   expect(takeDesktopChatCheckpoint('desktop-account')).toBeNull()
+})
+
+it('retains image bytes and MIME type across a successful reload checkpoint', async () => {
+  vi.mocked(fetch).mockResolvedValueOnce(new Response('image', { headers: { 'Content-Type': 'image/png' } }))
+  useChatStore.getState().addMessage({ id: 'image', role: 'user', content: 'Look', imageUrl: 'blob:preview', timestamp: new Date() })
+  const pending = reloadDesktopWeb(reload)
+  await vi.advanceTimersByTimeAsync(50)
+  expect(await pending).toBe(true)
+  expect(reload).toHaveBeenCalledOnce()
+  expect(takeDesktopChatCheckpoint('desktop-account')?.chat.messages[0]?.imageUrl).toBe('data:image/png;base64,aW1hZ2U=')
 })
 
 it('stops checks and reloads after unmount', async () => {
