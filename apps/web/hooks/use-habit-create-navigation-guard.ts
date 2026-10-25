@@ -1,6 +1,6 @@
 'use client'
 
-import { startTransition, useEffect, useEffectEvent, useState } from 'react'
+import { startTransition, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { resolveHabitCreateReturnPath } from '@orbit/shared/utils'
 
 let activeNavigationGuard: ((action: () => void) => void) | null = null
@@ -40,8 +40,9 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
   const requestNavigation = useEffectEvent(onNavigate)
   const returnToOrigin = useEffectEvent(onReturn)
   const isLeaving = useEffectEvent(() => leaving)
-  const isDirty = useEffectEvent(() => dirty)
+  const beforeUnloadState = useRef({ dirty, leaving })
   const [rebuildAction, setRebuildAction] = useState<(() => void) | null>(null)
+  useEffect(() => { beforeUnloadState.current = { dirty, leaving } }, [dirty, leaving])
   useEffect(() => {
     if (!active) return
     const creationPath = location.pathname
@@ -99,7 +100,7 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
       history.forward()
     }
     function handleBeforeUnload(event: BeforeUnloadEvent) {
-      if (isLeaving() || !isDirty()) return
+      if (beforeUnloadState.current.leaving || !beforeUnloadState.current.dirty) return
       event.preventDefault()
     }
     let approvedClick = false
