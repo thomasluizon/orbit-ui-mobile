@@ -2698,8 +2698,10 @@ name = "orbit-desktop"
 version = "0.1.0"
 dependencies = [
  "base64 0.23.1",
+ "cc",
  "getrandom 0.4.3",
  "reqwest",
+ "serde",
  "serde_json",
  "sha2",
  "sys-locale",
@@ -2712,6 +2714,8 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
  "tauri-plugin-window-state",
+ "tempfile",
+ "uuid",
 ]
 
 [[package]]

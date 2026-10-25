@@ -7,7 +7,10 @@ const mocks = vi.hoisted(() => ({
   fetchJson: vi.fn(),
   options: null as { queryFn: () => Promise<unknown> } | null,
   queryResult: null as unknown,
+  desktop: false,
 }))
+vi.mock('@/lib/desktop-runtime', () => ({ isDesktopPush: () => mocks.desktop }))
+vi.mock('@/lib/desktop-push', () => ({ desktopEndpoint: async () => endpoint }))
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: (options: { queryFn: () => Promise<unknown> }) => {
@@ -27,6 +30,7 @@ describe('usePushSubscriptions', () => {
   beforeEach(() => {
     mocks.fetchJson.mockReset()
     mocks.queryResult = null
+    mocks.desktop = false
     vi.stubGlobal('crypto', webcrypto)
     Object.defineProperty(navigator, 'serviceWorker', {
       configurable: true,
@@ -61,5 +65,14 @@ describe('usePushSubscriptions', () => {
     expect(state.count).toBe(count)
     expect(state.max).toBe(5)
     expect(state.isCurrentDeviceRegistered).toBe(includesCurrent && count > 0)
+  })
+
+  it('identifies the native shell subscription without using Web Push APIs', async () => {
+    mocks.desktop = true
+    Reflect.deleteProperty(navigator, 'serviceWorker')
+    mocks.fetchJson.mockResolvedValue({ items: [{ id: '00000000-0000-4000-8000-000000000001', transport: 'native', createdAtUtc: '2026-01-01T00:00:00Z', endpointHash }], max: 5 })
+    usePushSubscriptions()
+    mocks.queryResult = await mocks.options?.queryFn()
+    expect(usePushSubscriptions().isCurrentDeviceRegistered).toBe(true)
   })
 })

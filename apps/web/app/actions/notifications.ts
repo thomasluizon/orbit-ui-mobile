@@ -2,6 +2,7 @@
 
 import { API } from '@orbit/shared/api'
 import type { UnsubscribePushInput } from '@orbit/shared/types'
+import type { DesktopPushRegistration } from '@orbit/shared/types/push-subscription'
 import { serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
@@ -59,7 +60,7 @@ export async function deleteAllNotifications(
  * PushSubscriptionJSON has keys nested under subscription.keys.
  */
 export async function subscribePush(
-  subscription: PushSubscriptionJSON,
+  subscription: PushSubscriptionJSON & Partial<Pick<DesktopPushRegistration, 'apnsTopic' | 'deviceId'>>,
   intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.notifications.subscribe, {
@@ -68,6 +69,8 @@ export async function subscribePush(
       endpoint: subscription.endpoint,
       p256dh: subscription.keys?.p256dh ?? '',
       auth: subscription.keys?.auth ?? '',
+      ...(subscription.apnsTopic === undefined ? {} : { apnsTopic: subscription.apnsTopic }),
+      ...(subscription.deviceId === undefined ? {} : { deviceId: subscription.deviceId }),
     }),
   }, intendedAccountId))
 }
