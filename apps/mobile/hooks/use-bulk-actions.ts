@@ -37,7 +37,8 @@ export function useBulkActions({
 
   const finish = useCallback((
     outcome: BulkActionOutcome,
-    retry: (ids: string[]) => void,
+    retry: (ids: string[], retainedIds: string[]) => void,
+    retainedIds: readonly string[] = [],
   ) => {
     const { retryIds, reasonKeys } = getBulkActionFailures(outcome.results)
     const offlineFailureIds = outcome.offlineFailureIds ?? []
@@ -48,7 +49,8 @@ export function useBulkActions({
       })
     }
     const queuedIds = outcome.queuedIds ?? []
-    const selectedIds = [...new Set([...retryIds, ...offlineFailureIds, ...queuedIds])]
+    const untouchedIds = [...new Set([...retainedIds, ...offlineFailureIds, ...queuedIds])]
+    const selectedIds = [...new Set([...retryIds, ...untouchedIds])]
     if (selectedIds.length === 0) onSuccess()
     else onPartialFailure(selectedIds)
     const messages = reasonKeys.map((key) => t(key))
@@ -57,7 +59,7 @@ export function useBulkActions({
     if (messages.length === 0) return
     const toast = { kind: 'neutral' as const, message: messages.join('\n') }
     if (retryIds.length === 0) showToast(toast)
-    else showToast({ ...toast, actionLabel: t('habits.bulkBar.retryFailed'), onAction: () => retry(retryIds) })
+    else showToast({ ...toast, actionLabel: t('habits.bulkBar.retryFailed'), onAction: () => retry(retryIds, untouchedIds) })
   }, [onPartialFailure, onSuccess, showToast, t])
 
   const applyBulkMutationSuccesses = useCallback(
@@ -71,16 +73,16 @@ export function useBulkActions({
     [habitListRef],
   )
 
-  async function executeDelete(ids: string[]) {
+  async function executeDelete(ids: string[], retainedIds: string[] = []) {
     if (ids.length === 0) return
     const result: BulkActionOutcome = await bulkDelete.mutateAsync(ids)
-    finish(result, (failedIds) => void executeDelete(failedIds))
-    if (!result.offlineFailureIds?.length) {
+    finish(result, (failedIds, untouchedIds) => void executeDelete(failedIds, untouchedIds), retainedIds)
+    if (!result.offlineFailureIds?.length && retainedIds.length === 0) {
       setShowBulkDeleteConfirm(false)
     }
   }
 
-  async function executeCompletion(ids: string[], mode: HabitResolutionMode) {
+  async function executeCompletion(ids: string[], mode: HabitResolutionMode, retainedIds: string[] = []) {
     if (!isBulkCompletionAllowed(currentPermission.current, selectedDateStr, accountTimeZone)) return
     if (ids.length === 0) return
     const date = selectedDateStr
@@ -89,7 +91,7 @@ export function useBulkActions({
     )
     applyBulkMutationSuccesses(result.results, mode, date, result.queuedIds)
     if (currentPermission.current.selectedDateStr !== date) return
-    finish(result, (failedIds) => void executeCompletion(failedIds, mode))
+    finish(result, (failedIds, untouchedIds) => void executeCompletion(failedIds, mode, untouchedIds), retainedIds)
   }
 
   return {

@@ -1,3 +1,4 @@
+import { createTranslator } from 'next-intl'
 import { readExpandedControlGeometry } from './expanded-control-geometry'
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -238,7 +239,7 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
         expect(Math.abs(inset - 16)).toBeLessThanOrEqual(0.5)
         await expectInteractionFill(checkbox)
         await expectInteractionFill(label)
-        const importText = words.calendar.importButton.split(' | ')[1]!.replace(/\{count\}/g, '2')
+        const importText = createTranslator({ locale, messages: words })('calendar.importButton', { count: 2 })
         await sheet.getByRole('button', { name: importText, exact: true }).click()
         await expect(sheet.getByText(words.calendar.importDone, { exact: true })).toBeVisible()
         await assertRows(sheet)

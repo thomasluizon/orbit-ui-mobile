@@ -1,3 +1,7 @@
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { pluralMessageCases } from '@orbit/shared/test-support/plural-messages'
+import { testI18n } from '@/__tests__/support/i18n'
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import { i18n } from '@/lib/i18n'
 import { plural } from '@/lib/plural'
@@ -191,4 +195,26 @@ describe('native plural messages', () => {
       expect(i18n.t('profile.subscription.trialDaysLeft', { days: count })).toBe(trial[count])
     }
   })
+})
+
+it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('never returns ICU source from the app or test formatter in $locale', ({ locale, messages }) => {
+  for (const formatter of [i18n, testI18n]) {
+    const t = formatter.getFixedT(locale)
+    for (const { key, values } of pluralMessageCases(messages)) {
+      for (const count of [0, 1, 2, 14, 100]) {
+        expect(t(key, values(count)), `${key}, count=${count}`).not.toMatch(/,\s*plural\s*,/)
+      }
+    }
+  }
+})
+
+it.each([
+  { locale: 'en', singular: '1 event', plural: '2 events', day: '1 trial day left', days: '14 trial days left' },
+  { locale: 'pt-BR', singular: '1 evento', plural: '2 eventos', day: 'Falta 1 dia de teste', days: 'Faltam 14 dias de teste' },
+])('formats the event and trial branches in $locale', ({ locale, singular, plural, day, days }) => {
+  const t = i18n.getFixedT(locale)
+  expect(t('calendar.eventsFound', { count: 1 })).toBe(singular)
+  expect(t('calendar.eventsFound', { count: 2 })).toBe(plural)
+  expect(t('upgrade.convert.trialDaysLeft', { days: 1 })).toBe(day)
+  expect(t('upgrade.convert.trialDaysLeft', { days: 14 })).toBe(days)
 })

@@ -22,8 +22,8 @@ describe('bulk skip failure classification', () => {
     ['HABIT_NOT_YET_DUE', 'errors.api.habitNotYetDue'],
     ['NOT_SCHEDULED_ON_DATE', 'errors.api.habitNotScheduled'],
     ['ALL_INSTANCES_DONE', 'errors.api.habitPeriodDone'],
-    ['NOT_FLEXIBLE_HABIT', 'errors.api.skipNotAllowed'],
-    ['CANNOT_SKIP_ONE_TIME', 'errors.api.skipNotAllowed'],
+    ['NOT_FLEXIBLE_HABIT', 'errors.api.skipNotFlexible'],
+    ['CANNOT_SKIP_ONE_TIME', 'errors.api.skipOneTime'],
   ])('preserves and explains the permanent producer code %s without retrying', (errorCode, reasonKey) => {
     const response = bulkSkipResultSchema.parse({ results: [
       { index: 0, status: 'Failed', habitId: 'habit', error: 'Rejected', errorCode },

@@ -234,6 +234,36 @@ describe('useBulkActions reversibility boundary', () => {
   })
 
   it.each([
+    ['log', bulkLog, 'confirmBulkLog'],
+    ['skip', bulkSkip, 'confirmBulkSkip'],
+  ] as const)('preserves offline-refused and queued rows across repeated subset %s retries', async (_mode, mutation, action) => {
+    mutation.mutateAsync.mockResolvedValueOnce({
+      results: [
+        { habitId: 'permanent', status: 'Failed', errorCode: 'HABIT_NOT_YET_DUE' },
+        { habitId: 'transient', status: 'Failed', errorCode: 'CONCURRENT_UPDATE_CONFLICT' },
+        { habitId: 'queued', status: 'Success' },
+      ],
+      offlineFailureIds: ['offline-refused'], queuedIds: ['queued'],
+    }).mockResolvedValueOnce({ results: [
+      { habitId: 'transient', status: 'Failed', errorCode: 'MUTATION_FAILED' },
+    ] }).mockResolvedValueOnce(bulkSuccess(['transient']))
+    const { captured, onPartialFailure, onSuccess, settleBulkHabitResolutions } = renderBulkActions(
+      new Set(['permanent', 'transient', 'offline-refused', 'queued']),
+    )
+    await TestRenderer.act(async () => { await captured.current![action]() })
+    expect(onPartialFailure).toHaveBeenLastCalledWith(['transient', 'offline-refused', 'queued'])
+    expect(settleBulkHabitResolutions).not.toHaveBeenCalled()
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const toast = showToast.mock.calls.at(-1)![0] as { onAction: () => void }
+      await TestRenderer.act(async () => { toast.onAction(); await Promise.resolve() })
+      expect(mutation.mutateAsync).toHaveBeenLastCalledWith([{ habitId: 'transient', date: VIEWED_DATE }])
+      expect(onPartialFailure).toHaveBeenLastCalledWith(attempt === 0
+        ? ['transient', 'offline-refused', 'queued'] : ['offline-refused', 'queued'])
+      expect(onSuccess).not.toHaveBeenCalled()
+    }
+  })
+
+  it.each([
     { locale: 'en', reason: 'This habit is not due yet on that date.', message: '2 selected rows could not be updated.' },
     { locale: 'pt-BR', reason: 'Este hábito ainda não está disponível nessa data.', message: 'Não foi possível atualizar 2 linhas selecionadas.' },
   ])('retries only transient rows from a mixed skip and explains the permanent reason in $locale', async ({ locale, reason, message }) => {

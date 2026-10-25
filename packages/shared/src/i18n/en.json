@@ -153,8 +153,8 @@
     "error": "An error occurred",
     "somethingWentWrong": "Something went wrong",
     "retry": "Retry",
-    "selected": "{n, plural, =0 {{n} selected} =1 {{n} selected} other {{n} selected}}",
-    "selectedSuffix": "{count, plural, =0 {selected} =1 {selected} other {selected}}",
+    "selected": "{n, plural, one {# selected} other {# selected}}",
+    "selectedSuffix": "{count, plural, one {selected} other {selected}}",
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
     "clear": "Clear",
@@ -547,7 +547,7 @@
       "future": "This day has not arrived yet. You can log what has no set time."
     },
     "emptyState": "No habits yet",
-    "count": "{n, plural, =0 {no habits} =1 {one habit} other {{n} habits}}",
+    "count": "{n, plural, =0 {no habits} one {one habit} other {# habits}}",
     "overdue": "Overdue",
     "schedule": {
       "dueInDays": "in {count}d",
@@ -618,7 +618,7 @@
       "invalidSelf": "Cannot move under itself",
       "invalidDescendant": "Cannot move under a descendant",
       "invalidDepth": "Would exceed max depth ({max})",
-      "titleMany": "{count, plural, =0 {Move {count} habits} =1 {Move {count} habit} other {Move {count} habits}}",
+      "titleMany": "{count, plural, one {Move # habit} other {Move # habits}}",
       "invalidForSome": "Some selected habits cannot go here",
       "invalidCurrentParent": "This habit is already here",
       "invalidCurrentParentMany": "The selected habits are already here",
@@ -656,7 +656,7 @@
     "drillProgress": "{done} of {total} done",
     "deleteConfirmTitle": "Delete this habit?",
     "deleteConfirmMessage": "This removes the habit and any sub-habits. You can undo it from the message that appears.",
-    "deleteListConfirmMessage": "{count, plural, =0 {{name} leaves your list. You can undo it from the message that appears.} =1 {{name} and {count} item inside it leave your list. You can undo it from the message that appears.} other {{name} and {count} items inside it leave your list. You can undo it from the message that appears.}}",
+    "deleteListConfirmMessage": "{count, plural, =0 {{name} leaves your list. You can undo it from the message that appears.} one {{name} and # item inside it leave your list. You can undo it from the message that appears.} other {{name} and # items inside it leave your list. You can undo it from the message that appears.}}",
     "duplicateConfirmTitle": "Duplicate habit?",
     "duplicateConfirmMessage": "A copy of \"{name}\" will be created with all its settings (frequency, tags, reminders, checklist).",
     "duplicateConfirm": "Duplicate habit",
@@ -672,10 +672,10 @@
     "checklistClearTitle": "Clear checklist?",
     "checklistClearMessage": "This removes every item from this habit's checklist.",
     "bulkDeleteTitle": "Delete Habits",
-    "bulkDeleteMessage": "{count, plural, =0 {This removes {count} habits and any sub-habits. You can undo it from the message that appears.} =1 {This removes {count} habit and any sub-habits. You can undo it from the message that appears.} other {This removes {count} habits and any sub-habits. You can undo it from the message that appears.}}",
+    "bulkDeleteMessage": "{count, plural, one {This removes # habit and any sub-habits. You can undo it from the message that appears.} other {This removes # habits and any sub-habits. You can undo it from the message that appears.}}",
     "bulkDeleteConfirm": "Delete habits",
     "bulkLogTitle": "Log Habits",
-    "bulkLogMessage": "{count, plural, =0 {Log {count} selected habits as complete? Already completed habits will be skipped.} =1 {Log {count} selected habit as complete? Already completed habits will be skipped.} other {Log {count} selected habits as complete? Already completed habits will be skipped.}}",
+    "bulkLogMessage": "{count, plural, one {Log # selected habit as complete? Already completed habits will be skipped.} other {Log # selected habits as complete? Already completed habits will be skipped.}}",
     "bulkLogConfirm": "Log",
     "bulkSkipTitle": "Skip Habits",
     "bulkSkipConfirm": "Skip",
@@ -683,7 +683,7 @@
       "log": "Log selected",
       "skip": "Skip selected",
       "delete": "Delete selected",
-      "partialFailure": "{count, plural, =0 {{count} selected rows could not be updated.} =1 {{count} selected row could not be updated.} other {{count} selected rows could not be updated.}}",
+      "partialFailure": "{count, plural, one {# selected row could not be updated.} other {# selected rows could not be updated.}}",
       "retryFailed": "Retry failed only",
       "offlineFailure": "Nothing changed because your device is offline.",
       "connectionRefreshed": "The connection dropped. The list was refreshed.",
@@ -696,10 +696,10 @@
       "everyWeek": "Every week",
       "everyMonth": "Every month",
       "everyYear": "Every year",
-      "everyNDays": "{n, plural, =0 {Every {n} days} =1 {Every {n} day} other {Every {n} days}}",
-      "everyNWeeks": "{n, plural, =0 {Every {n} weeks} =1 {Every {n} week} other {Every {n} weeks}}",
-      "everyNMonths": "{n, plural, =0 {Every {n} months} =1 {Every {n} month} other {Every {n} months}}",
-      "everyNYears": "{n, plural, =0 {Every {n} years} =1 {Every {n} year} other {Every {n} years}}",
+      "everyNDays": "{n, plural, one {Every # day} other {Every # days}}",
+      "everyNWeeks": "{n, plural, one {Every # week} other {Every # weeks}}",
+      "everyNMonths": "{n, plural, one {Every # month} other {Every # months}}",
+      "everyNYears": "{n, plural, one {Every # year} other {Every # years}}",
       "flexibleLabel": "{n}x / {unit}",
       "flexibleProgress": "{unit}: {done}/{target}"
     },
@@ -1060,8 +1060,8 @@
       "retryError": "Could not create the remaining habits. Try again.",
       "createError": "Could not create these habits. Edit the proposal and try again.",
       "addHabit": "Add habit",
-      "createCount": "{n, plural, =0 {no habits} =1 {Create {n} habit} other {Create {n} habits}}",
-      "createdSuccess": "{n, plural, =0 {no habits created} =1 {Created {n} habit successfully} other {Created {n} habits successfully}}",
+      "createCount": "{n, plural, =0 {no habits} one {Create # habit} other {Create # habits}}",
+      "createdSuccess": "{n, plural, =0 {no habits created} one {Created # habit successfully} other {Created # habits successfully}}",
       "createAsParent": "Group as parent habit",
       "groupingDenied": "Grouping these habits was not allowed. Nothing was saved. Turn off grouping to create separate habits.",
       "capacityDenied": "This proposal exceeds the habit limit. Remove a habit from the proposal and try again.",
@@ -1197,14 +1197,14 @@
     "profileHint": "Import events as habits",
     "fetchingEvents": "Fetching your calendar events...",
     "noEvents": "No events",
-    "eventsFound": "{count, plural, =0 {{count} events} =1 {{count} event} other {{count} events}}",
+    "eventsFound": "{count, plural, one {# event} other {# events}}",
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
-    "importButton": "{count, plural, =0 {Import {count} events} =1 {Import {count} event} other {Import {count} events}}",
+    "importButton": "{count, plural, one {Import # event} other {Import # events}}",
     "importing": "Importing events...",
     "importDone": "Import complete",
-    "importedCount": "{count, plural, =0 {{count} events imported as habits} =1 {{count} event imported as a habit} other {{count} events imported as habits}}",
-    "importPartialFailure": "{count, plural, =0 {{count} events could not be imported} =1 {{count} event could not be imported} other {{count} events could not be imported}}",
+    "importedCount": "{count, plural, one {# event imported as a habit} other {# events imported as habits}}",
+    "importPartialFailure": "{count, plural, one {# event could not be imported} other {# events could not be imported}}",
     "importIssue": {
       "utcUntilOffsetShift": "Orbit cannot place the final occurrence after a clock change. Remove the event's end date, then import it again."
     },
@@ -1218,11 +1218,11 @@
     "recurrenceWeekly": "Weekly",
     "recurrenceWeeklyDays": "Weekly ({days})",
     "recurrenceMonthly": "Monthly",
-    "recurrenceEveryNDays": "{n, plural, =0 {Every {n} days} =1 {Every {n} day} other {Every {n} days}}",
-    "recurrenceEveryNWeeks": "{n, plural, =0 {Every {n} weeks} =1 {Every {n} week} other {Every {n} weeks}}",
-    "recurrenceEveryNMonths": "{n, plural, =0 {Every {n} months} =1 {Every {n} month} other {Every {n} months}}",
+    "recurrenceEveryNDays": "{n, plural, one {Every # day} other {Every # days}}",
+    "recurrenceEveryNWeeks": "{n, plural, one {Every # week} other {Every # weeks}}",
+    "recurrenceEveryNMonths": "{n, plural, one {Every # month} other {Every # months}}",
     "recurrenceYearly": "Yearly",
-    "recurrenceEveryNYears": "{n, plural, =0 {Every {n} years} =1 {Every {n} year} other {Every {n} years}}",
+    "recurrenceEveryNYears": "{n, plural, one {Every # year} other {Every # years}}",
     "notConnectedTitle": "Connect Google Account",
     "notConnectedDesc": "Sign in with Google to import your calendar events as habits.",
     "showMore": "Show more",
@@ -1248,10 +1248,10 @@
       "toggleLabel": "Enable automatic sync",
       "lastSyncedNever": "Never synced",
       "lastSyncedJustNow": "Just synced",
-      "lastSyncedMinutesAgo": "{n, plural, =0 {{n} minutes ago} =1 {{n} minute ago} other {{n} minutes ago}}",
-      "lastSyncedHoursAgo": "{n, plural, =0 {{n} hours ago} =1 {{n} hour ago} other {{n} hours ago}}",
+      "lastSyncedMinutesAgo": "{n, plural, one {# minute ago} other {# minutes ago}}",
+      "lastSyncedHoursAgo": "{n, plural, one {# hour ago} other {# hours ago}}",
       "lastSyncedYesterday": "Yesterday",
-      "lastSyncedDaysAgo": "{n, plural, =0 {{n} days ago} =1 {{n} day ago} other {{n} days ago}}",
+      "lastSyncedDaysAgo": "{n, plural, one {# day ago} other {# days ago}}",
       "syncNow": "Sync",
       "syncNowRunning": "Syncing...",
       "connectGoogleFirst": "Connect your Google account first to enable auto-sync.",
@@ -2571,7 +2571,7 @@
       "active": "Active",
       "trial": "Pro Trial",
       "trialUntil": "{plan} until {date}",
-      "trialDaysLeft": "{days, plural, =0 {{days} days remaining} =1 {{days} day remaining} other {{days} days remaining}}",
+      "trialDaysLeft": "{days, plural, one {# day remaining} other {# days remaining}}",
       "trialEnded": "Trial Ended",
       "trialEndedHint": "Upgrade to get Pro features back",
       "manage": "Manage"
@@ -3225,7 +3225,7 @@
     "convert": {
       "promise": "The plan changes what Astra can do, never your habits and logs.",
       "trialEyebrow": "Your Pro trial is active",
-      "trialDaysLeft": "{days, plural, =0 {{days} trial days left} =1 {{days} trial day left} other {{days} trial days left}}",
+      "trialDaysLeft": "{days, plural, one {# trial day left} other {# trial days left}}",
       "trialLastDay": "Last day of the trial",
       "trialHeading": "50 a day or back to 5.",
       "trialCta": "Keep Pro",
@@ -3402,7 +3402,8 @@
       "habitNotScheduled": "This habit is not scheduled for that date.",
       "habitPeriodDone": "This habit is already done or skipped for this period.",
       "dateTooOld": "This date is too far in the past to change this habit.",
-      "skipNotAllowed": "This habit can't be skipped this way.",
+      "skipNotFlexible": "This habit has a fixed schedule and cannot be skipped.",
+      "skipOneTime": "This habit only happens once and cannot be skipped.",
       "logNotAllowed": "You can't log this habit right now.",
       "selfParent": "A habit can't be its own sub-habit.",
       "generalMismatchWithParent": "A sub-habit and its parent must have the same 'anytime' setting.",
@@ -3440,7 +3441,7 @@
     "habitSkipped": "Habit skipped",
     "habitPostponed": "Postponed to tomorrow",
     "habitDeleted": "Habit deleted",
-    "habitsDeleted": "{count, plural, =0 {{count} habits deleted} =1 {{count} habit deleted} other {{count} habits deleted}}",
+    "habitsDeleted": "{count, plural, one {# habit deleted} other {# habits deleted}}",
     "goalDeleted": "Goal deleted",
     "tagDeleted": "Tag deleted",
     "action": "Undo",
@@ -3519,7 +3520,7 @@
       "increase": "Increase progress",
       "decrease": "Decrease progress",
       "progressUpdated": "Progress updated to {current} of {target} {unit}.",
-      "derivedStreak": "{count, plural, =0 {Streak progress is calculated automatically, so it cannot be edited here.} =1 {It comes from the current streak of the linked habit, so it cannot be edited here.} other {It comes from the smallest current streak among the {count} linked habits, so it cannot be edited here.}}",
+      "derivedStreak": "{count, plural, =0 {Streak progress is calculated automatically, so it cannot be edited here.} one {It comes from the current streak of the linked habit, so it cannot be edited here.} other {It comes from the smallest current streak among the # linked habits, so it cannot be edited here.}}",
       "derivedHabits": "Progress comes from the logs of the linked habits, so it cannot be edited here.",
       "completeWhy": "This goal reached its target but is still open. Complete it when you are ready.",
       "linkedLimit": "{count} habits is the limit for one goal.",
@@ -3544,7 +3545,7 @@
     },
     "deadline": {
       "overdue": "Overdue",
-      "daysLeft": "{n, plural, =0 {{n} days left} =1 {{n} day left} other {{n} days left}}",
+      "daysLeft": "{n, plural, one {# day left} other {# days left}}",
       "dueToday": "Due today"
     },
     "errors": {
@@ -3876,7 +3877,7 @@
   },
   "streakDisplay": {
     "badge": {
-      "tooltip": "{count, plural, =0 {{count}-day streak} =1 {1-day streak} other {{count}-day streak}}"
+      "tooltip": "{count, plural, one {1-day streak} other {#-day streak}}"
     },
     "detail": {
       "tierLegendary": "Legendary",
@@ -4169,7 +4170,7 @@
     "close": "Close",
     "streak": {
       "eyebrow": "Streak",
-      "unit": "{count, plural, =0 {days} =1 {day} other {days}}",
+      "unit": "{count, plural, one {day} other {days}}",
       "line": "Your streak reached {count} days."
     },
     "goal": {
@@ -4183,7 +4184,7 @@
     },
     "day": {
       "eyebrow": "Today",
-      "line": "{count, plural, =0 {All {count} habits for today are done.} =1 {Your {count} habit for today is done.} other {All {count} habits for today are done.}}"
+      "line": "{count, plural, one {Your # habit for today is done.} other {All # habits for today are done.}}"
     }
   },
   "proactive": {

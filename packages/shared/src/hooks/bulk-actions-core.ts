@@ -29,7 +29,7 @@ export function getBulkActionFailures(results: readonly BulkResultItem[]): { ret
   for (const result of results) {
     if (result.status !== 'Failed') continue
     if (result.errorCode && permanentBulkErrorCodes.has(result.errorCode)) {
-      reasonKeys.add(getFriendlyErrorKey(result, 'errors.api.skipNotAllowed'))
+      reasonKeys.add(getFriendlyErrorKey(result, 'common.error'))
     } else {
       retryIds.add(result.habitId)
     }
