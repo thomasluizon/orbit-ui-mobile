@@ -34,7 +34,7 @@ vi.mock('@/hooks/use-subscription-status', () => ({ useSubscriptionStatus: () =>
 }) }))
 vi.mock('@/hooks/use-subscription-plans', () => ({ useSubscriptionPlans: () => ({ plans: null, isLoading: true, refetch: vi.fn() }) }))
 vi.mock('@/hooks/use-billing', () => ({ useBilling: () => ({ billing: null, refetch: vi.fn() }) }))
-vi.mock('@/hooks/use-play-billing', () => ({ usePlayBilling: () => ({ clearError: vi.fn(), purchase: vi.fn(), restorePurchases: vi.fn() }) }))
+vi.mock('@/hooks/store-billing-provider', () => ({ useStoreBilling: () => ({ clearError: vi.fn(), purchase: vi.fn(), restorePurchases: vi.fn() }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showSuccess: vi.fn() }) }))
 vi.mock('@/components/onboarding/feature-guide-drawer', () => ({ FeatureGuideDrawer: () => null }))
 

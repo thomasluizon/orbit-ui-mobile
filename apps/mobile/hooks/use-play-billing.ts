@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Platform } from 'react-native'
+import { APP_STORE_PRODUCT_IDS } from '@/lib/store-products'
+import { capturePurchase } from '@/lib/posthog'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   ErrorCode,
   finishTransaction,
   getAvailablePurchases,
+  getPendingTransactionsIOS,
+  getTransactionJwsIOS,
+  syncIOS,
   useIAP,
   type Purchase,
 } from 'expo-iap'
@@ -20,12 +26,12 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 import { getAccountId } from '@/lib/account-scope'
 import { useAuthStore } from '@/stores/auth-store'
 
-const PLAY_CONNECTION_TIMEOUT_MS = 10_000
+const STORE_CONNECTION_TIMEOUT_MS = 10_000
 
-export interface PlayOffer {
+export interface StoreOffer {
   interval: SubscriptionInterval
   sku: string
-  offerToken: string
+  offerToken?: string
   displayPrice: string
   isReferral: boolean
   priceAmountMicros: string | null
@@ -38,7 +44,7 @@ interface PlayPricingPhaseSource {
   priceCurrencyCode: string
 }
 
-interface PlayOfferSource {
+interface StoreOfferSource {
   id: string
   subscriptionOffers?:
     | {
@@ -51,9 +57,9 @@ interface PlayOfferSource {
     | null
 }
 
-type PlayOfferSourceEntry = NonNullable<PlayOfferSource['subscriptionOffers']>[number]
+type StoreOfferSourceEntry = NonNullable<StoreOfferSource['subscriptionOffers']>[number]
 
-function toPlayOffer(offer: PlayOfferSourceEntry, subscriptionId: string): PlayOffer | null {
+function toStoreOffer(offer: StoreOfferSourceEntry, subscriptionId: string): StoreOffer | null {
   const interval = offer.basePlanIdAndroid ? playBasePlanToInterval(offer.basePlanIdAndroid) : null
   if (!interval || !offer.offerTokenAndroid) return null
   const isReferral = offer.offerTagsAndroid?.includes(PLAY_REFERRAL_OFFER_TAG) ?? false
@@ -74,11 +80,11 @@ function toPlayOffer(offer: PlayOfferSourceEntry, subscriptionId: string): PlayO
  * referral-tagged offer per interval (first match wins). A referral offer is priced from its
  * first pricing phase — the discounted cycle — so the displayed price equals the charged price.
  */
-export function extractPlayOffers(subscriptions: PlayOfferSource[]): PlayOffer[] {
-  const offers: PlayOffer[] = []
+export function extractStoreOffers(subscriptions: StoreOfferSource[]): StoreOffer[] {
+  const offers: StoreOffer[] = []
   for (const subscription of subscriptions) {
     for (const offer of subscription.subscriptionOffers ?? []) {
-      const playOffer = toPlayOffer(offer, subscription.id)
+      const playOffer = toStoreOffer(offer, subscription.id)
       if (!playOffer) continue
       const isDuplicate = offers.some(
         (existing) =>
@@ -91,11 +97,11 @@ export function extractPlayOffers(subscriptions: PlayOfferSource[]): PlayOffer[]
 }
 
 /** Picks the offer to display and purchase for an interval: the referral offer when preferred and available, else the base offer. */
-export function selectPlayOffer(
-  offers: PlayOffer[],
+export function selectStoreOffer(
+  offers: StoreOffer[],
   interval: SubscriptionInterval,
   preferReferral: boolean,
-): PlayOffer | null {
+): StoreOffer | null {
   const candidates = offers.filter((offer) => offer.interval === interval)
   if (preferReferral) {
     const referralOffer = candidates.find((offer) => offer.isReferral)
@@ -125,15 +131,30 @@ export function mapPlayErrorKey(error: { code?: ErrorCode }): string | null {
   }
 }
 
-async function verifyPlayPurchase(purchase: Purchase, isCurrent: () => boolean): Promise<boolean> {
-  const purchaseToken = purchase.purchaseToken
-  if (!purchaseToken) return false
-  await apiClient(API.subscription.playVerify, {
+const pendingStoreVerifications = new Map<string, Promise<boolean>>()
+
+function verifyStorePurchase(purchase: Purchase, isCurrent: () => boolean): Promise<boolean> {
+  const transaction = Platform.OS === 'ios' ? purchase.id : purchase.purchaseToken
+  const key = `${getAccountGeneration()}:${transaction}`
+  const pending = pendingStoreVerifications.get(key)
+  if (pending) return pending
+  const operation = verifyNativePurchase(purchase, isCurrent).finally(() => pendingStoreVerifications.delete(key))
+  pendingStoreVerifications.set(key, operation)
+  return operation
+}
+
+async function verifyNativePurchase(purchase: Purchase, isCurrent: () => boolean): Promise<boolean> {
+  const purchaseToken = Platform.OS === 'ios' ? await getTransactionJwsIOS(purchase.productId) : purchase.purchaseToken
+  if (!purchaseToken || !isCurrent()) return false
+  await apiClient(Platform.OS === 'ios' ? API.subscription.appStoreVerify : API.subscription.playVerify, {
     method: 'POST',
     isCurrent,
-    body: JSON.stringify({ productId: purchase.productId, purchaseToken }),
+    body: JSON.stringify(Platform.OS === 'ios'
+      ? { signedTransaction: purchaseToken }
+      : { productId: purchase.productId, purchaseToken }),
   })
   if (!isCurrent()) return false
+  capturePurchase('purchase_verified', Platform.OS === 'ios' ? 'app_store' : 'play')
   await finishTransaction({ purchase, isConsumable: false })
   return true
 }
@@ -145,7 +166,8 @@ async function verifyOwnedPurchases(purchases: Purchase[], isCurrent: () => bool
     if (!isCurrent()) break
     try {
       // react-doctor-disable-next-line async-await-in-loop -- Play transaction acknowledgements mutate the billing client and must settle sequentially. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-      if (await verifyPlayPurchase(owned, isCurrent)) restored = true
+      if (await verifyStorePurchase(owned, isCurrent)) restored = true
+      else failed = true
     } catch {
       failed = true
     }
@@ -158,12 +180,16 @@ function isPurchaseAccountCurrent(account: { id: string | null; generation: numb
 }
 
 /**
- * Native Google Play subscription purchasing for the mobile app: connects to Play Billing,
+ * Native store subscription purchasing for the mobile app: connects to Play Billing,
  * exposes localized offers per interval, runs the purchase sheet, verifies the purchase
- * server-side, and restores previous purchases. Android-only; the web app uses Stripe.
+ * server-side, and restores previous purchases. The platform selects its native store.
  */
-export function usePlayBilling(options?: { preferReferralOffer?: boolean; onPurchased?: () => Promise<void> | void }) {
-  const preferReferralOffer = options?.preferReferralOffer ?? false
+export function useStoreBillingConnection(options?: { preferReferralOffer?: boolean; onPurchased?: () => Promise<void> | void }) {
+  const preferReferralOffer = Platform.OS !== 'ios' && (options?.preferReferralOffer ?? false)
+  const isApple = Platform.OS === 'ios'
+  const purchaseBusy = useRef(false)
+  const restoreBusy = useRef(false)
+  const recoveryAccount = useRef<string | null>(null)
   const onPurchased = options?.onPurchased
   const queryClient = useQueryClient()
   const purchaseAccount = useRef({ id: getAccountId(), generation: getAccountGeneration() })
@@ -173,6 +199,8 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean; onPurc
   const [isRestoring, setIsRestoring] = useState(false)
   const [productQueryState, setProductQueryState] = useState<'loading' | 'ready' | 'failed'>('loading')
   const [productQueryAttempt, setProductQueryAttempt] = useState(0)
+
+  const errorPrefix = isApple ? 'upgrade.appStore.error' : 'upgrade.playError'
 
   const beginVerification = useCallback(() => setPendingVerifications((count) => count + 1), [])
   const endVerification = useCallback(
@@ -196,27 +224,29 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean; onPurc
         const account = purchaseAccount.current
         try {
           if (!isPurchaseAccountCurrent(account)) return
-          if (!await verifyPlayPurchase(purchase, () => isPurchaseAccountCurrent(account))) throw new Error('Missing Play purchase token')
+          if (!await verifyStorePurchase(purchase, () => isPurchaseAccountCurrent(account))) throw new Error('Missing Play purchase token')
           if (!isPurchaseAccountCurrent(account)) return
           await invalidateEntitlement(account)
           if (isPurchaseAccountCurrent(account)) await onPurchased?.()
         } catch {
-          if (isPurchaseAccountCurrent(account)) setErrorKey('upgrade.playError.serviceUnavailable')
+          if (isPurchaseAccountCurrent(account)) setErrorKey(`${errorPrefix}.serviceUnavailable`)
         } finally {
+          purchaseBusy.current = false
           endVerification()
         }
       })()
     },
     onPurchaseError: (error) => {
+      purchaseBusy.current = false
       endVerification()
-      if (isPurchaseAccountCurrent(purchaseAccount.current)) setErrorKey(mapPlayErrorKey(error))
+      if (isPurchaseAccountCurrent(purchaseAccount.current)) setErrorKey(mapPlayErrorKey(error)?.replace('upgrade.playError', errorPrefix) ?? null)
     },
   })
 
   useEffect(() => {
     let active = true
     const connectionTimeout = !connected
-      ? setTimeout(() => { if (active) setProductQueryState('failed') }, PLAY_CONNECTION_TIMEOUT_MS)
+      ? setTimeout(() => { if (active) setProductQueryState('failed') }, STORE_CONNECTION_TIMEOUT_MS)
       : undefined
     void Promise.resolve().then(() => {
       if (!active) return
@@ -230,7 +260,9 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean; onPurc
         return
       }
       setProductQueryState('loading')
-      return fetchProducts({ skus: [PLAY_SUBSCRIPTION_PRODUCT_ID], type: 'subs' }).then(
+      const skus = isApple ? Object.values(APP_STORE_PRODUCT_IDS).filter(Boolean) : [PLAY_SUBSCRIPTION_PRODUCT_ID]
+      if (skus.length === 0) { setProductQueryState('failed'); return }
+      return fetchProducts({ skus, type: 'subs' }).then(
         () => { if (active) setProductQueryState('ready') },
         () => { if (active) setProductQueryState('failed') },
       )
@@ -239,61 +271,75 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean; onPurc
       active = false
       clearTimeout(connectionTimeout)
     }
-  }, [connected, fetchProducts, reconnect, productQueryAttempt])
+  }, [connected, fetchProducts, reconnect, productQueryAttempt, isApple])
 
   const retryProducts = useCallback(() => {
     setProductQueryState('loading')
     setProductQueryAttempt((attempt) => attempt + 1)
   }, [])
 
-  const offers = useMemo(() => extractPlayOffers(subscriptions), [subscriptions])
+  const offers = useMemo(() => isApple ? subscriptions.flatMap((subscription): StoreOffer[] => {
+    const interval = subscription.id === APP_STORE_PRODUCT_IDS.monthly ? 'monthly'
+      : subscription.id === APP_STORE_PRODUCT_IDS.yearly ? 'yearly' : null
+    if (!interval) return []
+    return [{ interval, sku: subscription.id, displayPrice: subscription.displayPrice,
+      isReferral: false, priceAmountMicros: subscription.price == null ? null : String(Math.round(subscription.price * 1_000_000)), currency: subscription.currency }]
+  }) : extractStoreOffers(subscriptions), [subscriptions, isApple])
 
   const purchase = useCallback(
-    async (interval: SubscriptionInterval) => {
-      const offer = selectPlayOffer(offers, interval, options?.preferReferralOffer ?? false)
+    async (interval: SubscriptionInterval, preferReferral = preferReferralOffer) => {
+      if (purchaseBusy.current || restoreBusy.current) return
+      const offer = selectStoreOffer(offers, interval, !isApple && preferReferral)
       if (!offer) {
-        setErrorKey('upgrade.playError.unavailable')
+        setErrorKey(`${errorPrefix}.unavailable`)
         return
       }
       if (!userId) {
-        setErrorKey('upgrade.playError.notSignedIn')
+        setErrorKey(`${errorPrefix}.notSignedIn`)
         return
       }
+      purchaseBusy.current = true
       setErrorKey(null)
+      capturePurchase('purchase_started', isApple ? 'app_store' : 'play')
       purchaseAccount.current = { id: getAccountId(), generation: getAccountGeneration() }
       beginVerification()
       try {
         await requestPurchase({
-          request: {
+          request: isApple ? { apple: { sku: offer.sku, appAccountToken: userId } } : {
             google: {
               skus: [offer.sku],
-              subscriptionOffers: [{ sku: offer.sku, offerToken: offer.offerToken }],
+              subscriptionOffers: [{ sku: offer.sku, offerToken: offer.offerToken! }],
               obfuscatedAccountId: userId,
             },
           },
           type: 'subs',
         })
       } catch (error) {
+        purchaseBusy.current = false
         endVerification()
         setErrorKey(
           error && typeof error === 'object' && 'code' in error
-            ? mapPlayErrorKey(error as { code?: ErrorCode })
-            : 'upgrade.playError.unavailable',
+            ? mapPlayErrorKey(error as { code?: ErrorCode })?.replace('upgrade.playError', errorPrefix) ?? null
+            : `${errorPrefix}.unavailable`,
         )
       }
     },
-    [beginVerification, endVerification, offers, options?.preferReferralOffer, requestPurchase, userId],
+    [beginVerification, endVerification, errorPrefix, isApple, offers, preferReferralOffer, requestPurchase, userId],
   )
 
   const restorePurchases = useCallback(async (): Promise<boolean> => {
+    if (purchaseBusy.current || restoreBusy.current) return false
+    restoreBusy.current = true
     setErrorKey(null)
     setIsRestoring(true)
     const account = { id: getAccountId(), generation: getAccountGeneration() }
     try {
+      if (isApple) await syncIOS()
+      if (!isPurchaseAccountCurrent(account)) return false
       const purchases = await getAvailablePurchases()
       if (!isPurchaseAccountCurrent(account)) return false
       const orbitPurchases = purchases.filter(
-        (owned) => owned.productId === PLAY_SUBSCRIPTION_PRODUCT_ID,
+        (owned) => isApple ? Object.values(APP_STORE_PRODUCT_IDS).includes(owned.productId) : owned.productId === PLAY_SUBSCRIPTION_PRODUCT_ID,
       )
       const { restored, failed } = await verifyOwnedPurchases(orbitPurchases, () => isPurchaseAccountCurrent(account))
       if (!isPurchaseAccountCurrent(account)) return false
@@ -301,21 +347,38 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean; onPurc
         await invalidateEntitlement(account)
         if (!isPurchaseAccountCurrent(account)) return false
         await onPurchased?.()
-      } else if (failed) setErrorKey('upgrade.playError.serviceUnavailable')
-      else setErrorKey('upgrade.playError.nothingToRestore')
+      }
+      if (failed) setErrorKey(`${errorPrefix}.serviceUnavailable`)
+      else if (!restored) setErrorKey(`${errorPrefix}.nothingToRestore`)
       return restored
     } catch {
-      if (isPurchaseAccountCurrent(account)) setErrorKey('upgrade.playError.serviceUnavailable')
+      if (isPurchaseAccountCurrent(account)) setErrorKey(`${errorPrefix}.serviceUnavailable`)
       return false
     } finally {
+      restoreBusy.current = false
       setIsRestoring(false)
     }
-  }, [invalidateEntitlement, onPurchased])
+  }, [errorPrefix, invalidateEntitlement, isApple, onPurchased])
+
+  useEffect(() => {
+    if (!isApple || !connected || !userId || recoveryAccount.current === userId) return
+    recoveryAccount.current = userId
+    restoreBusy.current = true
+    const account = { id: getAccountId(), generation: getAccountGeneration() }
+    void getPendingTransactionsIOS().then(async (purchases) => {
+      const owned = purchases.filter((purchase) => Object.values(APP_STORE_PRODUCT_IDS).includes(purchase.productId))
+      const { restored, failed } = await verifyOwnedPurchases(owned, () => isPurchaseAccountCurrent(account))
+      if (!isPurchaseAccountCurrent(account)) return
+      if (restored) await invalidateEntitlement(account)
+      if (failed) setErrorKey('upgrade.appStore.error.serviceUnavailable')
+    }).catch(() => { if (isPurchaseAccountCurrent(account)) setErrorKey('upgrade.appStore.error.serviceUnavailable') })
+      .finally(() => { restoreBusy.current = false })
+  }, [connected, invalidateEntitlement, isApple, userId])
 
   const clearError = useCallback(() => setErrorKey(null), [])
 
-  const monthlyOffer = selectPlayOffer(offers, 'monthly', preferReferralOffer)
-  const yearlyOffer = selectPlayOffer(offers, 'yearly', preferReferralOffer)
+  const monthlyOffer = selectStoreOffer(offers, 'monthly', preferReferralOffer)
+  const yearlyOffer = selectStoreOffer(offers, 'yearly', preferReferralOffer)
 
   return {
     connected,

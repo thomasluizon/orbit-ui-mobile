@@ -358,7 +358,7 @@ export {
   formatPrice,
   monthlyEquivalent,
 } from './subscription-pricing'
-export { resolveSubscriptionScreen, resolveUpgradeHeader } from './subscription-screen'
+export { resolveSubscriptionScreen, resolveUpgradeHeader, getSubscriptionBillingProvider, shouldFetchStripeBilling } from './subscription-screen'
 export { subscriptionSummary } from './subscription-summary'
 export type {
   ResolveSubscriptionScreenInput,
@@ -836,3 +836,5 @@ export { optimisticMoveHabitParent } from './habit-parent-optimistic'
 export { TODAY_LAUNCH_SPAN_NAME, sampleTodayLaunch, startTodayLaunchTiming, isTodayLaunchCache } from './today-launch'
 
 export { readHabitRecurrencePhrase, type HabitRecurrence, type HabitRecurrencePhrase } from './habit-recurrence-phrase'
+
+export { getPendingAuthProvider } from './auth-login'

@@ -41,10 +41,11 @@ vi.mock('@/hooks/use-subscription-plans', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/hooks/use-subscription-plans')>()),
   useSubscriptionPlans: () => ({ plans: mocks.plansState === 'loaded' ? plans : null, isLoading: mocks.plansState === 'loading', isError: mocks.plansState === 'error', refetch: vi.fn() }),
 }))
-vi.mock('@/hooks/use-play-billing', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/hooks/use-play-billing')>()
-  return { ...actual, usePlayBilling: (options: { onPurchased: () => Promise<void> }) => {
-    if (mocks.realPlayBilling) return actual.usePlayBilling(options)
+vi.mock('@/hooks/store-billing-provider', async (importOriginal) => {
+  const connection = await import('@/hooks/use-play-billing')
+  const actual = await importOriginal<typeof import('@/hooks/store-billing-provider')>()
+  return { ...actual, useStoreBilling: (options: { onPurchased: () => Promise<void> }) => {
+    if (mocks.realPlayBilling) return connection.useStoreBillingConnection(options)
     mocks.onPurchased = options.onPurchased
     return { purchase: mocks.purchase, isProcessing: mocks.processing, errorKey: mocks.errorKey, clearError: vi.fn(), monthlyOffer: null, yearlyOffer: null, isRestoring: false, restorePurchases: vi.fn(), isLoadingProducts: mocks.productQueryState === 'loading', isProductsError: mocks.productQueryState === 'failed', retryProducts: mocks.retryProducts }
   } }

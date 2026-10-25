@@ -24,6 +24,7 @@ function usePrivacySections(): LegalDocumentSection[] {
       t('privacy.thirdParty.stripe'), t('privacy.thirdParty.firebase'),
       t('privacy.thirdParty.openai'), t('privacy.thirdParty.ses'),
       t('privacy.thirdParty.googlePlay'),
+      t('privacy.thirdParty.apple'),
       t('privacy.thirdParty.sentry'), t('privacy.thirdParty.posthog'),
       t('privacy.thirdParty.render'), t('privacy.thirdParty.s3'),
       t('privacy.thirdParty.turnstile'), t('privacy.thirdParty.notion'),

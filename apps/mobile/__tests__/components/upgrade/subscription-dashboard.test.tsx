@@ -10,7 +10,7 @@ import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboar
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import { ProviderHandoff } from '@/components/upgrade/provider-handoff'
 import type { UpgradeTextFn } from '@/components/upgrade/types'
-import type { PlayOffer } from '@/hooks/use-play-billing'
+import type { StoreOffer } from '@/hooks/use-play-billing'
 
 vi.mock('react-native', async (importOriginal) => {
   const native = await importOriginal<typeof import('react-native')>()
@@ -96,7 +96,7 @@ const plans = {
   currency: 'brl',
 }
 
-const yearlyReferralOffer: PlayOffer = {
+const yearlyReferralOffer: StoreOffer = {
   interval: 'yearly',
   sku: 'yearly-sku',
   offerToken: 'yearly-referral',

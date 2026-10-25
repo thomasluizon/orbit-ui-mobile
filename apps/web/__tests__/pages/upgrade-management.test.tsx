@@ -90,6 +90,7 @@ vi.mock('@/hooks/use-subscription-status', () => ({
           isLifetimePro: Boolean(mockProfile.isLifetimePro),
           subscriptionInterval: mockProfile.subscriptionInterval ?? null,
           source: mockProfile.subscriptionSource ?? null,
+          billingProvider: mockProfile.billingProvider,
           lapseReason: mockProfile.lapseReason ?? null,
           subscriptionEndedAtUtc: mockProfile.subscriptionEndedAt ?? null,
         }
@@ -237,6 +238,18 @@ describe('UpgradePage subscription management', () => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     vi.unstubAllEnvs()
+  })
+
+  it('shows App Store management on iPhone without a web checkout or provider link', async () => {
+    mockHasProAccess = true
+    mockProfile = { ...mockProfile, hasProAccess: true, billingProvider: 'app_store', subscriptionSource: null }
+    render(<UpgradePage />)
+    expect(await screen.findByText('upgrade.appStore.manageOnIphone')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'upgrade.appStore.manage' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'upgrade.billing.actions.manage' })).not.toBeInTheDocument()
+    expect(screen.queryByText('upgrade.plans.cta')).not.toBeInTheDocument()
+    expect(mockUseBilling).toHaveBeenCalledWith(false)
+    expect(mockOpenCustomerPortal).not.toHaveBeenCalled()
   })
 
   it.each(['offline', 'portal-opening'] as const)('exposes %s on the upgrade content measured by the layout guard', async (state) => {

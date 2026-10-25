@@ -216,3 +216,8 @@ export function isVerificationCodeComplete(
 ): boolean {
   return digits.join('').length === codeLength
 }
+
+export function getPendingAuthProvider(callback: { state: 'pending' | 'failed' | 'account'; provider?: 'apple' | 'google' } | undefined): 'apple' | 'google' | null {
+  if (callback?.state !== 'pending') return null
+  return callback.provider ?? 'google'
+}

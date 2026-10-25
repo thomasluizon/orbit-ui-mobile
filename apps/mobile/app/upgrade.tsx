@@ -2,14 +2,18 @@ import { SPACING, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
-import { AppState, Linking, ScrollView, StyleSheet, View } from 'react-native'
+import { AppState, Linking, Platform, ScrollView, StyleSheet, View } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import Constants from 'expo-constants'
+import { showManageSubscriptionsIOS } from 'expo-iap'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'
 import {
   getTrialDaysLeft,
+  getSubscriptionBillingProvider,
+  shouldFetchStripeBilling,
   playManageSubscriptionUrl,
   resolveSubscriptionScreen,
   resolveUpgradeHeader,
@@ -21,7 +25,7 @@ import type {
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { useBilling } from '@/hooks/use-billing'
-import { usePlayBilling } from '@/hooks/use-play-billing'
+import { useStoreBilling } from '@/hooks/store-billing-provider'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { useSubscriptionStatus } from '@/hooks/use-subscription-status'
 import { createTokensV2 } from '@/lib/theme'
@@ -87,6 +91,18 @@ function upgradeContentCap(state: SubscriptionScreenState, content: Subscription
   return isPitch ? 620 : 560
 }
 
+function usesNativeBillingDashboard(content: SubscriptionScreenContent, isApple: boolean): boolean {
+  return isApple || content === 'play' || content === 'app_store'
+}
+
+function nativePlanPrice(status: SubscriptionStatus | null, monthlyPrice?: string, yearlyPrice?: string): string | undefined {
+  if (!status || status.isLifetimePro) return undefined
+  const provider = getSubscriptionBillingProvider(status)
+  const nativeProvider = Platform.OS === 'ios' ? 'app_store' : 'play'
+  if (provider !== nativeProvider) return undefined
+  return status.subscriptionInterval === 'yearly' ? yearlyPrice : monthlyPrice
+}
+
 export default function UpgradeScreen() {
   const clearance = useShellScrollerClearance()
   const { from } = useLocalSearchParams<{ from?: string | string[] }>()
@@ -113,18 +129,18 @@ export default function UpgradeScreen() {
     isError: isPlansError,
     refetch: refetchPlans,
   } = useSubscriptionPlans()
-  const playBilling = usePlayBilling({
+  const playBilling = useStoreBilling({
     preferReferralOffer: !!plans?.couponPercentOff,
     onPurchased: () => showSuccess(t('upgrade.purchaseSuccess')),
   })
-  const isPlaySource = status?.source === 'play'
-  const showBilling = Boolean(status?.hasProAccess && !status.isTrialActive)
+  const provider = getSubscriptionBillingProvider(status)
+  const isApple = Platform.OS === 'ios'
   const {
     billing,
     isLoading: isBillingLoading,
     isError: isBillingError,
     refetch: refetchBilling,
-  } = useBilling(showBilling && !isPlaySource && !status?.isLifetimePro)
+  } = useBilling(shouldFetchStripeBilling(status, Platform.OS))
   const [selectedInterval, setSelectedInterval] = useState<SubscriptionInterval>('yearly')
   const [checkoutLoading, setCheckoutLoading] = useState<SubscriptionInterval | null>(null)
   const [showPitch, setShowPitch] = useState(false)
@@ -159,6 +175,7 @@ export default function UpgradeScreen() {
     isStatusError,
     isBillingLoading,
     isBillingError,
+    canUseStripeBilling: !isApple,
     billingStatus: billing?.status,
     cancelAtPeriodEnd: billing?.cancelAtPeriodEnd,
     isOnline,
@@ -201,10 +218,18 @@ export default function UpgradeScreen() {
       })
   }
 
+  async function handleManageApple() {
+    if (!isOnline) return
+    setPortalState('opening')
+    try {
+      await showManageSubscriptionsIOS()
+      await refetchStatus()
+      setPortalState('idle')
+    } catch { setPortalState('failed') }
+  }
+
   async function handlePortal() {
-    if (!isOnline) {
-      return
-    }
+    if (!isOnline || isApple) return
 
     setPortalState('opening')
     try {
@@ -219,20 +244,22 @@ export default function UpgradeScreen() {
     }
   }
 
-  const billingDashboard = model.content === 'play' ? (
+  function handleManageNativeStore() {
+    if (isApple) void handleManageApple()
+    else handleManagePlay()
+  }
+
+  const billingDashboard = usesNativeBillingDashboard(model.content, isApple) ? (
     <PlayBillingDashboard
       status={status}
-      displayPrice={
-        status?.subscriptionInterval === 'yearly'
-          ? playBilling.yearlyOffer?.displayPrice
-          : playBilling.monthlyOffer?.displayPrice
-      }
+      provider={provider}
+      displayPrice={nativePlanPrice(status, playBilling.monthlyOffer?.displayPrice, playBilling.yearlyOffer?.displayPrice)}
       locale={locale}
       usagePercent={usagePercent}
       usageProfile={usageProfile}
       portalState={portalState}
       isOnline={isOnline}
-      onManagePlay={handleManagePlay}
+      onManagePlay={handleManageNativeStore}
       t={t}
       tokens={tokens}
     />

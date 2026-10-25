@@ -11,7 +11,7 @@ import { ProPitch } from '@/components/upgrade/pro-pitch'
 import type { SubscriptionInterval } from '@/components/upgrade/types'
 import { useOnboardingPlan } from '@/hooks/use-onboarding-plan'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
-import { usePlayBilling } from '@/hooks/use-play-billing'
+import { useStoreBilling } from '@/hooks/store-billing-provider'
 import { useOffline } from '@/hooks/use-offline'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { getAccountId } from '@/lib/account-scope'
@@ -35,7 +35,7 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
   const paidExitStarted = useRef(false)
   const [selectedInterval, setSelectedInterval] = useState<SubscriptionInterval>('yearly')
   const [checkoutInterval, setCheckoutInterval] = useState<SubscriptionInterval | null>(null)
-  const billing = usePlayBilling({ preferReferralOffer: !!plans.plans?.couponPercentOff, onPurchased: async () => { const generation = getAccountGeneration(); await finish(); if (getAccountGeneration() === generation) showSuccess(t('upgrade.purchaseSuccess')) } })
+  const billing = useStoreBilling({ preferReferralOffer: !!plans.plans?.couponPercentOff, onPurchased: async () => { const generation = getAccountGeneration(); await finish(); if (getAccountGeneration() === generation) showSuccess(t('upgrade.purchaseSuccess')) } })
   const checkoutLoading = billing.isProcessing || billing.isRestoring ? checkoutInterval ?? selectedInterval : null
 
   async function finish(destination?: string) {

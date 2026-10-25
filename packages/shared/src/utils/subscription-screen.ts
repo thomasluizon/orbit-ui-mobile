@@ -1,4 +1,4 @@
-import type { SubscriptionStatus } from '../types/profile'
+import type { BillingProvider, SubscriptionStatus } from '../types/profile'
 
 export type SubscriptionPortalState = 'idle' | 'opening' | 'failed'
 
@@ -26,6 +26,7 @@ export interface ResolveSubscriptionScreenInput {
   isStatusError: boolean
   isBillingLoading?: boolean
   isBillingError?: boolean
+  canUseStripeBilling?: boolean
   billingStatus?: string | null
   cancelAtPeriodEnd?: boolean
   isOnline: boolean
@@ -72,6 +73,7 @@ function resolveManageState(
   if (status.isLifetimePro) return 'lifetime'
   const provider = status.billingProvider ?? status.source
   if (provider === 'play' || provider === 'app_store') return provider
+  if (input.canUseStripeBilling === false) return 'stripe'
   if (input.isBillingLoading) return 'loading'
   if (input.isBillingError) return 'load-failed'
   if (input.cancelAtPeriodEnd) return 'canceled'
@@ -102,4 +104,14 @@ export function resolveSubscriptionScreen(
 
   const state = isManageView ? resolveManageState(input, status) : resolvePitchState(status)
   return { ...base, state }
+}
+
+export function getSubscriptionBillingProvider(status: SubscriptionStatus | null): BillingProvider | null {
+  return status?.billingProvider ?? status?.source ?? null
+}
+
+export function shouldFetchStripeBilling(status: SubscriptionStatus | null, platform: string): boolean {
+  if (platform === 'ios' || !status?.hasProAccess || status.isTrialActive || status.isLifetimePro) return false
+  const provider = getSubscriptionBillingProvider(status)
+  return provider !== 'play' && provider !== 'app_store'
 }

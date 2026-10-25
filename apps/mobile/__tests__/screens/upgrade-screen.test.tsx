@@ -1,4 +1,4 @@
-import { StyleSheet, View, type AppStateStatus } from 'react-native'
+import { Platform, StyleSheet, View, type AppStateStatus } from 'react-native'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import React from 'react'
@@ -52,7 +52,7 @@ const mocks = vi.hoisted(() => ({
   plans: {
     monthly: { unitAmount: 999, currency: 'usd' },
     yearly: { unitAmount: 6999, currency: 'usd' },
-    savingsPercent: 42, couponPercentOff: null, currency: 'usd',
+    savingsPercent: 42, couponPercentOff: null as number | null, currency: 'usd',
   } satisfies SubscriptionPlans,
   billing: undefined as Record<string, unknown> | undefined,
   statusLoading: false,
@@ -143,10 +143,11 @@ vi.mock('@/hooks/use-billing', () => ({
     refetch: mocks.refetchBilling,
   }),
 }))
-vi.mock('@/hooks/use-play-billing', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/hooks/use-play-billing')>()
-  return { ...actual, usePlayBilling: (options: Parameters<typeof actual.usePlayBilling>[0]) =>
-    mocks.realPlayBilling ? actual.usePlayBilling(options) : mocks.playBilling }
+vi.mock('@/hooks/store-billing-provider', async (importOriginal) => {
+  const connection = await import('@/hooks/use-play-billing')
+  const actual = await importOriginal<typeof import('@/hooks/store-billing-provider')>()
+  return { ...actual, useStoreBilling: (options: Parameters<typeof actual.useStoreBilling>[0]) =>
+    mocks.realPlayBilling ? connection.useStoreBillingConnection(options) : mocks.playBilling }
 })
 vi.mock('expo-iap', async (importOriginal) => ({
   ...await importOriginal<typeof import('expo-iap')>(),
@@ -181,6 +182,7 @@ vi.mock('@/hooks/use-subscription-status', () => ({
           isLifetimePro: mocks.profile.isLifetimePro,
           subscriptionInterval: mocks.profile.subscriptionInterval ?? null,
           source: mocks.profile.subscriptionSource ?? null,
+          billingProvider: mocks.profile.billingProvider,
           lapseReason: mocks.lapseReason,
           subscriptionEndedAtUtc: mocks.subscriptionEndedAtUtc,
         }
@@ -293,6 +295,53 @@ function assertSubscriptionDates(text: string | null, locale: 'en' | 'pt-BR', st
 
 
 describe('UpgradeScreen', () => {
+  afterEach(() => { Platform.OS = 'android' })
+  it.each(['stripe', 'play', 'app_store'] as const)('keeps iOS %s management inside the App Store rules', async (billingProvider) => {
+    Platform.OS = 'ios'
+    mocks.renderComposition = true
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({ hasProAccess: true, isTrialActive: false, billingProvider, subscriptionSource: null })
+    const tree = await renderScreen()
+    const text = JSON.stringify(tree.toJSON())
+    expect(text).not.toContain('stripe.com')
+    expect(text).not.toContain('play.google.com')
+    expect(text).not.toContain(en.upgrade.billing.actions.managePlay)
+    expect(text).not.toContain(en.upgrade.billing.actions.manageHint)
+    if (billingProvider === 'app_store') expect(text).toContain(en.upgrade.appStore.manage)
+    else {
+      expect(tree.root.findAll((node) => Boolean(node.props.onClick) && node.props.children === en.upgrade.billing.actions.manage)).toHaveLength(0)
+      expect(text).not.toContain('R$99')
+      expect(text).not.toContain('R$12')
+    }
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('shows an App Store instruction without a provider link on Android', async () => {
+    Platform.OS = 'android'
+    mocks.renderComposition = true
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({ hasProAccess: true, isTrialActive: false, billingProvider: 'app_store', subscriptionSource: null })
+    const tree = await renderScreen()
+    expect(JSON.stringify(tree.toJSON())).toContain(en.upgrade.appStore.manageOnIphone)
+    expect(JSON.stringify(tree.toJSON())).not.toContain(en.upgrade.billing.actions.managePlay)
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('uses native iOS prices with renewal terms and legal links but no referral discount', async () => {
+    Platform.OS = 'ios'
+    mocks.renderComposition = true
+    mocks.plans.couponPercentOff = 20
+    const tree = await renderScreen()
+    const text = JSON.stringify(tree.toJSON())
+    expect(text).toContain(en.upgrade.appStore.autoRenewal)
+    expect(text).toContain(en.privacy.title)
+    expect(text).toContain(en.terms.title)
+    expect(text).not.toContain(en.upgrade.plans.coupon.line.replace('{percent}', '20'))
+    expect(text).toContain('R$99')
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it.each([412, 600, 840, 1200, 1352, 1600].flatMap((width) => ['free', 'stripe', 'play'].map((plan) => ({ width, plan }))))(
     'uses the drawn $plan body width at $width', async ({ width, plan }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
@@ -405,6 +454,7 @@ describe('UpgradeScreen', () => {
     mocks.refetchBilling.mockReset().mockResolvedValue(undefined)
     mocks.isOnline = true
     mocks.renderComposition = false
+    mocks.plans.couponPercentOff = null
     mocks.realPlayBilling = false
     mocks.connectionOutcome = 'false'
     mocks.reconnect.mockReset().mockResolvedValue(false)
@@ -426,7 +476,7 @@ describe('UpgradeScreen', () => {
     mocks.plans = {
       monthly: { unitAmount: 999, currency: 'usd' },
       yearly: { unitAmount: 6999, currency: 'usd' },
-      savingsPercent: 42, couponPercentOff: null, currency: 'usd',
+      savingsPercent: 42, couponPercentOff: null as number | null, currency: 'usd',
     }
     mocks.billing = { plan: 'yearly' }
     mocks.statusLoading = false
