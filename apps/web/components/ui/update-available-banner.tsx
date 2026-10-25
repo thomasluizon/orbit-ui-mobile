@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 import { PillButton } from '@/components/ui/pill-button'
 
-export function UpdateAvailableBanner({ modalId, active = true }: Readonly<{ modalId?: string; active?: boolean }>) {
+export function UpdateAvailableBanner({ modalId, active = true, inset = true }: Readonly<{ modalId?: string; active?: boolean; inset?: boolean | 'inline' }>) {
   const t = useTranslations()
   const [mounted, setMounted] = useState(false)
   useEffect(() => { queueMicrotask(() => setMounted(true)) }, [])
@@ -16,15 +16,16 @@ export function UpdateAvailableBanner({ modalId, active = true }: Readonly<{ mod
   const activeModalId = useUIStore((state) => [...state.openOverlayIds].reverse().find((id) => id.startsWith('modal:')))
   const ownsNotice = modalId ? activeModalId === modalId : !activeModalId
   const visible = mounted && active && ownsNotice && (reloadReason !== null || (upgradeRequired && !updateDismissed))
+  const insetClassName = inset === 'inline' ? 'px-4' : 'p-4'
   const reloadMessage = reloadReason === 'accountChanged'
     ? t('errors.api.accountChanged')
     : reloadReason === 'appUpdated' ? t('errors.api.appUpdated') : null
   return (
-    <div role="status" data-update-live-region="" data-update-banner={visible ? '' : undefined}>
+    <div role="status" data-update-live-region="" data-update-banner={visible ? '' : undefined} className={visible && inset ? insetClassName : undefined}>
       {visible ? (
-        <div className="flex flex-wrap items-center gap-3 bg-[var(--bg-elev)] px-6 py-3 shadow-[inset_0_-1px_0_var(--hairline)]"><ActionRow>
+        <div className="rounded-[var(--r-card)] bg-[var(--bg-elev)] p-4 text-[var(--fg-1)]"><ActionRow>
           <div className="min-w-0 flex-1 basis-[240px]">
-            <p className="text-[17px] font-medium leading-[1.4]" translate={reloadMessage ? undefined : 'no'}>
+            <p className="text-sm font-medium leading-[1.4]" translate={reloadMessage ? undefined : 'no'}>
               {reloadMessage ?? t('forceUpdate.banner')}
             </p>
             {!reloadReason && minVersion && <p className="text-[14px] leading-[1.5] text-[var(--fg-3)]">
