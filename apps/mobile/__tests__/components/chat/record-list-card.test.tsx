@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
 import { RecordListCard } from '@/components/chat/record-list-card'
-import { renderedText } from '../../support/react-test-renderer'
+import { controlName, renderedText } from '../../support/react-test-renderer'
 
 const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({ push: vi.fn(), markRead: vi.fn(), apiClient: vi.fn(), generation: 0, onAccountChange: null as null | (() => void) }))
@@ -12,7 +12,7 @@ vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: mocks.markRead }) }))
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
 vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => mocks.generation, subscribeToAccountGeneration: (callback: () => void) => { mocks.onAccountChange = callback; return () => { mocks.onAccountChange = null } } }))
-vi.mock('@/components/ui/pill-button', () => ({ Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => <Pressable accessibilityRole="button" onPress={onClick}><Text>{children}</Text></Pressable> }))
+vi.mock('@/components/ui/pill-button', async (importOriginal) => ({ ...await importOriginal<typeof import('@/components/ui/pill-button')>(), Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => <Pressable accessibilityRole="button" onPress={onClick}><Text>{children}</Text></Pressable> }))
 vi.mock('@/components/ui/block-frame', () => ({ BlockFrame: ({ state, count, items, body, actions }: BlockFrameProps) => <View testID={`frame-${state}`}><Text>{count}</Text>{body}{items.map((item) => <View testID="record-row" key={item.id}>{item.label}{item.meta ? <Text>{item.meta}</Text> : null}{item.control}</View>)}{actions}</View> }))
 vi.mock('@/lib/theme', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/theme')>()
@@ -30,7 +30,7 @@ describe('Astra record list on mobile', () => {
 
   it('replaces the record filter border on focus', () => {
     const tree = render(<RecordListCard recordList={{ kind: 'keys', totalCount: 21, items: [{ id: 'key-1', title: 'Key' }] }} />)
-    const input = tree.root.findByProps({ accessibilityLabel: 'chat.recordList.filter' })
+    const input = tree.root.findAll((node: any) => node.props.accessibilityLabel === 'chat.recordList.filter' && typeof node.props.onChangeText === 'function')[0]!
     expect(StyleSheet.flatten(input.props.style).borderWidth).toBe(1)
     TestRenderer.act(() => input.props.onFocus())
     expect(StyleSheet.flatten(input.props.style).borderWidth).toBe(2)
@@ -55,20 +55,20 @@ describe('Astra record list on mobile', () => {
     mocks.apiClient.mockResolvedValue({ kind: 'keys', totalCount: 37, items: Array.from({ length: 10 }, (_, index) => ({ id: `next-${index}`, title: `Key ${index}`, state: 'revoked' })), nextCursor: 'next' })
     const tree = render(<RecordListCard recordList={{ kind: 'keys', totalCount: 37, items: Array.from({ length: 10 }, (_, index) => ({ id: `key-${index}`, title: `Key ${index}`, state: 'active' as const })), nextCursor: 'cursor', surfaceId: 'profile' }} />)
     expect(renderedText(tree.toJSON())).toContain('chat.recordList.count')
-    const more = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.recordList.more'))[0]
+    const more = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && controlName(node).includes('chat.recordList.more'))[0]
     await TestRenderer.act(async () => { more.props.onPress(); await Promise.resolve() })
     expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'record-row')).toHaveLength(20)
-    const filter = tree.root.findByProps({ accessibilityLabel: 'chat.recordList.filter' })
-    const filterTrigger = tree.root.findAll((node: any) => node.type === Pressable && renderedText(node.props.children) === 'chat.recordList.filter')[0]
-    expect(filterTrigger.props.style.minHeight).toBeGreaterThanOrEqual(48)
+    const filter = tree.root.findAll((node: any) => node.props.accessibilityLabel === 'chat.recordList.filter' && typeof node.props.onChangeText === 'function')[0]!
+    const filterTrigger = tree.root.findAll((node: any) => node.type === Pressable && controlName(node) === 'chat.recordList.filter')[0]
+    expect(StyleSheet.flatten(filterTrigger.props.style({ pressed: false })).height).toBe(48)
     TestRenderer.act(() => filter.props.onChangeText('Key 3'))
     expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'record-row')).toHaveLength(2)
     TestRenderer.act(() => filter.props.onChangeText('missing'))
     expect(renderedText(tree.toJSON())).toContain('chat.recordList.noMatches:{"query":"missing"}')
-    const clear = tree.root.findAll((node: any) => node.type === Pressable && renderedText(node.props.children).includes('chat.recordList.clearFilter'))[0]
+    const clear = tree.root.findAll((node: any) => node.type === Pressable && controlName(node).includes('chat.recordList.clearFilter'))[0]
     TestRenderer.act(() => clear.props.onPress())
     expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'record-row')).toHaveLength(20)
-    const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.recordList.open.keys'))[0]
+    const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && controlName(node).includes('chat.recordList.open.keys'))[0]
     TestRenderer.act(() => open.props.onPress())
     expect(mocks.push).toHaveBeenCalledWith('/profile')
   })
@@ -83,7 +83,7 @@ describe('Astra record list on mobile', () => {
     mocks.apiClient.mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve }))
     mocks.apiClient.mockResolvedValue({ kind: 'keys', totalCount: 30, items: [], nextCursor: null })
     const tree = render(<RecordListCard recordList={{ kind: 'keys', totalCount: 30, items: [{ id: 'k1', title: 'Key' }], nextCursor: 'cursor' }} />)
-    const more = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.recordList.more'))[0]
+    const more = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && controlName(node).includes('chat.recordList.more'))[0]
     TestRenderer.act(() => more.props.onPress())
     expect(mocks.apiClient).toHaveBeenCalledTimes(1)
     TestRenderer.act(() => { mocks.generation++; mocks.onAccountChange?.() })

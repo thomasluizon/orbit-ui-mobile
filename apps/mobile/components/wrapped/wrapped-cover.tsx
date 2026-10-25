@@ -1,3 +1,5 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { ScrollView, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
@@ -94,7 +96,7 @@ function CoverBody({
       <View style={styles.coverBody}>
         <ErrorState
           message={t('wrapped.error')}
-          action={<Button size="sm" onClick={onRetry}>{t('wrapped.retry')}</Button>}
+          action={<IconButton label={t('wrapped.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>}
         />
       </View>
     )

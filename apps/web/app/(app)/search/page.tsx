@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { useEffect, useState } from 'react'
 import { ActionRow } from '@/components/ui/action-row'
 
@@ -10,7 +12,7 @@ import { buildHabitCreateHref, buildSearchEntries } from '@orbit/shared/utils'
 import { PageHeader } from '@/components/ui/page-header'
 import { CommandSearchField } from '@/components/command/command-menu-chrome'
 import { SearchEmpty, SearchResults, Searching } from '@/components/search/search-results'
-import { Button } from '@/components/ui/pill-button'
+
 import { useHabitSearch } from '@/hooks/use-habit-search'
 import { useOffline } from '@/hooks/use-offline'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
@@ -59,13 +61,13 @@ function HabitSearch({ search, onCreateHabit }: Readonly<{ search: ReturnType<ty
     <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={null} onBack={() => {}} searchMode />
     {hasQuery && <CommandList label={t('habits.search.title')} aria-busy={search.busy} className="px-4 py-2">
       {search.showLoading && <Searching />}
-      {search.isError && <div role="alert"><p>{t('habits.search.loadError')}</p><Button size="sm" variant="ghost" onClick={() => void search.refetch()}>{t('common.retry')}</Button></div>}
+      {search.isError && <div role="alert"><p>{t('habits.search.loadError')}</p><IconButton label={t('common.retry')} onClick={() => void search.refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton></div>}
       {!search.busy && !search.isError && (entries.length > 0
         ? <SearchResults totalCount={search.data?.totalCount ?? 0} habits={entries.map(({ habit }) => habit)} query={search.query} onOpen={(id) => router.push(`/habits/${id}`)} />
         : <SearchEmpty query={search.query} onCreate={createHabit} createRefusal={!isOnline && createRefusal} />)}
       <div className="flex gap-3"><ActionRow>
-        {search.page > 1 && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page - 1)}>{t('habits.search.previous')}</Button>}
-        {(search.data?.totalPages ?? 0) > search.page && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page + 1)}>{t('habits.search.next')}</Button>}
+        {search.page > 1 && <IconButton label={t('habits.search.previous')} disabled={search.busy} onClick={() => search.setPage(search.page - 1)}><ChevronLeft size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>}
+        {(search.data?.totalPages ?? 0) > search.page && <IconButton label={t('habits.search.next')} disabled={search.busy} onClick={() => search.setPage(search.page + 1)}><ChevronRight size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>}
       </ActionRow></div>
     </CommandList>}
   </Command>

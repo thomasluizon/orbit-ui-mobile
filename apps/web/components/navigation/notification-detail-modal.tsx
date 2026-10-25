@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { Trash2 } from '@/components/ui/icons'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
@@ -74,9 +76,7 @@ export function NotificationDetailModal({
               {targetKey ? t('notifications.openIn', { target: t(targetKey) }) : t('notifications.view')}
             </Button>
           )}
-          <Button variant="destructive" size="sm" onClick={handleDelete}>
-            {t('notifications.delete')}
-          </Button>
+          <IconButton label={t('notifications.delete')} onClick={handleDelete}><Trash2 size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
         </>
       }
     >

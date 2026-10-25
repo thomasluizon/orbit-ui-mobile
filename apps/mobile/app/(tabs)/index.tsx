@@ -1,3 +1,5 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { PADDING, SPACING } from '@orbit/shared/theme'
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
@@ -34,7 +36,7 @@ import { useTodayMotion } from './use-today-motion'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { useProfile } from '@/hooks/use-profile'
 import { ErrorState } from '@/components/ui/error-state'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { Skeleton } from '@/components/ui/skeleton'
 import { getAccountId, useAccountId } from '@/lib/account-scope'
 import { useRootScrollToTop } from '@/components/shell/root-scroll-context'
@@ -99,7 +101,7 @@ export default function TodayScreen() {
   }, [readyForNotifications, requestFirstUsePermission]))
   if (!profile) {
     return isError
-      ? <><ScreenReaderHeading title={t('nav.today')} /><ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /></>
+      ? <><ScreenReaderHeading title={t('nav.today')} /><ErrorState message={t('common.error')} action={<IconButton label={t('common.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} /></>
       : <><ScreenReaderHeading title={t('nav.today')} /><View style={[styles.screen, styles.profileLoading]} accessible accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} accessibilityState={{ busy: true }}>
           <Skeleton variant="settings" grouped />
           <View style={styles.profileLoadingHabits}>

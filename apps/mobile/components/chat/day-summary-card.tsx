@@ -1,3 +1,5 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { ChevronDown } from '@/components/ui/icons'
 import { useRef, useState, type ReactNode } from 'react'
 import { daySummaryLogControl, habitReadStatusKey } from '@orbit/shared/chat/day-summary-core'
 import { liveBlockState } from '@orbit/shared/chat/live-block-state'
@@ -80,6 +82,6 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
       ...(!daySummary.read ? [{ id: 'streak', wrapLabel: true, label: t('chat.daySummary.streak'), control: <Text style={{ color: tokens.fg1, fontSize: 16, fontVariant: ['tabular-nums'] }}>{daySummary.currentStreak}</Text> }] : []),
     ]}
       body={<>{daySummary.due > 0 && daySummary.completionRate != null ? <ProgressRing value={completionRate} label={t(daySummary.read ? 'chat.daySummary.doneOfDue' : 'chat.daySummary.ring', { done, due: daySummary.due })} /> : null}<Text style={{ color: tokens.fg3, fontSize: 14 }}>{daySummary.due === 0 ? t(daySummary.read ? 'chat.readBlock.nothingDue' : 'chat.daySummary.nothingDue') : t('chat.daySummary.doneOfDue', { done, due: daySummary.due })}</Text>{totalRows > 20 ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.daySummary.rowCount', { shown: visibleRows.length, total: totalRows })}</Text> : null}</>}
-      actions={<>{visibleRows.length < payloadRows.length ? <Button variant="ghost" size="sm" onClick={() => setShownCount(count => count + 20)}>{t('chat.recordList.more')}</Button> : null}{occurrences.isError || failedId !== null ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText, fontSize: 14 }}>{t('chat.liveBlock.error')}</Text> : null}<Button variant="ghost" size="sm" onClick={() => navigate(daySummary.read ? `/?date=${daySummary.date}` : '/')}>{t('chat.daySummary.open')}</Button></>} />
+      actions={<>{visibleRows.length < payloadRows.length ? <IconButton label={t('chat.recordList.more')} onClick={() => setShownCount(count => count + 20)}><ChevronDown size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}{occurrences.isError || failedId !== null ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText, fontSize: 14 }}>{t('chat.liveBlock.error')}</Text> : null}<Button variant="ghost" size="sm" onClick={() => navigate(daySummary.read ? `/?date=${daySummary.date}` : '/')}>{t('chat.daySummary.open')}</Button></>} />
   </View>
 }

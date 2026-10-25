@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { X } from '@/components/ui/icons'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
@@ -96,9 +98,7 @@ export function ConfirmSheet({
     closeSheet(() => { setLifecycle((current) => ({ ...current, mounted: false })); onConfirm() })
   }
   const cancelButton = (
-    <PillButton variant="ghost" size="sm" minimumHeight={minimumActionHeight} buttonRef={cancelRef} disabled={actionsDisabled} onClick={cancel}>
-      {cancelLabel ?? t('common.cancel')}
-    </PillButton>
+    <IconButton label={cancelLabel ?? t('common.cancel')} buttonRef={cancelRef} disabled={actionsDisabled} onClick={cancel}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
   )
   const confirmButton = (
     <PillButton

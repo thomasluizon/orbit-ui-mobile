@@ -25,13 +25,6 @@ vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
 }))
 
-vi.mock('@/lib/theme', () => ({
-  createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
-  radius: new Proxy({}, { get: () => 8 }),
-  easings: { smooth: [0.2, 0, 0, 1] },
-  tintFromPrimary: () => 'rgba(127,70,247,0.1)',
-}))
-
 vi.mock('@/lib/motion', () => ({
   usePrefersReducedMotion: () => mocks.reducedMotion,
   toAnimatedEasing: () => (value: number) => value,
@@ -109,7 +102,7 @@ describe('mobile CalendarPickerSection', () => {
       tree = TestRenderer.create(<CalendarPickerSection styles={styles} tokens={palette} t={t} enabled />)
     })
     const retry = tree.root.findByType('Pressable')
-    expectPressPaint(retry, { fill: palette.bgHoverOpaque, restFill: palette.bgElev, overlay: true, borderRadius: 999, scale: reducedMotion ? 1 : 0.96 })
+    expectPressPaint(retry, { fill: palette.bgHover, restFill: 'transparent', borderRadius: 9999, scale: reducedMotion ? null : 0.96 })
     TestRenderer.act(() => tree.unmount())
     mocks.reducedMotion = false
   })
@@ -136,7 +129,7 @@ describe('mobile CalendarPickerSection', () => {
       buildCalendar({ id: `cal-${index}`, name: `Calendar ${index}` }))
     const tree = render(true)
     expect(checkboxes(tree)).toHaveLength(20)
-    const showMore = tree.root.findAll((node) => node.props.children === 'calendar.showMore'
+    const showMore = tree.root.findAll((node) => node.props.label === 'calendar.showMore'
       && typeof node.props.onClick === 'function')[0]
     expect(showMore).toBeDefined()
     TestRenderer.act(() => { (showMore!.props.onClick as () => void)() })

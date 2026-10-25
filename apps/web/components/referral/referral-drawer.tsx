@@ -1,7 +1,9 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+
 import { useState } from 'react'
-import { Check, Copy, Loader2 } from '@/components/ui/icons'
+import { Check, Copy, Loader2, X, Share2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { ReferralPresentationStats } from '@orbit/shared/types/referral'
 import { REFERRAL_REWARD_COPY_KEYS, selectReferralReward } from '@orbit/shared/utils'
@@ -9,7 +11,7 @@ import { useReferral } from '@/hooks/use-referral'
 import { ErrorState } from '@/components/ui/error-state'
 import { InfoCard } from '@/components/ui/info-card'
 import { ListRow } from '@/components/ui/list-row'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { ActionRow } from '@/components/ui/action-row'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -174,10 +176,8 @@ function ReferralDrawerContent({
                 </p>
               ) : null}
               <ActionRow>
-                <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
-                <PillButton size="sm" onClick={() => void shareLink()}>
-                  {t('referral.drawer.share')}
-                </PillButton>
+                <IconButton label={t('common.cancel')} onClick={() => closeSheet()}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+                <IconButton label={t('referral.drawer.share')} onClick={() => void shareLink()}><Share2 size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
               </ActionRow>
             </>
           ) : undefined

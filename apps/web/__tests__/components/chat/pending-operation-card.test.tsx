@@ -201,7 +201,6 @@ describe('PendingOperationCard', () => {
     expect(screen.queryByText('chat.operationFailed')).not.toBeInTheDocument()
   })
 
-
   describe.each(['en', 'pt-BR'])('batch recovery in %s', (locale) => {
     it('retries the same batch after a producer pre-write failure without failing unrun rows', async () => {
       visibleLocale.actual = true
@@ -641,7 +640,7 @@ describe('PendingOperationCard', () => {
     rerender(<PendingOperationCard pendingOperation={{ ...highRisk, previewFingerprint: 'preview-2', items: [secondItem] }} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
 
     expect(sheetTestControls.isDismissPending).toBe(true)
-    expect(screen.getByText('common.cancel').closest('button')).toBeDisabled()
+    expect(screen.getByLabelText('common.cancel', { selector: 'button' })).toBeDisabled()
     expect(screen.getByText('stepUp.confirm').closest('button')).toBeDisabled()
     fireEvent.click(screen.getByText('close-overlay'))
     act(() => sheetTestControls.completeDismissal())
@@ -1243,7 +1242,6 @@ describe('parent choice revision', () => {
   })
 })
 
-
 describe('parent choice keyboard focus', () => {
   beforeEach(() => { visibleLocale.actual = false; visibleLocale.language = 'en' })
   it.each([2, 1])('continues after resolving a choice with %i items', async count => {
@@ -1284,7 +1282,6 @@ describe('parent choice keyboard focus', () => {
     expect(screen.getByRole('button', { name: 'Elsewhere' })).toHaveFocus()
   })
 })
-
 
 it('edits an offered parent in Full Edit before saving the preview', async () => {
   visibleLocale.actual = false

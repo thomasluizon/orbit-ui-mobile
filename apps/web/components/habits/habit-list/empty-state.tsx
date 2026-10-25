@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -32,6 +34,7 @@ const SECONDARY_ACTION_STYLE = {
 interface HabitListEmptyStateProps {
   title: string
   description: string
+  actionIcon?: 'refresh'
   actionLabel?: string
   onAction?: () => void
   createRefusal?: boolean
@@ -40,10 +43,10 @@ interface HabitListEmptyStateProps {
   variant?: 'primary' | 'secondary'
 }
 
-
 export function HabitListEmptyState({
   title,
   description,
+  actionIcon,
   actionLabel,
   onAction,
   createRefusal,
@@ -117,7 +120,7 @@ export function HabitListEmptyState({
         </ActionRow></div>
       ) : (
         actionLabel && (
-          <button
+          actionIcon ? <IconButton label={actionLabel} onClick={onAction}><RefreshCw size={20} aria-hidden="true" /></IconButton> : <button
             type="button"
             onClick={onAction}
             className="touch-target inline-flex items-center justify-center rounded-full overflow-hidden whitespace-nowrap appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"

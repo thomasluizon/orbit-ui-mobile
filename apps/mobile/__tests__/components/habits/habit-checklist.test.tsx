@@ -171,9 +171,9 @@ describe('HabitChecklist press paint', () => {
         expect(pressPaint(control, true).overflow).toBe('hidden')
       }
     }
-    const clear = tree.root.findAll((node) => node.type === 'Pressable' && !node.props.accessibilityLabel)[0]!
-    expect(pressPaint(clear, false).backgroundColor).toBeUndefined()
-    expect(pressPaint(clear, true)).toMatchObject({ backgroundColor: tokens.bgHover, overflow: 'hidden', borderRadius: radius.full, minHeight: 48, minWidth: 48 })
+    const clear = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === i18n.t('habits.form.clearChecklist'))[0]!
+    expect(pressPaint(clear, false).backgroundColor).toBe('transparent')
+    expect(pressPaint(clear, true)).toMatchObject({ backgroundColor: tokens.bgHover, overflow: 'hidden', borderRadius: radius.full, height: 48, width: 48 })
     themeState.mode = 'dark'
   })
 
@@ -280,7 +280,7 @@ describe('HabitChecklist editable rows', () => {
     const tree = renderChecklist()
     const input = tree.root.findAllByType('TextInput').find((node) => node.props.value === '')!
     expect(input.props.accessibilityLabel).toBe(i18n.t('habits.form.checklistPlaceholder'))
-    const add = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'button-ghost-sm')
+    const add = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === i18n.t('common.add'))
     expect(add).toHaveLength(1)
     expect(add[0]!.props.accessibilityLabel).toBe(i18n.t('common.add'))
     await i18n.changeLanguage('en')
@@ -376,7 +376,6 @@ describe('HabitChecklist editable rows', () => {
   })
 })
 
-
 it('keeps the reset glyph above the graphic floor on a pressed card child', () => {
   let tree: RenderedTree | undefined
   TestRenderer.act(() => {
@@ -390,7 +389,6 @@ it('keeps the reset glyph above the graphic floor on a pressed card child', () =
   const tokens = createTokensV2('orange', 'dark')
   expect(contrastOnSurface(icon.props.color, [tokens.bg, tokens.bgCard, fill])).toBeGreaterThanOrEqual(3)
 })
-
 
 describe('HabitChecklist immediate body action', () => {
   it('checks the actual item body exactly once without reordering', () => {

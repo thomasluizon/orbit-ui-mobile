@@ -1,3 +1,6 @@
+import { X } from '@/components/ui/icons'
+
+import { IconButton } from '@/components/ui/icon-button'
 import { Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'
@@ -29,7 +32,7 @@ export function HabitCreateActions({ presentation, pending, empty, subHabit, onC
       </PillButton>
       ) : (
         <ActionRow>
-          <PillButton variant="ghost" disabled={pending} onClick={onCancel}>{t('common.cancel')}</PillButton>
+          <IconButton label={t('common.cancel')} disabled={pending} onClick={onCancel}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
           <PillButton size="sm" loading={pending}
         hint={empty ? t('habits.form.createWhy') : undefined} onClick={onSubmit}>
         {label}

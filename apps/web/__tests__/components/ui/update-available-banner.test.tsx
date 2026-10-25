@@ -96,7 +96,7 @@ describe('UpdateAvailableBanner', () => {
     const versionLabel = locale === 'en' ? `Version ${minVersion}` : `Versão ${minVersion}`
     expect(notice.textContent).toBe(
       messages.forceUpdate.banner + (minVersion ? versionLabel : '') +
-      messages.versionUpdate.laterCta + messages.forceUpdate.refresh,
+      messages.versionUpdate.laterCta,
     )
     expect(screen.getByRole('button', { name: messages.forceUpdate.refresh })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: messages.forceUpdate.refresh }))
@@ -107,7 +107,7 @@ describe('UpdateAvailableBanner', () => {
     useVersionGateStore.getState().markUpgradeRequired('1.5.0')
     render(<UpdateAvailableBanner />)
     await act(async () => {})
-    fireEvent.click(screen.getByText('forceUpdate.refresh'))
+    fireEvent.click(screen.getByRole('button', { name: 'forceUpdate.refresh' }))
     expect(reloadMock).toHaveBeenCalledTimes(1)
   })
 

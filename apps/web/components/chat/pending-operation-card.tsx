@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+
 import { WeekdayPicker } from '@/components/ui/weekday-picker'
 
 import { toTime24 } from '@orbit/shared/utils'
@@ -23,7 +25,7 @@ import { StepUp } from '@/components/ui/step-up'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { addPendingOperationListRow, changePendingOperationListRow, isPendingOperationEditableField, pendingOperationListRows, removePendingOperationListRow } from '@orbit/shared/hooks'
-import { XCircle, X } from '@/components/ui/icons'
+import { XCircle, X, Plus, RefreshCw, Pencil } from '@/components/ui/icons'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { RadioRow } from '@/components/ui/select-check'
@@ -76,11 +78,10 @@ function ListFieldEditor({ field, value, labels, busy, error, onChange }: Readon
         <ListRowFields field={field} row={row} rowLabel={rowLabel} labels={labels} busy={busy} change={(key, next) => onChange(changePendingOperationListRow(value, index, key, next))} />
       </div>
     })}
-    <Button size="sm" variant="ghost" disabled={busy || atLimit} onClick={() => onChange(addPendingOperationListRow(value, field))}>{labels.addListRow}</Button>
+    <IconButton label={labels.addListRow} disabled={busy || atLimit} onClick={() => onChange(addPendingOperationListRow(value, field))}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
     {atLimit ? <p className="text-sm text-[var(--fg-2)]">{field === 'checklist_items' ? labels.checklistLimit : labels.scheduledLimit}</p> : null}
   </fieldset>
 }
-
 
 function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, error, onSelectItem, onChange, onClose, onSave }: Readonly<PendingOperationEditSheetProps>) {
   const { sheetRef, closeSheet } = useSheetHost()
@@ -95,7 +96,7 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
     titleMode="typed"
     onClose={() => { if (!busy) onClose() }}
     actions={<ActionRow>
-      <Button size="sm" variant="ghost" disabled={busy} onClick={() => closeSheet(onClose)}>{labels.cancel}</Button>
+      <IconButton label={labels.cancel} disabled={busy} onClick={() => closeSheet(onClose)}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
       <Button size="sm" disabled={busy} onClick={() => void save()}>{labels.save}</Button>
     </ActionRow>}
   >
@@ -164,7 +165,7 @@ function StepUpVerificationSheet({
       title={t('stepUp.title')}
       onClose={open ? onClose : onClosed}
       actions={<ActionRow>
-        <Button size="sm" variant="ghost" disabled={!open} onClick={() => { if (open) closeSheet() }}>{t('common.cancel')}</Button>
+        <IconButton label={t('common.cancel')} disabled={!open} onClick={() => { if (open) closeSheet() }}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
         <Button size="sm" loading={verifying} disabled={!open || code.length !== 6} onClick={() => { if (open) void verify() }}>{t('stepUp.confirm')}</Button>
       </ActionRow>}
     >
@@ -204,7 +205,7 @@ const pendingOperationRenderers = {
   rejected: (message) => <p role="status" data-preview-rejection-status="" className={message ? 'flex items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-3 text-sm text-[var(--fg-2)]' : 'sr-only'}>{message ? <><XCircle aria-hidden="true" size={20} strokeWidth={1.5} className="shrink-0 text-[var(--fg-3)]" /><span className="min-w-0 flex-1 leading-[1.55]">{message}</span></> : null}</p>,
 } satisfies PendingOperationCardRenderers
 
-function PreviewButton({ label, variant, focusRequest, shouldFocus, ...props }: Readonly<import('@orbit/shared/chat').PendingOperationButtonSpec>) {
+function PreviewButton({ label, icon, variant, focusRequest, shouldFocus, ...props }: Readonly<import('@orbit/shared/chat').PendingOperationButtonSpec>) {
   const wide = useIsWideDesktop()
   const buttonRef = useRef<HTMLButtonElement>(null)
   const handledFocusRequest = useRef<number | undefined>(undefined)
@@ -214,6 +215,7 @@ function PreviewButton({ label, variant, focusRequest, shouldFocus, ...props }: 
     if (shouldFocus && !shouldFocus()) return
     buttonRef.current?.focus()
   }, [focusRequest, props.disabled, shouldFocus])
+  if (icon) return <IconButton label={props.accessibleName ?? label} buttonRef={buttonRef} disabled={props.disabled} loading={props.loading} hint={props.hint} onClick={props.onClick}>{icon === 'refresh' ? <RefreshCw size={20} /> : icon === 'edit' ? <Pencil size={20} /> : <X size={20} />}</IconButton>
   return <Button buttonRef={buttonRef} size="sm" variant={variant === 'primary' && wide ? 'secondary' : variant} {...props}>{label}</Button>
 }
 

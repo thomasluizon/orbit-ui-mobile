@@ -37,6 +37,7 @@ import noPillRadiusOnStatic from "../../eslint-rules/no-pill-radius-on-static.cj
 import hoverTransition from "../../eslint-rules/hover-transition.cjs"
 import willChangeDiscipline from "../../eslint-rules/will-change-discipline.cjs"
 import maxButtonWords from "../../eslint-rules/max-button-words.cjs"
+import noTextIconAction from "../../eslint-rules/no-text-icon-action.cjs"
 import noMutatingServerAuthFetch from "../../eslint-rules/no-mutating-server-auth-fetch.cjs"
 
 const maxButtonWordControls = [
@@ -124,6 +125,7 @@ export default [
           "hover-transition": hoverTransition,
           "will-change-discipline": willChangeDiscipline,
           "max-button-words": maxButtonWords,
+          "no-text-icon-action": noTextIconAction,
           "no-mutating-server-auth-fetch": noMutatingServerAuthFetch,
         },
       },
@@ -190,6 +192,7 @@ export default [
       "local/no-pill-radius-on-static": "error",
       "local/hover-transition": "error",
       "local/max-button-words": ["error", { controls: maxButtonWordControls }],
+      "local/no-text-icon-action": "error",
 
       // `error` with zero recorded violations. The baseline that once carried them is deleted,
       // and tools/check-lint-severity.mjs fails if one ever returns.
@@ -260,6 +263,7 @@ export default [
     rules: {
       "local/no-fullbleed-button": "off",
       "local/max-button-words": "off",
+      "local/no-text-icon-action": "off",
       "local/no-double-assertion": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-require-imports": "off",

@@ -1,5 +1,9 @@
 'use client'
 
+import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
+
+import { IconButton } from '@/components/ui/icon-button'
+
 import { ActionRow } from '@/components/ui/action-row'
 
 import type { PagerProps } from '@orbit/shared/contracts/navigation'
@@ -19,9 +23,9 @@ export function Pager(props: Readonly<PagerProps>) {
         ))}
       </ol>
       <ActionRow>
-        <PillButton variant="ghost" disabled={!props.onBack} onClick={props.onBack}>{props.backLabel}</PillButton>
+        <IconButton label={props.backLabel} disabled={!props.onBack} onClick={props.onBack}><ChevronLeft size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
         {props.forwardLabel !== undefined ? (
-          <PillButton disabled={!props.onForward} onClick={props.onForward}>{props.forwardLabel}</PillButton>
+          props.index < props.count - 1 ? <IconButton label={props.forwardLabel} disabled={!props.onForward} onClick={props.onForward}><ChevronRight size={20} /></IconButton> : <PillButton disabled={!props.onForward} onClick={props.onForward}>{props.forwardLabel}</PillButton>
         ) : props.forwardSlot}
       </ActionRow>
     </div>

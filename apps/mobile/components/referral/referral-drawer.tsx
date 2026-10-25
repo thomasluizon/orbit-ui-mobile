@@ -1,3 +1,4 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useCallback, useMemo, useState } from 'react'
 import {
@@ -11,7 +12,7 @@ import {
   View,
 } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
-import { Check, Copy } from '@/components/ui/icons'
+import { Check, Copy, X, Share2 } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ReferralPresentationStats } from '@orbit/shared/types/referral'
 import { REFERRAL_REWARD_COPY_KEYS, selectReferralReward } from '@orbit/shared/utils'
@@ -20,7 +21,7 @@ import { captureError } from '@/lib/sentry'
 import { ErrorState } from '@/components/ui/error-state'
 import { InfoCard } from '@/components/ui/info-card'
 import { ListRow } from '@/components/ui/list-row'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { ActionRow } from '@/components/ui/action-row'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -196,10 +197,8 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
               </Text>
             ) : null}
             <ActionRow>
-              <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
-              <PillButton size="sm" onClick={() => void shareLink()}>
-                {t('referral.drawer.share')}
-              </PillButton>
+              <IconButton label={t('common.cancel')} onClick={() => closeSheet()}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+              <IconButton label={t('referral.drawer.share')} onClick={() => void shareLink()}><Share2 size={20} strokeWidth={1.5} accessible={false} /></IconButton>
             </ActionRow>
           </>
         ) : undefined

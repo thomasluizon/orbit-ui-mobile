@@ -1,7 +1,8 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { Download, Share2 } from '@/components/ui/icons'
 import { SPACING } from '@orbit/shared/theme'
-
 
 import { useEffect, useId, useRef } from 'react'
 import { useTranslations } from 'next-intl'
@@ -12,7 +13,7 @@ import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import { canPromptEngagement, hasOpenPromptBlockingOverlay, parseMilestoneShareKey } from '@orbit/shared/stores'
 import { buildReferralUrl } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { ActionRow } from '@/components/ui/action-row'
 import { useShareCard } from '@/hooks/use-share-card'
@@ -167,24 +168,9 @@ export function MilestoneSharePrompt() {
             <PromptQuietAction onClick={dismiss}>
               {t('milestoneShare.later')}
             </PromptQuietAction>
-            <PillButton
-              size="sm"
-              variant={canShareFiles ? 'ghost' : 'primary'}
-              loading={isSharing}
-              disabled={isSharing}
-              onClick={() => void download()}
-            >
-              {t('milestoneShare.download')}
-            </PillButton>
+            <IconButton label={t('milestoneShare.download')} loading={isSharing} disabled={isSharing} onClick={() => void download()}><Download size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
             {canShareFiles && (
-              <PillButton
-                size="sm"
-                loading={isSharing}
-                disabled={isSharing}
-                onClick={handleShare}
-              >
-                {t('milestoneShare.share')}
-              </PillButton>
+              <IconButton label={t('milestoneShare.share')} loading={isSharing} disabled={isSharing} onClick={handleShare}><Share2 size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
             )}
           </ActionRow>
         </>

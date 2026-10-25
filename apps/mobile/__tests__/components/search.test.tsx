@@ -11,7 +11,7 @@ import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/ty
 import { normalizeHabitQueryData } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { renderedText } from '../support/react-test-renderer'
+import { controlName, renderedText } from '../support/react-test-renderer'
 import SearchScreen from '@/app/search'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Check, Circle } from '@/components/ui/icons'
@@ -72,13 +72,13 @@ async function type(query: string) {
   await TestRenderer.act(() => { vi.advanceTimersByTime(300) })
 }
 async function pressLabel(label: string) {
-  const control = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === label)[0]
+  const control = tree.root.findAll((node) => String(node.type) === 'Pressable' && (node.props.accessibilityLabel === label || node.findAll(child => String(child.type) === 'Text' && child.props.children === label).length > 0))[0]
   if (!control || typeof control.props.onPress !== 'function') throw new Error('Missing control: ' + label)
   const onPress = control.props.onPress as () => void
   await TestRenderer.act(() => { onPress() })
 }
 async function pressText(label: string) {
-  const control = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === label).length > 0)[0]
+  const control = tree.root.findAll((node) => String(node.type) === 'Pressable' && (node.props.accessibilityLabel === label || node.findAll(child => String(child.type) === 'Text' && child.props.children === label).length > 0))[0]
   if (!control || typeof control.props.onPress !== 'function') throw new Error('Missing control: ' + label)
   const onPress = control.props.onPress as () => void
   await TestRenderer.act(() => { onPress() })
@@ -98,7 +98,7 @@ function backgroundLayers(element: SearchTestInstance, pressed: boolean) {
 }
 
 async function expectMatchContrast(row: import('react-test-renderer').ReactTestInstance, label: string, hasFragment: boolean, tokens: ReturnType<typeof createTokensV2>) {
-  const match = row.findAll((node) => String(node.type) === 'Text' && renderedText(node.props.children).startsWith(label))[0]!
+  const match = row.findAll((node) => String(node.type) === 'Text' && controlName(node).startsWith(label))[0]!
   let matchStyle = StyleSheet.flatten(match.props.style) as TextStyle
   expect(matchStyle).toMatchObject({ color: tokens.fg3, fontSize: 12, fontFamily: 'GeistMono_400Regular' })
   const fragments = row.findAll((node) => String(node.type) === 'Text' && node.props.accessibilityLabel === '“walking”')

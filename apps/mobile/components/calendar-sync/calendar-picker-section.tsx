@@ -1,14 +1,15 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { ChevronDown, RefreshCw } from '@/components/ui/icons'
 import { SPACING } from '@orbit/shared/theme'
-import { usePrefersReducedMotion } from '@/lib/motion'
-import { PressFill } from '@/components/ui/press-fill'
+
 import { useState } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { AppTokensV2 } from '@/lib/theme'
 import { CheckRow } from '@/components/ui/check-row'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { useCalendars, useSetSelectedCalendars } from '@/hooks/use-calendars'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -32,7 +33,6 @@ export function CalendarPickerSection({
   t,
   enabled,
 }: Readonly<CalendarPickerSectionProps>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
   const { data: calendars, isLoading, isError, refetch } = useCalendars({ enabled })
   const setSelectedCalendars = useSetSelectedCalendars()
   const [saveError, setSaveError] = useAccountScopedState<string | null>(null)
@@ -71,21 +71,7 @@ export function CalendarPickerSection({
           >
             {t('calendar.calendars.error')}
           </Text>
-          <Pressable
-            onPress={() => void refetch()}
-            accessibilityRole="button"
-
-            style={({ pressed }) => [
-              styles.quietAction,
-              { backgroundColor: tokens.bgElev, borderColor: tokens.hairline },
-              pressed && { transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] },
-            ]}
-          >{({ pressed }) => <>
-            <PressFill pressed={pressed} color={tokens.bgHoverOpaque} />
-            <Text style={[styles.quietActionText, { color: tokens.fg2 }]}>
-              {t('calendar.retry')}
-            </Text>
-          </>}</Pressable>
+          <IconButton label={t('calendar.retry')} onPress={() => void refetch()} accessibilityRole="button"><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
         </View>
       ) : null}
 
@@ -119,9 +105,7 @@ export function CalendarPickerSection({
             {t('calendar.showingCount', { shown: Math.min(visibleCount, calendars.length), total: calendars.length })}
           </Text>
           {visibleCount < calendars.length ? (
-            <PillButton variant="ghost" size="sm" onClick={() => setVisibleCount((count) => count + 20)}>
-              {t('calendar.showMore')}
-            </PillButton>
+            <IconButton label={t('calendar.showMore')} onClick={() => setVisibleCount((count) => count + 20)}><ChevronDown size={20} strokeWidth={1.5} accessible={false} /></IconButton>
           ) : null}
         </View>
       ) : null}

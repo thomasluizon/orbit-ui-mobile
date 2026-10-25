@@ -377,7 +377,6 @@ export function HabitList({
   const childrenByParent = data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
   const topLevelHabits = data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
 
-
   const getChildren = habitsQuery.getChildren
 
   const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : todayStr
@@ -767,7 +766,6 @@ export function HabitList({
     setMoveIntent({ key: ++moveSequence.current, accountGeneration, habitId: null, bulkIds, sourceHabits: new Map(habitsById) })
   }
   const closeMoveParentPicker = () => setMoveIntent((current) => current === moveIntent ? null : current)
-
 
   /**
    * The state above drops itself, but a ref carries the previous account's habit ids past an
@@ -1408,7 +1406,7 @@ export function HabitList({
   function renderList(): React.ReactNode {
     if (habitsQuery.isLoading) return <HabitListSkeleton />
     if (habitsQuery.isError && !habitsQuery.data) return <HabitListEmptyState
-      title={t('habits.loadError')} description="" actionLabel={t('common.retry')}
+      title={t('habits.loadError')} description="" actionLabel={t('common.retry')} actionIcon="refresh"
       onAction={() => { void habitsQuery.refetch() }} variant="secondary" />
 
     return <TodayLaunchContent enabled={view === 'today'} fromCache={launchFromCache} empty={habits.length === 0}><div

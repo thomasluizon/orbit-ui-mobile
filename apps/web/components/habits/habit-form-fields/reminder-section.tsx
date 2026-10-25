@@ -1,3 +1,4 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { useState, useMemo, type ReactNode } from 'react'
@@ -122,15 +123,7 @@ export function ReminderSection({
           <div className="relative">
             {atLimit ? <p className="text-[14px] text-[var(--fg-3)]">{t('habits.form.relativeReminderMax')}</p> : null}
             {!atLimit ? <>
-            <button
-              type="button"
-              aria-expanded={showAddReminder}
-              className="chip"
-              onClick={() => { setShowAddReminder(!showAddReminder); setShowCustomInput(false) }}
-            >
-              <Plus size={16} strokeWidth={2} aria-hidden="true" />
-              {t('habits.form.reminderAdd')}
-            </button>
+            <IconButton label={t('habits.form.reminderAdd')} aria-expanded={showAddReminder} onClick={() => { setShowAddReminder(!showAddReminder); setShowCustomInput(false) }}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
 
             {showAddReminder && (
               <div className="mt-2 rounded-[14px] bg-[var(--bg-sheet)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)] p-1">

@@ -55,7 +55,7 @@ function pressableWithLabel(tree: TestTree, label: string): TestNode | undefined
   return tree.root.findAll(
     (node) =>
       node.props.accessibilityRole === 'button' &&
-      (node.props.accessibilityLabel === label || node.findAllByType('Text').some(child => child.props.children === label)),
+      (node.props.accessibilityLabel === label || node.findAllByType('Text').some(child => (child.props.label ?? child.props.accessibilityLabel ?? child.props.children) === label)),
   )[0]
 }
 

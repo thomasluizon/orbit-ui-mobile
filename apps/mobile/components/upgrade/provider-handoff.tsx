@@ -3,6 +3,8 @@ import { Animated, Text, View } from 'react-native'
 import type { SubscriptionScreenState } from '@orbit/shared/utils'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { Icon } from '@/components/ui/icon'
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { styles } from './styles'
@@ -49,9 +51,9 @@ export function ProviderHandoff({ provider, state, onManage, t, tokens }: Readon
         </> : null}
       </View>
       <View style={{ alignItems: 'flex-start' }}>
-        <PillButton variant="primary" loading={opening} disabled={state === 'offline'} onClick={onManage}>
-          {t(failed ? 'upgrade.billing.retry' : manageLabel)}
-        </PillButton>
+        {failed ? <IconButton label={t('upgrade.billing.retry')} onClick={onManage}><RefreshCw size={20} /></IconButton> :         <PillButton variant="primary" loading={opening} disabled={state === 'offline'} onClick={onManage}>
+          {t(manageLabel)}
+        </PillButton>}
       </View>
       {state === 'offline' ? <Text style={[styles.billingSecondary, { color: tokens.fg2 }]}>{t('upgrade.billing.offline')}</Text> : null}
     </View>

@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { ActionRow } from '@/components/ui/action-row'
 
 import { type KeyboardEvent, useEffect, useState } from 'react'
@@ -11,7 +13,7 @@ import { buildSearchEntries, searchCommands, type SearchCommandId, type SearchCo
 import { useHabitSearch } from '@/hooks/use-habit-search'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { Searching } from '@/components/search/search-results'
-import { Button } from '@/components/ui/pill-button'
+
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useOffline } from '@/hooks/use-offline'
 import { useLogHabit, useSkipHabit } from '@/hooks/use-habits'
@@ -92,13 +94,13 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
     <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={page === null ? null : pageLabel} onBack={back} />
     <CommandList label={t('command.title')} aria-busy={search.busy} className="h-[min(60vh,400px)] min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-2">
       {search.isSuccess && !search.busy && <CommandEmpty className="p-3 text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('command.empty')}</CommandEmpty>}
-      {search.isError && <div role="alert"><p>{t('habits.search.loadError')}</p><Button size="sm" variant="ghost" onClick={() => void search.refetch()}>{t('common.retry')}</Button></div>}
+      {search.isError && <div role="alert"><p>{t('habits.search.loadError')}</p><IconButton label={t('common.retry')} onClick={() => void search.refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton></div>}
       <HabitSearchLoading show={search.showLoading} text={search.text} heading={t('command.groups.search')} />
       {!search.busy && !search.isError && entries.length > 0 && <CommandGroup heading={t('command.groups.search')} className={GROUP_CLASS} data-command-group="habits"><CommandHabitItems disclose={page !== null} disabled={logHabit.isPending || skipHabit.isPending} entries={entries} query={search.query} onSelectHabit={(habit) => chooseHabit(habit.id)} /></CommandGroup>}
       {page === null && <CommandGroups query={search.text} navItems={navItems} onSelect={chooseCommand} onNavigate={run} createRefusal={createRefusal} />}
       <div className="flex gap-3"><ActionRow>
-        {search.page > 1 && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page - 1)}>{t('habits.search.previous')}</Button>}
-        {(search.data?.totalPages ?? 0) > search.page && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page + 1)}>{t('habits.search.next')}</Button>}
+        {search.page > 1 && <IconButton label={t('habits.search.previous')} disabled={search.busy} onClick={() => search.setPage(search.page - 1)}><ChevronLeft size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>}
+        {(search.data?.totalPages ?? 0) > search.page && <IconButton label={t('habits.search.next')} disabled={search.busy} onClick={() => search.setPage(search.page + 1)}><ChevronRight size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>}
       </ActionRow></div>
     </CommandList>
     <div className="flex flex-wrap items-center gap-4 px-4 py-3 shadow-[inset_0_1px_0_var(--hairline)]">

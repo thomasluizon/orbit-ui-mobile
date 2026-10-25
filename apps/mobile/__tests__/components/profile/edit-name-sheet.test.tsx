@@ -79,7 +79,7 @@ function flattenText(node: unknown): string {
 function findButtonByText(tree: TestInstance, text: string): TestNode {
   const node = tree.root.findAll(
     (candidate) =>
-      flattenText(candidate.props.children) === text &&
+      (candidate.props.accessibilityLabel ?? flattenText(candidate.props.children)) === text &&
       typeof candidate.props.onPress === 'function',
   )[0]
   if (!node) throw new Error(`No button named "${text}"`)

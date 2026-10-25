@@ -1,3 +1,5 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { X } from '@/components/ui/icons'
 import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -215,7 +217,6 @@ function EditHabitDraft({
       router.push('/upgrade')
     })
   }, [closeSheet, onClose, router])
-
 
   const { toggleGoal, selectCreatedGoal } = useHabitGoalSelection(setSelectedGoalIds, relationshipFieldsTouchedRef)
 
@@ -516,7 +517,6 @@ function EditHabitDraft({
     }
   }, [formHelpers, i18n.language, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
-
   const visibleFailure = visibleEmojiFailure(emojiFailure, sessionHabitId, watchedTitle)
 
   return (
@@ -529,14 +529,7 @@ function EditHabitDraft({
         title={t(formHelpers.isOneTime ? 'habits.editTask' : 'habits.editHabit')}
         actions={(
           <ActionRow>
-            <PillButton
-              size="sm"
-              variant="ghost"
-              disabled={saving}
-              onClick={dismissGuard.requestDismiss}
-            >
-              {t('common.cancel')}
-            </PillButton>
+            <IconButton label={t('common.cancel')} disabled={saving} onClick={dismissGuard.requestDismiss}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
             <PillButton
               size="sm"
               disabled={detailFieldsPending || saving}

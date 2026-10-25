@@ -1,6 +1,8 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { OrbitMark } from '@/components/ui/orbit-mark'
@@ -36,10 +38,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
           <View style={styles.empty}>
             {isError ? <>
               <Text style={[styles.copy, { color: tokens.fg3 }]}>{t('notifications.loadError')}</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel={t('common.retry')} onPress={onRetry}
-                style={({ pressed }) => [styles.retry, pressed && { backgroundColor: tokens.bgHover }]}>
-                <Text style={[styles.copy, { color: tokens.fg1 }]}>{t('common.retry')}</Text>
-              </Pressable>
+              <IconButton label={t('common.retry')} onPress={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
             </> : <>
               <OrbitMark size={96} />
               <Text style={[styles.copy, { color: tokens.fg3 }]}>{t('notifications.empty')}</Text>

@@ -68,6 +68,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `design/field-inset-inventory.md` | Text control owners, typed foreground ownership, drawn inline padding, shared checklist add Input insets, platform mirrors and field geometry verification. |
 | `design/interaction-fill-surfaces.md` | Interaction fill owners, neighbour clearance and platform geometry coverage. |
 | `design/calendar-import-sheet-inventory.md` | Calendars sheet surfaces, platform owners, retained behavior and verification boundaries. |
+| `design/icon-action-surfaces.md` | Universal icon-action consumers, accessible names, shared target geometry and retained text boundaries on web and Android. |
 | `design/sheet-footer-inventory.md` | Sheet footer owners, platform mirrors and states covered by the trailing-action contract. |
 | `design/progress-grid-surfaces.md` | Responsive Progresso achievement tracks, card text, adjacent stat and goal list audit, platform owners and geometry coverage. |
 | `design/goal-forecast-surfaces.md` | Reachable goal forecast owners, supplied metrics, mirrored states and verification boundaries. |

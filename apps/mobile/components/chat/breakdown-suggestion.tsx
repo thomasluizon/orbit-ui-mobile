@@ -1,3 +1,4 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
@@ -18,7 +19,7 @@ import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Button } from '@/components/ui/pill-button'
 import * as Menu from '@/components/ui/dropdown-menu'
-import { AlertTriangle, MoreVertical, Plus, Trash2 } from '@/components/ui/icons'
+import { AlertTriangle, MoreVertical, Plus, Trash2, RefreshCw } from '@/components/ui/icons'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -48,17 +49,17 @@ function BreakdownActions({ card, isPending, editingDisabled, warning, parentNam
   const [menuOpen, setMenuOpen] = useState(false)
   const createErrorKey = card.hasSubmitted ? 'habits.breakdown.retryError' : 'habits.breakdown.createError'
   const isEmpty = card.habits.length === 0
-  const addVariant = isEmpty ? 'primary' : 'ghost'
+
   const approveVariant = isEmpty ? 'secondary' : 'primary'
-  const addIconColor = isEmpty ? tokens.fgOnPrimary : tokens.fg1
+
   return (
 <>
     <Text accessibilityLiveRegion="polite" style={{ flexBasis: '100%', color: tokens.fg2, ...(card.capacityDenied ? {} : { position: 'absolute', height: 0 }) }}>{card.capacityDenied ? t('habits.breakdown.capacityDenied') : ''}</Text>
     <Text accessibilityLiveRegion="polite" style={{ flexBasis: '100%', color: tokens.fg2, ...(card.atCapacity && !card.hasSubmitted ? {} : { position: 'absolute', height: 0 }) }}>{card.atCapacity && !card.hasSubmitted ? t('habits.breakdown.limit', { limit: MAX_BULK_OPERATION_SIZE }) : ''}</Text>
     <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={{ flexBasis: '100%', color: tokens.statusBadText, ...(card.createError ? {} : { position: 'absolute', height: 0 }) }}>{card.createError ? t(createErrorKey) : ''}</Text>
     {warning?.hasConflict ? <View style={{ flexBasis: '100%', flexDirection: 'row', alignItems: 'center', gap: 8 }}><AlertTriangle accessible={false} size={16} color={tokens.statusOverdue} /><Text style={{ flex: 1, color: tokens.fg2 }}>{t('chat.breakdown.conflict', { name: warning.conflictingHabits[0]?.habitTitle ?? parentName })}</Text></View> : null}
-    {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
-    {card.partiallyFailed ? <Button size="sm" disabled={isPending} loading={isPending} onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : <><Button size="sm" variant={addVariant} leadingIcon={<Plus accessible={false} size={16} color={addIconColor} />} disabled={editingDisabled || card.confirmOpen || card.atCapacity} onClick={card.addHabit}>{t('habits.breakdown.addHabit')}</Button><Menu.Root open={menuOpen && !editingDisabled} onOpenChange={setMenuOpen}><Menu.Trigger asChild>
+    { }
+    {card.partiallyFailed ? <IconButton label={t('chat.batch.retry', { count: card.failedIds.length })} disabled={isPending} loading={isPending} onClick={() => void card.submit(card.failedIds)}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton> : <><IconButton label={t('habits.breakdown.addHabit')} disabled={editingDisabled || card.confirmOpen || card.atCapacity} onClick={card.addHabit}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton><Menu.Root open={menuOpen && !editingDisabled} onOpenChange={setMenuOpen}><Menu.Trigger asChild>
       <Button size="sm" variant="ghost" iconOnly minimumHeight={TOUCH_TARGET_MIN} label={t('habits.actions.more')} expanded={menuOpen && !editingDisabled} disabled={editingDisabled}>
         <MoreVertical accessible={false} size={20} color={tokens.fg1} />
       </Button>

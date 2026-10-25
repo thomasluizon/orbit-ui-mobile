@@ -1,3 +1,4 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { PersonalText } from '@/components/ui/personal-text'
 import { SPACING, hoverForeground, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -6,8 +7,8 @@ import { Animated, StyleSheet, Text, View, Pressable } from 'react-native'
 import { Trans, useTranslation } from 'react-i18next'
 import { buildSearchMatchLines, habitInitial } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { ChevronRight } from '@/components/ui/icons'
-import { Button } from '@/components/ui/pill-button'
+import { ChevronRight, X, Plus } from '@/components/ui/icons'
+
 import { createTokensV2, radius } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -43,7 +44,7 @@ export function SearchEmpty({ query, onCreate, onClearSearch }: Readonly<{ query
   return <View style={styles.empty}>
     <Text style={[styles.name, { color: tokens.fg1 }]}><Trans i18nKey="habits.search.emptyTitle" values={{ query }} components={{ queryText: <Text /> }} /></Text>
     <Text style={[styles.body, { color: tokens.fg3 }]}>{t('habits.search.emptyBody')}</Text>
-    <Button size="sm" onClick={onClearSearch ?? onCreate}>{t(onClearSearch ? 'common.clear' : 'habits.search.create')}</Button>
+    <IconButton label={t(onClearSearch ? 'common.clear' : 'habits.search.create')} onClick={onClearSearch ?? onCreate}>{onClearSearch ? <X size={20} accessible={false} /> : <Plus size={20} accessible={false} />}</IconButton>
   </View>
 }
 

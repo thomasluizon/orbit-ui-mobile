@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, Text, View } from 'react-native'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
 import { AccountRowsCard } from '@/components/chat/account-rows-card'
-import { renderedText } from '../../support/react-test-renderer'
+import { controlName, renderedText } from '../../support/react-test-renderer'
 
 const TestRenderer = require('react-test-renderer')
 const rewardState = vi.hoisted(() => ({ stats: { rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 23 }, locale: '' }))
@@ -27,7 +27,7 @@ void testI18n.use(ICU).init({ resources: { en: { translation: en }, 'pt-BR': { t
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, params?: Record<string, unknown>) => rewardState.locale ? testI18n.getFixedT(rewardState.locale)(key, params) : params ? `${key}:${JSON.stringify(params)}` : key, i18n: { language: rewardState.locale || mocks.locale } }) }))
 vi.mock('expo-clipboard', () => ({ setStringAsync: mocks.setStringAsync }))
 vi.mock('@/components/ui/settings-group', () => ({ SettingsGroup: ({ children }: { children: React.ReactNode }) => <View>{children}</View> }))
-vi.mock('@/components/ui/pill-button', () => ({ Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => <Pressable accessibilityRole="button" onPress={onClick}><Text>{children}</Text></Pressable> }))
+vi.mock('@/components/ui/pill-button', async (importOriginal) => ({ ...await importOriginal<typeof import('@/components/ui/pill-button')>(), Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => <Pressable accessibilityRole="button" onPress={onClick}><Text>{children}</Text></Pressable> }))
 vi.mock('@/components/ui/block-frame', () => ({ BlockFrame: ({ body, actions }: BlockFrameProps) => <View>{body}{actions}</View> }))
 vi.mock('@/lib/theme', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/theme')>()
@@ -54,7 +54,7 @@ describe('Astra account rows on mobile', () => {
     expect(output).toContain('chat.account.no')
     expect(output).not.toContain('hidden')
     expect(output).not.toContain('upgrade.')
-    const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.account.open'))[0]
+    const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && controlName(node).includes('chat.account.open'))[0]
     TestRenderer.act(() => open.props.onPress())
     expect(mocks.push).toHaveBeenCalledWith('/profile')
   })
@@ -86,7 +86,7 @@ describe('Astra account rows on mobile', () => {
     await TestRenderer.act(async () => { await copy.props.onPress() })
     expect(mocks.setStringAsync).toHaveBeenCalledWith('ORBIT123')
     expect(renderedText(tree.toJSON())).toContain('chat.account.copied')
-    const openShare = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.account.share'))[0]
+    const openShare = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && controlName(node).includes('chat.account.share'))[0]
     await TestRenderer.act(async () => { openShare.props.onPress(); await Promise.resolve() })
     expect(mocks.share).toHaveBeenCalledWith({ title: 'referral.share.title', message: 'referral.share.proDays:{"proDays":7} https://example.com/r/ORBIT123' })
   })
@@ -126,7 +126,7 @@ describe('Astra account rows on mobile', () => {
     expect(renderedText(tree.toJSON())).toContain(locale === 'en' ? 'Days of Pro' : 'Dias de Pro')
     expect(renderedText(tree.toJSON())).not.toContain('23%')
     const label = testI18n.getFixedT(locale)('chat.account.share')
-    const share = tree.root.findAll((node: { props: { onPress?: () => void; children?: unknown } }) => typeof node.props.onPress === 'function' && renderedText(node.props.children) === label)[0]
+    const share = tree.root.findAll((node: { props: { onPress?: () => void; children?: unknown } }) => typeof node.props.onPress === 'function' && controlName(node) === label)[0]
     await act(async () => { share.props.onPress(); await Promise.resolve() })
     expect(mocks.share).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining(locale === 'en' ? 'I can earn 7 days of Pro.' : 'Eu posso ganhar 7 dias de Pro.') }))
     await act(() => tree.unmount())

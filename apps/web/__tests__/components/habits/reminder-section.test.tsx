@@ -7,7 +7,6 @@ vi.mock('@/hooks/use-push-subscriptions', () => ({
   usePushSubscriptions: () => ({ count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false }),
 }))
 
-
 vi.mock('@/components/ui/select', () => ({
   Select: ({
     value,
@@ -53,7 +52,7 @@ function renderSection(overrides?: Partial<Props>) {
 describe('ReminderSection', () => {
   it('adds an after-due choice to the relative request', () => {
     const props = renderSection({ reminderTimes: [15] })
-    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminderAdd' }))
     fireEvent.click(screen.getByText('habits.form.reminder15minAfter'))
     expect(props.onReminderTimesChange).toHaveBeenCalledWith([15, -15])
     const form = { ...buildEmptyHabitFormValues('2025-03-10'), dueTime: '09:00', reminderEnabled: true }
@@ -63,7 +62,7 @@ describe('ReminderSection', () => {
 
   it('collapses the body when reminders are disabled', () => {
     renderSection({ reminderEnabled: false })
-    expect(screen.queryByText('habits.form.reminderAdd')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.reminderAdd' })).toBeNull()
     expect(screen.queryByText('label-15')).toBeNull()
     expect(screen.getByRole('switch', { name: 'habits.form.reminder' })).toBeInTheDocument()
   })
@@ -94,7 +93,7 @@ describe('ReminderSection', () => {
 
   it('adds a preset reminder sorted descending and hides already-selected presets', () => {
     const props = renderSection({ reminderTimes: [10] })
-    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminderAdd' }))
     expect(screen.queryByText('habits.form.reminder10min')).toBeNull()
     fireEvent.click(screen.getByText('habits.form.reminder1hour'))
     expect(props.onReminderTimesChange).toHaveBeenCalledWith([60, 10])
@@ -102,7 +101,7 @@ describe('ReminderSection', () => {
 
   it('adds a custom reminder in minutes', () => {
     const props = renderSection({ reminderTimes: [] })
-    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminderAdd' }))
     fireEvent.click(screen.getByText('habits.form.reminderCustom'))
     fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.reminderCustomLabel' }), {
       target: { value: '45' },
@@ -113,7 +112,7 @@ describe('ReminderSection', () => {
 
   it('multiplies custom hours and days into minutes', () => {
     const props = renderSection({ reminderTimes: [] })
-    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminderAdd' }))
     fireEvent.click(screen.getByText('habits.form.reminderCustom'))
     fireEvent.change(screen.getByLabelText('habits.form.reminderCustom'), {
       target: { value: 'days' },
@@ -127,7 +126,7 @@ describe('ReminderSection', () => {
 
   it('ignores a non-positive custom value', () => {
     const props = renderSection({ reminderTimes: [] })
-    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminderAdd' }))
     fireEvent.click(screen.getByText('habits.form.reminderCustom'))
     fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.reminderCustomLabel' }), {
       target: { value: '0' },
@@ -138,7 +137,7 @@ describe('ReminderSection', () => {
 
   it('submits a custom reminder on Enter', () => {
     const props = renderSection({ reminderTimes: [] })
-    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminderAdd' }))
     fireEvent.click(screen.getByText('habits.form.reminderCustom'))
     const input = screen.getByRole('spinbutton', { name: 'habits.form.reminderCustomLabel' })
     fireEvent.change(input, { target: { value: '3' } })
@@ -148,7 +147,7 @@ describe('ReminderSection', () => {
 
   it('does not add a duplicate custom reminder', () => {
     const props = renderSection({ reminderTimes: [60] })
-    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminderAdd' }))
     fireEvent.click(screen.getByText('habits.form.reminderCustom'))
     fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.reminderCustomLabel' }), {
       target: { value: '1' },
@@ -162,7 +161,7 @@ describe('ReminderSection', () => {
 
   it('saves a custom after-due reminder as a signed offset', () => {
     const props = renderSection({ reminderTimes: [15] })
-    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminderAdd' }))
     fireEvent.click(screen.getByText('habits.form.reminderCustom'))
     fireEvent.change(screen.getByLabelText('habits.form.reminderDirection'), {
       target: { value: 'after' },
@@ -176,7 +175,7 @@ describe('ReminderSection', () => {
 
   it('rejects an after-due offset beyond the allowed range', () => {
     const props = renderSection({ reminderTimes: [15], onValidationError: vi.fn() })
-    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminderAdd' }))
     fireEvent.click(screen.getByText('habits.form.reminderCustom'))
     fireEvent.change(screen.getByLabelText('habits.form.reminderDirection'), {
       target: { value: 'after' },
@@ -196,7 +195,7 @@ describe('ReminderSection', () => {
       onValidationError: vi.fn(),
     })
     expect(screen.getByText('habits.form.relativeReminderMax')).toBeInTheDocument()
-    expect(screen.queryByText('habits.form.reminderAdd')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.reminderAdd' })).toBeNull()
     expect(props.onReminderTimesChange).not.toHaveBeenCalled()
   })
 
@@ -207,7 +206,7 @@ describe('ReminderSection', () => {
       onValidationError: vi.fn(),
     })
     expect(screen.getByText('habits.form.relativeReminderMax')).toBeInTheDocument()
-    expect(screen.queryByText('habits.form.reminderAdd')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.reminderAdd' })).toBeNull()
     expect(props.onReminderTimesChange).not.toHaveBeenCalled()
   })
 })

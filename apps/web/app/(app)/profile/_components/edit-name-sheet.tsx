@@ -1,7 +1,8 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { X } from '@/components/ui/icons'
 import { SPACING } from '@orbit/shared/theme'
-
 
 import { PersonalText } from '@/components/ui/personal-text'
 
@@ -85,9 +86,7 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
       title={t('profile.editName.title')}
       actions={(
         <ActionRow>
-          <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => closeSheet()}>
-            {t('common.cancel')}
-          </PillButton>
+          <IconButton label={t('common.cancel')} disabled={mutation.isPending} onClick={() => closeSheet()}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
           <PillButton size="sm" onClick={handleSave} disabled={mutation.isPending} loading={mutation.isPending}>
             {t('common.save')}
           </PillButton>

@@ -9,7 +9,6 @@ import { HabitChecklist } from '@/components/habits/habit-checklist'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 
-
 const locale = vi.hoisted(() => ({ portuguese: false, english: false }))
 
 vi.mock('next-intl', async (importOriginal) => ({
@@ -27,7 +26,6 @@ vi.mock('next-intl', async (importOriginal) => ({
   },
 }))
 
-
 function makeItems(overrides?: Partial<ChecklistItem>[]): ChecklistItem[] {
   const defaults: ChecklistItem[] = [
     { text: 'Step 1', isChecked: false },
@@ -37,7 +35,6 @@ function makeItems(overrides?: Partial<ChecklistItem>[]): ChecklistItem[] {
   if (!overrides) return defaults
   return overrides.map((o, i) => ({ ...defaults[i % defaults.length]!, ...o }) as ChecklistItem)
 }
-
 
 describe('HabitChecklist', () => {
   beforeEach(() => {
@@ -186,7 +183,6 @@ describe('HabitChecklist', () => {
       fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' })
       await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Movimento de Preparar café cancelado.'))
     })
-
 
     it.each(['en', 'pt-BR'])('announces a keyboard return and unchanged drop in %s after an owner render', async (language) => {
       locale.portuguese = language === 'pt-BR'
@@ -393,7 +389,7 @@ describe('HabitChecklist', () => {
     it('shows clear all button when there are items', () => {
       const items = [{ text: 'Something', isChecked: false }]
       render(<HabitChecklist items={items} editable />)
-      expect(screen.getByText('habits.form.clearChecklist')).toBeDefined()
+      expect(screen.getByRole('button', { name: 'habits.form.clearChecklist' })).toBeDefined()
     })
 
     it('clears all items on clear click', () => {
@@ -403,7 +399,7 @@ describe('HabitChecklist', () => {
         { text: 'B', isChecked: true },
       ]
       render(<HabitChecklist items={items} editable onItemsChange={onItemsChange} />)
-      fireEvent.click(screen.getByText('habits.form.clearChecklist'))
+      fireEvent.click(screen.getByRole('button', { name: 'habits.form.clearChecklist' }))
       expect(onItemsChange).toHaveBeenCalledWith([])
     })
 

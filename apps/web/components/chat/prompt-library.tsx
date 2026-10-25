@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { X, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { motion, useReducedMotion, useIsPresent } from 'motion/react'
@@ -12,7 +14,6 @@ import { AppBar } from '@/components/ui/app-bar'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { Chip } from '@/components/ui/chip'
 import { CatalogIdea, PromptIdea } from './prompt-idea'
-import { Button } from '@/components/ui/pill-button'
 
 const usePromptLibrary = createUsePromptLibrary({ useState, useReducer, useEffect, useRef })
 
@@ -65,11 +66,11 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
       {groupPromptIdeas(visible, t).map(group => <CatalogGroup key={group.category} group={group} searching={!!query.trim()} disabled={!!props.disabledReason} onSelect={(...selection) => select(() => props.onSelect(...selection))} />)}
       <div className={matches.length === 0 ? 'flex flex-col items-start gap-3 px-4 py-6' : 'sr-only'}>
         <p role="status" className={matches.length === 0 ? 'text-sm text-[var(--fg-3)]' : 'sr-only'}>{matches.length === 0 ? t('chat.templates.noMatches', { query: query.trim() }) : ''}</p>
-        {matches.length === 0 ? <Button variant="ghost" onClick={() => { dispatch({ type: 'query', query: '' }) }}>{t('chat.templates.clearSearch')}</Button> : null}
+        {matches.length === 0 ? <IconButton label={t('chat.templates.clearSearch')} onClick={() => { dispatch({ type: 'query', query: '' }) }}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
       </div>
       {lastPage > 0 ? <div className="px-4 pt-4"><ActionRow>
-        <Button variant="ghost" disabled={currentPage === 0} onClick={() => dispatch({ type: 'page', page: currentPage - 1 })}>{t('chat.templates.previous')}</Button>
-        <Button variant="ghost" disabled={currentPage === lastPage} onClick={() => dispatch({ type: 'page', page: currentPage + 1 })}>{t('chat.templates.more')}</Button>
+        <IconButton label={t('chat.templates.previous')} disabled={currentPage === 0} onClick={() => dispatch({ type: 'page', page: currentPage - 1 })}><ChevronLeft size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+        <IconButton label={t('chat.templates.more')} disabled={currentPage === lastPage} onClick={() => dispatch({ type: 'page', page: currentPage + 1 })}><ChevronRight size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
       </ActionRow></div> : null}
     </div>
   </motion.div>

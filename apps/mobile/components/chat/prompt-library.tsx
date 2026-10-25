@@ -1,3 +1,5 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { X, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { AccessibilityInfo, Animated, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -12,7 +14,7 @@ import { AppBar } from '@/components/ui/app-bar'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { Chip } from '@/components/ui/chip'
 import { CatalogIdea, PromptIdea } from './prompt-idea'
-import { Button } from '@/components/ui/pill-button'
+
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { createAnimatedTimingConfig, usePrefersReducedMotion } from '@/lib/motion'
@@ -85,11 +87,11 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
       {groupPromptIdeas(visible, t).map(group => <CatalogGroup key={group.category} group={group} searching={!!query.trim()} disabled={!!props.disabledReason} onSelect={(...selection) => select(() => props.onSelect(...selection))} />)}
       <View style={matches.length === 0 ? styles.empty : styles.silentStatus}>
         <Text accessibilityLiveRegion="polite" style={matches.length === 0 ? { fontFamily: 'Geist_400Regular', fontSize: 14, color: tokens.fg3 } : styles.silentStatus}>{matches.length === 0 ? t('chat.templates.noMatches', { query: query.trim() }) : ''}</Text>
-        {matches.length === 0 ? <Button variant="ghost" onClick={() => { dispatch({ type: 'query', query: '' }) }}>{t('chat.templates.clearSearch')}</Button> : null}
+        {matches.length === 0 ? <IconButton label={t('chat.templates.clearSearch')} onClick={() => { dispatch({ type: 'query', query: '' }) }}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
       </View>
       {lastPage > 0 ? <View style={styles.pages}><ActionRow>
-        <Button variant="ghost" disabled={currentPage === 0} onClick={() => dispatch({ type: 'page', page: currentPage - 1 })}>{t('chat.templates.previous')}</Button>
-        <Button variant="ghost" disabled={currentPage === lastPage} onClick={() => dispatch({ type: 'page', page: currentPage + 1 })}>{t('chat.templates.more')}</Button>
+        <IconButton label={t('chat.templates.previous')} disabled={currentPage === 0} onClick={() => dispatch({ type: 'page', page: currentPage - 1 })}><ChevronLeft size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+        <IconButton label={t('chat.templates.more')} disabled={currentPage === lastPage} onClick={() => dispatch({ type: 'page', page: currentPage + 1 })}><ChevronRight size={20} strokeWidth={1.5} accessible={false} /></IconButton>
       </ActionRow></View> : null}
     </ScrollView>
   </Animated.View>

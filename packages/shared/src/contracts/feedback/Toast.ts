@@ -1,6 +1,6 @@
 
 type ToastNeutralAction =
-  | { actionLabel: string; onAction: () => void }
+  | { actionLabel: string; onAction: () => void; actionIcon?: 'refresh' }
   | { actionLabel?: never; onAction?: never }
 
 export type ToastProps =
@@ -37,6 +37,7 @@ export type ToastProps =
       message: string
       detail: string
       actionLabel: string
+      actionIcon?: 'refresh'
       onAction: () => void
       icon?: React.ReactElement
       doneAfterMs?: never

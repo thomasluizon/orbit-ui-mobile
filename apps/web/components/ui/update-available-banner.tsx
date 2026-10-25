@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { ActionRow } from '@/components/ui/action-row'
 
 import { useEffect, useState } from 'react'
@@ -33,9 +35,7 @@ export function UpdateAvailableBanner({ modalId, active = true, inset = true }: 
             </p>}
           </div>
           {!reloadReason && <PillButton size="sm" variant="ghost" onClick={dismissUpdate}>{t('versionUpdate.laterCta')}</PillButton>}
-          <PillButton size="sm" variant="secondary" onClick={() => globalThis.location.reload()}>
-            {reloadReason ? t('errors.api.reload') : t('forceUpdate.refresh')}
-          </PillButton>
+          <IconButton label={reloadReason ? t('errors.api.reload') : t('forceUpdate.refresh')} onClick={() => globalThis.location.reload()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
         </ActionRow></div>
       ) : null}
     </div>

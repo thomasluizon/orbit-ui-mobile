@@ -1,3 +1,5 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { SPACING, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
@@ -34,7 +36,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { useBackLabel } from '@/hooks/use-back-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { getUpgradeFallbackRoute } from '@/lib/upgrade-route'
@@ -72,7 +74,7 @@ function UpgradeContent({
     )
   } else if (state === 'load-failed') {
     body = <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.error')} action={
-      <PillButton variant="ghost" onClick={onRetry}>{t('upgrade.billing.retry')}</PillButton>
+      <IconButton label={t('upgrade.billing.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
     } /></View>
   } else {
     body = content === 'pitch' ? pitchContent : billingContent

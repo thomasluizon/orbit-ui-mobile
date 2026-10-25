@@ -25,6 +25,7 @@ type ExpectedNeutralBase = {
 }
 type ExpectedNeutralActionVariant = ExpectedNeutralBase & {
   actionLabel: string
+  actionIcon?: 'refresh'
   onAction: () => void
 }
 type ExpectedNeutralPlainVariant = ExpectedNeutralBase & {
@@ -56,6 +57,7 @@ type ExpectedLostVariant = {
   message: string
   detail: string
   actionLabel: string
+  actionIcon?: 'refresh'
   onAction: () => void
   icon?: React.ReactElement
   doneAfterMs?: never

@@ -40,7 +40,7 @@ vi.mock('@/lib/theme', async (importOriginal) => ({
 function createGoalButton(root: { findAll: (predicate: (node: { props: Record<string, unknown>; findAll: (childPredicate: (child: { type: unknown; props: Record<string, unknown> }) => boolean) => unknown[] }) => boolean) => { props: { onPress: () => void } }[] }, label = 'habits.form.createGoal') {
   return root.findAll((node) =>
     node.props.accessibilityRole === 'button' &&
-    node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0,
+    node.props.accessibilityLabel === label,
   )[0]!
 }
 

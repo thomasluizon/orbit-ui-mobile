@@ -53,6 +53,7 @@ const TestRenderer: TestRendererApi = require("react-test-renderer");
 const tokens = createTokensV2();
 
 function descendantText(node: TestNode): string | undefined {
+  if (typeof node.props.accessibilityLabel === "string") return node.props.accessibilityLabel;
   const texts = node.findAll((child) => child.type === "Text");
   for (const text of texts) {
     if (typeof text.props.children === "string") return text.props.children;
@@ -100,7 +101,6 @@ function press(tree: TestTree, node: TestNode) {
 function buttons(tree: TestTree): TestNode[] {
   return tree.root.findAll((node) => node.props.accessibilityRole === "button");
 }
-
 
 function chooseOption(tree: TestTree, label: string, option: string) {
   const trigger = tree.root.findAll((node) => typeof node.type === 'string' && node.props.role === 'combobox' && node.props.accessibilityLabel === label)[0]!
@@ -400,9 +400,10 @@ it('fills reminder removal, add, custom units, directions, and commit', () => {
   const pressText = (text: string) => press(tree, buttons(tree).find((node) => descendantText(node) === text)!);
   const assertTextFill = (text: string, fill: string) => {
     const control = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && descendantText(node) === text)[0]!;
-    TestRenderer.act(() => (control.props.onPressIn as () => void)());
-    expect(StyleSheet.flatten(control.props.style)).toMatchObject({ backgroundColor: fill, borderRadius: radius.full, overflow: 'hidden' });
-    TestRenderer.act(() => (control.props.onPressOut as () => void)());
+    if (control.props.onPressIn) TestRenderer.act(() => (control.props.onPressIn as () => void)());
+    const pressedStyle = typeof control.props.style === 'function' ? control.props.style({ pressed: true }) : control.props.style;
+    expect(StyleSheet.flatten(pressedStyle)).toMatchObject({ backgroundColor: fill, borderRadius: radius.full, overflow: 'hidden' });
+    if (control.props.onPressOut) TestRenderer.act(() => (control.props.onPressOut as () => void)());
   };
   assertTextFill('habits.form.reminderAdd', tokens.bgHover);
   pressText('habits.form.reminderAdd');

@@ -1,10 +1,11 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { useEffect, useMemo, useState } from 'react'
 import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { PillButton } from '@/components/ui/pill-button'
 
 type WidgetState = 'idle' | 'loading' | 'solved' | 'failed' | 'expired'
 
@@ -80,7 +81,7 @@ export function TurnstileWidget({
           </Text>}
       </View>
       {(state === 'failed' || state === 'expired') &&
-        <PillButton variant="ghost" size="sm" onClick={retry}>{t('auth.turnstileRetry')}</PillButton>}
+        <IconButton label={t('auth.turnstileRetry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>}
     </View>
   )
 }

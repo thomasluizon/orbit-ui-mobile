@@ -1,3 +1,5 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { X, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
 import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
@@ -6,7 +8,7 @@ import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { calendarEntryOutcome } from '@orbit/shared/utils'
 import { Sheet } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { ActionRow } from '@/components/ui/action-row'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -32,11 +34,11 @@ export function CalendarEntryDetails({ entries, title, displayTime, onClose }: R
         <PersonalText expanded selectable style={[styles.title, { color: tokens.fg1 }]}>{entry.title}</PersonalText>
         <Text style={[styles.meta, { color: tokens.fg2 }]}>{t('calendar.entryMeta', { time: entry.dueTime ? displayTime(entry.dueTime) : t('calendar.timeGrid.noSetTime'), status: t(calendarEntryOutcome(entry).labelKey) })}</Text>
       </View>)}
-      {matching.length === 0 ? <View style={styles.searchEmpty}><Text style={[styles.empty, { color: tokens.fg2 }]}>{t('calendar.entrySearchEmpty', { query: query.trim() })}</Text><PillButton variant="ghost" onClick={() => { setQuery(''); setPage(0) }}>{t('calendar.dayDetail.clearEventSearch')}</PillButton></View> : null}
+      {matching.length === 0 ? <View style={styles.searchEmpty}><Text style={[styles.empty, { color: tokens.fg2 }]}>{t('calendar.entrySearchEmpty', { query: query.trim() })}</Text><IconButton label={t('calendar.dayDetail.clearEventSearch')} onClick={() => { setQuery(''); setPage(0) }}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton></View> : null}
       {entries.length >= 8 ? <Text accessibilityLiveRegion="polite" style={[styles.meta, { color: tokens.fg2 }]}>{t('calendar.showingCount', { shown: visible.length, total: matching.length })}</Text> : null}
       {matching.length > 20 ? <ActionRow>
-        <PillButton variant="ghost" disabled={page === 0} onClick={() => setPage(page - 1)}>{t('common.previous')}</PillButton>
-        <PillButton variant="ghost" disabled={(page + 1) * 20 >= matching.length} onClick={() => setPage(page + 1)}>{t('common.next')}</PillButton>
+        <IconButton label={t('common.previous')} disabled={page === 0} onClick={() => setPage(page - 1)}><ChevronLeft size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+        <IconButton label={t('common.next')} disabled={(page + 1) * 20 >= matching.length} onClick={() => setPage(page + 1)}><ChevronRight size={20} strokeWidth={1.5} accessible={false} /></IconButton>
       </ActionRow> : null}
     </View>
   </Sheet>

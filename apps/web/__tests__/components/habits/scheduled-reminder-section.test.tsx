@@ -9,7 +9,6 @@ vi.mock('@/hooks/use-push-subscriptions', () => ({
   usePushSubscriptions: () => ({ count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false }),
 }))
 
-
 const clockState = vi.hoisted(() => ({ language: 'pt-BR', uses24HourClock: false }))
 vi.mock('next-intl', () => ({ useLocale: () => clockState.language }))
 
@@ -116,7 +115,7 @@ describe('ScheduledReminderSection', () => {
     fireEvent.change(screen.getByLabelText('habits.form.scheduledReminderTimePlaceholder'), {
       target: { value: '09:30' },
     })
-    fireEvent.click(screen.getByText('common.add'))
+    fireEvent.click(screen.getByRole('button', { name: 'common.add' }))
     expect(props.onSetScheduledReminders).toHaveBeenCalledWith([{ when: 'day_before', time: '09:30' }])
     const form = {
       ...buildEmptyHabitFormValues('2025-03-10'),
@@ -135,7 +134,7 @@ describe('ScheduledReminderSection', () => {
     fireEvent.change(screen.getByLabelText('habits.form.scheduledReminderTimePlaceholder'), {
       target: { value: '08:00' },
     })
-    fireEvent.click(screen.getByText('common.add'))
+    fireEvent.click(screen.getByRole('button', { name: 'common.add' }))
     expect(props.onValidationError).toHaveBeenCalledWith('habits.form.duplicateScheduledReminder')
     expect(props.onSetScheduledReminders).not.toHaveBeenCalled()
   })
@@ -146,7 +145,7 @@ describe('ScheduledReminderSection', () => {
     fireEvent.change(screen.getByLabelText('habits.form.scheduledReminderTimePlaceholder'), {
       target: { value: '25:61' },
     })
-    fireEvent.click(screen.getByText('common.add'))
+    fireEvent.click(screen.getByRole('button', { name: 'common.add' }))
     expect(props.onValidationError).toHaveBeenCalledWith('habits.form.invalidScheduledReminderTime')
   })
 
@@ -157,7 +156,7 @@ describe('ScheduledReminderSection', () => {
       target: { value: '09:30' },
     })
     fireEvent.click(screen.getByLabelText('common.cancel'))
-    expect(screen.queryByText('common.add')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'common.add' })).toBeNull()
     expect(screen.getByText('habits.form.scheduledReminderAdd')).toBeInTheDocument()
   })
 

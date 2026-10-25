@@ -1,3 +1,4 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { SPACING } from '@orbit/shared/theme'
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { I18nManager, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -38,7 +39,7 @@ import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { Toast } from '@/components/ui/app-toast'
 import { ActionRow } from '@/components/ui/action-row'
-import { ArrowLeft } from '@/components/ui/icons'
+import { ArrowLeft, RefreshCw } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { NativeDialog } from '@/components/ui/native-dialog'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
@@ -119,7 +120,7 @@ function DecisionAction(props: Readonly<DecisionProps>) {
   }
   if (props.step === ONBOARDING_WHEN_STEP) return <PillButton loading={props.creating} onClick={props.onSave}>{t(`onboarding.flow.${props.createFailed ? 'retry' : 'create'}`)}</PillButton>
   if (props.reminderState === 'ask') return <FlowActions primary={<PillButton disabled={declining} loading={allowing} onClick={props.onAllow}>{t('onboarding.flow.remind.allow')}</PillButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} loading={declining} onClick={props.onContinueWithout}>{t('onboarding.flow.remind.deny')}</PillButton>} />
-  if (props.reminderState === 'failed') return <FlowActions primary={<PillButton disabled={declining} loading={allowing} onClick={props.onAllow}>{t('onboarding.flow.retry')}</PillButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} loading={declining} onClick={props.onContinueWithout}>{t('onboarding.flow.remind.continue')}</PillButton>} />
+  if (props.reminderState === 'failed') return <FlowActions primary={<IconButton label={t('onboarding.flow.retry')} disabled={declining} loading={allowing} onClick={props.onAllow}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} loading={declining} onClick={props.onContinueWithout}>{t('onboarding.flow.remind.continue')}</PillButton>} />
   if (props.reminderState === 'no-time' || props.reminderState === 'no-day') return <FlowActions primary={<PillButton loading={declining} onClick={props.onContinueWithout}>{t('onboarding.flow.remind.continue')}</PillButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} onClick={props.onEditSchedule}>{t(props.reminderState === 'no-day' ? 'onboarding.flow.remind.setDays' : 'onboarding.flow.remind.setTime')}</PillButton>} />
   return <PillButton loading={declining} onClick={props.onContinueWithout}>{t('onboarding.flow.remind.continue')}</PillButton>
 }

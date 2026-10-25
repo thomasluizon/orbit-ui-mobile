@@ -46,10 +46,8 @@ describe.each(['dark', 'light'] as const)('push device feedback in %s mode', (mo
       expect(StyleSheet.flatten(status.props.style).color).toBe(tokens.fg3)
       expect(status.props.accessibilityLiveRegion).toBe('polite')
       const action = tree.root.findAllByType(Pressable).find(
-        (node: { props: { accessibilityRole?: string }; findAllByType: typeof tree.root.findAllByType }) =>
-          node.props.accessibilityRole === 'button' && node.findAllByType(Text).some(
-            (text: { props: { children: string } }) => text.props.children === ptBr.settings.notifications.openSettings,
-          ),
+        (node: { props: { accessibilityRole?: string; accessibilityLabel?: string }; findAllByType: typeof tree.root.findAllByType }) =>
+          node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === ptBr.settings.notifications.openSettings,
       )!
       expect(action).toBeDefined()
       TestRenderer.act(() => action.props.onPress())

@@ -1,3 +1,5 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
@@ -16,6 +18,7 @@ import { useUIStore } from '@/stores/ui-store'
 interface HabitListEmptyStateProps {
   title: string
   description: string
+  actionIcon?: 'refresh'
   actionLabel?: string
   onAction?: () => void
   askAstraLabel?: string
@@ -23,10 +26,10 @@ interface HabitListEmptyStateProps {
   variant?: 'primary' | 'secondary'
 }
 
-
 export function HabitListEmptyState({
   title,
   description,
+  actionIcon,
   actionLabel,
   onAction,
   askAstraLabel,
@@ -68,6 +71,8 @@ export function HabitListEmptyState({
         ) : null}
       </ActionRow></View>
     )
+  } else if (actionIcon && actionLabel) {
+    emptyActions = <IconButton label={actionLabel} onClick={onAction}><RefreshCw size={20} accessible={false} /></IconButton>
   } else if (actionLabel) {
     emptyActions = (
       <Pressable

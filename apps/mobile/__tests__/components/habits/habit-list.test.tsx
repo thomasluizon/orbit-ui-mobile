@@ -542,7 +542,7 @@ function pressConfirm(tree: any, label: string) {
   const button = tree.root.findAll(
     (node: any) =>
       typeof node.props?.onPress === 'function' &&
-      node.findAll((child: any) => child.type === 'Text' && child.props.children === label)
+      node.findAll((child: any) => child.type === 'Text' && (child.props.label ?? child.props.accessibilityLabel ?? child.props.children) === label)
         .length > 0,
   )
   const target = button.at(-1)
@@ -1003,7 +1003,7 @@ describe('HabitList', () => {
     else {
       expect(tree!.root.findByType(SearchEmpty).props.query).toBe(query)
       const clear = tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
-        node.type === 'Pressable' && flattenText(node.props.children).includes('common.clear'))[0]!
+        node.type === 'Pressable' && node.props.accessibilityLabel === 'common.clear')[0]!
       TestRenderer.act(() => clear.props.onPress())
       expect(onClearSearch).toHaveBeenCalledOnce()
     }
@@ -1402,7 +1402,6 @@ describe('HabitList', () => {
     }
     expect(toggleSelectionCascade).not.toHaveBeenCalled()
   }
-
 
   it.each((['today', 'all', 'general'] as const).flatMap((view) => [false, true].flatMap((drilling) =>
     [false, true].flatMap((selectMode) => [316, 320, 412, 1352].flatMap((width) => [1, 2].map((fontScale) => ({ view, drilling, selectMode, width, fontScale })))),
@@ -2269,9 +2268,9 @@ describe('HabitList', () => {
     await TestRenderer.act(async () => { row?.props.actions.onDelete(); await Promise.resolve() })
     TestRenderer.act(() => { pressConfirm(tree, 'habits.deleteHabit') })
     const button = (label: string) => tree.root.findAll(
-      (node: any) => node.type === 'Pressable' && node.findAll(
-        (child: any) => child.type === 'Text' && child.props.children === label,
-      ).length > 0,
+      (node: any) => node.type === 'Pressable' && (node.props.accessibilityLabel === label || node.findAll(
+        (child: any) => child.type === 'Text' && (child.props.label ?? child.props.accessibilityLabel ?? child.props.children) === label,
+      ).length > 0),
     ).at(-1)
     expect(button('habits.deleteHabit')?.props.accessibilityState).toMatchObject({ busy: true, disabled: true })
     expect(button('common.cancel')?.props.accessibilityState).toMatchObject({ disabled: true })
@@ -2347,7 +2346,6 @@ describe('HabitList', () => {
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1', date: TODAY, onUndo: expect.any(Function) })
     expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
   })
-
 
   it('logs a habit immediately from the card action', async () => {
     const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
@@ -3051,7 +3049,7 @@ describe('HabitList', () => {
 
     const retryButton = emptyStateTree.root.findAll(
       (node: any) =>
-        flattenText(node.props?.children) === 'common.retry' &&
+        (node.props.accessibilityLabel ?? flattenText(node.props?.children)) === 'common.retry' &&
         typeof node.props?.onPress === 'function',
     )[0]
     TestRenderer.act(() => {

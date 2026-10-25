@@ -1,9 +1,11 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+
 import { SPACING } from '@orbit/shared/theme'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Home, Search } from '@/components/ui/icons'
+import { Home, Search, RefreshCw, X } from '@/components/ui/icons'
 import { plural } from '@/lib/plural'
 import { getMoveParentRowAvailability, getMoveParentPickerRows, getMoveParentScrollOffset, type MoveParentPickerProps, type MoveParentRowProps } from '@orbit/shared/utils/move-parent'
 import { ErrorState } from '@/components/ui/error-state'
@@ -67,7 +69,7 @@ function MoveInventoryStatus({ state, onRetry, t, selectionOnly }: Readonly<{
   if (state === 'loading') return <Skeleton variant="habit-row" label={t('common.loading')} />
   return <>
     {state ? <ErrorState message={t(selectionOnly ? 'habits.loadError' : 'errors.fetchHabits')}
-      action={<PillButton size="sm" variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>} /> : null}
+      action={<IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /> : null}
   </>
 }
 
@@ -133,9 +135,7 @@ export function MoveParentOverlay({
       title={title}
       actions={selectionOnly ? undefined :
         <ActionRow>
-          <PillButton size="sm" variant="ghost" disabled={isMoving} onClick={() => closeSheet()}>
-            {t('common.cancel')}
-          </PillButton>
+          <IconButton label={t('common.cancel')} disabled={isMoving} onClick={() => closeSheet()}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
           <PillButton size="sm" disabled={!canSubmit} loading={isMoving} onClick={() => void confirmMove()}>
             {t('habits.moveParent.confirm')}
           </PillButton>

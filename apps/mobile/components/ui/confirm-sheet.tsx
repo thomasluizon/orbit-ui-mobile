@@ -1,3 +1,5 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { X } from '@/components/ui/icons'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { StyleSheet, Text, type View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -99,9 +101,7 @@ export function ConfirmSheet({
     closeSheet(() => { setLifecycle((current) => ({ ...current, mounted: false })); onConfirm() })
   }
   const cancelButton = (
-    <PillButton buttonRef={cancelRef} variant="ghost" size="sm" minimumHeight={minimumActionHeight} disabled={actionsDisabled} onClick={cancel}>
-      {cancelLabel ?? t('common.cancel')}
-    </PillButton>
+    <IconButton label={cancelLabel ?? t('common.cancel')} buttonRef={cancelRef} disabled={actionsDisabled} onClick={cancel}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
   )
   const confirmButton = (
     <PillButton

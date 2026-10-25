@@ -1,3 +1,5 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { PADDING, SPACING } from '@orbit/shared/theme'
 import { calendarImportInitialEventId } from '@orbit/shared/utils/calendar-sync'
 import { buildCalendarHeaderState, resolveCalendarProfileSettings, calendarDayLoadingLabel, calendarStatState, type CalendarProfile, type CalendarView } from '@orbit/shared/utils/calendar-navigation'
@@ -189,7 +191,7 @@ function CalendarLoadError({ onRetry, tokens }: Readonly<{ onRetry: () => void; 
   return <View style={styles.errorWrap}>
     <View style={[styles.errorCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
       <Text style={[styles.errorText, { color: tokens.fg2 }]}>{t('calendar.loadError')}</Text>
-      <PillButton variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
+      <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
     </View>
   </View>;
 }

@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+
 import { useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useMotionValueEvent, useScroll } from 'motion/react'
@@ -7,7 +9,6 @@ import { updateScrollToTopState } from '@orbit/shared/utils'
 import { useShellScroller } from '@/components/shell/shell-scroller-context'
 import { getShellHeading } from '@/components/shell/shell-header'
 import { ArrowUp } from '@/components/ui/icons'
-import { PillButton } from '@/components/ui/pill-button'
 
 function ScrollerButton({ scroller }: Readonly<{ scroller: HTMLElement }>) {
   const t = useTranslations()
@@ -22,8 +23,7 @@ function ScrollerButton({ scroller }: Readonly<{ scroller: HTMLElement }>) {
   })
   if (!visible) return null
   return (
-    <PillButton variant="ghost" quiet elevated minimumHeight={48} accessibleName={t('common.backToTop')}
-      leadingIcon={<ArrowUp size={20} strokeWidth={2} aria-hidden="true" />} onClick={() => {
+    <IconButton label={t('common.backToTop')} elevated onClick={() => {
         scroller.scrollTo({ top: 0, behavior: 'instant' })
         const heading = getShellHeading(document)
         const target = heading ?? scroller
@@ -31,9 +31,7 @@ function ScrollerButton({ scroller }: Readonly<{ scroller: HTMLElement }>) {
         target.focus({ preventScroll: true })
         scrollState.current = { offset: 0, visible: false }
         setVisible(false)
-      }}>
-      {t('common.top')}
-    </PillButton>
+      }}><ArrowUp size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
   )
 }
 

@@ -1,5 +1,5 @@
 import * as Primitive from '@rn-primitives/toast'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useToastLifecycle } from '@/hooks/use-toast-lifecycle'
 import type { ToastProps } from '@orbit/shared/contracts/feedback'
@@ -13,8 +13,9 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native'
-import { Check, X } from '@/components/ui/icons'
-import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'
+import { IconButton } from '@/components/ui/icon-button'
+import { Check, X, RefreshCw } from '@/components/ui/icons'
+import { createTokensV2, radius, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -85,8 +86,6 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
   const actionClosing = useRef(false)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
-  const [actionPressed, setActionPressed] = useState(false)
-  const [actionFocused, setActionFocused] = useState(false)
   const lossColors = { background: tokens.bg, action: tokens.primarySoft }
   const neutralColors = { background: tokens.bgSheet, action: tokens.fg1 }
   const colors = { neutral: neutralColors, working: neutralColors, done: neutralColors, lost: lossColors }[props.kind]
@@ -153,28 +152,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
         ) : null}
       </View>
 
-      {props.actionLabel ? (
-        <View style={styles.controls}>
-          <Primitive.Action asChild><Pressable
-            onPress={() => { actionClosing.current = true; props.onAction() }}
-            onPressIn={() => setActionPressed(true)}
-            onPressOut={() => setActionPressed(false)}
-            onFocus={() => { setFocused(true); setActionFocused(true) }}
-            onBlur={() => { setFocused(false); setActionPressed(false); setActionFocused(false) }}
-            accessibilityRole="button"
-            accessibilityLabel={props.actionLabel}
-            style={[styles.action, resolveActionOutline(actionFocused, tokens.fg1)]}
-            testID="toast-action"
-          >
-            <Text style={[styles.actionText, {
-              color: resolveActionColor(props.kind, actionPressed, colors.action, tokens),
-            }]}>
-              {props.actionLabel}
-            </Text>
-          </Pressable></Primitive.Action>
-          <ToastClose visible={canDismiss} dismiss={dismiss} color={tokens.fg2} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
-        </View>
-      ) : null}
+      {props.actionLabel ? <ToastControls props={props} actionClosing={actionClosing} dismiss={dismiss} canDismiss={canDismiss} tokens={tokens} actionColor={colors.action} setFocused={setFocused} /> : null}
     </Primitive.Root>
   )
 }
@@ -251,3 +229,36 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 })
+
+function ToastControls({ props, actionClosing, dismiss, canDismiss, tokens, actionColor, setFocused }: Readonly<{
+  props: Extract<ToastProps, { actionLabel: string }>
+  actionClosing: RefObject<boolean>
+  dismiss: () => void
+  canDismiss: boolean
+  tokens: AppTokensV2
+  actionColor: string
+  setFocused: (focused: boolean) => void
+}>) {
+  const [actionPressed, setActionPressed] = useState(false)
+  const [actionFocused, setActionFocused] = useState(false)
+  return <View style={styles.controls}>
+          {props.actionIcon ? <Primitive.Action asChild><IconButton label={props.actionLabel} onClick={() => { actionClosing.current = true; props.onAction() }} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}><RefreshCw size={20} accessible={false} /></IconButton></Primitive.Action> : <>          <Primitive.Action asChild><Pressable
+            onPress={() => { actionClosing.current = true; props.onAction() }}
+            onPressIn={() => setActionPressed(true)}
+            onPressOut={() => setActionPressed(false)}
+            onFocus={() => { setFocused(true); setActionFocused(true) }}
+            onBlur={() => { setFocused(false); setActionPressed(false); setActionFocused(false) }}
+            accessibilityRole="button"
+            accessibilityLabel={props.actionLabel}
+            style={[styles.action, resolveActionOutline(actionFocused, tokens.fg1)]}
+            testID="toast-action"
+          >
+            <Text style={[styles.actionText, {
+              color: resolveActionColor(props.kind, actionPressed, actionColor, tokens),
+            }]}>
+              {props.actionLabel}
+            </Text>
+          </Pressable></Primitive.Action></>}
+          <ToastClose visible={canDismiss} dismiss={dismiss} color={tokens.fg2} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
+        </View>
+}

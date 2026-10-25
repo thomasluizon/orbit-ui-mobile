@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { useId, useState, type ReactNode, type Ref } from 'react'
@@ -19,7 +21,7 @@ import { ShareCard } from '@/components/share/share-card'
 import { Columns } from '@/components/ui/columns'
 import { useProfile } from '@/hooks/use-profile'
 import { ErrorState } from '@/components/ui/error-state'
-import { Button } from '@/components/ui/pill-button'
+
 import { Skeleton } from '@/components/ui/skeleton'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import {
@@ -120,7 +122,7 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
             <div data-wrapped-figure="primary" className="w-full">
               {isProfileError ? (
                 <ErrorState message={t('wrapped.error')} action={
-                  <Button size="sm" onClick={() => void refetchProfile()}>{t('wrapped.retry')}</Button>
+                  <IconButton label={t('wrapped.retry')} onClick={() => void refetchProfile()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
                 } />
               ) : <Skeleton variant="bar-chart" label={t('wrapped.loading')} />}
             </div>

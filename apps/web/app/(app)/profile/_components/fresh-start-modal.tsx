@@ -1,7 +1,8 @@
 'use client'
 
-import { SPACING } from '@orbit/shared/theme'
+import { IconButton } from '@/components/ui/icon-button'
 
+import { SPACING } from '@orbit/shared/theme'
 
 import { useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -253,9 +254,7 @@ function FreshStartActions({
   if (step === 'info') {
     return (
       <ActionRow>
-        <PillButton size="sm" variant="ghost" onClick={onCancel}>
-          {t('common.cancel')}
-        </PillButton>
+        <IconButton label={t('common.cancel')} onClick={onCancel}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
         <PillButton size="sm" variant="caution" onClick={onContinue}>
           {t('profile.freshStart.reviewDeletion')}
         </PillButton>
@@ -281,9 +280,7 @@ function FreshStartActions({
         </p>
       ) : null}
       <ActionRow>
-        <PillButton size="sm" variant="ghost" disabled={loading} onClick={onCancel}>
-          {t('common.cancel')}
-        </PillButton>
+        <IconButton label={t('common.cancel')} disabled={loading} onClick={onCancel}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
         <PillButton
           size="sm"
           variant="caution"

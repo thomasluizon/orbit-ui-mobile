@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 
 import { ActionRow } from '@/components/ui/action-row'
@@ -63,7 +65,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { FreezeBank } from '@/components/ui/freeze-bank'
-import { ChevronDown, ChevronRight, Lock, Snowflake } from '@/components/ui/icons'
+import { ChevronDown, ChevronRight, Lock, Snowflake, RefreshCw, Plus } from '@/components/ui/icons'
 import { AchievementMark } from '@/components/gamification/achievement-mark'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -75,6 +77,7 @@ import { StatTile } from '@/components/ui/stat-tile'
 import { StatusRing } from '@/components/ui/status-ring'
 import { useGamificationProfile, useRepairStreak, useStreakFreeze } from '@/hooks/use-gamification'
 import { useGoals, useReorderGoals } from '@/hooks/use-goals'
+
 import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useProfile } from '@/hooks/use-profile'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -351,7 +354,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
       <section aria-labelledby={headingId} className="flex w-full flex-col gap-4"><h2 id={headingId} className="sr-only">{t('progressScreen.sections.streak')}</h2>
         <ErrorState
           message={t('progressScreen.error')}
-          action={<PillButton variant="ghost" onClick={() => void freeze.streakQuery.refetch()}>{t('progressScreen.retry')}</PillButton>}
+          action={<IconButton label={t('progressScreen.retry')} onClick={() => void freeze.streakQuery.refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>}
         />
       </section>
     )
@@ -446,13 +449,13 @@ function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
 
 function GoalsEmptyState({ inSection = false, onCreate }: Readonly<{ inSection?: boolean; onCreate: () => void }>) {
   const t = useTranslations()
-  const isDesktop = useIsDesktop()
-  if (!inSection) return <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant={isDesktop ? 'secondary' : 'primary'} onClick={onCreate}>{t('progressScreen.goals.createAction')}</PillButton>} />
-  return <div data-goals-empty className="flex flex-col items-start gap-2 rounded-[12px] bg-[var(--bg-well)] p-4"><p className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.empty')}</p><div data-empty-state-action><PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={onCreate}>{t('progressScreen.goals.createAction')}</PillButton></div></div>
+
+  if (!inSection) return <EmptyState title={t('progressScreen.goals.empty')} action={<IconButton label={t('progressScreen.goals.createAction')} onClick={onCreate}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />
+  return <div data-goals-empty className="flex flex-col items-start gap-2 rounded-[12px] bg-[var(--bg-well)] p-4"><p className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.empty')}</p><div data-empty-state-action><IconButton label={t('progressScreen.goals.createAction')} onClick={onCreate}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton></div></div>
 }
 
 function GoalsSection({ goals, onOpenGoal, onCreate, filter, setFilter }: Readonly<{ goals: readonly Goal[]; onCreate: () => void; filter: ProgressGoalFilter; setFilter: (filter: ProgressGoalFilter) => void; onOpenGoal: (goalId: string) => void }>) {
-  const isDesktop = useIsDesktop()
+
   const t = useTranslations()
   const dragAccessibility = useDragAccessibility(t, (id) => goals.find((goal) => goal.id === id)?.title, t('dragAndDrop.goalInstructions'))
   const reorder = useReorderGoals()
@@ -489,7 +492,7 @@ function GoalsSection({ goals, onOpenGoal, onCreate, filter, setFilter }: Readon
   ] as const
   return (
     <section aria-label={t('progressScreen.sections.goals')} className="flex flex-col gap-section-title-gap">
-      {goals.length > 0 ? <Menu.Root open={filterOpen} onOpenChange={setFilterOpen}><ActionRow><Menu.Trigger asChild><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`}>{t(`progressScreen.goals.${filter}`)}</PillButton></Menu.Trigger><PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={onCreate}>{t('goals.create')}</PillButton></ActionRow>
+      {goals.length > 0 ? <Menu.Root open={filterOpen} onOpenChange={setFilterOpen}><ActionRow><Menu.Trigger asChild><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`}>{t(`progressScreen.goals.${filter}`)}</PillButton></Menu.Trigger><IconButton label={t('goals.create')} onClick={onCreate}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton></ActionRow>
         <Menu.Content title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"
           items={options.map((option) => ({ id: option.value, label: option.label, checked: option.value === filter }))}
           onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} /></Menu.Root> : null}
@@ -546,7 +549,7 @@ function WindowSection() {
       <WindowFrame title={t('progressScreen.sections.window')}>
         <ErrorState
           message={t('progressScreen.error')}
-          action={<PillButton variant="ghost" onClick={() => void retrospective.refetch()}>{t('progressScreen.retry')}</PillButton>}
+          action={<IconButton label={t('progressScreen.retry')} onClick={() => void retrospective.refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>}
         />
       </WindowFrame>
     )
@@ -658,7 +661,7 @@ function ProgressGoalsContent() {
     openingGoalId.current = null
   }, [detailGoalId])
   const t = useTranslations()
-  const isDesktop = useIsDesktop()
+
   const goals = useGoals()
   const allGoals = goals.data?.allGoals ?? []
   const error = goals.isError
@@ -673,7 +676,7 @@ function ProgressGoalsContent() {
         <ProgressSubscreen screen="goals" hideHeader={detailGoalId !== null}>
           <p data-progress-focus tabIndex={-1} className="sr-only">{t('progressScreen.sections.goals')}</p>
           {loading ? <ProgressLoading label={t('progressScreen.loading')} screen="goals" /> : null}
-          {error ? <div className="w-full"><ErrorState message={t('progressScreen.error')} action={<PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
+          {error ? <div className="w-full"><ErrorState message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /></div> : null}
           {empty ? <div className="pt-12"><GoalsEmptyState onCreate={openCreateGoal} /></div> : null}
           {!loading && !error && !empty ? <GoalsSection filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={setDetailGoalId} goals={allGoals} /> : null}
         </ProgressSubscreen>
@@ -706,7 +709,7 @@ function ProgressGamificationContent({ screen }: Readonly<{ screen: 'streak' | '
   const loading = !error && (account.isLoading || (available && gamification.isLoading))
   const retry = () => { void account.refetch(); void gamification.refetch() }
   return <ProgressSubscreen screen={screen}>
-    {error ? <ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={retry}>{t('progressScreen.retry')}</PillButton>} />
+    {error ? <ErrorState message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />
       : loading ? <ProgressLoading label={t('progressScreen.loading')} screen={screen} />
       : screen === 'streak' ? <StreakSection accountProfile={account.profile} canView={available} gamificationProfile={gamification.profile} />
       : <AchievementsSection gamificationAvailable={available} profile={gamification.profile} xpProgress={gamification.xpProgress} />}

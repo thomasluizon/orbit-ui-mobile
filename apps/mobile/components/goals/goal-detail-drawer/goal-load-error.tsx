@@ -1,5 +1,7 @@
-import { usePrefersReducedMotion } from '@/lib/motion'
-import { Pressable, Text, View } from 'react-native'
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
+
+import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { createStyles } from './styles'
 
@@ -13,23 +15,13 @@ interface GoalLoadErrorProps {
 /** Detail-fetch failure notice with a retry affordance; the drawer keeps
  *  rendering the cached list data underneath. */
 export function GoalLoadError({ onRetry, styles }: Readonly<GoalLoadErrorProps>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
+
   const { t } = useTranslation()
 
   return (
     <View>
       <Text style={styles.warningText}>{t('goals.detail.loadError')}</Text>
-      <Pressable
-        onPress={onRetry}
-        accessibilityRole="button"
-        accessibilityLabel={t('common.retry')}
-        style={({ pressed }) => [
-          styles.retryButton,
-          pressed ? [styles.retryButtonPressed, !prefersReducedMotion && { transform: [{ scale: 0.96 }] }] : null,
-        ]}
-      >
-        <Text style={styles.retryText}>{t('common.retry')}</Text>
-      </Pressable>
+      <IconButton label={t('common.retry')} onPress={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
     </View>
   )
 }

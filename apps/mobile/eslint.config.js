@@ -17,6 +17,7 @@ const noPillRadiusOnStatic = require("../../eslint-rules/no-pill-radius-on-stati
 const noOklch = require("../../eslint-rules/no-oklch-outside-web-tokens.cjs")
 const noFullbleedButton = require("../../eslint-rules/no-fullbleed-button.cjs")
 const maxButtonWords = require("../../eslint-rules/max-button-words.cjs")
+const noTextIconAction = require("../../eslint-rules/no-text-icon-action.cjs")
 const animatePresenceExit = require("../../eslint-rules/animate-presence-exit.cjs")
 const animatePresenceStableKey = require("../../eslint-rules/animate-presence-stable-key.cjs")
 const noArbitraryZindex = require("../../eslint-rules/no-arbitrary-zindex.cjs")
@@ -130,6 +131,7 @@ module.exports = defineConfig([
           "no-pill-radius-on-static": noPillRadiusOnStatic,
           "no-oklch-outside-web-tokens": noOklch,
           "max-button-words": maxButtonWords,
+          "no-text-icon-action": noTextIconAction,
         },
       },
     },
@@ -195,6 +197,7 @@ module.exports = defineConfig([
       "local/no-decorative-glow": "error",
       "local/no-raw-gradient": "error",
       "local/max-button-words": ["error", { controls: maxButtonWordControls }],
+      "local/no-text-icon-action": "error",
     },
   },
   {
@@ -254,6 +257,7 @@ module.exports = defineConfig([
     rules: {
       "local/no-fullbleed-button": "off",
       "local/max-button-words": "off",
+      "local/no-text-icon-action": "off",
       "local/no-double-assertion": "off",
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-explicit-any": "off",

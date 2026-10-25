@@ -11,7 +11,6 @@ import type { DroppedMutation } from '@/lib/offline-mutations'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
-
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
 const replace = vi.fn()
@@ -82,7 +81,6 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 vi.mock('@/components/ui/app-text-input', () => ({
   AppTextInput: (props: Record<string, unknown>) => React.createElement('TextInput', props),
 }))
-
 
 interface TestNode {
   type: unknown
@@ -194,10 +192,10 @@ describe('FreshStartModal', () => {
       return Object.assign({}, ...style({ pressed: false }).filter(Boolean)).width
     }
     expect(width('profile.freshStart.reviewDeletion')).toBeUndefined()
-    expect(width('common.cancel')).toBeUndefined()
+    expect(width('common.cancel')).toBe(48)
     await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
     expect(width('profile.freshStart.deleteData')).toBeUndefined()
-    expect(width('common.cancel')).toBeUndefined()
+    expect(width('common.cancel')).toBe(48)
   })
 
   it.each(['choose', 'confirm'] as const)('cancels from the %s step without resetting data', async (step) => {

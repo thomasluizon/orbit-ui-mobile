@@ -1,7 +1,8 @@
 'use client'
 
-import { PADDING, SPACING } from '@orbit/shared/theme'
+import { IconButton } from '@/components/ui/icon-button'
 
+import { PADDING, SPACING } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 
@@ -20,7 +21,7 @@ import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { Input } from '@/components/ui/input'
-import { Key } from '@/components/ui/icons'
+import { Key, RefreshCw, X, Copy, Plus } from '@/components/ui/icons'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -35,7 +36,6 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 import { beginStepUpChallenge, clearPendingApiKeyPermission, readPendingApiKeyPermission, rememberApiKeyCreationPermission, readApiKeyExpiryDraft, retainApiKeyExpiryDraft } from '@/lib/step-up-storage'
 import { accountEventApiBase } from '@/lib/account-event-api-base'
 import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
-
 
 interface ProfileApiKeysProps {
   profile: Profile | undefined
@@ -85,7 +85,7 @@ function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readon
     return (
       <div className="flex flex-col items-start" style={{ gap: 8 }}>
         <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('orbitMcp.apiKeysError')}</p>
-        <PillButton size="sm" variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
+        <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
       </div>
     )
   }
@@ -183,7 +183,7 @@ function CreateKeySheet({
         onAttemptDismiss={busy ? undefined : dismissGuard.requestDismiss}
         actions={(
           <ActionRow>
-            <PillButton size="sm" variant="ghost" disabled={busy} onClick={dismissGuard.requestDismiss}>{t('common.cancel')}</PillButton>
+            <IconButton label={t('common.cancel')} disabled={busy} onClick={dismissGuard.requestDismiss}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
             <PillButton size="sm" disabled={scoped && !scope.trim()} loading={busy} onClick={() => void submit()}>{t('profile.apiKeys.scopeAction')}</PillButton>
           </ActionRow>
         )}
@@ -271,9 +271,7 @@ function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
         </p>
         <div className="flex items-center rounded-[12px] bg-[var(--bg-field)]" style={{ gap: 8, padding: SPACING.s16, boxShadow: 'inset 0 0 0 1px var(--border-control)' }}>
           <code className="min-w-0 flex-1 break-all font-mono text-[12px] text-[var(--fg-2)]">{key}</code>
-          <PillButton size="sm" variant="ghost" onClick={() => void copyKey()}>
-            {copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}
-          </PillButton>
+          <IconButton label={copied ? t('orbitMcp.copied') : t('orbitMcp.copy')} onClick={() => void copyKey()}><Copy size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
         </div>
       </div>
     </Sheet>
@@ -405,19 +403,9 @@ function ApiKeyCreateControls({
         onChange={onReadOnlyChange}
       />
       <ActionRow>
-        {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
-        <PillButton variant="ghost" size="sm" loading={stepUpBusy} disabled={creating || stepUpBusy} onClick={onCreateScoped}>
-          {t('profile.apiKeys.createScoped')}
-        </PillButton>
-        <PillButton
-          variant="secondary"
-          size="sm"
-          disabled={creating || stepUpBusy}
-          loading={stepUpBusy}
-          onClick={onCreate}
-        >
-          {t('profile.apiKeys.create')}
-        </PillButton>
+        { }
+        <IconButton label={t('profile.apiKeys.createScoped')} loading={stepUpBusy} disabled={creating || stepUpBusy} onClick={onCreateScoped}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+        <IconButton label={t('profile.apiKeys.create')} disabled={creating || stepUpBusy} loading={stepUpBusy} onClick={onCreate}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
       </ActionRow>
     </div>
   )
