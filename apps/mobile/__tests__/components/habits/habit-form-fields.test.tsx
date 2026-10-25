@@ -13,6 +13,8 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
 import { __focusHost, __getFocusedNativeTag, __setFocusImpl, __setTouchMode } from '@/test-mocks/react-native'
+import { captureError } from '@/lib/sentry'
+import { createApiClientError } from '@orbit/shared/utils'
 import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selection'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -1140,6 +1142,20 @@ describe('habit tag suggestions', () => {
     useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
   })
   afterEach(async () => { if (tree) await TestRenderer.act(() => tree.unmount()) })
+
+  it.each([409, 500])('handles rejected tag deletion status %i and restores the selection', async (status) => {
+    tagCollection.tags = [{ id: 'existing', name: 'Health', color: '#7c3aed' }]
+    const failure = createApiClientError(status, status === 409 ? { errorCode: 'CONCURRENT_UPDATE_CONFLICT' } : null, 'Failed')
+    tagMutations.delete.mockRejectedValue(failure)
+    modalFeedback.showError.mockClear()
+    vi.mocked(captureError).mockClear()
+    await renderTagForm('Read', '', ['existing'])
+    await TestRenderer.act(() => button('habits.form.deleteTag: Health').props.onPress())
+    await vi.waitFor(() => expect(modalFeedback.showError).toHaveBeenCalledWith(status === 409 ? 'toast.errors.conflict' : 'toast.errors.server'))
+    expect(selected()).toBe('existing')
+    expect(tagMutations.delete).toHaveBeenCalledExactlyOnceWith('existing')
+    expect(captureError).toHaveBeenCalledTimes(status === 500 ? 1 : 0)
+  })
 
   it.each(['settled', 'pending'])('rejects a deleted existing proposal from a %s request while keeping other proposals', async (phase) => {
     tagCollection.tags = [
