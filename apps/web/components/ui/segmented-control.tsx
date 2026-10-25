@@ -50,14 +50,18 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
   return (
     <Primitive.Root value={props.value} onValueChange={changeSelection} disabled={props.disabled} tabIndex={-1} loop
       onKeyDown={(event) => {
-        navigationKey.current = event.key
-        setTimeout(() => { navigationKey.current = '' }, 0)
+        navigationKey.current = event.key === 'Home' || event.key === 'End' ? event.key : ''
       }}
+      onKeyUp={(event) => { if (event.key === navigationKey.current) navigationKey.current = '' }}
       onPointerDownCapture={() => { navigationKey.current = '' }}
       onFocus={(event) => {
         const key = navigationKey.current
+        if (event.target === event.currentTarget || (key !== 'Home' && key !== 'End')) return
+        const enabledOptions = props.options.filter((option) => !option.disabled)
+        const destination = key === 'Home' ? enabledOptions[0] : enabledOptions.at(-1)
+        if (!destination || event.target.getAttribute('value') !== destination.value) return
         navigationKey.current = ''
-        if (event.target !== event.currentTarget && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) event.target.click()
+        event.target.click()
       }}
       aria-label={props.label}
       aria-disabled={props.disabled || undefined}
