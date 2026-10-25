@@ -9,6 +9,7 @@ it.each([false, true])('verifies the real setup turn before a correction; wrongR
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
   let setupRequestId
   vi.stubGlobal('fetch', async (url, options) => {
+    if (new URL(url).pathname === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
     if (new URL(url).pathname === '/api/auth/refresh') return refreshResponse()
     const request = new Request(url, options)
     setupRequestId = request.headers.get('x-orbit-request-id')

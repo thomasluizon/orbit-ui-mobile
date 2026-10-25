@@ -30,7 +30,8 @@ it('refreshes before an attempt and durably rotates only the selected account', 
     expect(JSON.parse(options.body)).toEqual({ refreshToken: 'old-refresh' })
     return Response.json({ token: 'fresh-access', refreshToken: 'rotated-refresh' })
   })
-  vi.stubGlobal('fetch', request)
+  vi.stubGlobal('fetch', (url, options) => new URL(url).pathname === '/health'
+    ? Promise.resolve(Response.json({ status: 'Healthy', commit: null, checks: [] })) : request(url, options))
   await beforeEach(attempt())
   expect(request).toHaveBeenCalledTimes(1)
   expect(process.env.ORBIT_EVAL_TOKEN).toBe('fresh-access')
@@ -45,7 +46,8 @@ it.each(['missing', 'permissions', 'rejected', 'malformed', 'network'])('stops b
     if (failure === 'network') throw new Error('SECRET_REFRESH_TOKEN')
     return failure === 'malformed' ? Response.json({ token: 'secret' }) : Response.json({ error: 'SECRET' }, { status: 401 })
   })
-  vi.stubGlobal('fetch', request)
+  vi.stubGlobal('fetch', (url, options) => new URL(url).pathname === '/health'
+    ? Promise.resolve(Response.json({ status: 'Healthy', commit: null, checks: [] })) : request(url, options))
   await expect(beforeEach(attempt())).rejects.toThrow(/credential|refresh/i)
   expect(process.env.ORBIT_EVAL_TOKEN).toBeUndefined()
   if (['missing', 'permissions'].includes(failure)) expect(request).not.toHaveBeenCalled()
@@ -56,7 +58,8 @@ it('preserves other accounts and consumes the rotated refresh on the next attemp
   const other = { refreshToken: 'other-refresh', habitId: 'other-habit' }
   writeFileSync(path, JSON.stringify({ ORBIT_EVAL_TOKEN: { refreshToken: 'old-refresh' }, ORBIT_EVAL_FREE_TOKEN: other }))
   let refresh = 'old-refresh'
-  vi.stubGlobal('fetch', async (_, options) => {
+  vi.stubGlobal('fetch', async (url, options) => {
+    if (new URL(url).pathname === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
     expect(JSON.parse(options.body).refreshToken).toBe(refresh)
     refresh += '-rotated'
     return Response.json({ token: 'fresh-access', refreshToken: refresh })
@@ -69,7 +72,8 @@ it('rejects a concurrent rotation and never reveals transport secrets', async ()
   const path = credentials()
   writeFileSync(`${path}.lock`, '', { mode: 0o600 })
   const request = vi.fn(async () => { throw new Error('SECRET_TOKEN') })
-  vi.stubGlobal('fetch', request)
+  vi.stubGlobal('fetch', (url, options) => new URL(url).pathname === '/health'
+    ? Promise.resolve(Response.json({ status: 'Healthy', commit: null, checks: [] })) : request(url, options))
   await expect(refreshCredential('ORBIT_EVAL_TOKEN')).rejects.toThrow('Credential refresh failed')
   expect(request).not.toHaveBeenCalled()
   rmSync(`${path}.lock`)
@@ -80,3 +84,42 @@ it('rejects a concurrent rotation and never reveals transport secrets', async ()
 })
 
 vi.mock('../fixtures/reset.mjs', async (importOriginal) => ({ ...await importOriginal(), resetFixture: vi.fn() }))
+
+it('waits for a healthy cold API before refreshing and reuses readiness across attempts', async () => {
+  credentials()
+  vi.useFakeTimers()
+  const paths = []
+  const timeouts = vi.spyOn(AbortSignal, 'timeout')
+  vi.stubGlobal('fetch', async (url) => {
+    const path = new URL(url).pathname
+    paths.push(path)
+    if (path === '/health') return Response.json({ status: paths.length === 1 ? 'Unhealthy' : 'Healthy', commit: null, checks: [] }, { status: paths.length === 1 ? 503 : 200 })
+    return Response.json({ token: 'fresh-access', refreshToken: 'rotated-refresh' })
+  })
+  try {
+    const pending = refreshCredential('ORBIT_EVAL_TOKEN')
+    await vi.advanceTimersByTimeAsync(45000)
+    await pending
+    await refreshCredential('ORBIT_EVAL_TOKEN')
+    expect(paths).toEqual(['/health', '/health', '/api/auth/refresh', '/api/auth/refresh'])
+    expect(timeouts.mock.calls.at(-1)[0]).toBeGreaterThanOrEqual(120000)
+  } finally { vi.useRealTimers(); timeouts.mockRestore() }
+})
+
+it('bounds unhealthy startup without ever submitting a rotating refresh', async () => {
+  credentials()
+  vi.useFakeTimers()
+  const paths = []
+  vi.stubGlobal('fetch', async (url) => {
+    paths.push(new URL(url).pathname)
+    return Response.json({ status: 'Unhealthy', commit: null, checks: [] }, { status: 503 })
+  })
+  try {
+    const pending = refreshCredential('ORBIT_EVAL_TOKEN').catch((error) => error)
+    await vi.advanceTimersByTimeAsync(240000)
+    expect((await pending).message).toMatch(/healthy|wake/i)
+    expect(paths.length).toBeGreaterThan(1)
+    expect(paths.every((path) => path === '/health')).toBe(true)
+    expect(process.env.ORBIT_EVAL_TOKEN).toBeUndefined()
+  } finally { vi.useRealTimers() }
+})

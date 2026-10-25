@@ -156,7 +156,8 @@ describe('source-derived trace through the installed HTTP provider', () => {
 
   it('generates a fresh request identity after each reset', async () => {
     offlineCredentials()
-    vi.stubGlobal('fetch', async () => refreshResponse())
+    vi.stubGlobal('fetch', async (url) => new URL(url).pathname === '/health'
+      ? Response.json({ status: 'Healthy', commit: null, checks: [] }) : refreshResponse())
       const test = { metadata: { id: 'offline' }, vars: { credentialKey: 'ORBIT_EVAL_TOKEN' } }
     const first = (await beforeEach({ test })).test.vars.evalRequestId
     const second = (await beforeEach({ test })).test.vars.evalRequestId

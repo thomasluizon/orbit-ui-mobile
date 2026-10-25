@@ -157,7 +157,8 @@ describe('HTTP provider wiring without a server', () => {
     vi.stubEnv(credentialKey, 'expired-token')
     let requests = 0
     vi.stubGlobal('fetch', async (url, options) => {
-      if (new URL(url).pathname === '/api/auth/refresh') return refreshResponse()
+      if (new URL(url).pathname === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
+    if (new URL(url).pathname === '/api/auth/refresh') return refreshResponse()
       requests++
       const request = new Request(url, options)
       expect(request.url).toBe('https://astra.invalid/api/chat')
@@ -222,7 +223,8 @@ describe('corpus and execution constraints', () => {
   })
   it('resets before each attempt and resolves IDs in prompts and expectations', async () => {
     offlineCredentials()
-    vi.stubGlobal('fetch', async () => refreshResponse())
+    vi.stubGlobal('fetch', async (url) => new URL(url).pathname === '/health'
+      ? Response.json({ status: 'Healthy', commit: null, checks: [] }) : refreshResponse())
       vi.stubEnv('ORBIT_EVAL_HABIT_ID', 'actual-water')
     const test = structuredClone(scenarios.find((scenario) => scenario.metadata.id === 'single-log-en'))
     expect((await beforeEach({ test })).test.vars.expectations.required[0].arguments.habit_id).toBe('actual-water')

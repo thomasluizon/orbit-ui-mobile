@@ -41,6 +41,7 @@ it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))])('establishe
 })
 it('preserves registered IDs across completion, skip, empty and restoration resets', async () => {
   await runReset('composition-writes-outcomes-en')
+  expect(requests.slice(0, 2).map(({ path }) => path)).toEqual(['health', 'auth/refresh'])
   const original = JSON.parse(readFileSync(process.env.ORBIT_EVAL_CREDENTIALS_FILE, 'utf8')).ORBIT_EVAL_TOKEN
   await resetFixture(scenario('skipped'))
   await resetFixture(scenario('empty'))
@@ -99,7 +100,7 @@ it('drives refresh, default reset, independent readback and ID substitution thro
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'expired-access')
   const source = structuredClone(corpus.find((entry) => entry.metadata.id === 'single-log-en'))
   const { test } = await prepareAttempt({ test: source })
-  expect(requests[0].path).toBe('auth/refresh')
+  expect(requests.slice(0, 2).map(({ path }) => path)).toEqual(['health', 'auth/refresh'])
   expect(requests.at(-1).path).toBe('profile/export')
   const account = JSON.parse(readFileSync(process.env.ORBIT_EVAL_CREDENTIALS_FILE, 'utf8')).ORBIT_EVAL_TOKEN
   expect(test.vars.input).toContain(account.habitId)
