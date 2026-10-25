@@ -14,15 +14,14 @@ Check free disk first (`df -g /System/Volumes/Data`); the floor is 50 GiB (about
 
 ## Goal
 
-Finish the spec: every requested production fix, the Astra overhaul, the owner reports, deferred asset and email work, verified releases and an empty board, in `## The order`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: open 41, placed 41 (`#1726` placed in Batch 8 and `#1727` in Batch 0c, both new this session; `#1722` stays placed until production web serves `7ca6c9d2d`, then close it), unplaced 0, placed twice 0. Newly filed scope gets exactly one order bullet in the session it arrives. An external interruption is the only earlier ending.
+Finish the spec: every requested production fix, the Astra overhaul, the owner reports, deferred asset and email work, verified releases and an empty board, in `## The order`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: open 40, placed 40 (`#1726` placed in Batch 8 and `#1727` in Batch 0c, both new this session; `#1722` closed and removed), unplaced 0, placed twice 0. Newly filed scope gets exactly one order bullet in the session it arrives. An external interruption is the only earlier ending.
 
 ## In flight
 
-UI `main` is `7ca6c9d2d`, API `main` is `dc9b3138`, landing `main` is `14293563`. Staging web serves `7ca6c9d2d`; production web was dispatched at `7ca6c9d2d` (run 40186627838; verify it with `wait-release.mjs` if the relay finished first). Staging and production API `430acd76`. Landing staging and production `14293563`. Android Open 1.3.98 (157) is live. Read every worktree named below first: a finished worker leaves commits, a dirty tree or nothing.
+UI `main` is `7ca6c9d2d`, API `main` is `dc9b3138`, landing `main` is `14293563`. Staging and production web serve `7ca6c9d2d` (runs 40186043154 and 40186627838, verified). Staging and production API `430acd76`. Landing staging and production `14293563`. Android Open 1.3.98 (157) is live. Read every worktree named below first: a finished worker leaves commits, a dirty tree or nothing.
 
 | Item | Disposition |
 | --- | --- |
-| `#1722` (`ui#2061`) | Merged `7ca6c9d2d`. Close with release evidence once production web serves it. |
 | `ui#2064` (`#556`) | Head `e91f83563`, Pullfrog COMMENTED, 0 threads, one P3 in the body: `packages/shared/CONTRACT_DRIFT.md` lines 84 to 99 still describe `redesign-drift.yml` and the deleted reusable workflow. Fix it (review round or an orchestrator review fix), edit the body, push once, fresh approval, merge. Then update the protected references the body's table lists (spec routing rules, skills and rules that name `redesign/main`), tag `archive/redesign-main-<date>` at `origin/redesign/main` `bd2336d2e` and delete the branch. |
 | `ui#2062` (`#1725`) | Head `3cec1fd21`, Pullfrog COMMENTED, thread `PRRT_kwDOR5Siws6wAkef` (include the root `turbo.json` in the shared test inputs), and a failing check at that head: read it, then one review round, push once, approval, merge. Whichever of `ui#2062` and `ui#2064` merges second removes `contract-rebaseline-redesign.yml` from `turbo.json` and the `turbo-inputs` fixture row. |
 | `ui#2063` (`#1727`) | Head `8ae367137`, Pullfrog COMMENTED, thread `PRRT_kwDOR5Siws6wAo1-` (a phrase that needs Astra loses its deferred replay because the account-today initializer cancels the queued interpretation). One review round, push once, approval, merge, web release. |
@@ -57,7 +56,7 @@ Unattended run. Never ask the owner; decide with the recommended option and log 
 ## Previous prompt, disposition
 
 - Reading list, entry point, scratchpad and carry procedures, Sleep and Crank rules, helper list: carried (decision log pointer moved to `28612e02`; helpers added; the `--wait-seconds 1`, Docker and missing-report notes added; the no-invented-rules line added from the owner's standing feedback).
-- `ui#2061` (`#1722`) row: done (round 1 plus an orchestrator fix for a bash 5 `set -u` stub red, `PRRT_kwDOR5Siws6v_tJ_` resolved, approved, merged `7ca6c9d2d`, staging web verified, production web dispatched).
+- `ui#2061` (`#1722`) row: done (round 1 plus an orchestrator fix for a bash 5 `set -u` stub red, `PRRT_kwDOR5Siws6v_tJ_` resolved, approved, merged `7ca6c9d2d`, staging and production web verified, `#1722` closed).
 - `ui#2057` (`#579`) row: carried (diff of `149ea29e5` read; suites started, result in the scratchpad).
 - `#556` row: done as delivery (`ui#2064` opened with the containment table; harnesses pass); carried for the P3 fix, merge, protected references, tag and branch deletion.
 - `ui#2052` and `ui#2050` row: carried (both reds pass alone; root cause of the layout red filed as `#1727`; shard rerun requested; full layout run detached).
