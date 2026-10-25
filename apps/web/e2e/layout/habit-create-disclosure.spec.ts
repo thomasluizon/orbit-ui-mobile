@@ -137,6 +137,39 @@ for (const locale of ['pt-BR', 'en'] as const) {
   }
 }
 
+for (const locale of ['en', 'pt-BR'] as const) {
+  test.describe(`habit date before profile loading in ${locale}`, () => {
+    test.use({ appLocale: locale, layoutProfile: { themePreference: 'light' }, viewport: { width: 384, height: 1000 } })
+    test('applies the typed date after the profile response is released', async ({ page }) => {
+      let releaseProfile!: () => void
+      const profileReady = new Promise<void>((resolve) => { releaseProfile = resolve })
+      await page.route(`**${API.profile.get}`, async (route) => {
+        await profileReady
+        await route.continue()
+      })
+      const messages = locale === 'en' ? en : ptBr
+      const wording = locale === 'en' ? 'on the 26th' : 'dia 26'
+      const screen = page.locator('[data-habit-create-screen]')
+      const phrase = screen.getByRole('textbox', { name: messages.habits.form.datePhrase, exact: true })
+      const date = screen.getByRole('button', { name: new RegExp(messages.habits.form.taskDate) })
+      try {
+        await page.goto('/habits/new')
+        await page.addStyleTag({ content: ':root{font-size:32px!important}' })
+        await screen.getByRole('radio', { name: messages.habits.form.typeTask, exact: true }).click()
+        await phrase.fill(wording)
+        await expect(phrase).toHaveValue(wording)
+        await expect(date).toHaveText(messages.common.selectDate)
+      } finally {
+        releaseProfile()
+      }
+      await expect(date).toHaveText(formatLocaleDate('2026-09-26', locale))
+      await expect(phrase).toHaveValue(wording)
+      await expect(phrase).not.toHaveAttribute('aria-invalid', 'true')
+      await expect(screen.getByRole('status', { name: messages.habits.form.dateInterpreted, exact: true })).toHaveCount(0)
+    })
+  })
+}
+
 for (const locale of ['pt-BR', 'en'] as const) {
   for (const unavailable of ['offline', 'allowance'] as const) {
     test.describe(`automatic habit date recovery in ${locale} when ${unavailable}`, () => {
