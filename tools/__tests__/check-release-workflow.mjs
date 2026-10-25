@@ -1,6 +1,6 @@
 import { load } from "js-yaml"
 import { execFileSync, spawnSync } from "node:child_process"
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { BASH, T, root, stage, toolPath } from "./_harness.mjs"
 
@@ -30,13 +30,26 @@ function checkProductionSteps() {
   const summary = stage("release-workflow/summary", "")
   const calls = join(root, "release-workflow/calls")
   const environment = {
-    ...process.env, SERVICE_RESPONSE: servicePath, HEALTH_RESPONSE: healthPath, DEPLOYMENT_RESPONSE: deploymentPath,
+    ...process.env, GITHUB_WORKSPACE: toolPath(".."), SERVICE_RESPONSE: servicePath, HEALTH_RESPONSE: healthPath, DEPLOYMENT_RESPONSE: deploymentPath,
     GITHUB_OUTPUT: output, GITHUB_STEP_SUMMARY: summary, CALLS: calls,
     SOURCE_SHA: renderFixture.health.commit, SERVICE_ID: "srv-production", SERVICE_VARIABLE: "RENDER_WEB_SERVICE_ID",
     RENDER_API_KEY: "fixture", IMAGE: "ghcr.io/thomasluizon/orbit-web", DIGEST: "sha256:fixture", SERVICE_FAILURE: "false",
     PRODUCTION_WEB_HOST: "public.example.invalid", GH_TOKEN: "fixture", GITHUB_REPOSITORY: "example/repository",
   }
-  const run = (name, stub, overrides = {}) => spawnSync(BASH, ["-c", `${stub}\n${stepScript(name)}`], {
+  const readAdapter = `
+    eval "$(declare -f curl | sed '1s/curl/curl_response/')"
+    curl() {
+      local output='' argument previous='' read=false
+      for argument in "$@"; do
+        [[ "$previous" == -o ]] && output="$argument"
+        [[ "$argument" == --retry-all-errors ]] && read=true
+        previous="$argument"
+      done
+      if $read; then curl_response "$@" > "$output" || return "$?"; printf 200
+      else curl_response "$@"; fi
+    }
+  `
+  const run = (name, stub, overrides = {}) => spawnSync(BASH, ["-c", `${stub}\n${readAdapter}\n${stepScript(name)}`], {
     encoding: "utf8", cwd: root, env: { ...environment, ...overrides }, timeout: 5000,
   })
   const healthStub = `
@@ -83,6 +96,8 @@ function checkProductionSteps() {
         done
         jq -nc --arg ref "$IMAGE@$DIGEST" '{id:"fixture-deploy",image:{ref:$ref,sha:"fixture"},status:"created",trigger:"api",createdAt:"<ISO-8601 timestamp>",updatedAt:"<ISO-8601 timestamp>"}' > "$response"
         printf 201
+      elif [[ "$endpoint" == */deploys[?]* ]]; then
+        printf '[]'
       else
         jq -nc --arg status "$DEPLOY_STATUS" '{status:$status}'
       fi
@@ -97,7 +112,7 @@ function checkProductionSteps() {
     const requests = readFileSync(calls, "utf8").trim().split("\n")
     T("production reads the shutdown delay before requesting a deploy without changing it",
       requests[0].includes("https://api.render.com/v1/services/srv-production ") &&
-      requests[1]?.includes("-X POST") && !requests.some((request) => request.includes("PATCH")))
+      requests[1]?.includes("/deploys?limit=100") && requests[2]?.includes("-X POST") && !requests.some((request) => request.includes("PATCH")))
   }
   for (const [label, response, failure] of [
     ["missing", readFileSync(servicePath, "utf8"), false],
@@ -115,14 +130,14 @@ function checkProductionSteps() {
     const requests = readFileSync(calls, "utf8").trim().split("\n")
     T(`production rejects ${label} shutdown readback before deploying`, result.status !== 0 &&
       result.stderr.includes("render_web_service.production_web") && result.stderr.includes("orbit-api") &&
-      result.stderr.includes("infra/production.tf") && requests.length === 1 && !requests[0].includes("-X POST"), result.stdout + result.stderr)
+      result.stderr.includes("infra/production.tf") && requests.length === (failure ? 3 : 1) && !requests[0].includes("-X POST"), result.stdout + result.stderr)
   }
   stage("release-workflow/calls", "")
   const staging = run("Deploy staging web digest", deployStub, { DEPLOY_STATUS: "live" })
   const stagingRequests = readFileSync(calls, "utf8").trim().split("\n")
   T("free staging deploys without reading or writing a shutdown setting", staging.status === 0 &&
-    stagingRequests.length === 2 && stagingRequests[0].includes("-X POST") &&
-    stagingRequests[1].includes("/deploys/fixture-deploy") && !stagingRequests.some((request) => request.includes("PATCH")), staging.stderr)
+    stagingRequests.length === 3 && stagingRequests[0].includes("/deploys?limit=100") && stagingRequests[1].includes("-X POST") &&
+    stagingRequests[2].includes("/deploys/fixture-deploy") && !stagingRequests.some((request) => request.includes("PATCH")), staging.stderr)
   const missing = run("Deploy web digest", "curl() { return 99; }", { SERVICE_ID: "" })
   T("missing production service fails before any request", missing.status === 1 && missing.stderr.includes("Missing RENDER_WEB_SERVICE_ID"))
   const payload = stage("release-workflow/payload", "")
@@ -134,6 +149,157 @@ function checkProductionSteps() {
     records[0].ref === environment.SOURCE_SHA && records[0].payload.source_ref === "main" &&
     records[0].environment === "production" && records[0].production_environment === true &&
     records[1].environment === "production" && records[1].state === "success", record.stderr)
+}
+
+function checkRenderRetries() {
+  const fixture = JSON.parse(readFileSync(toolPath("__tests__/render-web-deploy-fixture.json"), "utf8"))
+  const directory = join(root, "render-retries")
+  mkdirSync(directory, { recursive: true })
+  const calls = join(directory, "calls")
+  const stub = `
+    curl() {
+      local endpoint argument output='' headers='' write_code=false post=false retries=false fail=false
+      for argument in "$@"; do
+        [[ "$argument" == https://api.render.com/* ]] && endpoint="$argument"
+        [[ "$argument" == --retry-all-errors ]] && retries=true
+        [[ "$argument" == --fail || "$argument" == -fsS ]] && fail=true
+      done
+      printf '%s\\n' "$*" >> "$CALLS"
+      while (( $# )); do
+        case "$1" in
+          -o|--output) output="$2"; shift ;;
+          -D|--dump-header) headers="$2"; shift ;;
+          -w|--write-out) write_code=true; shift ;;
+          -X) [[ "$2" == POST ]] && post=true; shift ;;
+        esac
+        shift
+      done
+      [[ -n "$headers" ]] && : > "$headers"
+      local body code=200 count=0 elapsed limited_until=0
+      [[ -f "$RATE_LIMIT_UNTIL" ]] && limited_until=$(cat "$RATE_LIMIT_UNTIL")
+      if [[ "$SCENARIO" == *429 && "$limited_until" == 0 ]]; then
+        limited_until=7
+        [[ "$SCENARIO" == poll-429 ]] && limited_until=17
+        printf '%s' "$limited_until" > "$RATE_LIMIT_UNTIL"
+      fi
+      count=$(cat "$COUNTER")
+      elapsed=$(cat "$ELAPSED")
+      if $post; then
+        count=$((count + 1)); printf '%s' "$count" > "$COUNTER"
+        if [[ "$SCENARIO" == lost-* || "$SCENARIO" == historical-* || "$SCENARIO" == exhausted ]]; then
+          if [[ "$count" == 1 || "$SCENARIO" == exhausted ]]; then
+            $write_code && printf 000
+            return 56
+          fi
+        fi
+        code=201; body=$(jq '.[0].deploy' "$DEPLOYS")
+        case "$SCENARIO" in
+          post-4xx) code=401 ;;
+          post-429) if (( elapsed < limited_until )); then code=429; fi ;;
+          post-dns|post-connect) if (( count == 1 )); then printf 000; return "$TRANSPORT_EXIT"; fi ;;
+          post-ambiguous-*) if [[ "$SCENARIO" == post-ambiguous-http ]]; then printf 200; else printf 000; fi; return "$TRANSPORT_EXIT" ;;
+          post-5xx) code=503 ;;
+          queued) code=202; body='' ;;
+          wrong-image) body=$(jq '.image.ref="other"' <<< "$body") ;;
+        esac
+      elif [[ "$endpoint" == */deploys[?]* || "$endpoint" == */deploys ]]; then
+        local lists=0
+        [[ -f "$LIST_COUNTER" ]] && lists=$(cat "$LIST_COUNTER")
+        lists=$((lists + 1)); printf '%s' "$lists" > "$LIST_COUNTER"
+        local historical
+        historical=$(jq '[.[0] | .deploy.id="historical-deploy" | .deploy.status="canceled"]' "$DEPLOYS")
+        if (( count == 0 )); then
+          case "$SCENARIO" in historical-*) body="$historical" ;; *) body='[]' ;; esac
+        else
+        case "$SCENARIO" in
+          historical-only) body="$historical" ;;
+          historical-first) body=$(jq -s '.[0] + .[1]' <(printf '%s' "$historical") "$DEPLOYS") ;;
+          historical-last) body=$(jq -s '.[1] + .[0]' <(printf '%s' "$historical") "$DEPLOYS") ;;
+          lost-delayed) if (( lists < 3 )); then body='[]'; else body=$(cat "$DEPLOYS"); fi ;;
+          lost-empty|exhausted|post-429) body='[]' ;;
+          lost-wrong) body=$(jq '.[0].deploy.image.ref="other"' "$DEPLOYS") ;;
+          lost-list-fails) return 22 ;;
+          lost-malformed) body='{}' ;;
+          lost-invalid-entry) body='[{}]' ;;
+          lost-response) body=$(jq '[.[0] | .deploy.id="other" | .deploy.image.ref="other"] + .' "$DEPLOYS") ;;
+          *) body=$(cat "$DEPLOYS") ;;
+        esac
+        fi
+        if [[ "$SCENARIO" == read-429 ]] && (( elapsed < limited_until )); then code=429; fi
+      elif [[ "$endpoint" == */deploys/* ]]; then
+        if [[ "$SCENARIO" == poll-transient && ! -f "$POLL_COUNTER" ]]; then
+          printf 1 > "$POLL_COUNTER"; $write_code && printf 000; return 56
+        fi
+        if [[ "$SCENARIO" == poll-4xx ]]; then code=404; fi
+        if [[ "$SCENARIO" == poll-429 ]] && (( elapsed < limited_until )); then code=429; fi
+        if [[ "$endpoint" == */historical-deploy ]]; then
+          body=$(jq '.[0].deploy | .status="canceled"' "$DEPLOYS")
+        else body=$(jq '.[0].deploy' "$DEPLOYS"); fi
+      else
+        body=$(cat "$SERVICE_RESPONSE")
+      fi
+      if [[ "$code" == 429 && -n "$headers" ]]; then printf 'HTTP/2 429\\r\\nretry-after: 7\\r\\n\\r\\n' > "$headers"; fi
+      if [[ -n "$output" ]]; then printf '%s' "$body" > "$output"; else printf '%s' "$body"; fi
+      $write_code && printf '%s' "$code"
+      if [[ "$code" == 4* || "$code" == 5* ]] && $fail; then return 22; fi
+      return 0
+    }
+    sleep() {
+      local elapsed
+      elapsed=$(cat "$ELAPSED")
+      printf '%s' "$((elapsed + $1))" > "$ELAPSED"
+      printf 'sleep %s\\n' "$1" >> "$CALLS"
+    }
+  `
+  for (const step of ["Deploy web digest", "Deploy staging web digest"]) {
+    for (const [scenario, accepted, posts] of [
+      ["poll-transient", true, 1], ["lost-response", true, 1], ["lost-empty", false, 1],
+      ["lost-wrong", false, 1], ["lost-list-fails", false, 1], ["lost-malformed", false, 1], ["lost-invalid-entry", false, 1],
+      ["post-4xx", false, 1], ["poll-4xx", false, 1], ["queued", false, 1],
+      ["wrong-image", false, 1], ["exhausted", false, 1],
+      ["lost-delayed", true, 1], ["post-429", true, 2], ["read-429", true, 1], ["poll-429", true, 1],
+      ["historical-only", false, 1], ["historical-first", true, 1], ["historical-last", true, 1],
+      ["post-dns", true, 2], ["post-connect", true, 2], ["post-ambiguous-28", true, 1], ["post-ambiguous-52", true, 1],
+      ["post-ambiguous-55", true, 1], ["post-ambiguous-56", true, 1], ["post-ambiguous-http", true, 1], ["post-5xx", true, 1],
+    ]) {
+      writeFileSync(calls, "")
+      const counter = stage("render-retries/count", "0")
+      const pollCounter = join(directory, `${step}-${scenario}-poll`)
+      rmSync(pollCounter, { force: true })
+      const result = spawnSync(BASH, ["-c", `${stub}\n${stepScript(step)}`], {
+        encoding: "utf8", cwd: root, timeout: 5000, env: {
+          ...process.env, GITHUB_WORKSPACE: toolPath(".."), SERVICE_ID: "srv-production", SERVICE_VARIABLE: "RENDER_WEB_SERVICE_ID",
+          RENDER_API_KEY: "fixture", IMAGE: "ghcr.io/example/web", DIGEST: "sha256:fixture", SCENARIO: scenario,
+          SERVICE_RESPONSE: stage("render-retries/service", JSON.stringify(renderFixture.shutdownService)),
+          DEPLOYS: stage("render-retries/deploys", JSON.stringify(fixture.deploys)), COUNTER: counter, CALLS: calls, POLL_COUNTER: pollCounter,
+          LIST_COUNTER: stage("render-retries/list-count", "0"), ELAPSED: stage("render-retries/elapsed", "0"),
+          RATE_LIMIT_UNTIL: stage("render-retries/rate-limit-until", "0"),
+          TRANSPORT_EXIT: scenario === "post-dns" ? "6" : scenario === "post-connect" ? "7" : scenario.match(/post-ambiguous-(\d+)/)?.[1] ?? "28",
+        },
+      })
+      T(`${step} ${scenario} ${accepted ? "reaches live" : "fails"} with ${posts} POSTs`,
+        (accepted ? result.status === 0 && result.stdout.includes("is live") : result.status !== 0) &&
+        Number(readFileSync(counter, "utf8")) === posts, result.stdout + result.stderr)
+      if (scenario.startsWith("historical-")) {
+        T(`${step} ${scenario} never follows the historical deploy`,
+          !readFileSync(calls, "utf8").includes("/deploys/historical-deploy"), result.stdout + result.stderr)
+      }
+      if (scenario.endsWith("429")) {
+        T(`${step} ${scenario} waits for Retry-After`, readFileSync(calls, "utf8").includes("sleep 7"), result.stdout + result.stderr)
+      }
+      if (scenario === "lost-empty" || scenario === "historical-only") {
+        T(`${step} ${scenario} explains unresolved acceptance`, result.stderr.includes("ghcr.io/example/web@sha256:fixture") &&
+          result.stderr.includes("check the service's deploys before dispatching again"), result.stderr)
+      }
+      if (scenario === "poll-transient") {
+        const polls = readFileSync(calls, "utf8").split("\n").filter(line => line.includes("/deploys/fixture-deploy"))
+        const poll = polls[0] ?? ""
+        T(`${step} retries the failed first status poll`, polls.length === 2, polls.join("\n"))
+        T(`${step} bounds curl read retries and timeouts`,
+          poll.includes("--retry 3") && poll.includes("--retry-all-errors") && poll.includes("--retry-delay 2") && poll.includes("--max-time 30"), poll)
+      }
+    }
+  }
 }
 
 function checkSourceIdentity() {
@@ -185,8 +351,11 @@ function checkPinnedRelease() {
     ["ok", "b".repeat(40), "true", true],
   ]) {
     const health = stage("release-admission/health", JSON.stringify({ ...renderFixture.health, status, commit }))
-    const result = spawnSync(BASH, ["-c", `curl() { if [[ "$*" == *api.render.com* ]]; then cat "$SERVICE_RESPONSE"; else cat "$HEALTH_RESPONSE"; fi; }\n${script}`], { encoding: "utf8", env: {
-      ...process.env, SOURCE_SHA: renderFixture.health.commit, FORCE_UNSTAGED: override,
+    const result = spawnSync(BASH, ["-c", `curl() { if [[ "$*" == *api.render.com* ]]; then
+      local output='' previous='' argument; for argument in "$@"; do [[ "$previous" == -o ]] && output="$argument"; previous="$argument"; done
+      cat "$SERVICE_RESPONSE" > "$output"; printf 200
+      else cat "$HEALTH_RESPONSE"; fi; }\n${script}`], { encoding: "utf8", env: {
+      ...process.env, GITHUB_WORKSPACE: toolPath(".."), SOURCE_SHA: renderFixture.health.commit, FORCE_UNSTAGED: override,
       STAGING_SERVICE_ID: "srv-staging", RENDER_API_KEY: "fixture",
       SERVICE_RESPONSE: stage("release-admission/service", JSON.stringify(renderFixture.service)),
       HEALTH_RESPONSE: health, GITHUB_STEP_SUMMARY: summary,
@@ -230,6 +399,7 @@ export function cases() {
     ...process.env, GITHUB_REF_NAME: "feature/release", RELEASE_ENVIRONMENT: "production", SOURCE_BRANCH: "main",
   } })
   T("production dispatches the workflow from main", wrongWorkflow.status === 1 && wrongWorkflow.stdout.includes("Dispatch release.yml from main"))
+  checkRenderRetries()
   checkProductionSteps()
   checkPinnedRelease()
   checkSourceIdentity()
