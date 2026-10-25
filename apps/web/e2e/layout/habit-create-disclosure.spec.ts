@@ -1,7 +1,36 @@
-import { expect } from '@playwright/test'
+import { expect, type Locator } from '@playwright/test'
+import { API } from '@orbit/shared/api'
+import { dateInterpretationSchema } from '@orbit/shared/types/habit'
+import { formatLocaleDate } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { test } from './upgrade-fixtures'
+import { setLayoutFixtureSession } from './profile-session'
+import { LAYOUT_FIXED_TIME } from './clock.mjs'
+
+async function assertInlineGlyph(phrase: Locator, glyph: Locator, date: Locator) {
+  const mark = glyph.locator('[data-asset="astra-mark-16"]')
+  await expect(mark).toHaveCount(1)
+  await expect(mark).toHaveAttribute('color', 'var(--fg-3)')
+  await expect(glyph).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await expect(glyph).toHaveCSS('border-width', '0px')
+  await expect(glyph).toHaveCSS('box-shadow', 'none')
+  const field = phrase.locator('xpath=ancestor::div[@data-focus-perimeter]')
+  const fieldBounds = (await field.boundingBox())!
+  const inputBounds = (await phrase.boundingBox())!
+  const glyphBounds = (await mark.boundingBox())!
+  const dateBounds = (await date.boundingBox())!
+  expect(glyphBounds.x).toBeGreaterThanOrEqual(inputBounds.x + inputBounds.width - 1)
+  expect(glyphBounds.x + glyphBounds.width).toBeLessThanOrEqual(fieldBounds.x + fieldBounds.width)
+  expect(fieldBounds.x + fieldBounds.width - glyphBounds.x - glyphBounds.width).toBeLessThanOrEqual(40)
+  expect(glyphBounds.y).toBeGreaterThanOrEqual(fieldBounds.y)
+  expect(glyphBounds.y + glyphBounds.height).toBeLessThanOrEqual(fieldBounds.y + fieldBounds.height)
+  expect(glyphBounds.width).toBe(16)
+  expect(glyphBounds.height).toBe(16)
+  expect(dateBounds.y).toBeGreaterThanOrEqual(fieldBounds.y + fieldBounds.height)
+  expect(dateBounds.width).toBeGreaterThanOrEqual(48)
+  expect(dateBounds.height).toBeGreaterThanOrEqual(48)
+}
 
 for (const locale of ['pt-BR', 'en'] as const) {
   for (const width of [412, 1280]) {
@@ -35,8 +64,11 @@ for (const locale of ['pt-BR', 'en'] as const) {
     for (const mode of ['dark', 'light'] as const) {
       for (const scale of [1, 2]) {
         test.describe(`restored habit form ${locale} ${mode} ${width}px ${scale}x`, () => {
-          test.use({ appLocale: locale, layoutProfile: { themePreference: mode }, viewport: { width, height: 1000 } })
-          test('keeps required type, local date, recovery and accepted proposal controls distinct', async ({ page }) => {
+          test.use({ appLocale: locale, layoutProfile: { themePreference: mode, aiMessagesUsed: 0, aiMessagesLimit: 5 }, viewport: { width, height: 1000 } })
+          test('keeps required type, local date, recovery and automatic interpretation distinct', async ({ page, context }) => {
+            const interpretedDate = '2026-09-27'
+            const interpreted = dateInterpretationSchema.parse({ date: interpretedDate, referenceDate: LAYOUT_FIXED_TIME.slice(0, 10) })
+            await setLayoutFixtureSession(context, [{ method: 'POST', path: API.habits.interpretDate, body: interpreted, delayMs: 3000 }])
             await page.goto('/habits/new')
             const messages = locale === 'en' ? en : ptBr
             if (scale === 2) await page.addStyleTag({ content: ':root{font-size:32px!important}' })
@@ -55,6 +87,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
             await expect(date).toBeVisible()
             await expect(screen.getByRole('button', { name: messages.habits.form.moreDetails, exact: true })).toHaveAttribute('aria-expanded', 'false')
             await phrase.fill(locale === 'en' ? 'on the 26th' : 'dia 26')
+            await expect(date).toHaveText(formatLocaleDate('2026-09-26', locale))
             await expect(screen.getByRole('button', { name: messages.habits.form.suggestDate, exact: true })).toHaveCount(0)
             await phrase.fill(locale === 'en' ? 'February 31' : '31 de fevereiro')
             await expect(phrase).toHaveAttribute('aria-invalid', 'true')
@@ -62,19 +95,20 @@ for (const locale of ['pt-BR', 'en'] as const) {
             await submit.click()
             await expect(phrase).toBeFocused()
             await phrase.fill(locale === 'en' ? 'after vacation' : 'depois das férias')
-            const ask = screen.getByRole('button', { name: messages.habits.form.suggestDate, exact: true })
-            await expect(ask).toHaveText('')
-            await expect(ask.locator('[data-asset="astra-mark"]')).toHaveCount(1)
-            expect((await ask.boundingBox())!.width).toBe(48)
-            await ask.click()
-            const accept = screen.getByRole('button', { name: messages.habits.form.acceptDate, exact: true })
-            await expect(accept).toBeVisible()
-            await expect(screen.locator('[data-habit-date-field] [role="status"]')).toHaveText(messages.habits.form.dateProposed)
-            await accept.focus()
-            await accept.click()
-            await expect(date).toBeFocused()
-            await expect(phrase).toHaveValue('')
+            const pending = screen.getByRole('status', { name: messages.habits.form.dateInterpreting, exact: true })
+            await expect(pending).toBeVisible()
+            await assertInlineGlyph(phrase, pending, date)
+            const resolved = screen.getByRole('status', { name: messages.habits.form.dateInterpreted, exact: true })
+            await expect(resolved).toBeVisible()
+            await assertInlineGlyph(phrase, resolved, date)
+            await expect(date).toHaveText(formatLocaleDate(interpretedDate, locale))
+            await expect(phrase).toHaveValue(locale === 'en' ? 'after vacation' : 'depois das férias')
             await expect(phrase).not.toHaveAttribute('aria-invalid', 'true')
+            await phrase.fill(locale === 'en' ? 'tomorrow' : 'amanhã')
+            await expect(resolved).toHaveCount(0)
+            await expect(date).toHaveText(formatLocaleDate('2026-09-05', locale))
+            await expect(screen.getByRole('button', { name: messages.habits.form.suggestDate, exact: true })).toHaveCount(0)
+            await expect(screen.getByRole('button', { name: messages.habits.form.acceptDate, exact: true })).toHaveCount(0)
             await screen.getByRole('radio', { name: messages.habits.form.typeHabit, exact: true }).click()
             await screen.getByRole('button', { name: messages.habits.form.moreDetails, exact: true }).click()
             await screen.getByRole('radio', { name: new RegExp(messages.habits.form.noSchedule) }).click()
@@ -100,5 +134,43 @@ for (const locale of ['pt-BR', 'en'] as const) {
         })
       }
     }
+  }
+}
+
+for (const locale of ['pt-BR', 'en'] as const) {
+  for (const unavailable of ['offline', 'allowance'] as const) {
+    test.describe(`automatic habit date recovery in ${locale} when ${unavailable}`, () => {
+      test.use({ appLocale: locale, viewport: { width: 320, height: 1000 }, layoutProfile: { aiMessagesUsed: unavailable === 'allowance' ? 5 : 0, aiMessagesLimit: 5 } })
+      test('keeps local parsing and manual selection without calling Astra', async ({ page, context }) => {
+        const messages = locale === 'en' ? en : ptBr
+        await page.goto('/habits/new')
+        const screen = page.locator('[data-habit-create-screen]')
+        await screen.getByRole('radio', { name: messages.habits.form.typeTask, exact: true }).click()
+        const phrase = screen.getByRole('textbox', { name: messages.habits.form.datePhrase, exact: true })
+        const date = screen.getByRole('button', { name: new RegExp(messages.habits.form.taskDate) })
+        const consultations: string[] = []
+        page.on('request', (request) => {
+          if (request.method() === 'POST' && new URL(request.url()).pathname === '/habits/new') consultations.push(request.url())
+        })
+        if (unavailable === 'offline') await context.setOffline(true)
+        await phrase.fill(locale === 'en' ? 'tomorrow' : 'amanhã')
+        await expect(date).toHaveText(formatLocaleDate('2026-09-05', locale))
+        await phrase.fill(locale === 'en' ? 'on the 3rd' : 'dia 3')
+        await expect(date).toHaveText(formatLocaleDate('2026-10-03', locale))
+        await phrase.fill(locale === 'en' ? 'after vacation' : 'depois das férias')
+        await expect(phrase).toHaveAttribute('aria-invalid', 'true')
+        await expect(screen.getByText(messages.habits.form.datePhraseUnresolved, { exact: true })).toBeVisible()
+        await page.waitForTimeout(1000)
+        expect(consultations).toEqual([])
+        await expect(screen.getByRole('status', { name: /Astra/ })).toHaveCount(0)
+        await expect(date).toBeEnabled()
+        await date.click()
+        await page.locator('button[data-day="2026-10-03"]').click()
+        await expect(phrase).toHaveValue('')
+        await expect(phrase).not.toHaveAttribute('aria-invalid', 'true')
+        await expect(date).toHaveText(formatLocaleDate('2026-10-03', locale))
+        if (unavailable === 'offline') await context.setOffline(false)
+      })
+    })
   }
 }

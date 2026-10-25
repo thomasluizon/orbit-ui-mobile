@@ -79,11 +79,13 @@ function visiblePreview(operation) {
 export default function parseResponse(response, _text, context) {
   const httpStatus = context?.response?.status ?? 200
   const responseRequestId = context?.response?.headers?.['x-orbit-request-id']
-  if (httpStatus === 403) {
-    if (response?.errorCode !== 'PAY_GATE' || typeof response.error !== 'string' || !response.error.trim()) {
+  if (httpStatus === 403 || httpStatus === 400) {
+    const expectedCode = httpStatus === 403 ? 'PAY_GATE' : 'CONTENT_MODERATION_REFUSED'
+    if (response?.errorCode !== expectedCode || typeof response.error !== 'string' || !response.error.trim()) {
       return { error: 'Astra returned an unexpected refusal.' }
     }
-    return { answer: response.error, composition: { aiMessage: response.error }, httpStatus, trace: { state: 'refused', responseRequestId } }
+    return { answer: response.error, composition: { aiMessage: response.error }, httpStatus,
+      trace: { state: 'refused', responseRequestId, refusalCode: expectedCode } }
   }
   if (httpStatus !== 200) return { error: `Astra returned HTTP ${httpStatus}.` }
   if (response?.aiMessage != null && typeof response.aiMessage !== 'string') return { error: 'Astra returned malformed final text.' }
@@ -94,5 +96,6 @@ export default function parseResponse(response, _text, context) {
   if (!response || (!hasSurface && (typeof response.aiMessage !== 'string' || !response.aiMessage.trim()))) {
     return { error: 'Astra did not return a nonempty aiMessage final answer.' }
   }
-  return { answer: hasSurface ? finalAnswer(composition) : response.aiMessage, composition, httpStatus, trace: extractTrace(response, responseRequestId) }
+  return { answer: hasSurface ? finalAnswer(composition) : response.aiMessage,
+    composition, httpStatus, trace: extractTrace(response, responseRequestId) }
 }

@@ -8,8 +8,9 @@ glyph. Actions drop the appended brand word, never their label. The visible labe
 accessible name once; the glyph is decorative. Astra menu items use the same row width, minimum
 height, padding, hover, press and focus as sibling items.
 
-Inline form-field fill controls for emoji, date, tags and frequency remain icon-only with localized
-accessible names. #1701 owns those controls and their hint captions. The interpretation fallback in
+Inline form-field fill controls for emoji, tags and frequency remain icon-only with localized
+accessible names. Date interpretation runs automatically after a typing pause and shows a muted
+Astra glyph inside the field while pending and after filling its editable draft date. #1701 owns those controls and their hint captions. The interpretation fallback in
 `habit-form-fields.tsx` remains with that form owner. The shared PillButton icon-only color and
 loading-slot support stays because these retained form controls depend on it.
 

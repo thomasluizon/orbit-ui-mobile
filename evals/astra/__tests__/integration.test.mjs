@@ -41,6 +41,7 @@ describe('real promptfoo CLI with an offline provider', () => {
       defaultTest: { vars: configuration.defaultTest.vars, assert: assertions, options: { provider: `file://${root}/__tests__/fixtures/grader.mjs` } },
       tests: [{ description: 'Offline Water case', metadata: { id: 'offline-water', fixture: 'pro', locale: 'en' }, vars: {
         input: 'Mark Water done', credentialKey: 'ORBIT_EVAL_TOKEN', broken, noTrace, responseMode,
+        clientContext: {}, composition: { mode: 'fallback' },
         ...(responseMode && ['prose-first', 'block-only', 'repeated-figure'].includes(responseMode) ? {
           clientContext: { supportsParts: true, partKinds: ['habitList'], supportsHabitListCard: true }, composition: { mode: 'data', kinds: ['habitList'] },
         } : {}), rubric: 'Describe Water only.',
@@ -88,7 +89,7 @@ describe('real promptfoo CLI with an offline provider', () => {
 })
 
 describe('HTTP provider wiring without a server', () => {
-  it.each(['budget', 'unexpected-refusal', 'unrelated-refusal', 'unauthorized', 'wrong-request', 'throttled', 'server-error', 'not-found', 'not-json', 'reset-stop'])(
+  it.each(['legacy-moderation', 'budget', 'unexpected-refusal', 'unrelated-refusal', 'unauthorized', 'wrong-request', 'throttled', 'server-error', 'not-found', 'not-json', 'reset-stop'])(
     'the real HTTP pipeline continues after an expected budget refusal and fails other refusals: %s', (mode) => {
       offlineCredentials()
       const directory = mkdtempSync(resolve(tmpdir(), 'astra-http-eval-'))
@@ -104,10 +105,12 @@ describe('HTTP provider wiring without a server', () => {
           assert: configuration.defaultTest.assert.map((assertion) => assertion.type === 'javascript'
             ? { ...assertion, value: assertion.value.replace('file://', `file://${root}/`) } : assertion),
         },
-        tests: (mode === 'reset-stop' ? ['healthy', mode] : [mode, 'healthy']).map((input) => ({ metadata: {
+        tests: (mode === 'reset-stop' ? ['healthy', mode, 'healthy-next'] : [mode, 'healthy']).map((input) => ({ metadata: {
           id: input, fixture: input === 'reset-stop' ? 'unknown' : 'pro', locale: 'en',
         }, vars: {
-          input, credentialKey: 'ORBIT_EVAL_TOKEN', expectedHttpStatus: ['budget', 'unrelated-refusal', 'wrong-request'].includes(input) ? 403 : 200,
+          input, credentialKey: 'ORBIT_EVAL_TOKEN', composition: { mode: input === 'legacy-moderation' ? 'fallback' : 'text' },
+          ...(input === 'legacy-moderation' ? { clientContext: {}, expectedErrorCode: 'CONTENT_MODERATION_REFUSED' } : {}),
+          expectedHttpStatus: ['budget', 'unrelated-refusal', 'wrong-request'].includes(input) ? 403 : input === 'legacy-moderation' ? 400 : 200,
           expectations: { allowed: [] }, rubric: 'Describe the result.',
         } })),
         extensions: configuration.extensions.map((extension) => extension.replace('file://', `file://${root}/`)),
@@ -120,24 +123,28 @@ describe('HTTP provider wiring without a server', () => {
           PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'), PROMPTFOO_DISABLE_TELEMETRY: '1', PROMPTFOO_DISABLE_SHARING: '1' },
       })
       expect(run.error, run.stdout + run.stderr).toBeUndefined()
-      expect(readFileSync(resolve(directory, 'requests.txt'), 'utf8').trim().split('\n')).toHaveLength(mode === 'reset-stop' ? 3 : 6)
+      expect(readFileSync(resolve(directory, 'requests.txt'), 'utf8').trim().split('\n')).toHaveLength(6)
       if (mode === 'reset-stop') {
         expect(run.status, run.stdout + run.stderr).not.toBe(0)
-        expect(run.stdout + run.stderr).toContain('Fixture reset failed for reset-stop')
+        expect(run.stdout + run.stderr).toContain('Unknown fixture.')
+        expect(run.stdout + run.stderr).not.toContain('Aborting scan')
         const attempts = JSON.parse(readFileSync(resolve(directory, 'reports/results.json'), 'utf8'))
-        expect(attempts).toHaveLength(3)
-        expect(attempts.every(({ caseId, pass }) => caseId === 'healthy' && pass)).toBe(true)
+        expect(attempts).toHaveLength(9)
+        expect(attempts.filter(({ caseId }) => caseId !== 'reset-stop').every(({ pass }) => pass)).toBe(true)
+        expect(attempts.filter(({ caseId }) => caseId === 'reset-stop').every(({ pass, reason, httpStatus }) =>
+          !pass && reason.includes('Unknown fixture.') && httpStatus === null)).toBe(true)
         const summary = JSON.parse(readFileSync(resolve(directory, 'reports/summary.json'), 'utf8'))
         expect(summary.status).toBe('incomplete')
-        expect(summary.cases.map(({ attempts }) => attempts)).toEqual([3, 0])
-      } else if (mode === 'budget') {
+        expect(summary.cases.map(({ attempts }) => attempts)).toEqual([3, 3, 3])
+        expect(summary.cases[1]).toMatchObject({ unavailable: 3, pass3: 'incomplete' })
+      } else if (['budget', 'legacy-moderation'].includes(mode)) {
         expect(run.status, run.stdout + run.stderr).toBe(0)
         const summary = JSON.parse(readFileSync(resolve(directory, 'reports/summary.json'), 'utf8'))
         expect(summary.cases.map(({ attempts, passed }) => ({ attempts, passed }))).toEqual([
           { attempts: 3, passed: 3 }, { attempts: 3, passed: 3 },
         ])
         const attempts = JSON.parse(readFileSync(resolve(directory, 'reports/results.json'), 'utf8'))
-        expect(attempts.map(({ httpStatus }) => httpStatus)).toEqual([403, 403, 403, 200, 200, 200])
+        expect(attempts.map(({ httpStatus }) => httpStatus)).toEqual([...(mode === 'budget' ? [403, 403, 403] : [400, 400, 400]), 200, 200, 200])
       } else {
         expect(run.status, run.stdout + run.stderr).not.toBe(0)
         expect(run.stdout + run.stderr).not.toContain('Aborting scan')
@@ -157,7 +164,8 @@ describe('HTTP provider wiring without a server', () => {
     vi.stubEnv(credentialKey, 'expired-token')
     let requests = 0
     vi.stubGlobal('fetch', async (url, options) => {
-      if (new URL(url).pathname === '/api/auth/refresh') return refreshResponse()
+      if (new URL(url).pathname === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
+    if (new URL(url).pathname === '/api/auth/refresh') return refreshResponse()
       requests++
       const request = new Request(url, options)
       expect(request.url).toBe('https://astra.invalid/api/chat')
@@ -218,17 +226,18 @@ describe('corpus and execution constraints', () => {
     expect(() => beforeAll({ suite: { tests: scenarios } })).toThrow('HTTPS')
     vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
     writeFileSync(process.env.ORBIT_EVAL_CREDENTIALS_FILE, '{}')
-    expect(() => beforeAll({ suite: { tests: scenarios } })).toThrow('ORBIT_EVAL_TOKEN')
+    expect(() => beforeAll({ suite: { tests: scenarios } })).not.toThrow()
   })
   it('resets before each attempt and resolves IDs in prompts and expectations', async () => {
     offlineCredentials()
-    vi.stubGlobal('fetch', async () => refreshResponse())
+    vi.stubGlobal('fetch', async (url) => new URL(url).pathname === '/health'
+      ? Response.json({ status: 'Healthy', commit: null, checks: [] }) : refreshResponse())
       vi.stubEnv('ORBIT_EVAL_HABIT_ID', 'actual-water')
     const test = structuredClone(scenarios.find((scenario) => scenario.metadata.id === 'single-log-en'))
     expect((await beforeEach({ test })).test.vars.expectations.required[0].arguments.habit_id).toBe('actual-water')
     expect(test.vars.input).toContain('actual-water')
     vi.mocked(resetFixture).mockRejectedValueOnce(new Error('reset failed'))
-    await expect(beforeEach({ test })).rejects.toThrow('Fixture reset failed')
+    expect((await beforeEach({ test })).test.vars.preconditionFailure).toBe('reset failed')
   })
 })
 
