@@ -189,3 +189,18 @@ describe('resolveUpgradeHeader', () => {
     expect(resolveUpgradeHeader(free, resolve({ status: free }), true, false).titleKey).toBeNull()
   })
 })
+
+
+describe('billing provider compatibility', () => {
+  for (const billingProvider of [undefined, null, 'stripe', 'play', 'app_store'] as const) {
+    for (const source of [null, 'stripe', 'play'] as const) {
+      it(`resolves ${billingProvider} over ${source}`, () => {
+        const provider = billingProvider ?? source
+        const model = resolve({ status: { ...status, billingProvider, source } })
+        expect(model.provider).toBe(provider)
+        expect(model.content).toBe(provider ?? 'stripe')
+        expect(model.state).toBe(provider ?? 'stripe')
+      })
+    }
+  }
+})

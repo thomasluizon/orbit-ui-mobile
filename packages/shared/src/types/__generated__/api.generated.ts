@@ -4553,6 +4553,13 @@ export const GetWellKnownOauthProtectedResourceHeader = zod.object({
 export const GetWellKnownOauthProtectedResourceResponse = zod.unknown()
 
 
+export const GetWellKnownOauthProtectedResourceMcpHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const GetWellKnownOauthProtectedResourceMcpResponse = zod.unknown()
+
+
 export const GetOauthAuthorizeQueryParams = zod.object({
   "client_id": zod.string().optional(),
   "redirect_uri": zod.string().optional(),
