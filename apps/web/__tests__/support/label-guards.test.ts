@@ -419,6 +419,32 @@ describe('label and interaction fill guards in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it('rejects a press fill that matches the resting colour', async () => {
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<!doctype html><style>
+        button { width: 100px; height: 48px; border: 0; border-radius: 8px; background: rgb(220, 220, 220); }
+        button:hover { background: rgb(180, 180, 180); }
+        button:active { background: rgb(220, 220, 220); }
+      </style><button>Options</button>`)
+      await expect(expectInteractionFill(page.locator('button'))).rejects.toThrow('press paints a fill distinct from rest')
+    } finally { await page.close() }
+  })
+
+  it('requires native active state when an expanded ordinary control is replaced during press', async () => {
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<!doctype html><style>
+        button { width: 100px; height: 48px; border: 0; border-radius: 8px; background: rgb(220, 220, 220); }
+        button:hover { background: rgb(180, 180, 180); }
+      </style><button aria-expanded="true" data-state="open">Options</button>`)
+      await page.locator('button').evaluate(element => {
+        element.addEventListener('pointerdown', () => element.replaceWith(element.cloneNode(true)))
+      })
+      await expect(expectInteractionFill(page.locator('button'))).rejects.toThrow('control enters its observable press state')
+    } finally { await page.close() }
+  })
+
   it('excludes text fully clipped by an ancestor', async () => {
     const page = await browser.newPage()
     try {

@@ -12,12 +12,14 @@ type UpgradeTranslations = ReturnType<typeof useTranslations>
 
 export function PlayBillingDashboard({
   state,
+  provider = 'play',
   status,
   locale,
   usagePercent,
   onManagePlay,
   t,
 }: Readonly<{
+  provider?: 'play' | 'app_store'
   state: SubscriptionScreenState
   status: SubscriptionStatus | null
   locale: string
@@ -38,7 +40,7 @@ export function PlayBillingDashboard({
         <p className="t-body text-pretty" style={{ color: 'var(--fg-2)' }}>{t(summary.bodyKey, { limit: status.aiMessagesLimit })}</p>
         {summary.renewal ? <p className="font-mono text-xs text-[var(--fg-2)]">{t(summary.renewalKey, { date: formatBillingDate(summary.renewal, locale) })}</p> : null}
       </section>
-      <ProviderHandoff provider="play" state={state} onManage={onManagePlay} t={t} />
+      {provider === 'app_store' ? <p className="t-secondary text-pretty text-[var(--fg-2)]">{t('upgrade.appStore.manageOnIphone')}</p> : <ProviderHandoff provider="play" state={state} onManage={onManagePlay} t={t} />}
       <ProBenefits heading t={t} />
       <UsageStats usagePercent={usagePercent} profile={status} t={t} />
       <p className="t-secondary text-pretty text-[var(--fg-3)]">{t('upgrade.billing.actions.providerNote')}</p>

@@ -180,3 +180,11 @@ The snapshot pins the deployed producer with catalog identity `orbit-http-v1-r2`
 `1.0`. Pin and generated output move together. Removing capability advertisement disables new
 emission while retaining historical parsing. The API deploys first; the independent #26 bilingual
 composition gate remains required before broad rollout through the `main` release workflows.
+
+## Apple billing and sign-in
+
+The optional nullable `billingProvider` accepts `stripe`, `play` and `app_store` on profile and
+subscription status. Existing source enums retain their values. Provider presentation resolves
+`billingProvider ?? source` (or `subscriptionSource` for profile), preserving older API responses.
+Apple requests follow the deployed native, start, handoff and subscription verification contracts.
+Apple configuration and TestFlight acceptance remain rollout prerequisites.

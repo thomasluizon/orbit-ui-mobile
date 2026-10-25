@@ -1,3 +1,5 @@
+import { ActionRow } from '@/components/ui/action-row'
+import { AppleMark } from '@/components/ui/icons'
 import { GoogleMark } from '@/components/auth/google-mark'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
@@ -12,6 +14,7 @@ interface EmailStepProps {
   onEmailChange: (email: string) => void
   isSubmitting: boolean
   isGoogleLoading: boolean
+  isAppleLoading?: boolean
   isOnline: boolean
   canSubmitTurnstile: boolean
   turnstileWidget: ReactNode
@@ -20,26 +23,28 @@ interface EmailStepProps {
   errorMessage: string | null
   onSendCode: () => void
   onSignInWithGoogle: () => void
+  onSignInWithApple?: () => void
   t: ReturnType<typeof useTranslations>
   sendCodeLabel?: string
 }
 
-export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmitting, isGoogleLoading, isOnline,
-  canSubmitTurnstile, turnstileWidget, errorKey, errorMessage, fieldError: backendFieldError, onSendCode, onSignInWithGoogle, t, sendCodeLabel }: Readonly<EmailStepProps>) {
+export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmitting, isGoogleLoading, isAppleLoading = false, isOnline,
+  canSubmitTurnstile, turnstileWidget, errorKey, errorMessage, fieldError: backendFieldError, onSendCode, onSignInWithGoogle, onSignInWithApple, t, sendCodeLabel }: Readonly<EmailStepProps>) {
+  const isBusy = isSubmitting || isGoogleLoading || isAppleLoading
   const fieldError = isOnline && backendFieldError ? backendFieldError : isOnline && errorKey === 'auth.errors.invalidEmail' ? errorMessage : null
-  const googleError = isOnline && errorKey === 'auth.errors.googleError' ? errorMessage : null
+  const googleError = isOnline && (errorKey === 'auth.errors.googleError' || errorKey === 'auth.errors.appleError') ? errorMessage : null
   const sendError = isOnline && errorMessage && !fieldError && !googleError ? errorMessage : null
   return (
     <div data-testid="login-email-step-stack" className="flex flex-col gap-6">
       <form noValidate className="flex flex-col gap-6" onSubmit={(event) => { event.preventDefault(); onSendCode() }}>
         <Input label={t('auth.email')} value={email} onChange={onEmailChange} kind="email" name="email" focusRequest={emailFocusRequest}
           autoComplete="email" placeholder={t('auth.emailPlaceholder')}
-          disabled={isSubmitting || isGoogleLoading} error={fieldError ?? undefined} />
+          disabled={isBusy} error={fieldError ?? undefined} />
         {turnstileWidget}
         <div className="flex flex-col gap-3">
           {!isOnline && <LoginOfflineNotice t={t} />}
           {sendError && <p role="alert" className="text-sm text-[var(--status-bad-text)]">{sendError}</p>}
-          <PillButton disabled={isSubmitting || isGoogleLoading || !email.trim() || !isOnline || !canSubmitTurnstile} loading={isSubmitting}>
+          <PillButton disabled={isBusy || !email.trim() || !isOnline || !canSubmitTurnstile} loading={isSubmitting}>
             {sendCodeLabel ?? t('auth.sendCode')}
           </PillButton>
         </div>
@@ -50,9 +55,16 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
         <span className="h-px flex-1 bg-[var(--hairline)]" />
       </div>
       <div className="flex flex-col gap-2">
+        <ActionRow align="center"><div className="w-full">
         {/* eslint-disable-next-line local/max-button-words -- Google's approved sign-in wording is required. */}
-        <PillButton brand="google" leadingIcon={<GoogleMark />} variant="ghost" disabled={isGoogleLoading || isSubmitting || !isOnline}
+        <PillButton brand="google" leadingIcon={<GoogleMark />} variant="ghost" disabled={isBusy || !isOnline}
           loading={isGoogleLoading} onClick={onSignInWithGoogle}>{t('auth.signInWithGoogle')}</PillButton>
+        </div>
+        {process.env.NEXT_PUBLIC_APPLE_CLIENT_ID ? <div className="w-full">
+        {/* eslint-disable-next-line local/max-button-words -- Apple's approved sign-in wording labels the browser action. */}
+        <PillButton variant="ghost" leadingIcon={<AppleMark size={20} aria-hidden />} disabled={isBusy || !isOnline}
+          onClick={onSignInWithApple}>{t('auth.signInWithApple')}</PillButton>
+        </div> : null}</ActionRow>
         {!isOnline && <p className="text-sm text-[var(--fg-3)]">{t('auth.googleOffline')}</p>}
         {googleError && <p role="alert" className="text-sm text-[var(--status-bad-text)]">{googleError}</p>}
       </div>

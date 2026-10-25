@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SubscriptionStatus } from '../types/profile'
-import { resolveSubscriptionScreen, resolveUpgradeHeader } from '../utils/subscription-screen'
+import { resolveSubscriptionScreen, resolveUpgradeHeader, shouldFetchStripeBilling } from '../utils/subscription-screen'
 
 const status: SubscriptionStatus = {
   plan: 'pro',
@@ -188,4 +188,37 @@ describe('resolveUpgradeHeader', () => {
     expect(resolveUpgradeHeader(null, resolve({ status: null, isStatusLoading: true }), true).titleKey).toBeNull()
     expect(resolveUpgradeHeader(free, resolve({ status: free }), true, false).titleKey).toBeNull()
   })
+})
+
+
+describe('billing provider compatibility', () => {
+  for (const billingProvider of [undefined, null, 'stripe', 'play', 'app_store'] as const) {
+    for (const source of [null, 'stripe', 'play'] as const) {
+      it(`resolves ${billingProvider} over ${source}`, () => {
+        const provider = billingProvider ?? source
+        const model = resolve({ status: { ...status, billingProvider, source } })
+        expect(model.provider).toBe(provider)
+        expect(model.content).toBe(provider ?? 'stripe')
+        expect(model.state).toBe(provider ?? 'stripe')
+      })
+    }
+  }
+})
+
+
+it('ignores Stripe billing cache failures on iOS', () => {
+  expect(resolve({ status, canUseStripeBilling: false, isBillingError: true })).toMatchObject({ state: 'stripe' })
+})
+
+it('loads billing only for Stripe management outside iOS', () => {
+  for (const platform of ['ios', 'android', 'web']) {
+    for (const billingProvider of [undefined, null, 'stripe', 'play', 'app_store'] as const) {
+      for (const source of [null, 'stripe', 'play'] as const) {
+        const provider = billingProvider ?? source
+        expect(shouldFetchStripeBilling({ ...status, billingProvider, source }, platform)).toBe(platform !== 'ios' && provider !== 'play' && provider !== 'app_store')
+      }
+    }
+  }
+  expect(shouldFetchStripeBilling({ ...status, isLifetimePro: true }, 'web')).toBe(false)
+  expect(shouldFetchStripeBilling({ ...status, isTrialActive: true }, 'web')).toBe(false)
 })

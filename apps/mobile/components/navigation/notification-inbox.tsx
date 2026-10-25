@@ -13,7 +13,7 @@ import { useShellScrollerClearance } from '@/components/shell/shell-scroller-cle
 import { PageHeader } from '@/components/ui/page-header'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { MoreVertical } from '@/components/ui/icons'
-import { Menu, MenuAnchorHost, useAnchoredMenu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { NotificationDetailModal } from './notification-detail-modal'
 import { NotificationList } from './notification-list'
 
@@ -31,28 +31,28 @@ export function NotificationInbox() {
   const [selected, setSelected] = useState<NotificationItem | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const menu = useAnchoredMenu()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   function requestDeleteNotification(item: NotificationItem) {
     queuePendingNotificationDelete(item.id, () => deleteNotification.mutateAsync(item.id))
   }
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: tokens.bg }]}>
+    <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}><SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: tokens.bg }]}>
       <PageHeader title={t('notifications.title')} backLabel={t('common.back')}
-        onBack={() => goBack('/')} action={inbox.visibleNotifications.length > 0 ? <MenuAnchorHost anchorRef={menu.anchorRef}>
+        onBack={() => goBack('/')} action={inbox.visibleNotifications.length > 0 ? <Menu.Trigger asChild>
           <Pressable accessibilityRole="button" accessibilityLabel={t('notifications.options')}
-            accessibilityState={{ expanded: menu.visible }} onPress={menu.toggle}
+            accessibilityState={{ expanded: menuOpen }}
             style={({ pressed }) => [styles.options, pressed && { backgroundColor: tokens.bgHover }]}>
             <MoreVertical size={20} color={tokens.fg2} />
           </Pressable>
-        </MenuAnchorHost> : undefined} />
-      <Menu open={menu.visible} anchorRef={menu.anchorRef} title={t('notifications.options')} shortTitle={t('common.options')}
+        </Menu.Trigger> : undefined} />
+      <Menu.Content title={t('notifications.options')} shortTitle={t('common.options')}
         items={[
           ...(inbox.visibleUnreadCount > 0 ? [{ id: 'read', label: t('notifications.markAllReadMenu'), icon: 'check' }] : []),
           ...(inbox.visibleNotifications.length > 0 ? [{ id: 'clear', label: t('notifications.deleteAll'), icon: 'trash', destructive: true }] : []),
         ]}
-        onClose={menu.close} onSelect={(id) => {
+        onSelect={(id) => {
           if (id === 'read') markAllAsRead.mutate()
           else if (id === 'clear') setConfirmOpen(true)
         }} />
@@ -75,7 +75,7 @@ export function NotificationInbox() {
           clearFailedNotificationDeletes()
           deleteAll.mutate()
         }} />
-    </SafeAreaView>
+    </SafeAreaView></Menu.Root>
   )
 }
 

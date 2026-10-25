@@ -487,6 +487,7 @@
     "orContinueWith": "or",
     "openInOrbit": "Open in Orbit",
     "signInWithGoogle": "Continue with Google",
+    "signInWithApple": "Continue with Apple",
     "googleError": "Google sign-in failed. Please try again.",
     "signingIn": "Signing you in...",
     "callbackError": "Something went wrong during sign-in. Please try again.",
@@ -515,6 +516,7 @@
       "conflict": "That action can't be completed right now. Please try again.",
       "offline": "You appear to be offline. Check your connection and try again.",
       "googleError": "Google did not open. Try again.",
+      "appleError": "Apple sign-in failed. Please try again.",
       "unknownError": "Something went wrong. Please try again.",
       "sendFailed": "The code was not sent. Try again."
     },
@@ -2603,6 +2605,7 @@
       "headingAreYouSure": "This deletes your account",
       "warning": "You have time to change your mind. After that, the deletion is permanent and cannot be undone.",
       "warningFree": "Your account will be deactivated and permanently deleted after 7 days. Log back in anytime before then to cancel.",
+      "warningAppStore": "Deleting your Orbit account does not cancel your App Store subscription. Cancel it in Apple settings to stop future charges.",
       "warningPro": "Your account will be deactivated now and permanently deleted up to 30 days from today. Log back in anytime before then to cancel.",
       "warningDetail": "All your data will be permanently deleted, including your habits, completion history, AI conversations, and settings. We'll email you a confirmation code to continue.",
       "sendCode": "Send code",
@@ -2769,7 +2772,7 @@
     },
     "dataCollected": {
       "title": "Data We Store",
-      "account": "Account information: name and email address (via email signup or Google OAuth)",
+      "account": "Account information: name and email address (via email signup, Google OAuth, or Sign in with Apple)",
       "habits": "Habit data: habits you create, completion logs, schedules, tags, and goals",
       "chat": "AI chat messages: conversations with the Orbit AI assistant",
       "preferences": "Preferences: language, timezone, color scheme, and notification settings",
@@ -2791,6 +2794,7 @@
       "openai": "OpenAI: for AI chat features and daily summaries",
       "ses": "Amazon SES (us-east-2): for transactional and marketing emails",
       "googlePlay": "Google Play Billing: for subscription purchases on Android",
+      "apple": "Apple: for Sign in with Apple and subscription purchases through the App Store",
       "sentry": "Sentry: for crash and error reports. On Android, these include device and OS details, a random installation ID, and an approximate city inferred from the request IP address, without your name, email, or account details",
       "posthog": "PostHog (US Cloud): for product analytics linked to an account identifier and plan details, plus web traffic and performance analytics; we do not send habit or chat content",
       "render": "Render (Ohio, United States): for web and API hosting and the database",
@@ -3202,6 +3206,22 @@
     "subscribe": "Subscribe to Pro",
     "plan": "Plan",
     "restorePurchase": "Restore purchase",
+    "appStore": {
+      "manage": "Manage subscription",
+      "manageHint": "Your subscription is billed through the App Store. Manage your plan in Apple settings.",
+      "manageOnIphone": "To change or cancel this App Store subscription, manage it on your iPhone.",
+      "autoRenewal": "Your subscription renews automatically until you cancel. Payment is charged to your Apple Account.",
+      "paymentNote": "Manage or cancel your subscription in Apple settings.",
+      "error": {
+        "unavailable": "App Store purchases are unavailable. Please try again.",
+        "serviceUnavailable": "Your purchase could not be verified. Restore purchases to try again.",
+        "alreadyOwned": "You already own this subscription. Restore purchases to use it.",
+        "pending": "Your purchase is pending. We'll enable Pro once it's confirmed.",
+        "deviceNotSupported": "This device does not support App Store purchases.",
+        "notSignedIn": "Sign in before subscribing.",
+        "nothingToRestore": "No active Orbit subscription was found for this Apple Account."
+      }
+    },
     "convert": {
       "promise": "The plan changes what Astra can do, never your habits and logs.",
       "trialEyebrow": "Your Pro trial is active",

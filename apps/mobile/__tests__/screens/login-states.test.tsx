@@ -1,6 +1,6 @@
 import React from 'react'
 import { StyleSheet } from 'react-native'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInstance } from 'i18next'
 import ICUCommonJs from 'i18next-icu/cjs'
 import { setI18n } from 'react-i18next'
@@ -70,6 +70,16 @@ function render() {
 }
 
 describe.each(authLocales)('mobile auth composition in %s', (locale) => {
+  afterEach(() => vi.unstubAllEnvs())
+  it('hides Apple sign-in without public client configuration', () => {
+    vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', '')
+    setFixture('email', locale)
+    const tree = render()
+    expect(textOf(tree.root)).not.toContain('auth.signInWithApple')
+    expect(tree.root.findAll((node) => node.props.onClick === mocks.flow.signInWithApple && Boolean(node.props.onClick))).toHaveLength(0)
+    act(() => tree.unmount())
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     void testI18n.changeLanguage(locale)

@@ -1,7 +1,9 @@
 'use client'
 
+import { useComposedRefs } from '@radix-ui/react-compose-refs'
+
 import Link, { type LinkProps } from 'next/link'
-import { useContext, useId, type CSSProperties, type Ref } from 'react'
+import { useContext, useId, type CSSProperties, type ComponentProps, type Ref } from 'react'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { Loader2 } from '@/components/ui/icons'
@@ -129,9 +131,12 @@ export function Button({
   descriptionId,
   hint,
   buttonRef,
+  ref,
   quiet = false,
   borderless = false,
-}: Readonly<ButtonProps & { retainLeadingIcon?: boolean; buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean; borderless?: boolean; expanded?: boolean; controlsId?: string; hasPopup?: false | 'menu' | 'dialog'; onFocus?: () => void; onBlur?: () => void; onMouseEnter?: () => void; onMouseLeave?: () => void }>) {
+  ...buttonProps
+}: Readonly<ButtonProps & { retainLeadingIcon?: boolean } & Omit<ComponentProps<'button'>, 'children' | 'onClick' | 'onFocus' | 'onBlur' | 'onMouseEnter' | 'onMouseLeave' | 'color'> & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean; borderless?: boolean; expanded?: boolean; controlsId?: string; hasPopup?: false | 'menu' | 'dialog'; onFocus?: () => void; onBlur?: () => void; onMouseEnter?: () => void; onMouseLeave?: () => void }>) {
+  const composedRef = useComposedRefs(ref, buttonRef)
   const withinRow = useContext(ActionRowContext)
   const hintId = useId()
   const descriptionIds = buttonDescriptionIds(descriptionId, hintId, hint)
@@ -139,8 +144,9 @@ export function Button({
 
   return (
     <><button
-      ref={buttonRef}
-      type={onClick ? 'button' : 'submit'}
+      {...buttonProps}
+      ref={composedRef}
+      type={buttonProps.type ?? (onClick ? 'button' : 'submit')}
       form={formId}
       onClick={loading ? (event) => event.preventDefault() : onClick}
       onFocus={onFocus}
@@ -152,9 +158,9 @@ export function Button({
       aria-busy={loading || undefined}
       aria-label={iconOnly ? label : accessibleName}
       aria-describedby={descriptionIds}
-      aria-haspopup={hasPopup ?? (expanded === undefined ? undefined : 'dialog')}
-      aria-controls={controlsId}
-      aria-expanded={expanded}
+      aria-haspopup={hasPopup ?? buttonProps['aria-haspopup'] ?? (expanded === undefined ? undefined : 'dialog')}
+      aria-controls={controlsId ?? buttonProps['aria-controls']}
+      aria-expanded={expanded ?? buttonProps['aria-expanded']}
       data-variant={variant}
       data-size={size}
       data-loading={loading || undefined}

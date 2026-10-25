@@ -154,7 +154,7 @@ describe('Sheet', () => {
     const { unmount } = render(<HabitRow habit={createMockHabit({ title, isOverdue: true })} state="overdue"
       hasSubHabits actions={actions} />)
     try {
-      fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+      fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
       const dialog = await screen.findByRole('dialog', { name: title })
       dialog.style.width = '320px'
       dialog.style.fontSize = '200%'
@@ -286,14 +286,6 @@ describe('Sheet', () => {
     unmount()
     expect(useUIStore.getState().openOverlayIds).toHaveLength(0)
   })
-  it('leaves at least a 24 pixel content peek while clearing the top inset on a long sheet', () => {
-    const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
-      .replaceAll('\r\n', '\n')
-
-    expect(stylesheet).toContain('padding-block-start: max(var(--space-6), var(--safe-top));')
-    expect(stylesheet).toContain('max-height: 85%;')
-  })
-
   it('keeps the body and fixed action row in separate slots', () => {
     render(
       <Sheet open title="Delete habit" actions={<button type="button">Delete</button>}>

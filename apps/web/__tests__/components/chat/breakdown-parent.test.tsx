@@ -90,7 +90,7 @@ describe('breakdown parent choice', () => {
       return Promise.resolve(makeBulkCreateResponse(['Success', 'Success']))
     })
     render(<BreakdownSuggestion {...props} />)
-    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     fireEvent.click(await screen.findByRole('menuitem', { name: 'chat.preview.edit' }))
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Wash dishes' } })
     fireEvent.blur(screen.getByRole('textbox'))

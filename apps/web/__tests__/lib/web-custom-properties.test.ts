@@ -12,6 +12,7 @@ const CUSTOM_PROPERTY_REFERENCE = /var\(\s*(--[a-z0-9-]+)/g
 const CSS_DECLARATION = /(--[a-z0-9-]+)\s*:/g
 const LOCAL_RUNTIME_DECLARATION = /['"](--[a-z0-9-]+)['"]\s*:/g
 const NEXT_FONT_DECLARATION = /\bvariable\s*:\s*['"](--[a-z0-9-]+)['"]/g
+const DEPENDENCY_RUNTIME_DECLARATIONS = ['--radix-dropdown-menu-content-transform-origin']
 
 type ScannedSource = {
   path: string
@@ -141,7 +142,7 @@ function globalsStylesheet(files: ScannedSource[]): string {
 }
 
 function declaredCustomProperties(files: ScannedSource[]): Set<string> {
-  const declarations = new Set(matchingValues(globalsStylesheet(files), CSS_DECLARATION))
+  const declarations = new Set([...DEPENDENCY_RUNTIME_DECLARATIONS, ...matchingValues(globalsStylesheet(files), CSS_DECLARATION)])
   for (const mode of ['dark', 'light'] as const) {
     for (const property of Object.keys(resolveWebThemeVariables('purple', mode))) {
       declarations.add(property)
@@ -219,5 +220,12 @@ describe('web custom properties', () => {
 
   it('declares every custom property referenced by production source', () => {
     expect(unresolvedReferences(productionSourceFiles)).toEqual([])
+  })
+
+  it('keeps undeclared tokens visible beside the known dependency runtime property', () => {
+    expect(unresolvedReferences([{ path: 'app/globals.css', contents: `
+      .menu { transform-origin: var(--radix-dropdown-menu-content-transform-origin); }
+      .control { color: var(--orbit-undeclared); width: var(--radix-undeclared); }
+    ` }])).toEqual(['--orbit-undeclared: app/globals.css', '--radix-undeclared: app/globals.css'])
   })
 })

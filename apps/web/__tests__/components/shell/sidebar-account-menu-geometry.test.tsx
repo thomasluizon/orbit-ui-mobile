@@ -27,6 +27,7 @@ describe('sidebar account menu geometry in Chromium', () => {
       import { createRoot } from 'react-dom/client';
       import { NextIntlClientProvider } from 'next-intl';
       import { ShellWide } from './components/shell/shell-wide';
+      import SearchPage from './app/(app)/search/page';
       import { useShellStore } from './stores/shell-store';
       import en from '../../packages/shared/src/i18n/en.json';
       import ptBR from '../../packages/shared/src/i18n/pt-BR.json';
@@ -37,14 +38,52 @@ describe('sidebar account menu geometry in Chromium', () => {
       createRoot(root).render(<NextIntlClientProvider locale={configuration.locale} messages={words} timeZone="UTC">
         <ShellWide items={[{ id: 'perfil', href: '/profile', label: words.nav.profile, icon: 'perfil' }]}
           activeId="perfil" navLabel={words.nav.mainNavigation} astraRow={{ label: 'Astra', onOpen: () => {} }}
-          account={configuration.account} accountEmail={configuration.email}><h1>Orbit</h1></ShellWide>
+          account={configuration.account} accountEmail={configuration.email}>{configuration.search ? <SearchPage /> : <h1>Orbit</h1>}</ShellWide>
       </NextIntlClientProvider>);`, {
       '@/stores/auth-store': 'export const useAuthStore = selector => selector({ logout: async () => {} });',
       '@sentry/nextjs': 'export const captureException = error => { throw error; };',
       '@/components/ui/sheet': "export { Sheet, useSheetHost } from './__tests__/support/sheet-double';",
+      '@/hooks/use-habit-search': "export const useHabitSearch = () => ({ text: '', query: '', changeText: () => {} });",
+      'next/navigation': 'export const useRouter = () => ({ push() {}, back() { document.documentElement.dataset.searchBack = "true"; } });',
     })
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
+
+  it.each([1024, 1352].flatMap(width => (['en', 'pt-BR'] as const).map(locale => ({ width, locale }))))
+    ('retains the account trigger on Search after Escape at $width pixels in $locale', async configuration => {
+      const page = await browser.newPage({ viewport: { width: configuration.width, height: 915 }, reducedMotion: 'reduce' })
+      try {
+        await page.setContent(`<html class="dark"><style>${stylesheet}</style><div id="root"></div></html>`)
+        await page.evaluate(({ configuration, account, email, variables }) => {
+          document.getElementById('root')!.dataset.configuration = JSON.stringify({ ...configuration, account, email, collapsed: false, search: true })
+          for (const [key, value] of Object.entries(variables)) document.documentElement.style.setProperty(key, value)
+        }, { configuration, account, email, variables: resolveWebThemeVariables('orange', 'dark') })
+        await page.addScriptTag({ content: script })
+        const trigger = page.locator('[data-shell-account]:not([data-loading])')
+        for (const input of ['pointer', 'Enter']) {
+          if (input === 'pointer') {
+            await trigger.hover()
+            await page.mouse.down()
+          } else await page.keyboard.press(input)
+          await page.getByRole('menu').waitFor({ state: 'visible' })
+          if (input === 'pointer') {
+            await page.mouse.move(0, 0)
+            await page.mouse.up()
+          }
+          await page.keyboard.press('Escape')
+          await expect.poll(() => page.getByRole('menu').count()).toBe(0)
+          expect(await page.locator('html').getAttribute('data-search-back')).toBeNull()
+          await trigger.scrollIntoViewIfNeeded({ timeout: 2000 })
+          expect(await trigger.evaluate(element => element === document.activeElement)).toBe(true)
+          await trigger.blur()
+          await page.keyboard.press('Shift')
+          await trigger.focus()
+          expect(await trigger.evaluate(element => element.matches(':focus-visible'))).toBe(true)
+        }
+        await page.keyboard.press('Escape')
+        expect(await page.locator('html').getAttribute('data-search-back')).toBe('true')
+      } finally { await page.close() }
+    })
 
   it.each(cases)('anchors a readable menu with one focus ring in $locale, $theme, collapsed=$collapsed', async configuration => {
     const words = configuration.locale === 'en' ? en : ptBR
@@ -127,7 +166,7 @@ describe('sidebar account menu geometry in Chromium', () => {
       expect(await focusPaint()).toBe(1)
       await page.keyboard.press('Enter')
       await menu.waitFor({ state: 'visible' })
-      await page.mouse.click(900, 300)
+      await page.getByRole('heading', { name: 'Orbit', exact: true }).click()
       await menu.waitFor({ state: 'detached' })
       expect(await trigger.evaluate(element => document.activeElement === element)).toBe(true)
     } finally { await page.close() }

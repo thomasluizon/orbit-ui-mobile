@@ -14,6 +14,10 @@ export type SubscriptionInterval = z.infer<typeof subscriptionIntervalSchema>
 
 export const subscriptionSourceSchema = z.enum(['stripe', 'play'])
 
+export const billingProviderSchema = z.enum(['stripe', 'play', 'app_store'])
+
+export type BillingProvider = z.infer<typeof billingProviderSchema>
+
 export type SubscriptionSource = z.infer<typeof subscriptionSourceSchema>
 
 export const subscriptionLapseReasonSchema = z.enum([
@@ -35,6 +39,7 @@ export const subscriptionStatusSchema = z.object({
   isLifetimePro: z.boolean(),
   subscriptionInterval: subscriptionIntervalSchema.nullable(),
   source: subscriptionSourceSchema.nullable(),
+  billingProvider: billingProviderSchema.nullable().optional(),
   lapseReason: subscriptionLapseReasonSchema.nullable().optional(),
   subscriptionEndedAtUtc: z.string().nullable().optional(),
 })
@@ -66,6 +71,7 @@ export const profileSchema = z.object({
   hasGoogleConnection: z.boolean(),
   subscriptionInterval: subscriptionIntervalSchema.nullable(),
   subscriptionSource: subscriptionSourceSchema.nullable(),
+  billingProvider: billingProviderSchema.nullable().optional(),
   isLifetimePro: z.boolean(),
   weekStartDay: z.union([z.literal(0), z.literal(1)]),
   totalXp: z.number(),

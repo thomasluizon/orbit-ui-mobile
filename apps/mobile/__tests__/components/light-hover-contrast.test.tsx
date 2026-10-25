@@ -12,7 +12,7 @@ import { CheckRow } from '@/components/ui/check-row'
 import { ListRow } from '@/components/ui/list-row'
 import { ChevronRight } from '@/components/ui/icons'
 import { SettingsGroup } from '@/components/ui/settings-group'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { createTokensV2 } from '@/lib/theme'
@@ -38,8 +38,8 @@ const cases: { name: string; role: string; element: ReactElement }[] = [
   { name: 'settings group row', role: 'button', element: <ListRow textMode="label" title="Preferences" description="Value" onClick={vi.fn()} /> },
   { name: 'settings group value', role: 'button', element: <SettingsGroup>{[{ label: 'Preferences', value: 'Value', onClick: vi.fn() }].map((item: { label: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }, index) => <ListRow key={index} title={item.label} value={item.value} trailing={item.trailing} readOnly={!item.onClick} onClick={item.onClick} />)}</SettingsGroup> },
   { name: 'search match', role: 'button', element: <SearchResult habit={createMockHabit({ title: 'Walking', emoji: '' })} query="Walk" onOpen={vi.fn()} /> },
-  { name: 'menu edit', role: 'menuitem', element: <Menu open presentation="sheet" items={[{ id: 'edit', label: 'Edit' }]} /> },
-  { name: 'menu delete', role: 'menuitem', element: <Menu open presentation="sheet" items={[{ id: 'delete', label: 'Delete', destructive: true }]} /> },
+  { name: 'menu edit', role: 'menuitem', element: <Menu.Root open={true}><Menu.Trigger accessibilityLabel="Menu trigger" /><Menu.Content presentation="sheet" items={[{ id: 'edit', label: 'Edit' }]}  /></Menu.Root> },
+  { name: 'menu delete', role: 'menuitem', element: <Menu.Root open={true}><Menu.Trigger accessibilityLabel="Menu trigger" /><Menu.Content presentation="sheet" items={[{ id: 'delete', label: 'Delete', destructive: true }]}  /></Menu.Root> },
 ]
 
 function pressedFill(control: ReactTestInstance): string {

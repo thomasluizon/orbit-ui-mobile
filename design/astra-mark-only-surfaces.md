@@ -88,7 +88,7 @@ copy approval through `/second-opinion` belongs to the orchestrator before merge
 
 | Control | Web file | Android file | Label key now | Visible before (en / pt-BR) | Visible now (en / pt-BR) |
 |---|---|---|---|---|---|
-| Astra menu rows | `apps/web/components/ui/menu.tsx` | `apps/mobile/components/ui/menu.tsx` | Supplied item label | Supplied item label | Supplied item label |
+| Astra menu rows | `apps/web/components/ui/dropdown-menu-content.tsx`, `dropdown-menu-item.tsx` | `apps/mobile/components/ui/dropdown-menu.tsx` | Supplied item label | Supplied item label | Supplied item label |
 | Overdue reschedule | `apps/web/components/habits/habit-row-trailing.tsx` | `apps/mobile/components/habits/habit-row.tsx` | `habits.actions.rescheduleAstra` | Reschedule with Astra / Reagendar com a Astra | Reschedule / Reagendar |
 | Habit analysis | `apps/web/components/habits/habit-detail-screen.tsx` | `apps/mobile/components/habits/habit-detail-screen.tsx` | `habits.detail.askAstra` | Ask Astra / Perguntar à Astra | Review habit / Analisar hábito |
 | Habit rescue retry | `apps/web/components/habits/habit-detail-screen.tsx` | `apps/mobile/components/habits/habit-detail-screen.tsx` | `habits.reschedule.suggestDate` (previously `habits.form.askDate`) | Ask Astra / Consultar Astra | Suggest date / Sugerir data |

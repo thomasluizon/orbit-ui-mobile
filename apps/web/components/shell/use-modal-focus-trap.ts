@@ -99,6 +99,7 @@ export function useModalFocusTrap(
 
   useEffect(() => {
     if (!open) return
+    const dialog = dialogRef.current
     returnTargetRef.current = returnFocusTriggerRef?.current?.isConnected
       ? returnFocusTriggerRef.current
       : document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -106,7 +107,9 @@ export function useModalFocusTrap(
     return () => {
       const returnTarget = returnTargetRef.current
       returnTargetRef.current = null
+      const active = document.activeElement
+      if (dialog && active instanceof Element && isOwnedMenuTarget(dialog, active)) return
       if (returnTarget?.isConnected) returnTarget.focus()
     }
-  }, [open, returnFocusTriggerRef])
+  }, [dialogRef, open, returnFocusTriggerRef])
 }

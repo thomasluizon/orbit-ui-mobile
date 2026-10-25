@@ -69,6 +69,17 @@ async function mountMeasuredSheet(virtualizedBody = false) {
 }
 
 describe('Sheet focused control visibility', () => {
+  it('preserves a deliberate body scroll when a later resize arrives for the focused control', async () => {
+    const { control, body, setControlBounds, resize } = await mountMeasuredSheet()
+    setControlBounds(body.getBoundingClientRect().top + 10, 48)
+    act(() => control.focus({ preventScroll: true }))
+    body.scrollTop = 200
+    resize()
+    expect(body.scrollTop).toBe(200)
+    resize(body)
+    expect(body.scrollTop).toBe(200)
+  })
+
   it.each([
     { borderTop: 0, borderBottom: 0, scrollbarHeight: 0 },
     { borderTop: 0.5, borderBottom: 1.5, scrollbarHeight: 0 },

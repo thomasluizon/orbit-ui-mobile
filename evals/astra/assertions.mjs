@@ -86,6 +86,7 @@ function matchesArguments(actual, expected) {
 }
 
 function matchesOperation(call, expected) {
+  if (expected.anyOf) return expected.anyOf.some((alternative) => matchesOperation(call, alternative))
   return call.name === expected.name
     && (expected.argumentsAnyOf ?? [expected.arguments ?? {}])
       .some((arguments_) => expected.exactArguments === true
@@ -122,7 +123,8 @@ export function behavior(output, context) {
   for (const call of trace.calls) {
     const expected = [...expectations.required ?? [], ...expectations.permittedMutations ?? []]
       .find((operation) => matchesOperation(call, operation))
-    const status = expected?.resultStatus ?? (toolWrites.get(call.name) ? 'PendingConfirmation' : 'Succeeded')
+    const status = expected?.anyOf?.find((alternative) => matchesOperation(call, alternative))?.resultStatus
+      ?? expected?.resultStatus ?? (toolWrites.get(call.name) ? 'PendingConfirmation' : 'Succeeded')
     if (call.resultStatus !== status || call.result?.success !== true || call.result.error !== null
       || (status === 'PendingConfirmation' && call.result.payload?.status !== 'awaiting_confirmation')) {
       return result(false, `Tool execution did not reach its expected outcome: ${call.name}`)
@@ -134,7 +136,7 @@ export function behavior(output, context) {
     const index = unmatched.findIndex((call) => matchesOperation(call, required)
       && (required.resultStatus === undefined || call.resultStatus === required.resultStatus)
       && (required.result === undefined || matchesArguments(call.result, required.result)))
-    if (index < 0) return result(false, `Missing tool or incorrect arguments/result: ${required.name}`)
+    if (index < 0) return result(false, `Missing tool or incorrect arguments/result: ${required.name ?? required.anyOf.map(({ name }) => name).join(' or ')}`)
     unmatched.splice(index, 1)
   }
   for (const [name, count] of Object.entries(expectations.counts ?? {})) {
