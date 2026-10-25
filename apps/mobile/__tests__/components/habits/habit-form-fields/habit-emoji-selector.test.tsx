@@ -110,6 +110,9 @@ describe("HabitEmojiSelector mobile", () => {
     const action = tree.root.findAll(node => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.suggestEmoji')[0]!;
     const paint = tree.root.findAll(node => node.type === 'View' && node.props.testID === 'habit-emoji-well')[0]!;
     expect(StyleSheet.flatten(paint.props.style as ViewStyle).borderWidth ?? 0).toBe(proposed ? 1 : 0);
+    const well = button(tree, 'habits.form.emojiOpenPicker');
+    expect(well.props.accessibilityHint).toBe(proposed ? 'habits.form.proposedByAstra' : undefined);
+    expect(tree.root.findAll(node => node.type === 'Text' && node.props.children === 'habits.form.proposedByAstra')).toHaveLength(0);
     const row = tree.root.findAll(node => node.type === 'View' && node.props.testID === 'habit-title-row')[0]!;
     expect(row.findAll(node => node.props.testID === 'proposed-field-outline')).toHaveLength(0);
     const style = () => StyleSheet.flatten(resolvedStyle(action, false) as ViewStyle[]);

@@ -48,11 +48,16 @@ describe('HabitEmojiSelector', () => {
   })
 
   it('marks a setup-proposed emoji beside the title', () => {
-    render(<UnderstandingWithEmoji resolved proposed />)
+    const view = render(<UnderstandingWithEmoji resolved proposed />)
     const well = screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })
     expect(well.closest('[data-proposed]')).toBeNull()
     expect(well.querySelector('[data-proposed]')).not.toBeNull()
     expect(well.closest('[data-habit-title-row]')).not.toBeNull()
+    expect(well).toHaveAccessibleDescription('habits.form.proposedByAstra')
+    expect(screen.getByText('habits.form.proposedByAstra')).not.toBeVisible()
+    view.rerender(<UnderstandingWithEmoji resolved />)
+    expect(well).not.toHaveAccessibleDescription()
+    expect(screen.queryByText('habits.form.proposedByAstra')).toBeNull()
   })
 
   it('keeps the disabled suggestion reason accessible without a visible caption', () => {

@@ -81,6 +81,36 @@ carries a selected end date through the same request owner. Optimistic native cr
 edit caches preserve the edited start anchor, including queued native saves. Mode drafts retain date, cadence,
 times, reminders and avoidance independently of shared title, description and checklist text.
 
+## Habit form capability reconciliation (#1709)
+
+[The title-row change](https://github.com/thomasluizon/orbit-ui-mobile/pull/2040)
+implements [#1701](https://github.com/thomasluizon/orbit-tickets/issues/1701):
+unavailable-reason captions leave the visible form, while accessible descriptions remain.
+[The action-label correction](https://github.com/thomasluizon/orbit-tickets/issues/1700)
+retains the drawing's existing icon-only form fills. Neither instruction removes an
+Astra capability or the explanation of a proposed value.
+
+| Production capability | Current owner and control on both platforms |
+|---|---|
+| `web:control:shell.composer.offline.reason` | `apps/web/components/habits/habit-form-fields/habit-date-field.tsx`: the `habits.form.suggestDate` button retains the offline reason in its accessible description |
+| `mobile:control:shell.composer.offline.reason` | `apps/mobile/components/habits/habit-form-fields/habit-date-field.tsx`: the `habits.form.suggestDate` button retains the offline reason in its accessibility hint |
+| `mobile:control:habits.form.proposedByAstra` | `apps/mobile/components/habits/habit-form-fields/habit-emoji-selector.tsx`: the `habits.form.emojiOpenPicker` button explains a proposed emoji in its accessibility hint; web supplies the same description with hidden referenced text |
+| `mobile:control:habits.form.tagLimit` | `apps/mobile/components/habits/habit-form-fields/tag-suggestions.tsx`: the `habits.form.suggestTags` button retains the limit in its accessibility hint; web supplies the same accessible description |
+
+All four controls retain their original capability identifiers after the title-row change.
+The scanner recognizes each directly in its owning source, so no relocation mapping,
+removal rule or exemption is required. In particular, the computed tag status intentionally
+omits unavailable-reason captions; the button hint still explains the tag limit. Offline
+feedback belongs to the date action's description, rather than an adjacent capacity notice.
+The daily allowance remains a visible capacity notice. Emoji proposal attribution stays
+accessible without adding a caption beside the title.
+
+Paired behavior tests cover offline date assistance with allowance available or exhausted,
+reconnection without changing the draft, local date editing without a paid request, the
+fifth-tag boundary and recovery after deselection, and proposed versus ordinary emoji
+attribution. The title-row well, borderless Astra fill and pending spinner keep their
+existing geometry and behavior coverage.
+
 ## Verification boundary
 
 Vitest mounts the actual forms and request builders on both platforms. Shared guards cover local

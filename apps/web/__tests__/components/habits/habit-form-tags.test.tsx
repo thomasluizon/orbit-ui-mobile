@@ -268,6 +268,29 @@ describe('habit tag suggestions', () => {
     }
   })
 
+  it('retains the tag limit explanation and recovers when a selected tag is removed', () => {
+    tagCollection.tags = ['Health', 'Reading', 'Work', 'Rest', 'Travel', 'Home'].map((name, index) => ({ id: String(index + 1), name, color: '#7c3aed' }))
+    renderTagForm('Run', '', ['1', '2', '3', '4'])
+    const suggestion = screen.getByRole('button', { name: 'habits.form.suggestTags' })
+    expect(suggestion).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Travel', pressed: false }))
+    expect(screen.getByLabelText('Selected tags')).toHaveTextContent('1,2,3,4,5')
+    expect(suggestion).toBeDisabled()
+    expect(suggestion).toHaveAccessibleDescription('habits.form.tagLimit')
+    const extra = screen.getByRole('button', { name: 'Home', pressed: false })
+    expect(extra).toBeDisabled()
+    fireEvent.click(extra)
+    fireEvent.click(suggestion)
+    expect(tagMutations.suggest).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Selected tags')).toHaveTextContent('1,2,3,4,5')
+    expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toBeEmptyDOMElement()
+    fireEvent.click(screen.getByRole('button', { name: 'Travel', pressed: true }))
+    expect(screen.getByLabelText('Selected tags')).toHaveTextContent('1,2,3,4')
+    expect(suggestion).toBeEnabled()
+    expect(suggestion).not.toHaveAccessibleDescription()
+    expect(extra).toBeEnabled()
+  })
+
   it('disables remaining proposals at capacity', async () => {
     tagCollection.tags = [{ id: 'existing', name: 'Health', color: '#7c3aed' }]
     tagMutations.suggest.mockResolvedValue({ tags: [
