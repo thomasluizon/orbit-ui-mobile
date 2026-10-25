@@ -30,13 +30,26 @@ function checkProductionSteps() {
   const summary = stage("release-workflow/summary", "")
   const calls = join(root, "release-workflow/calls")
   const environment = {
-    ...process.env, SERVICE_RESPONSE: servicePath, HEALTH_RESPONSE: healthPath, DEPLOYMENT_RESPONSE: deploymentPath,
+    ...process.env, GITHUB_WORKSPACE: toolPath(".."), SERVICE_RESPONSE: servicePath, HEALTH_RESPONSE: healthPath, DEPLOYMENT_RESPONSE: deploymentPath,
     GITHUB_OUTPUT: output, GITHUB_STEP_SUMMARY: summary, CALLS: calls,
     SOURCE_SHA: renderFixture.health.commit, SERVICE_ID: "srv-production", SERVICE_VARIABLE: "RENDER_WEB_SERVICE_ID",
     RENDER_API_KEY: "fixture", IMAGE: "ghcr.io/thomasluizon/orbit-web", DIGEST: "sha256:fixture", SERVICE_FAILURE: "false",
     PRODUCTION_WEB_HOST: "public.example.invalid", GH_TOKEN: "fixture", GITHUB_REPOSITORY: "example/repository",
   }
-  const run = (name, stub, overrides = {}) => spawnSync(BASH, ["-c", `${stub}\n${stepScript(name)}`], {
+  const readAdapter = `
+    eval "$(declare -f curl | sed '1s/curl/curl_response/')"
+    curl() {
+      local output='' argument previous='' read=false
+      for argument in "$@"; do
+        [[ "$previous" == -o ]] && output="$argument"
+        [[ "$argument" == --retry-all-errors ]] && read=true
+        previous="$argument"
+      done
+      if $read; then curl_response "$@" > "$output" || return "$?"; printf 200
+      else curl_response "$@"; fi
+    }
+  `
+  const run = (name, stub, overrides = {}) => spawnSync(BASH, ["-c", `${stub}\n${readAdapter}\n${stepScript(name)}`], {
     encoding: "utf8", cwd: root, env: { ...environment, ...overrides }, timeout: 5000,
   })
   const healthStub = `
@@ -136,6 +149,96 @@ function checkProductionSteps() {
     records[1].environment === "production" && records[1].state === "success", record.stderr)
 }
 
+function checkRenderRetries() {
+  const fixture = JSON.parse(readFileSync(toolPath("__tests__/render-web-deploy-fixture.json"), "utf8"))
+  const directory = join(root, "render-retries")
+  mkdirSync(directory, { recursive: true })
+  const calls = join(directory, "calls")
+  const stub = `
+    curl() {
+      local endpoint argument output='' write_code=false post=false retries=false fail=false
+      for argument in "$@"; do
+        [[ "$argument" == https://api.render.com/* ]] && endpoint="$argument"
+        [[ "$argument" == --retry-all-errors ]] && retries=true
+        [[ "$argument" == --fail || "$argument" == -fsS ]] && fail=true
+      done
+      printf '%s\\n' "$*" >> "$CALLS"
+      while (( $# )); do
+        case "$1" in
+          -o|--output) output="$2"; shift ;;
+          -w|--write-out) write_code=true; shift ;;
+          -X) [[ "$2" == POST ]] && post=true; shift ;;
+        esac
+        shift
+      done
+      local body code=200
+      if $post; then
+        local count=0
+        [[ -f "$COUNTER" ]] && count=$(cat "$COUNTER")
+        count=$((count + 1)); printf '%s' "$count" > "$COUNTER"
+        if [[ "$SCENARIO" == lost-* || "$SCENARIO" == exhausted ]]; then
+          if [[ "$count" == 1 || "$SCENARIO" == exhausted ]]; then
+            $write_code && printf 000
+            return 56
+          fi
+        fi
+        code=201; body=$(jq '.[0].deploy' "$DEPLOYS")
+        case "$SCENARIO" in
+          post-4xx) code=401 ;;
+          queued) code=202; body='' ;;
+          wrong-image) body=$(jq '.image.ref="other"' <<< "$body") ;;
+        esac
+      elif [[ "$endpoint" == */deploys[?]* || "$endpoint" == */deploys ]]; then
+        case "$SCENARIO" in
+          lost-empty|exhausted) body='[]' ;;
+          lost-wrong) body=$(jq '.[0].deploy.image.ref="other"' "$DEPLOYS") ;;
+          lost-list-fails) return 22 ;;
+          lost-malformed) body='{}' ;;
+          *) body=$(cat "$DEPLOYS") ;;
+        esac
+      elif [[ "$endpoint" == */deploys/* ]]; then
+        if [[ "$SCENARIO" == poll-transient ]] && ! $retries; then return 56; fi
+        if [[ "$SCENARIO" == poll-4xx ]]; then code=404; fi
+        body=$(jq '.[0].deploy' "$DEPLOYS")
+      else
+        body=$(cat "$SERVICE_RESPONSE")
+      fi
+      if [[ -n "$output" ]]; then printf '%s' "$body" > "$output"; else printf '%s' "$body"; fi
+      $write_code && printf '%s' "$code"
+      if [[ "$code" == 4* ]] && $fail; then return 22; fi
+      return 0
+    }
+    sleep() { :; }
+  `
+  for (const step of ["Deploy web digest", "Deploy staging web digest"]) {
+    for (const [scenario, accepted, posts] of [
+      ["poll-transient", true, 1], ["lost-response", true, 1], ["lost-empty", true, 2],
+      ["lost-wrong", true, 2], ["lost-list-fails", false, 1], ["lost-malformed", false, 1],
+      ["post-4xx", false, 1], ["poll-4xx", false, 1], ["queued", false, 1],
+      ["wrong-image", false, 1], ["exhausted", false, 3],
+    ]) {
+      writeFileSync(calls, "")
+      const counter = stage("render-retries/count", "0")
+      const result = spawnSync(BASH, ["-c", `${stub}\n${stepScript(step)}`], {
+        encoding: "utf8", cwd: root, timeout: 5000, env: {
+          ...process.env, GITHUB_WORKSPACE: toolPath(".."), SERVICE_ID: "srv-production", SERVICE_VARIABLE: "RENDER_WEB_SERVICE_ID",
+          RENDER_API_KEY: "fixture", IMAGE: "ghcr.io/example/web", DIGEST: "sha256:fixture", SCENARIO: scenario,
+          SERVICE_RESPONSE: stage("render-retries/service", JSON.stringify(renderFixture.shutdownService)),
+          DEPLOYS: stage("render-retries/deploys", JSON.stringify(fixture.deploys)), COUNTER: counter, CALLS: calls,
+        },
+      })
+      T(`${step} ${scenario} ${accepted ? "reaches live" : "fails"} with ${posts} POSTs`,
+        (accepted ? result.status === 0 && result.stdout.includes("is live") : result.status !== 0) &&
+        Number(readFileSync(counter, "utf8")) === posts, result.stdout + result.stderr)
+      if (scenario === "poll-transient") {
+        const poll = readFileSync(calls, "utf8").split("\n").find(line => line.includes("/deploys/fixture-deploy")) ?? ""
+        T(`${step} bounds curl read retries and timeouts`,
+          poll.includes("--retry 3") && poll.includes("--retry-all-errors") && poll.includes("--retry-delay 2") && poll.includes("--max-time 30"), poll)
+      }
+    }
+  }
+}
+
 function checkSourceIdentity() {
   const directory = join(root, "release-source")
   mkdirSync(directory, { recursive: true })
@@ -185,8 +288,11 @@ function checkPinnedRelease() {
     ["ok", "b".repeat(40), "true", true],
   ]) {
     const health = stage("release-admission/health", JSON.stringify({ ...renderFixture.health, status, commit }))
-    const result = spawnSync(BASH, ["-c", `curl() { if [[ "$*" == *api.render.com* ]]; then cat "$SERVICE_RESPONSE"; else cat "$HEALTH_RESPONSE"; fi; }\n${script}`], { encoding: "utf8", env: {
-      ...process.env, SOURCE_SHA: renderFixture.health.commit, FORCE_UNSTAGED: override,
+    const result = spawnSync(BASH, ["-c", `curl() { if [[ "$*" == *api.render.com* ]]; then
+      local output previous argument; for argument in "$@"; do [[ "$previous" == -o ]] && output="$argument"; previous="$argument"; done
+      cat "$SERVICE_RESPONSE" > "$output"; printf 200
+      else cat "$HEALTH_RESPONSE"; fi; }\n${script}`], { encoding: "utf8", env: {
+      ...process.env, GITHUB_WORKSPACE: toolPath(".."), SOURCE_SHA: renderFixture.health.commit, FORCE_UNSTAGED: override,
       STAGING_SERVICE_ID: "srv-staging", RENDER_API_KEY: "fixture",
       SERVICE_RESPONSE: stage("release-admission/service", JSON.stringify(renderFixture.service)),
       HEALTH_RESPONSE: health, GITHUB_STEP_SUMMARY: summary,
@@ -230,6 +336,7 @@ export function cases() {
     ...process.env, GITHUB_REF_NAME: "feature/release", RELEASE_ENVIRONMENT: "production", SOURCE_BRANCH: "main",
   } })
   T("production dispatches the workflow from main", wrongWorkflow.status === 1 && wrongWorkflow.stdout.includes("Dispatch release.yml from main"))
+  checkRenderRetries()
   checkProductionSteps()
   checkPinnedRelease()
   checkSourceIdentity()
