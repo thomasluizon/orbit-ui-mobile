@@ -36,6 +36,7 @@ require("node:child_process").spawnSync = (command, args, options) => {
   appendFileSync(${JSON.stringify(callsPath)}, JSON.stringify({ command, args, cwd: options.cwd,
     environment: Object.fromEntries(["DEVELOPER_DIR", "ORBIT_APP_VARIANT", "EXPO_PUBLIC_API_BASE", "SENTRY_DISABLE_AUTO_UPLOAD", "CI"].map(key => [key, options.env[key]])) }) + "\\n")
   const joined = args.join(" ")
+  if (args.includes("-arch") && args.includes("-destination")) return { status: 70, stdout: "", stderr: "xcodebuild: error: destination implies architecture, architecture must not also be specified." }
   if (scenario.fail && joined.includes(scenario.fail)) return { status: 1, stdout: "", stderr: "operation failed" }
   let stdout = ""
   if (joined === "simctl list devices -j") stdout = JSON.stringify({ devices: { "com.apple.CoreSimulator.SimRuntime.iOS-27-1": scenario.noPhones ? [] : phones } })
@@ -77,6 +78,8 @@ export function cases() {
     prebuild?.args.slice(-3).join(" ") === "prebuild --platform ios" && build?.args.includes("Release") &&
     build.args.includes("iphonesimulator") && build.args.includes("CODE_SIGNING_ALLOWED=NO") &&
     build.args.includes(join(successful.checkout, "apps", "mobile", ".artifacts", "ios-simulator", "DerivedData")))
+  T("ios-simulator: uses the selected destination's architecture without a conflicting arch flag",
+    build?.args.includes(`platform=iOS Simulator,id=${secondIdentifier}`) && build.args.includes("ONLY_ACTIVE_ARCH=YES") && !build.args.includes("-arch"))
   const phases = successful.calls.map((call) => call.args.join(" ")).join("\n")
   T("ios-simulator: boots, builds, installs and launches in order", /bootstatus[\s\S]*prebuild[\s\S]*-workspace[\s\S]*simctl install[\s\S]*get_app_container[\s\S]*simctl launch --terminate-running-process/.test(phases))
 

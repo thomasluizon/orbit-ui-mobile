@@ -81,14 +81,14 @@ function run(command, argumentsList, timeout = 60000) {
   return result.stdout.trim()
 }
 
-function build() {
+function build(device) {
   for (const [name, command, argumentsList] of [
     ["prebuild", process.execPath, [expo, "prebuild", "--platform", "ios"]],
     ["build", "xcodebuild", [
       "-workspace", "ios/OrbitStaging.xcworkspace", "-scheme", "OrbitStaging",
       "-configuration", "Release", "-sdk", "iphonesimulator",
-      "-arch", process.arch === "arm64" ? "arm64" : "x86_64", "-jobs", "2",
-      "-destination", "generic/platform=iOS Simulator", "-derivedDataPath", join(artifacts, "DerivedData"),
+      "-destination", `platform=iOS Simulator,id=${device.udid}`, "-jobs", "2",
+      "-derivedDataPath", join(artifacts, "DerivedData"), "ONLY_ACTIVE_ARCH=YES",
       "CODE_SIGNING_ALLOWED=NO", "CODE_SIGNING_REQUIRED=NO", "build",
     ]],
   ]) {
@@ -136,7 +136,7 @@ try {
   const device = selectDevice()
   process.stderr.write(`ios-simulator: booting ${device.name} (${device.udid})\n`)
   run("xcrun", ["simctl", "bootstatus", device.udid, "-b"], 5 * 60 * 1000)
-  build()
+  build(device)
   const app = join(artifacts, "DerivedData", "Build", "Products", "Release-iphonesimulator", "OrbitStaging.app")
   const readProperty = (path, key) => run("/usr/libexec/PlistBuddy", ["-c", `Print :${key}`, join(path, "Info.plist")])
   if (readProperty(app, "CFBundleIdentifier") !== bundleIdentifier) fail("Build has an unexpected bundle identifier")
