@@ -17,20 +17,39 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers(); formLocale.realDates = false; formLocale.language = 'en'; connection.isOnline = true })
 
-function mount() {
+function mount(dueDate = '2026-10-20') {
   let helpers!: HabitFormHelpers
   function OwningForm() {
-    helpers = useHabitForm({ initialData: { itemType: 'task', title: 'Read', dueDate: '2026-10-20' } })
+    helpers = useHabitForm({ initialData: { itemType: 'task', title: 'Read', dueDate } })
     return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
   }
-  const view = render(<QueryClientProvider client={new QueryClient()}><OwningForm /></QueryClientProvider>)
-  return { helpers, ...view }
+  const client = new QueryClient()
+  const composition = () => <QueryClientProvider client={client}><OwningForm /></QueryClientProvider>
+  const view = render(composition())
+  return { helpers, ...view, refreshProfile: () => view.rerender(composition()) }
 }
 const phrase = (value: string) => fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.datePhrase' }), { target: { value } })
 const debounce = () => act(async () => { await vi.advanceTimersByTimeAsync(700) })
 const calendar = () => screen.getByRole('button', { name: /habits.form.taskDate/ })
 
 describe('automatic date field', () => {
+  it.each(['en', 'pt-BR'])('retains the phrase date when the profile arrives after typing in %s', async (locale) => {
+    formLocale.language = locale
+    mockProfileState.timeZone = undefined
+    vi.setSystemTime(new Date('2026-09-04T12:00:00Z'))
+    const { helpers, refreshProfile } = mount('')
+    phrase(locale === 'en' ? 'on the 26th' : 'dia 26')
+    expect(helpers.form.getValues('dueDate')).toBe('')
+    mockProfileState.timeZone = 'UTC'
+    refreshProfile()
+    await debounce()
+    expect(calendar()).toHaveTextContent(formatLocaleDate('2026-09-26', locale))
+    expect(helpers.form.getValues()).toMatchObject({ dueDate: '2026-09-26', dateIssue: '' })
+    expect(helpers.validateAll()).toBeNull()
+    expect(dateRequests.request).not.toHaveBeenCalled()
+    expect(screen.queryByRole('status', { name: 'habits.form.dateInterpreted' })).toBeNull()
+  })
+
   it.each(['en', 'pt-BR'])('fills an editable date through Astra with a subtle in-field glyph in %s', async (locale) => {
     formLocale.language = locale
     let finish!: (reply: { date: string; referenceDate: string }) => void

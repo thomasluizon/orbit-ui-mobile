@@ -2179,16 +2179,33 @@ describe('native automatic date field', () => {
     vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date', 'setTimeout', 'clearTimeout'] })
   })
   afterEach(async () => { await TestRenderer.act(() => tree?.unmount()); vi.useRealTimers(); formLocale.realDates = false; formLocale.language = 'en' })
-  function OwningForm() {
-    helpers = useHabitForm({ initialData: { itemType: 'task', title: 'Read', dueDate: '2026-10-20' } })
+  function OwningForm({ dueDate = '2026-10-20' }: { dueDate?: string }) {
+    helpers = useHabitForm({ initialData: { itemType: 'task', title: 'Read', dueDate } })
     return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
   }
-  async function mount() { await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm />) }) }
+  async function mount(dueDate?: string) { await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm dueDate={dueDate} />) }) }
   const input = () => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.datePhrase')[0]!
   const phrase = (value: string) => TestRenderer.act(() => input().props.onChangeText(value))
   const debounce = () => TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(700) })
   const status = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.accessibilityLabel === label)
   const picker = () => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('habits.form.taskDate,'))[0]!
+
+  it.each(['en', 'pt-BR'])('retains the phrase date when the profile arrives after typing in %s', async (locale) => {
+    formLocale.language = locale
+    mockProfileState.timeZone = undefined
+    vi.setSystemTime(new Date('2026-09-04T12:00:00Z'))
+    await mount('')
+    await phrase(locale === 'en' ? 'on the 26th' : 'dia 26')
+    expect(helpers.form.getValues('dueDate')).toBe('')
+    mockProfileState.timeZone = 'UTC'
+    await TestRenderer.act(() => tree.update(<OwningForm dueDate="" />))
+    await debounce()
+    expect(picker().props.accessibilityLabel).toContain(formatLocaleDate('2026-09-26', locale))
+    expect(helpers.form.getValues()).toMatchObject({ dueDate: '2026-09-26', dateIssue: '' })
+    await TestRenderer.act(() => { expect(helpers.validateAll()).toBeNull() })
+    expect(dateRequests.request).not.toHaveBeenCalled()
+    expect(status('habits.form.dateInterpreted')).toHaveLength(0)
+  })
 
   it.each(['en', 'pt-BR'])('fills the date with a muted in-field glyph and permits manual editing in %s', async (locale) => {
     formLocale.language = locale

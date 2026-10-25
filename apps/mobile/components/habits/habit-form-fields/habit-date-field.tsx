@@ -74,7 +74,7 @@ function DatedHabitField({ formHelpers, onRecurrence, generalLocked }: Readonly<
   useLayoutEffect(() => registerDateValidation(() => editor.validate(), () => editor.chooseType()), [editor, registerDateValidation])
   useEffect(() => { if (!disabled) editor.open(); else editor.close(); return () => editor.close() }, [disabled, editor])
   useEffect(() => {
-    if (!formHelpers.isGeneral && !date && timeZone !== undefined) {
+    if (!formHelpers.isGeneral && !form.getValues('dueDate') && timeZone !== undefined) {
       form.register('dueDate')
       form.resetField('dueDate', { defaultValue: getAccountDay(new Date(), timeZone) })
     }
