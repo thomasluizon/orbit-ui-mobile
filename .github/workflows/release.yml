@@ -179,6 +179,10 @@ jobs:
     outputs:
       smoke_base_url: ${{ steps.health.outputs.smoke_base_url }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - name: Require healthy staging commit
         if: inputs.environment == 'production'
         env:
@@ -188,6 +192,7 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
           set -euo pipefail
+          source "$GITHUB_WORKSPACE/.github/scripts/render-api.sh"
           {
             echo '## Production staging admission'
             echo "Selected SHA: $SOURCE_SHA"
@@ -199,9 +204,7 @@ jobs:
           fi
           if [ -z "$STAGING_SERVICE_ID" ]; then echo "::error::Missing RENDER_WEB_STAGING_SERVICE_ID"; exit 1; fi
           if [ -z "$RENDER_API_KEY" ]; then echo "::error::Missing production RENDER_API_KEY"; exit 1; fi
-          origin=$(curl --fail-with-body --silent --show-error --max-time 30 \
-            "https://api.render.com/v1/services/${STAGING_SERVICE_ID}" \
-            -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -er '.serviceDetails.url')
+          origin=$(render_get "https://api.render.com/v1/services/${STAGING_SERVICE_ID}" | jq -er '.serviceDetails.url')
           health=$(curl --fail-with-body --silent --show-error --max-time 30 "${origin%/}/api/health")
           if ! jq -e --arg sha "$SOURCE_SHA" '.status == "ok" and .commit == $sha' <<< "$health" >/dev/null; then
             echo "::error::Staging must serve $SOURCE_SHA with status ok before production release; force_unstaged is the explicit override"
@@ -214,33 +217,22 @@ jobs:
           DIGEST: ${{ needs.build.outputs.digest }}
         run: |
           set -euo pipefail
+          source "$GITHUB_WORKSPACE/.github/scripts/render-api.sh"
           image_url="${IMAGE}@${DIGEST}"
           if [ -z "$SERVICE_ID" ]; then
             echo "::error::Missing ${SERVICE_VARIABLE} for ${image_url}" >&2
             exit 1
           fi
           if [ -z "$RENDER_API_KEY" ]; then echo "::error::Missing production RENDER_API_KEY" >&2; exit 1; fi
-          if ! curl --fail --silent --show-error --max-time 30 "https://api.render.com/v1/services/${SERVICE_ID}" \
-            -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -e '.serviceDetails.maxShutdownDelaySeconds == 300' > /dev/null; then
+          if ! render_get "https://api.render.com/v1/services/${SERVICE_ID}" | jq -e '.serviceDetails.maxShutdownDelaySeconds == 300' > /dev/null; then
             echo "::error::Production web requires serviceDetails.maxShutdownDelaySeconds = 300. Apply render_web_service.production_web in orbit-api infra/production.tf before releasing." >&2
             exit 1
           fi
-          # Follow the deploy this request created. Render answers 201 with its id; a 202 (queued) has no
-          # body, so no deploy can be proven to be this release's and the step fails closed.
-          response=$(mktemp)
-          http_code=$(curl -sS -o "$response" -w '%{http_code}' -X POST "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
-            -H "Authorization: Bearer ${RENDER_API_KEY}" -H 'Content-Type: application/json' \
-            -d "$(jq -nc --arg image "$image_url" '{imageUrl:$image}')")
-          if [ "$http_code" != "201" ]; then
-            echo "Render answered HTTP ${http_code} to the deploy request for ${image_url}; only a 201 names the deploy to follow" >&2
-            exit 1
-          fi
-          deploy_id=$(jq -er --arg image "$image_url" 'select(.image.ref == $image) | .id' "$response")
+          deploy_id=$(render_deploy "$image_url")
           echo "Requested web deploy ${deploy_id}"
           for attempt in $(seq 1 60); do
             sleep 10
-            status=$(curl -fsS "https://api.render.com/v1/services/${SERVICE_ID}/deploys/${deploy_id}" \
-              -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -er '.status')
+            status=$(render_get "https://api.render.com/v1/services/${SERVICE_ID}/deploys/${deploy_id}" | jq -er '.status')
             echo "Deploy poll ${attempt}: ${status}"
             case "$status" in
               live) echo "Web deploy ${deploy_id} is live"; exit 0 ;;
@@ -259,8 +251,8 @@ jobs:
           SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
         run: |
           set -euo pipefail
-          origin=$(curl -fsS "https://api.render.com/v1/services/${SERVICE_ID}" \
-            -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -er '.serviceDetails.url')
+          source "$GITHUB_WORKSPACE/.github/scripts/render-api.sh"
+          origin=$(render_get "https://api.render.com/v1/services/${SERVICE_ID}" | jq -er '.serviceDetails.url')
           origin="${origin%/}"
           check_health() {
             local url="$1" deadline=$((SECONDS + 180)) body remaining
@@ -313,6 +305,10 @@ jobs:
       name: staging
       deployment: false
     steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - name: Deploy staging web digest
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -320,25 +316,15 @@ jobs:
           DIGEST: ${{ needs.build.outputs.digest }}
         run: |
           set -euo pipefail
+          source "$GITHUB_WORKSPACE/.github/scripts/render-api.sh"
           image_url="${IMAGE}@${DIGEST}"
           if [ -z "$SERVICE_ID" ]; then echo "::error::Missing RENDER_WEB_STAGING_SERVICE_ID" >&2; exit 1; fi
           if [ -z "$RENDER_API_KEY" ]; then echo "::error::Missing staging RENDER_API_KEY" >&2; exit 1; fi
-          # Follow the deploy this request created. Render answers 201 with its id; a 202 (queued) has no
-          # body, so no deploy can be proven to be this release's and the step fails closed.
-          response=$(mktemp)
-          http_code=$(curl -sS -o "$response" -w '%{http_code}' -X POST "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
-            -H "Authorization: Bearer ${RENDER_API_KEY}" -H 'Content-Type: application/json' \
-            -d "$(jq -nc --arg image "$image_url" '{imageUrl:$image}')")
-          if [ "$http_code" != "201" ]; then
-            echo "Render answered HTTP ${http_code} to the deploy request for ${image_url}; only a 201 names the deploy to follow" >&2
-            exit 1
-          fi
-          deploy_id=$(jq -er --arg image "$image_url" 'select(.image.ref == $image) | .id' "$response")
+          deploy_id=$(render_deploy "$image_url")
           echo "Requested staging deploy ${deploy_id}"
           for attempt in $(seq 1 60); do
             sleep 10
-            status=$(curl -fsS "https://api.render.com/v1/services/${SERVICE_ID}/deploys/${deploy_id}" \
-              -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -er '.status')
+            status=$(render_get "https://api.render.com/v1/services/${SERVICE_ID}/deploys/${deploy_id}" | jq -er '.status')
             echo "Deploy poll ${attempt}: ${status}"
             case "$status" in
               live) echo "Staging deploy ${deploy_id} is live"; exit 0 ;;
