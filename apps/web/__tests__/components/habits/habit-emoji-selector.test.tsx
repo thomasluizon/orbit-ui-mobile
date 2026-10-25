@@ -50,7 +50,8 @@ describe('HabitEmojiSelector', () => {
   it('marks a setup-proposed emoji beside the title', () => {
     render(<UnderstandingWithEmoji resolved proposed />)
     const well = screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })
-    expect(well.closest('[data-proposed]')).not.toBeNull()
+    expect(well.closest('[data-proposed]')).toBeNull()
+    expect(well.querySelector('[data-proposed]')).not.toBeNull()
     expect(well.closest('[data-habit-title-row]')).not.toBeNull()
   })
 

@@ -16,6 +16,7 @@ import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-i
 import { type AppTokens, createStyles } from "./styles";
 
 interface HabitEmojiSelectorProps {
+  proposed?: boolean
   onSuggest?: () => void
   canSuggest?: boolean
   isSuggesting?: boolean
@@ -35,7 +36,7 @@ function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled
   return onSuggest ? (
     <PillButton
       variant="ghost"
-      retainLeadingIcon
+      borderless
       iconOnly label={t('habits.form.suggestEmoji')}
       minimumHeight={TOUCH_TARGET_MIN}
       loading={isSuggesting}
@@ -50,6 +51,7 @@ function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled
 }
 
 export function HabitEmojiSelector({
+  proposed = false,
   onSuggest,
   canSuggest = false,
   isSuggesting = false,
@@ -97,7 +99,7 @@ export function HabitEmojiSelector({
 
   return (
     <>
-      <View style={{ gap: 8, maxWidth: '100%' }}>
+      <View style={{ gap: 8, maxWidth: '100%', flexShrink: 0, width: Math.max(wellSize, TOUCH_TARGET_MIN) + (onSuggest ? TOUCH_TARGET_MIN + 12 : 0) }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <Pressable focusInset
             style={({ pressed }) => [
@@ -110,12 +112,13 @@ export function HabitEmojiSelector({
             onPress={() => setPickerOpen(true)}
             accessibilityRole="button"
             accessibilityLabel={t("habits.form.emojiOpenPicker")}
+            accessibilityHint={proposed ? t('habits.form.proposedByAstra') : undefined}
             accessibilityState={{ disabled: isDisabled }}
           >
             {({ pressed }) => (
-              <View testID="habit-emoji-well" data-press-fill="" accessible={false} pointerEvents="none" style={{ width: wellSize, height: wellSize, borderRadius: 12, backgroundColor: pressed ? tokens.bgHover : tokens.bgWell, alignItems: 'center', justifyContent: 'center' }}>
+              <View testID="habit-emoji-well" data-proposed={proposed || undefined} data-press-fill="" accessible={false} pointerEvents="none" style={{ width: wellSize, height: wellSize, borderRadius: 12, backgroundColor: pressed ? tokens.bgHover : tokens.bgWell, alignItems: 'center', justifyContent: 'center', ...(proposed ? { borderWidth: 1, borderStyle: 'dashed', borderColor: tokens.hairlineStrong } : {}) }}>
                 {selectedEmoji ? (
-                  <Text style={[styles.emojiWellText, wellSize === 76 ? { fontSize: 34 } : null]}>{selectedEmoji}</Text>
+                  <Text style={[styles.emojiWellText, proposed ? { color: tokens.fg3 } : null, wellSize === 76 ? { fontSize: 34 } : null]}>{selectedEmoji}</Text>
                 ) : (
                   <Plus size={20} color={tokens.fg3} strokeWidth={1.8} />
                 )}
@@ -124,7 +127,6 @@ export function HabitEmojiSelector({
           </Pressable>
           <EmojiSuggestionButton onSuggest={onSuggest} canSuggest={canSuggest} isSuggesting={isSuggesting} isDisabled={isDisabled} suggestionHint={suggestionHint} suggestionError={suggestionError} />
         </View>
-        {onSuggest ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[{ color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14 }, !suggestionError ? { position: 'absolute', width: 0, height: 0 } : null]}>{suggestionError}</Text> : null}
       </View>
 
       {pickerOpen ? (<Sheet

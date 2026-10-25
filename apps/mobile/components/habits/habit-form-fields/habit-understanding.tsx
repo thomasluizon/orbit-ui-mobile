@@ -78,21 +78,20 @@ export function HabitUnderstanding({
   const segments = useMemo(() => segmentHabitPhrase(value, consumed), [consumed, value])
 
   const emojiControl = (
-    <Proposed inset keepMounted proposed={emojiProposed || proposed} scope="field" label={labels.proposed}>
-      <HabitEmojiSelector
-        selectedEmoji={emoji}
-        tokens={tokens}
-        styles={formStyles}
-        wellSize={46}
-        onSelect={selectEmoji}
-        onSuggest={requestEmoji}
-        canSuggest={canSuggestEmoji}
-        isSuggesting={isEmojiSuggesting}
-        isDisabled={disabled || isSuggestionDisabled || isEmojiSuggesting}
-        suggestionHint={emojiSuggestionHint}
-        suggestionError={emojiSuggestionError}
-      />
-    </Proposed>
+    <HabitEmojiSelector
+      proposed={emojiProposed || proposed}
+      selectedEmoji={emoji}
+      tokens={tokens}
+      styles={formStyles}
+      wellSize={46}
+      onSelect={selectEmoji}
+      onSuggest={requestEmoji}
+      canSuggest={canSuggestEmoji}
+      isSuggesting={isEmojiSuggesting}
+      isDisabled={disabled || isSuggestionDisabled || isEmojiSuggesting}
+      suggestionHint={emojiSuggestionHint}
+      suggestionError={emojiSuggestionError}
+    />
   )
 
   return (
@@ -131,8 +130,9 @@ export function HabitUnderstanding({
               onBlur={() => setFocused(false)}
             />
           </View>
-          <View style={{ flexShrink: 0, width: onSuggestEmoji ? TOUCH_TARGET_MIN * 2 + 12 : TOUCH_TARGET_MIN }}>{emojiControl}</View>
+          {emojiControl}
         </View>
+        {onSuggestEmoji ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.error, !emojiSuggestionError ? { position: 'absolute', width: 0, height: 0 } : null]}>{emojiSuggestionError}</Text> : null}
         {error ? (
           <Text accessibilityRole="alert" style={styles.error}>{error}</Text>
         ) : null}

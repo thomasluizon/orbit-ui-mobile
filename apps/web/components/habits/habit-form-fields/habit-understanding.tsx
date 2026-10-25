@@ -1,6 +1,5 @@
 'use client'
 
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { TypedTextarea } from '@/components/ui/typed-textarea'
 import { useId, useMemo, useState, type ReactNode, type Ref } from 'react'
 import type { HabitUnderstandingProps, HabitRepeatIntervalProps } from '@orbit/shared/utils'
@@ -62,32 +61,33 @@ export function HabitUnderstanding({
   const id = useId()
   const phraseId = `habit-phrase-${id}`
   const errorId = `habit-phrase-error-${id}`
+  const emojiErrorId = `habit-emoji-error-${id}`
   const { emojiProposed, selectEmoji, requestEmoji } = useEmojiProposal(onSuggestEmoji, onEmojiSelect)
   const hasValue = value.trim().length > 0
   const showPreview = hasValue && !isSuggestionDisabled && Boolean(sentence)
   const segments = useMemo(() => segmentHabitPhrase(value, consumed), [consumed, value])
 
   const emojiControl = (
-    <Proposed inset keepMounted proposed={emojiProposed || proposed} scope="field" label={labels.proposed}>
-      <HabitEmojiSelector
-        selectedEmoji={emoji}
-        wellSize={46}
-        onSelect={selectEmoji}
-        onSuggest={requestEmoji}
-        canSuggest={canSuggestEmoji}
-        isSuggesting={isEmojiSuggesting}
-        isDisabled={isSuggestionDisabled || isEmojiSuggesting}
-        suggestionHint={emojiSuggestionHint}
-        suggestionError={emojiSuggestionError}
-      />
-    </Proposed>
+    <HabitEmojiSelector
+      proposed={emojiProposed || proposed}
+      selectedEmoji={emoji}
+      wellSize={46}
+      onSelect={selectEmoji}
+      onSuggest={requestEmoji}
+      canSuggest={canSuggestEmoji}
+      isSuggesting={isEmojiSuggesting}
+      isDisabled={isSuggestionDisabled || isEmojiSuggesting}
+      suggestionHint={emojiSuggestionHint}
+      suggestionError={emojiSuggestionError}
+      suggestionErrorId={emojiErrorId}
+    />
   )
 
   return (
     <div className="flex flex-col" style={{ gap: 24 }}>
       <div className="flex flex-col" style={{ gap: 8 }}>
-        <label htmlFor={phraseId} className="form-label">{labels.field}</label>
-        <div data-habit-title-row="" className="flex min-w-0 items-start gap-3">
+        <div data-habit-title-row="" className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2">
+          <label htmlFor={phraseId} className="form-label col-span-2">{labels.field}</label>
           <div data-habit-phrase-field="" data-focus-perimeter="" className="orbit-field-hover relative min-w-0 flex-1 rounded-[12px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
             <p
               aria-hidden="true"
@@ -117,8 +117,9 @@ export function HabitUnderstanding({
               onChange={(event) => onValueChange(event.target.value)}
             />
           </div>
-          <div className="shrink-0" style={{ width: onSuggestEmoji ? TOUCH_TARGET_MIN * 2 + 12 : TOUCH_TARGET_MIN }}>{emojiControl}</div>
+          {emojiControl}
         </div>
+        {onSuggestEmoji ? <p id={emojiErrorId} role="alert" className="empty:absolute text-sm text-[var(--status-bad-text)]">{emojiSuggestionError}</p> : null}
         {error ? (
           <p id={errorId} role="alert" className="text-sm text-[var(--status-bad-text)]">
             {error}

@@ -46,6 +46,7 @@ interface TestNode {
 
 interface TestTree {
   root: TestNode;
+  update(element: React.ReactNode): void;
 }
 
 interface TestRendererApi {
@@ -100,6 +101,27 @@ function renderSelector(
 }
 
 describe("HabitEmojiSelector mobile", () => {
+  it.each([false, true])('keeps proposal paint inside the well and one focus indicator on the fill action: %s', proposed => {
+    let tree!: TestTree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitUnderstanding value="Run" emoji="🏃" proposed={proposed} days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={null} consumed={[]} showSchedule={false}
+        labels={buildHabitUnderstandingLabels(key => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} onSuggestEmoji={vi.fn()} canSuggestEmoji />);
+    });
+    const action = tree.root.findAll(node => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.suggestEmoji')[0]!;
+    const paint = tree.root.findAll(node => node.type === 'View' && node.props.testID === 'habit-emoji-well')[0]!;
+    expect(StyleSheet.flatten(paint.props.style as ViewStyle).borderWidth ?? 0).toBe(proposed ? 1 : 0);
+    const row = tree.root.findAll(node => node.type === 'View' && node.props.testID === 'habit-title-row')[0]!;
+    expect(row.findAll(node => node.props.testID === 'proposed-field-outline')).toHaveLength(0);
+    const style = () => StyleSheet.flatten(resolvedStyle(action, false) as ViewStyle[]);
+    expect(style().borderWidth ?? 0).toBe(0);
+    expect(style().outlineWidth ?? 0).toBe(0);
+    TestRenderer.act(() => { (action.props.onFocus as () => void)() });
+    expect(style().outlineWidth).toBe(2);
+    expect(style().borderWidth ?? 0).toBe(0);
+    TestRenderer.act(() => { (action.props.onBlur as () => void)() });
+    expect(style().outlineWidth ?? 0).toBe(0);
+  });
+
   beforeEach(() => {
     mockCloseSheet.mockClear();
   });

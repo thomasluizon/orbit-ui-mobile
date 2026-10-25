@@ -192,7 +192,8 @@ describe("HabitUnderstanding mobile", () => {
           node.props.selectedEmoji === "🏃",
       ),
     ).toHaveLength(1);
-    expect(tree.root.findAll(node => node.type === 'Proposed' && node.findAll(child => child.type === 'HabitEmojiSelector').length > 0)).toHaveLength(1);
+    expect(tree.root.findAll(node => node.type === 'HabitEmojiSelector')[0]!.props.proposed).toBe(true);
+    expect(tree.root.findAll(node => node.type === 'Proposed' && node.findAll(child => child.type === 'HabitEmojiSelector').length > 0)).toHaveLength(0);
     const consumedMonday = tree.root.findAll(
       (node) => node.type === "Text" && node.props.children === "Monday",
     )[0]!;
@@ -217,7 +218,7 @@ describe("HabitUnderstanding mobile", () => {
     expect(props.onQuantityChange).not.toHaveBeenCalled();
 
     TestRenderer.act(() => tree.update(<HabitUnderstanding {...props} sentence={null} />));
-    expect(tree.root.findAll((node) => node.type === "Proposed")).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === "Proposed")).toHaveLength(0);
     const emojiSelectors = tree.root.findAll((node) => node.type === "HabitEmojiSelector");
     expect(emojiSelectors).toHaveLength(1);
     TestRenderer.act(() => tree.update(<HabitUnderstanding {...props} />));

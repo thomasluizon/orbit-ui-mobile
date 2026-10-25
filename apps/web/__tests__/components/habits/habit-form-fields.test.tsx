@@ -1,3 +1,4 @@
+import { dateInterpretationSchema } from '@orbit/shared/types/habit'
 import { appConfigSchema } from '@orbit/shared/types/config'
 import { createMockConfigResponse, createMockHabit } from '@orbit/shared/__tests__/factories'
 import React from 'react'
@@ -179,6 +180,36 @@ function renderForm(
 }
 
 describe('HabitFormFields', () => {
+  it('keeps the frequency fill action mounted with one spinner during its request', () => {
+    const view = renderForm(createFormHelpers({ title: 'Build a stronger routine' }), vi.fn(() => SETUP_PROPOSAL))
+    const action = screen.getByRole('button', { name: 'habits.form.askAstra' })
+    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeInTheDocument()
+    view.rerenderForm(true)
+    expect(screen.getByRole('button', { name: 'habits.form.askAstra' })).toBe(action)
+    expect(action).toHaveAttribute('aria-busy', 'true')
+    expect(action).toHaveAttribute('data-borderless', 'true')
+    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeNull()
+    expect(action.querySelectorAll('svg')).toHaveLength(1)
+    view.rerenderForm()
+    expect(action).not.toHaveAttribute('aria-busy')
+    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeInTheDocument()
+  })
+
+  it('replaces the date fill glyph with one spinner until its request completes', async () => {
+    let finish!: (value: { date: string | null; referenceDate: string }) => void
+    dateRequests.request.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+    renderForm(createFormHelpers({ itemType: 'habit', title: 'Run', datePhrase: 'after my vacation' }))
+    const action = screen.getByRole('button', { name: 'habits.form.suggestDate' })
+    fireEvent.click(action)
+    expect(action).toHaveAttribute('aria-busy', 'true')
+    expect(action).toHaveAttribute('data-borderless', 'true')
+    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeNull()
+    expect(action.querySelectorAll('svg')).toHaveLength(1)
+    await act(async () => { finish(dateInterpretationSchema.parse({ date: null, referenceDate: '2026-10-20' })) })
+    expect(action).not.toHaveAttribute('aria-busy')
+    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeInTheDocument()
+  })
+
   it('renders every form Astra action without visible text', () => {
     const helpers = createFormHelpers({ itemType: 'habit', title: 'Build a stronger routine', datePhrase: 'after my vacation' })
     const view = renderForm(helpers, vi.fn(() => SETUP_PROPOSAL), false, false, null, undefined, { onSuggestEmoji: vi.fn() })
@@ -268,7 +299,8 @@ describe('HabitFormFields', () => {
     view.rerenderForm(true)
     const busy = screen.getByRole('button', { name: 'habits.form.suggestEmoji' })
     expect(busy).toBe(button)
-    expect(busy.querySelector('[data-asset^="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
+    expect(busy.querySelector('[data-asset^="astra-mark"]')).toBeNull()
+    expect(busy.querySelectorAll('svg')).toHaveLength(1)
     expect(busy).toHaveAttribute('aria-busy', 'true')
     expect(busy).not.toBeDisabled()
     expect(busy).toHaveAttribute('aria-disabled', 'true')
@@ -281,7 +313,9 @@ describe('HabitFormFields', () => {
     emojiOptions.isEmojiSuggesting = false
     view.rerenderForm()
     expect(screen.getByRole('button', { name: 'habits.form.suggestEmoji' })).toBe(button)
-    expect(button.closest('[data-proposed]')).toBeInTheDocument()
+    expect(button.closest('[data-proposed]')).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }).querySelector('[data-proposed]')).toBeInTheDocument()
+    expect(button.querySelector('[data-asset^="astra-mark"]')).toBeInTheDocument()
     expect(moveFocus ? phrase : button).toHaveFocus()
   })
 
@@ -310,6 +344,7 @@ describe('HabitFormFields', () => {
     expect(button).toBeDisabled()
     expect(button.getAttribute('aria-describedby')).toBeTruthy()
     expect(screen.getByRole('alert')).toHaveTextContent('Try again')
+    expect(screen.getByRole('alert').closest('[data-habit-title-row]')).toBeNull()
     expect(button).toHaveAccessibleDescription(expect.stringContaining('Try again'))
   })
 
@@ -1102,6 +1137,9 @@ describe('habit tag suggestions', () => {
     fireEvent.click(action)
     expect(action).toBeDisabled()
     expect(action).toHaveAttribute('aria-busy', 'true')
+    expect(action).toHaveAttribute('data-borderless', 'true')
+    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeNull()
+    expect(action.querySelectorAll('svg')).toHaveLength(1)
     expect(action).toHaveAccessibleDescription('habits.form.suggestingTags')
     expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestingTags')
     fireEvent.click(action)

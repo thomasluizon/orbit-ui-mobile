@@ -36,6 +36,53 @@ describe('habit understanding geometry', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each((['en', 'pt-BR'] as const).flatMap(locale => [false, true].map(proposed => ({ locale, proposed }))))('keeps emoji feedback full width and fill borders absent in $locale, proposed: $proposed', async ({ locale, proposed }) => {
+    const messages = locale === 'en' ? en : ptBR
+    const form = (busy: boolean) => <NextIntlClientProvider locale={locale} messages={messages}><HabitUnderstanding value="Run" emoji="🏃" proposed={proposed} days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={null} consumed={[]} showSchedule={false}
+      labels={buildHabitUnderstandingLabels(key => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} onSuggestEmoji={vi.fn()} canSuggestEmoji isEmojiSuggesting={busy} emojiSuggestionError={messages.habits.form.aiSuggestError} />
+    </NextIntlClientProvider>
+    const view = render(form(false))
+    const page = await browser.newPage({ viewport: { width: 320, height: 1000 } })
+    const mount = async () => {
+      await page.setContent(`<style>${stylesheet}:root{font-size:32px}</style><main style="padding:16px">${view.container.innerHTML}</main>`)
+      await loadAppFonts(page)
+    }
+    try {
+      await mount()
+      const metrics = await page.getByRole('button', { name: messages.habits.form.suggestEmoji }).evaluate(button => {
+        const styles = getComputedStyle(button)
+        const ancestors = []
+        for (let parent = button.parentElement; parent && !parent.hasAttribute('data-habit-title-row'); parent = parent.parentElement) {
+          const style = getComputedStyle(parent)
+          ancestors.push({ border: style.borderWidth, outline: style.outlineStyle === 'none' ? '0px' : style.outlineWidth, shadow: style.boxShadow })
+        }
+        const error = document.querySelector('[role="alert"]')!
+        return { border: styles.borderWidth, outline: styles.outlineStyle === 'none' ? '0px' : styles.outlineWidth, shadow: styles.boxShadow, radius: styles.borderRadius, ancestors,
+          errorInTitleRow: Boolean(error.closest('[data-habit-title-row]')), errorWidth: error.getBoundingClientRect().width,
+          overflow: document.documentElement.scrollWidth - innerWidth }
+      })
+      expect(metrics.border).toBe('0px')
+      expect(metrics.outline).toBe('0px')
+      expect(metrics.shadow).toBe('none')
+      for (const ancestor of metrics.ancestors) expect(ancestor).toEqual({ border: '0px', outline: '0px', shadow: 'none' })
+      expect(metrics.errorInTitleRow).toBe(false)
+      expect(metrics.errorWidth).toBe(288)
+      expect(metrics.overflow).toBe(0)
+      const action = page.getByRole('button', { name: messages.habits.form.suggestEmoji })
+      await action.focus()
+      expect(await action.evaluate(button => ({ outline: getComputedStyle(button).outlineWidth, shadow: getComputedStyle(button).boxShadow, radius: getComputedStyle(button).borderRadius }))).toEqual({ outline: '2px', shadow: 'none', radius: metrics.radius })
+      view.rerender(form(true))
+      await mount()
+      expect(await action.getAttribute('aria-busy')).toBe('true')
+      expect(await action.locator('svg').count()).toBe(1)
+      expect(await action.locator('[data-asset^="astra-mark"]').count()).toBe(0)
+      view.rerender(form(false))
+      await mount()
+      expect(await action.getAttribute('aria-busy')).toBeNull()
+      expect(await action.locator('[data-asset^="astra-mark"]').count()).toBe(1)
+    } finally { await page.close(); view.unmount() }
+  })
+
   it.each([393, 1280].flatMap(width => ['', 'Read every day'].map(value => ({ width, value }))))('keeps the emoji well trailing the title at $width for "$value"', async ({ width, value }) => {
     const view = render(<NextIntlClientProvider locale="en" messages={en}><HabitUnderstanding value={value} emoji="" days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={value ? 'Every day' : null} consumed={[]} showSchedule={false}
       labels={buildHabitUnderstandingLabels(key => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} onSuggestEmoji={vi.fn()} canSuggestEmoji={Boolean(value)} emojiSuggestionHint={value ? undefined : en.habits.form.titleRequired}>
