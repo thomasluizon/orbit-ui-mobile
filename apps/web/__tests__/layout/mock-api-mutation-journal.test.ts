@@ -4,7 +4,7 @@ import { Readable } from 'node:stream'
 import type { BrowserContext } from '@playwright/test'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
-import { bulkCreateRequestSchema, reorderHabitsRequestSchema } from '@orbit/shared/types/habit'
+import { bulkCreateRequestSchema, dateInterpretationSchema, reorderHabitsRequestSchema } from '@orbit/shared/types/habit'
 import { mintHermeticJwt } from '../../test-support/hermetic/hermetic-session'
 import { handleRequest } from '../../test-support/hermetic/mock-api/request-handler'
 import { setLayoutFixtureSession } from '../../e2e/layout/profile-session'
@@ -100,5 +100,21 @@ describe('mock API mutation journal isolation', () => {
     expect((await request('GET', journalPath, token)).body).toEqual([{ method, path, body }])
     expect((await request('GET', journalPath, tokenFor('other-page'))).body).toEqual([])
     expect(await request('DELETE', journalPath, token)).toEqual({ status: 200, body: [] })
+  })
+
+  it('seeds schema-validated date interpretation POST responses only in their fixture session', async () => {
+    const token = tokenFor('date-interpretation')
+    const body = dateInterpretationSchema.parse({ date: '2026-09-27', referenceDate: '2026-09-04' })
+    expect(await request('PUT', '/_test/session-fixtures', token, {
+      fixtures: [{ method: 'POST', path: API.habits.interpretDate, body }],
+    })).toEqual({ status: 204, body: null })
+    expect(await request('POST', API.habits.interpretDate, token, { phrase: 'after vacation', language: 'en' }))
+      .toEqual({ status: 200, body })
+    expect((await request('POST', API.habits.interpretDate, tokenFor('other-date-session'))).body)
+      .toEqual({ date: '2026-09-26', referenceDate: '2026-09-04' })
+    expect((await request('PUT', '/_test/session-fixtures', token, {
+      fixtures: [{ method: 'POST', path: API.habits.interpretDate, body: { date: 27 } }],
+    })).status).toBe(400)
+    expect((await request('POST', API.habits.interpretDate, token)).body).toEqual(body)
   })
 })

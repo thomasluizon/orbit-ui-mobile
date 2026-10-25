@@ -183,8 +183,10 @@ Before every attempt, the hook sends `POST /api/auth/refresh` with `api-version:
 replaces that account's `refreshToken` in the same mode-600 file, then sets `process.env[credentialKey]`.
 A missing, rejected or malformed refresh clears the old bearer and stops before fixture or chat
 requests. Private `.rotated` and `.refresh-failed` sibling markers distinguish durable token rotation
-from failed or interrupted refresh. Any failed refresh blocks further refreshes from that file and
-prevents Action persistence, even if an earlier attempt rotated successfully. Recover a fresh session,
+from failed or interrupted refresh submissions. Credential validation, lock acquisition and health-wait
+failures before submission affect only that attempt; they allow later healthy accounts to refresh and
+earlier rotations to persist. A failed or uncertain submitted refresh blocks further refreshes from
+that file and prevents Action persistence, even if an earlier attempt rotated successfully. Recover a fresh session,
 replace the private file, and remove its markers before retrying. No token or server error body is logged. A private lock rejects concurrent token
 rotation; run one serial job per file and account. A crash leaving a `.lock` file requires checking
 that the other process has stopped before removing that lock. If rotation succeeded remotely but
@@ -493,7 +495,9 @@ rendered consumers; this harness change does not unblock broad rollout by itself
 2. Extend the reset executable if the case needs new state. Describe that state in this catalog.
    Compound cases require every tool and its key arguments. Bulk cases require exactly one bulk
    call and forbid its single-item counterpart. Ambiguity cases allow only appropriate reads
-   and asks; the rubric requires a question rather than action.
+   and asks; the rubric requires a question rather than action. Use `composition.mode: clarification`
+   to accept either one to three short plain-text lines without a block or exactly one `choice` block.
+   Other block kinds, multiple blocks and pending writes fail this policy.
 3. Regenerate `catalog.yaml` from a settled API checkout with
    `node evals/astra/generate-catalog.mjs <orbit-api checkout>`. This requires the API's .NET SDK
    and restored package access. The exporter builds into a private temporary artifacts directory,

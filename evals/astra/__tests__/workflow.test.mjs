@@ -43,7 +43,8 @@ it('loads rotating credentials at job start and persists into that same environm
 it('a second dispatch queued before rotation starts with the newly persisted environment secret', async () => {
   const queuedSnapshots = [stored('initial-refresh'), stored('initial-refresh')]
   let serverRefresh = 'initial-refresh'
-  vi.stubGlobal('fetch', async (_, options) => {
+  vi.stubGlobal('fetch', async (url, options) => {
+    if (new URL(url).pathname === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
     expect(JSON.parse(options.body).refreshToken).toBe(serverRefresh)
     serverRefresh += '-rotated'
     return Response.json({ token: 'access', refreshToken: serverRefresh })
@@ -58,7 +59,8 @@ it('a second dispatch queued before rotation starts with the newly persisted env
 })
 it.each(['none', 'failed', 'same-token', 'rotation-then-failed'])('never persists a stale snapshot: %s', async (mode) => {
   runStep(prepare)
-  vi.stubGlobal('fetch', async () => mode === 'failed'
+  vi.stubGlobal('fetch', async (url) => new URL(url).pathname === '/health'
+    ? Response.json({ status: 'Healthy', commit: null, checks: [] }) : mode === 'failed'
     ? Response.json({}, { status: 401 }) : Response.json({ token: 'access', refreshToken: mode === 'same-token' ? 'initial-refresh' : 'rotated-refresh' }))
   if (mode === 'failed') await expect(refreshCredential('ORBIT_EVAL_TOKEN')).rejects.toThrow('refresh failed')
   if (mode === 'same-token' || mode === 'rotation-then-failed') await refreshCredential('ORBIT_EVAL_TOKEN')

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { fileURLToPath } from 'node:url'
 import { loadApiProvider } from 'promptfoo'
+import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
 import * as assertions from '../assertions.mjs'
 import parseResponse from '../response.mjs'
 import { chatResponse, toolCall, preview } from './fixtures/producer.mjs'
@@ -10,6 +11,7 @@ import { chatResponse, toolCall, preview } from './fixtures/producer.mjs'
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const root = fileURLToPath(new URL('..', import.meta.url))
 const config = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
+const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
 const block = { type: 'block', kind: 'habitList', block: { scope: 'today', items: [
   { id: 'water', title: 'Water', emoji: null, depth: 0, isBadHabit: false, status: 'today' },
 ], totalCount: 1 } }
@@ -95,6 +97,41 @@ describe('production composition gate', () => {
       expect((await gate(response(clientContext.supportsParts ? [{ type: 'text', text: 'Water is pending.' }] : undefined, 'Water is pending.'), vars)).pass).toBe(true)
       expect((await gate(response([block]), vars)).pass).toBe(false)
     }
+  })
+})
+
+describe.each(['ambiguity-pt', 'ambiguity-en'])('%s clarification alternatives', (id) => {
+  const scenario = scenarios.find((entry) => entry.metadata.id === id)
+  const vars = { ...scenario.vars, clientContext: buildChatClientContext(scenario.metadata) }
+  const question = scenario.metadata.locale === 'pt-BR' ? 'Qual caminhada você concluiu?' : 'Which habit should I change?'
+  const choice = { type: 'block', kind: 'choice', block: {
+    blockId: '11111111-1111-4111-8111-111111111111', question,
+    options: [{ id: 'water', label: 'Water', description: null }, { id: 'walk', label: 'Walk', description: null }],
+    multiSelect: false, allowFreeText: true, expiresAtUtc: '2026-10-26T20:00:00Z',
+  } }
+  function clarification(parts = [choice], aiMessage = '') {
+    const produced = response(parts, aiMessage)
+    const call = toolCall('ask', { form: 'choice', question, options: choice.block.options, multiSelect: false, allowFreeText: true })
+    call.result.entityId = choice.block.blockId
+    produced.evalTrace.toolCalls = [call]
+    return produced
+  }
+  it('accepts one source-shaped choice block through the provider and configured assertions', async () => {
+    expect(await gate(clarification(), vars)).toMatchObject({ pass: true })
+  })
+  it('accepts a plain-text clarification without any block', async () => {
+    expect(await gate(response([{ type: 'text', text: question }], question), vars)).toMatchObject({ pass: true })
+  })
+  it.each(['unrelated block', 'choice plus unrelated block', 'two choices', 'pending write', 'write tool', 'no parts', 'malformed choice'])('rejects %s', async (failure) => {
+    const produced = clarification()
+    if (failure === 'unrelated block') produced.parts = [block]
+    if (failure === 'choice plus unrelated block') produced.parts.push(block)
+    if (failure === 'two choices') produced.parts.push(structuredClone(choice))
+    if (failure === 'pending write') produced.pendingOperations = [preview()]
+    if (failure === 'write tool') produced.evalTrace.toolCalls.push(toolCall('log_habit', { habit_id: 'water' }, 'PendingConfirmation', 'write-call'))
+    if (failure === 'no parts') delete produced.parts
+    if (failure === 'malformed choice') produced.parts = [{ ...choice, block: { question } }]
+    expect((await gate(produced, vars)).pass).toBe(false)
   })
 })
 

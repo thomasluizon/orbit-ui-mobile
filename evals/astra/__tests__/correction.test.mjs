@@ -42,6 +42,7 @@ it.each(['en', 'pt-BR'])('runs setup, held correction, every assertion and pass^
   let correctionStatus = 'PendingConfirmation'
   let extraCall = false
   vi.stubGlobal('fetch', async (url, options) => {
+    if (new URL(url).pathname === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
     if (new URL(url).pathname === '/api/auth/refresh') return refreshResponse()
     const request = new Request(url, options)
     const requestId = request.headers.get('x-orbit-request-id')

@@ -569,24 +569,6 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
-    "mobile:control:habits.form.askDate": {
-      "targets": [
-        "mobile:control:habits.form.suggestDate",
-        "mobile:control:habits.form.suggestEmoji",
-        "mobile:control:habits.form.suggestTags",
-        "mobile:control:habits.reschedule.suggestDate",
-        "mobile:content:shell.composer.send"
-      ],
-      "owners": [
-        "apps/mobile/components/habits/habit-form-fields/habit-date-field.tsx",
-        "apps/mobile/components/habits/habit-form-fields/habit-emoji-selector.tsx",
-        "apps/mobile/components/habits/habit-form-fields/tag-suggestions.tsx",
-        "apps/mobile/components/habits/reschedule-sheet.tsx",
-        "apps/mobile/components/habits/habit-detail-screen.tsx",
-        "apps/mobile/components/ui/inset-focus-pressable.tsx"
-      ],
-      "reason": "#1668 retains date, emoji, tag and reschedule requests under contextual accessible names on mark-only actions, and composer sending under Send on its arrow target."
-    },
     "mobile:control:habits.form.descriptionPlaceholder": {
       "targets": [
         "mobile:control:habits.form.description"
@@ -1382,12 +1364,6 @@
         "mobile:control:habits.detail.monthlyRate"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
-    },
-    "mobile:display:habits.form.dateProposed": {
-      "targets": [
-        "mobile:content:habits.form.dateProposed"
-      ],
-      "reason": "#1607 retains the candidate Proposed label and conditional status beside the actual editable DateField, with deterministic acceptance and manual recovery."
     },
     "mobile:display:habits.form.dueTime": {
       "targets": [
@@ -2309,24 +2285,6 @@
         "web:content:habits.form.astraReading"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
-    },
-    "web:control:habits.form.askDate": {
-      "targets": [
-        "web:control:habits.form.suggestDate",
-        "web:control:habits.form.suggestEmoji",
-        "web:control:habits.form.suggestTags",
-        "web:control:habits.reschedule.suggestDate",
-        "web:content:shell.composer.send"
-      ],
-      "owners": [
-        "apps/web/components/habits/habit-form-fields/habit-date-field.tsx",
-        "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx",
-        "apps/web/components/habits/habit-form-fields/tag-suggestions.tsx",
-        "apps/web/components/habits/reschedule-sheet.tsx",
-        "apps/web/components/habits/habit-detail-screen.tsx",
-        "apps/web/components/shell/composer.tsx"
-      ],
-      "reason": "#1668 retains date, emoji, tag and reschedule requests under contextual accessible names on mark-only actions, and composer sending under Send on its arrow target."
     },
     "web:control:habits.form.createDescription": {
       "targets": [
@@ -3259,12 +3217,6 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
-    "web:display:habits.form.dateProposed": {
-      "targets": [
-        "web:content:habits.form.dateProposed"
-      ],
-      "reason": "#1607 retains the candidate Proposed label and conditional status beside the actual editable DateField, with deterministic acceptance and manual recovery."
-    },
     "web:display:habits.form.dueTime": {
       "targets": [
         "web:control:habits.form.exactTime"
@@ -3685,6 +3637,21 @@
       "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
+    "mobile:control:habits.form.acceptDate": {
+      "citation": "DESIGN.md",
+      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
+    },
+    "mobile:control:habits.form.askDate": {
+      "citation": "DESIGN.md",
+      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
+    },
+    "mobile:control:habits.form.suggestDate": {
+      "citation": "DESIGN.md",
+      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
+    },
     "mobile:control:onboarding.featureGuide.astra": {
       "citation": "DESIGN.md",
       "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
@@ -3863,6 +3830,11 @@
       "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
+    "mobile:control:shell.composer.offline.reason": {
+      "citation": "DESIGN.md",
+      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
+    },
     "mobile:control:streakDisplay.freeze.celebrationSubtitle": {
       "citation": "DESIGN.md",
       "rule": "**Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal",
@@ -3934,6 +3906,16 @@
       "rule": "**Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal",
       "reason": "The separate achievement toast is outside the four approved celebration triggers.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:display:habits.form.askAstraCost": {
+      "citation": "DESIGN.md",
+      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
+    },
+    "mobile:display:habits.form.dateProposed": {
+      "citation": "DESIGN.md",
+      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
     },
     "mobile:display:retrospective.metrics.completionRate": {
       "citation": "DESIGN.md",
@@ -4060,6 +4042,21 @@
       "rule": "reversible and therefore carry no confirmation.",
       "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:habits.form.acceptDate": {
+      "citation": "DESIGN.md",
+      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
+    },
+    "web:control:habits.form.askDate": {
+      "citation": "DESIGN.md",
+      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
+    },
+    "web:control:habits.form.suggestDate": {
+      "citation": "DESIGN.md",
+      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
     },
     "web:control:insights.empty": {
       "citation": "DESIGN.md",
@@ -4348,6 +4345,11 @@
       "reason": "The desktop stats rail and its open and close controls are deleted.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
+    "web:control:shell.composer.offline.reason": {
+      "citation": "DESIGN.md",
+      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
+    },
     "web:control:shell.openRail": {
       "citation": "DESIGN.md",
       "rule": "**The desktop stats rail.** Progresso owns the question it was answering.",
@@ -4407,6 +4409,16 @@
       "rule": "**Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal",
       "reason": "The separate achievement toast is outside the four approved celebration triggers.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:display:habits.form.askAstraCost": {
+      "citation": "DESIGN.md",
+      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
+    },
+    "web:display:habits.form.dateProposed": {
+      "citation": "DESIGN.md",
+      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
     },
     "web:display:rail.progressLabel": {
       "citation": "DESIGN.md",

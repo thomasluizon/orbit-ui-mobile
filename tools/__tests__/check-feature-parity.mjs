@@ -18,7 +18,7 @@ const restoredRuleIds = [
 const formRuleIds = [
   ...['web', 'mobile'].flatMap((platform) => [
     ...['habits.actions.reschedule', 'habits.form.suggestTags', 'habits.reschedule.retry'].map((key) => `${platform}:control:${key}`),
-    ...['common.selectedDate', 'habits.form.dateProposed'].map((key) => `${platform}:display:${key}`),
+    `${platform}:display:common.selectedDate`,
   ]),
   'web:display:habits.form.suggestTags',
 ]
@@ -354,7 +354,7 @@ function restoredRuleRegressions(platform, current, files, inventory, rules, obs
   }
   const removed = compare(capabilities, scan(current, platform), rules)
   T(`${platform} closed restoration tickets cannot exempt lost replacements`, newLosses(removed, retained).length === capabilities.length, removed.filter((entry) => entry.disposition !== 'missing').map((entry) => entry.id).join(', '))
-  T(`${platform} removing restoration owners retains manual emoji picking and other Astra actions`, files[`apps/${platform}/components/habits/habit-form-fields/habit-emoji-selector.tsx`].includes('handleSelectEmoji(emoji)') && scan(current, platform).some((entry) => entry.id === `${platform}:control:habits.form.suggestDate`))
+  T(`${platform} removing restoration owners retains manual emoji picking and automatic date interpretation`, files[`apps/${platform}/components/habits/habit-form-fields/habit-emoji-selector.tsx`].includes('handleSelectEmoji(emoji)') && Object.values(dateOwners(platform, files, scan(current, platform))).every(Boolean))
   for (const [path, source] of originals) files[path] = source
   T(`${platform} restoring every closed restoration owner leaves no new losses`, newLosses(compare(capabilities, scan(current, platform), rules), retained).length === 0)
 }
@@ -419,8 +419,44 @@ function mappedOwnerRegressions(catalog) {
   }
 }
 
+function dateOwners(platform, files, observations) {
+  const owner = `apps/${platform}/components/habits/habit-form-fields/habit-date-field.tsx`
+  const source = files[owner]
+  const editor = files['packages/shared/src/utils/habit-date-editor.ts']
+  return {
+    automatic: source.includes('editor.setPhrase(value)') && source.includes('interpretation.mutateAsync({ ...input, signal })') && editor.includes('void this.interpret()'),
+    glyph: /trailing=\{snapshot.pending \|\| snapshot.astra \? .*<AstraGlyph /.test(source) && ['dateInterpreting', 'dateInterpreted'].every((key) => observations.some((entry) => entry.key === `habits.form.${key}` && entry.consumers?.some((item) => item.file === owner))),
+    resolved: /<DateField\b[^>]* value=\{date\}/.test(source) && editor.includes("if (result === 'proposed') this.applyInterpretation()"),
+  }
+}
+
+function automaticDateRegressions(platform, current, files, rules, dateCapabilities) {
+  const owner = `apps/${platform}/components/habits/habit-form-fields/habit-date-field.tsx`
+  const editor = 'packages/shared/src/utils/habit-date-editor.ts'
+  const observations = scan(current, platform, rules)
+  const before = compare(dateCapabilities, observations, rules)
+  T(`${platform} automatic date interpretation, inline attribution and resolved picker have real owners`, Object.values(dateOwners(platform, files, observations)).every(Boolean))
+  const mutations = [
+    ['automatic', owner, 'interpretation.mutateAsync({ ...input, signal })', 'Promise.resolve(null)'],
+    ['glyph', owner, / trailing=\{snapshot.pending \|\| snapshot.astra \? .*? : undefined\}/g, ''],
+    ['resolved', owner, 'value={date}', 'value=""'],
+    ['resolved', editor, "if (result === 'proposed') this.applyInterpretation()", "if (result === 'proposed') return"],
+  ]
+  for (const [name, path, pattern, replacement] of mutations) {
+    const original = files[path]
+    files[path] = original.replace(pattern, replacement)
+    T(`${platform} ${name} mutation removes the real date owner`, files[path] !== original)
+    const after = scan(current, platform, rules)
+    const owners = dateOwners(platform, files, after)
+    T(`${platform} deleting ${name} fails its date obligation and retains the other owners`, !owners[name] && Object.entries(owners).filter(([key]) => key !== name).every(([, present]) => present))
+    T(`${platform} deleting ${name} retains manual date selection and picker readback`, files[owner].includes('editor.selectDate(value)') && newLosses(compare(dateCapabilities, after, rules), before).length === 0)
+    files[path] = original
+  }
+  T(`${platform} restoring date owners retains automatic interpretation, attribution and resolved date`, Object.values(dateOwners(platform, files, scan(current, platform, rules))).every(Boolean))
+}
+
 function invocationRuleRegressions(platform, current, files, inventory, rules, observations) {
-  const ids = formRuleIds.filter((id) => id.startsWith(`${platform}:`) && !id.includes('common.selectedDate') && !id.includes('dateProposed'))
+  const ids = formRuleIds.filter((id) => id.startsWith(`${platform}:`) && !id.includes('common.selectedDate'))
   const capabilities = inventory.entries.filter((entry) => ids.includes(entry.id))
   const before = compare(capabilities, observations, rules)
   T(`${platform} current form invocation owners retain every original obligation`, before.length === ids.length && before.every((entry) => entry.disposition === 'retained' && entry.redesign.length > 0))
@@ -438,7 +474,7 @@ function invocationRuleRegressions(platform, current, files, inventory, rules, o
     const after = compare(capabilities, afterObservations, rules)
     const losses = newLosses(after, before).map((entry) => entry.id).sort()
     T(`${platform} deleting ${name} blocks exactly its original obligations`, JSON.stringify(losses) === JSON.stringify([...missingIds].sort()), losses.join(', '))
-    T(`${platform} deleting ${name} retains the other Astra owners and manual tag picker`, [['habit-date-field.tsx', 'habits.form.suggestDate'], ['habit-emoji-selector.tsx', 'habits.form.suggestEmoji']].every(([owner, key]) => afterObservations.some((entry) => entry.id === `${platform}:control:${key}` && entry.evidence.some((item) => item.file.endsWith(owner)))) && afterObservations.some((entry) => entry.id === `${platform}:control:habits.form.tags`))
+    T(`${platform} deleting ${name} retains automatic dates, emoji generation and manual tag picking`, Object.values(dateOwners(platform, files, afterObservations)).every(Boolean) && afterObservations.some((entry) => entry.id === `${platform}:control:habits.form.suggestEmoji` && entry.evidence.some((item) => item.file.endsWith('habit-emoji-selector.tsx'))) && afterObservations.some((entry) => entry.id === `${platform}:control:habits.form.tags`))
     T(`${platform} deleting ${name} preserves deterministic acceptance, recovery and other row actions`, files[`${prefix}habit-form-fields/tag-suggestions.tsx`].includes('suggestions.acceptSuggestion(suggestion)') && files[`${prefix}habit-form-fields/tag-suggestions.tsx`].includes('getFriendlyErrorMessage') && files[`${prefix}reschedule-sheet.tsx`].includes("t('habits.reschedule.dismiss')") && files[`${prefix}reschedule-sheet.tsx`].includes("t('habits.reschedule.accept')") && ['edit', 'skip', 'drill'].every((key) => files[`${prefix}${platform === 'web' ? 'habit-row-trailing' : 'habit-row'}.tsx`].includes(`id: '${key}'`)))
     files[path] = original
     T(`${platform} restoring ${name} leaves no new invocation losses`, newLosses(compare(capabilities, scan(current, platform, rules), rules), before).length === 0)
@@ -726,19 +762,8 @@ export const cases = () => {
     T(`${platform} removing the date field blocks both legacy date capabilities`, newLosses(afterDate, beforeDate).length === 2)
     T(`${platform} removing the date field also blocks its selected-date display obligation`, newLosses(compare(selectedDate, withoutDateField, rules), beforeReadback).length === 1)
     files[dateField] = originalDateField
-    const proposed = inventory.entries.filter((entry) => entry.id === `${platform}:display:habits.form.dateProposed`)
-    const beforeProposed = compare(proposed, scan(current, platform, rules), rules)
-    const candidateOwner = `apps/${platform}/components/habits/habit-form-fields/habit-date-field.tsx`
-    const originalCandidate = files[candidateOwner]
-    const proposedLabel = "t('habits.form.dateProposed')"
-    T(`${platform} the real Proposed label and status are both present`, originalCandidate.split(proposedLabel).length === 3 && beforeProposed.length === 1 && beforeProposed[0].disposition === 'retained')
-    files[candidateOwner] = originalCandidate.replaceAll(proposedLabel, "''")
-    T(`${platform} the Proposed mutation retains manual selection and acceptance callbacks`, files[candidateOwner] !== originalCandidate && files[candidateOwner].includes('editor.selectDate(value)') && files[candidateOwner].includes('editor.accept()') && files[dateField] === originalDateField)
-    const withoutProposed = scan(current, platform, rules)
-    T(`${platform} deleting candidate Proposed evidence blocks its original display obligation`, newLosses(compare(proposed, withoutProposed, rules), beforeProposed).length === 1)
-    T(`${platform} deleting Proposed evidence retains date selection and readback`, compare([...dateCapabilities, ...selectedDate], withoutProposed, rules).every((entry) => entry.disposition === 'retained'))
-    files[candidateOwner] = originalCandidate
-    T(`${platform} restoring date owners leaves no selection, readback or Proposed losses`, newLosses(compare([...dateCapabilities, ...selectedDate, ...proposed], scan(current, platform, rules), rules), [...beforeDate, ...beforeReadback, ...beforeProposed]).length === 0)
+    automaticDateRegressions(platform, current, files, rules, [...dateCapabilities, ...selectedDate])
+    T(`${platform} restoring date owners leaves no selection or readback losses`, newLosses(compare([...dateCapabilities, ...selectedDate], scan(current, platform, rules), rules), [...beforeDate, ...beforeReadback]).length === 0)
     const guide = `apps/${platform}/components/profile/profile-mcp-guide.tsx`
     const guideCapabilities = inventory.entries.filter((entry) => entry.platform === platform && rules.tickets[entry.id] === '#1447')
     const beforeGuide = compare(guideCapabilities, scan(current, platform), rules)

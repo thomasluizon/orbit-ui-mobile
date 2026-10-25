@@ -2,6 +2,31 @@ import { constants, closeSync, existsSync, fstatSync, openSync, readFileSync, re
 import { randomUUID } from 'node:crypto'
 
 export const credentialKeys = ['ORBIT_EVAL_TOKEN', 'ORBIT_EVAL_FREE_TOKEN', 'ORBIT_EVAL_BUDGET_TOKEN']
+const readiness = new Map()
+
+async function waitForHealthyApi(origin) {
+  const deadline = Date.now() + 180000
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${origin}/health`, {
+        method: 'GET', redirect: 'error', signal: AbortSignal.timeout(Math.min(60000, deadline - Date.now())),
+      })
+      if (response.ok && (await response.json()).status === 'Healthy') return
+    } catch {
+      // Health probes are safe to retry before submitting a rotating refresh.
+    }
+    const remaining = deadline - Date.now()
+    if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, Math.min(2000, remaining)))
+  }
+  throw new Error('API did not become Healthy within the bounded startup wait; no refresh was sent.')
+}
+
+async function wakeApi() {
+  const origin = apiOrigin()
+  const key = `${origin}:${process.env.ORBIT_EVAL_CREDENTIALS_FILE}`
+  if (!readiness.has(key)) readiness.set(key, waitForHealthyApi(origin))
+  try { await readiness.get(key) } catch (error) { readiness.delete(key); throw error }
+}
 
 export function apiOrigin() {
   const origin = new URL(process.env.ORBIT_EVAL_BASE_URL)
@@ -28,6 +53,19 @@ export function readCredentials() {
   } finally {
     if (descriptor !== undefined) closeSync(descriptor)
   }
+}
+
+export function safeFailureMessage(error) {
+  const secrets = credentialKeys.map((key) => process.env[key])
+  secrets.push(process.env.ORBIT_EVAL_CREDENTIALS_FILE)
+  try { secrets.push(...Object.values(readCredentials()).map((account) => account?.refreshToken)) } catch {
+    // An unreadable credential file already produces a message without its contents.
+  }
+  let message = error instanceof Error ? error.message : 'Unknown precondition failure.'
+  for (const secret of secrets.filter((value) => typeof value === 'string' && value.length).sort((a, b) => b.length - a.length)) {
+    message = message.replaceAll(secret, '[redacted]')
+  }
+  return message.replace(/[\r\n]/g, ' ')
 }
 
 export async function updateCredentials(update) {
@@ -58,17 +96,26 @@ export async function refreshCredential(key) {
     const path = process.env.ORBIT_EVAL_CREDENTIALS_FILE
     if (!path) throw new Error('Missing credentials file.')
     if (existsSync(`${path}.refresh-failed`)) throw new Error('A refresh already failed; recover the session before another run.')
-    writeFileSync(`${path}.refresh-failed`, '', { mode: 0o600, flag: 'wx' })
     let rotated = false
     const token = await updateCredentials(async (credentials) => {
       const account = credentials[key]
       if (typeof account?.refreshToken !== 'string' || !account.refreshToken.trim()) throw new Error('Missing refresh token.')
-      const response = await fetch(`${apiOrigin()}/api/auth/refresh`, {
+      await wakeApi()
+      const refreshUrl = `${apiOrigin()}/api/auth/refresh`
+      const refreshOptions = {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'api-version': '2.0' },
-        body: JSON.stringify({ refreshToken: account.refreshToken }), redirect: 'error', signal: AbortSignal.timeout(15000),
-      })
-      if (!response.ok) throw new Error('Refresh rejected.')
-      const session = await response.json()
+        body: JSON.stringify({ refreshToken: account.refreshToken }), redirect: 'error', signal: AbortSignal.timeout(120000),
+      }
+      writeFileSync(`${path}.refresh-failed`, '', { mode: 0o600, flag: 'wx' })
+      let response
+      try {
+        response = await fetch(refreshUrl, refreshOptions)
+      } catch {
+        throw new Error('Refresh transport failed; recover the session before another run.')
+      }
+      if (!response.ok) throw new Error(`Refresh rejected with HTTP ${response.status}.`)
+      let session
+      try { session = await response.json() } catch { throw new Error('Malformed refresh response.') }
       if (typeof session.token !== 'string' || !session.token.trim()
         || typeof session.refreshToken !== 'string' || !session.refreshToken.trim()) throw new Error('Malformed refresh response.')
       rotated = account.refreshToken !== session.refreshToken
@@ -78,7 +125,7 @@ export async function refreshCredential(key) {
     if (rotated) writeFileSync(`${path}.rotated`, '', { mode: 0o600 })
     unlinkSync(`${path}.refresh-failed`)
     process.env[key] = token
-  } catch {
-    throw new Error(`Credential refresh failed for ${key}; no chat request should run.`)
+  } catch (error) {
+    throw new Error(`Credential refresh failed for ${key}; no chat request should run. ${safeFailureMessage(error)}`)
   }
 }

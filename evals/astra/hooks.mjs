@@ -1,10 +1,13 @@
 import { appendFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
-import { apiOrigin, readCredentials, refreshCredential } from './credentials.mjs'
+import { tsImport } from 'tsx/esm/api'
+import { apiOrigin, readCredentials, refreshCredential, safeFailureMessage } from './credentials.mjs'
 import { dateOffset, resetFixture } from './fixtures/reset.mjs'
 import { prepareCorrection } from './setup.mjs'
 import { descriptors } from './merge-reports.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
+
+const { buildChatClientContext } = await tsImport('../../packages/shared/src/chat/client-context.ts', import.meta.url)
 
 let completedResults = []
 let selectedCases = []
@@ -26,25 +29,28 @@ export function beforeAll({ suite }) {
     if (!process.env[key]) throw new Error(`Missing required environment variable: ${key}`)
   }
   apiOrigin()
-  const credentials = readCredentials()
-  for (const test of suite.tests) {
-    if (!credentials[test.vars.credentialKey]?.refreshToken) throw new Error(`Missing refresh credential: ${test.vars.credentialKey}`)
-  }
+  readCredentials()
   if (process.env.ORBIT_EVAL_OVERDUE_DATE && !/^\d{4}-\d{2}-\d{2}$/.test(process.env.ORBIT_EVAL_OVERDUE_DATE)) throw new Error('ORBIT_EVAL_OVERDUE_DATE must be an ISO calendar date.')
 }
 
 export async function beforeEach({ test }) {
+  delete test.vars.preconditionFailure
+  try { return await prepareAttempt(test) } catch (error) {
+    test.vars.preconditionFailure = safeFailureMessage(error)
+    process.stderr.write(`Astra precondition unavailable for ${test.metadata.id}: ${test.vars.preconditionFailure}\n`)
+    return { test }
+  }
+}
+
+async function prepareAttempt(test) {
   await refreshCredential(test.vars.credentialKey)
   const today = new Date().toISOString().slice(0, 10)
   test.vars.accountDate = today
   process.env.ORBIT_EVAL_OVERDUE_DATE ??= dateOffset(today, -1)
-  try {
-    await resetFixture(test, today)
-  } catch {
-    throw new Error(`Fixture reset failed for ${test.metadata.id}; no chat request should run.`)
-  }
+  await resetFixture(test, today)
   const account = readCredentials()[test.vars.credentialKey]
   const substitutions = {
+    accountDate: today,
     habitId: account.habitId ?? process.env.ORBIT_EVAL_HABIT_ID,
     secondHabitId: account.secondHabitId ?? process.env.ORBIT_EVAL_SECOND_HABIT_ID,
     overdueDate: process.env.ORBIT_EVAL_OVERDUE_DATE,
@@ -54,7 +60,7 @@ export async function beforeEach({ test }) {
     substitutions[`${key}Localized`] = new Intl.DateTimeFormat(test.metadata.locale ?? 'en', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${substitutions[key]}T12:00:00Z`))
   }
   const substitute = (value) => {
-    if (typeof value === 'string') return value.replace(/\{(habitId|secondHabitId|overdueDate|historyFrom|historyTo|comparisonFrom|comparisonTo|historyFromLocalized|historyToLocalized|comparisonFromLocalized|comparisonToLocalized)\}/g, (_, key) => {
+    if (typeof value === 'string') return value.replace(/\{(accountDate|habitId|secondHabitId|overdueDate|historyFrom|historyTo|comparisonFrom|comparisonTo|historyFromLocalized|historyToLocalized|comparisonFromLocalized|comparisonToLocalized)\}/g, (_, key) => {
       if (!substitutions[key]) throw new Error(`Missing fixture substitution: ${key}`)
       return substitutions[key]
     })
@@ -63,7 +69,8 @@ export async function beforeEach({ test }) {
     return value
   }
   test.vars = substitute(test.vars)
-  test.vars.clientContextJson = JSON.stringify(test.vars.clientContext ?? {})
+  test.vars.clientContext ??= buildChatClientContext({ platform: test.metadata.platform ?? 'web', locale: test.metadata.locale ?? 'en' })
+  test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
   test.vars.historyJson = JSON.stringify(test.vars.history ?? [])
   test.vars.evalRequestId = randomUUID()
   return test.vars.setup ? prepareCorrection(test) : { test }
