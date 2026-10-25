@@ -325,7 +325,7 @@ only when all three attempts pass all assertions with complete required evidence
 `reports/summary.json` and `reports/summary.md` contain only case IDs, family and locale labels, and counts.
 Before deciding the gate, the harness also writes private `reports/results.json` with each attempt's
 case ID, one-based repeat ordinal within that case, pass state, HTTP status, failure reason, and every
-assertion's metric, pass state and reason. Unknown status or missing assertion fields are null.
+assertion's metric, pass state and reason. Unknown status, metric or reason is null.
 The file has mode 600 and survives a failed or incomplete gate even when promptfoo does not write
 its requested output file. Reasons can contain private answer details: keep this file local and
 do not upload it. Copy it into each private window directory before the next run replaces it.
