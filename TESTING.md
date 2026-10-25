@@ -47,6 +47,24 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 
 ## Suite catalog
 
+Workspace `test` tasks in `turbo.json` retain default workspace inputs, upstream builds and
+`coverage/**` outputs. Their additional inputs follow the files their suites read:
+
+| Workspace | Readers and external inputs |
+|---|---|
+| Shared | `contract-workflows` reads both contract rebaseline workflows. `backlog-port-source`, `theme`, `primitive-contracts`, `hermes-intl-guard`, `progress`, `segmented-control-labels`, `authored-typography` and `typography` inspect web and mobile sources, native widget resources, granted drawings and typography tokens. `interaction-clearance` also reads both platform guard files. `authored-typography` reads the root ignore rules; `shared-import-boundary` loads local ESLint rules. |
+| Desktop | `release-workflow` reads `desktop-release.yml`. |
+| Mobile | `ios-workflows` reads both iOS workflows; `theme` reads `DESIGN.md`; `orbit-widget` reads granted color tokens. Tests also import shared source and fixtures, including the segmented-control inventory that scans mobile call sites. |
+| Web | `theme-dom` reads `DESIGN.md`; `manifest` reads the brand icon. `surface-graphic-contrast` runs the root surface scanner against web and mobile sources and shared themes. `privacy-policy-disclosure` runs the architecture generator, which reads TypeScript across all app workspaces and shared source. Other tests import shared source and fixtures, including the segmented-control inventory. |
+| ESLint rules | `rules`, `no-rejecting-animation-wait` and `installed-config-lifecycle` load app ESLint configuration and TypeScript configuration. `spacing-contract` reads shared spacing definitions and generated CSS, granted spacing tokens and app CSS. The installed Tailwind theme and other package files are covered by the lockfile. |
+
+`npm test -w @orbit/shared -- scripts/turbo-inputs.test.mjs` runs the installed Turbo CLI in
+isolated fixture repositories with local caches. It demonstrates stale success without external
+inputs, then checks each consumer's real task declaration through execution markers and exit
+codes. Changed or deleted external files execute the task again; unrelated root files and
+workflows retain cache hits. It also checks default workspace inputs and restores coverage
+artifacts from cache. These tests do not parse Turbo's report fields.
+
 | Suite | Where | Command | What it proves |
 |---|---|---|---|
 | Web unit | `apps/web` | `npm test -w @orbit/web` (`vitest run`) | web component / hook / server-action behavior via data-attributes, not classes |

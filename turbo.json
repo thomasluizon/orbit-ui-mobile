@@ -19,6 +19,68 @@
       "dependsOn": ["^build"],
       "outputs": ["coverage/**"]
     },
+    "@orbit/shared#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.gitignore",
+        "$TURBO_ROOT$/apps/{web,mobile}/**/.gitignore",
+        "$TURBO_ROOT$/.github/workflows/contract-rebaseline.yml",
+        "$TURBO_ROOT$/.github/workflows/contract-rebaseline-redesign.yml",
+        "$TURBO_ROOT$/apps/{web,mobile}/**/*.{ts,tsx,js,jsx,css,xml,svg,kt}",
+        "!$TURBO_ROOT$/apps/{web,mobile}/**/{node_modules,.next,.expo,coverage,dist,build,.gradle}/**",
+        "$TURBO_ROOT$/design/canvas/Orbit Busca.dc.html",
+        "$TURBO_ROOT$/design/canvas/Orbit Wrapped.dc.html",
+        "$TURBO_ROOT$/design/canvas/Orbit Widget Android.dc.html",
+        "$TURBO_ROOT$/design/canvas/_ds/*/tokens/typography.css",
+        "$TURBO_ROOT$/eslint-rules/*.cjs"
+      ]
+    },
+    "@orbit/desktop#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.github/workflows/desktop-release.yml"
+      ]
+    },
+    "@orbit/mobile#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.github/workflows/ios-{build,release}.yml",
+        "$TURBO_ROOT$/DESIGN.md",
+        "$TURBO_ROOT$/design/canvas/_ds/*/tokens/colors.css",
+        "$TURBO_ROOT$/packages/shared/src/**"
+      ]
+    },
+    "@orbit/web#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/DESIGN.md",
+        "$TURBO_ROOT$/design/brand/png/orbit-platform-icon-512.png",
+        "$TURBO_ROOT$/tools/{arch-map,check-surface-scope}.mjs",
+        "$TURBO_ROOT$/apps/mobile/**/*.{ts,tsx,js,jsx}",
+        "$TURBO_ROOT$/apps/desktop/**/*.{ts,tsx}",
+        "!$TURBO_ROOT$/apps/{mobile,desktop}/**/{node_modules,.expo,coverage,dist,build}/**",
+        "$TURBO_ROOT$/packages/shared/src/**"
+      ]
+    },
+    "@orbit/eslint-rules#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/{web,mobile}/{eslint.config.*,tsconfig.json}",
+        "$TURBO_ROOT$/apps/{web,mobile}/{app,components,lib}/**/*.css",
+        "$TURBO_ROOT$/packages/shared/src/theme/spacing.{json,css}",
+        "$TURBO_ROOT$/design/canvas/_ds/*/tokens/spacing.css"
+      ]
+    },
     "clean": {
       "cache": false
     }
