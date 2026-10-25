@@ -379,3 +379,97 @@ it('retries rate limits on the server delay and reports genuine stream failures 
     vi.useRealTimers()
   }
 })
+
+it.each([new TypeError('network error'), new Error('connection reset')])('replays after an interrupted body read without reporting: %s', async (failure) => {
+  vi.useFakeTimers()
+  const controller = new AbortController()
+  let interrupt!: () => void
+  const open = vi.fn()
+    .mockResolvedValueOnce({ ok: true, body: new ReadableStream<Uint8Array>({ start(stream) {
+      stream.enqueue(new TextEncoder().encode(`id: epoch.1\nevent: changes\ndata: ${JSON.stringify(payload)}\n\n`))
+      interrupt = () => stream.error(failure)
+    } }) })
+    .mockResolvedValueOnce({ ok: true, body: new ReadableStream<Uint8Array>({ start(stream) {
+      stream.enqueue(new TextEncoder().encode('id: epoch.2\nevent: resync\ndata: {"v":1,"changes":[]}\n\n'))
+      controller.signal.addEventListener('abort', () => stream.close(), { once: true })
+    } }) })
+  const options = { open, signal: controller.signal, onEvent: vi.fn(), onOpen: vi.fn(), onReconnect: vi.fn(), onError: vi.fn() }
+  const running = consumeAccountEventStream(options)
+  try {
+    await vi.advanceTimersByTimeAsync(0)
+    interrupt()
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(open).toHaveBeenCalledTimes(2)
+    expect(open).toHaveBeenLastCalledWith(controller.signal, 'epoch.1')
+    expect(options.onEvent.mock.calls.map(([event]) => event.type)).toEqual(['changes', 'resync'])
+    expect(options.onReconnect).toHaveBeenCalledOnce()
+    expect(options.onError).not.toHaveBeenCalled()
+  } finally {
+    controller.abort()
+    await running
+    vi.useRealTimers()
+  }
+})
+
+it('cancels a pending body read on unload without reporting or reconnecting', async () => {
+  const controller = new AbortController()
+  const cancel = vi.fn()
+  let close!: () => void
+  const body = new ReadableStream<Uint8Array>({ start(stream) { close = () => stream.close() }, cancel })
+  const options = { signal: controller.signal, open: vi.fn(async () => ({ ok: true, body })),
+    onEvent: vi.fn(), onOpen: vi.fn(), onReconnect: vi.fn(), onError: vi.fn() }
+  const running = consumeAccountEventStream(options)
+  await vi.waitFor(() => expect(options.onOpen).toHaveBeenCalledOnce())
+  controller.abort()
+  try {
+    await vi.waitFor(() => expect(cancel).toHaveBeenCalledOnce())
+    await running
+    expect(options.onError).not.toHaveBeenCalled()
+    expect(options.onReconnect).not.toHaveBeenCalled()
+    expect(options.open).toHaveBeenCalledOnce()
+  } finally {
+    if (!cancel.mock.calls.length) close()
+    await running
+  }
+})
+
+it.each([new Error('event handler failed'), new TypeError('network error')])('reports an event handler exception once per connection gap: %s', async (failure) => {
+  vi.useFakeTimers()
+  const controller = new AbortController()
+  const open = vi.fn().mockResolvedValueOnce(closedStream(`event: changes\ndata: ${JSON.stringify(payload)}\n\n`))
+    .mockRejectedValue(failure)
+  const options = { signal: controller.signal, open, onEvent: () => { throw failure },
+    onOpen: vi.fn(), onReconnect: vi.fn(), onError: vi.fn() }
+  const running = consumeAccountEventStream(options)
+  try {
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(open.mock.calls.length).toBeGreaterThan(2)
+    expect(options.onError).toHaveBeenCalledExactlyOnceWith(failure)
+  } finally {
+    controller.abort()
+    await running
+    vi.useRealTimers()
+  }
+})
+
+it('reports a malformed account event and retries without accepting its cursor', async () => {
+  vi.useFakeTimers()
+  const controller = new AbortController()
+  const failure = new Error('stream unavailable')
+  const open = vi.fn().mockResolvedValueOnce(closedStream('id: invalid.1\nevent: changes\ndata: {\n\n'))
+    .mockRejectedValue(failure)
+  const options = { signal: controller.signal, open, onEvent: vi.fn(), onOpen: vi.fn(), onReconnect: vi.fn(), onError: vi.fn() }
+  const running = consumeAccountEventStream(options)
+  try {
+    await vi.advanceTimersByTimeAsync(0)
+    expect(options.onError).toHaveBeenCalledExactlyOnceWith(expect.any(SyntaxError))
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(options.onError).toHaveBeenCalledOnce()
+    expect(open).toHaveBeenLastCalledWith(controller.signal, null)
+    expect(options.onEvent).not.toHaveBeenCalled()
+  } finally {
+    controller.abort()
+    await running
+    vi.useRealTimers()
+  }
+})

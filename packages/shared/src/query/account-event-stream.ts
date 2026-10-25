@@ -35,18 +35,13 @@ function parseBlock(block: string): ParsedAccountEvent | null {
   const type = field('event')[0]
   const payloadText = field('data').join('\n')
   if (!type || !payloadText) return null
-  let payload: unknown
-  try {
-    payload = JSON.parse(payloadText)
-  } catch {
-    return null
-  }
+  if (type !== 'ready' && type !== 'changes' && type !== 'resync') return null
+  const payload: unknown = JSON.parse(payloadText)
   if (type === 'ready') {
     if (typeof payload !== 'object' || payload === null || !('connectionId' in payload)) return null
     return typeof payload.connectionId === 'string' && payload.connectionId
       ? { type, connectionId: payload.connectionId, id: null } : null
   }
-  if (type !== 'changes' && type !== 'resync') return null
   const result = accountEventPayloadSchema.safeParse(payload)
   if (!result.success) return { type: 'resync', payload: { v: 1, changes: [] }, id: field('id')[0] || null }
   return { type, payload: result.data, id: field('id')[0] || null }
@@ -168,14 +163,18 @@ async function readEvents(
   const reader = body.getReader()
   const decoder = new TextDecoder()
   const parser = createAccountEventParser()
+  const cancel = () => { void reader.cancel().catch(() => {}) }
+  signal.addEventListener('abort', cancel, { once: true })
   try {
     for (;;) {
       if (signal.aborted) return
-      const { done, value } = await reader.read()
-      if (done) return
-      for (const event of parser.feed(decoder.decode(value, { stream: true }))) onEvent(event)
+      // WHY: The transport rejects pending reads on connection loss; parsing and handlers still report. https://github.com/thomasluizon/orbit-tickets/issues/1728
+      const chunk = await reader.read().catch(() => null)
+      if (!chunk || chunk.done || !streamIsActive(signal)) return
+      for (const event of parser.feed(decoder.decode(chunk.value, { stream: true }))) onEvent(event)
     }
   } finally {
-    void reader.cancel().catch(() => {})
+    signal.removeEventListener('abort', cancel)
+    cancel()
   }
 }
