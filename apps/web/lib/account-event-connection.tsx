@@ -62,13 +62,9 @@ export function AccountEventConnection(): null {
       resumed = true
     }
     document.addEventListener('visibilitychange', syncVisibility)
-    window.addEventListener('pagehide', close)
-    window.addEventListener('pageshow', syncVisibility)
     syncVisibility()
     return () => {
       document.removeEventListener('visibilitychange', syncVisibility)
-      window.removeEventListener('pagehide', close)
-      window.removeEventListener('pageshow', syncVisibility)
       close()
     }
   }, [isAuthenticated, queryClient])

@@ -590,10 +590,10 @@ it.each(['interrupted read', 'malformed event'])('reconnects after an account st
   }
 })
 
-it('closes the stream on pagehide and reopens on pageshow without a Sentry error', async () => {
+it('closes the stream when an unloading page turns hidden and reopens when it shows again, without a Sentry error', async () => {
   vi.useFakeTimers()
   vi.mocked(Sentry.captureException).mockClear()
-  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+  const setVisibility = stubVisibility()
   let interrupt!: () => void
   const fetchMock = vi.fn()
     .mockResolvedValueOnce(Response.json({ ticket: 'ticket', apiBase: 'https://api.example.test' }))
@@ -609,15 +609,15 @@ it('closes the stream on pagehide and reopens on pageshow without a Sentry error
     await act(async () => { await vi.advanceTimersByTimeAsync(0) })
     const signal = fetchMock.mock.calls[1]?.[1]?.signal as AbortSignal
     expect(getAccountEventOrigin()).toBe('current')
-    await act(async () => { window.dispatchEvent(new Event('pagehide')); interrupt(); await vi.advanceTimersByTimeAsync(30_000) })
+    await act(async () => { setVisibility('hidden'); interrupt(); await vi.advanceTimersByTimeAsync(30_000) })
     expect(signal.aborted).toBe(true)
     expect(getAccountEventOrigin()).toBeNull()
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(Sentry.captureException).not.toHaveBeenCalled()
-    await act(async () => { window.dispatchEvent(new Event('pageshow')); await vi.advanceTimersByTimeAsync(0) })
+    await act(async () => { setVisibility('visible'); await vi.advanceTimersByTimeAsync(0) })
     expect(fetchMock).toHaveBeenCalledTimes(4)
     view.unmount()
-    await act(async () => { window.dispatchEvent(new Event('pageshow')); await vi.advanceTimersByTimeAsync(30_000) })
+    await act(async () => { setVisibility('visible'); await vi.advanceTimersByTimeAsync(30_000) })
     expect(fetchMock).toHaveBeenCalledTimes(4)
   } finally {
     view.unmount()
