@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { getShellHeading } from '@/components/shell/shell-header'
 
 function focusNewView(): boolean {
+  if (document.querySelector('[data-menu-trigger][aria-expanded="true"]')) return true
   const main = document.querySelector<HTMLElement>('main')
   const header = document.querySelector<HTMLElement>('[data-shell-header]')
   const target = getShellHeading(document) ?? main?.querySelector<HTMLElement>('h1') ?? main

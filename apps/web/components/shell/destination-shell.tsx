@@ -221,6 +221,7 @@ function DestinationShellContent({
     if (previousPathname.current === pathname) return
     previousPathname.current = pathname
     const frame = requestAnimationFrame(() => {
+      if (document.querySelector('[data-menu-trigger][aria-expanded="true"]')) return
       const heading = getShellHeading(document)
       const target = heading ?? document.querySelector<HTMLElement>('[data-shell-scroller]')
       if (target && !target.hasAttribute('tabindex')) target.tabIndex = -1
