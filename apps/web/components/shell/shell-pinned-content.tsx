@@ -13,7 +13,9 @@ export const CompactComposerMenuContext = createContext<{
 export function useCompactComposerMenu(wide: boolean, bottomRef: RefObject<HTMLDivElement | null>) {
   const menuOpenRef = useRef(false)
   const compactMenu = useMemo(() => ({
-    onOpenChange: (open: boolean) => { menuOpenRef.current = open },
+    onOpenChange: (open: boolean) => {
+      if (open || !mediaQueryMatches(`(min-width: ${WIDE_DESKTOP_BREAKPOINT}px)`)) menuOpenRef.current = open
+    },
     returnFocus: () => mediaQueryMatches(`(min-width: ${WIDE_DESKTOP_BREAKPOINT}px)`)
       ? bottomRef.current?.closest('[data-shell]')?.querySelector<HTMLElement>('[data-shell-astra-row]') ?? null
       : null,

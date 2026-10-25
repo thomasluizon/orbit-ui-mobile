@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { Platform, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { referralKeys } from '@orbit/shared/query'
@@ -97,7 +97,7 @@ export function ReferralPrompt() {
 
   const milestone = visibleKey ? parseReferralMilestoneKey(visibleKey) : null
   const cached = queryClient.getQueryData<ReferralPresentationDashboard>(referralKeys.all)
-  const reward = selectReferralReward(cached?.stats)
+  const reward = selectReferralReward(cached?.stats, Platform.OS !== 'ios')
   const title = milestone?.kind === 'level'
     ? t('referral.prompt.levelTitle', { level: milestone.value })
     : t('referral.prompt.streakTitle', { count: milestone?.value ?? 0 })

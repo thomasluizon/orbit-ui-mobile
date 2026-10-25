@@ -120,9 +120,9 @@ function TodayHarness() {
   )
 }
 
-function enterSelection() {
-  fireEvent.click(screen.getByRole('button', { name: 'habits.listOptions' }))
-  fireEvent.click(screen.getByRole('menuitem', { name: 'common.select' }))
+async function enterSelection() {
+  fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.listOptions' }), { button: 0, ctrlKey: false })
+  fireEvent.click(await screen.findByRole('menuitem', { name: 'common.select' }))
 }
 
 function expectTodayVisible() {
@@ -160,7 +160,7 @@ describe('Today lazy overlays', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByText('Astra composer')).toBeVisible()
 
-    enterSelection()
+    await enterSelection()
     try {
       expectTodayVisible()
       expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
@@ -173,7 +173,7 @@ describe('Today lazy overlays', () => {
     fireEvent.click(within(tray).getByRole('button', { name: 'common.cancel' }))
     expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
     expect(screen.getByText('Astra composer')).toBeVisible()
-    enterSelection()
+    await enterSelection()
     const reopenedTray = await screen.findByTestId('bulk-action-bar')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     fireEvent.click(within(reopenedTray).getByRole('button', { name: 'common.selectAll' }))
@@ -207,7 +207,7 @@ describe('Today lazy overlays', () => {
 
   it('refreshes the hosted tray when a pinned selection passes the logging limit', async () => {
     render(<TodayHarness />)
-    enterSelection()
+    await enterSelection()
     await act(async () => { chunks.selection.resolve() })
     const tray = await screen.findByTestId('bulk-action-bar')
     expect(within(tray).getByRole('button', { name: 'habits.bulkBar.log' })).toBeEnabled()

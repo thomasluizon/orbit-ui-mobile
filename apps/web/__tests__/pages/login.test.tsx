@@ -162,6 +162,13 @@ describe('LoginPage', () => {
     }
   })
 
+  it('hides Apple sign-in without public client configuration', () => {
+    vi.stubEnv('NEXT_PUBLIC_APPLE_CLIENT_ID', '')
+    searchParamValues = { email: null, code: null, returnUrl: '/' }
+    render(<LoginPage />)
+    expect(screen.queryByRole('button', { name: 'auth.signInWithApple' })).not.toBeInTheDocument()
+  })
+
   it('disables send until the web widget supplies a token', () => {
     vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
     searchParamValues = { email: null, code: null, returnUrl: '/' }

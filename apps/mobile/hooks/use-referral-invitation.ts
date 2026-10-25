@@ -1,3 +1,4 @@
+import { Platform } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { REFERRAL_REWARD_COPY_KEYS, selectReferralReward } from '@orbit/shared/utils'
 import { useReferral } from '@/hooks/use-referral'
@@ -5,6 +6,6 @@ import { useReferral } from '@/hooks/use-referral'
 export function useReferralInvitation() {
   const { t } = useTranslation()
   const { stats, isError } = useReferral()
-  const reward = selectReferralReward(isError ? null : stats)
+  const reward = selectReferralReward(isError ? null : stats, Platform.OS !== 'ios')
   return t(REFERRAL_REWARD_COPY_KEYS[reward.kind].shareKey, reward.values)
 }

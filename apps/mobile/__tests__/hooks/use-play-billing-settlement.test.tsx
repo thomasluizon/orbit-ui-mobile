@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { profileKeys } from '@orbit/shared/query'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
-import { usePlayBilling } from '@/hooks/use-play-billing'
+import { useStoreBillingConnection as useStoreBilling } from '@/hooks/use-play-billing'
 import { setAccountId } from '@/lib/account-scope'
 
 const TestRenderer = require('react-test-renderer')
@@ -63,10 +63,10 @@ describe('Play entitlement settlement', () => {
     mocks.apiClient.mockImplementation((endpoint: string) => endpoint === API.profile.get ? fetchProfile() : Promise.resolve({}))
     mocks.getAvailablePurchases.mockResolvedValue([purchase])
     const onPurchased = vi.fn()
-    const holder: { current: ReturnType<typeof usePlayBilling> | null } = { current: null }
+    const holder: { current: ReturnType<typeof useStoreBilling> | null } = { current: null }
     function Harness() {
       useQuery({ queryKey: profileKeys.detail(), queryFn: () => mocks.apiClient(API.profile.get), initialData: free, staleTime: Infinity })
-      holder.current = usePlayBilling({ onPurchased })
+      holder.current = useStoreBilling({ onPurchased })
       return null
     }
     act(() => { view = TestRenderer.create(<QueryClientProvider client={client}><Harness /></QueryClientProvider>) })

@@ -5,7 +5,7 @@ import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
-import type { PlayOffer } from '@/hooks/use-play-billing'
+import type { StoreOffer } from '@/hooks/use-play-billing'
 import { formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -96,7 +96,7 @@ const plans: SubscriptionPlans = {
   currency: 'usd',
 }
 
-function offer(interval: SubscriptionInterval, isReferral: boolean): PlayOffer {
+function offer(interval: SubscriptionInterval, isReferral: boolean): StoreOffer {
   const plan = interval === 'monthly' ? plans.monthly : plans.yearly
   return {
     interval,

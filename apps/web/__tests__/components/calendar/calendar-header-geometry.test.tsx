@@ -20,7 +20,7 @@ import { buildCalendarRangeModel, formatCalendarSpanEnds } from '@orbit/shared/u
 import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { DayCell } from '@/components/dates/day-cell'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
 import { FlowShell } from '@/components/shell/flow-shell'
@@ -463,7 +463,8 @@ describe('Calendar header geometry in Chromium', () => {
   })
 
   it.each([{ width: 412, height: 56 }, { width: 1280, height: 48 }])('retains shared menu row height at $width', async ({ width, height }) => {
-    render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC"><Menu open presentation="sheet" title={ptBR.calendar.options} items={[{ id: 'legend', label: ptBR.calendar.legendTitle }]} /></NextIntlClientProvider>)
+    render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC"><Menu.Root open={true}><Menu.Trigger asChild><button type="button" aria-label="Menu trigger" /></Menu.Trigger><Menu.Content presentation="sheet" title={ptBR.calendar.options} items={[{ id: 'legend', label: ptBR.calendar.legendTitle }]}  /></Menu.Root></NextIntlClientProvider>)
+    await screen.findByRole('menu')
     const portal = document.querySelector('.orbit-sheet-portal')!
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
@@ -480,8 +481,8 @@ describe('Calendar header geometry in Chromium', () => {
 
   it.each([320, 360, 412])('keeps the full recurring menu label readable at %ipx and 200% text', async (width) => {
     render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
-      <Menu open presentation="sheet" title={ptBR.calendar.options}
-        items={[{ id: 'recurring', label: ptBR.calendar.showRecurring, checked: true }]} />
+      <Menu.Root open={true}><Menu.Trigger asChild><button type="button" aria-label="Menu trigger" /></Menu.Trigger><Menu.Content presentation="sheet" title={ptBR.calendar.options}
+        items={[{ id: 'recurring', label: ptBR.calendar.showRecurring, checked: true }]}  /></Menu.Root>
     </NextIntlClientProvider>)
     const dialog = document.querySelector('[role="dialog"]')!
     const page = await browser.newPage({ viewport: { width, height: 915 } })

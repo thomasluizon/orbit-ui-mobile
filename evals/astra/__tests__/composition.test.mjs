@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { loadApiProvider } from 'promptfoo'
 import * as assertions from '../assertions.mjs'
 import parseResponse from '../response.mjs'
-import { chatResponse, toolCall } from './fixtures/producer.mjs'
+import { chatResponse, toolCall, preview } from './fixtures/producer.mjs'
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -107,6 +107,30 @@ describe('composition reporting', () => {
 })
 
 describe('preview and outcome composition', () => {
+  it('projects preview values without internal capability names or audit summaries', () => {
+    const pending = preview('Exame de colesterol')
+    pending.displayName = 'INTERNAL_CAPABILITY_SENTINEL'
+    pending.summary = 'INTERNAL_AUDIT_SENTINEL'
+    pending.items[0].fields.push({ ...pending.items[0].fields[0], field: 'habit_id', newValue: 'INTERNAL_ID_SENTINEL' })
+    const output = parseResponse(response([], '', { pendingOperations: [pending] }))
+    expect(output.composition.pendingOperations).toEqual([pending])
+    expect(output.answer).toContain('Exame de colesterol')
+    expect(output.answer).toContain('15:50')
+    expect(output.answer).not.toContain('INTERNAL_CAPABILITY_SENTINEL')
+    expect(output.answer).not.toContain('INTERNAL_AUDIT_SENTINEL')
+    expect(output.answer).not.toContain('INTERNAL_ID_SENTINEL')
+    expect(output.answer).not.toContain('displayName')
+    expect(output.answer).not.toContain('"summary"')
+  })
+  it('excludes the null-parent option label that both clients localize themselves', () => {
+    const pending = preview('Water')
+    pending.items[0].fieldOptions = [{ field: 'parent_habit_id', required: true, options: [
+      { value: null, label: 'INTERNAL_ROOT_LABEL' }, { value: 'existing', label: 'Existing parent' },
+    ] }]
+    const output = parseResponse(response([], '', { pendingOperations: [pending] }))
+    expect(output.answer).toContain('Existing parent')
+    expect(output.answer).not.toContain('INTERNAL_ROOT_LABEL')
+  })
   it('retains the batch preview and rejects prose or missing preview items', async () => {
     const { preview } = await import('./fixtures/producer.mjs')
     const pending = preview()

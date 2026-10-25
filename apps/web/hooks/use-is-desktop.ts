@@ -1,34 +1,10 @@
 'use client'
 
-import { getMediaQuery, mediaQueryMatches } from '@/lib/media-query'
-
-import { useSyncExternalStore } from 'react'
+import { useViewportMatch } from './use-viewport-match'
 import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 
 const DESKTOP_QUERY = '(min-width: 768px)'
 const WIDE_DESKTOP_QUERY = `(min-width: ${WIDE_DESKTOP_BREAKPOINT}px)`
-
-function createViewportMatch(query: string) {
-  return {
-    subscribe: (callback: () => void): (() => void) => {
-      if (typeof window === 'undefined') return () => {}
-      const mql = getMediaQuery(query)
-      if (!mql) return () => {}
-      mql.addEventListener('change', callback)
-      return () => mql.removeEventListener('change', callback)
-    },
-    getSnapshot: (): boolean => {
-      return mediaQueryMatches(query)
-    },
-  }
-}
-
-const desktopMatch = createViewportMatch(DESKTOP_QUERY)
-const wideDesktopMatch = createViewportMatch(WIDE_DESKTOP_QUERY)
-
-function getServerSnapshot(): boolean {
-  return false
-}
 
 /**
  * Returns true once the viewport is at or above the 768px desktop breakpoint.
@@ -37,7 +13,7 @@ function getServerSnapshot(): boolean {
  * desktop-only surfaces never render below 768px or during hydration.
  */
 export function useIsDesktop(): boolean {
-  return useSyncExternalStore(desktopMatch.subscribe, desktopMatch.getSnapshot, getServerSnapshot)
+  return useViewportMatch(DESKTOP_QUERY)
 }
 
 /**
@@ -46,9 +22,5 @@ export function useIsDesktop(): boolean {
  * inline side panel. Same SSR-safe semantics as useIsDesktop.
  */
 export function useIsWideDesktop(): boolean {
-  return useSyncExternalStore(
-    wideDesktopMatch.subscribe,
-    wideDesktopMatch.getSnapshot,
-    getServerSnapshot,
-  )
+  return useViewportMatch(WIDE_DESKTOP_QUERY)
 }

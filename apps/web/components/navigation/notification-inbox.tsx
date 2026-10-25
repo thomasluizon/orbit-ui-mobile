@@ -11,7 +11,7 @@ import { cancelPendingNotificationDelete, clearFailedNotificationDeletes, queueP
 import { PageHeader } from '@/components/ui/page-header'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { MoreVertical } from '@/components/ui/icons'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { NotificationDetailModal } from './notification-detail-modal'
 import { NotificationList } from './notification-list'
 
@@ -42,21 +42,21 @@ export function NotificationInbox() {
   }
 
   return (
-    <section className="flex w-full flex-col">
+    <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}><section className="flex w-full flex-col">
       <PageHeader title={t('notifications.title')} backLabel={t('common.back')}
-        onBack={() => goBack('/')} action={inbox.visibleNotifications.length > 0 ? <button ref={menuAnchorRef} type="button"
+        onBack={() => goBack('/')} action={inbox.visibleNotifications.length > 0 ? <Menu.Trigger asChild><button ref={menuAnchorRef} type="button"
           aria-label={t('notifications.options')} aria-expanded={menuOpen} aria-controls={menuId}
-          onClick={() => setMenuOpen((open) => !open)}
+
           className="grid min-h-[48px] w-[48px] shrink-0 cursor-pointer place-items-center rounded-full text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:enabled:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2">
           <MoreVertical size={20} aria-hidden="true" />
-        </button> : undefined}
+        </button></Menu.Trigger> : undefined}
         refreshKey={`${inbox.visibleUnreadCount}:${inbox.visibleNotifications.length}:${menuOpen}`} />
-      <Menu id={menuId} open={menuOpen} anchorRef={menuAnchorRef} title={t('notifications.options')} shortTitle={t('common.options')}
+      <Menu.Content id={menuId} title={t('notifications.options')} shortTitle={t('common.options')}
         items={[
           ...(inbox.visibleUnreadCount > 0 ? [{ id: 'read', label: t('notifications.markAllReadMenu'), icon: 'check' }] : []),
           ...(inbox.visibleNotifications.length > 0 ? [{ id: 'clear', label: t('notifications.deleteAll'), icon: 'trash', destructive: true }] : []),
         ]}
-        onClose={() => setMenuOpen(false)} onSelect={(id) => {
+        onSelect={(id) => {
           if (id === 'read') markAllAsRead.mutate()
           else if (id === 'clear') setConfirmOpen(true)
         }} />
@@ -77,6 +77,6 @@ export function NotificationInbox() {
           clearFailedNotificationDeletes()
           deleteAll.mutate()
         }} />
-    </section>
+    </section></Menu.Root>
   )
 }

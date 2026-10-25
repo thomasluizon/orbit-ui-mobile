@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-10-24",
+  "calibratedAt": "2026-10-25",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -175,6 +175,13 @@
       "calibratedAt": "2026-10-17",
       "verdict": "undeclared, inherits the session: the test audit judges coverage and opens tickets."
     },
+    ".claude/skills/crank/SKILL.md": {
+      "model": null,
+      "effort": null,
+      "digest": "9a63d7da9a231eda",
+      "calibratedAt": "2026-10-25",
+      "verdict": "undeclared, inherits the session: toggles durable orchestrator scheduling within existing caps and quality gates, without changing model or effort routing."
+    },
     ".claude/skills/deep-research/SKILL.md": {
       "model": null,
       "effort": null,
@@ -206,8 +213,8 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "217eb71391fe3571",
-      "calibratedAt": "2026-10-17",
+      "digest": "df33a01b2ad977a5",
+      "calibratedAt": "2026-10-25",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
     ".claude/skills/investigate/SKILL.md": {
@@ -304,8 +311,8 @@
     ".claude/skills/wrap-up/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "148e2736e990a754",
-      "calibratedAt": "2026-10-17",
+      "digest": "0891fc368e48bf7f",
+      "calibratedAt": "2026-10-25",
       "verdict": "current: medium effort; the skill invokes three steps in order and waits for the owner between handovers, including under --sleep."
     },
     ".agents/skills/merge-prs/SKILL.md": {

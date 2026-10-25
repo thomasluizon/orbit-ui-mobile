@@ -33,7 +33,7 @@ vi.mock('@/hooks/use-retrospective', () => ({ useProgressRetrospective: () => ({
 vi.mock('@/components/navigation/root-notification-header', () => ({ RootNotificationHeader: () => null }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
 vi.mock('@/components/ui/confirm-sheet', () => ({ ConfirmSheet: () => null }))
-vi.mock('@/components/ui/menu', () => ({ Menu: () => null }))
+vi.mock('@/components/ui/dropdown-menu', () => ({ Menu: () => null }))
 
 type TestNode = {
   type: unknown

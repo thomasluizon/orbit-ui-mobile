@@ -100,6 +100,12 @@ describe('DeleteAccountModal', () => {
     vi.unstubAllGlobals()
   })
 
+  it('explains Apple cancellation while preserving the deletion window', () => {
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={{ ...profile, billingProvider: 'app_store' }} />)
+    expect(screen.getByText(new RegExp(en.profile.deleteAccount.warningAppStore))).toBeInTheDocument()
+    expect(screen.getByText(new RegExp(en.profile.deleteAccount.warningFree))).toBeInTheDocument()
+  })
+
   it('keeps the cancellation path in the pre-confirmation copy', () => {
     render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
 

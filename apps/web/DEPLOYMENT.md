@@ -27,6 +27,7 @@ In repository **Settings > Secrets and variables > Actions**, set the repository
 | `RENDER_WEB_STAGING_SERVICE_ID` | Render service ID for `orbit-web-staging`, used by the release workflow and planner |
 | `RENDER_WEB_SERVICE_ID` | Render service ID for `orbit-web` |
 | `PRODUCTION_WEB_HOST` | Production hostname, without `https://` or a path |
+| `STAGING_NEXT_PUBLIC_APPLE_CLIENT_ID`, `PRODUCTION_NEXT_PUBLIC_APPLE_CLIENT_ID` | Public Apple Services ID; leave absent to hide Apple sign-in |
 | `STAGING_NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `PRODUCTION_NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Public Google OAuth web client ID |
 | `STAGING_NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `PRODUCTION_NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Public push key |
 | `STAGING_NEXT_PUBLIC_EVENT_API_BASE`, `PRODUCTION_NEXT_PUBLIC_EVENT_API_BASE` | Browser reachable API origin for event streaming |

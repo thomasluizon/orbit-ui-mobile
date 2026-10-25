@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs"
 import { join } from "node:path"
 
 import { parseHandoffRequest, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../lib/handoff-prompt.mjs"
+import { readRunState, writeRunState } from "../lib/run-state.mjs"
 
 import { T, root } from "./_harness.mjs"
 
@@ -15,45 +16,45 @@ const sleepPrompt = [
 ].join("\n")
 
 export const cases = () => {
-  T(`${UNIT}: /wrap-up --sleep records a sleep request`, JSON.stringify(parseHandoffRequest("/wrap-up --sleep")) === JSON.stringify({ command: "wrap-up", sleep: true }))
+  T(`${UNIT}: /wrap-up --sleep records a sleep request`, JSON.stringify(parseHandoffRequest("/wrap-up --sleep")) === JSON.stringify({ command: "wrap-up", sleep: true, crank: false }))
   T(`${UNIT}: /handoff with other arguments stays attended`, parseHandoffRequest("/handoff finish the calendar")?.sleep === false)
   T(`${UNIT}: a non-handoff command records nothing`, parseHandoffRequest("/sleep") === null)
   for (const [label, prompt, expected] of [
-    ["a leading word keeps the sleep argument", "RUN /wrap-up --sleep", { command: "wrap-up", sleep: true }],
-    ["a polite prefix is read", "please /handoff", { command: "handoff", sleep: false }],
-    ["a command on the second line is read", "Finish this task.\n/wrap-up --sleep", { command: "wrap-up", sleep: true }],
+    ["a leading word keeps the sleep argument", "RUN /wrap-up --sleep", { command: "wrap-up", sleep: true, crank: false }],
+    ["a polite prefix is read", "please /handoff", { command: "handoff", sleep: false, crank: false }],
+    ["a command on the second line is read", "Finish this task.\n/wrap-up --sleep", { command: "wrap-up", sleep: true, crank: false }],
     ["an inline code mention is ignored", "Read `/handoff --relay --sleep` in NEXT.md.", null],
     ["a longer inline delimiter is ignored", "Read ``/wrap-up --sleep `example` ``.", null],
     ["a fenced code mention is ignored", "Example:\n```text\n/wrap-up --sleep\n```", null],
     ["a tilde fenced mention is ignored", "Example:\n~~~text\n/handoff --sleep\n~~~", null],
     ["an unfinished fence stays quoted", "```text\n/handoff --sleep", null],
     ["a shorter fence cannot end a longer fence", "````text\n```\n/handoff --sleep\n````", null],
-    ["a real command after a fence is read", "```text\n/wrap-up --sleep\n```\nplease /handoff", { command: "handoff", sleep: false }],
+    ["a real command after a fence is read", "```text\n/wrap-up --sleep\n```\nplease /handoff", { command: "handoff", sleep: false, crank: false }],
     ["a pasted content mention is ignored", '<pasted_content source="NEXT.md">\n/handoff --relay --sleep\n</pasted_content>', null],
     ["an unfinished pasted block stays quoted", "<pasted_content>\n/wrap-up --sleep", null],
-    ["a real command after a pasted block is read", "<pasted_content>\n/wrap-up --sleep\n</pasted_content>\nplease /handoff", { command: "handoff", sleep: false }],
+    ["a real command after a pasted block is read", "<pasted_content>\n/wrap-up --sleep\n</pasted_content>\nplease /handoff", { command: "handoff", sleep: false, crank: false }],
     ["a nested pasted block keeps the outer block quoted", "<pasted_content>\n<pasted_content>\nquoted\n</pasted_content>\n/handoff --sleep\n</pasted_content>", null],
     ["an unfinished outer pasted block stays quoted past a nested close", "<pasted_content>\n<pasted_content>\nquoted\n</pasted_content>\n/handoff --sleep", null],
-    ["a real command after a nested pasted block is read", "<pasted_content>\n<pasted_content>\n/wrap-up\n</pasted_content>\n/wrap-up --sleep\n</pasted_content>\nplease /handoff", { command: "handoff", sleep: false }],
+    ["a real command after a nested pasted block is read", "<pasted_content>\n<pasted_content>\n/wrap-up\n</pasted_content>\n/wrap-up --sleep\n</pasted_content>\nplease /handoff", { command: "handoff", sleep: false, crank: false }],
     ["a pasted close with another id does not end the block", '<pasted_content id="a1">\n</pasted_content id="b2">\n/handoff --sleep\n</pasted_content id="a1">', null],
-    ["a real command after an id-tagged pasted block is read", '<pasted_content id="a1">\n/handoff\n</pasted_content id="a1">\nplease /wrap-up --sleep', { command: "wrap-up", sleep: true }],
+    ["a real command after an id-tagged pasted block is read", '<pasted_content id="a1">\n/handoff\n</pasted_content id="a1">\nplease /wrap-up --sleep', { command: "wrap-up", sleep: true, crank: false }],
     ["a skill path is ignored", ".claude/skills/handoff/SKILL.md", null],
     ["a command-shaped path is ignored", "Read /handoff/SKILL.md and /wrap-up.md", null],
     ["a command suffix is ignored", "/handoff-extra --sleep", null],
-    ["a parenthesized command is read", "please (/handoff)", { command: "handoff", sleep: false }],
-    ["a parenthesized sleep handoff is unattended", "please (/handoff --sleep)", { command: "handoff", sleep: true }],
-    ["a parenthesized slash sleep wrap-up is unattended", "please (/wrap-up /sleep)", { command: "wrap-up", sleep: true }],
-    ["a sleep option suffix stays attended", "please (/handoff --sleep-later)", { command: "handoff", sleep: false }],
-    ["the first command keeps its own arguments", "/handoff then /wrap-up --sleep", { command: "handoff", sleep: false }],
-    ["the first sleep command wins", "please /wrap-up --sleep then /handoff", { command: "wrap-up", sleep: true }],
-    ["a mention before a real command is ignored", "`/handoff --sleep`\nplease /wrap-up", { command: "wrap-up", sleep: false }],
-    ["sleep inside code is ignored", "/handoff `--sleep`", { command: "handoff", sleep: false }],
-    ["the slash sleep argument stays supported", "please /handoff /sleep", { command: "handoff", sleep: true }],
-    ["another command does not hide a handoff", "/progress then /handoff", { command: "handoff", sleep: false }],
-    ["expanded command tags stay supported", "<command-name>/wrap-up</command-name>\n<command-args>--sleep</command-args>", { command: "wrap-up", sleep: true }],
+    ["a parenthesized command is read", "please (/handoff)", { command: "handoff", sleep: false, crank: false }],
+    ["a parenthesized sleep handoff is unattended", "please (/handoff --sleep)", { command: "handoff", sleep: true, crank: false }],
+    ["a parenthesized slash sleep wrap-up is unattended", "please (/wrap-up /sleep)", { command: "wrap-up", sleep: true, crank: false }],
+    ["a sleep option suffix stays attended", "please (/handoff --sleep-later)", { command: "handoff", sleep: false, crank: false }],
+    ["the first command keeps its own arguments", "/handoff then /wrap-up --sleep", { command: "handoff", sleep: false, crank: false }],
+    ["the first sleep command wins", "please /wrap-up --sleep then /handoff", { command: "wrap-up", sleep: true, crank: false }],
+    ["a mention before a real command is ignored", "`/handoff --sleep`\nplease /wrap-up", { command: "wrap-up", sleep: false, crank: false }],
+    ["sleep inside code is ignored", "/handoff `--sleep`", { command: "handoff", sleep: false, crank: false }],
+    ["the slash sleep argument stays supported", "please /handoff /sleep", { command: "handoff", sleep: true, crank: false }],
+    ["another command does not hide a handoff", "/progress then /handoff", { command: "handoff", sleep: false, crank: false }],
+    ["expanded command tags stay supported", "<command-name>/wrap-up</command-name>\n<command-args>--sleep</command-args>", { command: "wrap-up", sleep: true, crank: false }],
     ["pasted expanded tags are ignored", "<pasted_content><command-name>/wrap-up</command-name><command-args>--sleep</command-args></pasted_content>", null],
-    ["a typed command before expanded tags wins", "/handoff\n<command-name>/wrap-up</command-name><command-args>--sleep</command-args>", { command: "handoff", sleep: false }],
-    ["expanded tags before a typed command win", "<command-name>/handoff</command-name><command-args></command-args>\n/wrap-up --sleep", { command: "handoff", sleep: false }],
+    ["a typed command before expanded tags wins", "/handoff\n<command-name>/wrap-up</command-name><command-args>--sleep</command-args>", { command: "handoff", sleep: false, crank: false }],
+    ["expanded tags before a typed command win", "<command-name>/handoff</command-name><command-args></command-args>\n/wrap-up --sleep", { command: "handoff", sleep: false, crank: false }],
   ]) {
     const actual = parseHandoffRequest(prompt)
     T(`${UNIT}: ${label}`, JSON.stringify(actual) === JSON.stringify(expected), `got=${JSON.stringify(actual)} want=${JSON.stringify(expected)}`)
@@ -66,9 +67,37 @@ export const cases = () => {
   const withoutSpec = validateHandoffPrompt(sleepPrompt.replace("`.claude/specs/example.md`", "the spec"), { sleep: true })
   T(`${UNIT}: the spec path must open the prompt`, withoutSpec.some((item) => item.includes(".claude/specs")), JSON.stringify(withoutSpec))
 
+  for (const invocation of ["/handoff --crank", "/wrap-up --crank", "please (/handoff /crank)", "<command-name>/handoff</command-name><command-args>--crank</command-args>"]) {
+    const request = parseHandoffRequest(invocation)
+    T(`${UNIT}: ${invocation} enables crank and sleep`, request?.crank === true && request.sleep === true)
+  }
+  for (const invocation of ["/handoff", "/handoff --crank-later", "/handoff /crank/SKILL.md", "/handoff `--crank`", "/handoff then /wrap-up --crank"]) {
+    T(`${UNIT}: ${invocation} leaves crank disabled`, parseHandoffRequest(invocation)?.crank === false)
+  }
+  const crankPrompt = `${sleepPrompt}\n## Crank\nInvoke /crank immediately after /sleep entry.\n`
+  T(`${UNIT}: crank requires its section`, validateHandoffPrompt(sleepPrompt, { crank: true }).some((item) => item.includes("## Crank")))
+  T(`${UNIT}: a crank section must invoke the skill`, validateHandoffPrompt(`${sleepPrompt}\n## Crank\nContinue quickly.`, { crank: true }).some((item) => item.includes("/crank")))
+  T(`${UNIT}: a command outside the crank section does not satisfy it`, validateHandoffPrompt(`${sleepPrompt}\nInvoke /crank.\n## Crank\nContinue.`, { crank: true }).length > 0)
+  T(`${UNIT}: a different heading cannot stand in for Crank`, validateHandoffPrompt(crankPrompt.replace("## Crank", "## Crankiness"), { crank: true }).some((item) => item.includes("## Crank")))
+  T(`${UNIT}: a skill path is not a crank invocation`, validateHandoffPrompt(crankPrompt.replace("Invoke /crank immediately", "Read /crank/SKILL.md immediately"), { crank: true }).some((item) => item.includes("/crank")))
+  T(`${UNIT}: a complete crank prompt passes`, validateHandoffPrompt(crankPrompt, { crank: true }).length === 0)
+  T(`${UNIT}: crank implies the literal sleep first line`, validateHandoffPrompt(crankPrompt.replace("/sleep\n", "# Next\n"), { sleep: false, crank: true }).some((item) => item.includes("first line")))
+  T(`${UNIT}: crank implies the sleep section`, validateHandoffPrompt(crankPrompt.replace("## Sleep", "## Attended"), { crank: true }).some((item) => item.includes("## Sleep")))
+  T(`${UNIT}: disabled crank permits an ordinary sleep prompt`, validateHandoffPrompt(sleepPrompt, { sleep: true, crank: false }).length === 0)
+
   const repoRoot = join(root, "handoff-prompt", "checkout")
   mkdirSync(join(repoRoot, ".git"), { recursive: true })
   T(`${UNIT}: an unrecorded session reads as no request`, readHandoffRequest("s1", repoRoot) === null)
   recordHandoffRequest("s1", { command: "handoff", sleep: true }, "2026-01-01T00:00:00Z", repoRoot)
   T(`${UNIT}: a recorded request is read back for its own session`, readHandoffRequest("s1", repoRoot)?.sleep === true && readHandoffRequest("s2", repoRoot) === null)
+  recordHandoffRequest("s1", { command: "wrap-up", sleep: true, crank: true }, "2026-01-01T00:01:00Z", repoRoot)
+  T(`${UNIT}: crank intent without a run never initializes the sleep lifecycle`, readRunState(repoRoot) === null)
+  writeRunState({ sessionId: "s1", crank: false, sleep: false, remaining: ["#1"], relay: { pending: false } }, repoRoot)
+  recordHandoffRequest("s2", { command: "handoff", sleep: true, crank: true }, "2026-01-01T00:02:00Z", repoRoot)
+  T(`${UNIT}: another session cannot enable the run`, readRunState(repoRoot).crank === false)
+  recordHandoffRequest("s1", { command: "wrap-up", sleep: true, crank: true }, "2026-01-01T00:03:00Z", repoRoot)
+  const enabled = readRunState(repoRoot)
+  T(`${UNIT}: a newer explicit request enables the matching run and preserves its lifecycle`, enabled.crank === true && enabled.sleep === false && enabled.remaining[0] === "#1" && enabled.relay.pending === false)
+  recordHandoffRequest("s1", { command: "handoff", sleep: true, crank: false }, "2026-01-01T00:04:00Z", repoRoot)
+  T(`${UNIT}: an ordinary handoff request never disables an active crank mode`, readRunState(repoRoot).crank === true)
 }

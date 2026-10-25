@@ -8,6 +8,9 @@ import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { accountTimezoneDependency } from '@/lib/offline-mutations'
+import { OverlayHost } from '@/components/ui/overlay-host'
+import { useUIStore } from '@/stores/ui-store'
+import { PortalHost } from '@rn-primitives/portal'
 
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
@@ -65,7 +68,6 @@ vi.mock('react-i18next', () => ({
 }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ navigate: mocks.navigate, replace: vi.fn() }) }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
-vi.mock('@/stores/ui-store', () => ({ useUIStore: (selector: (state: { astraConversationOpen: boolean }) => unknown) => selector({ astraConversationOpen: false }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profileAvailable ? mocks.profile : undefined, refetch: mocks.refetchProfile }) }))
 vi.mock('@/lib/queued-api-mutation', () => ({ performQueuedApiMutation: mocks.queueTimezone }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: mocks.suggest, isPending: false }) }))
@@ -110,12 +112,15 @@ vi.mock('@/components/onboarding/onboarding-pro-step', () => ({ OnboardingProSte
 } }))
 vi.mock('@/components/onboarding/onboarding-complete', () => ({ OnboardingComplete: ({ dueToday, general, onFinish }: { dueToday: boolean; general: boolean; onFinish: () => void }) => React.createElement('Done', { dueToday, general, onFinish }) }))
 
+const mountedTrees: ReturnType<typeof TestRenderer.create>[] = []
+
 async function mount(isLive: boolean) {
   mocks.isLive = isLive
   let tree!: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(() => {
-    tree = TestRenderer.create(<OnboardingFlow />)
+    tree = TestRenderer.create(<OverlayHost><OnboardingFlow /></OverlayHost>)
   })
+  mountedTrees.push(tree)
   return tree
 }
 
@@ -186,7 +191,8 @@ async function selectTab(tree: ReturnType<typeof TestRenderer.create>, id: strin
 describe('OnboardingFlow state model', () => {
   const originalTimeZone = process.env.TZ
 
-  afterEach(() => {
+  afterEach(async () => {
+    await TestRenderer.act(() => { for (const tree of mountedTrees.splice(0)) tree.update(<></>) })
     if (originalTimeZone === undefined) delete process.env.TZ
     else process.env.TZ = originalTimeZone
   })
@@ -196,6 +202,7 @@ describe('OnboardingFlow state model', () => {
     __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
     vi.clearAllMocks()
     vi.useRealTimers()
+    useUIStore.setState({ openOverlayIds: [], astraConversationOpen: false })
     Object.assign(mocks.profile, createMockProfile({ hasProAccess: true, isTrialActive: false, plan: 'pro' }))
     mocks.profile.aiMessagesUsed = 0
     mocks.profile.timeZone = 'UTC'
@@ -210,6 +217,25 @@ describe('OnboardingFlow state model', () => {
     mocks.requestPermission.mockResolvedValue(true)
     mocks.requestPermissionOutcome.mockResolvedValue('granted')
     useOnboardingDraftStore.getState().reset()
+  })
+
+  it('presents decisions, completion and the plan through the shared native window', async () => {
+    Object.assign(mocks.profile, createMockProfile({ hasProAccess: false, isTrialActive: false }))
+    const tree = await mount(true)
+    function expectHosted() {
+      const window = oneByType(tree.root, 'Modal')
+      expect(window.props).toMatchObject({ visible: true, transparent: true, statusBarTranslucent: true, navigationBarTranslucent: true, animationType: 'none' })
+      const host = window.findAll((node) => node.type === PortalHost).find((node) => typeof node.props.name === 'string')!
+      expect(host).toBeDefined()
+      expect(host.findAll((node) => typeof node.type === 'string' && node.props.role === 'dialog')).toHaveLength(1)
+    }
+    expectHosted()
+    await click(tree, 'onboarding.flow.skip')
+    expect(oneByType(tree.root, 'Done')).toBeDefined()
+    expectHosted()
+    await TestRenderer.act(() => prop<() => void>(oneByType(tree.root, 'Done'), 'onFinish')())
+    expect(oneByType(tree.root, 'ProStep')).toBeDefined()
+    expectHosted()
   })
 
   it.each(['trial', 'free'])('Skip reaches Done then the final %s step before completion', async (plan) => {

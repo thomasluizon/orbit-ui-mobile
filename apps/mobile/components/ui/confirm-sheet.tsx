@@ -1,5 +1,5 @@
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
-import { StyleSheet, Text } from 'react-native'
+import { StyleSheet, Text, type View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -52,6 +52,7 @@ export function ConfirmSheet({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { sheetRef, closeSheet } = useSheetHost()
+  const cancelRef = useRef<View>(null)
   const onCloseCompleteRef = useRef(onCloseComplete)
   useEffect(() => { onCloseCompleteRef.current = onCloseComplete }, [onCloseComplete])
   const [lifecycle, setLifecycle] = useState({
@@ -98,7 +99,7 @@ export function ConfirmSheet({
     closeSheet(() => { setLifecycle((current) => ({ ...current, mounted: false })); onConfirm() })
   }
   const cancelButton = (
-    <PillButton variant="ghost" size="sm" minimumHeight={minimumActionHeight} disabled={actionsDisabled} onClick={cancel}>
+    <PillButton buttonRef={cancelRef} variant="ghost" size="sm" minimumHeight={minimumActionHeight} disabled={actionsDisabled} onClick={cancel}>
       {cancelLabel ?? t('common.cancel')}
     </PillButton>
   )
@@ -119,6 +120,7 @@ export function ConfirmSheet({
     <Sheet
       key={lifecycle.generation}
       ref={sheetRef}
+      initialFocus={destructive ? cancelRef : undefined}
       open
       onBackPress={!open ? onDismissDuringClose : undefined}
       title={title}

@@ -487,6 +487,7 @@
     "orContinueWith": "ou",
     "openInOrbit": "Abrir no Orbit",
     "signInWithGoogle": "Continuar com o Google",
+    "signInWithApple": "Continuar com a Apple",
     "googleError": "Não foi possível entrar com o Google. Tente de novo.",
     "signingIn": "Entrando...",
     "callbackError": "Algo deu errado ao entrar. Tente de novo.",
@@ -515,6 +516,7 @@
       "conflict": "Não deu para concluir essa ação agora. Tente de novo.",
       "offline": "Parece que você está sem conexão. Confira sua internet e tente de novo.",
       "googleError": "O Google não abriu. Tente de novo.",
+      "appleError": "Não foi possível entrar com a Apple. Tente de novo.",
       "unknownError": "Algo deu errado. Tente de novo.",
       "sendFailed": "O código não foi enviado. Tente de novo."
     },
@@ -2601,6 +2603,7 @@
       "headingAreYouSure": "Isso apaga a sua conta",
       "warning": "Você tem tempo para mudar de ideia. Depois disso, a conta é apagada de vez e não dá para desfazer.",
       "warningFree": "Sua conta será desativada e apagada de vez depois de 7 dias. Entre de novo antes disso para cancelar.",
+      "warningAppStore": "Apagar a conta do Orbit não cancela sua assinatura da App Store. Cancele nos ajustes da Apple para evitar novas cobranças.",
       "warningPro": "Sua conta será desativada agora e apagada de vez em até 30 dias a partir de hoje. Entre de novo antes disso para cancelar.",
       "warningDetail": "Todos os seus dados serão apagados de vez: hábitos, histórico de conclusão, conversas com a IA e configurações. Vamos enviar um código de confirmação para o seu e-mail.",
       "sendCode": "Enviar código",
@@ -2767,7 +2770,7 @@
     },
     "dataCollected": {
       "title": "Dados que guardamos",
-      "account": "Informações da conta: nome e e-mail (pelo cadastro por e-mail ou pelo Google OAuth)",
+      "account": "Informações da conta: nome e e-mail (pelo cadastro por e-mail, pelo Google OAuth ou pela Apple)",
       "habits": "Dados de hábitos: hábitos que você cria, registros de conclusão, agendamentos, tags e metas",
       "chat": "Mensagens do chat com a IA: suas conversas com a assistente de IA do Orbit",
       "preferences": "Preferências: idioma, fuso horário, cor do tema e configurações de notificação",
@@ -2789,6 +2792,7 @@
       "openai": "OpenAI: para recursos de chat com IA e resumos diários",
       "ses": "Amazon SES (us-east-2): para e-mails transacionais e de marketing",
       "googlePlay": "Google Play Billing: para compras de assinatura no Android",
+      "apple": "Apple: para entrar com a Apple e comprar assinaturas pela App Store",
       "sentry": "Sentry: para relatórios de falhas e erros. No Android, eles incluem informações do aparelho e do sistema, um identificador aleatório da instalação e a cidade aproximada, estimada pelo endereço IP da conexão, sem nome, e-mail nem dados da conta",
       "posthog": "PostHog (nuvem nos Estados Unidos): para análises de uso do produto vinculadas a um identificador da conta e a detalhes do plano, além de análises de tráfego web e desempenho; não enviamos conteúdo de hábitos nem do chat",
       "render": "Render (Ohio, Estados Unidos): para hospedar o aplicativo web, a API e o banco de dados",
@@ -3200,6 +3204,22 @@
     "subscribe": "Assinar Pro",
     "plan": "Plano",
     "restorePurchase": "Restaurar compra",
+    "appStore": {
+      "manage": "Gerenciar assinatura",
+      "manageHint": "Sua assinatura é cobrada pela App Store. Gerencie seu plano nos ajustes da Apple.",
+      "manageOnIphone": "Para alterar ou cancelar esta assinatura da App Store, gerencie pelo seu iPhone.",
+      "autoRenewal": "A assinatura é renovada automaticamente até você cancelar. A cobrança é feita na sua Conta Apple.",
+      "paymentNote": "Gerencie ou cancele a assinatura nos ajustes da Apple.",
+      "error": {
+        "unavailable": "As compras na App Store estão indisponíveis. Tente de novo.",
+        "serviceUnavailable": "Não foi possível verificar sua compra. Restaure as compras para tentar de novo.",
+        "alreadyOwned": "Você já tem esta assinatura. Restaure as compras para usá-la.",
+        "pending": "Sua compra está pendente. A gente ativa o Pro assim que ela for confirmada.",
+        "deviceNotSupported": "Este dispositivo não permite compras na App Store.",
+        "notSignedIn": "Entre na sua conta antes de assinar.",
+        "nothingToRestore": "Não encontramos uma assinatura ativa do Orbit nesta Conta Apple."
+      }
+    },
     "convert": {
       "promise": "O plano muda a Astra, nunca os seus hábitos e registros.",
       "trialEyebrow": "Seu teste Pro está ativo",

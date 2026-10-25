@@ -19,6 +19,9 @@ export const API = {
     verifyCode: '/api/auth/verify-code',
     google: '/api/auth/google',
     googleCode: '/api/auth/google/code',
+    appleNative: '/api/auth/apple/native',
+    appleStart: '/api/auth/apple/start',
+    appleHandoff: '/api/auth/apple/handoff',
     refresh: '/api/auth/refresh',
     logout: '/api/auth/logout',
     requestDeletion: '/api/auth/request-deletion',
@@ -118,6 +121,7 @@ export const API = {
   },
 
   subscription: {
+    appStoreVerify: '/api/subscriptions/app-store/verify',
     checkout: '/api/subscriptions/checkout',
     portal: '/api/subscriptions/portal',
     status: '/api/subscriptions/status',

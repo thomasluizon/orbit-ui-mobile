@@ -1,6 +1,7 @@
+import { getPendingAuthProvider, getAuthCallbackErrorKey } from '@orbit/shared/utils'
 import { SPACING } from '@orbit/shared/theme'
 import { useEffect, useState } from 'react'
-import { Keyboard, Text, View, useWindowDimensions } from 'react-native'
+import { Keyboard, Platform, Text, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -15,6 +16,7 @@ import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
 
 export interface LoginCallback {
+  provider?: 'apple' | 'google'
   state: 'pending' | 'failed' | 'account'
   onContinue: () => void
   loading?: boolean
@@ -41,10 +43,11 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
     else void flow.continueAccount()
   }
   const account = Boolean(flow.accountBack) || callback?.state === 'account'
-  const googlePending = callback?.state === 'pending'
+  const pendingProvider = getPendingAuthProvider(callback)
+  const callbackErrorKey = getAuthCallbackErrorKey(callback?.provider)
   const googleFailed = callback?.state === 'failed' && !callbackDismissed
-  const emailErrorKey = googleFailed ? 'auth.errors.googleError' : flow.errorKey
-  const emailErrorMessage = googleFailed ? t('auth.errors.googleError') : flow.errorMessage
+  const emailErrorKey = googleFailed ? callbackErrorKey : flow.errorKey
+  const emailErrorMessage = googleFailed ? t(callbackErrorKey) : flow.errorMessage
   const sendCodeLabel = flow.fromOnboarding ? t('auth.onboarding.continue') : undefined
   const canSubmitTurnstile = !flow.turnstileSiteKey || Boolean(flow.turnstileToken)
   const turnstileWidget = flow.turnstileSiteKey && flow.isOnline
@@ -55,19 +58,21 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
       contentContainerStyle={[styles.scrollContent, keyboardOpen && styles.scrollKeyboardOpen, wide && styles.scrollWide]} keyboardShouldPersistTaps="always"
       showsVerticalScrollIndicator={false}>
       <View style={[styles.formColumn, !wide && styles.formCompact, width < 336 && { paddingHorizontal: SPACING.s8 }, wide && styles.panel]}>
-        {flow.showReferralBanner && !account && <ReferralBanner t={t} styles={styles} />}
+        {Platform.OS !== 'ios' && flow.showReferralBanner && !account && <ReferralBanner t={t} styles={styles} />}
         <Lockup />
         {account ? <AccountBackState t={t} styles={styles} loading={flow.isSubmitting || callback?.loading}
           continueAccount={continueAccount} errorMessage={flow.errorMessage} /> : <LoginStepStage step={flow.step}>
           <View style={styles.step}>
             {flow.step === 'email' && <LoginHeader step="email" t={t} styles={styles} fromOnboarding={flow.fromOnboarding} plannedHabitCount={flow.plannedHabitCount} />}
             {flow.step === 'email' ? <EmailStep email={flow.email} onEmailChange={(email) => { setCallbackDismissed(true); flow.setEmail(email) }}
-              isSubmitting={flow.isSubmitting} isGoogleLoading={flow.isGoogleLoading || googlePending}
+              isSubmitting={flow.isSubmitting} isGoogleLoading={flow.isGoogleLoading || pendingProvider === 'google'}
+              isAppleLoading={flow.isAppleLoading || pendingProvider === 'apple'}
               errorKey={emailErrorKey}
               errorMessage={emailErrorMessage} fieldError={flow.emailFieldError}
               isOnline={flow.isOnline} t={t} tokens={tokens} styles={styles} emailFocusRequest={flow.emailFocusRequest}
               canSubmitTurnstile={canSubmitTurnstile} turnstileWidget={turnstileWidget}
               onSendCode={() => { setCallbackDismissed(true); void flow.sendCode() }}
+              onSignInWithApple={() => { setCallbackDismissed(true); void flow.signInWithApple() }}
               onSignInWithGoogle={() => { setCallbackDismissed(true); void flow.signInWithGoogle() }}
               onOpenPrivacy={flow.openPrivacyPolicy} onOpenTerms={flow.openTerms}
               sendCodeLabel={sendCodeLabel} />
