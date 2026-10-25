@@ -129,11 +129,21 @@ describe('expanded RadioRow personal text in Chromium', () => {
     await page.locator('#root').evaluate((root, kind) => { (root as HTMLElement).dataset.composition = kind }, composition)
     await page.locator('#root').evaluate((root, language) => { (root as HTMLElement).dataset.locale = language }, locale)
     await page.addScriptTag({ content: componentScript })
-    if (composition === 'editorParentOwner') await page.locator('form fieldset').first().waitFor({ timeout: 2_000 })
+    if (composition === 'details') await page.locator('[data-personal-text]').first().waitFor({ timeout: 2_000 })
+    else if (composition === 'editorParentOwner') await page.locator('form fieldset').first().waitFor({ timeout: 2_000 })
     else await page.getByRole(composition === 'radio' ? 'radio' : 'button', { name: label, exact: !['support', 'habit', 'calendarEvent'].includes(composition) && !composition.startsWith('editorParent') }).waitFor({ timeout: 2_000 })
     await page.evaluate(() => new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame()))))
     return page
   }
+
+  it('renders fitting disclosure text without a button or chevron at phone width', async () => {
+    const page = await mount('Read for 20 minutes', 'dark', 'details')
+    try {
+      expect(await page.getByRole('button').count()).toBe(0)
+      expect(await page.locator('#root svg').count()).toBe(0)
+      expect(await page.locator('[data-personal-text]').textContent()).toBe('Read for 20 minutes')
+    } finally { await page.close() }
+  })
 
   it.each([
     { width: 320, locale: 'pt-BR', mode: 'dark', size: 16 },
