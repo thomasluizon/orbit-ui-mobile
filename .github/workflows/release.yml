@@ -165,19 +165,12 @@ jobs:
           echo "Pushed ${IMAGE}@${DIGEST}" >> "$GITHUB_STEP_SUMMARY"
           echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
 
-  production:
-    if: inputs.environment == 'production'
+  admission:
     needs: build
     runs-on: ubuntu-latest
     environment:
-      name: production
+      name: ${{ inputs.environment }}
       deployment: false
-    env:
-      SERVICE_ID: ${{ vars.RENDER_WEB_SERVICE_ID }}
-      SERVICE_VARIABLE: RENDER_WEB_SERVICE_ID
-      RELEASE_ENVIRONMENT: ${{ inputs.environment }}
-    outputs:
-      smoke_base_url: ${{ steps.health.outputs.smoke_base_url }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -211,6 +204,41 @@ jobs:
             exit 1
           fi
           echo "Staging served $SOURCE_SHA with status ok" >> "$GITHUB_STEP_SUMMARY"
+
+  desktop-test:
+    needs: build
+    uses: ./.github/workflows/desktop-build.yml
+    with:
+      source_sha: ${{ needs.build.outputs.source_sha }}
+
+  desktop-release:
+    needs: [build, desktop-test, admission]
+    uses: ./.github/workflows/desktop-release.yml
+    permissions:
+      contents: write
+    secrets: inherit
+    with:
+      variant: ${{ inputs.environment }}
+      source_sha: ${{ needs.build.outputs.source_sha }}
+
+  production:
+    if: inputs.environment == 'production'
+    needs: [build, desktop-release]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      deployment: false
+    env:
+      SERVICE_ID: ${{ vars.RENDER_WEB_SERVICE_ID }}
+      SERVICE_VARIABLE: RENDER_WEB_SERVICE_ID
+      RELEASE_ENVIRONMENT: ${{ inputs.environment }}
+    outputs:
+      smoke_base_url: ${{ steps.health.outputs.smoke_base_url }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - name: Deploy web digest
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -299,7 +327,7 @@ jobs:
 
   staging:
     if: inputs.environment == 'staging'
-    needs: build
+    needs: [build, desktop-release]
     runs-on: ubuntu-latest
     environment:
       name: staging

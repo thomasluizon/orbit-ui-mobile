@@ -68,7 +68,9 @@ fn dispatch_link(flow: SharedAuth, route: impl FnOnce(SharedAuth, Url) + Send + 
 fn receive(app: &AppHandle, flow: SharedAuth, url: Url) {
     let app = app.clone();
     dispatch_link(flow, move |flow, origin| {
-        if let Some(destination) = crate::links::destination(&origin, &app.config().identifier, &url) {
+        if let Some(destination) =
+            crate::links::destination(&origin, &app.config().identifier, &url)
+        {
             let result = crate::lifecycle::show_main(&app).and_then(|()| {
                 if let Some(window) = app.get_webview_window("main") {
                     window.navigate(destination)?;

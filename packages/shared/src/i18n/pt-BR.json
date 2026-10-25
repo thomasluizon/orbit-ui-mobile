@@ -4005,6 +4005,9 @@
     "readyDescription": "Uma nova versão do Orbit terminou de baixar. Reinicie para concluir a atualização.",
     "restartCta": "Reiniciar agora"
   },
+  "desktopUpdate": {
+    "required": "Esta versão do Orbit precisa de uma atualização para computador. No menu do app, escolha Buscar atualizações e depois Reiniciar para atualizar."
+  },
   "forceUpdate": {
     "title": "Esta versão do Orbit parou de funcionar",
     "description": "Atualize na loja para voltar a usar.",

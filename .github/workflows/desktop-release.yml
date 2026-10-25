@@ -15,6 +15,15 @@ on:
         type: string
         required: true
 
+  workflow_call:
+    inputs:
+      variant:
+        required: true
+        type: string
+      source_sha:
+        required: true
+        type: string
+
 permissions:
   contents: read
 
@@ -25,29 +34,46 @@ concurrency:
 env:
   DESKTOP_VARIANT: ${{ inputs.variant }}
   DESKTOP_VERSION: ${{ inputs.version }}
+  SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
 
 jobs:
   validate:
     runs-on: ubuntu-latest
     environment: desktop-${{ inputs.variant }}
+    outputs:
+      publish: ${{ steps.plan.outputs.publish }}
+      version: ${{ steps.plan.outputs.version }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@v7
         env:
           SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
-      - name: Validate variant, version and updater credentials
+      - name: Plan shell publication
+        id: plan
         env:
           TAURI_SIGNING_PUBLIC_KEY: ${{ vars.TAURI_SIGNING_PUBLIC_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           set -euo pipefail
           if [ "$DESKTOP_VARIANT" = production ] && [ "$GITHUB_REF" != refs/heads/main ]; then
             echo '::error::Production desktop releases must run from main'
             exit 1
           fi
+          node --experimental-strip-types apps/desktop/scripts/release-plan.ts
+      - name: Validate updater credentials
+        if: steps.plan.outputs.publish == 'true'
+        env:
+          TAURI_SIGNING_PUBLIC_KEY: ${{ vars.TAURI_SIGNING_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          DESKTOP_VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          set -euo pipefail
           for key in TAURI_SIGNING_PUBLIC_KEY TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD; do
             if [ -z "${!key}" ]; then echo "::error::Missing $key"; exit 1; fi
           done
@@ -56,6 +82,7 @@ jobs:
 
   build:
     needs: validate
+    if: needs.validate.outputs.publish == 'true'
     name: Release ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 35
@@ -76,10 +103,15 @@ jobs:
       run:
         shell: bash
     env:
+      DESKTOP_VERSION: ${{ needs.validate.outputs.version }}
       DESKTOP_TARGET: ${{ matrix.target }}
       TAURI_SIGNING_PUBLIC_KEY: ${{ vars.TAURI_SIGNING_PUBLIC_KEY }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@v7
         env:
           SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
@@ -126,17 +158,22 @@ jobs:
           retention-days: 14
 
   publish:
-    needs: build
+    needs: [validate, build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: desktop-${{ inputs.variant }}
     permissions:
       contents: write
     env:
+      DESKTOP_VERSION: ${{ needs.validate.outputs.version }}
       TAURI_SIGNING_PUBLIC_KEY: ${{ vars.TAURI_SIGNING_PUBLIC_KEY }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@v7
         env:
           SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
@@ -176,7 +213,7 @@ jobs:
               "$DESKTOP_VARIANT" "$DESKTOP_VERSION" "$RUNNER_TEMP/previous.json"
           fi
           gh release create "$tag" desktop-assets/* --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" --title "Orbit desktop ${DESKTOP_VARIANT} ${DESKTOP_VERSION}" \
+            --target "$SOURCE_SHA" --title "Orbit desktop ${DESKTOP_VARIANT} ${DESKTOP_VERSION}" \
             --notes "Desktop shell ${DESKTOP_VERSION}. Updater signatures are separate from operating system signing." \
             --prerelease --latest=false
           if [ "$channel_exists" = true ]; then
@@ -186,8 +223,28 @@ jobs:
               --repo "$GITHUB_REPOSITORY" --clobber
           else
             gh release create "$channel" desktop-assets/latest.json desktop-assets/latest.json.sig \
-              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --repo "$GITHUB_REPOSITORY" --target "$SOURCE_SHA" \
               --title "Orbit desktop ${DESKTOP_VARIANT} update channel" \
               --notes 'Stable updater endpoint. Versioned artifacts live in their own releases.' \
               --prerelease --latest=false
+          fi
+
+  ready:
+    if: always()
+    needs: [validate, build, publish]
+    runs-on: ubuntu-latest
+    env:
+      PLAN_RESULT: ${{ needs.validate.result }}
+      SHELL_CHANGED: ${{ needs.validate.outputs.publish }}
+      BUILD_RESULT: ${{ needs.build.result }}
+      PUBLISH_RESULT: ${{ needs.publish.result }}
+    steps:
+      - name: Require completed desktop admission
+        run: |
+          set -euo pipefail
+          [ "$PLAN_RESULT" = success ]
+          if [ "$SHELL_CHANGED" = false ]; then
+            [ "$BUILD_RESULT" = skipped ] && [ "$PUBLISH_RESULT" = skipped ]
+          else
+            [ "$SHELL_CHANGED" = true ] && [ "$BUILD_RESULT" = success ] && [ "$PUBLISH_RESULT" = success ]
           fi

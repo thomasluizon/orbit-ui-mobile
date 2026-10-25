@@ -9,9 +9,14 @@ on:
       - "package-lock.json"
       - ".github/workflows/desktop-build.yml"
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      source_sha:
+        required: true
+        type: string
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: desktop-build-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 permissions:
@@ -39,6 +44,9 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-node@v7
         env:
           SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
@@ -56,6 +64,7 @@ jobs:
         run: |
           npm run type-check -w @orbit/desktop
           npm run test -w @orbit/desktop
+          npm run test -w @orbit/web -- --project jsdom __tests__/lib/desktop-web-release.test.ts __tests__/components/desktop-release-boundary.test.tsx
       - name: Check target and test native context on the runner host
         env:
           DESKTOP_TARGET: ${{ matrix.target }}

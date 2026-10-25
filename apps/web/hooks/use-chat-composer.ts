@@ -70,6 +70,7 @@ import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 import { getAccountGeneration } from '@/lib/session-epoch'
+import { blockDesktopWebReload } from '@/lib/desktop-web-release'
 
 
 interface AttemptedSend {
@@ -212,6 +213,10 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     removeTextFile,
     restoreTextFile,
   } = useChatTextFileAttachment(setSendError)
+
+  useEffect(() => {
+    if (isRecording || isTranscribing || selectedImage || selectedTextFile || lastFailedSend) return blockDesktopWebReload()
+  }, [isRecording, isTranscribing, selectedImage, selectedTextFile, lastFailedSend])
 
   /**
    * The app shell keeps this hook mounted through an account change, so the previous account's
