@@ -300,7 +300,7 @@ function sendFixtureRoute(req: IncomingMessage, res: ServerResponse, route: Mock
   if (url.pathname === '/api/profile') body = profileForRequest(req)
   if (url.pathname === '/api/calendar/calendars') body = calendarsForRequest(req)
   if (url.pathname === '/api/tags') body = tagsForRequest(req)
-  const seeded = session ? sessionFixtures.read(session, url) : undefined
+  const seeded = session ? sessionFixtures.read(session, route.method, url) : undefined
   if (seeded) body = seeded.body
   if (body === null && url.pathname === '/api/ai/proactive/current') {
     res.writeHead(204)
