@@ -41,8 +41,15 @@ export function ServiceWorkerBridge(): null {
 
   useEffect(() => {
     if (!isDesktopPush()) return
-    void import('@/lib/desktop-push').then((module) => module.resumeDesktopPush(accountId))
-      .catch((error: unknown) => Sentry.captureException(error))
+    let cancelled = false
+    const resume = () => {
+      void import('@/lib/desktop-push').then((module) => {
+        if (!cancelled) return module.resumeDesktopPush(accountId)
+      }).catch((error: unknown) => Sentry.captureException(error))
+    }
+    resume()
+    const interval = setInterval(resume, 60 * 60 * 1000)
+    return () => { cancelled = true; clearInterval(interval) }
   }, [accountId])
 
   useEffect(() => {

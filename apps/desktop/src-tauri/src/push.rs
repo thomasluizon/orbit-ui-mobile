@@ -1,5 +1,5 @@
 use crate::push_state::launch_path;
-use crate::push_state::{PendingRegistration, PushState, Registration};
+use crate::push_state::{PendingRegistration, PushSession, PushState, Registration};
 use serde::{Deserialize, Serialize};
 use std::{
     path::PathBuf,
@@ -14,7 +14,7 @@ type ShownNotifications = std::collections::HashMap<i32, (String, Option<String>
 struct PushService {
     path: PathBuf,
     saved: Mutex<PushState>,
-    account: Mutex<Option<String>>,
+    session: Mutex<PushSession>,
     candidate: Mutex<Option<Registration>>,
     operation: Mutex<()>,
     response: Mutex<Option<mpsc::Sender<(i32, String)>>>,
@@ -34,6 +34,7 @@ pub enum PushAction {
     Stage,
     Commit,
     Clear,
+    Suspend,
 }
 
 #[derive(Serialize)]
@@ -54,7 +55,7 @@ pub fn start(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         .set(PushService {
             path,
             saved: Mutex::new(saved),
-            account: Mutex::new(None),
+            session: Mutex::new(PushSession::default()),
             candidate: Mutex::new(None),
             operation: Mutex::new(()),
             response: Mutex::new(None),
@@ -107,6 +108,10 @@ fn operate(
     prompt: bool,
 ) -> Result<Snapshot, String> {
     let service = SERVICE.get().ok_or("Push service unavailable")?;
+    if matches!(action, PushAction::Suspend) {
+        change_registration(service, &action, account, endpoint)?;
+        return Ok(snapshot(service, "default"));
+    }
     let _operation = service.operation.lock().unwrap();
     change_registration(service, &action, account, endpoint)?;
     let token = matches!(action, PushAction::Request);
@@ -124,15 +129,19 @@ fn operate(
         )?;
         *service.candidate.lock().unwrap() = Some(registration);
     }
+    Ok(snapshot(service, permission))
+}
+
+fn snapshot(service: &PushService, permission: &'static str) -> Snapshot {
     let saved = service.saved.lock().unwrap();
-    Ok(Snapshot {
+    Snapshot {
         supported: permission != "unsupported",
         permission,
         owner: saved.owner.clone(),
         registration: saved.registration.clone(),
         candidate: service.candidate.lock().unwrap().clone(),
         pending: saved.pending.clone(),
-    })
+    }
 }
 
 fn change_registration(
@@ -142,79 +151,130 @@ fn change_registration(
     endpoint: Option<String>,
 ) -> Result<(), String> {
     match action {
-        PushAction::Session => {
-            *service.account.lock().unwrap() = account.clone();
-            let enabled = account.is_some() && service.saved.lock().unwrap().owner == account;
-            if !enabled && !unsafe { orbit_push_stop() } {
-                return Err("Cannot pause native push registration".into());
-            }
-            #[cfg(target_os = "macos")]
-            unsafe {
-                orbit_push_set_active(enabled);
-            }
-        }
+        PushAction::Suspend => suspend_registration(service, account),
+        PushAction::Session => restore_session(service, account),
         PushAction::Stage | PushAction::Commit => {
-            let candidate = service
-                .candidate
-                .lock()
-                .unwrap()
-                .clone()
-                .ok_or("Missing native registration")?;
-            if endpoint.as_deref() != Some(&candidate.endpoint)
-                || account.as_ref().is_none_or(String::is_empty)
-                || account != *service.account.lock().unwrap()
-            {
-                return Err("Invalid native registration commit".into());
-            }
-            let mut next = service.saved.lock().unwrap().clone();
-            let owner = account.unwrap();
-            if matches!(action, PushAction::Stage) {
-                next.stage(owner, candidate);
-            } else {
-                next.commit(owner, candidate)?;
-            }
-            next.save(&service.path)
-                .map_err(|error| error.to_string())?;
-            #[cfg(target_os = "macos")]
-            let enabled = next.owner == *service.account.lock().unwrap() && next.pending.is_empty();
-            *service.saved.lock().unwrap() = next;
-            #[cfg(target_os = "macos")]
-            unsafe {
-                orbit_push_set_active(enabled);
-            }
+            persist_registration(service, action, account, endpoint)
         }
-        PushAction::Clear => {
-            let mut next = service.saved.lock().unwrap().clone();
-            if account.is_none()
-                || (next.owner != account
-                    && !next
-                        .pending
-                        .iter()
-                        .any(|pending| Some(&pending.owner) == account.as_ref()))
-            {
-                return Err("Native push account changed".into());
-            }
-            if next.owner == account {
-                next.owner = None;
-                next.registration = None;
-            }
-            next.pending
-                .retain(|pending| Some(&pending.owner) != account.as_ref());
-            if !unsafe { orbit_push_stop() } {
-                return Err("Cannot stop native push registration".into());
-            }
-            next.save(&service.path)
-                .map_err(|error| error.to_string())?;
-            *service.saved.lock().unwrap() = next;
-            #[cfg(target_os = "macos")]
-            unsafe {
-                orbit_push_set_active(false);
-            }
-            *service.candidate.lock().unwrap() = None;
-            #[cfg(windows)]
-            service.shown.lock().unwrap().clear();
+        PushAction::Clear => clear_registration(service, account),
+        _ => Ok(()),
+    }
+}
+
+fn suspend_registration(service: &PushService, account: Option<String>) -> Result<(), String> {
+    let account = account.ok_or("Missing native push account")?;
+    let mut session = service.session.lock().unwrap();
+    let mut saved = service.saved.lock().unwrap();
+    session.suspend(&mut saved, &account);
+    #[cfg(target_os = "macos")]
+    let enabled = session.owns(&saved);
+    #[cfg(target_os = "macos")]
+    unsafe {
+        orbit_push_set_active(enabled);
+    }
+    let persisted = saved.save(&service.path).map_err(|error| error.to_string());
+    drop(saved);
+    drop(session);
+    #[cfg(target_os = "macos")]
+    if !enabled && !unsafe { orbit_push_stop() } {
+        return Err("Cannot pause native push registration".into());
+    }
+    persisted
+}
+
+fn restore_session(service: &PushService, account: Option<String>) -> Result<(), String> {
+    let mut session = service.session.lock().unwrap();
+    let saved = service.saved.lock().unwrap();
+    let destination = session.restore(account, &saved);
+    let enabled = session.owns(&saved);
+    #[cfg(target_os = "macos")]
+    unsafe {
+        orbit_push_set_active(enabled);
+    }
+    drop(saved);
+    drop(session);
+    if !enabled && !unsafe { orbit_push_stop() } {
+        return Err("Cannot pause native push registration".into());
+    }
+    if let Some(url) = destination {
+        open(&service.app, url.as_deref());
+    }
+    Ok(())
+}
+
+fn persist_registration(
+    service: &PushService,
+    action: &PushAction,
+    account: Option<String>,
+    endpoint: Option<String>,
+) -> Result<(), String> {
+    let candidate = service
+        .candidate
+        .lock()
+        .unwrap()
+        .clone()
+        .ok_or("Missing native registration")?;
+    let session = service.session.lock().unwrap();
+    if endpoint.as_deref() != Some(&candidate.endpoint)
+        || account.as_ref().is_none_or(String::is_empty)
+        || account != session.account
+    {
+        return Err("Invalid native registration commit".into());
+    }
+    let mut saved = service.saved.lock().unwrap();
+    let mut next = saved.clone();
+    let owner = account.unwrap();
+    if matches!(action, PushAction::Stage) {
+        next.stage(owner, candidate);
+    } else {
+        next.commit(owner, candidate)?;
+    }
+    next.save(&service.path)
+        .map_err(|error| error.to_string())?;
+    *saved = next;
+    #[cfg(target_os = "macos")]
+    unsafe {
+        orbit_push_set_active(session.owns(&saved) && saved.pending.is_empty());
+    }
+    Ok(())
+}
+
+fn clear_registration(service: &PushService, account: Option<String>) -> Result<(), String> {
+    let session = service.session.lock().unwrap();
+    let mut saved = service.saved.lock().unwrap();
+    let mut next = saved.clone();
+    if account.is_none()
+        || (next.owner != account
+            && !next
+                .pending
+                .iter()
+                .any(|pending| Some(&pending.owner) == account.as_ref()))
+    {
+        return Err("Native push account changed".into());
+    }
+    if next.owner == account {
+        next.owner = None;
+        next.registration = None;
+    }
+    next.pending
+        .retain(|pending| Some(&pending.owner) != account.as_ref());
+    next.save(&service.path)
+        .map_err(|error| error.to_string())?;
+    *saved = next;
+    let enabled = session.owns(&saved);
+    #[cfg(target_os = "macos")]
+    unsafe {
+        orbit_push_set_active(enabled);
+    }
+    drop(saved);
+    drop(session);
+    if !enabled {
+        *service.candidate.lock().unwrap() = None;
+        #[cfg(windows)]
+        service.shown.lock().unwrap().clear();
+        if !unsafe { orbit_push_stop() } {
+            return Err("Cannot stop native push registration".into());
         }
-        _ => {}
     }
     Ok(())
 }
@@ -278,11 +338,15 @@ fn receive_value(kind: i32, payload: String) {
         received_payload(service, &payload);
     } else if kind == 6 {
         #[cfg(target_os = "macos")]
-        if owns_session(service) {
-            open(
-                &service.app,
-                crate::push_state::apns_destination(&payload).as_deref(),
-            );
+        {
+            let destination = service
+                .session
+                .lock()
+                .unwrap()
+                .response(&service.saved.lock().unwrap(), &payload);
+            if let Some(url) = destination {
+                open(&service.app, url.as_deref());
+            }
         }
         #[cfg(windows)]
         if let Ok(id) = payload.parse::<i32>() {
@@ -337,8 +401,11 @@ fn received_payload(service: &PushService, payload: &str) {
 }
 
 fn owns_session(service: &PushService) -> bool {
-    let account = service.account.lock().unwrap().clone();
-    account.is_some() && account == service.saved.lock().unwrap().owner
+    service
+        .session
+        .lock()
+        .unwrap()
+        .owns(&service.saved.lock().unwrap())
 }
 
 fn open(app: &AppHandle, url: Option<&str>) {

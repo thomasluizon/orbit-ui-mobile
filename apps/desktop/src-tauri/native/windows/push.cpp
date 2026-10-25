@@ -9,6 +9,7 @@
 #include <chrono>
 #include <string>
 #include <cstdlib>
+#include "channel.h"
 
 using namespace winrt::Microsoft::Windows::PushNotifications;
 using namespace winrt::Microsoft::Windows::AppNotifications;
@@ -89,15 +90,16 @@ extern "C" void orbit_push_request(bool prompt, bool token) {
         if (setting != AppNotificationSetting::Enabled) { emit(3); return; }
         if (!token) { emit(2); return; }
         if (!registered) { manager.Register(); registered = true; }
-        if (!channel) {
+        renew_channel(channel, winrt::clock::now(), []() -> PushNotificationChannel {
             auto operation = manager.CreateChannelAsync(remoteId);
             if (operation.wait_for(std::chrono::seconds(300)) != winrt::Windows::Foundation::AsyncStatus::Completed) {
-                operation.Cancel(); emit(7); return;
+                operation.Cancel(); return nullptr;
             }
             auto result = operation.GetResults();
-            if (result.Status() != PushNotificationChannelStatus::CompletedSuccess) { emit(7); return; }
-            channel = result.Channel();
-        }
+            if (result.Status() != PushNotificationChannelStatus::CompletedSuccess) return nullptr;
+            return result.Channel();
+        });
+        if (!channel) { emit(7); return; }
         emit(4, winrt::to_string(channel.Uri().ToString()));
     } catch (...) { emit(7); }
 }

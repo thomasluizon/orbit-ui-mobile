@@ -59,7 +59,7 @@ describe('sign-out through the real notifications action wrapper', () => {
   })
   afterEach(() => { Reflect.deleteProperty(window, '__TAURI_INTERNALS__'); vi.unstubAllGlobals(); vi.useRealTimers() })
 
-  it.each([true, false])('keeps native sign-in until the API revocation settles successfully: %s', async (succeeds) => {
+  it.each([true, false])('finishes desktop sign-out after the API revocation settles: %s', async (succeeds) => {
     const { useAuthStore, subscription } = await installSignedInBrowser()
     const registration = {
       endpoint: 'https://dm3p.notify.windows.com/?token=current', p256dh: 'wns', auth: 'wns', apnsTopic: null,
@@ -82,8 +82,10 @@ describe('sign-out through the real notifications action wrapper', () => {
     expect(fetch).not.toHaveBeenCalled()
     finishRelease()
     await signedOut
-    expect(useAuthStore.getState().isAuthenticated).toBe(!succeeds)
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+    expect(fetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST', headers: expect.any(Headers) })
     expect(invoke.mock.calls.some(([, payload]) => payload.action === 'clear')).toBe(succeeds)
+    expect(invoke.mock.calls.some(([, payload]) => payload.action === 'suspend')).toBe(!succeeds)
     expect(subscription.unsubscribe).not.toHaveBeenCalled()
   })
 

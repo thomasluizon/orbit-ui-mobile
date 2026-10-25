@@ -2,6 +2,64 @@ use serde::{Deserialize, Serialize};
 use std::{io::Write, path::Path};
 use uuid::Uuid;
 
+#[derive(Default)]
+pub struct PushSession {
+    pub account: Option<String>,
+    restored: bool,
+    startup_response: Option<(String, Option<String>)>,
+}
+
+impl PushSession {
+    pub fn suspend(&mut self, saved: &mut PushState, account: &str) {
+        if self.account.as_deref() == Some(account) {
+            self.account = None;
+            self.restored = true;
+            self.startup_response = None;
+        }
+        if saved.owner.as_deref() == Some(account) {
+            if let Some(registration) = saved.registration.take() {
+                saved.stage(account.into(), registration);
+            }
+            saved.owner = None;
+        }
+        for pending in &mut saved.pending {
+            if pending.owner == account {
+                pending.revoke = true;
+            }
+        }
+    }
+    pub fn owns(&self, saved: &PushState) -> bool {
+        self.account.is_some() && self.account == saved.owner
+    }
+
+    pub fn restore(
+        &mut self,
+        account: Option<String>,
+        saved: &PushState,
+    ) -> Option<Option<String>> {
+        self.account = account;
+        self.account.as_ref()?;
+        self.restored = true;
+        self.startup_response.take().and_then(|(owner, url)| {
+            (self.owns(saved) && self.account.as_deref() == Some(&owner)).then_some(url)
+        })
+    }
+
+    #[cfg(any(target_os = "macos", test))]
+    pub fn response(&mut self, saved: &PushState, payload: &str) -> Option<Option<String>> {
+        let destination = apns_destination(payload);
+        if self.owns(saved) {
+            return Some(destination);
+        }
+        if !self.restored {
+            if let Some(owner) = &saved.owner {
+                self.startup_response = Some((owner.clone(), destination));
+            }
+        }
+        None
+    }
+}
+
 #[cfg(any(windows, test))]
 #[derive(Deserialize, Debug, PartialEq)]
 pub struct RawNotice {
@@ -35,6 +93,8 @@ pub struct Registration {
 pub struct PendingRegistration {
     pub owner: String,
     pub registration: Registration,
+    #[serde(default)]
+    pub revoke: bool,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -57,6 +117,7 @@ impl PushState {
             self.pending.push(PendingRegistration {
                 owner,
                 registration,
+                revoke: false,
             });
         }
     }
@@ -162,6 +223,81 @@ pub fn launch_path(url: Option<&str>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn startup_apns_click_opens_once_only_for_the_restored_push_owner() {
+        let saved = PushState {
+            device_id: Uuid::new_v4(),
+            owner: Some("account-a".into()),
+            registration: None,
+            pending: Vec::new(),
+        };
+        let payload = r#"{"body":{"url":"/habits/example"}}"#;
+        let mut session = PushSession::default();
+        let mut navigations = Vec::new();
+        navigations.extend(session.response(&saved, payload));
+        assert!(navigations.is_empty());
+        navigations.extend(session.restore(None, &saved));
+        navigations.extend(session.restore(Some("account-a".into()), &saved));
+        navigations.extend(session.restore(Some("account-a".into()), &saved));
+        assert_eq!(navigations, vec![Some("/habits/example".into())]);
+
+        let mut replacement = PushSession::default();
+        assert_eq!(replacement.response(&saved, payload), None);
+        assert_eq!(replacement.restore(Some("account-b".into()), &saved), None);
+        assert_eq!(replacement.restore(Some("account-a".into()), &saved), None);
+    }
+
+    #[test]
+    fn failed_revoke_pauses_delivery_and_keeps_the_endpoint_for_retry_after_restart() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("push.json");
+        let mut saved = PushState::load(&path).unwrap();
+        let registration = saved
+            .registration("abcd".into(), "org.useorbit.desktop", false)
+            .unwrap();
+        saved.stage("account-a".into(), registration.clone());
+        saved
+            .commit("account-a".into(), registration.clone())
+            .unwrap();
+        let mut session = PushSession::default();
+        session.restore(Some("account-a".into()), &saved);
+        session.suspend(&mut saved, "account-a");
+        assert!(!session.owns(&saved));
+        saved.save(&path).unwrap();
+        let saved = PushState::load(&path).unwrap();
+        let mut restarted = PushSession::default();
+        restarted.restore(Some("account-a".into()), &saved);
+        assert!(!restarted.owns(&saved));
+        assert_eq!(saved.owner, None);
+        assert_eq!(saved.registration, None);
+        assert_eq!(saved.pending.len(), 1);
+        assert_eq!(saved.pending[0].owner, "account-a");
+        assert_eq!(saved.pending[0].registration, registration);
+        assert!(saved.pending[0].revoke);
+    }
+
+    #[test]
+    fn a_stale_failed_revoke_keeps_the_replacement_account_active() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut saved = PushState::load(&directory.path().join("push.json")).unwrap();
+        let registration = saved
+            .registration("abcd".into(), "org.useorbit.desktop", false)
+            .unwrap();
+        saved.stage("account-a".into(), registration.clone());
+        saved.stage("account-b".into(), registration.clone());
+        saved
+            .commit("account-b".into(), registration.clone())
+            .unwrap();
+        let mut session = PushSession::default();
+        session.restore(Some("account-b".into()), &saved);
+        session.suspend(&mut saved, "account-a");
+        assert!(session.owns(&saved));
+        assert_eq!(saved.owner.as_deref(), Some("account-b"));
+        assert_eq!(saved.registration, Some(registration));
+        assert_eq!(saved.pending.len(), 1);
+        assert!(saved.pending[0].revoke);
+    }
 
     #[test]
     fn native_payloads_preserve_the_producers_localized_content_and_nested_apns_destination() {

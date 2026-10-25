@@ -13,8 +13,11 @@ Expand-Nuget 'microsoft.windowsappsdk' '1.7.260224002' (Join-Path $Output 'sdk')
 Expand-Nuget 'microsoft.windows.cppwinrt' '2.0.250303.1' (Join-Path $Output 'cppwinrt')
 $projection = Join-Path $Output 'projection'
 $metadata = Join-Path $Output 'sdk/lib/uap10.0'
-& (Join-Path $Output 'cppwinrt/bin/cppwinrt.exe') -input (Join-Path $metadata 'Microsoft.Windows.PushNotifications.winmd') (Join-Path $metadata 'Microsoft.Windows.AppNotifications.winmd') (Join-Path $metadata 'Microsoft.Windows.AppNotifications.Builder.winmd') -reference sdk (Join-Path $Output 'sdk/lib') -output $projection
+& (Join-Path $Output 'cppwinrt/bin/cppwinrt.exe') -input sdk (Join-Path $metadata 'Microsoft.Windows.PushNotifications.winmd') (Join-Path $metadata 'Microsoft.Windows.AppNotifications.winmd') (Join-Path $metadata 'Microsoft.Windows.AppNotifications.Builder.winmd') -reference (Join-Path $Output 'sdk/lib') -base -output $projection
 if ($LASTEXITCODE -ne 0) { throw 'C++/WinRT projection failed' }
+foreach ($header in @('base.h', 'Windows.Foundation.h', 'Windows.Foundation.Collections.h', 'Microsoft.Windows.PushNotifications.h')) {
+    if (!(Test-Path (Join-Path $projection "winrt/$header"))) { throw "Missing generated C++/WinRT header: $header" }
+}
 $installer = Join-Path $Output 'WindowsAppRuntimeInstall.exe'
 if (!(Test-Path $installer)) {
     Invoke-WebRequest "https://aka.ms/windowsappsdk/1.7/1.7.260224002/windowsappruntimeinstall-$Architecture.exe" -OutFile $installer

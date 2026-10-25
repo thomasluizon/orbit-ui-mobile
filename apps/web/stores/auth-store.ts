@@ -391,10 +391,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (logoutEpoch !== getSessionEpoch()) return null
         await import('@/hooks/use-push-notification-preferences')
           .then((module) => module.releasePushSubscription(logoutAccountId))
-          .catch(async (error: unknown) => {
+          .catch((error: unknown) => {
             Sentry.captureException(error)
-            const { isDesktopPush } = await import('@/lib/desktop-runtime')
-            if (isDesktopPush()) throw error
           })
         if (logoutEpoch !== getSessionEpoch()) return null
         endSessionLocally()

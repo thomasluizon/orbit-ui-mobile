@@ -72,8 +72,25 @@ describe('ServiceWorkerBridge', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
+    desktop.resume.mockClear()
+    Reflect.deleteProperty(document, 'visibilityState')
     Reflect.deleteProperty(navigator, 'serviceWorker')
     Reflect.deleteProperty(window, '__TAURI_INTERNALS__')
+  })
+
+  it('renews while the desktop window remains hidden and stops its timer on unmount', async () => {
+    vi.useFakeTimers()
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { configurable: true, value: { invoke: vi.fn() } })
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' })
+    const { unmount } = renderBridge()
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    const initialCalls = desktop.resume.mock.calls.length
+    await act(async () => { await vi.advanceTimersByTimeAsync(60 * 60 * 1000) })
+    expect(desktop.resume.mock.calls.length).toBe(initialCalls + 1)
+    unmount()
+    await act(async () => { await vi.advanceTimersByTimeAsync(60 * 60 * 1000) })
+    expect(desktop.resume.mock.calls.length).toBe(initialCalls + 1)
   })
 
   it('resumes native registration and refreshes the inbox without registering Web Push inside the shell', async () => {

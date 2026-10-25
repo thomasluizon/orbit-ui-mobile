@@ -3,7 +3,7 @@
 import { z } from 'zod'
 import { desktopPushRegistrationSchema, type DesktopPushRegistration } from '@orbit/shared/types/push-subscription'
 import { subscribePush, unsubscribePushForCleanup } from '@/lib/actions/notifications'
-import { serializePushSubscriptionMutation } from '@/lib/push-subscription-owner'
+import { serializePushSubscriptionMutation, settlePushCleanupBeforeAbort } from '@/lib/push-subscription-owner'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
@@ -16,11 +16,11 @@ const snapshotSchema = z.object({
   owner: z.string().nullable(),
   registration: desktopPushRegistrationSchema.nullable(),
   candidate: desktopPushRegistrationSchema.nullable(),
-  pending: z.array(z.object({ owner: z.string(), registration: desktopPushRegistrationSchema })).default([]),
+  pending: z.array(z.object({ owner: z.string(), registration: desktopPushRegistrationSchema, revoke: z.boolean().default(false) })).default([]),
 })
 
 type DesktopSnapshot = z.infer<typeof snapshotSchema>
-async function invoke(action: 'session' | 'status' | 'request' | 'stage' | 'commit' | 'clear', payload: Record<string, unknown> = {}): Promise<DesktopSnapshot> {
+async function invoke(action: 'session' | 'status' | 'request' | 'stage' | 'commit' | 'clear' | 'suspend', payload: Record<string, unknown> = {}): Promise<DesktopSnapshot> {
   const native = desktopRuntime()
   if (!native) throw new Error('Desktop push runtime unavailable')
   return snapshotSchema.parse(await native.invoke('desktop_push', { action, ...payload }))
@@ -77,25 +77,43 @@ function assertAccount(accountId: string | null, generation: number): void {
 
 export async function releaseDesktopPush(accountId: string | null): Promise<void> {
   if (!accountId) return
-  await serializePushSubscriptionMutation(async () => {
-    const snapshot = await invoke('status')
-    const registrations = snapshot.pending.filter((attempt) => attempt.owner === accountId).map((attempt) => attempt.registration)
-    if (snapshot.owner === accountId && snapshot.registration) registrations.push(snapshot.registration)
-    if (registrations.length === 0) return
-    const endpoints = new Set<string>()
-    for (const registration of registrations) {
-      if (endpoints.has(registration.endpoint)) continue
-      await unsubscribePushForCleanup(subscription(registration), accountId)
-      endpoints.add(registration.endpoint)
-    }
-    await invoke('clear', { accountId })
-  })
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(new Error('Push release timed out')), 5000)
+  try {
+    await serializePushSubscriptionMutation(async () => {
+      const snapshot = await invoke('status')
+      controller.signal.throwIfAborted()
+      const registrations = snapshot.pending.filter((attempt) => attempt.owner === accountId).map((attempt) => attempt.registration)
+      if (snapshot.owner === accountId && snapshot.registration) registrations.push(snapshot.registration)
+      if (registrations.length === 0) return
+      const endpoints = new Set<string>()
+      for (const registration of registrations) {
+        if (endpoints.has(registration.endpoint)) continue
+        await settlePushCleanupBeforeAbort(unsubscribePushForCleanup(subscription(registration), accountId), controller.signal)
+        endpoints.add(registration.endpoint)
+      }
+      controller.signal.throwIfAborted()
+      await invoke('clear', { accountId })
+    }, controller.signal)
+  } catch (error) {
+    await invoke('suspend', { accountId })
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 export async function resumeDesktopPush(accountId: string | null): Promise<void> {
+  if (accountId !== getHeldAccountId()) return
+  const generation = getAccountGeneration()
   await invoke('session', { accountId })
   if (!accountId) return
   const snapshot = await invoke('status')
+  assertAccount(accountId, generation)
+  if (snapshot.pending.some((attempt) => attempt.owner === accountId && attempt.revoke)) {
+    await releaseDesktopPush(accountId)
+    return
+  }
   if (snapshot.owner && snapshot.owner !== accountId) {
     await serializePushSubscriptionMutation(async () => {
       const current = await invoke('status')

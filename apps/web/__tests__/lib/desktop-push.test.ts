@@ -16,18 +16,20 @@ const registration: DesktopPushRegistration = {
   deviceId: '11111111-1111-4111-8111-111111111111',
 }
 const saved = { ...registration, endpoint: 'https://dm3p.notify.windows.com/?token=previous' }
+let candidate: DesktopPushRegistration
 let owner: string | null
 let current: DesktopPushRegistration | null
-let pending: { owner: string; registration: DesktopPushRegistration }[]
+let pending: { owner: string; registration: DesktopPushRegistration; revoke?: boolean }[]
 
 function snapshot() {
-  return { supported: true, permission: 'granted', owner, registration: current, candidate: registration, pending }
+  return { supported: true, permission: 'granted', owner, registration: current, candidate, pending }
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.account = 'account-a'
   mocks.generation = 1
+  candidate = registration
   owner = 'account-a'
   current = saved
   pending = []
@@ -36,9 +38,13 @@ beforeEach(() => {
   mocks.subscribe.mockResolvedValue(undefined)
   mocks.unsubscribe.mockResolvedValue(undefined)
   mocks.invoke.mockImplementation(async (_command: string, payload: Record<string, unknown>) => {
-    if (payload.action === 'stage') pending.push({ owner: payload.accountId as string, registration })
-    if (payload.action === 'commit') { owner = payload.accountId as string; current = registration; pending = [] }
+    if (payload.action === 'stage') pending.push({ owner: payload.accountId as string, registration: candidate })
+    if (payload.action === 'commit') { owner = payload.accountId as string; current = candidate; pending = [] }
     if (payload.action === 'clear') { owner = null; current = null; pending = [] }
+    if (payload.action === 'suspend' && owner !== null && payload.accountId === owner) {
+      if (current) pending.push({ owner, registration: current, revoke: true })
+      owner = null; current = null
+    }
     return snapshot()
   })
 })
@@ -118,11 +124,62 @@ describe('desktop push through the native bridge', () => {
     expect(current).toBeNull()
   })
 
-  it('retains ownership and propagates revocation failures while sign-in is available for retry', async () => {
+  it('drops local delivery on failed revocation and retries the stale endpoint on the next matching sign-in', async () => {
     mocks.unsubscribe.mockRejectedValue(new Error('Offline'))
     await expect(releaseDesktopPush('account-a')).rejects.toThrow('Offline')
-    expect(current).toBe(saved)
+    expect(owner).toBeNull()
+    expect(current).toBeNull()
+    expect(pending).toEqual([{ owner: 'account-a', registration: saved, revoke: true }])
     expect(mocks.invoke.mock.calls.some(([, payload]) => payload.action === 'clear')).toBe(false)
+    mocks.unsubscribe.mockResolvedValue(undefined)
+    await resumeDesktopPush('account-a')
+    expect(mocks.unsubscribe).toHaveBeenCalledTimes(2)
+    expect(pending).toEqual([])
+    expect(mocks.subscribe).not.toHaveBeenCalled()
+  })
+
+  it('does not retry a signed-out account endpoint while a different account restores', async () => {
+    pending = [{ owner: 'account-a', registration: saved, revoke: true }]
+    owner = null; current = null; mocks.account = 'account-b'
+    await resumeDesktopPush('account-b')
+    expect(mocks.unsubscribe).not.toHaveBeenCalled()
+    expect(mocks.subscribe).not.toHaveBeenCalled()
+    expect(pending).toHaveLength(1)
+  })
+
+  it('stages and commits the replacement endpoint on a later renewal in the same process', async () => {
+    await resumeDesktopPush('account-a')
+    mocks.subscribe.mockClear()
+    const replacement = { ...registration, endpoint: 'https://dm3p.notify.windows.com/?token=replacement' }
+    candidate = replacement
+    const native = mocks.invoke.getMockImplementation()!
+    const sequence: string[] = []
+    mocks.subscribe.mockImplementation(async (payload) => { sequence.push('api'); expect(payload.endpoint).toBe(replacement.endpoint) })
+    mocks.invoke.mockImplementation(async (command, payload) => {
+      if (payload.action === 'stage' || payload.action === 'commit') sequence.push(payload.action)
+      return native(command, payload)
+    })
+    await resumeDesktopPush('account-a')
+    expect(sequence).toEqual(['stage', 'api', 'commit'])
+    expect(current).toEqual(replacement)
+    expect(pending).toEqual([])
+    expect(mocks.invoke).toHaveBeenCalledWith('desktop_push', { action: 'commit', accountId: 'account-a', endpoint: replacement.endpoint })
+  })
+
+  it('pauses a timed-out revoke and ignores its late completion', async () => {
+    vi.useFakeTimers()
+    try {
+      let finishRelease: () => void = () => undefined
+      mocks.unsubscribe.mockImplementation(() => new Promise<void>((resolve) => { finishRelease = resolve }))
+      const released = expect(releaseDesktopPush('account-a')).rejects.toThrow('Push cleanup cancelled')
+      await vi.advanceTimersByTimeAsync(5000)
+      await released
+      expect(owner).toBeNull()
+      expect(pending).toEqual([{ owner: 'account-a', registration: saved, revoke: true }])
+      finishRelease()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(mocks.invoke.mock.calls.some(([, payload]) => payload.action === 'clear')).toBe(false)
+    } finally { vi.useRealTimers() }
   })
 
   it('does not revoke another account from a stale sign-out', async () => {
