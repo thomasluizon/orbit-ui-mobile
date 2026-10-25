@@ -38,6 +38,7 @@ export function buildChatClientContext({
     supportsToolSteps: true,
     supportsFollowUps: true,
     supportsFollowUpContext: true,
+    supportsMessageAllowance: true,
     supportsParts: true,
     partKinds: [...CHAT_BLOCK_KINDS],
     ...(messageOrigin ? { messageOrigin } : {}),

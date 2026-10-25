@@ -37,6 +37,7 @@ export const chatClientContextSchema = z.object({
   partKinds: z.array(z.string()).optional(),
   messageOrigin: z.literal('followUp').optional(),
   entryPointIntent: z.literal('support').optional(),
+  supportsMessageAllowance: z.boolean().optional(),
 })
 
 export type ChatClientContext = z.infer<typeof chatClientContextSchema>
@@ -597,6 +598,7 @@ export const chatResponseSchema = z.object({
   pendingOperations: z.array(pendingAgentOperationSchema).nullable().optional(),
   policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
   ...replyCardFieldsShape,
+  messageAllowanceConsumed: z.boolean().nullish(),
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>

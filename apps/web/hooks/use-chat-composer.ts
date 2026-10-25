@@ -403,7 +403,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
 
     scrollToBottom()
 
-    if (messageCost) queryClient.setQueryData<Profile>(profileKeys.detail(), current =>
+    if (messageCost && response.messageAllowanceConsumed !== false) queryClient.setQueryData<Profile>(profileKeys.detail(), current =>
       current ? { ...current, aiMessagesUsed: current.aiMessagesUsed + messageCost } : current,
     )
 
