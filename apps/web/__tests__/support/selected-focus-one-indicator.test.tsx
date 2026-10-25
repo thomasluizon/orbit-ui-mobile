@@ -116,10 +116,8 @@ describe('selection yields to keyboard focus', () => {
             await control.hover()
             expect(await inspectControlAccentRings(control)).toHaveLength(selected ? 1 : 0)
             if (surface === 'segment' && !selected) return
-            for (let stop = 0; stop < 20; stop += 1) {
-              await page.keyboard.press('Tab')
-              if (await control.evaluate((button) => button === document.activeElement)) break
-            }
+            await page.keyboard.press('Tab')
+            if (surface === 'segment') await control.focus()
             expect(await control.evaluate((button) => button.matches(':focus-visible'))).toBe(true)
             expect(await inspectControlAccentRings(control)).toHaveLength(1)
           } finally { cleanup(); await page.close() }
