@@ -6,7 +6,21 @@ import { prepareCorrection } from './setup.mjs'
 import { descriptors } from './merge-reports.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
 
+let completedResults = []
+let selectedCases = []
+
+function persistResults(results, expectedCases) {
+  writeResults(results)
+  const summary = summarize(results, expectedCases)
+  const completeCorpus = descriptors.every(({ id }) => summary.cases.some((entry) => entry.id === id))
+  summary.gateStatus = !completeCorpus && summary.status === 'pass' ? 'incomplete' : summary.status
+  return { summary, markdown: writeReport(summary) }
+}
+
 export function beforeAll({ suite }) {
+  completedResults = []
+  selectedCases = suite.tests.map((test) => test.metadata)
+  persistResults(completedResults, selectedCases)
   const required = ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_CREDENTIALS_FILE']
   for (const key of new Set(required)) {
     if (!process.env[key]) throw new Error(`Missing required environment variable: ${key}`)
@@ -22,9 +36,10 @@ export function beforeAll({ suite }) {
 export async function beforeEach({ test }) {
   await refreshCredential(test.vars.credentialKey)
   const today = new Date().toISOString().slice(0, 10)
+  test.vars.accountDate = today
   process.env.ORBIT_EVAL_OVERDUE_DATE ??= dateOffset(today, -1)
   try {
-    await resetFixture(test)
+    await resetFixture(test, today)
   } catch {
     throw new Error(`Fixture reset failed for ${test.metadata.id}; no chat request should run.`)
   }
@@ -54,12 +69,13 @@ export async function beforeEach({ test }) {
   return test.vars.setup ? prepareCorrection(test) : { test }
 }
 
+export function afterEach({ result }) {
+  completedResults.push(result)
+  persistResults(completedResults, selectedCases)
+}
+
 export function afterAll({ results, suite }) {
-  writeResults(results)
-  const summary = summarize(results, suite.tests.map((test) => test.metadata))
-  const completeCorpus = descriptors.every(({ id }) => summary.cases.some((entry) => entry.id === id))
-  summary.gateStatus = !completeCorpus && summary.status === 'pass' ? 'incomplete' : summary.status
-  const markdown = writeReport(summary)
+  const { summary, markdown } = persistResults(results, suite.tests.map((test) => test.metadata))
   process.stdout.write(`${markdown}\n`)
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`)
   if (summary.status !== 'pass') throw new Error(`Astra launch gate ${summary.status}; see reports/summary.md and reports/results.json.`)
