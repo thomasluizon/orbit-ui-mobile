@@ -1,10 +1,10 @@
 import { spawn, spawnSync } from "node:child_process"
-import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, watch, writeFileSync } from "node:fs"
+import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
 import { clearWorkerLaunchReservation, readWakeSourceStates, recordReservedWorkerPid, reserveWorkerLaunch, writeRunState } from "../lib/run-state.mjs"
-import { cases as lifecycleCases } from "./launch-worker-lifecycle.mjs"
+import { cases as lifecycleCases, cleanupLifecycleLaunch, launcherResult } from "./launch-worker-lifecycle.mjs"
 
 const TOOL = "launch-worker.mjs"
 
@@ -90,75 +90,61 @@ const readFileContents = (path) => {
   }
 }
 
-const waitForFile = (path, expectedContents, writerResult) => {
-  const timeoutMs = 60000
-  const initialContents = readFileContents(path)
-  if (initialContents === expectedContents) return Promise.resolve()
-  if (initialContents !== null) return Promise.reject(new Error(`observed incomplete contents in ${path}: ${JSON.stringify(initialContents)}`))
-  return new Promise((resolve, reject) => {
+const waitForPublication = (path, inspectPublication, writerResult, timeoutMs = 60000) =>
+  new Promise((resolve, reject) => {
     let settled = false
-    const finish = (error) => {
+    const finish = (error, publication) => {
       if (settled) return
       settled = true
+      clearInterval(poll)
       clearTimeout(deadline)
-      watcher.close()
       if (error) reject(error)
-      else resolve()
+      else resolve(publication)
     }
-    const watcher = watch(dirname(path), () => {
-      const contents = readFileContents(path)
-      if (contents === null) return
-      if (contents !== expectedContents) {
-        finish(new Error(`observed incomplete contents in ${path}: ${JSON.stringify(contents)}`))
-        return
+    const inspect = () => {
+      if (settled) return
+      try {
+        const publication = inspectPublication()
+        if (publication !== null) finish(null, publication)
+      } catch (error) {
+        finish(error)
       }
-      finish()
-    })
+    }
+    const poll = setInterval(inspect, 20)
     const deadline = setTimeout(() => finish(new Error(`writer did not publish ${path} within ${timeoutMs}ms`)), timeoutMs)
     writerResult?.then((result) => {
+      inspect()
       finish(new Error(`writer exited before publishing ${path}: ${result.stderr || result.stdout}`))
     }, finish)
-    const contents = readFileContents(path)
-    if (contents === expectedContents) finish()
-    else if (contents !== null) finish(new Error(`observed incomplete contents in ${path}: ${JSON.stringify(contents)}`))
+    inspect()
   })
-}
 
-const waitForAcknowledgementPublication = (path, writerResult) => {
+const waitForFile = (path, expectedContents, writerResult) => waitForPublication(path, () => {
+  const contents = readFileContents(path)
+  if (contents === null) return null
+  if (contents !== expectedContents) throw new Error(`observed incomplete contents in ${path}: ${JSON.stringify(contents)}`)
+  return contents
+}, writerResult)
+
+const waitForAcknowledgementPublication = (path, expectedSample, writerResult, timeoutMs) => {
   const directWriteOpened = `${path}.direct-write-opened`
   const readerObservedIncomplete = `${path}.reader-observed-incomplete`
-  return new Promise((resolve, reject) => {
-    let observedIncomplete = false
-    let settled = false
-    const finish = (error) => {
-      if (settled) return
-      settled = true
-      watcher.close()
-      if (error) reject(error)
-      else resolve({ observedIncomplete })
+  let observedIncomplete = false
+  return waitForPublication(path, () => {
+    const contents = readFileContents(path)
+    if (contents !== null && contents !== "") {
+      if (contents !== String(expectedSample)) throw new Error(`observed invalid sample in ${path}: ${JSON.stringify(contents)}`)
+      return { observedIncomplete, contents }
     }
-    const inspectPublication = () => {
-      const contents = readFileContents(path)
-      if (contents !== null && contents !== "") {
-        finish()
-        return
-      }
-      const directWriteState = readFileContents(directWriteOpened)
-      if (directWriteState === null) return
-      if (directWriteState !== "opened") {
-        finish(new Error(`observed invalid direct-write state in ${directWriteOpened}: ${JSON.stringify(directWriteState)}`))
-        return
-      }
-      if (observedIncomplete) return
+    const directWriteState = readFileContents(directWriteOpened)
+    if (directWriteState === null) return null
+    if (directWriteState !== "opened") throw new Error(`observed invalid direct-write state in ${directWriteOpened}: ${JSON.stringify(directWriteState)}`)
+    if (!observedIncomplete) {
       observedIncomplete = true
       publishMarker(readerObservedIncomplete, "observed")
     }
-    const watcher = watch(dirname(path), inspectPublication)
-    writerResult.then((result) => {
-      finish(new Error(`sampler exited before publishing ${path}: ${result.stderr || result.stdout}`))
-    }, finish)
-    inspectPublication()
-  })
+    return null
+  }, writerResult, timeoutMs)
 }
 
 let markerPublication = 0
@@ -337,6 +323,211 @@ syncBuiltinESMExports()
     if (processIsRunning(gatePid)) process.kill(gatePid, "SIGKILL")
     if (pendingSource?.logFile) rmSync(pendingSource.logFile, { force: true })
     clearWorkerLaunchReservation(pausedLaunch.child.pid, gateLaunch.worktree)
+  }
+}
+
+export const clockCases = async () => {
+  const absentPublication = stage("launch-worker/absent-publication", "")
+  rmSync(absentPublication)
+  const pendingWriter = new Promise(() => {})
+  for (const [label, result, timeoutMs, expectedError] of [
+    ["bounds a missing acknowledgement from a live sampler", pendingWriter, 50, /did not publish.*within 50ms/],
+    ["diagnoses sampler exit before acknowledgement", Promise.resolve({ status: 1, stdout: "", stderr: "sampler stopped" }), 60000, /exited before publishing.*sampler stopped/],
+  ]) {
+    try {
+      await waitForAcknowledgementPublication(absentPublication, 10000, result, timeoutMs)
+      T(`${TOOL}: ${label}`, false, "accepted an absent acknowledgement")
+    } catch (error) {
+      T(`${TOOL}: ${label}`, expectedError.test(error.message), error.message)
+    }
+  }
+  const latePublication = stage("launch-worker/late-publication", "10000")
+  const lateSample = await waitForAcknowledgementPublication(latePublication, 10000, Promise.resolve({ status: 0, stdout: "", stderr: "" }))
+  T(`${TOOL}: a delayed reader accepts a complete acknowledgement after sampler exit`, !lateSample.observedIncomplete && lateSample.contents === "10000")
+  const incompletePublication = stage("launch-worker/incomplete-publication", "")
+  publishMarker(`${incompletePublication}.direct-write-opened`, "opened")
+  const incompleteSample = waitForAcknowledgementPublication(incompletePublication, 10000, pendingWriter)
+  await waitForFile(`${incompletePublication}.reader-observed-incomplete`, "observed", pendingWriter)
+  publishMarker(incompletePublication, "10000")
+  T(`${TOOL}: the acknowledgement reader records an incomplete direct publication`, (await incompleteSample).observedIncomplete)
+
+  const dripReady = stage("launch-worker/drip-ready", "")
+  rmSync(dripReady, { force: true })
+  const dripCommand = stage("launch-worker/drip-command", "")
+  rmSync(dripCommand, { force: true })
+  const dripWritten = stage("launch-worker/drip-written", "")
+  rmSync(dripWritten, { force: true })
+  const dripTree = stage("launch-worker/drip-tree.json", "")
+  // Empty and invalid complete records keep the previous valid clock value instead of becoming 0
+  // or terminating supervision. Later records use the same append-only framing.
+  const supervisionStart = 10000
+  const supervisionClock = stage("launch-worker/supervision-clock", `${supervisionStart}\n`)
+  const supervisionClockReady = `${supervisionClock}.ready`
+  const acknowledgementPublicationProbe = stage(
+    "launch-worker/acknowledgement-publication-probe.cjs",
+    `const fs = require("node:fs")
+const { syncBuiltinESMExports } = require("node:module")
+const writeFileSync = fs.writeFileSync
+const pendingPublications = new Set()
+fs.writeFileSync = (path, contents, options) => {
+  const clockPath = process.env.ORBIT_TEST_SUPERVISION_CLOCK
+  const acknowledgementPrefix = clockPath + ".sampled-"
+  const acknowledgementSuffix = String(path).slice(acknowledgementPrefix.length)
+  if (clockPath && String(path).startsWith(acknowledgementPrefix) && /^\\d+$/.test(acknowledgementSuffix)) {
+    if (pendingPublications.has(path)) return
+    pendingPublications.add(path)
+    const descriptor = fs.openSync(path, "w")
+    const directWriteOpened = path + ".direct-write-opened"
+    const readerObservedIncomplete = path + ".reader-observed-incomplete"
+    const readerPoll = setInterval(() => {
+      if (readFileContents(readerObservedIncomplete) !== "observed") return
+      try {
+        writeFileSync(descriptor, contents, options)
+      } finally {
+        fs.closeSync(descriptor)
+        clearInterval(readerPoll)
+      }
+    }, 20)
+    const readFileContents = (candidate) => {
+      try {
+        return fs.readFileSync(candidate, "utf8")
+      } catch (error) {
+        if (error.code === "ENOENT") return null
+        throw error
+      }
+    }
+    const unpublishedPath = directWriteOpened + "." + process.pid + ".unpublished"
+    try {
+      writeFileSync(unpublishedPath, "opened")
+      fs.renameSync(unpublishedPath, directWriteOpened)
+    } catch (error) {
+      fs.closeSync(descriptor)
+      clearInterval(readerPoll)
+      throw error
+    }
+    return
+  }
+  writeFileSync(path, contents, options)
+}
+syncBuiltinESMExports()
+`,
+  )
+  const DRIP = stage(
+    "launch-worker/dripping-worker.js",
+    `const { existsSync, renameSync, writeFileSync } = require("node:fs")
+const { spawn } = require("node:child_process")
+const descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 60000)"], { stdio: "ignore", env: { ...process.env, NODE_OPTIONS: "" } })
+const publishMarker = (path, contents) => {
+  const unpublishedPath = path + "." + process.pid + ".unpublished"
+  writeFileSync(unpublishedPath, contents)
+  renameSync(unpublishedPath, path)
+}
+const publishHeartbeat = () => {
+  if (!existsSync(${JSON.stringify(dripCommand)})) return false
+  process.stdout.write("heartbeat\\n", () => publishMarker(${JSON.stringify(dripWritten)}, "written"))
+  return true
+}
+const commandPoll = setInterval(() => {
+  if (publishHeartbeat()) clearInterval(commandPoll)
+}, 20)
+descendant.once("spawn", () => {
+  publishMarker(${JSON.stringify(dripTree)}, JSON.stringify({ pid: process.pid, descendantPid: descendant.pid }))
+  publishMarker(${JSON.stringify(dripReady)}, "ready")
+})
+setInterval(() => {}, 60000)
+`,
+  )
+  const logNoProgressMinutes = 0.03
+  const logPollSeconds = 0.2
+  const logProgress = launch("log-progress", launchConfig({ ...stubEngine(DRIP), timeouts: { hardCeilingMinutes: 5, noProgressMinutes: logNoProgressMinutes, pollSeconds: logPollSeconds } }))
+  const logProgressEnvironment = githubAuthEnv()
+  const logProgressProcess = launchAsync(
+    logProgress.path,
+    ["--issue", "ORB-201", "--worktree", logProgress.worktree, "--prompt", logProgress.prompt],
+    {
+      ...logProgressEnvironment,
+      NODE_OPTIONS: `${logProgressEnvironment.NODE_OPTIONS} --require "${acknowledgementPublicationProbe.replaceAll("\\", "/")}"`,
+      ORBIT_TEST_SUPERVISION_CLOCK: supervisionClock,
+    },
+  )
+  let workerTree
+  try {
+    await Promise.all([
+      waitForFile(dripReady, "ready", logProgressProcess.result),
+      waitForFile(supervisionClockReady, "ready", logProgressProcess.result),
+    ])
+    workerTree = JSON.parse(readFileSync(dripTree, "utf8"))
+    // Hold the reader beyond the former fixture ceiling to model a descheduled harness.
+    await new Promise((resolve) => setTimeout(resolve, 6500))
+    const noProgressMs = logNoProgressMinutes * 60 * 1000
+    const publishClockAndWaitForSample = async (record, expectedSample) => {
+      const publishedByteLength = Buffer.byteLength(readFileSync(supervisionClock, "utf8")) + Buffer.byteLength(record)
+      const acknowledgement = `${supervisionClock}.sampled-${publishedByteLength}`
+      rmSync(acknowledgement, { force: true })
+      appendFileSync(supervisionClock, record)
+      const publication = await waitForAcknowledgementPublication(acknowledgement, expectedSample, logProgressProcess.result)
+      T(
+        `${TOOL}: a sampler acknowledgement is atomically published`,
+        !publication.observedIncomplete,
+        `the reader observed incomplete contents in ${acknowledgement}`,
+      )
+      return publication.contents
+    }
+    // The first virtual interval stays one millisecond inside the cap. Empty and invalid records
+    // then remain newest while the heartbeat resets the retained clock value.
+    const previousClockValue = supervisionStart + noProgressMs - 1
+    const afterEmptyRecord = await publishClockAndWaitForSample(`${previousClockValue}\n\n`, previousClockValue)
+    T(
+      `${TOOL}: an empty clock record retains the previous non-zero value`,
+      afterEmptyRecord === String(previousClockValue),
+      `the sampler reported ${afterEmptyRecord} instead of ${previousClockValue}`,
+    )
+    publishMarker(dripCommand, "write one heartbeat")
+    await waitForFile(dripWritten, "written", logProgressProcess.result)
+    const afterInvalidRecord = await publishClockAndWaitForSample("invalid\n", previousClockValue)
+    T(
+      `${TOOL}: an invalid clock record retains the previous non-zero value`,
+      afterInvalidRecord === String(previousClockValue),
+      `the sampler reported ${afterInvalidRecord} instead of ${previousClockValue}`,
+    )
+    const nextClockValue = supervisionStart + (noProgressMs * 2) - 2
+    await publishClockAndWaitForSample(`${nextClockValue}\n`, nextClockValue)
+    const afterPartialRecord = await publishClockAndWaitForSample(`${supervisionStart + (noProgressMs * 4)}`, nextClockValue)
+    T(
+      `${TOOL}: a truncated trailing clock record is ignored until publication completes`,
+      afterPartialRecord === String(nextClockValue) && logProgressProcess.child.exitCode === null,
+      `the sampler reported ${afterPartialRecord} instead of ${nextClockValue}, or shortened the worker's life`,
+    )
+    T(
+      `${TOOL}: a worker appending to its own log resets the injected stall clock`,
+      logProgressProcess.child.exitCode === null && processIsRunning(workerTree.pid) && processIsRunning(workerTree.descendantPid),
+      JSON.stringify({ workerTree, launcherExitCode: logProgressProcess.child.exitCode, workerAlive: processIsRunning(workerTree.pid), descendantAlive: processIsRunning(workerTree.descendantPid), ...logProgressProcess.output() }),
+    )
+    // Complete the trailing record only after the progress assertions, then let supervision kill it.
+    await publishClockAndWaitForSample("\n", supervisionStart + (noProgressMs * 4))
+    const dripped = await launcherResult(logProgressProcess)
+    T(
+      `${TOOL}: completing the trailing clock record triggers the configured stall kill`,
+      dripped.status === 1 && /"outcome": "KILLED_NO_PROGRESS"/.test(dripped.stdout),
+      `exit ${dripped.status}: ${dripped.stderr || dripped.stdout}`,
+    )
+    discardLog(dripped.stdout)
+  } catch (error) {
+    T(`${TOOL}: log-progress readiness and acknowledgement publication completes`, false, error.message)
+  } finally {
+    try {
+      await cleanupLifecycleLaunch(logProgressProcess, logProgress, { discardLog, readFileContents })
+    } catch (error) {
+      T(`${TOOL}: log-progress cleanup completes within its deadline`, false, error.message)
+    }
+    const cleanupDeadline = Date.now() + 5000
+    const workerPids = workerTree ? [workerTree.pid, workerTree.descendantPid] : []
+    while (workerPids.some(processIsRunning) && Date.now() < cleanupDeadline) {
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+    T(`${TOOL}: the log-progress fixture cleans up its launcher and worker process tree`,
+      !processIsRunning(logProgressProcess.child.pid) && workerPids.every((pid) => !processIsRunning(pid)),
+      JSON.stringify({ launcherPid: logProgressProcess.child.pid, workerPids }))
   }
 }
 
@@ -613,158 +804,7 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
   )
   discardLog(burned.stdout)
 
-  const dripReady = stage("launch-worker/drip-ready", "")
-  rmSync(dripReady, { force: true })
-  const dripCommand = stage("launch-worker/drip-command", "")
-  rmSync(dripCommand, { force: true })
-  const dripWritten = stage("launch-worker/drip-written", "")
-  rmSync(dripWritten, { force: true })
-  // Empty and invalid complete records keep the previous valid clock value instead of becoming 0
-  // or terminating supervision. Later records use the same append-only framing.
-  const supervisionStart = 10000
-  const supervisionClock = stage("launch-worker/supervision-clock", `${supervisionStart}\n`)
-  const supervisionClockReady = `${supervisionClock}.ready`
-  const acknowledgementPublicationProbe = stage(
-    "launch-worker/acknowledgement-publication-probe.cjs",
-    `const fs = require("node:fs")
-const { syncBuiltinESMExports } = require("node:module")
-const { dirname } = require("node:path")
-const writeFileSync = fs.writeFileSync
-fs.writeFileSync = (path, contents, options) => {
-  const clockPath = process.env.ORBIT_TEST_SUPERVISION_CLOCK
-  const acknowledgementPrefix = clockPath + ".sampled-"
-  const acknowledgementSuffix = String(path).slice(acknowledgementPrefix.length)
-  if (clockPath && String(path).startsWith(acknowledgementPrefix) && /^\\d+$/.test(acknowledgementSuffix)) {
-    const descriptor = fs.openSync(path, "w")
-    const directWriteOpened = path + ".direct-write-opened"
-    const readerObservedIncomplete = path + ".reader-observed-incomplete"
-    const readerWatcher = fs.watch(dirname(path), () => {
-      if (readFileContents(readerObservedIncomplete) !== "observed") return
-      try {
-        writeFileSync(descriptor, contents, options)
-      } finally {
-        fs.closeSync(descriptor)
-        readerWatcher.close()
-      }
-    })
-    const readFileContents = (candidate) => {
-      try {
-        return fs.readFileSync(candidate, "utf8")
-      } catch (error) {
-        if (error.code === "ENOENT") return null
-        throw error
-      }
-    }
-    const unpublishedPath = directWriteOpened + "." + process.pid + ".unpublished"
-    try {
-      writeFileSync(unpublishedPath, "opened")
-      fs.renameSync(unpublishedPath, directWriteOpened)
-    } catch (error) {
-      fs.closeSync(descriptor)
-      readerWatcher.close()
-      throw error
-    }
-    return
-  }
-  writeFileSync(path, contents, options)
-}
-syncBuiltinESMExports()
-`,
-  )
-  const DRIP = stage(
-    "launch-worker/dripping-worker.js",
-    `const { existsSync, renameSync, watch, writeFileSync } = require("node:fs")
-const { dirname } = require("node:path")
-const publishMarker = (path, contents) => {
-  const unpublishedPath = path + "." + process.pid + ".unpublished"
-  writeFileSync(unpublishedPath, contents)
-  renameSync(unpublishedPath, path)
-}
-const publishHeartbeat = () => {
-  if (!existsSync(${JSON.stringify(dripCommand)})) return false
-  process.stdout.write("heartbeat\\n", () => publishMarker(${JSON.stringify(dripWritten)}, "written"))
-  return true
-}
-const commandWatcher = watch(dirname(${JSON.stringify(dripCommand)}), () => {
-  if (publishHeartbeat()) commandWatcher.close()
-})
-publishMarker(${JSON.stringify(dripReady)}, "ready")
-if (publishHeartbeat()) commandWatcher.close()
-setInterval(() => {}, 60000)
-`,
-  )
-  const logNoProgressMinutes = 0.03
-  const logPollSeconds = 0.2
-  const logProgress = launch("log-progress", launchConfig({ ...stubEngine(DRIP), timeouts: { hardCeilingMinutes: 0.1, noProgressMinutes: logNoProgressMinutes, pollSeconds: logPollSeconds } }))
-  const logProgressEnvironment = githubAuthEnv()
-  const logProgressProcess = launchAsync(
-    logProgress.path,
-    ["--issue", "ORB-201", "--worktree", logProgress.worktree, "--prompt", logProgress.prompt],
-    {
-      ...logProgressEnvironment,
-      NODE_OPTIONS: `${logProgressEnvironment.NODE_OPTIONS} --require "${acknowledgementPublicationProbe.replaceAll("\\", "/")}"`,
-      ORBIT_TEST_SUPERVISION_CLOCK: supervisionClock,
-    },
-  )
-  await Promise.race([
-    Promise.all([
-      waitForFile(dripReady, "ready", logProgressProcess.result),
-      waitForFile(supervisionClockReady, "ready", logProgressProcess.result),
-    ]),
-    logProgressProcess.result.then((result) => {
-      throw new Error(`log-progress exited before publishing its ready markers: ${result.stderr || result.stdout}`)
-    }),
-  ])
-  const noProgressMs = logNoProgressMinutes * 60 * 1000
-  const publishClockAndWaitForSample = async (record, expectedSample) => {
-    const publishedByteLength = Buffer.byteLength(readFileSync(supervisionClock, "utf8")) + Buffer.byteLength(record)
-    const acknowledgement = `${supervisionClock}.sampled-${publishedByteLength}`
-    rmSync(acknowledgement, { force: true })
-    appendFileSync(supervisionClock, record)
-    const publication = await waitForAcknowledgementPublication(acknowledgement, logProgressProcess.result)
-    T(
-      `${TOOL}: a sampler acknowledgement is atomically published`,
-      !publication.observedIncomplete,
-      `the reader observed incomplete contents in ${acknowledgement}`,
-    )
-    return readFileSync(acknowledgement, "utf8")
-  }
-  // The first virtual interval stays one millisecond inside the cap. Empty and invalid records are
-  // then the newest complete publications while the heartbeat resets the retained clock value.
-  const previousClockValue = supervisionStart + noProgressMs - 1
-  const afterEmptyRecord = await publishClockAndWaitForSample(`${previousClockValue}\n\n`, previousClockValue)
-  T(
-    `${TOOL}: an empty clock record retains the previous non-zero value`,
-    afterEmptyRecord === String(previousClockValue),
-    `the sampler reported ${afterEmptyRecord} instead of ${previousClockValue}`,
-  )
-  if (logProgressProcess.child.exitCode === null) {
-    publishMarker(dripCommand, "write one heartbeat")
-    await waitForFile(dripWritten, "written", logProgressProcess.result)
-    const afterInvalidRecord = await publishClockAndWaitForSample("invalid\n", previousClockValue)
-    T(
-      `${TOOL}: an invalid clock record retains the previous non-zero value`,
-      afterInvalidRecord === String(previousClockValue),
-      `the sampler reported ${afterInvalidRecord} instead of ${previousClockValue}`,
-    )
-    if (logProgressProcess.child.exitCode === null) {
-      const nextClockValue = supervisionStart + (noProgressMs * 2) - 2
-      await publishClockAndWaitForSample(`${nextClockValue}\n`, nextClockValue)
-      const afterPartialRecord = await publishClockAndWaitForSample(`${supervisionStart + (noProgressMs * 4)}`, nextClockValue)
-      T(
-        `${TOOL}: a truncated trailing clock record is ignored until publication completes`,
-        afterPartialRecord === String(nextClockValue) && logProgressProcess.child.exitCode === null,
-        `the sampler reported ${afterPartialRecord} instead of ${nextClockValue}, or shortened the worker's life`,
-      )
-    }
-  }
-  const dripped = await logProgressProcess.result
-  T(
-    `${TOOL}: a worker appending to its own log resets the injected stall clock`,
-    dripped.status === 1 && /"outcome": "KILLED_HARD_CEILING"/.test(dripped.stdout),
-    `exit ${dripped.status}: ${dripped.stderr || dripped.stdout}`,
-  )
-  discardLog(dripped.stdout)
+  await clockCases()
 
   /** Without a byte cap there is no KILLED_LOG_RUNAWAY to bound a flood, so log growth must NOT
    * count as progress in that configuration: a flooding hung worker would otherwise hold the stall
