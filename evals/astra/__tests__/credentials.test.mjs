@@ -48,7 +48,9 @@ it.each(['missing', 'permissions', 'rejected', 'malformed', 'network'])('stops b
   })
   vi.stubGlobal('fetch', (url, options) => new URL(url).pathname === '/health'
     ? Promise.resolve(Response.json({ status: 'Healthy', commit: null, checks: [] })) : request(url, options))
-  await expect(beforeEach(attempt())).rejects.toThrow(/credential|refresh/i)
+  const { test } = await beforeEach(attempt())
+  expect(test.vars.preconditionFailure).toMatch(/credential|refresh/i)
+  expect(test.vars.preconditionFailure).not.toContain('SECRET')
   expect(process.env.ORBIT_EVAL_TOKEN).toBeUndefined()
   if (['missing', 'permissions'].includes(failure)) expect(request).not.toHaveBeenCalled()
 })

@@ -1,7 +1,7 @@
 import { appendFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { tsImport } from 'tsx/esm/api'
-import { apiOrigin, readCredentials, refreshCredential } from './credentials.mjs'
+import { apiOrigin, readCredentials, refreshCredential, safeFailureMessage } from './credentials.mjs'
 import { dateOffset, resetFixture } from './fixtures/reset.mjs'
 import { prepareCorrection } from './setup.mjs'
 import { descriptors } from './merge-reports.mjs'
@@ -29,23 +29,25 @@ export function beforeAll({ suite }) {
     if (!process.env[key]) throw new Error(`Missing required environment variable: ${key}`)
   }
   apiOrigin()
-  const credentials = readCredentials()
-  for (const test of suite.tests) {
-    if (!credentials[test.vars.credentialKey]?.refreshToken) throw new Error(`Missing refresh credential: ${test.vars.credentialKey}`)
-  }
+  readCredentials()
   if (process.env.ORBIT_EVAL_OVERDUE_DATE && !/^\d{4}-\d{2}-\d{2}$/.test(process.env.ORBIT_EVAL_OVERDUE_DATE)) throw new Error('ORBIT_EVAL_OVERDUE_DATE must be an ISO calendar date.')
 }
 
 export async function beforeEach({ test }) {
+  delete test.vars.preconditionFailure
+  try { return await prepareAttempt(test) } catch (error) {
+    test.vars.preconditionFailure = safeFailureMessage(error)
+    process.stderr.write(`Astra precondition unavailable for ${test.metadata.id}: ${test.vars.preconditionFailure}\n`)
+    return { test }
+  }
+}
+
+async function prepareAttempt(test) {
   await refreshCredential(test.vars.credentialKey)
   const today = new Date().toISOString().slice(0, 10)
   test.vars.accountDate = today
   process.env.ORBIT_EVAL_OVERDUE_DATE ??= dateOffset(today, -1)
-  try {
-    await resetFixture(test, today)
-  } catch {
-    throw new Error(`Fixture reset failed for ${test.metadata.id}; no chat request should run.`)
-  }
+  await resetFixture(test, today)
   const account = readCredentials()[test.vars.credentialKey]
   const substitutions = {
     accountDate: today,

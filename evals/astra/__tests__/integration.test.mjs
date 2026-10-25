@@ -105,7 +105,7 @@ describe('HTTP provider wiring without a server', () => {
           assert: configuration.defaultTest.assert.map((assertion) => assertion.type === 'javascript'
             ? { ...assertion, value: assertion.value.replace('file://', `file://${root}/`) } : assertion),
         },
-        tests: (mode === 'reset-stop' ? ['healthy', mode] : [mode, 'healthy']).map((input) => ({ metadata: {
+        tests: (mode === 'reset-stop' ? ['healthy', mode, 'healthy-next'] : [mode, 'healthy']).map((input) => ({ metadata: {
           id: input, fixture: input === 'reset-stop' ? 'unknown' : 'pro', locale: 'en',
         }, vars: {
           input, credentialKey: 'ORBIT_EVAL_TOKEN', composition: { mode: input === 'legacy-moderation' ? 'fallback' : 'text' },
@@ -123,16 +123,20 @@ describe('HTTP provider wiring without a server', () => {
           PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'), PROMPTFOO_DISABLE_TELEMETRY: '1', PROMPTFOO_DISABLE_SHARING: '1' },
       })
       expect(run.error, run.stdout + run.stderr).toBeUndefined()
-      expect(readFileSync(resolve(directory, 'requests.txt'), 'utf8').trim().split('\n')).toHaveLength(mode === 'reset-stop' ? 3 : 6)
+      expect(readFileSync(resolve(directory, 'requests.txt'), 'utf8').trim().split('\n')).toHaveLength(6)
       if (mode === 'reset-stop') {
         expect(run.status, run.stdout + run.stderr).not.toBe(0)
-        expect(run.stdout + run.stderr).toContain('Fixture reset failed for reset-stop')
+        expect(run.stdout + run.stderr).toContain('Unknown fixture.')
+        expect(run.stdout + run.stderr).not.toContain('Aborting scan')
         const attempts = JSON.parse(readFileSync(resolve(directory, 'reports/results.json'), 'utf8'))
-        expect(attempts).toHaveLength(3)
-        expect(attempts.every(({ caseId, pass }) => caseId === 'healthy' && pass)).toBe(true)
+        expect(attempts).toHaveLength(9)
+        expect(attempts.filter(({ caseId }) => caseId !== 'reset-stop').every(({ pass }) => pass)).toBe(true)
+        expect(attempts.filter(({ caseId }) => caseId === 'reset-stop').every(({ pass, reason, httpStatus }) =>
+          !pass && reason.includes('Unknown fixture.') && httpStatus === null)).toBe(true)
         const summary = JSON.parse(readFileSync(resolve(directory, 'reports/summary.json'), 'utf8'))
         expect(summary.status).toBe('incomplete')
-        expect(summary.cases.map(({ attempts }) => attempts)).toEqual([3, 0])
+        expect(summary.cases.map(({ attempts }) => attempts)).toEqual([3, 3, 3])
+        expect(summary.cases[1]).toMatchObject({ unavailable: 3, pass3: 'incomplete' })
       } else if (['budget', 'legacy-moderation'].includes(mode)) {
         expect(run.status, run.stdout + run.stderr).toBe(0)
         const summary = JSON.parse(readFileSync(resolve(directory, 'reports/summary.json'), 'utf8'))
@@ -222,7 +226,7 @@ describe('corpus and execution constraints', () => {
     expect(() => beforeAll({ suite: { tests: scenarios } })).toThrow('HTTPS')
     vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
     writeFileSync(process.env.ORBIT_EVAL_CREDENTIALS_FILE, '{}')
-    expect(() => beforeAll({ suite: { tests: scenarios } })).toThrow('ORBIT_EVAL_TOKEN')
+    expect(() => beforeAll({ suite: { tests: scenarios } })).not.toThrow()
   })
   it('resets before each attempt and resolves IDs in prompts and expectations', async () => {
     offlineCredentials()
@@ -233,7 +237,7 @@ describe('corpus and execution constraints', () => {
     expect((await beforeEach({ test })).test.vars.expectations.required[0].arguments.habit_id).toBe('actual-water')
     expect(test.vars.input).toContain('actual-water')
     vi.mocked(resetFixture).mockRejectedValueOnce(new Error('reset failed'))
-    await expect(beforeEach({ test })).rejects.toThrow('Fixture reset failed')
+    expect((await beforeEach({ test })).test.vars.preconditionFailure).toBe('reset failed')
   })
 })
 
