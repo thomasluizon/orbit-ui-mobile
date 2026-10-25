@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { ShellWide } from '@/components/shell/shell-wide'
+import { DestinationShell } from '@/components/shell/destination-shell'
+import { RouteContext } from '@/components/navigation/route-context'
 import SearchPage from '@/app/(app)/search/page'
 import { useShellStore } from '@/stores/shell-store'
 import { useAuthStore } from '@/stores/auth-store'
@@ -10,10 +12,13 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 const locale = vi.hoisted(() => ({ portuguese: false }))
-const navigation = vi.hoisted(() => ({ back: vi.fn(), push: vi.fn() }))
-vi.mock('next/navigation', () => ({ useRouter: () => navigation }))
+const navigation = vi.hoisted(() => ({ pathname: '/profile', back: vi.fn(), push: vi.fn() }))
+vi.mock('next/navigation', () => ({ useRouter: () => navigation, usePathname: () => navigation.pathname, useParams: () => ({}) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { name: props.account, email: props.accountEmail } }) }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
+vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
 vi.mock('@/hooks/use-habit-search', () => ({ useHabitSearch: () => ({ text: '', query: '', changeText: vi.fn() }) }))
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key === 'profile.settingsRows.signOut'
+vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string) => key === 'profile.settingsRows.signOut'
   ? (locale.portuguese ? ptBR : en).profile.settingsRows.signOut : key }))
 
 const props = {
@@ -26,6 +31,7 @@ const props = {
 const accountLabel = `${props.account}, ${props.accountEmail}`
 
 beforeEach(() => {
+  navigation.pathname = '/profile'
   locale.portuguese = false
   navigation.back.mockClear()
   useShellStore.persist.clearStorage()
@@ -36,6 +42,46 @@ beforeEach(() => {
   })))
 })
 afterEach(() => vi.unstubAllGlobals())
+
+it.each(['shell', 'route', 'both'])('keeps the account menu open through deferred %s navigation focus', async (owner) => {
+  const frames = new Map<number, FrameRequestCallback>()
+  let frameId = 0
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    frames.set(++frameId, callback)
+    return frameId
+  })
+  vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id))
+  const content = () => {
+    const page = <h1>{navigation.pathname === '/' ? 'Today' : 'Profile'}</h1>
+    return <>
+      {owner !== 'shell' ? <RouteContext /> : null}
+      {owner === 'route' ? <ShellWide {...props}>{page}</ShellWide>
+        : <DestinationShell onCreate={() => {}}>{page}</DestinationShell>}
+    </>
+  }
+  const rendered = render(content())
+  navigation.pathname = '/'
+  rendered.rerender(content())
+  const trigger = screen.getByRole('button', { name: accountLabel })
+  await userEvent.click(trigger)
+  const menu = await screen.findByRole('menu', { name: accountLabel })
+  const signOut = within(menu).getByRole('menuitem', { name: en.profile.settingsRows.signOut })
+  await waitFor(() => expect(signOut).toHaveFocus())
+  for (let frame = 0; frame < 4; frame++) {
+    await act(async () => {
+      const callbacks = [...frames.values()]
+      frames.clear()
+      for (const callback of callbacks) callback(frame * 16)
+    })
+  }
+  expect(menu).toBeVisible()
+  expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  expect(signOut).toHaveFocus()
+  expect(screen.getByRole('heading', { name: 'Today' })).not.toHaveFocus()
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(menu).not.toBeInTheDocument())
+  expect(trigger).toHaveFocus()
+})
 
 it.each([false, true])('dismisses the account menu before leaving search with portuguese=%s', async (portuguese) => {
   locale.portuguese = portuguese
