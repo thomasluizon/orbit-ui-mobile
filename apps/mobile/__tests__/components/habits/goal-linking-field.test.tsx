@@ -131,7 +131,7 @@ it('selects a goal below the first viewport while the search keyboard is open', 
     row = TestRenderer.create(list.props.renderItem({ item: queryGoals[20], index: 20 }))
   })
   await TestRenderer.act(() => {
-    row.root.findAll((node: { props: Record<string, unknown> }) => node.props.accessibilityRole === 'button')[0]!.props.onPress()
+    row.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]!.props.onPress()
   })
   expect(onToggleGoal).toHaveBeenCalledWith('goal-20')
 

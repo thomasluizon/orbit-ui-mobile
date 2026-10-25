@@ -470,7 +470,7 @@ describe('ShellWide', () => {
     act(() => { useAppToastStore.getState().showQueued('App updated', 'Reload', reload) })
     await screen.findByText('App updated')
     const dialog = screen.getByRole('dialog', { name: 'Astra conversation' })
-    expect(within(dialog).getByRole('status')).toHaveTextContent('App updated')
+    expect(within(dialog).getByRole('group', { name: 'App updated' })).toHaveTextContent('App updated')
     expect(container.querySelector('[data-shell-background]')).toHaveAttribute('inert')
     expect(container.querySelector('[data-shell-background]')).not.toHaveTextContent('App updated')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Reload' }))

@@ -1,6 +1,7 @@
 import { afterEach, describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import React from 'react'
+import { pressRadioKey } from '@/__tests__/support/radio-key'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { habitKeys, profileKeys } from '@orbit/shared/query'
@@ -447,7 +448,7 @@ describe('CalendarPage view switcher', () => {
     }
   })
 
-  it.each([false, true])('keeps the header controls mounted and focused through keyboard view changes at wide=%s', (wide) => {
+  it.each([false, true])('keeps the header controls mounted and focused through keyboard view changes at wide=%s', async (wide) => {
     isWideDesktopValue = wide
     render(<CalendarPage />)
     const selector = screen.getByRole('radiogroup', { name: 'calendar.view.switchLabel' })
@@ -458,7 +459,7 @@ describe('CalendarPage view switcher', () => {
     radios[0]!.focus()
 
     for (const [from, to, key] of [[0, 1, 'ArrowRight'], [1, 2, 'ArrowRight'], [2, 1, 'ArrowLeft'], [1, 0, 'ArrowLeft'], [0, 3, 'ArrowLeft'], [3, 0, 'ArrowRight']] as const) {
-      fireEvent.keyDown(radios[from]!, { key })
+      await pressRadioKey(radios[from]!, key)
       expect(screen.getByRole('radiogroup', { name: 'calendar.view.switchLabel' })).toBe(selector)
       expect(selector.isConnected).toBe(true)
       screen.getAllByRole('radio').forEach((radio, index) => expect(radio === radios[index]).toBe(true))
@@ -483,7 +484,9 @@ describe('CalendarPage view switcher', () => {
     const page = render(<QueryClientProvider client={queryClient}><CalendarRenderBoundary onError={reportedError}><CalendarPage /></CalendarRenderBoundary></QueryClientProvider>)
     try {
       const radio = screen.getByRole('radio', { name: 'calendar.view.week' })
+      fireEvent.click(radio)
       radio.focus()
+      expect(radio).toHaveAttribute('aria-checked', 'true')
       await waitFor(() => expect(queryClient.getQueriesData({ queryKey: habitKeys.calendarPrefix() })[0]?.[1]).toEqual(response.body))
       expect(reportedError).not.toHaveBeenCalled()
       expect(queryClient.getQueryState(profileKeys.detail())?.status).toBe('pending')
@@ -690,7 +693,7 @@ describe('CalendarPage view switcher', () => {
     calendarRouteSearch = savedSearch.toString()
     page.unmount()
     render(<CalendarPage />)
-    expect(screen.getByRole('radio', { name: `calendar.view.${selectedView}` })).toBeChecked()
+    expect(screen.getByRole('radio', { name: `calendar.view.${selectedView}` })).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.month' }))
     expect(calendarGridProps.selectedDateStr).toBe(calendarGridSelectionDate)
   })
@@ -729,7 +732,7 @@ describe('CalendarPage view switcher', () => {
     expect(getBackLabel(returnHref, (key, values) => values?.destination ?? key)).toBe('nav.calendar')
     fireEvent.click(screen.getByRole('button', { name: 'common.backToDestination' }))
     expect(routerBack).toHaveBeenCalledOnce()
-    expect(screen.getByRole('radio', { name: `calendar.view.${selectedView}` })).toBeChecked()
+    expect(screen.getByRole('radio', { name: `calendar.view.${selectedView}` })).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.month' }))
     expect(calendarGridProps.selectedDateStr).toBe(calendarGridSelectionDate)
   })
@@ -739,7 +742,7 @@ describe('CalendarPage view switcher', () => {
     act(() => holdAccount('new-calendar-account'))
     calendarRouteSearch = 'view=agenda&date=2026-01-05'
     page.rerender(<CalendarPage />)
-    expect(screen.getByRole('radio', { name: 'calendar.view.agenda' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'calendar.view.agenda' })).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.month' }))
     expect(calendarGridProps.selectedDateStr).toBe('2026-01-05')
   })
@@ -761,7 +764,7 @@ describe('CalendarPage view switcher', () => {
     profileQueryState.profile = { weekStartDay: 1, timeZone: MOCK_ACCOUNT_TIME_ZONE, hasProAccess: true }
     calendarRouteSearch = 'mode=review&view=agenda&date=2026-01-05&agenda=-2'
     const page = render(<CalendarPage />)
-    expect(screen.getByRole('radio', { name: 'calendar.view.agenda' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'calendar.view.agenda' })).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
     const closedSearch = new URL(routerReplace.mock.lastCall![0], 'https://example.test').searchParams
     expect(closedSearch.has('mode')).toBe(false)
@@ -800,7 +803,7 @@ describe('CalendarPage view switcher', () => {
     const savedDate = new URLSearchParams(calendarRouteSearch).get('date')
     page.unmount()
     render(<CalendarPage />)
-    expect(screen.getByRole('radio', { name: `calendar.view.${selectedView}` })).toBeChecked()
+    expect(screen.getByRole('radio', { name: `calendar.view.${selectedView}` })).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.month' }))
     expect(calendarGridProps.selectedDateStr).toBe(savedDate)
   })
@@ -816,7 +819,7 @@ describe('CalendarPage view switcher', () => {
     page.unmount()
     render(<CalendarPage />)
     expect(screen.getByTestId('calendar-header-group').textContent).toBe(period)
-    expect(screen.getByRole('radio', { name: `calendar.view.${selectedView}` })).toBeChecked()
+    expect(screen.getByRole('radio', { name: `calendar.view.${selectedView}` })).toHaveAttribute('aria-checked', 'true')
   })
 
   it.each([
@@ -827,7 +830,7 @@ describe('CalendarPage view switcher', () => {
   ])('uses the defaults for an invalid link: %s', (search) => {
     calendarRouteSearch = search
     render(<CalendarPage />)
-    expect(screen.getByRole('radio', { name: 'calendar.view.month' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'calendar.view.month' })).toHaveAttribute('aria-checked', 'true')
     expect(calendarGridProps.selectedDateStr).toBe(formatAPIDate(new Date()))
   })
 
@@ -835,7 +838,7 @@ describe('CalendarPage view switcher', () => {
     const page = render(<CalendarPage />)
     calendarRouteSearch = 'view=agenda&date=2026-01-05&agenda=-2'
     page.rerender(<CalendarPage />)
-    expect(screen.getByRole('radio', { name: 'calendar.view.agenda' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'calendar.view.agenda' })).toHaveAttribute('aria-checked', 'true')
     calendarRouteSearch = 'view=month&date=2026-02-03'
     page.rerender(<CalendarPage />)
     expect(calendarGridProps.selectedDateStr).toBe('2026-02-03')
@@ -845,7 +848,7 @@ describe('CalendarPage view switcher', () => {
   it.each(['week', 'range', 'agenda'] as const)('loads a direct %s link with its selected date', (selectedView) => {
     calendarRouteSearch = `view=${selectedView}&date=2026-01-05`
     render(<CalendarPage />)
-    expect(screen.getByRole('radio', { name: `calendar.view.${selectedView}` })).toBeChecked()
+    expect(screen.getByRole('radio', { name: `calendar.view.${selectedView}` })).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.month' }))
     expect(calendarGridProps.selectedDateStr).toBe('2026-01-05')
   })

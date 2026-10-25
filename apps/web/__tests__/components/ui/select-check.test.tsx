@@ -1,3 +1,4 @@
+import { pressRadioKey } from '@/__tests__/support/radio-key'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -6,10 +7,10 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { useState } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 
@@ -79,6 +80,7 @@ describe('select-check RadioRow group', () => {
     const text = selected.parentElement!.querySelector<HTMLElement>('[data-personal-text]')!
 
     for (const key of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']) fireEvent.keyDown(text, { key })
+    await new Promise<void>((resolveFocus) => setTimeout(resolveFocus, 0))
 
     expect(onChange).not.toHaveBeenCalled()
     expect(onCommit).not.toHaveBeenCalled()
@@ -88,7 +90,10 @@ describe('select-check RadioRow group', () => {
     expect(navigation.defaultPrevented).toBe(false)
 
     selected.focus()
+    expect(selected).toHaveFocus()
     await user.keyboard('{ArrowRight}')
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'Second' })).toHaveFocus())
+    await waitFor(() => expect(onChange).toHaveBeenCalled())
     expect(onChange).toHaveBeenCalledExactlyOnceWith('second')
   })
 
@@ -144,7 +149,7 @@ describe('select-check RadioRow group', () => {
     expect(unselected.querySelector('[aria-hidden="true"]')).toHaveStyle({ boxShadow: 'inset 0 0 0 2px var(--radio-row-track,var(--track-empty))' })
   })
 
-  it('keeps one tab stop, wraps, and follows selection with focus', () => {
+  it('keeps one tab stop, wraps, and follows selection with focus', async () => {
     const onChange = vi.fn()
     render(<RadioRows onChange={onChange} />)
     const first = screen.getByRole('radio', { name: 'First' })
@@ -154,22 +159,22 @@ describe('select-check RadioRow group', () => {
 
     expect([first, second, third, last].map((option) => option.tabIndex)).toEqual([0, -1, -1, -1])
     first.focus()
-    fireEvent.keyDown(first, { key: 'ArrowDown' })
+    await pressRadioKey(first, 'ArrowDown')
     expect(onChange).toHaveBeenLastCalledWith('second')
     expect(second).toHaveFocus()
 
-    fireEvent.keyDown(second, { key: 'End' })
+    await pressRadioKey(second, 'End')
     expect(onChange).toHaveBeenLastCalledWith('last')
     expect(last).toHaveFocus()
-    fireEvent.keyDown(last, { key: 'ArrowRight' })
+    await pressRadioKey(last, 'ArrowRight')
     expect(onChange).toHaveBeenLastCalledWith('first')
     expect(first).toHaveFocus()
-    fireEvent.keyDown(first, { key: 'ArrowUp' })
+    await pressRadioKey(first, 'ArrowUp')
     expect(onChange).toHaveBeenLastCalledWith('last')
     expect(last).toHaveFocus()
 
     onChange.mockClear()
-    fireEvent.keyDown(last, { key: 'End' })
+    await pressRadioKey(last, 'End')
     expect(onChange).not.toHaveBeenCalled()
     expect(last).toHaveFocus()
   })
@@ -181,27 +186,27 @@ describe('select-check RadioRow group', () => {
     expect(onChange).toHaveBeenCalledExactlyOnceWith('third')
   })
 
-  it('changes the value on an arrow key without committing the group', () => {
+  it('changes the value on an arrow key without committing the group', async () => {
     const onChange = vi.fn()
     const onCommit = vi.fn()
     render(<CommitRows onChange={onChange} onCommit={onCommit} />)
     const first = screen.getByRole('radio', { name: 'First' })
 
     first.focus()
-    fireEvent.keyDown(first, { key: 'ArrowDown' })
+    await pressRadioKey(first, 'ArrowDown')
 
     expect(onChange).toHaveBeenCalledExactlyOnceWith('second')
     expect(onCommit).not.toHaveBeenCalled()
   })
 
-  it('commits without selecting again when a press lands on the focused row', () => {
+  it('commits without selecting again when a press lands on the focused row', async () => {
     const onChange = vi.fn()
     const onCommit = vi.fn()
     render(<CommitRows onChange={onChange} onCommit={onCommit} />)
     const first = screen.getByRole('radio', { name: 'First' })
 
     first.focus()
-    fireEvent.keyDown(first, { key: 'ArrowDown' })
+    await pressRadioKey(first, 'ArrowDown')
     fireEvent.click(screen.getByRole('radio', { name: 'Second' }))
 
     expect(onChange).toHaveBeenCalledExactlyOnceWith('second')

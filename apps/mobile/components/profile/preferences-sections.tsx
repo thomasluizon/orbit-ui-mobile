@@ -8,7 +8,7 @@ import {
 } from '@orbit/shared/utils'
 import { Sheet, type SheetHandle } from '@/components/ui/sheet'
 import { RadioRow } from '@/components/ui/select-check'
-import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioGroup } from '@/components/ui/radio-group'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { styles, type Tokens } from '@/app/preferences-styles'

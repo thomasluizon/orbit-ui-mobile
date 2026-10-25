@@ -35,7 +35,7 @@ import {
 } from '@orbit/shared/utils'
 import { Clock3, X } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
-import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
+import { RadioGroup, RadioItem } from '@/components/ui/radio-group'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -77,29 +77,21 @@ function TimeOption({
   tokens: Tokens
 }>) {
   const [touchPressed, setTouchPressed] = useState(false)
-  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({
-    disabled: false,
-    onSelect,
-    selected,
-  })
   const tapGesture = Gesture.Tap()
     .maxDistance(8)
     .maxDuration(2 ** 31 - 1)
     .simultaneousWithExternalGesture(scrollGesture)
     .runOnJS(true)
     .onBegin(() => setTouchPressed(true))
-    .onEnd((_event, success) => { if (success) onActivate() })
+    .onEnd((_event, success) => { if (success && !selected) onSelect() })
     .onFinalize(() => setTouchPressed(false))
   return (
-    <GestureDetector gesture={tapGesture}>
+    <GestureDetector gesture={tapGesture}><RadioItem selected={selected} onSelect={onSelect}>
       <InsetFocusPressable selectionRingWidth={2}
-        {...navigationProps}
         focusColor={tokens.fg1}
-        ref={elementRef}
         accessibilityLabel={formattedValue}
         accessibilityRole="radio"
         accessibilityState={{ checked: selected }}
-        onPress={onActivate}
         style={({ pressed }) => [
           styles.option,
           { backgroundColor: pressedOptionBackground(tokens, selected, pressed || touchPressed) },
@@ -114,7 +106,7 @@ function TimeOption({
           {formattedValue}
         </Text>
       </InsetFocusPressable>
-    </GestureDetector>
+    </RadioItem></GestureDetector>
   )
 }
 

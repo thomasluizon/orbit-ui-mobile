@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { CheckboxProps } from '@orbit/shared/contracts/forms'
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import * as Primitive from '@rn-primitives/checkbox'
 import Svg, { Rect } from 'react-native-svg'
 import { Check } from '@/components/ui/icons'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -15,6 +17,7 @@ export function Checkbox({
   loading = false,
   as = 'button',
 }: Readonly<CheckboxProps>) {
+  const [focused, setFocused] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const box = (
@@ -38,8 +41,12 @@ export function Checkbox({
   if (as === 'span') return box
 
   return (
-    <Pressable
-      onPress={() => onChange(!checked)}
+    <Primitive.Root
+      checked={checked}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      focusable={!disabled && !loading}
+      onCheckedChange={(next) => onChange(next === true)}
       disabled={disabled || loading}
       accessibilityRole="checkbox"
       accessibilityLabel={label}
@@ -47,10 +54,10 @@ export function Checkbox({
       data-checked={checked ? '' : undefined}
       data-loading={loading ? '' : undefined}
       data-error={error ? '' : undefined}
-      style={styles.control}
+      style={[styles.control, focused ? { outlineWidth: 2, outlineColor: tokens.fg1, outlineOffset: -2, outlineStyle: 'solid' } : null]}
     >
       {box}
-    </Pressable>
+    </Primitive.Root>
   )
 }
 

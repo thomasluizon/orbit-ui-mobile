@@ -1,8 +1,11 @@
 import React from 'react'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { PickerRow } from '@/components/ui/picker-row'
 import { createTokensV2 } from '@/lib/theme'
+
+const motion = vi.hoisted(() => ({ reduced: false }))
+vi.mock('@/lib/motion', async (load) => ({ ...await load<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => motion.reduced }))
 
 const renderer = require('react-test-renderer')
 const theme = vi.hoisted(() => ({ currentScheme: 'orange', currentTheme: 'dark' }))
@@ -31,4 +34,21 @@ describe('proposed picker names', () => {
       expect(color()).toBe(tokens.fg3)
     } finally { await renderer.act(() => tree.unmount()) }
   })
+})
+
+it.each([false, true])('keeps toggle selection and honors reduced motion=%s', async (reduced) => {
+  motion.reduced = reduced
+  theme.currentTheme = 'dark'
+  const onToggle = vi.fn()
+  let tree: ReturnType<typeof renderer.create>
+  await renderer.act(() => { tree = renderer.create(<PickerRow name="Health" selected disabled={false} onToggle={onToggle} value="3" valueStyle={{}} />) })
+  try {
+    const control = tree.root.findAll((node: TestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]!
+    expect(control.props.accessibilityState).toMatchObject({ selected: true })
+    const resolveStyle = control.props.style as (state: { pressed: boolean }) => ViewStyle[]
+    expect(StyleSheet.flatten(resolveStyle({ pressed: true }))).toMatchObject({ backgroundColor: createTokensV2('orange', 'dark').bgHover })
+    expect(StyleSheet.flatten(resolveStyle({ pressed: true })).transform ?? []).toEqual(reduced ? [] : [{ scale: 0.96 }])
+    await renderer.act(() => (control.props.onPress as () => void)())
+    expect(onToggle).toHaveBeenCalledOnce()
+  } finally { motion.reduced = false; await renderer.act(() => tree.unmount()) }
 })

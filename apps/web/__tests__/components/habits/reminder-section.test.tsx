@@ -8,8 +8,8 @@ vi.mock('@/hooks/use-push-subscriptions', () => ({
 }))
 
 
-vi.mock('@/components/ui/app-select', () => ({
-  AppSelect: ({
+vi.mock('@/components/ui/select', () => ({
+  Select: ({
     value,
     options,
     onChange,

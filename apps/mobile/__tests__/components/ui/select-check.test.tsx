@@ -1,3 +1,4 @@
+import * as Primitive from '@rn-primitives/radio-group'
 import { useState, type ReactNode } from 'react'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -6,7 +7,7 @@ import { measureProfileRow } from '../../support/profile-row-geometry'
 import { Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioGlyph, RadioRow } from '@/components/ui/select-check'
 import { FocusProvenanceView } from '@/components/ui/focus-provenance-view'
 import { createTokensV2 } from '@/lib/theme'
@@ -601,7 +602,10 @@ it('retains native focus through busy state without selecting or committing', as
   await act(() => { __focusHost(radio.props.__nativeTag as number) })
   await act(() => { tree.update(rows(true)) })
   expect(__getFocusedNativeTag()).toBe(radio.props.__nativeTag)
-  expect(radio.props.onPress).toBeUndefined()
+  expect(radio.props.focusable).toBe(true)
+  expect(radio.props.disabled).toBe(false)
+  expect(tree.root.findAll(node => node.type === Primitive.Item)[0]!.props.disabled).toBe(false)
+  await act(() => (radio.props.onPress as () => void)())
   expect((radio.props.accessibilityState as { disabled: boolean }).disabled).toBe(true)
   expect(selected).not.toHaveBeenCalled()
   expect(commit).not.toHaveBeenCalled()

@@ -18,7 +18,7 @@ import {
 import { TimeField } from "@/components/ui/time-field";
 import type { Time24 } from "@orbit/shared/contracts/forms";
 import { useReminderPermission } from "@/hooks/use-reminder-permission";
-import { RadioGroup, useRadioGroupItem } from "@/components/ui/radio-row";
+import { RadioGroup, RadioItem } from "@/components/ui/radio-group";
 import { type AppTokens, createSectionStyles } from "./styles";
 
 function ReminderWhenOption({ label, selected, onSelect, styles }: Readonly<{
@@ -28,11 +28,8 @@ function ReminderWhenOption({ label, selected, onSelect, styles }: Readonly<{
   styles: ReturnType<typeof createSectionStyles>;
 }>) {
   const { disabled, guard } = useHabitFormInteraction()
-  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({ disabled, onSelect: guard(onSelect), selected });
   return (
-    <Pressable disabled={disabled} focusInset selectionRingWidth={1}
-      {...navigationProps}
-      ref={elementRef}
+    <RadioItem selected={selected} onSelect={guard(onSelect)} disabled={disabled}><Pressable disabled={disabled} focusInset selectionRingWidth={1}
       style={({ pressed }) => [
         styles.whenButton,
         selected && styles.whenButtonActive,
@@ -41,10 +38,9 @@ function ReminderWhenOption({ label, selected, onSelect, styles }: Readonly<{
       accessibilityRole="radio"
       accessibilityLabel={label}
       accessibilityState={{ checked: selected, ...(disabled ? { disabled: true } : {}) }}
-      onPress={onActivate}
     >
       <Text style={[styles.whenButtonText, selected && styles.whenButtonTextActive]}>{label}</Text>
-    </Pressable>
+    </Pressable></RadioItem>
   );
 }
 

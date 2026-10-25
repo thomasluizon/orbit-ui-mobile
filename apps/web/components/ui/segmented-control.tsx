@@ -1,7 +1,8 @@
 'use client'
 
 import type { SegmentedControlOption, SegmentedControlProps } from '@orbit/shared/contracts/navigation'
-import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
+import * as Primitive from '@radix-ui/react-radio-group'
+import { useRef } from 'react'
 
 function SegmentOption<TValue extends string>({
   controlDisabled,
@@ -18,30 +19,53 @@ function SegmentOption<TValue extends string>({
   const select = () => {
     if (!selected) onChange(option.value)
   }
-  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled, onSelect: select, selected })
 
   return (
-    <button
-      ref={elementRef}
+    <Primitive.Item value={option.value}
       type="button"
-      role="radio"
-      aria-checked={selected}
       disabled={disabled}
+      tabIndex={selected && !disabled ? 0 : -1}
+      onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); event.currentTarget.click() } }}
       data-selected={selected || undefined}
-      tabIndex={tabIndex}
-      onClick={onActivate}
-      onKeyDown={onKeyDown}
+      onClick={(event) => { if (event.detail === 0) select() }}
       data-disabled={disabled || undefined}
       className="orbit-selection-ring habit-control-motion min-h-[var(--touch-min)] min-w-[var(--touch-min)] max-w-full grow shrink basis-auto px-2 py-1 rounded-[8px] text-[0.875rem] font-medium text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] data-[selected]:bg-[var(--bg-hover)] data-[selected]:text-[var(--fg-1)] disabled:opacity-40"
     >
       <span className="block whitespace-normal [overflow-wrap:anywhere]">{option.label}</span>
-    </button>
+    </Primitive.Item>
   )
 }
 
 export function SegmentedControl<TValue extends string>(props: Readonly<SegmentedControlProps<TValue>>) {
+  const pendingValue = useRef<string | null>(null)
+  const changeSelection = (value: string) => {
+      const option = props.options.find((candidate) => candidate.value === value && !candidate.disabled)
+      if (option && !props.disabled && option.value !== props.value && pendingValue.current !== value) {
+        pendingValue.current = value
+        queueMicrotask(() => { pendingValue.current = null })
+        props.onChange(option.value)
+      }
+    }
   return (
-    <RadioGroup
+    <Primitive.Root value={props.value} onValueChange={changeSelection} disabled={props.disabled} tabIndex={-1} loop
+      onKeyDownCapture={(event) => {
+        if (props.disabled) return
+        if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+        if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return
+        const enabledOptions = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button[role="radio"]:not(:disabled)'))
+        const currentIndex = enabledOptions.findIndex((option) => option === event.currentTarget.ownerDocument.activeElement)
+        if (currentIndex < 0) return
+        let destinationIndex = 0
+        if (event.key === 'End') destinationIndex = enabledOptions.length - 1
+        else if (event.key !== 'Home') {
+          const direction = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1
+          destinationIndex = (currentIndex + direction + enabledOptions.length) % enabledOptions.length
+        }
+        const destination = enabledOptions[destinationIndex]!
+        destination.focus()
+        changeSelection(destination.value)
+        event.preventDefault()
+      }}
       aria-label={props.label}
       aria-disabled={props.disabled || undefined}
       data-disabled={props.disabled || undefined}
@@ -51,11 +75,11 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
         <SegmentOption
           key={option.value}
           controlDisabled={Boolean(props.disabled)}
-          onChange={props.onChange}
+          onChange={changeSelection}
           option={option}
           selected={option.value === props.value}
         />
       ))}
-    </RadioGroup>
+    </Primitive.Root>
   )
 }

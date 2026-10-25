@@ -17,7 +17,7 @@ export const SEGMENT_GEOMETRY_OWNERS = [
 
 export const SEGMENT_ROW_ALLOWLIST = [
   { path: 'components/onboarding/feature-guide-drawer.tsx', reason: 'Feature guide chips scroll horizontally and do not use SegmentedControl.' },
-  { path: 'components/ui/radio-row.tsx', reason: 'Pill radio rows have their own layout contract and do not use SegmentedControl.' },
+  { path: 'components/ui/radio-group.tsx', reason: 'Pill radio rows have their own layout contract and do not use SegmentedControl.' },
 ] as const
 
 function sourceFiles(directory: string): string[] {

@@ -11,21 +11,16 @@ import { TimeField } from '@/components/ui/time-field'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import { ReminderPermissionNotice } from './reminder-permission-notice'
 import { useReminderPermission } from '@/hooks/use-reminder-permission'
-import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
+import { RadioGroup, RadioItem } from '@/components/ui/radio-group'
 
 function ReminderWhenOption({ label, selected, onSelect }: Readonly<{ label: string; selected: boolean; onSelect: () => void }>) {
-  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled: false, onSelect, selected })
   return (
-    <button
-      ref={elementRef}
+    <RadioItem selected={selected} onSelect={onSelect}><button
       type="button"
       role="radio"
       aria-checked={selected}
-      tabIndex={tabIndex}
       className={`chip flex-1 justify-center focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] ${selected ? 'chip-active' : ''}`}
-      onClick={onActivate}
-      onKeyDown={onKeyDown}
-    >{label}</button>
+    >{label}</button></RadioItem>
   )
 }
 

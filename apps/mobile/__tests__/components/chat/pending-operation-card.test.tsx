@@ -685,8 +685,7 @@ describe('PendingOperationCard (mobile)', () => {
       expect(row.props.accessibilityState).toMatchObject({ disabled: true })
       expect(row.props.accessibilityLabel).toContain('blockFrame.status.acting')
       expect(row.props.focusable).toBe(true)
-      expect(row.props.onPress).toBeUndefined()
-      TestRenderer.act(() => focusHost(tree, row))
+      TestRenderer.act(() => { (row.props.onPress as () => void)(); focusHost(tree, row) })
     }
     expect(rows[0]!.props.accessibilityState).toMatchObject({ checked: false })
     expect(rows[1]!.props.accessibilityState).toMatchObject({ checked: true })

@@ -18,7 +18,7 @@ const graphicSites = [
   'apps/web/components/calendar-sync/calendar-sync-event-row.tsx',
   'apps/web/app/(auth)/login/login-sections.tsx',
   'apps/web/components/search/search-results.tsx',
-  'apps/web/components/ui/app-select.tsx',
+  'apps/web/components/ui/select.tsx',
   'apps/web/components/ui/date-field.tsx',
   'apps/web/components/ui/list-row.tsx',
 ] as const
@@ -35,7 +35,7 @@ const graphicNames: Record<(typeof graphicSites)[number], string> = {
   'apps/web/components/calendar-sync/calendar-sync-event-row.tsx': 'X',
   'apps/web/app/(auth)/login/login-sections.tsx': 'WifiOff',
   'apps/web/components/search/search-results.tsx': 'ChevronRight',
-  'apps/web/components/ui/app-select.tsx': 'ChevronDown',
+  'apps/web/components/ui/select.tsx': 'ChevronDown',
   'apps/web/components/ui/date-field.tsx': 'Calendar',
   'apps/web/components/ui/list-row.tsx': 'Chevron',
 }

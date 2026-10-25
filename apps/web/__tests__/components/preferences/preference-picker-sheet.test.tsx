@@ -1,3 +1,4 @@
+import { pressRadioKey } from '@/__tests__/support/radio-key'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import type { PreferencePicker } from '@/app/(app)/preferences/_components/preference-picker-sheet'
@@ -125,7 +126,7 @@ describe('PreferencePickerSheet', () => {
     expect(checked).toHaveTextContent('English')
   })
 
-  it('enters the language group once and drafts the next option with ArrowDown', () => {
+  it('enters the language group once and drafts the next option with ArrowDown', async () => {
     const props = { ...baseProps(), activePicker: 'language' as const }
     render(<PreferencePickerSheet {...props} />)
     const english = screen.getByRole('radio', { name: 'English' })
@@ -134,31 +135,31 @@ describe('PreferencePickerSheet', () => {
     expect([english.tabIndex, portuguese.tabIndex]).toEqual([0, -1])
     const focus = vi.spyOn(portuguese, 'focus')
     english.focus()
-    fireEvent.keyDown(english, { key: 'ArrowDown' })
+    await pressRadioKey(english, 'ArrowDown')
     expect(portuguese).toHaveAttribute('aria-checked', 'true')
     expect(props.onLanguageChange).not.toHaveBeenCalled()
     expect(focus).toHaveBeenCalledOnce()
   })
 
-  it('keeps the language sheet open when ArrowDown moves the selection', () => {
+  it('keeps the language sheet open when ArrowDown moves the selection', async () => {
     const props = { ...baseProps(), activePicker: 'language' as const }
     render(<PreferencePickerSheet {...props} />)
     const english = screen.getByRole('radio', { name: 'English' })
 
     english.focus()
-    fireEvent.keyDown(english, { key: 'ArrowDown' })
+    await pressRadioKey(english, 'ArrowDown')
 
     expect(props.onClose).not.toHaveBeenCalled()
     expect(screen.getByRole('radio', { name: 'Português' })).toBeInTheDocument()
   })
 
-  it('closes the language sheet only once an activation commits the moved selection', () => {
+  it('closes the language sheet only once an activation commits the moved selection', async () => {
     const props = { ...baseProps(), activePicker: 'language' as const }
     render(<PreferencePickerSheet {...props} />)
     const english = screen.getByRole('radio', { name: 'English' })
 
     english.focus()
-    fireEvent.keyDown(english, { key: 'ArrowDown' })
+    await pressRadioKey(english, 'ArrowDown')
     expect(props.onClose).not.toHaveBeenCalled()
     expect(props.onLanguageChange).not.toHaveBeenCalled()
 
@@ -168,7 +169,7 @@ describe('PreferencePickerSheet', () => {
     expect(props.onClose).toHaveBeenCalled()
   })
 
-  it('writes the timezone once, after three arrow moves and the activation that commits', () => {
+  it('writes the timezone once, after three arrow moves and the activation that commits', async () => {
     const props = { ...baseProps(), activePicker: 'timeZone' as const }
     render(<PreferencePickerSheet {...props} />)
     fireEvent.change(screen.getByRole('textbox', { name: 'Search timezones' }), {
@@ -178,9 +179,9 @@ describe('PreferencePickerSheet', () => {
     expect(options.length).toBeGreaterThan(3)
 
     options[0]!.focus()
-    fireEvent.keyDown(options[0]!, { key: 'ArrowDown' })
-    fireEvent.keyDown(options[1]!, { key: 'ArrowDown' })
-    fireEvent.keyDown(options[2]!, { key: 'ArrowDown' })
+    await pressRadioKey(options[0]!, 'ArrowDown')
+    await pressRadioKey(options[1]!, 'ArrowDown')
+    await pressRadioKey(options[2]!, 'ArrowDown')
     expect(options[3]!).toHaveAttribute('aria-checked', 'true')
     expect(props.onTimeZoneChange).not.toHaveBeenCalled()
 
@@ -189,7 +190,7 @@ describe('PreferencePickerSheet', () => {
     expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith(options[3]!.textContent)
   })
 
-  it('keeps the timezone sheet open when ArrowDown moves the selection', () => {
+  it('keeps the timezone sheet open when ArrowDown moves the selection', async () => {
     const props = { ...baseProps(), activePicker: 'timeZone' as const }
     render(<PreferencePickerSheet {...props} />)
     fireEvent.change(screen.getByRole('textbox', { name: 'Search timezones' }), {
@@ -199,7 +200,7 @@ describe('PreferencePickerSheet', () => {
     expect(options.length).toBeGreaterThan(1)
 
     options[0]!.focus()
-    fireEvent.keyDown(options[0]!, { key: 'ArrowDown' })
+    await pressRadioKey(options[0]!, 'ArrowDown')
 
     expect(options[1]!).toHaveAttribute('aria-checked', 'true')
     expect(props.onTimeZoneChange).not.toHaveBeenCalled()

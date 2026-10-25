@@ -24,39 +24,6 @@ vi.mock('@/hooks/use-habits', () => ({
 beforeEach(() => vi.resetModules())
 afterEach(cleanup)
 
-function commitSetupAnnouncement(showNotice: () => void) {
-  const scheduleTimeout = globalThis.setTimeout.bind(globalThis)
-  const cancelTimeout = globalThis.clearTimeout.bind(globalThis)
-  const pending = new Map<Parameters<typeof clearTimeout>[0], () => void>()
-  const scheduleSpy = vi.spyOn(window, 'setTimeout').mockImplementation((callback, delay, ...args) => {
-    if (delay !== 0 || typeof callback !== 'function') return scheduleTimeout(callback, delay, ...args)
-    const dispatch = () => {
-      if (pending.delete(timer)) callback.apply(window, args)
-    }
-    const timer = scheduleTimeout(dispatch, delay)
-    pending.set(timer, dispatch)
-    return timer
-  })
-  const cancelSpy = vi.spyOn(window, 'clearTimeout').mockImplementation((timer) => {
-    if (timer !== undefined) pending.delete(timer)
-    cancelTimeout(timer)
-  })
-  try {
-    act(showNotice)
-    expect(pending.size).toBe(1)
-    act(() => {
-      for (const [timer, dispatch] of pending) {
-        cancelTimeout(timer)
-        dispatch()
-      }
-    })
-  } finally {
-    for (const timer of pending.keys()) cancelTimeout(timer)
-    cancelSpy.mockRestore()
-    scheduleSpy.mockRestore()
-  }
-}
-
 async function openSheetOverPendingPalette() {
   let releaseMenu = () => {}
   let markMenuReady = () => {}
@@ -95,8 +62,9 @@ async function openSheetOverPendingPalette() {
   const sheet = await screen.findByRole('dialog', { name: 'Options' })
   await waitFor(() => expect(sheet).toContainElement(document.activeElement as HTMLElement))
   await user.click(within(sheet).getByRole('textbox', { name: 'Sheet field' }))
-  commitSetupAnnouncement(() => { useAppToastStore.getState().showQueued('Still here', 'Undo', vi.fn()) })
-  await waitFor(() => expect(sheet.querySelector('[data-kind="neutral"][role="status"]')).toHaveTextContent('Still here'))
+  act(() => { useAppToastStore.getState().showQueued('Still here', 'Undo', vi.fn()) })
+  await waitFor(() => expect(sheet.querySelector('[data-kind="neutral"][role="group"]')).toHaveTextContent('Still here'))
+  await waitFor(() => expect(screen.getAllByRole('status').some((region) => region.textContent.includes('Still here'))).toBe(true))
   return {
     user, sheet, useShellStore, useUIStore,
     release: () => act(async () => { releaseMenu(); await menuReady }),
@@ -107,7 +75,7 @@ it('keeps focus and notices in the newer Sheet when the real pending menu import
   const { sheet, release, useShellStore, useUIStore } = await openSheetOverPendingPalette()
   await release()
   await waitFor(() => expect(within(sheet).getByRole('textbox')).toHaveFocus())
-  expect(sheet.querySelector('[data-kind="neutral"][role="status"]')).toHaveTextContent('Still here')
+  expect(sheet.querySelector('[data-kind="neutral"][role="group"]')).toHaveTextContent('Still here')
   expect(useShellStore.getState().paletteOpen).toBe(false)
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   expect(useUIStore.getState().openOverlayIds).toHaveLength(1)

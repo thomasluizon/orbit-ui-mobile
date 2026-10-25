@@ -7,7 +7,7 @@ import type { FrequencyUnit } from '@orbit/shared/types/habit'
 import { buildHabitFrequencyUnits, type HabitScheduleFieldsProps } from '@orbit/shared/utils'
 import { Proposed } from '@/components/ui/proposed'
 import { Input } from '@/components/ui/input'
-import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 
 function scheduleAvailability(locked: boolean | undefined, pending: boolean, reason: string) {

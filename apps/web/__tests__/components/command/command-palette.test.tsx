@@ -237,7 +237,7 @@ describe('CommandPalette', () => {
 
     const palette = screen.getByRole('dialog', { name: 'command.title' })
     expect(document.querySelector('[data-command-palette-background]')).toHaveAttribute('inert')
-    await waitFor(() => expect(palette.querySelector('[role="status"]:not([data-update-live-region])')).toHaveTextContent('errors.updateHabit'))
+    await waitFor(() => expect(palette.querySelector('[data-kind]')).toHaveTextContent('errors.updateHabit'))
     expect(palette.querySelector('[role="status"]:not([data-update-live-region])')).toHaveAttribute('aria-live', 'polite')
     expect(mockSkipHabitMutate).toHaveBeenCalledOnce()
   })
@@ -263,7 +263,7 @@ describe('CommandPalette', () => {
     fireEvent.click(screen.getByText('Run'))
 
     const palette = screen.getByRole('dialog', { name: 'command.title' })
-    await waitFor(() => expect(palette.querySelector('[role="status"]:not([data-update-live-region])')).toHaveTextContent('errors.api.accountChanged'))
+    await waitFor(() => expect(palette.querySelector('[data-kind]')).toHaveTextContent('errors.api.accountChanged'))
     expect(palette).toContainElement(screen.getByRole('button', { name: 'errorScreen.reload' }))
     expect(document.querySelector('[data-command-palette-background]')).toHaveAttribute('inert')
   })
@@ -292,13 +292,13 @@ describe('CommandPalette', () => {
     expect(mockSkipHabitMutate).toHaveBeenCalledWith(
       { habitId: 'h1' }, expect.objectContaining({ onError: expect.any(Function) }),
     )
-    await waitFor(() => expect(palette.querySelector('[role="status"]:not([data-update-live-region])')).toHaveTextContent('Account changed'))
+    await waitFor(() => expect(palette.querySelector('[data-kind]')).toHaveTextContent('Account changed'))
     const reloadButton = screen.getByRole('button', { name: 'Reload' })
     reloadButton.focus()
     expect(reloadButton).toHaveFocus()
     await user.keyboard('{Enter}')
     expect(reload).toHaveBeenCalledOnce()
-    expect(palette.querySelector('[role="status"]:not([data-update-live-region])')).toBeNull()
+    expect(palette.querySelector('[data-kind]')).toBeNull()
     expect(screen.getByRole('dialog', { name: 'command.title' })).toBeInTheDocument()
   })
 
@@ -418,8 +418,8 @@ describe('CommandPalette', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open sheet' }))
     const sheetDialog = await screen.findByRole('dialog', { name: 'Sheet owner' })
     act(() => { useAppToastStore.getState().showQueued('Still here', 'Undo', vi.fn()) })
-    await waitFor(() => expect(sheetDialog.querySelector('[role="status"]:not([data-update-live-region])')).toHaveTextContent('Still here'))
-    expect(document.querySelector('[aria-label="command.title"] [role="status"]:not([data-update-live-region])')).toBeNull()
+    await waitFor(() => expect(sheetDialog.querySelector('[data-kind]')).toHaveTextContent('Still here'))
+    expect(document.querySelector('[aria-label="command.title"] [data-kind]')).toBeNull()
     await waitFor(() =>
       expect(sheetDialog).toContainElement(document.activeElement as HTMLElement),
     )
@@ -427,7 +427,7 @@ describe('CommandPalette', () => {
     await user.keyboard('{Escape}')
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Sheet owner' })).toBeNull())
-    expect(screen.getByRole('dialog', { name: 'command.title' }).querySelector('[role="status"]:not([data-update-live-region])')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'command.title' }).querySelector('[data-kind]')).toBeInTheDocument())
     expect(mockSetPaletteOpen).not.toHaveBeenCalledWith(false)
     await waitFor(() => expect(paletteInput).toHaveFocus())
 

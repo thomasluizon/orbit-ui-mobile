@@ -169,7 +169,7 @@ describe('OnboardingCreateHabit', () => {
 
   it('never offers a repeat interval the saved habit would drop', () => {
     render(<OnboardingCreateHabit {...base} schedule={{ ...schedule, frequencyUnit: null, frequencyQuantity: null, intervalWeeks: 4, days: [], isGeneral: true, isFlexible: false }} />)
-    expect(screen.getByRole('radio', { name: 'Fixed' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Fixed' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.queryByRole('button', { name: 'Repeat more often' })).not.toBeInTheDocument()
   })
 
@@ -205,7 +205,7 @@ describe('OnboardingCreateHabit', () => {
       />,
     )
 
-    expect(screen.getByRole('radio', { name: 'Repeat' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Repeat' })).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(screen.getByRole('radio', { name: 'Months' }))
     fireEvent.click(screen.getByRole('button', { name: 'Repeat later' }))
     expect(onFrequencyUnitChange).toHaveBeenCalledWith('Month')
@@ -234,7 +234,7 @@ describe('OnboardingCreateHabit', () => {
         schedule={{ ...schedule, frequencyUnit: null, frequencyQuantity: null, isFlexible: false }}
       />,
     )
-    expect(screen.getByRole('radio', { name: 'Once' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Once' })).toHaveAttribute('aria-checked', 'true')
   })
   it.each([
     ['flexible', schedule, 'Fewer times', 'More times'],

@@ -258,11 +258,12 @@ describe('alerts', () => {
     expect(bulkLabel).not.toBe(singleLabel)
   })
 
-  it('identifies the queued delete with a neutral trash glyph beside undo', () => {
+  it('identifies the queued delete with a neutral trash glyph beside undo', async () => {
     seed(1)
     showInbox()
     deleteFromSheet('Alert 0')
-    const notice = screen.getByRole('status')
+    await act(async () => { await vi.dynamicImportSettled() })
+    const notice = screen.getByRole('group', { name: 'The alert left the list.' })
     const expected = document.createElement('div')
     expected.innerHTML = renderToStaticMarkup(<Trash2 size={20} />)
     expect(notice.querySelector('svg')?.innerHTML).toBe(expected.querySelector('svg')!.innerHTML)

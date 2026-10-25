@@ -19,8 +19,8 @@ vi.mock('next-intl', () => ({
     values ? `${key}(${JSON.stringify(values)})` : key,
 }))
 
-vi.mock('@/components/ui/app-select', () => ({
-  AppSelect: ({
+vi.mock('@/components/ui/select', () => ({
+  Select: ({
     value,
     options,
     onChange,

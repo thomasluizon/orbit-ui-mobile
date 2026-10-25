@@ -194,7 +194,7 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: messages.wrapped.start }))
     await act(async () => {})
-    expect(container.querySelectorAll('[role="dialog"] [data-shell-notice] [role="status"]')).toHaveLength(toast ? 2 : 1)
+    expect(container.querySelectorAll('[role="dialog"] [data-shell-notice] :is([data-update-live-region], [data-kind])')).toHaveLength(toast ? 2 : 1)
     if (toast) fireEvent.pointerEnter(container.querySelector('[role="dialog"] [data-kind="neutral"]')!)
 
     const session = await page.context().newCDPSession(page)

@@ -27,7 +27,7 @@ import { XCircle, X } from '@/components/ui/icons'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { RadioRow } from '@/components/ui/select-check'
-import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioGroup } from '@/components/ui/radio-group'
 import { MAX_CHECKLIST_ITEMS, MAX_SCHEDULED_REMINDERS } from '@orbit/shared/validation'
 
 function ListRowFields({ field, row, rowLabel, labels, busy, change }: Readonly<{

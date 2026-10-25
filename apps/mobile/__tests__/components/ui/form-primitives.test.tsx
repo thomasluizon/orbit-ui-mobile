@@ -58,7 +58,7 @@ const fireEvent = {
 }
 
 function byRole(root: TestNode, role: string): TestNode[] {
-  return root.findAll((node) => prop(node, 'accessibilityRole') === role)
+  return root.findAll((node) => typeof node.type === 'string' && prop(node, 'accessibilityRole') === role)
 }
 
 function textValues(root: TestNode): unknown[] {

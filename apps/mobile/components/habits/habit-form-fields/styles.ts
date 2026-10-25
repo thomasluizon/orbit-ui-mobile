@@ -131,33 +131,6 @@ export function createSectionStyles(tokens: AppTokens) {
       borderWidth: 1,
       borderColor: tokens.hairline,
     },
-    unitRow: {
-      flexDirection: "row",
-      gap: 4,
-    },
-    unitButton: {
-      minHeight: TOUCH_TARGET_MIN,
-      minWidth: TOUCH_TARGET_MIN,
-      overflow: "hidden",
-      paddingHorizontal: SPACING.s8,
-      paddingVertical: SPACING.s8,
-      borderRadius: radius.full,
-      backgroundColor: tokens.bgField,
-      borderWidth: 1,
-      borderColor: "transparent",
-    },
-    unitButtonActive: {
-      backgroundColor: tintFromPrimary(tokens, 0.12),
-      borderColor: tokens.primary,
-    },
-    unitButtonText: {
-      fontFamily: "Geist_500Medium",
-      fontSize: 12,
-      color: tokens.fg2,
-    },
-    unitButtonTextActive: {
-      color: tokens.fg1,
-    },
     customAddButton: {
       width: TOUCH_TARGET_MIN,
       height: TOUCH_TARGET_MIN,

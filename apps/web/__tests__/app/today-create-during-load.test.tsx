@@ -40,9 +40,8 @@ vi.mock('next/navigation', () => ({
   usePathname: () => state.pathname,
   useSearchParams: () => state.searchParams,
 }))
-vi.mock('next/dynamic', () => ({
-  default: () => ({ open, notice }: { open?: boolean; notice?: React.ReactNode }) =>
-    open === undefined ? <div data-conversation-body="">{notice}</div> : open ? <h1 id="habit-form-title">Create habit</h1> : null,
+vi.mock('@/components/chat/conversation', () => ({
+  AstraConversation: ({ notice }: { notice?: React.ReactNode }) => <div data-conversation-body="">{notice}</div>,
 }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => state.wide }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.ReactNode }) => <>{children}</> }))

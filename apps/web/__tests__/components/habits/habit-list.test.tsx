@@ -4395,7 +4395,7 @@ describe('HabitList', () => {
     await waitFor(() => expect(screen.queryByText('Walk')).toBeNull())
     const toast = useAppToastStore.getState().currentToast?.toast
     expect(toast).toMatchObject({ kind: 'neutral', message: frequencyUnit === null ? 'undo.habitPostponed' : 'undo.habitSkipped', actionLabel: 'undo.action' })
-    fireEvent.click(screen.getByRole('button', { name: 'undo.action' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'undo.action' }))
     await screen.findByText('Walk')
     expect(skipFlow.mutate).toHaveBeenCalledTimes(2)
   })
@@ -4436,7 +4436,7 @@ describe('HabitList', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: 'habits.actions.skip' }))
     await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
     await waitFor(() => expect(screen.queryByText(personalText('Pending child'))).toBeNull())
-    fireEvent.click(screen.getByRole('button', { name: 'undo.action' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'undo.action' }))
     await screen.findByText(personalText('Pending child'))
     expect(skipFlow.mutate).toHaveBeenCalledTimes(2)
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
