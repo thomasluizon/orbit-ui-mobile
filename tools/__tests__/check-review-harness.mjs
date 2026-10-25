@@ -34,7 +34,7 @@ const CHANGE_LANE_ONLY_BLOCK = `## Review harness
 - better-interface (full mode): clean across all six domains
 `
 
-const args = (label, body, changed, base = "redesign/main") => [
+const args = (label, body, changed, base = "main") => [
   "--base",
   base,
   "--body-file",
@@ -53,7 +53,7 @@ export const cases = () => {
 
   check(
     "check-review-harness.mjs",
-    "accepts a UI redesign pull request whose body states what each skill found",
+    "accepts a UI main pull request whose body states what each skill found",
     args("complete", FULL_BLOCK, UI_CHANGE),
     { status: 0, stdout: /evidence present/ },
   )
@@ -97,7 +97,7 @@ export const cases = () => {
 
   check(
     "check-review-harness.mjs",
-    "rejects a UI redesign pull request with no Review harness block at all",
+    "rejects a UI main pull request with no Review harness block at all",
     args("absent", "## What changed\n\nRebuilt the Today row.\n", UI_CHANGE),
     { status: 1, stderr: /no "## Review harness" block/ },
   )
@@ -177,14 +177,14 @@ export const cases = () => {
   // no opinion about.
   check(
     "check-review-harness.mjs",
-    "stands aside for a pull request based on main",
-    args("main-base", "## What changed\n\nHarness fix.\n", UI_CHANGE, "main"),
+    "stands aside for a pull request based on a topic branch",
+    args("main-base", "## What changed\n\nHarness fix.\n", UI_CHANGE, "feature/topic"),
     { status: 0, stdout: /not applicable/ },
   )
 
   check(
     "check-review-harness.mjs",
-    "stands aside for a redesign pull request that changes no UI file",
+    "stands aside for a main pull request that changes no UI file",
     args("tooling", "## What changed\n\nHarness fix.\n", TOOLING_CHANGE),
     { status: 0, stdout: /none in UI scope/ },
   )
@@ -212,14 +212,14 @@ export const cases = () => {
   check(
     "check-review-harness.mjs",
     "refuses a missing required flag",
-    ["--base", "redesign/main"],
+    ["--base", "main"],
     { status: 2, stderr: /--body-file is required/ },
   )
 
   check(
     "check-review-harness.mjs",
     "refuses an unreadable body file",
-    ["--base", "redesign/main", "--body-file", "no-such-body.md", "--changed-files-file", stage("review-harness/unreadable/changed.txt", `${UI_CHANGE}\n`)],
+    ["--base", "main", "--body-file", "no-such-body.md", "--changed-files-file", stage("review-harness/unreadable/changed.txt", `${UI_CHANGE}\n`)],
     { status: 2, stderr: /cannot read the pull request body/ },
   )
 }

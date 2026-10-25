@@ -1,5 +1,5 @@
 import {
-  REDESIGN_BASE,
+  UI_REVIEW_BASE,
   UI_REVIEW_SWEEP_CONTRACT,
   composedOrderNeedsUiReview,
   isUiReviewPath,
@@ -11,14 +11,14 @@ import { T } from "./_harness.mjs"
 
 export const cases = () => {
   T(
-    "lib/review-harness.mjs: redesign UI orders carry the conditional review sweep",
-    composedOrderNeedsUiReview("ui", REDESIGN_BASE),
+    "lib/review-harness.mjs: main UI orders carry the conditional review sweep",
+    composedOrderNeedsUiReview("ui", UI_REVIEW_BASE),
   )
   T(
-    "lib/review-harness.mjs: api, landing, and main-based UI orders carry no review sweep",
-    !composedOrderNeedsUiReview("api", REDESIGN_BASE) &&
-      !composedOrderNeedsUiReview("landing", REDESIGN_BASE) &&
-      !composedOrderNeedsUiReview("ui", "main"),
+    "lib/review-harness.mjs: api, landing, and topic-based UI orders carry no review sweep",
+    !composedOrderNeedsUiReview("api", UI_REVIEW_BASE) &&
+      !composedOrderNeedsUiReview("landing", UI_REVIEW_BASE) &&
+      !composedOrderNeedsUiReview("ui", "feature/topic"),
   )
   T(
     "lib/review-harness.mjs: web and mobile rendered paths share one scope",

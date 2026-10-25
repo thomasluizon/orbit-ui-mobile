@@ -1,5 +1,5 @@
 export const REVIEW_HARNESS_REPOSITORY = "ui"
-export const REDESIGN_BASE = "redesign/main"
+export const UI_REVIEW_BASE = "main"
 
 export const UI_REVIEW_SWEEP_CONTRACT = Object.freeze({
   sourceFamilies: Object.freeze([
@@ -150,7 +150,7 @@ export const UI_SCOPE = /^apps\/(?:web|mobile)\/(?:app|components|hooks|stores|l
 export const isUiReviewPath = (path) => UI_SCOPE.test(path)
 
 export const composedOrderNeedsUiReview = (repositoryKey, baseBranch) => (
-  repositoryKey === REVIEW_HARNESS_REPOSITORY && baseBranch === REDESIGN_BASE
+  repositoryKey === REVIEW_HARNESS_REPOSITORY && baseBranch === UI_REVIEW_BASE
 )
 
 /**

@@ -5,7 +5,7 @@
 > - Every tool is non-interactive, supports `--help`, and returns meaningful exit codes (see `CONVENTIONS.md`).
 > - `test-tools.mjs` EXECUTES every script here. A new tool with no coverage entry fails it, so coverage lands in the same PR as the tool.
 > - Script guards run as named steps in the single `Guards` job.
-> - The `Tool and Hook Tests` CI job runs both harness suites on every PR to `main` and `redesign/main`, including changes to their UI producers.
+> - The `Tool and Hook Tests` CI job runs both harness suites on every PR to `main`, including changes to their UI producers.
 > - The orchestration core includes queue planning, prompt/worker isolation, delivery verification,
 >   final-head readiness receipts, ticket synchronization, review-thread handling, and teardown.
 > - The Docker registry guard requires explicit image hosts in tracked Dockerfiles.
@@ -169,7 +169,7 @@ Its sibling is `node .claude/hooks/test-hooks.mjs`, which proves the nine sessio
 as specified, and that every hook wired in `.claude/settings.json` exists on disk and vice versa.
 
 The `Tool and Hook Tests` job in `.github/workflows/test.yml` runs `npm ci` and both commands on every
-PR to `main` and `redesign/main`. Each harness has a separate step whose exit code determines success;
+PR to `main`. Each harness has a separate step whose exit code determines success;
 the hooks step also runs after a tools failure. There is no changed-path filter, so producer-only UI
 changes exercise the fixtures too. Run both commands locally after changing `tools/**` or `.claude/**`.
 
@@ -190,7 +190,7 @@ Complete agreement also writes `__fixtures__/ticket-classifier-calibration.json`
 
 The production feature parity inventory is generated locally and never committed. The guard regenerates it from
 `tools/feature-parity-rules.json` provenance and active production against the checked-out source
-on every pull request to `main` and `redesign/main`; each run uploads its evidence. The immutable
+on every pull request to `main`; each run uploads its evidence. The immutable
 `provenance.legacyProduction` commit preserves the rules' original source obligations. Its
 capabilities are deduplicated with active production, protecting controls added after that snapshot.
 When a later production capability moves to a new owner, `provenance.productionSnapshots` retains

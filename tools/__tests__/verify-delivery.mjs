@@ -129,12 +129,12 @@ const verdictOf = (fixture, stdout, expected, status, name) =>
   check(TOOL, name, ["--issue", "ORB-200", "--worktree", fixture.path, "--branch", BRANCH, "--repo", "ui"], { status, stdout: new RegExp(`"verdict": "${expected}"`) }, { path: testedToolPath, env: ghPlan(stdout) })
 
 /** `gh pr view 1163 --json baseRefName,headRefOid` returned these two keys:
- * {"baseRefName":"redesign/main","headRefOid":"<commit SHA>"}. Fixture heads come from real Git commits. */
-const REDESIGN_BASE = "redesign/main"
-const stageRedesignParity = (label, uiCommitOn) => {
+ * {"baseRefName":"<base branch>","headRefOid":"<commit SHA>"}. Fixture heads come from real Git commits. */
+const ALTERNATE_BASE = "integration/next"
+const stageAlternateBaseParity = (label, uiCommitOn) => {
   const repo = stageRepo(`verify-delivery-${label}`)
-  if (!repo || repo.git(["branch", REDESIGN_BASE]).status !== 0) return null
-  if (uiCommitOn === REDESIGN_BASE && repo.git(["switch", "-q", REDESIGN_BASE]).status !== 0) return null
+  if (!repo || repo.git(["branch", ALTERNATE_BASE]).status !== 0) return null
+  if (uiCommitOn === ALTERNATE_BASE && repo.git(["switch", "-q", ALTERNATE_BASE]).status !== 0) return null
   const uiPath = "apps/mobile/components/Message.tsx"
   mkdirSync(dirname(join(repo.path, uiPath)), { recursive: true })
   writeFileSync(join(repo.path, uiPath), "mobile change\n")
@@ -295,7 +295,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   verdictOf(unpushed, JSON.stringify([pullRequest(unpushed.head)]), "UNPUSHED", 1, "a commit that never reached origin is UNPUSHED")
 
   const pushed = stageDelivery("pushed")
-  T(`${TOOL}: alternate base staged for PR state fixtures`, pushed.git(["branch", REDESIGN_BASE, "main"]).status === 0)
+  T(`${TOOL}: alternate base staged for PR state fixtures`, pushed.git(["branch", ALTERNATE_BASE, "main"]).status === 0)
   const mobileOnly = stageDelivery("mobile-only", { changedPaths: ["apps/mobile/components/Message.tsx"] })
   const parityCiReadMarker = stage("verify-delivery/parity-ci-read", "must remain")
   check(
@@ -311,22 +311,22 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   verdictOf(webOnly, JSON.stringify([pullRequest(webOnly.head)]), "MISSING_PARITY_LABEL", 1, "a one-sided web change also needs parity:exempt")
   const mirrored = stageDelivery("mirrored", { changedPaths: ["apps/web/components/Message.tsx", "apps/mobile/components/Message.tsx"] })
   verdictOf(mirrored, JSON.stringify([pullRequest(mirrored.head)]), "DELIVERED", 0, "a mirrored change needs no parity label")
-  const nonUiAgainstRedesign = stageRedesignParity("non-ui-redesign", REDESIGN_BASE)
-  const mobileAgainstRedesign = stageRedesignParity("mobile-redesign", "main")
-  T(`${TOOL}: divergent base fixtures staged`, Boolean(nonUiAgainstRedesign && mobileAgainstRedesign))
-  if (nonUiAgainstRedesign && mobileAgainstRedesign) {
+  const nonUiAgainstAlternate = stageAlternateBaseParity("non-ui-alternate", ALTERNATE_BASE)
+  const mobileAgainstAlternate = stageAlternateBaseParity("mobile-alternate", "main")
+  T(`${TOOL}: divergent base fixtures staged`, Boolean(nonUiAgainstAlternate && mobileAgainstAlternate))
+  if (nonUiAgainstAlternate && mobileAgainstAlternate) {
     for (const [fixture, expected, name] of [
-      [nonUiAgainstRedesign, "DELIVERED", "a non-UI PR against redesign/main ignores its base's mobile commit"],
-      [mobileAgainstRedesign, "MISSING_PARITY_LABEL", "a mobile PR against redesign/main needs the label even when main has the change"],
+      [nonUiAgainstAlternate, "DELIVERED", "a non-UI PR against integration/next ignores its base's mobile commit"],
+      [mobileAgainstAlternate, "MISSING_PARITY_LABEL", "a mobile PR against integration/next needs the label even when main has the change"],
     ]) {
       check(TOOL, name, ["--issue", ISSUE, "--worktree", fixture.path, "--branch", BRANCH, "--repo", "ui"],
         { status: expected === "DELIVERED" ? 0 : 1, stdout: new RegExp(`"verdict": "${expected}"`) },
-        { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(fixture.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, null, { baseRefName: REDESIGN_BASE }) })
+        { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(fixture.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, null, { baseRefName: ALTERNATE_BASE }) })
     }
     check(TOOL, "an explicit base that disagrees with the PR is an error",
-      ["--issue", ISSUE, "--worktree", mobileAgainstRedesign.path, "--branch", BRANCH, "--repo", "ui", "--base", "main"],
+      ["--issue", ISSUE, "--worktree", mobileAgainstAlternate.path, "--branch", BRANCH, "--repo", "ui", "--base", "main"],
       { status: 2, stderr: /--base main disagrees with pull request #200 base redesign\/main/ },
-      { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(mobileAgainstRedesign.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, null, { baseRefName: REDESIGN_BASE }) })
+      { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(mobileAgainstAlternate.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, null, { baseRefName: ALTERNATE_BASE }) })
   }
   const ghDescendantPidFile = stage("verify-delivery/gh-descendant.pid", "")
   const hangingGh = run(
@@ -699,7 +699,7 @@ if (process.argv[1]?.endsWith("verify-delivery.mjs")) {
 `)
   const onUnprotectedBase = (nodes, protectionResponse = JSON.stringify(unprotectedResponse), sequence = {}) => {
     const env = ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, nodes, { behind_by: 0 }, [], {
-      baseRefName: "redesign/main", protectionResponse, protectionExit: 1, ...sequence,
+      baseRefName: "integration/next", protectionResponse, protectionExit: 1, ...sequence,
     })
     env.NODE_OPTIONS += ` --require "${observationClock.replaceAll("\\", "/")}"`
     return { path: testedToolPath, env }
@@ -707,7 +707,7 @@ if (process.argv[1]?.endsWith("verify-delivery.mjs")) {
   const observedCiArgv = [...ciArgv, "--wait-ci", "60"]
   const observedDelivery = check(TOOL, "an unprotected base delivers after observing unchanged successful CI", observedCiArgv,
     { status: 0, stdout: /"verdict": "DELIVERED"[\s\S]*"requiredChecks": \[\]/ }, onUnprotectedBase([checkRun("Lint"), statusContext("Vercel", "SUCCESS")]))
-  const expectedFingerprint = JSON.stringify([pushed.head, "base-sha", "redesign/main", [
+  const expectedFingerprint = JSON.stringify([pushed.head, "base-sha", "integration/next", [
     [JSON.stringify(["Lint", GITHUB_ACTIONS_APP]), {
       __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS",
       startedAt: "2026-08-06T10:00:00Z", completedAt: "2026-08-06T10:00:00Z",
@@ -738,8 +738,8 @@ if (process.argv[1]?.endsWith("verify-delivery.mjs")) {
     const sequenceFile = stage(`verify-delivery/${label}-sequence.txt`, "0")
     const states = rollups.map((nodes) => {
       const state = prState(nodes, pushed.head)
-      state.data.repository.pullRequest.baseRefName = "redesign/main"
-      state.data.repository.pullRequest.baseRef.name = "redesign/main"
+      state.data.repository.pullRequest.baseRefName = "integration/next"
+      state.data.repository.pullRequest.baseRef.name = "integration/next"
       return state
     })
     return { sequenceFile, states }

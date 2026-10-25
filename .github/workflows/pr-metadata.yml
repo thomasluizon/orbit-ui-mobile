@@ -2,7 +2,7 @@ name: PR Metadata
 
 on:
   pull_request:
-    branches: [main, redesign/main]
+    branches: [main]
     types: [opened, synchronize, reopened, edited, labeled, unlabeled]
 
 # Every metadata event must finish its required check. A shared concurrency group

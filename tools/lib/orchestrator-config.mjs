@@ -95,7 +95,7 @@ const validateTickets = (tickets) => {
   }
 }
 
-export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranch = "redesign/main") => {
+export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranch = "main") => {
   const configPath = fileURLToPath(configUrl)
   let text
   try {

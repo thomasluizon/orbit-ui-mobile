@@ -2,7 +2,7 @@
 
 import { readFileSync } from "node:fs"
 import {
-  REDESIGN_BASE,
+  UI_REVIEW_BASE,
   REQUIRED_REVIEW_EVIDENCE,
   isUiReviewPath,
   reviewHarnessSectionLines,
@@ -12,7 +12,7 @@ import {
 
 const USAGE = `usage: check-review-harness.mjs --base <ref> --body-file <path> --changed-files-file <path>
 
-  Fails a UI pull request based on redesign/main whose body carries no review-harness evidence.
+  Fails a UI pull request based on main whose body carries no review-harness evidence.
 
   --base <ref>                 the pull request's base branch
   --body-file <path>           file holding the pull request body
@@ -63,8 +63,8 @@ const read = (path, label) => {
   }
 }
 
-if (options.base !== REDESIGN_BASE) {
-  console.log(`check-review-harness: base is ${options.base}, not ${REDESIGN_BASE}; not applicable.`)
+if (options.base !== UI_REVIEW_BASE) {
+  console.log(`check-review-harness: base is ${options.base}, not ${UI_REVIEW_BASE}; not applicable.`)
   process.exit(0)
 }
 
@@ -83,7 +83,7 @@ const sectionLines = reviewHarnessSectionLines(body)
 if (sectionLines === null) {
   fail(
     1,
-    `::error::This pull request changes ${uiFiles.length} UI file(s) on ${REDESIGN_BASE} and its body carries no "## Review harness" block. Complete every lane and close-gate agent in the canonical review sweep, then record one line each. The motion lane may instead say "not applicable: no changed animation".`,
+    `::error::This pull request changes ${uiFiles.length} UI file(s) on ${UI_REVIEW_BASE} and its body carries no "## Review harness" block. Complete every lane and close-gate agent in the canonical review sweep, then record one line each. The motion lane may instead say "not applicable: no changed animation".`,
   )
 }
 
