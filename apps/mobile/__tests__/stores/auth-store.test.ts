@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import * as SecureStore from 'expo-secure-store'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { API } from '@orbit/shared/api'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { notificationKeys, profileKeys } from '@orbit/shared/query'
 import { AUTH_CALLBACK_URL, getPendingGoogleAuthVerifier, hasPendingGoogleAuthSession, markPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl, usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { i18n } from '@/lib/i18n'
-import { getRuntimeTheme } from '@/lib/theme'
+import { createTokensV2, getRuntimeTheme, setRuntimeTheme } from '@/lib/theme'
+import { ThemeProvider } from '@/lib/theme-provider'
 import { useLogout } from '@/hooks/use-logout'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { getErrorSurface, getStepUpStorageKey } from '@orbit/shared/utils'
@@ -52,6 +54,7 @@ const posthogMocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/posthog', () => posthogMocks)
+vi.mock('@/lib/theme-provider', async () => await import('../../lib/theme-provider'))
 
 const TestRenderer = require('react-test-renderer')
 const streamFetch = vi.hoisted(() => vi.fn())
@@ -2784,6 +2787,30 @@ describe('mobile auth store security paths', () => {
       name: 'Login Name',
       email: 'login@example.com',
     })
+  })
+
+  it.each(['light', 'dark'] as const)('retains provider-resolved %s tokens after login hydrates a null theme preference', async (themeMode) => {
+    let provider: ReturnType<typeof TestRenderer.create>
+    const previousTheme = { ...getRuntimeTheme() }
+    apiClientMock.mockResolvedValue(createMockProfile({ themePreference: null }))
+    try {
+      await TestRenderer.act(() => {
+        provider = TestRenderer.create(React.createElement(ThemeProvider, { captureTheme: themeMode } as React.ComponentProps<typeof ThemeProvider>, null))
+      })
+      const resolved = createTokensV2()
+      expect(getRuntimeTheme().themeMode).toBe(themeMode)
+
+      await useAuthStore.getState().login('access-token', 'refresh-token', {
+        userId: 'user-1', email: 'user@example.com', name: 'User',
+      })
+
+      expect(createTokensV2()).toEqual(resolved)
+      expect(getRuntimeTheme().themeMode).toBe(themeMode)
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    } finally {
+      await TestRenderer.act(() => provider?.unmount())
+      setRuntimeTheme(previousTheme)
+    }
   })
 
   it('does not publish an old profile after a replacement login scopes the cache', async () => {
