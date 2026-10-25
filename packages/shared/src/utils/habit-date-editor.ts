@@ -32,6 +32,7 @@ export class HabitDateEditor {
   private online = false
   private atLimit = true
   private context = ''
+  private deferredContext = ''
   private appliedRecurrencePhrase: string | null = null
   constructor(private adapter: DateEditorAdapter) {}
   configure(adapter: DateEditorAdapter): void {
@@ -39,6 +40,7 @@ export class HabitDateEditor {
       this.cancel()
       this.session.invalidate()
       this.context = ''
+      this.deferredContext = ''
       this.appliedRecurrencePhrase = null
     }
     this.adapter = adapter
@@ -82,6 +84,11 @@ export class HabitDateEditor {
   sync(): void {
     const context = this.adapter.context()
     if (JSON.stringify({ ...context, generalLocked: this.adapter.generalLocked }) === this.context) return
+    if (this.deferredContext !== JSON.stringify({ ...context, timeZone: undefined, referenceDate: '' })) this.deferredContext = ''
+    if (this.deferredContext && context.referenceDate) {
+      this.readPhrase(context.phrase)
+      return
+    }
     this.cancel()
     this.rememberContext()
     if (this.readRecurrence(context)) {
@@ -101,6 +108,7 @@ export class HabitDateEditor {
     this.cancel()
     this.session.invalidate()
     this.appliedRecurrencePhrase = null
+    this.deferredContext = ''
     this.adapter.write('datePhrase', phrase)
     const context = { ...this.adapter.context(), phrase }
     const recurrence = this.readRecurrence(context)
@@ -113,6 +121,7 @@ export class HabitDateEditor {
       return
     }
     const result = this.session.parse(context)
+    if (result.status === 'unavailable' && !context.referenceDate) this.deferredContext = JSON.stringify({ ...context, timeZone: undefined, referenceDate: '' })
     this.adapter.write('dateIssue', result.status === 'empty' || result.status === 'resolved' ? '' : result.status === 'invalid' ? 'habits.form.dateInvalid' : 'habits.form.datePhraseUnresolved')
     if (result.status === 'resolved') this.adapter.write('dueDate', result.date)
     this.rememberContext()
@@ -169,6 +178,7 @@ export class HabitDateEditor {
   }
 
   selectDate(date: string): void {
+    this.deferredContext = ''
     this.cancel()
     this.session.invalidate()
     this.adapter.write('dueDate', date)
