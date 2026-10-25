@@ -1,6 +1,7 @@
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { CheckboxProps } from '@orbit/shared/contracts/forms'
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import * as Primitive from '@rn-primitives/checkbox'
 import Svg, { Rect } from 'react-native-svg'
 import { Check } from '@/components/ui/icons'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -38,8 +39,9 @@ export function Checkbox({
   if (as === 'span') return box
 
   return (
-    <Pressable
-      onPress={() => onChange(!checked)}
+    <Primitive.Root
+      checked={checked}
+      onCheckedChange={(next) => onChange(next === true)}
       disabled={disabled || loading}
       accessibilityRole="checkbox"
       accessibilityLabel={label}
@@ -50,7 +52,7 @@ export function Checkbox({
       style={styles.control}
     >
       {box}
-    </Pressable>
+    </Primitive.Root>
   )
 }
 

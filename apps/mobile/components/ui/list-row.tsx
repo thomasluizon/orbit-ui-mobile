@@ -1,6 +1,7 @@
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { PersonalText } from '@/components/ui/personal-text'
 import { INTERACTION_FILL_CLEARANCE, PADDING, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import * as SwitchPrimitive from '@rn-primitives/switch'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import Animated from 'react-native-reanimated'
 import type { ReactNode, Ref } from 'react'
@@ -148,15 +149,16 @@ function RowControl({ ref, props, bodyStyle, interaction, tokens, children }: Re
   if (props.readOnly || (!props.onClick && !props.toggle)) return <View data-slot={slot} style={bodyStyle}><RowFill props={props} />{children}</View>
   const toggle = props.toggle
   const disabled = Boolean(props.disabled || toggle?.pending)
-  return <NativePressable data-slot={slot} ref={ref} hitSlop={column ? { left: 16, right: 16 } : undefined}
+  const control = <NativePressable data-slot={slot} ref={ref} hitSlop={column ? { left: 16, right: 16 } : undefined}
     accessibilityRole={toggle ? "switch" : "button"} accessibilityLabel={toggle ? props.accessibilityLabel ?? props.title : props.accessibilityLabel}
     accessibilityState={rowAccessibilityState(props)} disabled={disabled}
-    onPress={toggle ? () => toggle.onChange(!toggle.checked) : props.onClick}
+    onPress={toggle ? undefined : props.onClick}
     onPressIn={interaction.onPressIn} onPressOut={interaction.onPressOut} onFocus={interaction.onFocus} onBlur={interaction.onBlur} onHoverIn={interaction.onHoverIn} onHoverOut={interaction.onHoverOut}
     style={[bodyStyle, getDisabledStyle(disabled)]}>
     <RowFill props={props} interaction={interaction} tokens={tokens} />
     {children}
   </NativePressable>
+  return toggle ? <SwitchPrimitive.Root asChild checked={toggle.checked} onCheckedChange={toggle.onChange} disabled={disabled}>{control}</SwitchPrimitive.Root> : control
 }
 
 function rowContentStyle(props: ListRowProps, trailing: ReactNode, labelWrapped: boolean) {

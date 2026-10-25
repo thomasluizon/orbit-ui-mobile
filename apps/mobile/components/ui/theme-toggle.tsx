@@ -1,5 +1,6 @@
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
-import { Pressable, StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native'
+import * as Primitive from '@rn-primitives/toggle'
 import { Moon, Sun } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2 } from '@/lib/theme'
@@ -13,8 +14,9 @@ export function ThemeToggle() {
   const isDark = currentTheme === 'dark'
 
   return (
-    <Pressable
-      onPress={toggleTheme}
+    <Primitive.Root
+      pressed={isDark}
+      onPressedChange={toggleTheme}
       accessibilityRole="button"
       accessibilityLabel={
         isDark
@@ -35,7 +37,7 @@ export function ThemeToggle() {
       ) : (
         <Sun size={20} color={tokens.fg1} strokeWidth={1.8} />
       )}
-    </Pressable>
+    </Primitive.Root>
   )
 }
 
