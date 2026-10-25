@@ -12,7 +12,7 @@ const { packageManager } = JSON.parse(readFileSync(resolve(repository, 'package.
 const tokenDirectory = 'design/canvas/_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens'
 const consumers = [
   { workspace: 'packages/shared', name: '@orbit/shared', inputs: [
-    '.github/workflows/contract-rebaseline.yml', '.github/workflows/contract-rebaseline-redesign.yml',
+    '.github/workflows/contract-rebaseline.yml',
     'apps/web/components/input.tsx', 'apps/mobile/modules/widget/input.kt',
     'apps/web/e2e/layout/interaction-fill-clearance.spec.ts',
     'apps/mobile/__tests__/components/ui/interaction-fill-clearance.test.tsx',

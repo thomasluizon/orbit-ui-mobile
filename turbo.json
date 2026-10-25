@@ -31,7 +31,6 @@
         "$TURBO_ROOT$/.gitignore",
         "$TURBO_ROOT$/apps/{web,mobile}/**/.gitignore",
         "$TURBO_ROOT$/.github/workflows/contract-rebaseline.yml",
-        "$TURBO_ROOT$/.github/workflows/contract-rebaseline-redesign.yml",
         "$TURBO_ROOT$/apps/{web,mobile}/**/*.{ts,tsx,js,jsx,css,xml,svg,kt}",
         "!$TURBO_ROOT$/apps/{web,mobile}/**/{node_modules,.next,.expo,coverage,dist,build,.gradle}/**",
         "$TURBO_ROOT$/design/canvas/Orbit Busca.dc.html",
