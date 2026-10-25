@@ -1,7 +1,5 @@
 import { setupHabitModalSubmit, formLocale, mockProfileState, modalFeedback, dateRequests } from '@/__tests__/support/habit-form-fields'
 import userEvent from '@testing-library/user-event'
-import en from '@orbit/shared/i18n/en.json'
-import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { formatAPIDate, formatLocaleDate } from '@orbit/shared/utils'
@@ -114,8 +112,6 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     await opening
     expect(screen.getByRole('button', { name: 'common.close' })).toHaveFocus()
     fireEvent.change(phraseInput(), { target: { value: 'after vacation' } })
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
-    await screen.findByRole('button', { name: 'habits.form.acceptDate' })
     await submit('form')
     await waitFor(() => expect(phraseInput()).toHaveAttribute('aria-invalid', 'true'))
     expect(phraseInput()).toHaveFocus()
@@ -127,39 +123,21 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
   })
 
   it.each([
-    ['en', 'task', 'accept', 'click'],
+    ['en', 'task', 'automatic', 'click'],
     ['en', 'habit', 'manual', owner === 'create' ? 'Enter' : 'form'],
     ['pt-BR', 'task', 'manual', 'click'],
-    ['pt-BR', 'habit', 'accept', owner === 'create' ? 'Enter' : 'form'],
-  ] as const)('keeps %s %s candidate refusal inline through %s recovery after %s', async (locale, type, recovery, method) => {
+    ['pt-BR', 'habit', 'automatic', owner === 'create' ? 'Enter' : 'form'],
+  ] as const)('keeps %s %s automatic date filling through %s recovery after %s', async (locale, type, recovery) => {
     formLocale.language = locale
-    const messages = locale === 'en' ? en : ptBR
     await mount(type)
     fireEvent.change(phraseInput(), { target: { value: 'after vacation' } })
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
-    await screen.findByRole('button', { name: 'habits.form.acceptDate' })
-    await submit(method)
-    await waitFor(() => expect(phraseInput()).toHaveAttribute('aria-invalid', 'true'))
-    expect(phraseInput()).toHaveFocus()
-    expect(phraseInput()).toHaveValue('after vacation')
-    expect(phraseInput()).toHaveAccessibleDescription(expect.stringContaining(messages.habits.form.dateConfirmationRequired))
-    expect(mutation()).not.toHaveBeenCalled()
-    expect(closed).not.toHaveBeenCalled()
-    expect(modalFeedback.showError).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.getByRole('button', { name: new RegExp(type === 'task' ? 'habits.form.taskDate' : 'habits.form.habitStartDate') })).toHaveTextContent(formatLocaleDate('2026-10-26', locale)))
     const picker = () => screen.getByRole('button', { name: new RegExp(type === 'task' ? 'habits.form.taskDate' : 'habits.form.habitStartDate') })
-    const date = recovery === 'accept' ? '2026-10-26' : '2026-10-27'
-    if (recovery === 'accept') {
-      fireEvent.click(screen.getByRole('button', { name: 'habits.form.acceptDate' }))
-      expect(picker()).toHaveFocus()
-    } else {
+    const date = recovery === 'automatic' ? '2026-10-26' : '2026-10-27'
+    if (recovery === 'manual') {
       fireEvent.click(picker())
       fireEvent.click(document.querySelector<HTMLButtonElement>(`button[data-day="${date}"]`)!)
     }
-    expect(phraseInput()).not.toHaveAttribute('aria-invalid')
-    expect(phraseInput()).toHaveValue('')
-    expect(screen.queryByText(messages.habits.form.dateConfirmationRequired)).toBeNull()
-    expect(screen.queryByRole('button', { name: 'habits.form.acceptDate' })).toBeNull()
-    expect(modalFeedback.showError).not.toHaveBeenCalled()
     await submit()
     await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
     const request = expect.objectContaining({ title: 'Read', [type === 'task' ? 'dueDate' : 'startDate']: date })

@@ -27,26 +27,11 @@ describe('HabitFormFields', () => {
     expect(action.querySelector('[data-asset^="astra-mark"]')).toBeInTheDocument()
   })
 
-  it('replaces the date fill glyph with one spinner until its request completes', async () => {
-    let finish!: (value: { date: string | null; referenceDate: string }) => void
-    dateRequests.request.mockImplementation(() => new Promise(resolve => { finish = resolve }))
-    renderForm(createFormHelpers({ itemType: 'habit', title: 'Run', datePhrase: 'after my vacation' }))
-    const action = screen.getByRole('button', { name: 'habits.form.suggestDate' })
-    fireEvent.click(action)
-    expect(action).toHaveAttribute('aria-busy', 'true')
-    expect(action).toHaveAttribute('data-borderless', 'true')
-    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeNull()
-    expect(action.querySelectorAll('svg')).toHaveLength(1)
-    await act(async () => { finish(dateInterpretationSchema.parse({ date: null, referenceDate: '2026-10-20' })) })
-    expect(action).not.toHaveAttribute('aria-busy')
-    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeInTheDocument()
-  })
-
   it('renders every form Astra action without visible text', () => {
     const helpers = createFormHelpers({ itemType: 'habit', title: 'Build a stronger routine', datePhrase: 'after my vacation' })
     const view = renderForm(helpers, vi.fn(() => SETUP_PROPOSAL), false, false, null, undefined, { onSuggestEmoji: vi.fn() })
     const actions = [...view.container.querySelectorAll('button')].filter(button => button.querySelector('[data-asset^="astra-mark"]'))
-    expect(actions).toHaveLength(3)
+    expect(actions).toHaveLength(2)
     for (const action of actions) {
       expect(action.textContent).toBe('')
       expect(action).toHaveAccessibleName()

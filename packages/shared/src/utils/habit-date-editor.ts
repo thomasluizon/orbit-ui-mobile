@@ -16,7 +16,7 @@ interface DateEditorAdapter {
 }
 
 export interface DateEditorSnapshot {
-  candidate: string | null
+  astra: boolean
   pending: boolean
   failure: string | null
   capacity: boolean
@@ -26,14 +26,17 @@ export interface DateEditorSnapshot {
 export class HabitDateEditor {
   private session = new DateInterpretationSession()
   private listeners = new Set<() => void>()
-  private snapshot: DateEditorSnapshot = { candidate: null, pending: false, failure: null, capacity: false, status: 'empty' }
+  private snapshot: DateEditorSnapshot = { astra: false, pending: false, failure: null, capacity: false, status: 'empty' }
   private abort: AbortController | null = null
+  private timer: ReturnType<typeof setTimeout> | null = null
+  private online = false
+  private atLimit = true
   private context = ''
   private appliedRecurrencePhrase: string | null = null
   constructor(private adapter: DateEditorAdapter) {}
   configure(adapter: DateEditorAdapter): void {
     if (adapter.owner !== this.adapter.owner || adapter.generalLocked !== this.adapter.generalLocked) {
-      this.abort?.abort()
+      this.cancel()
       this.session.invalidate()
       this.context = ''
       this.appliedRecurrencePhrase = null
@@ -42,8 +45,34 @@ export class HabitDateEditor {
   }
   subscribe = (listener: () => void): (() => void) => { this.listeners.add(listener); return () => this.listeners.delete(listener) }
   getSnapshot = (): DateEditorSnapshot => this.snapshot
-  open(): void { this.session.open() }
-  close(): void { this.abort?.abort(); this.session.close() }
+  open(): void { this.session.open(); this.scheduleInterpretation() }
+  close(): void { this.cancel(); this.session.close() }
+
+  private cancel(): void {
+    if (this.timer !== null) clearTimeout(this.timer)
+    this.timer = null
+    this.abort?.abort()
+  }
+
+  setAvailability(online: boolean, atLimit: boolean): void {
+    if (online === this.online && atLimit === this.atLimit) return
+    this.online = online
+    this.atLimit = atLimit
+    if (online && atLimit && this.snapshot.pending) return
+    if (!online || atLimit) {
+      this.cancel()
+      this.session.invalidate()
+      this.publish({ pending: false })
+    } else this.scheduleInterpretation()
+  }
+
+  private scheduleInterpretation(): void {
+    if (this.timer !== null || this.snapshot.pending || this.snapshot.astra || !this.online || this.atLimit) return
+    if (!['unsupported', 'ambiguous', 'invalid'].includes(this.snapshot.status)) return
+    const context = this.adapter.context()
+    if (context.type === 'task' && this.readRecurrence(context)) return
+    this.timer = setTimeout(() => { this.timer = null; void this.interpret() }, 700)
+  }
 
   private publish(patch: Partial<DateEditorSnapshot>): void {
     this.snapshot = { ...this.snapshot, ...patch }
@@ -53,23 +82,23 @@ export class HabitDateEditor {
   sync(): void {
     const context = this.adapter.context()
     if (JSON.stringify({ ...context, generalLocked: this.adapter.generalLocked }) === this.context) return
-    this.abort?.abort()
+    this.cancel()
     this.rememberContext()
     if (this.readRecurrence(context)) {
       this.setRecurrenceIssue(context)
-      this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: this.recurrenceStatus(context) })
+      this.publish({ astra: false, pending: false, failure: null, capacity: false, status: this.recurrenceStatus(context) })
       return
     }
     if (context.phrase) {
       this.adapter.write('dateIssue', 'habits.form.dateStale')
     }
-    this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: this.session.parse(context).status })
+    this.publish({ astra: false, pending: false, failure: null, capacity: false, status: this.session.parse(context).status })
   }
 
   setPhrase(phrase: string): void { this.readPhrase(phrase) }
 
   private readPhrase(phrase: string, choosingType = false): void {
-    this.abort?.abort()
+    this.cancel()
     this.session.invalidate()
     this.appliedRecurrencePhrase = null
     this.adapter.write('datePhrase', phrase)
@@ -79,14 +108,16 @@ export class HabitDateEditor {
       this.applyRecurrence(context, choosingType, recurrence)
       this.setRecurrenceIssue(context)
       this.rememberContext()
-      this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: this.recurrenceStatus(context) })
+      this.publish({ astra: false, pending: false, failure: null, capacity: false, status: this.recurrenceStatus(context) })
+      this.scheduleInterpretation()
       return
     }
     const result = this.session.parse(context)
     this.adapter.write('dateIssue', result.status === 'empty' || result.status === 'resolved' ? '' : result.status === 'invalid' ? 'habits.form.dateInvalid' : 'habits.form.datePhraseUnresolved')
     if (result.status === 'resolved') this.adapter.write('dueDate', result.date)
     this.rememberContext()
-    this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: result.status })
+    this.publish({ astra: false, pending: false, failure: null, capacity: false, status: result.status })
+    this.scheduleInterpretation()
   }
 
   private readRecurrence(context: DateInterpretationContext): HabitRecurrencePhrase | null {
@@ -137,19 +168,19 @@ export class HabitDateEditor {
   }
 
   selectDate(date: string): void {
-    this.abort?.abort()
+    this.cancel()
     this.session.invalidate()
     this.adapter.write('dueDate', date)
     this.adapter.write('datePhrase', '')
     this.adapter.write('dateIssue', '')
     this.rememberContext()
-    this.publish({ candidate: null, pending: false, failure: null, capacity: false, status: 'empty' })
+    this.publish({ astra: false, pending: false, failure: null, capacity: false, status: 'empty' })
   }
 
-  async ask(online: boolean, atLimit: boolean): Promise<void> {
+  private async interpret(): Promise<void> {
     const context = this.adapter.context()
-    if (this.readRecurrence(context) && this.recurrenceStatus(context) === 'recurrence') return
-    const ticket = this.session.begin(context, online, atLimit)
+    if (context.type === 'task' && this.readRecurrence(context)) return
+    const ticket = this.session.begin(context, this.online, this.atLimit)
     if (!ticket) return
     const abort = new AbortController()
     this.abort = abort
@@ -161,38 +192,28 @@ export class HabitDateEditor {
         if (this.session.isCurrent(ticket, this.adapter.context())) this.adapter.write('dateIssue', 'habits.form.dateStale')
         return
       }
-      this.adapter.write('dateIssue', result === 'proposed' ? '' : 'habits.form.datePhraseUnresolved')
-      this.publish({ candidate: this.session.candidate?.date ?? null })
+      if (result === 'proposed') this.applyInterpretation()
+      else this.adapter.write('dateIssue', 'habits.form.datePhraseUnresolved')
     } catch (error) {
       if (this.session.isCurrent(ticket, this.adapter.context())) this.publish({ failure: this.adapter.failure(error), capacity: this.adapter.isCapacity(error) })
     } finally {
       this.session.finish(ticket)
-      if (this.session.isCurrent(ticket, this.adapter.context()) || !this.session.pending) this.publish({ pending: false })
+      if (this.abort === abort) this.publish({ pending: false })
     }
   }
 
-  validate(): void {
-    this.sync()
-    if (this.session.candidate) this.adapter.write('dateIssue', 'habits.form.dateConfirmationRequired')
-  }
-
-  accept(): boolean {
+  private applyInterpretation(): void {
     const context = this.adapter.context()
     const recurrence = this.readRecurrence(context)
-    if (recurrence && !this.canApplyRecurrence(context)) {
-      this.session.invalidate()
-      this.setRecurrenceIssue(context)
-      this.publish({ candidate: null })
-      return false
-    }
+    if (recurrence && !this.canApplyRecurrence(context)) return
     const date = this.session.accept(context)
-    if (!date) {
-      this.adapter.write('dateIssue', 'habits.form.dateStale')
-      this.publish({ candidate: null })
-      return false
-    }
+    if (!date) return
     if (recurrence) this.adapter.applyRecurrence(recurrence.schedule)
-    this.selectDate(date)
-    return true
+    this.adapter.write('dueDate', date)
+    this.adapter.write('dateIssue', '')
+    this.rememberContext()
+    this.publish({ astra: true, status: 'resolved' })
   }
+
+  validate(): void { this.sync() }
 }

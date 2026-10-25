@@ -11,11 +11,8 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { DateField } from '@/components/ui/date-field'
 import { Input } from '@/components/ui/input'
-import { Proposed } from '@/components/ui/proposed'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
-import { PillButton } from '@/components/ui/pill-button'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
-import { ActionRow } from '@/components/ui/action-row'
 import { useLocale, useTranslations } from 'next-intl'
 
 function isDateCapacity(error: unknown): boolean {
@@ -27,20 +24,9 @@ function DateCapacity({ visible, message }: Readonly<{ visible: boolean; message
   return <CapacityNotice message={message} />
 }
 
-function DateConsultation({ editor, snapshot }: Readonly<{ editor: HabitDateEditor; snapshot: ReturnType<HabitDateEditor['getSnapshot']> }>) {
-  const t = useTranslations()
-  const { profile } = useProfile()
-  const { isOnline } = useOffline()
-  if (snapshot.candidate) return null
-  const atLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, profile?.aiMessagesLimit ?? 5)
-  const canAsk = snapshot.status === 'unsupported'
+function DateConsultation({ snapshot }: Readonly<{ snapshot: ReturnType<HabitDateEditor['getSnapshot']> }>) {
   return <>
     <DateCapacity visible={snapshot.capacity} message={snapshot.failure} />
-    {canAsk ? <div className="flex min-w-0 flex-col items-start gap-4">
-      {atLimit ? <CapacityNotice message={t('habits.form.aiSuggestLimitReached')} /> : null}
-      <PillButton minimumHeight={48} borderless iconOnly hint={!isOnline ? t('shell.composer.offline.reason') : undefined} label={t('habits.form.suggestDate')} variant="ghost" disabled={!isOnline || atLimit || snapshot.pending || snapshot.capacity} loading={snapshot.pending} onClick={() => void editor.ask(isOnline, atLimit)}><AstraGlyph size={20} /></PillButton>
-      <p className="text-xs text-[var(--fg-3)]">{t('habits.form.askAstraCost', { allowance: profile?.aiMessagesLimit ?? 5 })}</p>
-    </div> : null}
     <p aria-live="polite" className="empty:hidden text-sm text-[var(--status-bad-text)]">{snapshot.capacity ? '' : snapshot.failure ?? ''}</p>
   </>
 }
@@ -49,6 +35,7 @@ function DatedHabitField({ formHelpers, onRecurrence, generalLocked }: Readonly<
   const t = useTranslations()
   const locale = useLocale()
   const { profile } = useProfile()
+  const { isOnline } = useOffline()
   const interpretation = useDateInterpretation()
   const { form, registerDateValidation } = formHelpers
   const phrase = form.watch('datePhrase') ?? ''
@@ -56,7 +43,6 @@ function DatedHabitField({ formHelpers, onRecurrence, generalLocked }: Readonly<
   const issue = form.watch('dateIssue') ?? ''
   const type = form.watch('itemType')
   const timeZone = profile?.timeZone
-  const [dateFocusRequest, setDateFocusRequest] = useState(0)
   const context = () => {
     const values = form.getValues()
     return { account: getAccountGeneration(), locale, timeZone,
@@ -76,7 +62,7 @@ function DatedHabitField({ formHelpers, onRecurrence, generalLocked }: Readonly<
   }
   const [editor] = useState(() => new HabitDateEditor(adapter))
   const snapshot = useSyncExternalStore(editor.subscribe, editor.getSnapshot, editor.getSnapshot)
-  useLayoutEffect(() => { editor.configure(adapter); editor.sync() })
+  useLayoutEffect(() => { editor.configure(adapter); editor.sync(); editor.setAvailability(isOnline, isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, profile?.aiMessagesLimit ?? 5)) })
   useLayoutEffect(() => registerDateValidation(() => editor.validate(), () => editor.chooseType()), [editor, registerDateValidation])
   useEffect(() => { editor.open(); return () => editor.close() }, [editor])
   useEffect(() => {
@@ -88,19 +74,14 @@ function DatedHabitField({ formHelpers, onRecurrence, generalLocked }: Readonly<
   const dateLabel = t(type === 'habit' ? 'habits.form.habitStartDate' : 'habits.form.taskDate')
   const validationError = form.formState.errors.datePhrase?.message
   const error = issue || validationError
-  const accept = () => { editor.accept(); setDateFocusRequest((request) => request + 1) }
   if (formHelpers.isGeneral) return issue === 'errors.api.generalMismatchWithParent' ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t(issue)}</p> : null
   return <section data-habit-date-field="" className="flex min-w-0 flex-col gap-4">
-    <Input label={t('habits.form.datePhrase')} placeholder={t('habits.form.datePhrasePlaceholder')} hint={t(type === 'habit' ? 'habits.form.habitDateQuestion' : 'habits.form.taskDateQuestion')} name="datePhrase" autoComplete="off" value={phrase} error={error ? t(error) : undefined} focusRequest={validationError && issue !== 'habits.form.recurrenceRequiresHabit' ? formHelpers.validationFocusRequest : undefined} onChange={(value) => editor.setPhrase(value)} />
+    <Input label={t('habits.form.datePhrase')} placeholder={t('habits.form.datePhrasePlaceholder')} hint={t(type === 'habit' ? 'habits.form.habitDateQuestion' : 'habits.form.taskDateQuestion')} trailing={snapshot.pending || snapshot.astra ? <span role="status" aria-label={t(snapshot.pending ? 'habits.form.dateInterpreting' : 'habits.form.dateInterpreted')}><AstraGlyph size={16} color="var(--fg-3)" /></span> : undefined} name="datePhrase" autoComplete="off" value={phrase} error={error ? t(error) : undefined} focusRequest={validationError && issue !== 'habits.form.recurrenceRequiresHabit' ? formHelpers.validationFocusRequest : undefined} onChange={(value) => editor.setPhrase(value)} />
     <div className="flex min-w-0 flex-col gap-2">
       <span className="form-label">{dateLabel}</span>
-      <Proposed keepMounted inset proposed={Boolean(snapshot.candidate)} scope="field" label={t('habits.form.dateProposed')}>
-        <DateField appearance={snapshot.candidate ? 'proposed' : 'normal'} label={dateLabel} value={snapshot.candidate ?? date} onChange={(value) => editor.selectDate(value)} focusRequest={dateFocusRequest} />
-      </Proposed>
-      {snapshot.candidate ? <p role="status" className="text-sm leading-[1.5] text-[var(--fg-3)]">{t('habits.form.dateProposed')}</p> : null}
+      <DateField label={dateLabel} value={date} onChange={(value) => editor.selectDate(value)} />
     </div>
-    {snapshot.candidate ? <ActionRow><PillButton variant="ghost" onClick={accept}>{t('habits.form.acceptDate')}</PillButton></ActionRow> : null}
-    <DateConsultation editor={editor} snapshot={snapshot} />
+    <DateConsultation snapshot={snapshot} />
   </section>
 }
 
