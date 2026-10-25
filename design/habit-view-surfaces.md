@@ -48,3 +48,10 @@ The wrapper measures the full available list width for drill limits; a drill res
 children to depth 0. Web Chromium Vitest and Android Yoga composition tests measure the card
 edges and family gaps with selection, nested parents, descriptions and enlarged text. Habit
 detail uses the same card inset at depth 1 and retains its 12px child-row separation.
+
+Shared leading-edge checks apply within each visible depth. Root titles retain the proactive
+sentence edge; child titles, wells and metadata move together with their card. Header composition
+tests retain that guarantee at 320, 384 and 600 with normal and 200% text and selection on and off,
+including exact card widths, trailing edges and 8px family versus 12px root-family gaps.
+The hermetic drill, detail and preview cases keep the same internal 8px inset after scale changes;
+depth affects the card offset and available width rather than adding internal padding.

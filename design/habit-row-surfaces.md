@@ -22,6 +22,15 @@ Both platforms retain row minimum heights, typography, emoji wells, disclosure, 
 
 Web Vitest measures the production row with compiled CSS at 320, 412 and 1352, in both themes, at normal and 200% text. It measures the child card edge 16px inside its parent, equal trailing edges, uniform 8px inner padding, an 8px inter-card gap, and the visible check, inset outline token, zero layout borders, row fill, zero and partial parent progress and focus. The paired list suites cover Hoje, Todos, Geral, drill resets and selection with leaf and parent children. Android Vitest mounts the row across the same width, theme and text-scale axes and measures the card edge, reduced width, uniform inner padding and inter-card spacing through Yoga alongside the noninteractive absolute outline, zero body border width, accessible parent counts, state colours and focus. Habit detail composition tests measure its single 16px card inset and 8px inner padding and retain the group spacing and native fill coverage. The hermetic layout workflow measures production web child wells in both locales and themes at normal and 200% text. Device rendering and whole-screen visual inspection remain outside the component tests.
 
+Hoje header composition tests at 320, 384 and 600, at normal and 200% text with selection
+on and off, retain the shared root title and proactive-sentence edge. Cards, wells, titles and
+metadata share edges within each depth; successive depths move the whole card by 16px while
+preserving its trailing edge and 8px inner padding. The compositions measure 8px family gaps
+and 12px root-family gaps. The hermetic indentation and preview assertions measure offsets
+against the unpainted wrapper and check equal title and well edges among peers at one depth.
+Measurement-settlement Vitest uses that same geometry contract after root-font replacement
+and delayed hydration; its child well inset is 8px inside an already indented card.
+
 ## Item type metadata
 
 The shared row owners render `Tarefa` / `Task` or `Hábito` / `Habit` once as the first
