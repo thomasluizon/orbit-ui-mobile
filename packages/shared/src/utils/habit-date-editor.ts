@@ -165,6 +165,7 @@ export class HabitDateEditor {
     const context = this.adapter.context()
     if (this.readRecurrence(context) || readDateWeekday(context.phrase) !== null) this.readPhrase(context.phrase, true)
     else this.sync()
+    this.scheduleInterpretation()
   }
 
   selectDate(date: string): void {

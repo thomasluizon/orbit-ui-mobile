@@ -210,6 +210,21 @@ describe('habit date editor lifecycle', () => {
 })
 
 describe('automatic date interpretation', () => {
+  it('interprets retained wording after the person chooses the task type', async () => {
+    const { editor, context, requests, fields } = createEditor({ type: null })
+    editor.setAvailability(true, false)
+    editor.setPhrase('next holiday')
+    await debounce()
+    expect(requests).toHaveLength(0)
+    context.type = 'task'
+    editor.chooseType()
+    await debounce()
+    expect(requests).toHaveLength(1)
+    requests[0]!.resolve(interpretation)
+    await debounce()
+    expect(fields.dueDate).toBe('2026-10-26')
+  })
+
   it('fills the final allowed request when its allowance refresh reaches the limit', async () => {
     const { editor, fields, requests } = createEditor()
     editor.setAvailability(true, false)
