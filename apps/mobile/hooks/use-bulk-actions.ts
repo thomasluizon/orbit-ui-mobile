@@ -1,7 +1,7 @@
 import { useState, useCallback, useLayoutEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { HabitResolutionMode } from '@orbit/shared/utils'
-import { executeBulkMoveParent, getFailedBulkHabitIds, isBulkCompletionAllowed, type BulkActionsOptions, type BulkResultItem } from '@orbit/shared/hooks'
+import { executeBulkMoveParent, getBulkActionFailures, isBulkCompletionAllowed, type BulkActionsOptions, type BulkResultItem } from '@orbit/shared/hooks'
 import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits, useBulkMoveHabitParent } from '@/hooks/use-habits'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -39,11 +39,8 @@ export function useBulkActions({
     outcome: BulkActionOutcome,
     retry: (ids: string[]) => void,
   ) => {
+    const { retryIds, reasonKeys } = getBulkActionFailures(outcome.results)
     const offlineFailureIds = outcome.offlineFailureIds ?? []
-    const failedIds = Array.from(new Set([
-      ...getFailedBulkHabitIds(outcome.results),
-      ...offlineFailureIds,
-    ]))
     if (outcome.ambiguousIds?.length) {
       showToast({
         kind: 'neutral',
@@ -51,22 +48,16 @@ export function useBulkActions({
       })
     }
     const queuedIds = outcome.queuedIds ?? []
-    if (failedIds.length === 0 && queuedIds.length === 0) return onSuccess()
-    onPartialFailure([...new Set([...failedIds, ...queuedIds])])
-    if (failedIds.length === 0) return
-    if (offlineFailureIds.length > 0) {
-      showToast({
-        kind: 'neutral',
-        message: t('habits.bulkBar.offlineFailure'),
-      })
-      return
-    }
-    showToast({
-      kind: 'neutral',
-      message: t('habits.bulkBar.partialFailure', { count: failedIds.length }),
-      actionLabel: t('habits.bulkBar.retryFailed'),
-      onAction: () => retry(failedIds),
-    })
+    const selectedIds = [...new Set([...retryIds, ...offlineFailureIds, ...queuedIds])]
+    if (selectedIds.length === 0) onSuccess()
+    else onPartialFailure(selectedIds)
+    const messages = reasonKeys.map((key) => t(key))
+    if (offlineFailureIds.length > 0) messages.push(t('habits.bulkBar.offlineFailure'))
+    if (retryIds.length > 0) messages.push(t('habits.bulkBar.partialFailure', { count: retryIds.length }))
+    if (messages.length === 0) return
+    const toast = { kind: 'neutral' as const, message: messages.join('\n') }
+    if (retryIds.length === 0) showToast(toast)
+    else showToast({ ...toast, actionLabel: t('habits.bulkBar.retryFailed'), onAction: () => retry(retryIds) })
   }, [onPartialFailure, onSuccess, showToast, t])
 
   const applyBulkMutationSuccesses = useCallback(

@@ -1,5 +1,6 @@
+import { i18n } from '@/lib/i18n'
 import React from 'react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import type { HabitListHandle } from '@/components/habit-list'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -14,18 +15,11 @@ const bulkMove = { mutateAsync: vi.fn() }
 const showToast = vi.fn()
 const VIEWED_DATE = '2026-04-01'
 
-vi.mock('react-i18next', async () => {
-  const messages = (await import('@orbit/shared/i18n/en.json')).default
-  const translate = (key: string) => {
-    let value: unknown = messages
-    for (const segment of key.split('.')) {
-      if (typeof value !== 'object' || value === null || !(segment in value)) return key
-      value = (value as Record<string, unknown>)[segment]
-    }
-    return typeof value === 'string' ? value : key
-  }
+afterEach(async () => { await i18n.changeLanguage('en') })
 
-  return { useTranslation: () => ({ t: translate }) }
+vi.mock('react-i18next', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-i18next')>()
+  return { ...actual, useTranslation: () => ({ t: i18n.t.bind(i18n) }) }
 })
 
 vi.mock('@/hooks/use-habits', () => ({
@@ -237,6 +231,67 @@ describe('useBulkActions reversibility boundary', () => {
     bulkDelete.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1']))
     bulkLog.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
     bulkSkip.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
+  })
+
+  it.each([
+    { locale: 'en', reason: 'This habit is not due yet on that date.', message: '2 selected rows could not be updated.' },
+    { locale: 'pt-BR', reason: 'Este hábito ainda não está disponível nessa data.', message: 'Não foi possível atualizar 2 linhas selecionadas.' },
+  ])('retries only transient rows from a mixed skip and explains the permanent reason in $locale', async ({ locale, reason, message }) => {
+    await i18n.changeLanguage(locale)
+    bulkSkip.mutateAsync.mockResolvedValueOnce({ results: [
+      { index: 0, status: 'Failed', habitId: 'permanent', error: 'Not due', errorCode: 'HABIT_NOT_YET_DUE' },
+      { index: 1, status: 'Failed', habitId: 'retry-a', error: 'Conflict', errorCode: 'CONCURRENT_UPDATE_CONFLICT' },
+      { index: 2, status: 'Failed', habitId: 'retry-b', error: 'Server failed', errorCode: 'MUTATION_FAILED' },
+      { index: 3, status: 'Success', habitId: 'done', error: null, errorCode: null },
+    ] }).mockResolvedValueOnce(bulkSuccess(['retry-a', 'retry-b']))
+    const { captured, onPartialFailure, onSuccess, settleBulkHabitResolutions } = renderBulkActions(new Set(['permanent', 'retry-a', 'retry-b', 'done']))
+    await TestRenderer.act(async () => { await captured.current!.confirmBulkSkip() })
+    expect(onPartialFailure).toHaveBeenCalledWith(['retry-a', 'retry-b'])
+    expect(settleBulkHabitResolutions).toHaveBeenCalledWith([{ habitId: 'done', mode: 'skip' }], VIEWED_DATE)
+    expect(showToast.mock.calls[0]?.[0]?.message).toBe(`${reason}\n${message}`)
+    const retry = showToast.mock.calls[0]?.[0]?.onAction as (() => void)
+    await TestRenderer.act(async () => { retry(); await Promise.resolve() })
+    expect(bulkSkip.mutateAsync).toHaveBeenLastCalledWith([
+      { habitId: 'retry-a', date: VIEWED_DATE }, { habitId: 'retry-b', date: VIEWED_DATE },
+    ])
+    expect(onSuccess).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    { locale: 'en', reason: 'This habit is already done for that date.' },
+    { locale: 'pt-BR', reason: 'Este hábito já foi feito nessa data.' },
+  ])('clears a permanently rejected skip and explains it without Retry in $locale', async ({ locale, reason }) => {
+    await i18n.changeLanguage(locale)
+    bulkSkip.mutateAsync.mockResolvedValueOnce({ results: [
+      { index: 0, status: 'Failed', habitId: 'h-1', error: 'Already completed', errorCode: 'HABIT_ALREADY_COMPLETED' },
+    ] })
+    const { captured, onSuccess, onPartialFailure } = renderBulkActions(new Set(['h-1']))
+    await TestRenderer.act(async () => { await captured.current!.confirmBulkSkip() })
+    expect(onSuccess).toHaveBeenCalledOnce()
+    expect(onPartialFailure).not.toHaveBeenCalled()
+    expect(showToast).toHaveBeenCalledWith({ kind: 'neutral', message: reason })
+    await i18n.changeLanguage('en')
+  })
+
+  it.each([
+    { locale: 'en', message: '1 selected row could not be updated.' },
+    { locale: 'pt-BR', message: 'Não foi possível atualizar 1 linha selecionada.' },
+  ])('keeps only transient skip failures selected with a singular Retry message in $locale', async ({ locale, message }) => {
+    await i18n.changeLanguage(locale)
+    bulkSkip.mutateAsync.mockResolvedValueOnce({ results: [
+      { index: 0, status: 'Success', habitId: 'h-1', error: null, errorCode: null },
+      { index: 1, status: 'Failed', habitId: 'h-2', error: 'Mutation failed', errorCode: 'MUTATION_FAILED' },
+    ] }).mockResolvedValueOnce(bulkSuccess(['h-2']))
+    const { captured, onSuccess, onPartialFailure } = renderBulkActions(new Set(['h-1', 'h-2']))
+    await TestRenderer.act(async () => { await captured.current!.confirmBulkSkip() })
+    expect(onPartialFailure).toHaveBeenCalledWith(['h-2'])
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(showToast.mock.calls[0]?.[0]?.message).toBe(message)
+    const retry = showToast.mock.calls[0]?.[0]?.onAction as (() => void)
+    expect(retry).toBeTypeOf('function')
+    await TestRenderer.act(async () => { retry(); await Promise.resolve() })
+    expect(bulkSkip.mutateAsync).toHaveBeenLastCalledWith([{ habitId: 'h-2', date: VIEWED_DATE }])
+    await i18n.changeLanguage('en')
   })
 
   it.each([

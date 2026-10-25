@@ -1,5 +1,6 @@
 import type { BulkMoveHabitParentResult, NormalizedHabit } from '../types/habit'
 import { formatAPIDateInTimeZone } from '../utils/dates'
+import { getFriendlyErrorKey } from '../utils/error-utils'
 import { getTodayBoundary } from '../utils/today-date'
 import type { HabitResolution } from '../utils/habit-list-progress'
 
@@ -14,7 +15,27 @@ export interface BulkActionsOptions {
   onPartialFailure: (failedIds: string[]) => void
 }
 
-export interface BulkResultItem { status: string; habitId: string }
+export interface BulkResultItem { status: string; habitId: string; errorCode?: string | null }
+
+const permanentBulkErrorCodes = new Set([
+  'CANNOT_SKIP_FUTURE_DATE', 'BEYOND_OVERDUE_WINDOW', 'HABIT_NOT_FOUND',
+  'HABIT_ALREADY_COMPLETED', 'HABIT_NOT_YET_DUE', 'NOT_SCHEDULED_ON_DATE',
+  'ALL_INSTANCES_DONE', 'NOT_FLEXIBLE_HABIT', 'CANNOT_SKIP_ONE_TIME',
+])
+
+export function getBulkActionFailures(results: readonly BulkResultItem[]): { retryIds: string[]; reasonKeys: string[] } {
+  const retryIds = new Set<string>()
+  const reasonKeys = new Set<string>()
+  for (const result of results) {
+    if (result.status !== 'Failed') continue
+    if (result.errorCode && permanentBulkErrorCodes.has(result.errorCode)) {
+      reasonKeys.add(getFriendlyErrorKey(result, 'errors.api.skipNotAllowed'))
+    } else {
+      retryIds.add(result.habitId)
+    }
+  }
+  return { retryIds: [...retryIds], reasonKeys: [...reasonKeys] }
+}
 
 export function isBulkCompletionAllowed(
   currentPermission: { completionReadOnly: boolean; selectedDateStr: string },
