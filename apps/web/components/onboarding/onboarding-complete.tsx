@@ -1,5 +1,7 @@
 'use client'
 
+import { mediaQueryMatches } from '@/lib/media-query'
+
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { getOnboardingCompleteCopy } from '@orbit/shared/utils'
@@ -23,7 +25,7 @@ function LandingRing() {
   const [swept, setSwept] = useState(false)
   useEffect(() => {
     const circle = accentRef.current
-    if (!circle || typeof circle.animate !== 'function' || globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (!circle || typeof circle.animate !== 'function' || mediaQueryMatches('(prefers-reduced-motion: reduce)', true)) {
       setSwept(true)
       return
     }

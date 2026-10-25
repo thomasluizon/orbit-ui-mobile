@@ -1,5 +1,7 @@
 'use client'
 
+import { getMediaQuery, mediaQueryMatches } from '@/lib/media-query'
+
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
 import { animate, motion, useMotionValue } from 'motion/react'
@@ -17,11 +19,12 @@ import { useCelebrationPresentation } from './use-celebration-presentation'
 
 const reduceQuery = '(prefers-reduced-motion: reduce)'
 function subscribeReducedMotion(listener: () => void) {
-  const query = window.matchMedia(reduceQuery)
+  const query = getMediaQuery(reduceQuery)
+  if (!query) return () => {}
   query.addEventListener('change', listener)
   return () => query.removeEventListener('change', listener)
 }
-function readReducedMotion() { return window.matchMedia(reduceQuery).matches }
+function readReducedMotion() { return mediaQueryMatches(reduceQuery, true) }
 function serverReducedMotion() { return true }
 
 function getCelebrationCopy(

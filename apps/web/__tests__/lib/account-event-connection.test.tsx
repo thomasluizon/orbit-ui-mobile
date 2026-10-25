@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs'
 import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
@@ -11,6 +12,8 @@ import { buildSessionRefreshHeaders } from '@/lib/session-refresh'
 import { API } from '@orbit/shared/api'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { getAccountEventOrigin, setAccountEventOrigin } from '@/lib/account-event-origin'
+
+vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }))
 
 const invalidateQueries = vi.fn()
 const queryClientState = vi.hoisted(() => ({ current: null as QueryClient | null }))
@@ -497,6 +500,57 @@ it('stops requesting event tickets after a confirmed refresh rejection', async (
     }
     expect(fetchMock.mock.calls.filter(([url]) => url === API.events.ticket)).toHaveLength(1)
     expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: false, sessionRefreshFailed: true })
+  } finally {
+    view.unmount()
+    vi.useRealTimers()
+  }
+})
+
+it('reopens a visible authenticated stream after a transient ticket refusal recovers', async () => {
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+  const capture = vi.mocked(Sentry.captureException)
+  capture.mockClear()
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(new Response(null, { status: 401 }))
+    .mockResolvedValueOnce(Response.json({ ticket: 'recovered-ticket', apiBase: 'https://api.example.test' }))
+    .mockResolvedValueOnce(new Response(new ReadableStream<Uint8Array>({ start() {} })))
+  vi.stubGlobal('fetch', fetchMock)
+  vi.useFakeTimers()
+  const view = render(<AccountEventConnection />)
+  try {
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1999) })
+    expect(fetchMock).toHaveBeenCalledOnce()
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(API.events.ticket)
+    expect(String(fetchMock.mock.calls[2]?.[0])).toBe('https://api.example.test/api/events?ticket=recovered-ticket')
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(capture).not.toHaveBeenCalled()
+  } finally {
+    view.unmount()
+    vi.useRealTimers()
+  }
+})
+
+it.each([401, 429, 500])('handles event ticket status %i at the connection boundary', async (status) => {
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+  const capture = vi.mocked(Sentry.captureException)
+  capture.mockClear()
+  const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status, headers: { 'Retry-After': '60' } }))
+  vi.stubGlobal('fetch', fetchMock)
+  vi.useFakeTimers()
+  const view = render(<AccountEventConnection />)
+  try {
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(capture).toHaveBeenCalledTimes(status === 500 ? 1 : 0)
+    await act(async () => { await vi.advanceTimersByTimeAsync(59_999) })
+    expect(fetchMock).toHaveBeenCalledOnce()
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(capture).toHaveBeenCalledTimes(status === 500 ? 1 : 0)
   } finally {
     view.unmount()
     vi.useRealTimers()

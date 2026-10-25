@@ -261,3 +261,21 @@ it.each([true, false])('keeps an optional static header outside the action focus
   expect(screen.getAllByRole('menuitem')).toHaveLength(1)
   await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Sign out' })).toHaveFocus())
 })
+
+it('uses the compact menu when matchMedia is unavailable', async () => {
+  const descriptor = Object.getOwnPropertyDescriptor(window, 'matchMedia')!
+  Object.defineProperty(window, 'matchMedia', { configurable: true, value: undefined })
+  try {
+    const onSelect = vi.fn()
+    render(<Example onSelect={onSelect} />)
+    await openMenu()
+    expect(await screen.findByRole('menu', { name: 'Habit actions' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Habit actions' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Edit' }))
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith('edit')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'More' })).toHaveFocus())
+  } finally {
+    Object.defineProperty(window, 'matchMedia', descriptor)
+  }
+})

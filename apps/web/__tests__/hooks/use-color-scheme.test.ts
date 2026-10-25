@@ -359,4 +359,17 @@ describe('useColorScheme', () => {
     expect(mock).not.toHaveBeenCalled()
     expect(result.current.currentTheme).toBe('light')
   })
+  it('saves the default theme when matchMedia is unavailable at first login', async () => {
+    const { updateThemePreference } = await import('@/lib/actions/profile')
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'matchMedia')!
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: undefined })
+    try {
+      const { result } = renderHook(() => useColorScheme())
+      act(() => result.current.detectAndSaveThemeIfNeeded(null))
+      expect(updateThemePreference).toHaveBeenLastCalledWith({ themePreference: 'dark' }, null)
+      expect(result.current.currentTheme).toBe('dark')
+    } finally {
+      Object.defineProperty(window, 'matchMedia', descriptor)
+    }
+  })
 })

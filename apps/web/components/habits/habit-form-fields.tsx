@@ -1,5 +1,7 @@
 'use client'
 
+import * as Sentry from '@sentry/nextjs'
+
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 
 import { X } from '@/components/ui/icons'
@@ -24,6 +26,7 @@ import { toTime24,
   coalesceFormText,
   formatHabitReminderLabel,
   getFriendlyErrorMessage,
+  extractBackendStatus,
   isHabitDailySchedule,
   isHabitAstraLimitReached,
   readTypedHabitPhrase,
@@ -451,6 +454,15 @@ export function HabitFormFields({
     }
   }
 
+  async function deleteExistingTag(id: string) {
+    try {
+      await tags.deleteTag(id, async (tagId) => { await deleteTag.mutateAsync(tagId) })
+    } catch (error: unknown) {
+      showError(getFriendlyErrorMessage(error, translate, 'toast.errors.unknown', 'tag'))
+      if (extractBackendStatus(error) !== 409) Sentry.captureException(error)
+    }
+  }
+
   async function saveEditedTag() {
     try {
       await tags.saveEditTag(async (id, name, color) => { await updateTag.mutateAsync({ tagId: id, name, color }) })
@@ -580,7 +592,7 @@ export function HabitFormFields({
             <HabitAvoidanceFields formHelpers={formHelpers} controller={controller} hasProAccess={hasProAccess} />
             {parentField}
             <section>
-              <TagPickerField suggestions={<TagSuggestions suggestions={tagSuggestions} atLimit={tags.atTagLimit} disabled={tagMutationPending} />} tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void tags.deleteTag(id, (tagId) => deleteTag.mutateAsync(tagId))} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? (
+              <TagPickerField suggestions={<TagSuggestions suggestions={tagSuggestions} atLimit={tags.atTagLimit} disabled={tagMutationPending} />} tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void deleteExistingTag(id)} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? (
                 <TagEditorRow
                   error={newTagErrors.fieldErrors.name}
                   focusRequest={newTagErrors.focusRequest}
