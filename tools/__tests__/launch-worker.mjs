@@ -91,6 +91,7 @@ const readFileContents = (path) => {
 }
 
 const waitForFile = (path, expectedContents, writerResult) => {
+  const timeoutMs = 60000
   const initialContents = readFileContents(path)
   if (initialContents === expectedContents) return Promise.resolve()
   if (initialContents !== null) return Promise.reject(new Error(`observed incomplete contents in ${path}: ${JSON.stringify(initialContents)}`))
@@ -99,6 +100,7 @@ const waitForFile = (path, expectedContents, writerResult) => {
     const finish = (error) => {
       if (settled) return
       settled = true
+      clearTimeout(deadline)
       watcher.close()
       if (error) reject(error)
       else resolve()
@@ -112,6 +114,7 @@ const waitForFile = (path, expectedContents, writerResult) => {
       }
       finish()
     })
+    const deadline = setTimeout(() => finish(new Error(`writer did not publish ${path} within ${timeoutMs}ms`)), timeoutMs)
     writerResult?.then((result) => {
       finish(new Error(`writer exited before publishing ${path}: ${result.stderr || result.stdout}`))
     }, finish)
@@ -253,6 +256,88 @@ descendant.once("spawn", () => process.send(descendant.pid))
   }
   T(`${TOOL}: the occupied fixture cleans up its worker process tree`,
     !processIsRunning(child.pid) && !processIsRunning(descendantPid))
+}
+
+const checkKilledLauncherBeforePublication = async () => {
+  const gateWorkerPidFile = stage("launch-worker/gate-worker.pid", "")
+  rmSync(gateWorkerPidFile)
+  const gateWorker = stage("launch-worker/gate-worker.js", `require('node:fs').writeFileSync(${JSON.stringify(gateWorkerPidFile)}, String(process.pid))\n`)
+  const gateLaunch = launch("post-spawn-gate", launchConfig(stubEngine(gateWorker)))
+  const gateArgv = ["--issue", "ORB-201", "--worktree", gateLaunch.worktree, "--prompt", gateLaunch.prompt]
+  const gateClaim = join(gateLaunch.worktree, ".git", "orbit-worker-launches", "occupied-worktree.json")
+  const gatePause = stage("launch-worker/gate-pause", "")
+  const gateReady = stage("launch-worker/gate-ready", "")
+  const heldReservation = stage("launch-worker/held-reservation.json", "")
+  rmSync(gatePause)
+  rmSync(gateReady)
+  const gatePreload = stage("launch-worker/gate-preload.cjs", `
+const fs = require('node:fs')
+const { syncBuiltinESMExports } = require('node:module')
+const claim = ${JSON.stringify(gateClaim)}
+const marker = ${JSON.stringify(gatePause)}
+const ready = ${JSON.stringify(gateReady)}
+const heldReservation = ${JSON.stringify(heldReservation)}
+const originalWrite = fs.writeFileSync
+const originalRename = fs.renameSync
+const publish = (path, contents) => {
+  const unpublished = path + '.' + process.pid + '.unpublished'
+  originalWrite(unpublished, contents)
+  originalRename(unpublished, path)
+}
+if (process.argv[1]?.endsWith('worker-gate.cjs')) {
+  // The gate has installed its IPC listeners before this callback runs.
+  setImmediate(() => publish(ready, 'ready'))
+}
+fs.renameSync = (source, destination) => {
+  if (destination === claim) {
+    publish(heldReservation, fs.readFileSync(source, 'utf8'))
+    publish(marker, 'paused')
+    // Only launcher death may end this pause; runner scheduling cannot release the worker.
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
+  }
+  return originalRename(source, destination)
+}
+syncBuiltinESMExports()
+`)
+  const gateEnv = githubAuthEnv()
+  const pausedLaunch = launchAsync(gateLaunch.path, gateArgv, { ...gateEnv, NODE_OPTIONS: `${gateEnv.NODE_OPTIONS} --require "${gatePreload.replaceAll("\\", "/")}"` })
+  let gatePid
+  let pendingSource
+  try {
+    await waitForFile(gatePause, "paused", pausedLaunch.result)
+    gatePid = JSON.parse(readFileSync(heldReservation, "utf8")).workerPid
+    await waitForFile(gateReady, "ready", pausedLaunch.result)
+    // Delay consumption beyond the former finite hold to exercise a descheduled runner.
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 31000)
+    const reservation = JSON.parse(readFileSync(gateClaim, "utf8"))
+    pendingSource = JSON.parse(readFileSync(join(gateLaunch.base, ".git", "orbit-wake-sources", `${pausedLaunch.child.pid}.json`), "utf8"))
+    T(`${TOOL}: the launcher stays paused before PID publication even when the runner is delayed`,
+      processIsRunning(pausedLaunch.child.pid) && processIsRunning(gatePid) &&
+      reservation.launcherPid === pausedLaunch.child.pid && reservation.workerPid === undefined &&
+      pendingSource.pending === true && pendingSource.workerPid === null && !existsSync(gateWorkerPidFile),
+      JSON.stringify({ reservation, pendingSource, gatePid, workerStarted: existsSync(gateWorkerPidFile) }))
+    pausedLaunch.child.kill("SIGKILL")
+    await pausedLaunch.result
+    const gateExitDeadline = Date.now() + 10000
+    while (processIsRunning(gatePid) && Date.now() < gateExitDeadline) await new Promise((resolve) => setTimeout(resolve, 20))
+    const workerStartedBeforeRelaunch = existsSync(gateWorkerPidFile)
+    T(`${TOOL}: launcher death closes the unreleased gate without starting the engine`,
+      !processIsRunning(gatePid) && !workerStartedBeforeRelaunch,
+      JSON.stringify({ gatePid, workerStartedBeforeRelaunch }))
+    const afterDeath = run(TOOL, gateArgv, { path: gateLaunch.path, env: githubAuthEnv() })
+    discardLog(afterDeath.stdout)
+    const wakeStates = readWakeSourceStates(gateLaunch.base)
+    T(`${TOOL}: a killed launcher before PID publication cannot start a worker or strand admission`,
+      !workerStartedBeforeRelaunch && afterDeath.status === 0 && existsSync(gateWorkerPidFile) &&
+      !existsSync(gateClaim) && wakeStates.live.length === 0 && wakeStates.orphaned.length === 0,
+      JSON.stringify({ workerStartedBeforeRelaunch, ...afterDeath, wakeStates }))
+  } finally {
+    pausedLaunch.child.kill("SIGKILL")
+    await pausedLaunch.result
+    if (processIsRunning(gatePid)) process.kill(gatePid, "SIGKILL")
+    if (pendingSource?.logFile) rmSync(pendingSource.logFile, { force: true })
+    clearWorkerLaunchReservation(pausedLaunch.child.pid, gateLaunch.worktree)
+  }
 }
 
 export const cases = async () => {
@@ -462,54 +547,7 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
   await lifecycleCases({
     launch, launchConfig, stubEngine, githubAuthEnv, discardLog, readFileContents, launchAsync, IMMEDIATE, SLEEPER,
   })
-  const gateWorkerPidFile = stage("launch-worker/gate-worker.pid", "")
-  rmSync(gateWorkerPidFile)
-  const gateWorker = stage("launch-worker/gate-worker.js", `require('node:fs').writeFileSync(${JSON.stringify(gateWorkerPidFile)}, String(process.pid)); setTimeout(() => {}, 60000)\n`)
-  const gateLaunch = launch("post-spawn-gate", launchConfig({ ...stubEngine(gateWorker), timeouts: { hardCeilingMinutes: 0.03, noProgressMinutes: 5, pollSeconds: 0.2 } }))
-  const gateArgv = ["--issue", "ORB-201", "--worktree", gateLaunch.worktree, "--prompt", gateLaunch.prompt]
-  const gateClaim = join(gateLaunch.worktree, ".git", "orbit-worker-launches", "occupied-worktree.json")
-  const gatePause = stage("launch-worker/gate-pause", "")
-  rmSync(gatePause)
-  const gatePreload = stage("launch-worker/gate-preload.cjs", `
-const fs = require('node:fs')
-const { syncBuiltinESMExports } = require('node:module')
-const claim = ${JSON.stringify(gateClaim)}
-const marker = ${JSON.stringify(gatePause)}
-const originalWrite = fs.writeFileSync
-const originalRename = fs.renameSync
-const hold = () => {
-  originalWrite(marker, 'paused')
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 30000)
-}
-fs.writeFileSync = (path, ...args) => {
-  if (path === claim) hold()
-  return originalWrite(path, ...args)
-}
-fs.renameSync = (source, destination) => {
-  if (destination === claim) hold()
-  return originalRename(source, destination)
-}
-syncBuiltinESMExports()
-`)
-  const gateEnv = githubAuthEnv()
-  const pausedLaunch = launchAsync(gateLaunch.path, gateArgv, { ...gateEnv, NODE_OPTIONS: `${gateEnv.NODE_OPTIONS} --require "${gatePreload}"` })
-  await waitForFile(gatePause, "paused", pausedLaunch.result)
-  const gateStartDeadline = Date.now() + 1500
-  while (!existsSync(gateWorkerPidFile) && Date.now() < gateStartDeadline) await new Promise((resolve) => setTimeout(resolve, 20))
-  const workerStartedBeforePublication = existsSync(gateWorkerPidFile)
-  const firstGateWorkerPid = workerStartedBeforePublication ? Number(readFileSync(gateWorkerPidFile, "utf8")) : null
-  pausedLaunch.child.kill("SIGKILL")
-  await pausedLaunch.result
-  const afterDeath = run(TOOL, gateArgv, { path: gateLaunch.path, env: githubAuthEnv() })
-  T(`${TOOL}: a killed launcher before PID publication cannot start a worker or strand admission`,
-    !workerStartedBeforePublication && afterDeath.status !== 2,
-    JSON.stringify({ workerStartedBeforePublication, status: afterDeath.status, stderr: afterDeath.stderr }))
-  discardLog(afterDeath.stdout)
-  if (existsSync(gateWorkerPidFile)) {
-    const pid = Number(readFileSync(gateWorkerPidFile, "utf8"))
-    if (processIsRunning(pid)) process.kill(pid)
-  }
-  if (firstGateWorkerPid && processIsRunning(firstGateWorkerPid)) process.kill(firstGateWorkerPid)
+  await checkKilledLauncherBeforePublication()
   const cappedArgs = ["--issue", "ORB-201", "--worktree", capped.worktree, "--prompt", capped.prompt]
   const firstLaunch = check(TOOL, "the first launch below the branch cap succeeds", cappedArgs, { status: 0 }, { path: capped.path, env: githubAuthEnv() })
   const secondLaunch = check(TOOL, "the second launch at the branch cap succeeds", [...cappedArgs, "--tier", "mechanical"], { status: 0 }, { path: capped.path, env: githubAuthEnv() })
