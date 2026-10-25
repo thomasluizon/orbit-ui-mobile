@@ -18,17 +18,17 @@ Finish the spec: every requested production fix, the Astra overhaul (led by the 
 
 ## In flight
 
-UI `main` is `d7da3fc97`, API `main` is `b35f0175`, landing `main` is `14293563`. Staging web served `80fa8c43e` and production web `d2be6dd45` at the drain. Read each named worktree first; every worker below has exited unless its row says otherwise.
+UI `main` is `fb5e74e26`, API `main` is `b35f0175`, landing `main` is `14293563`. Staging web serves `d7da3fc97` (verified); the production web release of `d7da3fc97` (run 40244503719) was running at the drain. Read each named worktree first; every worker below has exited unless its row says otherwise.
 
 | Item | Disposition |
 | --- | --- |
-| Staging web release of `d7da3fc97` (run 40242047011) | Carries `ui#2072`, `ui#2076`, `ui#2078`, `ui#2073` (the production out-of-memory fix) and `ui#2077`. Verify it (`tools/wait-release.mjs --repo ui --run 40242047011 --sha d7da3fc97cce01d35ffcb5a2b075a44ccaf35b1a --workflow-sha d7da3fc97cce01d35ffcb5a2b075a44ccaf35b1a --service-url https://app-staging.useorbit.org`, or `/api/health`), then release production web at that SHA at once, read production web logs for 24 hours (`#1735`), then the first production Desktop Release, the desktop sign-in proof against staging, and close `#1679`. Batch an Android Open release for `#1737`, `#1738` and the next Android merges. |
-| `ui#2082` (`#1752`) | Opened by its worker (`945bbf9a6`, diff read: the test awaits the toast import and settles the pending menu import after each case; 2 of 5 red on a clean `main` before, 50 of 50 after). CI waiter was live for it and `ui#2075`; review, merge, watch ten PR runs, close. Until it merges, a PR whose only red is that palette case merges on `main`'s flake (the evidence is in `#1752` and the decision log). |
-| `ui#2075` (`#1733`) | Review fix `281ced494` pushed (iOS-only plugins out of the Android union audit by name). CI and a fresh approval, merge, sign in on the simulator with a staging fixed-code account, close; then launch `#1742` from `main`. |
+| Web releases of `d7da3fc97` | Staging verified (run 40242047011). Production web (run 40244503719) carries `ui#2072`, `ui#2076`, `ui#2078`, `ui#2073` (the production out-of-memory fix) and `ui#2077`: confirm `https://app.useorbit.org/api/health` reports `d7da3fc97` (or re-run `tools/wait-release.mjs --repo ui --run 40244503719 --sha d7da3fc97cce01d35ffcb5a2b075a44ccaf35b1a --workflow-sha d7da3fc97cce01d35ffcb5a2b075a44ccaf35b1a --service-url https://app.useorbit.org`), read production web logs for 24 hours (`#1735`), then the first production Desktop Release, the desktop sign-in proof against staging, and close `#1679`. Then a staging release of `main` `fb5e74e26` (`ui#2082`, `ui#2075`) and production after it. Batch an Android Open release for `#1737`, `#1738` and the next Android merges. |
+| `ui#2082` (`#1752`) | Merged as `f5b716491`. Watch the next ten PR runs for that palette case, then close `#1752`. |
+| `ui#2075` (`#1733`) | Merged as `fb5e74e26`. Sign in on the iOS simulator with a staging fixed-code account (`tools/ios-simulator.mjs`, `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`), close `#1733`; launch `#1742` from `main` at once. |
 | `ui#2074` (`#1736`) | Rounds 1 and 2 pushed as `f63bcdfd1` with the merged body; thread resolved. CI, review, `/second-opinion` copy approval framed as a claimed defect (check pt-BR for European forms such as "A sua sequência"), merge, web release and Android Open. |
 | `ui#2079` (`#1749`) | Round 1 pushed as `87e9428b6` (Stop keeps keyed-turn settlement; queue lifecycle in `packages/shared`); thread resolved. CI, SonarCloud duplication back under 3%, review, copy approval of its nine strings per locale, merge. |
 | `ui#2080` (`#1744`) | Round 1 `3814eddf0` local in worktree `ticket-1744-clamp-chevron`, accepted, not pushed. Update `apps/web/e2e/layout/label-fit-typed-text-slots.spec.ts:48` and `:69` so the toggle is asserted only where the name is clipped (at 1352 name 1 fits: picker 45/45 px, drill 56/56 px), run those four cases red then green on a hermetic build, `body-round.sh ui 2080 <round 1 log> 1744-r1`, push once. The round 1 log is the newest `#1744-*.log` under the worker log directory. |
-| `ui#2081` (`#1746`) | Round 1 (deep, `note-1746-rb1.md`) was running at the drain; read its outcome and worktree `ticket-1746-icon-buttons`, read the diff (it touches the parity rules and the gate charter: confirm a relocation, never a removal), answer `PRRT_kwDOR5Siws6wFxtR` and `PRRT_kwDOR5Siws6wFxtT` from its `## Thread replies` with ids from a fresh `list-bot-threads.mjs` run, merge the body, push once. Copy approval for any changed string. |
+| `ui#2081` (`#1746`) | Round 1 pushed as `6e138d551` (native Retry through `onPress`, one plus action opening the two labeled API key choices, `common.top` recorded as a relocation, the rule in the gate charter); both threads resolved. CI, review, copy approval for any changed string, merge. |
 | `orbit-api#923` (`#685`) | Round 1 pushed as `12978116`. Accept the four `csharpsquid:S1133` issues on SonarCloud PR 923 in `claude-in-chrome` with a comment naming the removal part of `#685`; then CI, review, merge, staging and production API. `#1654` step 3 follows. |
 | `#1740` | Plan posted on the ticket; waits for the owner's approval. Do not build before his yes. `#1743`, `#1745`, `#1747`, `#1750` wait on its composition rule. |
 | AVD session (`#1610`, `#1595`, `#390`) | The AVD `orbit_accept_throwaway` (emulator-5580) runs Orbit Staging 1.3.101 (160) signed in as `qa@useorbit.org`. Remaining: verified App Links on the Play-signed universal APK, the `#1595` streak moment, the `#390` lost-acknowledgement replay; then `avdmanager delete avd -n orbit_accept_throwaway`. |
@@ -55,13 +55,13 @@ Unattended run. Never ask the owner; decide with the recommended option and log 
 - Staging web release row: advanced (`d7da3fc97` dispatched with the crash fix; production, desktop and `#1679` carried).
 - `ui#2073` row: done (merged `6bc92712d` on `main`'s flake).
 - `ui#2074` row: advanced (rounds 1 and 2 pushed, thread resolved).
-- `ui#2075` row: advanced (the predecessor missed its own mobile red; review fix pushed).
+- `ui#2075` row: done (its own mobile red fixed, merged `fb5e74e26`; the simulator sign-in and `#1742` carried).
 - `ui#2076` to `ui#2080` row: `ui#2077` merged (`d7da3fc97`), `ui#2078` merged (`c98773787`), `ui#2079` round 1 pushed, `ui#2080` round 1 local.
 - `orbit-api#923` row: advanced (86 lines answered; SonarCloud round pushed).
-- `#1746` row: advanced (CI read; round 1 launched).
+- `#1746` row: advanced (CI read; round 1 pushed, threads resolved).
 - `#1740` row: done as the plan (posted; waiting on the owner).
 - `#972` row: done (426 proven in production; closed).
 - AVD session row: carried.
-- `#1734`, `#1641`, `#26` gate, `#195`, `#1742`, `#1752`, `#62`, `orbit-api#903`, `#732`, `#1113`, `#1619`, `#1662`, `#1617`, `#1716`, `#1706`, `#1674`, `#1726`, `#1658`, `#1654`: `#1734` done (closed: production track inactive with no countries), `#1752` delivered as `ui#2082`, the rest carried.
+- `#1734`, `#1641`, `#26` gate, `#195`, `#1742`, `#1752`, `#62`, `orbit-api#903`, `#732`, `#1113`, `#1619`, `#1662`, `#1617`, `#1716`, `#1706`, `#1674`, `#1726`, `#1658`, `#1654`: `#1734` done (closed: production track inactive with no countries), `#1752` merged as `ui#2082` (ten-run watch carried), the rest carried.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
