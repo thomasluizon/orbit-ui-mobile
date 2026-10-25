@@ -1,5 +1,7 @@
 'use client'
 
+import { getMediaQuery } from '@/lib/media-query'
+
 import {
   useCallback,
   useEffect,
@@ -41,7 +43,8 @@ function useWidePresentation(wideFrom: number): boolean {
   const [wide, setWide] = useState(false)
 
   useEffect(() => {
-    const query = globalThis.matchMedia(`(min-width: ${wideFrom}px)`)
+    const query = getMediaQuery(`(min-width: ${wideFrom}px)`)
+    if (!query) return
     const update = () => setWide(query.matches)
     update()
     query.addEventListener('change', update)

@@ -1,5 +1,7 @@
 'use client'
 
+import { mediaQueryMatches } from '@/lib/media-query'
+
 import { createContext, useEffect, useMemo, useRef, type RefObject } from 'react'
 import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 
@@ -12,7 +14,7 @@ export function useCompactComposerMenu(wide: boolean, bottomRef: RefObject<HTMLD
   const menuOpenRef = useRef(false)
   const compactMenu = useMemo(() => ({
     onOpenChange: (open: boolean) => { menuOpenRef.current = open },
-    returnFocus: () => window.matchMedia(`(min-width: ${WIDE_DESKTOP_BREAKPOINT}px)`).matches
+    returnFocus: () => mediaQueryMatches(`(min-width: ${WIDE_DESKTOP_BREAKPOINT}px)`)
       ? bottomRef.current?.closest('[data-shell]')?.querySelector<HTMLElement>('[data-shell-astra-row]') ?? null
       : null,
   }), [bottomRef])

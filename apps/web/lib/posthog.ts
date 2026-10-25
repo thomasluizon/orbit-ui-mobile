@@ -1,5 +1,7 @@
 'use client'
 
+import { mediaQueryMatches } from '@/lib/media-query'
+
 import type { CaptureResult } from 'posthog-js'
 
 type PostHogClient = typeof import('posthog-js')['default']
@@ -48,7 +50,7 @@ function beforeSend(event: CaptureResult | null): CaptureResult | null {
     ...event,
     properties: {
       ...scrubUrlProperties(event.properties) as CaptureResult['properties'],
-      display_mode: window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser',
+      display_mode: mediaQueryMatches('(display-mode: standalone)') ? 'standalone' : 'browser',
     },
     $set: event.$set ? scrubUrlProperties(event.$set) as CaptureResult['$set'] : undefined,
     $set_once: event.$set_once ? scrubUrlProperties(event.$set_once) as CaptureResult['$set_once'] : undefined,
