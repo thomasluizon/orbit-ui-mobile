@@ -398,7 +398,9 @@ it.each([new TypeError('network error'), new Error('connection reset')])('replay
   try {
     await vi.advanceTimersByTimeAsync(0)
     interrupt()
-    await vi.advanceTimersByTimeAsync(2000)
+    await vi.advanceTimersByTimeAsync(1999)
+    expect(open).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(1)
     expect(open).toHaveBeenCalledTimes(2)
     expect(open).toHaveBeenLastCalledWith(controller.signal, 'epoch.1')
     expect(options.onEvent.mock.calls.map(([event]) => event.type)).toEqual(['changes', 'resync'])

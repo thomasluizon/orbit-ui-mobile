@@ -123,11 +123,12 @@ async function consumeConnectionAttempt(options: AccountEventStreamOptions, stat
     state.failureReported = false
     state.reportNextFailure = true
     if (streamIsActive(options.signal)) options.onOpen(Date.now(), Boolean(state.lastEventId))
-    await readEvents(body, options.signal, (event) => {
+    const outcome = await readEvents(body, options.signal, (event) => {
       if (event.id) state.lastEventId = event.id
       options.onEvent(event)
       state.retry = 0
     })
+    if (outcome === 'interrupted') state.retry = Math.min(state.retry + 1, 5)
   } catch (error: unknown) {
     handleStreamFailure(error, opened, options, state)
     retryAfter = errorRetryAfter(error)
@@ -159,7 +160,7 @@ async function readEvents(
   body: NonNullable<StreamResponse['body']>,
   signal: AbortSignal,
   onEvent: (event: ParsedAccountEvent) => void,
-): Promise<void> {
+): Promise<'closed' | 'interrupted'> {
   const reader = body.getReader()
   const decoder = new TextDecoder()
   const parser = createAccountEventParser()
@@ -167,10 +168,11 @@ async function readEvents(
   signal.addEventListener('abort', cancel, { once: true })
   try {
     for (;;) {
-      if (signal.aborted) return
+      if (signal.aborted) return 'closed'
       // WHY: The transport rejects pending reads on connection loss; parsing and handlers still report. https://github.com/thomasluizon/orbit-tickets/issues/1728
       const chunk = await reader.read().catch(() => null)
-      if (!chunk || chunk.done || !streamIsActive(signal)) return
+      if (!chunk) return 'interrupted'
+      if (chunk.done || !streamIsActive(signal)) return 'closed'
       for (const event of parser.feed(decoder.decode(chunk.value, { stream: true }))) onEvent(event)
     }
   } finally {
