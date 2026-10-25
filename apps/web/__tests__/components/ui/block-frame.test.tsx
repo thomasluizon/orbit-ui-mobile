@@ -71,7 +71,10 @@ describe('BlockFrame on web', () => {
         actions={<button>Old action</button>}
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    const refresh = screen.getByRole('button', { name: 'Refresh' })
+    expect(refresh.textContent).toBe('')
+    expect(refresh).toHaveAttribute('title', 'Refresh')
+    fireEvent.click(refresh)
     expect(screen.getByText('The source moved')).toBeInTheDocument()
     expect(screen.queryByText('Old action')).not.toBeInTheDocument()
     expect(onRefresh).toHaveBeenCalledOnce()

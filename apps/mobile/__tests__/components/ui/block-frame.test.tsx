@@ -225,6 +225,7 @@ describe('BlockFrame on mobile', () => {
       />,
     )
     const refresh = tree.root.findByProps({ accessibilityLabel: 'Refresh' })
+    expect(refresh.findAllByType('Text')).toHaveLength(0)
     prop<() => void>(refresh, 'onPress')()
     expect(textValues(tree)).toContain('The source moved')
     expect(tree.root.findAllByProps({ testID: 'old-action' })).toHaveLength(0)
