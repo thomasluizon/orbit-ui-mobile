@@ -95,6 +95,7 @@ vi.mock('next-intl', () => ({
     if (key === 'habits.detail.logDateConfirmMessage') return `${values?.date}: ${values?.name}`
     if (key === 'habits.detail.logDateConfirmUnlogMessage') return `Undo ${values?.name}: ${values?.date}`
     if (key === 'habits.detail.askAstraSeedDefault') return `${key}:${JSON.stringify({ title: values?.title })}`
+    if (key === 'habits.detail.askAstra' && mocks.language === 'pt-BR') return ptBR.habits.detail.askAstra
     if (key === 'calendarLabel') return `Atividade do hábito em ${values?.month}`
     return key
   },
@@ -195,7 +196,7 @@ vi.mock('@/components/ui/switch', () => ({
 vi.mock('@/components/ui/list-row', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/ui/list-row')>()
   return { ListRow: (props: React.ComponentProps<typeof actual.ListRow>) => {
-    if (props.title === 'habits.detail.askAstra') return <actual.ListRow {...props} />
+    if (props.title === 'habits.detail.askAstra' || props.title === ptBR.habits.detail.askAstra) return <actual.ListRow {...props} />
     const { title, description, value, trailing, chevron, onClick, expanded, controls, toggle } = props
     return onClick || toggle
     ? <button type="button" role={toggle ? "switch" : undefined} aria-label={title} aria-checked={toggle?.checked} aria-expanded={expanded} aria-controls={controls} data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)} onClick={toggle ? () => toggle.onChange(!toggle.checked) : onClick}>{title}{trailing}</button>
@@ -1744,6 +1745,26 @@ describe('HabitDetailScreen', () => {
       stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([16, 32])('keeps the Portuguese habit analysis label readable at 320px with root font %ipx', async (fontSize) => {
+      vi.useRealTimers()
+      mocks.language = 'pt-BR'
+      const { container } = render(<HabitDetailScreen habitId="habit-1" />)
+      const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}:root { font-size:${fontSize}px }</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const action = page.getByRole('button', { name: ptBR.habits.detail.askAstra, exact: true })
+        const geometry = await action.locator('[data-slot="list-row-title"]').evaluate((title) => {
+          const style = getComputedStyle(title)
+          return { clientWidth: title.clientWidth, scrollWidth: title.scrollWidth, height: title.getBoundingClientRect().height, lineHeight: Number.parseFloat(style.lineHeight), textOverflow: style.textOverflow }
+        })
+        expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth)
+        expect(geometry.textOverflow).not.toBe('ellipsis')
+        if (fontSize === 16) expect(geometry.height).toBeCloseTo(geometry.lineHeight, 0)
+        else expect(geometry.height).toBeGreaterThan(geometry.lineHeight)
+      } finally { await page.close() }
+    })
 
     it.each([320, 412, 600, 1024, 1352])('clears the unscheduled child explanation at %ipx', async (width) => {
       vi.useRealTimers()

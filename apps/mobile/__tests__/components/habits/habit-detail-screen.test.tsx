@@ -1793,6 +1793,16 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
+  it('lets the habit analysis title grow with accessibility text', () => {
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const ask = tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.askAstra')!
+    const title = ask.findAllByType('Text').find((node: TestNode) => node.props['data-slot'] === 'list-row-title')!
+    expect(title.props.numberOfLines).toBeUndefined()
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it.each(['', 'My draft'])('paints and opens Astra about the habit, preserving draft %s', (draft) => {
     mocks.reducedMotion = draft !== ''
     mocks.realPressTokens = true

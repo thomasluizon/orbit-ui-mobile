@@ -3,6 +3,7 @@ import { goalKeys } from '@orbit/shared/query'
 import { MAX_GOAL_PROGRESS_NOTE_LENGTH } from '@orbit/shared/validation'
 import { PersonalText } from '@/components/ui/personal-text'
 import { Animated, BackHandler, StyleSheet } from 'react-native'
+import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { buildComposerChips } from '@orbit/shared/chat'
 import { createMockGoal, createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { GoalDetailWithMetrics } from '@orbit/shared/types/goal'
@@ -178,6 +179,7 @@ const linkedHabits = [{ id: 'h1', title: 'Read every night' }]
 
 describe('GoalDetailDrawer', () => {
   beforeEach(() => {
+    __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
     detailGoal = { ...listGoal, progressHistory: [] }
     habitAdherence = []
     forecastMetrics = { velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline' }
@@ -477,6 +479,15 @@ describe('GoalDetailDrawer', () => {
   })
 
   const astraLabel = 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault'
+
+  it('lets the goal analysis title grow with accessibility text', () => {
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+    const tree = renderDrawer()
+    const astraAction = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === astraLabel)[0]!
+    const title = astraAction.findAllByType('Text').find((node: import('react-test-renderer').ReactTestInstance) => node.props['data-slot'] === 'list-row-title')!
+    expect(title.props.numberOfLines).toBeUndefined()
+    TestRenderer.act(() => tree.unmount())
+  })
 
   it('opens Astra after sheet dismissal with the selected synced goal', () => {
     detailGoal = { ...detailGoal, title: 'Synced goal' }

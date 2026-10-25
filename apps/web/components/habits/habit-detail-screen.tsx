@@ -302,7 +302,7 @@ function AskAstraRow({ habit }: Readonly<{ habit: NormalizedHabit }>) {
     useUIStore.getState().setAstraConversationOpen(true)
   }
   return (
-    <ListRow placement="column" icon={<AstraGlyph size={24} />} title={t('habits.detail.askAstra')} accessibilityLabel={t('habits.detail.askAstra')} onClick={openConversation} />
+    <ListRow placement="column" wrapTitle icon={<AstraGlyph size={24} />} title={t('habits.detail.askAstra')} accessibilityLabel={t('habits.detail.askAstra')} onClick={openConversation} />
   )
 }
 
