@@ -39,6 +39,7 @@ describe('expanded RadioRow personal text in Chromium', () => {
           import { CalendarSyncEventRow } from './components/calendar-sync/calendar-sync-event-row';
           import { useTranslations } from 'next-intl';
           import { PersonalTextDetails } from './components/ui/personal-text-details';
+          import { PickerRow } from './components/ui/picker-row';
           import { HabitRow } from './components/habits/habit-row';
           import { createMockHabit } from '../../packages/shared/src/__tests__/factories';
           import { SupportReplyEmail } from './app/(app)/support/_components/support-reply-email';
@@ -94,6 +95,7 @@ describe('expanded RadioRow personal text in Chromium', () => {
             if (composition === 'list') return <ListRow title={label} textMode="personal" />;
             if (composition === 'settings') return <ListRow title={label} textMode="personal" />;
             if (composition === 'settingsGroup') return <ListRow title={label} textMode="personal" />;
+            if (composition === 'pickerDetails') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><PickerRow name={label} selected disabled={false} onToggle={() => document.getElementById('commits').textContent += 'toggle'} value="3" valueClassName="" controlClassName="w-full min-w-0" actionsClassName="flex justify-between" /></NextIntlClientProvider>;
             if (composition === 'details') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><PersonalTextDetails>{label}</PersonalTextDetails></NextIntlClientProvider>;
             return <RadioGroup aria-label="Subjects" onCommit={() => document.getElementById('commits').textContent += 'commit'}>
               <RadioRow label={label} textMode="personal" selected={selected === 0} onSelect={() => select(0)} />
@@ -129,7 +131,7 @@ describe('expanded RadioRow personal text in Chromium', () => {
     await page.locator('#root').evaluate((root, kind) => { (root as HTMLElement).dataset.composition = kind }, composition)
     await page.locator('#root').evaluate((root, language) => { (root as HTMLElement).dataset.locale = language }, locale)
     await page.addScriptTag({ content: componentScript })
-    if (composition === 'details') await page.locator('[data-personal-text]').first().waitFor({ timeout: 2_000 })
+    if (composition === 'details' || composition === 'pickerDetails') await page.locator('[data-personal-text]').first().waitFor({ timeout: 2_000 })
     else if (composition === 'editorParentOwner') await page.locator('form fieldset').first().waitFor({ timeout: 2_000 })
     else await page.getByRole(composition === 'radio' ? 'radio' : 'button', { name: label, exact: !['support', 'habit', 'calendarEvent'].includes(composition) && !composition.startsWith('editorParent') }).waitFor({ timeout: 2_000 })
     await page.evaluate(() => new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame()))))
@@ -142,6 +144,41 @@ describe('expanded RadioRow personal text in Chromium', () => {
       expect(await page.getByRole('button').count()).toBe(0)
       expect(await page.locator('#root svg').count()).toBe(0)
       expect(await page.locator('[data-personal-text]').textContent()).toBe('Read for 20 minutes')
+    } finally { await page.close() }
+  })
+
+  it.each([320, 412])('expands clamped text and removes its control after reflow at %s', async (width) => {
+    const label = 'Read the books I chose to learn about all the places and people around the world before breakfast every morning'
+    const page = await mount(label, 'light', 'details')
+    try {
+      await page.setViewportSize({ width, height: 915 })
+      const control = page.getByRole('button', { name: label, exact: true })
+      await control.waitFor()
+      expect(await page.locator('#root svg').count()).toBe(1)
+      await control.click()
+      expect(await control.getAttribute('aria-expanded')).toBe('true')
+      expect(await page.locator('[data-personal-text-expanded]').count()).toBe(1)
+      expect(await page.locator('#root').evaluate((root) => root.scrollWidth <= root.clientWidth)).toBe(true)
+      await page.setViewportSize({ width: 1600, height: 915 })
+      await expect.poll(() => page.getByRole('button', { name: label, exact: true }).count()).toBe(0)
+      expect(await page.locator('[data-personal-text-expanded]').count()).toBe(0)
+      await page.setViewportSize({ width, height: 915 })
+      await expect.poll(() => control.count()).toBe(1)
+      expect(await control.getAttribute('aria-expanded')).toBe('false')
+    } finally { await page.close() }
+  })
+
+  it.each(['Read', token])('gates the picker disclosure on its visible label overflow: %s', async (label) => {
+    const page = await mount(label, 'dark', 'pickerDetails')
+    try {
+      const disclosure = page.getByRole('button', { name: `Show full text: ${label}`, exact: true })
+      await expect.poll(() => disclosure.count()).toBe(label === 'Read' ? 0 : 1)
+      expect(await page.locator('#commits').textContent()).toBe('')
+      if (label !== 'Read') {
+        await disclosure.click()
+        await page.getByRole('dialog', { name: label, exact: true }).waitFor()
+        expect(await page.locator('#commits').textContent()).toBe('')
+      }
     } finally { await page.close() }
   })
 

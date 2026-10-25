@@ -139,7 +139,7 @@ describe('BlockFrame on mobile', () => {
     const name = 'Read for 20 minutes'
     const tree = render(<PersonalTextDetails>{name}</PersonalTextDetails>)
     expect(tree.root.findAll((node) => node.type === 'Pressable' && prop(node, 'accessibilityRole') === 'button')).toHaveLength(0)
-    expect(tree.root.findAll((node) => node.type === 'Svg')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.type === 'ChevronDown')).toHaveLength(0)
   })
 
   it('keeps typed labels beside their trailing actions and aligns growing rows to the first line', () => {

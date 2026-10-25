@@ -47,9 +47,9 @@ export function PersonalText({ children, lines: lineLimit = 2, expanded = false,
     onClampedChange?.(nativeLines.length > (singleToken ? 1 : lineLimit) || nextLines.length > lineLimit || splitWord)
     setMeasurement((current) => current?.text === children && current.lines.join('\n') === nextLines.join('\n') ? current : { text: children, lines: nextLines })
   }
-  if ((singleToken || lineLimit === 1) && !expanded && onClampedChange) return <View style={styles.container}>
+  if ((singleToken || lineLimit === 1) && !expanded && onClampedChange) return <View ref={accessibilityRef} accessible accessibilityRole={props.accessibilityRole} accessibilityLabel={props.accessibilityLabel ?? children} style={styles.container}>
     <Text accessible={false} importantForAccessibility="no-hide-descendants" style={[style, styles.measurement]} onTextLayout={measure} textBreakStrategy="simple" android_hyphenationFrequency="none">{children}</Text>
-    <Text accessibilityLabel={children} {...props} style={style} numberOfLines={1} ellipsizeMode="tail">{children}</Text>
+    <Text accessibilityLabel={children} {...props} accessible={false} style={style} numberOfLines={1} ellipsizeMode="tail">{children}</Text>
   </View>
   if ((singleToken || lineLimit === 1) && !expanded) return <Text accessibilityLabel={children} {...props} style={style} numberOfLines={1} ellipsizeMode="tail">{children}</Text>
   return <View ref={accessibilityRef} testID={props.testID} style={styles.container} accessible accessibilityRole={props.accessibilityRole} accessibilityLanguage={props.accessibilityLanguage} accessibilityHint={props.accessibilityHint} accessibilityLabel={props.accessibilityLabel ?? children}>

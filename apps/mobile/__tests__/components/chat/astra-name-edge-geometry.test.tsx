@@ -1,3 +1,5 @@
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { StyleSheet, type ViewStyle } from 'react-native'
@@ -83,6 +85,8 @@ describe('Astra name and metadata start edges on Android', () => {
         await act(async () => { (tree.root.findAll(node => node.type === Button).find(button => button.props.variant !== 'ghost')!.props.onClick as () => void)(); await Promise.resolve() })
         if (state === 'breakdown-failed') await act(async () => { (tree.root.findAll(node => node.type === ConfirmSheet)[0]!.props.onConfirm as () => void)(); await Promise.resolve() })
       }
+      const names = tree.root.findAll(node => node.type === PersonalTextDetails).map(node => node.props.children as string)
+      for (const name of names) await measureClampedPersonalText(tree.root, name)
       expectEdges(tree, width)
       const control = tree.root.findAll(node => String(node.type) === 'Pressable' && (state === 'goal' ? node.props.accessibilityLabel === goalListCardFixture.items[0]!.title : state === 'preview' ? node.props.accessibilityLabel === 'Habit 1' : typeof node.props.accessibilityState === 'object' && node.props.accessibilityState !== null && 'expanded' in node.props.accessibilityState))[0]!
       const style = () => StyleSheet.flatten((control.props.style as (state: { pressed: boolean }) => ViewStyle)({ pressed: false }))
