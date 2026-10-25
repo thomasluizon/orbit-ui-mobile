@@ -111,26 +111,24 @@ export function Item({ item, sheetPresentation, onActivate }: Readonly<{ item: M
     const content = (
       <Pressable
         accessibilityRole={item.checked === undefined ? "menuitem" : "checkbox"}
-        accessibilityLabel={item.icon === 'astra' ? item.label : undefined}
         accessibilityState={{ disabled, checked: item.checked }}
         disabled={disabled}
         style={({ pressed }) => [
           styles.item,
           fontScale > 1.3 ? { alignItems: 'flex-start' } : null,
           sheetPresentation ? styles.sheetItem : null,
-          item.icon === 'astra' ? styles.astraItem : null,
           item.destructive ? { borderTopColor: tokens.hairline, borderTopWidth: 1 } : null,
           pressed ? { backgroundColor: tokens.bgHover } : null,
           disabled ? styles.disabled : null,
         ]}
       >
         {item.icon ? <Icon color={item.destructive ? tokens.statusBad : tokens.fg2} name={item.icon} size={20} strokeWidth={2} /> : null}
-        {item.icon === 'astra' ? null : <Text
+        <Text
           numberOfLines={fontScale > 1.3 ? undefined : 1}
           style={[styles.label, { color: item.destructive ? tokens.statusBadText : tokens.fg1 }]}
         >
           {item.label}
-        </Text>}
+        </Text>
         {item.checked ? <View style={{ height: 20 * fontScale, justifyContent: 'center' }}><Check size={20} color={tokens.fg1} strokeWidth={2} /></View> : null}
         {item.badge ? (
           <View style={[styles.badge, { backgroundColor: tokens.bgElev }]}>
@@ -171,14 +169,6 @@ const styles = StyleSheet.create({
   },
   sheetItem: {
     minHeight: 56,
-  },
-  astraItem: {
-    width: 48,
-    minHeight: 48,
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   label: {
     flex: 1,

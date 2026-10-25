@@ -65,12 +65,14 @@ describe('habit emoji keyboard focus in Chromium', () => {
     return page
   }
 
-  it.each(placements.filter(({ resolved }) => !resolved))('has no emoji focus target without a preview in $mode', async ({ mode, resolved }) => {
+  it.each(placements.filter(({ resolved }) => !resolved))('reaches the title emoji control without a preview in $mode', async ({ mode, resolved }) => {
     const page = await openPlacement(mode, resolved)
     try {
-      expect(await page.getByRole('button', { name: 'habits.form.emojiOpenPicker' }).count()).toBe(0)
+      expect(await page.getByRole('button', { name: 'habits.form.emojiOpenPicker' }).count()).toBe(1)
       await page.keyboard.press('Tab')
       expect(await page.getByRole('textbox').evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+      await page.keyboard.press('Tab')
+      expect(await page.getByRole('button', { name: 'habits.form.emojiOpenPicker' }).evaluate(element => element.matches(':focus-visible'))).toBe(true)
     } finally {
       await page.close()
     }
@@ -86,12 +88,12 @@ describe('habit emoji keyboard focus in Chromium', () => {
         await page.keyboard.press('Tab')
         await page.keyboard.press('Tab')
         if (hover) {
-          const restingBackground = await well.evaluate((element) => getComputedStyle(element).backgroundColor)
+          const restingBackground = await well.evaluate((element) => getComputedStyle(element.querySelector('[data-emoji-well]')!).backgroundColor)
           await well.hover()
           await well.evaluate(async (element) => {
-            await Promise.all(element.getAnimations().map((animation) => animation.finished))
+            await Promise.all(element.querySelector('[data-emoji-well]')!.getAnimations().map((animation) => animation.finished))
           })
-          expect(await well.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(restingBackground)
+          expect(await well.evaluate((element) => getComputedStyle(element.querySelector('[data-emoji-well]')!).backgroundColor)).not.toBe(restingBackground)
         }
         const painted = await well.evaluate((element) => {
           const style = getComputedStyle(element)
@@ -109,7 +111,7 @@ describe('habit emoji keyboard focus in Chromium', () => {
             outlineColor: style.outlineColor,
             foreground: getComputedStyle(document.documentElement).getPropertyValue('--fg-1').trim(),
             layers,
-            background: style.backgroundColor,
+            background: getComputedStyle(element.querySelector('[data-emoji-well]')!).backgroundColor,
           }
         })
         expect(painted.focused).toBe(true)

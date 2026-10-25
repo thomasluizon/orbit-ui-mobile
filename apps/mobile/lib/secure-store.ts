@@ -11,6 +11,8 @@ async function resetKeychainOnInstall(): Promise<void> {
   if (await AsyncStorage.getItem(INSTALL_MARKER_KEY) === '1') return
   await Promise.all([TOKEN_KEY, REFRESH_TOKEN_KEY, 'google_auth_attempt', 'account_config']
     .map((key) => SecureStore.deleteItemAsync(key)))
+  const { clearWidgetToken } = await import('./orbit-widget')
+  await clearWidgetToken()
   await AsyncStorage.setItem(INSTALL_MARKER_KEY, '1')
 }
 

@@ -220,7 +220,7 @@
     ".claude/skills/ios-release/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "f4555a506a83ebd9",
+      "digest": "7290ce4367029ffe",
       "calibratedAt": "2026-10-24",
       "verdict": "undeclared, inherits the session: verifies iOS signing prerequisites, release parameters and internal TestFlight processing through the manual workflow; it declares no model or effort override."
     },

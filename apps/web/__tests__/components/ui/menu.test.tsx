@@ -2,6 +2,8 @@ import { createRef, useState, type ComponentProps } from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { useUIStore } from '@/stores/ui-store'
 import { Button } from '@/components/ui/pill-button'
 import * as Menu from '@/components/ui/dropdown-menu'
@@ -37,23 +39,25 @@ async function openMenu(waitForContent = true) {
 describe('headless Menu', () => {
   beforeEach(() => { vi.restoreAllMocks(); setWide(true) })
 
-  it.each(['anchored', 'sheet'] as const)('keeps an Astra action mark-only, named and keyboard reachable in %s', async (presentation) => {
+  it.each([en, ptBR].flatMap(messages => (['anchored', 'sheet'] as const).map(presentation => ({ messages, presentation }))))('shows an Astra action label with sibling row treatment in $presentation', async ({ messages, presentation }) => {
+    setWide(presentation === 'anchored')
     const onSelect = vi.fn()
-    const label = 'Suggest a new date with Astra'
+    const label = messages.habits.actions.rescheduleAstra
     render(<Example presentation={presentation} onSelect={onSelect} items={[
-      { id: 'edit', label: 'Edit', icon: 'pencil' },
+      { id: 'edit', label: messages.common.edit, icon: 'pencil' },
       { id: 'reschedule', label, icon: 'astra' },
     ]} />)
     await openMenu()
     const action = screen.getByRole('menuitem', { name: label })
-    expect(action).toHaveAttribute('aria-label', label)
-    expect(action.textContent).toBe('')
-    expect(action).toHaveStyle({ width: '48px', minHeight: '48px', padding: '0px', justifyContent: 'center' })
+    const sibling = screen.getByRole('menuitem', { name: messages.common.edit })
+    expect(action).toHaveTextContent(label)
+    expect(action).toHaveAccessibleName(label)
+    expect(action).not.toHaveAttribute('aria-label')
+    expect(action.style.cssText).toBe(sibling.style.cssText)
     expect(action.querySelector('[data-asset^="astra-mark"]')).not.toBeNull()
-    expect(screen.getByRole('menuitem', { name: 'Edit' })).toHaveTextContent('Edit')
     await userEvent.keyboard('{ArrowDown}')
     expect(action).toHaveFocus()
-    await userEvent.keyboard('{Home}s')
+    await userEvent.keyboard(`{Home}${label[0]}`)
     await waitFor(() => expect(action).toHaveFocus())
     await userEvent.keyboard('{Enter}')
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())

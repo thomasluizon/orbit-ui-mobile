@@ -234,7 +234,7 @@ interface PlayerPagerProps {
 
 function PlayerPager(props: Readonly<PlayerPagerProps>) {
   return (
-    <div data-testid="wrapped-pager" style={{ padding: SPACING.s16 }}>
+    <div data-testid="wrapped-pager" style={{ padding: `${SPACING.s8}px ${SPACING.s16}px` }}>
       {props.isLast ? (
         <Pager
           count={props.count}

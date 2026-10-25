@@ -4,7 +4,7 @@ import { apiOrigin, readCredentials, refreshCredential } from './credentials.mjs
 import { dateOffset, resetFixture } from './fixtures/reset.mjs'
 import { prepareCorrection } from './setup.mjs'
 import { descriptors } from './merge-reports.mjs'
-import { summarize, writeReport } from './report.mjs'
+import { summarize, writeReport, writeResults } from './report.mjs'
 
 export function beforeAll({ suite }) {
   const required = ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_CREDENTIALS_FILE']
@@ -55,11 +55,12 @@ export async function beforeEach({ test }) {
 }
 
 export function afterAll({ results, suite }) {
+  writeResults(results)
   const summary = summarize(results, suite.tests.map((test) => test.metadata))
   const completeCorpus = descriptors.every(({ id }) => summary.cases.some((entry) => entry.id === id))
   summary.gateStatus = !completeCorpus && summary.status === 'pass' ? 'incomplete' : summary.status
   const markdown = writeReport(summary)
   process.stdout.write(`${markdown}\n`)
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`)
-  if (summary.status !== 'pass') throw new Error(`Astra launch gate ${summary.status}; see reports/summary.md.`)
+  if (summary.status !== 'pass') throw new Error(`Astra launch gate ${summary.status}; see reports/summary.md and reports/results.json.`)
 }

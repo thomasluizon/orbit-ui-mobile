@@ -29,7 +29,16 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "icon": ["icons/icon.png", "icons/icon.icns", "icons/icon.ico"]
   },
-  "plugins": { "deep-link": { "desktop": { "schemes": ["org.useorbit.desktop.staging"] } } }
+  "plugins": {
+    "deep-link": { "desktop": { "schemes": ["org.useorbit.desktop.staging"] } },
+    "updater": {
+      "endpoints": ["https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-staging/latest.json"],
+      "pubkey": "",
+      "requireSignedVersion": true,
+      "windows": { "installMode": "passive" }
+    }
+  }
 }

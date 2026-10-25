@@ -35,6 +35,8 @@ vi.mock('next/headers', () => ({
   cookies: () => Promise.resolve({ get: vi.fn(), set: vi.fn() }),
 }))
 
+vi.mock('next-intl/server', () => ({ getLocale: async () => 'pt-BR' }))
+
 vi.stubGlobal('fetch', mockFetch)
 
 describe('createHabit action error boundary', () => {
@@ -654,6 +656,17 @@ describe('current proactive response boundary', () => {
     resolveServerSessionMock.mockReset()
     mockFetch.mockReset()
     resolveServerSessionMock.mockResolvedValue({ token: 'test-token', refreshFailed: false })
+  })
+
+  afterEach(() => {
+    expect(mockFetch).toHaveBeenCalled()
+    for (const [path] of mockFetch.mock.calls) {
+      const url = new URL(path)
+      expect(url.pathname).toBe(API.proactive.current)
+      expect(JSON.parse(url.searchParams.get('clientContext')!)).toMatchObject({
+        platform: 'web', locale: 'pt-BR', supportsParts: true,
+      })
+    }
   })
 
   it.each(proactiveApiResponses)('accepts serialized $trigger facts through the current-item action', async (response) => {

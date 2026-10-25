@@ -203,8 +203,7 @@ the composer pill is a real button with a hit area at the touch floor, a padded 
 fill and a focus ring, labelled `Abrir conversa`, with no visible brand word (#1668). On wide web the sidebar Astra row opens the
 conversation. Habit detail's own composer glyph remains an entry at every width.
 
-**Named Astra navigation rows retain the word `Astra`; standalone actions and composer controls use the canonical glyph alone in a 48px icon target (#1668, #1687).** Date, emoji, tag and reschedule actions have specific accessible names. Interpretation fallback, habit and goal analysis, retry and empty-list entries show no visible label. Suggestion chips, idea cards and proactive prose keep their useful request text without appended branding. Composer send uses one upward arrow, replaced by the spinner while sending, with its localized Send name and no Astra mark. Input prompts do not repeat the brand. Keep useful action context, disabled reasons and request guards. Deterministic saves, accepting an existing proposal, static attribution, section headings and plan facts gain no mark. The wide sidebar, compact composer, habit-detail composer and Hoje slot retain their existing owners. Conversation headers, participant avatars and conversation-owned empty states keep
-their own rules. The owner's copy authority for #1687 is: "i asked you to top putting Consultar astra string everywhere / what you did: removed the astra word from the app, including on the sidebar / fix this". This preserves navigation names while dropping appended branding from actions. The Perfil Astra settings row uses the neutral `MessageCircle` icon, keeping the
+**Named Astra navigation rows retain `Astra`; standalone actions retain their visible action label beside the canonical glyph (#1700).** Actions drop the appended brand word, never their label. Menu items use the same full row geometry, padding, hover, press and focus as their siblings, with the label supplying the accessible name once. Habit and goal analysis, empty-list entries and reschedule retries show their short action labels. Inline form-field fill controls for emoji, date, tags and frequency remain icon-only with specific accessible names; #1701 owns those controls and their hints. Composer entry, send and disclosure retain their drawn icon controls. Suggestion chips, idea cards and proactive prose keep their useful request text without appended branding. Composer send uses one upward arrow, replaced by the spinner while sending, with its localized Send name and no Astra mark. Input prompts do not repeat the brand. Keep useful action context, disabled reasons and request guards. Deterministic saves, accepting an existing proposal, static attribution, section headings and plan facts gain no mark. The wide sidebar, compact composer, habit-detail composer and Hoje slot retain their existing owners. Conversation headers, participant avatars and conversation-owned empty states keep their own rules. The owner's authority for #1700 is: "Revert this, just keep the changes that remove the bloat, be smart." The owner's copy authority for #1687 is: "i asked you to top putting Consultar astra string everywhere / what you did: removed the astra word from the app, including on the sidebar / fix this". This preserves navigation names while dropping appended branding from actions. The Perfil Astra settings row uses the neutral `MessageCircle` icon, keeping the
 shared row anatomy without repeating Astra's glyph.
 
 Habit detail's composer has one named disclosure control. Collapsing leaves one compact row with
@@ -438,7 +437,7 @@ steps use the existing collapsed disclosure after their answer.
 
 Feature help, advice, small talk and no-data proactive nudges use one to three short lines without
 headings, unsolicited lists or caveat paragraphs. A relevant existing screen/tool action remains
-available. Proactive requests returning data use the same registered blocks. Data-backed proactive entries require their corresponding typed block; sparse notification facts cannot fabricate read results. Requested code explanations retain selectable Markdown and
+available. Proactive requests returning data use the same registered blocks. Data-backed proactive entries negotiate the shared chat capabilities on both platforms and lead with the validated block from the proactive response. They retain the registered block's original read scope and refresh behavior, without repeating the saved notification text. Missing or unusable parts retain the legacy entry. Sparse notification facts cannot fabricate read results. Requested code explanations retain selectable Markdown and
 independent code-block copying.
 
 The **habit ranking** block uses one BlockFrame with no header count, chart, totals or repeated
@@ -507,6 +506,10 @@ It renders as the same field or row at `--fg-3` with an inset **dashed** hairlin
 the normal state the instant the person accepts or edits it. **It never takes the accent**: a proposal
 is not one of the four accent roles, and it is certainly not what is next. No new hue, no new radius,
 no new family, no glow.
+
+Emoji proposals keep the muted foreground and inset dashed hairline inside the emoji well. The
+well and its adjacent fill action have no surrounding border, and the fill action has no resting
+border. A focused fill action keeps one indicator following its shape.
 
 ### A derived value is not a proposed value
 
@@ -1593,8 +1596,8 @@ Android haptic. Milestone days show only their milestone panel; queue priority a
 **Motion is never the only feedback channel.** Every animated state change also carries a static cue: a colour change, an icon swap, or a label.
 
 Labelled actions retaining their leading glyph reserve a trailing status slot. Standalone mark-only
-Astra actions retain the mark and busy announcement without that slot. Composer send replaces its
-arrow with one spinner while busy. An idle action carries no looping status animation, including
+Astra actions keep their busy announcement. An icon-only form fill action replaces its glyph with
+one spinner while its request runs. Composer send replaces its arrow with one spinner while busy. An idle action carries no looping status animation, including
 while focused (#1607, #1668).
 
 **A high-frequency interaction gets instant feedback or an `opacity` / `background-color` transition of 150ms or less.** Never a full entrance on a hover or a keystroke.

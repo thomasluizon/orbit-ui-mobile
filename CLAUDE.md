@@ -1,6 +1,6 @@
 # Orbit
 
-Personal habit tracker. Turborepo monorepo: `apps/web`, `apps/mobile` (Android and iOS), `apps/desktop` (Tauri webview shell), `packages/shared`. Siblings `orbit-api` and `orbit-landing-page` carry their own `CLAUDE.md`, and each workspace has a scoped one, so this root holds only cross-cutting rules.
+Personal habit tracker. Turborepo monorepo: `apps/web`, `apps/mobile` (Android, iPhone and iPad), `apps/desktop` (Tauri webview shell), `packages/shared`. Siblings `orbit-api` and `orbit-landing-page` carry their own `CLAUDE.md`, and each workspace has a scoped one, so this root holds only cross-cutting rules.
 
 ## Maximum implementation (overrides global rule 4, "surgical changes")
 
@@ -74,7 +74,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `design/astra-conversation-participants.md` | Astra participant avatar owners, continuation spacing, text, block and running tool trace alignment, and pending reply replacement. |
 | `design/astra-block-copy-surfaces.md` | Astra reply code-block copy owners, independent confirmations, user and description exclusions, and platform verification boundaries. |
 | `design/astra-pending-reply-surfaces.md` | Astra pending reply owners, terminal replacements, polite announcement ownership and hermetic verification boundaries. |
-| `design/astra-mark-only-surfaces.md` | Assistant action marks, localized prompts, accessible names and habit-detail composer disclosure owners. |
+| `design/astra-mark-only-surfaces.md` | Assistant action labels, inline form-fill icons, localized prompts and habit-detail composer disclosure owners. |
 | `design/astra-preview-surfaces.md` | Astra preview item semantics, counted actions, breakdown footer disclosure, deletion confirmation, revision, terminal outcomes and responsive parity. |
 | `design/mcp-web-guide-surfaces.md` | Claude Web connection guide client selector, settings entry, OAuth steps, confirmed endpoint copy states and platform verification owners. |
 | `design/progress-surfaces.md` | Progresso overview and sub-screen owners, retained figures and actions, states and verification coverage. |
@@ -105,6 +105,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `.claude/rules/visual-delivery.md` | Visual inventory and critic gates; D90 moves human inspection to the whole-redesign review. |
 | `.claude/skills/android-generate/SKILL.md` | Local APK build, and the emulator install path. Read before building or running the Android app. |
 | `.claude/skills/android-release/SKILL.md` | Dispatching `android-release.yml` to a Google Play track. |
+| `.claude/skills/ios-release/SKILL.md` | Internal TestFlight releases, app and widget signing, and Apple enrollment prerequisites. |
 | `.claude/skills/release/SKILL.md` | Planning production and staging gaps, with pinned releases and live commit verification. |
 | **D1..D42 register** | Historical decision record in the brain vault: `2 Areas/20-29 Orbit Engineering/Decisions/`. Current ticket routing is defined here. |
 

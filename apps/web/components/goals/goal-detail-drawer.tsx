@@ -1,6 +1,6 @@
 'use client'
 
-import { PillButton } from '@/components/ui/pill-button'
+import { ListRow } from '@/components/ui/list-row'
 
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 
@@ -134,7 +134,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
         <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onEditProgress={openProgressForm} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} />
         <GoalForecast metrics={detailData?.metrics ?? null} unit={goal.unit} isLoading={isLoading} />
         <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} target={goal.targetValue} unit={goal.unit} formatDate={formatDate} onLinkedHabitNavigate={openLinkedHabit} />
-        <PillButton variant="ghost" minimumHeight={48} iconOnly label={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`} disabled={!draftHydrated} onClick={openAstra}><AstraGlyph size={20} /></PillButton>
+        <ListRow placement="column" wrapTitle icon={<AstraGlyph size={24} />} title={t('goals.detail.askAstraEyebrow')} accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`} disabled={!draftHydrated} onClick={openAstra} />
         <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} />
       </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
       {isError ? <GoalLoadError onRetry={() => void refetch()} /> : null}

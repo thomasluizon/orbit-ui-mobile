@@ -25,10 +25,10 @@ sheet and the wide anchored panel. Existing short and typed headings, full-title
 checked items, disabled actions, actionable plan badges and destructive ordering remain available.
 The composer recording control remains a voice action.
 
-Astra actions show only the mark inside a centred 48px square, without item padding, in both
-presentations. The full localized label remains the accessible name and the headless typeahead
-value. Other items retain visible labels. The item's existing radius contains its press fill and
-defines its single keyboard focus indicator.
+Astra actions show their localized label beside the decorative mark in both presentations,
+using the same row width, minimum height and padding as sibling actions. The visible label
+supplies the accessible name and the headless typeahead value. The item's existing radius
+contains its press fill and defines its single keyboard focus indicator.
 
 The native adapter bridges controlled open state through the headless Trigger because its Root
 is uncontrolled. Menu ownership remains exclusive, including replacements during a sheet exit.

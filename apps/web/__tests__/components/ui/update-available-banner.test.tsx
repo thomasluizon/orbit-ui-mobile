@@ -111,6 +111,25 @@ describe('UpdateAvailableBanner', () => {
     expect(reloadMock).toHaveBeenCalledTimes(1)
   })
 
+  it.each([
+    { locale: 'en', messages: en, reason: 'appUpdated' },
+    { locale: 'pt-BR', messages: ptBR, reason: 'appUpdated' },
+    { locale: 'en', messages: en, reason: 'accountChanged' },
+    { locale: 'pt-BR', messages: ptBR, reason: 'accountChanged' },
+  ] as const)('shows $reason guidance and one reload action in $locale', async ({ locale, messages, reason }) => {
+    const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+    const translate = createTranslator({ locale, messages })
+    mocks.translate = (key, values) => translate(key as Parameters<typeof translate>[0], values)
+    render(<UpdateAvailableBanner />)
+    await act(async () => {})
+    act(() => useVersionGateStore.getState().requireReload(reason))
+
+    expect(screen.getByRole('status')).toHaveTextContent(messages.errors.api[reason])
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: messages.errors.api.reload }))
+    expect(reloadMock).toHaveBeenCalledTimes(1)
+  })
+
   it('hides when the dismiss button is clicked', async () => {
     useVersionGateStore.getState().markUpgradeRequired('1.5.0')
     render(<UpdateAvailableBanner />)

@@ -1,4 +1,5 @@
 import { PersonalText } from '@/components/ui/personal-text'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import React from 'react'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { Icon } from '@/components/ui/icon'
@@ -55,32 +56,34 @@ function menuItemLabels(tree: any): string[] {
 }
 
 describe('Menu (mobile)', () => {
-  it.each((['anchored', 'sheet'] as const).flatMap(presentation => [1, 2].map(fontScale => ({ presentation, fontScale }))))(
-    'keeps an Astra action mark-only, named and centred in $presentation at font scale $fontScale',
-    async ({ presentation, fontScale }) => {
+  it.each([en, ptBR].flatMap(messages => (['anchored', 'sheet'] as const).flatMap(presentation => [1, 2].map(fontScale => ({ messages, presentation, fontScale })))))(
+    'shows an Astra action label with sibling row treatment in $presentation at font scale $fontScale',
+    async ({ messages, presentation, fontScale }) => {
       __setWindowDimensions({ width: 480, height: 900, scale: 1, fontScale })
       const onSelect = vi.fn()
-      const label = 'Suggest a new date with Astra'
+      const label = messages.habits.actions.rescheduleAstra
       let tree!: ReactTestRenderer
       await TestRenderer.act(() => { tree = TestRenderer.create(<><PortalHost /><Menu.Root open><Menu.Trigger accessibilityLabel="Menu trigger" />
         <Menu.Content presentation={presentation} title="Actions" onSelect={onSelect} items={[
-          { id: 'edit', label: 'Edit', icon: 'pencil' },
+          { id: 'edit', label: messages.common.edit, icon: 'pencil' },
           { id: 'reschedule', label, icon: 'astra' },
         ]} />
       </Menu.Root></>) })
       try {
-        const action = tree.root.findAll(node => String(node.type) === 'Pressable' && node.props['aria-label'] === label)[0]!
-        expect(action.props.accessibilityRole).toBe('menuitem')
-        expect(action.props.accessibilityLabel).toBe(label)
-        expect(action.findAll(node => String(node.type) === 'Text')).toHaveLength(0)
-        expect(action.findAll(node => node.type === Icon)[0]!.props.name).toBe('astra')
-        const rowStyle = action.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
-        const resting = StyleSheet.flatten(rowStyle({ pressed: false }))
-        expect(resting).toMatchObject({ width: 48, minHeight: 48, paddingHorizontal: 0, paddingVertical: 0, justifyContent: 'center', alignItems: 'center' })
-        expect(StyleSheet.flatten(rowStyle({ pressed: true }))).toEqual({ ...resting, backgroundColor: createTokensV2('orange', 'dark').bgHover })
-        expect(tree.root.findAll(node => String(node.type) === 'Text' && node.props.children === 'Edit')).toHaveLength(1)
+        const rows = tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'menuitem')
+        const sibling = rows[0]!
+        const action = rows[1]!
+        expect(action.findAll(node => String(node.type) === 'Text').map(node => node.props.children)).toEqual([label])
+        expect(action.props.accessibilityLabel).toBeUndefined()
+        expect(action.findAll(node => node.type === Icon).map(node => node.props.name)).toEqual(['astra'])
+        const actionStyle = action.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+        const siblingStyle = sibling.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+        for (const pressed of [false, true]) {
+          expect(StyleSheet.flatten(actionStyle({ pressed }))).toEqual(StyleSheet.flatten(siblingStyle({ pressed })))
+        }
         await TestRenderer.act(() => (action.props.onPress as () => void)())
         if (presentation === 'sheet') {
+          expect(onSelect).not.toHaveBeenCalled()
           const sheet = tree.root.findAll(node => node.type === TrueSheet)[0]!
           await TestRenderer.act(() => (sheet.props.onDidDismiss as () => void)())
         }

@@ -1838,8 +1838,8 @@ describe('HabitList', () => {
     })
     const text = flattenRenderedText(tree.toJSON())
     expect(text).toContain('habits.emptyState')
-    expect(text).not.toContain('habits.askAstra')
-    expect(tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'habits.askAstra')).toHaveLength(1)
+    expect(text).toContain('habits.askAstra')
+    expect(tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.findAll(child => String(child.type) === 'Text' && child.props.children === 'habits.askAstra').length > 0)).toHaveLength(1)
     expect(text).toContain('habits.createManually')
   })
 

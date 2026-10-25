@@ -43,6 +43,7 @@ describe('HabitRow overflow menus', () => {
     fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     const item = await screen.findByRole('menuitem', { name: label })
     expect(label).toBe(_locale === 'en' ? 'Reschedule' : 'Reagendar')
+    expect(item).toHaveTextContent(label)
     fireEvent.click(item)
     expect(onReschedule).toHaveBeenCalledOnce()
   })
@@ -74,7 +75,7 @@ describe('HabitRow overflow menus', () => {
     ]
     expect(items).toHaveLength(labels.length)
     for (const [index, label] of labels.entries()) expect(items[index]).toHaveAccessibleName(label)
-    expect(items.map((item) => item.textContent)).toEqual(labels.map((label, index) => index === 3 ? '' : label))
+    expect(items.map((item) => item.textContent)).toEqual(labels)
     expect(items.map((item) => item.querySelector('[data-icon]')?.getAttribute('data-icon'))).toEqual([
       'subtask', 'arrows-move', 'player-skip-forward', 'astra', 'pencil',
       'copy', 'checkbox', 'list-tree', 'trash',
