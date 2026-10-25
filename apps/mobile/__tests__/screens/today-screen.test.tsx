@@ -304,7 +304,7 @@ describe('Hoje date boundaries', () => {
     mocks.date.pinnedDateStr = '2026-04-01'
     let tree!: import('react-test-renderer').ReactTestRenderer & { unmount: () => void }
     await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) as typeof tree })
-    const radio = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio' && typeof node.props.testID === 'string' && node.props.testID.startsWith(`segment-${activeView}-`))[0]!
+    const radio = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'tab' && typeof node.props.testID === 'string' && node.props.testID.startsWith(`segment-${activeView}-`))[0]!
     await TestRenderer.act(() => { (radio.props.onPress as () => void)() })
     expect(mocks.routerReplace).toHaveBeenCalledWith('/(tabs)')
     expect(useUIStore.getState().activeView).toBe(activeView)
@@ -316,9 +316,9 @@ describe('Hoje date boundaries', () => {
     useUIStore.setState({ activeView })
     let tree!: import('react-test-renderer').ReactTestRenderer & { unmount: () => void }
     await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) as typeof tree })
-    const radios = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
+    const radios = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'tab')
     expect(radios).toHaveLength(3)
-    expect(radios.find((radio) => typeof radio.props.testID === 'string' && radio.props.testID.startsWith(`segment-${activeView}-`))?.props.accessibilityState).toMatchObject({ checked: true })
+    expect(radios.find((radio) => typeof radio.props.testID === 'string' && radio.props.testID.startsWith(`segment-${activeView}-`))?.props.accessibilityState).toMatchObject({ selected: true })
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'today-date-row')).toHaveLength(0)
     const list = tree.root.findAll((node) => String(node.type) === 'HabitListProps')[0]!
     expect(list.props.view).toBe(activeView)
@@ -719,7 +719,7 @@ describe('Hoje date boundaries', () => {
     expect(pills()).toHaveLength(0)
     await scroll(900)
     await scroll(600)
-    await TestRenderer.act(() => { (tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'tab' && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true)[0]!.props.onPress as () => void)() })
+    await TestRenderer.act(() => { (tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.testID === 'tab-hoje-current')[0]!.props.onPress as () => void)() })
     expect(mocks.scrollToOffset).toHaveBeenCalledTimes(2)
     expect(mocks.date.dateStr).toBe(selectedDate)
     expect(mocks.date.goToToday).not.toHaveBeenCalled()

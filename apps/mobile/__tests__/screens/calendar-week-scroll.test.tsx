@@ -121,8 +121,8 @@ describe('Calendar week scroll ownership', () => {
     __setTouchMode(false)
     await act(() => { tree = create(<CalendarScreen />) })
     const header = tree!.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-header-group')[0]!
-    const selector = header.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'radiogroup')[0]!
-    const radios = header.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio')
+    const selector = header.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'tablist')[0]!
+    const radios = header.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'tab')
     const previous = header.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.previousMonth')[0]!
     const next = header.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.nextMonth')[0]!
     const title = header.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button')[1]!
@@ -133,9 +133,9 @@ describe('Calendar week scroll ownership', () => {
       await act(() => __focusHost(nativeTag))
       const currentHeader = tree!.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-header-group')[0]!
       expect(currentHeader === header).toBe(true)
-      expect(currentHeader.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'radiogroup')[0] === selector).toBe(true)
-      currentHeader.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio').forEach((radio, radioIndex) => expect(radio === radios[radioIndex]).toBe(true))
-      expect(radios[index]!.props.accessibilityState).toMatchObject({ checked: true })
+      expect(currentHeader.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'tablist')[0] === selector).toBe(true)
+      currentHeader.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'tab').forEach((radio, radioIndex) => expect(radio === radios[radioIndex]).toBe(true))
+      expect(radios[index]!.props.accessibilityState).toMatchObject({ selected: true })
       expect(__getFocusedNativeTag()).toBe(nativeTag)
       if (step > 0) {
         expect(scrollToOffset).toHaveBeenCalledWith({ offset: 0, animated: false })

@@ -101,6 +101,6 @@ it('paints native select hover and focus on both trigger and option', async () =
     await act(() => (option.props.onHoverIn as (() => void) | undefined)?.())
     expect(paint(option).backgroundColor).toBe(tokens.bgHover)
     await act(() => { __setTouchMode(false); __focusHost(option.props.__nativeTag as number) })
-    expect(hosts(tree).some((node) => (node.type as unknown) === 'View' && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).outlineWidth === 2)).toBe(true)
+    expect(hosts(tree).some((node) => (node.type as unknown) === 'View' && StyleSheet.flatten<ViewStyle | undefined>(node.props.style as StyleProp<ViewStyle>)?.outlineWidth === 2)).toBe(true)
   } finally { await act(() => tree.update(<></>)) }
 })

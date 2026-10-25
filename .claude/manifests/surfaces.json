@@ -16835,6 +16835,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-ui-select",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/select.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/select.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-select",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/select.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/select.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-select",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/select.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/select.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-select",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/select.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/select.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-ui-sheet",
       "platform": "mobile",
       "kind": "overlay",

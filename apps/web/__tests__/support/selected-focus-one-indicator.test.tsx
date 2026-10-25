@@ -57,7 +57,7 @@ describe('selection yields to keyboard focus', () => {
       } finally { cleanup(); await page.close() }
     })
     it.each(['Standard', 'Streak'] as const)(`goal type switch keeps one indicator, ${theme}, selected %s`, async (goalType) => {
-      await verifyRenderedChoices(<GoalTypeSelector goalType={goalType} onTypeChange={vi.fn()} />, '[role="radio"]', theme)
+      await verifyRenderedChoices(<GoalTypeSelector goalType={goalType} onTypeChange={vi.fn()} />, '[role="tab"]', theme)
     })
     it(`a selected inner DateField circle yields to its focused button, ${theme}`, async () => {
       const { container } = render(<button type="button"><span className="orbit-selection-ring orbit-selection-ring-hairline" data-selected>Today</span></button>)
@@ -116,7 +116,10 @@ describe('selection yields to keyboard focus', () => {
             await control.hover()
             expect(await inspectControlAccentRings(control)).toHaveLength(selected ? 1 : 0)
             if (surface === 'segment' && !selected) return
-            await page.keyboard.press('Tab')
+            for (let stop = 0; stop < 20; stop += 1) {
+              await page.keyboard.press('Tab')
+              if (await control.evaluate((button) => button === document.activeElement)) break
+            }
             expect(await control.evaluate((button) => button.matches(':focus-visible'))).toBe(true)
             expect(await inspectControlAccentRings(control)).toHaveLength(1)
           } finally { cleanup(); await page.close() }

@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import { ScheduledReminderSection } from '@/components/habits/habit-form-fields/scheduled-reminder-section'
 import { buildCreateHabitRequest, buildEmptyHabitFormValues } from '@orbit/shared/utils'
+import { pressRadioKey } from '@/__tests__/support/radio-key'
 
 vi.mock('@/hooks/use-push-subscriptions', () => ({
   usePushSubscriptions: () => ({ count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false }),
@@ -96,7 +97,7 @@ describe('ScheduledReminderSection', () => {
     expect(screen.queryByText('habits.form.scheduledReminderAdd')).toBeNull()
   })
 
-  it('adds a valid scheduled reminder from the form', () => {
+  it('adds a valid scheduled reminder from the form', async () => {
     const props = renderSection({ scheduledReminders: [] })
     fireEvent.click(screen.getByText('habits.form.scheduledReminderAdd'))
     const group = screen.getByRole('radiogroup', { name: 'habits.form.scheduledReminder' })
@@ -104,11 +105,12 @@ describe('ScheduledReminderSection', () => {
     const sameDayOption = screen.getByRole('radio', { name: 'habits.form.scheduledReminderSameDay' })
     expect(group).toContainElement(dayBefore)
     expect([dayBefore.tabIndex, sameDayOption.tabIndex]).toEqual([-1, 0])
-    fireEvent.keyDown(sameDayOption, { key: 'ArrowRight' })
+    sameDayOption.focus()
+    await pressRadioKey(sameDayOption, 'ArrowRight')
     expect(dayBefore).toHaveFocus()
     expect(dayBefore).toHaveAttribute('aria-checked', 'true')
     expect([dayBefore.tabIndex, sameDayOption.tabIndex]).toEqual([0, -1])
-    fireEvent.keyDown(dayBefore, { key: 'ArrowRight' })
+    await pressRadioKey(dayBefore, 'ArrowRight')
     expect(sameDayOption).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(dayBefore)
     fireEvent.change(screen.getByLabelText('habits.form.scheduledReminderTimePlaceholder'), {

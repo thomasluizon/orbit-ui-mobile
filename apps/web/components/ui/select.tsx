@@ -25,7 +25,7 @@ export function Trigger({ children, ref, ...props }: ComponentProps<typeof Primi
   const resolveContainer = useContext(SelectContext)
   const composedRef = useComposedRefs(ref, resolveContainer)
   return <Primitive.Trigger {...props} ref={composedRef} className="flex w-full min-h-[54px] items-center justify-between gap-3 rounded-[12px] border-0 transition-[background-color,box-shadow] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] bg-[var(--bg-field)] py-3 pr-4 pl-4 text-left text-base text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] disabled:opacity-50">
-    {children}<Primitive.Icon asChild><ChevronDown size={20} strokeWidth={1.8} aria-hidden="true" /></Primitive.Icon>
+    {children}<Primitive.Icon asChild><ChevronDown size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" /></Primitive.Icon>
   </Primitive.Trigger>
 }
 

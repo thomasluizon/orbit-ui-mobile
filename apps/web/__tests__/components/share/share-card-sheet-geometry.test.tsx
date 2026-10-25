@@ -62,10 +62,10 @@ describe('Share progress sheet geometry in Chromium', () => {
         return content.getBoundingClientRect().bottom - content.querySelector('[data-testid="share-card"]')!.getBoundingClientRect().bottom
       })
       expect(trailingSpace).toBeCloseTo(0)
-      const geometry = await page.locator('[role="radiogroup"]').evaluate((group) => {
+      const geometry = await page.locator('[role="tablist"]').evaluate((group) => {
         const bounds = group.getBoundingClientRect()
         const column = group.parentElement!.getBoundingClientRect()
-        const segments = [...group.querySelectorAll('[role="radio"]')].map((segment) => {
+        const segments = [...group.querySelectorAll('[role="tab"]')].map((segment) => {
           const box = segment.getBoundingClientRect()
           const label = segment.querySelector('span')!
           const range = document.createRange()

@@ -142,7 +142,7 @@ it.each([
     expect(rows().length).toBeLessThan(before)
     expect(rows().some((row) => row.textContent.includes(query))).toBe(true)
     expect(rows().some((row) => row.textContent.includes(excluded))).toBe(false)
-    expect(screen.getByRole('radio', { name: label })).toBeChecked()
+    expect(screen.getByRole('tab', { name: label })).toHaveAttribute('aria-selected', 'true')
     expect(useUIStore.getState().activeFilters.frequencyUnit).toBe('Day')
     expect(rendered.container.querySelector('[data-today-date-row]')).toBe(pager)
     expect(pager?.textContent).toBe(pagerText)
