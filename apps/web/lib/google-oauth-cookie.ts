@@ -4,6 +4,11 @@ import { AUTH_COOKIE, REFRESH_COOKIE, getAccountIdFromToken } from '@/lib/auth-a
 
 export const GOOGLE_OAUTH_COOKIE = 'orbit_google_oauth'
 
+export function getGoogleOAuthRefreshOwner(request: NextRequest): string | null {
+  const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value
+  return refreshToken ? createHash('sha256').update(refreshToken).digest('hex') : null
+}
+
 export function getGoogleOAuthSessionOwner(request: NextRequest): string {
   const authToken = request.cookies.get(AUTH_COOKIE)?.value
   const accountId = authToken ? getAccountIdFromToken(authToken) : null
