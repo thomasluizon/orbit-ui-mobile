@@ -13,11 +13,12 @@ interface WebChatStoreState extends ChatStoreState {
  * sign in, so an unguarded throw would block the sign in rather than the Astra screen.
  */
 function forgetStoredDraft(): void {
-  try {
-    globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
-    forgetDesktopChatCheckpoint()
-  } catch {
-    return
+  for (const forgetDraft of [() => globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY), forgetDesktopChatCheckpoint]) {
+    try {
+      forgetDraft()
+    } catch {
+      continue
+    }
   }
 }
 

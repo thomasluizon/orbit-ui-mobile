@@ -140,7 +140,13 @@ it('drops an expired or foreign checkpoint and clears it on account reset', asyn
   vi.advanceTimersByTime(5 * 60_000)
   expect(takeDesktopChatCheckpoint('desktop-account')).toBeNull()
   await writeDesktopChatCheckpoint('desktop-account', useChatStore.getState(), true)
+  const removeItem = Storage.prototype.removeItem
+  vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(function (this: Storage, key: string) {
+    if (this === localStorage) throw new DOMException('denied', 'SecurityError')
+    removeItem.call(this, key)
+  })
   holdAccount('replacement-account')
+  expect(sessionStorage.length).toBe(0)
   expect(takeDesktopChatCheckpoint('desktop-account')).toBeNull()
 })
 
