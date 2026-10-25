@@ -82,10 +82,22 @@ jobs:
         working-directory: apps/mobile
         run: |
           set -euo pipefail
+          # React Native's compiler wrappers read CCACHE_BINARY from the process environment.
+          CCACHE_BINARY="$(command -v ccache)"
+          export CCACHE_BINARY
           xcodebuild -workspace ios/OrbitStaging.xcworkspace -scheme OrbitStaging \
             -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/orbit-ios-build" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
       - name: Report compiler cache statistics
         if: ${{ !cancelled() }}
-        run: ccache --show-stats
+        run: |
+          set -euo pipefail
+          ccache --show-stats
+          if ! ccache --print-stats | awk '
+            $1 == "cache_miss" || $1 == "direct_cache_hit" || $1 == "preprocessed_cache_hit" { calls += $2 }
+            END { exit(calls == 0) }
+          '; then
+            echo "::error::ccache recorded zero cacheable compiler calls; check CCACHE_BINARY and the generated compiler settings." >&2
+            exit 1
+          fi

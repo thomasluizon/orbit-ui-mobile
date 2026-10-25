@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { parse } from 'yaml'
@@ -86,6 +86,59 @@ describe('iOS build and release boundaries', () => {
     const workflow = readWorkflow<'release'>('ios-release')
     expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
     expect(workflow.jobs.release['runs-on']).toMatch(/^macos-/)
+  })
+
+  it('exports the installed cache executable to compiler subprocesses', () => {
+    const workflow = readWorkflow<'compile'>('ios-build')
+    const script = workflow.jobs.compile.steps.find((step) => step.run?.includes('xcodebuild -workspace'))?.run
+    expect(script).toBeTypeOf('string')
+    const directory = mkdtempSync(join(tmpdir(), 'orbit-ios-compiler-'))
+    writeFileSync(join(directory, 'ccache'), '#!/bin/sh\nexit 0\n', { mode: 0o755 })
+    writeFileSync(join(directory, 'xcodebuild'), `#!/bin/sh
+      : "\${CCACHE_BINARY:?Compiler subprocess must receive CCACHE_BINARY}"
+      test "$CCACHE_BINARY" = "$EXPECTED_CCACHE_BINARY"
+    `, { mode: 0o755 })
+    try {
+      expect(() => execFileSync('/bin/bash', ['-c', script!], {
+        env: {
+          ...process.env, PATH: `${directory}:${process.env.PATH}`, RUNNER_TEMP: directory,
+          CCACHE_BINARY: '', EXPECTED_CCACHE_BINARY: join(directory, 'ccache'),
+        },
+        stdio: 'pipe',
+      })).not.toThrow()
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    ['no compiler calls', 0, 0, 0, 0, false],
+    ['only uncacheable calls', 0, 0, 0, 4, false],
+    ['cold cache misses', 1, 0, 0, 0, true],
+    ['direct cache hits', 0, 1, 0, 0, true],
+    ['preprocessed cache hits', 0, 0, 1, 0, true],
+  ] as const)('checks cache activity with %s', (_name, misses, directHits, preprocessedHits, links, accepted) => {
+    const workflow = readWorkflow<'compile'>('ios-build')
+    const step = workflow.jobs.compile.steps.find((candidate) => candidate.name === 'Report compiler cache statistics')
+    expect(step?.if).toBe('${{ !cancelled() }}')
+    expect(step?.run).toBeTypeOf('string')
+    const directory = mkdtempSync(join(tmpdir(), 'orbit-ios-cache-stats-'))
+    writeFileSync(join(directory, 'ccache'), `#!/bin/sh
+      case "$1" in
+        --show-stats) printf 'Local storage:\n  Cache size (GB): 0.0 / 2.0 ( 0.00%%)\n' ;;
+        --print-stats) printf 'cache_miss\t${misses}\ndirect_cache_hit\t${directHits}\npreprocessed_cache_hit\t${preprocessedHits}\ncalled_for_link\t${links}\n' ;;
+        *) exit 2 ;;
+      esac
+    `, { mode: 0o755 })
+    const report = () => execFileSync('/bin/bash', ['-c', step!.run!], {
+      env: { ...process.env, PATH: `${directory}:${process.env.PATH}` }, stdio: 'pipe',
+    })
+    try {
+      if (accepted) expect(report).not.toThrow()
+      else expect(report).toThrow('::error::ccache recorded zero cacheable compiler calls')
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
   })
 
   it.each([
