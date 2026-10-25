@@ -2218,7 +2218,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<RootScrollProvider><CalendarScreen /><DestinationTabBar pathname="/calendar" /></RootScrollProvider>) })
     scrollTo.mockClear()
     rootScrollMocks.scrollToOffset.mockClear()
-    TestRenderer.act(() => { tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)[0]!.props.onPress() })
+    TestRenderer.act(() => { tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.testID === 'tab-calendario-current')[0]!.props.onPress() })
     expect(rootScrollMocks.scrollToOffset).toHaveBeenCalledExactlyOnceWith({ offset: 0, animated: false })
     TestRenderer.act(() => tree.unmount())
     __setScrollToImpl(() => {})
@@ -2233,7 +2233,7 @@ describe("CalendarScreen views (mobile)", () => {
     if (view !== 'month') pressView(tree, view)
     scrollTo.mockClear()
     rootScrollMocks.scrollToOffset.mockClear()
-    TestRenderer.act(() => { tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)[0]!.props.onPress() })
+    TestRenderer.act(() => { tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.testID === 'tab-calendario-current')[0]!.props.onPress() })
     expect(rootScrollMocks.scrollToOffset).toHaveBeenCalledExactlyOnceWith({ offset: 0, animated: false })
     const header = view === 'month' ? renderMonthHeader(tree) : null
     expect((header ?? tree).root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.testID === `segment-${view}-selected-enabled`)).toHaveLength(1)

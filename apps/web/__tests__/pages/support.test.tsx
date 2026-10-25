@@ -1,3 +1,4 @@
+import { pressRadioKey } from '@/__tests__/support/radio-key'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
@@ -202,33 +203,33 @@ describe('SupportPage', () => {
     expect(document.getElementById('support-send-reason')).toContainElement(reason)
   })
 
-  it('uses one radio tab stop and selects with arrow, Home, and End keys', () => {
+  it('uses one radio tab stop and selects with arrow, Home, and End keys', async () => {
     render(<SupportPage />)
 
     const radios = screen.getAllByRole('radio')
-    expect(Array.from(screen.getByRole('radiogroup', { name: 'profile.support.subject' }).children))
+    expect(Array.from(screen.getByRole('radiogroup', { name: 'profile.support.subject' }).querySelectorAll('[role="radio"]')))
       .toEqual(radios)
     expect(radios.map((radio) => radio.tabIndex)).toEqual([0, -1, -1, -1])
 
     radios[0]!.focus()
-    fireEvent.keyDown(radios[0]!, { key: 'ArrowDown' })
+    await pressRadioKey(radios[0]!, 'ArrowDown')
     expect(radios[1]).toHaveFocus()
     expect(radios[1]).toHaveAttribute('aria-checked', 'true')
     expect(radios.map((radio) => radio.tabIndex)).toEqual([-1, 0, -1, -1])
 
-    fireEvent.keyDown(radios[1]!, { key: 'End' })
+    await pressRadioKey(radios[1]!, 'End')
     expect(radios[3]).toHaveFocus()
     expect(radios[3]).toHaveAttribute('aria-checked', 'true')
 
-    fireEvent.keyDown(radios[3]!, { key: 'Home' })
+    await pressRadioKey(radios[3]!, 'Home')
     expect(radios[0]).toHaveFocus()
     expect(radios[0]).toHaveAttribute('aria-checked', 'true')
 
-    fireEvent.keyDown(radios[0]!, { key: 'ArrowUp' })
+    await pressRadioKey(radios[0]!, 'ArrowUp')
     expect(radios[3]).toHaveFocus()
-    fireEvent.keyDown(radios[3]!, { key: 'ArrowRight' })
+    await pressRadioKey(radios[3]!, 'ArrowRight')
     expect(radios[0]).toHaveFocus()
-    fireEvent.keyDown(radios[0]!, { key: 'ArrowLeft' })
+    await pressRadioKey(radios[0]!, 'ArrowLeft')
     expect(radios[3]).toHaveFocus()
   })
 

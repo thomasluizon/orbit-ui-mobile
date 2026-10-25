@@ -9,7 +9,7 @@ export default defineConfig({
     name: 'rn-primitives-jsx',
     enforce: 'pre',
     transform(source, id) {
-      if (!/\/node_modules\/@rn-primitives\/(portal|slot|dropdown-menu|dialog)\/dist\/(index|dropdown-menu|dialog)\.m?js$/.test(id)) return
+      if (!/\/node_modules\/@rn-primitives\/(portal|slot|dropdown-menu|dialog|select|toast|tabs|checkbox|switch|radio-group|toggle)\/dist\/(index|dropdown-menu|dialog|select|toast|tabs|checkbox|switch|radio-group|toggle)\.m?js$/.test(id)) return
       return transformWithOxc(source, id, { lang: 'jsx' })
     },
   }],
@@ -102,7 +102,6 @@ export default defineConfig({
         'components/profile/profile-nav-icon.tsx',
         'components/referral/referral-drawer.tsx',
         'components/ui/app-date-picker.tsx',
-        'components/ui/app-select.tsx',
         'components/ui/app-toast.tsx',
         'components/ui/bottom-sheet-app-text-input.tsx',
         'components/ui/expiry-warning.tsx',

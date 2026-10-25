@@ -1,3 +1,4 @@
+import { pressRadioKey } from '@/__tests__/support/radio-key'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, it, expect, vi } from 'vitest'
 import { useState } from 'react'
 import type { Time24 } from '@orbit/shared/contracts/forms'
@@ -230,7 +231,7 @@ describe('TimeField', () => {
     expect(within(minutes).getAllByRole('radio')).toHaveLength(60)
   })
 
-  it('uses one tab stop and wraps arrow selection within each time column', () => {
+  it('uses one tab stop and wraps arrow selection within each time column', async () => {
     uses24HourClock = true
     const onChange = vi.fn()
     render(<TimeField value="14:30" onChange={onChange} />)
@@ -242,12 +243,12 @@ describe('TimeField', () => {
 
     expect(options.filter((option) => option.tabIndex === 0)).toEqual([selected])
     selected.focus()
-    fireEvent.keyDown(selected, { key: 'End' })
+    await pressRadioKey(selected, 'End')
     const lastHour = within(hours).getByRole('radio', { name: '23' })
     expect(lastHour).toHaveFocus()
     expect(lastHour).toHaveAttribute('aria-checked', 'true')
 
-    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' })
+    await pressRadioKey(document.activeElement!, 'ArrowDown')
     const firstHour = within(hours).getByRole('radio', { name: '00' })
     expect(firstHour).toHaveFocus()
     expect(firstHour).toHaveAttribute('aria-checked', 'true')

@@ -5,7 +5,7 @@ import type { FrequencyUnit } from '@orbit/shared/types/habit'
 import { buildHabitFrequencyUnits, type HabitScheduleFieldsProps } from '@orbit/shared/utils'
 import { Proposed } from '@/components/ui/proposed'
 import { Input } from '@/components/ui/input'
-import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 
 export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChange, onModeChange, proposed = false, hidden = false, general = false, generalLocked = false, onGeneral }: Readonly<HabitScheduleFieldsProps>) {

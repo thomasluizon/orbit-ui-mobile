@@ -56,7 +56,7 @@ describe('Toast', () => {
   it('pauses while hovered and resumes after the pointer leaves', () => {
     const onDone = vi.fn()
     render(<Toast kind="done" message="Saved" onDone={onDone} />)
-    const region = screen.getByRole('status')
+    const region = screen.getByRole('group')
 
     void act(() => vi.advanceTimersByTime(1000))
     fireEvent.pointerEnter(region)
@@ -72,7 +72,7 @@ describe('Toast', () => {
   it('pauses while focused and resumes after focus leaves', () => {
     const onDone = vi.fn()
     render(<Toast kind="done" message="Saved" onDone={onDone} />)
-    const region = screen.getByRole('status')
+    const region = screen.getByRole('group')
 
     fireEvent.focus(region)
     void act(() => vi.advanceTimersByTime(30000))
@@ -94,7 +94,7 @@ describe('Toast', () => {
         onDone={onDone}
       />,
     )
-    const region = screen.getByRole('status')
+    const region = screen.getByRole('group')
 
     void act(() => vi.advanceTimersByTime(1000))
     fireEvent.pointerEnter(region)
@@ -119,7 +119,7 @@ describe('Toast', () => {
         onDone={onDone}
       />,
     )
-    const region = screen.getByRole('status')
+    const region = screen.getByRole('group')
 
     fireEvent.focus(region)
     void act(() => vi.advanceTimersByTime(30000))
@@ -134,7 +134,7 @@ describe('Toast', () => {
 
     void act(() => vi.advanceTimersByTime(60000))
 
-    expect(screen.getByRole('status')).toHaveTextContent('Deleting')
+    expect(screen.getByRole('group', { name: 'Deleting' })).toHaveTextContent('Deleting')
   })
 
   it('keeps the lost action available before its timeout', () => {
@@ -151,7 +151,7 @@ describe('Toast', () => {
     revealMessage()
 
     void act(() => vi.advanceTimersByTime(4999))
-    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'The change was lost.' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(onAction).toHaveBeenCalledTimes(2)
@@ -240,7 +240,7 @@ describe('Toast', () => {
     rerender(
       <Toast kind="lost" message="Lost" detail="Retry" actionLabel="Retry" onAction={() => {}} />,
     )
-    expect(screen.getByRole('alert')).toHaveAttribute('aria-live', 'assertive')
+    expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'assertive')
   })
 
   it('does not move focus when any kind mounts', () => {
@@ -262,12 +262,12 @@ describe('Toast', () => {
     anchor.remove()
   })
 
-  it('mounts an empty stable live region before writing the message', () => {
+  it('mounts an empty live region before announcing the message', () => {
     render(<Toast kind="neutral" message="Fact" />)
     const region = screen.getByRole('status')
 
     expect(region).not.toHaveTextContent('Fact')
-    revealMessage()
+    void act(() => vi.advanceTimersByTime(40))
     expect(region).toHaveTextContent('Fact')
   })
 

@@ -52,7 +52,7 @@ vi.mock('next/navigation', () => ({
     return mocks.searchParams
   },
 }))
-vi.mock('next/dynamic', () => ({ default: () => () => null }))
+vi.mock('@/components/chat/conversation', () => ({ AstraConversation: () => null }))
 vi.mock('@/components/navigation/navigation-history-tracker', () => ({ NavigationHistoryTracker: () => null }))
 vi.mock('@/components/ui/throttle-screen', () => ({ ThrottleScreen: () => null }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: ReactNode }) => children }))
@@ -137,10 +137,11 @@ beforeEach(() => {
   useAppToastStore.setState({ currentToast: null, queue: [] })
 })
 
-it('renders app feedback inside the destination notice slot', () => {
+it('renders app feedback inside the destination notice slot', async () => {
   mocks.pathname = '/'
   const view = render(<QueryAppLayout><p>Today content</p></QueryAppLayout>)
   act(() => { useAppToastStore.getState().showError('x') })
+  await act(async () => { await vi.dynamicImportSettled() })
   expect(view.container.querySelector('[data-shell-notice] [data-kind="neutral"]')).toBeInTheDocument()
   expect(screen.getByRole('status')).toBeInTheDocument()
 })
@@ -165,16 +166,18 @@ it('keeps failed form feedback and its action reachable on the creation screen',
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
 
-it('places signed-out feedback at the bottom of the page', () => {
+it('places signed-out feedback at the bottom of the page', async () => {
   const view = render(<AuthLayout><p>Sign in</p></AuthLayout>)
   act(() => { useAppToastStore.getState().showError('x') })
+  await act(async () => { await vi.dynamicImportSettled() })
   expect(view.container.querySelector('[data-toast-page-host] [data-kind="neutral"]')).toBeInTheDocument()
   expect(view.container.querySelector('[data-toast-page-host]')).toHaveClass('bottom-0')
 })
 
-it('places public About feedback at the bottom of the page', () => {
+it('places public About feedback at the bottom of the page', async () => {
   const view = render(<QueryAppLayout><p>About content</p></QueryAppLayout>)
   act(() => { useAppToastStore.getState().showError('x') })
+  await act(async () => { await vi.dynamicImportSettled() })
   expect(view.container.querySelector('[data-toast-page-host] [data-kind="neutral"]')).toBeInTheDocument()
   expect(view.container.querySelector('[data-shell-notice]')).toBeNull()
 })

@@ -29,7 +29,7 @@ describe('expanded RadioRow personal text in Chromium', () => {
       stdin: {
         contents: `import React, { useLayoutEffect, useState } from 'react';
           import { createRoot } from 'react-dom/client';
-          import { RadioGroup } from './components/ui/radio-row';
+          import { RadioGroup } from './components/ui/radio-group';
           import { RadioRow } from './components/ui/select-check';
           import { EditorParentField } from './components/habits/editor-parent-field';
           import { EditorParentOwner } from './__tests__/support/editor-parent-owner';
@@ -217,7 +217,7 @@ describe('expanded RadioRow personal text in Chromium', () => {
       const first = radios.nth(1)
       await first.focus()
       await first.press('End')
-      expect(await radios.last().evaluate((row) => row === document.activeElement)).toBe(true)
+      await expect.poll(() => radios.last().evaluate((row) => row === document.activeElement)).toBe(true)
       await dialog.getByRole('button', { name: copy.common.close, exact: true }).click()
       await expect.poll(() => dialog.count()).toBe(0)
       expect(await control.evaluate((element) => element === document.activeElement)).toBe(true)
@@ -327,7 +327,7 @@ describe('expanded RadioRow personal text in Chromium', () => {
       expect(await page.locator('#commits').textContent()).toBe('')
       await page.getByRole('radio', { name: label, exact: true }).focus()
       await page.keyboard.press('ArrowDown')
-      expect(await page.getByRole('radio', { name: 'Second', exact: true }).getAttribute('aria-checked')).toBe('true')
+      await expect.poll(() => page.getByRole('radio', { name: 'Second', exact: true }).getAttribute('aria-checked')).toBe('true')
       expect(await page.getByRole('radio', { name: 'Second', exact: true }).evaluate((element) => document.activeElement === element)).toBe(true)
       expect(await page.locator('[data-personal-text] [tabindex="0"], [data-personal-text][tabindex="0"]').count()).toBe(0)
     } finally { await page.close() }

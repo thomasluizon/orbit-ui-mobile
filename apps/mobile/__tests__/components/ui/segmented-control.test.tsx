@@ -37,7 +37,7 @@ describe('SegmentedControl', () => {
     const onChange = vi.fn()
     const tree = renderNavigation(<SegmentedControl options={options} value="active" onChange={onChange} label="Views" />)
     const radios = () => tree.hosts().filter((node) => node.props.accessibilityRole === 'radio')
-    expect(tree.hosts().some((node) => node.props.accessibilityLabel === 'Views')).toBe(true)
+    expect(tree.hosts().some((node) => node.props.accessibilityLabel === 'Views' && node.props.accessibilityRole === 'radiogroup')).toBe(true)
     expect(radios().filter((node) => node.props.accessibilityState?.checked).map((node) => node.props.testID)).toEqual(['segment-active-selected-enabled'])
     press(radios()[1]!)
     expect(onChange).not.toHaveBeenCalled()

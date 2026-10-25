@@ -39,9 +39,9 @@ interface TestButtonNode {
   }
 }
 
-function findButtonWithText(root: { findAll: (predicate: (node: { props: Record<string, unknown>; findAll: (childPredicate: (child: { type: unknown; props: Record<string, unknown> }) => boolean) => unknown[] }) => boolean) => unknown[] }, text: string): TestButtonNode {
+function findButtonWithText(root: { findAll: (predicate: (node: { type: unknown; props: Record<string, unknown>; findAll: (childPredicate: (child: { type: unknown; props: Record<string, unknown> }) => boolean) => unknown[] }) => boolean) => unknown[] }, text: string): TestButtonNode {
   return root.findAll((node) =>
-    node.props.accessibilityRole === 'button' &&
+    typeof node.type === 'string' && ['button'].includes(String(node.props.accessibilityRole)) &&
     !(node.props.accessibilityState !== undefined && 'expanded' in (node.props.accessibilityState as Record<string, unknown>)) &&
     node.findAll((child) => child.type === 'Text' && child.props.children === text).length > 0,
   )[0]! as TestButtonNode
@@ -112,7 +112,7 @@ it('selects a tag below the first viewport while the search keyboard is open', a
     row = TestRenderer.create(list.props.renderItem({ item: tags[20], index: 20 }))
   })
   await TestRenderer.act(() => {
-    row.root.findAll((node: { props: Record<string, unknown> }) => node.props.accessibilityRole === 'button')[0]!.props.onPress()
+    row.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]!.props.onPress()
   })
   expect(onToggle).toHaveBeenCalledWith('tag-20')
 })

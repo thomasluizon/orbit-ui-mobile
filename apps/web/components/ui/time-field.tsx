@@ -26,7 +26,7 @@ import {
 } from '@orbit/shared/utils'
 import { Clock3, X } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
-import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
+import { RadioGroup, RadioItem } from '@/components/ui/radio-group'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useProfile } from '@/hooks/use-profile'
 import { revealFocusedControl } from '@/lib/focus-scroll'
@@ -48,21 +48,12 @@ function TimeOption({
   selected: boolean
   onSelect: () => void
 }>) {
-  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({
-    disabled: false,
-    onSelect,
-    selected,
-  })
 
   return (
-    <button
-      ref={elementRef}
+    <RadioItem selected={selected} onSelect={onSelect}><button
       type="button"
       role="radio"
       aria-checked={selected}
-      tabIndex={tabIndex}
-      onClick={onActivate}
-      onKeyDown={onKeyDown}
       className={`orbit-selection-ring w-full min-h-[var(--touch-min)] rounded-[12px] py-2 text-center text-base transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] ${
         selected
           ? 'bg-[var(--bg-hover)] text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]'
@@ -71,7 +62,7 @@ function TimeOption({
       style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}
     >
       {formattedValue}
-    </button>
+    </button></RadioItem>
   )
 }
 

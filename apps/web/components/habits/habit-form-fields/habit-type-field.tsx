@@ -3,7 +3,7 @@
 import { useId } from 'react'
 import { useTranslations } from 'next-intl'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
-import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 
 export function HabitTypeField({ formHelpers, lockedGeneral, onChange }: Readonly<{ formHelpers: HabitFormHelpers; lockedGeneral: boolean | null; onChange: () => void }>) {

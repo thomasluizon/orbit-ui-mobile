@@ -449,7 +449,7 @@ describe('HabitFormFields mobile', () => {
     const renderNode = () => <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} lockedGeneral={lockedGeneral} />
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(renderNode()) })
-    const buttons = (label: string) => tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)
+    const buttons = (label: string) => tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && ['button', 'checkbox'].includes(String(node.props.accessibilityRole)) && node.props.accessibilityLabel === label)
     expect(buttons('habits.form.emojiOpenPicker')).toHaveLength(1)
     await TestRenderer.act(() => buttons('habits.form.emojiOpenPicker')[0]!.props.onPress())
     await TestRenderer.act(() => buttons('habits.form.emoji: 🏃')[0]!.props.onPress())
@@ -497,7 +497,7 @@ describe('HabitFormFields mobile', () => {
     }
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(<CreateFormHarness />) })
-    const buttons = (label: string) => tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)
+    const buttons = (label: string) => tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && ['button', 'checkbox'].includes(String(node.props.accessibilityRole)) && node.props.accessibilityLabel === label)
     expect(buttons('habits.form.emojiOpenPicker')).toHaveLength(1)
     await TestRenderer.act(() => tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!.props.onChangeText('Run every day'))
     expect(buttons('habits.form.emojiOpenPicker')).toHaveLength(1)
@@ -1099,10 +1099,10 @@ it('exposes tag suggestions from the owning habit form', async () => {
 describe('habit tag suggestions', () => {
   let tree: ReturnType<typeof TestRenderer.create>
   function button(label: string) {
-    return tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)[0]!
+    return tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && ['button', 'checkbox'].includes(String(node.props.accessibilityRole)) && node.props.accessibilityLabel === label)[0]!
   }
   function proposalButton(label: string) {
-    return tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'View' && node.props.testID === 'proposed-field')[0]?.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)[0]
+    return tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'View' && node.props.testID === 'proposed-field')[0]?.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && ['button', 'checkbox'].includes(String(node.props.accessibilityRole)) && node.props.accessibilityLabel === label)[0]
   }
   async function renderTagForm(title = ' Run ', description = ' Outside ', initialIds: string[] = []) {
     const helpers = createFormHelpers({ title, description })

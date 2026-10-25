@@ -258,7 +258,11 @@ export function setupHabitModalSubmit(owner: 'create' | 'edit') {
   async function submit(method = 'click') {
     const user = userEvent.setup()
     if (method === 'form') await act(async () => { fireEvent.submit(phraseInput().closest('form')!) })
-    else if (method === 'Enter') { phraseInput().focus(); await user.keyboard('{Enter}') }
+    else if (method === 'Enter') {
+      phraseInput().focus()
+      const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+      if (fireEvent(phraseInput(), enter)) phraseInput().closest('form')!.requestSubmit(submitButton() as HTMLButtonElement)
+    }
     else await user.click(submitButton())
   }
 

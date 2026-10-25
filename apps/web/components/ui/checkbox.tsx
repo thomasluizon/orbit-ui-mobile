@@ -1,6 +1,7 @@
 'use client'
 
 import type { CheckboxProps } from '@orbit/shared/contracts/forms'
+import * as Primitive from '@radix-ui/react-checkbox'
 import { Check, Loader2 } from '@/components/ui/icons'
 
 export function Checkbox({
@@ -33,19 +34,17 @@ export function Checkbox({
   if (as === 'span') return box
 
   return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={checked}
+    <Primitive.Root
+      checked={checked}
       aria-label={label}
       disabled={disabled || loading}
-      onClick={() => onChange(!checked)}
+      onCheckedChange={(next) => onChange(next === true)}
       data-checked={checked ? '' : undefined}
       data-loading={loading ? '' : undefined}
       data-error={error ? '' : undefined}
       className="grid min-h-[var(--touch-min)] min-w-[var(--touch-min)] place-items-center border-0 bg-transparent p-0 disabled:opacity-60"
     >
       {box}
-    </button>
+    </Primitive.Root>
   )
 }

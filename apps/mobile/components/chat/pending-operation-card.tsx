@@ -24,7 +24,7 @@ import { SPACING, TOUCH_TARGET_MIN, WIDE_DESKTOP_BREAKPOINT } from '@orbit/share
 import { createTokensV2 } from '@/lib/theme'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { RadioRow } from '@/components/ui/select-check'
-import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioGroup } from '@/components/ui/radio-group'
 import { MAX_CHECKLIST_ITEMS, MAX_SCHEDULED_REMINDERS } from '@orbit/shared/validation'
 
 function ListRowFields({ field, row, rowLabel, labels, busy, change }: Readonly<{

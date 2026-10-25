@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import * as Primitive from '@rn-primitives/toast'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useToastLifecycle } from '@/hooks/use-toast-lifecycle'
 import type { ToastProps } from '@orbit/shared/contracts/feedback'
@@ -68,13 +69,12 @@ function ToastClose({ visible, dismiss, onFocus, onBlur, color }: Readonly<{
   const { t } = useTranslation()
   if (!visible) return null
   return (
-    <PillButton variant="ghost" size="sm" iconOnly label={t('common.close')} minimumHeight={TOUCH_TARGET_MIN} onClick={dismiss} onFocus={onFocus} onBlur={onBlur}>
+    <Primitive.Close asChild><PillButton variant="ghost" size="sm" iconOnly label={t('common.close')} minimumHeight={TOUCH_TARGET_MIN} onClick={dismiss} onFocus={onFocus} onBlur={onBlur}>
       <X size={20} color={color} />
-    </PillButton>
+    </PillButton></Primitive.Close>
   )
 }
 
-/** Stable Android live-region feedback. It owns no position, scrim, focus, or z-index. */
 export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void; persistent?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -82,6 +82,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
     [currentScheme, currentTheme],
   )
   const [announcedMessage, setAnnouncedMessage] = useState('')
+  const actionClosing = useRef(false)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const [actionPressed, setActionPressed] = useState(false)
@@ -101,7 +102,11 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
   if (dismissed) return null
 
   return (
-    <View
+    <Primitive.Root type="background" open={!dismissed} onOpenChange={(open) => {
+      if (actionClosing.current) { actionClosing.current = false; return }
+      if (!open) dismiss()
+    }}
+      aria-live={props.kind === 'lost' ? 'assertive' : 'polite'}
       {...swipe.panHandlers}
       accessible={!props.actionLabel}
       accessibilityLiveRegion={props.kind === 'lost' ? 'assertive' : 'polite'}
@@ -150,8 +155,8 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
 
       {props.actionLabel ? (
         <View style={styles.controls}>
-          <Pressable
-            onPress={props.onAction}
+          <Primitive.Action asChild><Pressable
+            onPress={() => { actionClosing.current = true; props.onAction() }}
             onPressIn={() => setActionPressed(true)}
             onPressOut={() => setActionPressed(false)}
             onFocus={() => { setFocused(true); setActionFocused(true) }}
@@ -166,15 +171,14 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
             }]}>
               {props.actionLabel}
             </Text>
-          </Pressable>
+          </Pressable></Primitive.Action>
           <ToastClose visible={canDismiss} dismiss={dismiss} color={tokens.fg2} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
         </View>
       ) : null}
-    </View>
+    </Primitive.Root>
   )
 }
 
-/** Legacy root mount. The host owns placement and adapts the queue to the prop-driven Toast. */
 export function AppToast({ placement = 'overlay', sheetId }: Readonly<{ placement?: 'overlay' | 'slot' | 'sheet'; sheetId?: string }>) {
   const insets = useSafeAreaInsets()
   const { width: screenWidth } = useWindowDimensions()

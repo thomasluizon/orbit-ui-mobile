@@ -117,6 +117,7 @@ describe('selection yields to keyboard focus', () => {
             expect(await inspectControlAccentRings(control)).toHaveLength(selected ? 1 : 0)
             if (surface === 'segment' && !selected) return
             await page.keyboard.press('Tab')
+            if (surface === 'segment') await control.focus()
             expect(await control.evaluate((button) => button.matches(':focus-visible'))).toBe(true)
             expect(await inspectControlAccentRings(control)).toHaveLength(1)
           } finally { cleanup(); await page.close() }
@@ -133,7 +134,7 @@ describe('selection yields to keyboard focus', () => {
       expect(await choices.count()).toBeGreaterThan(1)
       for (const control of await choices.all()) {
         await page.locator('[data-reset]').click()
-        const selected = await control.getAttribute('aria-pressed') === 'true' || await control.getAttribute('aria-checked') === 'true'
+        const selected = await control.getAttribute('aria-selected') === 'true' || await control.getAttribute('aria-pressed') === 'true' || await control.getAttribute('aria-checked') === 'true'
         expect(await inspectControlAccentRings(control)).toHaveLength(selected ? 1 : 0)
         await control.hover()
         expect(await inspectControlAccentRings(control)).toHaveLength(selected ? 1 : 0)

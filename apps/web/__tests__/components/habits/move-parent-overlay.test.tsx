@@ -9,7 +9,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { afterAll, afterEach, beforeAll, describe, it, expect, vi } from 'vitest'
-import { act, render, screen, fireEvent, within } from '@testing-library/react'
+import { act, render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
@@ -124,7 +124,7 @@ describe('MoveParentOverlay', () => {
     expect(screen.queryByText('Zeta 0')).not.toBeInTheDocument()
   })
 
-  it('keeps arrow navigation in rendered order after filtered rows return', () => {
+  it('keeps arrow navigation in rendered order after filtered rows return', async () => {
     const { onSelectOption } = renderOverlay([
       makeOption({ id: null, label: 'habits.moveParent.toRoot' }),
       ...Array.from({ length: 9 }, (_, index) =>
@@ -140,11 +140,11 @@ describe('MoveParentOverlay', () => {
     zetaFour.focus()
     fireEvent.keyDown(zetaFour, { key: 'ArrowDown' })
 
-    expect(zetaFive).toHaveFocus()
+    await waitFor(() => expect(zetaFive).toHaveFocus())
     expect(onSelectOption).toHaveBeenLastCalledWith('zeta5')
   })
 
-  it('skips a disabled destination and never gives it a tab stop', () => {
+  it('skips a disabled destination and never gives it a tab stop', async () => {
     const { onSelectOption } = renderOverlay([
       makeOption({ id: null, label: 'Top level' }),
       makeOption({ id: 'alpha', label: 'Alpha', disabled: true, reason: 'Too deep' }),
@@ -158,11 +158,11 @@ describe('MoveParentOverlay', () => {
     root.focus()
     fireEvent.keyDown(root, { key: 'ArrowDown' })
 
-    expect(bravo).toHaveFocus()
+    await waitFor(() => expect(bravo).toHaveFocus())
     expect(onSelectOption).toHaveBeenCalledExactlyOnceWith('bravo')
   })
 
-  it('wraps arrow navigation between Top level and the first destination', () => {
+  it('wraps arrow navigation between Top level and the first destination', async () => {
     const { onSelectOption } = renderOverlay([
       makeOption({ id: null, label: 'Top level' }),
       makeOption({ id: 'alpha', label: 'Alpha' }),
@@ -172,11 +172,11 @@ describe('MoveParentOverlay', () => {
 
     root.focus()
     fireEvent.keyDown(root, { key: 'ArrowDown' })
-    expect(firstDestination).toHaveFocus()
+    await waitFor(() => expect(firstDestination).toHaveFocus())
     expect(onSelectOption).toHaveBeenLastCalledWith('alpha')
 
     fireEvent.keyDown(firstDestination, { key: 'ArrowDown' })
-    expect(root).toHaveFocus()
+    await waitFor(() => expect(root).toHaveFocus())
   })
 
   it('keeps the Move label on the busy confirm button while the move runs', () => {

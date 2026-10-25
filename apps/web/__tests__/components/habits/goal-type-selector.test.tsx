@@ -1,3 +1,5 @@
+import userEvent from '@testing-library/user-event'
+import { pressRadioKey } from '@/__tests__/support/radio-key'
 import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
@@ -28,18 +30,19 @@ describe('GoalTypeSelector', () => {
     expect(screen.getByRole('radiogroup', { name: 'goals.form.type' })).toHaveClass('bg-[var(--bg-well)]')
   })
 
-  it('keeps one tab stop and moves selection and focus with radio keys', () => {
+  it('keeps one tab stop and moves selection and focus with tab keys', async () => {
     const onChange = vi.fn()
     render(<Selector onChange={onChange} />)
     const standard = screen.getByRole('radio', { name: 'goals.form.typeStandard' })
     const streak = screen.getByRole('radio', { name: 'goals.form.typeStreak' })
 
+    await userEvent.tab()
+    expect(standard).toHaveFocus()
     expect([standard.tabIndex, streak.tabIndex]).toEqual([0, -1])
-    standard.focus()
-    fireEvent.keyDown(standard, { key: 'ArrowRight' })
+    await pressRadioKey(standard, 'ArrowRight')
     expect(onChange).toHaveBeenCalledExactlyOnceWith('Streak')
     expect(streak).toHaveFocus()
-    fireEvent.keyDown(streak, { key: 'Home' })
+    await pressRadioKey(streak, 'Home')
     expect(onChange).toHaveBeenLastCalledWith('Standard')
     expect(standard).toHaveFocus()
   })

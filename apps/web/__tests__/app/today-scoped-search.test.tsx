@@ -142,7 +142,7 @@ it.each([
     expect(rows().length).toBeLessThan(before)
     expect(rows().some((row) => row.textContent.includes(query))).toBe(true)
     expect(rows().some((row) => row.textContent.includes(excluded))).toBe(false)
-    expect(screen.getByRole('radio', { name: label })).toBeChecked()
+    expect(screen.getByRole('radio', { name: label })).toHaveAttribute('aria-checked', 'true')
     expect(useUIStore.getState().activeFilters.frequencyUnit).toBe('Day')
     expect(rendered.container.querySelector('[data-today-date-row]')).toBe(pager)
     expect(pager?.textContent).toBe(pagerText)
@@ -161,4 +161,23 @@ it.each([
     rendered.unmount()
     client.clear()
   }
+})
+
+it('keeps the date pager mounted while inspecting every habit view with focus', async () => {
+  boundary.date = null
+  useUIStore.setState({ activeView: 'today', activeFilters: {} })
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+  const rendered = render(<QueryClientProvider client={client}><NextIntlClientProvider locale="en" messages={en}>
+    <TodaySearchSurface />
+  </NextIntlClientProvider></QueryClientProvider>)
+  try {
+    const previous = screen.getByRole('button', { name: en.dates.previousDay })
+    for (const name of [en.habits.viewToday, en.habits.viewAll, en.habits.viewGeneral]) {
+      const option = within(rendered.container.querySelector('[data-habit-view-switch]') as HTMLElement).getByText(name, { exact: true }).closest('button')!
+      await act(async () => { option.focus() })
+      expect(option).toHaveFocus()
+      expect(screen.getByRole('button', { name: en.dates.previousDay })).toBe(previous)
+      expect(useUIStore.getState().activeView).toBe('today')
+    }
+  } finally { rendered.unmount(); client.clear() }
 })

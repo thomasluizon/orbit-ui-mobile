@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
-import { Pressable, StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native'
+import * as Primitive from '@rn-primitives/toggle'
 import { Moon, Sun } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2 } from '@/lib/theme'
@@ -10,12 +12,17 @@ export function ThemeToggle() {
   const { t } = useTranslation()
   const { currentScheme, currentTheme, toggleTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const [focused, setFocused] = useState(false)
   const isDark = currentTheme === 'dark'
 
   return (
-    <Pressable
-      onPress={toggleTheme}
-      accessibilityRole="button"
+    <Primitive.Root
+      pressed={isDark}
+      onPressedChange={toggleTheme}
+      role={undefined}
+      accessibilityRole="togglebutton"
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       accessibilityLabel={
         isDark
           ? t('settings.theme.switchToLight')
@@ -23,6 +30,7 @@ export function ThemeToggle() {
       }
       style={({ pressed }) => [
         styles.button,
+        focused ? { outlineWidth: 2, outlineColor: tokens.fg1, outlineOffset: -2, outlineStyle: 'solid' } : null,
         {
           backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
           borderColor: tokens.hairlineStrong,
@@ -35,7 +43,7 @@ export function ThemeToggle() {
       ) : (
         <Sun size={20} color={tokens.fg1} strokeWidth={1.8} />
       )}
-    </Pressable>
+    </Primitive.Root>
   )
 }
 

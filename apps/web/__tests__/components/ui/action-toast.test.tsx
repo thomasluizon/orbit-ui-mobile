@@ -29,11 +29,12 @@ describe('action toast dismissal', () => {
     vi.useRealTimers()
   })
 
-  it('expires a hosted undo after five seconds without running undo', () => {
+  it('expires a hosted undo after five seconds without running undo', async () => {
     const undo = vi.fn()
     const dismissed = vi.fn()
     useAppToastStore.getState().showQueued('Habit skipped', 'Undo', undo, dismissed)
     const view = render(<NavigationOwner />)
+    await act(async () => { await vi.dynamicImportSettled() })
     void act(() => vi.advanceTimersByTime(3000))
     view.rerender(<NavigationOwner />)
     void act(() => vi.advanceTimersByTime(1999))
@@ -98,10 +99,11 @@ describe('action toast dismissal', () => {
     expect(screen.queryByRole('status')).toBeNull()
   })
 
-  it('keeps a dismissed notification undo hidden across remounts while its delete still executes', () => {
+  it('keeps a dismissed notification undo hidden across remounts while its delete still executes', async () => {
     const execute = vi.fn()
     queuePendingNotificationDelete('notification', execute)
     const view = render(<NavigationOwner><NotificationDeleteNotice key="first" /></NavigationOwner>)
+    await act(async () => { await vi.dynamicImportSettled() })
     fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
     view.rerender(<NavigationOwner><NotificationDeleteNotice key="second" /></NavigationOwner>)
     expect(screen.queryByRole('status')).toBeNull()

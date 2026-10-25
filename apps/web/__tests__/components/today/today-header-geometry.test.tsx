@@ -233,7 +233,7 @@ describe('Hoje header geometry', () => {
       try {
         for (const label of [words.habits.viewToday, words.habits.viewAll, words.habits.viewGeneral]) {
           fireEvent.click(within(rendered.container).getByRole('radio', { name: label }))
-          expect(within(rendered.container).getByRole('radio', { name: label })).toBeChecked()
+          expect(within(rendered.container).getByRole('radio', { name: label })).toHaveAttribute('aria-checked', 'true')
           await page.setContent(`<style>${stylesheet}</style>${rendered.container.innerHTML}`)
       await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
           const search = page.locator('[data-shell-sidebar]').getByRole('button', { name: words.nav.search, exact: true })

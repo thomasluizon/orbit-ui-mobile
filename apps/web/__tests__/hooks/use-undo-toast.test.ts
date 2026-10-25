@@ -27,11 +27,12 @@ describe('useUndoToast', () => {
     expect(useAppToastStore.getState().currentToast).toBeNull()
   })
 
-  it('runs the same undo from the text action', () => {
+  it('runs the same undo from the text action', async () => {
     const { result } = renderHook(() => useUndoToast())
     render(createElement(AppToastHost))
     const restore = vi.fn()
     act(() => { result.current('Habit deleted', restore) })
+    await act(async () => { await vi.dynamicImportSettled() })
     act(() => { fireEvent.click(screen.getByRole('button', { name: 'undo.action' })) })
     pressKey({ key: 'z', metaKey: true })
     expect(restore).toHaveBeenCalledOnce()

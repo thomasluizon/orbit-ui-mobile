@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { ActionRow } from '@/components/ui/action-row'
-import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 
 export type { MoveParentOption } from '@orbit/shared/utils/move-parent'

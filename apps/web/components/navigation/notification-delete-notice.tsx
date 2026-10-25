@@ -1,9 +1,9 @@
 'use client'
 
-import { useCallback, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
 import { Trash2 } from '@/components/ui/icons'
-import { Toast } from '@/components/ui/toast'
+import dynamic from 'next/dynamic'
 import {
   cancelPendingNotificationDelete,
   dismissFailedNotificationDelete,
@@ -14,6 +14,8 @@ import {
   retryFailedNotificationDelete,
   subscribePendingNotificationDeleteIds,
 } from '@/lib/pending-notification-deletes'
+
+const Toast = dynamic(() => import('@/components/ui/toast').then((module) => module.Toast), { loading: () => null })
 
 function FailedDeleteToast({ notificationId }: Readonly<{ notificationId: string }>) {
   const t = useTranslations()
@@ -32,6 +34,11 @@ function FailedDeleteToast({ notificationId }: Readonly<{ notificationId: string
 }
 
 export function NotificationDeleteNotice() {
+  useEffect(() => {
+    void import('@/components/ui/toast').catch((error: unknown) => {
+      window.dispatchEvent(new ErrorEvent('error', { error, message: String(error), cancelable: true }))
+    })
+  }, [])
   const t = useTranslations()
   const pendingIds = useSyncExternalStore(
     subscribePendingNotificationDeleteIds,

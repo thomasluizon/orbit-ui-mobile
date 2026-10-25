@@ -1,5 +1,7 @@
 'use client'
 
+import * as SwitchPrimitive from '@radix-ui/react-switch'
+
 import { PADDING, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useId, useRef, useState, type ComponentProps, type MouseEventHandler, type ReactNode } from 'react'
@@ -166,8 +168,10 @@ function rowControl(props: WebListRowProps, children: ReactNode, bodyStyle: Retu
         <div data-slot={slot} className="flex min-w-0 flex-1 items-center" style={bodyStyle}>{content}</div>
       ) : href && !disabled ? (
         <Link data-slot={slot} href={href} aria-label={accessibilityLabel} aria-expanded={expanded} aria-controls={controls} onClick={onClick} className="orbit-list-row-body flex min-w-0 flex-1 cursor-pointer items-center rounded-[12px] text-left no-underline" style={bodyStyle}>{content}</Link>
+      ) : toggle ? (
+        <SwitchPrimitive.Root data-slot={slot} checked={toggle.checked} onCheckedChange={toggle.onChange} aria-label={accessibilityLabel ?? props.title} aria-busy={toggle.pending || undefined} disabled={disabled || toggle.pending} className="orbit-list-row-body flex min-w-0 flex-1 cursor-pointer items-center rounded-[12px] border-0 bg-transparent text-left disabled:cursor-default disabled:opacity-50" style={bodyStyle}>{content}</SwitchPrimitive.Root>
       ) : (
-        <button data-slot={slot} type="button" {...switchAccessibility(props)} aria-expanded={expanded} aria-controls={controls} onClick={toggle ? () => toggle.onChange(!toggle.checked) : onClick} disabled={disabled || toggle?.pending} className="orbit-list-row-body flex min-w-0 flex-1 cursor-pointer items-center rounded-[12px] border-0 bg-transparent text-left disabled:cursor-default disabled:opacity-50" style={bodyStyle}>{content}</button>
+        <button data-slot={slot} type="button" {...switchAccessibility(props)} aria-expanded={expanded} aria-controls={controls} onClick={onClick} disabled={disabled} className="orbit-list-row-body flex min-w-0 flex-1 cursor-pointer items-center rounded-[12px] border-0 bg-transparent text-left disabled:cursor-default disabled:opacity-50" style={bodyStyle}>{content}</button>
       ))
 }
 

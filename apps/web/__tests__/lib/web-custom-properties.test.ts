@@ -12,7 +12,7 @@ const CUSTOM_PROPERTY_REFERENCE = /var\(\s*(--[a-z0-9-]+)/g
 const CSS_DECLARATION = /(--[a-z0-9-]+)\s*:/g
 const LOCAL_RUNTIME_DECLARATION = /['"](--[a-z0-9-]+)['"]\s*:/g
 const NEXT_FONT_DECLARATION = /\bvariable\s*:\s*['"](--[a-z0-9-]+)['"]/g
-const DEPENDENCY_RUNTIME_DECLARATIONS = ['--radix-dropdown-menu-content-transform-origin']
+const DEPENDENCY_RUNTIME_DECLARATIONS = ['--radix-dropdown-menu-content-transform-origin', '--radix-select-trigger-width', '--radix-select-content-available-height']
 
 type ScannedSource = {
   path: string

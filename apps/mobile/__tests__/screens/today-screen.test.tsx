@@ -719,7 +719,7 @@ describe('Hoje date boundaries', () => {
     expect(pills()).toHaveLength(0)
     await scroll(900)
     await scroll(600)
-    await TestRenderer.act(() => { (tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'tab' && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true)[0]!.props.onPress as () => void)() })
+    await TestRenderer.act(() => { (tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.testID === 'tab-hoje-current')[0]!.props.onPress as () => void)() })
     expect(mocks.scrollToOffset).toHaveBeenCalledTimes(2)
     expect(mocks.date.dateStr).toBe(selectedDate)
     expect(mocks.date.goToToday).not.toHaveBeenCalled()

@@ -791,7 +791,7 @@ describe('PendingOperationCard', () => {
     for (const row of rows) {
       expect(row).toHaveAttribute('aria-disabled', 'true')
       expect(row).toHaveAccessibleName(/blockFrame.status.acting/)
-      expect(row.tabIndex).toBe(-1)
+      expect(row.tabIndex).toBe(row.getAttribute('aria-checked') === 'true' ? 0 : -1)
       fireEvent.click(row)
       fireEvent.keyDown(row, { key: 'ArrowDown' })
     }
