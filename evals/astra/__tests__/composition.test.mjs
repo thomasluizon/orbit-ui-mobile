@@ -122,6 +122,15 @@ describe('preview and outcome composition', () => {
     expect(output.answer).not.toContain('displayName')
     expect(output.answer).not.toContain('"summary"')
   })
+  it('excludes the null-parent option label that both clients localize themselves', () => {
+    const pending = preview('Water')
+    pending.items[0].fieldOptions = [{ field: 'parent_habit_id', required: true, options: [
+      { value: null, label: 'INTERNAL_ROOT_LABEL' }, { value: 'existing', label: 'Existing parent' },
+    ] }]
+    const output = parseResponse(response([], '', { pendingOperations: [pending] }))
+    expect(output.answer).toContain('Existing parent')
+    expect(output.answer).not.toContain('INTERNAL_ROOT_LABEL')
+  })
   it('retains the batch preview and rejects prose or missing preview items', async () => {
     const { preview } = await import('./fixtures/producer.mjs')
     const pending = preview()

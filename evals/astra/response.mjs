@@ -44,6 +44,7 @@ function previewField({ field, newValue, proposedValue }) {
     }) }
   }
   if (['parent_id', 'new_parent_id'].includes(field)) return { field, movesToRoot: !newValue }
+  if (field === 'parent_habit_id' && proposedValue === null) return { field, movesToRoot: true }
   return previewTextFields.has(field) ? { field, newValue } : null
 }
 
@@ -71,7 +72,7 @@ function visiblePreview(operation) {
     fields: item.fields?.filter((field) => field.field !== 'parent_habit_id'
       || !item.fieldOptions?.some((option) => option.field === 'parent_habit_id')).map(previewField).filter(Boolean),
     parentChoices: item.fieldOptions?.filter((field) => field.field === 'parent_habit_id')
-      .flatMap((field) => field.options.map((option) => option.label)),
+      .flatMap((field) => field.options.filter((option) => option.value !== null).map((option) => option.label)),
   })) }
 }
 
