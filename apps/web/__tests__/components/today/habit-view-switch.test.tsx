@@ -31,7 +31,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(onChange.mock.calls).toEqual([['all'], ['general']])
   })
 
-  it('checks All and General when each arrow key is released before queued focus', () => {
+  it('checks All and General synchronously when arrow keys are pressed back to back without advancing timers', () => {
     vi.useFakeTimers()
     const onChange = vi.fn()
     render(<NextIntlClientProvider locale={locale} messages={messages}><Example onChange={onChange} /></NextIntlClientProvider>)
@@ -40,7 +40,6 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
       const selected = screen.getByRole('radio', { checked: true })
       fireEvent.keyDown(selected, { key: 'ArrowRight' })
       fireEvent.keyUp(selected, { key: 'ArrowRight' })
-      act(() => { vi.runAllTimers() })
       expect(screen.getByRole('radio', { name: label })).toHaveFocus()
       expect(screen.getByRole('radio', { name: label })).toHaveAttribute('aria-checked', 'true')
     }

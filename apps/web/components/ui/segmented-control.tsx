@@ -2,7 +2,7 @@
 
 import type { SegmentedControlOption, SegmentedControlProps } from '@orbit/shared/contracts/navigation'
 import * as Primitive from '@radix-ui/react-radio-group'
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 
 function SegmentOption<TValue extends string>({
   controlDisabled,
@@ -38,13 +38,6 @@ function SegmentOption<TValue extends string>({
 
 export function SegmentedControl<TValue extends string>(props: Readonly<SegmentedControlProps<TValue>>) {
   const pendingValue = useRef<string | null>(null)
-  const navigationKey = useRef('')
-  const navigationReset = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const clearNavigation = () => {
-    clearTimeout(navigationReset.current)
-    navigationKey.current = ''
-  }
-  useEffect(() => () => { clearTimeout(navigationReset.current) }, [])
   const changeSelection = (value: string) => {
       const option = props.options.find((candidate) => candidate.value === value && !candidate.disabled)
       if (option && !props.disabled && option.value !== props.value && pendingValue.current !== value) {
@@ -55,24 +48,23 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
     }
   return (
     <Primitive.Root value={props.value} onValueChange={changeSelection} disabled={props.disabled} tabIndex={-1} loop
-      onKeyDown={(event) => {
-        clearNavigation()
+      onKeyDownCapture={(event) => {
+        if (props.disabled) return
         if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
         if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return
-        navigationKey.current = event.key
-        navigationReset.current = setTimeout(() => { navigationKey.current = '' }, 0)
-      }}
-      onPointerDownCapture={clearNavigation}
-      onFocus={(event) => {
-        const key = navigationKey.current
-        if (event.target === event.currentTarget || !key) return
-        if (key === 'Home' || key === 'End') {
-          const enabledOptions = props.options.filter((option) => !option.disabled)
-          const destination = key === 'Home' ? enabledOptions[0] : enabledOptions.at(-1)
-          if (!destination || event.target.getAttribute('value') !== destination.value) return
+        const enabledOptions = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button[role="radio"]:not(:disabled)'))
+        const currentIndex = enabledOptions.findIndex((option) => option === event.currentTarget.ownerDocument.activeElement)
+        if (currentIndex < 0) return
+        let destinationIndex = 0
+        if (event.key === 'End') destinationIndex = enabledOptions.length - 1
+        else if (event.key !== 'Home') {
+          const direction = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1
+          destinationIndex = (currentIndex + direction + enabledOptions.length) % enabledOptions.length
         }
-        clearNavigation()
-        event.target.click()
+        const destination = enabledOptions[destinationIndex]!
+        destination.focus()
+        changeSelection(destination.value)
+        event.preventDefault()
       }}
       aria-label={props.label}
       aria-disabled={props.disabled || undefined}
