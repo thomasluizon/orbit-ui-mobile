@@ -53,9 +53,10 @@ describe('FlowShell', () => {
     expect(screen.getAllByRole('heading')).toHaveLength(1)
   })
 
-  it('renders queued feedback in the notice slot above the action', () => {
+  it('renders queued feedback in the notice slot above the action', async () => {
     const { container } = render(<FlowShell action={<button type="button">Continue</button>}>Content</FlowShell>)
     act(() => { useAppToastStore.getState().showError('Try again') })
+    await act(async () => { await vi.dynamicImportSettled() })
     const notice = container.querySelector('[data-shell-notice]')
     expect(notice?.querySelector('[data-kind="neutral"]')).toBeInTheDocument()
     expect(notice?.nextElementSibling).toHaveTextContent('Continue')
@@ -98,9 +99,10 @@ describe('FlowShell', () => {
     expect(screen.queryByTestId('wide-flow')).not.toBeInTheDocument()
   })
 
-  it('keeps feedback reachable in the shell-free full flow', () => {
+  it('keeps feedback reachable in the shell-free full flow', async () => {
     const view = render(<FlowShell mode="full"><main>Conversation</main></FlowShell>)
     act(() => { useAppToastStore.getState().showError('Connection failed') })
+    await act(async () => { await vi.dynamicImportSettled() })
 
     expect(view.container.querySelector('[data-flow-mode="full"] [data-toast-page-host] [data-kind="neutral"]'))
       .toBeInTheDocument()
