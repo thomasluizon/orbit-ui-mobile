@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process"
-import { chmodSync, existsSync, readFileSync, rmSync, symlinkSync, watch, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { T, check, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
@@ -73,13 +73,12 @@ const waitForPublishedFile = (path, result, timeoutMs = 60000) => new Promise((r
   const finish = (error) => {
     if (settled) return
     settled = true
-    watcher.close()
+    clearInterval(poll)
     clearTimeout(deadline)
     resolve({ ready: !error, error })
   }
-  const watcher = watch(dirname(path), () => { if (existsSync(path)) finish() })
+  const poll = setInterval(() => { if (existsSync(path)) finish() }, 20)
   const deadline = setTimeout(() => finish(`engine did not publish its marker within ${timeoutMs}ms`), timeoutMs)
-  watcher.on("error", error => finish(error.message))
   result.then(value => finish(`engine exited before marker: ${value.stderr}`), error => finish(error.message))
   if (existsSync(path)) finish()
 })
@@ -89,8 +88,7 @@ const gateCeilingUntilRelease = (staged, label) => {
   const hardCeilingMs = JSON.parse(readFileSync(staged.configPath, "utf8")).timeouts.hardCeilingMinutes * 60000
   // Only the launcher is preloaded. Its real ceiling callback and native timer run after release.
   const preload = stage(`research/${label}-ceiling.cjs`, `
-const { existsSync, watch } = require('node:fs')
-const { dirname } = require('node:path')
+const { existsSync } = require('node:fs')
 const nativeSetTimeout = global.setTimeout
 const nativeClearTimeout = global.clearTimeout
 const pending = new Map()
@@ -101,11 +99,11 @@ global.setTimeout = (callback, milliseconds, ...args) => {
   let armedTimer = null
   const arm = () => {
     if (armedTimer || !existsSync(${JSON.stringify(release)})) return
-    watcher.close()
+    clearInterval(poll)
     armedTimer = nativeSetTimeout(callback, milliseconds, ...args)
   }
-  const watcher = watch(dirname(${JSON.stringify(release)}), arm)
-  pending.set(handle, () => { watcher.close(); nativeClearTimeout(armedTimer) })
+  const poll = setInterval(arm, 20)
+  pending.set(handle, () => { clearInterval(poll); nativeClearTimeout(armedTimer) })
   arm()
   return handle
 }
