@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('expo-router', () => ({
+  useNavigation: () => ({ dispatch: vi.fn() }),
   useRouter: () => ({ replace: mocks.replace }),
   useLocalSearchParams: () => mocks.params,
 }))

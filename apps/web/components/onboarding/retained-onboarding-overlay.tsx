@@ -5,7 +5,12 @@ import {
   useLiveOnboardingActions,
 } from './onboarding-actions-context'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
-import { OnboardingFlow } from './onboarding-flow'
+import dynamic from 'next/dynamic'
+
+const OnboardingFlow = dynamic(
+  () => import('./onboarding-flow').then((module) => module.OnboardingFlow),
+  { loading: () => null },
+)
 
 /** Post-auth onboarding overlay for existing users who have not finished onboarding. */
 export function RetainedOnboardingOverlay({ finalStepOnly = false, onExit }: Readonly<{ finalStepOnly?: boolean; onExit?: () => void }>) {

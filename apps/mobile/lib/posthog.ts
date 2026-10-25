@@ -99,3 +99,7 @@ export function captureHabitLogged(): void {
 export function captureScreen(name: string): void {
   if (posthog && analyticsEnabled) void posthog.screen(name)
 }
+
+export function capturePurchase(event: 'purchase_started' | 'purchase_verified', store: 'play' | 'app_store'): void {
+  if (posthog && analyticsEnabled) void posthog.capture(event, { store })
+}

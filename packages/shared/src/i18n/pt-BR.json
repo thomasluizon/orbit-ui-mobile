@@ -234,8 +234,10 @@
     "closeRail": "Fechar painel",
     "openPalette": "Abrir paleta de comandos",
     "composer": {
+      "collapse": "Recolher campo de mensagem",
+      "expand": "Expandir campo de mensagem",
       "usage": "Mensagens hoje: {used} de {limit}",
-      "placeholder": "Peça à Astra",
+      "placeholder": "O que você quer fazer?",
       "send": "Enviar",
       "clear": "Limpar mensagem",
       "paste": "Colar",
@@ -325,7 +327,7 @@
           "rename": "Renomear o hábito \"{title}\""
         }
       },
-      "inputLabel": "Peça à Astra",
+      "inputLabel": "O que você quer fazer?",
       "actions": "Adicionar"
     }
   },
@@ -485,6 +487,7 @@
     "orContinueWith": "ou",
     "openInOrbit": "Abrir no Orbit",
     "signInWithGoogle": "Continuar com o Google",
+    "signInWithApple": "Continuar com a Apple",
     "googleError": "Não foi possível entrar com o Google. Tente de novo.",
     "signingIn": "Entrando...",
     "callbackError": "Algo deu errado ao entrar. Tente de novo.",
@@ -513,6 +516,7 @@
       "conflict": "Não deu para concluir essa ação agora. Tente de novo.",
       "offline": "Parece que você está sem conexão. Confira sua internet e tente de novo.",
       "googleError": "O Google não abriu. Tente de novo.",
+      "appleError": "Não foi possível entrar com a Apple. Tente de novo.",
       "unknownError": "Algo deu errado. Tente de novo.",
       "sendFailed": "O código não foi enviado. Tente de novo."
     },
@@ -569,7 +573,7 @@
       "loadError": "Não foi possível carregar os hábitos."
     },
     "createHabit": "Criar hábito",
-    "askAstra": "Pedir à Astra",
+    "askAstra": "Iniciar conversa",
     "createManually": "Criar manualmente",
     "createSubHabit": "Criar sub-hábito",
     "editHabit": "Editar hábito",
@@ -631,10 +635,11 @@
       "skip": "Pular",
       "openSubHabits": "Abrir os sub-hábitos",
       "unlog": "Marcar como não feito",
-      "rescheduleAstra": "Reagendar com a Astra",
+      "rescheduleAstra": "Reagendar",
       "reschedule": "Reagendar"
     },
     "reschedule": {
+      "suggestDate": "Sugerir data",
       "title": "Reagendar com IA",
       "loading": "Procurando um plano realista.",
       "error": "Não foi possível sugerir um plano.",
@@ -719,9 +724,8 @@
       "describe": "O que você quer acompanhar",
       "describePlaceholder": "Correr 3 vezes por semana",
       "understood": "O Orbit entendeu",
-      "understoodAstra": "A Astra entendeu",
       "unresolved": "O Orbit não encontrou a frequência nessa frase. Escolha os dias ou um número de vezes por semana.",
-      "askAstra": "Perguntar à Astra",
+      "askAstra": "Sugerir frequência",
       "askAstraCost": "Usa 1 das {allowance} mensagens de hoje.",
       "astraReading": "A Astra está lendo a frase",
       "localReadLimit": "As {allowance} mensagens da Astra de hoje foram usadas. O Orbit lê a frase neste aparelho, e criar um hábito não usa mensagem. Escolha os dias ou um número de vezes por semana.",
@@ -780,7 +784,8 @@
       "dateInvalid": "Essa data não existe. Escolha outra.",
       "dateBudgetReached": "A Astra chegou ao limite de hoje. Escolha a data no calendário.",
       "dateStale": "Escolha a data no calendário.",
-      "askDate": "Consultar Astra",
+      "suggestEmoji": "Sugerir um emoji com a Astra",
+      "suggestDate": "Sugerir uma data com a Astra",
       "acceptDate": "Usar data",
       "dateProposed": "Astra sugeriu esta data.",
       "dateConfirmationRequired": "Use a data sugerida ou escolha outra no calendário.",
@@ -907,7 +912,7 @@
       "tagNameRequired": "Dê um nome à tag",
       "tagNameTooLong": "Encurte o nome da tag para até 50 caracteres.",
       "tagColorInvalid": "Escolha uma cor da paleta",
-      "suggestTags": "Sugerir tags",
+      "suggestTags": "Sugerir tags com a Astra",
       "suggestingTags": "Sugerindo…",
       "suggestedTagsLabel": "Sugeridas",
       "noTagSuggestions": "Nenhuma sugestão encontrada",
@@ -1003,7 +1008,7 @@
       "inside": "O que tem dentro",
       "addSubHabit": "Adicionar sub-hábito",
       "linkedGoals": "Metas",
-      "askAstra": "Perguntar à Astra",
+      "askAstra": "Analisar hábito",
       "moreDetails": "Mais detalhes",
       "schedule": "Frequência",
       "noValue": "Não definido",
@@ -1562,7 +1567,7 @@
       }
     },
     "empty": {
-      "title": "Fale com a Astra"
+      "title": "Iniciar conversa"
     },
     "attachImage": "Anexar imagem",
     "send": "Enviar mensagem",
@@ -1582,6 +1587,7 @@
     "fileAttached": "Arquivo anexado \"{name}\":",
     "sendError": "Não foi possível enviar a mensagem. Tente de novo.",
     "timeoutError": "A resposta demorou demais. Tente de novo.",
+    "dailyBudgetReached": "A Astra chegou ao limite de hoje. Você pode usar a Astra de novo amanhã.",
     "limitReachedError": "Você usou as mensagens de hoje com a Astra. Elas voltam à meia-noite, no seu fuso horário.",
     "aiError": "Desculpe, algo deu errado. Tente de novo.",
     "operationDone": "Pronto.",
@@ -1596,6 +1602,9 @@
       "createFailed": "Não foi possível criar {name}",
       "logged": "Registrou {name}",
       "logFailed": "Não foi possível registrar {name}",
+      "unlogged": "Desfez o registro de {name}",
+      "unlogFailed": "Não foi possível desfazer o registro de {name}",
+      "invalidField": "Confira o campo {fieldName} e tente de novo.",
       "updated": "Atualizou {name}",
       "updateFailed": "Não foi possível atualizar {name}",
       "deleted": "Apagou {name}",
@@ -1896,6 +1905,7 @@
         "complete": "Marcar como feito",
         "keepOpen": "Manter pendente",
         "buildHabit": "Fortalecer este hábito",
+        "habitToAvoid": "Hábito a evitar",
         "reduceHabit": "Reduzir este hábito",
         "anytime": "Fazer a qualquer hora",
         "onSchedule": "Seguir um horário",
@@ -1903,11 +1913,11 @@
         "fixedDays": "Manter dias fixos",
         "removeDescription": "Remover a descrição",
         "removeIcon": "Remover o ícone",
-        "repeatInDays": "Repetir em dias",
-        "repeatInWeeks": "Repetir em semanas",
-        "repeatInMonths": "Repetir em meses",
-        "repeatInYears": "Repetir em anos",
-        "repeatInterval": "Mudar o número da frequência para {count}",
+        "repeatInDays": "Repetição em dias",
+        "repeatInWeeks": "Repetição em semanas",
+        "repeatInMonths": "Repetição em meses",
+        "repeatInYears": "Repetição em anos",
+        "repeatInterval": "Frequência: {count}",
         "clearDays": "Limpar os dias escolhidos",
         "removeDate": "Remover a data",
         "removeTime": "Remover a hora",
@@ -1980,9 +1990,11 @@
       "retry": "Tentar os {count} que falharam"
     },
     "operation": {
+      "parentChoiceRequired": "Escolha onde cada item fica antes de aprovar.",
       "batchFailed": "Alguns itens não foram salvos. Peça à Astra para tentar só os que falharam.",
       "unavailableRecovery": "Não funcionou. Peça uma nova prévia à Astra.",
       "unknown": "Operação da Astra",
+      "newHabits": "{count, plural, =0 {Novos hábitos} one {Novo hábito} other {Novos hábitos}}",
       "pendingTitle": "Aguardando confirmação",
       "pending": "Nada mudou ainda",
       "irreversible": "Definitivo",
@@ -2591,6 +2603,7 @@
       "headingAreYouSure": "Isso apaga a sua conta",
       "warning": "Você tem tempo para mudar de ideia. Depois disso, a conta é apagada de vez e não dá para desfazer.",
       "warningFree": "Sua conta será desativada e apagada de vez depois de 7 dias. Entre de novo antes disso para cancelar.",
+      "warningAppStore": "Apagar a conta do Orbit não cancela sua assinatura da App Store. Cancele nos ajustes da Apple para evitar novas cobranças.",
       "warningPro": "Sua conta será desativada agora e apagada de vez em até 30 dias a partir de hoje. Entre de novo antes disso para cancelar.",
       "warningDetail": "Todos os seus dados serão apagados de vez: hábitos, histórico de conclusão, conversas com a IA e configurações. Vamos enviar um código de confirmação para o seu e-mail.",
       "sendCode": "Enviar código",
@@ -2757,7 +2770,7 @@
     },
     "dataCollected": {
       "title": "Dados que guardamos",
-      "account": "Informações da conta: nome e e-mail (pelo cadastro por e-mail ou pelo Google OAuth)",
+      "account": "Informações da conta: nome e e-mail (pelo cadastro por e-mail, pelo Google OAuth ou pela Apple)",
       "habits": "Dados de hábitos: hábitos que você cria, registros de conclusão, agendamentos, tags e metas",
       "chat": "Mensagens do chat com a IA: suas conversas com a assistente de IA do Orbit",
       "preferences": "Preferências: idioma, fuso horário, cor do tema e configurações de notificação",
@@ -2779,6 +2792,7 @@
       "openai": "OpenAI: para recursos de chat com IA e resumos diários",
       "ses": "Amazon SES (us-east-2): para e-mails transacionais e de marketing",
       "googlePlay": "Google Play Billing: para compras de assinatura no Android",
+      "apple": "Apple: para entrar com a Apple e comprar assinaturas pela App Store",
       "sentry": "Sentry: para relatórios de falhas e erros. No Android, eles incluem informações do aparelho e do sistema, um identificador aleatório da instalação e a cidade aproximada, estimada pelo endereço IP da conexão, sem nome, e-mail nem dados da conta",
       "posthog": "PostHog (nuvem nos Estados Unidos): para análises de uso do produto vinculadas a um identificador da conta e a detalhes do plano, além de análises de tráfego web e desempenho; não enviamos conteúdo de hábitos nem do chat",
       "render": "Render (Ohio, Estados Unidos): para hospedar o aplicativo web, a API e o banco de dados",
@@ -2873,7 +2887,7 @@
     "loading": "Dando uma olhada no seu dia...",
     "error": "Não consegui carregar o resumo. Tente de novo.",
     "retry": "Tentar de novo",
-    "askAstra": "Pergunte à Astra",
+    "askAstra": "Analisar resumo",
     "upgrade": "Fazer upgrade",
     "freePrompt": "No Pro, você recebe um resumo diário dos seus hábitos."
   },
@@ -3040,7 +3054,7 @@
       "calendarButton": "Importar calendário",
       "importTitle": "Importar de outro app?",
       "importDescription": "Usava outro app de hábitos? A Astra pode recriar seus hábitos. Anexe um arquivo ou cole sua lista.",
-      "importButton": "Importar com a Astra",
+      "importButton": "Importar hábitos",
       "importNotNow": "Agora não"
     },
     "featureGuide": {
@@ -3190,6 +3204,22 @@
     "subscribe": "Assinar Pro",
     "plan": "Plano",
     "restorePurchase": "Restaurar compra",
+    "appStore": {
+      "manage": "Gerenciar assinatura",
+      "manageHint": "Sua assinatura é cobrada pela App Store. Gerencie seu plano nos ajustes da Apple.",
+      "manageOnIphone": "Para alterar ou cancelar esta assinatura da App Store, gerencie pelo seu iPhone.",
+      "autoRenewal": "A assinatura é renovada automaticamente até você cancelar. A cobrança é feita na sua Conta Apple.",
+      "paymentNote": "Gerencie ou cancele a assinatura nos ajustes da Apple.",
+      "error": {
+        "unavailable": "As compras na App Store estão indisponíveis. Tente de novo.",
+        "serviceUnavailable": "Não foi possível verificar sua compra. Restaure as compras para tentar de novo.",
+        "alreadyOwned": "Você já tem esta assinatura. Restaure as compras para usá-la.",
+        "pending": "Sua compra está pendente. A gente ativa o Pro assim que ela for confirmada.",
+        "deviceNotSupported": "Este dispositivo não permite compras na App Store.",
+        "notSignedIn": "Entre na sua conta antes de assinar.",
+        "nothingToRestore": "Não encontramos uma assinatura ativa do Orbit nesta Conta Apple."
+      }
+    },
     "convert": {
       "promise": "O plano muda a Astra, nunca os seus hábitos e registros.",
       "trialEyebrow": "Seu teste Pro está ativo",
@@ -3348,8 +3378,8 @@
     "fetchSubHabits": "Não foi possível carregar os sub-hábitos",
     "offline": "Reconecte-se à internet e tente de novo.",
     "api": {
-      "accountChanged": "Sua conta mudou. Recarregue esta página antes de tentar de novo.",
-      "appUpdated": "O Orbit foi atualizado. Recarregue a página e tente de novo. O texto não salvo será perdido.",
+      "accountChanged": "Sua conta mudou. Recarregue para continuar.",
+      "appUpdated": "O Orbit foi atualizado. Recarregue para continuar.",
       "edgeBlocked": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Mude o texto e tente de novo.",
       "edgeBlockedRetry": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Tente de novo em alguns minutos. Se continuar acontecendo, fale com o suporte.",
       "habitLimit": "Você pode ter até {limit, number} hábitos ativos. Sub-hábitos não contam. Apague um hábito para adicionar outro.",
@@ -3498,7 +3528,7 @@
       "historyDate": "Data: {date}",
       "historyDelta": "Mudança: {delta} {unit}",
       "historyProgress": "Progresso: {current} de {target} {unit}",
-      "askAstraEyebrow": "Pergunte à Astra",
+      "askAstraEyebrow": "Analisar meta",
       "askAstraDefault": "Quer um plano de acompanhamento semanal para isso?",
       "askAstraSeedDefault": "Me ajuda a montar um plano de acompanhamento semanal para a meta \"{title}\".",
       "statusLabel": "Status"
@@ -3990,7 +4020,7 @@
       "items": {
         "createHabit": "Crie seu primeiro hábito",
         "logHabit": "Registre um hábito hoje",
-        "tryAstra": "Pergunte algo à Astra"
+        "tryAstra": "O que você quer fazer?"
       },
       "progress": "{done} de {total} concluídos",
       "complete": "Tudo pronto.",

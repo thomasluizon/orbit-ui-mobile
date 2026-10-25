@@ -88,7 +88,7 @@ describe('Android interaction fill clearance', () => {
         const parts = measureInteractionFills(tree.toJSON(), Math.min(width, 740), state === 'pressed')
         const clear = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === label)!
         const actions = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === messages.shell.composer.actions)!
-        const send = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === `${messages.shell.composer.send}, habits.form.askDate`)!
+        const send = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === `${messages.shell.composer.send}`)!
         const fill = fillBox(parts, clear)
         expect(clear.width).toBe(48)
         expect(clear.bottom - clear.top).toBe(48)
@@ -119,7 +119,7 @@ describe('Android interaction fill clearance', () => {
         </Shell412>) as GeometryTree
       })
       try {
-        if (state === 'pressed') await setInteraction(tree, `${messages.todayAstra.openConversation}, nav.astra`, state)
+        if (state === 'pressed') await setInteraction(tree, `${messages.todayAstra.openConversation}`, state)
         else {
           const input = tree.root.findAll(node => String(node.type) === 'TextInput' && node.props.accessibilityLabel === messages.shell.composer.inputLabel)[0]!
           await act(() => (input.props.onFocus as () => void)())
@@ -129,8 +129,12 @@ describe('Android interaction fill clearance', () => {
         const parts = measureInteractionFills(pinned, columnWidth, state === 'pressed')
         const field = parts.find(part => part.host.props.testID === 'composer-field')!
         const paint = fillBox(parts, field)
-        const retryText = parts.find(part => part.host.type === 'Text' && part.host.children?.includes(messages.shell.composer.retry))!
-        const retry = parts.find(part => part.host.type === 'Pressable' && retryText.ancestors.includes(part.slot))!
+        const retry = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === messages.shell.composer.retry)!
+        expect(retry.width).toBe(48)
+        expect(retry.height).toBe(48)
+        const retryContents = parts.filter(part => part.ancestors.includes(retry.slot))
+        expect(retryContents.filter(part => part.host.type === 'Text')).toHaveLength(0)
+        expect(retryContents.filter(part => part.host.props.testID === 'astra-mark')).toHaveLength(1)
         expect(paint.left).toBe(PADDING.screenGutter)
         expect(columnWidth - paint.right).toBe(PADDING.screenGutter)
         expect(paint.left).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)

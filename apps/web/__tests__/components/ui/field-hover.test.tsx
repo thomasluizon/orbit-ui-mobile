@@ -38,7 +38,7 @@ async function markup(surface: Surface, focused = false, disabled = false, error
     command: <Command><CommandSearchField search="" setSearch={noop} activePageLabel={null} onBack={noop} /></Command>,
     composer: <Composer {...(disabled ? { state: 'sending' as const } : { state: 'idle' as const })} value="" onChangeValue={noop} onSend={noop} suggestions={[]} words={{ placeholder: 'Message', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Add to message', suggestionsLabel: 'Suggestions' }} />,
     code: <OtpInput label="Code" value="" onChange={noop} autoFocus={false} disabled={disabled} error={error} />,
-    habit: <HabitUnderstanding value="" emoji="" days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={null} consumed={[]} onValueChange={noop} onEmojiSelect={noop} onToggleDay={noop} onQuantityChange={noop} labels={{ field: 'Habit', placeholder: 'Habit', understood: 'Understood', understoodAstra: 'Understood', unresolved: 'Choose a schedule', days: 'Days', less: 'Less', more: 'More', count: String, repeat: String, repeatLess: 'Less', repeatMore: 'More', proposed: 'Proposed' }} />,
+    habit: <HabitUnderstanding value="" emoji="" days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={null} consumed={[]} onValueChange={noop} onEmojiSelect={noop} onToggleDay={noop} onQuantityChange={noop} labels={{ field: 'Habit', placeholder: 'Habit', understood: 'Understood', unresolved: 'Choose a schedule', days: 'Days', less: 'Less', more: 'More', count: String, repeat: String, repeatLess: 'Less', repeatMore: 'More', proposed: 'Proposed' }} />,
   }
   return renderedMarkup(contents[surface], focused, disabled)
 }

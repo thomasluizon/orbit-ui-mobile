@@ -121,6 +121,11 @@ for (const width of [412, 1352]) {
 
       for (const route of ['/', '/progress', '/progress/goals', '/progress/streak', '/progress/achievements', '/profile/account', '/profile/preferences', '/profile/astra', '/profile/notifications', '/habits/new', `/habits/${habitId}`, '/upgrade', '/notifications', '/about', '/support']) {
         test(`${route} keeps adjacent pills in one size with sufficient clearance`, async ({ page }) => {
+          if (route === '/progress/streak') {
+            await page.addLocatorHandler(page.getByRole('dialog', { name: messages.marketingConsent.prompt.title }), async (dialog) => {
+              await dialog.getByRole('button', { name: messages.common.close, exact: true }).click()
+            })
+          }
           const inspectActions = async () => {
             const main = page.locator('#orbit-main')
             const column = page.locator('[data-shell-column]')

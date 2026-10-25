@@ -78,12 +78,13 @@ export function useRadioGroupItem({
   return { elementRef, onActivate, onKeyDown, tabIndex }
 }
 
-export function RadioGroup({ children, onCommit, focusRequest, ...props }: Readonly<
+export function RadioGroup({ children, onCommit, focusRequest, shouldFocus, ...props }: Readonly<
   Omit<ComponentPropsWithoutRef<'div'>, 'role'> & {
     children: ReactNode
     /** Runs when a row is explicitly activated, never when an arrow key moves the selection. */
     onCommit?: () => void
     focusRequest?: number
+    shouldFocus?: () => boolean
   }
 >) {
   const [items, setItems] = useState<RadioItemState[]>([])
@@ -91,12 +92,13 @@ export function RadioGroup({ children, onCommit, focusRequest, ...props }: Reado
   const handledFocusRequest = useRef<number | undefined>(undefined)
   useEffect(() => {
     if (!focusRequest || focusRequest === handledFocusRequest.current) return
-    const firstEnabled = items.find((item) => !item.disabled)
+    if (shouldFocus && !shouldFocus()) { handledFocusRequest.current = focusRequest; return }
+    const firstEnabled = items.find((item) => !item.disabled && item.selected) ?? items.find((item) => !item.disabled)
     const firstElement = firstEnabled ? elementsRef.current.get(firstEnabled.id) : undefined
     if (!firstElement) return
     handledFocusRequest.current = focusRequest
     firstElement.focus()
-  }, [focusRequest, items])
+  }, [focusRequest, items, shouldFocus])
   const handlersRef = useRef(new Map<string, () => void>())
   const onCommitRef = useRef(onCommit)
   useEffect(() => {

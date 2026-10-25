@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-10-24",
+  "calibratedAt": "2026-10-25",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -143,7 +143,7 @@
     ".claude/skills/astra-eval/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "11837074bdae6863",
+      "digest": "ea8b9accfef467fb",
       "calibratedAt": "2026-10-24",
       "verdict": "undeclared, inherits the session: runs or extends the configured Astra eval corpus and distinguishes failed behavior from incomplete tool evidence; it declares no model or effort override."
     },
@@ -174,6 +174,13 @@
       "digest": "169d011be7ae0f33",
       "calibratedAt": "2026-10-17",
       "verdict": "undeclared, inherits the session: the test audit judges coverage and opens tickets."
+    },
+    ".claude/skills/crank/SKILL.md": {
+      "model": null,
+      "effort": null,
+      "digest": "9a63d7da9a231eda",
+      "calibratedAt": "2026-10-25",
+      "verdict": "undeclared, inherits the session: toggles durable orchestrator scheduling within existing caps and quality gates, without changing model or effort routing."
     },
     ".claude/skills/deep-research/SKILL.md": {
       "model": null,
@@ -206,8 +213,8 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "217eb71391fe3571",
-      "calibratedAt": "2026-10-17",
+      "digest": "df33a01b2ad977a5",
+      "calibratedAt": "2026-10-25",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
     ".claude/skills/investigate/SKILL.md": {
@@ -216,6 +223,13 @@
       "digest": "9e633595abd89253",
       "calibratedAt": "2026-10-17",
       "verdict": "undeclared, inherits the session: root-causing a production incident across Sentry, Render, Postgres and the LSP is judgement, so this is a follow-up candidate."
+    },
+    ".claude/skills/ios-release/SKILL.md": {
+      "model": null,
+      "effort": null,
+      "digest": "7290ce4367029ffe",
+      "calibratedAt": "2026-10-24",
+      "verdict": "undeclared, inherits the session: verifies iOS signing prerequisites, release parameters and internal TestFlight processing through the manual workflow; it declares no model or effort override."
     },
     ".claude/skills/lesson/SKILL.md": {
       "model": null,
@@ -262,9 +276,9 @@
     ".claude/skills/release/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "e3d98208df248668",
-      "calibratedAt": "2026-10-23",
-      "verdict": "current: sequences production and staging releases across services, carries each reviewed plan's full planned SHA through dispatch and verification, requires staging to serve that commit healthy before production, and stops on ambiguous runs; high effort is right for decisions that control outward dispatch."
+      "digest": "260e29af90101f6b",
+      "calibratedAt": "2026-10-24",
+      "verdict": "current: sequences production and staging releases across services, checks live deployment evidence, and stops on ambiguous runs; high effort is right for decisions that control outward dispatch."
     },
     ".claude/skills/second-opinion/SKILL.md": {
       "model": null,
@@ -297,8 +311,8 @@
     ".claude/skills/wrap-up/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "148e2736e990a754",
-      "calibratedAt": "2026-10-17",
+      "digest": "0891fc368e48bf7f",
+      "calibratedAt": "2026-10-25",
       "verdict": "current: medium effort; the skill invokes three steps in order and waits for the owner between handovers, including under --sleep."
     },
     ".agents/skills/merge-prs/SKILL.md": {

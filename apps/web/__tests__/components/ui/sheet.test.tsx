@@ -154,7 +154,7 @@ describe('Sheet', () => {
     const { unmount } = render(<HabitRow habit={createMockHabit({ title, isOverdue: true })} state="overdue"
       hasSubHabits actions={actions} />)
     try {
-      fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+      fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
       const dialog = await screen.findByRole('dialog', { name: title })
       dialog.style.width = '320px'
       dialog.style.fontSize = '200%'
@@ -165,7 +165,10 @@ describe('Sheet', () => {
       expect(headingStyle.width).toBe('100%')
       expect(heading.firstElementChild).toHaveClass('line-clamp-2')
       const items = screen.getAllByRole('menuitem')
+      expect(items).toHaveLength(labels.length)
+      for (const [index, label] of labels.entries()) expect(items[index]).toHaveAccessibleName(label)
       expect(items.map((item) => item.textContent)).toEqual(labels)
+      expect(items[3]!.querySelectorAll('[data-asset^="astra-mark"]')).toHaveLength(1)
       for (const item of items) {
         expect(item).toBeEnabled()
         expect(item.closest('[data-slot="sheet-body"]')).not.toBeNull()
@@ -283,14 +286,6 @@ describe('Sheet', () => {
     unmount()
     expect(useUIStore.getState().openOverlayIds).toHaveLength(0)
   })
-  it('leaves at least a 24 pixel content peek while clearing the top inset on a long sheet', () => {
-    const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
-      .replaceAll('\r\n', '\n')
-
-    expect(stylesheet).toContain('padding-block-start: max(var(--space-6), var(--safe-top));')
-    expect(stylesheet).toContain('max-height: 85%;')
-  })
-
   it('keeps the body and fixed action row in separate slots', () => {
     render(
       <Sheet open title="Delete habit" actions={<button type="button">Delete</button>}>

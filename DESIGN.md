@@ -191,18 +191,26 @@ control at the trailing edge, then the search control, the Astra row directly ab
 destinations in tab order, one filled create action, and the account row.
 The Astra row uses destination geometry: minimum height 48, radius 12, 12 inline padding,
 12 gap, a 20 Astra glyph and a 14/500 `Astra` label with `translate="no"` in both locales.
+The visible label supplies the accessible name once. Collapsing the sidebar hides the label in
+the same way as the other destination names, retaining its accessible name and tooltip.
+Hover, press, focus and active treatment match the sibling destination rows.
 The list gap is 4. While the conversation is open, only the Astra row draws the current-position
 treatment: `--primary` glyph and `--primary-soft` label. The destination retains
 `aria-current="page"` because the route stays unchanged, but draws no current-position treatment.
 
 **The way in must be visible.** In the compact shell the Astra glyph at the leading edge inside
 the composer pill is a real button with a hit area at the touch floor, a padded hover and press
-fill and a focus ring, labelled `Abrir conversa`, with visible `Astra` beside the glyph (#1607). On wide web the sidebar Astra row opens the
+fill and a focus ring, labelled `Abrir conversa`, with no visible brand word (#1668). On wide web the sidebar Astra row opens the
 conversation. Habit detail's own composer glyph remains an entry at every width.
 
-**Astra invocation and conversation-entry controls pair the canonical glyph with visible Astra wording in the same target (#1607).** Keep useful action context, disabled reasons and request guards. Deterministic saves, accepting an existing proposal, static attribution, section headings and plan facts gain no mark. The wide sidebar, compact composer, habit-detail composer and Hoje slot retain their existing owners. Conversation headers, participant avatars and conversation-owned empty states keep
-their own rules. The Perfil Astra settings row uses the neutral `MessageCircle` icon, keeping the
+**Named Astra navigation rows retain `Astra`; standalone actions retain their visible action label beside the canonical glyph (#1700).** Actions drop the appended brand word, never their label. Menu items use the same full row geometry, padding, hover, press and focus as their siblings, with the label supplying the accessible name once. Habit and goal analysis, empty-list entries and reschedule retries show their short action labels. Inline form-field fill controls for emoji, date, tags and frequency remain icon-only with specific accessible names; #1701 owns those controls and their hints. Composer entry, send and disclosure retain their drawn icon controls. Suggestion chips, idea cards and proactive prose keep their useful request text without appended branding. Composer send uses one upward arrow, replaced by the spinner while sending, with its localized Send name and no Astra mark. Input prompts do not repeat the brand. Keep useful action context, disabled reasons and request guards. Deterministic saves, accepting an existing proposal, static attribution, section headings and plan facts gain no mark. The wide sidebar, compact composer, habit-detail composer and Hoje slot retain their existing owners. Conversation headers, participant avatars and conversation-owned empty states keep their own rules. The owner's authority for #1700 is: "Revert this, just keep the changes that remove the bloat, be smart." The owner's copy authority for #1687 is: "i asked you to top putting Consultar astra string everywhere / what you did: removed the astra word from the app, including on the sidebar / fix this". This preserves navigation names while dropping appended branding from actions. The Perfil Astra settings row uses the neutral `MessageCircle` icon, keeping the
 shared row anatomy without repeating Astra's glyph.
+
+Habit detail's composer has one named disclosure control. Collapsing leaves one compact row with
+its mark, retains the mounted draft and attachments, and persists the choice in device preferences.
+The same control expands it again. Both states remain in the shell's pinned allocation outside the
+habit scroller. Other composer surfaces stay expanded. The owner inventory lives in
+`design/astra-mark-only-surfaces.md`.
 
 The composer's text composition reserves one inert text-action slot across inline and Add-menu
 routing, clipboard availability and allowance states. Its persistent input label has an intrinsic
@@ -429,7 +437,7 @@ steps use the existing collapsed disclosure after their answer.
 
 Feature help, advice, small talk and no-data proactive nudges use one to three short lines without
 headings, unsolicited lists or caveat paragraphs. A relevant existing screen/tool action remains
-available. Proactive requests returning data use the same registered blocks. Data-backed proactive entries require their corresponding typed block; sparse notification facts cannot fabricate read results. Requested code explanations retain selectable Markdown and
+available. Proactive requests returning data use the same registered blocks. Data-backed proactive entries negotiate the shared chat capabilities on both platforms and lead with the validated block from the proactive response. They retain the registered block's original read scope and refresh behavior, without repeating the saved notification text. Missing or unusable parts retain the legacy entry. Sparse notification facts cannot fabricate read results. Requested code explanations retain selectable Markdown and
 independent code-block copying.
 
 The **habit ranking** block uses one BlockFrame with no header count, chart, totals or repeated
@@ -499,6 +507,10 @@ the normal state the instant the person accepts or edits it. **It never takes th
 is not one of the four accent roles, and it is certainly not what is next. No new hue, no new radius,
 no new family, no glow.
 
+Emoji proposals keep the muted foreground and inset dashed hairline inside the emoji well. The
+well and its adjacent fill action have no surrounding border, and the fill action has no resting
+border. A focused fill action keeps one indicator following its shape.
+
 ### A derived value is not a proposed value
 
 **There is no eleventh state, and this is why.** A goal with linked habits derives its progress from
@@ -546,18 +558,20 @@ locale, timezone, day, phrase, picker, type, schedule, end-date and form changes
 interpretations. Only the paid action depends on AI capacity. Offline editing and manual picking
 remain available; web saving retains its connection requirement and Android retains offline saving.
 
-Recurrence-only wording in When has its own local route. `toda semana`, `todas as semanas`,
-`semanalmente`, `every week` and `weekly` select fixed Every week for an explicitly selected dated
-Habit, preserving its chosen date. The existing schedule control shows Week 1; the entered words
-stay in the input without a second summary or Astra attribution. A Task keeps its type and date,
-with one inline recovery: `To repeat, choose Habit.` / `Para repetir, escolha Hábito.` Submit focuses
-the actual type group without marking the selected Task as missing. Selecting Habit is deliberate;
-clearing or replacing the wording and manual date selection also recover. This choice takes precedence
-over a retained General draft and keeps the Task's current date as the weekly start date. Inherited
-General locks keep the child undated with the existing parent mismatch guidance and block Submit.
-Manual cadence changes,
-form reopening and context replacement never replay an old weekly read. Mixed wording stays with
-the existing date recovery and never guesses a cadence.
+Recurrence wording in When has its own local route in English and Portuguese, independent of
+interface language. Daily phrases select fixed Day 1, weekly counts select count-based Week with
+the stated quantity, and named weekdays or weekdays/dias úteis select the existing weekday controls.
+Weekly equivalents such as `toda semana` and `weekly` retain fixed Week 1. The entered words stay
+in the input without a second summary or Astra attribution. Repetition preserves the chosen date;
+an explicit start such as `every Monday from next week` also updates the calendar anchor locally.
+A Task keeps its type and date, with one inline recovery: `To repeat, choose Habit.` /
+`Para repetir, escolha Hábito.` Submit focuses the actual type group without marking the selected
+Task as missing. Selecting Habit is deliberate; clearing or replacing the wording and manual date
+selection also recover. This choice takes precedence over a retained General draft and keeps the
+Task's current date as the start date unless the phrase supplies one. Inherited General locks keep
+the child undated with the existing parent mismatch guidance and block Submit. Manual cadence
+changes, form reopening and context replacement never replay an old recurrence read. Unknown
+wording keeps date recovery and never guesses a cadence.
 
 Exact time, reminders, end date, checklist, sub-habits, tags, goals and avoidance
 controls retain their existing homes behind one disclosure. Read-only DateRow remains a valid
@@ -1197,7 +1211,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | CheckRow | whole-row checkbox hit target, required label, error replaces description, trailing mono value | `ui/check-row.tsx` | `ui/check-row.tsx` |
 | TimeField | min-height 54, radius 12, 24-hour wire value with `h23` or `h12` presentation | `ui/time-field.tsx` | `ui/time-field.tsx` |
 | DateRow | formatted immutable date and optional reason, with no control role, focus or chevron | `ui/date-row.tsx` | `ui/date-row.tsx` |
-| Composer | a growing pill, minimum height 56 (`--touch-comfy`): the Astra glyph and visible name in the entry button at the leading edge inside (Hoje in the compact shell and habit detail at every width), one input, an attach `+` icon button, and one filled send action with Astra glyph and wording at the trailing edge, hit areas adjacent. The field retains usable input width and the row wraps when its named controls need more room (#1607). Photo, document and voice open from the `+` Menu, which follows the Menu width rule. The input grows to 5 lines, then scrolls inside. Recording shows the timer and a visible stop; transcribing shows a one-line status; attachments show as a tray inside the container; at limit and offline show the reason and recovery above the pill; retry takes the send position. The top rule stays. State exposed without class hooks | `shell/composer.tsx` | `shell/composer.tsx` |
+| Composer | a growing pill, minimum height 56 (`--touch-comfy`): a mark-only Astra entry button at the leading edge inside (Hoje in the compact shell and habit detail at every width), one input, an attach `+` icon button, and one filled send arrow at the trailing edge, replaced by the spinner while sending. Trailing controls have adjacent 48px targets with one equal gap of the shared fill clearance (`INTERACTION_FILL_CLEARANCE`). The field retains usable input width and the row wraps when its named controls need more room (#1607). Photo, document and voice open from the `+` Menu, which follows the Menu width rule. The input grows to 5 lines, then scrolls inside. Recording shows the timer and a visible stop; transcribing shows a one-line status; attachments show as a tray inside the container; at limit and offline show the reason and recovery above the pill; retry takes the send position. The top rule stays. State exposed without class hooks | `shell/composer.tsx` | `shell/composer.tsx` |
 | Overlay | see **Overlay** | `ui/sheet.tsx` | `ui/sheet.tsx` |
 | Toast | brief confirmation and undo only; stable live region; timed confirmation uses a 5000ms minimum; action toasts dismiss after the standard duration, manually, or on destination change; done uses `--status-done`; actionable errors and sync failures stay in a persistent surface | `ui/toast.tsx` | `ui/app-toast.tsx` |
 | Skeleton | one accessible busy unit shaped as habit row / settings row / stat tile / grid; opacity pulse only | `ui/skeleton.tsx` | same |
@@ -1331,7 +1345,7 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 Hoje starts with its habit-view switch. In the Hoje view, its single Astra slot follows the switch,
 then the date and habits. The slot chooses an unread
 check-in, then returning guidance, then the daily summary, including its loading, retry and free-plan
-states. No second insight block belongs below the date. Request actions and conversation entries also pair Astra's glyph with visible Astra wording under #1607.
+states. No second insight block belongs below the date. Request actions and composer controls retain Astra's glyph without appended branding under #1668. Named navigation rows retain `Astra` under #1687.
 
 - **Translucency ladder on dark:** 0.04 card / 0.06 field / 0.08 well / 0.12 elev-2, white-alpha over the canvas. Surfaces stack by alpha, not by lighter hexes.
 - **Opaque white cards on light.** Never translucent.
@@ -1581,8 +1595,10 @@ Android haptic. Milestone days show only their milestone panel; queue priority a
 
 **Motion is never the only feedback channel.** Every animated state change also carries a static cue: a colour change, an icon swap, or a label.
 
-Actions retaining their leading Astra glyph reserve a trailing status slot. A moving loader mounts
-only while busy; an idle action carries no looping status animation, including while focused (#1607).
+Labelled actions retaining their leading glyph reserve a trailing status slot. Standalone mark-only
+Astra actions keep their busy announcement. An icon-only form fill action replaces its glyph with
+one spinner while its request runs. Composer send replaces its arrow with one spinner while busy. An idle action carries no looping status animation, including
+while focused (#1607, #1668).
 
 **A high-frequency interaction gets instant feedback or an `opacity` / `background-color` transition of 150ms or less.** Never a full entrance on a hover or a keystroke.
 
@@ -1702,6 +1718,7 @@ The floor is **WCAG 2.2 Level AA**, and **WCAG is the gate while APCA is the tie
 - **Every pointer interaction needs a keyboard path**, following the ARIA APG patterns: Escape closes overlays, arrow keys move within composite widgets, Tab moves between widgets, Enter and Space activate. Only `tabindex="0"` and `tabindex="-1"`, never a positive value. Composite widgets use roving tabindex.
 - **Provide a "Skip to main content" link as the first focusable element on the web shell**, and give in-page anchor targets `scroll-margin-top`. Web only.
 - **The WCAG 2.5.8 AA baseline is a 24x24 CSS-pixel target. Orbit's product floor is higher: **48 minimum, 56 comfortable**, from shared `TOUCH_TARGET_MIN` and `--touch-min`. Month-grid cells are the exception: they fill the column width and stay at least 44px high, because seven 48px columns do not fit at 320px.** Reach it by expanding with an absolutely-positioned pseudo-element on the wrapping label or button, never on the input itself, and never by growing the visible box. Keep visible control geometry unchanged. Give clipping or native hit-testing parents room for the extension and keep neighboring targets distinct.
+- **Seven-day row exception:** like the seven-column month grid (`MONTH_GRID_TARGET_MIN`), weekday options divide the available row width equally without wrapping, with distinct targets at least 24px wide and 48px high. Centre each visible chip within its target, cap it at its drawn size, and let the row grow vertically for accessibility text.
 - **Never let two hit areas overlap.** Shrink the expansion until they do not.
 - **A decorative layer gets `pointer-events: none` and `aria-hidden="true"`**, so it never swallows clicks meant for the control beneath. A scrim that dismisses on click is a control and keeps its pointer events.
 - **Add `touch-action: manipulation`** to interactive elements to remove the double-tap delay, and `touch-action: none` scoped to a surface implementing its own gestures. Set `-webkit-tap-highlight-color` to match the design.

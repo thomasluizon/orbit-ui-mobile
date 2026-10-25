@@ -41,7 +41,7 @@ for (const width of [320, 360, 384, 412]) {
           await page.evaluate(scale => { document.documentElement.style.fontSize = `${16 * scale}px` }, fontScale)
           await expectPlaceholderFit(dock.locator('[data-composer-input]'), words.shell.composer.placeholder, fontScale)
         }
-        const opener = dock.getByRole('button', { name: `${words.todayAstra.openConversation}, ${words.nav.astra}`, exact: true })
+        const opener = dock.getByRole('button', { name: words.todayAstra.openConversation, exact: true })
         await expectInteractionFill(opener)
         await opener.click()
         const conversation = page.locator('[data-shell-conversation="overlay"]')

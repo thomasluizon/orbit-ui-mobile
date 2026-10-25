@@ -2,13 +2,13 @@ description: Astra prompt-to-behavior launch gate
 prompts:
   - '{{input}}'
 providers:
-  - id: http
+  - id: file://http-provider.mjs
     label: astra-http
     config:
       url: '{{env.ORBIT_EVAL_BASE_URL}}/api/chat'
       method: POST
       maxRetries: 0
-      validateStatus: status => status === 200 || status === 403
+      validateStatus: () => true
       headers:
         Authorization: 'Bearer {{env[credentialKey]}}'
         X-Orbit-Eval-Trace: '1'
@@ -20,9 +20,16 @@ providers:
             value: '{{prompt}}'
           - kind: field
             name: history
-            value: '[]'
+            value: '{{historyJson}}'
+          - kind: field
+            name: clientContext
+            value: '{{clientContextJson}}'
       transformResponse: file://response.mjs
 defaultTest:
+  vars:
+    historyJson: '[]'
+    clientContextJson: '{}'
+    composition: { mode: fallback }
   options:
     provider: '{{env.ORBIT_EVAL_GRADER}}'
   assert:
@@ -32,11 +39,27 @@ defaultTest:
     - type: javascript
       value: file://assertions.mjs:behavior
       metric: toolBehavior
+    - type: javascript
+      value: file://assertions.mjs:composition
+      metric: composition
     - type: llm-rubric
       transform: output.answer
-      value: '{{rubric}}'
+      value: >-
+        Account date: {{accountDate}} (UTC). This is the account and fixture date for this attempt.
+        Never infer today from the grader host clock. Resolve today, yesterday and past dates against the account date.
+        {{rubric}}
+        Grade only the final rendered answer projection, including its visible typed blocks and preview fields.
+        Preview field identifiers and typed enum/date values are structural encodings, not literal client copy.
+        Judge item text and prose for language; do not treat those encodings as visible labels.
+        Missing prose is valid for a block-only answer. aiMessage mirrors text parts; count that text once.
+        Operation surfaces render before ordered read parts. Fail any external text that repeats a figure or fact
+        already displayed in a block, including spelled-out numbers, ratios and semantic paraphrases.
+        A heading, unrequested list or caveat paragraph in a no-data answer fails.
+        Do not mistake a held proposal for a saved change. A prose claim never proves a block exists.
       metric: finalAnswer
-tests: file://scenarios.yaml
+tests:
+  - file://scenarios.yaml
+  - file://composition-scenarios.yaml
 evaluateOptions:
   repeat: 3
   maxConcurrency: 1
@@ -50,4 +73,5 @@ sharing: false
 extensions:
   - file://hooks.mjs:beforeAll
   - file://hooks.mjs:beforeEach
+  - file://hooks.mjs:afterEach
   - file://hooks.mjs:afterAll

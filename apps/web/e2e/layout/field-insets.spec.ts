@@ -96,7 +96,9 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         const composer = page.locator('[data-composer-input]:visible')
         await expect(composer).toBeVisible()
         const entry = composer.locator('xpath=ancestor::div[@data-composer-input-row]').locator('[data-open-conversation]')
-        await expect(entry).toContainText(messages.nav.astra)
+        await expect(entry).toHaveAccessibleName(messages.todayAstra.openConversation)
+        await expect(entry).not.toContainText(messages.nav.astra)
+        await expect(entry.locator('[data-asset="astra-mark"]')).toHaveCount(1)
         const entryBounds = (await entry.boundingBox())!
         expect(entryBounds.width).toBeGreaterThanOrEqual(48)
         expect((await composer.evaluate(measureFieldInset)).pillInset).toBeCloseTo(4 + entryBounds.width + 8, 1)

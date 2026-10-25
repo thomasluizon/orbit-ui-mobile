@@ -45,7 +45,6 @@ import { TimeField } from '@/components/ui/time-field'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { PillButton } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
-import { Skeleton } from '@/components/ui/skeleton'
 import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
 import { HabitChecklist } from './habit-checklist'
@@ -114,14 +113,10 @@ function AstraFallback({
   return (
     <div className="flex flex-col" style={{ gap: 12 }}>
       {atLimit ? <CapacityNotice message={limitMessage} /> : null}
-      {isSuggesting ? (
-        <Skeleton variant="settings" label={readingLabel} />
-      ) : (
-        <div className="flex flex-col items-start" style={{ gap: 8 }}>
-          <PillButton leadingIcon={<AstraGlyph size={16} />} variant="secondary" disabled={atLimit} onClick={onAsk}>{askLabel}</PillButton>
-          {!atLimit ? <p className="text-xs text-[var(--fg-3)]">{costLabel}</p> : null}
-        </div>
-      )}
+      <div className="flex flex-col items-start" style={{ gap: 8 }}>
+        <PillButton minimumHeight={48} borderless iconOnly label={askLabel} variant="ghost" loading={isSuggesting} hint={isSuggesting ? readingLabel : undefined} disabled={atLimit} onClick={onAsk}><AstraGlyph size={20} /></PillButton>
+        {!atLimit ? <p className="text-xs text-[var(--fg-3)]">{costLabel}</p> : null}
+      </div>
     </div>
   )
 }
@@ -517,7 +512,7 @@ export function HabitFormFields({
         onAsk={() => void controller.askAstra()}
       />
 
-      <HabitDateField generalLocked={lockedGeneral === true} formHelpers={formHelpers} onWeeklyRecurrence={controller.setWeeklyRecurrence} />
+      <HabitDateField generalLocked={lockedGeneral === true} formHelpers={formHelpers} onRecurrence={controller.setRecurrence} />
 
       <div className="flex flex-col" style={{ gap: 12 }}>
         <ListRow

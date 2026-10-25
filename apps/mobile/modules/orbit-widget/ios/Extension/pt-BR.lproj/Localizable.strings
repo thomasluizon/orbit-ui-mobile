@@ -1,0 +1,16 @@
+"description" = "Veja seus hábitos de hoje";
+"today" = "Hoje";
+"tomorrow" = "Amanhã";
+"progress" = "%d de %d concluídos";
+"day" = "dia";
+"days" = "dias";
+"allClear" = "Tudo feito";
+"nothingScheduled" = "Nada agendado";
+"signIn" = "Abra o Orbit para entrar";
+"loading" = "Carregando";
+"done" = "Concluído";
+"overdue" = "Atrasado";
+"pending" = "Não concluído";
+"more" = "mais %d";
+"checklist" = "lista %@";
+"inside" = "+%d dentro";

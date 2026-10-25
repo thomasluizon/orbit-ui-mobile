@@ -10,7 +10,7 @@
 | Date | `habit-form-fields/habit-date-field.tsx` | When input, type-specific question and editable date before More details; General hides only the date group |
 | Schedule | `habit-form-fields/habit-schedule-fields.tsx` | Fixed, count-based and No schedule choices with a reachable return and tree locks |
 | Date interpretation | Shared `date-phrase-parser.ts`, `date-interpretation-session.ts`, `habit-date-editor.ts`; app `use-date-interpretation.ts` | Local calendar arithmetic, explicit metered request, separate candidate, acceptance, stale rejection, direct transport and terminal allowance refresh |
-| Weekly intent | Shared `habit-phrase-parser.ts`, `habit-date-editor.ts`, `habit-form-helpers.ts`; paired date/type fields and form hooks | Recurrence-only wording routes to fixed Week 1 for a deliberately selected dated Habit; Task retains its date and one inline recovery toward the existing Habit choice |
+| Recurrence intent | Shared `habit-recurrence-phrase.ts`, `habit-phrase-parser.ts`, `habit-date-editor.ts`, `habit-form-helpers.ts`; paired date/type fields and form hooks | Bilingual daily, weekly count and weekday wording writes the existing schedule for a deliberately selected dated Habit; Task retains its date and one inline recovery toward the existing Habit choice |
 | Type readback | `habit-row-content.tsx`, `habit-detail-screen.tsx` | Whole quiet vocabulary beneath the full-width title; original controls and counts retained |
 
 All component paths above are relative to each app's `components/habits/` unless another owner is
@@ -27,15 +27,18 @@ ambiguous dates do not offer it. Consultation ownership includes the semantic ca
 quantity, sorted distinct weekdays and interval, in addition to mode and type. A changed cadence
 retires both delayed responses and visible candidates without another consultation.
 
-The five weekly equivalents are `toda semana`, `todas as semanas`, `semanalmente`, `every week`
-and `weekly`, with safe case, spacing and edge punctuation normalization. They preserve the chosen
-date and input source, retire date consultations and never offer a paid date action. Only typing
-or deliberately choosing Habit can apply that cadence. Sync, validation, remount and account
+English and Portuguese repetition phrases share the title parser's daily, weekly count and weekday
+vocabulary through a complete-phrase reader, independent of the interface language. Weekdays and
+dias úteis select Monday through Friday. Weekly equivalents retain fixed Week 1. Counts select the
+count-based schedule and retain the stated quantity. Safe case, accents, spacing and edge punctuation
+normalization do not consume unknown trailing words. A local explicit start suffix updates the
+calendar anchor; recurrence alone preserves the chosen date. Unresolved starts retain date recovery.
+Only typing or deliberately choosing Habit can apply cadence. Sync, validation, remount and account
 replacement cannot apply it. Manual scheduling releases title cadence ownership; returning between
-mode drafts keeps later corrections. No weekly variant enters the title or onboarding parser.
+mode drafts keeps later corrections. Title and onboarding parser behavior stays unchanged.
 Task mismatch uses the input's single error region and focuses the real named type group on
 blocked Submit; the valid Task selection is retained. Choosing a date or clearing the wording
-clears the mismatch. A deliberate Habit choice resolves retained Task weekly wording before an older
+clears the mismatch. A deliberate Habit choice resolves retained Task recurrence wording before an older
 General draft can win, using the current Task date as its start date. An inherited General lock
 keeps the child General, shows the existing parent mismatch guidance and blocks Submit. Manual
 General decisions otherwise retain their draft without replaying recognition.
@@ -77,6 +80,36 @@ No additional dropped field was found outside the type/date/end-date family. Fle
 carries a selected end date through the same request owner. Optimistic native creation and both
 edit caches preserve the edited start anchor, including queued native saves. Mode drafts retain date, cadence,
 times, reminders and avoidance independently of shared title, description and checklist text.
+
+## Habit form capability reconciliation (#1709)
+
+[The title-row change](https://github.com/thomasluizon/orbit-ui-mobile/pull/2040)
+implements [#1701](https://github.com/thomasluizon/orbit-tickets/issues/1701):
+unavailable-reason captions leave the visible form, while accessible descriptions remain.
+[The action-label correction](https://github.com/thomasluizon/orbit-tickets/issues/1700)
+retains the drawing's existing icon-only form fills. Neither instruction removes an
+Astra capability or the explanation of a proposed value.
+
+| Production capability | Current owner and control on both platforms |
+|---|---|
+| `web:control:shell.composer.offline.reason` | `apps/web/components/habits/habit-form-fields/habit-date-field.tsx`: the `habits.form.suggestDate` button retains the offline reason in its accessible description |
+| `mobile:control:shell.composer.offline.reason` | `apps/mobile/components/habits/habit-form-fields/habit-date-field.tsx`: the `habits.form.suggestDate` button retains the offline reason in its accessibility hint |
+| `mobile:control:habits.form.proposedByAstra` | `apps/mobile/components/habits/habit-form-fields/habit-emoji-selector.tsx`: the `habits.form.emojiOpenPicker` button explains a proposed emoji in its accessibility hint; web supplies the same description with hidden referenced text |
+| `mobile:control:habits.form.tagLimit` | `apps/mobile/components/habits/habit-form-fields/tag-suggestions.tsx`: the `habits.form.suggestTags` button retains the limit in its accessibility hint; web supplies the same accessible description |
+
+All four controls retain their original capability identifiers after the title-row change.
+The scanner recognizes each directly in its owning source, so no relocation mapping,
+removal rule or exemption is required. In particular, the computed tag status intentionally
+omits unavailable-reason captions; the button hint still explains the tag limit. Offline
+feedback belongs to the date action's description, rather than an adjacent capacity notice.
+The daily allowance remains a visible capacity notice. Emoji proposal attribution stays
+accessible without adding a caption beside the title.
+
+Paired behavior tests cover offline date assistance with allowance available or exhausted,
+reconnection without changing the draft, local date editing without a paid request, the
+fifth-tag boundary and recovery after deselection, and proposed versus ordinary emoji
+attribution. The title-row well, borderless Astra fill and pending spinner keep their
+existing geometry and behavior coverage.
 
 ## Verification boundary
 

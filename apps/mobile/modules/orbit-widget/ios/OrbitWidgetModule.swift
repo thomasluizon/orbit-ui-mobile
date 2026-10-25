@@ -1,48 +1,31 @@
+import Dispatch
 import ExpoModulesCore
+import WidgetKit
 
 public class OrbitWidgetModule: Module {
-  // Each module class must implement the definition function. The definition consists of components
-  // that describes the module's functionality and behavior.
-  // See https://docs.expo.dev/modules/module-api for more details about available components.
+  private let queue = DispatchQueue(label: "org.useorbit.widget")
+
   public func definition() -> ModuleDefinition {
-    // Sets the name of the module that JavaScript code will use to refer to the module. Takes a string as an argument.
-    // Can be inferred from module's class name, but it's recommended to set it explicitly for clarity.
-    // The module will be accessible from `requireNativeModule('OrbitWidget')` in JavaScript.
     Name("OrbitWidget")
 
-    // Defines constant property on the module.
-    Constant("PI") {
-      Double.pi
-    }
+    AsyncFunction("saveToken") { (token: String) in
+      defer { WidgetCenter.shared.reloadTimelines(ofKind: "OrbitWidget") }
+      try WidgetStore.configured().saveToken(token)
+    }.runOnQueue(queue)
 
-    // Defines event names that the module can send to JavaScript.
-    Events("onChange")
+    AsyncFunction("clearToken") {
+      defer { WidgetCenter.shared.reloadTimelines(ofKind: "OrbitWidget") }
+      try WidgetStore.configured().clearToken()
+    }.runOnQueue(queue)
 
-    // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
-    Function("hello") {
-      return "Hello world! 👋"
-    }
+    AsyncFunction("syncTheme") { (colors: [String: String]) in
+      try WidgetStore.configured().saveTheme(colors)
+      WidgetCenter.shared.reloadTimelines(ofKind: "OrbitWidget")
+    }.runOnQueue(queue)
 
-    // Defines a JavaScript function that always returns a Promise and whose native code
-    // is by default dispatched on the different thread than the JavaScript runtime runs on.
-    AsyncFunction("setValueAsync") { (value: String) in
-      // Send an event to JavaScript.
-      self.sendEvent("onChange", [
-        "value": value
-      ])
-    }
-
-    // Enables the module to be used as a native view. Definition components that are accepted as part of the
-    // view definition: Prop, Events.
-    View(OrbitWidgetView.self) {
-      // Defines a setter for the `url` prop.
-      Prop("url") { (view: OrbitWidgetView, url: URL) in
-        if view.webView.url != url {
-          view.webView.load(URLRequest(url: url))
-        }
-      }
-
-      Events("onLoad")
-    }
+    AsyncFunction("syncWidgetData") { (json: String, token: String?) in
+      if let token { try WidgetStore.configured().savePayload(json, authorizingToken: token) }
+      WidgetCenter.shared.reloadTimelines(ofKind: "OrbitWidget")
+    }.runOnQueue(queue)
   }
 }

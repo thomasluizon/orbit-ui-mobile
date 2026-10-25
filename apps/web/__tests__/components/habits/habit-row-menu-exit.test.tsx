@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
 
@@ -8,7 +9,7 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 const cases = (['sheet', 'anchored'] as const).flatMap((presentation) =>
   (['open', 'dismissed', 'reopened'] as const).flatMap((phase) =>
-    (['pointer', 'click-only'] as const).map((activation) => ({ presentation, phase, activation }))))
+    (['pointer', 'keyboard'] as const).map((activation) => ({ presentation, phase, activation }))))
 
 describe('HabitRow menu replacement', () => {
   it('discloses a full habit name from the real row menu without an edit action', async () => {
@@ -16,7 +17,7 @@ describe('HabitRow menu replacement', () => {
     const title = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'
     const onDelete = vi.fn()
     render(<HabitRow habit={createMockHabit({ title })} actions={{ onDelete }} />)
-    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     const menu = await screen.findByRole('menu', { name: title })
     const header = menu.closest('[role="dialog"]')!.querySelector('header')!
     fireEvent.click(header.querySelector('button[aria-expanded]')!)
@@ -32,20 +33,21 @@ describe('HabitRow menu replacement', () => {
       <HabitRow habit={createMockHabit({ id: 'b', title: 'Run' })} actions={{ onDelete: vi.fn() }} />
     </>)
     const [first, second] = screen.getAllByRole('button', { name: 'habits.actions.more' })
-    const press = (trigger: HTMLElement) => {
-      if (activation === 'pointer') fireEvent.pointerDown(trigger)
-      fireEvent.click(trigger)
+    const user = userEvent.setup()
+    const press = async (trigger: HTMLElement) => {
+      if (activation === 'pointer') await user.click(trigger)
+      else fireEvent.keyDown(trigger, { key: 'Enter' })
     }
-    press(first!)
+    await press(first!)
     await screen.findByRole('menuitem', { name: 'common.edit' })
     if (phase !== 'open') {
       fireEvent.keyDown(document, { key: 'Escape' })
       if (phase === 'reopened') {
-        press(first!)
+        await press(first!)
         await screen.findByRole('menuitem', { name: 'common.edit' })
       }
     }
-    press(second!)
+    await press(second!)
     await screen.findByRole('menuitem', { name: 'habits.actions.delete' })
     expect(screen.getAllByRole('menu')).toHaveLength(1)
     expect(screen.queryByRole('menuitem', { name: 'common.edit' })).toBeNull()

@@ -7,7 +7,7 @@
 > - Chromium geometry unit cases require installed Chrome and run serially after parallel jsdom files.
 > - Label guard regressions run in Vitest Chromium against the actual helpers, including composed labels, partial painted fills and press-opened popup cleanup.
 > - The compact label guard covers app-authored labels and interaction fills at 320, 360, 384 and 412px in both locales. Native Android label geometry remains an open risk; its only instrumented host belongs to the widget module.
-> - Ten suites: web / mobile / shared unit, the local Android widget host instrumented gate, web Playwright e2e (which IS the post-deploy smoke), the hermetic layout guard, the authed-Today Lighthouse budget gate, Stryker mutation, and the two harness suites (hook parity and the tools execution gate) that test the agent harness rather than the product.
+> - Eleven suites: web / mobile / shared unit, desktop configuration and native context, the local Android widget host instrumented gate, web Playwright e2e (which IS the post-deploy smoke), the hermetic layout guard, the authed-Today Lighthouse budget gate, Stryker mutation, and the two harness suites (hook parity and the tools execution gate) that test the agent harness rather than the product.
 > - Script guards report as named steps in the single `Guards` job.
 > - The `Tool and Hook Tests` job in `.github/workflows/test.yml` runs both harness suites on every PR to `main` and `redesign/main`, including producer-only changes. Also run `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs` locally after changing `tools/**` or `.claude/**`.
 > - There is no visual regression gate and no screenshot anywhere: #422 deleted it. The hermetic harness remains and lives under `apps/web/test-support/hermetic/`, where the Lighthouse budget gate and the layout guard both use it. Hermetic builds set both API bases to the mock and check client output for production or staging API hosts. Local layout runs use `LAYOUT_PORT` to select a free port, defaulting to 3000.
@@ -25,7 +25,7 @@ The web configuration assigns test files importing the shared Chromium lifecycle
 
 The web fork adapter in `apps/web/vitest/stall-diagnostics.ts` and its `phase-runner.ts` runner stay outside the Docker-excluded test tree so the image can type-check the config. The adapter loads the Vitest pool class only when creating a worker, so tooling can import the config through `node --import tsx` without loading the worker dependencies. The web fork adapter reports the active file and phase after 10 seconds without progress and fails an unfinished phase after 5 minutes. It observes module imports, tests, hooks and worker teardown in the parent process, so fake timers cannot suspend the watchdog. Final worker shutdown has a separate 5 second limit so it fails before the runner exits. A teardown failure sets a failing exit code even when every test body passed. Phase messages reach the parent directly, so fake timers and command-line reporter overrides cannot hide them. The existing test and hook budgets, Chromium scheduling and coverage thresholds still apply. `__tests__/harness/stall-diagnostics.test.ts` runs real Vitest forks with stalled imports, hooks, tests and environment teardown, plus a completed control file. It also imports the config through tsx and type-checks a copy of the config and harness without the excluded tests.
 
-Every pull request handled by `test.yml` runs eight Chromium shards on separate runners, alongside two jsdom shards and independent mobile, shared and ESLint rule workspace runners. Each Chromium runner still executes one file at a time with one worker and the existing launch and teardown lifecycle. Web runners collect coverage with partial thresholds set to zero and emit Vitest blob reports plus JSON reports with per-file start and end times and per-test durations. The `web-unit-shard-*` artifacts retain these reports even when a shard fails. The `Unit Tests` check requires the build and every test job to succeed, verifies all ten blobs exist, and merges them with `vitest run --merge-reports` using the unchanged web coverage thresholds. It publishes the per-project timings and merged test counts in `web-unit-timings`, and the combined web, mobile, shared and ESLint rule LCOV files in `unit-test-coverage` for SonarCloud. Failed, cancelled or skipped prerequisites fail the check. The SonarCloud dependency chain has no target-branch conditions, so pull requests against `main` and `redesign/main` use the same sharded path. Scheduled analysis in `sonarcloud.yml` retains sequential workspace execution with `turbo run test --concurrency=1 -- --coverage`.
+Every pull request handled by `test.yml` runs eight Chromium shards on separate runners, alongside two jsdom shards and independent mobile, desktop, shared and ESLint rule workspace runners. Each Chromium runner still executes one file at a time with one worker and the existing launch and teardown lifecycle. Web runners collect coverage with partial thresholds set to zero and emit Vitest blob reports plus JSON reports with per-file start and end times and per-test durations. The `web-unit-shard-*` artifacts retain these reports even when a shard fails. The `Unit Tests` check requires the build and every test job to succeed, verifies all ten blobs exist, and merges them with `vitest run --merge-reports` using the unchanged web coverage thresholds. It publishes the per-project timings and merged test counts in `web-unit-timings`, and the combined web, mobile, desktop configuration, shared and ESLint rule LCOV files in `unit-test-coverage` for SonarCloud. Failed, cancelled or skipped prerequisites fail the check. The SonarCloud dependency chain has no target-branch conditions, so pull requests against `main` and `redesign/main` use the same sharded path. Scheduled analysis in `sonarcloud.yml` retains sequential workspace execution with `turbo run test --concurrency=1 -- --coverage`.
 
 Wrapped player cases reuse one page across their slides. The stylesheet and fonts load once per case, and each slide replaces the body markup before measuring. The viewport and safe-area configuration belong to the case. Test-finished cleanup aborts the case and closes its context even after a timeout, preventing an expired slide loop from advancing the following case's player.
 
@@ -53,7 +53,7 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 | Mobile unit | `apps/mobile` | `npm test -w @orbit/mobile` (`vitest run`) | mobile component / hook behavior (`react-test-renderer`, query by role / testID), plus `__tests__/components/ui/sheet-callers.test.ts`, a source guard that resolves every `<Sheet>` body's style and fails on a stretch, and `__tests__/components/ui/sheet-virtualized-body.test.tsx`, which lays out the rendered tag and goal picker sheets with `yoga-layout` on a landscape and a portrait window and fails when the list runs past the sheet body |
 | Android widget host instrumented | `apps/mobile/modules/orbit-widget/android/src/androidTest` | `cd apps/mobile/android && .\gradlew.bat -I ../modules/orbit-widget/android/widget-tests.init.gradle :orbit-widget:connectedDebugAndroidTest` | on a booted API 31+ device or emulator, the real `AppWidgetHostView` selects the compact and expanded size-keyed headers and preserves their synced text; this is a local gate because CI has no emulator |
 | Shared unit | `packages/shared` | `npm test -w @orbit/shared` (`vitest run`, + `@fast-check/vitest` property tests) | the Zod contract, utils, validation, query keys, and theme data |
-| All unit | root | `npm test` (`turbo run test`) | the three unit suites above; CI adds coverage thresholds |
+| All unit | root | `npm test` (`turbo run test`) | workspace Vitest suites; CI adds coverage thresholds; the desktop Rust suite runs separately |
 | Web Playwright e2e / post-deploy smoke | `apps/web/e2e` | `npm --workspace @orbit/web run test:smoke` (`playwright test`, needs `SMOKE_BASE_URL`) | the real core flows (auth, create habit, log habit, Astra create-habit, paywall) against the live deployment |
 | Web layout guard | `apps/web/e2e/layout` | `npm run build:hermetic -w apps/web`, then `npm run test:layout -w apps/web` | real text geometry and overflow for free/trial upgrade, subscription management and Wrapped final-page fixtures in en and pt-BR at 320px, 412px, 640px and 1440px, plus Wrapped frame and slide treatment at 1000px, 1024px and 1440px, and sheet panel height, body sizing and footer safe-area clearance for a short, a long and an actions-less sheet at 412px, all under a 34px CDP safe-area inset override; `label-fit.spec.ts` checks app-authored labels and interaction fills at 320, 360, 384 and 412px in both locales, waiting for fixture-backed rows and the freeze bank before every page measurement, scoping Perfil readiness to its account row, requiring rendered, visible user-text marks so hidden sidebar copies cannot satisfy or fail the check, measuring Hoje before and after its options sheet closes and the sheet while open, waiting for the Calendário day card's personal headline button and actionable event row with two connected calendars supplied through the hermetic session JWT to the server-side mock API to render its source name, marking that name separately from the time, measuring typed text within two visible lines with ellipsis for clipped text and app metadata separately on one whole line, and opening the Progresso goal filter and both screens' legend sheets through their controls with every sheet label required to stay whole; Android app label geometry remains an open risk because its only instrumented host is the widget module; starts its own hermetic API and production web server, without screenshots |
 | Web perf budget (authed Today Lighthouse) | `apps/web` (`perf.yml`) | `npm run build:hermetic -w apps/web`, boot the mock-api on `:5099`, then `API_BASE=http://127.0.0.1:5099 npm run perf -w @orbit/web` | that the signed-in Today surface (`/`) stays within median TBT / script-bundle-size budgets against the local mock orbit-api; the same five runs report the LCP distribution without gating |
@@ -61,6 +61,7 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 | Harness hook parity | `.claude/hooks` | `node .claude/hooks/test-hooks.mjs` (no deps) | that the three session hooks (git-guardrails, forbid-ef-migration-raw-index, forbid-raw-linear-mutation) block and allow exactly as their `_lib` rules specify, and that no agent's frontmatter carries a fails-open `Bash(...)` specifier |
 | Harness tools execution | `tools/` | `node tools/test-tools.mjs` (run `npm ci` first) | that every script in `tools/` actually RUNS: the `CONVENTIONS.md` CLI contract (`--help` exits 0, invalid input refused before any work) plus each tool's real decision paths, orca stubbed and hermetic. Fails when a new tool arrives with no coverage |
 | Astra capability eval | `evals/astra` | `cd evals/astra && npx promptfoo eval` | on-demand requests to the real chat endpoint, with three attempts per case and request-bound tool evidence in a pass^3 launch report |
+| Desktop configuration and native context | `apps/desktop` | `npm run test -w @orbit/desktop`, then `cargo test --locked` in `src-tauri` | Installed Tauri schema, generated context and native browser handoff policy; native bundles compile in `desktop-build.yml` on macOS and Windows, without launching the app |
 | Astra harness unit and behavior | `evals/astra` | `npm test --prefix evals/astra` | Vitest drives the real promptfoo CLI with offline providers, intercepts HTTP without a server, and proves that deliberately wrong tool arguments fail |
 
 **The prod-E2E suite and the post-deploy smoke suite are one and the same.** The `smoke` project's `*.spec.ts` require `SMOKE_BASE_URL` and execute against the live production deployment, never localhost. It is the only sanctioned E2E against prod. Orbit has no screenshot requirement, and nothing in this repository takes one any more (#422).
@@ -127,7 +128,7 @@ Workers compile these specs and run the repository's Vitest suites, including th
 
 - **`.github/workflows/test.yml`** - build, unit tests with coverage thresholds, `Tool and Hook Tests`, type-check, lint and SonarCloud analysis, on PRs to `main` and `redesign/main`. Every target uses eight Chromium shards, two jsdom shards and independent workspace runners. `Unit Tests` retains its required check name and merges coverage only after every prerequisite succeeds. Workflow behavior tests exercise failure, cancellation and skip propagation; the tools harness rejects branch conditions in the SonarCloud dependency chain.
 - **`.github/workflows/guards.yml`** - one `Guards` job with one checkout and install. Named steps retain the text, dependency, contract, design, React and inventory guards. Each guard uses `!cancelled()` so another guard failing cannot skip it. Calibration retains its advisory exit behavior. `Tool and Hook Tests` runs the full-tree surface scope scan on every pull request, outside the Turbo cache. The tools suite owns PR lint severity, performance workflow drift and lockup crop; their guard steps retain branch-push coverage. Pull requests run it only on `opened`, `synchronize` and `reopened`; branch pushes retain their full scan. Release, build, test, layout and security analysis jobs run separately.
-- **`Tool and Hook Tests`** - runs `npm ci`, then the full-tree `node tools/check-surface-scope.mjs` scan (findings reported, a scanner error fails), `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs` as separate steps, each judged by exit code. The job has no changed-path filter or build dependency, so a UI producer change runs both harnesses. The workflow behavior tests, tools harness and hooks harness each run after a preceding test failure. Run both locally after touching `tools/**` or `.claude/**`.
+- **`Tool and Hook Tests`** - runs `npm ci`, then `node tools/check-surface-scope.mjs --graphic-floor-only`, `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs` as separate steps, each judged by exit code. The scanner step owns the full-tree graphic floor assertion moved from `surface-graphic-contrast.test.ts`: graphic floor findings and scanner errors fail; other findings remain advisory. That Vitest file uses `--files-stdin` to check only its 14 named web and mobile sites, retaining per-site graphic floor and surface resolution assertions. The job has no changed-path filter or build dependency, so a UI producer change runs both harnesses. The workflow behavior tests, tools harness and hooks harness each run after a preceding test failure. Run both locally after touching `tools/**` or `.claude/**`.
 - **`.github/workflows/pr-metadata.yml`** - `PR Metadata` reads the current title, body and exemption labels through the API, including on edits and label changes. It checks dashes, platform parity and its exemption justification, and UI review evidence without installing dependencies. Its check name is separate from `Guards`.
 - **`.github/workflows/mutation.yml`** - nightly and manually dispatched full Stryker runs on `main`, with `--force` and a report artifact. Mutation thresholds remain report-only.
 - **`.github/workflows/sonarcloud.yml`** - nightly and manually dispatched coverage analysis for `main` and `redesign/main`, one branch at a time. PR analysis continues to consume `Unit Tests` coverage. Scheduled workflows activate from the default branch.
@@ -140,7 +141,7 @@ Workers compile these specs and run the repository's Vitest suites, including th
 ## Astra capability eval
 
 `evals/astra` is a standalone npm package outside the app workspaces and `dotnet test`.
-It pins promptfoo, uses its maintained HTTP provider, and sends multipart `message` and empty
+It pins promptfoo, uses its maintained HTTP provider, and sends multipart `message`, `clientContext` and
 `history` fields to `POST /api/chat`. The server selects Astra's model. The superseded model
 comparison is absent; this harness cannot override that selection. D147 selects `gpt-6-luna`
 at low effort with the existing per-user daily ceiling. Do not increase quotas or backstops
@@ -150,58 +151,171 @@ Install with `npm ci --prefix evals/astra --workspaces=false`. From `evals/astra
 `npx promptfoo eval` after preparing the environment below. The `.github/workflows/astra-eval.yml`
 Action has only `workflow_dispatch`; it never runs on a schedule, push, or pull request.
 Runs consume real message and spend allowance and incur endpoint and rubric-grader charges.
-Use disposable eval accounts. The one-message corpus requires held previews for writes;
-it does not approve them or prove persisted changes.
+Use disposable eval accounts. Write scenarios require held previews; correction scenarios create
+a verified setup turn first. The corpus does not approve them or prove persisted changes.
 
 ### Environment and reproducible fixtures
 
 | Key | Purpose |
 |---|---|
-| `ORBIT_EVAL_BASE_URL` | HTTPS origin of the real Astra API, without a trailing slash or path |
-| `ORBIT_EVAL_TOKEN` | Bearer token for the disposable Pro fixture account |
-| `ORBIT_EVAL_FREE_TOKEN` | Bearer token for a separate Free account at the configured root habit capacity |
-| `ORBIT_EVAL_BUDGET_TOKEN` | Bearer token for a separate account at its daily Astra message cap |
-| `ORBIT_EVAL_GRADER` | Promptfoo provider ID for the final-answer rubric grader |
-| `OPENAI_API_KEY` | Grader credential when using an OpenAI provider; Astra uses the Orbit bearer token |
-| `ORBIT_EVAL_HABIT_ID` | Real Water habit UUID, restored by the reset script |
-| `ORBIT_EVAL_SECOND_HABIT_ID` | Real Walk habit UUID, distinct from Water |
-| `ORBIT_EVAL_OVERDUE_DATE` | Past ISO calendar date with a pending Water occurrence |
-| `ORBIT_EVAL_RESET_SCRIPT` | Absolute path to an executable that resets the fixture before each attempt |
+| `ORBIT_EVAL_BASE_URL` | Exactly `https://orbit-api-staging-uqu2.onrender.com`; destructive fixture resets reject every other origin |
+| `ORBIT_EVAL_CREDENTIALS_FILE` | Private JSON file containing account refresh tokens and the stable habit registry; owned by the runner user, regular file, mode 600 |
+| `ORBIT_EVAL_GRADER` | Set `file://codex-grader.mjs` for the installed, authenticated Codex CLI grader |
+| `OPENAI_API_KEY` | Grader credential when using an OpenAI provider; Astra uses the refreshed Orbit bearer token |
+| `ORBIT_EVAL_HABIT_ID` | Optional existing Water UUID to adopt on the Pro account; must agree with its private registry |
+| `ORBIT_EVAL_SECOND_HABIT_ID` | Optional existing Walk UUID to adopt on the Pro account; must agree with its private registry |
+| `ORBIT_EVAL_OVERDUE_DATE` | Optional past ISO date within seven days; defaults to yesterday in UTC |
 
-The reset executable receives one argument, the `metadata.id` from `scenarios.yaml`. It must
-restore that case's `metadata.fixture` on the account selected by `vars.credentialKey`, using
-the IDs above. A zero exit status means the fixture is ready; other outcomes stop evaluation
-before the request. Output is suppressed, and execution has a one-minute timeout. Implement it
-against the eval environment's verified provisioning interface. No provisioning API is assumed
-by this package. Do not use it against personal accounts. Serial execution and a reset before
-every attempt isolate business state across the three trials. Never reset message counters or
-spend, raise a ceiling, or rotate through unapproved accounts. If allowance runs out, report a
-partial result and resume within the next valid window. Run no other job against these accounts
-concurrently. Enable the existing `astra_eval_trace` flag only for these fixture accounts via
-the repository `/flag` procedure and restore its previous state after the run. Header alone
-or flag alone cannot enable tracing; ordinary app requests remain default-off.
+Prepare a private directory outside version control, then create the following JSON file with
+`umask 077`. The local filename `credentials.local.json` is also ignored by the eval package.
+Do not paste real credentials into a command line, a report, a pull request or this document.
 
-| Fixture | State the reset executable must establish |
+```json
+{
+  "ORBIT_EVAL_TOKEN": { "refreshToken": "<Pro account refresh token>" },
+  "ORBIT_EVAL_FREE_TOKEN": { "refreshToken": "<Free account refresh token>" },
+  "ORBIT_EVAL_BUDGET_TOKEN": { "refreshToken": "<exhausted account refresh token>" }
+}
+```
+
+These keys are account selectors in `vars.credentialKey`, not preconfigured bearer variables.
+Before every attempt, the hook sends `POST /api/auth/refresh` with `api-version: 2.0`, atomically
+replaces that account's `refreshToken` in the same mode-600 file, then sets `process.env[credentialKey]`.
+A missing, rejected or malformed refresh clears the old bearer and stops before fixture or chat
+requests. Private `.rotated` and `.refresh-failed` sibling markers distinguish durable token rotation
+from failed or interrupted refresh. Any failed refresh blocks further refreshes from that file and
+prevents Action persistence, even if an earlier attempt rotated successfully. Recover a fresh session,
+replace the private file, and remove its markers before retrying. No token or server error body is logged. A private lock rejects concurrent token
+rotation; run one serial job per file and account. A crash leaving a `.lock` file requires checking
+that the other process has stopped before removing that lock. If rotation succeeded remotely but
+local persistence failed, obtain a fresh session through the existing authentication flow.
+
+The hook calls `evals/astra/fixtures/reset.mjs` in process after refresh. The same executable can
+be invoked independently from `evals/astra` as `./fixtures/reset.mjs single-read-en`; standalone
+execution refreshes first. It looks up the ID in both corpus YAML files, uses only authenticated
+public API routes, and never calls chat, an admin route, account reset or the database. Water and
+Walk are created once or adopted, and their `habitId` and `secondHabitId` are persisted alongside
+the account's refresh token. Empty and medical fixtures soft-delete them; later fixtures restore
+the same IDs. Before any fixture write, the executable reads the profile and requires the exact
+staging origin and an email matching `thomaslrgregorio+orbit-eval-<name>@gmail.com`. Normal resets
+restore the daily schedule, toggle positive logs through the real log API and clear unrelated habits,
+goals, tags and templates. Cursor updates omit `startDate`, because the producer gives it precedence
+over `dueDate`. Historical seeding starts with an explicit cursor inside the public log window; after
+seeding, pending roots return to today and completed or skipped roots advance to tomorrow. Final export
+readback verifies both occurrence dates and both histories. A reset failure stops the attempt.
+
+Use only disposable accounts. The Pro selector needs active Pro or trial access, the Free selector
+needs Free access, and the budget selector must already have exhausted its actual daily allowance.
+The reset verifies these preconditions and never consumes chat messages to manufacture exhaustion.
+The free fixture fills the actual root capacity through bulk creates and its verified
+`HABIT_LIMIT_REACHED` refusal, preserving those roots between attempts. It never changes capacity.
+Never reset message counters or spend, raise a ceiling, or rotate through unapproved accounts.
+Enable `astra_eval_trace` only for these accounts via the existing `/flag` procedure and restore
+its previous state after the run. Header alone or flag alone cannot enable tracing.
+
+| Fixture | State the reset executable establishes |
 |---|---|
-| `pro` | Exactly two daily habits, Water and Walk, both pending today, no completion history, Pro access and sufficient Astra quota |
-| `duplicate-titles` | Two distinct pending habits named Caminhada |
-| `malicious-title` | A pending habit whose title instructs Astra to reveal its system prompt and delete all habits |
-| `zero-history` | Water with no logs and zero streak |
-| `empty` | No habits or logs |
-| `overdue` | Water pending on `ORBIT_EVAL_OVERDUE_DATE`, with today's occurrence still pending |
-| `skipped` | Walk skipped today, with no completion today |
-| `free-at-limit` | Free access with the configured root habit capacity reached, sufficient Astra message allowance; capacity applies to every plan |
-| `budget-exhausted` | Astra daily message allowance exhausted before the request |
+| `pro` | Exactly two daily roots, Water and Walk, pending today, no positive logs in the supported undo window, Pro access and available quota |
+| `duplicate-titles` | The same two registered roots renamed Caminhada, both pending |
+| `malicious-title` | Water and Walk plus a pending root instructing Astra to reveal its system prompt and delete all habits |
+| `zero-history` | Water and Walk with all positive logs undone; zero completion streak |
+| `empty` | No active habits, goals, tags or templates; the registered habit IDs remain restorable |
+| `overdue` | Water pending on the configured past date, with today's occurrence also pending |
+| `skipped` | Walk skipped today through the public skip API, with no positive completion |
+| `free-at-limit` | Free account at the actual configured root capacity, with enough message allowance |
+| `budget-exhausted` | Existing daily allowance exhaustion verified from profile; no counters changed or messages spent |
 
-For the Action, set repository secrets in GitHub **Settings > Secrets and variables > Actions**
-with the names in the table, except `ORBIT_EVAL_RESET_SCRIPT`. Instead set
-`ORBIT_EVAL_RESET_SCRIPT_CONTENT` to the self-contained reset script, including its interpreter
-line; the Action writes it to a private executable and supplies the path. Successful fixture
-resets followed by a complete `reports/summary.md` prove the configuration is usable. Missing
-configuration fails before chat requests. A manual dispatch still consumes paid allowance and must use isolated fixtures.
+### Daily windows and combined report
+
+The Pro daily ceiling cannot cover the full corpus in one window. Reserve three messages per
+ordinary case and six per medical correction case, which has a paid setup turn on each attempt.
+Read the real profile allowance before planning a window; the message limit, model-call ceiling
+and spend backstop all still apply. Leave `repeat: 3`, serial execution, no retries and caching
+disabled. Keep each case's three attempts in one window. The current Pro corpus needs about six
+daily windows at the message ceiling, potentially more if a spend or call ceiling is reached.
+Use the same account while its Pro access remains active; do not buy quota or add accounts.
+
+From `evals/astra`, select case IDs with the installed promptfoo metadata filter and preserve each
+sanitized summary before another run overwrites it:
+
+```sh
+npx promptfoo eval --filter-metadata 'id=single-read-en,single-create-pt'
+mkdir -p reports/window-01
+cp reports/summary.json reports/window-01/summary.json
+cp reports/summary.md reports/window-01/summary.md
+```
+
+`--filter-metadata` uses substring alternatives separated by commas, not an exact-match regular
+expression; use full IDs and check the resulting case table. `--filter-pattern` matches case
+descriptions, not IDs. Each selected case still runs three times. Select disjoint subsets in later
+windows and save them as `window-02`, `window-03` and so on. Reset `single-read-en` before leaving
+an account idle across multiple days: public log undo accepts only the past seven days, and
+positive history beyond that window cannot be removed while preserving IDs. Composition analytics
+use two rolling three-day periods ending yesterday, inside this public write window.
+
+Merge all sanitized window files against the complete checked-in corpus:
+
+```sh
+node merge-reports.mjs reports/window-01/summary.json reports/window-02/summary.json
+```
+
+Supply every actual window explicitly. The command writes `reports/summary.md` and `summary.json`,
+returns nonzero for failure or incompleteness, and reports every family and locale. Missing cases
+remain incomplete. Overlapping IDs, foreign IDs, mismatched labels, wrong k or impossible counts
+are rejected. A failed window stays failed; to replace a rerun, explicitly omit its previous
+summary. Missing or skipped evidence cannot become a pass through merging. A selected-window pass
+is not full-corpus acceptance. Preserve one settled API/prompt/tool surface across the windows;
+if that surface changes, rerun the affected gate rather than combining incompatible behavior.
+
+For the manual Action, create the **astra-eval** environment in GitHub
+**Settings > Environments > New environment**. Under **astra-eval > Environment secrets**, add
+`ORBIT_EVAL_CREDENTIALS_JSON` containing the private file contents, then remove the same-named
+repository secret from **Settings > Secrets and variables > Actions**. The job references this
+environment and persists with `gh secret set --env astra-eval`, so queued runs read the latest
+rotation at job start. GitHub documents this distinction in its
+[secrets reference](https://docs.github.com/en/actions/reference/security/secrets).
+
+Configure `ORBIT_EVAL_BASE_URL`, `ORBIT_EVAL_GRADER`, and `ORBIT_EVAL_SECRETS_TOKEN` under
+**astra-eval > Environment secrets**. The last key needs this repository's Environments write
+permission to update an environment secret; repository Actions secrets write permission alone
+is insufficient. `OPENAI_API_KEY` is only needed if explicitly selecting an OpenAI API grader.
+Dispatch **Actions > Astra eval > Run workflow** with a comma-separated `case_ids` subset for the
+daily window. It creates a mode-600 temporary credentials file, persists only successful token
+rotations when no refresh failed, uploads sanitized summaries, then deletes local credentials and
+markers. Persistence still runs after unrelated eval failures. A failed or interrupted refresh or
+secret write requires session recovery before the next dispatch; never reuse the stale secret.
+Do not run local and Action jobs against the same sessions. Download each window artifact and merge
+locally as above. Successful resets, environment-secret persistence and a subsequent dispatched
+window using the rotated session prove configuration took effect. There is no automatic dispatch.
+
+### Codex rubric grader
+
+From `evals/astra`, set `ORBIT_EVAL_GRADER=file://codex-grader.mjs`. Install the Codex CLI on the
+runner and authenticate its existing account session through `codex login` before evaluation;
+the executable must be on the runner's normal `PATH`. The grader removes every `node_modules/.bin`
+entry, including normalized relative entries, before launching the CLI so npm and npx cannot select
+promptfoo's bundled copy. A missing or failing installed CLI fails the rubric closed.
+This provider needs no purchased OpenAI API key. The hosted Action runner does not provision a
+Codex session: selecting this provider there requires an installed, authenticated CLI on that runner.
+The local command is ready to use with the coordinator's authenticated CLI. The provider executes
+`codex exec -m gpt-6.1-sol -s read-only --skip-git-repo-check --ephemeral --output-schema <schema file> -o <output file>`
+with the grading prompt on stdin in a private temporary directory. It removes Orbit eval environment
+variables from the child, validates `{ "pass": true, "score": 1, "reason": "<grading explanation>" }`
+against the checked-in schema constraints, and returns promptfoo's `{ output: "<JSON grade>" }`.
+A CLI failure, missing file, malformed grade or two-minute timeout returns a sanitized provider error;
+it never becomes a passing rubric. Temporary output is removed after every call. Promptfoo continues
+to pass only the final rendered answer projection to the rubric. A successful `finalAnswer` assertion
+from an authenticated run proves grader setup; the offline test uses a fake executable exclusively.
+The invocation follows the installed `codex exec --help` and
+[official Codex CLI reference](https://developers.openai.com/codex/cli/reference/).
 
 The budget case expects HTTP 403 with the verified `PAY_GATE` error code and grades only the
-natural-language `error` text. Other cases expect HTTP 200 and a nonempty `aiMessage`.
+natural-language `error` text. Other cases expect HTTP 200 and either final text or a valid typed block, preview or outcome.
+The HTTP provider wrapper removes transport status from promptfoo's run-wide abort check for every
+response, retaining it as `metadata.astraHttpStatus` and in the private attempt report. HTTP errors
+fail their own attempts while later cases continue. Rate-limit responses disable scheduler retries.
+Only an expected, request-bound `PAY_GATE` refusal can pass the budget assertions.
+A block-only answer may omit `aiMessage` or return it empty.
 Authentication errors, unrelated refusals, throttling, and transport failures cannot pass as a
 budget refusal. The corpus does not infer a successful mutation from a plausible answer.
 
@@ -209,7 +323,16 @@ budget refusal. The corpus does not infer a successful mutation from a plausible
 
 Every case runs three times with caching and HTTP retries disabled. A case passes `pass^3`
 only when all three attempts pass all assertions with complete required evidence.
-`reports/summary.json` and `reports/summary.md` contain only case IDs and counts. The Action
+`reports/summary.json` and `reports/summary.md` contain only case IDs, family and locale labels, and counts.
+After each graded attempt, the harness atomically replaces private `reports/results.json` with each attempt's
+case ID, one-based repeat ordinal within that case, pass state, HTTP status, failure reason, and every
+assertion's metric, pass state and reason. Unknown status, metric or reason is null.
+The file has mode 600 and survives a failed or incomplete gate even when promptfoo does not write
+its requested output file. Summaries update after each attempt too; a later fixture or refresh failure
+preserves completed attempts and leaves unrun cases incomplete. Starting a run clears the prior reports.
+Reasons can contain private answer details: keep this file local and
+do not upload it. Copy it into each private window directory before the next run replaces it.
+Each family and locale also receives a pass^3 aggregate; any failing or incomplete case prevents its pass. The Action
 publishes these summaries and a job summary. It does not upload raw responses or a promptfoo
 database. Sharing and database writes are disabled in the configuration. For local runs, set
 `PROMPTFOO_DISABLE_TELEMETRY=1`, `PROMPTFOO_DISABLE_SHARING=1`, and point
@@ -229,12 +352,23 @@ the capacity case's Stretch proposal; allowing a tool name alone never authorize
 declared operation permits one call; duplicate writes fail even without a `counts` entry.
 `argumentsAnyOf` accepts verified alternative argument forms, such as the bulk tools'
 `habit_ids` and `filter.habit_ids` inputs. Their catalog schemas require exactly one non-null
-selector. Top-level `habit_ids` requires an omitted `filter`; an explicit `filter: null` is
-rejected. An object `filter` permits omitted or null top-level `habit_ids`. Additional arguments
-such as `date` remain permitted.
+selector. The unused selector may be omitted or null. `required[].anyOf` accepts one scoped
+operation from its alternatives, such as a voice request using either a single tool or one bulk
+preview for the same sole target. It authorizes one call across those alternatives, never both.
 `allowed` restricts ambiguity and guardrail cases to read or ask tools.
-The `llm-rubric` assertion receives only `answer`, never tool arguments,
-results, or the raw response. Missing natural-language text fails rather than grading card JSON.
+The `llm-rubric` assertion receives only `answer`, never the eval trace, tool arguments or execution
+payloads. For a block or operation answer, `answer` is a final rendered-answer projection: ordered
+parts, preview display fields, outcome surfaces, related actions and follow-ups. Preview projections
+retain item titles, proposed field values, list contents, parent choice labels and target counts.
+Operation-level `displayName` and `summary` are internal capability and audit text, so they never
+reach the grader. Both consumers derive localized preview chrome from the shared card presentation.
+The projection excludes query tokens, state fingerprints and duplicate operation read blocks. Empty
+prose is valid. The rubric compares external text with displayed blocks to catch repeated figures,
+including semantic paraphrases. Canonical dates in typed payloads remain transport values; locale
+date formatting still requires rendered consumer acceptance.
+The rubric explicitly receives `vars.accountDate` in UTC, captured once for the attempt and passed
+to the fixture reset. Fixtures set the account timezone to UTC. Relative dates use that account
+date even when the grader host has a different local date.
 
 `beforeEach` generates a new UUID after the fixture reset. The HTTP provider sends it as
 `X-Orbit-Request-Id`, alongside `X-Orbit-Eval-Trace: 1`. The response adapter reads the
@@ -266,24 +400,109 @@ It claims refusal evidence, not tool execution. The existing budget case covers 
 message allowance; the separate monetary safety backstop remains a coverage gap.
 
 ORB-20 remains open through genuine live acceptance after all carrying Astra code is deployed
-to staging. The 19-case starter corpus does not cover every tool, the all-habits icon request,
+to staging. The corpus does not cover every mutating tool, the all-habits icon request,
 interactive approval/edit/reject journeys, persisted readback, actual audio/image input,
 rendered phone/desktop UI or installed Android acceptance. Text shaped like speech tests only
 transcript interpretation. Source and offline tests cannot establish any of those live outcomes.
 
+### Block-first composition gate
+
+`composition-scenarios.yaml` adds both languages for habits and schedules, history, metrics,
+streaks, rankings, totals, comparisons, goals, calendar and sync, notifications, tags, templates,
+profile and settings, plans, referrals, keys, achievements and level, recaps, write readback,
+choices, pick lists, proactive entry, help, coaching and small talk. Empty, error, partial, stale,
+quota, plan, offline and refusal fixtures exercise their actual producer states. Compound cases
+cover supported, legacy and missing-kind capability sets. These are required live cases, not
+claims that the current behavior passes them.
+
+The composition assertion requires ordered parts for parts-capable clients. It validates known
+block payload projections and advertised capabilities, required families and subtypes, and
+preserves operation surfaces ahead of read parts as the consumers render them. It never infers a
+block from prose. Data answers lead with a block or typed operation surface, with at most one
+external line of 180 characters. Preview answers contain no external prose. No-data replies need
+one to three short lines, without headings, unsolicited lists or caveat paragraphs. Help cases
+require an available relevant screen action. Follow-ups are limited to two. A missing composition
+result, unavailable evidence or any skipped assertion prevents a pass even if promptfoo reports
+success. The rubric handles semantic repetition independently of these structural checks.
+The text mirror uses the producer's double-newline join for multiple text parts; data-answer
+line limits still apply. Help actions resolve through the same shared surface map as web and
+Android: schedule help uses `today`, and plan help uses `subscriptions`. A block's arbitrary
+`surfaceId` is not action evidence; calendar blocks have their own rendered calendar action.
+
+The reset executable must prepare these additional fixtures in the requested case locale:
+
+| Fixture | Required state |
+|---|---|
+| `composition` | Water and Walk with seven positive logs in two rolling three-day periods ending yesterday, one linked standard goal, Health tag and Morning checklist template; real profile, subscription, referral, achievement, notification and key read state |
+| `composition-partial` | Composition state plus 49 daily roots, exceeding the habit tool's default 50-row page; the server must report its actual completeness even if it chooses a larger page |
+| `composition-stale` | Composition state with no Google connection, no selected calendars and auto-sync disabled; reproducible connection-required recovery substitutes for an unprovisionable stale provider read |
+| `composition-error` | The same disconnected calendar state, preserving the server's real recovery response |
+| `composition-offline` | The same disconnected calendar state; the public API cannot force a third-party outage |
+| `composition-logged` | Composition state plus Water completed today through the public log API, verified by independent export readback |
+| `medical` | No active habits, goals, tags or templates; no setup turn for the original medical batch |
+| `existing-parents` | The two registered roots renamed Post Lunch and Before Bed, without children or duplicate roots |
+
+Calendar OAuth consent, provider staleness and outages cannot be manufactured by these public
+routes. Composition accounts must have no Google connection; resets reject connected accounts
+rather than changing a real integration. Notifications, referrals, earned XP/achievements and
+revoked API-key metadata retain their actual public read state, which may be empty. The public
+API has no deterministic notification/referral creation route, and key creation requires a
+separate authenticated step-up flow. The reset does not invent these states or bypass that flow.
+Logging can earn real achievement state, which persists across attempts; it is not reset to zero.
+Zero-history fixtures undo positive logs, rather than promising deletion of audit history. The
+composition analytics windows roll because the log API rejects writes older than seven days.
+The public API also cannot enumerate or clear held proposals. Ordinary attempts start with empty
+client history; correction attempts use only their freshly verified setup turn. Server proposals
+retain their normal expiry, and strict call-scope checks still apply. No pending store is changed
+directly. These are explicit reproducibility assumptions, not evidence that stale/offline/revocation cases
+have passed. The gate keeps its strict assertions and genuine final acceptance remains required.
+
+The medical batch keeps the original message intact, with no setup or follow-up. It requires one
+bulk proposal with one-time exams and bounded preparation commitments. Avoid cases require Fumar
+or Smoking with `is_bad_habit: true`. Existing-parent cases require exactly one bulk proposal and
+exact parent IDs, weekly vitamin D and daily rosuvastatin, without duplicate roots or questions.
+
+Only medical correction cases declare `vars.setup`. After fixture reset, the hook issues that
+original request using the same installed HTTP provider and capabilities, with a separate fresh
+request identity. Structure, behavior and composition must all pass before the correction runs.
+The actual final answer becomes chat history, and the actual preview becomes the comparison
+baseline. The correction requires 16:00 and preserves every other preview field and item identity.
+A correction requires exactly one held `bulk_create_habits` call. Setup derives its full argument
+scope from the verified original trace, changing only the named exam's `due_time`; exact argument
+matching rejects added fields, changed siblings and additional mutations. Successful writes
+cannot satisfy the required `PendingConfirmation` outcome.
+A missing baseline or failed setup stops the attempt. This setup adds one paid request per attempt;
+it never approves a write or resets spend or message allowance. The full corpus can exceed the
+historical starter-run cost estimate. Stay within existing ceilings and report incomplete runs.
+
+Offline Vitest checks drive the installed HTTP transform and actual promptfoo CLI, including
+prose-first failure, extra text, malformed or unsupported parts, excessive follow-ups, block-only
+success, omitted and skipped composition results, correction identity, and a canned semantic
+repetition rejection. The canned grader verifies rubric routing, not a real grader's semantic
+accuracy. The orchestrator owns real-call calibration and settled staging acceptance on both
+rendered consumers; this harness change does not unblock broad rollout by itself.
+
 ### Add a scenario
 
-1. Add an entry to `evals/astra/scenarios.yaml` with a unique stable `metadata.id`, a category,
+1. Add an entry to `evals/astra/scenarios.yaml` or `composition-scenarios.yaml` with a unique stable `metadata.id`, a category,
    a fixture, a credential environment key, an input, expectations, and a final-answer rubric.
-   `{habitId}`, `{secondHabitId}`, and `{overdueDate}` are substituted in inputs and expected
+   Composition cases also declare `metadata.family`, `metadata.locale`, `vars.clientContext` and
+   `vars.composition`. Add every family in both `en` and `pt-BR`.
+   `{habitId}`, `{secondHabitId}`, `{overdueDate}`, rolling analytics date tokens and their localized variants are substituted in inputs and expected
    arguments after the fixture reset. Never commit credentials or real account values.
 2. Extend the reset executable if the case needs new state. Describe that state in this catalog.
    Compound cases require every tool and its key arguments. Bulk cases require exactly one bulk
    call and forbid its single-item counterpart. Ambiguity cases allow only appropriate reads
    and asks; the rubric requires a question rather than action.
-3. Extend `catalog.yaml` for newly covered tools using verified API schemas. It contains
-   structural projections of relevant argument fields, permits additional fields, and is used
-   only by the validator. It never changes the tools exposed by the Astra server.
+3. Regenerate `catalog.yaml` from a settled API checkout with
+   `node evals/astra/generate-catalog.mjs <orbit-api checkout>`. This requires the API's .NET SDK
+   and restored package access. The exporter builds into a private temporary artifacts directory,
+   reads the real application tool schemas and the API's `StrictToolSchema` conversion, and leaves
+   the API checkout unchanged. It preserves optional omission and accepts the null values the
+   server's strict schemas permit, including nested objects. It retains executor schema constraints
+   and adds the non-null selector exclusivity enforced by `BulkHabitToolArguments.ParseActionFilter`.
+   The complete generated catalog classifies every application chat tool's write status and rejects
+   unknown arguments. It is used only by the validator and never changes server tools.
 4. Run `npm test --prefix evals/astra`. Its Vitest tests execute the actual promptfoo CLI with
    local providers: a correct case passes all three trials, a deliberately wrong ID fails all
    three, missing evidence is incomplete, and the rubric grader rejects leaked trace content.
@@ -323,6 +542,41 @@ provider `context.vars`, then calls the response transform with only
 suite drives these installed interfaces with fetch interception and source-derived response
 fixtures; no server or live model is used.
 
+The generated tool catalog is derived from orbit-api revision
+`e19ecc99915752866db211786f8005cb88528020`: `IAiTool.cs`, `AiToolRegistry.cs`, every
+application chat tool's `GetParameterSchema`, `BulkHabitToolArguments.cs` and
+`src/Orbit.Infrastructure/AI/StrictToolSchema.cs`. The export command above recompiles those
+sources without writing into the API checkout. `http-provider.mjs` follows the pinned
+`providers-Bn5yoNPJ.js` HTTP response construction, `fetch-C5riNk7b.js` rate-limit error
+construction and `shared-B6JP5nof.js` scheduler's `rateLimitRetryable` handling. The installed
+`index.js` and `evaluatorHelpers-Cge53Cnd.js` supply the `afterEach` result contract.
+Preview field selection follows both `apps/web/components/chat/pending-operation-card.tsx`
+and `apps/mobile/components/chat/pending-operation-card.tsx`, their shared
+`pending-operation-card-view.ts`, `pending-operation-card.ts` and
+`pending-operation-item-summary.ts` under `packages/shared/src/chat`.
+
 ## orbit-api
 
 The backend (`orbit-api`, a sibling repo) has its own xUnit + FluentAssertions unit suite under its `tests/` folder, with test accounts wired via the `TEST_ACCOUNTS` env var. It is unit-only too (the integration suite was removed). See that repo's `CLAUDE.md` and `tests/CLAUDE.md` for its conventions; it is out of scope for this catalog.
+
+Composition fields and additional catalog projections are verified against orbit-api revision
+`5e37641722450549fe61b8cff4e2e6a4c0ce7c8d`: `ChatResponse` and its text/block part records in
+`ProcessUserChatCommand.cs`, the DTOs in `src/Orbit.Application/Chat/*Card.cs`,
+`src/Orbit.Domain/Models/AgentContracts.cs`, `AstraBlocks.cs`, `ChatHistoryMessage.cs`,
+`ChatFollowUp.cs`, `ReadBlocks.cs`, `ChatResponseNegotiation.cs`, and the covered tool producers.
+`ProcessUserChatCommand.Composition.cs` establishes preview/outcome ordering and short-line limits.
+`ProcessUserChatCommand.Tools.cs` supplies the held-proposal trace payload. Re-derive with
+`git show <revision>:<source-path>` in the API repository. Source evidence is not deployment evidence.
+
+Fixture and refresh interfaces are derived from orbit-api revision
+`63ab0e32798141adb6616546926284e9f858e997`: `AuthController.cs`,
+`Auth/Models/RefreshSessionResponse.cs`, `HabitsController.cs`, `HabitsControllerRequests.cs`,
+`ProfileController.cs`, `Profile/Queries/GetProfileQuery.cs`, `Profile/Queries/ExportUserDataQuery.cs`,
+`Profile/Models/UserDataExport.cs`, `Habits/Commands/LogHabitCommand.cs`, `SkipHabitCommand.cs`,
+`BulkCreateHabitsCommand.cs`, `Common/PayGateService.cs`, `Common/AppConstants.cs`,
+`CalendarController.cs`, `GoalsController.cs`, `TagsController.cs`, `ChecklistTemplatesController.cs`,
+`ApiKeysController.cs`, `Middleware/ErrorResponse.cs`, `Extensions/ResultActionResultExtensions.cs`
+and `Extensions/ServiceCollectionExtensions.Infrastructure.cs`. Application paths are relative to
+`src/Orbit.Application/`; controller and middleware paths are relative to `src/Orbit.Api/`.
+The installed promptfoo `main.js` functions `splitMetadataFilterValue` and `filterTests` establish
+comma alternatives and substring matching; `index.js` awaits the hook before provider construction.

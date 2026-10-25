@@ -1,15 +1,17 @@
+import { setAccountId } from '@/lib/account-scope'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import React from 'react'
+import { Platform } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { ErrorCode } from 'expo-iap'
 
 import {
-  extractPlayOffers,
+  extractStoreOffers,
   mapPlayErrorKey,
-  selectPlayOffer,
-  usePlayBilling,
-  type PlayOffer,
+  selectStoreOffer,
+  useStoreBillingConnection as useStoreBilling,
+  type StoreOffer,
 } from '@/hooks/use-play-billing'
 
 const TestRenderer = require('react-test-renderer')
@@ -32,6 +34,9 @@ const mocks = vi.hoisted(() => {
     apiClient: vi.fn(),
     finishTransaction: vi.fn(),
     getAvailablePurchases: vi.fn(),
+    getPendingTransactionsIOS: vi.fn(),
+    getTransactionJwsIOS: vi.fn(),
+    syncIOS: vi.fn(),
     requestPurchase: vi.fn(),
     fetchProducts: vi.fn(),
     reconnect: vi.fn(),
@@ -53,6 +58,9 @@ vi.mock('expo-iap', () => ({
   },
   finishTransaction: mocks.finishTransaction,
   getAvailablePurchases: mocks.getAvailablePurchases,
+  getPendingTransactionsIOS: mocks.getPendingTransactionsIOS,
+  getTransactionJwsIOS: mocks.getTransactionJwsIOS,
+  syncIOS: mocks.syncIOS,
   useIAP: (options: typeof mocks.state.iapOptions) => {
     const [connected, setConnected] = React.useState(mocks.state.connected)
     mocks.state.setConnected = setConnected
@@ -71,6 +79,8 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries, fetchQuery: mocks.fetchQuery }),
 }))
 
+vi.mock('@/lib/store-products', () => ({ APP_STORE_PRODUCT_IDS: { monthly: 'orbit.monthly', yearly: 'orbit.yearly' } }))
+
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
 
 vi.mock('@/stores/auth-store', () => ({
@@ -78,32 +88,32 @@ vi.mock('@/stores/auth-store', () => ({
     selector({ user: mocks.state.authUser }),
 }))
 
-function renderUsePlayBilling(options?: { preferReferralOffer?: boolean; onPurchased?: () => Promise<void> | void }): ReturnType<typeof usePlayBilling> {
-  const valueHolder: { current: ReturnType<typeof usePlayBilling> | null } = {
+function renderUsePlayBilling(options?: { preferReferralOffer?: boolean; onPurchased?: () => Promise<void> | void }): ReturnType<typeof useStoreBilling> {
+  const valueHolder: { current: ReturnType<typeof useStoreBilling> | null } = {
     current: null,
   }
   function Harness() {
-    valueHolder.current = usePlayBilling(options)
+    valueHolder.current = useStoreBilling(options)
     return null
   }
   TestRenderer.act(() => {
     mountedViews.push(TestRenderer.create(<Harness />))
   })
-  if (!valueHolder.current) throw new Error('usePlayBilling did not render')
+  if (!valueHolder.current) throw new Error('useStoreBilling did not render')
   return valueHolder.current
 }
 
-function renderUsePlayBillingLive(options?: { onPurchased?: () => Promise<void> | void }): { current: ReturnType<typeof usePlayBilling> } {
-  const holder: { current: ReturnType<typeof usePlayBilling> | null } = { current: null }
+function renderUsePlayBillingLive(options?: { preferReferralOffer?: boolean; onPurchased?: () => Promise<void> | void }): { current: ReturnType<typeof useStoreBilling> } {
+  const holder: { current: ReturnType<typeof useStoreBilling> | null } = { current: null }
   function Harness() {
-    holder.current = usePlayBilling(options)
+    holder.current = useStoreBilling(options)
     return null
   }
   TestRenderer.act(() => {
     mountedViews.push(TestRenderer.create(<Harness />))
   })
-  if (!holder.current) throw new Error('usePlayBilling did not render')
-  return holder as { current: ReturnType<typeof usePlayBilling> }
+  if (!holder.current) throw new Error('useStoreBilling did not render')
+  return holder as { current: ReturnType<typeof useStoreBilling> }
 }
 
 async function flushAsync() {
@@ -112,9 +122,9 @@ async function flushAsync() {
   })
 }
 
-describe('extractPlayOffers', () => {
+describe('extractStoreOffers', () => {
   it('maps monthly and yearly base plans to offers', () => {
-    const offers = extractPlayOffers([
+    const offers = extractStoreOffers([
       {
         id: 'orbit_pro',
         subscriptionOffers: [
@@ -134,7 +144,7 @@ describe('extractPlayOffers', () => {
   })
 
   it('skips offers without a recognized base plan or token', () => {
-    const offers = extractPlayOffers([
+    const offers = extractStoreOffers([
       {
         id: 'orbit_pro',
         subscriptionOffers: [
@@ -148,7 +158,7 @@ describe('extractPlayOffers', () => {
   })
 
   it('extracts a referral-tagged offer priced from its first pricing phase alongside the base offer', () => {
-    const offers = extractPlayOffers([
+    const offers = extractStoreOffers([
       {
         id: 'orbit_pro',
         subscriptionOffers: [
@@ -181,8 +191,8 @@ describe('extractPlayOffers', () => {
   })
 })
 
-describe('selectPlayOffer', () => {
-  const baseOffer: PlayOffer = {
+describe('selectStoreOffer', () => {
+  const baseOffer: StoreOffer = {
     interval: 'monthly',
     sku: 'orbit_pro',
     offerToken: 'tok_base',
@@ -191,7 +201,7 @@ describe('selectPlayOffer', () => {
     priceAmountMicros: '14900000',
     currency: 'BRL',
   }
-  const referralOffer: PlayOffer = {
+  const referralOffer: StoreOffer = {
     ...baseOffer,
     offerToken: 'tok_ref',
     displayPrice: 'R$13,41',
@@ -200,15 +210,15 @@ describe('selectPlayOffer', () => {
   }
 
   it('picks the referral offer when preferred and available', () => {
-    expect(selectPlayOffer([baseOffer, referralOffer], 'monthly', true)?.offerToken).toBe('tok_ref')
+    expect(selectStoreOffer([baseOffer, referralOffer], 'monthly', true)?.offerToken).toBe('tok_ref')
   })
 
   it('falls back to the base offer when referral is preferred but absent', () => {
-    expect(selectPlayOffer([baseOffer], 'monthly', true)?.offerToken).toBe('tok_base')
+    expect(selectStoreOffer([baseOffer], 'monthly', true)?.offerToken).toBe('tok_base')
   })
 
   it('ignores the referral offer when not preferred', () => {
-    expect(selectPlayOffer([baseOffer, referralOffer], 'monthly', false)?.offerToken).toBe('tok_base')
+    expect(selectStoreOffer([baseOffer, referralOffer], 'monthly', false)?.offerToken).toBe('tok_base')
   })
 })
 
@@ -228,12 +238,17 @@ describe('mapPlayErrorKey', () => {
   })
 })
 
-describe('usePlayBilling', () => {
+describe('useStoreBilling', () => {
   afterEach(() => {
     TestRenderer.act(() => mountedViews.splice(0).forEach((view) => view.unmount()))
     vi.useRealTimers()
   })
   beforeEach(() => {
+    Platform.OS = 'android'
+    setAccountId('user-abc')
+    mocks.getPendingTransactionsIOS.mockReset().mockResolvedValue([])
+    mocks.getTransactionJwsIOS.mockReset().mockResolvedValue('signed-transaction')
+    mocks.syncIOS.mockReset().mockResolvedValue(true)
     mocks.state.iapOptions = null
     mocks.state.subscriptions = []
     mocks.state.connected = true
@@ -473,7 +488,7 @@ describe('usePlayBilling', () => {
     expect(hook.current.errorKey).toBe('upgrade.playError.notSignedIn')
   })
 
-  it('keeps the spinner latched to in-flight verifications across rapid interval switches', async () => {
+  it('opens one purchase sheet across rapid interval switches and waits for verification', async () => {
     mocks.state.subscriptions = [
       {
         id: 'orbit_pro',
@@ -493,6 +508,9 @@ describe('usePlayBilling', () => {
 
     expect(hook.current.isProcessing).toBe(true)
 
+    expect(mocks.requestPurchase).toHaveBeenCalledOnce()
+    let release!: () => void
+    mocks.apiClient.mockImplementationOnce(() => new Promise((resolve) => { release = () => resolve({}) }))
     const firstPurchase = { productId: 'orbit_pro', purchaseToken: 'tok_a' }
     await TestRenderer.act(async () => {
       mocks.state.iapOptions?.onPurchaseSuccess?.(firstPurchase)
@@ -501,11 +519,7 @@ describe('usePlayBilling', () => {
 
     expect(hook.current.isProcessing).toBe(true)
 
-    const secondPurchase = { productId: 'orbit_pro', purchaseToken: 'tok_b' }
-    await TestRenderer.act(async () => {
-      mocks.state.iapOptions?.onPurchaseSuccess?.(secondPurchase)
-      await new Promise((resolve) => setTimeout(resolve, 0))
-    })
+    await TestRenderer.act(async () => { release(); await new Promise((resolve) => setTimeout(resolve, 0)) })
 
     expect(hook.current.isProcessing).toBe(false)
   })
@@ -670,4 +684,80 @@ describe('usePlayBilling', () => {
     expect(hook.current.errorKey).toBe('upgrade.playError.nothingToRestore')
     expect(mocks.finishTransaction).not.toHaveBeenCalled()
   })
+
+  it('uses an account-bound App Store request, native prices and no referral offer', async () => {
+    Platform.OS = 'ios'
+    mocks.state.authUser = { userId: '11111111-1111-4111-8111-111111111111' }
+    setAccountId(mocks.state.authUser.userId)
+    mocks.state.subscriptions = [
+      { id: 'orbit.monthly', displayPrice: '$4.99', price: 4.99, currency: 'USD' },
+      { id: 'orbit.yearly', displayPrice: '$39.99', price: 39.99, currency: 'USD' },
+    ]
+    const hook = renderUsePlayBillingLive({ preferReferralOffer: true })
+    await flushAsync()
+    expect(hook.current.monthlyOffer).toMatchObject({ displayPrice: '$4.99', isReferral: false })
+    await TestRenderer.act(async () => { await hook.current.purchase('yearly'); await hook.current.purchase('yearly') })
+    expect(mocks.requestPurchase).toHaveBeenCalledExactlyOnceWith({ type: 'subs', request: { apple: { sku: 'orbit.yearly', appAccountToken: '11111111-1111-4111-8111-111111111111' } } })
+    expect(mocks.fetchProducts).toHaveBeenCalledWith({ skus: ['orbit.monthly', 'orbit.yearly'], type: 'subs' })
+  })
+
+  it('leaves failed Apple verification unfinished and retries at the next connection', async () => {
+    Platform.OS = 'ios'
+    const purchase = { id: 'monthly-transaction', productId: 'orbit.monthly' }
+    mocks.getPendingTransactionsIOS.mockResolvedValue([purchase])
+    mocks.apiClient.mockRejectedValueOnce(new Error('network'))
+    const first = renderUsePlayBillingLive()
+    await flushAsync()
+    expect(first.current.errorKey).toBe('upgrade.appStore.error.serviceUnavailable')
+    expect(mocks.finishTransaction).not.toHaveBeenCalled()
+    TestRenderer.act(() => mountedViews.splice(0).forEach((view) => view.unmount()))
+    renderUsePlayBillingLive()
+    await flushAsync()
+    expect(mocks.apiClient).toHaveBeenCalledWith(API.subscription.appStoreVerify, expect.objectContaining({ body: JSON.stringify({ signedTransaction: 'signed-transaction' }) }))
+    expect(mocks.finishTransaction).toHaveBeenCalledExactlyOnceWith({ purchase, isConsumable: false })
+  })
+
+  it.each(['recovery', 'restore'] as const)('exposes the %s lock and accepts checkout after an empty result', async (operation) => {
+    Platform.OS = 'ios'
+    mocks.state.subscriptions = [{ id: 'orbit.monthly', displayPrice: '$4.99', price: 4.99, currency: 'USD' }]
+    let release!: (purchases: []) => void
+    const pending = new Promise<[]>((resolve) => { release = resolve })
+    if (operation === 'recovery') mocks.getPendingTransactionsIOS.mockReturnValueOnce(pending)
+    else mocks.getAvailablePurchases.mockReturnValueOnce(pending)
+    const hook = renderUsePlayBillingLive()
+    await flushAsync()
+    let restoration: Promise<boolean> | undefined
+    if (operation === 'restore') await TestRenderer.act(async () => { restoration = hook.current.restorePurchases(); await Promise.resolve() })
+    expect(hook.current.isRestoring).toBe(true)
+    await TestRenderer.act(async () => { expect(await hook.current.purchase('monthly')).toBe(false) })
+    expect(mocks.requestPurchase).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { release([]); await restoration })
+    await flushAsync()
+    expect(hook.current.isRestoring).toBe(false)
+    await TestRenderer.act(async () => { expect(await hook.current.purchase('monthly')).toBe(true) })
+    expect(mocks.requestPurchase).toHaveBeenCalledOnce()
+  })
+
+  it('restores Apple subscriptions only after sync and verification', async () => {
+    Platform.OS = 'ios'
+    const purchase = { id: 'yearly-transaction', productId: 'orbit.yearly' }
+    mocks.getAvailablePurchases.mockResolvedValue([purchase])
+    const hook = renderUsePlayBillingLive()
+    await flushAsync()
+    await TestRenderer.act(async () => { expect(await hook.current.restorePurchases()).toBe(true) })
+    expect(mocks.syncIOS).toHaveBeenCalledOnce()
+    expect(mocks.getTransactionJwsIOS).toHaveBeenCalledWith('orbit.yearly')
+    expect(mocks.finishTransaction).toHaveBeenCalledWith({ purchase, isConsumable: false })
+    expect(mocks.apiClient.mock.invocationCallOrder[0]).toBeLessThan(mocks.finishTransaction.mock.invocationCallOrder[0]!)
+  })
+
+  it.each([[ErrorCode.UserCancelled, null], [ErrorCode.Pending, 'upgrade.appStore.error.pending'], [ErrorCode.DeferredPayment, 'upgrade.appStore.error.pending']] as const)('handles Apple sheet outcome %s', (code, expected) => {
+    Platform.OS = 'ios'
+    const hook = renderUsePlayBillingLive()
+    TestRenderer.act(() => { mocks.state.iapOptions?.onPurchaseError?.({ code }) })
+    expect(hook.current.errorKey).toBe(expected)
+    expect(hook.current.isProcessing).toBe(false)
+    expect(mocks.finishTransaction).not.toHaveBeenCalled()
+  })
+
 })

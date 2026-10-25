@@ -20,6 +20,7 @@ describe('buildChatClientContext', () => {
       supportsHabitListCard: true,
       supportsPendingOperationChanges: true,
       supportsParts: true,
+      supportsMessageAllowance: true,
       partKinds: [...CHAT_BLOCK_KINDS],
       messageOrigin: 'followUp',
       entryPointIntent: 'support',

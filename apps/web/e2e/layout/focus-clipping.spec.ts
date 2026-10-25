@@ -1,3 +1,4 @@
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { openTodayListOptions } from './hydration-guard'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { test } from './layout-test'
@@ -138,7 +139,7 @@ for (const width of [412, 1352] as const) {
           await pinned.locator('[data-composer-input]').focus()
         } else {
           await expect(pinned).toHaveCount(0)
-          const astra = page.getByRole('button', { name: messages.chat.title, exact: true })
+          const astra = getShellConversationEntry(page, width, messages)
           await expectCompleteTabIndicator(page, astra, 'sidebar Astra row')
           await astra.click()
         }
@@ -159,7 +160,7 @@ for (const width of [412, 1352] as const) {
         const final = chatStreamEventSchema.parse({ type: 'final', response: { aiMessage: 'Ready', actions: [] } })
         await page.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, (route) => route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(final)}\n\n` }))
         await field.fill('Review my habits')
-        await conversation.getByRole('button', { name: `${messages.shell.composer.send}, ${messages.habits.form.askDate}`, exact: true }).click()
+        await conversation.getByRole('button', { name: messages.shell.composer.send, exact: true }).click()
         await expect(composer).toHaveAttribute('data-state', 'idle')
         await expect(conversationChips).toHaveCount(0)
         for (let index = 0; index < await controls.count(); index += 1) {

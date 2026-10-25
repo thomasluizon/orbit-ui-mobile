@@ -20,11 +20,12 @@ vi.mock('@/components/ui/sheet', () => ({
 const firstCategory = HABIT_EMOJI_CATEGORIES[0]!
 const firstEmoji = firstCategory.emojis[0]!
 
-function UnderstandingWithEmoji({ resolved }: Readonly<{ resolved: boolean }>) {
+function UnderstandingWithEmoji({ resolved, proposed = false }: Readonly<{ resolved: boolean; proposed?: boolean }>) {
   const [emoji, setEmoji] = useState('')
   return (
     <HabitUnderstanding
       value="Run"
+      proposed={proposed}
       emoji={emoji}
       days={[]}
       dayOptions={[]}
@@ -46,9 +47,30 @@ describe('HabitEmojiSelector', () => {
     mockCloseSheet.mockClear()
   })
 
-  it('offers no emoji picker without an understood preview', async () => {
+  it('marks a setup-proposed emoji beside the title', () => {
+    const view = render(<UnderstandingWithEmoji resolved proposed />)
+    const well = screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })
+    expect(well.closest('[data-proposed]')).toBeNull()
+    expect(well.querySelector('[data-proposed]')).not.toBeNull()
+    expect(well.closest('[data-habit-title-row]')).not.toBeNull()
+    expect(well).toHaveAccessibleDescription('habits.form.proposedByAstra')
+    expect(screen.getByText('habits.form.proposedByAstra')).not.toBeVisible()
+    view.rerender(<UnderstandingWithEmoji resolved />)
+    expect(well).not.toHaveAccessibleDescription()
+    expect(screen.queryByText('habits.form.proposedByAstra')).toBeNull()
+  })
+
+  it('keeps the disabled suggestion reason accessible without a visible caption', () => {
+    render(<HabitEmojiSelector selectedEmoji="" onSelect={vi.fn()} onSuggest={vi.fn()} suggestionHint="Title required" />)
+    expect(screen.getByRole('button', { name: 'habits.form.suggestEmoji' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'habits.form.suggestEmoji' })).toHaveAccessibleDescription('Title required')
+    expect(screen.getByText('Title required')).not.toBeVisible()
+    expect(screen.queryByText('habits.form.emoji')).toBeNull()
+  })
+
+  it('opens the title emoji picker before a schedule is understood', async () => {
     render(<UnderstandingWithEmoji resolved={false} />)
-    expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
     const user = userEvent.setup()
     await user.tab()

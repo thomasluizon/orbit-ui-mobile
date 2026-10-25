@@ -1,9 +1,9 @@
 import { spawn } from "node:child_process"
-import { chmodSync, existsSync, readFileSync, rmSync, symlinkSync, watch } from "node:fs"
+import { chmodSync, existsSync, readFileSync, rmSync, symlinkSync, watch, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { T, check, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
-import { readWakeSourceStates, workerLaunchDirectory, writeRunState } from "../lib/run-state.mjs"
+import { T, check, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
+import { readWakeSourceStates, wakeSourceDirectory, workerLaunchDirectory, writeRunState } from "../lib/run-state.mjs"
 
 const TOOL = "launch-worker.mjs"
 const engineStub = (label, body) => {
@@ -112,21 +112,58 @@ export const cases = async () => {
 
   const marker = stage("research/wake-marker-parent/marker", "")
   rmSync(marker)
-  const sleeper = engineStub("sleeper", `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'ready'); setTimeout(() => {}, 60000)`)
+  const sleeper = engineStub("sleeper", `
+const { spawn } = require('node:child_process')
+const { renameSync, writeFileSync } = require('node:fs')
+const descendant = spawn(process.execPath, ['-e', 'setInterval(() => {}, 60000)'], { stdio: 'ignore' })
+setTimeout(() => {
+  writeFileSync(${JSON.stringify(`${marker}.unpublished`)}, JSON.stringify({ enginePid: process.pid, descendantPid: descendant.pid }))
+  renameSync(${JSON.stringify(`${marker}.unpublished`)}, ${JSON.stringify(marker)})
+}, 1500)
+setInterval(() => {}, 60000)
+`)
   const real = realOrchestratorConfig()
-  const supervised = fixture("supervised", sleeper, { timeouts: { ...real.timeouts, hardCeilingMinutes: 0.02, pollSeconds: 0.1 } })
+  // Allow delayed engine startup and readiness checks while retaining the real wall-clock ceiling.
+  const hardCeilingMinutes = 0.25
+  const supervised = fixture("supervised", sleeper, { timeouts: { ...real.timeouts, hardCeilingMinutes, pollSeconds: 0.1 } })
   writeRunState({ sessionId: "research-session", sleep: true, remaining: ["#1128"] }, supervised.base)
   const running = asyncRun(supervised)
   await waitForPublishedFile(marker, running.result)
+  const sleeperPids = Object.values(JSON.parse(readFileSync(marker, "utf8")))
+  T("research: delayed engine startup reaches readiness with a live descendant", sleeperPids.every(processIsRunning))
   const wakes = readWakeSourceStates(supervised.base).live
   T("research: a live wake source records the launcher and child before execution", wakes.some(source => source.pid === running.child.pid && source.research === true && Number.isInteger(source.workerPid)))
   T("research: a running researcher has no ticket admission or branch reservation", !existsSync(workerLaunchDirectory(supervised.base)))
   const killed = await running.result
   const killedReport = discardLog(killed)
+  T("research: the hard ceiling stops the gate, engine and descendant", [killedReport.pid, ...sleeperPids].every(pid => !processIsRunning(pid)))
+  T("research: the hard ceiling deletes the wake record before any reader sweeps it", !existsSync(join(wakeSourceDirectory(supervised.base), `${running.child.pid}.json`)))
   T("research: the shared hard ceiling kills the run and clears the wake source", killed.status === 1 && killedReport.outcome === "KILLED_HARD_CEILING" && readWakeSourceStates(supervised.base).live.length === 0 && !existsSync(supervised.output))
-  const flooder = engineStub("report-flooder", "setInterval(() => process.stdout.write('x'.repeat(4096)), 5)")
-  const flooding = fixture("report-flood", flooder, { worker: "claude", timeouts: { ...real.timeouts, hardCeilingMinutes: 0.02, pollSeconds: 0.05 }, caps: { ...real.caps, workerLogMegabytes: 0.01 } })
-  const floodingResult = run(TOOL, flooding.argv, { path: flooding.path })
+  const floodMarker = stage("research/flood-marker-parent/marker", "")
+  rmSync(floodMarker)
+  const floodRelease = `${floodMarker}.release`
+  const flooder = engineStub("report-flooder", `
+const { spawn } = require('node:child_process')
+const { existsSync, renameSync, writeFileSync } = require('node:fs')
+const descendant = spawn(process.execPath, ['-e', 'setInterval(() => {}, 60000)'], { stdio: 'ignore' })
+setTimeout(() => {
+  writeFileSync(${JSON.stringify(`${floodMarker}.unpublished`)}, JSON.stringify({ enginePid: process.pid, descendantPid: descendant.pid }))
+  renameSync(${JSON.stringify(`${floodMarker}.unpublished`)}, ${JSON.stringify(floodMarker)})
+}, 1500)
+setInterval(() => { if (existsSync(${JSON.stringify(floodRelease)})) process.stdout.write('x'.repeat(4096)) }, 5)
+`)
+  const flooding = fixture("report-flood", flooder, { worker: "claude", timeouts: { ...real.timeouts, hardCeilingMinutes, pollSeconds: 0.05 }, caps: { ...real.caps, workerLogMegabytes: 0.01 } })
+  writeRunState({ sessionId: "research-flood-session", sleep: true, remaining: ["#1128"] }, flooding.base)
+  const floodingRun = asyncRun(flooding)
+  await waitForPublishedFile(floodMarker, floodingRun.result)
+  const floodPids = Object.values(JSON.parse(readFileSync(floodMarker, "utf8")))
+  T("research: the log-cap fixture reaches readiness with a live engine and descendant", floodPids.every(processIsRunning))
+  T("research: the log-cap fixture registers a live wake source before flooding", readWakeSourceStates(flooding.base).live.some(source => source.pid === floodingRun.child.pid && source.workerPid > 0))
+  writeFileSync(floodRelease, "release")
+  const floodingResult = await floodingRun.result
   const floodingReport = discardLog(floodingResult)
+  T("research: the log cap stops the gate, engine and descendant", [floodingReport.pid, ...floodPids].every(pid => !processIsRunning(pid)))
+  T("research: the log cap deletes the wake record before any reader sweeps it", !existsSync(join(wakeSourceDirectory(flooding.base), `${floodingRun.child.pid}.json`)))
+  T("research: the log cap clears live and orphaned wake sources", Object.values(readWakeSourceStates(flooding.base)).every(sources => sources.length === 0))
   T("research: findings streamed on stdout obey the shared log cap", floodingResult.status === 1 && floodingReport.outcome === "KILLED_LOG_RUNAWAY" && !existsSync(flooding.output), floodingReport.outcome)
 }

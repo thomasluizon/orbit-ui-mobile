@@ -22,7 +22,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
     test.describe(`habit detail chips in ${locale} at ${width}px`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 915 } })
 
-      test('keeps pause and rename in order and one Ask Astra row', async ({ page, context }) => {
+      test('keeps pause and rename in order and one habit review row', async ({ page, context }) => {
         await context.route(`${LAYOUT_ORIGIN}${API.habits.get(habit.id)}`, (route) => route.fulfill({ json: habit }))
         await context.route(`${LAYOUT_ORIGIN}${API.habits.logs(habit.id)}`, (route) => route.fulfill({ json: [] }))
         await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habit.id)}`, (route) => route.fulfill({ json: metrics }))
@@ -31,20 +31,21 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         const suggestions = page.getByRole('group', { name: messages.shell.composer.suggestionsLabel, exact: true })
         await expect(suggestions).toBeVisible()
         await expect(suggestions.getByRole('button')).toHaveText([
-          `${messages.shell.composer.chips.habitDetail.pauseThisWeek} ${messages.nav.astra}`,
-          `${messages.shell.composer.chips.habitDetail.rename} ${messages.nav.astra}`,
+          messages.shell.composer.chips.habitDetail.pauseThisWeek,
+          messages.shell.composer.chips.habitDetail.rename,
         ])
         for (const label of Object.values(messages.shell.composer.chips.habitDetail)) {
-          const chip = suggestions.getByRole('button', { name: `${label}, ${messages.nav.astra}`, exact: true })
+          const chip = suggestions.getByRole('button', { name: label, exact: true })
           await expect(chip).toHaveCount(1)
-          await expect(chip).toHaveText(`${label} ${messages.nav.astra}`)
+          await expect(chip).toHaveText(label)
           await expect(chip.locator('[data-asset="astra-mark-16"]')).toHaveCount(1)
         }
         await expect(suggestions.getByRole('button', { name: messages.habits.detail.askAstra, exact: true })).toHaveCount(0)
-        const askAstra = page.getByRole('button', { name: messages.habits.detail.askAstra, exact: true })
-        await expect(askAstra).toHaveCount(1)
-        await expect(askAstra).toBeVisible()
-        await expect(askAstra.locator('[data-asset="astra-mark"]')).toHaveCount(1)
+        const reviewHabit = page.getByRole('button', { name: messages.habits.detail.askAstra, exact: true })
+        await expect(reviewHabit).toHaveCount(1)
+        await expect(reviewHabit).toBeVisible()
+        await expect(reviewHabit).not.toContainText(messages.nav.astra)
+        await expect(reviewHabit.locator('[data-asset="astra-mark"]')).toHaveCount(1)
       })
     })
   }

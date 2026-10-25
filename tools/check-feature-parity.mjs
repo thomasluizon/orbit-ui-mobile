@@ -19,17 +19,18 @@ from a recorded completion status. Writes the untracked inventory only with --wr
   --production <ref>  active production tree (default: origin/main; fetch it first)
   --base <ref>        compare existing debt with this immutable queued base in --ci mode
   --write             regenerate .claude/manifests/feature-parity.json
-  --ci                report ticketed base debt as advisory; reject new losses
+  --ci                report ticketed base debt and inherited stale rules as advisory; reject new losses
   --help, -h          print usage and exit 0
 
 Rules require provenance.legacyProduction, the immutable legacy production commit.
 Optional provenance.productionSnapshots retains immutable sources for later relocations.
+CI preserves the base's legacyProduction and every retained production snapshot.
 Protects the deduplicated union of legacy and active production, including newer controls.
 Mappings may qualify fallback evidence with owners, a nonempty list of same-platform source paths.
 Content targets still require rendered consumers; owners qualify those consumers, not literals.
 For main pull requests use --production HEAD^1 --base HEAD^1 on the queued merge.
 
-No stdin. Exit codes: 0 retained or ticketed base debt in CI, 1 missing capability,
+No stdin. Exit codes: 0 retained or advisory base debt in CI, 1 missing capability,
 2 usage, invalid rules, or source read failure. --write alone returns 0 after generation.`
 
 function argumentsFor(argv) {
@@ -576,8 +577,9 @@ function scanWidget(snapshot, add) {
   }
 }
 
-export function validateRules(capabilities, rules, read) {
+export function validateRules(capabilities, rules, read, baseRules = {}) {
   const ids = new Set(capabilities.map((entry) => entry.id))
+  const stale = []
   for (const section of Object.keys(rules)) {
     if (!['provenance', 'mappings', 'removals', 'tickets', 'policies', 'staticHeadingLabels'].includes(section)) throw new Error(`unknown rules section: ${section}`)
   }
@@ -589,7 +591,11 @@ export function validateRules(capabilities, rules, read) {
   }
   for (const section of ['mappings', 'removals', 'tickets']) {
     for (const [id, rule] of Object.entries(rules[section] ?? {})) {
-      if (!ids.has(id)) throw new Error(`${section}: no production capability ${id}`)
+      if (!ids.has(id)) {
+        if (!Object.hasOwn(baseRules[section] ?? {}, id)) throw new Error(`${section}: no production capability ${id}`)
+        stale.push(`${section}: ${id}`)
+        continue
+      }
       if (section === 'tickets') {
         if (!/^#[1-9]\d*$/.test(rule)) throw new Error(`${id}: expected a ticket reference`)
         continue
@@ -608,6 +614,7 @@ export function validateRules(capabilities, rules, read) {
       }
     }
   }
+  return stale
 }
 
 export function newLosses(entries, baseEntries) {
@@ -640,15 +647,21 @@ function run(options) {
   if (!rules.provenance || Object.keys(rules.provenance).some(key => !['legacyProduction', 'productionSnapshots'].includes(key)) || typeof rules.provenance.legacyProduction !== 'string' || !/^[a-f0-9]{40}$/.test(rules.provenance.legacyProduction)) throw new Error('provenance requires an immutable legacyProduction commit')
   const productionSnapshots = rules.provenance.productionSnapshots === undefined ? [] : rules.provenance.productionSnapshots
   if (!Array.isArray(productionSnapshots) || productionSnapshots.some(revision => typeof revision !== 'string' || !/^[a-f0-9]{40}$/.test(revision))) throw new Error('provenance.productionSnapshots requires immutable commit IDs')
+  const base = options.ci ? tree(options.root, options.base) : null
+  const baseRules = base ? JSON.parse(base.read(RULES)) : {}
+  const baseProvenance = baseRules.provenance
+  if (baseProvenance?.legacyProduction && rules.provenance.legacyProduction !== baseProvenance.legacyProduction) throw new Error(`provenance.legacyProduction must preserve base commit ${baseProvenance.legacyProduction}; received ${rules.provenance.legacyProduction}`)
+  const droppedSnapshots = (baseProvenance?.productionSnapshots ?? []).filter(revision => !productionSnapshots.includes(revision))
+  if (droppedSnapshots.length) throw new Error(`provenance.productionSnapshots must preserve base commits: ${droppedSnapshots.join(', ')}`)
   const legacy = tree(options.root, rules.provenance.legacyProduction)
   const production = tree(options.root, options.production)
-  const base = options.ci ? tree(options.root, options.base) : null
   const current = tree(options.root, null)
   const sources = [...new Map([legacy, ...productionSnapshots.map(revision => tree(options.root, revision)), production].map((snapshot) => [snapshot.revision, snapshot])).values()]
   const observations = sources.flatMap((snapshot) => ['web', 'mobile'].flatMap((platform) => scan(snapshot, platform, rules)))
   const capabilities = [...new Map(observations.filter((entry) => entry.kind !== 'content').map((entry) => [entry.id, entry])).values()]
   const redesign = ['web', 'mobile'].flatMap((platform) => scan(current, platform, rules))
-  validateRules(capabilities, rules, current.read)
+  const stale = validateRules(capabilities, rules, current.read, baseRules)
+  for (const rule of stale) console.log(`Feature parity rules advisory: retire ${rule}`)
   const entries = compare(capabilities, redesign, rules)
   const inventory = { regenerate: 'git fetch origin main && node tools/check-feature-parity.mjs --write', legacyProduction: legacy.revision, productionSnapshots, production: production.revision, base: base?.revision ?? null, standingRemovals: rules.policies, allowedRemovals: rules.removals, translationUses: observations.filter((entry) => entry.kind === 'content'), method: 'Deduplicated legacy, retained and active production capabilities from reachable exported symbols, routes, translated controls and option bindings, keyboard handlers and native widget actions and figures. Mapped translation bindings require a reachable rendered consumer, resolved through property-specific values, calls and component props. Noninteractive translation references alone are supporting observations. Static source evidence does not prove runtime conditions, permissions or API behavior.', entries }
   if (options.write) {

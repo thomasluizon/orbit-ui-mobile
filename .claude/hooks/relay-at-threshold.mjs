@@ -33,7 +33,7 @@ try {
       const now = new Date().toISOString()
       writeRunState({ ...state, relay: { pending: true, from: input.session_id, measuredTokens,
         permissionMode: input.permission_mode, transcriptPath: input.transcript_path, triggeredAt: now } })
-      recordHandoffRequest(input.session_id, { command: "handoff", origin: "context-relay", sleep: true }, now)
+      recordHandoffRequest(input.session_id, { command: "handoff", origin: "context-relay", sleep: true, crank: state.crank === true }, now)
     }
     if (verdict?.fallback) {
       writeRunState({ ...state, relay: { ...state.relay, pending: false, fallbackUntilCompacted: true } })

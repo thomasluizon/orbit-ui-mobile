@@ -1,3 +1,4 @@
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { settleAnimations } from './settle-animations'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -29,10 +30,10 @@ for (const width of [320, 412, 1352]) {
           contentType: 'text/event-stream', body: `data: ${JSON.stringify(finalEvent)}\n\n`,
         }))
         await page.goto('/')
-        await page.getByRole('button', { name: width >= 1024 ? pt.chat.title : `${pt.todayAstra.openConversation}, ${pt.nav.astra}`, exact: true }).click()
+        await getShellConversationEntry(page, width, pt).click()
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         await conversation.locator('[data-composer-input]').fill('Como posso revisar a minha rotina?')
-        await conversation.getByRole('button', { name: `${pt.shell.composer.send}, ${pt.habits.form.askDate}`, exact: true }).click()
+        await conversation.getByRole('button', { name: pt.shell.composer.send, exact: true }).click()
         const group = conversation.getByRole('group', { name: pt.chat.followUps.label, exact: true })
         await expect(group).toBeVisible()
         await expect(group.getByRole('button')).toHaveCount(2)
@@ -53,7 +54,10 @@ for (const width of [320, 412, 1352]) {
         expect(gap).toBeGreaterThanOrEqual(16)
         for (const [index, question] of questions.entries()) {
           expect(question).toHaveLength(60)
-          const row = group.getByRole('button', { name: `${labels[index]}, ${pt.nav.astra}`, exact: true })
+          const row = group.getByRole('button', { name: labels[index], exact: true })
+          await expect(row).toHaveText(labels[index]!)
+          await expect(row).not.toContainText(pt.nav.astra)
+          await expect(row.locator('[data-asset="astra-mark-16"]')).toHaveCount(1)
           const geometry = await row.evaluate(element => {
             const text = element.querySelector('span')!
             const bounds = element.getBoundingClientRect()

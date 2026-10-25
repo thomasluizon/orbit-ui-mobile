@@ -1,3 +1,4 @@
+import { WeekdayPicker } from '@/components/ui/weekday-picker'
 import { toTime24 } from '@orbit/shared/utils'
 import { PreviewItemTitle } from './preview-item-title'
 import { ActionRow } from '@/components/ui/action-row'
@@ -6,7 +7,7 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { SharedPendingOperationCard, type PendingOperationCardAdapterProps, type PendingOperationCardRenderers, type PendingOperationVerificationProps } from './shared-pending-operation-card'
 import { buildPendingOperationCardLabels, PENDING_OPERATION_ITEM_SEARCH_THRESHOLD, PENDING_OPERATION_WEEKDAYS, type PendingOperationEditSheetProps } from '@orbit/shared/chat'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, View, useWindowDimensions } from 'react-native'
+import { AccessibilityInfo, Pressable, Text, View, useWindowDimensions } from 'react-native'
 import { usePendingOperationStepUpVerification } from '@/hooks/use-pending-operation-card-state'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
@@ -40,8 +41,8 @@ function ListRowFields({ field, row, rowLabel, labels, busy, change }: Readonly<
   </>
   if (field === 'scheduled_reminders') return <>
     <RadioGroup accessibilityLabel={`${rowLabel}: ${labels.reminderWhen}`}>
-    {busy ? <RadioRow label={labels.reminderSameDay} selected={row.when === 'same_day'} disabled reason={labels.acting} /> : <RadioRow label={labels.reminderSameDay} selected={row.when === 'same_day'} onSelect={() => change('when', 'same_day')} />}
-    {busy ? <RadioRow label={labels.reminderDayBefore} selected={row.when === 'day_before'} disabled reason={labels.acting} /> : <RadioRow label={labels.reminderDayBefore} selected={row.when === 'day_before'} onSelect={() => change('when', 'day_before')} />}
+    {busy ? <RadioRow label={labels.reminderSameDay} selected={row.when === 'same_day'} busy reason={labels.acting} /> : <RadioRow label={labels.reminderSameDay} selected={row.when === 'same_day'} onSelect={() => change('when', 'same_day')} />}
+    {busy ? <RadioRow label={labels.reminderDayBefore} selected={row.when === 'day_before'} busy reason={labels.acting} /> : <RadioRow label={labels.reminderDayBefore} selected={row.when === 'day_before'} onSelect={() => change('when', 'day_before')} />}
     </RadioGroup>
     <TimeField label={`${rowLabel}: ${labels.reminderTime}`} value={toTime24(typeof row.time === 'string' ? row.time : '')} onChange={(next) => change('time', next)} disabled={busy} />
   </>
@@ -111,15 +112,18 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
     <View style={{ gap: 16 }}>
       {editableItems.length > 1 ? <View style={{ gap: 8 }}>{showSearch ? <Input label={labels.search} value={query} onChange={setQuery} disabled={busy} /> : null}<RadioGroup accessibilityLabel={labels.editTitle}>{editableItems.filter((entry) => !showSearch || entry.entityName.toLocaleLowerCase().includes(query.toLocaleLowerCase())).map((entry) =>
         busy
-          ? <RadioRow key={entry.itemId} label={entry.entityName} textMode="personal" selected={entry.itemId === item.itemId} disabled reason={labels.acting} />
+          ? <RadioRow key={entry.itemId} label={entry.entityName} textMode="personal" selected={entry.itemId === item.itemId} busy reason={labels.acting} />
           : <RadioRow key={entry.itemId} label={entry.entityName} textMode="personal" selected={entry.itemId === item.itemId} onSelect={() => onSelectItem(entry.itemId)} />)}</RadioGroup></View> : null}
       {item.fields.filter(isPendingOperationEditableField).map((field) => {
         const label = labels.fieldLabels[field.field] ?? field.field
+        const choices = item.fieldOptions?.find((entry) => entry.field === field.field && entry.field === 'parent_habit_id')
+        if (choices) return <ParentChoice key={field.field} itemId={item.itemId} itemName={item.entityName} field={choices} labels={labels} disabled={busy}
+          selectedValue={draft[field.field] === '' ? null : draft[field.field]} onSelect={(value) => { if (value === null || typeof value === 'string') onChange(field.field, value ?? '') }} />
         if (field.field === 'checklist_items' || field.field === 'reminder_times' || field.field === 'scheduled_reminders') return <ListFieldEditor key={field.field} field={field.field} value={draft[field.field] ?? '[]'} labels={labels} busy={busy} error={error} onChange={(value) => onChange(field.field, value)} />
         if (field.valueType === 'boolean') return <Switch key={field.field} label={label} checked={draft[field.field] === 'true'} disabled={busy} onChange={(value) => onChange(field.field, String(value))} />
         if (field.field === 'days') {
           const days = (draft.days ?? '').split(',').map((day) => day.trim())
-          return <View key={field.field} style={{ gap: 8 }}><Text style={{ color: tokens.fg1 }}>{label}</Text><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{PENDING_OPERATION_WEEKDAYS.map((day) => <Pressable key={day} accessibilityRole="button" accessibilityState={{ selected: days.includes(day), disabled: busy }} disabled={busy} onPress={() => onChange('days', PENDING_OPERATION_WEEKDAYS.filter((name) => name === day ? !days.includes(name) : days.includes(name)).join(', '))} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, paddingHorizontal: SPACING.s12, justifyContent: 'center', borderRadius: 999, overflow: 'hidden', borderWidth: 1.5, borderColor: days.includes(day) ? tokens.primary : tokens.hairlineStrong, backgroundColor: pressed ? tokens.bgHover : days.includes(day) ? tokens.selectionBg : 'transparent' })}><Text style={{ color: tokens.fg1 }}>{labels.dayLabels[day]}</Text></Pressable>)}</View></View>
+          return <View key={field.field} style={{ gap: 8 }}><Text style={{ color: tokens.fg1 }}>{label}</Text><WeekdayPicker label={label} days={days} scheduleLocked={busy} dayOptions={PENDING_OPERATION_WEEKDAYS.map(day => ({ value: day, label: labels.dayLabels[day]!, accessibleLabel: labels.dayLabels[day]! }))} onToggleDay={day => onChange('days', PENDING_OPERATION_WEEKDAYS.filter(name => name === day ? !days.includes(name) : days.includes(name)).join(', '))} /></View>
         }
         if (field.valueType === 'time') return <TimeField key={field.field} label={label} value={toTime24(draft[field.field])} onChange={(value) => onChange(field.field, value)} disabled={busy} error={error ? labels.invalid : undefined} />
         return <Input
@@ -180,6 +184,21 @@ function StepUpVerificationSheet({
   )
 }
 
+function ParentChoice({ itemName, field, labels, disabled, onSelect, selectedValue, focusRequest, shouldFocus }: Readonly<Parameters<PendingOperationCardRenderers['parentChoice']>[0] & { selectedValue?: unknown }>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const ownsFocus = useRef(false)
+  return <View style={{ gap: SPACING.s8 }}>
+    <Text style={{ color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{labels.fieldLabels.parent_habit_id}</Text>
+    <RadioGroup focusRequest={focusRequest} shouldFocus={shouldFocus} accessibilityLabel={`${labels.fieldLabels.parent_habit_id}: ${itemName}`}>
+      {field.options.map((option) => <RadioRow key={JSON.stringify(option.value)} wrapLabel textMode={option.value === null ? undefined : 'personal'}
+        label={option.value === null ? labels.noParent : option.label} selected={selectedValue !== undefined && selectedValue === option.value}
+        onFocus={() => { ownsFocus.current = true }} onBlur={() => { ownsFocus.current = false }}
+        {...(disabled ? { busy: true as const, reason: labels.acting } : { onSelect: () => onSelect(option.value, () => ownsFocus.current) })} />)}
+    </RadioGroup>
+  </View>
+}
+
 const pendingOperationRenderers = {
   blockFrame: (props) => <BlockFrame {...props} items={props.items.map((item) => ({ ...item, label: typeof item.label === 'string' && item.id !== 'remaining' ? <PreviewItemTitle key={item.id} title={item.label} icon={item.icon} rename={item.rename} proposed={item.proposed} /> : item.label }))} />,
   button: ({ label, ...props }) => <PreviewButton label={label} {...props} />,
@@ -187,6 +206,7 @@ const pendingOperationRenderers = {
   stepUp: (props) => <View style={{ flexBasis: '100%', minWidth: 0 }}><StepUp {...props} /></View>,
   verification: (props) => <StepUpVerificationSheet {...props} />,
   editSheet: (props) => <EditPendingOperationSheet {...props} />,
+  parentChoice: (props) => <ParentChoice key={props.itemId} {...props} />,
   removeItem: (label, disabled, onClick) => <RemoveItemButton label={label} disabled={disabled} onClick={onClick} />,
   notice: (message) => <PreviewNotice message={message} />,
   rejected: (message) => <RejectedPreview message={message} />,
@@ -198,9 +218,20 @@ function PreviewNotice({ message }: Readonly<{ message: string }>) {
   return <Text accessibilityRole="text" accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55 }}>{message}</Text>
 }
 
-function PreviewButton({ label, variant, ...props }: Readonly<import('@orbit/shared/chat').PendingOperationButtonSpec>) {
+function PreviewButton({ label, variant, focusRequest, shouldFocus, ...props }: Readonly<import('@orbit/shared/chat').PendingOperationButtonSpec>) {
   const { width } = useWindowDimensions()
-  return <Button size="sm" variant={variant === 'primary' && width >= WIDE_DESKTOP_BREAKPOINT ? 'secondary' : variant} {...props}>{label}</Button>
+  const buttonRef = useRef<View>(null)
+  const handledFocusRequest = useRef<number | undefined>(undefined)
+  useEffect(() => {
+    if (!focusRequest || props.disabled || handledFocusRequest.current === focusRequest) return
+    handledFocusRequest.current = focusRequest
+    if (shouldFocus && !shouldFocus()) return
+    if (buttonRef.current) {
+      buttonRef.current.setNativeProps({ hasTVPreferredFocus: true })
+      AccessibilityInfo.sendAccessibilityEvent(buttonRef.current, 'focus')
+    }
+  }, [focusRequest, props.disabled, shouldFocus])
+  return <Button buttonRef={buttonRef} size="sm" variant={variant === 'primary' && width >= WIDE_DESKTOP_BREAKPOINT ? 'secondary' : variant} {...props}>{label}</Button>
 }
 
 function RejectedPreview({ message }: Readonly<{ message: string }>) {

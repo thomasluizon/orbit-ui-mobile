@@ -255,17 +255,22 @@ describe('Native bottom tab layout', () => {
     } finally { root.freeRecursive(); void renderer.act(() => tree.unmount()) }
   })
 
-  it.each([en, ptBR].flatMap((messages) => [1, 2].map((fontScale) => ({ messages, fontScale }))))(
-    'keeps icon clearance and disjoint targets at 320 with $fontScale text in $messages.nav.calendar',
-    ({ messages, fontScale }) => {
-      __setWindowDimensions({ width: 320, height: 740, scale: 1, fontScale })
+  it.each([en, ptBR].flatMap((messages) => [1, 2].flatMap((fontScale) => [
+    { messages, fontScale, width: 320, platform: 'android' as const },
+    ...[320, 375, 440, 744, 820, 1032, 1366].map((width) => ({ messages, fontScale, width, platform: 'ios' as const })),
+  ])))(
+    'keeps compact tabs and disjoint targets on $platform at $width with $fontScale text in $messages.nav.calendar',
+    ({ messages, fontScale, width, platform }) => {
+      const previousPlatform = Platform.OS
+      Platform.OS = platform
+      __setWindowDimensions({ width, height: 740, scale: 1, fontScale })
       let tree!: ReturnType<typeof renderer.create> & { toJSON: () => Host; unmount: () => void }
       void renderer.act(() => { tree = renderer.create(<BottomTabBar label={messages.nav.mainNavigation} activeId="today" onSelect={vi.fn()}
         items={destinations.map((id) => ({ id, label: messages.nav[id], icon: () => <View style={{ width: 24, height: 24 }} /> }))} />) as typeof tree })
       const nodes = new Map<string, YogaNode>()
       const root = layoutHost(tree.toJSON(), nodes, fontScale)
       try {
-        root.calculateLayout(320, undefined, Yoga.DIRECTION_LTR)
+        root.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
         if (fontScale === 1) expect(root.getComputedHeight()).toBe(80)
         const targets = destinations.map((id) => nodes.get(`tab-${id}-${id === 'today' ? 'current' : 'inactive'}`)!)
         for (const [index, id] of destinations.entries()) {
@@ -276,6 +281,7 @@ describe('Native bottom tab layout', () => {
           expect(bounds(indicator.getChild(0)).top).toBeGreaterThanOrEqual(16)
           expect(target.getComputedWidth()).toBeGreaterThanOrEqual(48)
           expect(target.getComputedHeight()).toBeGreaterThanOrEqual(48)
+          expect(bounds(target).right).toBeLessThanOrEqual(Math.min(width, 740))
           const label = target.getChild(1)
           expect(label.getComputedHeight()).toBe(16 * fontScale)
           expect(bounds(label).top - bounds(indicator).bottom).toBe(4)
@@ -289,6 +295,7 @@ describe('Native bottom tab layout', () => {
       } finally {
         root.freeRecursive()
         void renderer.act(() => tree.unmount())
+        Platform.OS = previousPlatform
       }
     },
   )

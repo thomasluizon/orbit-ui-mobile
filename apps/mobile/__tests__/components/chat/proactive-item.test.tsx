@@ -16,6 +16,7 @@ type ReactTestRenderer = NativeTestRenderer & { unmount: () => void }
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({ api: vi.fn(), online: true, used: 0, ended: false, epoch: 0 }))
+vi.mock('i18next', () => ({ default: { language: 'pt-BR' } }))
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.api }))
 vi.mock('@/stores/auth-store', () => ({ useAuthStore: (selector: (state: { isAuthenticated: boolean }) => unknown) => selector({ isAuthenticated: true }) }))
 vi.mock('@/lib/session-epoch', () => ({ getSessionEpoch: () => mocks.epoch }))
@@ -54,7 +55,7 @@ beforeEach(() => {
   mocks.ended = false
   mocks.epoch = 0
   mocks.api.mockImplementation((path: string) => {
-    if (path === API.proactive.current) return Promise.resolve(item)
+    if (path.startsWith(API.proactive.current)) return Promise.resolve(item)
     if (path === API.proactive.status(item.id)) return Promise.resolve(proactiveItemStatusSchema.parse({ id: item.id, status: mocks.ended ? 'ended' : 'active' }))
     return Promise.resolve(undefined)
   })
@@ -63,6 +64,21 @@ beforeEach(() => {
 })
 
 describe('proactive conversation', () => {
+  it('negotiates proactive parts through the native request adapter', async () => {
+    const { client } = setup()
+    await openCurrentProactiveItem(client)
+    const [path, options, schema] = mocks.api.mock.calls[0]!
+    const url = new URL(path, 'https://example.test')
+    expect(url.pathname).toBe(API.proactive.current)
+    expect(JSON.parse(url.searchParams.get('clientContext')!)).toMatchObject({
+      platform: 'mobile', locale: 'pt-BR', supportsParts: true,
+      partKinds: expect.arrayContaining(['habitList', 'goalList', 'calendar', 'daySummary', 'periodInsight']),
+      supportsDatedHabitListCard: true,
+    })
+    expect(options.signal).toBeInstanceOf(AbortSignal)
+    expect(schema).toBe(proactiveItemSchema)
+  })
+
   it('loads current, opens its full text as AI once and sends the action prompt once', async () => {
     const { render } = setup()
     const line = await render(<TodayAstra today={item.localDate} isTodaySelected suppressed={false} />)

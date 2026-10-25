@@ -4,6 +4,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { test } from './upgrade-fixtures'
 import { expectInteractionFill } from './label-interaction-fill'
 import { inspectFocusedRing, readOutlineVisibility } from './focus-indicators'
+import { getShellConversationEntry } from './shell-conversation-entry'
 
 for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
   for (const width of [1100, 1352, 1440]) {
@@ -12,11 +13,14 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
       test('shares destination geometry and opens, closes and navigates with focus', async ({ page }) => {
         await page.goto('/')
         const sidebar = page.locator('[data-shell-sidebar]')
-        const row = sidebar.getByRole('button', { name: words.chat.title, exact: true })
+        const row = getShellConversationEntry(page, width, words)
+        const label = row.getByText(words.nav.astra, { exact: true })
         const today = sidebar.getByRole('link', { name: words.nav.today, exact: true })
         const calendar = sidebar.getByRole('link', { name: words.nav.calendar, exact: true })
         await expect(row).toBeVisible()
-        await expect(sidebar.locator('nav > button').first()).toHaveAccessibleName(words.chat.title)
+        await expect(sidebar.locator('nav > button').first()).toHaveAccessibleName(words.nav.astra)
+        await expect(label).toBeVisible()
+        await expect(label).toHaveAttribute('translate', 'no')
         await page.evaluate(() => document.fonts.ready)
         const astraBox = (await row.boundingBox())!
         const todayBox = (await today.boundingBox())!
@@ -26,8 +30,22 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
         expect(astraBox.y + astraBox.height + 4).toBeCloseTo(todayBox.y, 1)
         await expect(row.locator('svg')).toHaveAttribute('width', '20')
         await expect(row.locator('svg')).toHaveAttribute('height', '20')
-        await expect(row.locator('span')).toHaveAttribute('translate', 'no')
-        expect(await row.locator('span').evaluate(element => element.getBoundingClientRect().height / parseFloat(getComputedStyle(element).lineHeight))).toBeCloseTo(1, 1)
+        await expect(row).toHaveText(words.nav.astra)
+        const labelBox = (await label.boundingBox())!
+        expect(labelBox.width).toBeGreaterThan(1)
+        expect(labelBox.height).toBeGreaterThan(1)
+        expect(labelBox.x).toBeGreaterThanOrEqual(astraBox.x)
+        expect(labelBox.x + labelBox.width).toBeLessThanOrEqual(astraBox.x + astraBox.width)
+        const markGeometry = await row.locator('svg').evaluate(element => {
+          const mark = element.getBoundingClientRect()
+          const row = element.closest('button')!.getBoundingClientRect()
+          return { height: mark.height, left: mark.left, right: mark.right, rowLeft: row.left, rowRight: row.right,
+            centerOffset: Math.abs(mark.top + mark.height / 2 - row.top - row.height / 2) }
+        })
+        expect(markGeometry.height).toBe(20)
+        expect(markGeometry.left).toBeGreaterThanOrEqual(markGeometry.rowLeft)
+        expect(markGeometry.right).toBeLessThanOrEqual(markGeometry.rowRight)
+        expect(markGeometry.centerOffset).toBeLessThanOrEqual(0.5)
         await expectInteractionFill(row)
         await page.keyboard.press('Tab')
         await row.focus()
@@ -48,6 +66,22 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
         await expect(conversation).toHaveCount(0)
         await expect(row).toBeFocused()
         await expect(row).toHaveAttribute('aria-expanded', 'false')
+        const toggle = sidebar.locator('[data-shell-sidebar-toggle]')
+        await toggle.click()
+        await expect(sidebar).toHaveAttribute('data-collapsed', 'true')
+        await expect(row).toHaveAccessibleName(words.nav.astra)
+        await expect(row).toHaveAttribute('title', words.nav.astra)
+        await expect(label).toHaveText(words.nav.astra)
+        await expect(label).toHaveCSS('position', 'absolute')
+        await expect(label).toHaveCSS('clip-path', 'inset(50%)')
+        const hiddenLabelBox = (await label.boundingBox())!
+        expect(hiddenLabelBox.width).toBe(1)
+        expect(hiddenLabelBox.height).toBe(1)
+        await toggle.click()
+        await expect(sidebar).not.toHaveAttribute('data-collapsed')
+        await expect(label).toHaveCSS('position', 'static')
+        await expect(label).toHaveCSS('clip-path', 'none')
+        await expect(label).toBeVisible()
         await row.click()
         await calendar.click()
         await expect(conversation).toHaveCount(0)

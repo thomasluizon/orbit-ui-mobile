@@ -28,22 +28,28 @@ export function summarizePendingOperationItem(
   const value = (name: string) => fields.find((field) => field.field === name)?.newValue
   const action = fields.find((field) => field.valueType === 'action')
   if (action && ['delete', 'dismiss_import', 'run_sync'].includes(action.field)) return translate(`chat.operation.field.${action.field}`)
+  const creating = isHabitCreate(fields, actionKey)
   const cadence = cadenceSummary(fields, translate, actionKey)
   const interval = Number(value('interval_weeks'))
   const intervalLabel = value('interval_weeks') != null && interval >= 1 ? computeHabitFrequencyLabel({ isGeneral: false, frequencyUnit: 'Week', frequencyQuantity: interval, days: [], isFlexible: false }, (key, values) => translate(key, values as Record<string, string | number>)) : null
   const date = value('due_date') ?? value('date')
   const dateLabel = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? formatLocaleDate(parseAPIDate(date), locale, { dateStyle: 'medium' }) : null
   const time = value('due_time')
-  const summary = [cadence.label, intervalLabel, dateLabel, time ? translate('chat.preview.atTime', { time: formatTime(time) }) : null, ...additionalChanges(fields, translate, formatTime, locale, cadence.complete)].filter(Boolean).join(' · ')
+  const summary = [cadence.label, intervalLabel, dateLabel, time ? creating ? formatTime(time) : translate('chat.preview.atTime', { time: formatTime(time) }) : null, ...additionalChanges(fields, translate, formatTime, locale, cadence.complete, creating)].filter(Boolean).join(' · ')
   return summary || (actionKey && PREVIEW_ACTION_KEYS.includes(actionKey) ? translate(`chat.operation.source.${actionKey}`) : '')
+}
+
+function isHabitCreate(fields: readonly PendingOperationChange[], actionKey?: string | null): boolean {
+  return ['createHabit', 'createHabits', 'createSubHabit'].includes(actionKey ?? '')
+    && !fields.some((field) => field.field === 'habit_id' || field.oldValue != null)
 }
 
 function cadenceSummary(fields: readonly PendingOperationChange[], translate: PreviewTranslation, actionKey?: string | null): { label: string | null; complete: boolean } {
   const value = (name: string) => fields.find((field) => field.field === name)?.newValue
   const unit = frequencyUnitSchema.safeParse(value('frequency_unit'))
   if (!unit.success || value('is_general')?.toLowerCase() === 'true') return { label: null, complete: false }
-  const updating = fields.some((field) => field.oldValue != null || ['habit_id', 'parent_habit_id'].includes(field.field))
-    || ['updateHabit', 'updateHabits', 'createSubHabit'].includes(actionKey ?? '')
+  const updating = fields.some((field) => field.oldValue != null || field.field === 'habit_id')
+    || ['updateHabit', 'updateHabits'].includes(actionKey ?? '')
   const daysField = fields.find((field) => field.field === 'days')
   const flexible = value('is_flexible')?.toLowerCase()
   const complete = !updating || (value('frequency_quantity') != null
@@ -62,17 +68,30 @@ function cadenceSummary(fields: readonly PendingOperationChange[], translate: Pr
   }, (key, values) => translate(key, values as Record<string, string | number>)), complete: true }
 }
 
+function createChange(field: PendingOperationChange, translate: PreviewTranslation): string[] | undefined {
+  if (field.field === 'sub_habits' || field.proposedValue === null || field.newValue === '' || field.newValue?.toLowerCase() === 'false') return []
+  if (field.field === 'is_bad_habit') return [translate('chat.preview.summary.habitToAvoid')]
+  if (field.field === 'tag_names' && Array.isArray(field.proposedValue)) return [field.proposedValue.filter((tag): tag is string => typeof tag === 'string').join(', ')]
+  return undefined
+}
+
+function booleanChange(field: PendingOperationChange, translate: PreviewTranslation, scheduleSummarized: boolean): string[] | undefined {
+  const keyPair = BOOLEAN_OUTCOMES[field.field]
+  const boolean = field.newValue?.toLowerCase()
+  if (!keyPair || (boolean !== 'true' && boolean !== 'false')) return undefined
+  if (scheduleSummarized && ['is_general', 'is_flexible'].includes(field.field)) return []
+  return [translate(`chat.preview.summary.${keyPair[boolean === 'true' ? 1 : 0]}`)]
+}
+
 function additionalChanges(
   fields: readonly PendingOperationChange[], translate: PreviewTranslation,
-  formatTime: (value: string) => string, locale: string, scheduleSummarized: boolean,
+  formatTime: (value: string) => string, locale: string, scheduleSummarized: boolean, creating: boolean,
 ): string[] {
   return fields.flatMap((field) => {
-    const keyPair = BOOLEAN_OUTCOMES[field.field]
-    const boolean = field.newValue?.toLowerCase()
-    if (keyPair && (boolean === 'true' || boolean === 'false')) {
-      if (scheduleSummarized && ['is_general', 'is_flexible'].includes(field.field)) return []
-      return [translate(`chat.preview.summary.${keyPair[boolean === 'true' ? 1 : 0]}`)]
-    }
+    const createOutcome = creating ? createChange(field, translate) : undefined
+    if (createOutcome) return createOutcome
+    const booleanOutcome = booleanChange(field, translate, scheduleSummarized)
+    if (booleanOutcome) return booleanOutcome
     if (field.field === 'description') return [field.newValue || translate('chat.preview.summary.removeDescription')]
     if (field.field === 'emoji') return field.newValue ? [] : [translate('chat.preview.summary.removeIcon')]
     if (field.field === 'frequency_quantity' && !scheduleSummarized && field.newValue) return [translate('chat.preview.summary.repeatInterval', { count: field.newValue })]
@@ -125,6 +144,7 @@ function writeOutcome(field: PendingOperationChange, translate: PreviewTranslati
   const text = field.newValue
   if (['note', 'subject', 'message', 'email', 'text', 'summary'].includes(field.field) && text) return [text]
   if (['parent_id', 'new_parent_id'].includes(field.field)) return [translate(`chat.preview.summary.${text ? 'moveUnderHabit' : 'moveToTop'}`)]
+  if (field.field === 'parent_habit_id') return [field.proposedValue === null ? translate('habits.moveParent.toRoot') : text ?? '']
   if (field.field === 'color' && text) return [translate('chat.preview.summary.tagColor', { color: text })]
   if (field.field === 'action' && text) return actionOutcome(text, translate)
   return [...goalOutcome(field, translate), ...collectionOutcome(field, translate), ...preferenceOutcome(field, translate), ...dateOutcome(field, translate, formatTime, locale)]

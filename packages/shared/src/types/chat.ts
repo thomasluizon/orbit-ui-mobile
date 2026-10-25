@@ -37,6 +37,7 @@ export const chatClientContextSchema = z.object({
   partKinds: z.array(z.string()).optional(),
   messageOrigin: z.literal('followUp').optional(),
   entryPointIntent: z.literal('support').optional(),
+  supportsMessageAllowance: z.boolean().optional(),
 })
 
 export type ChatClientContext = z.infer<typeof chatClientContextSchema>
@@ -556,7 +557,7 @@ const replyCardFieldsShape = {
 }
 
 export const chatMessageSchema = z.object({
-  proactiveItem: proactiveItemSchema.optional(),
+  proactiveItem: z.lazy(() => proactiveItemSchema).optional(),
   proactiveActed: z.boolean().optional(),
   proactiveContextAfterMessageId: z.string().nullable().optional(),
   id: z.string(),
@@ -597,6 +598,7 @@ export const chatResponseSchema = z.object({
   pendingOperations: z.array(pendingAgentOperationSchema).nullable().optional(),
   policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
   ...replyCardFieldsShape,
+  messageAllowanceConsumed: z.boolean().nullish(),
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>
@@ -607,18 +609,24 @@ export type ChatResponse = z.infer<typeof chatResponseSchema>
  * rendering, final carries the complete ChatResponse (always authoritative over streamed
  * text), and error carries an HTTP-equivalent status.
  */
+const chatTurnIdentity = {
+  turnId: z.string().optional(),
+  state: z.string().optional(),
+}
+
 export const chatStreamEventSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('started') }),
+  z.object({ type: z.literal('started'), ...chatTurnIdentity, replayed: z.boolean().optional() }),
   z.object({ type: z.literal('round'), iteration: z.number() }),
   z.object({ type: z.literal('delta'), text: z.string() }),
   z.object({ type: z.literal('reset') }),
   z.object({ type: z.literal('step'), domain: z.string(), access: z.string() }),
-  z.object({ type: z.literal('final'), response: chatResponseSchema }),
+  z.object({ type: z.literal('final'), response: chatResponseSchema, ...chatTurnIdentity }),
   z.object({
     type: z.literal('error'),
     status: z.number(),
     error: z.string(),
     code: z.string().optional(),
+    ...chatTurnIdentity,
   }),
 ])
 

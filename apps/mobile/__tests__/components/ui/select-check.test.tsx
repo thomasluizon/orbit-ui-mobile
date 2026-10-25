@@ -14,6 +14,8 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { focusHost } from '../../support/focus-provenance'
 import {
   __resetTestHostConfig,
+  __focusHost,
+  __getFocusedNativeTag,
   __setFocusImpl,
   __setTouchMode,
   __setWindowDimensions,
@@ -583,4 +585,44 @@ describe('disabled personal destination reason layout', () => {
     assertLayout()
     void act(() => tree.update(<View />))
   })
+})
+
+
+it('retains native focus through busy state without selecting or committing', async () => {
+  __setTouchMode(false)
+  const selected = vi.fn()
+  const commit = vi.fn()
+  const rows = (busy: boolean) => <FocusProvenanceView><RadioGroup accessibilityLabel="Parents" onCommit={commit}>
+    <RadioRow label="First" onSelect={selected} {...(busy ? { busy: true as const, reason: 'Working' } : { busy: false as const })} />
+  </RadioGroup></FocusProvenanceView>
+  let tree!: ReactTestRenderer
+  await act(() => { tree = create(rows(false)) })
+  const radio = tree.root.findAll(node => node.type === ('Pressable' as unknown) && node.props.accessibilityRole === 'radio')[0]!
+  await act(() => { __focusHost(radio.props.__nativeTag as number) })
+  await act(() => { tree.update(rows(true)) })
+  expect(__getFocusedNativeTag()).toBe(radio.props.__nativeTag)
+  expect(radio.props.onPress).toBeUndefined()
+  expect((radio.props.accessibilityState as { disabled: boolean }).disabled).toBe(true)
+  expect(selected).not.toHaveBeenCalled()
+  expect(commit).not.toHaveBeenCalled()
+  await act(() => { tree.update(rows(false)) })
+  expect(__getFocusedNativeTag()).toBe(radio.props.__nativeTag)
+  await act(() => { tree.update(<></>) })
+})
+
+it('requests the checked native option and respects cancelled continuation', async () => {
+  __setTouchMode(false)
+  const rows = (request: number, allowed: boolean) => <FocusProvenanceView><RadioGroup accessibilityLabel="Parents" focusRequest={request} shouldFocus={() => allowed}>
+    <RadioRow label="First" onSelect={vi.fn()} />
+    <RadioRow label="Second" selected onSelect={vi.fn()} />
+  </RadioGroup><Pressable accessibilityLabel="Outside" /></FocusProvenanceView>
+  let tree!: ReactTestRenderer
+  await act(() => { tree = create(rows(1, true)) })
+  const second = tree.root.findAll(node => node.type === ('Pressable' as unknown) && node.props.accessibilityLabel === 'Second')[0]!
+  expect(__getFocusedNativeTag()).toBe(second.props.__nativeTag)
+  const outside = tree.root.findAll(node => node.type === ('Pressable' as unknown) && node.props.accessibilityLabel === 'Outside')[0]!
+  await act(() => { __focusHost(outside.props.__nativeTag as number) })
+  await act(() => { tree.update(rows(2, false)) })
+  expect(__getFocusedNativeTag()).toBe(outside.props.__nativeTag)
+  await act(() => { tree.update(<></>) })
 })

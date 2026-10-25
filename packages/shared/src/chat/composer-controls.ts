@@ -25,9 +25,10 @@ export function selectComposerAction(props: ComposerProps, id: string): void {
 }
 
 export function promptDisabledReason(state: {
-  isOnline: boolean; atMessageLimit: boolean; aiMessagesLimit: number; isSending: boolean
+  isOnline: boolean; dailyBudgetReached?: boolean; atMessageLimit: boolean; aiMessagesLimit: number; isSending: boolean
 }, translate: (key: string, values?: { allowance: number }) => string): string | undefined {
   if (state.isOnline === false) return translate('shell.composer.offline.reason')
+  if (state.dailyBudgetReached) return translate('chat.dailyBudgetReached')
   if (state.atMessageLimit) return translate('shell.composer.limit.reason', { allowance: state.aiMessagesLimit })
   return state.isSending ? translate('shell.composer.busy.reason') : undefined
 }

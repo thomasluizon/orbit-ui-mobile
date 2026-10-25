@@ -107,7 +107,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
             {t('habits.reschedule.dismiss')}
           </PillButton>
           <PillButton leadingIcon={<AstraGlyph size={16} />} variant={filledVariant} size="sm" onClick={() => void refetch()}>
-            {t('habits.form.askDate')}
+            {t('habits.reschedule.suggestDate')}
           </PillButton>
         </>
       )

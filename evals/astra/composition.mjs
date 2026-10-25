@@ -1,0 +1,150 @@
+import { isDeepStrictEqual } from 'node:util'
+import { getRelatedSurfaces } from '../../packages/shared/src/chat/related-surfaces.ts'
+
+const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
+const text = (value) => typeof value === 'string' && value.trim().length > 0
+const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
+const shapes = {
+  habitList: { scope: 'string', items: 'array' }, goalList: { items: 'array' },
+  metrics: { period: 'string', completionRate: 'number', totalCompletions: 'number', totalScheduled: 'number', activeDays: 'number', currentStreak: 'number', bestStreak: 'number', hasData: 'boolean', surfaceId: 'string' },
+  periodTotal: { metrics: 'object', metric: 'string', unit: 'string', value: 'number', series: 'object' },
+  periodComparison: { current: 'object', baseline: 'object', metric: 'string', unit: 'string', currentValue: 'number', baselineValue: 'number', absoluteDelta: 'number' },
+  periodInsight: { period: 'string', narrative: 'object', totalCompletions: 'number', topHabits: 'array', needsAttention: 'array' },
+  daySummary: { date: 'string', due: 'number', done: 'number', overdueCount: 'number', currentStreak: 'number', surfaceId: 'string' },
+  streak: { currentStreak: 'number', longestStreak: 'number', level: 'number', totalXp: 'number', recentAchievements: 'array', surfaceId: 'string' },
+  calendar: { events: 'array', surfaceId: 'string' },
+  recordList: { kind: 'string', totalCount: 'number', items: 'array' },
+  accountRows: { kind: 'string', rows: 'array', surfaceId: 'string' },
+  gamification: { state: 'object', surfaceId: 'string' },
+  habitRanking: { ranking: 'object', surfaceId: 'string' },
+  choice: { blockId: 'string', question: 'string', options: 'array', multiSelect: 'boolean', allowFreeText: 'boolean', expiresAtUtc: 'string' },
+  pickList: { blockId: 'string', title: 'string', items: 'array', action: 'string', expiresAtUtc: 'string' },
+}
+const capability = { habitList: 'supportsHabitListCard', goalList: 'supportsGoalListCard', metrics: 'supportsMetricsCard',
+  periodInsight: 'supportsPeriodInsightCard', daySummary: 'supportsDaySummaryCard', streak: 'supportsStreakCard',
+  calendar: 'supportsCalendarCard', recordList: 'supportsRecordListCard', accountRows: 'supportsAccountRowsCard' }
+
+function validBlock(part, client) {
+  const shape = shapes[part.kind]
+  if (client?.supportsParts !== true || !shape || !object(part.block) || !client?.partKinds?.includes(part.kind)
+    || (capability[part.kind] && client[capability[part.kind]] !== true)) return false
+  if (!Object.entries(shape).every(([key, type]) => type === 'array' ? Array.isArray(part.block[key])
+    : type === 'object' ? object(part.block[key]) : typeof part.block[key] === type)) return false
+  const block = part.block
+  if (part.kind === 'recordList' && !['notifications', 'tags', 'templates', 'keys', 'habitHistory'].includes(block.kind)) return false
+  if (part.kind === 'accountRows' && !['profile', 'plan', 'referral'].includes(block.kind)) return false
+  if (part.kind === 'recordList' && block.kind === 'habitHistory' && client.supportsHabitHistoryCard !== true) return false
+  if (['habitList', 'goalList', 'recordList'].includes(part.kind)
+    && !block.items.every((item) => object(item) && text(item.id) && text(item.title))) return false
+  if (part.kind === 'choice' && (block.options.length < 2 || block.options.length > 4
+    || !block.options.every((option) => object(option) && text(option.id) && text(option.label)))) return false
+  if (part.kind === 'pickList' && (block.items.length < 1 || block.items.length > 10
+    || !['create_habits', 'log_habits', 'skip_habits'].includes(block.action)
+    || !block.items.every((item) => object(item) && text(item.id) && text(item.label)))) return false
+  return true
+}
+
+function shortLines(value, maximum, allowLists) {
+  if (!text(value) || /\n\s*\n/u.test(value)) return false
+  const lines = value.trim().split('\n')
+  return lines.length <= maximum && lines.every((line) => text(line) && line.length <= 180
+    && !/^\s*(?:#{1,6}\s|\*\*[^*]+\*\*\s*$)/u.test(line)
+    && (allowLists || !/^\s*(?:[-*•]|\d+[.)])\s/u.test(line)))
+}
+
+function validOperations(response) {
+  return ['actions', 'operations', 'pendingOperations', 'policyDenials', 'relatedSurfaces', 'followUps', 'followUpContext']
+    .every((key) => response[key] == null || Array.isArray(response[key]))
+    && (response.pendingOperations ?? []).every((pending) => object(pending) && text(pending.id)
+      && text(pending.displayName) && text(pending.summary) && Array.isArray(pending.items)
+      && pending.items.length > 0 && pending.items.every((item) => object(item) && text(item.itemId)
+        && text(item.entityName) && Array.isArray(item.fields) && item.fields.length > 0
+        && item.fields.every((field) => object(field) && text(field.field) && text(field.valueType)
+          && (field.newValue === null || typeof field.newValue === 'string'))))
+    && (response.actions ?? []).every((action) => object(action) && text(action.type)
+      && ['Success', 'Failed', 'Suggestion', 'NeedsClarification'].includes(action.status))
+    && (response.relatedSurfaces ?? []).every(text)
+    && (response.followUpContext ?? []).every((followUp) => object(followUp) && text(followUp.label) && text(followUp.question))
+    && (response.policyDenials ?? []).every((denial) => object(denial) && text(denial.operationId) && text(denial.reason))
+    && (response.operations ?? []).every((operation) => object(operation) && text(operation.operationId)
+      && ['Succeeded', 'Failed', 'PendingConfirmation', 'Denied', 'UnsupportedByPolicy'].includes(operation.status))
+}
+
+function unchangedPreview(pending, baseline, correction) {
+  if (!Array.isArray(baseline) || baseline.length !== 1 || pending.length !== 1) return false
+  const original = baseline[0].items
+  const revised = pending[0].items
+  if (!Array.isArray(original) || revised.length !== original.length) return false
+  let changed = 0
+  return original.every((item) => {
+    const next = revised.find((candidate) => candidate.itemId === item.itemId && candidate.entityName === item.entityName)
+    if (!next || next.fields.length !== item.fields.length) return false
+    return item.fields.every((field) => {
+      const updated = next.fields.find((candidate) => candidate.field === field.field)
+      if (!updated) return false
+      if (item.entityName.toLocaleLowerCase().includes(correction.titleContains.toLocaleLowerCase()) && field.field === correction.field) {
+        changed++
+        return updated.proposedValue === correction.value
+          && isDeepStrictEqual({ ...updated, newValue: field.newValue, proposedValue: field.proposedValue }, field)
+      }
+      return isDeepStrictEqual(updated, field)
+    })
+  }) && changed === 1
+}
+
+export function composition(output, context) {
+  const parsed = typeof output === 'string' ? JSON.parse(output) : output
+  const response = parsed?.composition
+  const expected = context.vars.composition
+  if (!expected || !response) return result(false, 'Missing composition evidence or scenario policy.', { unavailable: true })
+  if (!['data', 'text', 'fallback', 'preview', 'outcome'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
+  if (!validOperations(response)) return result(false, 'Malformed operation or action surfaces.')
+  if ((response.followUps?.length ?? 0) > 2 || (response.followUpContext?.length ?? 0) > 2
+    || !(response.followUps ?? []).every(text)) return result(false, 'Malformed or excessive follow-ups.')
+  if (parsed.httpStatus === 403) {
+    return context.vars.expectedHttpStatus === 403 && shortLines(response.aiMessage, 3, false)
+      ? result(true, 'Verified concise quota refusal.') : result(false, 'Unexpected quota refusal.')
+  }
+  const client = context.vars.clientContext
+  const parts = response.parts
+  if (client?.supportsParts === true && !Array.isArray(parts)) return result(false, 'Missing ordered response parts.', { unavailable: true })
+  if (parts != null && (!Array.isArray(parts) || parts.some((part) => !object(part)
+    || (part.type === 'text' ? !text(part.text) : part.type !== 'block' || !validBlock(part, client))))) {
+    return result(false, 'Malformed or unsupported response part.')
+  }
+  const blocks = (parts ?? []).filter((part) => part.type === 'block')
+  const external = (parts ?? []).filter((part) => part.type === 'text').map((part) => part.text).join('\n\n')
+  if (client?.supportsParts === true && (response.aiMessage ?? '').trim() !== external.trim()) {
+    return result(false, 'Final prose differs from the ordered text parts.')
+  }
+  const pending = response.pendingOperations ?? []
+  if (expected.correction && !unchangedPreview(pending, context.vars.baselinePreview, expected.correction)) {
+    return result(false, 'Correction changed fields outside the requested time or lacks its baseline preview.')
+  }
+  const outcome = (response.actions?.length ?? 0) > 0 || (response.policyDenials?.length ?? 0) > 0
+    || (response.operations ?? []).some((operation) => ['Failed', 'Denied', 'UnsupportedByPolicy'].includes(operation.status))
+  if (expected.mode === 'fallback') {
+    if (blocks.length || !text(response.aiMessage)) return result(false, 'Missing readable capability fallback or unsupported block.')
+  } else if (expected.mode === 'text') {
+    if (blocks.length || pending.length || !shortLines(response.aiMessage, 3, expected.allowLists === true)) {
+      return result(false, 'No-data answer must contain one to three short lines without headings, lists or paragraphs.')
+    }
+  } else {
+    if (expected.mode === 'preview' && external) return result(false, 'Preview must be the entire answer.')
+    if (expected.mode === 'preview' && pending.length !== (expected.previews ?? 1)) return result(false, 'Missing batch preview.')
+    if (expected.mode === 'outcome' && !outcome) return result(false, 'Missing typed operation outcome.')
+    if (expected.mode === 'data' && !blocks.length) return result(false, 'Missing typed data block.')
+    if (!pending.length && !outcome && parts?.[0]?.type !== 'block') return result(false, 'Data answer leads with prose.')
+    if (external && !shortLines(external, 1, false)) return result(false, 'Data answer has excessive external text.')
+    for (const required of expected.blocks ?? (expected.kinds ?? []).map((kind) => ({ kind }))) {
+      if (!blocks.some((part) => part.kind === required.kind && (!required.subtype || part.block.kind === required.subtype)
+        && (!required.completeness || part.block.read?.completeness === required.completeness))) {
+        return result(false, 'Missing required block family, subtype or completeness.')
+      }
+    }
+  }
+  const routed = getRelatedSurfaces(response.relatedSurfaces).filter((surface) => text(surface.webRoute) && text(surface.mobileRoute))
+  if (expected.actionSurfaces?.length && !expected.actionSurfaces.some((surface) => routed.some((action) => action.id === surface)
+    || (surface === 'calendar' && blocks.some((part) => part.kind === 'calendar')))) return result(false, 'Missing available relevant screen action.')
+  return result(true, 'Composition structure and negotiated capabilities matched.')
+}

@@ -81,6 +81,9 @@ describe('Follow-up conversation geometry in Chromium', () => {
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={pt}>
       <div style={{ width: width >= 1024 ? 380 : width }}><AstraConversation chat={chat} /></div>
     </NextIntlClientProvider>)
+    const chips = screen.getByRole('group', { name: pt.chat.followUps.label })
+    expect(chips.textContent).not.toContain(pt.nav.astra)
+    expect(chips.querySelectorAll('[data-asset="astra-mark-16"]')).toHaveLength(2)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style><div class="dark">${container.innerHTML}</div>`)
@@ -123,8 +126,8 @@ describe('Follow-up conversation geometry in Chromium', () => {
       expect.soft(geometry.labelGap).toBeGreaterThanOrEqual(16)
       if (withTrace) expect.soft(Math.abs(geometry.traceLeft! - geometry.messageLeft)).toBeLessThanOrEqual(1)
     } finally { await page.close() }
-    fireEvent.click(screen.getByRole('button', { name: `${questions[0]}, Astra` }))
-    fireEvent.click(screen.getByRole('button', { name: `${questions[0]}, Astra` }))
+    fireEvent.click(screen.getByRole('button', { name: questions[0] }))
+    fireEvent.click(screen.getByRole('button', { name: questions[0] }))
     expect(chat.sendMessage).toHaveBeenCalledExactlyOnceWith(questions[0], 'followUp')
   })
 })

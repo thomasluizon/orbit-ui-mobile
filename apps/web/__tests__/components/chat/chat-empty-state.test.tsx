@@ -89,16 +89,16 @@ describe('ChatEmptyState', () => {
     expect(within(screen.getByRole('feed')).getAllByRole('button').map(button => button.textContent)).toEqual(['chat.templates.browse'])
     const strip = screen.getByRole('group', { name: 'live suggestions' })
     expect(screen.getAllByRole('group', { name: 'live suggestions' })).toHaveLength(1)
-    expect(within(strip).getAllByRole('button').map(chip => chip.textContent)).toEqual(suggestions.map(chip => `${chip.label} nav.astra`))
-    expect(within(strip).getAllByRole('button').map(chip => chip.getAttribute('aria-label'))).toEqual(suggestions.map(chip => `${chip.label}, nav.astra`))
+    expect(within(strip).getAllByRole('button').map(chip => chip.textContent)).toEqual(suggestions.map(chip => chip.label))
+    expect(within(strip).getAllByRole('button').map(chip => chip.getAttribute('aria-label'))).toEqual(suggestions.map(chip => chip.label))
   })
 
   it('shows the requested Progress action once in the composer and sends its prompt', () => {
     useChatStore.getState().setContextualSuggestion({ id: 'progress-create-goal', label: 'Create a goal', prompt: 'Help me make a goal' })
     const { sendMessage } = emptyConversation('idle', true)
 
-    expect(screen.getAllByRole('button', { name: 'Create a goal, nav.astra' })).toHaveLength(1)
-    fireEvent.click(within(screen.getByRole('group', { name: 'live suggestions' })).getByRole('button', { name: 'Create a goal, nav.astra' }))
+    expect(screen.getAllByRole('button', { name: 'Create a goal' })).toHaveLength(1)
+    fireEvent.click(within(screen.getByRole('group', { name: 'live suggestions' })).getByRole('button', { name: 'Create a goal' }))
     expect(sendMessage).toHaveBeenCalledWith('Help me make a goal')
   })
 
@@ -107,7 +107,7 @@ describe('ChatEmptyState', () => {
 
     expect(screen.queryByRole('group', { name: 'live suggestions' })).toBeNull()
     expect(within(screen.getByRole('feed')).getAllByRole('button').map(button => button.textContent)).toEqual(['chat.templates.browse'])
-    for (const chip of suggestions) expect(screen.queryByRole('button', { name: `${chip.label}, nav.astra` })).toBeNull()
+    for (const chip of suggestions) expect(screen.queryByRole('button', { name: chip.label })).toBeNull()
     expect(screen.getByText('No messages today')).toBeInTheDocument()
   })
 })

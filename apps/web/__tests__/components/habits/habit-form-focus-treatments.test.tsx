@@ -48,7 +48,7 @@ const understandingLabels = {
   field: 'Describe the habit',
   placeholder: 'Run every weekday',
   understood: 'Orbit understood',
-  understoodAstra: 'Astra proposed',
+
   unresolved: 'Choose a schedule',
   days: 'Active days',
   less: 'Less often',

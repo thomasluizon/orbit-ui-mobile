@@ -1,15 +1,15 @@
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
-import Yoga from 'yoga-layout'
 import { Resvg } from '@resvg/resvg-js'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { formatLocaleDayMonth } from '@orbit/shared/utils'
 import { MoreVertical, Checkbox, ChevronsDown, ChevronsUp, Eye, EyeOff, RefreshCw } from '@/components/ui/icons'
 import { Icon } from '@/components/ui/icon'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { Shell412 } from '@/components/shell/shell-412'
 import { TodayDateControl } from '@/components/today/today-date-control'
+import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -122,6 +122,40 @@ describe('Today date control feedback (mobile)', () => {
     TestRenderer.act(() => renderer.unmount())
   })
 
+  it.each([393, 1280].flatMap((width) => [false, true].map((isTodaySelected) => ({ width, isTodaySelected }))))(
+    'hugs the date text with its pressed fill at $width dp, today=$isTodaySelected', ({ width, isTodaySelected }) => {
+      __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+      const renderer = renderControl({ dayName: 'Amanhã', numericDate: '25 de outubro', isTodaySelected })
+      try {
+        const date = renderer.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+          node.type === 'Pressable' && String(node.props.accessibilityLabel).includes('25 de outubro'))[0]!
+        TestRenderer.act(() => date.props.onPressIn())
+        type Host = Parameters<typeof measureInteractionFills>[0]
+        const row = (renderer.toJSON() as Host[]).find((host) => host.props.testID === 'today-date-row')!
+        const parts = measureInteractionFills(row, width - 32, true)
+        const fill = parts.find((part) => part.host.type === 'Pressable' && part.host.props.accessibilityLabel?.includes('25 de outubro'))!
+        const text = parts.filter((part) => part.host.type === 'Text' && part.ancestors.includes(fill.slot))
+        expect(fill.width, 'the pressed target hugs its text and inline padding').toBeLessThanOrEqual(Math.max(...text.map((part) => part.width)) + 16 + 1)
+        expect(fill.height).toBeGreaterThanOrEqual(48)
+        expect(fill.style.borderRadius).toBe(12)
+        expect(fill.style.backgroundColor).toBe(isTodaySelected ? undefined : 'rgba(250,250,250,0.13)')
+        expect(Math.abs((fill.left + fill.right) / 2 - (width - 32) / 2)).toBeLessThanOrEqual(1)
+        const arrows = parts.filter((part) => part.host.type === 'Pressable' && part.slot !== fill.slot)
+        expect(arrows[0]!.left).toBe(0)
+        expect(arrows[1]!.right).toBe(width - 32)
+        expect(fill.left - arrows[0]!.right).toBeGreaterThanOrEqual(12)
+        expect(arrows[1]!.left - fill.right).toBeGreaterThanOrEqual(12)
+        for (const line of text) {
+          expect(line.left - fill.left).toBeGreaterThanOrEqual(8)
+          expect(fill.right - line.right).toBeGreaterThanOrEqual(8)
+        }
+      } finally {
+        TestRenderer.act(() => renderer.unmount())
+        __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
+      }
+    },
+  )
+
   it.each([412, 1024, 1280])('opens search from the native header at %i dp', (width) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     props.onSearch.mockClear()
@@ -167,9 +201,9 @@ describe('Today date control feedback (mobile)', () => {
     if (!control) throw new Error('List options control did not render')
     expect(control.findAllByType(MoreVertical)).toHaveLength(1)
     TestRenderer.act(() => control.props.onPress())
-    const menu = renderer.root.findByType(Menu)
+    const menu = renderer.root.findByType(Menu.Content)
     expect(menu.props.title).toBe('List options')
-    expect(menu.props.open).toBe(true)
+    expect(renderer.root.findByType(Menu.Root).props.open).toBe(true)
   })
 
   it('renders the Portuguese list options labels and glyphs in both list states', () => {
@@ -187,9 +221,9 @@ describe('Today date control feedback (mobile)', () => {
     const control = button(renderer, labels.listOptions)
     if (!control) throw new Error('List options control did not render')
     TestRenderer.act(() => control.props.onPress())
-    const menu = renderer.root.findByType(Menu)
+    const menu = renderer.root.findByType(Menu.Content)
     expect(menu.props.title).toBe(ptBr.habits.listOptions)
-    expect(menu.props.open).toBe(true)
+    expect(renderer.root.findByType(Menu.Root).props.open).toBe(true)
     expect(menu.props.items.map(({ label, icon }: { label: string; icon?: string }) => [label, icon])).toEqual([
       [ptBr.common.select, 'checkbox'],
       [labels.collapseAll, 'chevrons-up'],
@@ -198,7 +232,7 @@ describe('Today date control feedback (mobile)', () => {
       [ptBr.habits.frequencyFilter, 'adjustments-horizontal'],
     ])
     TestRenderer.act(() => renderer.update(<TodayDateControl {...props} {...controlProps} allCollapsed showCompleted collapseLabel={labels.expandAll} completedLabel={labels.hideCompleted} />))
-    expect(renderer.root.findByType(Menu).props.items.map(({ label, icon }: { label: string; icon?: string }) => [label, icon])).toEqual([
+    expect(renderer.root.findByType(Menu.Content).props.items.map(({ label, icon }: { label: string; icon?: string }) => [label, icon])).toEqual([
       [ptBr.common.select, 'checkbox'],
       [labels.expandAll, 'chevrons-down'],
       [labels.refresh, 'refresh'],
@@ -223,7 +257,6 @@ describe('Today date control feedback (mobile)', () => {
     const renderer = renderControl()
     const date = renderer.root.find((node: { type: unknown; props: Record<string, unknown> }) => node.type === Pressable && node.props.accessibilityLabel === 'Wednesday, 08/04/2026, Go to today')
     expect(StyleSheet.flatten(date.props.style({ pressed: false }))).toHaveProperty('alignItems', 'center')
-    expect(StyleSheet.flatten(date.props.style({ pressed: false }))).toMatchObject({ flexGrow: 1, flexShrink: 1 })
     const row = renderer.root.findByProps({ testID: 'today-date-row' })
     expect(StyleSheet.flatten(row.props.style).flexWrap).toBeUndefined()
     const day = date.findAllByType(Text)[0]
@@ -235,45 +268,26 @@ describe('Today date control feedback (mobile)', () => {
     const numericDate = fontScale === 1 ? formatLocaleDayMonth('2026-09-30', 'pt-BR') : '8 abr.'
     const renderer = renderControl({ dayName: 'Quarta-feira', shortDayName: 'Qua.', numericDate })
     const date = renderer.root.find((node: { type: unknown; props: Record<string, unknown> }) => node.type === Pressable && node.props.accessibilityLabel === `Quarta-feira, ${numericDate}, Go to today`)
-    const dateStyle = StyleSheet.flatten(date.props.style({ pressed: false }))
-    const rowStyle = StyleSheet.flatten(renderer.root.findByProps({ testID: 'today-date-row' }).props.style)
+    type Host = Parameters<typeof measureInteractionFills>[0]
+    const row = (renderer.toJSON() as Host[]).find((host) => host.props.testID === 'today-date-row')!
     const rowWidth = width - 32
-    const day = width / fontScale < 240 ? 'Qua.' : 'Quarta-feira'
-    const dayWidth = measuredTextWidth(day, 'Space Grotesk', 22,
-      require.resolve('@expo-google-fonts/space-grotesk/500Medium/SpaceGrotesk_500Medium.ttf')) * fontScale
-    const numericWidth = measuredTextWidth(numericDate, 'Geist Mono', 12,
-      require.resolve('@expo-google-fonts/geist-mono/400Regular/GeistMono_400Regular.ttf')) * fontScale
-    const layout = Yoga.Node.create()
     try {
-      layout.setWidth(rowWidth)
-      layout.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
-      layout.setAlignItems(Yoga.ALIGN_CENTER)
-      layout.setMinHeight(rowStyle.minHeight)
-      layout.setPadding(Yoga.EDGE_TOP, rowStyle.paddingVertical)
-      layout.setPadding(Yoga.EDGE_BOTTOM, rowStyle.paddingVertical)
-      layout.setGap(Yoga.GUTTER_ALL, rowStyle.gap)
-      for (const [index, childWidth] of [48, Math.max(dayWidth, numericWidth), 48].entries()) {
-        const node = Yoga.Node.create()
-        node.setWidth(childWidth)
-        node.setHeight(48)
-        node.setFlexGrow(index === 1 ? dateStyle.flexGrow : 0)
-        node.setFlexShrink(index === 1 ? dateStyle.flexShrink : 0)
-        layout.insertChild(node, layout.getChildCount())
-      }
-      layout.calculateLayout(rowWidth, 'auto', Yoga.DIRECTION_LTR)
-      for (let index = 0; index < 3; index += 1) {
-        const bounds = layout.getChild(index).getComputedLayout()
+      const parts = measureInteractionFills(row, rowWidth, false, fontScale)
+      const title = parts.find((part) => part.host.type === 'Pressable' && part.host.props.accessibilityLabel?.includes(numericDate))!
+      const arrows = parts.filter((part) => part.host.type === 'Pressable' && part.slot !== title.slot)
+      for (const bounds of [title, ...arrows]) {
         expect(bounds.top).toBeGreaterThanOrEqual(4)
-        expect(layout.getComputedLayout().height - bounds.top - bounds.height).toBeGreaterThanOrEqual(4)
-        expect(bounds.left + bounds.width).toBeLessThanOrEqual(rowWidth)
+        expect(bounds.left).toBeGreaterThanOrEqual(0)
+        expect(bounds.right).toBeLessThanOrEqual(rowWidth)
       }
-      const previous = layout.getChild(0).getComputedLayout()
-      const title = layout.getChild(1).getComputedLayout()
-      const next = layout.getChild(2).getComputedLayout()
-      expect(previous.left).toBe(0)
-      expect(next.left + next.width).toBe(rowWidth)
-      expect(Math.abs(title.left + title.width / 2 - rowWidth / 2)).toBeLessThanOrEqual(1)
-      expect(title.width).toBeGreaterThanOrEqual(Math.max(dayWidth, numericWidth))
+      expect(arrows[0]!.left).toBe(0)
+      expect(arrows[1]!.right).toBe(rowWidth)
+      expect(Math.abs((title.left + title.right) / 2 - rowWidth / 2)).toBeLessThanOrEqual(1)
+      const text = parts.filter((part) => part.host.type === 'Text' && part.ancestors.includes(title.slot))
+      for (const line of text) {
+        expect(line.left - title.left).toBeGreaterThanOrEqual(8)
+        expect(title.right - line.right).toBeGreaterThanOrEqual(8)
+      }
       for (const label of date.findAllByType(Text)) {
         expect(StyleSheet.flatten(label.props.style).textAlign).toBe('center')
       }
@@ -283,7 +297,6 @@ describe('Today date control feedback (mobile)', () => {
       expect(StyleSheet.flatten(cluster.props.style)).toMatchObject({ flexDirection: 'row', gap: 4, flexShrink: 0 })
       expect(3 * 48 + 2 * 4).toBeLessThanOrEqual(rowWidth)
     } finally {
-      layout.freeRecursive()
       TestRenderer.act(() => renderer.unmount())
       __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
     }
@@ -335,7 +348,7 @@ it.each([false, true])('keeps the open Portuguese menu labels inside 320 dp at 2
     completedLabel: showCompleted ? ptBr.habits.hideCompletedMenu : ptBr.habits.showCompletedMenu, showCompleted })
   try {
     TestRenderer.act(() => button(renderer, ptBr.habits.listOptions)!.props.onPress())
-    const menu = renderer.root.findByType(Menu)
+    const menu = renderer.root.findByType(Menu.Content)
     expect(measuredTextWidth(menu.props.shortTitle, 'Geist', 44,
       require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf'))).toBeLessThanOrEqual(320 - 2 * 24 - 16 - 48)
     for (const item of menu.props.items) {

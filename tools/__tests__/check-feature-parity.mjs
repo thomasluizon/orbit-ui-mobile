@@ -140,6 +140,52 @@ function promotionFixture(catalog) {
   return { directory, put, git, route, legacy, current, legacyRevision, promoted, rules, check }
 }
 
+function provenanceRegressions(catalog) {
+  for (const section of ['legacyProduction', 'productionSnapshots']) {
+    const directory = join(root, `parity-provenance-${section}`)
+    const put = (path, source) => stage(`parity-provenance-${section}/${path}`, source)
+    const git = (args) => execFileSync('git', args, { cwd: directory, encoding: 'utf8' }).trim()
+    const route = 'apps/web/app/page.tsx'
+    const rulesPath = 'tools/feature-parity-rules.json'
+    const control = "export default function Home() { return <button onClick={open}>{t('common.save')}</button> }"
+    const rendered = "export default function Home() { return <p>{t('common.all')}</p> }"
+    put('packages/shared/src/i18n/en.json', catalog)
+    put(route, section === 'legacyProduction' ? control : 'export default function Home() { return null }')
+    put(rulesPath, '{}')
+    git(['init', '-q', '--initial-branch=main'])
+    git(['config', 'user.email', 'gate@orbit.test'])
+    git(['config', 'user.name', 'Orbit Gate'])
+    git(['add', route, rulesPath, 'packages/shared/src/i18n/en.json'])
+    git(['commit', '-q', '-m', 'Legacy provenance source'])
+    const legacyProduction = git(['rev-parse', 'HEAD'])
+    put(route, control)
+    git(['add', route])
+    git(['commit', '-q', '--allow-empty', '-m', 'Production control source'])
+    const snapshot = git(['rev-parse', 'HEAD'])
+    const provenance = { legacyProduction, ...(section === 'productionSnapshots' ? { productionSnapshots: [snapshot] } : {}) }
+    const rules = { provenance, mappings: { 'web:control:common.save': { targets: ['web:content:common.all'], reason: 'Relocated to rendered content' } } }
+    put(route, rendered)
+    put(rulesPath, JSON.stringify(rules))
+    git(['add', route, rulesPath])
+    git(['commit', '-q', '-m', 'Retain the relocated production control'])
+    const base = git(['rev-parse', 'HEAD'])
+    const check = () => run('check-feature-parity.mjs', ['--root', directory, '--production', base, '--base', base, '--ci'])
+    const valid = check()
+    T(`${section} retains a valid inherited relocation in CI`, valid.status === 0, valid.stdout + valid.stderr)
+    put(rulesPath, JSON.stringify({ ...rules, provenance: { ...provenance, productionSnapshots: [base, ...(provenance.productionSnapshots ?? [])] } }))
+    const extended = check()
+    T(`${section} permits extending retained production snapshots in CI`, extended.status === 0, extended.stdout + extended.stderr)
+    put(rulesPath, JSON.stringify(rules))
+    put(route, 'export default function Home() { return null }')
+    const deletion = check()
+    T(`${section} rejects a deleted relocation target with unchanged provenance`, deletion.status === 1 && deletion.stdout.includes('web:control:common.save |'), deletion.stdout + deletion.stderr)
+    const changed = section === 'legacyProduction' ? { legacyProduction: base } : { legacyProduction }
+    put(rulesPath, JSON.stringify({ ...rules, provenance: changed }))
+    const bypass = check()
+    T(`${section} rejects candidate provenance shrinkage before stale rules become advisory`, bypass.status === 2 && bypass.stderr.includes(`provenance.${section}`) && bypass.stderr.includes(section === 'legacyProduction' ? legacyProduction : snapshot) && !bypass.stdout.includes('advisory'), `exit ${bypass.status}\n${bypass.stdout}${bypass.stderr}`)
+  }
+}
+
 function promotionRegressions(catalog) {
   const fixture = promotionFixture(catalog)
   const { directory, put, git, route, legacy, current, legacyRevision, promoted, rules, check } = fixture
@@ -175,6 +221,44 @@ function promotionRegressions(catalog) {
   put(route, current)
   postlegacyRelocation(fixture)
   invalidPromotionInputs(fixture)
+  staleRuleRegressions(fixture)
+}
+
+function staleRuleRegressions({ directory, put, git, route, current, rules, check }) {
+  const id = 'web:control:common.save'
+  put(route, current.replace("t('chat.attachFile')", "t('common.save')"))
+  git(['add', route, 'tools/feature-parity-rules.json'])
+  git(['commit', '-q', '-m', 'Ship a postlegacy control'])
+  const production = git(['rev-parse', 'HEAD'])
+  const variants = {
+    mappings: { targets: ['web:control:common.all'], reason: 'Relocated control' },
+    removals: { citation: 'DESIGN.md', rule: 'Verified removal permission', reason: 'Removed control' },
+    tickets: '#1423',
+  }
+  for (const [section, rule] of Object.entries(variants)) {
+    put(route, current)
+    put('tools/feature-parity-rules.json', JSON.stringify(rules))
+    git(['add', route, 'tools/feature-parity-rules.json'])
+    git(['commit', '-q', '--allow-empty', '-m', 'Retire the postlegacy control'])
+    const cleanBase = git(['rev-parse', 'HEAD'])
+    const candidate = { ...rules, [section]: { ...rules[section], [id]: rule } }
+    put('tools/feature-parity-rules.json', JSON.stringify(candidate))
+    const unknown = check(cleanBase, cleanBase)
+    T(`${section} rejects a newly added unknown capability`, unknown.status === 2 && unknown.stderr.includes(`${section}: no production capability ${id}`), unknown.stdout + unknown.stderr)
+    git(['add', 'tools/feature-parity-rules.json'])
+    git(['commit', '-q', '-m', 'Inherit the postlegacy rule'])
+    const base = git(['rev-parse', 'HEAD'])
+    const valid = check(production, base)
+    T(`${section} accepts a rule backed by production source`, valid.status === 0, valid.stdout + valid.stderr)
+    const inherited = check(base, base)
+    T(`${section} reports the inherited stale capability as advisory with its exact retirement ID`, inherited.status === 0 && inherited.stdout.includes(`${section}: ${id}`) && /advisory.*retire/i.test(inherited.stdout), inherited.stdout + inherited.stderr)
+    const strict = run('check-feature-parity.mjs', ['--root', directory, '--production', base])
+    T(`${section} still reports stale keys outside CI`, strict.status === 2 && strict.stderr.includes(`${section}: no production capability ${id}`), strict.stdout + strict.stderr)
+    const otherSection = section === 'tickets' ? 'mappings' : 'tickets'
+    put('tools/feature-parity-rules.json', JSON.stringify({ ...rules, [otherSection]: { ...rules[otherSection], [id]: variants[otherSection] } }))
+    const moved = check(base, base)
+    T(`${section} cannot exempt an unknown key added to another rule section`, moved.status === 2 && moved.stderr.includes(`${otherSection}: no production capability ${id}`), moved.stdout + moved.stderr)
+  }
 }
 
 function postlegacyRelocation({ directory, put, git, route, current, promoted, rules, check }) {
@@ -206,14 +290,13 @@ function postlegacyRelocation({ directory, put, git, route, current, promoted, r
   put('tools/feature-parity-rules.json', JSON.stringify(rules))
 }
 
-function invalidPromotionInputs({ put, git, check, rules, legacyRevision, promoted }) {
+function invalidPromotionInputs({ directory, put, git, check, rules, legacyRevision, promoted }) {
   const invalidRules = [
     ['missing provenance', { ...rules, provenance: undefined }, /provenance/],
     ['unknown provenance field', { ...rules, provenance: { ...rules.provenance, ignored: legacyRevision } }, /provenance/],
     ['floating legacy reference', { ...rules, provenance: { legacyProduction: 'main' } }, /immutable/],
     ['missing legacy object', { ...rules, provenance: { legacyProduction: 'f'.repeat(40) } }, /./],
     ['noncommit legacy object', { ...rules, provenance: { legacyProduction: git(['rev-parse', `${legacyRevision}^{tree}`]) } }, /./],
-    ['wrong era provenance', { ...rules, provenance: { legacyProduction: promoted } }, /no production capability/],
     ['unknown source ID', { ...rules, tickets: { 'web:control:invented': '#1423' } }, /no production capability/],
     ['cross-platform mapping', { ...rules, mappings: { 'web:control:habits.viewAll': { reason: 'Moved', targets: ['mobile:control:common.all'] } } }, /same platform/],
     ['invalid mapping kind', { ...rules, mappings: { 'web:control:habits.viewAll': { reason: 'Moved', targets: ['web:invented:common.all'] } } }, /mapping targets/],
@@ -226,6 +309,11 @@ function invalidPromotionInputs({ put, git, check, rules, legacyRevision, promot
     const result = check()
     T(`${name} is rejected before comparison`, result.status === 2 && message.test(result.stderr), result.stdout + result.stderr)
   }
+  put('tools/feature-parity-rules.json', JSON.stringify({ ...rules, provenance: { legacyProduction: promoted } }))
+  const wrongEra = run('check-feature-parity.mjs', ['--root', directory, '--production', promoted])
+  T('wrong era provenance reports stale legacy rules outside CI', wrongEra.status === 2 && /no production capability/.test(wrongEra.stderr), wrongEra.stdout + wrongEra.stderr)
+  const wrongEraCi = check()
+  T('wrong era provenance is rejected in CI', wrongEraCi.status === 2 && /provenance.legacyProduction/.test(wrongEraCi.stderr), `exit ${wrongEraCi.status}\n${wrongEraCi.stdout}${wrongEraCi.stderr}`)
   put('tools/feature-parity-rules.json', JSON.stringify(rules))
   T('an invalid active production reference fails closed', check('missing-production').status === 2)
   T('an invalid queued base fails closed', check(legacyRevision, 'missing-base').status === 2)
@@ -266,7 +354,7 @@ function restoredRuleRegressions(platform, current, files, inventory, rules, obs
   }
   const removed = compare(capabilities, scan(current, platform), rules)
   T(`${platform} closed restoration tickets cannot exempt lost replacements`, newLosses(removed, retained).length === capabilities.length, removed.filter((entry) => entry.disposition !== 'missing').map((entry) => entry.id).join(', '))
-  T(`${platform} removing restoration owners retains manual emoji picking and other Astra actions`, files[`apps/${platform}/components/habits/habit-form-fields/habit-emoji-selector.tsx`].includes('handleSelectEmoji(emoji)') && scan(current, platform).some((entry) => entry.id === `${platform}:control:habits.form.askDate`))
+  T(`${platform} removing restoration owners retains manual emoji picking and other Astra actions`, files[`apps/${platform}/components/habits/habit-form-fields/habit-emoji-selector.tsx`].includes('handleSelectEmoji(emoji)') && scan(current, platform).some((entry) => entry.id === `${platform}:control:habits.form.suggestDate`))
   for (const [path, source] of originals) files[path] = source
   T(`${platform} restoring every closed restoration owner leaves no new losses`, newLosses(compare(capabilities, scan(current, platform), rules), retained).length === 0)
 }
@@ -279,8 +367,8 @@ function mappedOwnerRegressions(catalog) {
     const files = {
       'packages/shared/src/i18n/en.json': catalog,
       [route]: "import { Generator } from '../components/generator'; import { DateAction } from '../components/date'; export default function Home() { return <><Generator /><DateAction /></> }",
-      [owner]: "export function Generator() { return <button onClick={suggest}>{t('habits.form.askDate')}</button> }",
-      [sibling]: "export function DateAction() { return <button onClick={askDate}>{t('habits.form.askDate')}</button> }",
+      [owner]: "export function Generator() { return <button onClick={suggest}>{t('habits.form.suggestDate')}</button> }",
+      [sibling]: "export function DateAction() { return <button onClick={askDate}>{t('habits.form.suggestDate')}</button> }",
     }
     const current = { paths: new Set(Object.keys(files)), read: (path) => {
       if (!(path in files)) throw new Error(`missing source: ${path}`)
@@ -288,7 +376,7 @@ function mappedOwnerRegressions(catalog) {
     } }
     const id = `${platform}:control:habits.form.suggestTags`
     const capability = [{ id, platform, kind: 'control', key: 'habits.form.suggestTags', evidence: [] }]
-    const rule = { reason: 'The generation action is owned by this source.', targets: [`${platform}:control:habits.form.askDate`], owners: [owner] }
+    const rule = { reason: 'The generation action is owned by this source.', targets: [`${platform}:control:habits.form.suggestDate`], owners: [owner] }
     const rules = { mappings: { [id]: rule } }
     validateRules(capability, rules, current.read)
     const before = compare(capability, scan(current, platform), rules)
@@ -316,17 +404,17 @@ function mappedOwnerRegressions(catalog) {
     files[sibling] = "export function DateAction() { return <button onClick={suggest}>{t('habits.form.suggestTags')}</button> }"
     const direct = compare(capability, scan(current, platform), rules)
     T(`${platform} direct legacy retention is independent of mapping owners`, direct[0].disposition === 'retained' && direct[0].redesign[0].file === sibling)
-    files[sibling] = "export function DateAction() { return <button onClick={askDate}>{t('habits.form.askDate')}</button> }"
-    const contentRules = { mappings: { [id]: { ...rule, targets: [`${platform}:content:habits.form.askDate`] } } }
-    files[owner] = "export function Generator() { const caption = t('habits.form.askDate'); return <p>{caption}</p> }"
+    files[sibling] = "export function DateAction() { return <button onClick={askDate}>{t('habits.form.suggestDate')}</button> }"
+    const contentRules = { mappings: { [id]: { ...rule, targets: [`${platform}:content:habits.form.suggestDate`] } } }
+    files[owner] = "export function Generator() { const caption = t('habits.form.suggestDate'); return <p>{caption}</p> }"
     const rendered = compare(capability, scan(current, platform), contentRules)
     T(`${platform} qualified content still needs its actual rendered consumer`, rendered[0].disposition === 'retained' && rendered[0].redesign.every((item) => item.file === owner))
-    files[owner] = "export function Generator() { const caption = t('habits.form.askDate'); return null }"
-    files[sibling] = "export function DateAction() { const caption = t('habits.form.askDate'); return <p>{caption}</p> }"
+    files[owner] = "export function Generator() { const caption = t('habits.form.suggestDate'); return null }"
+    files[sibling] = "export function DateAction() { const caption = t('habits.form.suggestDate'); return <p>{caption}</p> }"
     T(`${platform} an unrendered owner and unrelated rendered content cannot satisfy qualification`, compare(capability, scan(current, platform), contentRules)[0].disposition === 'missing')
-    files[owner] = "export function Generator() { const caption = 'habits.form.askDate'; return null }"
+    files[owner] = "export function Generator() { const caption = 'habits.form.suggestDate'; return null }"
     T(`${platform} an unrendered source literal cannot satisfy qualification`, compare(capability, scan(current, platform), contentRules)[0].disposition === 'missing')
-    files[owner] = "export function Generator() { return null }; function Unused() { return <p>{t('habits.form.askDate')}</p> }"
+    files[owner] = "export function Generator() { return null }; function Unused() { return <p>{t('habits.form.suggestDate')}</p> }"
     T(`${platform} an unreachable owner declaration cannot satisfy qualification`, compare(capability, scan(current, platform), contentRules)[0].disposition === 'missing')
   }
 }
@@ -338,8 +426,8 @@ function invocationRuleRegressions(platform, current, files, inventory, rules, o
   T(`${platform} current form invocation owners retain every original obligation`, before.length === ids.length && before.every((entry) => entry.disposition === 'retained' && entry.redesign.length > 0))
   const prefix = `apps/${platform}/components/habits/`
   const mutations = [
-    ['tag generation', `${prefix}habit-form-fields/tag-suggestions.tsx`, /<PillButton minimumHeight=\{48\}[\s\S]*?<\/PillButton>/g, ids.filter((id) => id.endsWith('habits.form.suggestTags'))],
-    ['reschedule retry', `${prefix}reschedule-sheet.tsx`, /<PillButton leadingIcon=\{<AstraGlyph size=\{16\} \/>\} variant=\{filledVariant\} size="sm" onClick=\{\(\) => void refetch\(\)\}>\s*\{t\('habits.form.askDate'\)\}\s*<\/PillButton>/g, [`${platform}:control:habits.reschedule.retry`]],
+    ['tag generation', `${prefix}habit-form-fields/tag-suggestions.tsx`, /<PillButton minimumHeight=\{48\}[\s\S]*?<\/PillButton>/g, [`${platform}:control:habits.form.suggestTags`]],
+    ['reschedule retry', `${prefix}reschedule-sheet.tsx`, /<PillButton leadingIcon=\{<AstraGlyph size=\{16\} \/>\} variant=\{filledVariant\} size="sm" onClick=\{\(\) => void refetch\(\)\}>\s*\{t\('habits.reschedule.suggestDate'\)\}\s*<\/PillButton>/g, [`${platform}:control:habits.reschedule.retry`]],
     ['reschedule menu', `${prefix}${platform === 'web' ? 'habit-row-trailing' : 'habit-row'}.tsx`, /^.*items\.push\(\{ id: 'reschedule',.*\n/gm, [`${platform}:control:habits.actions.reschedule`]],
   ]
   for (const [name, path, pattern, missingIds] of mutations) {
@@ -350,7 +438,7 @@ function invocationRuleRegressions(platform, current, files, inventory, rules, o
     const after = compare(capabilities, afterObservations, rules)
     const losses = newLosses(after, before).map((entry) => entry.id).sort()
     T(`${platform} deleting ${name} blocks exactly its original obligations`, JSON.stringify(losses) === JSON.stringify([...missingIds].sort()), losses.join(', '))
-    T(`${platform} deleting ${name} retains the other Astra owners and manual tag picker`, ['habit-date-field.tsx', 'habit-emoji-selector.tsx'].every((owner) => afterObservations.some((entry) => entry.id === `${platform}:control:habits.form.askDate` && entry.evidence.some((item) => item.file.endsWith(owner)))) && afterObservations.some((entry) => entry.id === `${platform}:control:habits.form.tags`))
+    T(`${platform} deleting ${name} retains the other Astra owners and manual tag picker`, [['habit-date-field.tsx', 'habits.form.suggestDate'], ['habit-emoji-selector.tsx', 'habits.form.suggestEmoji']].every(([owner, key]) => afterObservations.some((entry) => entry.id === `${platform}:control:${key}` && entry.evidence.some((item) => item.file.endsWith(owner)))) && afterObservations.some((entry) => entry.id === `${platform}:control:habits.form.tags`))
     T(`${platform} deleting ${name} preserves deterministic acceptance, recovery and other row actions`, files[`${prefix}habit-form-fields/tag-suggestions.tsx`].includes('suggestions.acceptSuggestion(suggestion)') && files[`${prefix}habit-form-fields/tag-suggestions.tsx`].includes('getFriendlyErrorMessage') && files[`${prefix}reschedule-sheet.tsx`].includes("t('habits.reschedule.dismiss')") && files[`${prefix}reschedule-sheet.tsx`].includes("t('habits.reschedule.accept')") && ['edit', 'skip', 'drill'].every((key) => files[`${prefix}${platform === 'web' ? 'habit-row-trailing' : 'habit-row'}.tsx`].includes(`id: '${key}'`)))
     files[path] = original
     T(`${platform} restoring ${name} leaves no new invocation losses`, newLosses(compare(capabilities, scan(current, platform, rules), rules), before).length === 0)
@@ -364,8 +452,8 @@ function invocationRuleRegressions(platform, current, files, inventory, rules, o
     T(`${platform} ${key} mutation matches one current pending hint`, original.split(translation).length === 2 && pending.length === 1)
     files[path] = original.replace(translation, 'undefined')
     const after = scan(current, platform, rules)
-    T(`${platform} removing ${key} blocks its pending obligation while retaining generation`, newLosses(compare(pending, after, rules), pendingBefore).length === 1 && after.some((entry) => entry.id === `${platform}:control:habits.form.askDate` && entry.evidence.some((item) => item.file === path)))
-    if (platform === 'web' && key === 'suggestingTags') T('web tag context mapping requires its pending evidence as well as its action', newLosses(compare(capabilities, after, rules), before).map((entry) => entry.id).join() === 'web:display:habits.form.suggestTags')
+    T(`${platform} removing ${key} blocks its pending obligation while retaining generation`, newLosses(compare(pending, after, rules), pendingBefore).length === 1 && after.some((entry) => entry.id === `${platform}:control:habits.form.${key === 'emojiSuggesting' ? 'suggestEmoji' : 'suggestTags'}` && entry.evidence.some((item) => item.file === path)))
+    if (platform === 'web' && key === 'suggestingTags') T('web the named tag status region survives independently of its pending hint', compare(capabilities, after, rules).some((entry) => entry.id === 'web:display:habits.form.suggestTags' && entry.disposition === 'retained' && entry.redesign.some((item) => item.file === path)) && newLosses(compare(capabilities, after, rules), before).length === 0)
     files[path] = original
     T(`${platform} restoring ${key} leaves no pending or invocation losses`, newLosses(compare([...capabilities, ...pending], scan(current, platform, rules), rules), [...before, ...pendingBefore]).length === 0)
   }
@@ -415,6 +503,7 @@ export const cases = () => {
   const artifact = workflow.jobs.guards.steps.find((step) => step.id === 'feature-parity__2')
   T('Guards uploads the generated inventory from its hidden directory', artifact.with.path === manifestPath && artifact.with['include-hidden-files'] === true)
   const catalog = readFileSync(join(REPO_ROOT, 'packages/shared/src/i18n/en.json'), 'utf8')
+  provenanceRegressions(catalog)
   promotionRegressions(catalog)
   mappedOwnerRegressions(catalog)
   const snapshot = (source, extra = {}) => {

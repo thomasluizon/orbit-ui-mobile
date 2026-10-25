@@ -10,8 +10,8 @@ window.OrbitNativeMobile = (() => {
   let rootScroller;
   window.addEventListener('scroll', (event) => { if (event.target instanceof Element && event.target.querySelector('[data-native-scroll]')) rootScroller = event.target; }, true);
   const words = () => document.querySelector('[lang="en"]')
-    ? { attach: 'Attach', file: 'Document', image: 'Photo', voice: 'Voice', ask: 'Ask Astra', bell: 'Notifications' }
-    : { attach: 'Anexar', file: 'Documento', image: 'Foto', voice: 'Voz', ask: 'Consultar Astra', bell: 'Avisos' };
+    ? { attach: 'Attach', file: 'Document', image: 'Photo', voice: 'Voice', open: 'Open conversation', bell: 'Notifications' }
+    : { attach: 'Anexar', file: 'Documento', image: 'Foto', voice: 'Voz', open: 'Abrir conversa', bell: 'Avisos' };
   function BellRow({ children, leading, count = 3 }) {
     const t = words();
     return node('div', { className: 'native-bell-row', style: { display: 'flex', alignItems: 'center',
@@ -34,6 +34,7 @@ window.OrbitNativeMobile = (() => {
         node('span', { translate: 'no' }, 'Astra')));
   }
   function Composer(props) {
+    const iconButton = { ...button, minWidth: 48, minHeight: 48, padding: 0 };
     const [open, setOpen] = React.useState(false);
     const [draft, setDraft] = React.useState('');
     const t = words();
@@ -60,11 +61,11 @@ window.OrbitNativeMobile = (() => {
               onClick: () => window.alert(attachment.name) }, node('span', { className: 'native-typed' }, attachment.name)),
             node('button', { type: 'button', 'aria-label': props.attachWords.remove(attachment.name),
               style: button, onClick: () => props.onAttachRemove?.(attachment.id) }, icon('x'))))) : null,
-        node('div', { style: { display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', minHeight: 48 } },
-          props.onOpen ? node('button', { type: 'button', style: { ...button, gap: 8 }, 'aria-label': props.words.open + ', Astra',
-            onClick: props.onOpen }, node(window.OrbitDesignSystem_918bd5.AstraGlyph, { size: 20 }), node('span', { translate: 'no' }, 'Astra')) : null,
+        node('div', { style: { display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', minHeight: 48, gap: 'var(--s-1)' } },
+          props.onOpen ? node('button', { type: 'button', style: iconButton, 'aria-label': props.words.open,
+            onClick: props.onOpen }, node(window.OrbitDesignSystem_918bd5.AstraGlyph, { size: 20 })) : null,
           recording ? node(React.Fragment, null, node('span', { style: { flex: 1, fontSize: 14 } }, props.voiceWords.listening, ' 00:12'),
-            node('button', { type: 'button', style: button, 'aria-label': props.voiceWords.stop,
+            node('button', { type: 'button', style: iconButton, 'aria-label': props.voiceWords.stop,
               onClick: props.onVoice }, icon('player-stop')))
             : props.state === 'transcribing' ? node('span', { style: { flex: 1, fontSize: 14 } }, props.voiceWords.transcribing)
               : node('textarea', { rows: 1, value, disabled: blocked, placeholder: props.words.placeholder,
@@ -75,12 +76,12 @@ window.OrbitNativeMobile = (() => {
                   event.target.style.height = `${Math.min(event.target.scrollHeight, 120)}px`;
                 }, style: { flex: '1 1 3em', minWidth: '3em', border: 0, resize: 'none', background: 'transparent',
                   color: 'var(--fg-1)', font: 'inherit', fontSize: 16, lineHeight: '24px', maxHeight: 120, padding: '4px 8px' } }),
-          node('button', { type: 'button', style: button, 'aria-label': t.attach, disabled: blocked,
+          node('button', { type: 'button', style: iconButton, 'aria-label': t.attach, disabled: blocked,
             'aria-expanded': open, onClick: () => setOpen(!open) }, icon('plus')),
           node('button', { type: 'button', className: 'native-send', 'aria-label': props.onRetry ? props.words.retry : props.words.send,
             disabled: blocked && !props.onRetry, onClick: send,
-            style: { ...button, gap: 8, background: 'var(--primary)', color: 'var(--fg-on-primary)' } },
-            node(window.OrbitDesignSystem_918bd5.AstraGlyph, { size: 20 }), t.ask))),
+            style: { ...iconButton, background: 'var(--primary)', color: 'var(--fg-on-primary)' } },
+            icon('arrow-up', 20)))),
       node(window.OrbitDesignSystem_918bd5.Menu, { open, title: t.attach, onClose: () => setOpen(false),
         items: menu.map((entry, index) => ({ id: String(index), label: entry.label })),
         onSelect: (id) => { setOpen(false); menu[Number(id)].run(); } }));

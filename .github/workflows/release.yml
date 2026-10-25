@@ -120,6 +120,7 @@ jobs:
             NODE_IMAGE=ghcr.io/thomasluizon/orbit-node-base:22-bookworm-slim
             WEB_COMMIT_SHA=${{ steps.source.outputs.sha }}
             NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.PRODUCTION_NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+            NEXT_PUBLIC_APPLE_CLIENT_ID=${{ vars.PRODUCTION_NEXT_PUBLIC_APPLE_CLIENT_ID }}
             NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ vars.PRODUCTION_NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
             NEXT_PUBLIC_EVENT_API_BASE=${{ vars.PRODUCTION_NEXT_PUBLIC_EVENT_API_BASE }}
             NEXT_PUBLIC_SITE_URL=${{ vars.PRODUCTION_NEXT_PUBLIC_SITE_URL }}
@@ -146,6 +147,7 @@ jobs:
             NODE_IMAGE=ghcr.io/thomasluizon/orbit-node-base:22-bookworm-slim
             WEB_COMMIT_SHA=${{ steps.source.outputs.sha }}
             NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.STAGING_NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+            NEXT_PUBLIC_APPLE_CLIENT_ID=${{ vars.STAGING_NEXT_PUBLIC_APPLE_CLIENT_ID }}
             NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ vars.STAGING_NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
             NEXT_PUBLIC_EVENT_API_BASE=${{ vars.STAGING_NEXT_PUBLIC_EVENT_API_BASE }}
             NEXT_PUBLIC_SITE_URL=${{ vars.STAGING_NEXT_PUBLIC_SITE_URL }}
@@ -218,6 +220,11 @@ jobs:
             exit 1
           fi
           if [ -z "$RENDER_API_KEY" ]; then echo "::error::Missing production RENDER_API_KEY" >&2; exit 1; fi
+          if ! curl --fail --silent --show-error --max-time 30 "https://api.render.com/v1/services/${SERVICE_ID}" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -e '.serviceDetails.maxShutdownDelaySeconds == 300' > /dev/null; then
+            echo "::error::Production web requires serviceDetails.maxShutdownDelaySeconds = 300. Apply render_web_service.production_web in orbit-api infra/production.tf before releasing." >&2
+            exit 1
+          fi
           # Follow the deploy this request created. Render answers 201 with its id; a 202 (queued) has no
           # body, so no deploy can be proven to be this release's and the step fails closed.
           response=$(mktemp)

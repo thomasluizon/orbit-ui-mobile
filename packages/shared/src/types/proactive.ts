@@ -1,6 +1,8 @@
 import { z } from 'zod'
+import { chatPartSchema } from './chat'
 
 export const proactiveItemSchema = z.object({
+  parts: z.lazy(() => z.array(chatPartSchema)).nullish().catch(undefined),
   id: z.uuid(),
   trigger: z.string(),
   localDate: z.iso.date(),

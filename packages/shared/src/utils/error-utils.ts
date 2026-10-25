@@ -395,6 +395,7 @@ export const ERROR_CODE_TO_KEY: Record<string, string> = {
   CALENDAR_NOT_CONNECTED: 'errors.api.calendarNotConnected',
   CALENDAR_RECONNECT_REQUIRED: 'errors.api.calendarReconnect',
   CALENDAR_FETCH_FAILED: 'errors.api.calendarFetchFailed',
+  AI_DAILY_BUDGET_EXCEEDED: 'chat.dailyBudgetReached',
   AI_UNAVAILABLE: 'errors.api.aiUnavailable',
   AI_EMPTY_RESPONSE: 'errors.api.aiUnavailable',
   AI_NO_ACTIVE_CONVERSATION: 'errors.api.aiUnavailable',

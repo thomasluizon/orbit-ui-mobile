@@ -27,6 +27,7 @@ In repository **Settings > Secrets and variables > Actions**, set the repository
 | `RENDER_WEB_STAGING_SERVICE_ID` | Render service ID for `orbit-web-staging`, used by the release workflow and planner |
 | `RENDER_WEB_SERVICE_ID` | Render service ID for `orbit-web` |
 | `PRODUCTION_WEB_HOST` | Production hostname, without `https://` or a path |
+| `STAGING_NEXT_PUBLIC_APPLE_CLIENT_ID`, `PRODUCTION_NEXT_PUBLIC_APPLE_CLIENT_ID` | Public Apple Services ID; leave absent to hide Apple sign-in |
 | `STAGING_NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `PRODUCTION_NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Public Google OAuth web client ID |
 | `STAGING_NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `PRODUCTION_NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Public push key |
 | `STAGING_NEXT_PUBLIC_EVENT_API_BASE`, `PRODUCTION_NEXT_PUBLIC_EVENT_API_BASE` | Browser reachable API origin for event streaming |
@@ -58,6 +59,32 @@ If `RENDER_WEB_SERVICE_ID` is absent during the first production release, the wo
 Production releases require `https://<PRODUCTION_WEB_HOST>/api/health` to return the deployed SHA and healthy status. An unreachable host, missing health route, or different SHA fails the deploy job. The smoke job runs against the public host, and the GitHub Deployment URL points there. The web proxy redirects the Render service host to the public site, so a release never smoke-tests a different host than the one people use.
 
 The Render API request uses `POST /v1/services/{serviceId}/deploys` with `imageUrl` set to `ghcr.io/thomasluizon/orbit-web@sha256:...`. Each job reads the deploy ID from Render's HTTP 201 response to that request, checks that the response names the same image reference, and polls that deploy. Any other response status fails the job, because an HTTP 202 (queued) response has no body and so cannot name the deploy the release created. A later deploy that supersedes this one leaves it `canceled`. Both jobs accept Render's `live` status and fail on terminal failure statuses, `canceled` included.
+
+## Streaming shutdown
+
+Terraform owns the production web shutdown delay: `render_web_service.production_web` in
+`orbit-api` `infra/production.tf` sets `max_shutdown_delay_seconds = 300`. Apply that resource
+before the next production web release. Read back `GET /v1/services/{serviceId}` for `orbit-web`;
+`serviceDetails.maxShutdownDelaySeconds` must be the number `300`. The production release
+workflow checks that value before requesting a deploy and fails if the read fails or the value
+is missing or different. It reports the Terraform resource to apply and never writes the setting.
+
+The free `orbit-web-staging` service has no configurable shutdown delay. Its release job neither
+sets nor checks that value, so staging cannot prove the production drain window. The
+[Render shutdown contract](https://render.com/docs/deploys#graceful-shutdown) allows up to
+300 seconds after SIGTERM before SIGKILL when the delay is configured.
+
+The standalone image runs Node directly. Next.js handles SIGTERM by closing the HTTP listener,
+waiting for active responses, then closing its runtime. Keep `NEXT_MANUAL_SIG_HANDLE` unset so
+Next.js retains this handler. Streams that exceed the platform window can still be interrupted;
+failed sends retain the original composer draft and require an explicit Retry on web and Android.
+Automatic resend requires the API idempotency contract tracked by #1675.
+
+PostHog's `/ingest` route streams through a Route Handler instead of Next.js's external
+rewrite proxy. Static SDK and `/array` configuration requests use the US asset host; all
+other paths use the US ingestion host. The handler strips application credentials and
+hop-by-hop headers and restores the content encoding decoded by Node's fetch before
+streaming the response. Keep the SDK's `api_host` at `/ingest` and preserve trailing slashes.
 
 ## Focused read block rollout
 

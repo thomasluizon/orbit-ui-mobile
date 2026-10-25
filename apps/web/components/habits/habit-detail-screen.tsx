@@ -302,8 +302,7 @@ function AskAstraRow({ habit }: Readonly<{ habit: NormalizedHabit }>) {
     useUIStore.getState().setAstraConversationOpen(true)
   }
   return (
-    // eslint-disable-next-line local/max-button-words -- Canvas Orbit Habit Detail line 176 controls this label under D42.
-    <ListRow placement="column" icon={<AstraGlyph size={24} />} title={t('habits.detail.askAstra')} titleTranslate="no" onClick={openConversation} />
+    <ListRow placement="column" wrapTitle icon={<AstraGlyph size={24} />} title={t('habits.detail.askAstra')} accessibilityLabel={t('habits.detail.askAstra')} onClick={openConversation} />
   )
 }
 
@@ -413,7 +412,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
         </>}</div>
         <div className="flex flex-wrap gap-2"><ActionRow>
           {notNow}
-          {suggestion ? <PillButton variant={actionVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton leadingIcon={<AstraGlyph size={16} />} variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.form.askDate')}</PillButton> : null}
+          {suggestion ? <PillButton variant={actionVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton leadingIcon={<AstraGlyph size={16} />} variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.reschedule.suggestDate')}</PillButton> : null}
         </ActionRow></div>
       </div>
     </Proposed>

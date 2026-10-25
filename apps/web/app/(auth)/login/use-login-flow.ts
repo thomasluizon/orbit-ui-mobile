@@ -1,3 +1,4 @@
+import { API } from '@orbit/shared/api'
 import { unmappedBackendFormError } from '@orbit/shared/hooks'
 import { extractBackendFieldErrors, extractBackendErrorDetails, extractBackendErrorCode, getBackendFieldError } from '@orbit/shared/utils'
 import { useEffect, useRef, useState } from 'react'
@@ -40,8 +41,10 @@ export function useLoginFlow() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isResending, setIsResending] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const [isAppleLoading, setIsAppleLoading] = useState(false)
   const [errorKey, setLoginErrorKey] = useState<string | null>(
-    searchParams.get('googleError') === '1' ? 'auth.errors.googleError' : null,
+    searchParams.get('appleError') === '1' ? 'auth.errors.appleError'
+      : searchParams.get('googleError') === '1' ? 'auth.errors.googleError' : null,
   )
   const [validationError, setValidationError] = useState<unknown>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -338,6 +341,21 @@ export function useLoginFlow() {
     entry.resetCodeDigits()
   }
 
+  function signInWithApple() {
+    if (!available() || !process.env.NEXT_PUBLIC_APPLE_CLIENT_ID) return
+    busy.current = true
+    setIsAppleLoading(true)
+    setErrorKey(null)
+    try {
+      sessionStorage.setItem('auth_return_url', getReturnUrl())
+      globalThis.location.assign(`${API.auth.appleStart}?language=${encodeURIComponent(locale)}`)
+    } catch {
+      busy.current = false
+      setIsAppleLoading(false)
+      setErrorKey('auth.errors.appleError')
+    }
+  }
+
   function signInWithGoogle() {
     if (!available()) return
     busy.current = true
@@ -376,7 +394,7 @@ export function useLoginFlow() {
     setErrorKey(null)
   }
 
-  return { t, step, email, setEmail: changeEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, errorKey,
+  return { t, step, email, setEmail: changeEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, isAppleLoading, errorKey,
     emailFieldError: getBackendFieldError(validationError, 'Email'),
     codeFieldError: getBackendFieldError(validationError, 'Code'),
     codeFocusRequest,
@@ -387,5 +405,5 @@ export function useLoginFlow() {
     errorMessage: errorKey ? t(errorKey) : null, successMessage, referralCode, fromOnboarding,
     turnstileSiteKey, turnstileToken, turnstileResetKey, onTurnstileToken: handleTurnstileToken,
     pendingHabitCount, isOnline, authStepMotion, ...entry, onCodeChange, codeFailure, lockCountdown, accountBack,
-    sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, continueAccount }
+    sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, signInWithApple, continueAccount }
 }

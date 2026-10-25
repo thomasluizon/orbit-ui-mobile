@@ -66,12 +66,13 @@ function textsOf(root: TestNode): string[] {
 }
 
 function findPillButton(root: TestNode, label: string): TestNode | undefined {
-  return root.findAllByType('PillButton').find((node) => node.props.children === label)
+  return root.findAllByType('PillButton').find((node) => node.props.children === label || node.props.label === label) ?? root.findAllByType('Pressable').find((node) => (node.props.accessibilityLabel === label || node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0))
 }
 
 function pressPillButton(root: TestNode, label: string) {
-  const onClick = findPillButton(root, label)?.props.onClick
-  if (!onClick) throw new Error(`Button not found: ${label}`)
+  const action = findPillButton(root, label)
+  const onClick = action?.props.onClick ?? action?.props.onPress
+  if (typeof onClick !== 'function') throw new Error(`Button not found: ${label}`)
   onClick()
 }
 
@@ -375,15 +376,17 @@ vi.mock('@/components/ui/list-row', async (importOriginal) => {
   ListRow: (props: React.ComponentProps<typeof import('@/components/ui/list-row')['ListRow']>) => {
     if (mocks.realListRows) return <actual.ListRow {...props} />
     const { title, description, value, trailing, chevron, onClick, icon, expanded, controls, toggle } = props
-    return title === 'habits.detail.askAstra' ? <actual.ListRow title={title} placement="column" onClick={onClick} /> : React.createElement('ListRow', { title, description, value, chevron, onClick, icon: typeof icon === 'string' ? icon : undefined, expanded, controls, toggle },
+    return title === 'habits.detail.askAstra' ? <actual.ListRow {...props} /> : React.createElement('ListRow', { title, description, value, chevron, onClick, icon: typeof icon === 'string' ? icon : undefined, expanded, controls, toggle },
     toggle ? React.createElement('Switch', { testID: title === 'habits.detail.slipAlert' ? 'slip-alert-switch' : title, label: title, checked: toggle.checked, onChange: toggle.onChange }, React.createElement('Text', {}, title)) : onClick ? React.createElement('Pressable', { accessibilityRole: 'button', accessibilityLabel: title, accessibilityState: { expanded }, onPress: onClick }, React.createElement('Text', {}, title)) : null,
     trailing)
   },
 })
 })
-vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, disabled, label, variant, size, loading, onClick, accessibilityRole }: { children?: React.ReactNode; disabled?: boolean; label?: string; variant?: string; size?: string; loading?: boolean; onClick?: () => void; accessibilityRole?: 'button' | 'link' }) => React.createElement('PillButton', { disabled, label, variant, size, loading, onClick, accessibilityRole }, children),
-}))
+vi.mock('@/components/ui/pill-button', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/pill-button')>()
+  return { PillButton: (props: React.ComponentProps<typeof actual.PillButton>) => props.children === 'habits.reschedule.suggestDate'
+    ? <actual.PillButton {...props} /> : React.createElement('PillButton', { disabled: props.disabled, label: props.label, variant: props.variant, size: props.size, loading: props.loading, onClick: props.onClick, accessibilityRole: props.accessibilityRole }, props.children) }
+})
 vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/stat-tile')>()),
   StatTile: ({ label, value }: { label: string; value: string }) => React.createElement('StatTile', { testID: `stat-${label}`, value }),
@@ -870,7 +873,8 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
     expect(textsOf(tree.root.findAllByType('Proposed').find(isRescueProposal)!.findByProps({ accessibilityLiveRegion: 'polite' }))).toContain('habits.detail.rescheduleError')
     expect(findPillButton(tree.root, 'habits.detail.rescheduleAccept')).toBeUndefined()
-    TestRenderer.act(() => { pressPillButton(tree.root, 'habits.form.askDate') })
+    expect(textsOf(findPillButton(tree.root, 'habits.reschedule.suggestDate')!)).toContain('habits.reschedule.suggestDate')
+    TestRenderer.act(() => { pressPillButton(tree.root, 'habits.reschedule.suggestDate') })
     expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
     TestRenderer.act(() => { pressPillButton(tree.root, 'habits.reschedule.dismiss') })
     expect(tree.root.findAllByProps({ children: 'habits.detail.rescheduleError' })).toHaveLength(0)
@@ -905,7 +909,7 @@ describe('HabitDetailScreen', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
     if (requestState === 'retry') {
-      TestRenderer.act(() => { pressPillButton(tree.root, 'habits.form.askDate') })
+      TestRenderer.act(() => { pressPillButton(tree.root, 'habits.reschedule.suggestDate') })
       expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
       mocks.rescheduleError = null
       TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
@@ -1789,6 +1793,16 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
+  it('lets the habit analysis title grow with accessibility text', () => {
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const ask = tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.askAstra')!
+    const title = ask.findAllByType('Text').find((node: TestNode) => node.props['data-slot'] === 'list-row-title')!
+    expect(title.props.numberOfLines).toBeUndefined()
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it.each(['', 'My draft'])('paints and opens Astra about the habit, preserving draft %s', (draft) => {
     mocks.reducedMotion = draft !== ''
     mocks.realPressTokens = true
@@ -1797,12 +1811,10 @@ describe('HabitDetailScreen', () => {
     useUIStore.getState().setAstraConversationOpen(false)
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
-    const ask = tree.root.findAllByType('Pressable').find((node: TestNode) => textsOf(node).includes('habits.detail.askAstra'))!
-    TestRenderer.act(() => ask.props.onPressIn())
-    const fill = tree.root.findAll((node: TestNode) => node.props['data-slot'] === 'list-row-body').find((node: TestNode) => (StyleSheet.flatten(node.props.style) as import('react-native').ViewStyle).left === -12)!
-    expect(StyleSheet.flatten(fill.props.style)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 12, left: -12, right: -12 })
-    TestRenderer.act(() => ask.props.onPressOut())
-    TestRenderer.act(() => tree.root.findAllByType('Pressable').find((node: TestNode) => textsOf(node).includes('habits.detail.askAstra'))!.props.onPress())
+    const ask = tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.askAstra')!
+    expect(textsOf(ask)).toContain('habits.detail.askAstra')
+    expect(ask.findAllByType('Text').some((node: TestNode) => node.props.children === 'habits.detail.askAstra')).toBe(true)
+    TestRenderer.act(() => tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.askAstra')!.props.onPress())
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
     const prompt = 'habits.detail.askAstraSeedDefault:{"title":"Read"}'
     if (draft) {

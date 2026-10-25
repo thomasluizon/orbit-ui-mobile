@@ -31,6 +31,20 @@ function makeResponse(status: number): { status: number } {
 }
 
 describe('openChatStream', () => {
+  it('keeps the turn key and payload through authentication refresh', async () => {
+    mocks.getToken.mockResolvedValue('stale-token')
+    mocks.refreshSessionToken.mockResolvedValue('fresh-token')
+    mocks.expoFetch.mockResolvedValueOnce(makeResponse(401)).mockResolvedValueOnce(makeResponse(200))
+    const payload = new FormData()
+    payload.append('message', 'hello')
+    await openChatStream(payload, new AbortController().signal, 'submitted-key')
+    expect(mocks.expoFetch).toHaveBeenCalledTimes(2)
+    for (const [, request] of mocks.expoFetch.mock.calls) {
+      expect(request.body).toBe(payload)
+      expect(request.headers['Idempotency-Key']).toBe('submitted-key')
+    }
+  })
+
   beforeEach(() => {
     useThrottleStore.getState().clear()
     mocks.expoFetch.mockReset()

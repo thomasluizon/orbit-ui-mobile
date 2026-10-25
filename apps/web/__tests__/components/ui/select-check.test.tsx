@@ -460,3 +460,37 @@ describe('RadioRow secondary text contrast', () => {
     } finally { await page.close() }
   })
 })
+
+
+it('retains a busy row focus and blocks keyboard and pointer commits', async () => {
+  const selected = vi.fn()
+  const commit = vi.fn()
+  const rows = (busy: boolean) => <RadioGroup aria-label="Parents" onCommit={commit}>
+    <RadioRow label="First" onSelect={selected} {...(busy ? { busy: true as const, reason: 'Working' } : { busy: false as const })} />
+    <RadioRow label="Second" onSelect={selected} {...(busy ? { busy: true as const, reason: 'Working' } : { busy: false as const })} />
+  </RadioGroup>
+  const view = render(rows(false))
+  const row = screen.getByRole('radio', { name: 'First' })
+  row.focus()
+  view.rerender(rows(true))
+  expect(row).toHaveFocus()
+  expect(row).toHaveAttribute('aria-disabled', 'true')
+  await userEvent.keyboard('{Enter}{Space}{ArrowDown}')
+  fireEvent.click(row)
+  expect(selected).not.toHaveBeenCalled()
+  expect(commit).not.toHaveBeenCalled()
+  view.rerender(rows(false))
+  expect(row).toHaveFocus()
+})
+
+it('requests the checked option and respects a cancelled focus continuation', () => {
+  const rows = (request: number, allowed: boolean) => <><RadioGroup aria-label="Parents" focusRequest={request} shouldFocus={() => allowed}>
+    <RadioRow label="First" onSelect={vi.fn()} />
+    <RadioRow label="Second" selected onSelect={vi.fn()} />
+  </RadioGroup><button>Outside</button></>
+  const view = render(rows(1, true))
+  expect(screen.getByRole('radio', { name: 'Second' })).toHaveFocus()
+  screen.getByRole('button', { name: 'Outside' }).focus()
+  view.rerender(rows(2, false))
+  expect(screen.getByRole('button', { name: 'Outside' })).toHaveFocus()
+})

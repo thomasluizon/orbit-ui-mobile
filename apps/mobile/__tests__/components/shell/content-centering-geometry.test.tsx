@@ -15,7 +15,7 @@ import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { Fab } from '@/components/ui/fab'
 import { Toast } from '@/components/ui/app-toast'
 import { TodayDateControl } from '@/components/today/today-date-control'
-import { SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { SHELL_SCROLLER_CLEARANCE } from '@/components/shell/shell-scroller-clearance'
 import { createTokensV2 } from '@/lib/theme'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
@@ -73,10 +73,17 @@ it.each(windows)('centres Todos actions, calendar navigation and figures at $wid
   try {
     const row = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'action-row')[0]!
     expect(StyleSheet.flatten(row.props.style as StyleProp<ViewStyle>).justifyContent).toBe('center')
+    const astraAction = row.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.findAll(child => String(child.type) === 'Text' && child.props.children === ptBR.habits.askAstra).length > 0)[0]!
+    expect(astraAction.findAll(node => String(node.type) === 'Text').map(node => node.props.children)).toEqual([ptBR.habits.askAstra])
     const figures = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-figure-default')
     expect(figures).toHaveLength(3)
     for (const figure of figures) expect(StyleSheet.flatten(figure.props.style as StyleProp<ViewStyle>).alignItems).toBe('flex-start')
-    const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.testID, viewport)
+    const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'button-primary-sm' ? 'astra-action' : host.props.testID, viewport)
+    const actionBounds = boxes.get('astra-action')!
+    expect(actionBounds.width).toBeGreaterThan(48)
+    expect(actionBounds.bottom - actionBounds.top).toBeGreaterThanOrEqual(SMALL_PILL_VISIBLE_MIN)
+    expect(actionBounds.left).toBeGreaterThanOrEqual(0)
+    expect(actionBounds.left + actionBounds.width).toBeLessThanOrEqual(viewport.width)
     for (const key of ['calendar-header-group', 'calendar-month-navigation', 'calendar-stats']) {
       const box = boxes.get(key)!
       expect(box.left + box.width / 2).toBeCloseTo(viewport.width / 2, 0)

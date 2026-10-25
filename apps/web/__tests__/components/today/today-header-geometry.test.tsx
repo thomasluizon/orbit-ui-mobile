@@ -24,7 +24,7 @@ import { NotificationBell } from '@/components/navigation/notification-bell'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { DestinationShell } from '@/components/shell/destination-shell'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { useUIStore } from '@/stores/ui-store'
 import { useShellStore } from '@/stores/shell-store'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -165,6 +165,7 @@ describe('Hoje header geometry', () => {
           </NextIntlClientProvider>)
           const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
           await page.setContent(`<style>${stylesheet}:root{${variables}}</style>${container.innerHTML}`)
+      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
           unmount()
           await page.evaluate((theme) => { document.documentElement.className = theme }, mode)
           const content = page.locator(index === 0 ? '.today-astra-line' : '[data-first-content]')
@@ -194,6 +195,7 @@ describe('Hoje header geometry', () => {
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       const scopedSearch = page.locator('[data-today-header-actions]').getByRole('button', { name: props.searchLabel })
       expect(await scopedSearch.count()).toBe(1)
       expect(await scopedSearch.isVisible()).toBe(true)
@@ -223,6 +225,7 @@ describe('Hoje header geometry', () => {
           fireEvent.click(within(rendered.container).getByRole('radio', { name: label }))
           expect(within(rendered.container).getByRole('radio', { name: label })).toBeChecked()
           await page.setContent(`<style>${stylesheet}</style>${rendered.container.innerHTML}`)
+      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
           const search = page.locator('[data-shell-sidebar]').getByRole('button', { name: words.nav.search, exact: true })
           expect(await search.count()).toBe(1)
           expect(await search.isVisible()).toBe(true)
@@ -249,6 +252,7 @@ describe('Hoje header geometry', () => {
       const words = locale === 'en' ? en : ptBr
       try {
         await page.setContent(`<style>${stylesheet}</style>${renderToString(<NextIntlClientProvider locale={locale} messages={words}><div className="mx-auto w-full max-w-[740px]"><HabitViewSwitch value="today" onChange={noop} /></div></NextIntlClientProvider>)}`)
+      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate(() => document.fonts.ready)
         const geometry = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('[data-habit-view-switch] [role="radio"]')).map((radio) => {
           const span = radio.querySelector('span')!
@@ -296,6 +300,7 @@ describe('Hoje header geometry', () => {
         expect(container.querySelectorAll(optionsSelector)).toHaveLength(1)
         expect(container.querySelectorAll(`[data-shell-column] button[aria-label^="${ptBr.notifications.bell}"]`)).toHaveLength(1)
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate(() => document.fonts.ready)
         const headerInset = () => page.locator(optionsSelector).evaluate((element) => {
           const row = element.closest('[data-today-header-actions], [data-testid="calendar-shell-header"]')!
@@ -315,6 +320,7 @@ describe('Hoje header geometry', () => {
         expect(container.querySelectorAll(optionsSelector)).toHaveLength(1)
         expect(container.querySelector(optionsSelector)?.closest('[data-shell-header]')).not.toBeNull()
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate(() => document.fonts.ready)
         expect(await headerInset()).toBe(width < 1024 ? 0 : 32)
         const hydratedTop = await page.locator(contentSelector).evaluate((element) => element.getBoundingClientRect().top)
@@ -343,6 +349,7 @@ describe('Hoje header geometry', () => {
             </DestinationShell>
           </NextIntlClientProvider>)
           await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
           unmount()
           await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, textScale)
           await page.keyboard.press('Tab')
@@ -400,6 +407,7 @@ describe('Hoje header geometry', () => {
         const { container, unmount } = render(<NextIntlClientProvider locale={locale} messages={messages}>{surface}</NextIntlClientProvider>)
         const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value};`).join('')
         await page.setContent(`<!doctype html><style>${stylesheet}:root{${variables}}</style>${container.innerHTML}`)
+      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         unmount()
         await page.evaluate((theme) => { document.documentElement.className = theme }, mode)
         const controls = page.locator('[data-today-header-actions] button, [data-testid="calendar-shell-header"] button, [data-root-notification-header] button, [data-shell-sidebar] button[aria-label^="' + messages.notifications.bell + '"]')
@@ -468,6 +476,7 @@ describe('Hoje header geometry', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate(async (scale) => {
           document.documentElement.style.fontSize = `${16 * scale}px`
           const labels = document.querySelectorAll<HTMLElement>('[data-habit-row-body] > span > span, [data-personal-text-content] > span > span, .today-astra-sentence')
@@ -478,7 +487,7 @@ describe('Hoje header geometry', () => {
           await document.fonts.ready
         }, textScale)
         const geometry = await page.evaluate(() => {
-          const date = document.querySelector('[data-today-date-row] [title]')!
+          const date = document.querySelector('[data-today-date-row] [aria-disabled]')!
           const sentence = document.querySelector('.today-astra-sentence')!
           const rows = Array.from(document.querySelectorAll('[data-testid="habit-row"]'))
           const parent = rows[1]!
@@ -557,7 +566,7 @@ describe('Hoje header geometry', () => {
             leafDisclosure: rows[0]!.querySelector('[data-habit-row-control="disclosure"]') !== null,
             overflow: document.documentElement.scrollWidth,
             rowHeights: rows.map((row) => row.getBoundingClientRect().height),
-            controls: rows.flatMap((row) => Array.from(row.querySelectorAll('button:not([title])')).map((button) => {
+            controls: rows.flatMap((row) => Array.from(row.querySelectorAll('button:not([aria-disabled])')).map((button) => {
               const bounds = button.getBoundingClientRect()
               return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height }
             })),
@@ -619,6 +628,7 @@ describe('Hoje header geometry', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate(async (scale) => { document.documentElement.style.fontSize = `${16 * scale}px`; await document.fonts.ready }, textScale)
         const skip = page.getByRole('link', { name: ptBr.common.skipToContent })
         const options = page.getByRole('button', { name: props.moreLabel })
@@ -652,6 +662,7 @@ describe('Hoje header geometry', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate((theme) => { document.documentElement.className = theme }, mode)
         const previous = page.locator('main[data-shell-scroller] button').first()
         expect(await previous.getAttribute('aria-label')).toBe(props.previousLabel)
@@ -682,13 +693,14 @@ describe('Hoje header geometry', () => {
 
   it.each(['anchored', 'sheet'] as const)('keeps %s menu rows at their presentation minimum', async (presentation) => {
     const menuPresentation = presentation === 'sheet' ? { presentation } : { presentation, anchorRef: createRef<HTMLButtonElement>() }
-    render(<NextIntlClientProvider locale="en" messages={en}><Menu open {...menuPresentation} title="Actions" items={[
+    render(<NextIntlClientProvider locale="en" messages={en}><Menu.Root open={true}><Menu.Trigger asChild><button type="button" aria-label="Menu trigger" /></Menu.Trigger><Menu.Content {...menuPresentation} title="Actions" items={[
       { id: 'edit', label: 'Edit', icon: 'edit' }, { id: 'delete', label: 'Delete', icon: 'trash', destructive: true },
-    ]} /></NextIntlClientProvider>)
+    ]}  /></Menu.Root></NextIntlClientProvider>)
     await screen.findByRole('menu', { name: 'Actions' })
     const page = await browser.newPage({ viewport: { width: presentation === 'sheet' ? 412 : 1280, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${document.body.innerHTML}`)
+      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await page.evaluate(async () => { await document.fonts.ready })
       const heights = await page.locator('[role="menuitem"]').evaluateAll((items) => items.map((item) => item.getBoundingClientRect().height))
       expect(heights).toEqual(presentation === 'sheet' ? [56, 56] : [48, 48])
@@ -706,28 +718,36 @@ describe('Hoje header geometry', () => {
     } finally { await page.close() }
   })
 
-  it.each((['light', 'dark'] as const).flatMap((mode) => [false, true].map((isTodaySelected) => ({ mode, isTodaySelected }))))(
-    'keeps one padded date target and one focus indicator in $mode, today=$isTodaySelected', async ({ mode, isTodaySelected }) => {
+  it.each([320, 393, 1352].flatMap((width) => (['light', 'dark'] as const).flatMap((mode) => [false, true].map((isTodaySelected) => ({ width, mode, isTodaySelected })))))(
+    'keeps one padded date target and one focus indicator at $width in $mode, today=$isTodaySelected', async ({ width, mode, isTodaySelected }) => {
       const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}>
         <TodayDateControl {...props} isTodaySelected={isTodaySelected} />
       </NextIntlClientProvider>)
-      const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate(({ mode, variables }) => {
           document.documentElement.dataset.mode = mode
           for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
         }, { mode, variables: resolveWebThemeVariables('orange', mode) })
-        const label = page.locator('[data-today-date-row] button[title]')
+        await page.evaluate(async () => { await document.fonts.ready })
+        const label = page.locator('[data-today-date-row] button[aria-disabled]')
         await label.hover()
         const hovered = await label.evaluate((button) => {
           const bounds = button.getBoundingClientRect()
           const style = getComputedStyle(button)
           const numeric = getComputedStyle(button.querySelector('p:last-child')!)
-          return { width: bounds.width, height: bounds.height, padding: [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft],
+          const textWidth = Math.max(...Array.from(button.querySelectorAll('p')).map((line) => {
+            const range = document.createRange()
+            range.selectNodeContents(line)
+            return range.getBoundingClientRect().width
+          }))
+          return { width: bounds.width, height: bounds.height, textWidth, padding: [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft],
             background: style.backgroundColor, numeric: numeric.color,
             expectedInk: style.getPropertyValue(button.getAttribute('aria-disabled') === 'true' ? '--fg-3' : '--fg-2').trim() }
         })
+        expect(hovered.width, 'the date target hugs its text and inline padding').toBeLessThanOrEqual(hovered.textWidth + 16 + 1)
         expect(hovered.width).toBeGreaterThanOrEqual(48)
         expect(hovered.height).toBeGreaterThanOrEqual(48)
         expect(hovered.padding).toEqual(['4px', '8px', '4px', '8px'])
@@ -741,6 +761,29 @@ describe('Hoje header geometry', () => {
           return resolved
         }, hovered.expectedInk)
         expect(hovered.numeric).toBe(expectedInk)
+        if (width >= 393) {
+          const sidePoints = await label.evaluate((button) => {
+            const row = button.closest('[data-today-date-row]')!
+            const previous = row.querySelector('button')!.getBoundingClientRect()
+            const next = row.querySelector(':scope > button:last-child')!.getBoundingClientRect()
+            const bounds = button.getBoundingClientRect()
+            return [(previous.right + bounds.left) / 2, (bounds.right + next.left) / 2].map((x) => ({ x, y: bounds.top + bounds.height / 2 }))
+          })
+          for (const point of sidePoints) {
+            await label.hover()
+            expect(await page.evaluate(({ x, y }) => {
+              const target = document.elementFromPoint(x, y)!
+              return { button: Boolean(target.closest('button')), background: getComputedStyle(target).backgroundColor }
+            }, point)).toEqual({ button: false, background: 'rgba(0, 0, 0, 0)' })
+            await page.mouse.move(point.x, point.y)
+            expect(await label.evaluate((button) => getComputedStyle(button).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+          }
+        }
+        await label.hover()
+        await page.mouse.down()
+        expect(await label.evaluate((button) => getComputedStyle(button).backgroundColor === 'rgba(0, 0, 0, 0)')).toBe(isTodaySelected)
+        await page.mouse.move(0, 914)
+        await page.mouse.up()
         await page.keyboard.press('Tab')
         await label.focus()
         const focus = await label.evaluate((button) => {
@@ -765,6 +808,7 @@ describe('Hoje header geometry', () => {
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await page.evaluate(async ({ textScale, labelsOnly }) => {
         await document.fonts.ready
         if (labelsOnly) {
@@ -780,13 +824,13 @@ describe('Hoje header geometry', () => {
         }
         const date = document.querySelector('[data-today-date-row]')!
         const header = document.querySelector('[data-today-header-actions]')!
-        const dateBlock = date.querySelector('[title]')!
+        const dateBlock = date.querySelector('[aria-disabled]')!
         const day = dateBlock.querySelector('p')!
         const range = document.createRange()
         range.selectNodeContents(day)
         return {
           date: box(date), header: box(header), dateBlock: box(dateBlock),
-          arrows: Array.from(date.querySelectorAll('button:not([title])')).map(box),
+          arrows: Array.from(date.querySelectorAll('button:not([aria-disabled])')).map(box),
           actions: Array.from(header.querySelectorAll('button')).map(box),
           dayLines: range.getClientRects().length, dayFontSize: Number.parseFloat(getComputedStyle(day).fontSize),
           documentWidth: document.documentElement.scrollWidth,
@@ -812,12 +856,13 @@ describe('Hoje header geometry', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate(async () => { await document.fonts.ready })
         for (const scale of [1, 2]) {
           await page.evaluate((size) => { document.documentElement.style.fontSize = `${16 * size}px` }, scale)
           const geometry = await page.evaluate(() => {
             const row = document.querySelector('[data-today-date-row]')!
-            const arrows = Array.from(row.querySelectorAll('button:not([title])')).map((arrow) => {
+            const arrows = Array.from(row.querySelectorAll('button:not([aria-disabled])')).map((arrow) => {
               const bounds = arrow.getBoundingClientRect()
               return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height }
             })
@@ -850,10 +895,11 @@ describe('Hoje header geometry', () => {
       menuHeading={messages.common.options} moreLabel={messages.habits.listOptions}
       selectLabel={messages.common.select} collapseLabel={messages.habits.collapseAll}
       refreshLabel={messages.habits.refresh} completedLabel={messages.habits.showCompletedMenu} /></NextIntlClientProvider>)
-    fireEvent.click(screen.getByRole('button', { name: messages.habits.listOptions }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: messages.habits.listOptions }), { button: 0, ctrlKey: false })
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${document.body.innerHTML}`)
+      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await page.evaluate(async (scale) => { await document.fonts.ready; document.documentElement.style.fontSize = `${16 * scale}px` }, textScale)
       const geometry = await page.evaluate(() => {
         const labels = Array.from(document.querySelectorAll('.orbit-menu-label, .orbit-sheet-title')).map((label) => {
@@ -894,7 +940,7 @@ describe('Hoje header geometry', () => {
     render(<NextIntlClientProvider locale={locale} messages={messages}><TodayDateControl {...props}
       menuHeading={messages.common.options} moreLabel={messages.habits.listOptions}
       refreshLabel={messages.habits.refresh} onRefresh={refresh} /></NextIntlClientProvider>)
-    fireEvent.click(screen.getByRole('button', { name: messages.habits.listOptions }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: messages.habits.listOptions }), { button: 0, ctrlKey: false })
     const menu = screen.getByRole('menu', { name: messages.habits.listOptions })
     expect(screen.getByRole('dialog', { name: messages.habits.listOptions })).toBeInTheDocument()
     fireEvent.click(within(menu).getByRole('menuitem', { name: messages.habits.refresh }))
@@ -913,6 +959,7 @@ describe('Hoje header geometry', () => {
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${document.body.innerHTML}`)
+      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await page.evaluate(async () => { await document.fonts.ready; document.documentElement.style.fontSize = '32px' })
       const geometry = await page.evaluate(() => {
         const heading = document.querySelector('.orbit-sheet-title')!

@@ -1,7 +1,9 @@
 import { unmappedBackendFormError } from '@orbit/shared/hooks'
 import { extractBackendFieldErrors, extractBackendErrorDetails, extractBackendErrorCode, getBackendFieldError } from '@orbit/shared/utils'
 import { useEffect, useRef, useState } from 'react'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { Platform } from 'react-native'
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
+import type { NavigationProp, ParamListBase } from 'expo-router/react-navigation'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { ApiClientError, extractAuthBackendMessage, isValidEmail, resolveAuthLoginErrorKey,
@@ -15,6 +17,7 @@ import { clearStoredAuthReturnUrl, clearStoredReferralCode, createAuthReturnUrlA
   getSafeReturnUrl, getStoredAuthReturnUrl, getStoredReferralCode, isAuthReturnUrlAttemptCurrent,
   isSafeReturnUrl, isValidReferralCode, isValidVerificationCode,
   storeAuthReturnUrl, storeReferralCode } from '@/lib/auth-flow'
+import { startAppleAuthentication } from '@/lib/apple-auth'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { clearPendingGoogleAuthSession, usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { useOffline } from '@/hooks/use-offline'
@@ -46,6 +49,7 @@ export function useLoginFlow(isAuthCallback = false) {
   const { t, i18n } = useTranslation()
   const params = useLocalSearchParams<{ ref?: string; returnUrl?: string; email?: string; code?: string; from?: string; googleError?: string }>()
   const router = useRouter()
+  const navigation = useNavigation<NavigationProp<ParamListBase>>()
   const login = useAuthStore((s) => s.login)
   const isAuthLoading = useAuthStore((s) => s.isLoading)
   const { isOnline } = useOffline()
@@ -68,6 +72,7 @@ export function useLoginFlow(isAuthCallback = false) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isResending, setIsResending] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const [isAppleLoading, setIsAppleLoading] = useState(false)
   const googleSession = usePendingGoogleAuthSession()
   const [dismissedGoogleAttemptId, setDismissedGoogleAttemptId] = useState<string | null>(null)
   const [loginErrorKey, setLoginErrorKey] = useState<string | null>(
@@ -137,8 +142,16 @@ export function useLoginFlow(isAuthCallback = false) {
   useEffect(() => {
     if (isAuthCallback || (queryEmail === undefined && queryCode === undefined)) return
     if (!readLoginEmailLink(queryEmail, queryCode)) { attemptScope.invalidate(); pendingAutoCode.current = null }
-    router.setParams({ email: undefined, code: undefined })
-  }, [attemptScope, isAuthCallback, queryEmail, queryCode, router])
+    navigation.dispatch((state) => ({
+      type: 'RESET',
+      payload: {
+        ...state,
+        routes: state.routes.map((route) => route.name === 'login'
+          ? { ...route, path: undefined, params: { ...route.params, email: undefined, code: undefined } }
+          : route),
+      },
+    }))
+  }, [attemptScope, isAuthCallback, navigation, queryEmail, queryCode])
 
   useEffect(() => {
     if (!incomingLink || isAuthLoading || !isOnline || (turnstileSiteKey && !turnstileToken) || isSubmitting) return
@@ -384,6 +397,32 @@ export function useLoginFlow(isAuthCallback = false) {
     entry.resetCodeDigits()
   }
 
+  async function signInWithApple() {
+    if (busy.current || !isOnline) return
+    const attempt = attemptScope.capture('', getSessionGeneration().epoch)
+    const isCurrent = () => attemptScope.owns(attempt, getSessionGeneration().epoch)
+    const returnUrlAttempt = getOrCreateReturnUrlAttempt(returnUrlAttemptRef,
+      typeof params.returnUrl === 'string' ? params.returnUrl : undefined)
+    busy.current = true
+    setIsAppleLoading(true)
+    setErrorKey(null)
+    try {
+      await returnUrlAttempt.ready
+      const referralCode = await getStoredReferralCode()
+      const result = await startAppleAuthentication({ language: i18n.language,
+        referralCode: referralCode ?? undefined, attemptId: returnUrlAttempt.id, isCurrent })
+      if (!isCurrent()) return
+      if (result.response) {
+        if (result.response.wasReactivated) { accountAttempt.current = attempt; setAccountBack(result.response) }
+        else await completeLogin(result.response, returnUrlAttempt.id, attempt)
+      } else if (result.url) {
+        router.replace({ pathname: '/auth-callback', params: Object.fromEntries(new URL(result.url).searchParams) })
+      }
+    } catch (error) {
+      if (isCurrent() && !(error && typeof error === 'object' && 'code' in error && error.code === 'ERR_REQUEST_CANCELED')) setErrorKey('auth.errors.appleError')
+    } finally { busy.current = false; setIsAppleLoading(false) }
+  }
+
   async function signInWithGoogle() {
     if (busy.current || !isOnline) return
     busy.current = true
@@ -393,6 +432,7 @@ export function useLoginFlow(isAuthCallback = false) {
       const result = await startMobileGoogleAuth({ returnUrl: typeof params.returnUrl === 'string' ? params.returnUrl : undefined })
       if (result.type === 'dismiss') setDismissedGoogleAttemptId(result.returnUrlAttemptId)
       else if (result.type !== 'success') setErrorKey('auth.errors.googleError')
+      else if (Platform.OS === 'ios') router.replace('/auth-callback')
     } catch { setErrorKey('auth.errors.googleError') }
     finally { busy.current = false; setIsGoogleLoading(false) }
   }
@@ -426,7 +466,7 @@ export function useLoginFlow(isAuthCallback = false) {
     setErrorKey(null)
   }
 
-  return { t, step, email, setEmail: changeEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, errorKey,
+  return { t, step, email, setEmail: changeEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, isAppleLoading, errorKey,
     emailFieldError: getBackendFieldError(validationError, 'Email'),
     codeFieldError: getBackendFieldError(validationError, 'Code'),
     codeFocusRequest,
@@ -436,8 +476,8 @@ export function useLoginFlow(isAuthCallback = false) {
     validationGeneralError: unmappedBackendFormError(validationError, [step === 'email' ? 'Email' : 'Code']),
     errorMessage: errorKey ? t(errorKey) : null, successMessage, showReferralBanner, fromOnboarding,
     plannedHabitCount, isOnline, ...entry, onCodeChange, codeFailure, lockCountdown, accountBack,
-    canSubmitEmail: Boolean(email.trim()) && !isSubmitting && !isGoogleLoading && isOnline && (!turnstileSiteKey || Boolean(turnstileToken)),
+    canSubmitEmail: Boolean(email.trim()) && !isSubmitting && !isGoogleLoading && !isAppleLoading && isOnline && (!turnstileSiteKey || Boolean(turnstileToken)),
     canSubmitCode: entry.codeDigits.join('').length === 6 && !isSubmitting && isOnline && (!turnstileSiteKey || Boolean(turnstileToken)),
     turnstileSiteKey, turnstileToken, turnstileResetKey, onTurnstileToken: handleTurnstileToken,
-    sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, continueAccount, openPrivacyPolicy, openTerms }
+    sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, signInWithApple, continueAccount, openPrivacyPolicy, openTerms }
 }

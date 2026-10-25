@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url"
 const REPO_ROOT = process.env.ARCH_MAP_ROOT
   ? resolve(process.env.ARCH_MAP_ROOT)
   : resolve(dirname(fileURLToPath(import.meta.url)), "..")
-const WORKSPACES = ["apps/web", "apps/mobile", "packages/shared"]
+const WORKSPACES = ["apps/web", "apps/mobile", "apps/desktop", "packages/shared"]
 const SOURCE_EXTENSIONS = [".tsx", ".ts"]
 const SKIP_DIRS = new Set(["node_modules", ".next", ".expo", "dist", "coverage", "e2e", "test-mocks"])
 const TEST_FILE = /\.(test|spec)\.(ts|tsx)$/

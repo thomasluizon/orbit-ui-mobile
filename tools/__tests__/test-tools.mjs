@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs"
+import { spawn, spawnSync } from "node:child_process"
 import { fileURLToPath } from "node:url"
 import { resolve } from "node:path"
 import { T, interruptGithubRead, processIsRunning, run, stage } from "./_harness.mjs"
@@ -102,6 +103,7 @@ setInterval(() => {}, 1000)
 `)
   const observed = await interruptGithubRead({
     path, args: [], env: {}, signal: "SIGTERM", pidFile, descendantPidFile, startupTimeoutMs: 1000,
+    cleanupPids: () => JSON.parse(readFileSync(treePidFile, "utf8")),
   })
   const pids = JSON.parse(readFileSync(treePidFile, "utf8"))
   T("test-tools.mjs: a tool stuck before GitHub startup reports the deadline",
@@ -116,9 +118,59 @@ setInterval(() => {}, 1000)
   }
 }
 
+async function checkCleanupObservation() {
+  const descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" })
+  const closed = new Promise((resolve) => descendant.once("close", resolve))
+  try {
+    const observed = await interruptGithubRead({
+      path: stage("test-tools/cleanup-observation.mjs", "process.exit(17)"), args: [], env: {}, signal: "SIGTERM",
+      pidFile: stage("test-tools/cleanup-observation.pid", ""),
+      descendantPidFile: stage("test-tools/cleanup-observation-descendant.pid", ""),
+      cleanupPids: () => [descendant.pid],
+    })
+    T("test-tools.mjs: cleanup observes extra live pids before reporting termination",
+      !observed.started && observed.status === 17 && !observed.terminated, JSON.stringify(observed))
+  } finally {
+    descendant.kill("SIGKILL")
+    await closed
+  }
+  T("test-tools.mjs: cleanup observation leaves no live descendant", !processIsRunning(descendant.pid))
+}
+
+async function checkZombieLiveness() {
+  const pidFile = stage("test-tools/zombie.pid", "")
+  const path = stage("test-tools/zombie.mjs", `
+import { spawn } from "node:child_process"
+import { writeFileSync } from "node:fs"
+const descendant = spawn(process.execPath, ["-e", "process.exit(0)"], { stdio: "ignore" })
+writeFileSync(${JSON.stringify(pidFile)}, String(descendant.pid))
+Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
+`)
+  const parent = spawn(process.execPath, [path], { stdio: "ignore" })
+  const closed = new Promise((resolve) => parent.once("close", resolve))
+  try {
+    let pid
+    let state = ""
+    const deadline = Date.now() + 60000
+    while (!state.startsWith("Z") && Date.now() < deadline) {
+      pid = Number(readFileSync(pidFile, "utf8"))
+      if (pid > 0) state = spawnSync("ps", ["-p", String(pid), "-o", "stat="], { encoding: "utf8" }).stdout.trim()
+      if (!state.startsWith("Z")) await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+    T("test-tools.mjs: liveness fixture holds a real zombie", state.startsWith("Z"), JSON.stringify({ pid, state }))
+    T("test-tools.mjs: a zombie is terminated before its parent reaps it", !processIsRunning(pid), JSON.stringify({ pid, state }))
+    T("test-tools.mjs: a live parent still counts as running", processIsRunning(parent.pid))
+  } finally {
+    parent.kill("SIGKILL")
+    await closed
+  }
+}
+
 export async function cases() {
   await checkSignalStartup()
   await checkSignalStartupDeadline()
+  await checkCleanupObservation()
+  if (process.platform !== "win32") await checkZombieLiveness()
   checkProdReadinessInventory()
   const focused = run("test-tools.mjs", ["--only", "bounded-process"])
   T("test-tools.mjs: --only runs the named case module", focused.status === 0, focused.stderr || focused.stdout)

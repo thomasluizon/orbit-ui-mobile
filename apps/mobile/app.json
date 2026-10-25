@@ -18,8 +18,61 @@
       "backgroundColor": "#09090B"
     },
     "ios": {
-      "supportsTablet": false,
-      "bundleIdentifier": "org.useorbit.app"
+      "supportsTablet": true,
+      "bundleIdentifier": "org.useorbit.app",
+      "usesAppleSignIn": true,
+      "buildNumber": "1",
+      "deploymentTarget": "17.4",
+      "associatedDomains": [
+        "applinks:app.useorbit.org",
+        "webcredentials:app.useorbit.org"
+      ],
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "CFBundleDevelopmentRegion": "en",
+        "LSRequiresIPhoneOS": true,
+        "UIRequiresFullScreen": false,
+        "UISupportedInterfaceOrientations~ipad": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ],
+        "NSPhotoLibraryUsageDescription": "Allow Orbit to access your photos so you can attach images in Astra.",
+        "NSMicrophoneUsageDescription": "Allow Orbit to use your microphone so you can talk to Astra."
+      },
+      "privacyManifests": {
+        "NSPrivacyTracking": false,
+        "NSPrivacyTrackingDomains": [],
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "35F9.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "E174.1"
+            ]
+          }
+        ]
+      }
     },
     "android": {
       "icon": "./assets/icon.png",
@@ -116,20 +169,21 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#C4530F"
+          "color": "#C4530F",
+          "mode": "production"
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos so you can attach images in AI chat.",
+          "photosPermission": "Allow Orbit to access your photos so you can attach images in Astra.",
           "cameraPermission": false
         }
       ],
       [
         "expo-audio",
         {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to record voice input for AI chat.",
+          "microphonePermission": "Allow Orbit to use your microphone so you can talk to Astra.",
           "enableBackgroundPlayback": false
         }
       ],
@@ -147,6 +201,7 @@
       ],
       "expo-sqlite",
       "expo-iap",
+      "expo-apple-authentication",
       [
         "expo-build-properties",
         {
@@ -156,6 +211,9 @@
               "armeabi-v7a",
               "arm64-v8a"
             ]
+          },
+          "ios": {
+            "deploymentTarget": "17.4"
           }
         }
       ],
@@ -180,6 +238,10 @@
         "projectId": "84b3535b-5957-42b7-bda3-4ed9dfde3734"
       }
     },
-    "runtimeVersion": "orbit-android-designs-1"
+    "runtimeVersion": "orbit-android-designs-1",
+    "locales": {
+      "en": "./locales/ios/en.json",
+      "pt-BR": "./locales/ios/pt-BR.json"
+    }
   }
 }

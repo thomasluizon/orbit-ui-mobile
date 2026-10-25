@@ -13,9 +13,14 @@ Description shares the name field's leading edge; disclosure labels retain their
 When / Quando retains its question and manual picker, with In your own words / Escreva do seu jeito
 as the phrase placeholder. The picker owns its selected value without a second ordinary readback.
 
-Actual request actions and conversation entries show the canonical Astra glyph beside visible
-Astra wording within the same target. Context-specific requests reuse Ask Astra / Consultar Astra;
-reschedule entry uses Reschedule with Astra / Reagendar com a Astra. Follow-up and proactive targets
+Under #1700, standalone request actions retain their short visible label beside the canonical
+Astra glyph. Menu items use their sibling row geometry and interaction treatment. Actions drop
+appended branding, never their label. The owner's authority is: "Revert this, just keep the changes
+that remove the bloat, be smart." Inline emoji, date, tag and frequency fill controls remain
+icon-only under #1701. Composer entries and send keep their drawn icon controls; suggestion chips
+and the composer prompt retain their current short text. Named navigation rows retain visible `Astra` wording beside
+their glyph, matching sibling destinations. The wide sidebar and onboarding shell use this
+row; Perfil keeps its named settings row and neutral icon. Follow-up and proactive targets
 retain their specific text. Complete ideas send; slotted ideas only prepare a draft. Composer entry
 and send remain distinct, with input width and wrapping preserving every action at enlarged text.
 The composer reserves its text-action target when allowance disables that action, including when
@@ -566,3 +571,9 @@ suppresses repeated answer blocks. Pending previews keep approve, edit and rejec
 terminal results stay with their original preview. Block-only final delivery receives one localized
 completion announcement. Unknown sole blocks recover visibly. Short-text exceptions and the
 complete family policy remain in DESIGN.md; live bilingual composition acceptance belongs to #26.
+
+Proactive entries use the same leading block treatment after capability negotiation. The saved
+notification text remains the Hoje entry label and the legacy recovery when parts are absent or
+unusable. Inside the conversation a valid block replaces that prose, while the existing proactive
+action and its opened, acted and status behavior retain their owners. Existing legacy entries can
+adopt their first valid block without duplicating the message or resetting the action.

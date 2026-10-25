@@ -43,7 +43,6 @@ const labels = {
   field: "Describe the habit",
   placeholder: "Run every weekday",
   understood: "Orbit understood",
-  understoodAstra: "Astra proposed",
   unresolved: "Choose a schedule",
   days: "Active days",
   less: "Less often",
@@ -177,9 +176,9 @@ describe("HabitUnderstanding mobile", () => {
       tree.root.findAll(
         (node) =>
           node.type === "Text" &&
-          node.props.children === labels.understoodAstra,
+          node.props.children === "Astra proposed",
       ),
-    ).toHaveLength(1);
+    ).toHaveLength(0);
     expect(
       tree.root.findAll(
         (node) =>
@@ -193,6 +192,8 @@ describe("HabitUnderstanding mobile", () => {
           node.props.selectedEmoji === "🏃",
       ),
     ).toHaveLength(1);
+    expect(tree.root.findAll(node => node.type === 'HabitEmojiSelector')[0]!.props.proposed).toBe(true);
+    expect(tree.root.findAll(node => node.type === 'Proposed' && node.findAll(child => child.type === 'HabitEmojiSelector').length > 0)).toHaveLength(0);
     const consumedMonday = tree.root.findAll(
       (node) => node.type === "Text" && node.props.children === "Monday",
     )[0]!;
@@ -210,12 +211,6 @@ describe("HabitUnderstanding mobile", () => {
     const tuesday = button(tree, "Terça-feira");
     expect(monday.props.accessibilityState).toEqual({ selected: true });
     expect(tuesday.props.accessibilityState).toEqual({ selected: false });
-    (monday.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: true,
-    });
-    (tuesday.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: false,
-    });
     TestRenderer.act(() => {
       (monday.props.onPress as () => void)();
     });
@@ -225,7 +220,7 @@ describe("HabitUnderstanding mobile", () => {
     TestRenderer.act(() => tree.update(<HabitUnderstanding {...props} sentence={null} />));
     expect(tree.root.findAll((node) => node.type === "Proposed")).toHaveLength(0);
     const emojiSelectors = tree.root.findAll((node) => node.type === "HabitEmojiSelector");
-    expect(emojiSelectors).toHaveLength(0);
+    expect(emojiSelectors).toHaveLength(1);
     TestRenderer.act(() => tree.update(<HabitUnderstanding {...props} />));
     const restoredSelector = tree.root.findAll((node) => node.type === "HabitEmojiSelector")[0]!;
     expect(restoredSelector.props.selectedEmoji).toBe("🏃");
@@ -265,7 +260,16 @@ describe('schedule press fills', () => {
   it('fills selected and idle weekdays controls', () => {
     const { tree } = renderUnderstanding({ value: 'Run', days: ['Monday'] });
     for (const label of ['Segunda-feira', 'Terça-feira']) {
-      expectPressFill(tree, label, tokens.bgHover, radius.full);
+      const target = tree.root.findAll(node => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!;
+      const targetStyle = StyleSheet.flatten(target.props.style as ViewStyle);
+      expect(targetStyle.minWidth).toBe(24);
+      expect(targetStyle.minHeight).toBe(48);
+      const fill = () => target;
+      const resting = StyleSheet.flatten(fill().props.style as ViewStyle).backgroundColor;
+      TestRenderer.act(() => (target.props.onPressIn as () => void)());
+      expect(StyleSheet.flatten(fill().props.style as ViewStyle).backgroundColor).toBe(tokens.bgHover);
+      TestRenderer.act(() => (target.props.onPressOut as () => void)());
+      expect(StyleSheet.flatten(fill().props.style as ViewStyle).backgroundColor).toBe(resting);
     }
   });
   it('fills both quantity controls in flexible mode', () => {

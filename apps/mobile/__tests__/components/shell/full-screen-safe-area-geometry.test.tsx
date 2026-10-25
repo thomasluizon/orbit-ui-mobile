@@ -19,12 +19,15 @@ import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { ThrottleScreen } from '@/components/throttle-screen'
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
 import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
+import { OverlayHost } from '@/components/ui/overlay-host'
+import { NativeDialog } from '@/components/ui/native-dialog'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
 import { createTokensV2 } from '@/lib/theme'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
-import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
+import { measureSafeArea, type GeometryHost, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 
 await vi.hoisted(async () => {
   const { createRequire, Module } = await import('node:module')
@@ -62,7 +65,7 @@ vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => (
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({}), useMarkAllNotificationsRead: () => ({}), useDeleteNotification: () => ({}), useDeleteAllNotifications: () => ({}) }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
 vi.mock('@/hooks/use-billing', () => ({ useBilling: () => ({ isLoading: true, refetch: vi.fn() }) }))
-vi.mock('@/hooks/use-play-billing', () => ({ usePlayBilling: () => ({ clearError: vi.fn() }) }))
+vi.mock('@/hooks/store-billing-provider', () => ({ useStoreBilling: () => ({ clearError: vi.fn() }) }))
 vi.mock('@/hooks/use-subscription-plans', async (original) => ({ ...await original<typeof import('@/hooks/use-subscription-plans')>(), useSubscriptionPlans: () => ({ isLoading: true, refetch: vi.fn() }) }))
 vi.mock('@/hooks/use-subscription-status', () => ({ useSubscriptionStatus: () => ({ isLoading: true, refetch: vi.fn() }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
@@ -103,6 +106,7 @@ const surfaces: { name: string; content: () => ReactElement; modal?: boolean; al
   { name: 'onboarding final modal', content: () => <OnboardingFlow finalStepOnly />, modal: true },
   { name: 'throttle modal', content: () => { useThrottleStore.setState({ error: new Error('throttled') }); return <ThrottleScreen /> }, modal: true },
   { name: 'update-required modal', content: () => { useVersionGateStore.getState().markUpgradeRequired('2.0.0'); return <UpgradeRequiredScreen /> }, modal: true },
+  { name: 'native window host', content: () => <NativeDialog open title="Window" onOpenChange={noop}><SafeAreaView style={{ flex: 1 }}><Text accessibilityRole="header">Window</Text></SafeAreaView></NativeDialog>, modal: true },
   { name: 'root error screen', content: () => <AppErrorScreen error={new Error('failed')} retry={noop} standalone />, standalone: true },
 ]
 
@@ -132,9 +136,11 @@ it.each(surfaces)('keeps $name below the top inset; new full-screen owners must 
     state.top = top
     const content = surface.content()
     let tree!: GeometryTree
-    await renderer.act(() => { tree = renderer.create(<QueryClientProvider client={queryClient}>{surface.modal || surface.standalone ? content : <Shell412 nav={false} safeAreaTop={false}>{content}</Shell412>}</QueryClientProvider>) as GeometryTree })
+    await renderer.act(() => { tree = renderer.create(<QueryClientProvider client={queryClient}>{surface.modal ? <OverlayHost>{content}</OverlayHost> : surface.standalone ? content : <Shell412 nav={false} safeAreaTop={false}>{content}</Shell412>}</QueryClientProvider>) as GeometryTree })
     try {
-      const host = tree.toJSON()
+      const roots = tree.toJSON() as GeometryHost | GeometryHost[]
+      const host = Array.isArray(roots) ? roots.find((root) => root.type === 'Modal')! : roots
+      expect(host, surface.name).toBeDefined()
       let headerCount = 0
       const geometry = measureSafeArea(host, (host) => {
         if (host.props.accessibilityRole === 'header') return `header-${headerCount++}`

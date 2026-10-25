@@ -5,6 +5,7 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({ setAuth: vi.fn(), push: vi.fn(), replace: vi.fn(), generation: 0,
+  hydrateProfilePresentation: vi.fn(),
   continueAccount: null as null | (() => void) }))
 vi.mock('next-intl', () => ({ useLocale: () => 'pt-BR', useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({
@@ -26,7 +27,7 @@ vi.mock('@/app/(auth)/login/login-content', () => ({
   },
 }))
 vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => mocks.generation }))
-vi.mock('@/lib/profile-presentation', () => ({ hydrateProfilePresentation: () => Promise.resolve() }))
+vi.mock('@/lib/profile-presentation', () => ({ hydrateProfilePresentation: mocks.hydrateProfilePresentation }))
 import { AuthCallbackContent } from '@/app/(auth)/auth-callback/auth-callback-content'
 
 const fetchMock = vi.fn()
@@ -36,9 +37,10 @@ describe('Google code callback', () => {
   beforeEach(async () => {
     await useOnboardingDraftStore.persist.rehydrate()
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
-    mocks.setAuth.mockReset()
+    mocks.setAuth.mockReset().mockImplementation(() => { mocks.generation += 1 })
     mocks.push.mockReset()
     mocks.replace.mockReset()
+    mocks.hydrateProfilePresentation.mockReset().mockResolvedValue(undefined)
     fetchMock.mockReset()
     mocks.generation = 0
     mocks.continueAccount = null
@@ -66,6 +68,56 @@ describe('Google code callback', () => {
     expect(mocks.setAuth).not.toHaveBeenCalled()
     expect(document.body.textContent).not.toContain('mobile+code')
     expect(assign).toHaveBeenCalledOnce()
+  })
+
+  it('rejects an Apple state mismatch before exchanging a handoff', async () => {
+    window.history.replaceState(null, '', '/auth-callback?provider=apple&handoff=one-use&state=wrong-state')
+    render(<AuthCallbackContent pendingWebState="expected-state" />)
+    await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(mocks.setAuth).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('exchanges a matching Apple handoff and signs in with a new generation, reactivated=%s', async (reactivated) => {
+    window.history.replaceState(null, '', '/auth-callback?provider=apple&handoff=one-use&state=expected-state')
+    sessionStorage.setItem('auth_return_url', '/')
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', name: 'Person', email: 'person@example.test', wasReactivated: reactivated })))
+    render(<AuthCallbackContent pendingWebState="expected-state" />)
+    if (reactivated) {
+      await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('account'))
+      await act(async () => { mocks.continueAccount?.() })
+    }
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/'))
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/apple/handoff', expect.objectContaining({ body: JSON.stringify({ handoff: 'one-use', state: 'expected-state' }) }))
+    expect(mocks.setAuth).toHaveBeenCalledOnce()
+    expect(mocks.generation).toBe(1)
+    expect(sessionStorage.getItem('auth_return_url')).toBeNull()
+    expect(window.location.search).toBe('')
+  })
+
+  it.each([
+    ['apple', false], ['apple', true], ['google', false], ['google', true],
+  ] as const)('keeps a replacement session and return URL during %s profile hydration, reactivated=%s', async (provider, reactivated) => {
+    const query = provider === 'apple' ? 'provider=apple&handoff=one-use' : 'code=google-code'
+    window.history.replaceState(null, '', `/auth-callback?${query}&state=expected-state`)
+    sessionStorage.setItem('auth_return_url', '/older')
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', name: 'Person',
+      email: 'person@example.test', wasReactivated: reactivated })))
+    let release!: () => void
+    mocks.hydrateProfilePresentation.mockImplementationOnce(() => new Promise<void>((resolve) => { release = resolve }))
+    render(<AuthCallbackContent pendingWebState="expected-state" />)
+    if (reactivated) {
+      await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('account'))
+      await act(async () => { mocks.continueAccount?.() })
+    }
+    await waitFor(() => expect(mocks.hydrateProfilePresentation).toHaveBeenCalledOnce())
+    expect(mocks.generation).toBe(1)
+    mocks.generation += 1
+    sessionStorage.setItem('auth_return_url', '/newer')
+    await act(async () => { release() })
+    expect(mocks.push).not.toHaveBeenCalled()
+    expect(mocks.replace).not.toHaveBeenCalled()
+    expect(sessionStorage.getItem('auth_return_url')).toBe('/newer')
   })
 
   it('exchanges a web-owned Android callback on the web', async () => {

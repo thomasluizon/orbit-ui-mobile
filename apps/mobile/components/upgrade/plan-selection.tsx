@@ -1,6 +1,6 @@
 import { ProBenefits } from './pro-benefits'
 import { useState, type ReactNode } from 'react'
-import { Text, View } from 'react-native'
+import { Platform, Text, View } from 'react-native'
 import Animated, {
   Easing,
   FadeIn,
@@ -16,7 +16,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { PlayOffer } from '@/hooks/use-play-billing'
+import type { StoreOffer } from '@/hooks/use-play-billing'
 import { formatPrice } from '@/hooks/use-subscription-plans'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { styles } from './styles'
@@ -103,8 +103,8 @@ export function PlanSelection({
   isLoading: boolean
   isError: boolean
   isOnline: boolean
-  monthlyOffer: PlayOffer | null
-  yearlyOffer: PlayOffer | null
+  monthlyOffer: StoreOffer | null
+  yearlyOffer: StoreOffer | null
   monthlyPrice?: string
   yearlyPrice?: string
   selectedInterval: SubscriptionInterval
@@ -166,7 +166,8 @@ export function PlanSelection({
     )
   }
 
-  if (isError && !plans && isOnline) {
+  const isApple = Platform.OS === 'ios'
+  if ((isError || (isApple && (!monthlyOffer || !yearlyOffer))) && (!plans || isApple) && isOnline) {
     return (
       <PlanLoadMotion stateKey="error" reduced={prefersReducedMotion}>
         <View style={[styles.planState, !inset && { paddingHorizontal: SPACING.s0 }]}>
@@ -185,38 +186,10 @@ export function PlanSelection({
     )
   }
 
-  if (!plans) return null
+  if (!plans && !isApple) return null
+  if (isApple && (!monthlyOffer || !yearlyOffer)) return null
 
-  const monthlyCharge = monthlyPrice ?? formatPrice(
-    applySubscriptionDiscount(plans.monthly.unitAmount, plans.couponPercentOff),
-    plans.currency,
-  )
-  const yearlyCharge = yearlyPrice ?? formatPrice(
-    applySubscriptionDiscount(plans.yearly.unitAmount, plans.couponPercentOff),
-    plans.currency,
-  )
-  const couponLine = plans.couponPercentOff
-    ? t('upgrade.plans.coupon.line', { percent: plans.couponPercentOff })
-    : undefined
-  const annualTier: Tier = {
-    interval: 'yearly',
-    name: t('upgrade.plans.yearly.name'),
-    price: yearlyCharge,
-    period: t('upgrade.plans.yearly.period'),
-    heroLine: t('upgrade.plans.yearly.heroLine'),
-    secondLine: t('upgrade.plans.yearly.equivalent', {
-      price: monthlyEquivalentPriceLabel(plans, yearlyOffer),
-      percent: plans.savingsPercent,
-    }),
-    couponLine: yearlyOffer?.isReferral ? couponLine : undefined,
-  }
-  const monthlyTier: Tier = {
-    interval: 'monthly',
-    name: t('upgrade.plans.monthly.name'),
-    price: monthlyCharge,
-    period: t('upgrade.plans.monthly.period'),
-    couponLine: monthlyOffer?.isReferral ? couponLine : undefined,
-  }
+  const { annualTier, monthlyTier } = buildTiers({ plans: plans ?? null, monthlyOffer, yearlyOffer, monthlyPrice, yearlyPrice, isApple }, t)
   const tiers = selectedInterval === 'yearly'
     ? [annualTier, monthlyTier]
     : [monthlyTier, annualTier]
@@ -351,4 +324,52 @@ function TierCard({
       </View>
     </View>
   )
+}
+
+function appStoreEquivalent(monthlyOffer: StoreOffer | null, yearlyOffer: StoreOffer | null, t: UpgradeTextFn): string | undefined {
+  const nativeMonthly = Number(monthlyOffer?.priceAmountMicros)
+  const nativeYearly = Number(yearlyOffer?.priceAmountMicros)
+  const nativeSavings = Math.round((1 - nativeYearly / (nativeMonthly * 12)) * 100)
+  return nativeMonthly > 0 && nativeYearly > 0 && nativeSavings > 0
+    && monthlyOffer?.currency === yearlyOffer?.currency && yearlyOffer?.currency
+    ? t('upgrade.plans.yearly.equivalent', { price: formatPrice(Math.round(nativeYearly / 120_000), yearlyOffer.currency.toLowerCase()), percent: nativeSavings })
+    : undefined
+}
+
+function buildTiers({ plans, monthlyOffer, yearlyOffer, monthlyPrice, yearlyPrice, isApple }: {
+  plans: SubscriptionPlans | null; monthlyOffer: StoreOffer | null; yearlyOffer: StoreOffer | null
+  monthlyPrice?: string; yearlyPrice?: string; isApple: boolean
+}, t: UpgradeTextFn) {
+  const monthlyCharge = monthlyPrice ?? monthlyOffer?.displayPrice ?? formatPrice(
+    applySubscriptionDiscount(plans!.monthly.unitAmount, plans!.couponPercentOff),
+    plans!.currency,
+  )
+  const yearlyCharge = yearlyPrice ?? yearlyOffer?.displayPrice ?? formatPrice(
+    applySubscriptionDiscount(plans!.yearly.unitAmount, plans!.couponPercentOff),
+    plans!.currency,
+  )
+  const couponLine = !isApple && plans?.couponPercentOff
+    ? t('upgrade.plans.coupon.line', { percent: plans.couponPercentOff })
+    : undefined
+  const appleEquivalent = isApple ? appStoreEquivalent(monthlyOffer, yearlyOffer, t) : undefined
+  const annualTier: Tier = {
+    interval: 'yearly',
+    name: t('upgrade.plans.yearly.name'),
+    price: yearlyCharge,
+    period: t('upgrade.plans.yearly.period'),
+    heroLine: t('upgrade.plans.yearly.heroLine'),
+    secondLine: !isApple && plans ? t('upgrade.plans.yearly.equivalent', {
+      price: monthlyEquivalentPriceLabel(plans, yearlyOffer),
+      percent: plans.savingsPercent,
+    }) : appleEquivalent,
+    couponLine: !isApple && yearlyOffer?.isReferral ? couponLine : undefined,
+  }
+  const monthlyTier: Tier = {
+    interval: 'monthly',
+    name: t('upgrade.plans.monthly.name'),
+    price: monthlyCharge,
+    period: t('upgrade.plans.monthly.period'),
+    couponLine: !isApple && monthlyOffer?.isReferral ? couponLine : undefined,
+  }
+  return { annualTier, monthlyTier }
 }

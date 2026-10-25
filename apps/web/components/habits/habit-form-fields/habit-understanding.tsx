@@ -1,12 +1,13 @@
 'use client'
 
 import { TypedTextarea } from '@/components/ui/typed-textarea'
-import { useId, useMemo, useState, type ReactNode, type Ref, type CSSProperties } from 'react'
+import { useId, useMemo, useState, type ReactNode, type Ref } from 'react'
 import type { HabitUnderstandingProps, HabitRepeatIntervalProps } from '@orbit/shared/utils'
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
 import { Minus, Plus } from '@/components/ui/icons'
 import { HabitEmojiSelector } from './habit-emoji-selector'
+import { WeekdayPicker } from '@/components/ui/weekday-picker'
 import { Proposed } from '@/components/ui/proposed'
 
 type HabitUnderstandingWithDisabledEmojiProps = HabitUnderstandingProps & {
@@ -60,60 +61,65 @@ export function HabitUnderstanding({
   const id = useId()
   const phraseId = `habit-phrase-${id}`
   const errorId = `habit-phrase-error-${id}`
+  const emojiErrorId = `habit-emoji-error-${id}`
   const { emojiProposed, selectEmoji, requestEmoji } = useEmojiProposal(onSuggestEmoji, onEmojiSelect)
   const hasValue = value.trim().length > 0
   const showPreview = hasValue && !isSuggestionDisabled && Boolean(sentence)
   const segments = useMemo(() => segmentHabitPhrase(value, consumed), [consumed, value])
 
   const emojiControl = (
-    <Proposed inset keepMounted proposed={emojiProposed} scope="field" label={labels.proposed}>
-      <HabitEmojiSelector
-        selectedEmoji={emoji}
-        wellSize={46}
-        onSelect={selectEmoji}
-        onSuggest={requestEmoji}
-        canSuggest={canSuggestEmoji}
-        isSuggesting={isEmojiSuggesting}
-        isDisabled={isSuggestionDisabled || isEmojiSuggesting}
-        suggestionHint={emojiSuggestionHint}
-        suggestionError={emojiSuggestionError}
-      />
-    </Proposed>
+    <HabitEmojiSelector
+      proposed={emojiProposed || proposed}
+      selectedEmoji={emoji}
+      wellSize={46}
+      onSelect={selectEmoji}
+      onSuggest={requestEmoji}
+      canSuggest={canSuggestEmoji}
+      isSuggesting={isEmojiSuggesting}
+      isDisabled={isSuggestionDisabled || isEmojiSuggesting}
+      suggestionHint={emojiSuggestionHint}
+      suggestionError={emojiSuggestionError}
+      suggestionErrorId={emojiErrorId}
+    />
   )
 
   return (
     <div className="flex flex-col" style={{ gap: 24 }}>
       <div className="flex flex-col" style={{ gap: 8 }}>
-        <label htmlFor={phraseId} className="form-label">{labels.field}</label>
-        <div data-habit-phrase-field="" data-focus-perimeter="" className="orbit-field-hover relative rounded-[12px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
-          <p
-            aria-hidden="true"
-            className="pointer-events-none min-h-[54px] w-full whitespace-pre-wrap break-words px-4 py-3 text-start text-base leading-[1.45] text-transparent"
-          >
-            {hasValue ? segments.map((segment, index) => segment.consumed ? (
-              <span
-                key={`${segment.text}-${index}`}
-                data-consumed="true"
-                className="rounded-[8px] bg-[var(--bg-well)] shadow-[inset_0_-2px_0_var(--hairline-strong)]"
-              >
-                {segment.text}
-              </span>
-            ) : segment.text) : labels.placeholder}{'\u200b'}
-          </p>
-          <TypedTextarea
-            ref={inputRef}
-            id={phraseId}
-            value={value}
-            rows={1}
-            maxLength={200}
-            spellCheck={false}
-            placeholder={labels.placeholder}
-            aria-invalid={!!error}
-            aria-describedby={error ? errorId : undefined}
-            className="absolute inset-0 h-full min-h-[54px] w-full resize-none rounded-[12px] border-0 bg-transparent px-4 py-3 text-base leading-[1.45] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] caret-[var(--fg-1)] focus-visible:outline-none"
-            onChange={(event) => onValueChange(event.target.value)}
-          />
+        <div data-habit-title-row="" className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2">
+          <label htmlFor={phraseId} className="form-label col-span-2">{labels.field}</label>
+          <div data-habit-phrase-field="" data-focus-perimeter="" className="orbit-field-hover relative min-w-0 flex-1 rounded-[12px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
+            <p
+              aria-hidden="true"
+              className="pointer-events-none min-h-[54px] w-full whitespace-pre-wrap break-words px-4 py-3 text-start text-base leading-[1.45] text-transparent"
+            >
+              {hasValue ? segments.map((segment, index) => segment.consumed ? (
+                <span
+                  key={`${segment.text}-${index}`}
+                  data-consumed="true"
+                  className="rounded-[8px] bg-[var(--bg-well)] shadow-[inset_0_-2px_0_var(--hairline-strong)]"
+                >
+                  {segment.text}
+                </span>
+              ) : segment.text) : labels.placeholder}{'\u200b'}
+            </p>
+            <TypedTextarea
+              ref={inputRef}
+              id={phraseId}
+              value={value}
+              rows={1}
+              maxLength={200}
+              spellCheck={false}
+              placeholder={labels.placeholder}
+              aria-invalid={!!error}
+              aria-describedby={error ? errorId : undefined}
+              className="absolute inset-0 h-full min-h-[54px] w-full resize-none rounded-[12px] border-0 bg-transparent px-4 py-3 text-base leading-[1.45] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] caret-[var(--fg-1)] focus-visible:outline-none"
+              onChange={(event) => onValueChange(event.target.value)}
+            />
+          </div>
+          {emojiControl}
         </div>
+        {onSuggestEmoji ? <p id={emojiErrorId} role="alert" className="empty:absolute text-sm text-[var(--status-bad-text)]">{emojiSuggestionError}</p> : null}
         {error ? (
           <p id={errorId} role="alert" className="text-sm text-[var(--status-bad-text)]">
             {error}
@@ -123,15 +129,9 @@ export function HabitUnderstanding({
 
       {children}
 
-      {onSuggestEmoji && !showPreview ? emojiControl : null}
-
       {showPreview ? (
         <Proposed inset proposed={proposed} scope="block" label={labels.proposed}>
           <section aria-label={labels.understood} className="flex flex-col rounded-[20px] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" style={{ gap: 16 }}>
-            <div className="flex flex-wrap items-center" style={{ gap: 12 }}>
-              {emojiControl}
-              <span className="text-xs text-[var(--fg-3)]">{proposed ? labels.understoodAstra : labels.understood}</span>
-            </div>
             <p className={`text-[17px] font-medium leading-[1.4] ${proposed ? 'text-[var(--fg-3)]' : 'text-[var(--fg-1)]'}`}>{sentence}</p>
             <ScheduleCorrections hidden={!showSchedule} proposed={proposed} days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible' && showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
           </section>
@@ -153,17 +153,7 @@ function ScheduleCorrections({ hidden = false, proposed = false, days, daily = f
   if (hidden) return null
   return (
     <>
-      <fieldset aria-label={labels.days} className="flex flex-wrap" style={{ gap: 4 }}>
-        {dayOptions.map((day) => {
-          const selected = daily || days.includes(day.value)
-          return (
-            <button key={day.value} type="button" aria-pressed={selected} aria-label={day.accessibleLabel} disabled={scheduleLocked}
-              style={proposed ? { '--selection-ring-color': 'var(--fg-3)' } as CSSProperties : undefined}
-              className={`orbit-selection-ring orbit-selection-ring-thin habit-control-motion grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full border-0 text-sm font-medium enabled:hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40 ${selected ? proposed ? 'bg-[var(--bg-well)] text-[var(--fg-2)]' : 'bg-[var(--primary-dim)] text-[var(--fg-1)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)]'}`}
-              onClick={() => onToggleDay(day.value)}>{day.label.charAt(0)}</button>
-          )
-        })}
-      </fieldset>
+      <WeekdayPicker label={labels.days} days={days} daily={daily} dayOptions={dayOptions} proposed={proposed} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} />
       {showCount ? (
         <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
           <button type="button" aria-label={labels.less} disabled={scheduleLocked} className="habit-control-motion grid size-[var(--touch-min)] place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40" onClick={() => onQuantityChange(Math.max(1, quantity - 1))}>

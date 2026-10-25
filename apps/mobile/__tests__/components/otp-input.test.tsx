@@ -3,12 +3,37 @@ import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
-import { Platform } from 'react-native'
+import { Platform, StyleSheet } from 'react-native'
 import { OtpInput } from '@/components/ui/otp-input'
+import { __setWindowDimensions } from '../../test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
 
 describe('mobile OtpInput', () => {
+  it.each(['android', 'ios'] as const)('lets %s code cells grow only above font scale 1.3', async (platform) => {
+    const previous = Platform.OS
+    Platform.OS = platform
+    let tree: ReturnType<typeof TestRenderer.create>
+    try {
+      await TestRenderer.act(() => { tree = TestRenderer.create(<OtpInput label="Código" value="123456" onChange={vi.fn()} />) })
+      for (const fontScale of [1, 1.3, 1.31, 2, 1]) {
+        __setWindowDimensions({ width: 320, height: 812, scale: 1, fontScale })
+        await TestRenderer.act(() => { tree!.update(<OtpInput label="Código" value="123456" onChange={vi.fn()} />) })
+        const cell = tree!.root.findByProps({ testID: 'otp-cell-0' })
+        const style = StyleSheet.flatten(cell.props.style)
+        expect(style.height).toBe(fontScale > 1.3 ? undefined : 56)
+        expect(style.flexShrink).toBe(1)
+        if (fontScale > 1.3) {
+          expect(style.minHeight).toBe(56)
+          expect(style.paddingVertical).toBeGreaterThan(0)
+        }
+      }
+    } finally {
+      await TestRenderer.act(() => tree!.unmount())
+      Platform.OS = previous
+      __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
+    }
+  })
   it('keeps one inset ring on the focused cell', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {

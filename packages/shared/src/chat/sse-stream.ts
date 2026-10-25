@@ -33,14 +33,15 @@ export function createChatSseParser(): ChatSseParser {
   }
 }
 
-interface ChatStreamCallbacks {
+export interface ChatStreamCallbacks {
   onDelta: (text: string) => void
   onReset: () => void
   onRound?: (iteration: number) => void
   onStep?: (step: { domain: string; access: string }) => void
+  onTerminal?: () => void
 }
 
-type ChatStreamOutcome =
+export type ChatStreamOutcome =
   | { kind: 'final'; response: ChatResponse }
   | { kind: 'error'; status: number; error: string; code: string | null }
   | { kind: 'incomplete' }
@@ -73,8 +74,10 @@ export async function consumeChatSseStream(
           callbacks.onStep?.({ domain: event.domain, access: event.access })
           break
         case 'final':
+          callbacks.onTerminal?.()
           return { kind: 'final', response: event.response }
         case 'error':
+          callbacks.onTerminal?.()
           return { kind: 'error', status: event.status, error: event.error, code: event.code ?? null }
         case 'started':
           break

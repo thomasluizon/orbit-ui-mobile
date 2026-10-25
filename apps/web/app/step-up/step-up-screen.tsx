@@ -371,7 +371,7 @@ function StepUpSuccess({
   showProNotice: boolean
 }>) {
   return (
-    <FlowShell nav={false} notice={<UpdateAvailableBanner />} action={
+    <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} />} action={
       <PillButton onClick={onSignOut}>{t('signOut')}</PillButton>
     }>
       <StepUpHeader operationLabel={operationLabel} t={t} title={t('successTitle', { date: deletionDate })} />
@@ -391,7 +391,7 @@ function StepUpExhausted({
   t,
 }: Readonly<SharedStepUpViewProps & { backLabel: string; lockSeconds: number | null; onBack: () => void }>) {
   return (
-    <FlowShell nav={false} notice={<UpdateAvailableBanner />}>
+    <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} />}>
       <StepUpHeader body={t('exhaustedBody')} operationLabel={operationLabel} t={t} title={t('exhaustedTitle')} />
       <div className="flex flex-col items-start" style={{ gap: 12 }}>
         <CapacityNotice message={t('exhaustedNotice')} />
@@ -430,7 +430,7 @@ function StepUpChallenge(props: Readonly<StepUpChallengeProps>) {
     <PillButton disabled={code.length !== STEP_UP_CODE_LENGTH} loading={checking} onClick={onConfirm}>{t('confirm')}</PillButton>
   )
   return (
-    <FlowShell nav={false} notice={<UpdateAvailableBanner />} action={action}>
+    <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} />} action={action}>
       <StepUpHeader body={expired ? t('expiredBody') : t('body', { email })} operationLabel={operationLabel} t={t} title={expired ? t('expiredTitle') : t('title')} />
       <OtpInput id="step-up-code" value={code} onChange={onCodeChange} error={otpError} hint={expired ? undefined : t('codeHint')} disabled={checking || expired} autoFocus={!expired} label={t('codeLabel')} />
       {!expired ? <StepUpResend cooldownSeconds={cooldownSeconds} onResend={onResend} requesting={requesting} t={t} /> : null}

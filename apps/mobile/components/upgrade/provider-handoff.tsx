@@ -9,7 +9,7 @@ import { styles } from './styles'
 import type { Tokens, UpgradeTextFn } from './types'
 
 export function ProviderHandoff({ provider, state, onManage, t, tokens }: Readonly<{
-  provider: 'stripe' | 'play'
+  provider: 'stripe' | 'play' | 'app_store'
   state: SubscriptionScreenState
   onManage: () => void
   t: UpgradeTextFn
@@ -18,7 +18,7 @@ export function ProviderHandoff({ provider, state, onManage, t, tokens }: Readon
   const reducedMotion = usePrefersReducedMotion()
   const opening = state === 'portal-opening'
   const failed = state === 'portal-failed'
-  const manageLabel = provider === 'play' ? 'upgrade.billing.actions.managePlay' : 'upgrade.billing.actions.manage'
+  const manageLabel = provider === 'app_store' ? 'upgrade.appStore.manage' : provider === 'play' ? 'upgrade.billing.actions.managePlay' : 'upgrade.billing.actions.manage'
   const opacity = useMemo(() => new Animated.Value(1), [])
   useEffect(() => {
     const animation = Animated.timing(opacity, {
@@ -37,7 +37,7 @@ export function ProviderHandoff({ provider, state, onManage, t, tokens }: Readon
           <Icon name={provider === 'play' ? 'brand-google-play' : 'credit-card'} size={20} color={tokens.fg3} />
         </Animated.View>
         <Text style={[styles.billingSecondary, { color: tokens.fg2, flex: 1 }]}>
-          {provider === 'play' ? t('upgrade.billing.actions.managePlayHint') : t('upgrade.billing.actions.manageHint')}
+          {provider === 'app_store' ? t('upgrade.appStore.manageHint') : provider === 'play' ? t('upgrade.billing.actions.managePlayHint') : t('upgrade.billing.actions.manageHint')}
         </Text>
       </View>
       <View accessibilityRole="alert" accessibilityLiveRegion="assertive" style={failed

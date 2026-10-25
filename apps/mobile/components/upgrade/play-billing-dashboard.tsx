@@ -1,5 +1,5 @@
 import { ProBenefits } from './pro-benefits'
-import { Text, View } from 'react-native'
+import { Platform, Text, View } from 'react-native'
 import { subscriptionSummary } from '@orbit/shared/utils'
 import type { SubscriptionPortalState } from '@orbit/shared/utils'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
@@ -20,6 +20,7 @@ function handoffState(isOnline: boolean, portalState: SubscriptionPortalState) {
 
 export function PlayBillingDashboard({
   status,
+  provider = 'play',
   displayPrice,
   locale,
   usagePercent,
@@ -30,6 +31,7 @@ export function PlayBillingDashboard({
   t,
   tokens,
 }: Readonly<{
+  provider?: 'stripe' | 'play' | 'app_store' | null
   status: SubscriptionStatus | null
   displayPrice?: string
   locale: string
@@ -43,6 +45,7 @@ export function PlayBillingDashboard({
 }>) {
   if (!status) return null
   const summary = subscriptionSummary(status, null)
+  const canManage = !status.isLifetimePro && (Platform.OS === 'ios' ? provider === 'app_store' : provider === 'play')
   const interval = status.subscriptionInterval
   const priceLine = displayPrice
     ? interval === 'yearly'
@@ -68,7 +71,7 @@ export function PlayBillingDashboard({
         ]}
         tokens={tokens}
       />
-      <ProviderHandoff provider="play" state={handoffState(isOnline, portalState)} onManage={onManagePlay} t={t} tokens={tokens} />
+      <StoreManagement canManage={canManage} provider={provider} lifetime={status.isLifetimePro} isOnline={isOnline} portalState={portalState} onManage={onManagePlay} t={t} tokens={tokens} />
       <ProBenefits heading t={t} tokens={tokens} />
       <UsageCard
         usagePercent={usagePercent}
@@ -76,7 +79,16 @@ export function PlayBillingDashboard({
         t={t}
         tokens={tokens}
       />
-      <Text style={[styles.billingSecondary, { color: tokens.fg3 }]}>{t('upgrade.billing.actions.providerNote')}</Text>
+      {canManage ? <Text style={[styles.billingSecondary, { color: tokens.fg3 }]}>{t('upgrade.billing.actions.providerNote')}</Text> : null}
     </View>
   )
+}
+
+function StoreManagement({ canManage, provider, lifetime, isOnline, portalState, onManage, t, tokens }: Readonly<{
+  canManage: boolean; provider: 'stripe' | 'play' | 'app_store' | null; lifetime: boolean
+  isOnline: boolean; portalState: SubscriptionPortalState; onManage: () => void; t: UpgradeTextFn; tokens: Tokens
+}>) {
+  if (canManage) return <ProviderHandoff provider={provider === 'app_store' ? 'app_store' : 'play'} state={handoffState(isOnline, portalState)} onManage={onManage} t={t} tokens={tokens} />
+  if (provider === 'app_store' && !lifetime) return <Text style={[styles.billingSecondary, { color: tokens.fg2 }]}>{t('upgrade.appStore.manageOnIphone')}</Text>
+  return null
 }

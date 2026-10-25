@@ -82,7 +82,7 @@ describe('sidebar collapse', () => {
     expect(onCreate).toHaveBeenCalledOnce()
     fireEvent.click(sidebar.getByRole('button', { name: 'nav.search' }))
     expect(useShellStore.getState().paletteOpen).toBe(true)
-    expect(sidebar.getByRole('button', { name: 'chat.title' })).toBeEnabled()
+    expect(sidebar.getByRole('button', { name: 'nav.astra' })).toBeEnabled()
     expect(sidebar.getByRole('button', { name: 'notifications.bell' })).toBeEnabled()
     expect(sidebar.getByRole('button', { name: 'Person, person@example.test' })).toBeVisible()
     const savedPreference = localStorage.getItem('orbit-shell-store')
@@ -118,7 +118,7 @@ describe('sidebar collapse', () => {
         conversation={<textarea aria-label="Astra draft" defaultValue="Keep this draft" />}><h1>Today</h1></DestinationShell>
     }
     render(<ConversationShell />)
-    fireEvent.click(screen.getByRole('button', { name: 'chat.title' }))
+    fireEvent.click(screen.getByRole('button', { name: 'nav.astra' }))
     fireEvent.click(screen.getByRole('button', { name: 'shell.collapseSidebar' }))
     expect(screen.getByRole('dialog', { name: 'Astra' })).toBeVisible()
     expect(screen.getByRole('textbox', { name: 'Astra draft' })).toHaveValue('Keep this draft')

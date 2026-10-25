@@ -1,4 +1,4 @@
-import { makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { personalText } from '@/__tests__/support/personal-text'
 import en from '@orbit/shared/i18n/en.json'
@@ -73,6 +73,72 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
+  it.each(['en', 'pt-BR'])('keeps a neutral heading for nested reuse in %s', (locale) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    render(<PendingOperationCard pendingOperation={makeNestedHabitPreview(2, true)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getByRole('heading', { name: messages.chat.pendingOp.capability['habits-write'] })).toBeInTheDocument()
+  })
+
+  it.each(childSchedulePreviewCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))('preserves the child $name schedule in $locale', (scenario) => {
+    const { locale } = scenario
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const { container } = render(<PendingOperationCard pendingOperation={makeChildSchedulePreview(scenario.child)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    const row = container.querySelector('[data-indented]')!
+    expect(row.textContent).toContain(scenario.child.title)
+    expect(within(row as HTMLElement).getByText((locale === 'en' ? scenario.english : scenario.portuguese).replace('21:30', '9:30 PM').replace('23:00', '11:00 PM'))).toBeInTheDocument()
+  })
+
+  it.each(['en', 'pt-BR'])('shows every evening routine child and revises child removal in %s', async (locale) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const operation = makeEveningRoutinePreview(locale)
+    const children = operation.items![0]!.fields.find((field) => field.field === 'sub_habits')!.proposedValue as { title: string }[]
+    const revised = { ...operation, previewFingerprint: 'removed-child', items: operation.items!.map((item) => ({ ...item, fields: item.fields.map((field) => field.field === 'sub_habits' ? { ...field, proposedValue: children.slice(1), newValue: JSON.stringify(children.slice(1)) } : field) })) }
+    revise.mockResolvedValue({ ok: true, result: { cancelled: false, preview: revised } })
+    const { container } = render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(container.querySelectorAll('[data-indented]')).toHaveLength(3)
+    expect(screen.getAllByText(`${(locale === 'en' ? en : ptBR).habits.frequency.everyDay} · 9:30 PM`)).toHaveLength(3)
+    expect(screen.getByText(`${(locale === 'en' ? en : ptBR).habits.frequency.everyDay} · 11:00 PM`)).toBeInTheDocument()
+    for (const child of children) expect(screen.getByText(personalText(child.title))).toBeInTheDocument()
+    const messages = locale === 'en' ? en : ptBR
+    expect(container.textContent).not.toContain(messages.chat.preview.summary.buildHabit)
+    fireEvent.click(screen.getByRole('button', { name: `${messages.chat.operation.remove} ${children[0]!.title}` }))
+    await waitFor(() => expect(revise).toHaveBeenCalledWith(operation.id, {
+      previewFingerprint: operation.previewFingerprint,
+      items: [{ itemId: '0', edits: { sub_habits: children.slice(1) } }],
+    }))
+    await waitFor(() => expect(container.querySelectorAll('[data-indented]')).toHaveLength(2))
+    expect(screen.queryByText(personalText(children[0]!.title))).not.toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('retains all children after a failed removal and blocks actions while revising', async () => {
+    visibleLocale.actual = true
+    const operation = makeEveningRoutinePreview()
+    let complete!: (response: { ok: false; error: string }) => void
+    revise.mockReturnValue(new Promise((resolve) => { complete = resolve }))
+    const { container } = render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Read for 20 minutes' }))
+    expect(screen.getByRole('button', { name: 'Remove Lights out' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Create 1 habit' })).toBeDisabled()
+    complete({ ok: false, error: 'network_error' })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Remove Lights out' })).toBeEnabled())
+    expect(container.querySelectorAll('[data-indented]')).toHaveLength(3)
+    expect(screen.getByText(personalText('Read for 20 minutes'))).toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it.each([1, 3].flatMap(count => ['en', 'pt-BR'].map(locale => ({ count, locale }))))('names a create-only preview with $count habits in $locale', ({ count, locale }) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    render(<PendingOperationCard pendingOperation={makeCreateHabitsPreview(count)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getByRole('heading', { name: locale === 'en' ? count === 1 ? 'New habit' : 'New habits' : count === 1 ? 'Novo hábito' : 'Novos hábitos' })).toBeInTheDocument()
+    expect(screen.queryByText((locale === 'en' ? en : ptBR).chat.pendingOp.capability['habits-bulk-write'])).not.toBeInTheDocument()
+  })
+
   it.each([0, null, undefined].flatMap(count => ['en', 'pt-BR'].map(locale => ({ count, locale }))))('renders a zero-target preview as a notice without approval with count $count in $locale', ({ count, locale }) => {
     visibleLocale.actual = true
     visibleLocale.language = locale
@@ -1074,4 +1140,161 @@ it('reveals full deletion names without opening the rename editor', () => {
     fireEvent.click(control)
   }
   expect(revise).not.toHaveBeenCalled()
+})
+
+describe('parent choice previews', () => {
+  beforeEach(() => { visibleLocale.actual = false; visibleLocale.language = 'en'; revise.mockReset(); confirm.mockReset() })
+  it.each(['en', 'pt-BR'])('requires only offered parents before approval in %s', async locale => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const operation = makeParentChoicePreview()
+    render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getAllByRole('radiogroup')).toHaveLength(2)
+    expect(screen.getAllByRole('radio')).toHaveLength(6)
+    const approve = () => screen.getByRole('button', { name: locale === 'en' ? 'Create 2 habits' : 'Criar 2 hábitos' })
+    expect(approve()).toBeDisabled()
+    expect(approve()).toHaveAccessibleDescription(locale === 'en' ? 'Choose where each item goes before approving.' : 'Escolha onde cada item fica antes de aprovar.')
+    fireEvent.click(screen.getAllByRole('radio', { name: 'Post Lunch' })[0]!)
+    expect(revise).toHaveBeenCalledWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [
+      { itemId: '0', edits: { parent_habit_id: '11111111-1111-1111-1111-111111111111' } }, { itemId: '1' },
+    ] })
+  })
+})
+
+describe('parent choice revision', () => {
+  beforeEach(() => { visibleLocale.actual = false; visibleLocale.language = 'en'; revise.mockReset(); confirm.mockReset() })
+  it.each(['11111111-1111-1111-1111-111111111111', null])('resolves every item through revision, including %s', async value => {
+    const operation = makeParentChoicePreview()
+    let accepted = operation
+    revise.mockImplementation((_id, request) => {
+      const edit = request.items.find((item: { edits?: Record<string, unknown> }) => item.edits)
+      accepted = resolveParentChoicePreview(accepted, edit.itemId, edit.edits.parent_habit_id)
+      return Promise.resolve({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, preview: accepted, cancelled: false } })
+    })
+    confirm.mockResolvedValue({ ok: true })
+    const settled = vi.fn()
+    render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onStateChange={settled} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    const choose = () => value === null ? screen.getAllByRole('radio', { name: 'habits.moveParent.toRoot' })[0]! : screen.getAllByRole('radio', { name: 'Post Lunch' })[0]!
+    fireEvent.click(choose())
+    await waitFor(() => expect(screen.getAllByRole('radiogroup')).toHaveLength(1))
+    expect(screen.getByRole('button', { name: /approveCount/ })).toBeDisabled()
+    expect(settled).toHaveBeenLastCalledWith(expect.objectContaining({ operation: expect.objectContaining({ previewFingerprint: accepted.previewFingerprint }) }))
+    fireEvent.click(choose())
+    await waitFor(() => expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument())
+    expect(revise).toHaveBeenLastCalledWith(operation.id, { previewFingerprint: 'parent-choice-preview-0', items: [{ itemId: '0' }, { itemId: '1', edits: { parent_habit_id: value } }] })
+    fireEvent.click(screen.getByRole('button', { name: /approveCount/ }))
+    await waitFor(() => expect(confirm).toHaveBeenCalledWith(operation.id))
+  })
+
+  it('shows a resolved parent name without choices', () => {
+    const operation = resolveParentChoicePreview(makeParentChoicePreview(1), '0', '11111111-1111-1111-1111-111111111111')
+    render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
+    expect(screen.getByText(/Post Lunch/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /approveCount/ })).toBeEnabled()
+  })
+
+  it('discards a late choice response after replacement', async () => {
+    const operation = makeParentChoicePreview(1)
+    const settled = vi.fn()
+    let finish!: (response: PendingOperationRevisionResponse) => void
+    revise.mockReturnValue(new Promise<PendingOperationRevisionResponse>(resolve => { finish = resolve }))
+    const props = { onRevise: revise, onStateChange: settled, onConfirmExecute: confirm, onPrepareStepUp: prepareStepUp, onVerifyStepUp: verifyStepUp }
+    const view = render(<PendingOperationCard pendingOperation={operation} {...props} />)
+    fireEvent.click(screen.getAllByRole('radio')[0]!)
+    const replacement = { ...makeParentChoicePreview(1), previewFingerprint: 'replacement' }
+    replacement.items![0]!.fieldOptions![0]!.options = [{ value: null, label: 'No parent' }]
+    view.rerender(<PendingOperationCard pendingOperation={replacement} {...props} />)
+    await act(async () => { finish({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, preview: { ...resolveParentChoicePreview(operation, '0', null), changes: [], changeTargetCount: 1 }, cancelled: false } }) })
+    expect(settled).not.toHaveBeenCalled()
+    expect(screen.queryByRole('radio', { name: 'Post Lunch' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('radio')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: /approveCount/ })).toBeDisabled()
+  })
+
+  it('retains unresolved options after a revision failure and replaces them on a new preview', async () => {
+    revise.mockResolvedValue({ ok: false, error: 'option_not_offered' })
+    const operation = makeParentChoicePreview(1)
+    const props = { onRevise: revise, onConfirmExecute: confirm, onPrepareStepUp: prepareStepUp, onVerifyStepUp: verifyStepUp }
+    const view = render(<PendingOperationCard pendingOperation={operation} {...props} />)
+    fireEvent.click(screen.getAllByRole('radio')[0]!)
+    await waitFor(() => expect(screen.getByText('chat.operation.invalid')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: /approveCount/ })).toBeDisabled()
+    expect(screen.getAllByRole('radio')).toHaveLength(3)
+    const replacement = makeParentChoicePreview(1)
+    replacement.previewFingerprint = 'replacement'
+    replacement.items![0]!.fieldOptions![0]!.options = [{ value: null, label: 'No parent' }]
+    view.rerender(<PendingOperationCard pendingOperation={replacement} {...props} />)
+    expect(screen.queryByRole('radio', { name: 'Post Lunch' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('radio')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: /approveCount/ })).toBeDisabled()
+  })
+
+  it('keeps older previews unchanged and permits rejection of an unresolved batch', async () => {
+    const props = { onRevise: revise, onConfirmExecute: confirm, onPrepareStepUp: prepareStepUp, onVerifyStepUp: verifyStepUp }
+    const view = render(<PendingOperationCard pendingOperation={makeCreateHabitsPreview(1)} {...props} />)
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /approveCount/ })).toBeEnabled()
+    view.rerender(<PendingOperationCard pendingOperation={makeParentChoicePreview(1)} {...props} />)
+    revise.mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: null, preview: null, cancelled: true } })
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.reject' }))
+    await waitFor(() => expect(revise).toHaveBeenCalledWith(expect.any(String), { previewFingerprint: 'parent-choice-preview', items: [] }))
+    expect(confirm).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('parent choice keyboard focus', () => {
+  beforeEach(() => { visibleLocale.actual = false; visibleLocale.language = 'en' })
+  it.each([2, 1])('continues after resolving a choice with %i items', async count => {
+    const operation = makeParentChoicePreview(count)
+    let finish!: (response: PendingOperationRevisionResponse) => void
+    const onRevise = vi.fn().mockReturnValue(new Promise<PendingOperationRevisionResponse>(resolve => { finish = resolve }))
+    render(<PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    const chosen = screen.getAllByRole('radio')[0]!
+    chosen.focus()
+    await userEvent.keyboard('{Enter}')
+    expect.soft(chosen).toHaveFocus()
+    expect(onRevise).toHaveBeenCalledOnce()
+    await act(async () => { finish({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, preview: { ...resolveParentChoicePreview(operation, '0', '11111111-1111-1111-1111-111111111111'), changes: [], changeTargetCount: count || 1 }, cancelled: false } }) })
+    await waitFor(() => expect(count === 2 ? screen.getAllByRole('radio')[0] : screen.getByRole('button', { name: /approveCount/ })).toHaveFocus())
+  })
+
+  it('keeps the chosen option focused after a failed revision', async () => {
+    let finish!: (response: PendingOperationRevisionResponse) => void
+    const onRevise = vi.fn().mockReturnValue(new Promise<PendingOperationRevisionResponse>(resolve => { finish = resolve }))
+    render(<PendingOperationCard pendingOperation={makeParentChoicePreview()} onRevise={onRevise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    const chosen = screen.getAllByRole('radio')[0]!
+    chosen.focus()
+    await userEvent.keyboard('{Enter}')
+    expect.soft(chosen).toHaveFocus()
+    await act(async () => { finish({ ok: false, error: 'option_not_offered' }) })
+    expect(screen.getAllByRole('radio')[0]).toHaveFocus()
+  })
+
+  it('preserves focus moved outside the preview during revision', async () => {
+    const operation = makeParentChoicePreview()
+    let finish!: (response: PendingOperationRevisionResponse) => void
+    const onRevise = vi.fn().mockReturnValue(new Promise<PendingOperationRevisionResponse>(resolve => { finish = resolve }))
+    render(<><button>Elsewhere</button><PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} /></>)
+    screen.getAllByRole('radio')[0]!.focus()
+    await userEvent.keyboard('{Enter}')
+    screen.getByRole('button', { name: 'Elsewhere' }).focus()
+    await act(async () => { finish({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, preview: { ...resolveParentChoicePreview(operation, '0', null), changes: [], changeTargetCount: 2 }, cancelled: false } }) })
+    expect(screen.getByRole('button', { name: 'Elsewhere' })).toHaveFocus()
+  })
+})
+
+
+it('edits an offered parent in Full Edit before saving the preview', async () => {
+  visibleLocale.actual = false
+  const operation = makeParentChoicePreview(1)
+  const onRevise = vi.fn().mockResolvedValue({ ok: false, error: 'invalid_revision' })
+  render(<PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+  fireEvent.click(screen.getByRole('button', { name: 'chat.operation.edit' }))
+  const groups = screen.getAllByRole('radiogroup')
+  fireEvent.click(within(groups[groups.length - 1]!).getByRole('radio', { name: 'habits.moveParent.toRoot' }))
+  expect(onRevise).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+  await waitFor(() => expect(onRevise).toHaveBeenCalledWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [{ itemId: '0', edits: { parent_habit_id: null } }] }))
 })

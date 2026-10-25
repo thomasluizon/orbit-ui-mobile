@@ -1,4 +1,5 @@
-import type { AgentOperationResult, PendingAgentOperation, PendingOperationChange, PendingOperationItem } from '../types/ai'
+import { pendingOperationSubHabits } from './pending-operation-sub-habits'
+import type { AgentOperationResult, PendingAgentOperation, PendingOperationChange, PendingOperationItem, PendingOperationFieldOptions } from '../types/ai'
 import type {
   PendingOperationCardStatus,
   PreparedPendingOperationStepUp,
@@ -19,7 +20,10 @@ export interface PreviewItemTitleProps {
 
 export interface PendingOperationButtonSpec {
   disabled?: boolean
+  focusRequest?: number
+  shouldFocus?: () => boolean
   label: string
+  hint?: string
   accessibleName?: string
   loading?: boolean
   onClick: () => void
@@ -80,7 +84,9 @@ interface PendingOperationFrameBase<Node> {
     proposed?: boolean
     wrapLabel?: boolean
     wrapMeta?: boolean
+    indented?: boolean
     editable?: boolean
+    body?: Node
     control?: Node
     icon?: string
     rename?: NonNullable<PreviewItemTitleProps['rename']>
@@ -103,6 +109,7 @@ export interface PendingOperationCardRenderers<Node> {
   stepUp: (props: { message: string; actionLabel: string; onAction: () => void; busy: boolean }) => Node
   verification: (props: PendingOperationVerificationProps) => Node
   editSheet: (props: PendingOperationEditSheetProps) => Node
+  parentChoice: (props: { itemId: string; focusRequest?: number; shouldFocus?: () => boolean; itemName: string; field: PendingOperationFieldOptions; labels: PendingOperationCardLabels; disabled: boolean; onSelect: (value: unknown, ownsFocus?: () => boolean) => void }) => Node
   removeItem: (label: string, disabled: boolean, onClick: () => void) => Node
   notice: (message: string) => Node
   fragment: (...children: (Node | null | undefined)[]) => Node
@@ -111,6 +118,8 @@ export interface PendingOperationCardRenderers<Node> {
 
 export interface PendingOperationCardActions {
   busy: boolean
+  parentChoiceFocus?: { request: number; shouldFocus: () => boolean }
+  hasRequiredChoices?: boolean
   confirmOpen: boolean
   dismissed: boolean
   preparedStepUp: PreparedPendingOperationStepUp | undefined
@@ -146,16 +155,19 @@ export interface PendingOperationCardActions {
     closeEdit: () => void
     startEdit: (itemId: string) => void
     saveEdit: () => Promise<boolean>
+    hasRequiredChoices?: boolean
+    chooseParent?: (itemId: string, value: unknown, ownsFocus?: () => boolean) => Promise<boolean>
     hasTitleDrafts?: boolean
     setTitleDraft?: (itemId: string, title: string | undefined) => void
     renameItem?: (itemId: string, title: string) => Promise<boolean>
+    rejectSubHabit?: (itemId: string, index: number) => Promise<boolean>
     rejectItem: (itemId: string) => Promise<boolean>
     rejectAll: () => Promise<boolean>
   }
 }
 
 type CardRevision = NonNullable<PendingOperationCardActions['revision']>
-type PreviewItem = Pick<PendingOperationItem, 'itemId' | 'entityId' | 'entityName' | 'fields' | 'removesData'>
+type PreviewItem = Pick<PendingOperationItem, 'itemId' | 'entityId' | 'entityName' | 'fields' | 'removesData' | 'fieldOptions'>
 
 const NAVIGABLE_OPERATION_ACTIONS: Readonly<Record<string, string | null>> = {
   create_habit: 'CreateHabit', update_habit: 'UpdateHabit', create_sub_habit: 'CreateSubHabit',
@@ -227,12 +239,12 @@ function pendingActions<Node>(
     message: labels.stepUpMessage,
     actionLabel: labels.stepUpAction,
     onAction: () => void card.startStepUp(),
-    busy: card.busy || revision?.busy === true || revision?.hasTitleDrafts === true,
+    busy: card.busy || revision?.busy === true || revision?.hasTitleDrafts === true || card.hasRequiredChoices === true,
   })
   if (action !== 'buttons') return undefined
   if (card.status === 'failed') return render.fragment(render.button({
     label: labels.retry,
-    disabled: card.busy || revision?.busy === true,
+    disabled: card.busy || revision?.busy === true || card.hasRequiredChoices === true,
     variant: 'primary',
     onClick: () => (destructive ? card.setConfirmOpen(true) : void card.execute()),
   }))
@@ -244,8 +256,11 @@ function pendingActions<Node>(
   })
   const approve = render.button({
     label: labels.approve(count),
+    focusRequest: card.hasRequiredChoices ? undefined : card.parentChoiceFocus?.request,
+    shouldFocus: card.parentChoiceFocus?.shouldFocus,
+    hint: card.hasRequiredChoices ? labels.parentChoiceRequired : undefined,
     variant: 'primary',
-    disabled: card.busy || revision?.busy === true || revision?.hasTitleDrafts === true || (revision?.canRevise === true && revision.items.length === 0),
+    disabled: card.busy || revision?.busy === true || revision?.hasTitleDrafts === true || card.hasRequiredChoices === true || (revision?.canRevise === true && revision.items.length === 0),
     onClick: () => (destructive ? card.setConfirmOpen(true) : void card.execute()),
   })
   if (!revision?.canRevise) return render.fragment(reject, approve)
@@ -263,6 +278,25 @@ function pendingActions<Node>(
   )
 }
 
+function parentChoiceBody<Node>(
+  item: PreviewItem,
+  field: PendingOperationFieldOptions | undefined,
+  firstParentChoiceId: string | undefined,
+  card: PendingOperationCardActions,
+  labels: PendingOperationCardLabels,
+  render: PendingOperationCardRenderers<Node>,
+): Node | undefined {
+  if (!field || card.status != null) return undefined
+  const revision = card.revision
+  return render.parentChoice({
+    itemId: item.itemId, itemName: item.entityName, field, labels,
+    focusRequest: item.itemId === firstParentChoiceId ? card.parentChoiceFocus?.request : undefined,
+    shouldFocus: card.parentChoiceFocus?.shouldFocus,
+    disabled: card.busy || revision?.busy === true || revision?.stale === true || !revision?.canRevise,
+    onSelect: (value, ownsFocus) => { void revision?.chooseParent?.(item.itemId, value, ownsFocus) },
+  })
+}
+
 function previewRows<Node>(
   pendingOperation: PendingAgentOperation,
   card: PendingOperationCardActions,
@@ -272,15 +306,17 @@ function previewRows<Node>(
   const revision = card.revision
   const items = pendingOperation.items?.length ? pendingOperation.items : groupedChanges(pendingOperation.changes ?? [])
   if (!items.length) return null
+  const firstParentChoiceId = items.find((item) => item.fieldOptions?.some((field) => field.field === 'parent_habit_id'))?.itemId
   const results = getPendingOperationItemResults(card.completedOperation)
   const resultsByIndex = new Map(results?.map((result) => [result.index, result]))
-  const rows: PendingOperationFrame<Node>['items'][number][] = items.map((item, index) => {
+  const rows: PendingOperationFrame<Node>['items'][number][] = items.flatMap((item, index) => {
     const result = resultsByIndex.get(index)
     const status: PendingOperationCardStatus = result ? result.status === 'Success' ? 'done' : 'failed'
       : results || card.status === 'failed' ? undefined : card.status
     const edited = revision?.editedItemIds.includes(item.itemId) === true
-    const summary = labels.summarize(item.fields) || labels.pending
-    return {
+    const parentChoice = item.fieldOptions?.find((field) => field.field === 'parent_habit_id')
+    const summary = labels.summarize(item.fields.filter((field) => !parentChoice || field.field !== 'parent_habit_id')) || labels.pending
+    const parent: PendingOperationFrame<Node>['items'][number] = {
       id: item.itemId,
       label: item.fields.find((field) => ['title', 'name'].includes(field.field))?.newValue || item.entityName || labels.name,
       icon: item.fields.find((field) => field.field === 'emoji')?.newValue ?? undefined,
@@ -289,6 +325,7 @@ function previewRows<Node>(
         ? { label: labels.fieldLabels.title!, disabled: card.busy || revision.busy,
             onSave: (title: string) => revision.renameItem!(item.itemId, title),
             onDraftChange: (title: string | undefined) => revision.setTitleDraft?.(item.itemId, title) } : undefined,
+      body: parentChoiceBody(item, parentChoice, firstParentChoiceId, card, labels, render),
       meta: edited ? `${labels.edited} · ${summary}` : summary,
       status,
       irreversible: item.removesData === true && card.status == null,
@@ -300,6 +337,16 @@ function previewRows<Node>(
         ? itemControl(item, items.length, revision, card, labels, render, status, result?.habitId)
         : completedTargetControl(result?.habitId ?? (items.length === 1 ? card.completedOperation?.targetId ?? item.entityId : item.entityId), item.entityName, card, labels, render, status),
     }
+    return [parent, ...pendingOperationSubHabits(item.fields).map((child, childIndex) => ({
+      id: `${item.itemId}-child-${childIndex}`, label: child.title,
+      icon: child.fields.find((field) => field.field === 'emoji')?.newValue ?? undefined,
+      meta: labels.summarize(child.fields, 'createHabit'), indented: true,
+      status, irreversible: false, proposed: parent.proposed, wrapLabel: true, wrapMeta: true, editable: false,
+      control: revision?.canRevise && revision.rejectSubHabit && card.status == null && !revision.stale
+        && item.fields.some((field) => field.field === 'sub_habits' && field.isEditable === true)
+        ? render.removeItem(`${labels.remove} ${child.title}`, card.busy || revision.busy,
+          () => { void revision.rejectSubHabit!(item.itemId, childIndex) }) : undefined,
+    }))]
   })
   const remaining = Math.max(0, (pendingOperation.changeTargetCount ?? items.length) - items.length)
   if (remaining > 0) rows.push({
@@ -327,6 +374,7 @@ function previewBody<Node>(
   labels: PendingOperationCardLabels,
   render: PendingOperationCardRenderers<Node>,
 ): Node | undefined {
+  if (card.status == null && card.hasRequiredChoices) return render.notice(labels.parentChoiceRequired)
   if (card.status !== 'failed') return undefined
   if (card.completedOperation?.status === 'Denied') return render.notice(labels.denied)
   if (card.completedOperation?.status === 'UnsupportedByPolicy') return render.notice(labels.unsupported)
@@ -401,7 +449,7 @@ export function renderPendingOperationCard<Node>({
   const openableCapability = pendingOperation.capabilityId === 'habits.write'
     || pendingOperation.capabilityId === 'habits.bulk.write'
     || pendingOperation.capabilityId === 'goals.write'
-  const blockFrame = previewFrame(pendingOperation, { ...card, openableCapability }, labels, render, presentation)
+  const blockFrame = previewFrame(pendingOperation, { ...card, openableCapability, hasRequiredChoices: pendingOperation.items?.some((item) => item.fieldOptions?.some((field) => field.required)) }, labels, render, presentation)
   const confirmSheet = render.confirmSheet({
     open: card.confirmOpen && presentation.destructive,
     title: labels.confirmTitle(deletionCount),

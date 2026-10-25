@@ -457,9 +457,9 @@ describe('getFriendlyErrorKey', () => {
     }, 'fallback')
     expect(getFriendlyErrorKey(err, 'auth.genericError')).toBe('errors.api.accountChanged')
     expect(getFriendlyErrorMessage(err, (key) => key === 'errors.api.accountChanged' ? en.errors.api.accountChanged : '', 'auth.genericError'))
-      .toBe('Your account changed. Reload this page before trying again.')
+      .toBe('Your account changed. Reload to continue.')
     expect(getFriendlyErrorMessage(err, (key) => key === 'errors.api.accountChanged' ? pt.errors.api.accountChanged : '', 'auth.genericError'))
-      .toBe('Sua conta mudou. Recarregue esta página antes de tentar de novo.')
+      .toBe('Sua conta mudou. Recarregue para continuar.')
   })
 
   it('maps tag color validation errors', () => {

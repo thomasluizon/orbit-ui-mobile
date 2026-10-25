@@ -7,7 +7,7 @@ import { summarize } from '../report.mjs'
 import { toolCall } from './fixtures/producer.mjs'
 
 const catalog = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
-const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
+const scenarios = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) => parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')))
 let callNumber = 0
 const call = (name, arguments_, overrides = {}) => {
   const writes = catalog.find((tool) => tool.function.name === name)?.writes
@@ -23,7 +23,7 @@ const context = (expectations) => ({
 })
 const attempt = (id, success = true, skipped = false) => ({
   testCase: { metadata: { id } }, success,
-  gradingResult: { componentResults: [{ metadata: { skipped } }] },
+  gradingResult: { componentResults: [{ pass: true, assertion: { metric: 'composition' }, metadata: { skipped } }] },
 })
 
 function exampleArguments(expected) {
@@ -35,15 +35,38 @@ function exampleArguments(expected) {
   return expected
 }
 
+function schemaArguments(schema) {
+  if (schema.enum) return schema.enum.find((value) => value !== null)
+  const type = Array.isArray(schema.type) ? schema.type[0] : schema.type
+  if (type === 'object') return Object.fromEntries((schema.required ?? []).map((name) => [name, schemaArguments(schema.properties[name])]))
+  if (type === 'array') return Array.from({ length: schema.minItems ?? 1 }, () => schemaArguments(schema.items))
+  return type === 'string' ? 'first' : type === 'boolean' ? true : 1
+}
+
 describe('production scenario mutation scope', () => {
+  it.each([
+    ['voice-en', 'bulk_log_habits', '{habitId}'],
+    ['voice-pt', 'bulk_skip_habits', '{secondHabitId}'],
+  ])('%s accepts one approved bulk preview for only its requested target', (id, name, habitId) => {
+    const { expectations } = scenarios.find((scenario) => scenario.metadata.id === id).vars
+    for (const arguments_ of [{ habit_ids: [habitId] }, { filter: { habit_ids: [habitId] } }]) {
+      expect(behavior(envelope([call(name, arguments_)]), context(expectations)).pass).toBe(true)
+    }
+    expect(behavior(envelope([call(name, { habit_ids: [habitId, 'unrequested'] })]), context(expectations)).pass).toBe(false)
+    expect(behavior(envelope([call(name, { habit_ids: [habitId] }), call(name, { habit_ids: [habitId] })]), context(expectations)).pass).toBe(false)
+    const single = call(name === 'bulk_log_habits' ? 'log_habit' : 'skip_habit', { habit_id: habitId })
+    expect(behavior(envelope([single, call(name, { habit_ids: [habitId] })]), context(expectations)).pass).toBe(false)
+  })
   it('classifies every catalog tool explicitly', () => {
     for (const tool of catalog) expect(typeof tool.writes, tool.function.name).toBe('boolean')
   })
 
   it.each(scenarios.map((scenario) => [scenario.metadata.id, scenario.vars]))(
     '%s accepts its operations and rejects an extra valid write', async (_, vars) => {
-      const calls = (vars.expectations.required ?? []).map((required) => call(required.name,
-        exampleArguments(required.argumentsAnyOf?.[0] ?? required.arguments ?? {})))
+      const calls = (vars.expectations.required ?? []).map((entry) => {
+        const required = entry.anyOf?.[0] ?? entry
+        return call(required.name, exampleArguments(required.argumentsAnyOf?.[0] ?? required.arguments ?? {}))
+      })
       const output = { ...envelope(calls), httpStatus: vars.expectedHttpStatus ?? 200 }
       const scenarioContext = { ...context(vars.expectations), vars: { ...vars, evalRequestId: 'local-request' } }
       expect(behavior(output, scenarioContext).pass).toBe(true)
@@ -58,8 +81,10 @@ describe('production scenario mutation scope', () => {
   it('rejects every catalog mutation in a production read scenario', async () => {
     const { expectations } = scenarios.find((scenario) => scenario.metadata.id === 'single-read-en').vars
     for (const tool of catalog.filter((tool) => tool.writes)) {
-      const extra = call(tool.function.name, { title: 'Unrequested', habit_id: 'other', habit_ids: ['other'] })
-      expect((await structural(envelope([extra]), context(expectations))).pass).toBe(true)
+      const arguments_ = ['bulk_log_habits', 'bulk_skip_habits', 'bulk_delete_habits'].includes(tool.function.name)
+        ? { habit_ids: ['other'] } : schemaArguments(tool.function.parameters)
+      const extra = call(tool.function.name, arguments_)
+      expect((await structural(envelope([extra]), context(expectations))).pass, tool.function.name).toBe(true)
       expect(behavior(envelope([call('query_habits', { date: 'today' }), extra]), context(expectations)).pass).toBe(false)
     }
   })
@@ -98,14 +123,32 @@ describe('production scenario mutation scope', () => {
   )
 
   it.each(['bulk_log_habits', 'bulk_skip_habits'])(
-    '%s rejects an explicit null filter with top-level habit IDs', async (name) => {
+    '%s accepts an explicit null filter with top-level habit IDs', async (name) => {
       const arguments_ = { habit_ids: ['first', 'second'], filter: null }
-      expect((await structural(envelope([call(name, arguments_)]), context({}))).pass).toBe(false)
+      expect((await structural(envelope([call(name, arguments_)]), context({}))).pass).toBe(true)
     },
   )
 })
 
 describe('tool evidence', () => {
+  it.each([
+    ['query_habits', { search: 42 }], ['query_habits', { date: false }], ['query_habits', { is_completed: 'false' }],
+    ['update_habit', { habit_id: 'first', frequency_quantity: 1.5 }], ['log_habit', { habit_id: null }],
+    ['bulk_create_habits', { habits: [{ title: 'Walk', parent_habit_id: 42 }] }],
+    ['query_habits', { invented_argument: true }],
+  ])('retains producer constraints for malformed %s arguments: %j', async (name, arguments_) => {
+    expect((await structural(envelope([call(name, arguments_)]), context({}))).pass).toBe(false)
+  })
+  it.each([
+    ['query_habits', { search: null, date: null, is_completed: null }],
+    ['update_habit', { habit_id: 'first', frequency_quantity: null }],
+    ['bulk_create_habits', { habits: [{ title: 'Walk', parent_habit_id: null }] }],
+    ['bulk_log_habits', { habit_ids: ['first'], filter: null }],
+    ['bulk_skip_habits', { habit_ids: ['first'], filter: null }],
+    ['bulk_delete_habits', { habit_ids: ['first'], filter: null }],
+  ])('accepts the producer optional-null schema for %s', async (name, arguments_) => {
+    expect((await structural(envelope([call(name, arguments_)]), context({}))).pass).toBe(true)
+  })
   it('fails unavailable API trace evidence with an explicit reason', () => {
     const response = parseResponse({ aiMessage: 'Hello' })
     expect(behavior(response, context({}))).toMatchObject({ pass: false, metadata: { unavailable: true } })

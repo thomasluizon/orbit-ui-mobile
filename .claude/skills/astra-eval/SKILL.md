@@ -32,7 +32,8 @@ to staging. Source adapter tests cannot replace that acceptance.
 
 When adding a case, keep exact ID and enum assertions, tolerant text matching, and unordered
 compound tool requirements. Bulk cases require one bulk call and forbid single-item calls.
-Grade only the final answer with `llm-rubric`. Verify the fixture reset can recreate the case
+Grade only the final rendered answer projection with `llm-rubric`; it includes visible blocks and
+preview fields, excludes traces and execution payloads, and accepts block-only replies. Verify the fixture reset can recreate the case
 before each of the three attempts. Run the offline tests after changing the corpus or assertions.
 
 Do not attach raw promptfoo databases, responses, or traces to a pull request. The summary
@@ -44,3 +45,15 @@ API composition producer and #1620's paired consumers are deployed through the c
 release workflow. Cover every #1617 family, block-only success, compound queries and legacy or
 missing-kind clients. Missing or skipped composition assertions cannot approve broad activation
 of `astra_block_first`. Local rendering tests do not replace that evidence.
+
+The composition corpus is `evals/astra/composition-scenarios.yaml`. Each case declares its family,
+locale, client capabilities and composition policy. Supported clients require ordered parts;
+legacy and missing-kind cases require readable fallbacks. Keep the structural composition check
+and semantic rubric together: the rubric catches paraphrased repetition of figures. Reports must
+include three complete attempts per case and aggregate pass^3 by family and locale.
+
+Medical correction cases first issue the original request through the same HTTP provider, verify
+its trace and preview, then submit the correction with that actual answer as history. Each attempt
+uses its own pending preview; no write is approved. Count this setup call in the existing allowance.
+The existing-parent fixture binds Post Lunch to `ORBIT_EVAL_HABIT_ID` and Before Bed to
+`ORBIT_EVAL_SECOND_HABIT_ID`. Do not create duplicate parents to satisfy a case.

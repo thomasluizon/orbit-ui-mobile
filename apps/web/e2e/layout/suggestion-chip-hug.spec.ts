@@ -1,3 +1,4 @@
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { openTodayListOptions } from './hydration-guard'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
@@ -30,20 +31,20 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBR]] as const) {
         await page.getByRole('menu', { name: messages.habits.listOptions, exact: true })
           .getByRole('menuitem', { name: messages.habits.refresh }).click()
         await expect(page.locator('[data-habit-title="Reading"]')).toBeVisible()
-        await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : `${messages.todayAstra.openConversation}, ${messages.nav.astra}`, exact: true }).click()
+        await getShellConversationEntry(page, width, messages).click()
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         await expect(conversation).toBeVisible()
         const strip = conversation.getByRole('group', { name: messages.shell.composer.suggestionsLabel, exact: true })
         await expect(strip).toBeVisible()
-        const logLastDays = strip.getByRole('button', { name: `${messages.shell.composer.chips.today.logLastDays}, ${messages.nav.astra}`, exact: true })
+        const logLastDays = strip.getByRole('button', { name: messages.shell.composer.chips.today.logLastDays, exact: true })
         await expect(logLastDays).toHaveCount(1)
-        await expect(strip.getByRole('button').first()).toHaveAccessibleName(`${messages.shell.composer.chips.today.logLastDays}, ${messages.nav.astra}`)
-        await expect(logLastDays).toHaveText(`${messages.shell.composer.chips.today.logLastDays} ${messages.nav.astra}`)
+        await expect(strip.getByRole('button').first()).toHaveAccessibleName(messages.shell.composer.chips.today.logLastDays)
+        await expect(logLastDays).toHaveText(messages.shell.composer.chips.today.logLastDays)
         for (const chip of await strip.getByRole('button').all()) {
           await expect(chip.locator('[data-asset="astra-mark-16"]')).toHaveCount(1)
           const label = await chip.locator('[data-suggestion-label]').innerText()
-          await expect(chip).toHaveAccessibleName(`${label}, ${messages.nav.astra}`)
-          await expect(chip).toHaveText(`${label} ${messages.nav.astra}`)
+          await expect(chip).toHaveAccessibleName(label)
+          await expect(chip).toHaveText(label)
         }
         await page.evaluate(() => document.fonts.ready)
         await expect(async () => {

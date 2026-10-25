@@ -16,10 +16,12 @@ type ExpectedBlockFrameItem = {
   readonly id: string
   readonly label: React.ReactNode
   readonly wrapLabel?: boolean
+  readonly indented?: boolean
   readonly wrapMeta?: boolean
   readonly meta?: string
   readonly status?: 'done' | 'acting' | 'failed'
   readonly statusLabel?: string
+  readonly body?: React.ReactNode
   readonly control?: React.ReactNode
   readonly editable?: boolean
   readonly proposed?: boolean

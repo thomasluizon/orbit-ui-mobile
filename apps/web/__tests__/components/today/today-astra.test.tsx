@@ -115,7 +115,7 @@ describe('web Today Astra', () => {
       onChangeValue={vi.fn()} onSend={vi.fn()} onOpenConversation={vi.fn()}
       conversationLabel={ptBr.todayAstra.openConversation} />)
 
-    expect(screen.getAllByRole('button', { name: `${ptBr.todayAstra.openConversation}, ${ptBr.nav.astra}` })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: ptBr.todayAstra.openConversation })).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Sua rotina mudou. Vamos conversar?' })).toHaveAccessibleDescription(ptBr.todayAstra.openConversation)
   })
 

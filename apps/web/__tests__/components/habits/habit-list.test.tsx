@@ -1213,72 +1213,75 @@ describe('HabitList', () => {
     try {
       const browser = await launch
       const cases = [320, 412, 1352].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].flatMap((selectMode) => (['light', 'dark'] as const).flatMap((mode) => (['en', 'pt-BR'] as const).map((locale) => ({ width, textScale, selectMode, mode, locale }))))))
-      for (const { width, textScale, selectMode, mode, locale } of cases) {
-        const observations = new Map<Element, { callback: ResizeObserverCallback; observer: ResizeObserver }>()
-        vi.stubGlobal('ResizeObserver', class implements ResizeObserver {
-          constructor(private callback: ResizeObserverCallback) {}
-          observe(target: Element) { observations.set(target, { callback: this.callback, observer: this }) }
-          unobserve(target: Element) { observations.delete(target) }
-          disconnect() {
-            for (const [target, observation] of observations) if (observation.observer === this) observations.delete(target)
-          }
-        })
-        dragLocale.english = locale === 'en'
-        dragLocale.portuguese = locale === 'pt-BR'
-        vi.stubGlobal('innerWidth', width)
-        document.documentElement.style.fontSize = `${16 * textScale}px`
-        const { container, unmount } = renderWithProviders(<HabitList view={view} isSelectMode={selectMode} selectedHabitIds={new Set([child.id])}
-          filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
-        const markup = container.innerHTML
-        const page = await browser.newPage({ viewport: { width, height: 915 } })
-        try {
-          const tokens = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
-          await page.setContent(`<style>${stylesheet.css}:root{${tokens};font-size:${16 * textScale}px}</style><div style="max-width:740px;height:915px;overflow-y:auto;scrollbar-gutter:stable">${markup}</div>`)
-          const observed = await page.locator('[data-habit-list]').evaluate((element) => new Promise<{
-            contentRect: DOMRectInit; borderBoxSize: ResizeObserverSize[]; contentBoxSize: ResizeObserverSize[]; devicePixelContentBoxSize: ResizeObserverSize[]
-          }>((resolve) => {
-            const observer = new ResizeObserver(([entry]) => {
-              const sizes = (boxes: readonly ResizeObserverSize[]) => boxes.map(({ inlineSize, blockSize }) => ({ inlineSize, blockSize }))
-              resolve({ contentRect: entry!.contentRect.toJSON(), borderBoxSize: sizes(entry!.borderBoxSize), contentBoxSize: sizes(entry!.contentBoxSize), devicePixelContentBoxSize: sizes(entry!.devicePixelContentBoxSize) })
-              observer.disconnect()
-            })
-            observer.observe(element)
-          }))
-          const target = container.querySelector('[data-habit-list]')!
-          const observation = observations.get(target)!
-          act(() => observation.callback([{ ...observed, contentRect: DOMRectReadOnly.fromRect(observed.contentRect), target }], observation.observer))
-          assertCascadeActions(container, drilling, width, textScale)
-          await page.setContent(`<style>${stylesheet.css}:root{${tokens};font-size:${16 * textScale}px}</style><div style="max-width:740px;height:915px;overflow-y:auto;scrollbar-gutter:stable">${container.innerHTML}</div>`)
-          await loadAppFonts(page)
-          const geometry = await page.locator('[data-testid="habit-row"]').evaluateAll((rows) => rows.map((row) => {
-            const body = row.querySelector('[data-habit-row-body]')!
-            const content = row.querySelector('[data-personal-text-content]') ?? body
-            const title = (row.querySelector('[data-habit-row-heading] > div') ?? content.querySelector(':scope > div'))!
-            const well = content.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
-            return {
-              depth: Number(row.getAttribute('data-depth')),
-              titleWidth: title.getBoundingClientRect().width,
-              titleSize: Number.parseFloat(getComputedStyle(row.querySelector('[data-personal-text]')!).fontSize),
-              metadataEdge: row.querySelector('[data-habit-row-type]')!.getBoundingClientRect().left,
-              top: row.getBoundingClientRect().top,
-              bottom: row.getBoundingClientRect().bottom,
-              inset: row.getBoundingClientRect().left,
-              textEdge: title.getBoundingClientRect().left,
-              wellInset: well.getBoundingClientRect().left - body.getBoundingClientRect().left,
-              targets: Array.from(row.querySelectorAll('button')).map((button) => {
-                const bounds = button.getBoundingClientRect()
-                return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height }
-              }),
+      const page = await browser.newPage()
+      try {
+        for (const { width, textScale, selectMode, mode, locale } of cases) {
+          const observations = new Map<Element, { callback: ResizeObserverCallback; observer: ResizeObserver }>()
+          vi.stubGlobal('ResizeObserver', class implements ResizeObserver {
+            constructor(private callback: ResizeObserverCallback) {}
+            observe(target: Element) { observations.set(target, { callback: this.callback, observer: this }) }
+            unobserve(target: Element) { observations.delete(target) }
+            disconnect() {
+              for (const [target, observation] of observations) if (observation.observer === this) observations.delete(target)
             }
-          }))
-          const expectedDepths = drilling ? [0, 0] : width === 320 ? textScale === 2 ? [0, 1, 1, 0] : [0, 1, 1, 2, 2, 0] : [0, 1, 1, 2, 2, 3, 0]
-          expect(await page.locator('[data-habit-row-description]').allTextContents()).toEqual(Array.from({ length: expectedDepths.length - Number(!drilling) }, () => 'Read two pages before breakfast.'))
-          expect(geometry).toHaveLength(expectedDepths.length)
-          expect(await page.evaluate(() => window.innerWidth)).toBe(width)
-          expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
-          assertCascadeGeometry(geometry, expectedDepths, width, drilling)
-        } finally { unmount(); await page.close() }
-      }
+          })
+          dragLocale.english = locale === 'en'
+          dragLocale.portuguese = locale === 'pt-BR'
+          vi.stubGlobal('innerWidth', width)
+          document.documentElement.style.fontSize = `${16 * textScale}px`
+          const { container, unmount } = renderWithProviders(<HabitList view={view} isSelectMode={selectMode} selectedHabitIds={new Set([child.id])}
+            filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
+          const markup = container.innerHTML
+          await page.setViewportSize({ width, height: 915 })
+          try {
+            const tokens = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+            await page.setContent(`<style>${stylesheet.css}:root{${tokens};font-size:${16 * textScale}px}</style><div style="max-width:740px;height:915px;overflow-y:auto;scrollbar-gutter:stable">${markup}</div>`)
+            const observed = await page.locator('[data-habit-list]').evaluate((element) => new Promise<{
+              contentRect: DOMRectInit; borderBoxSize: ResizeObserverSize[]; contentBoxSize: ResizeObserverSize[]; devicePixelContentBoxSize: ResizeObserverSize[]
+            }>((resolve) => {
+              const observer = new ResizeObserver(([entry]) => {
+                const sizes = (boxes: readonly ResizeObserverSize[]) => boxes.map(({ inlineSize, blockSize }) => ({ inlineSize, blockSize }))
+                resolve({ contentRect: entry!.contentRect.toJSON(), borderBoxSize: sizes(entry!.borderBoxSize), contentBoxSize: sizes(entry!.contentBoxSize), devicePixelContentBoxSize: sizes(entry!.devicePixelContentBoxSize) })
+                observer.disconnect()
+              })
+              observer.observe(element)
+            }))
+            const target = container.querySelector('[data-habit-list]')!
+            const observation = observations.get(target)!
+            act(() => observation.callback([{ ...observed, contentRect: DOMRectReadOnly.fromRect(observed.contentRect), target }], observation.observer))
+            assertCascadeActions(container, drilling, width, textScale)
+            await page.setContent(`<style>${stylesheet.css}:root{${tokens};font-size:${16 * textScale}px}</style><div style="max-width:740px;height:915px;overflow-y:auto;scrollbar-gutter:stable">${container.innerHTML}</div>`)
+            await loadAppFonts(page)
+            const geometry = await page.locator('[data-testid="habit-row"]').evaluateAll((rows) => rows.map((row) => {
+              const body = row.querySelector('[data-habit-row-body]')!
+              const content = row.querySelector('[data-personal-text-content]') ?? body
+              const title = (row.querySelector('[data-habit-row-heading] > div') ?? content.querySelector(':scope > div'))!
+              const well = content.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
+              return {
+                depth: Number(row.getAttribute('data-depth')),
+                titleWidth: title.getBoundingClientRect().width,
+                titleSize: Number.parseFloat(getComputedStyle(row.querySelector('[data-personal-text]')!).fontSize),
+                metadataEdge: row.querySelector('[data-habit-row-type]')!.getBoundingClientRect().left,
+                top: row.getBoundingClientRect().top,
+                bottom: row.getBoundingClientRect().bottom,
+                inset: row.getBoundingClientRect().left,
+                textEdge: title.getBoundingClientRect().left,
+                wellInset: well.getBoundingClientRect().left - body.getBoundingClientRect().left,
+                targets: Array.from(row.querySelectorAll('button')).map((button) => {
+                  const bounds = button.getBoundingClientRect()
+                  return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height }
+                }),
+              }
+            }))
+            const expectedDepths = drilling ? [0, 0] : width === 320 ? textScale === 2 ? [0, 1, 1, 0] : [0, 1, 1, 2, 2, 0] : [0, 1, 1, 2, 2, 3, 0]
+            expect(await page.locator('[data-habit-row-description]').allTextContents()).toEqual(Array.from({ length: expectedDepths.length - Number(!drilling) }, () => 'Read two pages before breakfast.'))
+            expect(geometry).toHaveLength(expectedDepths.length)
+            expect(await page.evaluate(() => window.innerWidth)).toBe(width)
+            expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+            assertCascadeGeometry(geometry, expectedDepths, width, drilling)
+          } finally { unmount() }
+        }
+      } finally { await page.close() }
     } finally {
       document.documentElement.style.removeProperty('font-size')
       vi.unstubAllGlobals()
@@ -1899,7 +1902,9 @@ describe('HabitList', () => {
   it('keeps first-run actions on another day when the account has no habits', () => {
     renderWithProviders(<HabitList filters={defaultFilters} selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} onCreate={vi.fn()} />)
     expect(screen.getByText('habits.emptyState')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'habits.askAstra' })).toBeInTheDocument()
+    const astraAction = screen.getByRole('button', { name: 'habits.askAstra' })
+    expect(astraAction).toBeInTheDocument()
+    expect(astraAction).toHaveTextContent('habits.askAstra')
     expect(screen.getByRole('button', { name: 'habits.createManually' })).toBeInTheDocument()
   })
 
@@ -4383,7 +4388,7 @@ describe('HabitList', () => {
     })
     renderWithProviders(<><HabitList filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} /><SkipToastHost /></>)
     await screen.findByText('Walk')
-    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     fireEvent.click(await screen.findByRole('menuitem', { name: 'habits.actions.skip' }))
     await waitFor(() => expect(skipFlow.mutate).toHaveBeenCalledTimes(1))
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -4427,7 +4432,7 @@ describe('HabitList', () => {
     })
     renderWithProviders(<><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} /><SkipToastHost /></>)
     const childRow = (await screen.findByText(personalText('Pending child'))).closest('[data-testid="habit-row"]') as HTMLElement
-    fireEvent.click(within(childRow).getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.pointerDown(within(childRow).getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     fireEvent.click(await screen.findByRole('menuitem', { name: 'habits.actions.skip' }))
     await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
     await waitFor(() => expect(screen.queryByText(personalText('Pending child'))).toBeNull())
@@ -4492,7 +4497,7 @@ describe('HabitList', () => {
     const futureList = <HabitList filters={{ dateFrom: TOMORROW, dateTo: TOMORROW, includeOverdue: true }}
       selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} />
     const { rerenderWithProviders } = renderWithProviders(futureList)
-    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     fireEvent.click(await screen.findByRole('menuitem', { name: 'habits.actions.delete' }))
     const confirmation = await screen.findByRole('dialog', { name: 'habits.deleteConfirmTitle' })
     sheetTestControls.defer(true)
@@ -4566,7 +4571,7 @@ describe('HabitList', () => {
     mockHabitsData.topLevelHabits = [habit]
     renderWithProviders(<HabitList filters={defaultFilters} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     fireEvent.click(await screen.findByRole('menuitem', { name: 'habits.actions.skip' }))
 
     await waitFor(() => expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: habit.id, date: TODAY, onUndo: expect.any(Function) }))

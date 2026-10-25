@@ -1,3 +1,4 @@
+import type { HabitRecurrence } from '@orbit/shared/utils'
 import { useHabitFormInteraction } from './habit-form-interaction'
 import { useWatch } from 'react-hook-form'
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react'
@@ -42,15 +43,14 @@ function DateConsultation({ editor, snapshot }: Readonly<{ editor: HabitDateEdit
     <DateCapacity visible={snapshot.capacity} message={snapshot.failure} />
     {canAsk ? <View style={{ alignItems: 'flex-start', gap: 16 }}>
       {atLimit ? <CapacityNotice message={t('habits.form.aiSuggestLimitReached')} /> : null}
-      {!isOnline ? <CapacityNotice message={t('shell.composer.offline.reason')} /> : null}
-      <PillButton minimumHeight={48} retainLeadingIcon leadingIcon={<AstraGlyph size={16} />} accessibleName={t('habits.form.askDate')} variant="ghost" disabled={disabled || !isOnline || atLimit || snapshot.pending || snapshot.capacity} loading={snapshot.pending} onClick={guard(() => void editor.ask(isOnline, atLimit))}>{t('habits.form.askDate')}</PillButton>
+      <PillButton minimumHeight={48} borderless iconOnly hint={!isOnline ? t('shell.composer.offline.reason') : undefined} label={t('habits.form.suggestDate')} variant="ghost" disabled={disabled || !isOnline || atLimit || snapshot.pending || snapshot.capacity} loading={snapshot.pending} onClick={guard(() => void editor.ask(isOnline, atLimit))}><AstraGlyph size={20} /></PillButton>
       <Text style={{ color: tokens.fg3, fontSize: 12, fontFamily: 'Geist_400Regular' }}>{t('habits.form.askAstraCost', { allowance: profile?.aiMessagesLimit ?? 5 })}</Text>
     </View> : null}
     <Text accessibilityLiveRegion="polite" style={{ color: tokens.statusBadText, fontSize: 14, fontFamily: 'Geist_400Regular', ...(!snapshot.failure || snapshot.capacity ? { display: 'none' as const } : {}) }}>{snapshot.capacity ? '' : snapshot.failure ?? ''}</Text>
   </>
 }
 
-function DatedHabitField({ formHelpers, onWeeklyRecurrence, generalLocked }: Readonly<{ formHelpers: HabitFormHelpers; onWeeklyRecurrence: () => void; generalLocked: boolean }>) {
+function DatedHabitField({ formHelpers, onRecurrence, generalLocked }: Readonly<{ formHelpers: HabitFormHelpers; onRecurrence: (schedule: HabitRecurrence) => void; generalLocked: boolean }>) {
   const { disabled, guard, isDisabled } = useHabitFormInteraction()
   const { t, i18n } = useTranslation()
   const locale = i18n.language
@@ -73,7 +73,7 @@ function DatedHabitField({ formHelpers, onWeeklyRecurrence, generalLocked }: Rea
       cadence: { unit: values.frequencyUnit ?? null, quantity: values.frequencyQuantity ?? null, days: [...new Set(values.days ?? [])].sort((left, right) => left.localeCompare(right)), intervalWeeks: values.intervalWeeks ?? 1 },
       date: values.dueDate ?? '', endDate: values.endDate ?? '', phrase: values.datePhrase ?? '' }
   }
-  const adapter = { context, owner: form, generalLocked, applyWeeklyRecurrence: onWeeklyRecurrence,
+  const adapter = { context, owner: form, generalLocked, applyRecurrence: onRecurrence,
     write: (field: 'dueDate' | 'datePhrase' | 'dateIssue', value: string) => {
       if (isDisabled()) return
       form.setValue(field, value, { shouldDirty: true })
@@ -113,6 +113,6 @@ function DatedHabitField({ formHelpers, onWeeklyRecurrence, generalLocked }: Rea
   </View>
 }
 
-export function HabitDateField({ formHelpers, onWeeklyRecurrence, generalLocked }: Readonly<{ formHelpers: HabitFormHelpers; onWeeklyRecurrence: () => void; generalLocked: boolean }>) {
-  return <DatedHabitField generalLocked={generalLocked} formHelpers={formHelpers} onWeeklyRecurrence={onWeeklyRecurrence} />
+export function HabitDateField({ formHelpers, onRecurrence, generalLocked }: Readonly<{ formHelpers: HabitFormHelpers; onRecurrence: (schedule: HabitRecurrence) => void; generalLocked: boolean }>) {
+  return <DatedHabitField generalLocked={generalLocked} formHelpers={formHelpers} onRecurrence={onRecurrence} />
 }

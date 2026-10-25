@@ -344,6 +344,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         composer={
           <Composer
             {...chat.composerProps}
+            collapsible={/^\/habits\/[^/]+$/.test(pathname) && pathname !== '/habits/new'}
             suggestions={resolveComposerDockSuggestions(pathname, chat.composerProps.suggestions)}
             inputId={chat.composerInputId}
             onOpenConversation={() => setAstraConversationOpen(true)}
@@ -367,7 +368,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         notice={(
           <>
             <CelebrationPanel />
-            <UpdateAvailableBanner active={!toastInConversation && pathname !== '/wrapped'} />
+            <UpdateAvailableBanner inset={false} active={!toastInConversation && pathname !== '/wrapped'} />
             <NotificationDeleteNotice />
             {!toastInConversation && pathname !== '/wrapped' ? <AppToastHost /> : null}
           </>
@@ -573,7 +574,6 @@ function GlobalOverlays({
             <PromptQuietAction onClick={onDismissImportPrompt}>
               {t('onboarding.wizard.importNotNow')}
             </PromptQuietAction>
-            {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
             <PillButton size="sm" onClick={onImportWithAstra}>
               {t('onboarding.wizard.importButton')}
             </PillButton>

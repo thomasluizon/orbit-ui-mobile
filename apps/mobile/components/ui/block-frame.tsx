@@ -74,8 +74,8 @@ function MetaLine({ meta, wrap, tokens }: Readonly<{ meta: string; wrap: boolean
   return <Text numberOfLines={wrap ? undefined : 1} style={[styles.meta, { color: tokens.fg3 }, wrap && { lineHeight: 12 * 1.4 }]}>{meta}</Text>
 }
 
-function getRowStyle(wrapLabel: boolean | undefined) {
-  return [styles.row, wrapLabel && { alignItems: 'flex-start' as const }]
+function getRowStyle(wrapLabel: boolean | undefined, indented: boolean | undefined) {
+  return [styles.row, wrapLabel && { alignItems: 'flex-start' as const }, indented && { paddingStart: SPACING.s24 }]
 }
 
 function FrameRowContent(props: FrameRowProps) {
@@ -84,7 +84,7 @@ function FrameRowContent(props: FrameRowProps) {
   const isEditable = status == null && frameState !== 'stale' && item.editable !== false
   const row = (
     <View
-      style={getRowStyle(item.wrapLabel)}
+      style={getRowStyle(item.wrapLabel, item.indented)}
       testID={`block-frame-item-${item.id}-${status ?? 'pending'}${item.proposed ? '-proposed' : ''}`}
     >
       <View style={styles.rowWords}>
@@ -124,6 +124,7 @@ function FrameRowContent(props: FrameRowProps) {
 function FrameRow(props: FrameRowProps) {
   return <Proposed proposed={props.item.proposed === true} scope="row" label={props.proposedLabel ?? ''} keepMounted>
     <FrameRowContent {...props} />
+    {props.item.body ? <View style={{ paddingHorizontal: SPACING.s12, paddingBottom: SPACING.s12 }}>{props.item.body}</View> : null}
   </Proposed>
 }
 

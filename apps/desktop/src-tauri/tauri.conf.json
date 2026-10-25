@@ -1,0 +1,44 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Orbit Staging",
+  "version": "0.1.0",
+  "identifier": "org.useorbit.desktop.staging",
+  "build": {
+    "frontendDist": "https://app-staging.useorbit.org"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "create": false,
+        "title": "Orbit Staging",
+        "url": "https://app-staging.useorbit.org",
+        "incognito": false
+      }
+    ],
+    "security": {
+      "capabilities": [{
+        "identifier": "desktop-auth",
+        "local": false,
+        "remote": { "urls": ["https://app-staging.useorbit.org/*"] },
+        "windows": ["main"],
+        "permissions": ["allow-commit-desktop-login"]
+      }]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "icon": ["icons/icon.png", "icons/icon.icns", "icons/icon.ico"]
+  },
+  "plugins": {
+    "deep-link": { "desktop": { "schemes": ["org.useorbit.desktop.staging"] } },
+    "updater": {
+      "endpoints": ["https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-staging/latest.json"],
+      "pubkey": "",
+      "requireSignedVersion": true,
+      "windows": { "installMode": "passive" }
+    }
+  }
+}

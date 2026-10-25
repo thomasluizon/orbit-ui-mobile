@@ -1,3 +1,4 @@
+import { useComposedRefs } from '@rn-primitives/hooks'
 import { cloneElement, isValidElement, useContext, useState, type Ref } from 'react'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
@@ -7,6 +8,7 @@ import {
   StyleSheet,
   Text,
   type ViewStyle,
+  type PressableProps,
   View,
   useWindowDimensions,
 } from 'react-native'
@@ -40,6 +42,8 @@ function buttonFocusStyle(variant: ButtonVariant, outlineColor: string): ViewSty
 /** The canonical five-variant pill action in the shared two-size geometry. */
 export function Button({
   buttonRef,
+  ref,
+  onPress,
   minimumHeight,
   expanded,
   elevated = false,
@@ -64,7 +68,11 @@ export function Button({
   hint,
   accessibilityRole = 'button',
   quiet = false,
-}: Readonly<ButtonProps & { retainLeadingIcon?: boolean; buttonRef?: Ref<View>; accessibilityRole?: 'button' | 'link'; quiet?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>) {
+  borderless = false,
+  formId: _formId,
+  ...pressableProps
+}: Readonly<ButtonProps & { retainLeadingIcon?: boolean } & Omit<PressableProps, 'children' | 'onFocus' | 'onBlur'> & { ref?: Ref<View>; buttonRef?: Ref<View>; accessibilityRole?: 'button' | 'link'; quiet?: boolean; borderless?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>) {
+  const composedRef = useComposedRefs(ref, buttonRef)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const size = useContext(ActionRowContext) ? 'sm' : requestedSize
@@ -79,6 +87,7 @@ export function Button({
 
   const ghostPressedFill = elevated ? tokens.bgElevHover : quiet ? tokens.bgHoverOpaque : tokens.bgHover
   const ghostFill = elevated ? tokens.bgElev : 'transparent'
+  const ghostBorderWidth = borderless ? 0 : 1.5
   const variantStyle = (pressed: boolean): ViewStyle => {
     if (variant === 'secondary') {
       return { backgroundColor: pressed ? mixHex(tokens.fg1, tokens.bg, 0.1) : tokens.fg1 }
@@ -87,7 +96,7 @@ export function Button({
       const active = pressed || (hovered && !disabled && !loading)
       return {
         backgroundColor: active ? ghostPressedFill : ghostFill,
-        borderWidth: 1.5,
+        borderWidth: ghostBorderWidth,
         borderColor: tokens.hairlineStrong,
       }
     }
@@ -108,9 +117,10 @@ export function Button({
 
   return (
     <Pressable
-      ref={buttonRef}
+      {...pressableProps}
+      ref={composedRef}
       hitSlop={size === 'sm' && (!iconOnly || (minimumHeight ?? 0) < TOUCH_TARGET_MIN) ? SMALL_PILL_HIT_PADDING : undefined}
-      onPress={loading ? undefined : onClick}
+      onPress={loading ? undefined : onPress ?? onClick}
       onFocus={() => { setFocused(true); onFocus?.() }}
       onBlur={() => { setFocused(false); onBlur?.() }}
       onHoverIn={() => { setHovered(true); onHoverIn?.() }}
@@ -119,7 +129,7 @@ export function Button({
       accessibilityRole={accessibilityRole}
       accessibilityLabel={iconOnly ? label : accessibleName}
       accessibilityHint={hint}
-      accessibilityState={{ disabled: nativelyDisabled, busy: loading, ...(expanded === undefined ? {} : { expanded }) }}
+      accessibilityState={{ ...pressableProps.accessibilityState, disabled: nativelyDisabled, busy: loading, ...(expanded === undefined ? {} : { expanded }) }}
       testID={`button-${variant}-${size}`}
       style={({ pressed }) => [
         styles.base,
@@ -147,10 +157,11 @@ function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, ch
   loading: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; sizeSpec: typeof BUTTON_SIZES.sm
 }>) {
   const { fontScale } = useWindowDimensions()
+  const iconColor = isValidElement<{ color?: string }>(children) ? children.props.color : undefined
   return <>
       {loading && !retainLeadingIcon ? (
         <ActivityIndicator size="small" color={textColor} />
-      ) : iconOnly ? children : leadingGlyph}
+      ) : iconOnly ? buttonLeadingGlyph(children, iconColor ?? textColor) : leadingGlyph}
       {iconOnly ? null : (
         <Text
           numberOfLines={retainLeadingIcon && fontScale > 1.3 ? undefined : 1}
@@ -163,7 +174,7 @@ function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, ch
           {children}
         </Text>
       )}
-      {retainLeadingIcon ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={{ width: sizeSpec.iconSize, height: sizeSpec.iconSize }}>{loading ? <ActivityIndicator animating size="small" color={textColor} /> : null}</View> : null}
+      {retainLeadingIcon && !iconOnly ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={{ width: sizeSpec.iconSize, height: sizeSpec.iconSize }}>{loading ? <ActivityIndicator animating size="small" color={textColor} /> : null}</View> : null}
   </>
 }
 

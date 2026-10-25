@@ -1,6 +1,8 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { useUIStore } from '@/stores/ui-store'
+
 import { TypedTextarea } from '@/components/ui/typed-textarea'
 import { PersonalText } from '@/components/ui/personal-text'
 
@@ -13,9 +15,10 @@ import {
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
-import { Clipboard, FileText, Image as ImageIcon, Loader2, Plus, Square, X } from '@/components/ui/icons'
-import { Menu } from '@/components/ui/menu'
+import { ArrowUp, ChevronDown, Clipboard, FileText, Image as ImageIcon, Loader2, Plus, Square, X } from '@/components/ui/icons'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { Sheet } from '@/components/ui/sheet'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -80,8 +83,7 @@ function AttachmentTray({
   </>
 }
 
-function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 'suggestions'> & { label: string }>) {
-  const t = useTranslations()
+function SuggestionStrip({ suggestions, label, disclosure }: Readonly<Pick<ComposerProps, 'suggestions'> & { label: string; disclosure?: React.ReactNode }>) {
   const layoutRef = useRef<HTMLDivElement>(null)
   const [layout, setLayout] = useState({ availableWidth: 0, gap: COMPOSER_CHIP_GAP })
   useEffect(() => {
@@ -90,7 +92,7 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
       const availableWidth = host.getBoundingClientRect().width
       const chipWidths = [...host.querySelectorAll<HTMLElement>('[data-suggestion-content]')].map(content => {
         const buttonStyle = getComputedStyle(content.parentElement!)
-        return content.getBoundingClientRect().width + parseFloat(buttonStyle.paddingInlineStart) + parseFloat(buttonStyle.paddingInlineEnd)
+        return content.getBoundingClientRect().width + Number.parseFloat(buttonStyle.paddingInlineStart) + Number.parseFloat(buttonStyle.paddingInlineEnd)
       })
       const next = { availableWidth, ...resolveComposerStripLayout(availableWidth, chipWidths) }
       setLayout(previous => previous.availableWidth === next.availableWidth && previous.gap === next.gap ? previous : next)
@@ -101,35 +103,38 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
   }, [suggestions])
   const maxWidth = layout.availableWidth > 0 ? layout.availableWidth - COMPOSER_CHIP_GAP - COMPOSER_CHIP_PEEK : undefined
   return (
-    <div ref={layoutRef} className="min-w-0">
-      <div
-        aria-label={label}
-        role="group"
-        data-focus-inset=""
-        onFocusCapture={revealFocusedControl}
-        style={{ gap: layout.gap }}
-        className="flex min-w-0 items-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {suggestions.map(suggestion => (
-          <button
-            key={suggestion.id}
-            type="button"
-            aria-label={`${suggestion.label}, ${t('nav.astra')}`}
-            style={{ maxWidth }}
-            onClick={(event) => {
-              const root = event.currentTarget.closest('[data-composer-root]')
-              if (root instanceof HTMLElement) root.focus()
-              suggestion.onSelect()
-            }}
-            className="flex min-h-[48px] shrink-0 items-start gap-[8px] rounded-full border-0 bg-[var(--bg-well)] px-3 py-3 text-start text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
-          >
-            <span data-suggestion-content className="flex min-w-0 items-start gap-[8px]">
-              <span aria-hidden="true" className="flex h-[1lh] shrink-0 items-start"><AstraGlyph size={16} /></span>
-              <span className="min-w-0"><span data-suggestion-label>{suggestion.label}</span>{' '}<span translate="no">{t('nav.astra')}</span></span>
-            </span>
-          </button>
-        ))}
+    <div data-composer-suggestion-row className="flex min-w-0 items-start gap-3">
+      <div ref={layoutRef} className="min-w-0 flex-1">
+        <div
+          aria-label={label}
+          role="group"
+          data-focus-inset=""
+          onFocusCapture={revealFocusedControl}
+          style={{ gap: layout.gap }}
+          className="flex min-w-0 items-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {suggestions.map(suggestion => (
+            <button
+              key={suggestion.id}
+              type="button"
+              aria-label={suggestion.label}
+              style={{ maxWidth: disclosure ? undefined : maxWidth }}
+              onClick={(event) => {
+                const root = event.currentTarget.closest('[data-composer-root]')
+                if (root instanceof HTMLElement) root.focus()
+                suggestion.onSelect()
+              }}
+              className="flex min-h-[48px] shrink-0 items-start gap-[8px] rounded-full border-0 bg-[var(--bg-well)] px-3 py-3 text-start text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
+            >
+              <span data-suggestion-content className="flex min-w-0 items-start gap-[8px]">
+                <span aria-hidden="true" className="flex h-[1lh] shrink-0 items-start"><AstraGlyph size={16} /></span>
+                <span className="min-w-0"><span data-suggestion-label className={disclosure ? 'whitespace-nowrap' : undefined}>{suggestion.label}</span></span>
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
+      {disclosure}
     </div>
   )
 }
@@ -153,7 +158,7 @@ function handleSendKeyDown(event: import('react').KeyboardEvent<HTMLTextAreaElem
   if (canSend) onSend()
 }
 
-function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
+function ComposerStatus({ props, disclosure }: Readonly<{ props: WebComposerProps; disclosure?: React.ReactNode }>) {
   if (props.state === 'atLimit' || props.state === 'offline') {
     return (
       <div className="flex flex-col gap-2">
@@ -169,10 +174,10 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
     </div>
   }
   if (props.state === 'sending' || props.suggestions.length === 0) return null
-  return <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} />
+  return <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} disclosure={disclosure} />
 }
 
-function AllowanceStatus({ props }: Readonly<{ props: ComposerProps }>) {
+function AllowanceStatus({ props, disclosure }: Readonly<{ props: ComposerProps; disclosure?: React.ReactNode }>) {
   const atLimit = props.state === 'atLimit'
   const withSuggestions = props.state === 'idle' && props.suggestions.length > 0
   return <div data-composer-status-slot className="grid min-h-[96px] min-w-0 gap-2">
@@ -184,12 +189,18 @@ function AllowanceStatus({ props }: Readonly<{ props: ComposerProps }>) {
       <p data-composer-renewal className="m-0 text-sm leading-5 text-[var(--fg-2)]">{props.renewalHint}</p>
     </div>
     {!atLimit ? <div className="col-start-1 row-start-1 flex min-w-0 flex-col gap-2 self-start">
-      {withSuggestions ? <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} /> : null}
+      {withSuggestions ? <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} disclosure={disclosure} /> : null}
       {props.usageMessage ? <p data-composer-usage className="m-0 t-meta leading-[1.4]">{props.usageMessage}</p> : null}
       {!withSuggestions ? <p className="m-0 text-sm leading-5 text-[var(--fg-2)]">{props.renewalHint}</p> : null}
     </div> : null}
     {atLimit ? props.limitRecovery : null}
   </div>
+}
+
+function ComposerControlIcon({ voiceActive, recording }: Readonly<{ voiceActive: boolean; recording: boolean }>) {
+  return voiceActive
+    ? <Square size={16} fill="currentColor" aria-hidden="true" className={recording ? undefined : 'text-[var(--fg-3)]'} />
+    : <Plus size={20} strokeWidth={2} aria-hidden="true" className="text-[var(--fg-3)]" />
 }
 
 function ComposerControls({ props, onPaste, onClear }: Readonly<{ props: WebComposerProps; onPaste?: () => void; onClear?: () => void }>) {
@@ -204,23 +215,18 @@ function ComposerControls({ props, onPaste, onClear }: Readonly<{ props: WebComp
   const textAction = onClear ? { id: 'clear', label: props.words.clear, icon: 'x' }
     : onPaste ? { id: 'paste', label: props.words.paste, icon: 'clipboard' } : null
   const items = textAction ? [textAction, ...defaultItems] : defaultItems
-  if (voiceActive) return <div data-composer-controls className="flex shrink-0 items-center">
-    <button type="button" aria-label={label} data-focus-on-primary={props.state === 'recording' ? '' : undefined} disabled={props.state === 'transcribing'} onClick={props.onVoice}
-      className={`flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-40 ${props.state === 'recording' ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-transparent text-[var(--fg-3)]'}`}>
-      <Square size={16} fill="currentColor" aria-hidden="true" />
-    </button>
-  </div>
-  if (items.length === 0) return null
-  return <div data-composer-controls className="flex shrink-0 items-center">
-    <button ref={anchorRef} type="button" aria-label={label} aria-haspopup="menu" aria-controls={open && !disabled ? menuId : undefined} aria-expanded={open && !disabled}
-      disabled={disabled} onClick={() => setOpen(true)} onKeyDown={(event) => {
-        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setOpen(true) }
-      }}
-      className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40">
-      <Plus size={20} strokeWidth={2} aria-hidden="true" />
-    </button>
-    <Menu id={menuId} open={open && !disabled} anchorRef={anchorRef} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onClose={() => setOpen(false)} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
-  </div>
+  if (!voiceActive && items.length === 0) return null
+  const isRecording = props.state === 'recording'
+  return <Menu.Root open={open && !disabled && !voiceActive} onOpenChange={setOpen}><div data-composer-controls className="flex shrink-0 items-center">
+    <Menu.Trigger asChild disabled={disabled || voiceActive}><button ref={anchorRef} type="button" aria-label={label}
+      aria-haspopup={voiceActive ? undefined : 'menu'} aria-controls={open && !disabled && !voiceActive ? menuId : undefined}
+      aria-expanded={voiceActive ? undefined : open && !disabled} data-focus-on-primary={isRecording ? '' : undefined}
+      disabled={disabled} onClick={voiceActive ? props.onVoice : undefined}
+      className={`flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-40 ${isRecording ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-transparent enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)]'}`}>
+      <ComposerControlIcon voiceActive={voiceActive} recording={isRecording} />
+    </button></Menu.Trigger>
+    <Menu.Content id={menuId} presentation={compactMenu ? 'sheet' : 'auto'} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
+  </div></Menu.Root>
 }
 
 function subscribeClipboardAvailability() { return () => {} }
@@ -238,7 +244,7 @@ function ComposerTextAction({ words, canClear, canPaste, inMenu, onClear, onPast
   </button>
 }
 
-function ComposerTextControls({ props, inMenu, onPasteText, onClear }: Readonly<{ props: ComposerProps; inMenu: boolean; onPasteText: (text: string) => void; onClear: () => void }>) {
+function ComposerTextControls({ props, inMenu, onPasteText, onClear, disclosure }: Readonly<{ props: ComposerProps; inMenu: boolean; disclosure?: React.ReactNode; onPasteText: (text: string) => void; onClear: () => void }>) {
   const available = useSyncExternalStore(subscribeClipboardAvailability,
     () => typeof navigator !== 'undefined' && 'clipboard' in navigator && typeof navigator.clipboard.readText === 'function', () => false)
   const canClear = props.state === 'idle' && props.value.length > 0
@@ -267,9 +273,9 @@ function ComposerTextControls({ props, inMenu, onPasteText, onClear }: Readonly<
       return
     } finally { scope.pending = false }
   }
-  return <div data-composer-text-controls className="flex min-w-12 min-h-12 shrink-0 items-end gap-[4px]">
-  {props.state !== 'recording' && props.state !== 'transcribing' ? <div data-composer-text-action-slot className="w-12 min-h-12 shrink-0">
-    <ComposerTextAction words={props.words} canClear={canClear} canPaste={canPaste} inMenu={inMenu} onClear={onClear} onPaste={() => void pasteMessage()} />
+  return <div data-composer-text-controls style={{ gap: INTERACTION_FILL_CLEARANCE }} className="flex min-w-12 min-h-12 shrink-0 items-end">
+  {disclosure || (props.state !== 'recording' && props.state !== 'transcribing') ? <div data-composer-text-action-slot className="w-12 min-h-12 shrink-0">
+    {disclosure ?? <ComposerTextAction words={props.words} canClear={canClear} canPaste={canPaste} inMenu={inMenu} onClear={onClear} onPaste={() => void pasteMessage()} />}
   </div> : null}
   <ComposerControls props={props} onPaste={canPaste && inMenu ? () => void pasteMessage() : undefined}
     onClear={canClear && inMenu ? onClear : undefined} />
@@ -290,9 +296,9 @@ function useTextActionMenu(inputRef: React.RefObject<HTMLTextAreaElement | null>
       const sendWidth = trailing.lastElementChild!.getBoundingClientRect().width
       const entryWidth = row.querySelector('[data-open-conversation]')?.getBoundingClientRect().width ?? 0
       const rowStyle = getComputedStyle(row)
-      const available = row.clientWidth - parseFloat(rowStyle.paddingInlineStart) - parseFloat(rowStyle.paddingInlineEnd)
+      const available = row.clientWidth - Number.parseFloat(rowStyle.paddingInlineStart) - Number.parseFloat(rowStyle.paddingInlineEnd)
       const minimumWidth = row.querySelector('[data-composer-input-minimum]')!.getBoundingClientRect().width
-      const inMenu = entryWidth + minimumWidth + inlineControlsWidth + sendWidth + parseFloat(getComputedStyle(trailing).columnGap) > available
+      const inMenu = entryWidth + minimumWidth + inlineControlsWidth + sendWidth + Number.parseFloat(getComputedStyle(trailing).columnGap) > available
       setInMenu(inMenu)
     }
     const observer = new ResizeObserver(measure)
@@ -307,8 +313,7 @@ function useTextActionMenu(inputRef: React.RefObject<HTMLTextAreaElement | null>
 
 const composerInputMetrics = 'px-2 py-3 text-base'
 
-function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
-  const t = useTranslations()
+function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerProps; disclosure?: React.ReactNode }>) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const inputLabel = props.words.inputLabel ?? props.words.placeholder
   const textActionInMenu = useTextActionMenu(inputRef, inputLabel, props.state)
@@ -331,7 +336,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
     if (!input) return
     function updatePlaceholder() {
       const style = getComputedStyle(input!)
-      const availableWidth = input!.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)
+      const availableWidth = input!.clientWidth - Number.parseFloat(style.paddingInlineStart) - Number.parseFloat(style.paddingInlineEnd)
       if (availableWidth <= 0) return
       const context = document.createElement('canvas').getContext('2d')!
       context.font = style.font
@@ -357,20 +362,21 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
 
   return (
     <div data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex flex-wrap justify-end min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] [&_button:focus-visible]:outline-2 [&_button:focus-visible]:-outline-offset-2 [&_button:focus-visible]:outline-[var(--primary)] [&_button[data-focus-on-primary]:focus-visible]:shadow-[inset_0_0_0_4px_var(--bg)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
+      <div data-composer-leading-controls className="flex w-max min-w-0 max-w-full grow shrink-0 items-end">
       {props.onOpenConversation && props.conversationLabel ? (
         <button
           type="button"
-          aria-label={`${props.conversationLabel}, ${t('nav.astra')}`}
+          aria-label={props.conversationLabel}
           data-open-conversation
           onClick={props.onOpenConversation}
           className="flex min-w-12 min-h-12 max-w-full shrink-0 items-center justify-center gap-2 px-2 py-1 rounded-full border-0 bg-transparent text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:[&_svg]:scale-[0.96] motion-safe:[&_svg]:transition-transform motion-safe:[&_svg]:duration-150"
         >
-          <AstraGlyph size={20} color="var(--fg-3)" /><span translate="no" className="text-sm">{t('nav.astra')}</span>
+          <AstraGlyph size={20} color="var(--fg-3)" />
         </button>
       ) : null}
 
-        {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} /> : <div data-composer-input-slot className="grid min-w-min max-w-full basis-[min-content] flex-1">
-        <span data-composer-input-minimum aria-hidden="true" className={`pointer-events-none invisible col-start-1 row-start-1 w-max max-w-full whitespace-pre ${composerInputMetrics}`}>{inputLabel}</span>
+        {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} /> : <div data-composer-input-slot className="grid grid-cols-1 w-max min-w-0 max-w-full grow shrink">
+        <span data-composer-input-minimum aria-hidden="true" className={`pointer-events-none invisible col-start-1 row-start-1 w-max max-w-full overflow-hidden whitespace-pre ${composerInputMetrics}`}>{inputLabel}</span>
         <TypedTextarea
           ref={inputRef}
           id={props.inputId}
@@ -384,18 +390,19 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           onKeyDown={(event) => handleSendKeyDown(event, canSend, props.onSend)}
           onPaste={props.onPaste}
           onFocus={props.onOpenConversation}
-          className={`col-start-1 row-start-1 w-0 min-w-full max-h-[calc(5lh+24px)] min-h-[48px] resize-none appearance-none border-0 bg-transparent ${composerInputMetrics} text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]`}
+          className={`col-start-1 row-start-1 w-0 min-w-full max-h-[calc(5lh+24px)] min-h-[48px] resize-none appearance-none border-0 bg-transparent ${composerInputMetrics} text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] placeholder:whitespace-normal disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]`}
         /></div>}
+      </div>
 
-      <div data-composer-trailing-controls className="flex max-w-full flex-wrap justify-end shrink-0 items-end gap-[4px]">
-        <ComposerTextControls props={props} inMenu={textActionInMenu} onClear={clearMessage} onPasteText={text => {
+      <div data-composer-trailing-controls style={{ gap: INTERACTION_FILL_CLEARANCE }} className="flex max-w-full flex-wrap justify-end shrink-0 items-end">
+        <ComposerTextControls props={props} inMenu={Boolean(disclosure) || textActionInMenu} disclosure={disclosure} onClear={clearMessage} onPasteText={text => {
           pasteFocus.current = text
           props.onChangeValue(text)
         }} />
 
       <button
         type="button"
-        aria-label={`${props.words.send}, ${t('habits.form.askDate')}`}
+        aria-label={props.words.send}
         data-accent={sendIsAccent ? '' : undefined}
         data-focus-on-primary={sendIsAccent ? '' : undefined}
         aria-busy={props.state === 'sending' || undefined}
@@ -403,9 +410,9 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         onClick={() => {
           if (canSend) props.onSend()
         }}
-        className={`relative flex min-w-12 min-h-12 max-w-full shrink-0 items-center justify-center gap-2 px-2 py-1 overflow-hidden rounded-full border-0 transition-[background-color,opacity] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed ${props.state === 'sending' ? '' : 'disabled:opacity-40'} ${sendIsAccent ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-[var(--bg-well)] text-[var(--fg-3)]'}`}
+        className={`relative flex w-[48px] min-h-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-0 transition-[background-color,opacity] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed ${props.state === 'sending' ? '' : 'disabled:opacity-40'} ${sendIsAccent ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-[var(--bg-well)] text-[var(--fg-3)]'}`}
       >
-        <AstraGlyph size={20} color="currentColor" /><span className="text-sm">{t('habits.form.askDate')}</span><span aria-hidden="true" className="inline-flex w-5 shrink-0" style={{ visibility: props.state === 'sending' ? 'visible' : 'hidden' }}>{props.state === 'sending' ? <Loader2 size={20} strokeWidth={2} className="animate-spin orbit-essential-loading" /> : null}</span>
+        {props.state === 'sending' ? <Loader2 size={20} strokeWidth={2} aria-hidden="true" className="animate-spin orbit-essential-loading" /> : <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />}
       </button>
       </div>
     </div>
@@ -424,22 +431,64 @@ function ComposerError({ props }: Readonly<{ props: ComposerProps }>) {
 }
 
 function RetryControl({ props }: Readonly<{ props: ComposerProps }>) {
-  const t = useTranslations()
   if (!props.onRetry) return null
   return (
     <button
       type="button"
       onClick={props.onRetry}
-      aria-label={`${props.words.retry}, ${t('nav.astra')}`}
-      className="orbit-link-action flex min-h-[48px] items-center justify-center gap-2 self-start border-0 bg-transparent text-sm font-medium text-[var(--fg-2)] transition-[color] duration-[var(--dur-hover)] hover:text-[var(--fg-1)]"
+      aria-label={props.words.retry}
+      className="flex w-[48px] min-h-[48px] items-center justify-center self-start rounded-full border-0 bg-transparent text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
     >
-      <AstraGlyph size={16} /><span>{props.words.retry}</span><span translate="no">{t('nav.astra')}</span>
+      <AstraGlyph size={20} />
     </button>
   )
 }
 
+function ComposerDisclosure({ collapsed, contentId, onToggle }: Readonly<{ collapsed: boolean; contentId: string; onToggle: () => void }>) {
+  const t = useTranslations()
+  return <button type="button" aria-label={t(collapsed ? 'shell.composer.expand' : 'shell.composer.collapse')}
+    aria-expanded={!collapsed} aria-controls={contentId} data-composer-collapse-row={collapsed ? '' : undefined}
+    data-composer-disclosure onClick={onToggle}
+    className={`flex h-[48px] min-h-[48px] shrink-0 items-center rounded-xl border-0 bg-transparent text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] ${collapsed ? 'w-full justify-between px-2' : 'w-[48px] justify-center'}`}>
+    {collapsed ? <AstraGlyph size={20} /> : null}
+    <ChevronDown size={20} aria-hidden="true" className={collapsed ? 'rotate-180' : undefined} />
+  </button>
+}
+
+function ComposerContent({ props, disclosure }: Readonly<{ props: WebComposerProps; disclosure?: React.ReactNode }>) {
+  const attachments = props.attachments ?? []
+  const hasAttachments = attachments.length > 0
+  const showAllowanceStatus = Boolean(props.allowanceReason && props.renewalHint)
+    && (props.state === 'idle' || props.state === 'sending' || props.state === 'atLimit')
+  const withSuggestions = props.state === 'idle' && props.suggestions.length > 0
+  return <>
+      {hasAttachments && props.attachWords && props.onAttachRemove ? (
+        <AttachmentTray attachments={attachments} words={props.attachWords} onRemove={props.onAttachRemove} />
+      ) : null}
+
+      <ComposerError props={props} />
+      {showAllowanceStatus ? <AllowanceStatus props={props} disclosure={disclosure} /> : <ComposerStatus props={props} disclosure={disclosure} />}
+      <ComposerInputRow props={props} disclosure={withSuggestions ? undefined : disclosure} />
+      {!showAllowanceStatus && props.usageMessage ? <p data-composer-usage className="m-0 t-meta leading-[1.4]">{props.usageMessage}</p> : null}
+      <RetryControl props={props} />
+  </>
+}
+
 export function Composer(props: Readonly<WebComposerProps>) {
+  const savedCollapsed = useUIStore(state => state.habitComposerCollapsed)
+  const collapsed = Boolean(props.collapsible && savedCollapsed)
+  const contentId = useId()
   const composerRef = useRef<HTMLDivElement>(null)
+  const disclosureFocusPending = useRef(false)
+  function toggleCollapsed() {
+    disclosureFocusPending.current = true
+    useUIStore.getState().setHabitComposerCollapsed(!collapsed)
+  }
+  useEffect(() => {
+    if (!disclosureFocusPending.current) return
+    disclosureFocusPending.current = false
+    composerRef.current?.querySelector<HTMLButtonElement>(collapsed ? '[data-composer-collapse-row]' : '[data-composer-disclosure]')?.focus()
+  }, [collapsed])
   const inputDisabled = props.state !== 'idle'
   useEffect(() => {
     if (!props.autoFocus) return
@@ -458,9 +507,9 @@ export function Composer(props: Readonly<WebComposerProps>) {
   const attachments = props.attachments ?? []
   const hasAttachments = attachments.length > 0
   const canRetry = props.onRetry !== undefined
-  const showAllowanceStatus = Boolean(props.allowanceReason && props.renewalHint)
-    && (props.state === 'idle' || props.state === 'sending' || props.state === 'atLimit')
 
+  const disclosure = props.collapsible ? <ComposerDisclosure collapsed={false} contentId={contentId} onToggle={toggleCollapsed} /> : undefined
+  const content = <ComposerContent props={props} disclosure={disclosure} />
   return (
     <div
       ref={composerRef}
@@ -472,17 +521,11 @@ export function Composer(props: Readonly<WebComposerProps>) {
       tabIndex={-1}
       data-has-attachments={hasAttachments ? '' : undefined}
       data-can-retry={canRetry ? '' : undefined}
-      className="@container flex shrink-0 flex-col gap-3 border-t border-[var(--hairline)] bg-[var(--bg)] p-4"
+      data-collapsed={props.collapsible ? collapsed : undefined}
+      className={`@container flex shrink-0 flex-col border-t border-[var(--hairline)] bg-[var(--bg)] ${collapsed ? 'gap-0 px-4 py-1' : 'gap-3 p-4'}`}
     >
-      {hasAttachments && props.attachWords && props.onAttachRemove ? (
-        <AttachmentTray attachments={attachments} words={props.attachWords} onRemove={props.onAttachRemove} />
-      ) : null}
-
-      <ComposerError props={props} />
-      {showAllowanceStatus ? <AllowanceStatus props={props} /> : <ComposerStatus props={props} />}
-      <ComposerInputRow props={props} />
-      {!showAllowanceStatus && props.usageMessage ? <p data-composer-usage className="m-0 t-meta leading-[1.4]">{props.usageMessage}</p> : null}
-      <RetryControl props={props} />
+      {collapsed ? <ComposerDisclosure collapsed contentId={contentId} onToggle={toggleCollapsed} /> : null}
+      {props.collapsible ? <div id={contentId} hidden={collapsed} className={collapsed ? 'hidden' : 'flex min-w-0 flex-col gap-3'}>{content}</div> : content}
     </div>
   )
 }

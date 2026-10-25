@@ -1,14 +1,14 @@
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
-import { AndroidConfig, compileModsAsync, withAndroidManifest } from '@expo/config-plugins'
-import { afterEach, describe, expect, it } from 'vitest'
+import { AndroidConfig, IOSConfig, compileModsAsync, withAndroidManifest } from '@expo/config-plugins'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import appJson from '../app.json'
 
 const require = createRequire(import.meta.url)
 const createConfig = require('../app.config.js') as () => typeof appJson.expo
 
 describe('Android app variant', () => {
-  afterEach(() => { delete process.env.ORBIT_APP_VARIANT })
+  afterEach(() => { delete process.env.ORBIT_APP_VARIANT; vi.unstubAllEnvs() })
 
   it('keeps the default production config with backup disabled and local plugins', () => {
     delete process.env.ORBIT_APP_VARIANT
@@ -16,7 +16,7 @@ describe('Android app variant', () => {
       ...appJson.expo,
       updates: { ...appJson.expo.updates, enabled: false },
       android: { ...appJson.expo.android, allowBackup: false },
-      plugins: [...appJson.expo.plugins, './plugins/with-android-release-build-fixes', './plugins/with-react-native-imperative-focus'],
+      plugins: [...appJson.expo.plugins, './plugins/with-android-release-build-fixes', './plugins/with-react-native-imperative-focus', './plugins/with-ios-widget'],
     }
     expect(JSON.stringify(createConfig())).toBe(JSON.stringify(expected))
   })
@@ -122,5 +122,45 @@ describe('Android app variant', () => {
   it('rejects an unknown variant', () => {
     process.env.ORBIT_APP_VARIANT = 'unknown'
     expect(() => createConfig()).toThrow('Unknown Orbit app variant')
+  })
+
+  it.each(['production', 'staging'])('configures the iOS %s identity, minimum OS and embedded updates', async (variant) => {
+    process.env.ORBIT_APP_VARIANT = variant
+    const config = createConfig()
+    expect(config.ios.supportsTablet).toBe(true)
+    expect(IOSConfig.Orientation.setOrientation(config as Parameters<typeof IOSConfig.Orientation.setOrientation>[0], {}).UISupportedInterfaceOrientations).toEqual([
+      'UIInterfaceOrientationPortrait', 'UIInterfaceOrientationPortraitUpsideDown',
+      'UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight',
+    ])
+    const host = variant === 'staging' ? 'app-staging.useorbit.org' : 'app.useorbit.org'
+    expect(config.ios.bundleIdentifier).toBe(variant === 'staging' ? 'org.useorbit.app.staging' : 'org.useorbit.app')
+    expect(config.ios.deploymentTarget).toBe('17.4')
+    expect(config.plugins).toContainEqual(['expo-build-properties', expect.objectContaining({ ios: { deploymentTarget: '17.4' } })])
+    expect(config.ios.config.usesNonExemptEncryption).toBe(false)
+    expect(config.updates.enabled).toBe(false)
+    const configured = IOSConfig.Entitlements.withAssociatedDomains({ name: config.name, slug: config.slug, ios: config.ios })
+    const generated = await compileModsAsync(configured, { projectRoot: process.cwd(), platforms: ['ios'], introspect: true })
+    expect(generated.ios?.entitlements?.['com.apple.developer.associated-domains']).toEqual([`applinks:${host}`, `webcredentials:${host}`])
+    expect(config.ios.privacyManifests.NSPrivacyTracking).toBe(false)
+    expect(config.ios.privacyManifests.NSPrivacyAccessedAPITypes).toHaveLength(4)
+  })
+
+  it.each(['production', 'staging'])('uses only provisioned Apple identifiers for %s', (variant) => {
+    process.env.ORBIT_APP_VARIANT = variant
+    vi.stubEnv('ORBIT_APPLE_TEAM_ID', 'TESTTEAM01')
+    vi.stubEnv('ORBIT_IOS_APP_STORE_ID', '1234567890')
+    expect(createConfig().ios).toMatchObject({ appleTeamId: 'TESTTEAM01', appStoreUrl: 'https://apps.apple.com/app/id1234567890' })
+  })
+
+  it('does not invent a store listing before enrollment', () => {
+    vi.stubEnv('ORBIT_APPLE_TEAM_ID', '')
+    vi.stubEnv('ORBIT_IOS_APP_STORE_ID', '')
+    expect(createConfig().ios).not.toHaveProperty('appleTeamId')
+    expect(createConfig().ios).not.toHaveProperty('appStoreUrl')
+  })
+
+  it('rejects malformed App Store identifiers', () => {
+    vi.stubEnv('ORBIT_IOS_APP_STORE_ID', 'unknown')
+    expect(() => createConfig()).toThrow('Invalid iOS App Store id')
   })
 })

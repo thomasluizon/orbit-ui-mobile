@@ -1,3 +1,5 @@
+import { ActionRow } from '@/components/ui/action-row'
+import { AppleSignInButton } from './apple-sign-in-button'
 import { GoogleMark } from '@/components/auth/google-mark'
 import { Text, View } from 'react-native'
 import type { ReactNode } from 'react'
@@ -14,6 +16,7 @@ interface EmailStepProps {
   onEmailChange: (email: string) => void
   isSubmitting: boolean
   isGoogleLoading: boolean
+  isAppleLoading?: boolean
   isOnline: boolean
   canSubmitTurnstile: boolean
   turnstileWidget: ReactNode
@@ -22,6 +25,7 @@ interface EmailStepProps {
   errorMessage: string | null
   onSendCode: () => void
   onSignInWithGoogle: () => void
+  onSignInWithApple?: () => void
   onOpenTerms: () => void
   onOpenPrivacy: () => void
   tokens: AppTokensV2
@@ -30,21 +34,22 @@ interface EmailStepProps {
   sendCodeLabel?: string
 }
 
-export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmitting, isGoogleLoading, isOnline, errorKey,
-  errorMessage, fieldError: backendFieldError, canSubmitTurnstile, turnstileWidget, onSendCode, onSignInWithGoogle, onOpenTerms, onOpenPrivacy, tokens, styles, t,
+export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmitting, isGoogleLoading, isAppleLoading = false, isOnline, errorKey,
+  errorMessage, fieldError: backendFieldError, canSubmitTurnstile, turnstileWidget, onSendCode, onSignInWithGoogle, onSignInWithApple, onOpenTerms, onOpenPrivacy, tokens, styles, t,
   sendCodeLabel }: Readonly<EmailStepProps>) {
+  const isBusy = isSubmitting || isGoogleLoading || isAppleLoading
   const fieldError = isOnline && backendFieldError ? backendFieldError : isOnline && errorKey === 'auth.errors.invalidEmail' ? errorMessage : null
-  const googleError = isOnline && errorKey === 'auth.errors.googleError' ? errorMessage : null
+  const googleError = isOnline && (errorKey === 'auth.errors.googleError' || errorKey === 'auth.errors.appleError') ? errorMessage : null
   const sendError = isOnline && errorMessage && !fieldError && !googleError ? errorMessage : null
   return <View style={styles.step}>
     <Input label={t('auth.email')} value={email} onChange={onEmailChange} placeholder={t('auth.emailPlaceholder')}
-      kind="email" name="email" focusRequest={emailFocusRequest} autoComplete="email" disabled={isSubmitting || isGoogleLoading}
+      kind="email" name="email" focusRequest={emailFocusRequest} autoComplete="email" disabled={isBusy}
       onSubmit={onSendCode} error={fieldError ?? undefined} />
     {turnstileWidget}
     <View style={styles.actionGroup}>
       {!isOnline && <LoginOfflineNotice t={t} styles={styles} tokens={tokens} />}
       {sendError && <Text accessibilityRole="alert" style={styles.error}>{sendError}</Text>}
-      <PillButton onClick={onSendCode} disabled={isSubmitting || isGoogleLoading || !email.trim() || !isOnline || !canSubmitTurnstile} loading={isSubmitting}>
+      <PillButton onClick={onSendCode} disabled={isBusy || !email.trim() || !isOnline || !canSubmitTurnstile} loading={isSubmitting}>
         {sendCodeLabel ?? t('auth.sendCode')}
       </PillButton>
     </View>
@@ -52,9 +57,13 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
       <View style={styles.dividerLine} /><Text style={styles.dividerText}>{t('auth.orContinueWith')}</Text><View style={styles.dividerLine} />
     </View>
     <View style={styles.titleBlock}>
+      <ActionRow align="center"><View style={{ width: '100%' }}>
       {/* eslint-disable-next-line local/max-button-words -- Google's approved sign-in wording is required. */}
-      <PillButton brand="google" leadingIcon={<GoogleMark />} variant="ghost" onClick={onSignInWithGoogle} disabled={isGoogleLoading || isSubmitting || !isOnline}
+      <PillButton brand="google" leadingIcon={<GoogleMark />} variant="ghost" onClick={onSignInWithGoogle} disabled={isBusy || !isOnline}
         loading={isGoogleLoading}>{t('auth.signInWithGoogle')}</PillButton>
+      </View>
+      <AppleSignInButton disabled={isBusy || !isOnline} loading={isAppleLoading} onPress={() => onSignInWithApple?.()} />
+      </ActionRow>
       {!isOnline && <Text style={styles.reason}>{t('auth.googleOffline')}</Text>}
       {googleError && <Text accessibilityRole="alert" style={styles.error}>{googleError}</Text>}
     </View>

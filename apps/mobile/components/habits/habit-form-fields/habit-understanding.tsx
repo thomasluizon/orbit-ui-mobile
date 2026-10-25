@@ -8,6 +8,7 @@ import type { HabitUnderstandingProps, HabitRepeatIntervalProps } from '@orbit/s
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
 import { Minus, Plus } from '@/components/ui/icons'
+import { WeekdayPicker } from '@/components/ui/weekday-picker'
 import { Proposed } from '@/components/ui/proposed'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -77,58 +78,61 @@ export function HabitUnderstanding({
   const segments = useMemo(() => segmentHabitPhrase(value, consumed), [consumed, value])
 
   const emojiControl = (
-    <Proposed inset keepMounted proposed={emojiProposed} scope="field" label={labels.proposed}>
-      <HabitEmojiSelector
-        selectedEmoji={emoji}
-        tokens={tokens}
-        styles={formStyles}
-        wellSize={46}
-        onSelect={selectEmoji}
-        onSuggest={requestEmoji}
-        canSuggest={canSuggestEmoji}
-        isSuggesting={isEmojiSuggesting}
-        isDisabled={disabled || isSuggestionDisabled || isEmojiSuggesting}
-        suggestionHint={emojiSuggestionHint}
-        suggestionError={emojiSuggestionError}
-      />
-    </Proposed>
+    <HabitEmojiSelector
+      proposed={emojiProposed || proposed}
+      selectedEmoji={emoji}
+      tokens={tokens}
+      styles={formStyles}
+      wellSize={46}
+      onSelect={selectEmoji}
+      onSuggest={requestEmoji}
+      canSuggest={canSuggestEmoji}
+      isSuggesting={isEmojiSuggesting}
+      isDisabled={disabled || isSuggestionDisabled || isEmojiSuggesting}
+      suggestionHint={emojiSuggestionHint}
+      suggestionError={emojiSuggestionError}
+    />
   )
 
   return (
     <View style={styles.container}>
       <View style={styles.fieldGroup}>
         <Text style={styles.label}>{labels.field}</Text>
-        <View style={[styles.inputLayer, {
-          outlineColor: focused ? tokens.primary : tokens.borderControl,
-          outlineWidth: focused ? 2 : 1,
-          outlineOffset: focused ? -2 : -1,
-        }]}>
-          <Text aria-hidden pointerEvents="none" style={styles.inputMirror}>
-            {hasValue ? segments.map((segment, index) => (
-              <Text key={`${segment.text}-${index}`} style={segment.consumed ? styles.consumed : null}>
-                {segment.text}
-              </Text>
-            )) : labels.placeholder}{'\u200b'}
-          </Text>
-          <TypedTextInput
-            ref={inputRef}
-            value={value}
-            multiline
-            maxLength={200}
-            spellCheck={false}
-            accessibilityLabel={labels.field}
-            accessibilityHint={error}
-            editable={!disabled}
-            accessibilityState={{ disabled }}
-            placeholder={labels.placeholder}
-            placeholderTextColor={tokens.fg3}
-            selectionColor={tokens.primary}
-            style={styles.input}
-            onChangeText={guard(onValueChange)}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-          />
+        <View testID="habit-title-row" style={styles.titleRow}>
+          <View style={[styles.inputLayer, {
+            outlineColor: focused ? tokens.primary : tokens.borderControl,
+            outlineWidth: focused ? 2 : 1,
+            outlineOffset: focused ? -2 : -1,
+          }]}>
+            <Text aria-hidden pointerEvents="none" style={styles.inputMirror}>
+              {hasValue ? segments.map((segment, index) => (
+                <Text key={`${segment.text}-${index}`} style={segment.consumed ? styles.consumed : null}>
+                  {segment.text}
+                </Text>
+              )) : labels.placeholder}{'\u200b'}
+            </Text>
+            <TypedTextInput
+              ref={inputRef}
+              value={value}
+              multiline
+              maxLength={200}
+              spellCheck={false}
+              accessibilityLabel={labels.field}
+              accessibilityHint={error}
+              editable={!disabled}
+              accessibilityState={{ disabled }}
+              placeholder={labels.placeholder}
+              placeholderTextColor={tokens.fg3}
+              selectionColor={tokens.primary}
+              style={styles.input}
+              onChangeText={guard(onValueChange)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+            />
+          </View>
+          {emojiControl}
         </View>
+        {onSuggestEmoji ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.error, !emojiSuggestionError ? { position: 'absolute', width: 0, height: 0 } : null]}>{emojiSuggestionError}</Text> : null}
         {error ? (
           <Text accessibilityRole="alert" style={styles.error}>{error}</Text>
         ) : null}
@@ -136,15 +140,9 @@ export function HabitUnderstanding({
 
       {children}
 
-      {onSuggestEmoji && !showPreview ? emojiControl : null}
-
       {showPreview ? (
         <Proposed inset proposed={proposed} scope="block" label={labels.proposed}>
           <View accessibilityLabel={labels.understood} style={styles.preview}>
-            <View style={styles.previewHeader}>
-              {emojiControl}
-              <Text style={styles.meta}>{proposed ? labels.understoodAstra : labels.understood}</Text>
-            </View>
             <Text style={[styles.sentence, proposed ? { color: tokens.fg3 } : null]}>{sentence}</Text>
             <ScheduleCorrections hidden={!showSchedule} proposed={proposed} days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible' && showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} tokens={tokens} styles={styles} />
           </View>
@@ -166,8 +164,11 @@ function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: { gap: 24 },
     fieldGroup: { gap: 8 },
+    titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
     label: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 },
     inputLayer: {
+      flex: 1,
+      minWidth: 0,
       minHeight: 54,
       borderRadius: radius.md,
       outlineWidth: 1,
@@ -215,7 +216,6 @@ function createStyles(tokens: AppTokens) {
       outlineStyle: 'solid',
       backgroundColor: tokens.bgCard,
     },
-    previewHeader: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
     meta: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 },
     sentence: {
       color: tokens.fg1,
@@ -223,12 +223,6 @@ function createStyles(tokens: AppTokens) {
       fontSize: 17,
       lineHeight: 24,
     },
-    days: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-    day: { overflow: 'hidden', alignItems: 'center', borderRadius: radius.full, height: TOUCH_TARGET_MIN, justifyContent: 'center', width: TOUCH_TARGET_MIN },
-    dayIdle: { backgroundColor: tokens.bgWell, borderColor: tokens.hairline, borderWidth: 1 },
-    daySelected: { backgroundColor: tokens.primaryDim },
-    dayText: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 },
-    dayTextSelected: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
     stepper: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     stepButton: {
       overflow: 'hidden',
@@ -267,16 +261,7 @@ function ScheduleCorrections({ hidden = false, proposed = false, days, daily = f
   if (hidden) return null
   return (
     <>
-      <View accessibilityLabel={labels.days} style={styles.days}>
-        {dayOptions.map((day) => {
-          const selected = daily || days.includes(day.value)
-          return (
-            <Pressable focusInset selectionRingWidth={1.5} selectionRingColor={proposed ? tokens.fg3 : tokens.primary} key={day.value} accessibilityRole="button" accessibilityLabel={day.accessibleLabel} accessibilityState={{ selected, ...(scheduleLocked ? { disabled: true } : {}) }} disabled={scheduleLocked} style={({ pressed }) => [styles.day, selected ? proposed ? { backgroundColor: tokens.bgWell } : styles.daySelected : styles.dayIdle, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onToggleDay(day.value)}>
-              <Text style={selected && !proposed ? styles.dayTextSelected : styles.dayText}>{day.label.charAt(0)}</Text>
-            </Pressable>
-          )
-        })}
-      </View>
+      <WeekdayPicker label={labels.days} days={days} daily={daily} dayOptions={dayOptions} proposed={proposed} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} />
       {showCount ? (
         <View style={styles.stepper}>
           <Pressable accessibilityRole="button" accessibilityLabel={labels.less} disabled={scheduleLocked} style={({ pressed }) => [styles.stepButton, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onQuantityChange(Math.max(1, quantity - 1))}>

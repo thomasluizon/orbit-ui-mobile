@@ -1,11 +1,12 @@
 import { PersonalText } from '@/components/ui/personal-text'
 import { ActionRow } from './action-row'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
-import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
+import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref, type RefObject } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { PADDING, SPACING, SHEET_BODY_INSETS, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
-import { StyleSheet, Text, View, useWindowDimensions, type ScrollView, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
+import { AccessibilityInfo, StyleSheet, Text, View, useWindowDimensions, type ScrollView, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
+import { useOverlayFocus } from './focus-provenance-view'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X } from '@/components/ui/icons'
@@ -49,6 +50,7 @@ export function useSheetHost() {
 }
 
 interface MobileSheetProps extends SheetProps {
+  initialFocus?: RefObject<View | null>
   onBackPress?: () => void
   /** The handle `useSheetHost` fills in, so the host can close through the native dismissal. */
   ref?: Ref<SheetHandle>
@@ -69,6 +71,7 @@ export function Sheet({
   onAttemptDismiss,
   onBackPress,
   virtualizedBody = false,
+  initialFocus,
   children,
   ref,
 }: Readonly<MobileSheetProps>) {
@@ -77,6 +80,7 @@ export function Sheet({
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
+  useOverlayFocus(true)
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const { height, width } = useWindowDimensions()
   const bodyPaddingHorizontal = minimumBodyWidth == null
@@ -196,6 +200,12 @@ export function Sheet({
       insetAdjustment="automatic"
       onBackPress={onClose && !onBackPress ? undefined : handleBlockedBackPress}
       onDidDismiss={handleDidDismiss}
+      onDidPresent={() => {
+        const target = initialFocus?.current
+        if (!target) return
+        target.setNativeProps({ hasTVPreferredFocus: true })
+        AccessibilityInfo.sendAccessibilityEvent(target, 'focus')
+      }}
       scrollable={false}
     >
       {virtualizedBody ? (

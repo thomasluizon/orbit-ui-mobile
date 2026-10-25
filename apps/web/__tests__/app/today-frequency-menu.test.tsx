@@ -34,7 +34,7 @@ function renderControl(locale: string, words: typeof en | typeof ptBr) {
 it.each([['en', en], ['pt-BR', ptBr]] as const)('opens the %s frequency sheet after closing list options', async (locale, words) => {
   const rendered = renderControl(locale, words)
   const openFrequencies = async () => {
-    fireEvent.click(screen.getByRole('button', { name: words.habits.listOptions }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: words.habits.listOptions }), { button: 0, ctrlKey: false })
     fireEvent.click(await screen.findByRole('menuitem', { name: words.habits.frequencyFilter }))
     expect(await screen.findByRole('dialog', { name: words.habits.frequencyFilter })).toBeVisible()
     expect(document.querySelector('.orbit-sheet-title')).toHaveTextContent(words.common.options)
@@ -53,7 +53,7 @@ it.each([['en', en], ['pt-BR', ptBr]] as const)('opens the %s frequency sheet af
 
 it.each([0, 44])('keeps every landscape menu choice reachable inside safe inset %s', async (inset) => {
   renderControl('en', en)
-  fireEvent.click(screen.getByRole('button', { name: en.habits.listOptions }))
+  fireEvent.pointerDown(screen.getByRole('button', { name: en.habits.listOptions }), { button: 0, ctrlKey: false })
   const options = await screen.findByRole('dialog', { name: en.habits.listOptions })
   const optionsHtml = options.outerHTML
   fireEvent.click(screen.getByRole('menuitem', { name: en.habits.frequencyFilter }))

@@ -57,20 +57,21 @@ test("every pull request distributes Chromium without increasing browser concurr
   assert.equal(upload.with["if-no-files-found"], "error")
 })
 
-test("Unit Tests requires every jsdom and Chromium shard blob to be nonempty", () => {
+test("Unit Tests requires every jsdom and Chromium shard blob and timing report to be nonempty", () => {
   const step = workflow.jobs["unit-tests"].steps.find((candidate) => candidate.name === "Verify every web report arrived")
   assert.equal(step.if, undefined)
   const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
-  const blobs = join(directory, "apps/web/.artifacts/unit-tests/blobs")
-  const reports = ["jsdom-1.json", "jsdom-2.json", ...Array.from({ length: 8 }, (_, index) => `chromium-${index + 1}.json`)]
+  const reportRoot = join(directory, "apps/web/.artifacts/unit-tests")
+  const reports = ["blobs", "timings"].flatMap(kind => ["jsdom-1.json", "jsdom-2.json", ...Array.from({ length: 8 }, (_, index) => `chromium-${index + 1}.json`)].map(name => `${kind}/${name}`))
   const verify = () => spawnSync("bash", ["-e", "-c", step.run], { cwd: directory, encoding: "utf8" })
   try {
-    mkdirSync(blobs, { recursive: true })
-    for (const report of reports) writeFileSync(join(blobs, report), "{}")
+    mkdirSync(join(reportRoot, "blobs"), { recursive: true })
+    mkdirSync(join(reportRoot, "timings"), { recursive: true })
+    for (const report of reports) writeFileSync(join(reportRoot, report), "{}")
     const complete = verify()
     assert.equal(complete.status, 0, complete.stderr)
     for (const report of reports) {
-      const path = join(blobs, report)
+      const path = join(reportRoot, report)
       const held = join(directory, "held.json")
       renameSync(path, held)
       assert.notEqual(verify().status, 0, `missing ${report} must fail verification`)
@@ -171,6 +172,24 @@ test("Unit Tests preserves merged coverage thresholds and Sonar consumes the com
   assert.ok(workflow.jobs.sonarcloud.steps.some((step) => step.with?.name === "unit-test-coverage"))
 })
 
+test("Sonar coverage merge normalizes desktop scripts measured by the web workspace", () => {
+  const step = workflow.jobs.sonarcloud.steps.find((candidate) => candidate.name === "Merge Coverage Reports")
+  const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
+  const desktopPath = "apps/desktop/src-tauri/src/palette.js"
+  const record = (source) => `TN:\nSF:${source}\nFNF:0\nFNH:0\nDA:1,4\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\n`
+  try {
+    mkdirSync(join(directory, "apps/web/coverage"), { recursive: true })
+    for (const source of ["../desktop/src-tauri/src/palette.js", "..\\desktop\\src-tauri\\src\\palette.js", "apps/web/../desktop/src-tauri/src/palette.js"]) {
+      writeFileSync(join(directory, "apps/web/coverage/lcov.info"), record(source))
+      const result = spawnSync("bash", ["-e", "-c", step.run], { cwd: directory, encoding: "utf8" })
+      assert.equal(result.status, 0, result.stderr)
+      assert.equal(readFileSync(join(directory, "coverage/lcov.info"), "utf8"), record(desktopPath))
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
 test("aggregate downloads retain attempt directories until selection before verification", () => {
   const steps = workflow.jobs["unit-tests"].steps
   const download = steps.find((step) => step.name === "Download web shard reports")
@@ -205,11 +224,11 @@ test("workflow selects partial reruns before the existing missing-report gate", 
     assert.ok(select, "aggregate must select attempts before merging reports")
     for (const [project, total] of [["jsdom", 2], ["chromium", 8]]) {
       for (let shard = 1; shard <= total; shard++) {
-        stageArtifact("web-tests", "Download web shard reports", { project, shard }, 1, { [`blobs/${project}-${shard}.json`]: "original report" })
+        stageArtifact("web-tests", "Download web shard reports", { project, shard }, 1, { [`blobs/${project}-${shard}.json`]: "original report", [`timings/${project}-${shard}.json`]: "original timing" })
       }
     }
     const older = stageArtifact("web-tests", "Download web shard reports", { project: "chromium", shard: 8 }, 1, { "stale-only.json": "must not survive" })
-    const newer = stageArtifact("web-tests", "Download web shard reports", { project: "chromium", shard: 8 }, 2, { "blobs/chromium-8.json": "passing rerun" })
+    const newer = stageArtifact("web-tests", "Download web shard reports", { project: "chromium", shard: 8 }, 2, { "blobs/chromium-8.json": "passing rerun", "timings/chromium-8.json": "passing timing" })
     for (const { workspace, directory: path } of workflow.jobs["workspace-tests"].strategy.matrix.include) {
       stageArtifact("workspace-tests", "Download workspace coverage", { workspace }, 1, { [`${path}/coverage/lcov.info`]: `${workspace} coverage` })
     }

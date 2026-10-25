@@ -42,12 +42,13 @@ interface RadioGroupContextValue {
 
 const RadioGroupContext = createContext<RadioGroupContextValue | null>(null)
 
-export function RadioGroup({ children, onCommit, focusRequest, ...props }: Readonly<
+export function RadioGroup({ children, onCommit, focusRequest, shouldFocus, ...props }: Readonly<
   Omit<ViewProps, 'accessibilityRole'> & {
     children: ReactNode
     /** Runs when a row is explicitly pressed, never when native focus moves the selection. */
     onCommit?: () => void
     focusRequest?: number
+    shouldFocus?: () => boolean
   }
 >) {
   const [items, setItems] = useState<RadioItemState[]>([])
@@ -55,13 +56,14 @@ export function RadioGroup({ children, onCommit, focusRequest, ...props }: Reado
   const handledFocusRequest = useRef<number | undefined>(undefined)
   useEffect(() => {
     if (!focusRequest || focusRequest === handledFocusRequest.current) return
-    const firstEnabled = items.find((item) => !item.disabled)
+    if (shouldFocus && !shouldFocus()) { handledFocusRequest.current = focusRequest; return }
+    const firstEnabled = items.find((item) => !item.disabled && item.selected) ?? items.find((item) => !item.disabled)
     const firstElement = firstEnabled ? elementsRef.current.get(firstEnabled.id) : undefined
     if (!firstElement) return
     handledFocusRequest.current = focusRequest
     firstElement.setNativeProps({ hasTVPreferredFocus: true })
     AccessibilityInfo.sendAccessibilityEvent(firstElement, 'focus')
-  }, [focusRequest, items])
+  }, [focusRequest, items, shouldFocus])
   const armedRedirectRef = useRef<ArmedRedirect | null>(null)
   const getPreviousFocusTarget = usePreviousFocusTarget()
   const onCommitRef = useRef(onCommit)

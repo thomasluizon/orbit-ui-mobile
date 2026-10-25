@@ -1,3 +1,4 @@
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
@@ -27,13 +28,13 @@ for (const width of [412, 600, 1352]) {
             return route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(event)}\n\n` })
           })
           await page.goto('/')
-          await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : `${messages.todayAstra.openConversation}, ${messages.nav.astra}`, exact: true }).click()
+          await getShellConversationEntry(page, width, messages).click()
           const conversation = page.locator('[data-shell-conversation="overlay"]')
           const articles = conversation.getByRole('feed').getByRole('article')
           for (const withProse of [true, false]) {
             prose = withProse
             await conversation.locator('[data-composer-input]').fill('Review the routine.')
-            await conversation.getByRole('button', { name: `${messages.shell.composer.send}, ${messages.habits.form.askDate}`, exact: true }).click()
+            await conversation.getByRole('button', { name: messages.shell.composer.send, exact: true }).click()
             const turn = articles.last()
             await expect(turn.locator('section[data-state]')).toHaveCount(scenario.count)
             await expect(conversation.getByRole('feed')).toHaveAttribute('aria-busy', 'false')

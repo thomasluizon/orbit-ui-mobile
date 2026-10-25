@@ -875,6 +875,8 @@ describe('email-link attempt ownership', () => {
     const { result, rerender } = renderHook(() => useLoginFlow())
     expect(verificationCount()).toBe(0)
     expect(new URL(window.location.href).searchParams.has('code')).toBe(false)
+    expect(new URL(window.location.href).searchParams.has('email')).toBe(false)
+    expect(JSON.stringify(window.history.state).includes('123456')).toBe(false)
     expect(new URL(window.location.href).searchParams.get('returnUrl') === '/progress').toBe(true)
     mocks.search = 'returnUrl=%2Fprogress'
     rerender()

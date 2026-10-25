@@ -1,3 +1,4 @@
+import { getShellConversationEntry } from './shell-conversation-entry'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
@@ -25,10 +26,10 @@ for (const width of [412, 1280]) {
       test('hugs lone pills and keeps the preview pair at the trailing content edge', async ({ page, context }) => {
         await context.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, route => route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(finalEvent)}\n\n` }))
         await page.goto('/')
-        await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : `${messages.todayAstra.openConversation}, ${messages.nav.astra}`, exact: true }).click()
+        await getShellConversationEntry(page, width, messages).click()
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         await conversation.locator('[data-composer-input]').fill('Oi, como estou hoje?')
-        await conversation.getByRole('button', { name: `${messages.shell.composer.send}, ${messages.habits.form.askDate}`, exact: true }).click()
+        await conversation.getByRole('button', { name: messages.shell.composer.send, exact: true }).click()
         const profile = conversation.getByRole('button', { name: messages.chat.operation.openProfile, exact: true })
         await expect(profile).toBeVisible()
         await expect(conversation.getByRole('button', { name: messages.chat.daySummary.open, exact: true })).toBeVisible()
