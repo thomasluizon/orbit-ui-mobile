@@ -55,6 +55,39 @@ it.each([false, true])('renders application children on the server with shell di
   expect(html).not.toContain(en.desktopUpdate.required)
 })
 
+it.each([false, true])('preserves server input through compatible hydration with shell discovery %s', async shell => {
+  const application = <NextIntlClientProvider locale="en" messages={en}>
+    <DesktopReleaseBoundary minimum="0.0.0" monitor><input aria-label="Habit" defaultValue="" /></DesktopReleaseBoundary>
+  </NextIntlClientProvider>
+  const container = document.createElement('div')
+  container.innerHTML = renderToString(application)
+  document.body.append(container)
+  const input = screen.getByRole('textbox', { name: 'Habit' })
+  expect(input).toBeInstanceOf(HTMLInputElement)
+  if (!(input instanceof HTMLInputElement)) throw new Error('Expected the server-rendered habit input')
+  input.value = 'Drink water'
+  if (shell) {
+    vi.stubGlobal('__TAURI_INTERNALS__', {})
+    vi.stubGlobal('__ORBIT_DESKTOP_VERSION__', '0.1.2')
+  }
+  const onRecoverableError = vi.fn()
+  const root = hydrateRoot(container, application, { onRecoverableError })
+  try {
+    await act(async () => {})
+    if (shell) {
+      await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/desktop-release', expect.objectContaining({ cache: 'no-store' })))
+    } else {
+      expect(fetch).not.toHaveBeenCalled()
+    }
+    expect(input).toHaveValue('Drink water')
+    expect(screen.getByRole('textbox', { name: 'Habit' })).toBe(input)
+    expect(onRecoverableError).not.toHaveBeenCalled()
+  } finally {
+    await act(async () => { root.unmount() })
+    container.remove()
+  }
+})
+
 it('hydrates server children before showing an incompatible shell update without a mismatch', async () => {
   const application = <NextIntlClientProvider locale="en" messages={en}>
     <DesktopReleaseBoundary minimum="1.0.0"><p>Hoje</p></DesktopReleaseBoundary>
@@ -85,16 +118,14 @@ it.each([{ messages: en, shell: shellEn }, { messages: ptBR, shell: shellPtBR }]
 )
 
 it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])(
-  'blocks an incompatible shell before mounting the application in $locale', async ({ locale, messages }) => {
+  'replaces the application with the update path for an incompatible shell in $locale', async ({ locale, messages }) => {
     vi.stubGlobal('__TAURI_INTERNALS__', {})
     vi.stubGlobal('__ORBIT_DESKTOP_VERSION__', '0.1.2')
-    const mounted = vi.fn()
-    function Application() { mounted(); return <p>Hoje</p> }
     render(<NextIntlClientProvider locale={locale} messages={messages}>
-      <DesktopReleaseBoundary minimum="0.2.0"><Application /></DesktopReleaseBoundary>
+      <DesktopReleaseBoundary minimum="0.2.0"><p>Hoje</p></DesktopReleaseBoundary>
     </NextIntlClientProvider>)
     expect(await screen.findByRole('alert')).toHaveTextContent(messages.desktopUpdate.required)
-    expect(mounted).not.toHaveBeenCalled()
+    expect(screen.queryByText('Hoje')).toBeNull()
     expect(fetch).not.toHaveBeenCalled()
   },
 )

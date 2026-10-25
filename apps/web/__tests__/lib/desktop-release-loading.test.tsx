@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
@@ -38,7 +38,7 @@ it('imports release monitoring and checkpoints only after the provider discovers
   vi.stubGlobal('__ORBIT_DESKTOP_VERSION__', '0.1.2')
   await act(async () => { render(application) })
   expect(await screen.findByText('Hoje')).toBeVisible()
+  await waitFor(() => expect(fetchRelease).toHaveBeenCalledWith('/api/desktop-release', expect.objectContaining({ cache: 'no-store' })))
   expect(modules.release).toHaveBeenCalledOnce()
   expect(modules.checkpoint).toHaveBeenCalledOnce()
-  expect(fetchRelease).toHaveBeenCalledWith('/api/desktop-release', expect.objectContaining({ cache: 'no-store' }))
 })

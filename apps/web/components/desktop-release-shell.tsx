@@ -14,8 +14,8 @@ import { ErrorState } from '@/components/ui/error-state'
 function subscribeToShellVersion() { return () => {} }
 function serverShellVersion() { return null }
 
-export function DesktopReleaseShell({ children, monitor = false, minimum = compatibility.minimumShellVersion }: Readonly<{
-  children: ReactNode
+export function DesktopReleaseShell({ onUpdateRequired, monitor = false, minimum = compatibility.minimumShellVersion }: Readonly<{
+  onUpdateRequired: (update: ReactNode) => void
   monitor?: boolean
   minimum?: string
 }>) {
@@ -23,11 +23,13 @@ export function DesktopReleaseShell({ children, monitor = false, minimum = compa
   const [required, setRequired] = useState(minimum)
   const compatible = version === null || shellSupportsWeb(version, required)
 
-  if (!compatible) return <DesktopUpdateRequired />
-  return <>
-    {children}
-    {monitor && version !== null && <DesktopReleaseMonitor version={version} requireUpgrade={setRequired} />}
-  </>
+  useEffect(() => {
+    onUpdateRequired(compatible ? null : <DesktopUpdateRequired />)
+  }, [compatible, onUpdateRequired])
+
+  return compatible && monitor && version !== null
+    ? <DesktopReleaseMonitor version={version} requireUpgrade={setRequired} />
+    : null
 }
 
 function DesktopReleaseMonitor({ version, requireUpgrade }: Readonly<{ version: string; requireUpgrade: (minimum: string) => void }>) {

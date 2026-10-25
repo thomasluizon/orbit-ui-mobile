@@ -1,6 +1,6 @@
 'use client'
 
-import { lazy, Suspense, useSyncExternalStore, type ReactNode } from 'react'
+import { lazy, Suspense, useState, useSyncExternalStore, type ReactNode } from 'react'
 
 const DesktopReleaseShell = lazy(() => import('./desktop-release-shell').then(module => ({ default: module.DesktopReleaseShell })))
 
@@ -14,6 +14,9 @@ export function DesktopReleaseBoundary({ children, ...options }: Readonly<{
   minimum?: string
 }>) {
   const shell = useSyncExternalStore(subscribeToShell, isDesktopShell, serverShell)
-  if (!shell) return children
-  return <Suspense fallback={null}><DesktopReleaseShell {...options}>{children}</DesktopReleaseShell></Suspense>
+  const [updateRequired, setUpdateRequired] = useState<ReactNode>(null)
+  return <>
+    {updateRequired ?? children}
+    {shell && <Suspense fallback={null}><DesktopReleaseShell {...options} onUpdateRequired={setUpdateRequired} /></Suspense>}
+  </>
 }
