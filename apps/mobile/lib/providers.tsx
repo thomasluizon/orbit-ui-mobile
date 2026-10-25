@@ -45,6 +45,7 @@ import {
 } from './capture-mode'
 import { pinCaptureAnimationDurations } from './capture-animation-pin'
 import { i18n } from './i18n'
+import { StoreBillingProvider } from '@/hooks/store-billing-provider'
 import { PostHogProvider } from 'posthog-react-native'
 import { useConfig } from '@/hooks/use-config'
 import { applyPostHogGate, captureScreen, posthog } from './posthog'
@@ -219,7 +220,7 @@ function AuthInitializer({
           {posthog ? <PostHogGate /> : null}
           <OfflineManager />
           <AccountEventConnection />
-          {children}
+          <StoreBillingProvider>{children}</StoreBillingProvider>
           {!appReady ? (
             <View
               pointerEvents="auto"

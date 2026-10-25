@@ -73,3 +73,28 @@ export const googleCodeAuthResponseSchema = backendLoginResponseSchema.extend({
   wasReactivated: z.boolean(),
 })
 export type GoogleCodeAuthResponse = z.infer<typeof googleCodeAuthResponseSchema>
+
+export const appleStartRequestSchema = z.object({
+  state: z.string().min(16),
+  language: z.string(),
+  referralCode: z.string().optional(),
+})
+
+export const appleStartResponseSchema = z.object({
+  authorizationUrl: z.url(),
+})
+
+export const appleHandoffRequestSchema = z.object({
+  handoff: z.string().min(1),
+  state: z.string().min(16),
+})
+
+export const appleNativeRequestSchema = z.object({
+  identityToken: z.string().min(1),
+  authorizationCode: z.string().min(1),
+  rawNonce: z.string().min(1),
+  givenName: z.string().optional(),
+  familyName: z.string().optional(),
+  language: z.string(),
+  referralCode: z.string().optional(),
+})

@@ -105,6 +105,12 @@ describe('DeleteAccountModal', () => {
     sheetTestControls.defer(false)
   })
 
+  it('explains Apple cancellation while preserving the deletion window', async () => {
+    const tree = await renderModal(createMockProfile({ billingProvider: 'app_store', hasProAccess: false }))
+    expect(textContent(tree.root)).toContain(ptBR.profile.deleteAccount.warningAppStore)
+    expect(textContent(tree.root)).toContain(ptBR.profile.deleteAccount.warningFree)
+  })
+
   it('keeps the cancellation path in the pre-confirmation copy', async () => {
     const tree = await renderModal()
     const copy = textContent(tree.root)

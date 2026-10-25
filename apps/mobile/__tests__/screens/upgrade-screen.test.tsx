@@ -1,4 +1,4 @@
-import { StyleSheet, View, type AppStateStatus } from 'react-native'
+import { Platform, StyleSheet, View, type AppStateStatus } from 'react-native'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import React from 'react'
@@ -14,6 +14,9 @@ import { StackRouter, TabRouter, CommonActions, StackActions } from 'expo-router
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 
 import UpgradeScreen from '@/app/upgrade'
+import { StoreBillingProvider } from '@/hooks/store-billing-provider'
+import { useAuthStore } from '@/stores/auth-store'
+import { setAccountId } from '@/lib/account-scope'
 
 const requireConfig = createRequire(import.meta.url)
 const createConfig = requireConfig('../../app.config.js') as () => typeof appJson.expo
@@ -35,12 +38,17 @@ const mocks = vi.hoisted(() => ({
   expoConfig: null as typeof appJson.expo | null,
   apiClient: vi.fn(),
   openURL: vi.fn(),
+  manageApple: vi.fn().mockResolvedValue([]),
   appStateListeners: new Set<(state: AppStateStatus) => void>(),
   showSuccess: vi.fn(),
   isOnline: true,
   renderComposition: false,
   realPlayBilling: false,
   connectionOutcome: 'false',
+  connected: false,
+  getPendingTransactionsIOS: vi.fn(),
+  getAvailablePurchases: vi.fn(),
+  syncIOS: vi.fn(),
   reconnect: vi.fn(),
   fetchProducts: vi.fn(),
   locale: 'en',
@@ -52,7 +60,7 @@ const mocks = vi.hoisted(() => ({
   plans: {
     monthly: { unitAmount: 999, currency: 'usd' },
     yearly: { unitAmount: 6999, currency: 'usd' },
-    savingsPercent: 42, couponPercentOff: null, currency: 'usd',
+    savingsPercent: 42, couponPercentOff: null as number | null, currency: 'usd',
   } satisfies SubscriptionPlans,
   billing: undefined as Record<string, unknown> | undefined,
   statusLoading: false,
@@ -143,19 +151,24 @@ vi.mock('@/hooks/use-billing', () => ({
     refetch: mocks.refetchBilling,
   }),
 }))
-vi.mock('@/hooks/use-play-billing', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/hooks/use-play-billing')>()
-  return { ...actual, usePlayBilling: (options: Parameters<typeof actual.usePlayBilling>[0]) =>
-    mocks.realPlayBilling ? actual.usePlayBilling(options) : mocks.playBilling }
+vi.mock('@/hooks/store-billing-provider', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/store-billing-provider')>()
+  return { ...actual, useStoreBilling: (options: Parameters<typeof actual.useStoreBilling>[0]) =>
+    mocks.realPlayBilling ? actual.useStoreBilling(options) : mocks.playBilling }
 })
+vi.mock('@/lib/store-products', () => ({ APP_STORE_PRODUCT_IDS: { monthly: 'orbit.monthly', yearly: 'orbit.yearly' } }))
 vi.mock('expo-iap', async (importOriginal) => ({
   ...await importOriginal<typeof import('expo-iap')>(),
+  showManageSubscriptionsIOS: mocks.manageApple,
+  getPendingTransactionsIOS: mocks.getPendingTransactionsIOS,
+  getAvailablePurchases: mocks.getAvailablePurchases,
+  syncIOS: mocks.syncIOS,
   useIAP: (options: { onError?: (error: Error) => void }) => {
     const initialOptions = React.useRef(options)
     React.useEffect(() => {
       if (mocks.connectionOutcome === 'rejected') initialOptions.current.onError?.(new Error('Play initialization failed'))
     }, [])
-    return { connected: false, subscriptions: [], fetchProducts: mocks.fetchProducts, requestPurchase: mocks.playBilling.purchase, reconnect: mocks.reconnect }
+    return { connected: mocks.connected, subscriptions: mocks.connected ? [{ id: 'orbit.monthly', displayPrice: '$4.99', price: 4.99, currency: 'USD' }, { id: 'orbit.yearly', displayPrice: '$39.99', price: 39.99, currency: 'USD' }] : [], fetchProducts: mocks.fetchProducts, requestPurchase: mocks.playBilling.purchase, reconnect: mocks.reconnect }
   },
 }))
 vi.mock('@/hooks/use-subscription-plans', async (importOriginal) => ({
@@ -181,6 +194,7 @@ vi.mock('@/hooks/use-subscription-status', () => ({
           isLifetimePro: mocks.profile.isLifetimePro,
           subscriptionInterval: mocks.profile.subscriptionInterval ?? null,
           source: mocks.profile.subscriptionSource ?? null,
+          billingProvider: mocks.profile.billingProvider,
           lapseReason: mocks.lapseReason,
           subscriptionEndedAtUtc: mocks.subscriptionEndedAtUtc,
         }
@@ -226,7 +240,7 @@ async function renderScreen() {
   let tree: { root: TestNode; unmount: () => void; toJSON: () => Parameters<typeof measureProfileRow>[0] } | undefined
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(mocks.realPlayBilling
-      ? <QueryClientProvider client={new QueryClient()}><UpgradeScreen /></QueryClientProvider>
+      ? <QueryClientProvider client={new QueryClient()}><StoreBillingProvider><UpgradeScreen /></StoreBillingProvider></QueryClientProvider>
       : <UpgradeScreen />)
     await Promise.resolve()
   })
@@ -293,6 +307,65 @@ function assertSubscriptionDates(text: string | null, locale: 'en' | 'pt-BR', st
 
 
 describe('UpgradeScreen', () => {
+  afterEach(() => { Platform.OS = 'android' })
+  it.each(['stripe', 'play', 'app_store'] as const)('keeps iOS %s management inside the App Store rules', async (billingProvider) => {
+    Platform.OS = 'ios'
+    mocks.renderComposition = true
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({ hasProAccess: true, isTrialActive: false, billingProvider, subscriptionSource: null })
+    const tree = await renderScreen()
+    const text = JSON.stringify(tree.toJSON())
+    expect(text).not.toContain('stripe.com')
+    expect(text).not.toContain('play.google.com')
+    expect(text).not.toContain(en.upgrade.billing.actions.managePlay)
+    expect(text).not.toContain(en.upgrade.billing.actions.manageHint)
+    if (billingProvider === 'app_store') expect(text).toContain(en.upgrade.appStore.manage)
+    else {
+      expect(tree.root.findAll((node) => Boolean(node.props.onClick) && node.props.children === en.upgrade.billing.actions.manage)).toHaveLength(0)
+      expect(text).not.toContain('R$99')
+      expect(text).not.toContain('R$12')
+    }
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('opens native Apple subscription management on iOS', async () => {
+    Platform.OS = 'ios'
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({ hasProAccess: true, isTrialActive: false, billingProvider: 'app_store', subscriptionSource: null })
+    const tree = await renderScreen()
+    const dashboard = findByType(tree.root, 'PlayBillingDashboard')
+    await TestRenderer.act(async () => { (dashboard.props.onManagePlay as () => void)(); await Promise.resolve() })
+    expect(mocks.manageApple).toHaveBeenCalledOnce()
+    expect(mocks.openURL).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('shows an App Store instruction without a provider link on Android', async () => {
+    Platform.OS = 'android'
+    mocks.renderComposition = true
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({ hasProAccess: true, isTrialActive: false, billingProvider: 'app_store', subscriptionSource: null })
+    const tree = await renderScreen()
+    expect(JSON.stringify(tree.toJSON())).toContain(en.upgrade.appStore.manageOnIphone)
+    expect(JSON.stringify(tree.toJSON())).not.toContain(en.upgrade.billing.actions.managePlay)
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('uses native iOS prices with renewal terms and legal links but no referral discount', async () => {
+    Platform.OS = 'ios'
+    mocks.renderComposition = true
+    mocks.plans.couponPercentOff = 20
+    const tree = await renderScreen()
+    const text = JSON.stringify(tree.toJSON())
+    expect(text).toContain(en.upgrade.appStore.autoRenewal)
+    expect(text).toContain(en.privacy.title)
+    expect(text).toContain(en.terms.title)
+    expect(text).not.toContain(en.upgrade.plans.coupon.line.replace('{percent}', '20'))
+    expect(text).toContain('R$99')
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it.each([412, 600, 840, 1200, 1352, 1600].flatMap((width) => ['free', 'stripe', 'play'].map((plan) => ({ width, plan }))))(
     'uses the drawn $plan body width at $width', async ({ width, plan }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
@@ -405,8 +478,13 @@ describe('UpgradeScreen', () => {
     mocks.refetchBilling.mockReset().mockResolvedValue(undefined)
     mocks.isOnline = true
     mocks.renderComposition = false
+    mocks.plans.couponPercentOff = null
     mocks.realPlayBilling = false
     mocks.connectionOutcome = 'false'
+    mocks.connected = false
+    mocks.getPendingTransactionsIOS.mockReset().mockResolvedValue([])
+    mocks.getAvailablePurchases.mockReset().mockResolvedValue([])
+    mocks.syncIOS.mockReset().mockResolvedValue(true)
     mocks.reconnect.mockReset().mockResolvedValue(false)
     mocks.fetchProducts.mockReset().mockResolvedValue(undefined)
     mocks.locale = 'en'
@@ -426,7 +504,7 @@ describe('UpgradeScreen', () => {
     mocks.plans = {
       monthly: { unitAmount: 999, currency: 'usd' },
       yearly: { unitAmount: 6999, currency: 'usd' },
-      savingsPercent: 42, couponPercentOff: null, currency: 'usd',
+      savingsPercent: 42, couponPercentOff: null as number | null, currency: 'usd',
     }
     mocks.billing = { plan: 'yearly' }
     mocks.statusLoading = false
@@ -695,6 +773,40 @@ describe('UpgradeScreen', () => {
     })
     expect(mocks.playBilling.clearError).toHaveBeenCalledTimes(1)
     expect(mocks.playBilling.purchase).toHaveBeenCalledWith('yearly')
+  })
+
+  it.each(['recovery', 'restore'] as const)('blocks checkout during delayed Apple %s and becomes usable afterward', async (operation) => {
+    Platform.OS = 'ios'
+    setAccountId('account-1')
+    useAuthStore.setState({ user: { userId: 'account-1', name: 'Person', email: 'person@example.test' } })
+    await configureSubscription({ width: 412, locale: 'en', mode: 'dark', state: 'free' })
+    mocks.realPlayBilling = true
+    mocks.connected = true
+    let release!: (purchases: []) => void
+    const pending = new Promise<[]>((resolve) => { release = resolve })
+    if (operation === 'recovery') mocks.getPendingTransactionsIOS.mockReturnValueOnce(pending)
+    else mocks.getAvailablePurchases.mockReturnValueOnce(pending)
+    const tree = await renderScreen()
+    const section = () => tree.root.findAll((node) => typeof node.props.onCheckout === 'function' && typeof node.props.onRestore === 'function')[0]!
+    const checkout = () => tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'upgrade-tier-yearly')[0]!
+      .findAll((node) => node.type === 'Pressable' && typeof node.props.onPress === 'function')[0]!
+    try {
+      if (operation === 'restore') await TestRenderer.act(async () => { (section().props.onRestore as () => void)(); await Promise.resolve() })
+      expect(section().props.isRestoring).toBe(true)
+      expect(checkout().props.disabled).toBe(true)
+      await TestRenderer.act(async () => { (section().props.onCheckout as (interval: string) => void)('yearly'); await Promise.resolve() })
+      expect(mocks.playBilling.purchase).not.toHaveBeenCalled()
+      await TestRenderer.act(async () => { release([]); await new Promise((resolve) => setTimeout(resolve, 0)) })
+      expect(section().props.isRestoring).toBe(false)
+      expect(section().props.checkoutLoading).toBeNull()
+      expect(checkout().props.disabled).toBe(false)
+      await TestRenderer.act(async () => { (checkout().props.onPress as () => void)(); await Promise.resolve() })
+      expect(mocks.playBilling.purchase).toHaveBeenCalledExactlyOnceWith({ type: 'subs', request: { apple: { sku: 'orbit.yearly', appAccountToken: 'account-1' } } })
+    } finally {
+      TestRenderer.act(() => tree.unmount())
+      useAuthStore.setState({ user: null })
+      setAccountId(null)
+    }
   })
 
   it.each((['en', 'pt-BR'] as const).flatMap((locale) => ['false', 'rejected'].map((outcome) => ({ locale, outcome }))))('offers a retry for a $outcome Play connection on the Pro screen in $locale', async ({ locale, outcome }) => {

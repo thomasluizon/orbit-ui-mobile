@@ -1,8 +1,9 @@
+import { useRouter } from 'expo-router'
 import { SPACING } from '@orbit/shared/theme'
 import { ProPitch } from './pro-pitch'
-import { ActivityIndicator, Pressable, Text, View } from 'react-native'
+import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
-import type { PlayOffer } from '@/hooks/use-play-billing'
+import type { StoreOffer } from '@/hooks/use-play-billing'
 import { PlanSelection } from './plan-selection'
 import { styles } from './styles'
 import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
@@ -51,8 +52,8 @@ export function PricingSection({
   selectedInterval: SubscriptionInterval
   onSelectInterval: (interval: SubscriptionInterval) => void
   onStayFree: () => void
-  monthlyOffer: PlayOffer | null
-  yearlyOffer: PlayOffer | null
+  monthlyOffer: StoreOffer | null
+  yearlyOffer: StoreOffer | null
   monthlyDisplayPrice?: string
   yearlyDisplayPrice?: string
   checkoutLoading: SubscriptionInterval | null
@@ -65,6 +66,7 @@ export function PricingSection({
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
+  const router = useRouter()
   return (
     <View style={styles.pricingSections}>
       <ProPitch dateHint={dateHint} inset={inset} profile={profile} trialDaysLeft={trialDaysLeft} t={t} focusOnMount={focusOnMount} tokens={tokens} />
@@ -74,8 +76,8 @@ export function PricingSection({
           <PlanSelection
             inset={inset}
             plans={isProductsError ? null : plans}
-            isLoading={isLoadingPlans || isLoadingProducts}
-            isError={isPlansError || isProductsError}
+            isLoading={(Platform.OS !== 'ios' && isLoadingPlans) || isLoadingProducts}
+            isError={(Platform.OS !== 'ios' && isPlansError) || isProductsError}
             isOnline={isOnline}
             monthlyOffer={monthlyOffer}
             yearlyOffer={yearlyOffer}
@@ -91,7 +93,7 @@ export function PricingSection({
             t={t}
             tokens={tokens}
           />
-          {plans ? (
+          {plans || Platform.OS === 'ios' ? (
             <Pressable
               accessibilityRole="button"
               onPress={onRestore}
@@ -114,16 +116,24 @@ export function PricingSection({
         </View>
 
         <View style={[styles.reassurance, !inset && { paddingHorizontal: SPACING.s0 }]}>
-          {plans ? <View style={styles.reassuranceCopy}>
+          {plans || Platform.OS === 'ios' ? <View style={styles.reassuranceCopy}>
               <Text style={[styles.reassurancePrimary, { color: tokens.fg2 }]}>
                 {t('upgrade.convert.cancelAnytime')}
               </Text>
               <Text style={[styles.renewalNote, { color: tokens.fg3 }]}>
-                {t('upgrade.plans.renewalNote')}
+                {t(Platform.OS === 'ios' ? 'upgrade.appStore.autoRenewal' : 'upgrade.plans.renewalNote')}
               </Text>
               <Text style={[styles.handoffNote, { color: tokens.fg3 }]}>
-                {t('upgrade.convert.handOff')}
+                {t(Platform.OS === 'ios' ? 'upgrade.appStore.paymentNote' : 'upgrade.convert.handOff')}
               </Text>
+              {Platform.OS === 'ios' ? <View style={{ gap: 8 }}>
+                <Pressable accessibilityRole="link" onPress={() => router.push('/terms')}>
+                  <Text style={[styles.restoreLink, { color: tokens.fg2 }]}>{t('terms.title')}</Text>
+                </Pressable>
+                <Pressable accessibilityRole="link" onPress={() => router.push('/privacy')}>
+                  <Text style={[styles.restoreLink, { color: tokens.fg2 }]}>{t('privacy.title')}</Text>
+                </Pressable>
+              </View> : null}
             </View> : null}
             <Pressable
               accessibilityRole="link"

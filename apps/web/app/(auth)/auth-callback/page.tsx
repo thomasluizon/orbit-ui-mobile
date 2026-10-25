@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { redirect } from 'next/navigation'
+import { APPLE_OAUTH_COOKIE } from '@/lib/apple-oauth-cookie'
 import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
 import { desktopAttemptSchema } from '@/lib/desktop-auth'
 import { AuthCallbackContent } from './auth-callback-content'
@@ -9,7 +10,8 @@ import { AuthCallbackContent } from './auth-callback-content'
 export default async function AuthCallbackPage({ searchParams }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const pendingRaw = (await cookies()).get(GOOGLE_OAUTH_COOKIE)?.value
+  const callbackParams = await searchParams ?? {}
+  const pendingRaw = (await cookies()).get(callbackParams.provider === 'apple' ? APPLE_OAUTH_COOKIE : GOOGLE_OAUTH_COOKIE)?.value
   let pendingWebState: string | null = null
   let desktop = false
   if (pendingRaw) {

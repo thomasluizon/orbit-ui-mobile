@@ -15,7 +15,8 @@ export const REFERRAL_REWARD_COPY_KEYS = {
   neutral: { rewardKey: 'referral.reward.neutral', shareKey: 'referral.share.neutral' },
 } as const satisfies Record<ReferralReward['kind'], { rewardKey: string; shareKey: string }>
 
-export function selectReferralReward(stats: RewardStats | null | undefined): ReferralReward {
+export function selectReferralReward(stats: RewardStats | null | undefined, allowRewardCopy = true): ReferralReward {
+  if (!allowRewardCopy) return { kind: 'neutral', values: {} }
   const days = stats?.proDaysPerReferral
   if (stats?.rewardType === 'pro_days' && days !== undefined && Number.isSafeInteger(days) && days > 0) {
     return { kind: 'proDays', values: { proDays: days } }

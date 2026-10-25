@@ -1,6 +1,6 @@
 import { applySubscriptionDiscount, formatLocaleDate } from '@orbit/shared/utils'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
-import type { PlayOffer } from '@/hooks/use-play-billing'
+import type { StoreOffer } from '@/hooks/use-play-billing'
 import { formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -16,7 +16,7 @@ export function formatBillingDate(isoDate: string, locale: string) {
   })
 }
 
-export function monthlyEquivalentPriceLabel(plans: SubscriptionPlans, yearlyOffer: PlayOffer | null): string {
+export function monthlyEquivalentPriceLabel(plans: SubscriptionPlans, yearlyOffer: StoreOffer | null): string {
   if (yearlyOffer?.priceAmountMicros) {
     return formatPrice(
       monthlyEquivalent(Math.round(Number(yearlyOffer.priceAmountMicros) / 10_000)),
