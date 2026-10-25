@@ -352,7 +352,7 @@ function checkPinnedRelease() {
   ]) {
     const health = stage("release-admission/health", JSON.stringify({ ...renderFixture.health, status, commit }))
     const result = spawnSync(BASH, ["-c", `curl() { if [[ "$*" == *api.render.com* ]]; then
-      local output previous argument; for argument in "$@"; do [[ "$previous" == -o ]] && output="$argument"; previous="$argument"; done
+      local output='' previous='' argument; for argument in "$@"; do [[ "$previous" == -o ]] && output="$argument"; previous="$argument"; done
       cat "$SERVICE_RESPONSE" > "$output"; printf 200
       else cat "$HEALTH_RESPONSE"; fi; }\n${script}`], { encoding: "utf8", env: {
       ...process.env, GITHUB_WORKSPACE: toolPath(".."), SOURCE_SHA: renderFixture.health.commit, FORCE_UNSTAGED: override,
