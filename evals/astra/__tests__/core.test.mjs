@@ -30,6 +30,7 @@ function exampleArguments(expected) {
   if (Array.isArray(expected)) return expected.map(exampleArguments)
   if (expected && typeof expected === 'object') {
     if ('textContains' in expected) return expected.textContains
+    if ('optional' in expected) return expected.optional
     return Object.fromEntries(Object.entries(expected).map(([key, value]) => [key, exampleArguments(value)]))
   }
   return expected
@@ -57,6 +58,34 @@ describe('production scenario mutation scope', () => {
     const single = call(name === 'bulk_log_habits' ? 'log_habit' : 'skip_habit', { habit_id: habitId })
     expect(behavior(envelope([single, call(name, { habit_ids: [habitId] })]), context(expectations)).pass).toBe(false)
   })
+  it('accepts only the named today reads, including daily summary defaults', () => {
+    const { expectations } = scenarios.find((scenario) => scenario.metadata.id === 'single-read-en').vars
+    for (const [name, arguments_] of [
+      ['query_habits', { date: 'today' }], ['query_habits', { date: '{accountDate}' }],
+      ['get_daily_summary', {}], ['get_daily_summary', { date_from: null, date_to: null }],
+      ['get_daily_summary', { date_from: '{accountDate}', date_to: '{accountDate}', generate_narrative: false }],
+    ]) expect(behavior(envelope([call(name, arguments_)]), context(expectations)).pass).toBe(true)
+    for (const [name, arguments_] of [
+      ['get_daily_summary', { date_from: 'yesterday' }], ['get_daily_summary', { date_to: 'tomorrow' }],
+      ['query_habits', { date: 'tomorrow' }], ['get_streak', {}],
+    ]) expect(behavior(envelope([call(name, arguments_)]), context(expectations)).pass).toBe(false)
+    expect(behavior(envelope([]), context(expectations)).pass).toBe(false)
+  })
+
+  it('accepts one Meditar create through either tool and rejects extra targets or calls', () => {
+    const { expectations } = scenarios.find((scenario) => scenario.metadata.id === 'single-create-pt').vars
+    const habit = { title: 'Meditar', frequency_unit: 'Day', frequency_quantity: 1 }
+    const single = call('create_habit', habit)
+    const bulk = call('bulk_create_habits', { habits: [habit] })
+    expect(behavior(envelope([single]), context(expectations)).pass).toBe(true)
+    expect(behavior(envelope([bulk]), context(expectations)).pass).toBe(true)
+    for (const calls of [[], [single, bulk], [bulk, bulk],
+      [call('bulk_create_habits', { habits: [habit, { ...habit, title: 'Walk' }] })],
+      [call('bulk_create_habits', { habits: [{ ...habit, frequency_unit: 'Week' }] })],
+      [call('bulk_create_habits', { habits: [{ ...habit, title: 'Walk' }] })],
+    ]) expect(behavior(envelope(calls), context(expectations)).pass).toBe(false)
+  })
+
   it('classifies every catalog tool explicitly', () => {
     for (const tool of catalog) expect(typeof tool.writes, tool.function.name).toBe('boolean')
   })

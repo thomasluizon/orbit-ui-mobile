@@ -76,6 +76,7 @@ function matchesArguments(actual, expected) {
     })
   }
   if (expected && typeof expected === 'object') {
+    if ('optional' in expected) return actual == null || matchesArguments(actual, expected.optional)
     if ('textContains' in expected) {
       return typeof actual === 'string' && normalizeText(actual).includes(normalizeText(expected.textContains))
     }

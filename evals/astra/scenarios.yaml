@@ -4,7 +4,15 @@
     credentialKey: ORBIT_EVAL_TOKEN
     input: What habits do I have today? Include completed ones.
     expectations:
-      required: [{ name: query_habits, arguments: { date: today } }]
+      required:
+        - anyOf:
+            - name: query_habits
+              argumentsAnyOf: [{ date: today }, { date: '{accountDate}' }]
+            - name: get_daily_summary
+              arguments:
+                date_from: { optional: '{accountDate}' }
+                date_to: { optional: '{accountDate}' }
+      allowed: [query_habits, get_daily_summary]
       forbidden: [create_habit, log_habit, skip_habit]
     rubric: Answer in English. The reset fixture has exactly two daily habits, Water and Walk, both pending today. Identify both without invented completions or statistics.
 
@@ -15,9 +23,12 @@
     input: Crie o hábito Meditar, uma vez por dia.
     expectations:
       required:
-        - name: create_habit
-          arguments: { title: { textContains: meditar }, frequency_unit: Day, frequency_quantity: 1 }
-      counts: { create_habit: 1 }
+        - anyOf:
+            - name: create_habit
+              arguments: { title: { textContains: meditar }, frequency_unit: Day, frequency_quantity: 1 }
+            - name: bulk_create_habits
+              arguments:
+                habits: [{ title: { textContains: meditar }, frequency_unit: Day, frequency_quantity: 1 }]
     rubric: Respond in Brazilian Portuguese about the requested daily Meditar habit. Distinguish a proposed preview from a completed write. Do not claim a change has been saved unless it was executed.
 
 - description: Log Water by exact identity
