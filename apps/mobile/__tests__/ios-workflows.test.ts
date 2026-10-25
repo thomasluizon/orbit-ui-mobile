@@ -6,11 +6,12 @@ import { parse } from 'yaml'
 import { describe, expect, it } from 'vitest'
 
 interface Workflow<Job extends string> {
-  on: Record<string, { paths?: string[] } | null>
+  on: Record<string, { branches?: string[]; paths?: string[] } | null>
   jobs: Record<Job, {
     'runs-on': string
+    'timeout-minutes': number
     env: Record<string, string>
-    steps: { name?: string; run?: string }[]
+    steps: { name?: string; run?: string; uses?: string; if?: string; with?: Record<string, string> }[]
   }>
 }
 
@@ -47,6 +48,38 @@ describe('iOS build and release boundaries', () => {
     expect(commands).toContain("-destination 'generic/platform=iOS Simulator'")
     expect(commands).toContain('CODE_SIGNING_ALLOWED=NO')
     expect(commands).not.toMatch(/simctl|expo start/)
+    expect(commands).toContain('-workspace ios/OrbitStaging.xcworkspace -scheme OrbitStaging')
+    expect(commands).toContain('-configuration Release -sdk iphonesimulator')
+    expect(workflow.jobs.compile['timeout-minutes']).toBeGreaterThanOrEqual(55)
+  })
+
+  it('reuses compiler outputs while regenerating and compiling every source revision', () => {
+    const workflow = readWorkflow<'compile'>('ios-build')
+    const { steps, env } = workflow.jobs.compile
+    const cacheIndex = steps.findIndex((step) => step.uses === 'actions/cache@v6')
+    expect(cacheIndex).toBeGreaterThanOrEqual(0)
+    const cache = steps[cacheIndex]!
+    expect(cache.with?.path).toBe('${{ env.CCACHE_DIR }}')
+    expect(env.USE_CCACHE).toBe('1')
+    expect(env.CCACHE_DIR).toBe('${{ github.workspace }}/.cache/ios-ccache')
+    for (const input of ['runner.arch', 'package-lock.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/plugins/**', 'apps/mobile/modules/**']) {
+      expect(cache.with?.key).toContain(input)
+    }
+    expect(cache.with?.key).toContain('${{ github.run_id }}-${{ github.run_attempt }}')
+    expect(cache.with?.key).toBe(`${cache.with?.['restore-keys']?.trim()}\${{ github.run_id }}-\${{ github.run_attempt }}`)
+    const installIndex = steps.findIndex((step) => step.run?.includes('brew install ccache'))
+    const prebuildIndex = steps.findIndex((step) => step.run?.includes('expo prebuild --platform ios'))
+    const compileIndex = steps.findIndex((step) => step.run?.includes('xcodebuild -workspace'))
+    expect(installIndex).toBeGreaterThanOrEqual(0)
+    expect(installIndex).toBeLessThan(prebuildIndex)
+    expect(cacheIndex).toBeLessThan(prebuildIndex)
+    expect(prebuildIndex).toBeLessThan(compileIndex)
+    expect(steps[prebuildIndex]?.if).toBeUndefined()
+    expect(steps[compileIndex]?.if).toBeUndefined()
+    expect(steps.some((step) => step.run?.includes('ccache --zero-stats'))).toBe(true)
+    expect(steps.some((step) => step.run?.includes('ccache --show-stats'))).toBe(true)
+    expect(workflow.on.push?.branches).toEqual(['main'])
+    expect(workflow.on.push?.paths).toEqual(workflow.on.pull_request?.paths)
   })
 
   it('keeps credentialed TestFlight publishing manual', () => {
