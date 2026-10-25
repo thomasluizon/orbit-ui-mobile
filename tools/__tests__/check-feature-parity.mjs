@@ -501,10 +501,9 @@ function workflowRegressions(workflow) {
   const comparison = workflow.jobs.guards.steps.find((step) => step.id === 'feature-parity__1')
   const artifact = workflow.jobs.guards.steps.find((step) => step.id === 'feature-parity__2')
   for (const step of [comparison, artifact]) {
-    T(`${step.id} covers main and supported redesign pull requests`, step.if.includes("github.event_name == 'pull_request'") && step.if.includes("github.base_ref == 'main'") && step.if.includes("github.base_ref == 'redesign/main'"))
+    T(`${step.id} covers main pull requests`, step.if.includes("github.event_name == 'pull_request'") && step.if.includes("github.base_ref == 'main'"))
   }
   T('main production and debt comparisons use the immutable queued base', comparison.run.includes('--production "HEAD^1" --base "HEAD^1"') && comparison.run.includes('"$BASE_REF" = main'))
-  T('redesign retains active production and an immutable queued debt base', comparison.run.includes('--production origin/main --base "HEAD^1"'))
   T('evidence uploads even when the comparison fails', artifact.if.includes('always()') && artifact.with.path === manifestPath && artifact.with['include-hidden-files'] === true)
 }
 

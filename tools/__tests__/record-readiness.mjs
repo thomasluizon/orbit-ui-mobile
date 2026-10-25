@@ -163,7 +163,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   )
 
   const unprotected = {
-    baseRefName: "redesign/main",
+    baseRefName: "integration/next",
     protectionExit: 1,
     protectionResponse: JSON.stringify({
       message: "Branch not protected",
@@ -172,13 +172,13 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     }),
   }
   const unprotectedCase = (name, options, expected = { status: 1, stdout: /CI_STALE/ }, head = HEAD, observedRollup = options.statusCheckRollup ?? [greenCheck, approval]) => {
-    writeDelivery("redesign/main", observedRollup)
+    writeDelivery("integration/next", observedRollup)
     return check(TOOL, name, argv, expected, { path: staged.path, env: live(head, BASE, 0, "In Review", { ...unprotected, ...options }) })
   }
   unprotectedCase("confirmed 404 completes and persists READY with passing CI and independent review", {}, { status: 0, stdout: /"verdict": "READY"/ })
   const unprotectedReceipt = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-pr-readiness", "ui-700.json"), "utf8"))
   T(`${TOOL}: confirmed 404 persists the unprotected base and current passing evidence`,
-    unprotectedReceipt.baseBranch === "redesign/main" && unprotectedReceipt.currentHeadSha === HEAD && unprotectedReceipt.ci.green === true,
+    unprotectedReceipt.baseBranch === "integration/next" && unprotectedReceipt.currentHeadSha === HEAD && unprotectedReceipt.ci.green === true,
     JSON.stringify(unprotectedReceipt))
   unprotectedCase("confirmed 404 with no checks completes as not READY", { statusCheckRollup: [] })
   const emptyReceipt = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-pr-readiness", "ui-700.json"), "utf8"))

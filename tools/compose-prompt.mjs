@@ -5,7 +5,6 @@ import { isAbsolute, resolve } from "node:path"
 import { assertRepositoryLabel, readComments, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { CLOUD_FINISHING_CONTRACT } from "./lib/cloud-worker.mjs"
-import { UI_SCOPE, composedOrderNeedsUiReview, renderUiReviewSweepContract } from "./lib/review-harness.mjs"
 
 const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|landing> --out <absolute path>
 
@@ -120,32 +119,6 @@ const localUiParityDelivery = !cloud && !reviewBatch && repoKey === "ui"
 \`apps/mobile\` and qualifies for the exemption, open the pull request with
 \`--label parity:exempt\` and a one-line \`## Parity\` section naming the platform adapter or
 the enumerated layout-shell divergence. Otherwise make the mirror change.`
-  : ""
-
-const uiReviewSweepOwed = composedOrderNeedsUiReview(repoKey, baseBranch)
-const reviewSweepContract = renderUiReviewSweepContract()
-const uiReviewScope = reviewBatch
-  ? `After implementation, inspect only paths changed by this batch's commit. This sweep applies only
-when a path changed by this batch's commit matches \`${UI_SCOPE}\`. If no changed path matches, skip this sweep and omit the Review harness block.`
-  : `After implementation, inspect the complete diff. This sweep applies only when at least one changed
-path matches \`${UI_SCOPE}\`. If no changed path matches, skip this sweep and omit the Review harness block.`
-const uiReviewSweep = !cloud && uiReviewSweepOwed
-  ? `## UI review sweep
-
-${uiReviewScope}
-
-${reviewSweepContract}`
-  : ""
-
-const cloudUiReviewHandoff = cloud && uiReviewSweepOwed
-  ? `## UI review sweep ownership
-
-The Cloud container must not run or claim this sweep because it cannot fetch the required sources.
-If the locally materialized diff contains a path matching \`${UI_SCOPE}\`, the sweep is still owed.
-The orchestrator runs it locally after materialization and before opening the pull request. The exact
-local obligation is:
-
-${reviewSweepContract}`
   : ""
 
 const vitestEvidence = repoKey === "ui"
@@ -293,15 +266,13 @@ your final report with these literal sections, each one present even when it is 
 your change needs before it takes effect (an environment variable, a dashboard or console setting,
 a secret, a store listing, a manual migration or backfill),
 each naming the exact key, the exact console or screen, and what proves it took effect.
-Include \`## Review harness\` only when this order carries the UI review sweep and a changed path matches its UI_SCOPE pattern.
-When a changed path matches, include the complete \`## Review harness\` block. Otherwise omit it.
 The orchestrator
 copies those sections into the pull request body, replies to and resolves every identified thread on
 this commit, then pushes once to start review.`
 
 const finishingContract = cloud
-  ? [cloudUiReviewHandoff, CLOUD_FINISHING_CONTRACT].filter(Boolean).join("\n\n")
-  : [reviewBatch ? reviewBatchFinishing : finishing, uiReviewSweep].filter(Boolean).join("\n\n")
+  ? CLOUD_FINISHING_CONTRACT
+  : reviewBatch ? reviewBatchFinishing : finishing
 
 const order = cloud ? `${brief}\n\n---\n\n${finishingContract}` : `${finishingContract}\n\n---\n\n${brief}`
 writeFileSync(resolve(out), `${ticket.replace(/\s*$/, "")}\n\n---\n\n${order}\n`, "utf8")

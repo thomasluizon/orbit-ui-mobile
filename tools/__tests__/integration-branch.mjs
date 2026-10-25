@@ -4,7 +4,7 @@ import { T } from "./_harness.mjs"
 const pullRequest = (overrides = {}) => ({
   number: 1,
   headRefName: "feature/x",
-  baseRefName: "redesign/main",
+  baseRefName: "integration/next",
   state: "OPEN",
   isCrossRepository: false,
   ...overrides,
@@ -24,15 +24,15 @@ export const cases = () => {
   )
 
   const chain = new Map([
-    ["feature/parent", [pullRequest({ number: 20, headRefName: "feature/parent", baseRefName: "redesign/main" })]],
-    ["redesign/main", []],
+    ["feature/parent", [pullRequest({ number: 20, headRefName: "feature/parent", baseRefName: "integration/next" })]],
+    ["integration/next", []],
   ])
   const stackedResult = resolveIntegrationBranch({
     checkoutBranch: "feature/child",
     openPullRequests: [pullRequest({ number: 21, headRefName: "feature/child", baseRefName: "feature/parent" })],
     headLookup: (candidate) => chain.get(candidate) ?? [],
   })
-  T("integration-branch.mjs: a normal stacked chain reaches its integration branch", stackedResult === "redesign/main", stackedResult)
+  T("integration-branch.mjs: a normal stacked chain reaches its integration branch", stackedResult === "integration/next", stackedResult)
 
   const noPullRequestResult = resolveIntegrationBranch({
     checkoutBranch: "feature/unpublished",
