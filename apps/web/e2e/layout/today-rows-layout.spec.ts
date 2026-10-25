@@ -6,6 +6,7 @@ import { test } from './layout-test'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import en from '@orbit/shared/i18n/en.json'
 import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
+import { SPACING } from '@orbit/shared/theme'
 import { API } from '@orbit/shared/api'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { profileSchema } from '@orbit/shared/types/profile'
@@ -131,7 +132,11 @@ async function assertTodayTextEdges(page: Page, sentenceVisible: boolean, width:
         const body = row.querySelector('[data-habit-row-body]')!
         const content = body.children.length ? body : body.parentElement!.querySelector('[data-personal-text-content]')!
         const well = content.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
-        return { inset: well.getBoundingClientRect().left - body.getBoundingClientRect().left, depth: Number(row.getAttribute('data-depth')) }
+        const bounds = row.getBoundingClientRect()
+        const frame = row.parentElement!.getBoundingClientRect()
+        return { inset: well.getBoundingClientRect().left - body.getBoundingClientRect().left,
+          offset: bounds.left - frame.left, widthReduction: frame.width - bounds.width, right: bounds.right, frameRight: frame.right,
+          depth: Number(row.getAttribute('data-depth')) }
       }),
       targets: rows.flatMap((row) => Array.from(row.querySelectorAll('button')).map((button) => {
         const bounds = button.getBoundingClientRect()
@@ -145,7 +150,12 @@ async function assertTodayTextEdges(page: Page, sentenceVisible: boolean, width:
   expect(geometry.edges).toHaveLength(sentenceVisible ? 4 : 3)
   for (const edge of geometry.edges) expect(Math.abs(edge.left - (edge.depth === 1 ? 100 : 84))).toBeLessThanOrEqual(1)
   expect(geometry.insets).toHaveLength(3)
-  for (const { inset, depth } of geometry.insets) expect(inset).toBe(depth === 1 ? 24 : 8)
+  for (const { inset, depth, offset, widthReduction, right, frameRight } of geometry.insets) {
+    expect(inset).toBe(SPACING.s8)
+    expect(offset).toBe(depth * SPACING.s16)
+    expect(widthReduction).toBe(depth * SPACING.s16)
+    expect(right).toBe(frameRight)
+  }
   expect(geometry.overflow).toBeLessThanOrEqual(width)
   for (const target of geometry.targets) {
     expect(target.left).toBeGreaterThanOrEqual(16)
@@ -197,8 +207,7 @@ for (const width of [320, 600]) {
           for (const body of await page.locator('[data-habit-row-body]').all()) {
             await body.hover()
             await expect(body).toHaveCSS('border-radius', '20px')
-            const depth = await body.evaluate((element) => element.closest('[data-depth]')!.getAttribute('data-depth'))
-            const expectedInset = depth === '1' ? 24 : 8
+            const expectedInset = SPACING.s8
             await expect(body).toHaveCSS('padding-inline-start', `${expectedInset}px`)
             await page.mouse.down()
             const pressedInset = await body.evaluate((element) => {
@@ -294,7 +303,7 @@ async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' 
     const check = element.querySelector('[data-habit-check]')!
     let target = check.parentElement!
     while (target !== element && target.getBoundingClientRect().width !== 48) target = target.parentElement!
-    const geometry = { row: bounds(element), depth: Number(element.getAttribute('data-depth')), title: bounds(title), titleSize: getComputedStyle(title).fontSize,
+    const geometry = { row: bounds(element), frame: bounds(element.parentElement!), depth: Number(element.getAttribute('data-depth')), title: bounds(title), titleSize: getComputedStyle(title).fontSize,
       supporting: Boolean(element.querySelector('[data-habit-row-heading]')),
       parent: Boolean(element.querySelector('[data-habit-row-control="disclosure"]')),
       preview: preview && { ...bounds(preview), size: getComputedStyle(preview).fontSize, lineHeight: Number.parseFloat(getComputedStyle(preview).lineHeight) },
@@ -351,7 +360,10 @@ async function assertHabitPreviewRow(row: Locator, scale: number, mode: 'light' 
   }
   function assertPreviewControls() {
     expect(geometry.titleSize).toBe(`${(geometry.depth ? 14 : 17) * scale}px`)
-    expect(geometry.well.left - geometry.row.left).toBe(8 + 16 * geometry.depth)
+    expect(geometry.well.left - geometry.row.left).toBe(SPACING.s8)
+    expect(geometry.row.left - geometry.frame.left).toBe(SPACING.s16 * geometry.depth)
+    expect(geometry.row.width).toBe(geometry.frame.width - SPACING.s16 * geometry.depth)
+    expect(geometry.row.right).toBe(geometry.frame.right)
     expect(geometry.supporting).toBe(supporting)
     expect(geometry.target.width).toBe(48)
     expect(geometry.target.height).toBeGreaterThanOrEqual(48)

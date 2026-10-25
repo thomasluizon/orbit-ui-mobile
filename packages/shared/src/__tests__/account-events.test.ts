@@ -306,3 +306,76 @@ it('keeps a starting event connection from invalidating pending account reads', 
     vi.useRealTimers()
   }
 })
+
+it('stops an event connection on a confirmed session rejection without reporting or reconnecting', async () => {
+  vi.useFakeTimers()
+  const controller = new AbortController()
+  const open = vi.fn().mockResolvedValue({ sessionRejected: true })
+  const onError = vi.fn()
+  const options = { open, onError, signal: controller.signal, resumed: true,
+    onEvent: vi.fn(), onOpen: vi.fn(), onReconnect: vi.fn(), onFirstFailure: vi.fn() }
+  const running = consumeAccountEventStream(options)
+  try {
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(open).toHaveBeenCalledOnce()
+    expect(onError).not.toHaveBeenCalled()
+    expect(options.onFirstFailure).not.toHaveBeenCalled()
+  } finally {
+    controller.abort()
+    await running
+    vi.useRealTimers()
+  }
+})
+
+it.each(['returned', 'thrown'])('retries an unconfirmed %s unauthorized response without reporting it', async (failure) => {
+  vi.useFakeTimers()
+  const controller = new AbortController()
+  const open = vi.fn()
+  if (failure === 'returned') open.mockResolvedValue(new Response(null, { status: 401 }))
+  else open.mockRejectedValue(createApiClientError(401, null, 'Unauthorized'))
+  const options = { open, signal: controller.signal, resumed: true,
+    onEvent: vi.fn(), onOpen: vi.fn(), onReconnect: vi.fn(), onError: vi.fn(), onFirstFailure: vi.fn() }
+  const running = consumeAccountEventStream(options)
+  try {
+    await vi.advanceTimersByTimeAsync(1999)
+    expect(open).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(open).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(3999)
+    expect(open).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(open).toHaveBeenCalledTimes(3)
+    expect(options.onError).not.toHaveBeenCalled()
+    expect(options.onFirstFailure).not.toHaveBeenCalled()
+  } finally {
+    controller.abort()
+    await running
+    vi.useRealTimers()
+  }
+})
+
+it('retries rate limits on the server delay and reports genuine stream failures once per gap', async () => {
+  vi.useFakeTimers()
+  const controller = new AbortController()
+  const failure = new Error('stream unavailable')
+  const open = vi.fn()
+    .mockResolvedValueOnce(new Response(null, { status: 429, headers: { 'Retry-After': '60' } }))
+    .mockRejectedValue(failure)
+  const onError = vi.fn()
+  const options = { open, onError, signal: controller.signal,
+    onEvent: vi.fn(), onOpen: vi.fn(), onReconnect: vi.fn() }
+  const running = consumeAccountEventStream(options)
+  try {
+    await vi.advanceTimersByTimeAsync(59_999)
+    expect(open).toHaveBeenCalledOnce()
+    expect(onError).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(onError).toHaveBeenCalledExactlyOnceWith(failure)
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(onError).toHaveBeenCalledOnce()
+  } finally {
+    controller.abort()
+    await running
+    vi.useRealTimers()
+  }
+})

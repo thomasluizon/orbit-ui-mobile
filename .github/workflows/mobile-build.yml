@@ -9,7 +9,7 @@ name: Mobile Android Build
 
 on:
   pull_request:
-    branches: [main, redesign/main]
+    branches: [main]
     paths:
       - "apps/mobile/**"
       - "packages/shared/**"

@@ -105,6 +105,17 @@ Habit Detail retains the full quiet type below the full-width title, matching th
 `habit-form-surfaces.md` and `habit-row-surfaces.md` name the paired owners, retained controls and
 verification boundaries.
 
+### Habit card indentation and spacing amendment (#1715)
+
+Shared habit rows move the whole bordered card inward by one 16px spacing step per visible
+ancestor and shrink its width by the same amount. Inner leading padding stays 8px at every depth.
+This supersedes content-only indentation in the Hoje and Habit Detail exports. Hoje, Todos,
+Geral and filtered lists use 8px between cards within a family and 12px between families.
+Detail children retain 12px separation and depth 1; drill direct children reset to depth 0.
+The card owns its fill, outline, focus and controls at its indented edge. The unpainted wrapper
+measures the full list width for existing drill limits. `habit-row-surfaces.md` and
+`habit-view-surfaces.md` record paired owners and component verification.
+
 ### Habit row type vocabulary amendment
 
 Shared rows use the complete nouns `Tarefa` / `Task` or `Hábito` / `Habit` as quiet type metadata

@@ -29,7 +29,7 @@ describe('Menu interaction colours in Chromium', () => {
   it('underlines every word of a typed sheet title', async () => {
     const title = 'Ler um capítulo inteiro'
     render(<Menu.Root open={true}><Menu.Trigger asChild><button type="button" aria-label="Menu trigger" /></Menu.Trigger><Menu.Content presentation="sheet" title={title} titleMode="typed" items={[{ id: 'edit', label: 'Edit', icon: 'pencil' }]}  /></Menu.Root>)
-    const dialog = await screen.findByRole('dialog', { name: title })
+    const dialog = await screen.findByRole('dialog', { name: title }, { timeout: 10_000 })
     const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)

@@ -4,24 +4,24 @@ import { openAccountEventStream } from '@/lib/account-event-stream'
 const mocks = vi.hoisted(() => ({
   expoFetch: vi.fn(),
   getToken: vi.fn(),
-  refreshSessionToken: vi.fn(),
+  refreshSession: vi.fn(),
 }))
 vi.mock('expo/fetch', () => ({ fetch: mocks.expoFetch }))
 vi.mock('@/lib/secure-store', () => ({ getToken: mocks.getToken }))
-vi.mock('@/stores/auth-store', () => ({ refreshSessionToken: mocks.refreshSessionToken }))
+vi.mock('@/stores/auth-store', () => ({ refreshSession: mocks.refreshSession }))
 
 beforeEach(() => {
   mocks.expoFetch.mockReset()
   mocks.getToken.mockReset()
-  mocks.refreshSessionToken.mockReset()
+  mocks.refreshSession.mockReset()
 })
 
 it('replays with Last-Event-ID after refreshing an expired bearer token', async () => {
   mocks.getToken.mockResolvedValue('stale-token')
-  mocks.refreshSessionToken.mockResolvedValue('fresh-token')
+  mocks.refreshSession.mockResolvedValue({ status: 'refreshed', token: 'fresh-token' })
   mocks.expoFetch.mockResolvedValueOnce({ status: 401 }).mockResolvedValueOnce({ status: 200 })
   await openAccountEventStream(new AbortController().signal, 'epoch.3')
-  expect(mocks.refreshSessionToken).toHaveBeenCalledWith()
+  expect(mocks.refreshSession).toHaveBeenCalledWith()
   expect(mocks.expoFetch).toHaveBeenNthCalledWith(2,
     'https://api.useorbit.org/api/events',
     expect.objectContaining({ headers: {

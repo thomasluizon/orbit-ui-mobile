@@ -268,12 +268,14 @@ describe('HabitRow neutral metadata contrast', () => {
 })
 
 describe('HabitRow canonical content', () => {
-  it('applies the child inset once inside the shared row edge', () => {
-    render(<HabitRow habit={createMockHabit({ title: 'Child' })} child depth={1} />)
+  it.each([undefined, 1, 2])('indents the child card with uniform inner padding at depth %s', (depth) => {
+    render(<HabitRow habit={createMockHabit({ title: 'Child' })} child depth={depth} />)
     const row = screen.getByTestId('habit-row')
     expect(row.firstElementChild).toHaveAttribute('data-habit-row-body')
     expect(row.style.paddingInlineStart).toBe('')
-    expect(row.firstElementChild).toHaveStyle({ paddingInlineStart: '24px' })
+    expect(row).toHaveStyle({ marginInlineStart: `${16 * (depth ?? 1)}px` })
+    expect(row.parentElement!.style.paddingInlineStart).toBe('')
+    expect(row.firstElementChild).toHaveStyle({ paddingInlineStart: '8px' })
   })
 
   it('keeps selection, disclosure, and a neutral checkbox on a parent row', () => {

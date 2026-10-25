@@ -1,0 +1,22 @@
+{
+  "provenance": "GET https://api.render.com/v1/services/<SERVICE_ID>/deploys?limit=20 with Authorization: Bearer <RENDER_MCP_TOKEN>",
+  "deploys": [
+    {
+      "deploy": {
+        "id": "fixture-deploy",
+        "commit": null,
+        "image": {
+          "ref": "ghcr.io/example/web@sha256:fixture",
+          "sha": "<string>"
+        },
+        "status": "live",
+        "trigger": "api",
+        "createdAt": "<ISO-8601 timestamp>",
+        "updatedAt": "<ISO-8601 timestamp>",
+        "startedAt": "<ISO-8601 timestamp>",
+        "finishedAt": "<ISO-8601 timestamp>"
+      },
+      "cursor": "<string>"
+    }
+  ]
+}

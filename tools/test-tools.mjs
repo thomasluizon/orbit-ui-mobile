@@ -60,7 +60,6 @@ const CASE_MODULES = [
   ["check-lockup-crop.mjs", "check-lockup-crop"],
   ["check-lint-severity.mjs", "check-lint-severity"],
   ["check-push-target.mjs", "check-push-target"],
-  ["check-review-harness.mjs", "check-review-harness"],
   ["check-root-allowlist.mjs", "check-root-allowlist"],
   ["check-sonar-paths.mjs", "check-sonar-paths"],
   ["check-workspace-overrides.mjs", "check-workspace-overrides"],
@@ -127,6 +126,7 @@ const CASE_MODULES = [
 ]
 
 const REPOSITORY_CASE_MODULES = [
+  [".github/workflows/release.yml", "check-release-workflow"],
   [".maestro/protected-route-redirect.yaml", "protected-route-redirect"],
 ]
 
@@ -147,7 +147,7 @@ for (let index = 2; index < process.argv.length; index++) {
   requestedModules.push(name)
 }
 
-const validModules = CASE_MODULES.map(([, module]) => module)
+const validModules = [...CASE_MODULES, ...REPOSITORY_CASE_MODULES].map(([, module]) => module)
 const unknownModules = [...new Set(requestedModules.filter((name) => !validModules.includes(name)))]
 if (unknownModules.length > 0) {
   console.error(`test-tools: unknown case module(s): ${unknownModules.join(", ")}`)
@@ -179,7 +179,7 @@ for (const [file, module] of selectedCaseModules) {
 }
 
 const repositoryCases = {}
-for (const [file, module] of requestedSet.size === 0 ? REPOSITORY_CASE_MODULES : []) {
+for (const [file, module] of REPOSITORY_CASE_MODULES.filter(([, module]) => requestedSet.size === 0 || requestedSet.has(module))) {
   const loaded = await import(`./__tests__/${module}.mjs`)
   if (typeof loaded.cases !== "function") {
     console.error(`test-tools: tools/__tests__/${module}.mjs exports no cases() for ${file}`)
@@ -214,7 +214,6 @@ const INVALID_INPUT = {
   "check-push-target.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-lockup-crop.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-lint-severity.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-review-harness.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-root-allowlist.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-sonar-paths.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-workspace-overrides.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },

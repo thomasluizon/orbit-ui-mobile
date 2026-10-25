@@ -1,9 +1,7 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs"
 import { createHash } from "node:crypto"
 import { join } from "node:path"
-import { isDeepStrictEqual } from "node:util"
 import { cloudOrder } from "../lib/cloud-worker.mjs"
-import { UI_REVIEW_SWEEP_CONTRACT, renderUiReviewSweepContract } from "../lib/review-harness.mjs"
 
 import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, REPO_ROOT, root, stage, stageWithConfig, T } from "./_harness.mjs"
 
@@ -35,106 +33,9 @@ const ticketPlan = (value = ticket(), comments = []) => [
 ]
 const comment = (body, createdAt = "2026-08-13T18:58:17Z", isMinimized = false) => ({ author: { login: "thomasluizon" }, body, createdAt, isMinimized })
 const composed = (path) => (existsSync(path) ? readFileSync(path, "utf8") : "")
-const reviewSweepContract = renderUiReviewSweepContract()
-const expectedReviewSweepContract = {
-  sourceFamilies: [
-    {
-      instruction: "Run `npx --yes ui-skills get <owner>/<name>` for each skill and verify a successful, non-empty fetch",
-      skills: [
-        "anthropics/frontend-design",
-        "jakubkrehel/make-interfaces-feel-better",
-        "emilkowalski/animation-vocabulary",
-        "raphaelsalaja/mastering-animate-presence",
-        "iart-ai/accessible-animation",
-        "ibelick/fixing-accessibility",
-        "wshobson/wcag-audit-patterns",
-      ],
-    },
-    {
-      instruction: "Use the GitHub Trees commands below and read every blob under each `skills/<name>/` directory",
-      skills: [
-        "better-ui",
-        "better-accessibility",
-        "better-layout",
-        "better-writing",
-        "better-typography",
-        "better-colors",
-        "interface-review",
-        "better-interface",
-      ],
-    },
-    {
-      instruction: "Fetch the Vercel guideline text from `https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md`",
-      skills: [],
-    },
-  ],
-  lanes: [
-    {
-      name: "execution",
-      applicability: "mandatory",
-      skills: ["anthropics/frontend-design", "jakubkrehel/better-ui", "jakubkrehel/make-interfaces-feel-better"],
-    },
-    {
-      name: "motion",
-      applicability: "when the change animates",
-      notApplicable: "no changed animation",
-      skills: ["emilkowalski/animation-vocabulary", "raphaelsalaja/mastering-animate-presence", "iart-ai/accessible-animation"],
-    },
-    {
-      name: "gates",
-      applicability: "mandatory",
-      skills: ["the Vercel guideline text", "ibelick/fixing-accessibility", "wshobson/wcag-audit-patterns", "jakubkrehel/better-accessibility"],
-    },
-    {
-      name: "the change",
-      applicability: "mandatory",
-      evidence: ["interface-review", "better-interface"],
-      skills: [
-        "jakubkrehel/interface-review",
-        "jakubkrehel/better-interface in full mode",
-        "jakubkrehel/better-accessibility",
-        "jakubkrehel/better-layout",
-        "jakubkrehel/better-writing",
-        "jakubkrehel/better-typography",
-        "jakubkrehel/better-colors",
-        "jakubkrehel/better-ui",
-      ],
-    },
-  ],
-  closeGate: [
-    { name: "design-reviewer", instruction: "design-reviewer on the diff" },
-    { name: "completeness-critic", instruction: "completeness-critic against the surface inventory" },
-  ],
-}
-const requiredSourceEvidence = [
-  "npx --yes ui-skills get <owner>/<name>",
-  "repos/jakubkrehel/skills/git/trees/main?recursive=1",
-  "https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md",
-]
-const requiredLaneEvidence = ["execution", "motion", "gates", "the change"]
-const carriesCompleteReviewSweep = (text) =>
-  text.includes(reviewSweepContract) &&
-  UI_REVIEW_SWEEP_CONTRACT.sourceFamilies.length === 3 &&
-  UI_REVIEW_SWEEP_CONTRACT.lanes.length === 4 &&
-  UI_REVIEW_SWEEP_CONTRACT.closeGate.length === 2 &&
-  requiredSourceEvidence.every((evidence) => reviewSweepContract.includes(evidence)) &&
-  requiredLaneEvidence.every((lane) => UI_REVIEW_SWEEP_CONTRACT.lanes.some(({ name }) => name === lane)) &&
-  ["design-reviewer", "completeness-critic"].every((agent) => reviewSweepContract.includes(agent))
-
 export const cases = () => {
   mkdirSync(join(root, "compose-prompt"), { recursive: true })
-  T(
-    `${TOOL}: the review sweep contract exactly matches the playbook inventory`,
-    isDeepStrictEqual(UI_REVIEW_SWEEP_CONTRACT, expectedReviewSweepContract),
-    JSON.stringify({ expected: expectedReviewSweepContract, actual: UI_REVIEW_SWEEP_CONTRACT }, null, 2),
-  )
   const real = realOrchestratorConfig()
-  T(`${TOOL}: review lanes stay in the worker session with exactly two close-gate sub-agents`,
-    /Run the four read-only lanes yourself, in this session, in order/.test(reviewSweepContract) &&
-      /Spawn exactly two sub-agents/.test(reviewSweepContract) &&
-      /Spawn no other sub-agent/.test(reviewSweepContract) &&
-      ["design-reviewer", "completeness-critic"].every((name) => reviewSweepContract.includes(`.claude/agents/${name}.md`)),
-    reviewSweepContract)
   const staged = stageWithConfig("compose-prompt", TOOL, {
     ...real,
     repos: { ui: REPO_PATH, api: API_REPO_PATH, landing: LANDING_REPO_PATH },
@@ -328,7 +229,7 @@ export const cases = () => {
     `${TOOL}: review batch report ends with the literal sections the orchestrator copies into the body`,
     /these literal sections, each one present even when it is empty/.test(reviewPrompt) &&
       /`## Test evidence`, `## Assumptions` and `## Manual steps`/.test(reviewPrompt) &&
-      /`## Review harness` only when this order carries the UI review sweep and a changed path matches its UI_SCOPE pattern/.test(reviewPrompt),
+      !/## Review harness|## UI review sweep/.test(reviewPrompt),
     reviewPrompt,
   )
   T(
@@ -349,7 +250,7 @@ export const cases = () => {
     localFinishing.slice(0, 600),
   )
   T(
-    `${TOOL}: local delivery appears before the long brief and review sweep`,
+    `${TOOL}: local delivery appears before the long brief`,
     prompt.indexOf("## Finishing contract") < prompt.indexOf("## Orchestrator's brief"),
     prompt.slice(0, 800),
   )
@@ -357,88 +258,57 @@ export const cases = () => {
     T(`${TOOL}: local delivery sentence ${index + 1} survives composition`, localFinishing.includes(sentence), localFinishing.slice(0, 600))
   }
   T(
-    `${TOOL}: a main-based UI order carries no redesign review sweep`,
-    !prompt.includes("## UI review sweep"),
+    `${TOOL}: a default UI order carries no UI review sweep`,
+    !/## UI review sweep|## Review harness/.test(prompt),
     prompt,
   )
 
-  const redesignOut = join(root, "compose-prompt", "ui-redesign.md")
+  const mainOut = join(root, "compose-prompt", "ui-main.md")
   check(
     TOOL,
-    "composes the redesign UI review sweep",
-    ["--issue", "ORB-215", "--repo", "ui", "--out", redesignOut, "--base", "redesign/main"],
+    "composes a main UI order",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", mainOut, "--base", "main"],
     { status: 0 },
     options(ticketPlan()),
   )
-  const redesignPrompt = composed(redesignOut)
-  const reviewRedesignOut = join(root, "compose-prompt", "review-redesign.md")
+  const mainPrompt = composed(mainOut)
+  const reviewMainOut = join(root, "compose-prompt", "review-main.md")
   check(
     TOOL,
-    "composes a redesign review batch",
-    ["--issue", "ORB-215", "--repo", "ui", "--out", reviewRedesignOut, "--base", "redesign/main", "--review-batch"],
+    "composes a main review batch",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", reviewMainOut, "--base", "main", "--review-batch"],
     { status: 0 },
     options(ticketPlan()),
   )
-  const reviewRedesignPrompt = composed(reviewRedesignOut)
+  const reviewMainPrompt = composed(reviewMainOut)
   T(
-    `${TOOL}: review batch UI sweep uses only paths in its own commit`,
-    /paths changed by this batch's commit/.test(reviewRedesignPrompt) &&
-      !/After implementation, inspect the complete diff/.test(reviewRedesignPrompt) &&
-      /After implementation, inspect the complete diff/.test(redesignPrompt),
-    reviewRedesignPrompt,
+    `${TOOL}: a main review batch carries no automatic UI sweep or evidence block`,
+    !/## UI review sweep|## Review harness|UI_SCOPE/.test(reviewMainPrompt),
+    reviewMainPrompt,
   )
   T(
-    `${TOOL}: redesign review batch requires harness evidence only for a UI-scope diff`,
-    /If no changed path matches, skip this sweep and omit the Review harness block/.test(reviewRedesignPrompt) &&
-      /`## Review harness` only when this order carries the UI review sweep and a changed path matches its UI_SCOPE pattern/.test(reviewRedesignPrompt) &&
-      /When a changed path matches, include the complete `## Review harness` block/.test(reviewRedesignPrompt),
-    reviewRedesignPrompt,
+    `${TOOL}: main delivery keeps the finishing contract before the brief`,
+    mainPrompt.indexOf("## Finishing contract") < mainPrompt.indexOf("## Orchestrator's brief"),
+    mainPrompt.slice(0, 800),
   )
   T(
-    `${TOOL}: redesign delivery appears before the review sweep`,
-    redesignPrompt.indexOf("## Finishing contract") < redesignPrompt.indexOf("## UI review sweep"),
-    redesignPrompt.slice(0, 800),
-  )
-  T(
-    `${TOOL}: a redesign UI order requires the complete review inventory, in-scope fixes, and the PR block`,
-    redesignPrompt.includes("## UI review sweep") &&
-      /\.claude\/playbooks\/redesign-screen\.md/.test(redesignPrompt) &&
-      /gh api "repos\/jakubkrehel\/skills\/git\/trees\/main\?recursive=1" --jq \.truncated/.test(redesignPrompt) &&
-      /\.tree\[\]\|select\(\.type=="blob" and \(\.path\|startswith\("skills\/<name>\/"\)\)\)\|\.path/.test(redesignPrompt) &&
-      ["interface-review", "better-interface", "better-accessibility", "better-layout", "better-writing", "better-typography", "better-colors", "better-ui"]
-        .every((directory) => redesignPrompt.includes(`\`${directory}\``)) &&
-      /Read every printed path from `https:\/\/raw\.githubusercontent\.com\/jakubkrehel\/skills\/main\/<path>`/.test(redesignPrompt) &&
-      /Fix every in-scope finding in this pull request/.test(redesignPrompt) &&
-      /## Review harness/.test(redesignPrompt) &&
-      /- interface-review: <what it found, or "no findings">/.test(redesignPrompt) &&
-      /- better-interface \(full mode\): <what it found, or "no findings">/.test(redesignPrompt) &&
-      /A line claiming a review you did not run is forbidden/.test(redesignPrompt),
-    redesignPrompt,
-  )
-  T(
-    `${TOOL}: a redesign UI order carries every source family, lane, and close-gate agent`,
-    carriesCompleteReviewSweep(redesignPrompt),
-    redesignPrompt,
-  )
-  T(
-    `${TOOL}: the redesign UI order exempts a diff with no path in the gate's exact scope`,
-    /\^apps\\\/\(\?:web\|mobile\)\\\/\(\?:app\|components\|hooks\|stores\|lib\)\\\//.test(redesignPrompt) &&
-      /If no changed path matches, skip this sweep and omit the Review harness block/.test(redesignPrompt),
-    redesignPrompt,
+    `${TOOL}: an explicit main UI order carries no automatic UI sweep or evidence block`,
+    !/## UI review sweep|## Review harness|UI_SCOPE|npx --yes ui-skills/.test(mainPrompt),
+    mainPrompt,
   )
 
   for (const [repository, repositoryPath] of [["api", API_REPO_PATH], ["landing", LANDING_REPO_PATH]]) {
-    const repositoryOut = join(root, "compose-prompt", `${repository}-redesign.md`)
+    const repositoryOut = join(root, "compose-prompt", `${repository}-main.md`)
     check(
       TOOL,
-      `composes a redesign order for ${repository}`,
-      ["--issue", "ORB-215", "--repo", repository, "--out", repositoryOut, "--base", "redesign/main"],
+      `composes a main order for ${repository}`,
+      ["--issue", "ORB-215", "--repo", repository, "--out", repositoryOut, "--base", "main"],
       { status: 0 },
       options(ticketPlan(ticket({ labels: [{ name: `repo:${repository}` }] }))),
     )
     const repositoryPrompt = composed(repositoryOut)
     T(
-      `${TOOL}: a redesign ${repository} order carries no UI review sweep`,
+      `${TOOL}: a main ${repository} order carries no UI review sweep`,
       !repositoryPrompt.includes("## UI review sweep") && repositoryPrompt.includes(`Repository \`${repository}\` at \`${repositoryPath}\``),
       repositoryPrompt,
     )
@@ -458,7 +328,7 @@ export const cases = () => {
   check(
     TOOL,
     "composes the Cloud mode without local delivery instructions",
-    ["--issue", "ORB-215", "--repo", "ui", "--out", cloudOut, "--cloud", "--base", "redesign/main", "--worktree", REPO_PATH, "--branch", "feature/local-materialization"],
+    ["--issue", "ORB-215", "--repo", "ui", "--out", cloudOut, "--cloud", "--base", "main", "--worktree", REPO_PATH, "--branch", "feature/local-materialization"],
     { status: 0 },
     options(ticketPlan()),
   )
@@ -467,7 +337,7 @@ export const cases = () => {
   check(
     TOOL,
     "composes Cloud with the review batch flag",
-    ["--issue", "ORB-215", "--repo", "ui", "--out", reviewCloudOut, "--cloud", "--review-batch", "--base", "redesign/main", "--worktree", REPO_PATH, "--branch", "feature/local-materialization"],
+    ["--issue", "ORB-215", "--repo", "ui", "--out", reviewCloudOut, "--cloud", "--review-batch", "--base", "main", "--worktree", REPO_PATH, "--branch", "feature/local-materialization"],
     { status: 0 },
     options(ticketPlan()),
   )
@@ -483,26 +353,17 @@ export const cases = () => {
     cloudPrompt.slice(-1200),
   )
   T(
-    `${TOOL}: Cloud leaves the owed redesign sweep to local post-materialization delivery`,
-    /The Cloud container must not run or claim this sweep/.test(cloudPrompt) &&
-      /orchestrator runs it locally after materialization and before opening the pull request/.test(cloudPrompt) &&
-      /## Review harness/.test(cloudPrompt) &&
-      /- interface-review: <what it found, or "no findings">/.test(cloudPrompt) &&
-      /- better-interface \(full mode\): <what it found, or "no findings">/.test(cloudPrompt),
-    cloudPrompt,
-  )
-  T(
-    `${TOOL}: Cloud delivery carries the same complete review sweep as local delivery`,
-    carriesCompleteReviewSweep(cloudPrompt),
+    `${TOOL}: Cloud delivery carries no automatic UI sweep or local sweep handoff`,
+    !/## UI review sweep|## Review harness|orchestrator runs it locally after materialization/.test(cloudPrompt),
     cloudPrompt,
   )
   /**
-   * One brief feeds the local, Cloud and redesign orders, so each one is asserted separately: a
+   * One brief feeds the local, Cloud and explicit main orders, so each one is asserted separately: a
    * later split could drop the block from any single mode and the other two would stay green. Each
    * assertion names the edit ban rather than the bare word node_modules, which a prompt could
    * carry for an unrelated reason.
    */
-  for (const [mode, order] of [["local", prompt], ["Cloud", cloudPrompt], ["redesign", redesignPrompt]]) {
+  for (const [mode, order] of [["local", prompt], ["Cloud", cloudPrompt], ["explicit main", mainPrompt]]) {
     T(
       `${TOOL}: the ${mode} order permits installs but forbids dependency edits`,
       /Never edit installed files by hand inside `node_modules`/.test(order) &&
@@ -515,11 +376,6 @@ export const cases = () => {
   }
 
   const orchestrateSkill = readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")
-  T(
-    `${TOOL}: the Cloud materialization skill mirrors the canonical review sweep contract`,
-    orchestrateSkill.includes(reviewSweepContract),
-    orchestrateSkill,
-  )
   T(
     `${TOOL}: orchestration resolves review batch threads before its single push`,
     /compose its order with `--review-batch`/.test(orchestrateSkill) &&
@@ -596,7 +452,7 @@ export const cases = () => {
   }
   for (const [mode, order] of [
     ["local", prompt],
-    ["review batch", reviewRedesignPrompt],
+    ["review batch", reviewMainPrompt],
     ["Cloud", cloudPrompt],
   ]) {
     T(

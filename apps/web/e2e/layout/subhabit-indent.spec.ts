@@ -5,6 +5,7 @@ import { openTodayListOptions } from './hydration-guard'
 import { assertHabitRows, setHabitTextScale } from './subhabit-indent-geometry'
 import { measureTitleWords } from './title-word-geometry'
 import { API } from '@orbit/shared/api'
+import { SPACING } from '@orbit/shared/theme'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createPaginatedSchema, habitDetailSchema, habitMetricsSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { profileSchema } from '@orbit/shared/types/profile'
@@ -72,6 +73,24 @@ async function drillInto(page: Page, title: string, words: typeof en | typeof pt
   await expect(page.getByRole('heading', { name: title, level: 2, exact: true })).toBeVisible()
 }
 
+function expectFamilyCardGeometry(rows: Awaited<ReturnType<typeof assertHabitRows>>) {
+  for (const row of rows.slice(1)) {
+    expect(row.bounds.left - rows[0]!.bounds.left).toBe(SPACING.s16 * row.depth)
+    expect(rows[0]!.bounds.width - row.bounds.width).toBe(SPACING.s16 * row.depth)
+    expect(row.bounds.right).toBe(rows[0]!.bounds.right)
+    expect(row.well.left - rows[0]!.well.left).toBe(SPACING.s16 * row.depth)
+    expect(row.metadata).not.toBeNull()
+  }
+  for (const [index, row] of rows.entries()) {
+    if (index > 0) expect(row.bounds.top - rows[index - 1]!.bounds.bottom).toBe(SPACING.s8)
+    for (const peer of rows.filter((peer) => peer.depth === row.depth)) {
+      expect(peer.bounds.left).toBe(row.bounds.left)
+      expect(peer.well.left).toBe(row.well.left)
+      expect(peer.title.left).toBe(row.title.left)
+    }
+  }
+}
+
 for (const width of [320, 412, 1352]) {
   for (const locale of ['pt-BR', 'en'] as const) {
     for (const theme of ['light', 'dark'] as const) {
@@ -97,7 +116,7 @@ for (const width of [320, 412, 1352]) {
           }
         })
 
-        test('insets long leaf and branch titles once with distinct targets at normal and enlarged text', async ({ page }) => {
+        test('indents leaf and branch cards once with shared content edges per depth at normal and enlarged text', async ({ page }) => {
           await openFamily(page)
           for (const selecting of [false, true]) {
             if (selecting) {
@@ -110,11 +129,7 @@ for (const width of [320, 412, 1352]) {
               await setHabitTextScale(page, scale, familyItems.map((item) => item.title), normalSupportingTitles)
               await expectSupportingHeadings(page, scale, familyItems.map((item) => item.title), normalSupportingTitles)
               const rows = await assertHabitRows(page.locator('[data-testid="habit-row"]:visible'), width, familyDepths, scale, selecting, normalSupportingTitles)
-              for (const row of rows.slice(1)) {
-                expect(row.bounds.left).toBe(rows[0]!.bounds.left)
-                expect(row.well.left - rows[0]!.well.left).toBe(16 * row.depth)
-                expect(row.metadata).not.toBeNull()
-              }
+              expectFamilyCardGeometry(rows)
               if (scale === 2) expect(rows[2]!.supporting).toBe(true)
             }
           }

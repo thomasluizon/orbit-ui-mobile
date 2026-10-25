@@ -14,6 +14,7 @@ import { LoginAttemptScope } from '@orbit/shared/utils/login-attempt'
 import StepUpScreen from '@/app/step-up'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { AccountEventConnection } from '@/lib/account-event-connection'
+import { captureError } from '@/lib/sentry'
 import { openAccountEventStream } from '@/lib/account-event-stream'
 import { openChatStream } from '@/lib/chat-stream'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
@@ -1952,6 +1953,60 @@ describe('mobile auth store security paths', () => {
       expect(useAuthStore.getState().isAuthenticated).toBe(true)
       expect(navigation.destinations.at(-1)).toBe('(tabs)')
       expect(navigation.destinations).not.toContain('login')
+    } finally {
+      await TestRenderer.act(() => { view?.unmount() })
+      vi.useRealTimers()
+    }
+  })
+
+  it.each(['network', 'upstream', 'timeout'])('reopens a foreground account stream after a %s refresh failure recovers', async (failure) => {
+    const capture = vi.mocked(captureError)
+    capture.mockClear()
+    const freshToken = makeJwtWithClaims(Math.floor(Date.now() / 1000) + 3600, 'user-1', 'user@example.com')
+    getTokenMock.mockResolvedValue('expired-token')
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    let finishRefresh!: (response: Response) => void
+    if (failure === 'network') fetchMock.mockRejectedValueOnce(new TypeError('Network request failed'))
+    else if (failure === 'upstream') fetchMock.mockResolvedValueOnce(new Response(null, { status: 503 }))
+    else fetchMock.mockImplementationOnce(() => new Promise<Response>((resolve) => { finishRefresh = resolve }))
+    fetchMock.mockResolvedValue(Response.json({ token: freshToken, refreshToken: 'rotated-refresh' }))
+    streamFetch.mockImplementation((_url: string, init: RequestInit) => Promise.resolve(
+      new Headers(init.headers).get('Authorization') === `Bearer ${freshToken}`
+        ? { ok: true, status: 200, body: new ReadableStream<Uint8Array>({ start() {} }) }
+        : new Response(null, { status: 401 }),
+    ))
+    useAuthStore.setState({ sessionPhase: 'signed-in', isAuthenticated: true, isLoading: false })
+    vi.useFakeTimers()
+    let view: { unmount: () => void } | undefined
+    try {
+      await TestRenderer.act(async () => {
+        view = TestRenderer.create(React.createElement(React.Fragment, null,
+          React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }),
+          React.createElement(AccountEventConnection),
+        ))
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      if (failure === 'timeout') {
+        await TestRenderer.act(async () => {
+          await vi.advanceTimersByTimeAsync(10_000)
+          finishRefresh(new Response(null, { status: 503 }))
+          await vi.advanceTimersByTimeAsync(0)
+        })
+      }
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(1999) })
+      expect(streamFetch).toHaveBeenCalledTimes(1)
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(1) })
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(streamFetch).toHaveBeenCalledTimes(3)
+      expect(streamFetch).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({
+        headers: { Authorization: `Bearer ${freshToken}` },
+      }))
+      expect(clearAllTokensMock).not.toHaveBeenCalled()
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+      expect(navigation.destinations.at(-1)).toBe('(tabs)')
+      expect(navigation.destinations).not.toContain('login')
+      expect(capture).not.toHaveBeenCalled()
     } finally {
       await TestRenderer.act(() => { view?.unmount() })
       vi.useRealTimers()

@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test'
+import { SPACING } from '@orbit/shared/theme'
 import { settleAnimations } from './settle-animations'
 
 export async function setHabitTextScale(page: Page, scale: number, supportingTitles: readonly string[] = [], normalSupportingTitles: readonly string[] = []) {
@@ -101,7 +102,7 @@ function readHabitGeometry(row: HTMLElement) {
   const geometry = {
     rootFontSize: parseFloat(getComputedStyle(document.documentElement).fontSize),
     depth: Number(row.getAttribute('data-depth')),
-    bounds: boundsOf(row), well: boundsOf(well), title: titleBounds,
+    bounds: boundsOf(row), frame: boundsOf(row.parentElement!), well: boundsOf(well), title: titleBounds,
     fontSize: parseFloat(titleStyle.fontSize), lineHeight: parseFloat(titleStyle.lineHeight),
     visibleFragments: visibleFragments.length,
     metadata: metadata ? boundsOf(metadata) : null,
@@ -159,7 +160,10 @@ function readHabitGeometry(row: HTMLElement) {
 
 function assertReadableHabit(row: ReturnType<typeof readHabitGeometry>, width: number, scale: number) {
   expect(row.rootFontSize, 'Habit geometry root font must match the requested scale').toBe(16 * scale)
-  expect(row.well.left - row.bounds.left).toBe(8 + 16 * row.depth)
+  expect(row.well.left - row.bounds.left, 'Inner padding stays constant inside the indented card').toBe(SPACING.s8)
+  expect(row.bounds.left - row.frame.left).toBe(SPACING.s16 * row.depth)
+  expect(row.bounds.width).toBe(row.frame.width - SPACING.s16 * row.depth)
+  expect(row.bounds.right).toBe(row.frame.right)
   expect(row.title.left - row.well.left).toBe(60)
   expect(row.title.width).toBeGreaterThanOrEqual(row.fontSize)
   expect(row.title.height).toBeGreaterThanOrEqual(row.lineHeight - 1)
