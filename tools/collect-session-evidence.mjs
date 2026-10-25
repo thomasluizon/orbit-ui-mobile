@@ -48,7 +48,7 @@ function fail(code, message) {
 
 function defaultTranscriptDirectory() {
   const projectDirectory = process.env.CLAUDE_PROJECT_DIR || process.cwd()
-  const projectKey = projectDirectory.replace(/[:\\/]/g, "-")
+  const projectKey = projectDirectory.replace(/[^A-Za-z0-9]/g, "-")
   return join(homedir(), ".claude", "projects", projectKey)
 }
 
