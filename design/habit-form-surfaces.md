@@ -9,8 +9,8 @@
 | Type | `habit-form-fields/habit-type-field.tsx` | Two vertical RadioRow choices before the focal title, visible validation and group focus |
 | Date | `habit-form-fields/habit-date-field.tsx` | When input, type-specific question and editable date before More details; General hides only the date group |
 | Schedule | `habit-form-fields/habit-schedule-fields.tsx` | Fixed, count-based and No schedule choices with a reachable return and tree locks |
-| Date interpretation | Shared `date-phrase-parser.ts`, `date-interpretation-session.ts`, `habit-date-editor.ts`; app `use-date-interpretation.ts` | Local calendar arithmetic, explicit metered request, separate candidate, acceptance, stale rejection, direct transport and terminal allowance refresh |
-| Recurrence intent | Shared `habit-recurrence-phrase.ts`, `habit-phrase-parser.ts`, `habit-date-editor.ts`, `habit-form-helpers.ts`; paired date/type fields and form hooks | Bilingual daily, weekly count and weekday wording writes the existing schedule for a deliberately selected dated Habit; Task retains its date and one inline recovery toward the existing Habit choice |
+| Date interpretation | Shared `date-phrase-parser.ts`, `date-interpretation-session.ts`, `habit-date-editor.ts`; app `use-date-interpretation.ts` | Offline calendar arithmetic, automatic debounced interpretation, editable draft date, in-field Astra provenance, stale rejection and terminal allowance refresh |
+| Recurrence intent | Shared `habit-recurrence-phrase.ts`, `habit-phrase-parser.ts`, `habit-date-editor.ts`, `habit-form-helpers.ts`; paired date/type fields and form hooks | Bilingual daily, weekly count and weekday wording writes the existing schedule for a deliberately selected dated Habit; a single Task weekday selects its next occurrence; explicit Task repetition keeps one inline recovery toward the existing Habit choice |
 | Type readback | `habit-row-content.tsx`, `habit-detail-screen.tsx` | Whole quiet vocabulary beneath the full-width title; original controls and counts retained |
 
 All component paths above are relative to each app's `components/habits/` unless another owner is
@@ -21,11 +21,20 @@ Converting a dated habit to a task clears its persisted end date explicitly befo
 task request. Untouched dated end dates keep their value.
 
 The date editor stays mounted while General hides its controls. Returning to a dated draft retains
-its phrase and picker value, reconstructs local parse availability and requires manual confirmation
-when its context changed. Unsupported wording keeps the explicit Astra recovery; impossible and
-ambiguous dates do not offer it. Consultation ownership includes the semantic cadence unit,
-quantity, sorted distinct weekdays and interval, in addition to mode and type. A changed cadence
-retires both delayed responses and visible candidates without another consultation.
+its phrase and picker value and requires manual confirmation when its context changed. Common
+relative dates, weekdays, month ends and locale-ordered numeric dates resolve offline. A weekday
+always means its next occurrence for a task, including next week when it matches the account day.
+Today and hoje explicitly select the account day. Habit weekdays retain their recurrence meaning.
+
+Unresolved wording starts one interpretation after a typing pause when online and within the
+allowance. Further typing, manual date selection, form dismissal and changed semantic context
+cancel the consultation. Ownership includes account, locale, timezone, account day, mode, type,
+cadence unit, quantity, sorted distinct weekdays, interval and calendar bounds. Late responses
+cannot replace a newer date. The resolved date fills the unsaved draft and remains editable before
+Save. The phrase stays visible with a muted Astra glyph at the field's trailing edge while pending
+and after interpretation. Accessible status identifies both states. Manual selection clears that
+provenance. Offline, allowance and provider failures retain unresolved guidance and the calendar.
+There is no separate date request pill, cost caption or date confirmation action.
 
 English and Portuguese repetition phrases share the title parser's daily, weekly count and weekday
 vocabulary through a complete-phrase reader, independent of the interface language. Weekdays and

@@ -544,18 +544,23 @@ General cannot gain reminders or avoidance settings. Switching modes preserves t
 The compact growing name field uses the standard 54px minimum with matching mirror/input metrics. Description follows it immediately, before emoji, understanding and proposal content, with one owned 10,000-character field. Type stays first. RadioRow keeps its 52px minimum: one-line content is centred as a group, while wrapped labels grow with the glyph aligned to their first line (#1607).
 
 The editable date group precedes the single details disclosure. It has a persistent `Quando` /
-`When` label, the type-specific question, natural-language input with `In your own words` / `Escreva do seu jeito` and the existing calendar picker. The picker owns the selected date display; no ordinary selected-date sentence repeats it. Proposed, validation and recovery feedback remain (#1607).
+`When` label, the type-specific question, natural-language input with `In your own words` / `Escreva do seu jeito` and the existing calendar picker. The picker owns the selected date display; no ordinary selected-date sentence repeats it. Machine attribution, validation and recovery feedback remain.
 The picker is labelled `Fazer em` / `Do on` for tasks and `Começar em` / `Starts on` for dated
 habits. New dates use account today after its timezone is known; a caller-selected day is an
 explicit prefill. Edit uses the task due date or persisted recurring start anchor, never the
 recurring next-due cursor. A selected end date has an explicit clear action.
 
-Deterministic calendar parsing spends no message. Unsupported wording can request Astra explicitly;
-invalid and ambiguous dates keep the manual picker. The candidate stays Proposed until accepted
-or manually selected. Unresolved text and unaccepted candidates validate visibly on Submit and
-focus the date input. Manual selection, including the same date, clears that issue. Account,
+Local calendar parsing runs first and spends no message. Wording it cannot resolve goes to Astra
+automatically when online and within the allowance, debounced and cancelled on further typing.
+Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.
+The resolved date is written to the picker, which stays editable. While Astra works and until the
+person edits or picks a date, a subtle Astra glyph at the field's trailing edge uses muted foreground
+with no fill, border or glow. This attribution keeps machine-inferred dates visibly distinct as
+required by the proposed state. Offline or at the allowance, the unresolved hint and manual picker
+remain. Unresolved text validates visibly on Submit and focuses the date input.
+Manual selection, including the same date, clears that issue. Account,
 locale, timezone, day, phrase, picker, type, schedule, end-date and form changes invalidate old
-interpretations. Only the paid action depends on AI capacity. Offline editing and manual picking
+interpretations. Only automatic Astra interpretation depends on AI capacity. Offline editing and manual picking
 remain available; web saving retains its connection requirement and Android retains offline saving.
 
 Recurrence wording in When has its own local route in English and Portuguese, independent of
@@ -564,7 +569,9 @@ the stated quantity, and named weekdays or weekdays/dias úteis select the exist
 Weekly equivalents such as `toda semana` and `weekly` retain fixed Week 1. The entered words stay
 in the input without a second summary or Astra attribution. Repetition preserves the chosen date;
 an explicit start such as `every Monday from next week` also updates the calendar anchor locally.
-A Task keeps its type and date, with one inline recovery: `To repeat, choose Habit.` /
+A task weekday without recurring wording selects its next occurrence in the account calendar;
+the same weekday means the following week unless the wording explicitly says today.
+True recurrence wording on a Task keeps its type and date, with one inline recovery: `To repeat, choose Habit.` /
 `Para repetir, escolha Hábito.` Submit focuses the actual type group without marking the selected
 Task as missing. Selecting Habit is deliberate; clearing or replacing the wording and manual date
 selection also recover. This choice takes precedence over a retained General draft and keeps the

@@ -15,6 +15,52 @@ const MONTHS = [
   ['november', 'novembro'], ['december', 'dezembro'],
 ]
 
+const WEEKDAYS = [
+  ['sunday', 'sun', 'domingo', 'dom'], ['monday', 'mon', 'segunda', 'segunda-feira', 'seg'],
+  ['tuesday', 'tue', 'tues', 'terca', 'terca-feira', 'ter'], ['wednesday', 'wed', 'quarta', 'quarta-feira', 'qua'],
+  ['thursday', 'thu', 'thur', 'thurs', 'quinta', 'quinta-feira', 'qui'], ['friday', 'fri', 'sexta', 'sexta-feira', 'sex'],
+  ['saturday', 'sat', 'sabado', 'sab'],
+]
+
+function normalizePhrase(input: string): string {
+  return input.trim().toLowerCase().normalize('NFD').replaceAll(/[\u0300-\u036f]/g, '').replaceAll(/\s+/g, ' ')
+}
+
+export function readDateWeekday(input: string): number | null {
+  const phrase = normalizePhrase(input).replace(/^(?:next|proxim[ao]) /, '')
+  const weekday = WEEKDAYS.findIndex((names) => names.includes(phrase))
+  return weekday < 0 ? null : weekday
+}
+
+function shiftDate(referenceDate: string, days: number): DatePhraseResult {
+  if (!Number.isSafeInteger(days) || days > 36600) return { status: 'invalid' }
+  const [year = 0, month = 0, day = 0] = referenceDate.split('-').map(Number)
+  const calendar = new Date(0)
+  calendar.setUTCFullYear(year, month - 1, day + days)
+  return resolved(calendarDate(calendar.getUTCFullYear(), calendar.getUTCMonth() + 1, calendar.getUTCDate()))
+}
+
+function weekdayDate(referenceDate: string, weekday: number): DatePhraseResult {
+  const calendar = new Date(`${referenceDate}T12:00:00Z`)
+  return shiftDate(referenceDate, (weekday - calendar.getUTCDay() + 7) % 7 || 7)
+}
+
+function numericDate(phrase: string, context: DatePhraseContext): DatePhraseResult | null {
+  const numeric = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?$/.exec(phrase)
+  if (!numeric) return null
+  const portuguese = context.locale.toLowerCase().startsWith('pt')
+  const day = Number(numeric[portuguese ? 1 : 2])
+  const month = Number(numeric[portuguese ? 2 : 1])
+  if (numeric[3]) return resolved(calendarDate(Number(numeric[3]), month, day))
+  if (month < 1 || month > 12 || day < 1 || day > monthLength(2000, month)) return { status: 'invalid' }
+  const year = Number(context.referenceDate.slice(0, 4))
+  for (let offset = 0; offset <= 8; offset++) {
+    const candidate = calendarDate(year + offset, month, day)
+    if (candidate && candidate >= context.referenceDate) return resolved(candidate)
+  }
+  return { status: 'invalid' }
+}
+
 function monthLength(year: number, month: number): number {
   if (month === 2) return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28
   return [4, 6, 9, 11].includes(month) ? 30 : 31
@@ -65,29 +111,33 @@ function namedDate(phrase: string, referenceDate: string): DatePhraseResult | nu
   return { status: 'invalid' }
 }
 
+function relativeDate(phrase: string, referenceDate: string): DatePhraseResult | null {
+  if (phrase === 'today' || phrase === 'hoje') return resolved(referenceDate)
+  const weekday = readDateWeekday(phrase)
+  if (weekday !== null) return weekdayDate(referenceDate, weekday)
+  if (phrase === 'next week' || phrase === 'proxima semana' || phrase === 'semana que vem') return weekdayDate(referenceDate, 1)
+  if (/^(?:fim do mes|final do mes|(?:the )?end of (?:the )?month)$/.test(phrase)) {
+    const [year = 0, month = 0] = referenceDate.split('-').map(Number)
+    return resolved(calendarDate(year, month, monthLength(year, month)))
+  }
+  if (/^(?:depois de amanha|(?:the )?day after tomorrow)$/.test(phrase)) return shiftDate(referenceDate, 2)
+  if (phrase === 'tomorrow' || phrase === 'amanha') return shiftDate(referenceDate, 1)
+  const offset = /^(?:in (\d+) (days?|weeks?)|(?:em|daqui a) (\d+) (dias?|semanas?))$/.exec(phrase)
+  if (!offset) return null
+  const weeks = /^(?:week|semana)/.test(offset[2] ?? offset[4] ?? '')
+  return shiftDate(referenceDate, Number(offset[1] ?? offset[3]) * (weeks ? 7 : 1))
+}
+
 export function parseDatePhrase(input: string, context: DatePhraseContext): DatePhraseResult {
-  const phrase = input.trim().toLowerCase().normalize('NFD').replaceAll(/[\u0300-\u036f]/g, '').replaceAll(/\s+/g, ' ')
+  const phrase = normalizePhrase(input)
   if (!phrase) return { status: 'empty' }
   if (/^\d{4}-\d{2}-\d{2}$/.test(phrase)) return isCalendarDate(phrase) ? resolved(phrase) : { status: 'invalid' }
-  if (/\d+[/.\-]\d+/.test(phrase)) return { status: 'ambiguous' }
   if (context.timeZone === undefined || !isCalendarDate(context.referenceDate)) return { status: 'unavailable' }
-  if (phrase === 'today' || phrase === 'hoje') return resolved(context.referenceDate)
-  if (phrase === 'next week' || phrase === 'proxima semana' || phrase === 'semana que vem') {
-    const [year = 0, month = 0, day = 0] = context.referenceDate.split('-').map(Number)
-    const calendar = new Date(0)
-    calendar.setUTCFullYear(year, month - 1, day)
-    calendar.setUTCDate(day + (8 - (calendar.getUTCDay() || 7)))
-    return resolved(calendarDate(calendar.getUTCFullYear(), calendar.getUTCMonth() + 1, calendar.getUTCDate()))
-  }
-  const offset = /^(?:in (\d+) days?|em (\d+) dias?)$/.exec(phrase)
-  if (phrase === 'tomorrow' || phrase === 'amanha' || offset) {
-    const days = offset ? Number(offset[1] ?? offset[2]) : 1
-    if (days > 36600) return { status: 'invalid' }
-    const [year = 0, month = 0, day = 0] = context.referenceDate.split('-').map(Number)
-    const calendar = new Date(0)
-    calendar.setUTCFullYear(year, month - 1, day + days)
-    return resolved(calendarDate(calendar.getUTCFullYear(), calendar.getUTCMonth() + 1, calendar.getUTCDate()))
-  }
+  const numeric = numericDate(phrase, context)
+  if (numeric) return numeric
+  if (/\d+[/.\-]\d+/.test(phrase)) return { status: 'ambiguous' }
+  const relative = relativeDate(phrase, context.referenceDate)
+  if (relative) return relative
   const bareDay = /^(?:dia (\d{1,2})|(?:on )?the (\d{1,2})(?:st|nd|rd|th)?)$/.exec(phrase)
   if (bareDay) return nextDayOfMonth(Number(bareDay[1] ?? bareDay[2]), context.referenceDate)
   return namedDate(phrase, context.referenceDate) ?? { status: 'unsupported' }

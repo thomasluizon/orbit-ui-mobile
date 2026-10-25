@@ -54,7 +54,7 @@ export class DateInterpretationSession {
 
   begin(context: DateInterpretationContext, online: boolean, atLimit: boolean): DateConsultation | null {
     this.sync(context)
-    if (!this.active || this.pending || !online || atLimit || context.schedule === 'general' || !context.type || this.parse(context).status !== 'unsupported') return null
+    if (!this.active || this.pending || !online || atLimit || context.schedule === 'general' || !context.type || !['unsupported', 'ambiguous', 'invalid'].includes(this.parse(context).status)) return null
     const ticket = { revision: this.revision, context: this.context }
     this.consultation = ticket
     return ticket
