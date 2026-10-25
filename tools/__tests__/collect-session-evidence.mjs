@@ -31,6 +31,31 @@ const parse = (result) => JSON.parse(result.stdout)
 const expectEqual = (name, got, want) => T(name, JSON.stringify(got) === JSON.stringify(want), `got=${JSON.stringify(got)} want=${JSON.stringify(want)}`)
 
 export async function cases() {
+  const homeDirectory = join(root, "session-evidence-home")
+  const projectPaths = [
+    ["/projects/person.example/orbit_ui-mobile", "-projects-person-example-orbit-ui-mobile"],
+    ["/projects/x_/m8324t4j1wv_m7y0r8839js00000gn/T", "-projects-x--m8324t4j1wv-m7y0r8839js00000gn-T"],
+    ["D:\\projects\\person.example\\orbit_ui-mobile", "D--projects-person-example-orbit-ui-mobile"],
+  ]
+  for (const [projectDirectory, projectKey] of projectPaths) {
+    const directory = join(homeDirectory, ".claude", "projects", projectKey)
+    writeTranscript(directory, "default-session", [record("user", INSIDE, "default directory turn")])
+    const options = { env: { HOME: homeDirectory, USERPROFILE: homeDirectory, CLAUDE_PROJECT_DIR: projectDirectory } }
+    const result = run("collect-session-evidence.mjs", ["--now", NOW], options)
+    expectEqual(`collect-session-evidence: default lookup reads ${projectKey}`, {
+      status: result.status,
+      userText: result.status === 0 ? parse(result).clusters[0]?.userText : result.stderr,
+    }, { status: 0, userText: "default directory turn" })
+
+    const overrideDirectory = join(root, "session-evidence-override")
+    writeTranscript(overrideDirectory, "override-session", [record("user", INSIDE, "override directory turn")])
+    const overrideResult = run("collect-session-evidence.mjs", ["--transcripts-dir", overrideDirectory, "--now", NOW], options)
+    expectEqual("collect-session-evidence: an explicit directory overrides the project default", {
+      status: overrideResult.status,
+      userText: parse(overrideResult).clusters[0]?.userText,
+    }, { status: 0, userText: "override directory turn" })
+  }
+
   const missing = collect(join(root, "session-evidence-missing"))
   T("collect-session-evidence: an unreadable directory exits 1 with empty stdout", missing.status === 1 && missing.stdout === "", missing.stderr)
 

@@ -29,6 +29,7 @@ function createAdapter(overrides: Partial<DateInterpretationContext> = {}) {
   const adapter = {
     owner: fields,
     generalLocked: false,
+    initializeDate: (date: string) => { fields.dueDate = date },
     applyRecurrence: (schedule: import('../utils/habit-recurrence-phrase').HabitRecurrence) => { context.schedule = schedule.flexible ? 'flexible' : 'recurring'; context.cadence = { unit: schedule.unit, quantity: schedule.quantity, days: schedule.days, intervalWeeks: schedule.intervalWeeks } },
     context: () => ({ ...context, date: fields.dueDate, phrase: fields.datePhrase }),
     write: (field: keyof typeof fields, value: string) => { fields[field] = value },
@@ -53,6 +54,38 @@ afterEach(() => vi.useRealTimers())
 const debounce = () => vi.advanceTimersByTimeAsync(700)
 
 describe('habit date editor lifecycle', () => {
+  it('resolves wording entered before the reference loads and keeps it across later syncs', () => {
+    const { editor, context, fields, requests } = createEditor({ timeZone: undefined, referenceDate: '', date: '' })
+    editor.setPhrase('on the 26th')
+    expect(editor.getSnapshot().status).toBe('unavailable')
+    expect(fields.dueDate).toBe('')
+    context.timeZone = 'UTC'
+    context.referenceDate = '2026-10-20'
+    editor.sync()
+    editor.validate()
+    expect(fields).toEqual({ dueDate: '2026-10-26', datePhrase: 'on the 26th', dateIssue: '' })
+    expect(editor.getSnapshot()).toMatchObject({ status: 'resolved', astra: false })
+    context.referenceDate = '2026-10-27'
+    editor.sync()
+    expect(fields.dueDate).toBe('2026-10-26')
+    expect(fields.dateIssue).toBe('habits.form.dateStale')
+    expect(requests).toHaveLength(0)
+  })
+
+  it.each(['account', 'locale', 'date', 'owner'])('does not replay deferred wording after changing %s', (boundary) => {
+    const { editor, adapter, context, fields } = createEditor({ timeZone: undefined, referenceDate: '', date: '' })
+    editor.setPhrase('on the 26th')
+    if (boundary === 'account') context.account++
+    if (boundary === 'locale') context.locale = 'pt-BR'
+    if (boundary === 'date') editor.selectDate('2026-10-23')
+    if (boundary === 'owner') editor.configure({ ...adapter, owner: {} })
+    editor.sync()
+    context.timeZone = 'UTC'
+    context.referenceDate = '2026-10-20'
+    editor.sync()
+    expect(fields.dueDate).toBe(boundary === 'date' ? '2026-10-23' : '')
+  })
+
   it.each(['segunda', 'segunda-feira', 'seg', 'próxima segunda', 'monday', 'mon', 'next Monday'])('resolves a task weekday %s instead of requiring Habit', (phrase) => {
     const { editor, fields, context } = createEditor({ referenceDate: '2026-10-26', date: '2026-10-26' })
     editor.setPhrase(phrase)
@@ -210,6 +243,27 @@ describe('habit date editor lifecycle', () => {
 })
 
 describe('automatic date interpretation', () => {
+  it('keeps deferred non-local wording current through account-date initialization', async () => {
+    const { editor, context, fields, requests } = createEditor({ timeZone: undefined, referenceDate: '', date: '' })
+    editor.setAvailability(true, false)
+    editor.setPhrase('next holiday')
+    await debounce()
+    expect(requests).toHaveLength(0)
+    context.timeZone = 'UTC'
+    context.referenceDate = '2026-10-20'
+    editor.sync()
+    if (!fields.dueDate) fields.dueDate = context.referenceDate
+    editor.sync()
+    await debounce()
+    expect(requests).toHaveLength(1)
+    requests[0]!.resolve(interpretation)
+    await debounce()
+    editor.validate()
+    expect(fields).toEqual({ dueDate: '2026-10-26', datePhrase: 'next holiday', dateIssue: '' })
+    expect(editor.getSnapshot()).toMatchObject({ astra: true, pending: false, status: 'resolved' })
+    expect(requests).toHaveLength(1)
+  })
+
   it('interprets retained wording after the person chooses the task type', async () => {
     const { editor, context, requests, fields } = createEditor({ type: null })
     editor.setAvailability(true, false)
