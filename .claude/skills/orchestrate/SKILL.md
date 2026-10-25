@@ -1415,7 +1415,7 @@ beside `stream-json`: the installed binary refuses the pair without it.
 the main checkout.** `tools/lib/orchestrator-config.mjs:19-36` refuses a working copy that disagrees with `origin/<base>`, and `:31` returns early for a checkout that already contains `origin/main`. The main checkout contains it, so the guard stands
 aside and the edit is silent there, which is the normal case. A worktree cut before that ref does not
 contain it, so every tool that reads the config refuses with the message at `:32-35`. Merge the base
-ref first: `git fetch origin main && git merge --ff-only origin/main`.
+ref first: `git fetch origin main && git merge origin/main`.
 
 **The `--dry-run` is an argv check, not a preflight.** `launch-worker.mjs:259` resolves the
 executable on PATH before the `if (dryRun)` block at `:266`, and `:268` exits before
