@@ -427,7 +427,7 @@ function invocationRuleRegressions(platform, current, files, inventory, rules, o
   const prefix = `apps/${platform}/components/habits/`
   const mutations = [
     ['tag generation', `${prefix}habit-form-fields/tag-suggestions.tsx`, /<PillButton minimumHeight=\{48\}[\s\S]*?<\/PillButton>/g, [`${platform}:control:habits.form.suggestTags`]],
-    ['reschedule retry', `${prefix}reschedule-sheet.tsx`, /<PillButton minimumHeight=\{48\} iconOnly label=\{t\('habits.reschedule.suggestDate'\)\} variant=\{filledVariant\} size="sm" onClick=\{\(\) => void refetch\(\)\}>\s*<AstraGlyph size=\{20\} \/>\s*<\/PillButton>/g, [`${platform}:control:habits.reschedule.retry`]],
+    ['reschedule retry', `${prefix}reschedule-sheet.tsx`, /<PillButton leadingIcon=\{<AstraGlyph size=\{16\} \/>\} variant=\{filledVariant\} size="sm" onClick=\{\(\) => void refetch\(\)\}>\s*\{t\('habits.reschedule.suggestDate'\)\}\s*<\/PillButton>/g, [`${platform}:control:habits.reschedule.retry`]],
     ['reschedule menu', `${prefix}${platform === 'web' ? 'habit-row-trailing' : 'habit-row'}.tsx`, /^.*items\.push\(\{ id: 'reschedule',.*\n/gm, [`${platform}:control:habits.actions.reschedule`]],
   ]
   for (const [name, path, pattern, missingIds] of mutations) {

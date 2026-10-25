@@ -1,7 +1,7 @@
 ---
 name: handoff
-description: Carry a long-running effort into a fresh session. Updates the effort's spec file in this repo with everything durable the session established, then writes a short prompt that points at it. Use at the end of a session, when context is running out, or when the user says /handoff, hand this off, continue this in a new session. Pass --sleep to prepare NEXT.md for an unattended next session entered through /sleep. It writes a spec and a prompt, then ends the session without doing the work they describe.
-argument-hint: "[--sleep] [--relay] [extra instructions for the NEXT session]"
+description: Carry a long-running effort into a fresh session. Updates the effort's spec file in this repo with everything durable the session established, then writes a short prompt that points at it. Use at the end of a session, when context is running out, or when the user says /handoff, hand this off, continue this in a new session. Pass --crank to preserve maximum velocity across relays; it includes --sleep. Pass --sleep to prepare NEXT.md for an unattended next session entered through /sleep. It writes a spec and a prompt, then ends the session without doing the work they describe.
+argument-hint: "[--sleep] [--crank] [--relay] [extra instructions for the NEXT session]"
 effort: high
 ---
 
@@ -12,11 +12,22 @@ effort: high
 next session whose entry point is `/sleep`. Nobody has to add anything before it runs. Anything else
 is extra work for the NEXT session. You never do that work now.
 
+`--crank` or `/crank` includes `--sleep`. Read the current session's run state with
+`readRunState` from `tools/lib/run-state.mjs`: `crank: true` includes it automatically,
+including on a context relay. The prompt then carries a `## Crank` section telling the next
+session to invoke `/crank` immediately after `/sleep` entry, before queue work.
+Use `handoffCrank` from `tools/lib/handoff-prompt.mjs` to resolve a recorded request against
+the matching run. A later disable wins over an older true request; recording a newer explicit
+true request enables the run again. With no run, record crank intent through
+`recordHandoffRequest` for this session only. Start no queue work and invoke no `/sleep` or
+standalone `/crank` while preparing this handoff.
+
 ## Context relay mode
 
 `--relay` is the unattended context transition requested by `relay-at-threshold.mjs`.
-It includes `--sleep`. It never invokes `/questions`, asks the owner anything, or ends the
-session before a successor is confirmed. This is the exception to the owner handoff's ending
+It includes `--sleep`, and `--crank` automatically when the run state has `crank: true`.
+It never invokes `/questions`, asks the owner anything, or ends the session before a successor
+is confirmed. This is the exception to the owner handoff's ending
 rule below. Every other inventory, spec, prompt, commit and push requirement still applies.
 
 Relay mode waits for every live background Workflow run and background subagent to finish before ending the session, with the hook and relay tool checking recorded launch and completion evidence and the owning process start identity.
@@ -264,7 +275,10 @@ records the mode from the owner's own `/handoff` or `/wrap-up` prompt, and `git 
 6. Under `--sleep`, a `## Sleep` section. Any other `$ARGUMENTS` get their own section too.
 7. A `## Previous prompt, disposition` section (above), a `## Goal` section with the `gh issue list`
    query, and a `## In flight` section.
-8. One line: every identifier here came from a previous session, treat each as a lead to verify.
+8. Under `--crank`, or when the current run state has `crank: true`, a `## Crank` section
+   whose body invokes `/crank` immediately after `/sleep` entry. This also requires every
+   `--sleep` prompt rule. Context relays preserve the same flags.
+9. One line: every identifier here came from a previous session, treat each as a lead to verify.
 
 **Always name the entry point. Never restate what it does.** A session that does not know its entry
 point starts by inventing its own way of working. Naming `/orchestrate` carries everything it does:
@@ -273,7 +287,8 @@ bloat that pushes out the delta only this session has. Cutting the restatement a
 together is the failure mode; keep the pointer.
 
 Under `--sleep` the entry point is the sleep skill, and it is the only one. It invokes the work
-skill itself, so the prompt must not present the two as siblings.
+skill itself, so the prompt must not present the two as siblings. Under `--crank`, invoke
+`/crank` immediately after sleep entry as a mode of the adopted run.
 
 ## The goal is always the same: finish the spec
 

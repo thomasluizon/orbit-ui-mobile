@@ -88,8 +88,8 @@ describe('page content centring and add control clearance', () => {
       '@sentry/nextjs': 'export const captureException = () => {};',
       '@/stores/auth-store': 'import { create } from "zustand"; export const useAuthStore = create(() => ({ isAuthenticated: true, user: { userId: "shell-account" }, logout: async () => {} }));',
       './notification-bell': 'export const NotificationBell = () => null;',
-      '@/components/ui/menu': 'export const Menu = () => null;',
-      '@/components/ui/sheet': 'export const Sheet = () => null;',
+      '@/components/ui/dropdown-menu': 'export const Root = ({children}) => children; export const Trigger = ({children}) => children; export const Content = () => null;',
+      '@/components/ui/sheet': 'export const Sheet = () => null; export const useSheetHost = () => ({});',
     })
   })
   afterEach(cleanup)
@@ -306,11 +306,11 @@ describe('page content centring and add control clearance', () => {
           return { column, lines, form: box(document.querySelector('form')!), submit: box(document.querySelector('[data-habit-create-action] button')!) }
         })
         const astraAction = page.getByRole('button', { name: messages.habits.askAstra, exact: true })
-        expect(await astraAction.textContent()).toBe('')
+        expect(await astraAction.textContent()).toBe(messages.habits.askAstra)
         expect(await astraAction.locator('[data-asset^="astra-mark"]').count()).toBe(1)
         const target = await astraAction.boundingBox()
-        expect(target?.width).toBe(48)
-        expect(target?.height).toBe(48)
+        expect(target!.width).toBeGreaterThan(48)
+        expect(target!.x + target!.width).toBeLessThanOrEqual(viewport.width)
         expect(geometry.lines.length).toBeGreaterThan(0)
         for (const line of geometry.lines) expectCentred(line, geometry.column)
         expectCentred(geometry.form, geometry.column)

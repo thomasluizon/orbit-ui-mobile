@@ -1,7 +1,9 @@
 'use client'
 
+import { useComposedRefs } from '@radix-ui/react-compose-refs'
+
 import Link, { type LinkProps } from 'next/link'
-import { useContext, useId, type CSSProperties, type Ref } from 'react'
+import { useContext, useId, type CSSProperties, type ComponentProps, type Ref } from 'react'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { Loader2 } from '@/components/ui/icons'
@@ -33,7 +35,7 @@ const linkInteractionClasses: Record<ButtonVariant, string> = {
 
 const baseClasses = 'orbit-pill-action inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium disabled:cursor-not-allowed'
 
-function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'button' | 'link', loading = false, quiet = false, elevated = false) {
+function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'button' | 'link', loading = false, quiet = false, elevated = false, borderless = false) {
   const variantInteractions = element === 'button'
     ? buttonInteractionClasses[variant]
     : linkInteractionClasses[variant]
@@ -42,7 +44,7 @@ function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'butto
     : quiet && variant === 'ghost'
     ? 'overflow-hidden enabled:hover:bg-[var(--bg-hover-opaque)] enabled:active:bg-[var(--bg-hover-opaque)] motion-safe:enabled:active:scale-[0.96]'
     : variantInteractions
-  return [baseClasses, variantClasses[variant], variant === 'ghost' ? elevated ? 'bg-[var(--bg-elev)]' : 'bg-transparent' : undefined, loading ? undefined : interactionClasses,
+  return [baseClasses, variant === 'ghost' && borderless ? 'text-[var(--fg-1)] outline-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:outline-offset-2' : variantClasses[variant], variant === 'ghost' ? elevated ? 'bg-[var(--bg-elev)]' : 'bg-transparent' : undefined, loading ? undefined : interactionClasses,
     element === 'button' && !loading ? 'disabled:opacity-40' : undefined,
     size === 'sm' ? 'touch-target' : undefined]
     .filter(Boolean)
@@ -129,8 +131,12 @@ export function Button({
   descriptionId,
   hint,
   buttonRef,
+  ref,
   quiet = false,
-}: Readonly<ButtonProps & { retainLeadingIcon?: boolean; buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean; expanded?: boolean; controlsId?: string; hasPopup?: false | 'menu' | 'dialog'; onFocus?: () => void; onBlur?: () => void; onMouseEnter?: () => void; onMouseLeave?: () => void }>) {
+  borderless = false,
+  ...buttonProps
+}: Readonly<ButtonProps & { retainLeadingIcon?: boolean } & Omit<ComponentProps<'button'>, 'children' | 'onClick' | 'onFocus' | 'onBlur' | 'onMouseEnter' | 'onMouseLeave' | 'color'> & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean; borderless?: boolean; expanded?: boolean; controlsId?: string; hasPopup?: false | 'menu' | 'dialog'; onFocus?: () => void; onBlur?: () => void; onMouseEnter?: () => void; onMouseLeave?: () => void }>) {
+  const composedRef = useComposedRefs(ref, buttonRef)
   const withinRow = useContext(ActionRowContext)
   const hintId = useId()
   const descriptionIds = buttonDescriptionIds(descriptionId, hintId, hint)
@@ -138,8 +144,9 @@ export function Button({
 
   return (
     <><button
-      ref={buttonRef}
-      type={onClick ? 'button' : 'submit'}
+      {...buttonProps}
+      ref={composedRef}
+      type={buttonProps.type ?? (onClick ? 'button' : 'submit')}
       form={formId}
       onClick={loading ? (event) => event.preventDefault() : onClick}
       onFocus={onFocus}
@@ -151,13 +158,14 @@ export function Button({
       aria-busy={loading || undefined}
       aria-label={iconOnly ? label : accessibleName}
       aria-describedby={descriptionIds}
-      aria-haspopup={hasPopup ?? (expanded === undefined ? undefined : 'dialog')}
-      aria-controls={controlsId}
-      aria-expanded={expanded}
+      aria-haspopup={hasPopup ?? buttonProps['aria-haspopup'] ?? (expanded === undefined ? undefined : 'dialog')}
+      aria-controls={controlsId ?? buttonProps['aria-controls']}
+      aria-expanded={expanded ?? buttonProps['aria-expanded']}
       data-variant={variant}
       data-size={size}
       data-loading={loading || undefined}
-      className={actionClasses(variant, size, 'button', loading, quiet, elevated)}
+      data-borderless={borderless || undefined}
+      className={actionClasses(variant, size, 'button', loading, quiet, elevated, borderless)}
       style={persistentButtonStyle(buttonStyle(size, withinRow, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet }), retainLeadingIcon)}
     >
       <ButtonIcon size={size} loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingIcon={leadingIcon}>{children}</ButtonIcon>

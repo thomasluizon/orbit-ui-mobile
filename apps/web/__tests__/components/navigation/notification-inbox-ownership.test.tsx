@@ -50,8 +50,11 @@ function shell(inbox: boolean) {
   </QueryClientProvider>
 }
 
-function chooseInboxAction(label: string) {
-  fireEvent.click(screen.getByRole('button', { name: 'Alert options' }))
+async function chooseInboxAction(label: string) {
+  await act(async () => {
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Alert options' }), { button: 0, ctrlKey: false })
+    await vi.dynamicImportSettled()
+  })
   fireEvent.click(screen.getByRole('menuitem', { name: label }))
 }
 
@@ -111,7 +114,7 @@ it.each([412, 1352])('offers both inbox menu actions and small clear-all confirm
   }))
   render(shell(true))
   const trigger = screen.getByRole('button', { name: 'Alert options' })
-  fireEvent.click(trigger)
+  fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false })
   const menu = await screen.findByRole('menu', { name: 'Alert options' })
   expect(menu).toHaveAttribute('id', trigger.getAttribute('aria-controls'))
   expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Mark all read', 'Clear all'])
@@ -138,9 +141,9 @@ it.each([
     fireEvent.click(screen.getByRole('button', { name: /unread/ }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Mark as read' }))
   } else if (actionName === 'markAllNotificationsRead') {
-    chooseInboxAction('Mark all read')
+    await chooseInboxAction('Mark all read')
   } else {
-    chooseInboxAction('Clear all')
+    await chooseInboxAction('Clear all')
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
   }
 
@@ -222,7 +225,7 @@ it('takes the replaced account notification off the screen instead of holding it
 
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Mark as read' })).not.toBeInTheDocument()
-  chooseInboxAction('Clear all')
+  await chooseInboxAction('Clear all')
   expect(screen.getByRole('dialog')).toBeInTheDocument()
   respondWithAccount('user-3')
   await act(async () => { await useAuthStore.getState().checkSession() })

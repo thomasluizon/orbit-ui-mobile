@@ -717,7 +717,8 @@ export const PostApiChatReadsRefreshBody = zod.object({
   "partKinds": zod.array(zod.string()).nullish(),
   "supportsDatedHabitListCard": zod.boolean().nullish(),
   "supportsHabitHistoryCard": zod.boolean().nullish(),
-  "supportsFollowUpContext": zod.boolean().nullish()
+  "supportsFollowUpContext": zod.boolean().nullish(),
+  "supportsMessageAllowance": zod.boolean().nullish()
 })]).optional(),
   "page": zod.boolean().default(postApiChatReadsRefreshBodyPageDefault)
 })
@@ -2193,7 +2194,8 @@ export const PostApiChatResponse = zod.object({
   "context": zod.string().nullish(),
   "target": zod.string().nullish(),
   "queryId": zod.uuid().nullish()
-})).nullish()
+})).nullish(),
+  "messageAllowanceConsumed": zod.boolean().nullish()
 })
 
 
@@ -2262,7 +2264,8 @@ export const PostApiChatGamificationRefreshBody = zod.object({
   "partKinds": zod.array(zod.string()).nullish(),
   "supportsDatedHabitListCard": zod.boolean().nullish(),
   "supportsHabitHistoryCard": zod.boolean().nullish(),
-  "supportsFollowUpContext": zod.boolean().nullish()
+  "supportsFollowUpContext": zod.boolean().nullish(),
+  "supportsMessageAllowance": zod.boolean().nullish()
 })]).optional()
 })
 
@@ -4666,6 +4669,8 @@ export const PostOauthTokenBody = zod.object({
   "redirect_uri": zod.string().optional()
 })).and(zod.object({
   "refresh_token": zod.string().optional()
+})).and(zod.object({
+  "client_id": zod.string().optional()
 }))
 
 export const PostOauthTokenResponse = zod.unknown()

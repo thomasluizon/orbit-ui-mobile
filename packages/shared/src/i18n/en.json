@@ -639,7 +639,7 @@
       "reschedule": "Reschedule"
     },
     "reschedule": {
-      "suggestDate": "Suggest a new date with Astra",
+      "suggestDate": "Suggest date",
       "title": "Reschedule with AI",
       "loading": "Looking for a realistic plan.",
       "error": "No plan could be suggested.",

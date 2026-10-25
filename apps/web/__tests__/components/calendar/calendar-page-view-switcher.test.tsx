@@ -1165,7 +1165,7 @@ describe('CalendarPage view switcher', () => {
     render(<CalendarPage />)
 
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
-    fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'calendar.options' }), { button: 0, ctrlKey: false })
     fireEvent.click(screen.getByRole('checkbox', { name: 'calendar.showRecurring' }))
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
 
@@ -1210,7 +1210,7 @@ describe('CalendarPage view switcher', () => {
     sheetTestControls.defer(true)
     try {
       render(<CalendarPage />)
-      fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+      fireEvent.pointerDown(screen.getByRole('button', { name: 'calendar.options' }), { button: 0, ctrlKey: false })
       fireEvent.click(screen.getByRole('button', { name: 'calendar.googleCalendar' }))
       expect(routerPush).not.toHaveBeenCalled()
       expect(screen.queryByTestId('calendar-import-content')).not.toBeInTheDocument()
@@ -1225,7 +1225,7 @@ describe('CalendarPage view switcher', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
     expect(screen.getAllByRole('button', { name: 'notifications.bell' })).toHaveLength(1)
     const bell = screen.getByRole('button', { name: 'notifications.bell' })
-    fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'calendar.options' }), { button: 0, ctrlKey: false })
 
     act(() => { isWideDesktopValue = true; wideShellSubscribers.forEach((notify) => notify()) })
     rerender(<CalendarPage />)
@@ -1361,7 +1361,7 @@ describe('CalendarPage view switcher', () => {
     expect(screen.queryByRole('switch', { name: 'calendar.showRecurring' })).not.toBeInTheDocument()
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+      fireEvent.pointerDown(screen.getByRole('button', { name: 'calendar.options' }), { button: 0, ctrlKey: false })
       await vi.advanceTimersByTimeAsync(0)
     })
     fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'calendar.showRecurring' }))
@@ -1578,7 +1578,7 @@ describe('CalendarPage view switcher', () => {
     render(<CalendarPage />)
 
     expect(screen.queryByTestId('calendar-legend')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'calendar.options' }), { button: 0, ctrlKey: false })
     fireEvent.click(screen.getByRole('button', { name: 'calendar.legendTitle' }))
     expect(screen.getByTestId('calendar-legend')).toBeDefined()
     expect(calendarStatsProps.state).toBe('default')
@@ -1613,7 +1613,7 @@ describe('CalendarPage view switcher', () => {
     expect(screen.getByTestId('day-detail')).toBeDefined()
     expect(screen.getByTestId('month-stats')).toBeDefined()
     expect(screen.queryByRole('switch', { name: 'calendar.showRecurring' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'calendar.options' }), { button: 0, ctrlKey: false })
     fireEvent.click(screen.getByRole('checkbox', { name: 'calendar.showRecurring' }))
 
     expect(calendarGridProps.dayMap?.get(todayKey)).toEqual([])
@@ -1636,7 +1636,7 @@ describe('CalendarPage view switcher', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
     expect(screen.getByRole('img', { name: /calendar\.dayCell\.none 0 calendar\.dayCell\.of 1/ })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'calendar.options' }), { button: 0, ctrlKey: false })
     fireEvent.click(screen.getByRole('checkbox', { name: 'calendar.showRecurring' }))
 
     expect(screen.queryByRole('img', { name: /calendar\.dayCell\.none 0 calendar\.dayCell\.of 1/ })).not.toBeInTheDocument()

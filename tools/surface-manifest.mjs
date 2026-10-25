@@ -25,6 +25,7 @@ const SHARED_ALIAS = ["@orbit/shared/", "packages/shared/src/"]
 const OVERLAY_BASES = [
   "components/ui/sheet",
   "components/ui/menu",
+  "components/ui/dropdown-menu.tsx",
   "components/ui/confirm-sheet",
   "components/ui/date-field",
   "components/ui/time-field",

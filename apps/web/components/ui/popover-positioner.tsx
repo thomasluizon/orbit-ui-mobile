@@ -1,6 +1,6 @@
 'use client'
 
-import type { KeyboardEventHandler, ReactNode, RefObject } from 'react'
+import type { ReactNode, RefObject } from 'react'
 import { Popover } from '@base-ui/react/popover'
 
 const POPOVER_EDGE_GAP = 8
@@ -30,46 +30,5 @@ export function PopoverPositioner({
     >
       {children}
     </Popover.Positioner>
-  )
-}
-
-interface AnchoredPopoverProps extends PopoverPositionerProps {
-  id?: string
-  panelRef: RefObject<HTMLDivElement | null>
-  title?: string
-  onKeyDown: KeyboardEventHandler<HTMLDivElement>
-}
-
-/** Loads the collision library only while an anchored menu is open. */
-export function AnchoredPopover({
-  id,
-  align,
-  anchorRef,
-  children,
-  panelRef,
-  title,
-  onKeyDown,
-}: Readonly<AnchoredPopoverProps>) {
-  return (
-    <Popover.Root open modal={false}>
-      <Popover.Portal>
-        <div className="orbit-menu-catcher" aria-hidden="true" />
-        <PopoverPositioner align={align} anchorRef={anchorRef}>
-          <Popover.Popup
-            id={id}
-            ref={panelRef}
-            role="menu"
-            aria-label={title}
-            className="orbit-menu-panel"
-            data-positioned=""
-            initialFocus
-            finalFocus={false}
-            onKeyDown={onKeyDown}
-          >
-            {children}
-          </Popover.Popup>
-        </PopoverPositioner>
-      </Popover.Portal>
-    </Popover.Root>
   )
 }

@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { closeRelayTerminal, relaySession } from "../relay-session.mjs"
 import { adoptRelayRun, openSessionChain, readSessionChain, writeSessionChain } from "../lib/session-chain.mjs"
 import { processStartIdentity, readRunState, readWakeSourceStates, registerWakeSource, writeRunState } from "../lib/run-state.mjs"
+import { readHandoffRequest, recordHandoffRequest } from "../lib/handoff-prompt.mjs"
 import { T, realOrchestratorConfig, stageRepo, toolPath } from "./_harness.mjs"
 
 const usage = JSON.parse(readFileSync(new URL("./fixtures/session-usage.json", import.meta.url), "utf8"))
@@ -12,13 +13,13 @@ const listing = JSON.parse(readFileSync(new URL("./fixtures/orca-relay-list.json
 const appState = JSON.parse(readFileSync(new URL("./fixtures/orca-relay-app-state.json", import.meta.url), "utf8"))
 const prompt = "/sleep\nRead .claude/specs/relay.md. Every identifier is a lead to verify.\n## Goal\nFinish the spec. gh issue list\n## In flight\nNone.\n## Sleep\nContinue.\n## Previous prompt, disposition\nCarried.\n"
 
-const fixture = (label, { tokens = 400000, calls = 20 } = {}) => {
+const fixture = (label, { tokens = 400000, calls = 20, crank = false, crankPrompt = crank } = {}) => {
   const repo = stageRepo(`relay-${label}`)
   const checkout = repo.path
   mkdirSync(join(checkout, ".claude", "handoffs"), { recursive: true })
   mkdirSync(join(checkout, ".claude", "specs"), { recursive: true })
   writeFileSync(join(checkout, ".claude", "orchestrator.json"), JSON.stringify(realOrchestratorConfig()))
-  writeFileSync(join(checkout, ".claude", "handoffs", "NEXT.md"), prompt)
+  writeFileSync(join(checkout, ".claude", "handoffs", "NEXT.md"), prompt + (crankPrompt ? "## Crank\nInvoke /crank immediately after /sleep entry.\n" : ""))
   writeFileSync(join(checkout, ".claude", "specs", "relay.md"), "# Relay\n## Open questions\nAn owner question.\n")
   repo.git(["add", ".claude/handoffs/NEXT.md", ".claude/specs/relay.md", ".claude/orchestrator.json"])
   repo.git(["commit", "-qm", "handoff"])
@@ -28,7 +29,7 @@ const fixture = (label, { tokens = 400000, calls = 20 } = {}) => {
   writeFileSync(decisionLogPath, "Decision and reasoning copied in full.\n")
   writeFileSync(transcriptPath, Array.from({ length: calls }, (_, index) => JSON.stringify({ type: "assistant", timestamp: new Date(Date.now() - (calls - index) * 1000).toISOString(),
     message: { id: `call-${index}`, model: "claude-opus-5-5", usage: { ...usage, cache_read_input_tokens: tokens - 670 } } })).join("\n") + "\n")
-  writeRunState({ sessionId: "predecessor", sleep: true, remaining: ["#1091"], decisionLogPath, openOwnerQuestions: ["An owner question."],
+  writeRunState({ sessionId: "predecessor", sleep: true, crank, remaining: ["#1091"], decisionLogPath, openOwnerQuestions: ["An owner question."],
     relay: { from: "predecessor", pending: true, measuredTokens: tokens, permissionMode: "bypassPermissions", transcriptPath, triggeredAt: new Date().toISOString() } }, checkout)
   return { ...repo, checkout, transcriptPath }
 }
@@ -165,6 +166,35 @@ export const cases = async () => {
     const staged = fixture(label, options)
     T(`relay-session: refuses ${label}`, message.test(await failure({ repoRoot: staged.checkout, sessionId: "predecessor" })))
   }
+  for (const source of ["state", "request"]) {
+    const missing = fixture(`crank-missing-${source}`, { crank: source === "state", crankPrompt: false })
+    if (source === "request") recordHandoffRequest("predecessor", { command: "handoff", sleep: true, crank: true }, new Date().toISOString(), missing.checkout)
+    const operations = []
+    const message = await failure({ repoRoot: missing.checkout, sessionId: "predecessor", execute: executeFor(missing.checkout, { commands: operations }) })
+    T(`relay-session: crank from ${source} refuses a prompt without its section`, /NEXT.md misses:.*## Crank/.test(message), String(message))
+    T(`relay-session: crank from ${source} launches no successor before prompt validation`, operations.length === 0)
+    T(`relay-session: crank from ${source} is retained in the relay request`, readHandoffRequest("predecessor", missing.checkout)?.crank === true)
+  }
+  for (const newerRequest of [false, true]) {
+    const staged = fixture(`crank-disable-${newerRequest}`, { crank: true, crankPrompt: newerRequest })
+    recordHandoffRequest("predecessor", { command: "handoff", origin: "context-relay", sleep: true, crank: true }, new Date().toISOString(), staged.checkout)
+    writeRunState({ ...readRunState(staged.checkout), crank: false }, staged.checkout)
+    if (newerRequest) recordHandoffRequest("predecessor", { command: "handoff", origin: "owner", sleep: true, crank: true }, new Date().toISOString(), staged.checkout)
+    const operations = []
+    const message = await failure({ repoRoot: staged.checkout, sessionId: "predecessor", execute: executeFor(staged.checkout, { commands: operations }), wait: async () => {}, confirmMilliseconds: 10 })
+    T(`relay-session: ${newerRequest ? "newer request enables" : "disable supersedes threshold"} through publication and entry`, message === null && readRunState(staged.checkout).crank === newerRequest, String(message))
+    T("relay-session: published relay request matches the latest mode", readHandoffRequest("predecessor", staged.checkout)?.crank === newerRequest)
+    T("relay-session: successor receives the matching committed prompt", operations.some((args) => args[1] === "send" && args.includes("--text") && args[args.indexOf("--text") + 1].includes("## Crank") === newerRequest))
+  }
+  const cranked = fixture("crank-success", { crank: true })
+  const crankedOperations = []
+  const crankedResult = await relaySession({ repoRoot: cranked.checkout, sessionId: "predecessor", execute: executeFor(cranked.checkout, { commands: crankedOperations }), wait: async () => {}, confirmMilliseconds: 10 })
+  T("relay-session: crank successor inherits the durable mode and queue", readRunState(cranked.checkout).crank === true && readRunState(cranked.checkout).sessionId === crankedResult.successorSessionId && readRunState(cranked.checkout).remaining[0] === "#1091")
+  T("relay-session: successor receives crank instructions after sleep entry", crankedOperations.some((args) => args[1] === "send" && args.includes("--text") && args[args.indexOf("--text") + 1].includes("## Crank\nInvoke /crank immediately after /sleep entry.")))
+  const disabled = readRunState(cranked.checkout)
+  writeRunState({ ...disabled, crank: false, relay: { ...disabled.relay, pending: true, successorSessionId: "disabled-successor" } }, cranked.checkout)
+  adoptRelayRun("disabled-successor", cranked.checkout)
+  T("relay-session: disabling remains false through the next adoption", readRunState(cranked.checkout).crank === false && readRunState(cranked.checkout).remaining[0] === "#1091")
   const successful = fixture("success")
   const commands = []
   let reported = false

@@ -9,7 +9,7 @@ import { redactSecrets } from "./lib/github-auth.mjs"
 import { readSessionContext, readSessionMetrics } from "./lib/session-context.mjs"
 import { readBackgroundRuns } from "./lib/background-runs.mjs"
 import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, readSessionChain, refreshChainMetrics, sessionChainEntry, supersededSession, writeSessionChain } from "./lib/session-chain.mjs"
-import { HANDOFF_PROMPT_PATH, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
+import { HANDOFF_PROMPT_PATH, handoffCrank, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
 import { REPO_ROOT, acquireRelayLock, clearWakeSource, isWakeSourceAlive, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, writeRunState } from "./lib/run-state.mjs"
 
 const USAGE = `usage: relay-session.mjs [--retry-wake | --close-chain | --close-terminal <payload>]
@@ -174,9 +174,9 @@ const assertDrained = (repoRoot, sessionId) => {
   if (blockersMessage.length) throw new Error(`relay drain has ${blockersMessage.join("; ")}`)
 }
 
-const provePromptPublished = (repoRoot, execute) => {
+const provePromptPublished = (repoRoot, execute, crank) => {
   const prompt = readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8")
-  const missing = validateHandoffPrompt(prompt, { sleep: true })
+  const missing = validateHandoffPrompt(prompt, { sleep: true, crank })
   if (missing.length) throw new Error(`NEXT.md misses: ${missing.join("; ")}`)
   const opening = prompt.split(/^## /m)[0]
   const specs = [...new Set(opening.match(/\.claude\/specs\/[\w.-]+\.md/g) ?? [])]
@@ -211,8 +211,9 @@ const successorCommand = (model, permissionMode, successorSessionId, repoRoot) =
 
 const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute, wait, confirmMilliseconds }) => {
   const now = new Date().toISOString()
-  recordHandoffRequest(sessionId, { command: "handoff", origin: "context-relay", sleep: true }, now, repoRoot)
-  const prompt = provePromptPublished(repoRoot, execute)
+  const crank = handoffCrank(readHandoffRequest(sessionId, repoRoot), readRunState(repoRoot))
+  recordHandoffRequest(sessionId, { command: "handoff", origin: "context-relay", sleep: true, crank }, now, repoRoot)
+  const prompt = provePromptPublished(repoRoot, execute, crank)
   const successorSessionId = randomUUID()
   const command = successorCommand(metrics.lastCall.model, previous.relay.permissionMode, successorSessionId, repoRoot)
   assertDrained(repoRoot, sessionId)

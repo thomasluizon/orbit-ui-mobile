@@ -16,7 +16,7 @@ import { BlockFrame } from '@/components/ui/block-frame'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Button } from '@/components/ui/pill-button'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { AlertTriangle, MoreVertical, Plus, Trash2 } from '@/components/ui/icons'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 
@@ -62,16 +62,16 @@ function BreakdownActions({ card, isPending, editingDisabled, warning, parentNam
         {card.partiallyFailed ? <Button size="sm" disabled={isPending} loading={isPending} onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : (
           <>
             <Button size="sm" variant={addVariant} leadingIcon={<Plus aria-hidden="true" size={16} />} disabled={editingDisabled || card.confirmOpen || card.atCapacity} onClick={card.addHabit}>{t('habits.breakdown.addHabit')}</Button>
-            <Button buttonRef={actionsRef} size="sm" variant="ghost" iconOnly label={t('habits.actions.more')} controlsId={menuId} hasPopup="menu" expanded={menuOpen && !editingDisabled} disabled={editingDisabled} onClick={() => setMenuOpen(!menuOpen)}>
+            <Menu.Root open={menuOpen && !editingDisabled} onOpenChange={setMenuOpen}><Menu.Trigger asChild><Button buttonRef={actionsRef} size="sm" variant="ghost" iconOnly label={t('habits.actions.more')} controlsId={menuId} hasPopup="menu" expanded={menuOpen && !editingDisabled} disabled={editingDisabled} >
               <MoreVertical aria-hidden="true" size={20} />
-            </Button>
-            <Menu id={menuId} open={menuOpen && !editingDisabled} anchorRef={actionsRef} title={t('habits.actions.more')} restoreFocusOnSelect={false}
+            </Button></Menu.Trigger>
+            <Menu.Content id={menuId} title={t('habits.actions.more')} restoreFocusOnSelect={false}
               items={[
                 { id: 'edit', label: t('chat.preview.edit'), icon: 'pencil', disabled: editingDisabled || isEmpty },
                 { id: 'reject', label: t('chat.preview.reject'), disabled: editingDisabled },
               ]}
-              onClose={() => setMenuOpen(false)}
-              onSelect={(id) => { if (id === 'edit') card.setEditingId(card.habits[0]?.id ?? null); else if (id === 'reject') card.reject() }} />
+
+              onSelect={(id) => { if (id === 'edit') card.setEditingId(card.habits[0]?.id ?? null); else if (id === 'reject') card.reject() }} /></Menu.Root>
             <Button size="sm" variant={approveVariant} disabled={editingDisabled || card.habits.length === 0} loading={isPending} onClick={() => card.setConfirmOpen(true)}>{t('chat.preview.approve')}</Button>
           </>
         )}

@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
 import Constants from 'expo-constants'
 import { useUIStore } from '@/stores/ui-store'
+import { OverlayHost } from '@/components/ui/overlay-host'
 
 interface TestNode {
   type: unknown
@@ -19,6 +20,7 @@ interface TestTreeRoot extends TestNode {
 
 interface TestInstance {
   root: TestTreeRoot
+  unmount(): void
 }
 
 interface TestRendererApi {
@@ -28,6 +30,13 @@ interface TestRendererApi {
 
 
 const TestRenderer: TestRendererApi = require('react-test-renderer')
+const mountedTrees: TestInstance[] = []
+
+function renderBlocker() {
+  const tree = TestRenderer.create(<OverlayHost><UpgradeRequiredScreen /></OverlayHost>)
+  mountedTrees.push(tree)
+  return tree
+}
 
 const { openUrlMock, stateRef } = vi.hoisted(() => ({
   openUrlMock: vi.fn(() => Promise.resolve()),
@@ -79,7 +88,7 @@ vi.mock('@/stores/version-gate-store', () => ({
 
 function findPressables(root: TestTreeRoot): TestNode[] {
   return root.findAll(
-    (node) => typeof node.props.onPress === 'function',
+    (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
   )
 }
 
@@ -93,12 +102,15 @@ describe('UpgradeRequiredScreen', () => {
     useUIStore.setState({ openOverlayIds: [] })
   })
 
-  afterEach(() => vi.unstubAllEnvs())
+  afterEach(async () => {
+    await TestRenderer.act(() => { for (const tree of mountedTrees.splice(0)) tree.unmount() })
+    vi.unstubAllEnvs()
+  })
 
   it('renders nothing when no upgrade is required', async () => {
     let tree: TestInstance | null = null
     await TestRenderer.act(() => {
-      tree = TestRenderer.create(<UpgradeRequiredScreen />)
+      tree = renderBlocker()
     })
     expect(tree!.root.findAll(() => true).length).toBeGreaterThanOrEqual(0)
     expect(findPressables(tree!.root)).toHaveLength(0)
@@ -108,7 +120,7 @@ describe('UpgradeRequiredScreen', () => {
     stateRef.upgradeRequired = true
     let tree: TestInstance | null = null
     await TestRenderer.act(() => {
-      tree = TestRenderer.create(<UpgradeRequiredScreen />)
+      tree = renderBlocker()
     })
 
     const texts = tree!.root.findAll(
@@ -120,13 +132,20 @@ describe('UpgradeRequiredScreen', () => {
     expect(rendered).toContain('forceUpdate.title')
     expect(rendered).toContain('forceUpdate.cta')
     expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
+    const windows = tree!.root.findAll((node) => node.type === 'Modal' && node.props.visible === true)
+    expect(windows).toHaveLength(1)
+    expect(windows[0]!.props).toMatchObject({ transparent: true, statusBarTranslucent: true, navigationBarTranslucent: true })
+    expect(tree!.root.findAll((node) => node.type === 'View' && node.props.role === 'dialog' && node.props.accessibilityLabel === 'forceUpdate.title')).toHaveLength(1)
+    await TestRenderer.act(() => (windows[0]!.props.onRequestClose as () => void)())
+    expect(stateRef.upgradeRequired).toBe(true)
+    expect(windows[0]!.props.visible).toBe(true)
   })
 
   it('opens the Play listing when the CTA is pressed', async () => {
     stateRef.upgradeRequired = true
     let tree: TestInstance | null = null
     await TestRenderer.act(() => {
-      tree = TestRenderer.create(<UpgradeRequiredScreen />)
+      tree = renderBlocker()
     })
 
     const [pressable] = findPressables(tree!.root)
@@ -143,7 +162,7 @@ describe('UpgradeRequiredScreen', () => {
     stateRef.upgradeRequired = true
     if (webFallback) openUrlMock.mockRejectedValueOnce(new Error('No market handler'))
     let tree: TestInstance | null = null
-    await TestRenderer.act(() => { tree = TestRenderer.create(<UpgradeRequiredScreen />) })
+    await TestRenderer.act(() => { tree = renderBlocker() })
     const [pressable] = findPressables(tree!.root)
     await TestRenderer.act(() => { pressable!.props.onPress?.() })
     expect(openUrlMock).toHaveBeenCalledWith('market://details?id=org.useorbit.app.staging')
@@ -156,7 +175,7 @@ describe('UpgradeRequiredScreen', () => {
     Constants.expoConfig = null
     stateRef.upgradeRequired = true
     let tree: TestInstance | null = null
-    await TestRenderer.act(() => { tree = TestRenderer.create(<UpgradeRequiredScreen />) })
+    await TestRenderer.act(() => { tree = renderBlocker() })
     const [pressable] = findPressables(tree!.root)
     await TestRenderer.act(() => { pressable!.props.onPress?.() })
     expect(openUrlMock).toHaveBeenCalledWith('market://details?id=org.useorbit.app')

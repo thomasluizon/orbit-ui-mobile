@@ -501,25 +501,6 @@ vi.mock('@/lib/theme', async (importOriginal) => {
   }
 })
 
-vi.mock('@/components/ui/anchored-menu', async () => {
-  const React = await import('react')
-  return {
-    AnchoredMenu: ({ visible, children }: any) => (visible ? children : null),
-    MenuAnchorHost: ({ children }: any) => children,
-    useAnchoredMenu: () => {
-      const [visible, setVisible] = React.useState(false)
-      return {
-        anchorRef: { current: null },
-        visible,
-        anchorRect: null,
-        open: () => setVisible(true),
-        close: () => setVisible(false),
-        toggle: () => setVisible((current) => !current),
-      }
-    },
-  }
-})
-
 vi.mock('react-native-svg', () => ({
   default: (props: any) => React.createElement('Svg', props),
   Rect: (props: any) => React.createElement('Rect', props),
@@ -1857,8 +1838,8 @@ describe('HabitList', () => {
     })
     const text = flattenRenderedText(tree.toJSON())
     expect(text).toContain('habits.emptyState')
-    expect(text).not.toContain('habits.askAstra')
-    expect(tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'habits.askAstra')).toHaveLength(1)
+    expect(text).toContain('habits.askAstra')
+    expect(tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.findAll(child => String(child.type) === 'Text' && child.props.children === 'habits.askAstra').length > 0)).toHaveLength(1)
     expect(text).toContain('habits.createManually')
   })
 

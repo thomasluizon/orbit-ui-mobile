@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, dirname, join } from 'node:path'
+import { basename, delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { assertions, loadApiProvider } from 'promptfoo'
 
@@ -53,6 +53,20 @@ it.each(['pass', 'fail'])('the real llm-rubric consumes the provider grade: %s',
   } })
   expect(result.pass).toBe(mode === 'pass')
   expect(JSON.parse(readFileSync(process.env.TEST_CODEX_RECORD, 'utf8')).prompt).toContain('Water is ready.')
+})
+it('ignores bundled Codex binaries ahead of the installed CLI on PATH', async () => {
+  const bundled = join(directory, 'node_modules', '.bin')
+  mkdirSync(bundled, { recursive: true })
+  writeFileSync(join(bundled, 'codex'), '#!/bin/sh\nexit 1\n', { mode: 0o700 })
+  vi.stubEnv('PATH', [bundled, join(bundled, '.'), process.env.PATH].join(delimiter))
+  expect(await provider.callApi('Offline rubric control.')).toHaveProperty('output')
+  expect(existsSync(process.env.TEST_CODEX_RECORD)).toBe(true)
+})
+it('fails closed when PATH has no installed CLI', async () => {
+  vi.stubEnv('PATH', join(directory, 'missing'))
+  expect(await provider.callApi('Offline rubric control.')).toEqual({
+    error: 'Codex rubric grading failed; check the installed CLI and its authenticated session.',
+  })
 })
 it.each(['exit', 'exit-with-output', 'malformed', 'missing', 'bad-score', 'bad-pass', 'empty-reason', 'extra-key'])('fails closed and cleans private files: %s', async (mode) => {
   vi.stubEnv('TEST_CODEX_MODE', mode)

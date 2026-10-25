@@ -12,7 +12,7 @@ import {
 } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import type { MenuProps } from '@orbit/shared/contracts/overlay'
 import TodayScreen from '@/app/(tabs)/index'
 import { useUIStore } from '@/stores/ui-store'
@@ -270,8 +270,21 @@ function flattenText(node: unknown): string {
   return ''
 }
 
+async function openTodayMenu(tree: import('react-test-renderer').ReactTestRenderer) {
+  const trigger = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === en.habits.listOptions)[0]!
+  await TestRenderer.act(() => { (trigger.props.onPress as () => void)() })
+}
+
+async function selectTodayMenuItem(tree: import('react-test-renderer').ReactTestRenderer, id: string) {
+  const label = todayMenu(tree).items!.find((item) => item.id === id)!.label
+  const row = tree.root.findAll((node) => String(node.type) === 'Pressable'
+    && ['menuitem', 'checkbox'].includes(node.props.accessibilityRole as string)
+    && node.findAll((child) => String(child.type) === 'Text' && child.props.children === label).length > 0)[0]!
+  await TestRenderer.act(() => { (row.props.onPress as () => void)() })
+}
+
 function todayMenu(tree: import('react-test-renderer').ReactTestRenderer): MenuProps {
-  return tree.root.findAll((node) => node.type === Menu)[0]!.props
+  return tree.root.findAll((node) => node.type === Menu.Content)[0]!.props
 }
 
 describe('Hoje date boundaries', () => {
@@ -364,11 +377,12 @@ describe('Hoje date boundaries', () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
     await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) })
     for (const unit of ['Day', 'Week', 'Month', 'Year', 'none'] as const) {
-      await TestRenderer.act(() => { todayMenu(tree).onSelect?.('frequency') })
+      await openTodayMenu(tree)
+      await selectTodayMenuItem(tree, 'frequency')
       const frequencies = todayMenu(tree)
       expect(frequencies.title).toBe(en.habits.frequencyFilter)
       expect(frequencies.items).toHaveLength(6)
-      await TestRenderer.act(() => { frequencies.onClose?.(); frequencies.onSelect?.(unit) })
+      await selectTodayMenuItem(tree, unit)
       expect(mocks.habitFilters.at(-1)?.frequencyUnit).toBe(unit)
     }
     mocks.date.dateStr = '2026-04-07'
@@ -377,10 +391,11 @@ describe('Hoje date boundaries', () => {
     await TestRenderer.act(() => { tree.update(<></>) })
     await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) })
     expect(mocks.habitFilters.at(-1)?.frequencyUnit).toBe('none')
-    await TestRenderer.act(() => { todayMenu(tree).onSelect?.('frequency') })
+    await openTodayMenu(tree)
+    await selectTodayMenuItem(tree, 'frequency')
     const frequencies = todayMenu(tree)
     expect(frequencies.items?.find((item) => item.id === 'none')?.checked).toBe(true)
-    await TestRenderer.act(() => { frequencies.onClose?.(); frequencies.onSelect?.('all') })
+    await selectTodayMenuItem(tree, 'all')
     expect(mocks.habitFilters.at(-1)?.frequencyUnit).toBeUndefined()
     await TestRenderer.act(() => { tree.update(<></>) })
   })
@@ -392,10 +407,11 @@ describe('Hoje date boundaries', () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
     await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) })
     expect(todayMenu(tree).items?.find((item) => item.id === 'refresh')?.disabled).toBe(isFetching)
-    await TestRenderer.act(() => { todayMenu(tree).onSelect?.('frequency') })
+    await openTodayMenu(tree)
+    await selectTodayMenuItem(tree, 'frequency')
     const frequencies = todayMenu(tree)
     expect(frequencies.items?.every((item) => !item.disabled)).toBe(true)
-    await TestRenderer.act(() => { frequencies.onClose?.(); frequencies.onSelect?.('all') })
+    await selectTodayMenuItem(tree, 'all')
     expect(mocks.habitFilters.at(-1)?.frequencyUnit).toBeUndefined()
     await TestRenderer.act(() => { tree.update(<></>) })
   })

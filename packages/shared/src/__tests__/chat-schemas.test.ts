@@ -11,6 +11,27 @@ import { chatBlockLayoutCases, makeChatBlockLayoutMessage } from '../test-suppor
 
 const { PostApiChatResponse } = await vi.importActual<{ PostApiChatResponse: z.ZodObject }>('../types/__generated__/api.generated')
 
+describe('message allowance contract', () => {
+  it.each([false, true, null, undefined])('retains %s allowance consumption through JSON and SSE parsing', consumed => {
+    const response = {
+      aiMessage: 'Astra reply',
+      actions: [],
+      ...(consumed === undefined ? {} : { messageAllowanceConsumed: consumed }),
+    }
+    expect(PostApiChatResponse.parse(response)).toEqual(response)
+    expect(chatResponseSchema.parse(JSON.parse(JSON.stringify(response)))).toEqual(response)
+    const [event] = createChatSseParser().feed(`data: ${JSON.stringify({ type: 'final', response })}\n\n`)
+    expect(event).toEqual({ type: 'final', response })
+  })
+
+  it.each(['false', 0, {}])('rejects malformed allowance consumption %j', messageAllowanceConsumed => {
+    const response = { aiMessage: 'Astra reply', actions: [], messageAllowanceConsumed }
+    expect(chatResponseSchema.safeParse(response).success).toBe(false)
+    expect(PostApiChatResponse.safeParse(response).success).toBe(false)
+    expect(chatStreamEventSchema.safeParse({ type: 'final', response }).success).toBe(false)
+  })
+})
+
 describe('ordered chat parts', () => {
   it('keeps generated contract parts through SSE, final assembly and stored message parsing', () => {
     expect(PostApiChatResponse.parse(partsFixture.response)).toEqual(partsFixture.response)

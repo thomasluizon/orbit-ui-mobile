@@ -639,7 +639,7 @@
       "reschedule": "Reagendar"
     },
     "reschedule": {
-      "suggestDate": "Sugerir outra data com a Astra",
+      "suggestDate": "Sugerir data",
       "title": "Reagendar com IA",
       "loading": "Procurando um plano realista.",
       "error": "Não foi possível sugerir um plano.",

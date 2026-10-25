@@ -143,7 +143,7 @@ function AskAstraRow({ habit }: Readonly<{ habit: NormalizedHabit }>) {
     useUIStore.getState().setAstraConversationOpen(true)
   }
   return (
-    <PillButton variant="ghost" minimumHeight={48} iconOnly label={t('habits.detail.askAstra')} onClick={openConversation}><AstraGlyph size={20} /></PillButton>
+    <ListRow placement="column" wrapTitle icon={<AstraGlyph size={24} />} title={t('habits.detail.askAstra')} accessibilityLabel={t('habits.detail.askAstra')} onClick={openConversation} />
   )
 }
 
@@ -361,7 +361,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
         </>}</View>
         <View style={styles.rescueActions}><ActionRow>
           {notNow}
-          {suggestion ? <PillButton variant={actionVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton minimumHeight={48} iconOnly label={t('habits.reschedule.suggestDate')} variant="ghost" size="sm" onClick={() => void query.refetch()}><AstraGlyph size={20} /></PillButton> : null}
+          {suggestion ? <PillButton variant={actionVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton leadingIcon={<AstraGlyph size={16} />} variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.reschedule.suggestDate')}</PillButton> : null}
         </ActionRow></View>
       </View>
     </Proposed>

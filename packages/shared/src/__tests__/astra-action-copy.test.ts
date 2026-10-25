@@ -8,6 +8,7 @@ describe.each([en, ptBR])('assistant action copy', messages => {
     composerInputName: messages.shell.composer.inputLabel,
     emptyHabitList: messages.habits.askAstra,
     habitMenu: messages.habits.actions.rescheduleAstra,
+    rescheduleRetry: messages.habits.reschedule.suggestDate,
     habitInterpretation: messages.habits.form.askAstra,
     habitAnalysis: messages.habits.detail.askAstra,
     goalAnalysis: messages.goals.detail.askAstraEyebrow,
@@ -16,7 +17,7 @@ describe.each([en, ptBR])('assistant action copy', messages => {
     onboardingImport: messages.onboarding.wizard.importButton,
   }
 
-  it.each([messages.habits.form.suggestDate, messages.habits.form.suggestEmoji, messages.habits.form.suggestTags, messages.habits.reschedule.suggestDate])('names the specific action in the accessible name: %s', name => {
+  it.each([messages.habits.form.suggestDate, messages.habits.form.suggestEmoji, messages.habits.form.suggestTags])('names the specific action in the accessible name: %s', name => {
     expect(name).toMatch(/^(Suggest|Sugerir) /)
     expect(name.match(/Astra/g)).toHaveLength(1)
   })

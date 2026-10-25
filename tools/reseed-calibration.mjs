@@ -73,6 +73,8 @@ const VERDICTS = {
     "undeclared, inherits the session: security findings need judgment because missed authorization gaps may be invisible in output.",
   ".claude/skills/audit-tests/SKILL.md":
     "undeclared, inherits the session: the test audit judges coverage and opens tickets.",
+  ".claude/skills/crank/SKILL.md":
+    "undeclared, inherits the session: toggles durable orchestrator scheduling within existing caps and quality gates, without changing model or effort routing.",
   ".claude/skills/deep-research/SKILL.md":
     "undeclared, inherits the session: it fans out web-researcher subagents that carry their own sonnet/medium tuning, so the orchestrating half inheriting the session is defensible today.",
   ".claude/skills/dev-server/SKILL.md":

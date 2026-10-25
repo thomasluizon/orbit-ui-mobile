@@ -895,6 +895,41 @@ describe('web useChatComposer streaming send', () => {
   })
 
 
+  it.each(['final only', 'streamed text'].flatMap(transport => [
+    { transport, scenario: 'moderated decline', consumed: false, reply: 'I cannot help with that request.' },
+    { transport, scenario: 'crisis support', consumed: false, reply: 'You deserve support. Reach out to someone you trust.' },
+    { transport, scenario: 'ordinary reply', consumed: true, reply: 'Start with a glass of water.' },
+    { transport, scenario: 'legacy reply', consumed: undefined, reply: 'Start with a glass of water.' },
+    { transport, scenario: 'nullable allowance', consumed: null, reply: 'Start with a glass of water.' },
+  ]))('preserves the last message allowance for $scenario with $transport', async ({ transport, consumed, reply }) => {
+    const { QueryClient } = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query')
+    const cache = new QueryClient()
+    onTestFinished(() => { cache.clear(); mocks.queryClient.setQueryData.mockReset() })
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: 4, aiMessagesLimit: 5 })
+    cache.setQueryData(profileKeys.detail(), mocks.state.profile)
+    mocks.queryClient.setQueryData.mockImplementation(cache.setQueryData.bind(cache))
+    const response = { ...makeChatResponse({ aiMessage: reply }), ...(consumed === undefined ? {} : { messageAllowanceConsumed: consumed }) }
+    mocks.fetch.mockResolvedValueOnce(sseResponse(
+      ...(transport === 'streamed text' ? [frame(JSON.stringify({ type: 'delta', text: reply }))] : []),
+      finalFrame(response),
+    ))
+    const { result, rerender } = renderHook(() => useChatComposer())
+    const initialUsageMessage = result.current.composerProps.usageMessage
+    await act(async () => { await result.current.sendMessage('Help me with this') })
+    mocks.state.profile = cache.getQueryData<Profile>(profileKeys.detail())
+    await act(async () => { rerender(); await Promise.resolve() })
+    const charged = consumed !== false
+    expect(result.current.aiMessagesUsed).toBe(charged ? 5 : 4)
+    expect(result.current.atMessageLimit).toBe(charged)
+    expect(result.current.composerProps.state).toBe(charged ? 'atLimit' : 'idle')
+    expect(result.current.composerProps.usageMessage).toBe(charged ? undefined : initialUsageMessage)
+    expect(useChatStore.getState().messages.filter(message => message.role === 'ai').map(message => message.content)).toEqual([reply])
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    await act(async () => { await result.current.sendMessage('Help me plan a walk') })
+    expect(mocks.fetch).toHaveBeenCalledTimes(charged ? 1 : 2)
+    expect(cache.getQueryData<Profile>(profileKeys.detail())?.aiMessagesUsed).toBe(5)
+  })
+
   it('sends a localized block answer once and retains the preview in the existing message path', async () => {
     mocks.locale = 'pt-BR'
     mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })

@@ -374,8 +374,7 @@ describe('GoalDetailDrawer', () => {
     detailGoal = { ...detailGoal, title: 'Synced goal' }
     render(<GoalDetailDrawer inline open onOpenChange={onOpenChange} goalId="1" />)
     const astraAction = screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault' })
-    expect(astraAction.textContent).toBe('')
-    expect(astraAction.style.width).toBe('48px')
+    expect(astraAction).toHaveTextContent('goals.detail.askAstraEyebrow')
     fireEvent.click(astraAction)
     expect(useChatStore.getState().draft).toBe('goals.detail.askAstraSeedDefault:{"title":"Synced goal"}')
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
@@ -393,8 +392,7 @@ describe('GoalDetailDrawer', () => {
     const getAnimations = vi.fn(() => drawer.hasAttribute('data-closed') ? [{ finished: exitFinished }] : [])
     Object.defineProperty(drawer, 'getAnimations', { value: getAnimations })
     const astraAction = screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault' })
-    expect(astraAction.textContent).toBe('')
-    expect(astraAction.style.width).toBe('48px')
+    expect(astraAction).toHaveTextContent('goals.detail.askAstraEyebrow')
     fireEvent.click(astraAction)
     try {
       await waitFor(() => expect(getAnimations).toHaveReturnedWith([{ finished: exitFinished }]))
@@ -415,8 +413,7 @@ describe('GoalDetailDrawer', () => {
     useChatStore.setState({ draft: 'My unfinished message' })
     render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
     const astraAction = screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault' })
-    expect(astraAction.textContent).toBe('')
-    expect(astraAction.style.width).toBe('48px')
+    expect(astraAction).toHaveTextContent('goals.detail.askAstraEyebrow')
     fireEvent.click(astraAction)
     expect(useChatStore.getState().draft).toBe('My unfinished message')
     expect(useChatStore.getState().contextualSuggestion).toEqual({
@@ -448,8 +445,7 @@ describe('GoalDetailDrawer', () => {
     detailAvailable = false
     const view = render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
     const astraAction = screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault' })
-    expect(astraAction.textContent).toBe('')
-    expect(astraAction.style.width).toBe('48px')
+    expect(astraAction).toHaveTextContent('goals.detail.askAstraEyebrow')
     fireEvent.click(astraAction)
     expect(useChatStore.getState().draft).toContain('Read 12 books')
     expect(screen.getByText('goals.detail.loadError')).toBeTruthy()

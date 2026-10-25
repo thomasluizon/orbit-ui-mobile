@@ -28,6 +28,7 @@ describe('Today date return', () => {
     const row = container.querySelector<HTMLElement>('[data-today-date-row]')!
     const label = within(row).getByRole('button', { name: new RegExp(messages.dates.goToToday) })
     expect(label).toHaveAccessibleName(`Wednesday, 8 Apr, ${messages.dates.goToToday}`)
+    expect(label).not.toHaveAttribute('title')
     expect(container.querySelector('[data-today-header-actions]')).not.toContainElement(label)
     expect(screen.queryByRole('button', { name: messages.dates.goToToday })).not.toBeInTheDocument()
     await user.click(label)

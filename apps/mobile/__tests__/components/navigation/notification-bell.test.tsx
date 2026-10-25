@@ -12,7 +12,7 @@ import { createMockNotification, createMockProactiveItem } from '@orbit/shared/_
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { NotificationInbox } from '@/components/navigation/notification-inbox'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
@@ -356,7 +356,7 @@ describe('mobile alerts', () => {
     const messages = locale === 'en' ? en : pt
 
     press(tree, messages.notifications.options)
-    expect(tree.root.findAll((node) => node.type === Menu)[0]!.props.title).toBe(messages.notifications.options)
+    expect(tree.root.findAll((node) => node.type === Menu.Content)[0]!.props.title).toBe(messages.notifications.options)
     expect(text(tree, bulkLabel)).toHaveLength(1)
     press(tree, 'attempt-dismiss')
     press(tree, `Alert 0. ${messages.notifications.unread}. ${messages.nav.progress}`)
