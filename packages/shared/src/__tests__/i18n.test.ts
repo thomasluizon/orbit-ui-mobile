@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import {
+  isArgumentElement,
   isLiteralElement,
   isNumberElement,
   isPluralElement,
@@ -483,5 +484,63 @@ describe('native plural messages', () => {
     for (const messages of [en, ptBR]) {
       expect([...flatten(messages)].filter(([, message]) => message.includes(' | ')).map(([key]) => key)).toEqual([])
     }
+  })
+})
+
+
+describe('counted message grammar', () => {
+  const cardinalArguments = new Set([
+    'count', 'n', 'days', 'minutes', 'hours', 'allowance', 'limit', 'max',
+    'total', 'done', 'used', 'shown', 'current', 'banked', 'ceiling', 'due', 'scheduled',
+    'needed', 'overage', 'proDays', 'skippedCount', 'totalCount',
+  ])
+  const invariantMessages = {
+    abbreviatedUnits: [
+      'notifications.minutesAgo', 'notifications.hoursAgo', 'notifications.daysAgo',
+      'habits.schedule.dueInDays', 'habits.frequency.flexibleLabel',
+    ],
+    positionsAndNumericReadouts: [
+      'auth.codeDigit', 'habits.reorderMoved', 'habits.reorderBoundary',
+      'habits.moveParent.invalidDepth', 'habits.rowProgress', 'habits.frequency.flexibleProgress',
+      'habits.form.checklistItemLabel', 'calendar.showingCount',
+      'charts.bar.selectedDay', 'charts.bar.readout', 'chat.choice.position',
+      'chat.habitList.count', 'chat.insight.pageAnnounce', 'chat.streakCard.xp',
+      'chat.recordList.count', 'chat.preview.summary.repeatInterval',
+      'wrapped.progressLabel', 'onboarding.flow.step', 'upgrade.billing.usage.aiMessagesOf',
+      'goals.streak.ofTarget', 'progressScreen.streak.freezesCount',
+      'progressScreen.goals.position', 'progressScreen.goals.reorderMoved',
+      'progressScreen.goals.reorderBoundary', 'progressScreen.achievements.xp',
+      'progressScreen.achievements.progress', 'progressScreen.achievements.progressLabel',
+    ],
+    formattedWeekdayNames: [
+      'habits.form.understoodDay', 'habits.form.understoodDayAt',
+      'habits.form.understoodDays', 'habits.form.understoodDaysAt',
+      'calendar.recurrenceWeeklyDays', 'onboarding.flow.when.cadence.fixed',
+      'onboarding.flow.when.cadence.fixedAt',
+    ],
+    suppliedUnitOrUnitlessQuantity: [
+      'chat.goalList.progress', 'goals.progressOf', 'goals.detail.progressUpdated',
+      'goals.detail.historyProgress', 'progressScreen.goals.progress',
+      'celebration.goal.line', 'celebration.goal.lineWithoutUnit',
+    ],
+    invariantQuantifiers: [
+      'notifications.bellWithCount', 'shell.composer.usage',
+      'habits.form.moreSelected', 'calendar.timeGrid.moreLabel',
+      'chat.preview.more', 'goals.detail.showAllHistory',
+    ],
+  }
+
+  it('requires ICU plurals for cardinal messages unless their grammar is count invariant', () => {
+    const invariantKeys = new Set(Object.values(invariantMessages).flat())
+    const violations: string[] = []
+    for (const [locale, messages] of [['en', en], ['pt-BR', ptBR]] as const) {
+      for (const [key, message] of flatten(messages)) {
+        const elements = allMessageElements(parse(message, { ignoreTag: true }))
+        if (!elements.some((element) => (isArgumentElement(element) || isNumberElement(element)) && cardinalArguments.has(element.value))) continue
+        if (elements.some(isPluralElement) || invariantKeys.has(key)) continue
+        violations.push(`${locale}:${key}`)
+      }
+    }
+    expect(violations).toEqual([])
   })
 })

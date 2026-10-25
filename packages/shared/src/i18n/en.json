@@ -187,8 +187,8 @@
     "continue": "Continue",
     "unknown": "Unknown",
     "failed": "Failed",
-    "queued": "No connection. {count} changes held on the device.",
-    "syncing": "Sending {count} changes.",
+    "queued": "{count, plural, one {No connection. # change held on the device.} other {No connection. # changes held on the device.}}",
+    "syncing": "{count, plural, one {Sending # change.} other {Sending # changes.}}",
     "synced": "Everything is synced.",
     "syncDropped": "The log for {item} did not sync and was discarded.",
     "syncRetrying": "One change has not synced yet. It stays in the queue and retries automatically.",
@@ -260,7 +260,7 @@
         "renewal": "Messages return at midnight, your time.",
         "exhausted": "Today's Astra messages are used.",
         "placeholder": "No messages today",
-        "reason": "Today's allowance of {allowance} Astra messages is used."
+        "reason": "{allowance, plural, one {Today's allowance of # Astra message is used.} other {Today's allowance of # Astra messages is used.}}"
       },
       "busy": {
         "reason": "Astra is still answering. Wait for this response before sending another message."
@@ -334,7 +334,7 @@
   "todayAstra": {
     "createSentence": "Help me create a habit for today",
     "openConversation": "Open the conversation",
-    "returningElapsed": "You last completed a habit {days} days ago.",
+    "returningElapsed": "{days, plural, one {You last completed a habit # day ago.} other {You last completed a habit # days ago.}}",
     "returningBounded": "You last completed a habit over 30 days ago.",
     "viewProgress": "See it on Progress",
     "offline": "Astra needs a connection. Habit logging still works offline.",
@@ -378,7 +378,7 @@
   "rail": {
     "todayProgress": "Today",
     "allDone": "All done",
-    "progressLabel": "{done} of {total} habits completed",
+    "progressLabel": "{total, plural, one {{done} of # habit completed} other {{done} of # habits completed}}",
     "remaining": "Remaining today",
     "empty": "No habits today",
     "loadFailed": "Couldn't load progress"
@@ -393,9 +393,9 @@
   },
   "reviewMoment": {
     "eyebrow": "A word from Astra",
-    "streakTitle": "{count} days straight",
+    "streakTitle": "{count, plural, one {# day straight} other {# days straight}}",
     "levelTitle": "Level {level}",
-    "streakBody": "You showed up {count} days in a row. That's real momentum. Mind rating Orbit on Google Play? It helps more people find their orbit.",
+    "streakBody": "{count, plural, one {You showed up # day in a row. That's real momentum. Mind rating Orbit on Google Play? It helps more people find their orbit.} other {You showed up # days in a row. That's real momentum. Mind rating Orbit on Google Play? It helps more people find their orbit.}}",
     "levelBody": "You just reached level {level}. That took consistency. Mind rating Orbit on Google Play? It helps more people find their orbit.",
     "cta": "Rate Orbit",
     "notNow": "Not now"
@@ -482,7 +482,7 @@
     "resendCode": "Resend code",
     "resendIn": "You can ask for another code in {time}",
     "changeEmail": "Change email",
-    "minutesShort": "{minutes} min left",
+    "minutesShort": "{minutes, plural, one {# min left} other {# min left}}",
     "genericError": "An error occurred. Please try again.",
     "orContinueWith": "or",
     "openInOrbit": "Open in Orbit",
@@ -491,7 +491,7 @@
     "googleError": "Google sign-in failed. Please try again.",
     "signingIn": "Signing you in...",
     "callbackError": "Something went wrong during sign-in. Please try again.",
-    "sessionExpiring": "Your session expires in {minutes} minutes. Save your work.",
+    "sessionExpiring": "{minutes, plural, one {Your session expires in # minute. Save your work.} other {Your session expires in # minutes. Save your work.}}",
     "sessionExpired": "Your session timed out.",
     "sessionSignedOut": "You were signed out. Sign in to pick up where you left off.",
     "sessionRefreshFailed": "Orbit couldn't refresh your session. Try again.",
@@ -528,7 +528,7 @@
       "title": "Sign in to save your plan",
       "subtitle": "It leaves this device and joins your account.",
       "habitOne": "1 habit waiting on this device.",
-      "habits": "{count} habits waiting on this device.",
+      "habits": "{count, plural, one {# habit waiting on this device.} other {# habits waiting on this device.}}",
       "continue": "Continue and save"
     },
     "accountBack": {
@@ -565,8 +565,6 @@
       "emptyBody": "No habit with that name, that description or that tag.",
       "create": "Create habit",
       "count": "{count, plural, one {# habit} other {# habits}}",
-      "count_one": "{count} habit",
-      "count_other": "{count} habits",
       "open": "Open {name}",
       "next": "Next",
       "previous": "Previous",
@@ -653,7 +651,7 @@
     "completed": "completed",
     "rowProgress": "{done} of {total}",
     "rowTypeTask": "Task",
-    "drillProgress": "{done} of {total} done",
+    "drillProgress": "{done, plural, one {# of {total} done} other {# of {total} done}}",
     "deleteConfirmTitle": "Delete this habit?",
     "deleteConfirmMessage": "This removes the habit and any sub-habits. You can undo it from the message that appears.",
     "deleteListConfirmMessage": "{count, plural, =0 {{name} leaves your list. You can undo it from the message that appears.} one {{name} and # item inside it leave your list. You can undo it from the message that appears.} other {{name} and # items inside it leave your list. You can undo it from the message that appears.}}",
@@ -688,7 +686,7 @@
       "offlineFailure": "Nothing changed because your device is offline.",
       "connectionRefreshed": "The connection dropped. The list was refreshed.",
       "move": "Move selected",
-      "moveLimit": "Select up to {limit, number} habits to move at once."
+      "moveLimit": "{limit, plural, one {Select up to # habit to move at once.} other {Select up to # habits to move at once.}}"
     },
     "skipHabit": "Skip",
     "frequency": {
@@ -708,7 +706,7 @@
       "parentHabit": "Parent habit",
       "proRequired": "This is part of Orbit Pro.",
       "capacityTitle": "Habit limit reached",
-      "capacityBody": "You can have up to {limit, number} active habits. Sub-habits don't count. Delete a habit to add another.",
+      "capacityBody": "{limit, plural, one {You can have up to # active habit. Sub-habits don't count. Delete a habit to add another.} other {You can have up to # active habits. Sub-habits don't count. Delete a habit to add another.}}",
       "emojiSuggest": "Suggest emoji",
       "emojiSuggesting": "Finding emoji…",
       "aiSuggest": "Suggest with AI",
@@ -726,34 +724,34 @@
       "understood": "Orbit understood",
       "unresolved": "Orbit did not find how often in this phrase. Pick the days or a number of times a week.",
       "askAstra": "Suggest frequency",
-      "askAstraCost": "Uses 1 of today's {allowance} messages.",
+      "askAstraCost": "{allowance, plural, one {Uses today's only message.} other {Uses 1 of today's # messages.}}",
       "astraReading": "Astra is reading the phrase",
-      "localReadLimit": "Today's {allowance} Astra messages are used. Orbit reads the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.",
-      "understoodIntervalDays": "every {days}, every {count} weeks",
-      "understoodIntervalDaysAt": "every {days} at {time}, every {count} weeks",
-      "understoodRepeatWeeks": "{schedule}, every {count} weeks",
+      "localReadLimit": "{allowance, plural, one {Today's # Astra message is used. Orbit reads the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.} other {Today's # Astra messages are used. Orbit reads the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.}}",
+      "understoodIntervalDays": "{count, plural, one {every {days}, every # week} other {every {days}, every # weeks}}",
+      "understoodIntervalDaysAt": "{count, plural, one {every {days} at {time}, every # week} other {every {days} at {time}, every # weeks}}",
+      "understoodRepeatWeeks": "{count, plural, one {{schedule}, every # week} other {{schedule}, every # weeks}}",
       "understoodDay": "every {days}",
       "understoodDayAt": "every {days} at {time}",
       "understoodDays": "every {days}",
       "understoodDaysAt": "every {days} at {time}",
-      "understoodCount": "{count} times a week, any day",
-      "understoodCountAt": "{count} times a week, any day, at {time}",
+      "understoodCount": "{count, plural, one {# time a week, any day} other {# times a week, any day}}",
+      "understoodCountAt": "{count, plural, one {# time a week, any day, at {time}} other {# times a week, any day, at {time}}}",
       "understoodMonthOnce": "Once a month",
       "understoodMonthOnceAt": "Once a month at {time}",
-      "understoodMonth": "{count} times a month",
-      "understoodMonthAt": "{count} times a month at {time}",
+      "understoodMonth": "{count, plural, one {# time a month} other {# times a month}}",
+      "understoodMonthAt": "{count, plural, one {# time a month at {time}} other {# times a month at {time}}}",
       "understoodEveryMonth": "Every month",
       "understoodEveryMonthAt": "Every month at {time}",
-      "understoodEveryNMonths": "Every {count} months",
-      "understoodEveryNMonthsAt": "Every {count} months at {time}",
+      "understoodEveryNMonths": "{count, plural, one {Every # month} other {Every # months}}",
+      "understoodEveryNMonthsAt": "{count, plural, one {Every # month at {time}} other {Every # months at {time}}}",
       "understoodYearOnce": "Once a year",
       "understoodYearOnceAt": "Once a year at {time}",
-      "understoodYear": "{count} times a year",
-      "understoodYearAt": "{count} times a year at {time}",
+      "understoodYear": "{count, plural, one {# time a year} other {# times a year}}",
+      "understoodYearAt": "{count, plural, one {# time a year at {time}} other {# times a year at {time}}}",
       "understoodEveryYear": "Every year",
       "understoodEveryYearAt": "Every year at {time}",
-      "understoodEveryNYears": "Every {count} years",
-      "understoodEveryNYearsAt": "Every {count} years at {time}",
+      "understoodEveryNYears": "{count, plural, one {Every # year} other {Every # years}}",
+      "understoodEveryNYearsAt": "{count, plural, one {Every # year at {time}} other {Every # years at {time}}}",
       "understoodDaily": "every day",
       "understoodDailyAt": "every day at {time}",
       "understoodTime": "At {time}",
@@ -824,16 +822,16 @@
       "timesPerUnit": "Times per",
       "every": "Every",
       "unit": "Unit",
-      "understoodEveryNDays": "Every {count} days",
-      "understoodEveryNDaysAt": "Every {count} days at {time}",
+      "understoodEveryNDays": "{count, plural, one {Every # day} other {Every # days}}",
+      "understoodEveryNDaysAt": "{count, plural, one {Every # day at {time}} other {Every # days at {time}}}",
       "understoodEveryWeek": "Every week",
       "understoodEveryWeekAt": "Every week at {time}",
-      "understoodEveryNWeeks": "Every {count} weeks",
-      "understoodEveryNWeeksAt": "Every {count} weeks at {time}",
+      "understoodEveryNWeeks": "{count, plural, one {Every # week} other {Every # weeks}}",
+      "understoodEveryNWeeksAt": "{count, plural, one {Every # week at {time}} other {Every # weeks at {time}}}",
       "understoodDayOnce": "Once a day",
       "understoodDayOnceAt": "Once a day at {time}",
-      "understoodDayCount": "{count} times a day",
-      "understoodDayCountAt": "{count} times a day at {time}",
+      "understoodDayCount": "{count, plural, one {# time a day} other {# times a day}}",
+      "understoodDayCountAt": "{count, plural, one {# time a day at {time}} other {# times a day at {time}}}",
       "frequencyRequired": "Set the frequency to 1 or higher",
       "unitDay": "Day",
       "unitWeek": "Week",
@@ -965,7 +963,7 @@
       "searchGoals": "Search goals",
       "selectedCount": "{count, plural, one {# selected} other {# selected}}",
       "moreSelected": "+{count} more",
-      "availableCount": "{count} available",
+      "availableCount": "{count, plural, one {# available} other {# available}}",
       "goalLimit": "Link up to 10 goals to this habit.",
       "saveUncertain": "Could not confirm your changes. Try again.",
       "waitingToSync": "Waiting to sync.",
@@ -1056,7 +1054,7 @@
     },
     "breakdown": {
       "breakInto": "Break down {name} into:",
-      "limit": "{limit} habits max. Remove one to add another.",
+      "limit": "{limit, plural, one {# habit max. Remove one to add another.} other {# habits max. Remove one to add another.}}",
       "retryError": "Could not create the remaining habits. Try again.",
       "createError": "Could not create these habits. Edit the proposal and try again.",
       "addHabit": "Add habit",
@@ -1121,10 +1119,10 @@
     "loading": "Loading",
     "loadError": "Could not load the calendar. Please try again.",
     "dayDetail": {
-      "completionSummary": "{done} of {total} logged",
+      "completionSummary": "{done, plural, one {# of {total} logged} other {# of {total} logged}}",
       "nothingDue": "nothing due",
       "viewAllEventsLabel": "View all",
-      "viewAllEvents": "View all ({count})",
+      "viewAllEvents": "{count, plural, one {View all (#)} other {View all (#)}}",
       "eventsTitle": "On your calendar",
       "importEvents": "Import events",
       "searchEvents": "Search events",
@@ -1168,7 +1166,7 @@
       "now": "Now",
       "pickRangeHint": "Pick a start and end day above to set your range.",
       "pickEndHint": "Now pick the end day",
-      "rangeMaxDays": "Range limited to {max} days.",
+      "rangeMaxDays": "{max, plural, one {Range limited to # day.} other {Range limited to # days.}}",
       "empty": "Nothing scheduled",
       "moreLabel": "{count} more",
       "moreCount": "{count, plural, =0 {+0} one {+#} other {+#}}",
@@ -1339,7 +1337,7 @@
       "invalid": "Check your selection and try again.",
       "error": "Could not send your answer. Try again.",
       "offline": "You're offline. Your selection is kept.",
-      "limit": "You've used your {allowance} messages for today.",
+      "limit": "{allowance, plural, one {You've used your # message for today.} other {You've used your # messages for today.}}",
       "acting": "Sending your answer",
       "reviewing": "Preparing the preview",
       "proposed": "Suggested by Astra",
@@ -1733,13 +1731,13 @@
     },
     "daySummary": {
       "title": "Today",
-      "doneOfDue": "{done} of {due} done",
+      "doneOfDue": "{done, plural, one {# of {due} done} other {# of {due} done}}",
       "nothingDue": "Nothing due today",
       "overdue": "Overdue",
       "streak": "Current streak",
-      "ring": "{done} of {due} done today",
+      "ring": "{done, plural, one {# of {due} done today} other {# of {due} done today}}",
       "open": "Open Today",
-      "rowCount": "{shown} of {total} habits shown"
+      "rowCount": "{total, plural, one {{shown} of # habit shown} other {{shown} of # habits shown}}"
     },
     "streakCard": {
       "title": "Your streak and XP",
@@ -1767,7 +1765,7 @@
       "count": "{shown} of {total}",
       "empty": "Nothing here yet.",
       "unread": "Unread",
-      "templateCount": "{count} items",
+      "templateCount": "{count, plural, one {# item} other {# items}}",
       "templateLimit": "Templates with more than 20 items open in the checklist editor.",
       "keyState": { "active": "Active", "expired": "Expired", "revoked": "Revoked" },
       "markReadError": "Couldn't mark that alert read. Try again.",
@@ -1805,8 +1803,6 @@
     "trace": {
       "working": "Astra is working",
       "steps": "{count, plural, one {# step} other {# steps}}",
-      "steps_one": "{count} step",
-      "steps_other": "{count} steps",
       "unknown": "Working on your request",
       "account": {
         "read": "Reading account details",
@@ -1939,13 +1935,13 @@
         "clearDeadline": "Remove the deadline",
         "replaceTags": "Replace all tags with: {names}",
         "selectedTag": "Replace all tags with 1 selected tag",
-        "selectedTags": "Replace all tags with {count} selected tags",
+        "selectedTags": "{count, plural, one {Replace all tags with # selected tag} other {Replace all tags with # selected tags}}",
         "clearTags": "Remove all tags",
-        "linkedGoals": "Replace goal links with {count} selected goals",
+        "linkedGoals": "{count, plural, one {Replace goal links with # selected goal} other {Replace goal links with # selected goals}}",
         "clearGoals": "Remove all goal links",
-        "linkedHabits": "Replace habit links with {count} selected habits",
+        "linkedHabits": "{count, plural, one {Replace habit links with # selected habit} other {Replace habit links with # selected habits}}",
         "clearHabits": "Remove all habit links",
-        "reorderItems": "Reorder {count} items",
+        "reorderItems": "{count, plural, one {Reorder # item} other {Reorder # items}}",
         "moveUnderHabit": "Move under the selected habit",
         "moveToTop": "Move out of the parent habit",
         "untilTime": "Until {time}",
@@ -1964,7 +1960,7 @@
         "systemTheme": "system",
         "expires": "Expires on {date}",
         "noExpiry": "No expiry date",
-        "permissions": "Grant {count} selected permissions",
+        "permissions": "{count, plural, one {Grant # selected permission} other {Grant # selected permissions}}",
         "tagColor": "Tag color: {color}"
       },
       "more": "and {count} more",
@@ -1989,7 +1985,7 @@
       "confirm": "Create habits"
     },
     "batch": {
-      "retry": "Retry the {count} that failed"
+      "retry": "{count, plural, one {Retry the # that failed} other {Retry the # that failed}}"
     },
     "operation": {
       "parentChoiceRequired": "Choose where each item goes before approving.",
@@ -2234,7 +2230,7 @@
       "checklistTemplateItemsRequired": "Give the checklist a name and at least one item.",
       "checkoutCreated": "Payment page opened",
       "clarificationLimitExceeded": "I need a shorter request. Try asking for one change at a time.",
-      "clockFormatSet": "Clock set to {hours, number}-hour format",
+      "clockFormatSet": "{hours, plural, one {Clock set to #-hour format} other {Clock set to #-hour format}}",
       "completed": "{hasEntityName, select, yes {Completed: {entityName}} other {Completed}}",
       "confirmationRequired": "Review and approve the preview to continue.",
       "createdChecklistTemplate": "{hasEntityName, select, yes {Checklist template created: {entityName}} other {Checklist template created}}",
@@ -2431,7 +2427,7 @@
     },
     "allowance": {
       "title": "Today's messages",
-      "usage": "{used} of {limit} used",
+      "usage": "{used, plural, one {# of {limit} used} other {# of {limit} used}}",
       "spent": "Today's messages are used. They return at midnight, your time.",
       "plan": "Plan",
       "free": "Free",
@@ -2632,7 +2628,7 @@
       "neutral": "Join me on Orbit."
     },
     "prompt": {
-      "streakTitle": "{count}-day streak",
+      "streakTitle": "{count, plural, one {#-day streak} other {#-day streak}}",
       "levelTitle": "You reached level {level}",
       "cta": "Invite friends",
       "later": "Maybe later"
@@ -2681,7 +2677,7 @@
       "topHabits": "Top habits",
       "goalsClosed": "Goals closed"
     },
-    "streak": "{count}-day streak"
+    "streak": "{count, plural, one {#-day streak} other {#-day streak}}"
   },
   "wrapped": {
     "title": "Orbit Wrapped",
@@ -2955,7 +2951,7 @@
         "daysLabel": "Days of the week",
         "timeLabel": "Time",
         "timeHint": "Leave empty for any time of day",
-        "limit": "Today''s {allowance} messages have been used. Reading the phrase draws on the same allowance.",
+        "limit": "{allowance, plural, one {Today''s # message has been used. Reading the phrase draws on the same allowance.} other {Today''s # messages have been used. Reading the phrase draws on the same allowance.}}",
         "days": {
           "sunday": "Sun", "monday": "Mon", "tuesday": "Tue", "wednesday": "Wed", "thursday": "Thu", "friday": "Fri", "saturday": "Sat"
         },
@@ -3296,7 +3292,7 @@
         "monthlyCharge": "{price}/month",
         "yearlyCharge": "{price}/year",
         "planReference": "Plan: {price}",
-        "proBody": "The {limit} messages a day are on, along with the calendar, the retrospective and Astra noticing things.",
+        "proBody": "{limit, plural, one {The # message a day is on, along with the calendar, the retrospective and Astra noticing things.} other {The # messages a day are on, along with the calendar, the retrospective and Astra noticing things.}}",
         "canceledBody": "The subscription is canceled and will not renew. Everything in Pro stays on until the period ends.",
         "pastDueBody": "The last charge did not go through. Everything in Pro stays on while the provider retries; updating the card in the portal fixes it.",
         "lifetimeBadge": "Lifetime"
@@ -3344,7 +3340,7 @@
         "payment_failed": "Your subscription ended after a payment problem on {date}.",
         "expired": "Your subscription expired on {date}.",
         "fallback": "Your subscription has ended.",
-        "lostMessages": "Astra messages went back to {limit} a day.",
+        "lostMessages": "{limit, plural, one {Astra messages went back to # a day.} other {Astra messages went back to # a day.}}",
         "lostCalendar": "Google Calendar no longer syncs.",
         "lostRetrospective": "The periodic retrospective stopped.",
         "paymentFix": "Update your payment method with the provider.",
@@ -3384,7 +3380,7 @@
       "appUpdated": "Orbit was updated. Reload to continue.",
       "edgeBlocked": "This request was blocked before it reached Orbit. Change the text and try again.",
       "edgeBlockedRetry": "This request was blocked before it reached Orbit. Try again in a few minutes. If it keeps happening, contact support.",
-      "habitLimit": "You can have up to {limit, number} active habits. Sub-habits don't count. Delete a habit to add another.",
+      "habitLimit": "{limit, plural, one {You can have up to # active habit. Sub-habits don't count. Delete a habit to add another.} other {You can have up to # active habits. Sub-habits don't count. Delete a habit to add another.}}",
       "calendarPro": "Calendar sync needs Orbit Pro. Open Upgrade to turn it on.",
       "astraLimit": "You've used today's Astra messages. More arrive at midnight, your time.",
       "payGate": "This feature needs Orbit Pro. Open Upgrade to see your options.",
@@ -3523,7 +3519,7 @@
       "derivedStreak": "{count, plural, =0 {Streak progress is calculated automatically, so it cannot be edited here.} one {It comes from the current streak of the linked habit, so it cannot be edited here.} other {It comes from the smallest current streak among the # linked habits, so it cannot be edited here.}}",
       "derivedHabits": "Progress comes from the logs of the linked habits, so it cannot be edited here.",
       "completeWhy": "This goal reached its target but is still open. Complete it when you are ready.",
-      "linkedLimit": "{count} habits is the limit for one goal.",
+      "linkedLimit": "{count, plural, one {# habit is the limit for one goal.} other {# habits is the limit for one goal.}}",
       "linkedHabitStreak": "{count, plural, one {# day} other {# days}}",
       "deleteNamed": "The goal “{title}” leaves your list. The habits linked to it stay as they are.",
       "markCompleted": "Complete goal",
@@ -3599,7 +3595,7 @@
       "used": "Used this month",
       "next": "Next freeze",
       "nextProgress": "Progress toward the next freeze",
-      "nextOf": "{current} of {total} streak days",
+      "nextOf": "{total, plural, one {{current} of # streak day} other {{current} of # streak days}}",
       "protectedDays": "Protected days",
       "protectedEmpty": "No protected days yet.",
       "protected": "Protected",
@@ -3620,7 +3616,7 @@
       "repairCapped": "This gap needs {needed, plural, one {# freeze} other {# freezes}} and {banked} is the most you can bank, so it cannot be repaired.",
       "repairError": "The gap could not be repaired. Try again.",
       "repairRateLimited": "There were too many repair attempts. Try again shortly.",
-      "bankFull": "{count} freezes is the limit. The next one arrives after you spend one."
+      "bankFull": "{count, plural, one {# freeze is the limit. The next one arrives after you spend one.} other {# freezes is the limit. The next one arrives after you spend one.}}"
     },
     "goals": {
       "views": "Goal views",
@@ -3901,7 +3897,7 @@
     "cooldown": "You can ask for another in {time}",
     "wrong": "That code does not match.",
     "attemptsOne": "You have 1 attempt remaining in the next 15 minutes.",
-    "attemptsMany": "You have {count} attempts remaining in the next 15 minutes.",
+    "attemptsMany": "{count, plural, one {You have # attempt remaining in the next 15 minutes.} other {You have # attempts remaining in the next 15 minutes.}}",
     "expiredTitle": "This code expired",
     "expiredBody": "It lasted 10 minutes. Ask for another to carry on.",
     "exhaustedTitle": "The attempts ran out",
@@ -4032,7 +4028,7 @@
         "logHabit": "Log a habit today",
         "tryAstra": "What would you like to do?"
       },
-      "progress": "{done} of {total} done",
+      "progress": "{done, plural, one {# of {total} done} other {# of {total} done}}",
       "complete": "You're all set.",
       "dismiss": "Dismiss",
       "dismissError": "Could not dismiss the checklist. Try again."
@@ -4143,7 +4139,7 @@
     "title": "Share milestone",
     "streakEyebrow": "Streak milestone",
     "achievementEyebrow": "Achievement earned",
-    "streakTitle": "{count}-day streak",
+    "streakTitle": "{count, plural, one {#-day streak} other {#-day streak}}",
     "body": "Share your milestone and invite a friend. You both get a discount coupon for Pro.",
     "share": "Share",
     "download": "Download",
@@ -4171,7 +4167,7 @@
     "streak": {
       "eyebrow": "Streak",
       "unit": "{count, plural, one {day} other {days}}",
-      "line": "Your streak reached {count} days."
+      "line": "{count, plural, one {Your streak reached # day.} other {Your streak reached # days.}}"
     },
     "goal": {
       "eyebrow": "Goal",

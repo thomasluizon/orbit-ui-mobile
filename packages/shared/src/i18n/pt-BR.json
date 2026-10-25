@@ -187,8 +187,8 @@
     "continue": "Continuar",
     "unknown": "Desconhecido",
     "failed": "Falhou",
-    "queued": "Sem conexão. {count} alterações guardadas no aparelho.",
-    "syncing": "Enviando {count} alterações.",
+    "queued": "{count, plural, =0 {Sem conexão. # alterações guardadas no aparelho.} one {Sem conexão. # alteração guardada no aparelho.} other {Sem conexão. # alterações guardadas no aparelho.}}",
+    "syncing": "{count, plural, =0 {Enviando # alterações.} one {Enviando # alteração.} other {Enviando # alterações.}}",
     "synced": "Tudo sincronizado.",
     "syncDropped": "O registro de {item} não subiu e foi descartado.",
     "syncRetrying": "Uma alteração não subiu ainda. Ela fica na fila e tenta de novo sozinha.",
@@ -260,7 +260,7 @@
         "renewal": "As mensagens voltam à meia-noite, no seu fuso horário.",
         "exhausted": "Você usou as mensagens de hoje com a Astra.",
         "placeholder": "Sem mensagens hoje",
-        "reason": "Você usou as {allowance} mensagens de hoje com a Astra."
+        "reason": "{allowance, plural, =0 {Você usou as # mensagens de hoje com a Astra.} one {Você usou # mensagem hoje com a Astra.} other {Você usou as # mensagens de hoje com a Astra.}}"
       },
       "busy": {
         "reason": "A Astra ainda está respondendo. Aguarde esta resposta antes de enviar outra mensagem."
@@ -334,7 +334,7 @@
   "todayAstra": {
     "createSentence": "Me ajude a criar um hábito para hoje",
     "openConversation": "Abrir conversa",
-    "returningElapsed": "Você concluiu um hábito pela última vez há {days} dias.",
+    "returningElapsed": "{days, plural, =0 {Você concluiu um hábito pela última vez há # dias.} one {Você concluiu um hábito pela última vez há # dia.} other {Você concluiu um hábito pela última vez há # dias.}}",
     "returningBounded": "Você concluiu um hábito pela última vez há mais de 30 dias.",
     "viewProgress": "Ver no Progresso",
     "offline": "A Astra precisa de conexão. Você ainda pode registrar hábitos offline.",
@@ -378,7 +378,7 @@
   "rail": {
     "todayProgress": "Hoje",
     "allDone": "Tudo feito",
-    "progressLabel": "{done} de {total} hábitos concluídos",
+    "progressLabel": "{total, plural, =0 {{done} de # hábitos concluídos} one {{done} de # hábito concluído} other {{done} de # hábitos concluídos}}",
     "remaining": "Restantes hoje",
     "empty": "Sem hábitos hoje",
     "loadFailed": "Erro ao carregar o progresso"
@@ -393,9 +393,9 @@
   },
   "reviewMoment": {
     "eyebrow": "Um recado da Astra",
-    "streakTitle": "{count} dias seguidos",
+    "streakTitle": "{count, plural, =0 {# dias seguidos} one {# dia seguido} other {# dias seguidos}}",
     "levelTitle": "Nível {level}",
-    "streakBody": "Você marcou presença {count} dias seguidos. Isso é ritmo de verdade. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.",
+    "streakBody": "{count, plural, =0 {Você marcou presença # dias seguidos. Isso é ritmo de verdade. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.} one {Você marcou presença # dia seguido. Isso é ritmo de verdade. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.} other {Você marcou presença # dias seguidos. Isso é ritmo de verdade. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.}}",
     "levelBody": "Você acabou de alcançar o nível {level}. Isso é fruto da sua constância. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.",
     "cta": "Avaliar Orbit",
     "notNow": "Agora não"
@@ -482,7 +482,7 @@
     "resendCode": "Reenviar código",
     "resendIn": "Você pode pedir outro código em {time}",
     "changeEmail": "Trocar e-mail",
-    "minutesShort": "faltam {minutes} min",
+    "minutesShort": "{minutes, plural, =0 {faltam # min} one {falta # min} other {faltam # min}}",
     "genericError": "Ocorreu um erro. Tente de novo.",
     "orContinueWith": "ou",
     "openInOrbit": "Abrir no Orbit",
@@ -491,7 +491,7 @@
     "googleError": "Não foi possível entrar com o Google. Tente de novo.",
     "signingIn": "Entrando...",
     "callbackError": "Algo deu errado ao entrar. Tente de novo.",
-    "sessionExpiring": "Sua sessão expira em {minutes} minutos. Salve o que estiver fazendo.",
+    "sessionExpiring": "{minutes, plural, =0 {Sua sessão expira em # minutos. Salve o que estiver fazendo.} one {Sua sessão expira em # minuto. Salve o que estiver fazendo.} other {Sua sessão expira em # minutos. Salve o que estiver fazendo.}}",
     "sessionExpired": "Sua sessão expirou.",
     "sessionSignedOut": "Você saiu da conta. Entre para continuar de onde parou.",
     "sessionRefreshFailed": "O Orbit não conseguiu atualizar sua sessão. Tente novamente.",
@@ -528,7 +528,7 @@
       "title": "Entre para salvar o seu plano",
       "subtitle": "Ele sai deste aparelho e vai para a sua conta.",
       "habitOne": "1 hábito esperando neste aparelho.",
-      "habits": "{count} hábitos esperando neste aparelho.",
+      "habits": "{count, plural, =0 {# hábitos esperando neste aparelho.} one {# hábito esperando neste aparelho.} other {# hábitos esperando neste aparelho.}}",
       "continue": "Continuar e salvar"
     },
     "accountBack": {
@@ -565,8 +565,6 @@
       "emptyBody": "Nenhum hábito com esse nome, essa descrição ou essa tag.",
       "create": "Criar hábito",
       "count": "{count, plural, =0 {# hábitos} one {# hábito} other {# hábitos}}",
-      "count_one": "{count} hábito",
-      "count_other": "{count} hábitos",
       "open": "Abrir {name}",
       "next": "Próxima",
       "previous": "Anterior",
@@ -653,7 +651,7 @@
     "completed": "concluídos",
     "rowProgress": "{done} de {total}",
     "rowTypeTask": "Tarefa",
-    "drillProgress": "{done} de {total} feitos",
+    "drillProgress": "{done, plural, =0 {# de {total} feitos} one {# de {total} feito} other {# de {total} feitos}}",
     "deleteConfirmTitle": "Apagar este hábito?",
     "deleteConfirmMessage": "Isso remove o hábito e os sub-hábitos dele. Você pode desfazer pela mensagem que aparece.",
     "deleteListConfirmMessage": "{count, plural, =0 {{name} sai da sua lista. Você pode desfazer pela mensagem que aparece.} one {{name} e # item dentro dele saem da sua lista. Você pode desfazer pela mensagem que aparece.} other {{name} e os # itens dentro dele saem da sua lista. Você pode desfazer pela mensagem que aparece.}}",
@@ -688,7 +686,7 @@
       "offlineFailure": "Nada mudou porque seu aparelho está sem conexão.",
       "connectionRefreshed": "A conexão caiu. A lista foi atualizada.",
       "move": "Mover selecionados",
-      "moveLimit": "Selecione até {limit, number} hábitos para mover de uma vez."
+      "moveLimit": "{limit, plural, =0 {Selecione até # hábitos para mover de uma vez.} one {Selecione até # hábito para mover de uma vez.} other {Selecione até # hábitos para mover de uma vez.}}"
     },
     "skipHabit": "Pular",
     "frequency": {
@@ -708,7 +706,7 @@
       "parentHabit": "Hábito principal",
       "proRequired": "Isso faz parte do Orbit Pro.",
       "capacityTitle": "Limite de hábitos atingido",
-      "capacityBody": "Você pode ter até {limit, number} hábitos ativos. Sub-hábitos não contam. Apague um hábito para adicionar outro.",
+      "capacityBody": "{limit, plural, =0 {Você pode ter até # hábitos ativos. Sub-hábitos não contam. Apague um hábito para adicionar outro.} one {Você pode ter até # hábito ativo. Sub-hábitos não contam. Apague um hábito para adicionar outro.} other {Você pode ter até # hábitos ativos. Sub-hábitos não contam. Apague um hábito para adicionar outro.}}",
       "emojiSuggest": "Sugerir emoji",
       "emojiSuggesting": "Buscando emoji…",
       "aiSuggest": "Sugerir com IA",
@@ -726,34 +724,34 @@
       "understood": "O Orbit entendeu",
       "unresolved": "O Orbit não encontrou a frequência nessa frase. Escolha os dias ou um número de vezes por semana.",
       "askAstra": "Sugerir frequência",
-      "askAstraCost": "Usa 1 das {allowance} mensagens de hoje.",
+      "askAstraCost": "{allowance, plural, =0 {Usa 1 das # mensagens de hoje.} one {Usa a única mensagem de hoje.} other {Usa 1 das # mensagens de hoje.}}",
       "astraReading": "A Astra está lendo a frase",
-      "localReadLimit": "As {allowance} mensagens da Astra de hoje foram usadas. O Orbit lê a frase neste aparelho, e criar um hábito não usa mensagem. Escolha os dias ou um número de vezes por semana.",
-      "understoodIntervalDays": "a cada {count} semanas, {days}",
-      "understoodIntervalDaysAt": "a cada {count} semanas, {days} às {time}",
-      "understoodRepeatWeeks": "{schedule}, a cada {count} semanas",
+      "localReadLimit": "{allowance, plural, =0 {As # mensagens da Astra de hoje foram usadas. O Orbit lê a frase neste aparelho, e criar um hábito não usa mensagem. Escolha os dias ou um número de vezes por semana.} one {A # mensagem da Astra de hoje foi usada. O Orbit lê a frase neste aparelho, e criar um hábito não usa mensagem. Escolha os dias ou um número de vezes por semana.} other {As # mensagens da Astra de hoje foram usadas. O Orbit lê a frase neste aparelho, e criar um hábito não usa mensagem. Escolha os dias ou um número de vezes por semana.}}",
+      "understoodIntervalDays": "{count, plural, =0 {a cada # semanas, {days}} one {a cada # semana, {days}} other {a cada # semanas, {days}}}",
+      "understoodIntervalDaysAt": "{count, plural, =0 {a cada # semanas, {days} às {time}} one {a cada # semana, {days} às {time}} other {a cada # semanas, {days} às {time}}}",
+      "understoodRepeatWeeks": "{count, plural, =0 {{schedule}, a cada # semanas} one {{schedule}, a cada # semana} other {{schedule}, a cada # semanas}}",
       "understoodDay": "{days}",
       "understoodDayAt": "{days} às {time}",
       "understoodDays": "{days}",
       "understoodDaysAt": "{days} às {time}",
-      "understoodCount": "{count} vezes por semana, qualquer dia",
-      "understoodCountAt": "{count} vezes por semana, qualquer dia, às {time}",
+      "understoodCount": "{count, plural, =0 {# vezes por semana, qualquer dia} one {# vez por semana, qualquer dia} other {# vezes por semana, qualquer dia}}",
+      "understoodCountAt": "{count, plural, =0 {# vezes por semana, qualquer dia, às {time}} one {# vez por semana, qualquer dia, às {time}} other {# vezes por semana, qualquer dia, às {time}}}",
       "understoodMonthOnce": "Uma vez por mês",
       "understoodMonthOnceAt": "Uma vez por mês às {time}",
-      "understoodMonth": "{count} vezes por mês",
-      "understoodMonthAt": "{count} vezes por mês às {time}",
+      "understoodMonth": "{count, plural, =0 {# vezes por mês} one {# vez por mês} other {# vezes por mês}}",
+      "understoodMonthAt": "{count, plural, =0 {# vezes por mês às {time}} one {# vez por mês às {time}} other {# vezes por mês às {time}}}",
       "understoodEveryMonth": "Todo mês",
       "understoodEveryMonthAt": "Todo mês às {time}",
-      "understoodEveryNMonths": "A cada {count} meses",
-      "understoodEveryNMonthsAt": "A cada {count} meses às {time}",
+      "understoodEveryNMonths": "{count, plural, =0 {A cada # meses} one {A cada # mês} other {A cada # meses}}",
+      "understoodEveryNMonthsAt": "{count, plural, =0 {A cada # meses às {time}} one {A cada # mês às {time}} other {A cada # meses às {time}}}",
       "understoodYearOnce": "Uma vez por ano",
       "understoodYearOnceAt": "Uma vez por ano às {time}",
-      "understoodYear": "{count} vezes por ano",
-      "understoodYearAt": "{count} vezes por ano às {time}",
+      "understoodYear": "{count, plural, =0 {# vezes por ano} one {# vez por ano} other {# vezes por ano}}",
+      "understoodYearAt": "{count, plural, =0 {# vezes por ano às {time}} one {# vez por ano às {time}} other {# vezes por ano às {time}}}",
       "understoodEveryYear": "Todo ano",
       "understoodEveryYearAt": "Todo ano às {time}",
-      "understoodEveryNYears": "A cada {count} anos",
-      "understoodEveryNYearsAt": "A cada {count} anos às {time}",
+      "understoodEveryNYears": "{count, plural, =0 {A cada # anos} one {A cada # ano} other {A cada # anos}}",
+      "understoodEveryNYearsAt": "{count, plural, =0 {A cada # anos às {time}} one {A cada # ano às {time}} other {A cada # anos às {time}}}",
       "understoodDaily": "todo dia",
       "understoodDailyAt": "todo dia às {time}",
       "understoodTime": "Às {time}",
@@ -824,16 +822,16 @@
       "timesPerUnit": "Vezes por",
       "every": "A cada",
       "unit": "Unidade",
-      "understoodEveryNDays": "A cada {count} dias",
-      "understoodEveryNDaysAt": "A cada {count} dias às {time}",
+      "understoodEveryNDays": "{count, plural, =0 {A cada # dias} one {A cada # dia} other {A cada # dias}}",
+      "understoodEveryNDaysAt": "{count, plural, =0 {A cada # dias às {time}} one {A cada # dia às {time}} other {A cada # dias às {time}}}",
       "understoodEveryWeek": "Toda semana",
       "understoodEveryWeekAt": "Toda semana às {time}",
-      "understoodEveryNWeeks": "A cada {count} semanas",
-      "understoodEveryNWeeksAt": "A cada {count} semanas às {time}",
+      "understoodEveryNWeeks": "{count, plural, =0 {A cada # semanas} one {A cada # semana} other {A cada # semanas}}",
+      "understoodEveryNWeeksAt": "{count, plural, =0 {A cada # semanas às {time}} one {A cada # semana às {time}} other {A cada # semanas às {time}}}",
       "understoodDayOnce": "Uma vez ao dia",
       "understoodDayOnceAt": "Uma vez ao dia às {time}",
-      "understoodDayCount": "{count} vezes ao dia",
-      "understoodDayCountAt": "{count} vezes ao dia às {time}",
+      "understoodDayCount": "{count, plural, =0 {# vezes ao dia} one {# vez ao dia} other {# vezes ao dia}}",
+      "understoodDayCountAt": "{count, plural, =0 {# vezes ao dia às {time}} one {# vez ao dia às {time}} other {# vezes ao dia às {time}}}",
       "frequencyRequired": "Defina a frequência como 1 ou mais",
       "unitDay": "Dia",
       "unitWeek": "Semana",
@@ -965,7 +963,7 @@
       "searchGoals": "Buscar metas",
       "selectedCount": "{count, plural, =0 {# selecionadas} one {# selecionada} other {# selecionadas}}",
       "moreSelected": "+{count} mais",
-      "availableCount": "{count} disponíveis",
+      "availableCount": "{count, plural, =0 {# disponíveis} one {# disponível} other {# disponíveis}}",
       "goalLimit": "Vincule até 10 metas a este hábito.",
       "saveUncertain": "Não foi possível confirmar as alterações. Tente novamente.",
       "waitingToSync": "Aguardando sincronização.",
@@ -1056,7 +1054,7 @@
     },
     "breakdown": {
       "breakInto": "Dividir {name} em:",
-      "limit": "Limite de {limit} hábitos. Remova um para adicionar outro.",
+      "limit": "{limit, plural, =0 {Limite de # hábitos. Remova um para adicionar outro.} one {Limite de # hábito. Remova um para adicionar outro.} other {Limite de # hábitos. Remova um para adicionar outro.}}",
       "retryError": "Não foi possível criar os hábitos restantes. Tente de novo.",
       "createError": "Não foi possível criar os hábitos. Edite a proposta e tente de novo.",
       "addHabit": "Adicionar hábito",
@@ -1121,10 +1119,10 @@
     "loading": "Carregando",
     "loadError": "Não foi possível carregar o calendário. Tente de novo.",
     "dayDetail": {
-      "completionSummary": "{done} de {total} registrados",
+      "completionSummary": "{done, plural, =0 {# de {total} registrados} one {# de {total} registrado} other {# de {total} registrados}}",
       "nothingDue": "nada programado",
       "viewAllEventsLabel": "Ver todos",
-      "viewAllEvents": "Ver todos ({count})",
+      "viewAllEvents": "{count, plural, =0 {Ver todos (#)} one {Ver evento (#)} other {Ver todos (#)}}",
       "eventsTitle": "Na sua agenda",
       "importEvents": "Importar eventos",
       "searchEvents": "Buscar eventos",
@@ -1168,7 +1166,7 @@
       "now": "Agora",
       "pickRangeHint": "Escolha o dia inicial e o final acima para definir o período.",
       "pickEndHint": "Agora escolha o dia final",
-      "rangeMaxDays": "O período pode ter até {max} dias.",
+      "rangeMaxDays": "{max, plural, =0 {O período pode ter até # dias.} one {O período pode ter até # dia.} other {O período pode ter até # dias.}}",
       "empty": "Nada agendado",
       "moreLabel": "mais {count}",
       "moreCount": "{count, plural, =0 {+0} one {+#} other {+#}}",
@@ -1339,7 +1337,7 @@
       "invalid": "Confira sua seleção e tente de novo.",
       "error": "Não foi possível enviar sua resposta. Tente de novo.",
       "offline": "Você está sem conexão. Sua seleção foi mantida.",
-      "limit": "Você usou suas {allowance} mensagens de hoje.",
+      "limit": "{allowance, plural, =0 {Você usou suas # mensagens de hoje.} one {Você usou sua # mensagem de hoje.} other {Você usou suas # mensagens de hoje.}}",
       "acting": "Enviando sua resposta",
       "reviewing": "Preparando a prévia",
       "proposed": "Sugestão da Astra",
@@ -1733,13 +1731,13 @@
     },
     "daySummary": {
       "title": "Hoje",
-      "doneOfDue": "{done} de {due} concluídos",
+      "doneOfDue": "{done, plural, =0 {# de {due} concluídos} one {# de {due} concluído} other {# de {due} concluídos}}",
       "nothingDue": "Nada previsto para hoje",
       "overdue": "Atrasados",
       "streak": "Sequência atual",
-      "ring": "{done} de {due} concluídos hoje",
+      "ring": "{done, plural, =0 {# de {due} concluídos hoje} one {# de {due} concluído hoje} other {# de {due} concluídos hoje}}",
       "open": "Abrir Hoje",
-      "rowCount": "{shown} de {total} hábitos exibidos"
+      "rowCount": "{total, plural, =0 {{shown} de # hábitos exibidos} one {{shown} de # hábito exibido} other {{shown} de # hábitos exibidos}}"
     },
     "streakCard": {
       "title": "Sua sequência e XP",
@@ -1767,7 +1765,7 @@
       "count": "{shown} de {total}",
       "empty": "Nada por aqui ainda.",
       "unread": "Não lido",
-      "templateCount": "{count} itens",
+      "templateCount": "{count, plural, =0 {# itens} one {# item} other {# itens}}",
       "templateLimit": "Modelos com mais de 20 itens abrem no editor de checklist.",
       "keyState": { "active": "Ativa", "expired": "Expirada", "revoked": "Revogada" },
       "markReadError": "Não foi possível marcar o aviso como lido. Tente de novo.",
@@ -1805,8 +1803,6 @@
     "trace": {
       "working": "A Astra está trabalhando",
       "steps": "{count, plural, =0 {# etapas} one {# etapa} other {# etapas}}",
-      "steps_one": "{count} etapa",
-      "steps_other": "{count} etapas",
       "unknown": "Trabalhando no que você pediu",
       "account": {
         "read": "Consultando dados da conta",
@@ -1939,13 +1935,13 @@
         "clearDeadline": "Remover o prazo",
         "replaceTags": "Substituir todas as tags por: {names}",
         "selectedTag": "Substituir todas as tags por 1 tag selecionada",
-        "selectedTags": "Substituir todas as tags por {count} tags selecionadas",
+        "selectedTags": "{count, plural, =0 {Substituir todas as tags por # tags selecionadas} one {Substituir todas as tags por # tag selecionada} other {Substituir todas as tags por # tags selecionadas}}",
         "clearTags": "Remover todas as tags",
-        "linkedGoals": "Substituir vínculos por {count} metas selecionadas",
+        "linkedGoals": "{count, plural, =0 {Substituir vínculos por # metas selecionadas} one {Substituir vínculos por # meta selecionada} other {Substituir vínculos por # metas selecionadas}}",
         "clearGoals": "Remover todos os vínculos com metas",
-        "linkedHabits": "Substituir vínculos por {count} hábitos selecionados",
+        "linkedHabits": "{count, plural, =0 {Substituir vínculos por # hábitos selecionados} one {Substituir vínculos por # hábito selecionado} other {Substituir vínculos por # hábitos selecionados}}",
         "clearHabits": "Remover todos os vínculos com hábitos",
-        "reorderItems": "Reordenar {count} itens",
+        "reorderItems": "{count, plural, =0 {Reordenar # itens} one {Reordenar # item} other {Reordenar # itens}}",
         "moveUnderHabit": "Mover para dentro do hábito selecionado",
         "moveToTop": "Mover para fora do hábito principal",
         "untilTime": "Até {time}",
@@ -1964,7 +1960,7 @@
         "systemTheme": "do sistema",
         "expires": "Expira em {date}",
         "noExpiry": "Sem data de expiração",
-        "permissions": "Conceder {count} permissões selecionadas",
+        "permissions": "{count, plural, =0 {Conceder # permissões selecionadas} one {Conceder # permissão selecionada} other {Conceder # permissões selecionadas}}",
         "tagColor": "Cor da tag: {color}"
       },
       "more": "e mais {count}",
@@ -1989,7 +1985,7 @@
       "confirm": "Criar hábitos"
     },
     "batch": {
-      "retry": "Tentar os {count} que falharam"
+      "retry": "{count, plural, =0 {Tentar os # que falharam} one {Tentar o item que falhou} other {Tentar os # que falharam}}"
     },
     "operation": {
       "parentChoiceRequired": "Escolha onde cada item fica antes de aprovar.",
@@ -2234,7 +2230,7 @@
       "checklistTemplateItemsRequired": "Dê um nome ao checklist e inclua pelo menos um item.",
       "checkoutCreated": "Página de pagamento aberta",
       "clarificationLimitExceeded": "Preciso de um pedido mais curto. Peça uma alteração por vez.",
-      "clockFormatSet": "Relógio no formato de {hours, number} horas",
+      "clockFormatSet": "{hours, plural, =0 {Relógio no formato de # horas} one {Relógio no formato de # hora} other {Relógio no formato de # horas}}",
       "completed": "{hasEntityName, select, yes {Concluído: {entityName}} other {Concluído}}",
       "confirmationRequired": "Revise e aprove a prévia para continuar.",
       "createdChecklistTemplate": "{hasEntityName, select, yes {Modelo de checklist criado: {entityName}} other {Modelo de checklist criado}}",
@@ -2431,7 +2427,7 @@
     },
     "allowance": {
       "title": "Mensagens hoje",
-      "usage": "{used} de {limit} usadas",
+      "usage": "{used, plural, =0 {# de {limit} usadas} one {# de {limit} usada} other {# de {limit} usadas}}",
       "spent": "Você usou as mensagens de hoje com a Astra. Elas voltam à meia-noite, no seu fuso horário.",
       "plan": "Plano",
       "free": "Grátis",
@@ -2632,7 +2628,7 @@
       "neutral": "Vem pro Orbit comigo."
     },
     "prompt": {
-      "streakTitle": "Sequência de {count} dias",
+      "streakTitle": "{count, plural, =0 {Sequência de # dias} one {Sequência de # dia} other {Sequência de # dias}}",
       "levelTitle": "Você chegou ao nível {level}",
       "cta": "Convidar amigos",
       "later": "Agora não"
@@ -2681,7 +2677,7 @@
       "topHabits": "Principais hábitos",
       "goalsClosed": "Metas fechadas"
     },
-    "streak": "Sequência de {count} dias"
+    "streak": "{count, plural, =0 {Sequência de # dias} one {Sequência de # dia} other {Sequência de # dias}}"
   },
   "wrapped": {
     "title": "Orbit Wrapped",
@@ -2955,7 +2951,7 @@
         "daysLabel": "Dias da semana",
         "timeLabel": "Hora",
         "timeHint": "Deixe vazio para qualquer hora do dia",
-        "limit": "Você usou as {allowance} mensagens de hoje com a Astra. Ler a frase também usa essa cota.",
+        "limit": "{allowance, plural, =0 {Você usou as # mensagens de hoje com a Astra. Ler a frase também usa essa cota.} one {Você usou # mensagem hoje com a Astra. Ler a frase também usa essa cota.} other {Você usou as # mensagens de hoje com a Astra. Ler a frase também usa essa cota.}}",
         "days": {
           "sunday": "D", "monday": "S", "tuesday": "T", "wednesday": "Q", "thursday": "Q", "friday": "S", "saturday": "S"
         },
@@ -3296,7 +3292,7 @@
         "monthlyCharge": "{price}/mês",
         "yearlyCharge": "{price}/ano",
         "planReference": "Plano: {price}",
-        "proBody": "As {limit} mensagens por dia estão liberadas, com a sincronização do calendário, a retrospectiva e os avisos da Astra.",
+        "proBody": "{limit, plural, =0 {As # mensagens por dia estão liberadas, com a sincronização do calendário, a retrospectiva e os avisos da Astra.} one {A # mensagem por dia está liberada, com a sincronização do calendário, a retrospectiva e os avisos da Astra.} other {As # mensagens por dia estão liberadas, com a sincronização do calendário, a retrospectiva e os avisos da Astra.}}",
         "canceledBody": "A assinatura foi cancelada e não renova. Tudo do Pro continua ligado até o fim do período.",
         "pastDueBody": "A última cobrança não passou. Tudo do Pro continua ligado enquanto o provedor tenta de novo; atualizar o cartão no portal resolve.",
         "lifetimeBadge": "Vitalício"
@@ -3344,7 +3340,7 @@
         "payment_failed": "Sua assinatura terminou após um problema de pagamento em {date}.",
         "expired": "Sua assinatura expirou em {date}.",
         "fallback": "Sua assinatura terminou.",
-        "lostMessages": "As mensagens da Astra voltaram para {limit} por dia.",
+        "lostMessages": "{limit, plural, =0 {A cota da Astra voltou para # mensagens por dia.} one {A cota da Astra voltou para # mensagem por dia.} other {A cota da Astra voltou para # mensagens por dia.}}",
         "lostCalendar": "O Google Agenda não sincroniza mais.",
         "lostRetrospective": "A retrospectiva do período parou.",
         "paymentFix": "Atualize a forma de pagamento no provedor.",
@@ -3384,7 +3380,7 @@
       "appUpdated": "O Orbit foi atualizado. Recarregue para continuar.",
       "edgeBlocked": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Mude o texto e tente de novo.",
       "edgeBlockedRetry": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Tente de novo em alguns minutos. Se continuar acontecendo, fale com o suporte.",
-      "habitLimit": "Você pode ter até {limit, number} hábitos ativos. Sub-hábitos não contam. Apague um hábito para adicionar outro.",
+      "habitLimit": "{limit, plural, =0 {Você pode ter até # hábitos ativos. Sub-hábitos não contam. Apague um hábito para adicionar outro.} one {Você pode ter até # hábito ativo. Sub-hábitos não contam. Apague um hábito para adicionar outro.} other {Você pode ter até # hábitos ativos. Sub-hábitos não contam. Apague um hábito para adicionar outro.}}",
       "calendarPro": "A sincronização do calendário precisa do Orbit Pro. Veja a tela de upgrade para ativar.",
       "astraLimit": "Você usou as mensagens de hoje com a Astra. Elas voltam à meia-noite, no seu fuso horário.",
       "payGate": "Este recurso precisa do Orbit Pro. Veja suas opções na tela de upgrade.",
@@ -3523,7 +3519,7 @@
       "derivedStreak": "{count, plural, =0 {O progresso da sequência é calculado automaticamente, então não pode ser editado aqui.} one {Vem da sequência atual do hábito ligado a esta meta, então não pode ser editado aqui.} other {Vem da menor sequência atual entre os # hábitos ligados a esta meta, então não pode ser editado aqui.}}",
       "derivedHabits": "O progresso vem dos registros dos hábitos ligados a esta meta, então não é editável aqui.",
       "completeWhy": "Você bateu esta meta, mas ela continua ativa. Conclua quando quiser.",
-      "linkedLimit": "{count} hábitos é o limite por meta.",
+      "linkedLimit": "{count, plural, =0 {# hábitos é o limite por meta.} one {# hábito é o limite por meta.} other {# hábitos é o limite por meta.}}",
       "linkedHabitStreak": "{count, plural, =0 {# dias} one {# dia} other {# dias}}",
       "deleteNamed": "A meta “{title}” sai da sua lista. Os hábitos ligados a ela continuam como estão.",
       "markCompleted": "Concluir meta",
@@ -3599,7 +3595,7 @@
       "used": "Usados neste mês",
       "next": "Próximo congelamento",
       "nextProgress": "Progresso até o próximo congelamento",
-      "nextOf": "{current} de {total} dias de sequência",
+      "nextOf": "{total, plural, =0 {{current} de # dias de sequência} one {{current} de # dia de sequência} other {{current} de # dias de sequência}}",
       "protectedDays": "Dias protegidos",
       "protectedEmpty": "Nenhum dia protegido ainda.",
       "protected": "Protegido",
@@ -3620,7 +3616,7 @@
       "repairCapped": "Esta lacuna precisa de {needed, plural, =0 {# congelamentos} one {# congelamento} other {# congelamentos}} e {banked} é o máximo que dá para guardar, então ela não pode ser reparada.",
       "repairError": "Não foi possível reparar a sequência. Tente novamente.",
       "repairRateLimited": "Foram muitas tentativas de reparo. Tente de novo daqui a pouco.",
-      "bankFull": "{count} congelamentos é o limite. O próximo chega depois que você usar um."
+      "bankFull": "{count, plural, =0 {# congelamentos é o limite. O próximo chega depois que você usar um.} one {# congelamento é o limite. O próximo chega depois que você usar um.} other {# congelamentos é o limite. O próximo chega depois que você usar um.}}"
     },
     "goals": {
       "views": "Filtro de metas",
@@ -3901,7 +3897,7 @@
     "cooldown": "Você pode pedir outro em {time}",
     "wrong": "O código não confere.",
     "attemptsOne": "Você tem 1 tentativa restante nos próximos 15 minutos.",
-    "attemptsMany": "Você tem {count} tentativas restantes nos próximos 15 minutos.",
+    "attemptsMany": "{count, plural, =0 {Você tem # tentativas restantes nos próximos 15 minutos.} one {Você tem # tentativa restante nos próximos 15 minutos.} other {Você tem # tentativas restantes nos próximos 15 minutos.}}",
     "expiredTitle": "Este código expirou",
     "expiredBody": "Ele valia por 10 minutos. Peça outro para continuar.",
     "exhaustedTitle": "As tentativas acabaram",
@@ -4032,7 +4028,7 @@
         "logHabit": "Registre um hábito hoje",
         "tryAstra": "O que você quer fazer?"
       },
-      "progress": "{done} de {total} concluídos",
+      "progress": "{done, plural, =0 {# de {total} concluídos} one {# de {total} concluído} other {# de {total} concluídos}}",
       "complete": "Tudo pronto.",
       "dismiss": "Dispensar",
       "dismissError": "Não foi possível dispensar a lista. Tente de novo."
@@ -4143,7 +4139,7 @@
     "title": "Compartilhar marco",
     "streakEyebrow": "Marco de sequência",
     "achievementEyebrow": "Conquista obtida",
-    "streakTitle": "Sequência de {count} dias",
+    "streakTitle": "{count, plural, =0 {Sequência de # dias} one {Sequência de # dia} other {Sequência de # dias}}",
     "body": "Compartilhe seu marco e convide um amigo. Vocês dois ganham um cupom de desconto no Pro.",
     "share": "Compartilhar",
     "download": "Baixar",
@@ -4171,7 +4167,7 @@
     "streak": {
       "eyebrow": "Sequência",
       "unit": "{count, plural, =0 {dias} one {dia} other {dias}}",
-      "line": "A sua sequência chegou a {count} dias."
+      "line": "{count, plural, =0 {A sua sequência chegou a # dias.} one {A sua sequência chegou a # dia.} other {A sua sequência chegou a # dias.}}"
     },
     "goal": {
       "eyebrow": "Meta",

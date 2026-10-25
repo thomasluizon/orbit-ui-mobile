@@ -1415,9 +1415,9 @@ describe('daily allowance and habit capacity styles', () => {
   it.each([en, ptBR])('fills the daily notice with neutral tabular usage or the exhausted reason', (messages) => {
     for (const state of ['idle', 'atLimit'] as const) {
       const tree = renderComposer(props({ state, suggestions: [], renewalHint: messages.shell.composer.limit.renewal,
-        allowanceReason: messages.shell.composer.limit.reason.replace('{allowance}', '5'),
+        allowanceReason: String(new IntlMessageFormat(messages.shell.composer.limit.reason, messages === ptBR ? 'pt-BR' : 'en').format({ allowance: 5 })),
         usageMessage: state === 'idle' ? messages.shell.composer.usage.replace('{used}', '3').replace('{limit}', '5') : undefined,
-        ...(state === 'atLimit' ? { limitReason: messages.shell.composer.limit.reason.replace('{allowance}', '5') } : {}) }))
+        ...(state === 'atLimit' ? { limitReason: String(new IntlMessageFormat(messages.shell.composer.limit.reason, messages === ptBR ? 'pt-BR' : 'en').format({ allowance: 5 })) } : {}) }))
       const slot = tree.root.findByProps({ testID: 'composer-status-slot' })
       expect(StyleSheet.flatten(slot.props.style).minHeight).toBe(96)
       expect(slot.findAllByType('Text').map((text: { props: { children: string } }) => text.props.children)).toContain(messages.shell.composer.limit.renewal)

@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import { createTranslator } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { pluralMessageCases } from '@orbit/shared/test-support/plural-messages'
+import { countedMessageExamples, pluralMessageCases } from '@orbit/shared/test-support/plural-messages'
 
 it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('never returns ICU source for plural messages in $locale', ({ locale, messages }) => {
   const t = createTranslator({ locale, messages, onError: (error) => { throw error } })
@@ -22,4 +22,15 @@ it.each([
   expect(t('calendar.eventsFound', { count: 2 })).toBe(plural)
   expect(t('upgrade.convert.trialDaysLeft', { days: 1 })).toBe(day)
   expect(t('upgrade.convert.trialDaysLeft', { days: 14 })).toBe(days)
+})
+
+
+it.each(countedMessageExamples)('inflects queued changes, items and elapsed days in $locale', ({ locale, queued, syncing, items, days }) => {
+  const t = createTranslator({ locale, messages: locale === 'en' ? en : ptBR, onError: (error) => { throw error } })
+  for (const count of [0, 1, 2]) {
+    expect(t('common.queued', { count })).toBe(queued[count])
+    expect(t('common.syncing', { count })).toBe(syncing[count])
+    expect(t('chat.recordList.templateCount', { count })).toBe(items[count])
+    expect(t('celebration.streak.line', { count })).toBe(days[count])
+  }
 })

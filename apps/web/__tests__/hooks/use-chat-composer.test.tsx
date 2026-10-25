@@ -804,7 +804,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
     const { result } = renderHook(() => useChatComposer())
     render(<Composer {...result.current.composerProps} />)
-    const notice = messages.shell.composer.limit.reason.replace('{allowance}', '5')
+    const notice = mocks.translate('shell.composer.limit.reason', { allowance: 5 })
     expect(screen.getAllByText(notice)).toHaveLength(1)
     expect(notice).not.toContain(locale === 'en' ? 'midnight' : 'meia-noite')
     expect(screen.getAllByText(messages.shell.composer.limit.renewal)).toHaveLength(1)

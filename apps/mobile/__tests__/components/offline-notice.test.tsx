@@ -2,9 +2,8 @@ import React from 'react'
 import { QueryClient } from '@tanstack/react-query'
 import { Pressable, StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createInstance } from 'i18next'
-import en from '@orbit/shared/i18n/en.json'
-import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { testI18n } from '@/__tests__/support/i18n'
+import { countedMessageExamples } from '@orbit/shared/test-support/plural-messages'
 import HabitCreateRoute from '@/app/habits/new'
 import { useAppToastNavigation } from '@/hooks/use-app-toast-navigation'
 import { OfflineNotice } from '@/components/offline-notice'
@@ -86,10 +85,10 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
   let tree: RenderTree
   let unsubscribeToasts: () => void
   const toastChanges = vi.fn()
-  const language = createInstance()
+  const language = testI18n
   beforeEach(async () => {
     vi.useFakeTimers()
-    await language.init({ resources: { en: { translation: en }, 'pt-BR': { translation: ptBR } }, lng: locale, interpolation: { prefix: '{', suffix: '}' } })
+    await language.changeLanguage(locale)
     mocks.translate = (key, values) => language.t(key, values)
     Object.assign(mocks.queue, { isOnline: false, pendingCount: 0, isFlushing: false, hasFailed: false })
     mocks.enqueue.mockClear()
@@ -128,6 +127,14 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     expect(tree.root.findAllByType(Toast)).toHaveLength(1)
     return tree.root.findByType(Toast).props
   }
+
+  it.each([1, 2])('shows the queued and sending notice for %s changes through ICU', (count) => {
+    const expected = countedMessageExamples.find((example) => example.locale === locale)!
+    update({ pendingCount: count })
+    expect(toast().message).toBe(expected.queued[count])
+    update({ isOnline: true, isFlushing: true })
+    expect(toast().message).toBe(expected.syncing[count])
+  })
 
   it('renders one object through the success cycle, with no store pushes and no default chrome', () => {
     expect(tree.root.findAllByType(Toast)).toHaveLength(0)

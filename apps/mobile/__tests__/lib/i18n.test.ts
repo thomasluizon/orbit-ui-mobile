@@ -1,6 +1,6 @@
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { pluralMessageCases } from '@orbit/shared/test-support/plural-messages'
+import { countedMessageExamples, pluralMessageCases } from '@orbit/shared/test-support/plural-messages'
 import { testI18n } from '@/__tests__/support/i18n'
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import { i18n } from '@/lib/i18n'
@@ -217,4 +217,15 @@ it.each([
   expect(t('calendar.eventsFound', { count: 2 })).toBe(plural)
   expect(t('upgrade.convert.trialDaysLeft', { days: 1 })).toBe(day)
   expect(t('upgrade.convert.trialDaysLeft', { days: 14 })).toBe(days)
+})
+
+
+it.each(countedMessageExamples)('inflects queued changes, items and elapsed days in $locale', ({ locale, queued, syncing, items, days }) => {
+  const t = i18n.getFixedT(locale)
+  for (const count of [0, 1, 2]) {
+    expect(t('common.queued', { count })).toBe(queued[count])
+    expect(t('common.syncing', { count })).toBe(syncing[count])
+    expect(t('chat.recordList.templateCount', { count })).toBe(items[count])
+    expect(t('celebration.streak.line', { count })).toBe(days[count])
+  }
 })

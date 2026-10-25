@@ -1,3 +1,4 @@
+import { createTranslator } from 'next-intl'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -72,7 +73,7 @@ for (const width of [320, 1352]) {
           await row.locator('[data-habit-row-control="menu"]').click()
           await page.getByRole('menu', { name, exact: true }).getByRole('menuitem', { name: words.habits.actions.openSubHabits, exact: true }).click()
           const heading = page.getByRole('heading', { name, level: 2, exact: true })
-          await markRequiredLabels(heading.locator('..').getByText(words.habits.drillProgress.replace('{done}', '0').replace('{total}', '1'), { exact: true }))
+          await markRequiredLabels(heading.locator('..').getByText(createTranslator({ locale, messages: words })('habits.drillProgress', { done: 0, total: 1 }), { exact: true }))
           await checkTypedHeadline(page, page.getByRole('main'), name)
           await expect(heading.locator('[data-personal-text]')).toHaveAttribute('aria-label', name)
           await page.getByRole('button', { name: words.common.showFullText.replace('{name}', name), expanded: false, exact: true }).click()
