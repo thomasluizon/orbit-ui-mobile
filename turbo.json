@@ -75,7 +75,8 @@
       "outputs": ["coverage/**"],
       "inputs": [
         "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/apps/{web,mobile}/{eslint.config.*,tsconfig.json}",
+        "$TURBO_ROOT$/package-lock.json",
+        "$TURBO_ROOT$/apps/{web,mobile}/{eslint.config.*,tsconfig.json,package.json}",
         "$TURBO_ROOT$/apps/{web,mobile}/{app,components,lib}/**/*.css",
         "$TURBO_ROOT$/packages/shared/src/theme/spacing.{json,css}",
         "$TURBO_ROOT$/design/canvas/_ds/*/tokens/spacing.css"

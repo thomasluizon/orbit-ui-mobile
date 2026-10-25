@@ -56,7 +56,7 @@ Workspace `test` tasks in `turbo.json` retain default workspace inputs, upstream
 | Desktop | `release-workflow` reads `desktop-release.yml`. |
 | Mobile | `ios-workflows` reads both iOS workflows; `theme` reads `DESIGN.md`; `orbit-widget` reads granted color tokens. Tests also import shared source and fixtures, including the segmented-control inventory that scans mobile call sites. |
 | Web | `theme-dom` reads `DESIGN.md`; `manifest` reads the brand icon. `surface-graphic-contrast` runs the root surface scanner against web and mobile sources and shared themes. `privacy-policy-disclosure` runs the architecture generator, which reads TypeScript across all app workspaces and shared source. Other tests import shared source and fixtures, including the segmented-control inventory. |
-| ESLint rules | `rules`, `no-rejecting-animation-wait` and `installed-config-lifecycle` load app ESLint configuration and TypeScript configuration. `spacing-contract` reads shared spacing definitions and generated CSS, granted spacing tokens and app CSS. The installed Tailwind theme and other package files are covered by the lockfile. |
+| ESLint rules | `rules`, `no-rejecting-animation-wait` and `installed-config-lifecycle` load app ESLint configuration and TypeScript configuration. `spacing-contract` reads shared spacing definitions and generated CSS, granted spacing tokens and app CSS. App manifests and the root lockfile cover the installed app plugins and Tailwind theme loaded from outside this workspace's dependency graph. |
 
 `npm test -w @orbit/shared -- scripts/turbo-inputs.test.mjs` runs the installed Turbo CLI in
 isolated fixture repositories with local caches. It demonstrates stale success without external
