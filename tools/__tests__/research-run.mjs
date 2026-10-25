@@ -1,5 +1,5 @@
-import { spawn } from "node:child_process"
-import { chmodSync, existsSync, readFileSync, rmSync, symlinkSync, watch, writeFileSync } from "node:fs"
+import { spawn, spawnSync } from "node:child_process"
+import { chmodSync, existsSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { T, check, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
@@ -34,30 +34,113 @@ process.stdin.on('end', () => {
   else process.stdout.write(findings)
 })`
 const asyncRun = (staged) => {
-  const child = spawn(process.execPath, [staged.path, ...staged.argv], { cwd: staged.base, env: process.env })
-  const result = new Promise((resolve, reject) => {
-    let stdout = ""
-    let stderr = ""
+  const child = spawn(process.execPath, [...(staged.preload ? ["--require", staged.preload] : []), staged.path, ...staged.argv], { cwd: staged.base, env: process.env })
+  const pids = new Set([child.pid])
+  let closed = false
+  let stdout = ""
+  let stderr = ""
+  const result = new Promise((resolve) => {
     child.stdout.on("data", chunk => { stdout += chunk })
     child.stderr.on("data", chunk => { stderr += chunk })
-    child.on("error", reject)
-    child.on("close", status => resolve({ status, stdout, stderr }))
+    child.on("error", error => { stderr += error.message })
+    child.on("close", status => { closed = true; resolve({ status, stdout, stderr }) })
   })
-  return { child, result }
+  let stopping
+  const stop = () => stopping ??= (async () => {
+    const wakePath = join(wakeSourceDirectory(staged.base), `${child.pid}.json`)
+    let wake = null
+    try { wake = JSON.parse(readFileSync(wakePath, "utf8")) } catch (error) { if (error.code !== "ENOENT") throw error }
+    const workerPid = wake?.workerPid
+    if (Number.isInteger(workerPid)) pids.add(workerPid)
+    const killWorker = () => {
+      if (!Number.isInteger(workerPid)) return
+      if (process.platform === "win32") spawnSync("taskkill", ["/T", "/F", "/PID", String(workerPid)], { windowsHide: true })
+      else { try { process.kill(-workerPid, "SIGKILL") } catch { /* the worker group may have already exited */ } }
+    }
+    const watchdog = setTimeout(() => { killWorker(); child.kill("SIGKILL") }, 5000)
+    try {
+      if (!closed) child.kill("SIGTERM")
+      await result
+    } finally {
+      clearTimeout(watchdog)
+      killWorker()
+      const cleanupDeadline = Date.now() + 5000
+      let alive = [...pids].filter(processIsRunning)
+      while (alive.length > 0 && Date.now() < cleanupDeadline) {
+        await new Promise(resolve => setTimeout(resolve, 20))
+        alive = [...pids].filter(processIsRunning)
+      }
+      T("research: fixture cleanup waits for every recorded PID", alive.length === 0, `cleanup exceeded 5000ms; still running PIDs: ${alive.join(", ")}`)
+      if (wake) rmSync(wake.logFile, { force: true })
+    }
+  })()
+  const deadline = setTimeout(() => { stderr += "research fixture exceeded its execution bound\n"; void stop() }, 120000)
+  result.then(() => clearTimeout(deadline))
+  return { child, result, stop, pids }
 }
-const waitForPublishedFile = (path, result) => new Promise((resolve, reject) => {
+const waitForPublishedFile = (path, result, timeoutMs = 60000) => new Promise((resolve) => {
   let settled = false
   const finish = (error) => {
     if (settled) return
     settled = true
-    watcher.close()
-    if (error) reject(error)
-    else resolve()
+    clearInterval(poll)
+    clearTimeout(deadline)
+    resolve({ ready: !error, error })
   }
-  const watcher = watch(dirname(path), () => { if (existsSync(path)) finish() })
-  result.then(value => finish(new Error(`engine exited before marker: ${value.stderr}`)), finish)
+  const poll = setInterval(() => { if (existsSync(path)) finish() }, 20)
+  const deadline = setTimeout(() => finish(`engine did not publish its marker within ${timeoutMs}ms`), timeoutMs)
+  result.then(value => finish(`engine exited before marker: ${value.stderr}`), error => finish(error.message))
   if (existsSync(path)) finish()
 })
+const gateCeilingUntilRelease = (staged, label) => {
+  const release = stage(`research/${label}-ceiling-release`, "")
+  rmSync(release)
+  const hardCeilingMs = JSON.parse(readFileSync(staged.configPath, "utf8")).timeouts.hardCeilingMinutes * 60000
+  // Only the launcher is preloaded. Its real ceiling callback and native timer run after release.
+  const preload = stage(`research/${label}-ceiling.cjs`, `
+const { existsSync } = require('node:fs')
+const nativeSetTimeout = global.setTimeout
+const nativeClearTimeout = global.clearTimeout
+const pending = new Map()
+global.setTimeout = (callback, milliseconds, ...args) => {
+  if (milliseconds !== ${hardCeilingMs}) return nativeSetTimeout(callback, milliseconds, ...args)
+  const handle = nativeSetTimeout(() => {}, 2147483647)
+  nativeClearTimeout(handle)
+  let armedTimer = null
+  const arm = () => {
+    if (armedTimer || !existsSync(${JSON.stringify(release)})) return
+    clearInterval(poll)
+    armedTimer = nativeSetTimeout(callback, milliseconds, ...args)
+  }
+  const poll = setInterval(arm, 20)
+  pending.set(handle, () => { clearInterval(poll); nativeClearTimeout(armedTimer) })
+  arm()
+  return handle
+}
+global.clearTimeout = handle => {
+  pending.get(handle)?.()
+  pending.delete(handle)
+  nativeClearTimeout(handle)
+}
+`)
+  return { ...staged, preload, release }
+}
+const withReadyEngine = async (staged, marker, assertions) => {
+  const running = asyncRun(staged)
+  try {
+    const readiness = await waitForPublishedFile(marker, running.result)
+    T("research: the supervision engine publishes readiness", readiness.ready, readiness.error)
+    if (readiness.ready) {
+      const enginePids = Object.values(JSON.parse(readFileSync(marker, "utf8")))
+      for (const pid of [...enginePids, ...readWakeSourceStates(staged.base).live.map(source => source.workerPid)]) running.pids.add(pid)
+      await assertions(running, enginePids)
+    }
+  } catch (error) {
+    T("research: supervision completes without a fixture error", false, error.message)
+  } finally {
+    await running.stop()
+  }
+}
 const discardLog = (result) => {
   const report = JSON.parse(result.stdout)
   rmSync(report.logFile, { force: true })
@@ -96,8 +179,20 @@ export const cases = async () => {
   check(TOOL, "research refuses output in a bare repository", ["--research", "--order", staged.order, "--out", join(bareRepository, "findings.md")], { status: 2, stderr: /output.*repository/ }, { path: staged.path, env: { HOME: emptyHome } })
 
   const failed = fixture("failed", engineStub("failed", "process.exit(7)"))
-  const failedResult = run(TOOL, failed.argv, { path: failed.path })
-  T("research: an engine failure cannot publish findings or report success", failedResult.status === 1 && !existsSync(failed.output) && discardLog(failedResult).exitCode === 7)
+  const failedMarker = stage("research/failed-marker", "")
+  rmSync(failedMarker)
+  const failingRun = asyncRun(failed)
+  try {
+    const readiness = await waitForPublishedFile(failedMarker, failingRun.result)
+    const failedResult = await failingRun.result
+    const failedReport = discardLog(failedResult)
+    failingRun.pids.add(failedReport.pid)
+    T("research: an engine failure cannot publish findings or report success", failedResult.status === 1 && !existsSync(failed.output) && failedReport.exitCode === 7)
+    T("research: exit before readiness returns an assertion result", !readiness.ready && readiness.error.includes("engine exited before marker"))
+    T("research: exit before readiness stops the gate and deletes its wake record", !processIsRunning(failedReport.pid) && !existsSync(join(wakeSourceDirectory(failed.base), `${failingRun.child.pid}.json`)))
+  } finally {
+    await failingRun.stop()
+  }
   const empty = fixture("empty", engineStub("empty", "process.exit(0)"))
   const emptyResult = run(TOOL, empty.argv, { path: empty.path })
   T("research: an empty result cannot report success", emptyResult.status === 1 && !existsSync(empty.output) && !discardLog(emptyResult).published)
@@ -123,22 +218,56 @@ setTimeout(() => {
 setInterval(() => {}, 60000)
 `)
   const real = realOrchestratorConfig()
-  // Allow delayed engine startup and readiness checks while retaining the real wall-clock ceiling.
-  const hardCeilingMinutes = 0.25
-  const supervised = fixture("supervised", sleeper, { timeouts: { ...real.timeouts, hardCeilingMinutes, pollSeconds: 0.1 } })
+  // Readiness takes longer than this ceiling. Only the fixture release starts the native timer.
+  const hardCeilingMinutes = 0.02
+  const timeouts = { ...real.timeouts, hardCeilingMinutes, pollSeconds: 0.1 }
+  const unpublished = gateCeilingUntilRelease(fixture("unpublished", sleeper, { timeouts }), "unpublished")
+  for (let attempt = 0; attempt < 5; attempt++) {
+    rmSync(marker, { force: true })
+    let unpublishedPids = []
+    await withReadyEngine(unpublished, marker, async (running, pids) => {
+      const workerPid = readWakeSourceStates(unpublished.base).live[0].workerPid
+      unpublishedPids = [running.child.pid, workerPid, ...pids]
+      const readiness = await waitForPublishedFile(`${marker}.missing`, running.result, 20)
+      T("research: a missing marker returns a bounded assertion result while the tree is live", !readiness.ready && readiness.error.includes("within 20ms") && unpublishedPids.every(processIsRunning))
+      // A stopped worker tree cannot handle the launcher's graceful termination signal.
+      if (process.platform !== "win32") {
+        process.kill(-workerPid, "SIGSTOP")
+        const stop = running.stop
+        running.stop = async () => {
+          const nativeKill = process.kill
+          // Hold delivery so cleanup must observe termination instead of trusting signal success.
+          process.kill = (pid, signal) => {
+            if (pid !== -workerPid || signal !== "SIGKILL") return nativeKill(pid, signal)
+            const delivered = nativeKill(pid, 0)
+            setTimeout(() => {
+              try { nativeKill(pid, signal) } catch (error) { if (error.code !== "ESRCH") throw error }
+            }, 250)
+            return delivered
+          }
+          try { await stop() } finally { process.kill = nativeKill }
+        }
+      }
+    })
+    const alive = unpublishedPids.filter(processIsRunning)
+    T("research: missing-marker cleanup stops the launcher, gate, engine and descendant", unpublishedPids.length === 4 && alive.length === 0, `attempt ${attempt + 1}: still running PIDs: ${alive.join(", ")}`)
+    T("research: missing-marker cleanup deletes wake state without publishing findings", !existsSync(join(wakeSourceDirectory(unpublished.base), `${unpublishedPids[0]}.json`)) && !existsSync(unpublished.output))
+  }
+  rmSync(marker, { force: true })
+  const supervised = gateCeilingUntilRelease(fixture("supervised", sleeper, { timeouts }), "supervised")
   writeRunState({ sessionId: "research-session", sleep: true, remaining: ["#1128"] }, supervised.base)
-  const running = asyncRun(supervised)
-  await waitForPublishedFile(marker, running.result)
-  const sleeperPids = Object.values(JSON.parse(readFileSync(marker, "utf8")))
-  T("research: delayed engine startup reaches readiness with a live descendant", sleeperPids.every(processIsRunning))
-  const wakes = readWakeSourceStates(supervised.base).live
-  T("research: a live wake source records the launcher and child before execution", wakes.some(source => source.pid === running.child.pid && source.research === true && Number.isInteger(source.workerPid)))
-  T("research: a running researcher has no ticket admission or branch reservation", !existsSync(workerLaunchDirectory(supervised.base)))
-  const killed = await running.result
-  const killedReport = discardLog(killed)
-  T("research: the hard ceiling stops the gate, engine and descendant", [killedReport.pid, ...sleeperPids].every(pid => !processIsRunning(pid)))
-  T("research: the hard ceiling deletes the wake record before any reader sweeps it", !existsSync(join(wakeSourceDirectory(supervised.base), `${running.child.pid}.json`)))
-  T("research: the shared hard ceiling kills the run and clears the wake source", killed.status === 1 && killedReport.outcome === "KILLED_HARD_CEILING" && readWakeSourceStates(supervised.base).live.length === 0 && !existsSync(supervised.output))
+  await withReadyEngine(supervised, marker, async (running, sleeperPids) => {
+    T("research: delayed engine startup reaches readiness with a live descendant", sleeperPids.every(processIsRunning))
+    const wakes = readWakeSourceStates(supervised.base).live
+    T("research: a live wake source records the launcher and child before execution", wakes.some(source => source.pid === running.child.pid && source.research === true && Number.isInteger(source.workerPid)))
+    T("research: a running researcher has no ticket admission or branch reservation", !existsSync(workerLaunchDirectory(supervised.base)))
+    writeFileSync(supervised.release, "release")
+    const killed = await running.result
+    const killedReport = discardLog(killed)
+    T("research: the hard ceiling stops the gate, engine and descendant", [killedReport.pid, ...sleeperPids].every(pid => !processIsRunning(pid)))
+    T("research: the hard ceiling deletes the wake record before any reader sweeps it", !existsSync(join(wakeSourceDirectory(supervised.base), `${running.child.pid}.json`)))
+    T("research: the shared hard ceiling kills the run and clears the wake source", killed.status === 1 && killedReport.outcome === "KILLED_HARD_CEILING" && readWakeSourceStates(supervised.base).live.length === 0 && !existsSync(supervised.output))
+  })
   const floodMarker = stage("research/flood-marker-parent/marker", "")
   rmSync(floodMarker)
   const floodRelease = `${floodMarker}.release`
@@ -152,18 +281,17 @@ setTimeout(() => {
 }, 1500)
 setInterval(() => { if (existsSync(${JSON.stringify(floodRelease)})) process.stdout.write('x'.repeat(4096)) }, 5)
 `)
-  const flooding = fixture("report-flood", flooder, { worker: "claude", timeouts: { ...real.timeouts, hardCeilingMinutes, pollSeconds: 0.05 }, caps: { ...real.caps, workerLogMegabytes: 0.01 } })
+  const flooding = gateCeilingUntilRelease(fixture("report-flood", flooder, { worker: "claude", timeouts: { ...timeouts, pollSeconds: 0.05 }, caps: { ...real.caps, workerLogMegabytes: 0.01 } }), "report-flood")
   writeRunState({ sessionId: "research-flood-session", sleep: true, remaining: ["#1128"] }, flooding.base)
-  const floodingRun = asyncRun(flooding)
-  await waitForPublishedFile(floodMarker, floodingRun.result)
-  const floodPids = Object.values(JSON.parse(readFileSync(floodMarker, "utf8")))
-  T("research: the log-cap fixture reaches readiness with a live engine and descendant", floodPids.every(processIsRunning))
-  T("research: the log-cap fixture registers a live wake source before flooding", readWakeSourceStates(flooding.base).live.some(source => source.pid === floodingRun.child.pid && source.workerPid > 0))
-  writeFileSync(floodRelease, "release")
-  const floodingResult = await floodingRun.result
-  const floodingReport = discardLog(floodingResult)
-  T("research: the log cap stops the gate, engine and descendant", [floodingReport.pid, ...floodPids].every(pid => !processIsRunning(pid)))
-  T("research: the log cap deletes the wake record before any reader sweeps it", !existsSync(join(wakeSourceDirectory(flooding.base), `${floodingRun.child.pid}.json`)))
-  T("research: the log cap clears live and orphaned wake sources", Object.values(readWakeSourceStates(flooding.base)).every(sources => sources.length === 0))
-  T("research: findings streamed on stdout obey the shared log cap", floodingResult.status === 1 && floodingReport.outcome === "KILLED_LOG_RUNAWAY" && !existsSync(flooding.output), floodingReport.outcome)
+  await withReadyEngine(flooding, floodMarker, async (floodingRun, floodPids) => {
+    T("research: the log-cap fixture reaches readiness with a live engine and descendant", floodPids.every(processIsRunning))
+    T("research: the log-cap fixture registers a live wake source before flooding", readWakeSourceStates(flooding.base).live.some(source => source.pid === floodingRun.child.pid && source.workerPid > 0))
+    writeFileSync(floodRelease, "release")
+    const floodingResult = await floodingRun.result
+    const floodingReport = discardLog(floodingResult)
+    T("research: the log cap stops the gate, engine and descendant", [floodingReport.pid, ...floodPids].every(pid => !processIsRunning(pid)))
+    T("research: the log cap deletes the wake record before any reader sweeps it", !existsSync(join(wakeSourceDirectory(flooding.base), `${floodingRun.child.pid}.json`)))
+    T("research: the log cap clears live and orphaned wake sources", Object.values(readWakeSourceStates(flooding.base)).every(sources => sources.length === 0))
+    T("research: findings streamed on stdout obey the shared log cap", floodingResult.status === 1 && floodingReport.outcome === "KILLED_LOG_RUNAWAY" && !existsSync(flooding.output), floodingReport.outcome)
+  })
 }
