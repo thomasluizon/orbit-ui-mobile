@@ -20,8 +20,9 @@ session to invoke `/crank` immediately after `/sleep` entry, before queue work.
 ## Context relay mode
 
 `--relay` is the unattended context transition requested by `relay-at-threshold.mjs`.
-It includes `--sleep`, and `--crank` automatically when the run state has `crank: true`. It never invokes `/questions`, asks the owner anything, or ends the
-session before a successor is confirmed. This is the exception to the owner handoff's ending
+It includes `--sleep`, and `--crank` automatically when the run state has `crank: true`.
+It never invokes `/questions`, asks the owner anything, or ends the session before a successor
+is confirmed. This is the exception to the owner handoff's ending
 rule below. Every other inventory, spec, prompt, commit and push requirement still applies.
 
 Relay mode waits for every live background Workflow run and background subagent to finish before ending the session, with the hook and relay tool checking recorded launch and completion evidence and the owning process start identity.
@@ -280,9 +281,9 @@ its review loop, its merge bar, its worker contract, who writes code. Repeating 
 bloat that pushes out the delta only this session has. Cutting the restatement and the pointer
 together is the failure mode; keep the pointer.
 
-Under `--sleep` the entry point is the sleep skill, and it is the only one.
-Under `--crank`, invoke `/crank` immediately after that entry as a mode of the adopted run. It invokes the work
-skill itself, so the prompt must not present the two as siblings.
+Under `--sleep` the entry point is the sleep skill, and it is the only one. It invokes the work
+skill itself, so the prompt must not present the two as siblings. Under `--crank`, invoke
+`/crank` immediately after sleep entry as a mode of the adopted run.
 
 ## The goal is always the same: finish the spec
 
