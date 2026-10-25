@@ -2770,7 +2770,7 @@
     },
     "dataCollected": {
       "title": "Dados que guardamos",
-      "account": "Informações da conta: nome e e-mail (pelo cadastro por e-mail pelo Google OAuth ou pela Apple)",
+      "account": "Informações da conta: nome e e-mail (pelo cadastro por e-mail, pelo Google OAuth ou pela Apple)",
       "habits": "Dados de hábitos: hábitos que você cria, registros de conclusão, agendamentos, tags e metas",
       "chat": "Mensagens do chat com a IA: suas conversas com a assistente de IA do Orbit",
       "preferences": "Preferências: idioma, fuso horário, cor do tema e configurações de notificação",
@@ -3208,7 +3208,7 @@
       "manage": "Gerenciar assinatura",
       "manageHint": "Sua assinatura é cobrada pela App Store. Gerencie seu plano nos ajustes da Apple.",
       "manageOnIphone": "Para alterar ou cancelar esta assinatura da App Store, gerencie pelo seu iPhone.",
-      "autoRenewal": "A assinatura é renovada automaticamente, a menos que você cancele pelo menos 24 horas antes do fim do período atual. A cobrança é feita na sua Conta Apple.",
+      "autoRenewal": "A assinatura é renovada automaticamente até você cancelar. A cobrança é feita na sua Conta Apple.",
       "paymentNote": "Gerencie ou cancele a assinatura nos ajustes da Apple.",
       "error": {
         "unavailable": "As compras na App Store estão indisponíveis. Tente de novo.",

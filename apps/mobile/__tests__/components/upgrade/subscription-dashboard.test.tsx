@@ -12,6 +12,8 @@ import { ProviderHandoff } from '@/components/upgrade/provider-handoff'
 import type { UpgradeTextFn } from '@/components/upgrade/types'
 import type { StoreOffer } from '@/hooks/use-play-billing'
 
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+
 vi.mock('react-native', async (importOriginal) => {
   const native = await importOriginal<typeof import('react-native')>()
   return { ...native, Linking: { openURL: vi.fn() }, AccessibilityInfo: { ...native.AccessibilityInfo, sendAccessibilityEvent: vi.fn() } }

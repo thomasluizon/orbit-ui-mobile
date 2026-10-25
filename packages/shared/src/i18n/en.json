@@ -2770,7 +2770,7 @@
     },
     "dataCollected": {
       "title": "Data We Store",
-      "account": "Account information: name and email address (via email signup Google OAuth, or Sign in with Apple)",
+      "account": "Account information: name and email address (via email signup, Google OAuth, or Sign in with Apple)",
       "habits": "Habit data: habits you create, completion logs, schedules, tags, and goals",
       "chat": "AI chat messages: conversations with the Orbit AI assistant",
       "preferences": "Preferences: language, timezone, color scheme, and notification settings",
@@ -3208,7 +3208,7 @@
       "manage": "Manage subscription",
       "manageHint": "Your subscription is billed through the App Store. Manage your plan in Apple settings.",
       "manageOnIphone": "To change or cancel this App Store subscription, manage it on your iPhone.",
-      "autoRenewal": "Your subscription renews automatically unless you cancel at least 24 hours before the current period ends. Payment is charged to your Apple Account.",
+      "autoRenewal": "Your subscription renews automatically until you cancel. Payment is charged to your Apple Account.",
       "paymentNote": "Manage or cancel your subscription in Apple settings.",
       "error": {
         "unavailable": "App Store purchases are unavailable. Please try again.",
