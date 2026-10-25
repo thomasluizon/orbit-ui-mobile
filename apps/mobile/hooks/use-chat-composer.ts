@@ -23,7 +23,13 @@ import {
   AI_MESSAGE_COUNTER_THRESHOLD,
   CHAT_TEXT_FILE_PICKER_MIME_TYPES,
   sendChatStreamTurn,
+  ChatReplyLifecycle,
+  enqueueChatPrompt,
+  sendChatPrompt,
+  sendQueuedChatPrompt,
+  nextQueuedChatPrompt,
   needsNewChatTurn,
+  getChatTurnFailure,
   ChatTurnReconciliation,
   type PreparedChatTurn,
   getChatImageValidationError,
@@ -35,7 +41,7 @@ import {
   toComposerSuggestions,
   type ComposerProps,
 } from "@orbit/shared/contracts/composer";
-import { goalKeys, habitKeys, profileKeys, tagKeys } from "@orbit/shared/query";
+import { habitKeys, profileKeys } from "@orbit/shared/query";
 import type {
   AgentExecuteOperationResponse,
   ChatMessage,
@@ -46,10 +52,9 @@ import {
   CHAT_DRAFT_STORAGE_KEY,
   createChatThreadScroll,
   classifySendFailure,
-  sendInConversation,
   invalidateAgentQueries,
   reconcileAgentQueries,
-  selectActionInvalidations,
+  settleChatResponse,
 } from "@orbit/shared/hooks";
 import {
   buildRecentChatHistory,
@@ -497,58 +502,38 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   );
 
   const applyFinalResponse = useCallback(
-    async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[], firstReveal: Promise<void>, messageCost: 0 | 1, isCancelled: () => boolean) => {
-      if (draftMessageId && response.parts?.some(part => part?.type === 'block')) {
-        const accountGeneration = getAccountGeneration();
-        await firstReveal;
-        if (getAccountGeneration() !== accountGeneration || isCancelled()) return;
-        threadScroll.holdPosition();
+    async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[], firstReveal: Promise<void>, messageCost: 0 | 1, reply: ChatReplyLifecycle) => {
+      if (!reply.isHidden() && draftMessageId && response.parts?.some(part => part?.type === 'block')) {
+        await reply.waitForReveal(firstReveal);
+        if (!reply.isHidden()) threadScroll.holdPosition();
       }
-      setIsTyping(false);
-      activeStepsRef.current = [];
-      setActiveSteps([]);
+      if (!reply.isHidden()) {
+        setIsTyping(false);
+        activeStepsRef.current = [];
+        setActiveSteps([]);
 
-      const finalFields = buildChatFinalMessageFields(response, toolSteps);
-      if (draftMessageId) {
-        updateMessage(draftMessageId, finalFields);
-      } else {
-        const aiMessage: ChatMessage = {
-          id: createChatMessageId(),
-          role: "ai",
-          timestamp: new Date(),
-          ...finalFields,
-        };
-        addMessage(aiMessage);
-      }
-      if (useChatStore.getState().streamingMessageId === draftMessageId) {
-        setStreamingMessageId(null);
-      }
+        const finalFields = buildChatFinalMessageFields(response, toolSteps);
+        if (draftMessageId) {
+          updateMessage(draftMessageId, finalFields);
+        } else {
+          const aiMessage: ChatMessage = {
+            id: createChatMessageId(),
+            role: "ai",
+            timestamp: new Date(),
+            ...finalFields,
+          };
+          addMessage(aiMessage);
+        }
+        if (useChatStore.getState().streamingMessageId === draftMessageId) {
+          setStreamingMessageId(null);
+        }
 
-      scrollToBottom();
-
-      if (messageCost && response.messageAllowanceConsumed !== false) queryClient.setQueryData<Profile>(profileKeys.detail(), current =>
-        current ? { ...current, aiMessagesUsed: current.aiMessagesUsed + messageCost } : current,
-      );
-
-      const invalidations = selectActionInvalidations(response.actions);
-      if (invalidations.habits || invalidations.tags) {
-        void queryClient.invalidateQueries({ queryKey: habitKeys.searches() });
+        scrollToBottom();
       }
-      if (invalidations.habits) {
-        void queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
-        void queryClient.invalidateQueries({ queryKey: profileKeys.all });
-      }
-      if (invalidations.goals) {
-        void queryClient.invalidateQueries({ queryKey: goalKeys.lists() });
-      }
-      if (invalidations.tags) {
-        void queryClient.invalidateQueries({ queryKey: tagKeys.lists() });
-      }
-
-      useChatStore.getState().finishReply(true)
-
-      if (response.operations?.some((operation) => operation.status === "Succeeded")) {
-        await invalidateAgentQueries(queryClient);
+      if (!reply.isCancelled()) {
+        const settlement = settleChatResponse(queryClient, response, messageCost)
+        reply.finish(true)
+        await settlement
       }
     },
     [
@@ -592,27 +577,11 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     [i18n.language, profile?.uses24HourClock],
   );
 
-  const finishStreamingSend = useCallback((accountGeneration: number, draftMessageId: string | null, finalReceived: boolean) => {
-    if (getAccountGeneration() !== accountGeneration) return
-    if (!finalReceived) {
-      setIsTyping(false)
-      activeStepsRef.current = []
-      setActiveSteps([])
-    }
-    if (useChatStore.getState().streamingMessageId === draftMessageId) setStreamingMessageId(null)
-  }, [setIsTyping, setStreamingMessageId])
-
   const runStreamingSend = useCallback(
     async (attempted: ChatStreamRequest<ImagePicker.ImagePickerAsset> & { turn?: PreparedChatTurn<FormData> }, onAccepted?: () => void): Promise<ChatStreamResult> => {
       const startingAccountGeneration = getAccountGeneration();
-      const startingReplyRevision = useChatStore.getState().replyRevision
       const ownsAccount = () => getAccountGeneration() === startingAccountGeneration;
       let controller = new AbortController();
-      const cancellation = { stopped: false }
-      const isCancelled = () => !ownsAccount() || cancellation.stopped
-      const stop = () => { cancellation.stopped = true; controller.abort() }
-      stopReply.current = stop
-
       let idleTimer: ReturnType<typeof setTimeout> | undefined;
       const armIdleTimer = () => {
         clearTimeout(idleTimer);
@@ -622,6 +591,13 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       let draftMessageId: string | null = null;
       let finalReceived = false;
       const firstReveal = { completion: Promise.resolve() };
+      const reply = new ChatReplyLifecycle({
+        getChat: useChatStore.getState, ownsAccount, getDraftMessageId: () => draftMessageId,
+        createMessageId: createChatMessageId, stoppedMessage: t('shell.composer.queue.stopped'),
+        clearActivity: () => { activeStepsRef.current = []; setActiveSteps([]) }, abort: () => controller.abort(),
+      })
+      const { isCancelled, isHidden, stop } = reply
+      stopReply.current = stop
       const ensureDraftMessage = () => {
         if (draftMessageId) return draftMessageId;
         draftMessageId = createChatMessageId();
@@ -638,19 +614,9 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         return draftMessageId;
       };
 
-      const settleQueue = () => {
-        if (!ownsAccount() || useChatStore.getState().replyRevision !== startingReplyRevision) return
-        if (cancellation.stopped) {
-          if (draftMessageId) useChatStore.getState().transitionMessage(draftMessageId, message => ({ ...message, content: message.content || t('shell.composer.queue.stopped') }))
-          else addMessage({ id: createChatMessageId(), role: 'ai', content: t('shell.composer.queue.stopped'), timestamp: new Date() })
-        }
-        if (stopReply.current === stop) stopReply.current = null
-        useChatStore.getState().finishReply(finalReceived && !cancellation.stopped)
-      }
-
       try {
         if (turnReconciliation.isPending) await turnReconciliation.reconcile(() => reconcileAgentQueries(queryClient));
-        if (isCancelled()) return { kind: 'cancelled' };
+        if (isHidden()) return { kind: 'cancelled' };
         attempted.turn ??= { key: randomUUID(), payload: buildChatFormData(attempted) };
         const outcome = await sendChatStreamTurn({
           turn: attempted.turn,
@@ -668,40 +634,36 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
           },
           callbacks: {
             onDelta: (text) => {
-              if (isCancelled()) return;
+              if (isHidden()) return;
               appendToMessageContent(ensureDraftMessage(), text);
               scrollToBottom();
             },
             onReset: () => {
-              if (isCancelled()) return;
+              if (isHidden()) return;
               if (draftMessageId) updateMessage(draftMessageId, { content: "" });
               setIsTyping(true);
             },
             onStep: (step) => {
-              if (isCancelled()) return;
+              if (isHidden()) return;
               activeStepsRef.current = [...activeStepsRef.current, step];
               setActiveSteps(activeStepsRef.current);
             },
           },
         });
 
-        if (isCancelled() || outcome.kind === 'cancelled') return { kind: 'cancelled' };
+        if (outcome.kind === 'cancelled') return outcome;
         if (needsNewChatTurn(outcome)) attempted.turn = undefined;
         await turnReconciliation.reconcileAfterTurn(outcome, () => reconcileAgentQueries(queryClient));
-        if (isCancelled()) return { kind: 'cancelled' };
-        if (outcome.kind === 'transportError') throw outcome.error;
+        if (isHidden() && outcome.kind !== 'final') return { kind: 'cancelled' }
 
         if (outcome.kind === "final") {
-          await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal.completion, attempted.messageCost, isCancelled);
-          finalReceived = !isCancelled();
+          await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal.completion, attempted.messageCost, reply);
+          finalReceived = reply.canComplete();
           return finalReceived ? { kind: 'final' } : { kind: 'cancelled' };
         }
-        if (outcome.kind === "error" || outcome.kind === "httpError") {
-          return { kind: 'failed', failure: { status: outcome.status, error: outcome.error, code: outcome.code }, draftMessageId };
-        }
-        return { kind: 'failed', failure: { status: null, error: t("chat.sendError"), code: null }, draftMessageId };
+        return { kind: 'failed', failure: getChatTurnFailure(outcome, t('chat.sendError')), draftMessageId }
       } catch (err: unknown) {
-        if (isCancelled()) return { kind: 'cancelled' };
+        if (isHidden()) return { kind: 'cancelled' };
         return { kind: 'failed', failure: {
             status: isAbortError(err) ? 408 : null,
             error: getFriendlyErrorMessage(err, t, "chat.sendError", "generic"),
@@ -709,8 +671,8 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
           }, draftMessageId };
       } finally {
         clearTimeout(idleTimer);
-        settleQueue()
-        finishStreamingSend(startingAccountGeneration, draftMessageId, finalReceived);
+        if (stopReply.current === stop) stopReply.current = null
+        reply.finish(finalReceived);
       }
     },
     [
@@ -718,7 +680,6 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       appendToMessageContent,
       applyFinalResponse,
       buildChatFormData,
-      finishStreamingSend,
       turnReconciliation,
       queryClient,
       scrollToBottom,
@@ -741,34 +702,11 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     scrollToBottom();
   }, [scrollToBottom, setIsTyping, threadScroll, setActiveSteps, setSendError, setLastFailedSend]);
 
-  const performSend = useCallback(
-    async (attempted: AttemptedSend, isRetry: boolean) => sendInConversation(useUIStore.getState(), async () => {
-      beginSend();
-
-      if (!isRetry) {
-        const userMessage: ChatMessage = {
-          id: createChatMessageId(),
-          role: "user",
-          content: attempted.content,
-          imageUrl: attempted.preview,
-          timestamp: new Date(),
-        };
-        addMessage(userMessage);
-      }
-
-      const startingAccountGeneration = getAccountGeneration();
-      const request = { ...attempted, messageCost: 1 as const };
-      const result = await runStreamingSend(request);
-      attempted.turn = request.turn;
-      const succeeded = result.kind === 'final';
-      if (result.kind === 'failed') handleFailedSend(result.failure, attempted, result.draftMessageId);
-      if (succeeded && getAccountGeneration() === startingAccountGeneration && attempted.contextualRequest && useChatStore.getState().contextualSuggestion === attempted.contextualRequest) {
-        useChatStore.getState().setContextualSuggestion(null);
-      }
-      return succeeded;
-    }),
-    [addMessage, beginSend, handleFailedSend, runStreamingSend],
-  );
+  const performSend = useCallback((attempted: AttemptedSend, isRetry: boolean) => sendChatPrompt(attempted, isRetry, {
+    conversation: useUIStore.getState(), getChat: useChatStore.getState, getAccountGeneration,
+    createMessageId: createChatMessageId, beginSend, run: runStreamingSend,
+    onFailure: handleFailedSend, retainRetry: setLastFailedSend,
+  }), [beginSend, handleFailedSend, runStreamingSend, setLastFailedSend])
 
   const sendBlockAnswer = useCallback((request: BlockAnswerRequest): Promise<BlockAnswerResult> =>
     blockSubmission.send(request, {
@@ -782,10 +720,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   const blockAnswerInteraction = { isOnline, isSending, atMessageLimit, dailyBudgetReached, allowance: aiMessagesLimit, send: sendBlockAnswer }
 
   const queueAttempt = useCallback((attempted: AttemptedSend, sendsComposerDraft: boolean) => {
-    const accepted = useChatStore.getState().enqueuePrompt({
-      id: createChatMessageId(), content: attempted.draftContent || attempted.textFile?.name || attempted.content,
-      send: () => performSend({ ...attempted, restoreDraftOnFailure: false, clearDraftOnSuccess: false }, false),
-    })
+    const accepted = enqueueChatPrompt(useChatStore.getState(), createChatMessageId(), attempted, performSend)
     if (!accepted) { setSendError(t('shell.composer.queue.full')); return }
     setSendError(null)
     if (sendsComposerDraft) {
@@ -869,17 +804,13 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     ],
   );
 
-  const sendQueuedPrompt = useCallback(async (id: string) => {
-    if (!isOnline || atMessageLimit) return
-    const cachedProfile = queryClient.getQueryData<Profile>(profileKeys.detail())
-    if (cachedProfile && cachedProfile.aiMessagesUsed >= cachedProfile.aiMessagesLimit) return
-    const prompt = useChatStore.getState().takeQueuedPrompt(id)
-    if (prompt) await prompt.send()
-  }, [atMessageLimit, isOnline, queryClient])
+  const sendQueuedPrompt = useCallback((id: string) => sendQueuedChatPrompt(
+    useChatStore.getState(), id, isOnline && !atMessageLimit, queryClient.getQueryData<Profile>(profileKeys.detail()),
+  ), [atMessageLimit, isOnline, queryClient])
 
   useEffect(() => {
-    if (!queueReady || queuePaused || isSending || queuedPrompts.length === 0) return
-    void sendQueuedPrompt(queuedPrompts[0]!.id)
+    const nextId = nextQueuedChatPrompt(useChatStore.getState())
+    if (nextId) void sendQueuedPrompt(nextId)
   }, [isSending, queuePaused, queueReady, queuedPrompts, sendQueuedPrompt])
 
   const retryLastSend = useCallback(async () => {

@@ -94,3 +94,9 @@ export class ChatTurnReconciliation {
     if (this.pendingRevision === pendingRevision) this.pendingRevision = null
   }
 }
+
+export function getChatTurnFailure(outcome: ChatTurnOutcome, fallbackError: string): { status: number | null; error: string; code: string | null } {
+  if (outcome.kind === 'transportError') throw outcome.error
+  if (outcome.kind === 'error' || outcome.kind === 'httpError') return { status: outcome.status, error: outcome.error, code: outcome.code }
+  return { status: null, error: fallbackError, code: null }
+}
