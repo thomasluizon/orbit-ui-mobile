@@ -239,6 +239,34 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Require healthy staging commit
+        if: inputs.environment == 'production'
+        env:
+          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
+          FORCE_UNSTAGED: ${{ inputs.force_unstaged }}
+          STAGING_SERVICE_ID: ${{ vars.RENDER_WEB_STAGING_SERVICE_ID }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          set -euo pipefail
+          source "$GITHUB_WORKSPACE/.github/scripts/render-api.sh"
+          {
+            echo '## Production staging admission'
+            echo "Selected SHA: $SOURCE_SHA"
+            echo "force_unstaged: $FORCE_UNSTAGED"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$FORCE_UNSTAGED" = true ]; then
+            echo "::notice::Operator override force_unstaged permits production release of $SOURCE_SHA without staging admission"
+            exit 0
+          fi
+          if [ -z "$STAGING_SERVICE_ID" ]; then echo "::error::Missing RENDER_WEB_STAGING_SERVICE_ID"; exit 1; fi
+          if [ -z "$RENDER_API_KEY" ]; then echo "::error::Missing production RENDER_API_KEY"; exit 1; fi
+          origin=$(render_get "https://api.render.com/v1/services/${STAGING_SERVICE_ID}" | jq -er '.serviceDetails.url')
+          health=$(curl --fail-with-body --silent --show-error --max-time 30 "${origin%/}/api/health")
+          if ! jq -e --arg sha "$SOURCE_SHA" '.status == "ok" and .commit == $sha' <<< "$health" >/dev/null; then
+            echo "::error::Staging must serve $SOURCE_SHA with status ok before production release; force_unstaged is the explicit override"
+            exit 1
+          fi
+          echo "Staging served $SOURCE_SHA with status ok" >> "$GITHUB_STEP_SUMMARY"
       - name: Deploy web digest
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
