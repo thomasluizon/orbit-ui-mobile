@@ -1,6 +1,7 @@
 'use client'
 
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
+import { getQueryGcTime } from '@/lib/query-client'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { calendarKeys, shouldRetryQuery, isUpstreamStarting } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
@@ -70,7 +71,7 @@ export function useCalendarEvents(options: CalendarEventsQueryOptions) {
       return (extractBackendStatus(error) === 429 || isUpstreamStarting(error)) && shouldRetryQuery(failureCount, error)
     },
     staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
+    gcTime: getQueryGcTime(5 * 60 * 1000),
     refetchOnWindowFocus: false,
   })
 }

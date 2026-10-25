@@ -16,6 +16,7 @@ import type {
 } from '@orbit/shared/types/calendar'
 import { z } from 'zod'
 import { fetchJson } from '@/lib/api-fetch'
+import { getQueryGcTime } from '@/lib/query-client'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { getHeldAccountId } from '@/stores/auth-store'
@@ -44,7 +45,7 @@ export function useCalendarAutoSyncState(options?: CalendarAutoSyncQueryOptions)
     initialData: options?.initialData,
     initialDataUpdatedAt: options?.initialData ? 0 : undefined,
     staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
+    gcTime: getQueryGcTime(5 * 60 * 1000),
     refetchOnWindowFocus: true,
   })
 }
@@ -89,7 +90,7 @@ export function useCalendarSyncSuggestions(options?: CalendarQueryOptions) {
     },
     enabled: options?.enabled ?? true,
     staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
+    gcTime: getQueryGcTime(5 * 60 * 1000),
     refetchOnWindowFocus: true,
   })
 }

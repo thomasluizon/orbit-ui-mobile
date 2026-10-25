@@ -12,12 +12,17 @@ focusManager.setEventListener((handleFocus) => {
   }
 })
 
+export function getQueryGcTime(browserGcTime: number): number {
+  // WHY: Finite query timers retain server render caches and their request context. https://github.com/thomasluizon/orbit-tickets/issues/1735
+  return typeof document === 'undefined' ? Infinity : browserGcTime
+}
+
 export function createQueryClient(): QueryClient {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
         staleTime: 5 * 60 * 1000,
-        gcTime: 24 * 60 * 60 * 1000,
+        gcTime: getQueryGcTime(24 * 60 * 60 * 1000),
         retry: (failureCount, error) => {
           if (typeof navigator !== 'undefined' && !navigator.onLine) return false
           return shouldRetryQuery(failureCount, error)

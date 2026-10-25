@@ -10,6 +10,7 @@ import {
   setSelectedCalendars as setSelectedCalendarsAction,
 } from '@/lib/actions/calendar'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+import { getQueryGcTime } from '@/lib/query-client'
 
 interface CalendarsQueryOptions {
   enabled?: boolean
@@ -38,7 +39,7 @@ export function useCalendars(options?: CalendarsQueryOptions) {
     },
     enabled: options?.enabled ?? true,
     staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
+    gcTime: getQueryGcTime(5 * 60 * 1000),
     refetchOnWindowFocus: true,
   })
 }
