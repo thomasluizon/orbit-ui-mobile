@@ -2,6 +2,7 @@ import type { IncomingMessage } from 'node:http'
 import { z, type ZodType } from 'zod'
 
 const fixtureSchema = z.object({
+  method: z.enum(['GET', 'POST']).optional(),
   path: z.string(),
   delayMs: z.number().int().min(0).max(30_000).optional(),
   body: z.unknown(),
@@ -25,22 +26,22 @@ export function createSessionFixtureStore(routes: readonly { method: string; pat
     seed(session: string, input: unknown) {
       const { fixtures } = seedSchema.parse(input)
       for (const fixture of fixtures) {
-        const route = routes.find((entry) => entry.method === 'GET' && entry.path === fixture.path)
+        const route = routes.find((entry) => entry.method === (fixture.method ?? 'GET') && entry.path === fixture.path)
         if (!route) throw new Error('Unknown session fixture endpoint')
         fixture.body = route.schema.parse(fixture.body)
         if (fixture.afterMutation) fixture.afterMutation.body = route.schema.parse(fixture.afterMutation.body)
       }
       const previous = sessions.get(session) ?? []
       for (const fixture of fixtures) {
-        const key = (entry: SessionFixture) => JSON.stringify([entry.path, Object.entries(entry.query ?? {}).sort(([left], [right]) => left.localeCompare(right))])
+        const key = (entry: SessionFixture) => JSON.stringify([entry.method ?? 'GET', entry.path, Object.entries(entry.query ?? {}).sort(([left], [right]) => left.localeCompare(right))])
         const index = previous.findIndex((entry) => key(entry) === key(fixture))
         if (index === -1) previous.push(fixture)
         else previous[index] = fixture
       }
       sessions.set(session, previous)
     },
-    read(session: string, url: URL): SessionFixture | undefined {
-      return [...(sessions.get(session) ?? [])].reverse().find((entry) => entry.path === url.pathname &&
+    read(session: string, method: string, url: URL): SessionFixture | undefined {
+      return [...(sessions.get(session) ?? [])].reverse().find((entry) => (entry.method ?? 'GET') === method && entry.path === url.pathname &&
         Object.entries(entry.query ?? {}).every(([key, value]) => url.searchParams.get(key) === value))
     },
     mutate(session: string, method: string, path: string) {
