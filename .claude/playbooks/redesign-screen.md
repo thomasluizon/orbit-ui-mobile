@@ -22,7 +22,7 @@ conversation. These authorities, Pullfrog and every gate remain required.
 
 Screens may merge on the same terms as groundwork: green checks, approval at the current head and
 zero unresolved review threads, through the authorized merge workflow. Worker merge prohibitions
-still apply. The owner reviews the whole redesign at the end: web and an APK from `redesign/main`.
+still apply. The owner reviews the whole redesign at the end: web and an APK.
 D76 and D88 are suspended, not deleted; they return when the redesign ships.
 
 Decision record: brain ADR `Run the rest of the redesign unattended and review it once as a whole`.
