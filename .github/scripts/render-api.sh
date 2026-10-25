@@ -1,15 +1,21 @@
 # Render reads are idempotent; deploy writes require reconciliation before another attempt.
 render_get() (
   set -euo pipefail
-  local response http_code attempt
+  local response http_code attempt exit_code
   response=$(mktemp)
   trap 'rm -f "$response"' EXIT
   for attempt in 1 2 3; do
     # --fail with --retry-all-errors would also retry permanent 4xx responses.
     # Check HTTP errors separately to preserve --fail semantics without those retries.
-    http_code=$(curl --silent --show-error --retry 3 --retry-all-errors --retry-delay 2 \
+    if http_code=$(curl --silent --show-error --retry 3 --retry-all-errors --retry-delay 2 \
       --retry-max-time 90 --connect-timeout 10 --max-time 30 \
-      -o "$response" -w '%{http_code}' "$1" -H "Authorization: Bearer ${RENDER_API_KEY}") || return "$?"
+      -o "$response" -w '%{http_code}' "$1" -H "Authorization: Bearer ${RENDER_API_KEY}"); then
+      exit_code=0
+    else
+      exit_code=$?
+      if [ "$attempt" != 3 ]; then sleep 2; continue; fi
+      return "$exit_code"
+    fi
     case "$http_code" in
       2??) cat "$response"; return 0 ;;
       5??) if [ "$attempt" != 3 ]; then sleep 2; continue; fi ;;
@@ -44,7 +50,9 @@ render_deploy() (
     sleep 2
     recent_deploys=$(render_get "https://api.render.com/v1/services/${SERVICE_ID}/deploys?limit=100") || return "$?"
     deploy_id=$(jq -er --arg image "$image_url" '
-      if type != "array" then error("Expected a deploy list") else
+      if type != "array" or any(.[]; (.deploy | type) != "object" or
+        (.deploy.id | type) != "string" or (.deploy.image.ref | type) != "string")
+      then error("Expected an image deploy list") else
         [.[] | .deploy | select(.image.ref == $image) | .id | select(type == "string" and length > 0)] | first // ""
       end' <<< "$recent_deploys") || return "$?"
     if [ -n "$deploy_id" ]; then printf '%s\n' "$deploy_id"; return 0; fi

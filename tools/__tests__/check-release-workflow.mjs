@@ -128,7 +128,7 @@ function checkProductionSteps() {
     const requests = readFileSync(calls, "utf8").trim().split("\n")
     T(`production rejects ${label} shutdown readback before deploying`, result.status !== 0 &&
       result.stderr.includes("render_web_service.production_web") && result.stderr.includes("orbit-api") &&
-      result.stderr.includes("infra/production.tf") && requests.length === 1 && !requests[0].includes("-X POST"), result.stdout + result.stderr)
+      result.stderr.includes("infra/production.tf") && requests.length === (failure ? 3 : 1) && !requests[0].includes("-X POST"), result.stdout + result.stderr)
   }
   stage("release-workflow/calls", "")
   const staging = run("Deploy staging web digest", deployStub, { DEPLOY_STATUS: "live" })
@@ -194,10 +194,14 @@ function checkRenderRetries() {
           lost-wrong) body=$(jq '.[0].deploy.image.ref="other"' "$DEPLOYS") ;;
           lost-list-fails) return 22 ;;
           lost-malformed) body='{}' ;;
+          lost-invalid-entry) body='[{}]' ;;
+          lost-response) body=$(jq '[.[0] | .deploy.id="other" | .deploy.image.ref="other"] + .' "$DEPLOYS") ;;
           *) body=$(cat "$DEPLOYS") ;;
         esac
       elif [[ "$endpoint" == */deploys/* ]]; then
-        if [[ "$SCENARIO" == poll-transient ]] && ! $retries; then return 56; fi
+        if [[ "$SCENARIO" == poll-transient && ! -f "$POLL_COUNTER" ]]; then
+          printf 1 > "$POLL_COUNTER"; $write_code && printf 000; return 56
+        fi
         if [[ "$SCENARIO" == poll-4xx ]]; then code=404; fi
         body=$(jq '.[0].deploy' "$DEPLOYS")
       else
@@ -213,25 +217,28 @@ function checkRenderRetries() {
   for (const step of ["Deploy web digest", "Deploy staging web digest"]) {
     for (const [scenario, accepted, posts] of [
       ["poll-transient", true, 1], ["lost-response", true, 1], ["lost-empty", true, 2],
-      ["lost-wrong", true, 2], ["lost-list-fails", false, 1], ["lost-malformed", false, 1],
+      ["lost-wrong", true, 2], ["lost-list-fails", false, 1], ["lost-malformed", false, 1], ["lost-invalid-entry", false, 1],
       ["post-4xx", false, 1], ["poll-4xx", false, 1], ["queued", false, 1],
       ["wrong-image", false, 1], ["exhausted", false, 3],
     ]) {
       writeFileSync(calls, "")
       const counter = stage("render-retries/count", "0")
+      const pollCounter = join(directory, `${step}-${scenario}-poll`)
       const result = spawnSync(BASH, ["-c", `${stub}\n${stepScript(step)}`], {
         encoding: "utf8", cwd: root, timeout: 5000, env: {
           ...process.env, GITHUB_WORKSPACE: toolPath(".."), SERVICE_ID: "srv-production", SERVICE_VARIABLE: "RENDER_WEB_SERVICE_ID",
           RENDER_API_KEY: "fixture", IMAGE: "ghcr.io/example/web", DIGEST: "sha256:fixture", SCENARIO: scenario,
           SERVICE_RESPONSE: stage("render-retries/service", JSON.stringify(renderFixture.shutdownService)),
-          DEPLOYS: stage("render-retries/deploys", JSON.stringify(fixture.deploys)), COUNTER: counter, CALLS: calls,
+          DEPLOYS: stage("render-retries/deploys", JSON.stringify(fixture.deploys)), COUNTER: counter, CALLS: calls, POLL_COUNTER: pollCounter,
         },
       })
       T(`${step} ${scenario} ${accepted ? "reaches live" : "fails"} with ${posts} POSTs`,
         (accepted ? result.status === 0 && result.stdout.includes("is live") : result.status !== 0) &&
         Number(readFileSync(counter, "utf8")) === posts, result.stdout + result.stderr)
       if (scenario === "poll-transient") {
-        const poll = readFileSync(calls, "utf8").split("\n").find(line => line.includes("/deploys/fixture-deploy")) ?? ""
+        const polls = readFileSync(calls, "utf8").split("\n").filter(line => line.includes("/deploys/fixture-deploy"))
+        const poll = polls[0] ?? ""
+        T(`${step} retries the failed first status poll`, polls.length === 2, polls.join("\n"))
         T(`${step} bounds curl read retries and timeouts`,
           poll.includes("--retry 3") && poll.includes("--retry-all-errors") && poll.includes("--retry-delay 2") && poll.includes("--max-time 30"), poll)
       }
