@@ -1521,7 +1521,7 @@ describe('restored type and editable date', () => {
   it('offers task and habit choices before title entry with details closed', async () => {
     useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
     let tree!: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields onUpgrade={vi.fn()} formHelpers={createFormHelpers({ itemType: 'task' })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />) })
+    await TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ itemType: 'task' })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />) })
     const radios = tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
     expect(radios.map((node: UnderstandingTestNode) => node.props.accessibilityLabel)).toContain('habits.form.typeTask')
     expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'DateField' && node.props.label === 'habits.form.taskDate')).toHaveLength(1)
@@ -2181,7 +2181,7 @@ describe('native automatic date field', () => {
   afterEach(async () => { await TestRenderer.act(() => tree?.unmount()); vi.useRealTimers(); formLocale.realDates = false; formLocale.language = 'en' })
   function OwningForm() {
     helpers = useHabitForm({ initialData: { itemType: 'task', title: 'Read', dueDate: '2026-10-20' } })
-    return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
+    return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
   }
   async function mount() { await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm />) }) }
   const input = () => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.datePhrase')[0]!
@@ -2201,13 +2201,13 @@ describe('native automatic date field', () => {
     expect(pending.props.accessibilityState.busy).toBe(true)
     expect(pending.findByType(AstraGlyph).props).toMatchObject({ size: 16, color: createTokensV2('orange', formLocale.theme).fg3 })
     const control = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'input-control' && node.findAll(child => child === pending).length > 0)[0]!
-    expect(control.findAll(child => child === input())).toHaveLength(1)
+    expect(control.findAll((child: UnderstandingTestNode) => child === input())).toHaveLength(1)
     expect(StyleSheet.flatten(input().props.style).paddingRight).toBe(48)
     await TestRenderer.act(() => finish({ date: '2026-10-26', referenceDate: '2026-10-20' }))
     expect(status('habits.form.dateInterpreted')).toHaveLength(1)
     expect(picker().props.accessibilityLabel).toContain(formatLocaleDate('2026-10-26', locale))
     await TestRenderer.act(() => { expect(helpers.validateAll()).toBeNull() })
-    const values = helpers.form.getValues()
+    const values = habitFormSchema.parse(helpers.form.getValues())
     expect(buildCreateHabitRequest(values, [], [], [], [])).toMatchObject({ dueDate: '2026-10-26' })
     expect(buildUpdateHabitRequest(values, true, '', [], [])).toMatchObject({ dueDate: '2026-10-26' })
     await TestRenderer.act(() => picker().props.onPress())

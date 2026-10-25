@@ -3,6 +3,7 @@ import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { habitFormSchema } from '@orbit/shared/validation'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import { buildCreateHabitRequest, buildUpdateHabitRequest, formatLocaleDate } from '@orbit/shared/utils'
 import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
@@ -44,7 +45,7 @@ describe('automatic date field', () => {
     expect(calendar()).toHaveTextContent(formatLocaleDate('2026-10-26', locale))
     expect(screen.getByRole('status', { name: 'habits.form.dateInterpreted' })).toBeVisible()
     expect(helpers.validateAll()).toBeNull()
-    const values = helpers.form.getValues()
+    const values = habitFormSchema.parse(helpers.form.getValues())
     expect(buildCreateHabitRequest(values, [], [], [], [])).toMatchObject({ dueDate: '2026-10-26' })
     expect(buildUpdateHabitRequest(values, true, '', [], [])).toMatchObject({ dueDate: '2026-10-26' })
     expect(screen.queryByRole('button', { name: 'habits.form.suggestDate' })).toBeNull()

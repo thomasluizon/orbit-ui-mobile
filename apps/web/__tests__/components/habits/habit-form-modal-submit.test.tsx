@@ -28,14 +28,13 @@ const repeatPhraseCases = [
 describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (owner) => {
   const { phraseInput, mutation, mount, submit } = setupHabitModalSubmit(owner)
 
-  it.each(['en', 'pt-BR'])('saves the entered cadence with an accepted Astra start in %s', async (locale) => {
+  it.each(['en', 'pt-BR'])('saves the entered cadence with an automatically filled Astra start in %s', async (locale) => {
     formLocale.realController = true
     formLocale.language = locale
     await mount('habit')
     fireEvent.change(phraseInput(), { target: { value: 'every Monday from after vacation' } })
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestDate' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'habits.form.acceptDate' }))
-    expect(phraseInput()).toHaveValue('')
+    await screen.findByRole('status', { name: 'habits.form.dateInterpreted' })
+    expect(phraseInput()).toHaveValue('every Monday from after vacation')
     await submit()
     await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
     const request = expect.objectContaining({ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], startDate: '2026-10-26' })

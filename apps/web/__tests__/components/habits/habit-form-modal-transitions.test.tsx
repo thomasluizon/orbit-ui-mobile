@@ -127,7 +127,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     ['en', 'habit', 'manual', owner === 'create' ? 'Enter' : 'form'],
     ['pt-BR', 'task', 'manual', 'click'],
     ['pt-BR', 'habit', 'automatic', owner === 'create' ? 'Enter' : 'form'],
-  ] as const)('keeps %s %s automatic date filling through %s recovery after %s', async (locale, type, recovery) => {
+  ] as const)('keeps %s %s automatic date filling through %s recovery after %s', async (locale, type, recovery, method) => {
     formLocale.language = locale
     await mount(type)
     fireEvent.change(phraseInput(), { target: { value: 'after vacation' } })
@@ -137,8 +137,10 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     if (recovery === 'manual') {
       fireEvent.click(picker())
       fireEvent.click(document.querySelector<HTMLButtonElement>(`button[data-day="${date}"]`)!)
+      await waitFor(() => expect(screen.queryByRole('grid')).toBeNull())
+      await waitFor(() => expect(picker()).toHaveTextContent(formatLocaleDate(date, locale)))
     }
-    await submit()
+    await submit(method)
     await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
     const request = expect.objectContaining({ title: 'Read', [type === 'task' ? 'dueDate' : 'startDate']: date })
     expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
