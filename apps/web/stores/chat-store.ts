@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { createChatStoreState, type ChatStoreState } from '@orbit/shared/stores'
-import { forgetDesktopChatCheckpoint } from '@/lib/desktop-chat-checkpoint'
+import { forgetDesktopChatCheckpoint } from '@/lib/web-reload-state'
 
 interface WebChatStoreState extends ChatStoreState {
   resetAccountScopedChat: () => void

@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import { renderToString } from 'react-dom/server'
@@ -69,7 +69,7 @@ it('hydrates server children before showing an incompatible shell update without
   const root = hydrateRoot(container, application, { onRecoverableError })
   try {
     await act(async () => {})
-    expect(container).toHaveTextContent(en.desktopUpdate.required)
+    await waitFor(() => expect(container).toHaveTextContent(en.desktopUpdate.required))
     expect(onRecoverableError).not.toHaveBeenCalled()
   } finally {
     await act(async () => { root.unmount() })
@@ -85,7 +85,7 @@ it.each([{ messages: en, shell: shellEn }, { messages: ptBR, shell: shellPtBR }]
 )
 
 it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])(
-  'blocks an incompatible shell before mounting the application in $locale', ({ locale, messages }) => {
+  'blocks an incompatible shell before mounting the application in $locale', async ({ locale, messages }) => {
     vi.stubGlobal('__TAURI_INTERNALS__', {})
     vi.stubGlobal('__ORBIT_DESKTOP_VERSION__', '0.1.2')
     const mounted = vi.fn()
@@ -93,13 +93,13 @@ it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])(
     render(<NextIntlClientProvider locale={locale} messages={messages}>
       <DesktopReleaseBoundary minimum="0.2.0"><Application /></DesktopReleaseBoundary>
     </NextIntlClientProvider>)
-    expect(screen.getByRole('alert')).toHaveTextContent(messages.desktopUpdate.required)
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.desktopUpdate.required)
     expect(mounted).not.toHaveBeenCalled()
     expect(fetch).not.toHaveBeenCalled()
   },
 )
 
-it('keeps browser sessions outside the shell gate, and requires updates for undiscoverable legacy shells at a raised floor', () => {
+it('keeps browser sessions outside the shell gate, and requires updates for undiscoverable legacy shells at a raised floor', async () => {
   const { unmount } = render(<NextIntlClientProvider locale="en" messages={en}>
     <DesktopReleaseBoundary minimum="1.0.0"><p>Hoje</p></DesktopReleaseBoundary>
   </NextIntlClientProvider>)
@@ -110,7 +110,7 @@ it('keeps browser sessions outside the shell gate, and requires updates for undi
     <DesktopReleaseBoundary minimum="1.0.0"><p>Hoje</p></DesktopReleaseBoundary>
   </NextIntlClientProvider>)
   expect(screen.queryByText('Hoje')).toBeNull()
-  expect(screen.getByRole('alert')).toHaveTextContent(en.desktopUpdate.required)
+  expect(await screen.findByRole('alert')).toHaveTextContent(en.desktopUpdate.required)
 })
 
 it('restores structured Astra state and visibility through the real provider composition after reload', async () => {
@@ -123,7 +123,7 @@ it('restores structured Astra state and visibility through the real provider com
   render(<NextIntlClientProvider locale="en" messages={en}>
     <Providers><Conversation /></Providers>
   </NextIntlClientProvider>)
-  expect(screen.getByRole('region', { name: 'Astra' })).toBeVisible()
+  expect(await screen.findByRole('region', { name: 'Astra' })).toBeVisible()
   expect(screen.getByText('Your planned habits')).toBeVisible()
   expect(screen.getByRole('textbox', { name: 'Draft' })).toHaveValue('And tomorrow?')
   expect(useChatStore.getState().messages[0]).toEqual(message)

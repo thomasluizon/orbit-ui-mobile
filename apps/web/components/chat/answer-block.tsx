@@ -11,7 +11,7 @@ import { Proposed } from '@/components/ui/proposed'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/pill-button'
 import { Check, Lock, ArrowUp } from '@/components/ui/icons'
-import { blockDesktopWebReload } from '@/lib/desktop-web-release'
+import { blockDesktopWebReload } from '@/lib/web-reload-state'
 
 type AnswerContentProps = Readonly<{
   view: AnswerBlockView

@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import { chatMessageSchema } from '@orbit/shared/types/chat'
 import type { ChatStoreState } from '@orbit/shared/stores'
+import { desktopChatCheckpointKey, forgetDesktopChatCheckpoint } from './web-reload-state'
 
-const checkpointKey = 'orbit-desktop-web-reload'
 const checkpointSchema = z.object({
   accountId: z.string(),
   expiresAt: z.number(),
@@ -15,10 +15,6 @@ const checkpointSchema = z.object({
     contextualSuggestion: z.object({ id: z.string(), label: z.string(), prompt: z.string() }).nullable(),
   }),
 })
-
-export function forgetDesktopChatCheckpoint(): void {
-  globalThis.sessionStorage.removeItem(checkpointKey)
-}
 
 async function durableImageUrl(url: string | null | undefined) {
   if (!url?.startsWith('blob:')) return url
@@ -42,11 +38,11 @@ export async function writeDesktopChatCheckpoint(accountId: string, chat: ChatSt
     chat: { messages, draft: chat.draft, proactiveEntryId: chat.proactiveEntryId,
       proactiveOutcomes: chat.proactiveOutcomes, contextualSuggestion: chat.contextualSuggestion } }
   checkpointSchema.parse(checkpoint)
-  sessionStorage.setItem(checkpointKey, JSON.stringify(checkpoint))
+  sessionStorage.setItem(desktopChatCheckpointKey, JSON.stringify(checkpoint))
 }
 
 export function takeDesktopChatCheckpoint(accountId: string) {
-  const stored = sessionStorage.getItem(checkpointKey)
+  const stored = sessionStorage.getItem(desktopChatCheckpointKey)
   forgetDesktopChatCheckpoint()
   if (!stored) return null
   let parsed: unknown

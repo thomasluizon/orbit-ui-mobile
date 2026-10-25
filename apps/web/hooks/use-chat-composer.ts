@@ -72,7 +72,7 @@ import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 import { getAccountGeneration } from '@/lib/session-epoch'
-import { blockDesktopWebReload } from '@/lib/desktop-web-release'
+import { blockDesktopWebReload } from '@/lib/web-reload-state'
 
 
 interface AttemptedSend {

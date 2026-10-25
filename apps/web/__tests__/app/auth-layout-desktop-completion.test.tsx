@@ -1,4 +1,4 @@
-import { act, render, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AuthLayout from '@/app/(auth)/layout'
 import { useAuthStore, withCookieSettingLogin } from '@/stores/auth-store'
@@ -39,6 +39,7 @@ describe('native sign-in in the auth composition', () => {
 
   it('adopts the owning anonymous answers before authenticated hydration', async () => {
     render(<AuthLayout><div>Sign in</div></AuthLayout>)
+    await screen.findByText('Sign in')
     await act(async () => {
       nativeEvent('begin')
       respondWithAccount('desktop-account')
@@ -60,6 +61,7 @@ describe('native sign-in in the auth composition', () => {
   it.each(['reload', 'unowned ready', 'foreign draft'])('discards unrelated answers on %s', async (path) => {
     if (path === 'foreign draft') useOnboardingDraftStore.getState().setAccountScope('foreign-account', true)
     render(<AuthLayout><div>Sign in</div></AuthLayout>)
+    await screen.findByText('Sign in')
     await act(async () => {
       respondWithAccount('desktop-account')
       if (path === 'foreign draft') nativeEvent('begin')
@@ -75,6 +77,7 @@ describe('native sign-in in the auth composition', () => {
 
   it('accepts only the latest attempt and consumes its completion once', async () => {
     render(<AuthLayout><div>Sign in</div></AuthLayout>)
+    await screen.findByText('Sign in')
     const latest = 'b'.repeat(64)
     await act(async () => {
       nativeEvent('begin')
@@ -91,6 +94,7 @@ describe('native sign-in in the auth composition', () => {
 
   it('does not resurrect the anonymous attempt after email sign-in', async () => {
     render(<AuthLayout><div>Sign in</div></AuthLayout>)
+    await screen.findByText('Sign in')
     await act(async () => {
       nativeEvent('begin')
       useAuthStore.getState().setAuth({ userId: 'email-account', name: 'Person', email: 'person@example.com' })
@@ -105,6 +109,7 @@ describe('native sign-in in the auth composition', () => {
     let finishCommit: (committed: boolean) => void = () => {}
     invoke.mockImplementationOnce(() => new Promise<boolean>((resolve) => { finishCommit = resolve }))
     render(<AuthLayout><div>Sign in</div></AuthLayout>)
+    await screen.findByText('Sign in')
     await act(async () => { nativeEvent('begin'); nativeEvent('ready') })
     await waitFor(() => expect(invoke).toHaveBeenCalledOnce())
     const email = vi.fn(async () => {
@@ -129,6 +134,7 @@ describe('native sign-in in the auth composition', () => {
     else vi.mocked(fetch).mockResolvedValueOnce(failure === 'session failure'
       ? new Response(null, { status: 503 }) : Response.json({ userId: null, expiresAt: null, refreshFailed: false }))
     render(<AuthLayout><div>Sign in</div></AuthLayout>)
+    await screen.findByText('Sign in')
     await act(async () => { nativeEvent('begin'); nativeEvent('ready') })
     expect(replace).toHaveBeenCalledWith('/auth-callback?error=desktop_sign_in_failed')
     expect(useOnboardingDraftStore.getState().accountKey).toBeNull()
@@ -139,6 +145,7 @@ describe('native sign-in in the auth composition', () => {
   it('ignores native events outside the desktop shell', async () => {
     vi.stubGlobal('__TAURI_INTERNALS__', undefined)
     render(<AuthLayout><div>Sign in</div></AuthLayout>)
+    await screen.findByText('Sign in')
     await act(async () => { nativeEvent('begin'); nativeEvent('ready') })
     expect(invoke).not.toHaveBeenCalled()
     expect(replace).not.toHaveBeenCalled()

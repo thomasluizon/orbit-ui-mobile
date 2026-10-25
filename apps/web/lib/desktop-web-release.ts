@@ -4,7 +4,8 @@ import { getQueryClient } from '@/lib/query-client'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
-import { forgetDesktopChatCheckpoint, writeDesktopChatCheckpoint } from './desktop-chat-checkpoint'
+import { writeDesktopChatCheckpoint } from './desktop-chat-checkpoint'
+import { forgetDesktopChatCheckpoint, hasWebReloadBlockers } from './web-reload-state'
 
 export const shellVersionSchema = z.string().regex(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/)
   .refine(version => version.split('.').every(part => Number.isSafeInteger(Number(part))))
@@ -12,13 +13,6 @@ export const desktopWebReleaseSchema = z.object({
   commit: z.string().regex(/^[a-f0-9]{40}$/).nullable(),
   minimumShellVersion: shellVersionSchema,
 })
-const reloadBlockers = new Set<symbol>()
-
-export function blockDesktopWebReload() {
-  const blocker = Symbol()
-  reloadBlockers.add(blocker)
-  return () => { reloadBlockers.delete(blocker) }
-}
 
 export function desktopShellVersion(): string | null {
   if (!('__TAURI_INTERNALS__' in window)) return null
@@ -39,7 +33,7 @@ export function canReloadDesktopWeb() {
   const chat = useChatStore.getState()
   const ui = useUIStore.getState()
   const editing = document.activeElement?.matches('input, textarea, select, [contenteditable="true"]')
-  return navigator.onLine && !chat.isTyping && chat.streamingMessageId === null && reloadBlockers.size === 0
+  return navigator.onLine && !chat.isTyping && chat.streamingMessageId === null && !hasWebReloadBlockers()
     && getQueryClient().isMutating() === 0 && !ui.showCreateModal && ui.openOverlayIds.length === 0
     && ui.selectedHabitIds.size === 0 && !editing && !document.querySelector('form')
 }
