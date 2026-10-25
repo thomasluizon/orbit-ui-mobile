@@ -24,6 +24,10 @@
       "outputs": ["coverage/**"],
       "inputs": [
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/turbo.json",
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/package-lock.json",
+        "$TURBO_ROOT$/tsconfig.base.json",
         "$TURBO_ROOT$/.gitignore",
         "$TURBO_ROOT$/apps/{web,mobile}/**/.gitignore",
         "$TURBO_ROOT$/.github/workflows/contract-rebaseline.yml",

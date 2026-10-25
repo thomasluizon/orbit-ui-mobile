@@ -52,7 +52,7 @@ Workspace `test` tasks in `turbo.json` retain default workspace inputs, upstream
 
 | Workspace | Readers and external inputs |
 |---|---|
-| Shared | `contract-workflows` reads both contract rebaseline workflows. `backlog-port-source`, `theme`, `primitive-contracts`, `hermes-intl-guard`, `progress`, `segmented-control-labels`, `authored-typography` and `typography` inspect web and mobile sources, native widget resources, granted drawings and typography tokens. `interaction-clearance` also reads both platform guard files. `authored-typography` reads the root ignore rules; `shared-import-boundary` loads local ESLint rules. |
+| Shared | `turbo-inputs` reads root `turbo.json` and `package.json`, and runs installed Turbo and Vitest; root `package-lock.json` covers their resolved versions and other installed test dependencies. `contract-workflows` reads `.github/workflows/contract-rebaseline.yml` and `contract-rebaseline-redesign.yml`. `backlog-port-source`, `theme`, `primitive-contracts`, `hermes-intl-guard`, `progress` and `segmented-control-labels` inspect `apps/{web,mobile}/**/*.{ts,tsx,js,jsx,css,xml,svg,kt}`; `interaction-clearance` also reads both platform guard files within that glob. `authored-typography` also reads root and app `.gitignore` files, native widget resources, and `design/canvas/Orbit {Busca,Wrapped,Widget Android}.dc.html`; `typography` reads `design/canvas/_ds/*/tokens/typography.css`. `shared-import-boundary` loads `eslint-rules/*.cjs` and the shared TypeScript project extending root `tsconfig.base.json`. Other contract and markdown fixtures stay inside the workspace. |
 | Desktop | `release-workflow` reads `desktop-release.yml`. |
 | Mobile | `ios-workflows` reads both iOS workflows; `theme` reads `DESIGN.md`; `orbit-widget` reads granted color tokens. Tests also import shared source and fixtures, including the segmented-control inventory that scans mobile call sites. |
 | Web | `theme-dom` reads `DESIGN.md`; `manifest` reads the brand icon. `surface-graphic-contrast` runs the root surface scanner against web and mobile sources and shared themes. `privacy-policy-disclosure` runs the architecture generator, which reads TypeScript across all app workspaces and shared source. Other tests import shared source and fixtures, including the segmented-control inventory. |
@@ -63,7 +63,9 @@ isolated fixture repositories with local caches. It demonstrates stale success w
 inputs, then checks each consumer's real task declaration through execution markers and exit
 codes. Changed or deleted external files execute the task again; unrelated root files and
 workflows retain cache hits. It also checks default workspace inputs and restores coverage
-artifacts from cache. These tests do not parse Turbo's report fields.
+artifacts from cache. A warmed outer shared task runs the desktop guard cases again after only
+the desktop task configuration changes in root `turbo.json`, exposing the invalid declaration.
+These tests do not parse Turbo's report fields.
 
 | Suite | Where | Command | What it proves |
 |---|---|---|---|

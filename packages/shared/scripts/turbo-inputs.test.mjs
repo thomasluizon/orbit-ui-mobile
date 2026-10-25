@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -17,7 +17,7 @@ const consumers = [
     'apps/web/e2e/layout/interaction-fill-clearance.spec.ts',
     'apps/mobile/__tests__/components/ui/interaction-fill-clearance.test.tsx',
     'design/canvas/Orbit Widget Android.dc.html', `${tokenDirectory}/typography.css`,
-    '.gitignore', 'apps/mobile/.gitignore', 'eslint-rules/no-comments.cjs',
+    '.gitignore', 'apps/mobile/.gitignore', 'eslint-rules/no-comments.cjs', 'tsconfig.base.json',
   ] },
   { workspace: 'apps/desktop', name: '@orbit/desktop', inputs: ['.github/workflows/desktop-release.yml'] },
   { workspace: 'apps/mobile', name: '@orbit/mobile', inputs: [
@@ -96,6 +96,36 @@ it('demonstrates stale success when workflow inputs are omitted', () => {
   write(root, consumer.inputs[0], 'invalid')
   expectRun(root, consumer.name, 0, 1)
 }, 30_000)
+
+it('executes the shared guard again when another consumer task configuration changes', () => {
+  const consumer = consumers[0]
+  const root = fixture({ ...consumer, inputs: [] })
+  symlinkSync(resolve(repository, 'node_modules'), resolve(root, 'node_modules'), 'junction')
+  write(root, '.gitignore', '.turbo/\ncoverage/\nexecutions\nnode_modules/\n')
+  write(root, `${consumer.workspace}/scripts/turbo-inputs.test.mjs`, readFileSync(import.meta.filename, 'utf8'))
+  write(root, `${consumer.workspace}/vitest.config.mjs`, `
+    export default { test: { maxWorkers: 1 } }
+  `)
+  write(root, `${consumer.workspace}/run.mjs`, `
+    import { appendFileSync } from 'node:fs'
+    import { spawnSync } from 'node:child_process'
+    appendFileSync(${JSON.stringify(resolve(root, 'executions'))}, 'executed\\n')
+    const result = spawnSync(process.execPath, [${JSON.stringify(resolve(root, 'node_modules/vitest/vitest.mjs'))},
+      'run', 'scripts/turbo-inputs.test.mjs', '--config=vitest.config.mjs',
+      '-t', '@orbit/desktop'], { stdio: 'inherit' })
+    process.exit(result.status ?? 1)
+  `)
+  const initial = expectRun(root, consumer.name, 0, 1)
+  expect(initial.stdout + initial.stderr).toContain('2 passed')
+  expectRun(root, consumer.name, 0, 1)
+  write(root, 'unrelated-root.txt', 'unrelated')
+  expectRun(root, consumer.name, 0, 1)
+  const changed = JSON.parse(configuration)
+  changed.tasks['@orbit/desktop#test'].inputs = ['$TURBO_DEFAULT$']
+  write(root, 'turbo.json', JSON.stringify(changed))
+  const result = expectRun(root, consumer.name, 1, 2)
+  expect(result.stdout + result.stderr).toContain('2 failed')
+}, 60_000)
 
 describe.each(consumers)('$name external test inputs', (consumer) => {
   it('retains valid hits and coverage, then executes every changed external input', () => {
