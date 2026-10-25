@@ -159,6 +159,7 @@ it('announces a delayed row delete rejection after the inbox unmounts and keeps 
   const view = render(shell(true))
 
   fireEvent.click(screen.getByRole('button', { name: 'Delete: Reminder' }))
+  await act(async () => { await vi.dynamicImportSettled() })
   fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
   await advance(5000)
   expect(actionMocks.deleteNotification).not.toHaveBeenCalled()
@@ -187,6 +188,7 @@ it('runs out the delayed delete failure and holds it while the pointer rests on 
   await advance(5000)
   deferred.reject()
   await flushPromises()
+  await act(async () => { await vi.dynamicImportSettled() })
   await advance(0)
   const notice = screen.getByText("Couldn't delete that alert. Try again.").closest('[data-kind]')
   if (!notice) throw new Error('Expected the failed delete notice')

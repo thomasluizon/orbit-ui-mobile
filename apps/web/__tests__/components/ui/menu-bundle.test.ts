@@ -2,6 +2,8 @@ import { execFileSync } from 'node:child_process'
 import { expect, it } from 'vitest'
 
 it.each([
+  { entryPoint: 'components/ui/app-toast-host.tsx', eager: 'stores/app-toast-store.ts', deferred: 'components/ui/toast.tsx' },
+  { entryPoint: 'components/navigation/notification-delete-notice.tsx', eager: 'lib/pending-notification-deletes.ts', deferred: 'components/ui/toast.tsx' },
   { entryPoint: 'components/ui/dropdown-menu.tsx', eager: '@radix-ui/react-dropdown-menu/', deferred: 'components/ui/sheet.tsx' },
   { entryPoint: 'components/onboarding/retained-onboarding-overlay.tsx', eager: 'components/onboarding/onboarding-actions-context.tsx', deferred: 'components/onboarding/onboarding-flow.tsx' },
 ])('keeps $entryPoint eager and defers its presentation', ({ entryPoint, eager, deferred }) => {

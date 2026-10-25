@@ -1,9 +1,11 @@
 'use client'
 
 import { useCallback } from 'react'
-import { Toast } from '@/components/ui/toast'
+import dynamic from 'next/dynamic'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
+
+const Toast = dynamic(() => import('@/components/ui/toast').then((module) => module.Toast), { loading: () => null })
 
 export function AppToastHost({ placement = 'slot', modalId }: Readonly<{ placement?: 'slot' | 'page' | 'modal'; modalId?: string }>) {
   const currentToast = useAppToastStore((state) => state.currentToast)

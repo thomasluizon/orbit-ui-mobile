@@ -2,6 +2,7 @@
   "name": "@orbit/shared",
   "version": "0.0.1",
   "private": true,
+  "sideEffects": false,
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
