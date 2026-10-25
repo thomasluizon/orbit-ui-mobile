@@ -1,6 +1,6 @@
 import { load } from "js-yaml"
 import { execFileSync, spawnSync } from "node:child_process"
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { BASH, T, root, stage, toolPath } from "./_harness.mjs"
 
@@ -224,6 +224,7 @@ function checkRenderRetries() {
       writeFileSync(calls, "")
       const counter = stage("render-retries/count", "0")
       const pollCounter = join(directory, `${step}-${scenario}-poll`)
+      rmSync(pollCounter, { force: true })
       const result = spawnSync(BASH, ["-c", `${stub}\n${stepScript(step)}`], {
         encoding: "utf8", cwd: root, timeout: 5000, env: {
           ...process.env, GITHUB_WORKSPACE: toolPath(".."), SERVICE_ID: "srv-production", SERVICE_VARIABLE: "RENDER_WEB_SERVICE_ID",
