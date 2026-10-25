@@ -1,3 +1,4 @@
+import { dateInterpretationSchema } from '@orbit/shared/types/habit'
 import { appConfigSchema } from '@orbit/shared/types/config'
 import { createMockConfigResponse, createMockHabit } from '@orbit/shared/__tests__/factories'
 import React from 'react'
@@ -179,6 +180,36 @@ function renderForm(
 }
 
 describe('HabitFormFields', () => {
+  it('keeps the frequency fill action mounted with one spinner during its request', () => {
+    const view = renderForm(createFormHelpers({ title: 'Build a stronger routine' }), vi.fn(() => SETUP_PROPOSAL))
+    const action = screen.getByRole('button', { name: 'habits.form.askAstra' })
+    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeInTheDocument()
+    view.rerenderForm(true)
+    expect(screen.getByRole('button', { name: 'habits.form.askAstra' })).toBe(action)
+    expect(action).toHaveAttribute('aria-busy', 'true')
+    expect(action).toHaveAttribute('data-borderless', 'true')
+    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeNull()
+    expect(action.querySelectorAll('svg')).toHaveLength(1)
+    view.rerenderForm()
+    expect(action).not.toHaveAttribute('aria-busy')
+    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeInTheDocument()
+  })
+
+  it('replaces the date fill glyph with one spinner until its request completes', async () => {
+    let finish!: (value: { date: string | null; referenceDate: string }) => void
+    dateRequests.request.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+    renderForm(createFormHelpers({ itemType: 'habit', title: 'Run', datePhrase: 'after my vacation' }))
+    const action = screen.getByRole('button', { name: 'habits.form.suggestDate' })
+    fireEvent.click(action)
+    expect(action).toHaveAttribute('aria-busy', 'true')
+    expect(action).toHaveAttribute('data-borderless', 'true')
+    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeNull()
+    expect(action.querySelectorAll('svg')).toHaveLength(1)
+    await act(async () => { finish(dateInterpretationSchema.parse({ date: null, referenceDate: '2026-10-20' })) })
+    expect(action).not.toHaveAttribute('aria-busy')
+    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeInTheDocument()
+  })
+
   it('renders every form Astra action without visible text', () => {
     const helpers = createFormHelpers({ itemType: 'habit', title: 'Build a stronger routine', datePhrase: 'after my vacation' })
     const view = renderForm(helpers, vi.fn(() => SETUP_PROPOSAL), false, false, null, undefined, { onSuggestEmoji: vi.fn() })
@@ -248,7 +279,10 @@ describe('HabitFormFields', () => {
       await user.keyboard('{Enter}')
     } else fireEvent.click(button)
     await waitFor(() => expect(onSuggestEmoji).toHaveBeenCalledTimes(title.trim() ? 1 : 0))
-    if (!title.trim()) expect(button).toHaveAccessibleDescription('habits.form.titleRequired')
+    if (!title.trim()) {
+      expect(button).toHaveAccessibleDescription('habits.form.titleRequired')
+      expect(screen.getByText('habits.form.titleRequired')).not.toBeVisible()
+    }
   })
 
   it.each([false, true])('preserves the emoji action through pending and success after moving focus: %j', async (moveFocus) => {
@@ -265,7 +299,8 @@ describe('HabitFormFields', () => {
     view.rerenderForm(true)
     const busy = screen.getByRole('button', { name: 'habits.form.suggestEmoji' })
     expect(busy).toBe(button)
-    expect(busy.querySelector('[data-asset^="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
+    expect(busy.querySelector('[data-asset^="astra-mark"]')).toBeNull()
+    expect(busy.querySelectorAll('svg')).toHaveLength(1)
     expect(busy).toHaveAttribute('aria-busy', 'true')
     expect(busy).not.toBeDisabled()
     expect(busy).toHaveAttribute('aria-disabled', 'true')
@@ -278,7 +313,9 @@ describe('HabitFormFields', () => {
     emojiOptions.isEmojiSuggesting = false
     view.rerenderForm()
     expect(screen.getByRole('button', { name: 'habits.form.suggestEmoji' })).toBe(button)
-    expect(button.closest('[data-proposed]')).toBeInTheDocument()
+    expect(button.closest('[data-proposed]')).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }).querySelector('[data-proposed]')).toBeInTheDocument()
+    expect(button.querySelector('[data-asset^="astra-mark"]')).toBeInTheDocument()
     expect(moveFocus ? phrase : button).toHaveFocus()
   })
 
@@ -307,6 +344,7 @@ describe('HabitFormFields', () => {
     expect(button).toBeDisabled()
     expect(button.getAttribute('aria-describedby')).toBeTruthy()
     expect(screen.getByRole('alert')).toHaveTextContent('Try again')
+    expect(screen.getByRole('alert').closest('[data-habit-title-row]')).toBeNull()
     expect(button).toHaveAccessibleDescription(expect.stringContaining('Try again'))
   })
 
@@ -361,7 +399,7 @@ describe('HabitFormFields', () => {
     expect(corrections.compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it.each([false, true])('selects and clears an emoji inside the preview, schedule locked: %s', async (lockedGeneral) => {
+  it.each([false, true])('selects and clears an emoji beside the title, schedule locked: %s', async (lockedGeneral) => {
     const formHelpers = createFormHelpers({ title: 'Run every day', frequencyUnit: 'Day', frequencyQuantity: 1 })
     const view = renderForm(formHelpers, undefined, false, false, lockedGeneral)
     expect(screen.getByRole('region', { name: 'habits.form.understood' })).toBeInTheDocument()
@@ -375,22 +413,22 @@ describe('HabitFormFields', () => {
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '', { shouldDirty: true })
   })
 
-  it.each(['', '   '])('hides the preview and emoji well for an empty phrase %j even with a saved schedule', (title) => {
+  it.each(['', '   '])('hides the preview and retains the emoji well for an empty phrase %j even with a saved schedule', (title) => {
     renderForm(createFormHelpers({ title, emoji: '🏃', frequencyUnit: 'Day', frequencyQuantity: 1 }))
     expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeInTheDocument()
   })
 
-  it('hides the preview and emoji well while Astra reads a phrase with an existing schedule', () => {
+  it('hides the preview and retains the emoji well while Astra reads a phrase with an existing schedule', () => {
     const view = renderForm(createFormHelpers({ title: 'Run every day', frequencyUnit: 'Day', frequencyQuantity: 1 }))
     view.rerenderForm(true)
-    expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
   })
 
-  it('shows no emoji well in a fresh empty form', () => {
+  it('shows the emoji well in a fresh empty form', () => {
     renderForm()
-    expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeInTheDocument()
   })
 
   it('keeps a chosen emoji through clearing, parsing and losing the understood schedule', async () => {
@@ -402,7 +440,7 @@ describe('HabitFormFields', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const buildForm = (isSuggesting = false) => <QueryClientProvider client={queryClient}><CreateFormHarness isSuggesting={isSuggesting} /></QueryClientProvider>
     const view = render(buildForm())
-    expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeInTheDocument()
     fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: 'Run every day' } })
     await waitFor(() => expect(screen.getByRole('region', { name: 'habits.form.understood' })).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
@@ -411,7 +449,7 @@ describe('HabitFormFields', () => {
 
     const expectHidden = () => {
       expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
-      expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+      expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeInTheDocument()
       expect(formHelpers.form.getValues('emoji')).toBe('🌱')
     }
     fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: '' } })
@@ -1099,6 +1137,9 @@ describe('habit tag suggestions', () => {
     fireEvent.click(action)
     expect(action).toBeDisabled()
     expect(action).toHaveAttribute('aria-busy', 'true')
+    expect(action).toHaveAttribute('data-borderless', 'true')
+    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeNull()
+    expect(action.querySelectorAll('svg')).toHaveLength(1)
     expect(action).toHaveAccessibleDescription('habits.form.suggestingTags')
     expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestingTags')
     fireEvent.click(action)
@@ -1144,7 +1185,8 @@ describe('habit tag suggestions', () => {
     fireEvent.click(action)
     expect(tagMutations.suggest).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'habits.form.newTag' })).toBeInTheDocument()
-    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent(title.trim() ? 'habits.form.tagLimit' : 'habits.form.titleRequired')
+    expect(action).toHaveAccessibleDescription(title.trim() ? 'habits.form.tagLimit' : 'habits.form.titleRequired')
+    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toBeEmptyDOMElement()
     if (!title.trim()) {
       view.helpers.testValues.title = 'Run'
       view.refresh()
@@ -2040,6 +2082,19 @@ describe('date ownership across form transitions', () => {
     const values = habitFormSchema.parse(owner.values())
     expect(buildCreateHabitRequest(values, [], [], [], [])).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-20' })
     expect(buildUpdateHabitRequest(values, false, '2026-12-01', [], [])).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-20' })
+  })
+
+  it.each([0, 5])('keeps the offline date reason accessible with %s messages used', (used) => {
+    connection.isOnline = false
+    mockProfileState.aiMessagesUsed = used
+    const owner = mountDateForm()
+    owner.phrase('after my vacation')
+    const action = screen.getByRole('button', { name: 'habits.form.suggestDate' })
+    expect(action).toBeDisabled()
+    expect(action).toHaveAccessibleDescription('shell.composer.offline.reason')
+    expect(screen.getByText('shell.composer.offline.reason')).not.toBeVisible()
+    expect(Boolean(screen.queryByText('habits.form.aiSuggestLimitReached'))).toBe(used === 5)
+    expect(dateRequests.request).not.toHaveBeenCalled()
   })
 
   it.each([false, true])('recognizes weekly wording offline at capacity with Pro access %s', (hasProAccess) => {

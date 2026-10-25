@@ -64,7 +64,8 @@ export function Button({
   hint,
   accessibilityRole = 'button',
   quiet = false,
-}: Readonly<ButtonProps & { retainLeadingIcon?: boolean; buttonRef?: Ref<View>; accessibilityRole?: 'button' | 'link'; quiet?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>) {
+  borderless = false,
+}: Readonly<ButtonProps & { retainLeadingIcon?: boolean; buttonRef?: Ref<View>; accessibilityRole?: 'button' | 'link'; quiet?: boolean; borderless?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const size = useContext(ActionRowContext) ? 'sm' : requestedSize
@@ -79,6 +80,7 @@ export function Button({
 
   const ghostPressedFill = elevated ? tokens.bgElevHover : quiet ? tokens.bgHoverOpaque : tokens.bgHover
   const ghostFill = elevated ? tokens.bgElev : 'transparent'
+  const ghostBorderWidth = borderless ? 0 : 1.5
   const variantStyle = (pressed: boolean): ViewStyle => {
     if (variant === 'secondary') {
       return { backgroundColor: pressed ? mixHex(tokens.fg1, tokens.bg, 0.1) : tokens.fg1 }
@@ -87,7 +89,7 @@ export function Button({
       const active = pressed || (hovered && !disabled && !loading)
       return {
         backgroundColor: active ? ghostPressedFill : ghostFill,
-        borderWidth: 1.5,
+        borderWidth: ghostBorderWidth,
         borderColor: tokens.hairlineStrong,
       }
     }

@@ -16,7 +16,7 @@ import { HabitScheduleFields } from '@/components/habits/habit-form-fields/habit
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
-const expectedButtonCounts: Readonly<Record<string, number>> = { daily: 8, fixed: 8, flexible: 10, unresolved: 9, proposed: 8, locked: 10 }
+const expectedButtonCounts: Readonly<Record<string, number>> = { daily: 8, fixed: 8, flexible: 10, unresolved: 10, proposed: 8, locked: 10 }
 
 const defaultCases = [320, 360, 393, 412, 1280].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) =>
   ['daily', 'fixed', 'flexible', 'unresolved', 'proposed', 'locked'].map((cadence) => ({ width, locale, cadence, scale: 1 })),
@@ -36,6 +36,79 @@ describe('habit understanding geometry', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each((['en', 'pt-BR'] as const).flatMap(locale => [false, true].map(proposed => ({ locale, proposed }))))('keeps emoji feedback full width and fill borders absent in $locale, proposed: $proposed', async ({ locale, proposed }) => {
+    const messages = locale === 'en' ? en : ptBR
+    const form = (busy: boolean) => <NextIntlClientProvider locale={locale} messages={messages}><HabitUnderstanding value="Run" emoji="🏃" proposed={proposed} days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={null} consumed={[]} showSchedule={false}
+      labels={buildHabitUnderstandingLabels(key => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} onSuggestEmoji={vi.fn()} canSuggestEmoji isEmojiSuggesting={busy} emojiSuggestionError={messages.habits.form.aiSuggestError} />
+    </NextIntlClientProvider>
+    const view = render(form(false))
+    const page = await browser.newPage({ viewport: { width: 320, height: 1000 } })
+    const mount = async () => {
+      await page.setContent(`<style>${stylesheet}:root{font-size:32px}</style><main style="padding:16px">${view.container.innerHTML}</main>`)
+      await loadAppFonts(page)
+    }
+    try {
+      await mount()
+      const metrics = await page.getByRole('button', { name: messages.habits.form.suggestEmoji }).evaluate(button => {
+        const styles = getComputedStyle(button)
+        const ancestors = []
+        for (let parent = button.parentElement; parent && !parent.hasAttribute('data-habit-title-row'); parent = parent.parentElement) {
+          const style = getComputedStyle(parent)
+          ancestors.push({ border: style.borderWidth, outline: style.outlineStyle === 'none' ? '0px' : style.outlineWidth, shadow: style.boxShadow })
+        }
+        const error = document.querySelector('[role="alert"]')!
+        return { border: styles.borderWidth, outline: styles.outlineStyle === 'none' ? '0px' : styles.outlineWidth, shadow: styles.boxShadow, radius: styles.borderRadius, ancestors,
+          errorInTitleRow: Boolean(error.closest('[data-habit-title-row]')), errorWidth: error.getBoundingClientRect().width,
+          overflow: document.documentElement.scrollWidth - innerWidth }
+      })
+      expect(metrics.border).toBe('0px')
+      expect(metrics.outline).toBe('0px')
+      expect(metrics.shadow).toBe('none')
+      for (const ancestor of metrics.ancestors) expect(ancestor).toEqual({ border: '0px', outline: '0px', shadow: 'none' })
+      expect(metrics.errorInTitleRow).toBe(false)
+      expect(metrics.errorWidth).toBe(288)
+      expect(metrics.overflow).toBe(0)
+      const action = page.getByRole('button', { name: messages.habits.form.suggestEmoji })
+      await action.focus()
+      expect(await action.evaluate(button => ({ outline: getComputedStyle(button).outlineWidth, shadow: getComputedStyle(button).boxShadow, radius: getComputedStyle(button).borderRadius }))).toEqual({ outline: '2px', shadow: 'none', radius: metrics.radius })
+      view.rerender(form(true))
+      await mount()
+      expect(await action.getAttribute('aria-busy')).toBe('true')
+      expect(await action.locator('svg').count()).toBe(1)
+      expect(await action.locator('[data-asset^="astra-mark"]').count()).toBe(0)
+      view.rerender(form(false))
+      await mount()
+      expect(await action.getAttribute('aria-busy')).toBeNull()
+      expect(await action.locator('[data-asset^="astra-mark"]').count()).toBe(1)
+    } finally { await page.close(); view.unmount() }
+  })
+
+  it.each([393, 1280].flatMap(width => ['', 'Read every day'].map(value => ({ width, value }))))('keeps the emoji well trailing the title at $width for "$value"', async ({ width, value }) => {
+    const view = render(<NextIntlClientProvider locale="en" messages={en}><HabitUnderstanding value={value} emoji="" days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={value ? 'Every day' : null} consumed={[]} showSchedule={false}
+      labels={buildHabitUnderstandingLabels(key => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} onSuggestEmoji={vi.fn()} canSuggestEmoji={Boolean(value)} emojiSuggestionHint={value ? undefined : en.habits.form.titleRequired}>
+      <Input label="Description" value="" onChange={vi.fn()} />
+    </HabitUnderstanding></NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 1000 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><main style="padding:16px;max-width:640px">${view.container.innerHTML}</main>`)
+      await loadAppFonts(page)
+      const title = (await page.locator('[data-habit-phrase-field]').boundingBox())!
+      const well = (await page.getByRole('button', { name: en.habits.form.emojiOpenPicker }).boundingBox())!
+      const astra = (await page.getByRole('button', { name: en.habits.form.suggestEmoji }).boundingBox())!
+      expect(well.y).toBeGreaterThanOrEqual(title.y)
+      expect(well.y + well.height).toBeLessThanOrEqual(title.y + title.height)
+      expect(well.x).toBeGreaterThan(title.x + title.width)
+      expect(astra.y).toBe(well.y)
+      const painted = (await page.locator('[data-emoji-well]').boundingBox())!
+      expect(painted.width).toBe(46)
+      expect(painted.height).toBe(46)
+      expect(astra.x).toBeGreaterThanOrEqual(well.x + well.width)
+      expect(astra.x + astra.width).toBeLessThanOrEqual(Math.min(width, 640) - 16)
+      expect(await page.getByText(en.habits.form.titleRequired, { exact: true }).isVisible()).toBe(false)
+      expect(await page.getByText(en.habits.form.emoji, { exact: true }).count()).toBe(0)
+    } finally { await page.close(); view.unmount() }
+  })
+
   it('leaves no empty feedback gap beside the emoji action and reveals real errors', async () => {
     const understanding = (error?: string) => <NextIntlClientProvider locale="en" messages={en}><HabitUnderstanding value="Read" emoji="" days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={null} consumed={[]} showSchedule={false}
       labels={buildHabitUnderstandingLabels(key => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} onSuggestEmoji={vi.fn()} canSuggestEmoji emojiSuggestionError={error} /></NextIntlClientProvider>
@@ -54,8 +127,8 @@ describe('habit understanding geometry', () => {
   })
 
   it.each([320, 412, 1352])('starts the name at the standard field size and grows its mirror at %s', async (width) => {
-    const understanding = (value: string) => <HabitUnderstanding value={value} emoji="" days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={null} consumed={[]} showSchedule={false}
-      labels={buildHabitUnderstandingLabels(key => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} />
+    const understanding = (value: string) => <NextIntlClientProvider locale="en" messages={en}><HabitUnderstanding value={value} emoji="" days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={null} consumed={[]} showSchedule={false}
+      labels={buildHabitUnderstandingLabels(key => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} /></NextIntlClientProvider>
     const view = render(understanding('Read'))
     const page = await browser.newPage({ viewport: { width, height: 1000 } })
     try {
@@ -104,9 +177,9 @@ describe('habit understanding geometry', () => {
   it.each(['light', 'dark'] as const)('paints typed habit text with the foreground token in %s', async (mode) => {
     const value = 'Run Monday'
     const parsed = readHabitPhrase(value, 'en')
-    const view = render(<><Input label="Single line" value={value} onChange={vi.fn()} /><Input label="Multiline" value={value} onChange={vi.fn()} multiline /><TypedTextarea aria-label="Primitive" value={value} onChange={vi.fn()} style={{ color: 'transparent' }} /><HabitUnderstanding value={value} emoji="" days={parsed.days} dayOptions={[]}
+    const view = render(<NextIntlClientProvider locale="en" messages={en}><Input label="Single line" value={value} onChange={vi.fn()} /><Input label="Multiline" value={value} onChange={vi.fn()} multiline /><TypedTextarea aria-label="Primitive" value={value} onChange={vi.fn()} style={{ color: 'transparent' }} /><HabitUnderstanding value={value} emoji="" days={parsed.days} dayOptions={[]}
       quantity={1} mode="fixed" sentence={null} consumed={parsed.consumed} labels={buildHabitUnderstandingLabels((key) => key)}
-      onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} /></>)
+      onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} /></NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width: 412, height: 800 } })
     try {
       const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, token]) => `${key}:${token}`).join(';')
@@ -171,7 +244,7 @@ describe('habit understanding geometry', () => {
       expect(measured.wrap).toBe('nowrap')
       expect(measured.overflowing).toBe(false)
       expect(measured.radioGroups).toBe(0)
-      expect(measured.radius).toBe(cadence === 'unresolved' ? null : '12px')
+      expect(measured.radius).toBe('12px')
       expect(measured.buttonCount).toBe(expectedButtonCounts[cadence])
       for (let index = 1; index < measured.dayTargets.length; index++) {
         const previous = measured.dayTargets[index - 1]!
