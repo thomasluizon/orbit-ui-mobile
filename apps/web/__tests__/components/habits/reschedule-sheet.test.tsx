@@ -50,8 +50,7 @@ describe('RescheduleSheet', () => {
     expect(Array.from(actions.querySelectorAll('button')).map((button) => button.getAttribute('aria-label') ?? button.textContent)).toEqual(['habits.reschedule.dismiss', primary])
     if (state === 'error') {
       const action = screen.getByRole('button', { name: primary })
-      expect(action.textContent).toBe('')
-      expect(action.style.width).toBe('48px')
+      expect(action).toHaveTextContent(primary)
     }
     expect(Array.from(actions.querySelectorAll('button')).map((button) => button.getAttribute('data-size'))).toEqual(['sm', 'sm'])
     expect(Array.from(actions.querySelectorAll('button')).map((button) => button.getAttribute('data-variant'))).toEqual(['ghost', 'primary'])

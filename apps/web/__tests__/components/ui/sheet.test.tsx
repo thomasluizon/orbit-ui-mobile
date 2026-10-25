@@ -167,7 +167,7 @@ describe('Sheet', () => {
       const items = screen.getAllByRole('menuitem')
       expect(items).toHaveLength(labels.length)
       for (const [index, label] of labels.entries()) expect(items[index]).toHaveAccessibleName(label)
-      expect(items.map((item) => item.textContent)).toEqual(labels.map((label, index) => index === 3 ? '' : label))
+      expect(items.map((item) => item.textContent)).toEqual(labels)
       expect(items[3]!.querySelectorAll('[data-asset^="astra-mark"]')).toHaveLength(1)
       for (const item of items) {
         expect(item).toBeEnabled()

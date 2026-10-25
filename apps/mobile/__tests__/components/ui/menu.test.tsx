@@ -1,3 +1,5 @@
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { PersonalText } from '@/components/ui/personal-text'
 import React from 'react'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
@@ -45,17 +47,29 @@ function menuItemLabels(tree: any): string[] {
 }
 
 describe('Menu (mobile)', () => {
-  it('keeps an Astra menu action icon-only and named', async () => {
+  it.each([en, ptBR].flatMap(messages => ['sheet', 'anchored'].map(presentation => ({ messages, presentation }))))('shows an Astra action label with sibling row treatment in $presentation', async ({ messages, presentation }) => {
     __setWindowDimensions({ width: 480, height: 900, scale: 1, fontScale: 1 })
     const onSelect = vi.fn()
+    const label = messages.habits.actions.rescheduleAstra
     let tree!: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(() => { tree = TestRenderer.create(<Menu open presentation="anchored" anchorRef={{ current: null }} title="Actions" items={[{ id: 'reschedule', label: 'Suggest a new date with Astra', icon: 'astra' }]} onSelect={onSelect} />) })
+    const menuProps = presentation === 'sheet' ? { presentation: 'sheet' as const } : { presentation: 'anchored' as const, anchorRef: { current: null } }
+    await TestRenderer.act(() => { tree = TestRenderer.create(<Menu open {...menuProps} title="Actions" items={[{ id: 'reschedule', label, icon: 'astra' }, { id: 'edit', label: messages.common.edit, icon: 'pencil' }]} onSelect={onSelect} />) })
     try {
-      const action = tree.root.findAll((node: ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Suggest a new date with Astra')[0]!
-      expect(action.findAllByType('Text')).toHaveLength(0)
-      expect(StyleSheet.flatten(action.props.style({ pressed: false })).width).toBe(48)
+      const rows = tree.root.findAll((node: ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'menuitem')
+      const action = rows[0]!
+      const sibling = rows[1]!
+      expect(action.findAllByType('Text').map((node: ReactTestInstance) => node.props.children)).toEqual([label])
+      expect(action.findAllByType(Icon).map((node: ReactTestInstance) => node.props.name)).toEqual(['astra'])
+      for (const pressed of [false, true]) {
+        expect(StyleSheet.flatten(action.props.style({ pressed }))).toEqual(StyleSheet.flatten(sibling.props.style({ pressed })))
+      }
       await TestRenderer.act(() => action.props.onPress())
-      expect(onSelect).toHaveBeenCalledWith('reschedule')
+      if (presentation === 'sheet') {
+        expect(onSelect).not.toHaveBeenCalled()
+        const sheet = tree.root.findAll((node: ReactTestInstance) => typeof node.type !== 'string' && node.type.name === 'TrueSheet')[0]!
+        await TestRenderer.act(() => sheet.props.onDidDismiss())
+      }
+      expect(onSelect).toHaveBeenCalledExactlyOnceWith('reschedule')
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 

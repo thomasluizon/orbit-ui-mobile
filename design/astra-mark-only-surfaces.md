@@ -1,12 +1,17 @@
-# Astra action marks and composer disclosure
+# Astra action labels and composer disclosure
 
-> **At a glance** - assistant action owners, localized prompts, accessible action names and the habit-detail composer disclosure on web and Android.
+> **At a glance** - assistant action labels, inline form-fill icons, localized prompts and the habit-detail composer disclosure on web and Android.
 
-A standalone assistant action uses the canonical Astra mark alone in a 48px icon target. Date,
-emoji, tag and reschedule requests have distinct localized accessible names. Habit and goal
-analysis, interpretation fallback, retry, empty-list entries and the reschedule menu use the same
-mark-only treatment. Loading retains the mark and busy announcement without an invisible spinner
-slot beside it. The mark is decorative within the named control.
+The authority for #1700 is the owner's instruction: "Revert this, just keep the changes that remove
+the bloat, be smart." Standalone actions show their short action label beside the canonical Astra
+glyph. Actions drop the appended brand word, never their label. The visible label supplies the
+accessible name once; the glyph is decorative. Astra menu items use the same row width, minimum
+height, padding, hover, press and focus as sibling items.
+
+Inline form-field fill controls for emoji, date, tags and frequency remain icon-only with localized
+accessible names. #1701 owns those controls and their hint captions. The interpretation fallback in
+`habit-form-fields.tsx` remains with that form owner. The shared PillButton icon-only color and
+loading-slot support stays because these retained form controls depend on it.
 
 Suggestion chips, idea cards and proactive prose retain their request text without an appended
 brand name. Their accessible names contain the request once. These suggestions describe what a
@@ -21,7 +26,7 @@ text-action slot or disclosure and the attach control. The composer drawing uses
 Other action owners retain clearance on both platforms: the emoji picker and suggestion targets
 have a 12px gap; date, tag, interpretation and analysis actions occupy separate rows; reschedule
 and rescue retry use the 12px ActionRow gap. Menu Astra items occupy their own row, with the mark
-centred inside its 48px target and neighbouring row content inset by at least 8px.
+leading the visible action label inside the ordinary full-width menu row.
 
 | Surface | Web owner | Android owner |
 |---|---|---|
@@ -52,8 +57,8 @@ The form's reading preview retains its schedule sentence and proposed-field trea
 the redundant visible understood status, so no status label floats beside the emoji control.
 
 Shared copy lives in both `packages/shared/src/i18n/en.json` and `pt-BR.json`. The composer asks
-what the person wants to do. Accessible action names use contextual verbs; date, emoji, tag and
-reschedule names identify their request and name Astra once. Interpretation, habit, goal, summary
+what the person wants to do. Standalone action names use contextual verbs without appended
+branding. Retained inline form-fill icons keep their existing accessible names under #1701. Interpretation, habit, goal, summary
 and import actions retain their contextual meanings. Explanatory prose, AI disclosures, conversation participant
 names and settings that name the assistant retain their meaning. The summary action's
 `summary.askAstra` catalog entry has the approved contextual verb even though the current summary
@@ -74,16 +79,35 @@ The leading mark and input reflow as one group, with the trailing controls on a 
 needed. Enlarged text keeps the mark aligned with the input's bottom edge. The static web
 placeholder uses normal word wrapping; typed drafts retain their spaces and line breaks.
 
-Vitest covers mark-only controls, localized action names, retained callbacks, disclosure state,
-draft retention and device persistence. The form, reschedule, habit, goal, empty-list and menu
-component cases reject visible action labels. Composer cases reject a send mark or text and measure
-adjacent targets on both platforms. Native geometry covers the Fold cover width. Hermetic
-Chromium composition covers the shell allocation, compact disclosure and mark-only actions.
-The hermetic layout specs resolve these controls from their current localized action names.
-They preserve their viewport, spacing, fit, focus and clearance assertions; mark-only actions and composer entries assert
-that the brand word is absent beside the glyph. The wide sidebar retains visible `Astra` text and
-its accessible name once; the composer keeps its contextual conversation-entry name.
-Device font rendering and production web and Android Open rollout remain release verification.
+## Restored standalone controls
+
+Both platforms use the existing locale keys below. Before refers to the parent of `e397f2a2a`.
+The reschedule retry label uses the existing `habits.reschedule.suggestDate` key with short copy;
+copy approval through `/second-opinion` belongs to the orchestrator before merge.
+
+| Control | Web file | Android file | Label key now | Visible before (en / pt-BR) | Visible now (en / pt-BR) |
+|---|---|---|---|---|---|
+| Astra menu rows | `apps/web/components/ui/menu.tsx` | `apps/mobile/components/ui/menu.tsx` | Supplied item label | Supplied item label | Supplied item label |
+| Overdue reschedule | `apps/web/components/habits/habit-row-trailing.tsx` | `apps/mobile/components/habits/habit-row.tsx` | `habits.actions.rescheduleAstra` | Reschedule with Astra / Reagendar com a Astra | Reschedule / Reagendar |
+| Habit analysis | `apps/web/components/habits/habit-detail-screen.tsx` | `apps/mobile/components/habits/habit-detail-screen.tsx` | `habits.detail.askAstra` | Ask Astra / Perguntar à Astra | Review habit / Analisar hábito |
+| Habit rescue retry | `apps/web/components/habits/habit-detail-screen.tsx` | `apps/mobile/components/habits/habit-detail-screen.tsx` | `habits.reschedule.suggestDate` (previously `habits.form.askDate`) | Ask Astra / Consultar Astra | Suggest date / Sugerir data |
+| Reschedule sheet retry | `apps/web/components/habits/reschedule-sheet.tsx` | `apps/mobile/components/habits/reschedule-sheet.tsx` | `habits.reschedule.suggestDate` (previously `habits.form.askDate`) | Ask Astra / Consultar Astra | Suggest date / Sugerir data |
+| Goal analysis | `apps/web/components/goals/goal-detail-drawer.tsx` | `apps/mobile/components/goals/goal-detail-drawer.tsx` | `goals.detail.askAstraEyebrow` (previously `nav.astra`) | Astra / Astra | Review goal / Analisar meta |
+| Empty habit list | `apps/web/components/habits/habit-list/empty-state.tsx` | `apps/mobile/components/habit-list/empty-state.tsx` | `habits.askAstra` | Ask Astra / Pedir à Astra | Start conversation / Iniciar conversa |
+
+The surface table above also inventories the retained controls. Suggestion chips, complete and
+deferred ideas, follow-ups, proactive actions, onboarding import and setup prompts already show
+useful text and keep the brand-word removal. Composer entry, disclosure and send retain their drawn
+icon-only treatment. Named navigation retains #1687. The reading preview and composer collapse,
+spacing, containment and device persistence retain their existing behavior.
+
+Vitest asserts visible labels and retained callbacks for each restored control on both platforms.
+Menu coverage includes both locale catalogs, sheet and anchored presentations, sibling row styling
+and the real overdue row. Habit and goal cases preserve drafts and conversation entry behavior;
+rescue and sheet cases retain explicit retries and request guards. Form and composer geometry
+coverage keeps the retained icon-only affordances. Layout specs keep their viewport, fit, focus and
+clearance assertions; the orchestrator owns their hermetic run, device font rendering and production
+web and Android Open rollout.
 
 
 ## Named Astra navigation entries

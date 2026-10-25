@@ -134,19 +134,17 @@ function MenuItems({ items, onActivate, firstItemRef }: Readonly<MenuItemsProps>
             ref={item.id === firstEnabledId ? firstItemRef : undefined}
             type="button"
             role={item.checked === undefined ? "menuitem" : "menuitemcheckbox"}
-            aria-label={item.icon === 'astra' ? item.label : undefined}
             aria-checked={item.checked}
             disabled={disabled}
             tabIndex={disabled || item.id !== (focusedId ?? firstEnabledId) ? -1 : 0}
             onFocus={() => setFocusedId(item.id)}
             data-destructive={item.destructive || undefined}
             className="orbit-menu-item"
-            style={item.icon === 'astra' ? { width: 48, minHeight: 48, padding: 0, justifyContent: 'center' } : undefined}
             onClick={() => onActivate(item.id)}
           >
-            <span className="orbit-menu-content" style={item.icon === 'astra' ? { flex: 'none' } : undefined}>
+            <span className="orbit-menu-content">
               {item.icon ? <Icon name={item.icon} size={20} strokeWidth={2} /> : null}
-              {item.icon === 'astra' ? null : <span className="orbit-menu-label">{item.label}</span>}
+              <span className="orbit-menu-label">{item.label}</span>
               {item.checked ? <span className="orbit-menu-check" aria-hidden="true"><Check size={20} strokeWidth={2} /></span> : null}
               {item.badge ? <Badge>{item.badge}</Badge> : null}
             </span>

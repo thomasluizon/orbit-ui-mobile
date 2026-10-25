@@ -59,11 +59,11 @@ export function HabitListEmptyState({
         {showAstraAction && askAstraLabel ? (
           <PillButton
 
-            minimumHeight={48} iconOnly label={askAstraLabel}
+            leadingIcon={<AstraGlyph size={16} />}
             onClick={onAskAstra}
 
           >
-            <AstraGlyph size={20} />
+            {askAstraLabel}
           </PillButton>
         ) : null}
       </ActionRow></View>
