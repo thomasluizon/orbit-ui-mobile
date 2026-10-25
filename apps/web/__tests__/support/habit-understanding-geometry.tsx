@@ -13,7 +13,7 @@ import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { type Browser } from '@/__tests__/support/chromium'
 
-const expectedButtonCounts: Readonly<Record<string, number>> = { daily: 8, fixed: 8, flexible: 10, unresolved: 9, proposed: 8, locked: 10 }
+const expectedButtonCounts: Readonly<Record<string, number>> = { daily: 8, fixed: 8, flexible: 10, unresolved: 10, proposed: 8, locked: 10 }
 
 const defaultCases = [320, 360, 393, 412, 1280].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) =>
   ['daily', 'fixed', 'flexible', 'unresolved', 'proposed', 'locked'].map((cadence) => ({ width, locale, cadence, scale: 1 })),
@@ -68,7 +68,7 @@ export async function expectHabitUnderstandingGeometry(browser: Browser, stylesh
     expect(measured.wrap).toBe('nowrap')
     expect(measured.overflowing).toBe(false)
     expect(measured.radioGroups).toBe(0)
-    expect(measured.radius).toBe(cadence === 'unresolved' ? null : '12px')
+    expect(measured.radius).toBe('12px')
     expect(measured.buttonCount).toBe(expectedButtonCounts[cadence])
     for (let index = 1; index < measured.dayTargets.length; index++) {
       const previous = measured.dayTargets[index - 1]!

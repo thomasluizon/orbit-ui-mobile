@@ -508,6 +508,10 @@ the normal state the instant the person accepts or edits it. **It never takes th
 is not one of the four accent roles, and it is certainly not what is next. No new hue, no new radius,
 no new family, no glow.
 
+Emoji proposals keep the muted foreground and inset dashed hairline inside the emoji well. The
+well and its adjacent fill action have no surrounding border, and the fill action has no resting
+border. A focused fill action keeps one indicator following its shape.
+
 ### A derived value is not a proposed value
 
 **There is no eleventh state, and this is why.** A goal with linked habits derives its progress from
@@ -1593,8 +1597,8 @@ Android haptic. Milestone days show only their milestone panel; queue priority a
 **Motion is never the only feedback channel.** Every animated state change also carries a static cue: a colour change, an icon swap, or a label.
 
 Labelled actions retaining their leading glyph reserve a trailing status slot. Standalone mark-only
-Astra actions retain the mark and busy announcement without that slot. Composer send replaces its
-arrow with one spinner while busy. An idle action carries no looping status animation, including
+Astra actions keep their busy announcement. An icon-only form fill action replaces its glyph with
+one spinner while its request runs. Composer send replaces its arrow with one spinner while busy. An idle action carries no looping status animation, including
 while focused (#1607, #1668).
 
 **A high-frequency interaction gets instant feedback or an `opacity` / `background-color` transition of 150ms or less.** Never a full entrance on a hover or a keystroke.

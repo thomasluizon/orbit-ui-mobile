@@ -34,8 +34,8 @@ for (const width of [320, 412]) {
       await expect(row).toBeVisible()
       await page.evaluate(() => document.fonts.ready)
       const geometry = await row.evaluate((element) => {
-        const [previous, next] = element.querySelectorAll('button:not([title])')
-        const date = element.querySelector('[title]')
+        const [previous, next] = element.querySelectorAll('button:not([data-today-date])')
+        const date = element.querySelector('[data-today-date]')
         if (!previous || !next || !date) throw new Error('Date pager missing')
         const rowBounds = element.getBoundingClientRect()
         const padding = getComputedStyle(element)
@@ -83,9 +83,10 @@ test('keeps an off-today date and every action legible at 400px with enlarged te
   const jump = page.getByRole('button', { name: new RegExp(ptBr.dates.goToToday) })
   const list = page.getByRole('button', { name: ptBr.habits.listOptions })
   const search = page.getByRole('button', { name: ptBr.habits.search.title })
-  const date = page.locator('[title^="Terça-feira,"]')
+  const date = page.locator('[data-today-date]')
   await expect(jump).toBeVisible()
   await expect(date).toBeVisible()
+  await expect(date).toHaveAccessibleName(/^Terça-feira,/)
   await page.evaluate(() => document.fonts.ready)
 
   for (const textScale of [1, 2]) {
@@ -96,11 +97,11 @@ test('keeps an off-today date and every action legible at 400px with enlarged te
       numeric.style.fontSize = `${12 * scale}px`
     }, textScale)
     const geometry = await page.evaluate(() => {
-      const dateBlock = document.querySelector('[title^="Terça-feira,"]')
+      const dateBlock = document.querySelector('[data-today-date]')
       if (!dateBlock) throw new Error('Date block missing')
       const day = dateBlock.querySelector('p')
       if (!day) throw new Error('Day label missing')
-      const row = dateBlock.parentElement
+      const row = dateBlock.closest('[data-today-date-row]')
       if (!row) throw new Error('Date row missing')
       const dayText = document.createRange()
       dayText.selectNodeContents(day)

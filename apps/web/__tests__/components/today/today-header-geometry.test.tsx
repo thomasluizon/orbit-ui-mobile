@@ -478,7 +478,7 @@ describe('Hoje header geometry', () => {
           await document.fonts.ready
         }, textScale)
         const geometry = await page.evaluate(() => {
-          const date = document.querySelector('[data-today-date-row] [title]')!
+          const date = document.querySelector('[data-today-date-row] [aria-disabled]')!
           const sentence = document.querySelector('.today-astra-sentence')!
           const rows = Array.from(document.querySelectorAll('[data-testid="habit-row"]'))
           const parent = rows[1]!
@@ -557,7 +557,7 @@ describe('Hoje header geometry', () => {
             leafDisclosure: rows[0]!.querySelector('[data-habit-row-control="disclosure"]') !== null,
             overflow: document.documentElement.scrollWidth,
             rowHeights: rows.map((row) => row.getBoundingClientRect().height),
-            controls: rows.flatMap((row) => Array.from(row.querySelectorAll('button:not([title])')).map((button) => {
+            controls: rows.flatMap((row) => Array.from(row.querySelectorAll('button:not([aria-disabled])')).map((button) => {
               const bounds = button.getBoundingClientRect()
               return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height }
             })),
@@ -706,28 +706,35 @@ describe('Hoje header geometry', () => {
     } finally { await page.close() }
   })
 
-  it.each((['light', 'dark'] as const).flatMap((mode) => [false, true].map((isTodaySelected) => ({ mode, isTodaySelected }))))(
-    'keeps one padded date target and one focus indicator in $mode, today=$isTodaySelected', async ({ mode, isTodaySelected }) => {
+  it.each([320, 393, 1352].flatMap((width) => (['light', 'dark'] as const).flatMap((mode) => [false, true].map((isTodaySelected) => ({ width, mode, isTodaySelected })))))(
+    'keeps one padded date target and one focus indicator at $width in $mode, today=$isTodaySelected', async ({ width, mode, isTodaySelected }) => {
       const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}>
         <TodayDateControl {...props} isTodaySelected={isTodaySelected} />
       </NextIntlClientProvider>)
-      const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await page.evaluate(({ mode, variables }) => {
           document.documentElement.dataset.mode = mode
           for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
         }, { mode, variables: resolveWebThemeVariables('orange', mode) })
-        const label = page.locator('[data-today-date-row] button[title]')
+        await page.evaluate(async () => { await document.fonts.ready })
+        const label = page.locator('[data-today-date-row] button[aria-disabled]')
         await label.hover()
         const hovered = await label.evaluate((button) => {
           const bounds = button.getBoundingClientRect()
           const style = getComputedStyle(button)
           const numeric = getComputedStyle(button.querySelector('p:last-child')!)
-          return { width: bounds.width, height: bounds.height, padding: [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft],
+          const textWidth = Math.max(...Array.from(button.querySelectorAll('p')).map((line) => {
+            const range = document.createRange()
+            range.selectNodeContents(line)
+            return range.getBoundingClientRect().width
+          }))
+          return { width: bounds.width, height: bounds.height, textWidth, padding: [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft],
             background: style.backgroundColor, numeric: numeric.color,
             expectedInk: style.getPropertyValue(button.getAttribute('aria-disabled') === 'true' ? '--fg-3' : '--fg-2').trim() }
         })
+        expect(hovered.width, 'the date target hugs its text and inline padding').toBeLessThanOrEqual(hovered.textWidth + 16 + 1)
         expect(hovered.width).toBeGreaterThanOrEqual(48)
         expect(hovered.height).toBeGreaterThanOrEqual(48)
         expect(hovered.padding).toEqual(['4px', '8px', '4px', '8px'])
@@ -741,6 +748,29 @@ describe('Hoje header geometry', () => {
           return resolved
         }, hovered.expectedInk)
         expect(hovered.numeric).toBe(expectedInk)
+        if (width >= 393) {
+          const sidePoints = await label.evaluate((button) => {
+            const row = button.closest('[data-today-date-row]')!
+            const previous = row.querySelector('button')!.getBoundingClientRect()
+            const next = row.querySelector(':scope > button:last-child')!.getBoundingClientRect()
+            const bounds = button.getBoundingClientRect()
+            return [(previous.right + bounds.left) / 2, (bounds.right + next.left) / 2].map((x) => ({ x, y: bounds.top + bounds.height / 2 }))
+          })
+          for (const point of sidePoints) {
+            await label.hover()
+            expect(await page.evaluate(({ x, y }) => {
+              const target = document.elementFromPoint(x, y)!
+              return { button: Boolean(target.closest('button')), background: getComputedStyle(target).backgroundColor }
+            }, point)).toEqual({ button: false, background: 'rgba(0, 0, 0, 0)' })
+            await page.mouse.move(point.x, point.y)
+            expect(await label.evaluate((button) => getComputedStyle(button).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+          }
+        }
+        await label.hover()
+        await page.mouse.down()
+        expect(await label.evaluate((button) => getComputedStyle(button).backgroundColor === 'rgba(0, 0, 0, 0)')).toBe(isTodaySelected)
+        await page.mouse.move(0, 914)
+        await page.mouse.up()
         await page.keyboard.press('Tab')
         await label.focus()
         const focus = await label.evaluate((button) => {
@@ -780,13 +810,13 @@ describe('Hoje header geometry', () => {
         }
         const date = document.querySelector('[data-today-date-row]')!
         const header = document.querySelector('[data-today-header-actions]')!
-        const dateBlock = date.querySelector('[title]')!
+        const dateBlock = date.querySelector('[aria-disabled]')!
         const day = dateBlock.querySelector('p')!
         const range = document.createRange()
         range.selectNodeContents(day)
         return {
           date: box(date), header: box(header), dateBlock: box(dateBlock),
-          arrows: Array.from(date.querySelectorAll('button:not([title])')).map(box),
+          arrows: Array.from(date.querySelectorAll('button:not([aria-disabled])')).map(box),
           actions: Array.from(header.querySelectorAll('button')).map(box),
           dayLines: range.getClientRects().length, dayFontSize: Number.parseFloat(getComputedStyle(day).fontSize),
           documentWidth: document.documentElement.scrollWidth,
@@ -817,7 +847,7 @@ describe('Hoje header geometry', () => {
           await page.evaluate((size) => { document.documentElement.style.fontSize = `${16 * size}px` }, scale)
           const geometry = await page.evaluate(() => {
             const row = document.querySelector('[data-today-date-row]')!
-            const arrows = Array.from(row.querySelectorAll('button:not([title])')).map((arrow) => {
+            const arrows = Array.from(row.querySelectorAll('button:not([aria-disabled])')).map((arrow) => {
               const bounds = arrow.getBoundingClientRect()
               return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height }
             })

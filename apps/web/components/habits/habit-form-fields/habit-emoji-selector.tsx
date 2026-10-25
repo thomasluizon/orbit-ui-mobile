@@ -9,6 +9,8 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { revealFocusedControl } from '@/lib/focus-scroll'
 
 interface HabitEmojiSelectorProps {
+  proposed?: boolean
+  suggestionErrorId?: string
   onSuggest?: () => void
   canSuggest?: boolean
   isSuggesting?: boolean
@@ -20,13 +22,13 @@ interface HabitEmojiSelectorProps {
   wellSize?: number
 }
 
-function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled, suggestionHint, suggestionError, hintId, errorId }: Readonly<Pick<HabitEmojiSelectorProps, 'onSuggest' | 'canSuggest' | 'isSuggesting' | 'isDisabled' | 'suggestionHint' | 'suggestionError'> & { hintId: string; errorId: string }>) {
+function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled, suggestionHint, suggestionError, hintId, errorId }: Readonly<Pick<HabitEmojiSelectorProps, 'onSuggest' | 'canSuggest' | 'isSuggesting' | 'isDisabled' | 'suggestionHint' | 'suggestionError'> & { hintId: string; errorId?: string }>) {
   const t = useTranslations()
   return onSuggest ? (
     <PillButton
       iconOnly label={t('habits.form.suggestEmoji')}
       variant="ghost"
-      retainLeadingIcon
+      borderless
       minimumHeight={TOUCH_TARGET_MIN}
       loading={isSuggesting}
       focusableWhenLoading
@@ -40,7 +42,19 @@ function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled
   ) : null
 }
 
+function emojiWellStyle(wellSize: number, proposed: boolean) {
+  return {
+    width: wellSize,
+    height: wellSize,
+    color: proposed ? 'var(--fg-3)' : undefined,
+    outline: proposed ? '1px dashed var(--hairline-strong)' : undefined,
+    outlineOffset: -1,
+  }
+}
+
 export function HabitEmojiSelector({
+  proposed = false,
+  suggestionErrorId,
   onSuggest,
   canSuggest = false,
   isSuggesting = false,
@@ -53,7 +67,7 @@ export function HabitEmojiSelector({
 }: Readonly<HabitEmojiSelectorProps>) {
   const t = useTranslations()
   const hintId = useId()
-  const errorId = useId()
+  const proposalId = useId()
   const [pickerOpen, setPickerOpen] = useState(false)
   const { sheetRef, closeSheet } = useSheetHost()
   const [query, setQuery] = useState('')
@@ -86,32 +100,34 @@ export function HabitEmojiSelector({
 
   return (
     <>
-      <div className="flex max-w-full min-w-0 flex-col gap-2">
-        <span className="form-label">{t('habits.form.emoji')}</span>
-        <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          className="habit-control-motion grid shrink-0 cursor-pointer place-items-center border-0 bg-[var(--bg-well)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45"
-          style={{
-            width: Math.max(wellSize, TOUCH_TARGET_MIN),
-            height: Math.max(wellSize, TOUCH_TARGET_MIN),
-            borderRadius: 'var(--r-well)',
-            fontSize: wellSize === 76 ? 34 : 22,
-          }}
-          disabled={isDisabled}
-          onClick={() => {
-            if (!isDisabled) setPickerOpen(true)
-          }}
-          aria-haspopup="dialog"
-          aria-expanded={pickerOpen}
-          aria-label={t('habits.form.emojiOpenPicker')}
-        >
-          {selectedEmoji || <Plus size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
-        </button>
-        <EmojiSuggestionButton onSuggest={onSuggest} canSuggest={canSuggest} isSuggesting={isSuggesting} isDisabled={isDisabled} suggestionHint={suggestionHint} suggestionError={suggestionError} hintId={hintId} errorId={errorId} />
+      <div className="flex max-w-full min-w-0 flex-col gap-2" style={{ width: Math.max(wellSize, TOUCH_TARGET_MIN) + (onSuggest ? TOUCH_TARGET_MIN + 12 : 0) }}>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            className="habit-control-motion group/emoji grid shrink-0 cursor-pointer place-items-center border-0 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45"
+            style={{
+              width: Math.max(wellSize, TOUCH_TARGET_MIN),
+              height: Math.max(wellSize, TOUCH_TARGET_MIN),
+              borderRadius: 'var(--r-well)',
+              fontSize: wellSize === 76 ? 34 : 22,
+            }}
+            disabled={isDisabled}
+            onClick={() => {
+              if (!isDisabled) setPickerOpen(true)
+            }}
+            aria-haspopup="dialog"
+            aria-expanded={pickerOpen}
+            aria-label={t('habits.form.emojiOpenPicker')}
+            aria-describedby={proposed ? proposalId : undefined}
+          >
+            <span data-emoji-well="" data-proposed={proposed ? '' : undefined} aria-hidden="true" className="habit-control-motion grid place-items-center rounded-[var(--r-well)] bg-[var(--bg-well)] group-hover/emoji:bg-[var(--bg-hover)] group-active/emoji:bg-[var(--bg-hover)]" style={emojiWellStyle(wellSize, proposed)}>
+              {selectedEmoji || <Plus size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
+            </span>
+          </button>
+          <EmojiSuggestionButton onSuggest={onSuggest} canSuggest={canSuggest} isSuggesting={isSuggesting} isDisabled={isDisabled} suggestionHint={suggestionHint} suggestionError={suggestionError} hintId={hintId} errorId={suggestionErrorId} />
         </div>
-        {onSuggest && suggestionHint ? <p id={hintId} className="text-sm text-[var(--fg-2)]">{suggestionHint}</p> : null}
-        {onSuggest ? <p id={errorId} role="alert" className="empty:absolute text-sm text-[var(--status-bad-text)]">{suggestionError}</p> : null}
+        {proposed ? <span id={proposalId} hidden>{t('habits.form.proposedByAstra')}</span> : null}
+        {onSuggest && suggestionHint ? <p id={hintId} hidden>{suggestionHint}</p> : null}
       </div>
 
       {pickerOpen ? <Sheet ref={sheetRef} open title={t('habits.form.emojiPickerTitle')} onClose={hidePicker} headerAccessory={selectedEmoji ? (

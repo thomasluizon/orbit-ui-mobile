@@ -210,6 +210,9 @@ describe('habit tag suggestions', () => {
     fireEvent.click(action)
     expect(action).toBeDisabled()
     expect(action).toHaveAttribute('aria-busy', 'true')
+    expect(action).toHaveAttribute('data-borderless', 'true')
+    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeNull()
+    expect(action.querySelectorAll('svg')).toHaveLength(1)
     expect(action).toHaveAccessibleDescription('habits.form.suggestingTags')
     expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestingTags')
     fireEvent.click(action)
@@ -255,7 +258,8 @@ describe('habit tag suggestions', () => {
     fireEvent.click(action)
     expect(tagMutations.suggest).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'habits.form.newTag' })).toBeInTheDocument()
-    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent(title.trim() ? 'habits.form.tagLimit' : 'habits.form.titleRequired')
+    expect(action).toHaveAccessibleDescription(title.trim() ? 'habits.form.tagLimit' : 'habits.form.titleRequired')
+    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toBeEmptyDOMElement()
     if (!title.trim()) {
       view.helpers.testValues.title = 'Run'
       view.refresh()

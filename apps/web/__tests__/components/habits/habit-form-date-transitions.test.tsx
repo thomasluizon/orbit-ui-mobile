@@ -62,6 +62,19 @@ describe('date ownership across form transitions', () => {
     expect(buildUpdateHabitRequest(values, false, '2026-12-01', [], [])).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-20' })
   })
 
+  it.each([0, 5])('keeps the offline date reason accessible with %s messages used', (used) => {
+    connection.isOnline = false
+    mockProfileState.aiMessagesUsed = used
+    const owner = mountDateForm()
+    owner.phrase('after my vacation')
+    const action = screen.getByRole('button', { name: 'habits.form.suggestDate' })
+    expect(action).toBeDisabled()
+    expect(action).toHaveAccessibleDescription('shell.composer.offline.reason')
+    expect(screen.getByText('shell.composer.offline.reason')).not.toBeVisible()
+    expect(Boolean(screen.queryByText('habits.form.aiSuggestLimitReached'))).toBe(used === 5)
+    expect(dateRequests.request).not.toHaveBeenCalled()
+  })
+
   it.each([false, true])('recognizes weekly wording offline at capacity with Pro access %s', (hasProAccess) => {
     connection.isOnline = false
     mockProfileState.aiMessagesUsed = 5

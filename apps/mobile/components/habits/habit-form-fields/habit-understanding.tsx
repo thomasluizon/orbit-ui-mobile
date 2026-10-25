@@ -78,58 +78,61 @@ export function HabitUnderstanding({
   const segments = useMemo(() => segmentHabitPhrase(value, consumed), [consumed, value])
 
   const emojiControl = (
-    <Proposed inset keepMounted proposed={emojiProposed} scope="field" label={labels.proposed}>
-      <HabitEmojiSelector
-        selectedEmoji={emoji}
-        tokens={tokens}
-        styles={formStyles}
-        wellSize={46}
-        onSelect={selectEmoji}
-        onSuggest={requestEmoji}
-        canSuggest={canSuggestEmoji}
-        isSuggesting={isEmojiSuggesting}
-        isDisabled={disabled || isSuggestionDisabled || isEmojiSuggesting}
-        suggestionHint={emojiSuggestionHint}
-        suggestionError={emojiSuggestionError}
-      />
-    </Proposed>
+    <HabitEmojiSelector
+      proposed={emojiProposed || proposed}
+      selectedEmoji={emoji}
+      tokens={tokens}
+      styles={formStyles}
+      wellSize={46}
+      onSelect={selectEmoji}
+      onSuggest={requestEmoji}
+      canSuggest={canSuggestEmoji}
+      isSuggesting={isEmojiSuggesting}
+      isDisabled={disabled || isSuggestionDisabled || isEmojiSuggesting}
+      suggestionHint={emojiSuggestionHint}
+      suggestionError={emojiSuggestionError}
+    />
   )
 
   return (
     <View style={styles.container}>
       <View style={styles.fieldGroup}>
         <Text style={styles.label}>{labels.field}</Text>
-        <View style={[styles.inputLayer, {
-          outlineColor: focused ? tokens.primary : tokens.borderControl,
-          outlineWidth: focused ? 2 : 1,
-          outlineOffset: focused ? -2 : -1,
-        }]}>
-          <Text aria-hidden pointerEvents="none" style={styles.inputMirror}>
-            {hasValue ? segments.map((segment, index) => (
-              <Text key={`${segment.text}-${index}`} style={segment.consumed ? styles.consumed : null}>
-                {segment.text}
-              </Text>
-            )) : labels.placeholder}{'\u200b'}
-          </Text>
-          <TypedTextInput
-            ref={inputRef}
-            value={value}
-            multiline
-            maxLength={200}
-            spellCheck={false}
-            accessibilityLabel={labels.field}
-            accessibilityHint={error}
-            editable={!disabled}
-            accessibilityState={{ disabled }}
-            placeholder={labels.placeholder}
-            placeholderTextColor={tokens.fg3}
-            selectionColor={tokens.primary}
-            style={styles.input}
-            onChangeText={guard(onValueChange)}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-          />
+        <View testID="habit-title-row" style={styles.titleRow}>
+          <View style={[styles.inputLayer, {
+            outlineColor: focused ? tokens.primary : tokens.borderControl,
+            outlineWidth: focused ? 2 : 1,
+            outlineOffset: focused ? -2 : -1,
+          }]}>
+            <Text aria-hidden pointerEvents="none" style={styles.inputMirror}>
+              {hasValue ? segments.map((segment, index) => (
+                <Text key={`${segment.text}-${index}`} style={segment.consumed ? styles.consumed : null}>
+                  {segment.text}
+                </Text>
+              )) : labels.placeholder}{'\u200b'}
+            </Text>
+            <TypedTextInput
+              ref={inputRef}
+              value={value}
+              multiline
+              maxLength={200}
+              spellCheck={false}
+              accessibilityLabel={labels.field}
+              accessibilityHint={error}
+              editable={!disabled}
+              accessibilityState={{ disabled }}
+              placeholder={labels.placeholder}
+              placeholderTextColor={tokens.fg3}
+              selectionColor={tokens.primary}
+              style={styles.input}
+              onChangeText={guard(onValueChange)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+            />
+          </View>
+          {emojiControl}
         </View>
+        {onSuggestEmoji ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.error, !emojiSuggestionError ? { position: 'absolute', width: 0, height: 0 } : null]}>{emojiSuggestionError}</Text> : null}
         {error ? (
           <Text accessibilityRole="alert" style={styles.error}>{error}</Text>
         ) : null}
@@ -137,12 +140,9 @@ export function HabitUnderstanding({
 
       {children}
 
-      {onSuggestEmoji && !showPreview ? emojiControl : null}
-
       {showPreview ? (
         <Proposed inset proposed={proposed} scope="block" label={labels.proposed}>
           <View accessibilityLabel={labels.understood} style={styles.preview}>
-            {emojiControl}
             <Text style={[styles.sentence, proposed ? { color: tokens.fg3 } : null]}>{sentence}</Text>
             <ScheduleCorrections hidden={!showSchedule} proposed={proposed} days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible' && showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} tokens={tokens} styles={styles} />
           </View>
@@ -164,8 +164,11 @@ function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: { gap: 24 },
     fieldGroup: { gap: 8 },
+    titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
     label: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 },
     inputLayer: {
+      flex: 1,
+      minWidth: 0,
       minHeight: 54,
       borderRadius: radius.md,
       outlineWidth: 1,
