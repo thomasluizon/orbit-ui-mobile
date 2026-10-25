@@ -18,7 +18,7 @@ import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { ArrowUp, ChevronDown, Clipboard, FileText, Image as ImageIcon, Loader2, Plus, Square, X } from '@/components/ui/icons'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { Sheet } from '@/components/ui/sheet'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -92,7 +92,7 @@ function SuggestionStrip({ suggestions, label, disclosure }: Readonly<Pick<Compo
       const availableWidth = host.getBoundingClientRect().width
       const chipWidths = [...host.querySelectorAll<HTMLElement>('[data-suggestion-content]')].map(content => {
         const buttonStyle = getComputedStyle(content.parentElement!)
-        return content.getBoundingClientRect().width + parseFloat(buttonStyle.paddingInlineStart) + parseFloat(buttonStyle.paddingInlineEnd)
+        return content.getBoundingClientRect().width + Number.parseFloat(buttonStyle.paddingInlineStart) + Number.parseFloat(buttonStyle.paddingInlineEnd)
       })
       const next = { availableWidth, ...resolveComposerStripLayout(availableWidth, chipWidths) }
       setLayout(previous => previous.availableWidth === next.availableWidth && previous.gap === next.gap ? previous : next)
@@ -197,6 +197,12 @@ function AllowanceStatus({ props, disclosure }: Readonly<{ props: ComposerProps;
   </div>
 }
 
+function ComposerControlIcon({ voiceActive, recording }: Readonly<{ voiceActive: boolean; recording: boolean }>) {
+  return voiceActive
+    ? <Square size={16} fill="currentColor" aria-hidden="true" className={recording ? undefined : 'text-[var(--fg-3)]'} />
+    : <Plus size={20} strokeWidth={2} aria-hidden="true" className="text-[var(--fg-3)]" />
+}
+
 function ComposerControls({ props, onPaste, onClear }: Readonly<{ props: WebComposerProps; onPaste?: () => void; onClear?: () => void }>) {
   const compactMenu = useContext(CompactComposerMenuContext)
   const [open, setOpen] = useState(false)
@@ -209,23 +215,18 @@ function ComposerControls({ props, onPaste, onClear }: Readonly<{ props: WebComp
   const textAction = onClear ? { id: 'clear', label: props.words.clear, icon: 'x' }
     : onPaste ? { id: 'paste', label: props.words.paste, icon: 'clipboard' } : null
   const items = textAction ? [textAction, ...defaultItems] : defaultItems
-  if (voiceActive) return <div data-composer-controls className="flex shrink-0 items-center">
-    <button type="button" aria-label={label} data-focus-on-primary={props.state === 'recording' ? '' : undefined} disabled={props.state === 'transcribing'} onClick={props.onVoice}
-      className={`flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-40 ${props.state === 'recording' ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-transparent text-[var(--fg-3)]'}`}>
-      <Square size={16} fill="currentColor" aria-hidden="true" />
-    </button>
-  </div>
-  if (items.length === 0) return null
-  return <div data-composer-controls className="flex shrink-0 items-center">
-    <button ref={anchorRef} type="button" aria-label={label} aria-haspopup="menu" aria-controls={open && !disabled ? menuId : undefined} aria-expanded={open && !disabled}
-      disabled={disabled} onClick={() => setOpen(true)} onKeyDown={(event) => {
-        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setOpen(true) }
-      }}
-      className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40">
-      <Plus size={20} strokeWidth={2} aria-hidden="true" />
-    </button>
-    <Menu id={menuId} open={open && !disabled} anchorRef={anchorRef} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onClose={() => setOpen(false)} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
-  </div>
+  if (!voiceActive && items.length === 0) return null
+  const isRecording = props.state === 'recording'
+  return <Menu.Root open={open && !disabled && !voiceActive} onOpenChange={setOpen}><div data-composer-controls className="flex shrink-0 items-center">
+    <Menu.Trigger asChild disabled={disabled || voiceActive}><button ref={anchorRef} type="button" aria-label={label}
+      aria-haspopup={voiceActive ? undefined : 'menu'} aria-controls={open && !disabled && !voiceActive ? menuId : undefined}
+      aria-expanded={voiceActive ? undefined : open && !disabled} data-focus-on-primary={isRecording ? '' : undefined}
+      disabled={disabled} onClick={voiceActive ? props.onVoice : undefined}
+      className={`flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-40 ${isRecording ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-transparent enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)]'}`}>
+      <ComposerControlIcon voiceActive={voiceActive} recording={isRecording} />
+    </button></Menu.Trigger>
+    <Menu.Content id={menuId} presentation={compactMenu ? 'sheet' : 'auto'} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
+  </div></Menu.Root>
 }
 
 function subscribeClipboardAvailability() { return () => {} }
@@ -295,9 +296,9 @@ function useTextActionMenu(inputRef: React.RefObject<HTMLTextAreaElement | null>
       const sendWidth = trailing.lastElementChild!.getBoundingClientRect().width
       const entryWidth = row.querySelector('[data-open-conversation]')?.getBoundingClientRect().width ?? 0
       const rowStyle = getComputedStyle(row)
-      const available = row.clientWidth - parseFloat(rowStyle.paddingInlineStart) - parseFloat(rowStyle.paddingInlineEnd)
+      const available = row.clientWidth - Number.parseFloat(rowStyle.paddingInlineStart) - Number.parseFloat(rowStyle.paddingInlineEnd)
       const minimumWidth = row.querySelector('[data-composer-input-minimum]')!.getBoundingClientRect().width
-      const inMenu = entryWidth + minimumWidth + inlineControlsWidth + sendWidth + parseFloat(getComputedStyle(trailing).columnGap) > available
+      const inMenu = entryWidth + minimumWidth + inlineControlsWidth + sendWidth + Number.parseFloat(getComputedStyle(trailing).columnGap) > available
       setInMenu(inMenu)
     }
     const observer = new ResizeObserver(measure)
@@ -335,7 +336,7 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
     if (!input) return
     function updatePlaceholder() {
       const style = getComputedStyle(input!)
-      const availableWidth = input!.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)
+      const availableWidth = input!.clientWidth - Number.parseFloat(style.paddingInlineStart) - Number.parseFloat(style.paddingInlineEnd)
       if (availableWidth <= 0) return
       const context = document.createElement('canvas').getContext('2d')!
       context.font = style.font

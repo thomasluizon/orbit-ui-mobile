@@ -1,6 +1,7 @@
 import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Platform } from 'react-native'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReferralStats } from '@orbit/shared/types/referral'
 import { createInstance } from 'i18next'
 import ICUCommonJs from 'i18next-icu/cjs'
@@ -76,6 +77,17 @@ function alerts(container: any): string[] {
 }
 
 describe('ReferralDrawer (mobile)', () => {
+  afterEach(() => { Platform.OS = 'android' })
+  it('omits coupon claims from the iOS drawer and share message', async () => {
+    Platform.OS = 'ios'
+    mocks.locale = 'en'
+    const tree = renderDrawer()
+    expect(renderedText(tree.toJSON())).not.toContain('20%')
+    expect(renderedText(tree.toJSON())).toContain(en.referral.reward.neutral)
+    await pressButton(slot(tree, 'SheetActions'), en.referral.drawer.share)
+    expect(mocks.share).toHaveBeenLastCalledWith({ title: en.referral.share.title, message: `${en.referral.share.neutral} https://useorbit.org/r/ORBIT1` })
+  })
+
   beforeEach(() => {
     mocks.locale = ''
     mocks.referral = { stats, isLoading: false, isError: false, error: null }

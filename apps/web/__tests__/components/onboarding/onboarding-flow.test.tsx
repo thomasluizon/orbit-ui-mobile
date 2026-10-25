@@ -330,7 +330,7 @@ describe('OnboardingFlow state model', () => {
       mocks.createHabit.mockImplementation(staleAction)
     }
     render(<RetainedOnboardingOverlay />)
-    const dialog = screen.getByRole('dialog')
+    const dialog = await screen.findByRole('dialog')
     const region = dialog.querySelector('[data-update-live-region]')
     expect(region).toBeEmptyDOMElement()
     fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Walk every Monday at 18:00' } })

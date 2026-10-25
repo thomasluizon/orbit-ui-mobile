@@ -663,7 +663,7 @@ it('opens the same real complete editor through the list row menu and stages a p
   prepareParentEditor()
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   render(<QueryClientProvider client={client}><HabitList filters={{}} view="all" /></QueryClientProvider>)
-  fireEvent.click(screen.getAllByRole('button', { name: 'habits.actions.more' })[0]!)
+  fireEvent.pointerDown(screen.getAllByRole('button', { name: 'habits.actions.more' })[0]!, { button: 0, ctrlKey: false })
   fireEvent.click(await screen.findByRole('menuitem', { name: 'common.edit' }))
   expect(await screen.findByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read')
   expect(screen.getAllByRole('textbox', { name: 'habits.form.checklistItemLabel' })).toHaveLength(2)

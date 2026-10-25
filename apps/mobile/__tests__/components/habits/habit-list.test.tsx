@@ -501,25 +501,6 @@ vi.mock('@/lib/theme', async (importOriginal) => {
   }
 })
 
-vi.mock('@/components/ui/anchored-menu', async () => {
-  const React = await import('react')
-  return {
-    AnchoredMenu: ({ visible, children }: any) => (visible ? children : null),
-    MenuAnchorHost: ({ children }: any) => children,
-    useAnchoredMenu: () => {
-      const [visible, setVisible] = React.useState(false)
-      return {
-        anchorRef: { current: null },
-        visible,
-        anchorRect: null,
-        open: () => setVisible(true),
-        close: () => setVisible(false),
-        toggle: () => setVisible((current) => !current),
-      }
-    },
-  }
-})
-
 vi.mock('react-native-svg', () => ({
   default: (props: any) => React.createElement('Svg', props),
   Rect: (props: any) => React.createElement('Rect', props),

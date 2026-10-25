@@ -20,7 +20,7 @@ import type { MenuItem } from '@orbit/shared/contracts/overlay'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { Menu, useAnchoredMenu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { ChevronDown } from '@/components/ui/icons'
 import { Checkbox } from '@/components/ui/checkbox'
 import { habitRowMetaPartKey, HabitRowContent, HabitRowMetaStrip, type HabitRowMetaPart } from './habit-row-content'
@@ -344,25 +344,12 @@ export const HabitRow = memo(function HabitRow({
 
   const emoji = habit.emoji
 
-  const {
-    anchorRef: menuButtonRef,
-    visible: menuVisible,
-    open: openAnchoredMenu,
-    close: closeAnchoredMenu,
-  } = useAnchoredMenu()
+  const [menuVisible, setMenuVisible] = useState(false)
   const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode)
   const menuItems = useMemo(
     () => buildMenuItems(actions, isSelectMode, completionReadOnly, isOverdue, habit.hasSubHabits, t),
     [actions, completionReadOnly, habit.hasSubHabits, isOverdue, isSelectMode, t],
   )
-
-  const openMenu = useCallback(() => {
-    openAnchoredMenu()
-  }, [openAnchoredMenu])
-
-  const closeMenu = useCallback(() => {
-    closeAnchoredMenu()
-  }, [closeAnchoredMenu])
 
   const handlePress = resolveBodyPressAction(isSelectMode, actions)
   const bodyPressFeedback = useBodyPressFeedback(tokens)
@@ -465,12 +452,9 @@ export const HabitRow = memo(function HabitRow({
           canLog={canLog}
           dotState={dotState}
           hasMenuActions={hasMenuActions}
-          menuButtonRef={menuButtonRef}
           actions={actions}
           tokens={tokens}
           onToggleStatus={handleToggleStatus}
-          onOpenMenu={openMenu}
-          menuVisible={menuVisible}
           completionReadOnly={completionReadOnly}
           completionReason={completionReason}
           completionStatusUnavailable={completionStatusUnavailable}
@@ -479,7 +463,7 @@ export const HabitRow = memo(function HabitRow({
   )
 
   return (
-    <View onLayout={measureRow} style={habitRowSpacing(depth, panelEnd)}>
+    <Menu.Root open={menuVisible} onOpenChange={setMenuVisible}><View onLayout={measureRow} style={habitRowSpacing(depth, panelEnd)}>
       <HabitRowLayout depth={depth} descriptionPresent={Boolean(description)} isChild={isChild} supportingMeta={supportingMeta}
         rowStyle={[rowStyle, style]} outlineColor={bodyPressFeedback.outlineColor} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts}
         metaColor={bodyPressFeedback.metaColor} largeText={largeText} onTokenWidth={onTokenWidth} tokens={tokens}>
@@ -487,17 +471,14 @@ export const HabitRow = memo(function HabitRow({
       </HabitRowLayout>
 
       {hasMenuActions ? (
-        <Menu
-          open={menuVisible}
-          anchorRef={menuButtonRef}
-          onClose={closeMenu}
+        <Menu.Content
           title={habit.title || t('habits.actions.menuTitle')}
           titleMode={rowMenuTitleMode(habit.title)}
           items={menuItems}
           onSelect={(id) => runMenuAction(actions, id)}
         />
       ) : null}
-    </View>
+    </View></Menu.Root>
   )
 })
 

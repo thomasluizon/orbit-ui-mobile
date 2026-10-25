@@ -1,3 +1,4 @@
+import { AppleAuthCallback } from '@/components/auth/apple-auth-callback'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLinkingURL } from 'expo-linking'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -19,6 +20,11 @@ function ownsReturnUrl(isCurrentLoginSession: () => boolean, attemptId: string):
 }
 
 export default function AuthCallbackScreen() {
+  const params = useLocalSearchParams<{ provider?: string }>()
+  return params.provider === 'apple' ? <AppleAuthCallback /> : <GoogleAuthCallbackScreen />
+}
+
+function GoogleAuthCallbackScreen() {
   const { i18n } = useTranslation()
   const params = useLocalSearchParams<{ code?: string; state?: string; error?: string; error_description?: string }>()
   const rawUrl = useLinkingURL()

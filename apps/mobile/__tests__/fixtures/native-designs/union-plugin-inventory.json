@@ -7,6 +7,7 @@
   "@siteed/audio-studio",
   "expo-sqlite",
   "expo-iap",
+  "expo-apple-authentication",
   "expo-build-properties",
   "@sentry/react-native/expo",
   "expo-sharing",

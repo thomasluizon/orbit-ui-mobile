@@ -146,7 +146,7 @@ describe('habit row standard on Android', () => {
       const tokenBounds = initial.filter((part) => part.host.props.testID === 'habit-row-meta-token')
       const layoutEvent = (width: number) => ({ nativeEvent: { layout: { x: 0, y: 0, width, height: 52 } } })
       TestRenderer.act(() => {
-        tree!.root.findAllByType('View')[0]!.props.onLayout(layoutEvent(284))
+        tree!.root.findAllByType('View').find((node: import('react-test-renderer').ReactTestInstance) => typeof node.props.onLayout === 'function')!.props.onLayout(layoutEvent(284))
         tree!.root.findByProps({ testID: 'habit-row-title-block' }).props.onLayout(layoutEvent(content.width))
         tree!.root.findAllByType('View').filter((node: import('react-test-renderer').ReactTestInstance) => node.props.testID === 'habit-row-meta-token')
           .forEach((node: import('react-test-renderer').ReactTestInstance, index: number) => (node.props.onLayout as (event: ReturnType<typeof layoutEvent>) => void)(layoutEvent(tokenBounds[index]!.width)))

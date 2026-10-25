@@ -58,7 +58,7 @@ export function useOverlayEscape({
     }
 
     function handleEscape(event: KeyboardEvent) {
-      if (event.key !== 'Escape') return
+      if (event.key !== 'Escape' || event.defaultPrevented) return
       if (!isTopOverlay(overlayId)) return
       event.preventDefault()
       event.stopPropagation()

@@ -5,6 +5,7 @@ import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer'
+import { OverlayHost } from '@/components/ui/overlay-host'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -41,10 +42,11 @@ vi.mock('@/hooks/use-subscription-plans', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/hooks/use-subscription-plans')>()),
   useSubscriptionPlans: () => ({ plans: mocks.plansState === 'loaded' ? plans : null, isLoading: mocks.plansState === 'loading', isError: mocks.plansState === 'error', refetch: vi.fn() }),
 }))
-vi.mock('@/hooks/use-play-billing', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/hooks/use-play-billing')>()
-  return { ...actual, usePlayBilling: (options: { onPurchased: () => Promise<void> }) => {
-    if (mocks.realPlayBilling) return actual.usePlayBilling(options)
+vi.mock('@/hooks/store-billing-provider', async (importOriginal) => {
+  const connection = await import('@/hooks/use-play-billing')
+  const actual = await importOriginal<typeof import('@/hooks/store-billing-provider')>()
+  return { ...actual, useStoreBilling: (options: { onPurchased: () => Promise<void> }) => {
+    if (mocks.realPlayBilling) return connection.useStoreBillingConnection(options)
     mocks.onPurchased = options.onPurchased
     return { purchase: mocks.purchase, isProcessing: mocks.processing, errorKey: mocks.errorKey, clearError: vi.fn(), monthlyOffer: null, yearlyOffer: null, isRestoring: false, restorePurchases: vi.fn(), isLoadingProducts: mocks.productQueryState === 'loading', isProductsError: mocks.productQueryState === 'failed', retryProducts: mocks.retryProducts }
   } }
@@ -238,7 +240,7 @@ it.each(geometryCases)('fits the owning Android final-step heading at $width in 
   mocks.profile = createMockProfile({ hasProAccess: trial, isTrialActive: trial, plan: trial ? 'pro' : 'free', trialEndsAt: trial ? new Date(Date.now() + 7 * 86400000).toISOString() : null })
   mocks.refetch.mockResolvedValue({ data: mocks.profile, isError: false })
   let tree!: ReturnType<typeof TestRenderer.create>
-  await act(() => { tree = TestRenderer.create(<OnboardingFlow finalStepOnly />) })
+  await act(() => { tree = TestRenderer.create(<OverlayHost><OnboardingFlow finalStepOnly /></OverlayHost>) })
   try {
     const text = translate(trial ? 'onboarding.flow.trial.title' : 'upgrade.convert.freeHeading')
     const heading = tree.root.findAll((node) => node.type === Text && node.props.accessibilityRole === 'header' && node.props.children === text)[0]!

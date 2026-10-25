@@ -17,6 +17,7 @@ import { clearStoredAuthReturnUrl, clearStoredReferralCode, createAuthReturnUrlA
   getSafeReturnUrl, getStoredAuthReturnUrl, getStoredReferralCode, isAuthReturnUrlAttemptCurrent,
   isSafeReturnUrl, isValidReferralCode, isValidVerificationCode,
   storeAuthReturnUrl, storeReferralCode } from '@/lib/auth-flow'
+import { startAppleAuthentication } from '@/lib/apple-auth'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { clearPendingGoogleAuthSession, usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { useOffline } from '@/hooks/use-offline'
@@ -71,6 +72,7 @@ export function useLoginFlow(isAuthCallback = false) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isResending, setIsResending] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const [isAppleLoading, setIsAppleLoading] = useState(false)
   const googleSession = usePendingGoogleAuthSession()
   const [dismissedGoogleAttemptId, setDismissedGoogleAttemptId] = useState<string | null>(null)
   const [loginErrorKey, setLoginErrorKey] = useState<string | null>(
@@ -395,6 +397,32 @@ export function useLoginFlow(isAuthCallback = false) {
     entry.resetCodeDigits()
   }
 
+  async function signInWithApple() {
+    if (busy.current || !isOnline) return
+    const attempt = attemptScope.capture('', getSessionGeneration().epoch)
+    const isCurrent = () => attemptScope.owns(attempt, getSessionGeneration().epoch)
+    const returnUrlAttempt = getOrCreateReturnUrlAttempt(returnUrlAttemptRef,
+      typeof params.returnUrl === 'string' ? params.returnUrl : undefined)
+    busy.current = true
+    setIsAppleLoading(true)
+    setErrorKey(null)
+    try {
+      await returnUrlAttempt.ready
+      const referralCode = await getStoredReferralCode()
+      const result = await startAppleAuthentication({ language: i18n.language,
+        referralCode: referralCode ?? undefined, attemptId: returnUrlAttempt.id, isCurrent })
+      if (!isCurrent()) return
+      if (result.response) {
+        if (result.response.wasReactivated) { accountAttempt.current = attempt; setAccountBack(result.response) }
+        else await completeLogin(result.response, returnUrlAttempt.id, attempt)
+      } else if (result.url) {
+        router.replace({ pathname: '/auth-callback', params: Object.fromEntries(new URL(result.url).searchParams) })
+      }
+    } catch (error) {
+      if (isCurrent() && !(error && typeof error === 'object' && 'code' in error && error.code === 'ERR_REQUEST_CANCELED')) setErrorKey('auth.errors.appleError')
+    } finally { busy.current = false; setIsAppleLoading(false) }
+  }
+
   async function signInWithGoogle() {
     if (busy.current || !isOnline) return
     busy.current = true
@@ -438,7 +466,7 @@ export function useLoginFlow(isAuthCallback = false) {
     setErrorKey(null)
   }
 
-  return { t, step, email, setEmail: changeEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, errorKey,
+  return { t, step, email, setEmail: changeEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, isAppleLoading, errorKey,
     emailFieldError: getBackendFieldError(validationError, 'Email'),
     codeFieldError: getBackendFieldError(validationError, 'Code'),
     codeFocusRequest,
@@ -448,8 +476,8 @@ export function useLoginFlow(isAuthCallback = false) {
     validationGeneralError: unmappedBackendFormError(validationError, [step === 'email' ? 'Email' : 'Code']),
     errorMessage: errorKey ? t(errorKey) : null, successMessage, showReferralBanner, fromOnboarding,
     plannedHabitCount, isOnline, ...entry, onCodeChange, codeFailure, lockCountdown, accountBack,
-    canSubmitEmail: Boolean(email.trim()) && !isSubmitting && !isGoogleLoading && isOnline && (!turnstileSiteKey || Boolean(turnstileToken)),
+    canSubmitEmail: Boolean(email.trim()) && !isSubmitting && !isGoogleLoading && !isAppleLoading && isOnline && (!turnstileSiteKey || Boolean(turnstileToken)),
     canSubmitCode: entry.codeDigits.join('').length === 6 && !isSubmitting && isOnline && (!turnstileSiteKey || Boolean(turnstileToken)),
     turnstileSiteKey, turnstileToken, turnstileResetKey, onTurnstileToken: handleTurnstileToken,
-    sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, continueAccount, openPrivacyPolicy, openTerms }
+    sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, signInWithApple, continueAccount, openPrivacyPolicy, openTerms }
 }

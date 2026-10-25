@@ -11,7 +11,7 @@ import { ProPitch } from '@/components/upgrade/pro-pitch'
 import type { SubscriptionInterval } from '@/components/upgrade/types'
 import { useOnboardingPlan } from '@/hooks/use-onboarding-plan'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
-import { usePlayBilling } from '@/hooks/use-play-billing'
+import { useStoreBilling } from '@/hooks/store-billing-provider'
 import { useOffline } from '@/hooks/use-offline'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { getAccountId } from '@/lib/account-scope'
@@ -35,7 +35,7 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
   const paidExitStarted = useRef(false)
   const [selectedInterval, setSelectedInterval] = useState<SubscriptionInterval>('yearly')
   const [checkoutInterval, setCheckoutInterval] = useState<SubscriptionInterval | null>(null)
-  const billing = usePlayBilling({ preferReferralOffer: !!plans.plans?.couponPercentOff, onPurchased: async () => { const generation = getAccountGeneration(); await finish(); if (getAccountGeneration() === generation) showSuccess(t('upgrade.purchaseSuccess')) } })
+  const billing = useStoreBilling({ preferReferralOffer: !!plans.plans?.couponPercentOff, onPurchased: async () => { const generation = getAccountGeneration(); await finish(); if (getAccountGeneration() === generation) showSuccess(t('upgrade.purchaseSuccess')) } })
   const checkoutLoading = billing.isProcessing || billing.isRestoring ? checkoutInterval ?? selectedInterval : null
 
   async function finish(destination?: string) {
@@ -66,11 +66,12 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
     paidExitStarted.current = true
     void finish().catch(() => {})
   })
-  function checkout(interval: SubscriptionInterval) {
+  async function checkout(interval: SubscriptionInterval) {
     if (!isOnline || billing.isProcessing || billing.isRestoring || finishing) return
     setCheckoutInterval(interval)
     billing.clearError()
-    void billing.purchase(interval)
+    const started = await billing.purchase(interval)
+    if (!started) setCheckoutInterval(null)
   }
 
   const title = <Text nativeID="onboarding-title" accessibilityRole="header" style={{ fontFamily: 'Geist_500Medium', fontSize: 20, color: tokens.fg1 }}>{t('upgrade.pitchTitle')}</Text>
@@ -79,7 +80,7 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
   if (plan === 'loading' || plan === 'Pro') content = <View accessibilityState={{ busy: true }} accessibilityLabel={t('common.loading')} style={styles.stack}>{title}<ProSkeleton color={tokens.bgWell} />{exitAction}</View>
   else if (plan === null) content = <View style={styles.stack}>{title}<ErrorState message={t('upgrade.billing.error')} action={<PillButton variant="ghost" onClick={retry}>{t('upgrade.billing.retry')}</PillButton>} />{exitAction}</View>
   else if (plan === 'Trial') content = <View testID="onboarding-step-trial" style={styles.pitch}><ProPitch inset={false} focusOnMount headingId="onboarding-title" profile={profile ?? null} trialDaysLeft={getTrialDaysLeft(profile)} titleKey="onboarding.flow.trial.title" bodyKey="onboarding.flow.trial.body" dateHint={profile?.trialEndsAt ? t('upgrade.billing.plan.trialHint', { date: new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(profile.trialEndsAt)) }) : undefined} t={t} tokens={tokens} /><PillButton loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton></View>
-  else content = <View testID="onboarding-step-paywall" style={styles.stack}>{title}{!isOnline ? <ErrorState message={t('upgrade.billing.offline')} /> : null}<PricingSection inset={false} profile={null} plans={plans.plans} isLoadingPlans={plans.isLoading} isPlansError={plans.isError} isLoadingProducts={billing.isLoadingProducts} isProductsError={billing.isProductsError} isOnline={isOnline} trialDaysLeft={null} selectedInterval={selectedInterval} onSelectInterval={setSelectedInterval} monthlyOffer={billing.monthlyOffer} yearlyOffer={billing.yearlyOffer} checkoutLoading={checkoutLoading ?? (finishing ? 'yearly' : null)} checkoutError={billing.errorKey ? t(billing.errorKey) : ''} checkoutDisabled={!isOnline || billing.isRestoring} onCheckout={checkout} onStayFree={() => exit()} isRestoring={billing.isRestoring} onRestore={() => void billing.restorePurchases()} onRetryPlans={() => { if (isOnline) { billing.retryProducts(); void plans.refetch() } }} t={t} tokens={tokens} /></View>
+  else content = <View testID="onboarding-step-paywall" style={styles.stack}>{title}{!isOnline ? <ErrorState message={t('upgrade.billing.offline')} /> : null}<PricingSection inset={false} profile={null} plans={plans.plans} isLoadingPlans={plans.isLoading} isPlansError={plans.isError} isLoadingProducts={billing.isLoadingProducts} isProductsError={billing.isProductsError} isOnline={isOnline} trialDaysLeft={null} selectedInterval={selectedInterval} onSelectInterval={setSelectedInterval} monthlyOffer={billing.monthlyOffer} yearlyOffer={billing.yearlyOffer} checkoutLoading={checkoutLoading ?? (finishing ? 'yearly' : null)} checkoutError={billing.errorKey ? t(billing.errorKey) : ''} checkoutDisabled={!isOnline || billing.isRestoring} onCheckout={(interval) => { void checkout(interval) }} onStayFree={() => exit()} isRestoring={billing.isRestoring} onRestore={() => void billing.restorePurchases()} onRetryPlans={() => { if (isOnline) { billing.retryProducts(); void plans.refetch() } }} t={t} tokens={tokens} /></View>
   return <View style={styles.root}>{content}<Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: tokens.fg2 }}>{finishFailed ? t('onboarding.flow.completionFailed') : ''}</Text></View>
 }
 

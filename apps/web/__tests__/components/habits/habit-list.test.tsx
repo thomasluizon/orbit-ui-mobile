@@ -4388,7 +4388,7 @@ describe('HabitList', () => {
     })
     renderWithProviders(<><HabitList filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} /><SkipToastHost /></>)
     await screen.findByText('Walk')
-    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     fireEvent.click(await screen.findByRole('menuitem', { name: 'habits.actions.skip' }))
     await waitFor(() => expect(skipFlow.mutate).toHaveBeenCalledTimes(1))
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -4432,7 +4432,7 @@ describe('HabitList', () => {
     })
     renderWithProviders(<><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} /><SkipToastHost /></>)
     const childRow = (await screen.findByText(personalText('Pending child'))).closest('[data-testid="habit-row"]') as HTMLElement
-    fireEvent.click(within(childRow).getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.pointerDown(within(childRow).getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     fireEvent.click(await screen.findByRole('menuitem', { name: 'habits.actions.skip' }))
     await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
     await waitFor(() => expect(screen.queryByText(personalText('Pending child'))).toBeNull())
@@ -4497,7 +4497,7 @@ describe('HabitList', () => {
     const futureList = <HabitList filters={{ dateFrom: TOMORROW, dateTo: TOMORROW, includeOverdue: true }}
       selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} />
     const { rerenderWithProviders } = renderWithProviders(futureList)
-    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     fireEvent.click(await screen.findByRole('menuitem', { name: 'habits.actions.delete' }))
     const confirmation = await screen.findByRole('dialog', { name: 'habits.deleteConfirmTitle' })
     sheetTestControls.defer(true)
@@ -4571,7 +4571,7 @@ describe('HabitList', () => {
     mockHabitsData.topLevelHabits = [habit]
     renderWithProviders(<HabitList filters={defaultFilters} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     fireEvent.click(await screen.findByRole('menuitem', { name: 'habits.actions.skip' }))
 
     await waitFor(() => expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: habit.id, date: TODAY, onUndo: expect.any(Function) }))

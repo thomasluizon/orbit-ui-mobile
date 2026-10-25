@@ -73,7 +73,7 @@ it('disables approval when every proposed row has been removed', async () => {
   expect(screen.getByText('chat.breakdown.empty')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'habits.breakdown.addHabit' })).toHaveAttribute('data-variant', 'primary')
   expect(screen.getByRole('button', { name: 'chat.preview.approve' })).toHaveAttribute('data-variant', 'secondary')
-  fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+  fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
   expect(await screen.findByRole('menuitem', { name: 'chat.preview.edit' })).toBeDisabled()
   expect(screen.getByRole('menuitem', { name: 'chat.preview.reject' })).toBeEnabled()
   expect(screen.getByRole('button', { name: 'chat.preview.approve' })).toBeDisabled()
@@ -128,7 +128,7 @@ describe('BreakdownSuggestion', () => {
   it('collapses a rejected preview in place', () => {
     render(<BreakdownSuggestion {...defaultProps} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     fireEvent.click(screen.getByRole('menuitem', { name: 'chat.preview.reject' }))
 
     expect(screen.getByRole('status')).toHaveTextContent('chat.preview.rejected')
@@ -295,7 +295,7 @@ it('keeps a rejected batch editable until it fits a persistent capacity constrai
     await waitFor(() => expect(bulkCreate).toHaveBeenCalledTimes(attempt))
     await waitFor(() => expect(screen.getByText('habits.breakdown.capacityDenied')).toHaveAttribute('role', 'status'))
     expect(screen.getByRole('alert')).toBeEmptyDOMElement()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     expect(screen.getByRole('menuitem', { name: 'chat.preview.reject' })).toBeEnabled()
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('button', { name: /chat\.batch\.retry/ })).not.toBeInTheDocument()
@@ -368,7 +368,7 @@ it('keeps an all-failed response editable and rejectable', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('habits.breakdown.createError'))
-  fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+  fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
   fireEvent.click(screen.getByRole('menuitem', { name: 'chat.preview.reject' }))
   expect(screen.getByRole('status')).toHaveTextContent('chat.preview.rejected')
 })

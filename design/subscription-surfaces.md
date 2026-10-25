@@ -2,7 +2,7 @@
 
 # Subscription surfaces
 
-Assinatura lives at `/upgrade` on web and Android. It explains the current plan and hands billing changes to the provider. Both routes use the shared content frame, with the purchase column capped at 620 and the management column at 560 on wide windows. The frame centres inside the shell scroller's usable width, excluding any reserved scrollbar gutter, while its children retain their 16px inset from the frame (#1570).
+Assinatura lives at `/upgrade` on web, Android and iOS. It explains the current plan and hands billing changes to the provider. Both routes use the shared content frame, with the purchase column capped at 620 and the management column at 560 on wide windows. The frame centres inside the shell scroller's usable width, excluding any reserved scrollbar gutter, while its children retain their 16px inset from the frame (#1570).
 
 | Presentation | Hero and facts | Action and resources |
 | --- | --- | --- |
@@ -12,6 +12,7 @@ Assinatura lives at `/upgrade` on web and Android. It explains the current plan 
 | Yearly Stripe | Astra glyph, yearly plan, price and renewal date | Stripe portal, Pro resources, payment method, usage and invoices |
 | Monthly Play | Astra glyph, monthly plan and renewal date; native store price when available | Google Play subscriptions, Pro resources and usage |
 | Yearly Play | Astra glyph, yearly plan and renewal date; native store price when available | Google Play subscriptions, Pro resources and usage |
+| App Store | Astra glyph, plan and renewal date; native store price on iOS | Apple subscription management on iOS; an iPhone instruction without a provider link on web and Android |
 | Expired | Astra glyph, end date, retained records and three separate lost entitlements | Reassubscribe into the purchase presentation; resources are explicitly labeled as included with Pro |
 | Lifetime | Astra glyph and permanent entitlement | Pro resources and usage, without renewal or provider actions |
 | Canceled with access | Astra glyph, cancellation status and access end date | Existing provider management, Pro resources and usage until access ends |
@@ -28,7 +29,7 @@ Each row has a web and Android presentation. Cancellation and payment-failure de
 - Payment-method editing and invoice downloads remain in the Stripe composition. Native invoice-opening failure remains visible.
 - Usage and capacity notices remain on entitled management presentations. Expired and purchase presentations omit them.
 - Reassubscribe opens the purchase presentation and focuses its heading.
-- Purchase tiers retain period selection, localized prices, discounts, price reservations and checkout errors. Android retains purchase restoration.
+- Purchase tiers retain period selection, localized prices, discounts, price reservations and checkout errors. Android and iOS retain purchase restoration. iOS omits referral discount claims and external provider links. Its paywall includes automatic renewal terms and links to Terms and Privacy.
 - Every presentation retains visible back navigation and its originating destination.
 
 ## Shared consumers

@@ -50,6 +50,9 @@ export function DeleteAccountModal({
     return t('profile.deleteAccount.warningFree')
   })()
 
+  const storeCancellationNotice = (profile?.billingProvider ?? profile?.subscriptionSource) === 'app_store'
+    ? t('profile.deleteAccount.warningAppStore') : ''
+
   function handleOpenChange(value: boolean) {
     if (!value) {
       setLoading(false)
@@ -160,7 +163,7 @@ export function DeleteAccountModal({
               {t('profile.deleteAccount.warning')}
             </p>
             <p style={{ color: 'var(--fg-1)', fontSize: 16, fontWeight: 500, lineHeight: 1.5 }}>
-              {warningMessage}
+              {[warningMessage, storeCancellationNotice].filter(Boolean).join(' ')}
             </p>
             <p style={{ color: 'var(--fg-2)', fontSize: 16, lineHeight: 1.5 }}>
               {t('profile.deleteAccount.warningDetail')}
