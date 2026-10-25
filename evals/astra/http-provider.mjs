@@ -21,6 +21,9 @@ export default class AstraHttpProvider {
       const { status, ...http } = response.metadata.http
       response.metadata = { ...response.metadata, http, astraHttpStatus: status, rateLimitRetryable: false }
     }
+    if (context.vars.clientContext?.supportsParts !== true && response.output?.composition) {
+      response.output.answer = response.output.composition.aiMessage
+    }
     return response
   }
 }

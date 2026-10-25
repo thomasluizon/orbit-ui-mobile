@@ -41,6 +41,7 @@ describe('real promptfoo CLI with an offline provider', () => {
       defaultTest: { vars: configuration.defaultTest.vars, assert: assertions, options: { provider: `file://${root}/__tests__/fixtures/grader.mjs` } },
       tests: [{ description: 'Offline Water case', metadata: { id: 'offline-water', fixture: 'pro', locale: 'en' }, vars: {
         input: 'Mark Water done', credentialKey: 'ORBIT_EVAL_TOKEN', broken, noTrace, responseMode,
+        clientContext: {}, composition: { mode: 'fallback' },
         ...(responseMode && ['prose-first', 'block-only', 'repeated-figure'].includes(responseMode) ? {
           clientContext: { supportsParts: true, partKinds: ['habitList'], supportsHabitListCard: true }, composition: { mode: 'data', kinds: ['habitList'] },
         } : {}), rubric: 'Describe Water only.',
@@ -88,7 +89,7 @@ describe('real promptfoo CLI with an offline provider', () => {
 })
 
 describe('HTTP provider wiring without a server', () => {
-  it.each(['budget', 'unexpected-refusal', 'unrelated-refusal', 'unauthorized', 'wrong-request', 'throttled', 'server-error', 'not-found', 'not-json', 'reset-stop'])(
+  it.each(['legacy-moderation', 'budget', 'unexpected-refusal', 'unrelated-refusal', 'unauthorized', 'wrong-request', 'throttled', 'server-error', 'not-found', 'not-json', 'reset-stop'])(
     'the real HTTP pipeline continues after an expected budget refusal and fails other refusals: %s', (mode) => {
       offlineCredentials()
       const directory = mkdtempSync(resolve(tmpdir(), 'astra-http-eval-'))
@@ -107,7 +108,9 @@ describe('HTTP provider wiring without a server', () => {
         tests: (mode === 'reset-stop' ? ['healthy', mode] : [mode, 'healthy']).map((input) => ({ metadata: {
           id: input, fixture: input === 'reset-stop' ? 'unknown' : 'pro', locale: 'en',
         }, vars: {
-          input, credentialKey: 'ORBIT_EVAL_TOKEN', expectedHttpStatus: ['budget', 'unrelated-refusal', 'wrong-request'].includes(input) ? 403 : 200,
+          input, credentialKey: 'ORBIT_EVAL_TOKEN', composition: { mode: input === 'legacy-moderation' ? 'fallback' : 'text' },
+          ...(input === 'legacy-moderation' ? { clientContext: {}, expectedErrorCode: 'CONTENT_MODERATION_REFUSED' } : {}),
+          expectedHttpStatus: ['budget', 'unrelated-refusal', 'wrong-request'].includes(input) ? 403 : input === 'legacy-moderation' ? 400 : 200,
           expectations: { allowed: [] }, rubric: 'Describe the result.',
         } })),
         extensions: configuration.extensions.map((extension) => extension.replace('file://', `file://${root}/`)),
@@ -130,14 +133,14 @@ describe('HTTP provider wiring without a server', () => {
         const summary = JSON.parse(readFileSync(resolve(directory, 'reports/summary.json'), 'utf8'))
         expect(summary.status).toBe('incomplete')
         expect(summary.cases.map(({ attempts }) => attempts)).toEqual([3, 0])
-      } else if (mode === 'budget') {
+      } else if (['budget', 'legacy-moderation'].includes(mode)) {
         expect(run.status, run.stdout + run.stderr).toBe(0)
         const summary = JSON.parse(readFileSync(resolve(directory, 'reports/summary.json'), 'utf8'))
         expect(summary.cases.map(({ attempts, passed }) => ({ attempts, passed }))).toEqual([
           { attempts: 3, passed: 3 }, { attempts: 3, passed: 3 },
         ])
         const attempts = JSON.parse(readFileSync(resolve(directory, 'reports/results.json'), 'utf8'))
-        expect(attempts.map(({ httpStatus }) => httpStatus)).toEqual([403, 403, 403, 200, 200, 200])
+        expect(attempts.map(({ httpStatus }) => httpStatus)).toEqual([...(mode === 'budget' ? [403, 403, 403] : [400, 400, 400]), 200, 200, 200])
       } else {
         expect(run.status, run.stdout + run.stderr).not.toBe(0)
         expect(run.stdout + run.stderr).not.toContain('Aborting scan')

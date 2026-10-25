@@ -1,10 +1,13 @@
 import { appendFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
+import { tsImport } from 'tsx/esm/api'
 import { apiOrigin, readCredentials, refreshCredential } from './credentials.mjs'
 import { dateOffset, resetFixture } from './fixtures/reset.mjs'
 import { prepareCorrection } from './setup.mjs'
 import { descriptors } from './merge-reports.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
+
+const { buildChatClientContext } = await tsImport('../../packages/shared/src/chat/client-context.ts', import.meta.url)
 
 let completedResults = []
 let selectedCases = []
@@ -64,7 +67,8 @@ export async function beforeEach({ test }) {
     return value
   }
   test.vars = substitute(test.vars)
-  test.vars.clientContextJson = JSON.stringify(test.vars.clientContext ?? {})
+  test.vars.clientContext ??= buildChatClientContext({ platform: test.metadata.platform ?? 'web', locale: test.metadata.locale ?? 'en' })
+  test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
   test.vars.historyJson = JSON.stringify(test.vars.history ?? [])
   test.vars.evalRequestId = randomUUID()
   return test.vars.setup ? prepareCorrection(test) : { test }

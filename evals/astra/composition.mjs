@@ -105,6 +105,12 @@ export function composition(output, context) {
     return context.vars.expectedHttpStatus === 403 && shortLines(response.aiMessage, 3, false)
       ? result(true, 'Verified concise quota refusal.') : result(false, 'Unexpected quota refusal.')
   }
+  if (parsed.httpStatus === 400) {
+    return context.vars.expectedHttpStatus === 400 && context.vars.expectedErrorCode === 'CONTENT_MODERATION_REFUSED'
+      && parsed.trace?.refusalCode === 'CONTENT_MODERATION_REFUSED' && expected.mode === 'fallback'
+      && context.vars.clientContext?.supportsParts !== true && shortLines(response.aiMessage, 3, false)
+      ? result(true, 'Verified concise legacy moderation refusal.') : result(false, 'Unexpected moderation refusal.')
+  }
   const client = context.vars.clientContext
   const parts = response.parts
   if (client?.supportsParts === true && !Array.isArray(parts)) return result(false, 'Missing ordered response parts.', { unavailable: true })

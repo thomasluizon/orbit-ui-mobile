@@ -21,9 +21,13 @@ function traceBoundary(output, context) {
     return result(false, 'Trace is missing, malformed, or belongs to another request.', { unavailable: true })
   }
   if (trace.state === 'refused') {
-    return context.vars.expectedHttpStatus === 403 && decode(output).httpStatus === 403
+    const status = decode(output).httpStatus
+    const expectedRefusal = (status === 403 && trace.refusalCode === 'PAY_GATE')
+      || (status === 400 && trace.refusalCode === 'CONTENT_MODERATION_REFUSED'
+        && context.vars.expectedErrorCode === 'CONTENT_MODERATION_REFUSED' && context.vars.clientContext?.supportsParts !== true)
+    return expectedRefusal && context.vars.expectedHttpStatus === status
       && context.vars.expectations?.allowed?.length === 0 && !context.vars.expectations?.required?.length
-      ? result(true, 'Verified HTTP PAY_GATE refusal; no tool execution evidence is claimed.')
+      ? result(true, 'Verified expected typed HTTP refusal; no tool execution evidence is claimed.')
       : result(false, 'Unexpected refusal cannot satisfy tool requirements.')
   }
   if (trace.state !== 'available' || trace.requestId !== requestId || !Array.isArray(trace.calls)) {
