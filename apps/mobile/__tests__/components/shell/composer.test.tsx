@@ -14,7 +14,7 @@ import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
 import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
 import { Composer } from '@/components/shell/composer'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { createTokensV2 } from '@/lib/theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -233,7 +233,7 @@ describe('clipboard composer control', () => {
             TestRenderer.act(() => measurement.props.onTextLayout({ nativeEvent: { lines: Array.from({ length: candidate.lines }, () => line) } }))
             expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(layoutWidth < 600 ? 0 : 1)
           }
-          const menu = tree.root.findByType(Menu)
+          const menu = tree.root.findByType(Menu.Content)
           expect(menu.props.items.some((item: { id: string }) => item.id === 'paste')).toBe(layoutWidth < 600)
           if (layoutWidth < 600) expect(menu.props.items[0]).toMatchObject({ id: 'paste', label: messages.shell.composer.paste, icon: 'clipboard' })
           const empty = measure()
@@ -247,7 +247,7 @@ describe('clipboard composer control', () => {
           const typed = measure()
           expect(typed.contentWidth).toBe(empty.contentWidth)
           expect(byLabel(tree.root, messages.shell.composer.clear)).toHaveLength(layoutWidth < 600 ? 0 : 1)
-          const typedMenu = tree.root.findByType(Menu)
+          const typedMenu = tree.root.findByType(Menu.Content)
           expect(typedMenu.props.items.some((item: { id: string }) => item.id === 'clear')).toBe(layoutWidth < 600)
           if (layoutWidth < 600) expect(typedMenu.props.items[0]).toMatchObject({ id: 'clear', label: messages.shell.composer.clear, icon: 'x' })
           const measurement = tree.root.findByProps({ testID: 'composer-paste-measure' })
@@ -294,7 +294,7 @@ describe('clipboard composer control', () => {
       expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(0)
       if (inMenu) {
         pressControl(byLabel(tree.root, messages.shell.composer.actions)[0])
-        const menu = tree.root.findByType(Menu)
+        const menu = tree.root.findByType(Menu.Content)
         expect(menu.props.items[0]).toMatchObject({ id: 'clear', label: messages.shell.composer.clear, icon: 'x' })
         await TestRenderer.act(() => pressControl(menuItem(tree, messages.shell.composer.clear)))
       } else await TestRenderer.act(() => byLabel(tree.root, messages.shell.composer.clear)[0]!.props.onPress())

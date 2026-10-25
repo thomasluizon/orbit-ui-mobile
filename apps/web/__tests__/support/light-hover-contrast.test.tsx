@@ -16,7 +16,7 @@ import { DayCell } from '@/components/dates/day-cell'
 import { CheckRow } from '@/components/ui/check-row'
 import { ListRow } from '@/components/ui/list-row'
 import { SettingsGroup } from '@/components/ui/settings-group'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
@@ -27,7 +27,7 @@ vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { weekStar
 
 const cases = [
   { name: 'colored row', element: <ListRow title="Delete" danger onClick={() => {}} trailing={<><span style={{ color: 'var(--primary-text)' }}>Accent</span><span style={{ color: 'var(--status-overdue-text)' }}>Overdue</span></>} /> },
-  { name: 'destructive menu', element: <Menu open presentation="sheet" items={[{ id: 'delete', label: 'Delete', destructive: true }]} />, selector: '[role="menuitem"]' },
+  { name: 'destructive menu', element: <Menu.Root open={true}><Menu.Trigger asChild><button type="button" aria-label="Menu trigger" /></Menu.Trigger><Menu.Content presentation="sheet" items={[{ id: 'delete', label: 'Delete', destructive: true }]}  /></Menu.Root>, selector: '[role="menuitem"]' },
   { name: 'checked row', element: <CheckRow label="Checked" checked description="Description" value="Value" onChange={() => {}} /> },
   { name: 'row error', element: <CheckRow label="Checked" checked error="Error" onChange={() => {}} /> },
   { name: 'personal row error', element: <CheckRow label="Personal" textMode="personal" onOpenLabel={() => {}} checked error="Error" value="Value" onChange={() => {}} /> },

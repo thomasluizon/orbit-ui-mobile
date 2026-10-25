@@ -4,7 +4,7 @@ import { useState, type ComponentProps } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { Composer } from '@/components/shell/composer'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useUIStore } from '@/stores/ui-store'
@@ -87,8 +87,8 @@ it.each([en, ptBR])('keeps Clear and Paste available in the actions menu beside 
   let tree!: GeometryTree
   await act(() => { tree = create(<Draft />) as GeometryTree })
   try {
-    const menu = () => tree.root.findAll(node => node.type === Menu)[0]!
-    const items = () => menu().props.items as NonNullable<ComponentProps<typeof Menu>['items']>
+    const menu = () => tree.root.findAll(node => node.type === Menu.Content)[0]!
+    const items = () => menu().props.items as NonNullable<ComponentProps<typeof Menu.Content>['items']>
     expect(items()[0]).toMatchObject({ id: 'clear', label: messages.shell.composer.clear })
     await act(() => (menu().props.onSelect as (id: string) => void)('clear'))
     expect(tree.root.findAll(node => node.type === TextInput)[0]!.props.value).toBe('')

@@ -5,7 +5,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SortableHabitItem } from '@/components/habits/habit-list/sortable-habit-item'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
@@ -29,8 +29,8 @@ function SortableMenu({ presentation }: Readonly<{ presentation: 'sheet' | 'anch
             if (event.altKey && event.key === 'ArrowDown') setSelected('moved')
           }}>Habit row</button>
           <button type="button" ref={anchorRef}>More</button>
-          <Menu open={open} {...menuPresentation} title="Habit actions" onSelect={setSelected} onClose={() => setOpen(false)}
-            items={[{ id: 'delete', label: 'Delete', destructive: true }]} />
+          <Menu.Root open={open} onOpenChange={(nextOpen) => { if (!nextOpen) setOpen(false) }}><Menu.Trigger asChild><button type="button" aria-label="Menu trigger" /></Menu.Trigger><Menu.Content {...menuPresentation} title="Habit actions" onSelect={setSelected}
+            items={[{ id: 'delete', label: 'Delete', destructive: true }]}  /></Menu.Root>
         </SortableHabitItem>
       </SortableContext>
       <output aria-label="Selected action">{selected}</output>

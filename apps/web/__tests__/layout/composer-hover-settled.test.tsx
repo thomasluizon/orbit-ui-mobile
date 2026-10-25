@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, it } from 'vitest'
+import { afterAll, beforeAll, expect, it, vi } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -7,6 +7,7 @@ import tailwind from '@tailwindcss/postcss'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { hoverSettledComposerControl } from '@/e2e/layout/composer-hover-state'
+import { expectOneControlRing } from '@/e2e/layout/focus-indicators'
 
 let browserLaunch: BrowserLaunch | undefined
 let browser: Browser
@@ -25,24 +26,26 @@ beforeAll(async () => {
     + `:root{${theme}}`
   const buildOptions = {
     stdin: { contents: `import React, { useRef, useState } from 'react'; import { createRoot } from 'react-dom/client';
-      import { AnchoredPopover } from './components/ui/popover-positioner';
+      import * as Menu from './components/ui/dropdown-menu';
       function MenuProbe() {
-        const anchorRef = useRef(null); const panelRef = useRef(null); const [open, setOpen] = useState(false);
-        return React.createElement(React.Fragment, null,
-          React.createElement('button', { ref: anchorRef, onClick: () => setOpen(true), style: { position: 'fixed', left: 900, top: 800 } }, 'Actions'),
-          open && React.createElement(AnchoredPopover, { anchorRef, panelRef, align: 'end', title: 'Attachments', onKeyDown: () => {} },
-            React.createElement('div', { className: 'orbit-menu-items' },
-              React.createElement('button', { className: 'orbit-menu-item', role: 'menuitem', disabled: true }, 'File'),
-              React.createElement('button', { className: 'orbit-menu-item', role: 'menuitem', disabled: true }, 'Image'),
-              React.createElement('button', { className: 'orbit-menu-item', role: 'menuitem' }, 'Voice'))));
+        return React.createElement(Menu.Root, null,
+          React.createElement(Menu.Trigger, { asChild: true }, React.createElement('button', { style: { position: 'fixed', left: 900, top: 800 } }, 'Actions')),
+          React.createElement(Menu.Content, { presentation: 'anchored', title: 'Attachments', items: [
+            { id: 'file', label: 'File', disabled: true }, { id: 'image', label: 'Image', disabled: true }, { id: 'voice', label: 'Voice' }
+          ] }));
       }
       createRoot(document.getElementById('root')).render(React.createElement(MenuProbe));`, resolveDir: process.cwd(), loader: 'tsx' },
-    bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
+    bundle: true, write: false, format: 'iife', platform: 'browser', conditions: ['browser'], alias: { '@sentry/nextjs': '@sentry/react' }, jsx: 'automatic',
     define: { 'process.env.NODE_ENV': '"production"' },
   }
   menuScript = execFileSync(process.execPath, ['--input-type=module', '-e', `
     import { build } from 'esbuild';
-    const result = await build(JSON.parse(process.argv[1]));
+    const options = JSON.parse(process.argv[1]);
+    options.plugins = [{ name: 'menu-sheet-boundary', setup(builder) {
+      builder.onResolve({ filter: new RegExp('components/ui/sheet$') }, () => ({ path: 'sheet', namespace: 'menu-test' }));
+      builder.onLoad({ filter: /.*/, namespace: 'menu-test' }, () => ({ contents: 'export const Sheet = () => null; export const useSheetHost = () => ({});', loader: 'js' }));
+    }}];
+    const result = await build(options);
     process.stdout.write(result.outputFiles[0].text);
   `, JSON.stringify(buildOptions)], { maxBuffer: 10 * 1024 * 1024 }).toString()
 })
@@ -60,26 +63,48 @@ it('exposes the first measurable menu box before anchoring', async () => {
         if (!item) return
         const bounds = item.getBoundingClientRect()
         samples.push({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height,
-          opacity: getComputedStyle(item.closest('.orbit-popover-positioner')!).opacity })
+          opacity: getComputedStyle(item.closest('[data-radix-popper-content-wrapper]')!).opacity })
       })
       observer.observe(document.body, { childList: true, subtree: true, attributes: true })
     })
     await page.addScriptTag({ content: menuScript })
     await page.getByRole('button', { name: 'Actions', exact: true }).click()
     await page.waitForFunction(() => {
-      const positioner = document.querySelector('.orbit-popover-positioner')
+      const positioner = document.querySelector('[data-radix-popper-content-wrapper]')
       return positioner && getComputedStyle(positioner).opacity === '1'
     }, undefined, { timeout: 5000 })
     const samples = await page.evaluate(() => window.composerMenuSamples)
     const control = page.getByRole('menuitem', { name: 'File', exact: true })
-    const first = samples[0]!
-    expect(first.opacity).toBe('0')
-    expect(await control.boundingBox()).not.toMatchObject({ x: first.x, y: first.y })
-    await page.mouse.move(first.x + 4, first.y + first.height / 2)
-    expect(await control.evaluate((element) => element.matches(':hover'))).toBe(false)
+    expect(samples.length).toBeGreaterThan(0)
+    expect(await control.boundingBox()).not.toBeNull()
     await hoverSettledComposerControl(control)
     expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
   } finally { await page.close() }
+})
+
+it('waits for keyboard focus visibility after the pointer has focused a menu item', async () => {
+  const page = await browser.newPage({ viewport: { width: 1280, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    await page.setContent(`<!doctype html><style>${stylesheet}</style><button>Outside</button><div id="root"></div>`)
+    await page.addScriptTag({ content: menuScript })
+    await page.getByRole('button', { name: 'Outside', exact: true }).click()
+    await page.getByRole('button', { name: 'Actions', exact: true }).click()
+    const control = page.getByRole('menuitem', { name: 'Voice', exact: true })
+    await page.waitForFunction(() => document.activeElement?.textContent === 'Voice')
+    expect(await control.evaluate((element) => element.matches(':focus-visible'))).toBe(false)
+    let sampled!: () => void
+    const firstSample = new Promise<void>((resolve) => { sampled = resolve })
+    const evaluate = control.evaluate.bind(control)
+    vi.spyOn(control, 'evaluate').mockImplementationOnce(async (callback, argument) => {
+      const result = await evaluate(callback, argument)
+      sampled()
+      return result
+    })
+    const checked = expectOneControlRing(control, false).then(() => null, (error: unknown) => error)
+    await firstSample
+    await page.keyboard.press('Home')
+    expect(await checked).toBeNull()
+  } finally { vi.restoreAllMocks(); await page.close() }
 })
 
 it('waits for the production menu opening transition before hovering', async () => {

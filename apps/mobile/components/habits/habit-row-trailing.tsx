@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { MoreVertical } from '@/components/ui/icons'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { createTokensV2 } from '@/lib/theme'
-import { MenuAnchorHost } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { HabitCheck } from './habit-check'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { CheckCircle } from './habit-row-check-circle'
@@ -24,12 +24,9 @@ interface HabitRowTrailingProps {
   canLog: boolean
   dotState: HabitStatus
   hasMenuActions: boolean
-  menuButtonRef: React.RefObject<View | null>
   actions: HabitRowActions
   tokens: ReturnType<typeof createTokensV2>
   onToggleStatus: () => void
-  onOpenMenu: () => void
-  menuVisible: boolean
   completionReadOnly: boolean
   completionReason?: string
   completionStatusUnavailable: boolean
@@ -116,10 +113,7 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
   const {
   isSelectMode,
   hasMenuActions,
-  menuButtonRef,
   tokens,
-  onOpenMenu,
-  menuVisible,
   } = props
   const { t } = useTranslation()
   const [menuHovered, setMenuHovered] = useState(false)
@@ -127,14 +121,12 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
     <View style={styles.trailing}>
       <HabitRowCompletion {...props} />
       {!isSelectMode && hasMenuActions ? (
-        <MenuAnchorHost anchorRef={menuButtonRef}>
+        <Menu.Trigger asChild>
           <Pressable
-            onPress={onOpenMenu}
             onHoverIn={() => setMenuHovered(true)}
             onHoverOut={() => setMenuHovered(false)}
             accessibilityRole="button"
             accessibilityLabel={t('habits.actions.more')}
-            accessibilityState={{ expanded: menuVisible }}
             style={({ pressed }) => [
               styles.menuButton,
               menuHovered ? { backgroundColor: tokens.bgHover } : null,
@@ -152,7 +144,7 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
               strokeWidth={1.8}
             />
           </Pressable>
-        </MenuAnchorHost>
+        </Menu.Trigger>
       ) : null}
     </View>
   )

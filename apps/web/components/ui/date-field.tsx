@@ -247,7 +247,7 @@ export function DateField({
                 <tr key={week[0]?.toISOString()}>
                   {week.map((day) => {
                     const isSelected = selectedDate && isSameDay(day, selectedDate)
-                    // react-doctor-disable-next-line rendering-hydration-mismatch-time -- this grid renders only inside CenteredOverlay (mounted && open, client-only), so new Date() never runs during SSR and cannot cause a hydration mismatch https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+                    // react-doctor-disable-next-line rendering-hydration-mismatch-time -- this grid renders only inside the client-opened Sheet, so new Date() never runs during SSR and cannot cause a hydration mismatch https://github.com/thomasluizon/orbit-ui-mobile/issues/243
                     const isToday = isSameDay(day, new Date())
                     const isCurrentMonth = isSameMonth(day, viewDate)
 

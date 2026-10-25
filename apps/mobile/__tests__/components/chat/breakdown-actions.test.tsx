@@ -7,7 +7,8 @@ import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { breakdownSubHabits, makeBulkCreateResponse } from '@orbit/shared/test-support/chat-fixtures'
 import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
-import { __setWindowDimensions } from '@/test-mocks/react-native'
+import { PortalHost } from '@rn-primitives/portal'
+import { BackHandler, __setWindowDimensions } from '@/test-mocks/react-native'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { renderedText } from '../../support/react-test-renderer'
 import { measureProfileRow } from '../../support/profile-row-geometry'
@@ -63,7 +64,7 @@ it.each([320, 1352].flatMap(width => (['en', 'pt-BR'] as const).map(locale => ({
     bulkCreate.mockReset().mockResolvedValue(makeBulkCreateResponse(['Success', 'Success', 'Success']))
     const onConfirmed = vi.fn()
     let tree!: ReactTestRenderer
-    await act(() => { tree = create(<I18nextProvider i18n={i18n}><BreakdownSuggestion parentName="House routine" subHabits={breakdownSubHabits} onConfirmed={onConfirmed} onCancelled={vi.fn()} /></I18nextProvider>) })
+    await act(() => { tree = create(<I18nextProvider i18n={i18n}><PortalHost /><BreakdownSuggestion parentName="House routine" subHabits={breakdownSubHabits} onConfirmed={onConfirmed} onCancelled={vi.fn()} /></I18nextProvider>) })
     try {
       const footer = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'action-row')[0]!
       expect(footer.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(3)
@@ -93,7 +94,7 @@ it.each([320, 1352].flatMap(width => (['en', 'pt-BR'] as const).map(locale => ({
       if (width < 900) {
         await act(() => (tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === 'attempt-dismiss')[0]!.props.onPress as () => void)())
       } else {
-        await act(() => (tree.root.findAll(node => typeof node.type === 'string' && node.props.onRequestClose != null)[0]!.props.onRequestClose as () => void)())
+        await act(() => { expect(BackHandler.emitBackPress()).toBe(true) })
       }
       expect(renderedText(tree.root)).toContain('Kitchen dishes')
       expect(added.props.value).toBe('Sweep')

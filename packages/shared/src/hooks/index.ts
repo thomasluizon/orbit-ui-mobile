@@ -27,4 +27,6 @@ export * from './bulk-actions-core'
 export * from './goal-creation-core'
 export * from './goal-linking-core'
 export * from './goal-habit-picker-core'
+
+export { createMenuOwnership, createUseMenuState, type MenuOwnership, type MenuState, type MenuStateHook } from './menu-state-core'
 export * from './preview-title-core'

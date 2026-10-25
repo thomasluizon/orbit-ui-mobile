@@ -3,7 +3,7 @@ import { StyleSheet, type LayoutChangeEvent, type TextLayoutEvent, type TextStyl
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
-import { Menu } from '@/components/ui/menu'
+import * as Menu from '@/components/ui/dropdown-menu'
 import { AI_MESSAGE_COUNTER_THRESHOLD, buildComposerChips } from '@orbit/shared/chat'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
@@ -264,7 +264,7 @@ function assertMountedActions(tree: Tree, messages: typeof en, state: 'idle' | '
   const field = tree.root.findAll(node => node.props.testID === 'composer-field')[0]!
   const controls = field.findAll(node => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'button')
   const names = controls.map(node => String(node.props.accessibilityLabel))
-  const menu = field.findAll(node => node.type === Menu)[0]!
+  const menu = field.findAll(node => node.type === Menu.Content)[0]!
   const items = menu.props.items as { id: string }[]
   const expected = [messages.todayAstra.openConversation, messages.shell.composer.actions,
     messages.shell.composer.send]
