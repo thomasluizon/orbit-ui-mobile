@@ -52,6 +52,10 @@ function DatedHabitField({ formHelpers, onRecurrence, generalLocked }: Readonly<
       date: values.dueDate ?? '', endDate: values.endDate ?? '', phrase: values.datePhrase ?? '' }
   }
   const adapter = { context, owner: form, generalLocked, applyRecurrence: onRecurrence,
+    initializeDate: (value: string) => {
+      form.register('dueDate')
+      form.resetField('dueDate', { defaultValue: value })
+    },
     write: (field: 'dueDate' | 'datePhrase' | 'dateIssue', value: string) => {
       form.setValue(field, value, { shouldDirty: true })
       form.clearErrors('datePhrase')
@@ -65,12 +69,7 @@ function DatedHabitField({ formHelpers, onRecurrence, generalLocked }: Readonly<
   useLayoutEffect(() => { editor.configure(adapter); editor.sync(); editor.setAvailability(isOnline, isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, profile?.aiMessagesLimit ?? 5)) })
   useLayoutEffect(() => registerDateValidation(() => editor.validate(), () => editor.chooseType()), [editor, registerDateValidation])
   useEffect(() => { editor.open(); return () => editor.close() }, [editor])
-  useEffect(() => {
-    if (!formHelpers.isGeneral && !date && timeZone !== undefined) {
-      form.register('dueDate')
-      form.resetField('dueDate', { defaultValue: getAccountDay(new Date(), timeZone) })
-    }
-  }, [date, form, formHelpers.isGeneral, timeZone])
+  useEffect(() => { editor.initializeDate() }, [date, editor, formHelpers.isGeneral, timeZone])
   const dateLabel = t(type === 'habit' ? 'habits.form.habitStartDate' : 'habits.form.taskDate')
   const validationError = form.formState.errors.datePhrase?.message
   const error = issue || validationError
