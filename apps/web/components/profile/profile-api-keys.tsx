@@ -1,5 +1,6 @@
 'use client'
 
+import * as Menu from '@/components/ui/dropdown-menu'
 import { IconButton } from '@/components/ui/icon-button'
 
 import { PADDING, SPACING } from '@orbit/shared/theme'
@@ -402,11 +403,17 @@ function ApiKeyCreateControls({
         disabled={creating || stepUpBusy}
         onChange={onReadOnlyChange}
       />
-      <ActionRow>
-        { }
-        <IconButton label={t('profile.apiKeys.createScoped')} loading={stepUpBusy} disabled={creating || stepUpBusy} onClick={onCreateScoped}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
-        <IconButton label={t('profile.apiKeys.create')} disabled={creating || stepUpBusy} loading={stepUpBusy} onClick={onCreate}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
-      </ActionRow>
+      <Menu.Root>
+        <ActionRow>
+          <Menu.Trigger asChild disabled={creating || stepUpBusy}>
+            <IconButton label={t('profile.apiKeys.create')} disabled={creating || stepUpBusy} loading={stepUpBusy}><Plus size={20} aria-hidden="true" /></IconButton>
+          </Menu.Trigger>
+        </ActionRow>
+        <Menu.Content title={t('profile.apiKeys.create')} items={[
+          { id: 'scoped', label: t('profile.apiKeys.createScoped'), disabled: creating || stepUpBusy },
+          { id: 'unscoped', label: t('profile.apiKeys.create'), disabled: creating || stepUpBusy },
+        ]} onSelect={(id) => { if (id === 'scoped') onCreateScoped(); else onCreate() }} />
+      </Menu.Root>
     </div>
   )
 }

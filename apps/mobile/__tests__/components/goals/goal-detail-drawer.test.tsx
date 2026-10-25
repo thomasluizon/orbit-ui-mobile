@@ -880,7 +880,7 @@ describe('GoalDetailDrawer', () => {
     const retryButton = tree.root
       .findAll(
         (node: any) =>
-          flattenText(node.props.children) === 'common.retry' &&
+          node.props.accessibilityLabel === 'common.retry' &&
           typeof node.props.onPress === 'function',
       )
       .at(0)

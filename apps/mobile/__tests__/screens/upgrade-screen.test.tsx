@@ -820,7 +820,7 @@ describe('UpgradeScreen', () => {
       expect(JSON.stringify(tree.toJSON())).toContain(testI18n.t('upgrade.plans.error'))
       expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'upgrade-tier-yearly')).toHaveLength(0)
       const retry = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button'
-        && node.findAll((child) => child.type === 'Text' && child.props.children === testI18n.t('upgrade.plans.retry')).length > 0)[0]!
+        && node.props.accessibilityLabel === testI18n.t('upgrade.plans.retry'))[0]!
       await TestRenderer.act(() => (retry.props.onPress as () => void)())
       expect(mocks.reconnect).toHaveBeenCalledOnce()
       expect(mocks.refetchPlans).toHaveBeenCalledOnce()
@@ -977,7 +977,7 @@ describe('UpgradeScreen', () => {
     await TestRenderer.act(() => { (action.props.onPress as () => void)() })
     expect(mocks.openURL).not.toHaveBeenCalled()
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === testI18n.t('upgrade.billing.portalFailed'))).toHaveLength(1)
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === testI18n.t('upgrade.billing.retry'))).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === testI18n.t('upgrade.billing.retry'))).toHaveLength(1)
     await TestRenderer.act(() => tree.unmount())
   })
 

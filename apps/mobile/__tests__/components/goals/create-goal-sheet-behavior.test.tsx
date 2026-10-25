@@ -58,7 +58,7 @@ beforeEach(() => {
 })
 
 function button(tree: TestTree, label: string) {
-  return tree.root.findAllByType(PillButton).find((node) => node.props.children === label)!
+  return tree.root.findAllByType(PillButton).find((node) => (node.props.label ?? node.props.children) === label)!
 }
 
 async function fillGoal(tree: TestTree) {
@@ -173,7 +173,7 @@ describe('goal creation with habits', () => {
     await TestRenderer.act(() => habitRow.props.onPress())
     await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === secondHabit.title)[0]!.props.onPress())
     await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss').at(-1)!.props.onPress())
-    const addDeadline = tree.root.findAll((node) => node.type === 'Pressable' && node.findAll((child) => child.type === 'Text' && child.props.children === 'goals.form.addDeadline').length > 0)[0]!
+    const addDeadline = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'goals.form.addDeadline')[0]!
     await TestRenderer.act(() => addDeadline.props.onPress())
     await TestRenderer.act(() => tree.root.findAll((node) => node.type === 'DateField')[0]!.props.onChange('2099-12-01'))
     sheetTestControls.defer(true)

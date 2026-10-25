@@ -302,14 +302,14 @@ describe('CalendarSyncPage pagination', () => {
       screen.getByText('calendar.showingCount({"shown":20,"total":45})'),
     ).toBeInTheDocument()
 
-    fireEvent.click(screen.getByText('calendar.showMore'))
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.showMore' }))
 
     expect(countEventRows()).toBe(40)
     expect(
       screen.getByText('calendar.showingCount({"shown":40,"total":45})'),
     ).toBeInTheDocument()
 
-    fireEvent.click(screen.getByText('calendar.showMore'))
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.showMore' }))
 
     expect(countEventRows()).toBe(45)
     expect(screen.queryByText('calendar.showMore')).not.toBeInTheDocument()

@@ -62,7 +62,7 @@ describe('Block action row geometry in Chromium', () => {
           const bounds = pill.getBoundingClientRect()
           const style = getComputedStyle(pill)
           const children = [...pill.children].map(child => child.getBoundingClientRect().width)
-          const intrinsicWidth = children.reduce((sum, child) => sum + child, 0) + Math.max(0, children.length - 1) * parseFloat(style.columnGap) + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
+          const intrinsicWidth = pill.getAttribute('aria-label') ? 48 : Math.max(parseFloat(style.minWidth) || 0, children.reduce((sum, child) => sum + child, 0) + Math.max(0, children.length - 1) * parseFloat(style.columnGap) + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight))
           return { width: bounds.width, intrinsicWidth, top: bounds.top, height: bounds.height, left: bounds.left, right: bounds.right, variant: pill.dataset.variant }
         })
         return { contentEnd, pills }

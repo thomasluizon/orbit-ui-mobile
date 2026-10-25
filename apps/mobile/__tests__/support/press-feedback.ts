@@ -35,7 +35,7 @@ export function expectPressPaint(control: PressControl, expected: {
   expect(resting.transform).toBeUndefined()
   expect(resting.opacity ?? 1).toBe(1)
   if (expected.overlay) expect(overlayStyle()).toMatchObject({ backgroundColor: expected.fill, opacity: 0 })
-  void renderer.act(() => { (host.props.onPressIn as () => void)() })
+  void renderer.act(() => { (host.props.onPressIn as (() => void) | undefined)?.() })
   const pressed = resolved(true)
   expect(pressed.opacity ?? 1).toBe(1)
   expect(pressed).toMatchObject({ borderRadius: expected.borderRadius, overflow: 'hidden' })
@@ -46,7 +46,7 @@ export function expectPressPaint(control: PressControl, expected: {
   } else {
     expect(pressed.backgroundColor).toBe(expected.fill)
   }
-  void renderer.act(() => { (host.props.onPressOut as () => void)() })
+  void renderer.act(() => { (host.props.onPressOut as (() => void) | undefined)?.() })
   expect(resolved(false)).toEqual(resting)
   if (expected.overlay) expect(overlayStyle().opacity).toBe(0)
 }

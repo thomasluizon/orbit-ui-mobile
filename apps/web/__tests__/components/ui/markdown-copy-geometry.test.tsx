@@ -67,9 +67,9 @@ describe('Astra code copy geometry in Chromium', () => {
         const code = pre.querySelector('code')!
         const buttonBounds = button.getBoundingClientRect()
         const preBounds = pre.getBoundingClientRect()
-        const label = button.querySelector('span')!
+        const label = button.querySelector('svg')!
         const labelBounds = label.getBoundingClientRect()
-        return { buttonTop: buttonBounds.top, buttonBottom: buttonBounds.bottom, buttonLeft: buttonBounds.left, buttonRight: buttonBounds.right, preTop: preBounds.top, preRight: preBounds.right, height: buttonBounds.height, labelHeight: labelBounds.height, labelWidth: labelBounds.width, labelScrollWidth: label.scrollWidth, selectable: getComputedStyle(code).userSelect, overflow: getComputedStyle(pre).overflowX }
+        return { buttonTop: buttonBounds.top, buttonBottom: buttonBounds.bottom, buttonLeft: buttonBounds.left, buttonRight: buttonBounds.right, preTop: preBounds.top, preRight: preBounds.right, width: buttonBounds.width, height: buttonBounds.height, labelHeight: labelBounds.height, labelWidth: labelBounds.width, labelScrollWidth: label.scrollWidth, selectable: getComputedStyle(code).userSelect, overflow: getComputedStyle(pre).overflowX }
       }))
       expect(blocks).toHaveLength(2)
       for (const block of blocks) {
@@ -77,7 +77,8 @@ describe('Astra code copy geometry in Chromium', () => {
         expect(block.buttonLeft).toBeGreaterThanOrEqual(16)
         expect(block.buttonRight).toBeLessThanOrEqual(width - 16)
         expect(block.preRight).toBeLessThanOrEqual(width - 16)
-        expect(block.height).toBeGreaterThanOrEqual(44)
+        expect(block.height).toBe(48)
+        expect(block.width).toBe(48)
         expect(block.labelHeight + 8).toBeLessThanOrEqual(block.height)
         expect(block.labelScrollWidth).toBeLessThanOrEqual(block.labelWidth + 1)
         expect(block.selectable).not.toBe('none')

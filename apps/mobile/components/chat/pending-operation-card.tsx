@@ -232,7 +232,7 @@ function PreviewButton({ label, icon, variant, focusRequest, shouldFocus, ...pro
     }
   }, [focusRequest, props.disabled, shouldFocus])
   if (icon) return <IconButton label={props.accessibleName ?? label} buttonRef={buttonRef} disabled={props.disabled} loading={props.loading} hint={props.hint} onClick={props.onClick}>{icon === 'refresh' ? <RefreshCw size={20} /> : icon === 'edit' ? <Pencil size={20} /> : <X size={20} />}</IconButton>
-  return <Button buttonRef={buttonRef} size="sm" variant={variant === 'primary' && width >= WIDE_DESKTOP_BREAKPOINT ? 'secondary' : variant} {...props}>{label}</Button>
+  return <Button buttonRef={buttonRef} size="sm" minimumHeight={TOUCH_TARGET_MIN} variant={variant === 'primary' && width >= WIDE_DESKTOP_BREAKPOINT ? 'secondary' : variant} {...props}>{label}</Button>
 }
 
 function RejectedPreview({ message }: Readonly<{ message: string }>) {

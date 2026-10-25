@@ -1,3 +1,4 @@
+import { chooseApiKeyCreation } from '@/__tests__/support/api-key-creation'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { bindStepUpStateToAccount, clearStepUpState, readApiKeyExpiryDraft } from '@/lib/step-up-storage'
 import { bundleProfileSettings } from '@/__tests__/support/profile-settings-browser'
@@ -1195,7 +1196,7 @@ describe('ProfilePage', () => {
     })
 
     fireEvent.click(apiKeys.getByRole('switch', { name: 'orbitMcp.readOnlyKeyLabel' }))
-    fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
+    await chooseApiKeyCreation('profile.apiKeys.createScoped', 'profile.apiKeys.create')
     fireEvent.change(screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' }), { target: { value: '2099-12-31T23:59' } })
     fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), {
       target: { value: 'habits:read' },
@@ -1222,7 +1223,7 @@ describe('ProfilePage', () => {
     mockStepUpVerified.current = true
     mockCreateApiKey.mockResolvedValue({ success: true, response: { id: 'key-2', key: 'orb_secret' } })
     render(<ProfileSubscreen screen="astra" />)
-    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.create' }))
+    await chooseApiKeyCreation('profile.apiKeys.create', 'profile.apiKeys.create')
     const field = screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' })
     expect(field).toHaveAttribute('placeholder', 'common.never')
     fireEvent.change(field, { target: { value: expiry } })
@@ -1239,7 +1240,7 @@ describe('ProfilePage', () => {
     }
     mockStepUpVerified.current = true
     render(<ProfileSubscreen screen="astra" />)
-    fireEvent.click(screen.getByRole('button', { name: mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped' }))
+    await chooseApiKeyCreation(mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped', 'profile.apiKeys.create')
     if (mode === 'scoped') fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), { target: { value: 'read_habits' } })
     const field = screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' })
     fireEvent.change(field, { target: { value: expiry } })
@@ -1258,7 +1259,7 @@ describe('ProfilePage', () => {
     }
     mockStepUpVerified.current = true
     render(<ProfileSubscreen screen="astra" />)
-    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
+    await chooseApiKeyCreation('profile.apiKeys.createScoped', 'profile.apiKeys.create')
     const field = screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' })
     fireEvent.change(field, { target: { value: '2099-12-31T23:59' } })
     fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), { target: { value: 'habits:read' } })
@@ -1284,11 +1285,10 @@ describe('ProfilePage', () => {
     let finish!: () => void
     mockCreateApiKey.mockReturnValueOnce(new Promise((_resolve, reject) => { finish = () => reject(new Error('offline')) }))
     render(<ProfileSubscreen screen="astra" />)
-    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.create' }))
+    await chooseApiKeyCreation('profile.apiKeys.create', 'profile.apiKeys.create')
     nameAndCreateApiKey('Personal key')
     expect(screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'profile.apiKeys.create', hidden: true })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'profile.apiKeys.createScoped', hidden: true })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'profile.apiKeys.scopeAction' })).toBeDisabled()
     await act(async () => finish())
     expect(screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' })).toBeEnabled()
@@ -1310,7 +1310,7 @@ describe('ProfilePage', () => {
     const firstView = render(<ProfileSubscreen screen="astra" />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
-    fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
+    await chooseApiKeyCreation('profile.apiKeys.createScoped', 'profile.apiKeys.create')
     fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), {
       target: { value: 'stale:scope' },
     })
@@ -1322,7 +1322,7 @@ describe('ProfilePage', () => {
       expect(screen.queryByRole('dialog', { name: 'profile.apiKeys.scopeTitle' })).not.toBeInTheDocument()
     })
 
-    fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
+    await chooseApiKeyCreation('profile.apiKeys.createScoped', 'profile.apiKeys.create')
     expect(screen.getByRole('textbox', { name: 'orbitMcp.keyName' })).toHaveValue('')
     expect(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' })).toHaveValue('')
     expect(screen.queryByText('orbitMcp.createKeyError')).not.toBeInTheDocument()
@@ -1339,7 +1339,7 @@ describe('ProfilePage', () => {
     firstView.unmount()
     mockCreateGrant.consumed = false
     render(<ProfileSubscreen screen="astra" />)
-    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
+    await chooseApiKeyCreation('profile.apiKeys.createScoped', 'profile.apiKeys.create')
     expect(screen.getByRole('textbox', { name: 'orbitMcp.keyName' })).toHaveValue('')
     expect(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' })).toHaveValue('')
   })
@@ -1366,8 +1366,8 @@ describe('ProfilePage', () => {
     })
     const firstView = render(<ProfileSubscreen screen="astra" />)
 
-    const create = screen.getByRole('button', { name: 'profile.apiKeys.create' })
-    fireEvent.click(create)
+    const create = () => chooseApiKeyCreation('profile.apiKeys.create')
+    await create()
     fireEvent.change(screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' }), { target: { value: '2099-12-31T23:59' } })
     nameAndCreateApiKey('First key')
     await screen.findByText('orb_first')
@@ -1376,7 +1376,7 @@ describe('ProfilePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.done' }))
     await waitFor(() => expect(screen.queryByText('orb_first')).not.toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped' }))
+    await chooseApiKeyCreation(mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped', 'profile.apiKeys.create')
     await waitFor(() => {
       expect(mockRouterPush).toHaveBeenCalledWith('/step-up?operation=keys')
     })
@@ -1386,7 +1386,7 @@ describe('ProfilePage', () => {
     mockStepUpVerified.current = true
     mockCreateGrant.consumed = false
     render(<ProfileSubscreen screen="astra" />)
-    fireEvent.click(screen.getByRole('button', { name: mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped' }))
+    await chooseApiKeyCreation(mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped', 'profile.apiKeys.create')
     if (mode === 'scoped') fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), { target: { value: 'read_habits' } })
     expect(screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' })).toHaveValue('2099-12-31T23:59')
     nameAndCreateApiKey('Second key')
@@ -1408,11 +1408,11 @@ describe('ProfilePage', () => {
     mockCreateApiKey.mockResolvedValueOnce({ success: false, challengeRequired: true })
       .mockResolvedValueOnce({ success: true, response: { id: 'key-2', key: 'orb_second' } })
     const firstView = render(<ProfileSubscreen screen="astra" />)
-    const open = () => {
-      fireEvent.click(screen.getByRole('button', { name: mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped' }))
+    const open = async () => {
+      await chooseApiKeyCreation(mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped', 'profile.apiKeys.create')
       if (mode === 'scoped') fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), { target: { value: 'read_habits' } })
     }
-    open()
+    await open()
     fireEvent.change(screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' }), { target: { value: '2099-12-31T23:59' } })
     nameAndCreateApiKey('Work key')
     await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/step-up?operation=keys'))
@@ -1421,7 +1421,7 @@ describe('ProfilePage', () => {
     firstView.unmount()
     mockCreateGrant.consumed = false
     render(<ProfileSubscreen screen="astra" />)
-    open()
+    await open()
     expect(screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' })).toHaveValue('2099-12-31T23:59')
     nameAndCreateApiKey('Work key')
     await screen.findByText('orb_second')
@@ -1440,7 +1440,7 @@ describe('ProfilePage', () => {
       rejectGrant = () => resolve({ success: false, challengeRequired: true })
     }))
     render(<ProfileSubscreen screen="astra" />)
-    fireEvent.click(screen.getByRole('button', { name: mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped' }))
+    await chooseApiKeyCreation(mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped', 'profile.apiKeys.create')
     fireEvent.change(screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' }), { target: { value: '2099-12-31T23:59' } })
     if (mode === 'scoped') {
       fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), { target: { value: 'read_habits' } })
@@ -1460,7 +1460,7 @@ describe('ProfilePage', () => {
     expect(mockCreateGrant.consumed).toBe(false)
     expect(readApiKeyExpiryDraft()).toBe('')
     expect(screen.queryByRole('textbox', { name: 'orbitMcp.keyName' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.create' }))
+    await chooseApiKeyCreation('profile.apiKeys.create', 'profile.apiKeys.create')
     expect(screen.getByRole('textbox', { name: 'orbitMcp.keyName' })).toHaveValue('')
     expect(screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' })).toHaveValue('')
   })
@@ -1472,7 +1472,7 @@ describe('ProfilePage', () => {
     mockStepUpVerified.current = true
     mockCreateApiKey.mockResolvedValueOnce({ success: false, challengeRequired: true })
     const firstView = render(<ProfileSubscreen screen="astra" />)
-    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.create' }))
+    await chooseApiKeyCreation('profile.apiKeys.create', 'profile.apiKeys.create')
     fireEvent.change(screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' }), { target: { value: '2099-12-31T23:59' } })
     nameAndCreateApiKey('Personal key')
     await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/step-up?operation=keys'))
@@ -1481,7 +1481,7 @@ describe('ProfilePage', () => {
     const clock = vi.spyOn(Date, 'now').mockReturnValue(new Date('2100-01-01T00:00:00Z').getTime())
     try {
       render(<ProfileSubscreen screen="astra" />)
-      fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.create' }))
+      await chooseApiKeyCreation('profile.apiKeys.create', 'profile.apiKeys.create')
       nameAndCreateApiKey('Personal key')
       const field = screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' })
       expect(field).toHaveAttribute('aria-invalid', 'true')

@@ -285,10 +285,10 @@ describe('Pending preview geometry in Chromium', () => {
         const rowBounds = row.getBoundingClientRect()
         const buttons = Array.from(row.querySelectorAll('button')).map((button) => {
           const bounds = button.getBoundingClientRect()
-          const label = button.querySelector('span')!
-          return { label: button.textContent, top: bounds.top, left: bounds.left, right: bounds.right, labelHeight: label.getBoundingClientRect().height, lineHeight: parseFloat(getComputedStyle(label).lineHeight), variant: button.dataset.variant }
+          const label = button.querySelector('span, svg')!
+          return { label: button.getAttribute('aria-label') ?? button.textContent, top: bounds.top, left: bounds.left, right: bounds.right, labelHeight: label.getBoundingClientRect().height, lineHeight: label.tagName.toLowerCase() === 'svg' ? 20 : parseFloat(getComputedStyle(label).lineHeight), width: bounds.width, height: bounds.height, icon: label.tagName.toLowerCase() === 'svg', variant: button.dataset.variant }
         })
-        const more = Array.from(document.querySelectorAll('button')).find((button) => button.textContent === moreLabel)!
+        const more = Array.from(document.querySelectorAll('button')).find((button) => button.getAttribute('aria-label') === moreLabel)!
         const moreWidth = more.getBoundingClientRect().width
         const moreRowWidth = more.closest('[data-action-row]')!.getBoundingClientRect().width
         const visiblePrimary = Array.from(document.querySelectorAll('[data-variant="primary"]')).filter((button) => button.getBoundingClientRect().width > 0).length
@@ -300,6 +300,7 @@ describe('Pending preview geometry in Chromium', () => {
         expect(button.left).toBeGreaterThanOrEqual(geometry.rowLeft)
         expect(button.right).toBeLessThanOrEqual(geometry.rowRight)
         expect(button.labelHeight).toBeLessThanOrEqual(button.lineHeight + 0.5)
+        if (button.icon) { expect(button.width).toBe(48); expect(button.height).toBe(48) }
       }
       expect(geometry.buttons[2]?.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
       expect(geometry.visiblePrimary).toBe(1)

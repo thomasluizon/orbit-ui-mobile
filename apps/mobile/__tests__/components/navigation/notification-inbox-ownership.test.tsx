@@ -129,7 +129,7 @@ it('renders clear-all actions with small ghost cancel before destructive confirm
   const actions = pairs?.at(-1)?.findAll(
     (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
   )
-  expect.soft(actions?.map((button) => button.findAll((node) => node.type === 'Text').map((node) => node.props.children).join(''))).toEqual(['Cancel', 'Delete'])
+  expect.soft(actions?.map((button) => button.props.accessibilityLabel ?? button.findAll((node) => node.type === 'Text').map((node) => node.props.children).join(''))).toEqual(['Cancel', 'Delete'])
   expect.soft(actions?.map((button) => button.props.testID)).toEqual(['button-ghost-sm', 'button-destructive-sm'])
 })
 

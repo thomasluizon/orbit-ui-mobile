@@ -150,7 +150,7 @@ describe('WrappedPlayer', () => {
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'wrapped-slide-consistency')).toHaveLength(1)
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'wrapped-next-zone')).toHaveLength(0)
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'wrapped-previous-zone')).toHaveLength(0)
-    const next = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.findAll((child) => child.props.children === 'wrapped.next').length > 0)[0]!
+    const next = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'wrapped.next')[0]!
     void renderer.act(() => (next.props.onPress as () => void)())
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'wrapped-slide-streak')).toHaveLength(1)
     void renderer.act(() => tree.update(<></>))
@@ -221,9 +221,9 @@ describe('WrappedPlayer', () => {
 
   it('pages forward and back through the Pager controls', () => {
     const { tree } = renderPlayer()
-    press(byTestId(tree, 'button-primary-sm'))
+    press(hosts(tree).find((node) => node.props.accessibilityLabel === 'wrapped.next'))
     expect(byTestId(tree, 'wrapped-slide-completions')).toBeTruthy()
-    press(byTestId(tree, 'button-ghost-sm'))
+    press(hosts(tree).find((node) => node.props.accessibilityLabel === (translationMock.labels['wrapped.previous'] ?? 'wrapped.previous')))
     expect(byTestId(tree, 'wrapped-slide-intro')).toBeTruthy()
   })
 
@@ -236,12 +236,12 @@ describe('WrappedPlayer', () => {
       'wrapped.next': messages.wrapped.next,
     }
     const { tree } = renderPlayer()
-    expect(hasText(tree, back)).toBe(true)
-    expect(hasText(tree, forward)).toBe(true)
+    expect(hosts(tree).some((node) => node.props.accessibilityLabel === back)).toBe(true)
+    expect(hosts(tree).some((node) => node.props.accessibilityLabel === forward)).toBe(true)
     expect(byTestId(tree, 'button-ghost-sm')?.props.accessibilityState).toMatchObject({ disabled: true })
-    press(byTestId(tree, 'button-primary-sm'))
+    press(hosts(tree).find((node) => node.props.accessibilityLabel === forward))
     expect(byTestId(tree, 'wrapped-slide-completions')).toBeTruthy()
-    press(byTestId(tree, 'button-ghost-sm'))
+    press(hosts(tree).find((node) => node.props.accessibilityLabel === (translationMock.labels['wrapped.previous'] ?? 'wrapped.previous')))
     expect(byTestId(tree, 'wrapped-slide-intro')).toBeTruthy()
   })
 
@@ -290,7 +290,7 @@ describe('WrappedPlayer', () => {
       flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 12,
     })
     const buttons = actions.findAll((node) => String(node.type) === 'Pressable')
-    expect(buttons.map((button) => button.findAll((node) => String(node.type) === 'Text')[0]?.props.children)).toEqual([
+    expect(buttons.map((button) => button.props.accessibilityLabel ?? button.findAll((node) => String(node.type) === 'Text')[0]?.props.children)).toEqual([
       messages.wrapped.previous, messages.shareCard.download, messages.shareCard.share,
     ])
     expect(buttons.map((button) => button.props.testID)).toEqual(['button-ghost-sm', 'button-ghost-sm', 'button-primary-sm'])

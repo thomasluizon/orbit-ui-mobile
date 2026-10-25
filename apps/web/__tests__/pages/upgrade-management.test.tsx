@@ -362,7 +362,7 @@ describe('UpgradePage subscription management', () => {
     mockBilling = null
     render(<UpgradePage />)
     expect(screen.getByText('upgrade.billing.error')).toBeInTheDocument()
-    expect(screen.getByText('upgrade.billing.retry')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'upgrade.billing.retry' })).toBeInTheDocument()
   })
 
   it('shows billing plan details when loaded', () => {

@@ -93,8 +93,6 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/mobile/components/profile/profile-api-keys.tsx:94](../apps/mobile/components/profile/profile-api-keys.tsx#L94) | `{t('common.retry')}` | RefreshCw |
 | [apps/mobile/components/profile/profile-api-keys.tsx:193](../apps/mobile/components/profile/profile-api-keys.tsx#L193) | `{t('common.cancel')}` | X |
 | [apps/mobile/components/profile/profile-api-keys.tsx:280](../apps/mobile/components/profile/profile-api-keys.tsx#L280) | `{copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}` | Copy |
-| [apps/mobile/components/profile/profile-api-keys.tsx:418](../apps/mobile/components/profile/profile-api-keys.tsx#L418) | `{t('profile.apiKeys.createScoped')}` | Plus |
-| [apps/mobile/components/profile/profile-api-keys.tsx:419](../apps/mobile/components/profile/profile-api-keys.tsx#L419) | `{t('profile.apiKeys.create')}` | Plus |
 | [apps/mobile/components/profile/profile-mcp-guide.tsx:44](../apps/mobile/components/profile/profile-mcp-guide.tsx#L44) | `{copyState === 'copied' ? t('orbitMcp.copied') : t('orbitMcp.copy')}` | Copy |
 | [apps/mobile/components/profile/push-devices-row.tsx:63](../apps/mobile/components/profile/push-devices-row.tsx#L63) | `{t('settings.notifications.openSettings')}` | Settings |
 | [apps/mobile/components/progress/progress-content.tsx:300](../apps/mobile/components/progress/progress-content.tsx#L300) | `{t('progressScreen.retry')}` | RefreshCw |
@@ -217,8 +215,6 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/web/components/profile/profile-api-keys.tsx:88](../apps/web/components/profile/profile-api-keys.tsx#L88) | `{t('common.retry')}` | RefreshCw |
 | [apps/web/components/profile/profile-api-keys.tsx:186](../apps/web/components/profile/profile-api-keys.tsx#L186) | `{t('common.cancel')}` | X |
 | [apps/web/components/profile/profile-api-keys.tsx:274](../apps/web/components/profile/profile-api-keys.tsx#L274) | `{copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}` | Copy |
-| [apps/web/components/profile/profile-api-keys.tsx:407](../apps/web/components/profile/profile-api-keys.tsx#L407) | `{t('profile.apiKeys.createScoped')}` | Plus |
-| [apps/web/components/profile/profile-api-keys.tsx:408](../apps/web/components/profile/profile-api-keys.tsx#L408) | `{t('profile.apiKeys.create')}` | Plus |
 | [apps/web/components/profile/profile-mcp-guide.tsx:39](../apps/web/components/profile/profile-mcp-guide.tsx#L39) | `{copyState === 'copied' ? t('orbitMcp.copied') : t('orbitMcp.copy')}` | Copy |
 | [apps/web/components/referral/referral-drawer.tsx:179](../apps/web/components/referral/referral-drawer.tsx#L179) | `{t('common.cancel')}` | X |
 | [apps/web/components/referral/referral-drawer.tsx:180](../apps/web/components/referral/referral-drawer.tsx#L180) | `{t('referral.drawer.share')}` | Share2 |
@@ -241,3 +237,5 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 The common `ui/block-frame` stale footer and `chat/read-block-frame` query footer cover every registered Astra read family. `PendingOperationButtonSpec.icon` carries preview edit, rejection and retry intent into both `PreviewButton` renderers, keeping approval text. `ToastProps.actionIcon` and `HabitListEmptyState.actionIcon` carry failed-deletion and list-load retry intent without guessing from translated text.
 
 The ESLint rule resolves literal text, both locale catalogs, local label bindings, translated conditional keys and pill import aliases. It ignores accessible labels on icon-only controls and preserves mixed contextual flow labels. Primitive tests cover bilingual names, target dimensions, hover, disabled and busy behavior. Stale-frame regression tests prove refresh has no visible label and invokes its existing callback. Consumer tests query accessible names rather than removed visible strings. Native target styles are unit evidence; device rendering remains a platform boundary.
+
+API-key creation uses one plus entry opening distinct scoped and unscoped menu choices on both platforms, using the existing localized labels. A plus glyph alone cannot distinguish the two choices.

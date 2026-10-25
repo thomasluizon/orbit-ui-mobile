@@ -1037,7 +1037,7 @@ it('keeps rejected tag Name validation beside its input in the owning habit edit
   let tree!: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm />) })
   const press = (label: string) => {
-    let node = tree.root.findAll((candidate: { type: unknown; props: Record<string, unknown> }) => candidate.type === 'Text' && candidate.props.children === label)[0]!
+    let node = tree.root.findAll((candidate: { type: unknown; props: Record<string, unknown> }) => (candidate.type === 'Pressable' && candidate.props.accessibilityLabel === label) || (candidate.type === 'Text' && candidate.props.children === label))[0]!
     while (typeof node.props.onPress !== 'function' && node.parent) node = node.parent
     node.props.onPress()
   }

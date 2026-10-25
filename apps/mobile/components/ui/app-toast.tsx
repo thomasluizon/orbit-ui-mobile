@@ -242,7 +242,7 @@ function ToastControls({ props, actionClosing, dismiss, canDismiss, tokens, acti
   const [actionPressed, setActionPressed] = useState(false)
   const [actionFocused, setActionFocused] = useState(false)
   return <View style={styles.controls}>
-          {props.actionIcon ? <Primitive.Action asChild><IconButton label={props.actionLabel} onClick={() => { actionClosing.current = true; props.onAction() }} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}><RefreshCw size={20} accessible={false} /></IconButton></Primitive.Action> : <>          <Primitive.Action asChild><Pressable
+          {props.actionIcon ? <Primitive.Action asChild><IconButton label={props.actionLabel} onPress={() => { actionClosing.current = true; props.onAction() }} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}><RefreshCw size={20} accessible={false} /></IconButton></Primitive.Action> : <>          <Primitive.Action asChild><Pressable
             onPress={() => { actionClosing.current = true; props.onAction() }}
             onPressIn={() => setActionPressed(true)}
             onPressOut={() => setActionPressed(false)}

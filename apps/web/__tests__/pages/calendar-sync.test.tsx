@@ -583,7 +583,7 @@ describe('CalendarSyncPage', () => {
 
     expect(screen.getByText('calendar.errorTitle')).toBeInTheDocument()
     expect(screen.queryByText('calendar.notConnectedTitle')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByText('calendar.retry'))
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.retry' }))
     expect(mockAutoSyncState.refetch).toHaveBeenCalled()
   })
 
@@ -617,7 +617,7 @@ describe('CalendarSyncPage', () => {
     await waitFor(() => {
       expect(screen.getByText('calendar.noEvents')).toBeInTheDocument()
     })
-    expect(screen.getByText('common.goBack')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'common.goBack' })).toBeInTheDocument()
   })
 
 
@@ -870,8 +870,8 @@ describe('CalendarSyncPage', () => {
     await waitFor(() => {
       expect(screen.getByText('calendar.errorTitle')).toBeInTheDocument()
     })
-    expect(screen.getByText('calendar.retry')).toBeInTheDocument()
-    expect(screen.getByText('common.goBack')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'calendar.retry' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'common.goBack' })).toBeInTheDocument()
   })
 
   it('shows recurring badge for recurring events', async () => {

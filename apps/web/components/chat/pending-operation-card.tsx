@@ -1,5 +1,6 @@
 'use client'
 
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { IconButton } from '@/components/ui/icon-button'
 
 import { WeekdayPicker } from '@/components/ui/weekday-picker'
@@ -216,7 +217,7 @@ function PreviewButton({ label, icon, variant, focusRequest, shouldFocus, ...pro
     buttonRef.current?.focus()
   }, [focusRequest, props.disabled, shouldFocus])
   if (icon) return <IconButton label={props.accessibleName ?? label} buttonRef={buttonRef} disabled={props.disabled} loading={props.loading} hint={props.hint} onClick={props.onClick}>{icon === 'refresh' ? <RefreshCw size={20} /> : icon === 'edit' ? <Pencil size={20} /> : <X size={20} />}</IconButton>
-  return <Button buttonRef={buttonRef} size="sm" variant={variant === 'primary' && wide ? 'secondary' : variant} {...props}>{label}</Button>
+  return <Button buttonRef={buttonRef} size="sm" minimumHeight={TOUCH_TARGET_MIN} variant={variant === 'primary' && wide ? 'secondary' : variant} {...props}>{label}</Button>
 }
 
 export function PendingOperationCard({

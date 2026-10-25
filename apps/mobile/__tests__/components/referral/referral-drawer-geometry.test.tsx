@@ -133,14 +133,14 @@ describe('Referral drawer sheet geometry (mobile)', () => {
       for (const surface of [link, card, disclaimer, error, progress]) {
         expect(bounds(nodes.get(surface)!)).toEqual({ left: 24, right: panelWidth - 24 })
       }
-      const share = findHost(elements, (element) => element.type === 'Pressable' && (element.children ?? []).some((child) => typeof child !== 'string' && child.children?.includes('referral.drawer.share')))
+      const share = findHost(elements, (element) => element.type === 'Pressable' && element.props.accessibilityLabel === 'referral.drawer.share')
       const button = nodes.get(share)!
       const parent = button.getParent()!
       const parentHost = findHost(elements, (element) => (element.children ?? []).includes(share))
       const parentSlop = parentHost.props.hitSlop as { left: number; right: number }
-      const slop = share.props.hitSlop as number
+      const slop = (share.props.hitSlop as number | undefined) ?? 0
       expect(bounds(button).right).toBe(panelWidth - 24)
-      expect(button.getComputedHeight()).toBe(44)
+      expect(button.getComputedHeight()).toBe(48)
       expect(button.getComputedHeight() + slop * 2).toBe(48)
       expect(button.getComputedLeft() - slop).toBeGreaterThanOrEqual(-parentSlop.left)
       expect(button.getComputedLeft() + button.getComputedWidth() + slop).toBeLessThanOrEqual(parent.getComputedWidth() + parentSlop.right)

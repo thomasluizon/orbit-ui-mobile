@@ -700,7 +700,7 @@ describe('Hoje date boundaries', () => {
     expect(pills()).toHaveLength(0)
     await scroll(700)
     expect(pills()).toHaveLength(1)
-    expect(flattenText(pills()[0]!.props.children)).toContain(en.common.top)
+    expect(pills()[0]!.props.accessibilityLabel).toBe(en.common.backToTop)
     accessibilityTarget = { __nativeTag: pills()[0]!.props.__nativeTag }
     expect(accessibilityTarget).toEqual({ __nativeTag: pills()[0]!.props.__nativeTag })
     await TestRenderer.act(() => (pills()[0]!.props.onPress as () => void)())

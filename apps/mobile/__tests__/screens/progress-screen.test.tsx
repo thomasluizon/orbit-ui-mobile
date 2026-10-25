@@ -293,7 +293,7 @@ function findProgressHabitHost(host: HabitRowHost): HabitRowHost | undefined {
 }
 
 function findPill(root: TestNode, label: string): TestNode {
-  return pillButtons(root).find((button) => button.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === label).length > 0)!
+  return pillButtons(root).find((button) => button.props.accessibilityLabel === label || button.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === label).length > 0)!
 }
 
 function pillButtons(root: TestNode): TestNode[] {
@@ -394,7 +394,7 @@ describe('mobile ProgressContent', () => {
 
   it('offers Share progress from the populated period window', async () => {
     const tree = await renderProgress()
-    expect(tree.root.findAll((node) => node.type === PillButton && node.props.children === 'shareCard.entry')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === PillButton && (node.props.label ?? node.props.children) === 'shareCard.entry')).toHaveLength(1)
   })
 
   it.each([320, 412, 840])('uses 16 between streak children and window tiles at %ipx', async (width) => {
@@ -434,7 +434,7 @@ describe('mobile ProgressContent', () => {
       expect(geometry.controls).toHaveLength(2)
       const [filter, create] = geometry.controls
       expect(filter!.accessibilityLabel).toBe('progressScreen.goals.filter: progressScreen.goals.all')
-      expect(create!.labels).toEqual(['goals.create'])
+      expect(create!.accessibilityLabel).toBe('goals.create')
       expect(filter!.height).toBe(48)
       expect(create!.height).toBe(filter!.height)
       expect(create!.top).toBe(filter!.top)
@@ -829,7 +829,7 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.sections.streak')).toHaveLength(0)
   })
 
-  it.each([[412, 'button-primary-sm'], [768, 'button-secondary-sm']] as const)('renders the global goal action at %ipx as %s', async (width, testID) => {
+  it.each([[412, 'button-ghost-sm'], [768, 'button-ghost-sm']] as const)('renders the global goal action at %ipx as %s', async (width, testID) => {
     const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 892, scale: 1, fontScale: 1 })
     Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
@@ -843,11 +843,10 @@ describe('mobile ProgressContent', () => {
     const tree = await renderProgress(undefined, 'goals')
 
     const action = findPill(tree.root, 'progressScreen.goals.createAction')
-    expect(action.props.testID).toBe('button-primary-sm')
+    expect(action.props.testID).toBe('button-ghost-sm')
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'empty-state-mark-orbit')).toHaveLength(1)
     const style = action.props.style as (state: { pressed: boolean }) => ViewStyle[]
-    expect(StyleSheet.flatten(style({ pressed: false })).minHeight).toBe(44)
-    expect(action.props.hitSlop).toBeDefined()
+    expect(StyleSheet.flatten(style({ pressed: false }))).toMatchObject({ width: 48, height: 48 })
     await TestRenderer.act(() => { (action.props.onPress as () => void)() })
     expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(1)
     expect(useUIStore.getState().astraConversationOpen).toBe(false)

@@ -917,27 +917,27 @@ describe('ProgressContent', () => {
     expect(screen.getByText('progressScreen.goals.empty')).toBeInTheDocument()
     expect(container.querySelectorAll('[data-mark="orbit"]')).toHaveLength(1)
     const action = screen.getByRole('button', { name: 'progressScreen.goals.createAction' })
-    expect(action).toHaveAttribute('data-variant', 'primary')
+    expect(action).toHaveAttribute('data-variant', 'ghost')
     fireEvent.click(action)
     expect(screen.getByRole('dialog', { name: 'goals.create' })).toBeInTheDocument()
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
     expect(screen.queryByRole('region', { name: 'progressScreen.sections.streak' })).not.toBeInTheDocument()
   })
 
-  it.each([[false, 'primary'], [true, 'secondary']] as const)('renders the global goal action for desktop=%s as a %s button', (isDesktop, variant) => {
+  it.each([false, true])('renders the global goal icon for desktop=%s', (isDesktop) => {
     mocks.isDesktop = isDesktop
     Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     render(<GoalsPage />)
 
-    expect(screen.getByRole('button', { name: 'progressScreen.goals.createAction' })).toHaveAttribute('data-variant', variant)
+    expect(screen.getByRole('button', { name: 'progressScreen.goals.createAction' })).toHaveAttribute('data-variant', 'ghost')
   })
 
   it('starts a goal request from the in-section goals-empty action', () => {
     render(<QueryClientProvider client={queryClient}><GoalsPage /></QueryClientProvider>)
 
     const action = screen.getByRole('button', { name: 'progressScreen.goals.createAction' })
-    expect(action).toHaveAttribute('data-variant', 'primary')
+    expect(action).toHaveAttribute('data-variant', 'ghost')
     const section = screen.getByRole('heading', { name: 'progressScreen.sections.goals' }).closest<HTMLElement>('[data-progress-screen]')!
     expect(section.querySelector('[data-empty-state-mark]')).not.toBeNull()
     expect(section).toHaveTextContent('progressScreen.goals.empty')
@@ -993,7 +993,7 @@ describe('ProgressContent', () => {
     await act(async () => {})
     const filter = screen.getByRole('button', { name: /^progressScreen.goals.filter:/ })
     const create = screen.getByRole('button', { name: 'goals.create' })
-    expect(create).toHaveAttribute('data-variant', width >= 1024 ? 'secondary' : 'primary')
+    expect(create).toHaveAttribute('data-variant', 'ghost')
     expect(filter.parentElement).toBe(create.parentElement)
     expect(filter.parentElement).toHaveAttribute('data-slot', 'action-row')
     expect(filter.parentElement).toHaveStyle({ gap: '12px' })
@@ -1836,7 +1836,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakQuery.isError = true
     rerender(<StreakPage />)
     expect(screen.getByText('progressScreen.error')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('progressScreen.retry'))
+    fireEvent.click(screen.getByRole('button', { name: 'progressScreen.retry' }))
     expect(mocks.freeze.streakQuery.refetch).toHaveBeenCalledTimes(1)
 
     mocks.freeze.streakInfo = streakInfo

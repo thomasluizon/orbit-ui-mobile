@@ -54,7 +54,7 @@ describe('native weekday surface geometry', () => {
           : <OnboardingCreateHabit {...onboarding} proposed={surface === 'proposal'} correcting={surface !== 'proposal'} />}</View>)
     })
     try {
-      if (surface === 'astra') await renderer.act(tree.root.findAll(node => String(node.type) === 'Pressable' && renderedText(node.props.children).includes(i18n.t('chat.operation.edit')))[0]!.props.onPress as () => void)
+      if (surface === 'astra') await renderer.act(tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.accessibilityLabel === i18n.t('chat.operation.edit'))[0]!.props.onPress as () => void)
       const measured = measureProfileRow(tree.toJSON(), width, scale)
       const names = Object.values(surface === 'onboarding' ? messages.onboarding.flow.when.daysLong : messages.dates.daysLong)
       const controls = measured.controls.filter(control => names.includes(control.accessibilityLabel ?? '') || control.labels.some(label => names.includes(label)))

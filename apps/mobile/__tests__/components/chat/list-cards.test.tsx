@@ -27,10 +27,6 @@ vi.mock('@/hooks/use-habits', () => ({
 }))
 vi.mock('@/components/ui/status-ring', () => ({ StatusRing: ({ status, label }: { status: string; label: string }) => <Text testID={`ring-${status}`}>{label}</Text> }))
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: () => <Text>Progress</Text> }))
-vi.mock('@/components/ui/pill-button', () => ({
-  Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) =>
-    <Pressable accessibilityRole="button" onPress={onClick}><Text>{children}</Text></Pressable>,
-}))
 vi.mock('@/components/ui/block-frame', () => ({
   BlockFrame: ({ title, count, items, body, actions }: BlockFrameProps) => <View>
     <Text>{title}</Text>
@@ -74,7 +70,7 @@ describe('Astra list cards on mobile', () => {
     TestRenderer.act(() => log.props.onPress())
     expect(mocks.mutate).toHaveBeenCalledWith(expect.objectContaining({ habitId: 'habit-1', intent: 'log' }))
 
-    const more = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.habitList.more'))[0]
+    const more = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && node.props.accessibilityLabel === 'chat.habitList.more')[0]
     TestRenderer.act(() => more.props.onPress())
     expect(renderedText(tree.toJSON())).toContain('4')
   })

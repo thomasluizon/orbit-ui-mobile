@@ -123,7 +123,7 @@ it.each([412, 1352])('offers both inbox menu actions and small clear-all confirm
   const actions = within(screen.getByRole('dialog')).getAllByRole('button').filter(
     (button) => button.closest('[data-slot="action-row"]'),
   )
-  expect.soft(actions.map((button) => button.textContent)).toEqual(['Cancel', 'Delete'])
+  expect.soft(actions.map((button) => button.getAttribute('aria-label') ?? button.textContent)).toEqual(['Cancel', 'Delete'])
   expect.soft(actions.map((button) => button.dataset.variant)).toEqual(['ghost', 'destructive'])
   expect.soft(actions.map((button) => button.dataset.size)).toEqual(['sm', 'sm'])
 })

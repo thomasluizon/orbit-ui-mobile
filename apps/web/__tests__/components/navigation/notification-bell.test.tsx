@@ -234,7 +234,7 @@ describe('alerts', () => {
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'close-overlay' }))
     fireEvent.click(screen.getByRole('button', { name: 'Alert 0. unread. Progress' }))
     expect(within(screen.getByRole('dialog')).getByRole('button', { name: en.notifications.markAsRead })).toHaveAttribute('data-variant', 'ghost')
-    expect(screen.getByRole('button', { name: 'Delete' })).toHaveAttribute('data-variant', 'destructive')
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveAttribute('data-variant', 'ghost')
   })
 
   it.each([
@@ -456,11 +456,11 @@ describe('alerts', () => {
     const row = screen.getByRole('dialog').querySelector('[data-slot="sheet-actions"]')!.firstElementChild as HTMLElement
     expect(row).toHaveAttribute('data-slot', 'action-row')
     expect(row.style.justifyContent).toBe('flex-end')
-    expect([...row.children].map((button) => button.textContent))
+    expect([...row.children].map((button) => button.getAttribute('aria-label') ?? button.textContent))
       .toEqual([en.notifications.markAsRead, 'Open in Progress', en.notifications.delete])
     for (const button of row.querySelectorAll('button')) {
       expect(button).toHaveAttribute('data-size', 'sm')
-      expect(button.style.width).toBe('auto')
+      expect(button.style.width).toBe(button.getAttribute('aria-label') ? '48px' : 'auto')
     }
   })
 
