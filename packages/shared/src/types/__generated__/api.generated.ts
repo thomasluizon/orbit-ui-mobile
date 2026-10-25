@@ -4473,7 +4473,9 @@ export const PostApiNotificationsSubscribeHeader = zod.object({
 export const PostApiNotificationsSubscribeBody = zod.object({
   "endpoint": zod.string(),
   "p256dh": zod.string(),
-  "auth": zod.string()
+  "auth": zod.string(),
+  "apnsTopic": zod.string().nullish(),
+  "deviceId": zod.uuid().nullish()
 })
 
 export const PostApiNotificationsSubscribeResponse = zod.unknown()
