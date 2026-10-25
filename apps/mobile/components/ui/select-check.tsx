@@ -96,7 +96,7 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
   return disabled ? (
     <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><View data-slot="list-row-body" focusable={false} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={[rowStyle, selectedBorderStyle(selected, false, 1.5, tokens.primary), { flex: 1, minWidth: 0 }]}>{content()}</View>{textMode === 'personal' ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ expanded: disclosed }} onPress={() => setDisclosed(!disclosed)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, ...(supportingReason && { alignSelf: 'flex-start' as const }), padding: SPACING.s8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown accessible={false} color={tokens.fg2} size={20} strokeWidth={2} style={disclosed ? { transform: [{ rotate: '180deg' }] } : undefined} /></InsetFocusPressable> : null}</View>
   ) : (
-    <RadioItem selected={selected} onSelect={onSelect} disabled={blocked}><InsetFocusPressable selectionRingWidth={1.5} selectionRingColor={tokens.primary}
+    <RadioItem selected={selected} onSelect={onSelect} disabled={disabled} busy={busy}><InsetFocusPressable selectionRingWidth={1.5} selectionRingColor={tokens.primary}
       data-slot="list-row-body"
       accessibilityRole="radio"
       accessibilityLabel={accessibilityLabel}
@@ -107,8 +107,8 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
       onBlur={onBlur}
       style={({ pressed }) => [
         ...rowStyle,
-        pressed ? { backgroundColor: tokens.bgHover } : null,
-        pressed && !prefersReducedMotion ? { transform: [{ scale: 0.96 }] } : null,
+        pressed && !blocked ? { backgroundColor: tokens.bgHover } : null,
+        pressed && !blocked && !prefersReducedMotion ? { transform: [{ scale: 0.96 }] } : null,
       ]}
     >{({ pressed }) => content(pressed)}</InsetFocusPressable></RadioItem>
   )

@@ -589,7 +589,7 @@
   z-index: var(--z-index-dropdown);
 }
 
-.orbit-sheet-panel [data-radix-popper-content-wrapper] {
+.orbit-sheet-panel [data-radix-popper-content-wrapper]:has(> [data-menu-sheet]) {
   display: contents;
 }
 

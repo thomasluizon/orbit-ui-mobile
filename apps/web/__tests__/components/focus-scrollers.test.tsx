@@ -76,7 +76,7 @@ const surfaces = [
   { surface: 'time options end', selector: '[role="radio"][tabindex="0"]' },
   { surface: 'time options 12-hour', selector: '[role="radio"][tabindex="0"]' },
   { surface: 'tag picker', selector: '[data-focus-inset] button' },
-  { surface: 'goal picker', selector: 'button[aria-pressed]' },
+  { surface: 'goal picker', selector: 'button[role="checkbox"]' },
   { surface: 'calendar controls', selector: '[data-testid="calendar-time-grid"] button' },
 ]
 
@@ -102,24 +102,24 @@ describe('other clipped control containers in Chromium', () => {
       const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([property, value]) => `${property}: ${value};`).join(' ')
       await page.setContent(`<style>${stylesheet}:root {${variables}}body {padding:16px}</style>${container.innerHTML}`)
       const row = page.locator('[data-picker-row]').first()
-      const toggle = row.locator('button[aria-pressed]')
+      const toggle = row.locator('button[role="checkbox"]')
       const disclosure = row.locator('button[aria-expanded]')
       const background = async (selector: string) => row.evaluate((element, target) => {
         for (const animation of element.getAnimations({ subtree: true })) animation.finish()
         return getComputedStyle(target ? element.querySelector(target)! : element).backgroundColor
       }, selector)
       const restingRow = await background('')
-      const restingToggle = await background('button[aria-pressed]')
+      const restingToggle = await background('button[role="checkbox"]')
       await toggle.hover()
       expect(await background('')).toBe(restingRow)
-      expect(await background('button[aria-pressed]')).not.toBe(restingToggle)
+      expect(await background('button[role="checkbox"]')).not.toBe(restingToggle)
       await disclosure.hover()
       expect(await background('')).toBe(restingRow)
-      expect(await background('button[aria-pressed]')).toBe(restingToggle)
+      expect(await background('button[role="checkbox"]')).toBe(restingToggle)
       expect(await background('button[aria-expanded]')).not.toBe('rgba(0, 0, 0, 0)')
       await row.locator('span.font-mono').hover()
       expect(await background('')).toBe(restingRow)
-      expect(await background('button[aria-pressed]')).toBe(restingToggle)
+      expect(await background('button[role="checkbox"]')).toBe(restingToggle)
     } finally { unmount(); await page.close() }
   })
 
@@ -164,7 +164,7 @@ describe('other clipped control containers in Chromium', () => {
           }
         }
         if (surface === 'tag picker' || surface === 'goal picker') {
-          const firstControl = container.querySelector('button[aria-pressed]')!
+          const firstControl = container.querySelector('button[role="checkbox"]')!
           const scroller = firstControl.closest('[data-focus-inset]')!
           fireEvent.scroll(scroller, { target: { scrollTop: 18 * 120 } })
           expect(container.textContent).toContain(surface === 'tag picker' ? 'Tag 20' : 'Goal 20')

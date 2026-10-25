@@ -3,7 +3,7 @@
 import * as Primitive from '@radix-ui/react-radio-group'
 import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ComponentProps, type ReactElement } from 'react'
 
-type Registration = { disabled?: boolean; selected: boolean; onSelect?: () => void }
+type Registration = { busy?: boolean; disabled?: boolean; selected: boolean; onSelect?: () => void }
 interface GroupContextValue {
   register: (id: string, registration: Registration) => () => void
   activate: (selected: boolean) => void
@@ -45,24 +45,29 @@ export function RadioGroup({ children, onCommit, focusRequest, shouldFocus, ...p
     else pendingCommit.current = true
   } }}>
     <Primitive.Root {...props} ref={groupRef} value={selected} tabIndex={-1} loop onKeyDown={(event) => { props.onKeyDown?.(event); navigationKey.current = event.key }} onPointerDownCapture={() => { navigationKey.current = '' }} onValueChange={(id) => {
-      handlers.current.get(id)?.onSelect?.()
+      const item = handlers.current.get(id)
+      if (!item || item.disabled || item.busy) return
+      item.onSelect?.()
       if (pendingCommit.current) { pendingCommit.current = false; onCommit?.() }
     }}>{children}</Primitive.Root>
   </GroupContext.Provider>
 }
 
-export function RadioItem(props: Readonly<{ selected: boolean; onSelect?: () => void; disabled?: boolean; children: ReactElement }>) {
+export function RadioItem(props: Readonly<{ selected: boolean; onSelect?: () => void; disabled?: boolean; busy?: boolean; children: ReactElement }>) {
   const group = useContext(GroupContext)
   if (!group) return <RadioGroup><RadioItem {...props} /></RadioGroup>
   return <RegisteredItem {...props} group={group} />
 }
 
-function RegisteredItem({ selected, onSelect, disabled, children, group }: Readonly<{ selected: boolean; onSelect?: () => void; disabled?: boolean; children: ReactElement; group: GroupContextValue }>) {
+function RegisteredItem({ selected, onSelect, disabled, busy, children, group }: Readonly<{ selected: boolean; onSelect?: () => void; disabled?: boolean; busy?: boolean; children: ReactElement; group: GroupContextValue }>) {
   const id = useId()
   const navigationClick = useRef(false)
   const { register } = group
-  useLayoutEffect(() => register(id, { selected, onSelect, disabled }), [disabled, id, onSelect, register, selected])
-  return <Primitive.Item asChild value={id} disabled={disabled} tabIndex={group.tabStopId === id && !disabled ? 0 : -1} onFocus={(event) => {
+  useLayoutEffect(() => register(id, { selected, onSelect, disabled, busy }), [busy, disabled, id, onSelect, register, selected])
+  return <Primitive.Item asChild value={id} disabled={disabled} tabIndex={group.tabStopId === id && !disabled ? 0 : -1} onKeyDownCapture={(event) => {
+    if (busy && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Enter', ' '].includes(event.key)) { event.preventDefault(); event.stopPropagation() }
+  }} onFocus={(event) => {
+    if (busy) { event.preventDefault(); return }
     const key = group.navigationKey()
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) {
       navigationClick.current = true
@@ -71,7 +76,8 @@ function RegisteredItem({ selected, onSelect, disabled, children, group }: Reado
     }
   }} onKeyDown={(event) => {
     if (event.key === 'Enter') { event.preventDefault(); event.currentTarget.click() }
-  }} onClick={() => {
+  }} onClick={(event) => {
+    if (busy) { event.preventDefault(); return }
     if (navigationClick.current) navigationClick.current = false
     else group.activate(selected)
   }}>{children}</Primitive.Item>

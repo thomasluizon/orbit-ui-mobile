@@ -1,3 +1,4 @@
+import { pressRadioKey } from '@/__tests__/support/radio-key'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
@@ -24,12 +25,12 @@ describe('choice and pick list answers', () => {
     const radios = screen.getAllByRole('radio')
     expect(radios.map(row => row.tabIndex)).toEqual([0, -1, -1])
     radios[0]!.focus()
-    fireEvent.keyDown(radios[0]!, { key: 'ArrowUp' })
+    await pressRadioKey(radios[0]!, 'ArrowUp')
     expect(radios[2]).toHaveFocus()
     expect(radios[2]).toHaveAttribute('aria-checked', 'true')
     expect(radios.map(row => row.tabIndex)).toEqual([-1, -1, 0])
     expect(context.send).not.toHaveBeenCalled()
-    await act(async () => { fireEvent.keyDown(radios[2]!, { key: 'Enter' }) })
+    await act(async () => { await pressRadioKey(radios[2]!, 'Enter') })
     expect(context.send).toHaveBeenCalledExactlyOnceWith({ kind: 'choice', answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: [choiceBlockFixture.options[2]!.label] })
     expect(screen.getByText(`Você escolheu ${choiceBlockFixture.options[2]!.label}`).parentElement).toHaveFocus()
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()

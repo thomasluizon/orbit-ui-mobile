@@ -15,7 +15,7 @@ Base UI Dialog and native TrueSheet adapters continue to own dialogs.
 | Web select popup | Radix Select, with its portal inside the owning dialog when present | Arrow navigation, typeahead, selection, Escape and trigger focus restoration |
 | Native select choices | rn-primitives Select Root, Trigger and Item inside a nested Sheet | Native presentation above the form sheet, option selection and value commit after completed dismissal |
 | Both year pickers | Existing three-column grid inside its owner's Sheet | Selected-year announcement, scroll reveal, 48px cells and 52px pitch including the 4px gap |
-| Both date fields | Existing calendar grid inside Sheet | Draft selection, month and year navigation, date bounds, clear and Done |
+| Both date fields | Existing calendar grid inside Sheet | Selected-date announcement, month and year navigation, web calendar keyboard navigation and value commit after dismissal |
 | Both time fields | Existing bounded multi-column grid inside Sheet, with headless radio items | Localized typed entry, selected hour/minute, drag ownership, draft and Done |
 | Both PickerRow surfaces | Checkbox primitive around the object selection target | Selected state, proposed label feedback, disabled state and separate value/actions |
 | Both segmented controls and HabitViewSwitch consumers | Tabs primitives | Named current tab, disabled options and view changes; web roving navigation; native individually focusable tabs |
@@ -52,3 +52,48 @@ Focused Vitest suites exercise the production parts and owning compositions. Exi
 time and year suites retain the picker geometry and draft/Done coverage. Headless Chromium runs
 only within the repository's Vitest geometry suites. Host tests establish component contracts;
 they do not establish installed-device keyboard routing, native sheet layering or TalkBack output.
+
+## Modal composition and pending controls
+
+The menu sheet alone marks its Popper content with `data-menu-sheet`. The sheet stylesheet
+flattens only that marked wrapper; a Select portal stays inside the dialog and keeps its
+positioning box. Mounted Chromium coverage uses the real Sheet, stylesheet and selection parts.
+
+Busy radio items keep their DOM or native control enabled and focusable, announce an unavailable
+state, and reject selection and explicit commits. Web busy keys cannot navigate the group.
+Permanent disabled options keep their existing noninteractive presentation. Parent-choice
+coverage checks pending focus, next-choice continuation, approval continuation, failed revision
+and focus moved outside the preview.
+
+Toast announcements use the viewport's parent as their container, keeping them inside the modal
+accessible subtree. Escape outside a toast belongs to its containing overlay and preserves the
+queued action. The primitive still handles Escape from its own controls.
+
+## Dependency interface evidence
+
+The Radix utility overrides keep each utility at one physical module path across the selected
+primitives. Dropdown Menu uses the same utility family as Select, Radio Group, Tabs and Toast.
+The lockfile retains unrelated dependency versions.
+
+Re-derive the consumed interfaces from the installed packages:
+
+- `@radix-ui/react-radio-group/dist/index.js`, `RadioTrigger` and `RadioGroupItemTrigger`:
+  `disabled` reaches the native button and removes it from roving focus. Consumer event handlers
+  run before internal activation and respect `preventDefault`.
+- `@rn-primitives/radio-group/dist/radio-group.js`, `Item`: the primitive checks `disabled`,
+  calls `onValueChange(itemValue)`, then `onPress`. Selection therefore guards the registered
+  unavailable item before the primitive can commit.
+- `@radix-ui/react-toast/dist/index.js`, `ToastProvider`, `ToastAnnounce` and `ToastImpl`:
+  `announcerContainer` controls the announcement portal, and `onEscapeKeyDown` precedes the
+  primitive close callback. `dist/index.d.ts` declares the container as an element or document
+  fragment. Escape from an unrelated control also reaches the primitive's dismissal listener.
+- `@radix-ui/react-select/dist/index.js`, `SelectPopperPosition`: the complete runtime property
+  mapping is content transform origin to Popper transform origin, content available width and
+  height to Popper available width and height, and trigger width and height to Popper anchor
+  width and height. The custom-property test recognizes the two properties this adapter uses.
+
+The jsdom form adapter dispatches Enter and requests submission through the associated footer
+button. The installed `@testing-library/user-event/dist/cjs/event/behavior/keypress.js` only
+searches descendants for a submit button and otherwise requires a single input; primitive radio
+inputs expose that limitation. Mounted Chromium coverage verifies the real associated footer
+submission without that adapter.

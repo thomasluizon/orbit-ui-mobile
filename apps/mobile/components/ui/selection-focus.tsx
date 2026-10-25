@@ -131,7 +131,7 @@ export function SelectionFocusProvider({ children, onCommit, focusRequest, shoul
   const onFocus = getPreviousFocusTarget ? handleFocus : null
   const setHandler = useCallback((id: string, handler: () => void) => { handlersRef.current.set(id, handler) }, [])
   const select = useCallback((id: string) => {
-    if (!items.some((item) => item.id === id && item.selected)) handlersRef.current.get(id)?.()
+    if (items.some((item) => item.id === id && !item.disabled && !item.selected)) handlersRef.current.get(id)?.()
   }, [items])
   const value = items.find((item) => item.selected)?.id ?? ''
   const accessibilityHint = props.accessibilityHint

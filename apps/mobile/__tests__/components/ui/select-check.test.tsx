@@ -1,3 +1,4 @@
+import * as Primitive from '@rn-primitives/radio-group'
 import { useState, type ReactNode } from 'react'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -603,6 +604,7 @@ it('retains native focus through busy state without selecting or committing', as
   expect(__getFocusedNativeTag()).toBe(radio.props.__nativeTag)
   expect(radio.props.focusable).toBe(true)
   expect(radio.props.disabled).toBe(false)
+  expect(tree.root.findAll(node => node.type === Primitive.Item)[0]!.props.disabled).toBe(false)
   await act(() => (radio.props.onPress as () => void)())
   expect((radio.props.accessibilityState as { disabled: boolean }).disabled).toBe(true)
   expect(selected).not.toHaveBeenCalled()

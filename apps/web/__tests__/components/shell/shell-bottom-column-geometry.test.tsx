@@ -113,7 +113,7 @@ describe('Shell bottom column geometry', () => {
         return clip.contains(document.elementFromPoint(bounds.left + 8, bounds.top + 1))
       })
       expect(paddingHit).toBe(false)
-      await page.locator('[data-shell-notice] [data-kind]').evaluate((toast) => toast.remove())
+      await page.locator('[data-shell-notice] [data-kind]').evaluate((toast) => toast.closest('[role="region"]')!.remove())
       expect(await page.locator('[data-shell-notice] [data-update-live-region]').count()).toBe(1)
       expect(await page.locator('[data-shell-notice]').evaluate((clip) => clip.getBoundingClientRect().height)).toBe(0)
     } finally { await page.close(); view.unmount() }

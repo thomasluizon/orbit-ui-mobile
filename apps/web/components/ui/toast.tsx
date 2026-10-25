@@ -3,7 +3,7 @@
 import * as Primitive from '@radix-ui/react-toast'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useToastLifecycle } from '@/hooks/use-toast-lifecycle'
 import type { ToastProps } from '@orbit/shared/contracts/feedback'
@@ -34,6 +34,8 @@ function DoneMark() {
 
 export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void }>) {
   const t = useTranslations()
+  const outsideEscape = useRef(false)
+  const [viewport, setViewport] = useState<HTMLOListElement | null>(null)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused, props.onDismiss)
@@ -49,10 +51,14 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
   if (dismissed) return null
 
   return (
-    <Primitive.Provider label={t('notifications.title')}><Primitive.Root
+    <Primitive.Provider announcerContainer={viewport?.parentElement ?? undefined} label={t('notifications.title')}><Primitive.Root
       key={`${props.kind}:${props.message}`}
       open={!dismissed}
-      onOpenChange={(open) => { if (!open) dismiss() }}
+      onOpenChange={(open) => { if (!open && !outsideEscape.current) dismiss() }}
+      onEscapeKeyDown={(event) => {
+        outsideEscape.current = !viewport?.contains(event.target as Node)
+        queueMicrotask(() => { outsideEscape.current = false })
+      }}
       duration={Infinity}
       type={props.kind === 'lost' ? 'foreground' : 'background'}
       role="group"
@@ -99,6 +105,6 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
           </PillButton></Primitive.Close>
         </div>
       ) : null}
-    </Primitive.Root><Primitive.Viewport hotkey={[]} label={t('notifications.title')} className="m-0 list-none p-0" /></Primitive.Provider>
+    </Primitive.Root><Primitive.Viewport ref={setViewport} hotkey={[]} label={t('notifications.title')} className="m-0 list-none p-0" /></Primitive.Provider>
   )
 }

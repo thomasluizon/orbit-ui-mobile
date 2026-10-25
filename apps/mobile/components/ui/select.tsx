@@ -68,8 +68,8 @@ export function Select(props: Readonly<SelectProps>) {
 
 const styles = StyleSheet.create({
   root: { minWidth: 0 },
-  trigger: { minHeight: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 12, borderWidth: 1, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 },
+  trigger: { overflow: 'hidden', minHeight: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 12, borderWidth: 1, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 },
   value: { fontFamily: 'Geist_400Regular', fontSize: 16, flexShrink: 1 },
-  item: { minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: SPACING.s12, paddingVertical: SPACING.s8, borderRadius: 12 },
+  item: { overflow: 'hidden', minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: SPACING.s12, paddingVertical: SPACING.s8, borderRadius: 12 },
   label: { fontFamily: 'Geist_400Regular', fontSize: 14, flexShrink: 1 },
 })

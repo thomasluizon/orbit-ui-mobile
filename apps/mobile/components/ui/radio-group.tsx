@@ -16,12 +16,12 @@ function RadioRoot({ children, ...props }: Readonly<ViewProps & { children: Reac
   return <Primitive.Root {...props} value={value} onValueChange={select} accessibilityRole="radiogroup">{children}</Primitive.Root>
 }
 
-function RegisteredItem({ selected, onSelect, disabled = false, children }: Readonly<{ selected: boolean; onSelect?: () => void; disabled?: boolean; children: ReactElement }>) {
-  const { id, elementRef, onCommit, onFocus, ...focusProps } = useSelectionFocusItem({ selected, onSelect, disabled })
-  return <Primitive.Item {...focusProps} ref={elementRef} asChild value={id} disabled={disabled} onPress={onCommit} onFocus={onFocus}>{children}</Primitive.Item>
+function RegisteredItem({ selected, onSelect, disabled = false, busy = false, children }: Readonly<{ selected: boolean; onSelect?: () => void; disabled?: boolean; busy?: boolean; children: ReactElement }>) {
+  const { id, elementRef, onCommit, onFocus, ...focusProps } = useSelectionFocusItem({ selected, onSelect, disabled: disabled || busy })
+  return <Primitive.Item {...focusProps} ref={elementRef} asChild value={id} disabled={disabled} focusable={!disabled} onPress={() => { if (!busy) onCommit() }} onFocus={onFocus}>{children}</Primitive.Item>
 }
 
-export function RadioItem(props: Readonly<{ selected: boolean; onSelect?: () => void; disabled?: boolean; children: ReactElement }>) {
+export function RadioItem(props: Readonly<{ selected: boolean; onSelect?: () => void; disabled?: boolean; busy?: boolean; children: ReactElement }>) {
   const grouped = useHasSelectionFocusGroup()
   return grouped ? <RegisteredItem {...props} /> : <RadioGroup><RegisteredItem {...props} /></RadioGroup>
 }

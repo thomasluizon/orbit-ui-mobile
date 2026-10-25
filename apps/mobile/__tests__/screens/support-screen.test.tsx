@@ -835,7 +835,9 @@ describe('SupportScreen', () => {
       choices.every((choice) =>
         (choice.props.accessibilityState as { disabled?: boolean }).disabled === true),
     ).toBe(true)
-    expect(choices.every((choice) => choice.props.onPress === undefined)).toBe(true)
+    const beforeBlockedPress = mocks.apiClient.mock.calls.length
+    TestRenderer.act(() => { for (const choice of choices) (choice.props.onPress as () => void)() })
+    expect(mocks.apiClient).toHaveBeenCalledTimes(beforeBlockedPress)
     expect(choices.every((choice) => choice.props.focusable === true)).toBe(true)
     expect(choices.every((choice) => choice.props.accessibilityHint === 'profile.support.subject common.required')).toBe(true)
     expect(

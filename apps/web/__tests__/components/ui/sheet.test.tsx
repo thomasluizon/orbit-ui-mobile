@@ -6,7 +6,7 @@ import { useVersionGateStore } from '@/stores/version-gate-store'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -243,7 +243,7 @@ describe('Sheet', () => {
     expect(lower).toBeEmptyDOMElement()
     expect(upper).toHaveTextContent('errors.api.appUpdated')
     expect(document.querySelectorAll('[data-update-banner]')).toHaveLength(1)
-    fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'common.close' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upper sheet' })).toBeNull())
     expect(lower).toHaveTextContent('errors.api.appUpdated')
     expect(document.querySelectorAll('[data-update-banner]')).toHaveLength(1)
@@ -267,12 +267,15 @@ describe('Sheet', () => {
 
     const lower = screen.getByRole('dialog', { name: 'Lower sheet', hidden: true })
     const upper = screen.getByRole('dialog', { name: 'Upper sheet' })
-    await waitFor(() => expect(upper.querySelector('[role="status"]:not([data-update-live-region])')).toHaveTextContent('Removed'))
-    expect(lower.querySelector('[role="status"]:not([data-update-live-region])')).toBeNull()
+    await waitFor(() => expect(upper.querySelector('[data-kind]')).toHaveTextContent('Removed'))
+    const announcement = upper.querySelector('[role="status"]:not([data-update-live-region])')
+    await waitFor(() => expect(announcement).toHaveTextContent('Removed'))
+    expect(announcement?.closest('[aria-hidden="true"], [inert]')).toBeNull()
+    expect(lower.querySelector('[data-kind]')).toBeNull()
     expect(document.querySelector('[data-shell-notice] > [role="status"]')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
     expect(undo).toHaveBeenCalledOnce()
-    expect(upper.querySelector('[role="status"]:not([data-update-live-region])')).toBeNull()
+    expect(upper.querySelector('[data-kind]')).toBeNull()
   })
   it('uses an accessible title without showing a visible heading', () => {
     render(<Sheet open accessibleTitle="Reschedule with AI"><p>Plan</p></Sheet>)
@@ -332,13 +335,13 @@ describe('Sheet', () => {
     const onClose = vi.fn()
     render(<Sheet open title="Options" onClose={onClose} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'common.close' }))
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
   })
 
   it('does not expose a dismiss control when no close handler exists', () => {
     render(<Sheet open title="Required action" />)
-    expect(screen.queryByRole('button', { name: 'common.close' })).toBeNull()
+    expect(within(screen.getByRole('dialog')).queryByRole('button', { name: 'common.close' })).toBeNull()
   })
 
   it('closes on Escape from its focused content', async () => {
@@ -442,7 +445,7 @@ describe('dirty sheet dismissal', () => {
     const user = userEvent.setup()
     const attempt = vi.fn()
     render(<Sheet title="Create habit" onAttemptDismiss={attempt}><button type="button">Field</button></Sheet>)
-    await user.click(screen.getByRole('button', { name: 'common.close' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'common.close' }))
     expect(attempt).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Field' }))

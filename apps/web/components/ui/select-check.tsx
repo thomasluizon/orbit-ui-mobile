@@ -111,7 +111,7 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
     : undefined
   const contentRef = usePersonalTextContentRef(accessibilityLabel ?? label)
 
-  const control = <RadioItem selected={selected} onSelect={onSelect} disabled={disabled || busy}><button
+  const control = <RadioItem selected={selected} onSelect={onSelect} disabled={disabled} busy={busy}><button
     type="button"
     role="radio"
     data-slot="list-row-body"
@@ -120,11 +120,11 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
     aria-disabled={busy || undefined}
     onFocus={onFocus}
     onBlur={onBlur}
-    className={`orbit-selection-ring orbit-selection-ring-thin orbit-radio-row flex w-full cursor-pointer items-center border-0 text-left ${textMode === 'personal' ? 'transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)]' : 'transition-[background-color,scale] duration-[var(--dur-hover),150ms] ease-[var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96]'} hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] ${radioRowFill(selected, proposed)} ${textMode === 'personal' ? 'absolute inset-0' : ''}`}
+    className={`orbit-selection-ring orbit-selection-ring-thin orbit-radio-row flex w-full cursor-pointer items-center border-0 text-left ${textMode === 'personal' ? 'transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)]' : `transition-[background-color,scale] duration-[var(--dur-hover),150ms] ease-[var(--ease-standard),var(--ease-out)] ${busy ? '' : 'motion-safe:active:scale-[0.96]'}`} hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] ${radioRowFill(selected, proposed)} ${textMode === 'personal' ? 'absolute inset-0' : ''}`}
     style={style}
   >{textMode === 'personal' ? null : content}</button></RadioItem>
 
-  if (!disabled && textMode === 'personal') return <div className="relative min-w-0 transition-[scale] duration-150 ease-[var(--ease-out)] motion-safe:has-[>button:active]:scale-[0.96] hover:[--radio-row-secondary:var(--fg-2)] hover:[--radio-row-track:var(--fg-3)] has-[>button:active]:[--radio-row-secondary:var(--fg-2)] has-[>button:active]:[--radio-row-track:var(--fg-3)]">
+  if (!disabled && textMode === 'personal') return <div className={`relative min-w-0 transition-[scale] duration-150 ease-[var(--ease-out)] ${busy ? '' : 'motion-safe:has-[>button:active]:scale-[0.96]'} hover:[--radio-row-secondary:var(--fg-2)] hover:[--radio-row-track:var(--fg-3)] has-[>button:active]:[--radio-row-secondary:var(--fg-2)] has-[>button:active]:[--radio-row-track:var(--fg-3)]`}>
     {control}
     <div ref={contentRef} className="pointer-events-none relative flex w-full min-w-0 items-center" style={{ ...style, background: undefined, boxShadow: undefined }}>{content}</div>
   </div>

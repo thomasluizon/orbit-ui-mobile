@@ -181,14 +181,14 @@ describe('CreateGoalSheet', () => {
 
   it('switches the goal type between standard and streak', () => {
     render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
-    const standard = screen.getByRole('radio', { name: /goals.form.typeStandard/ })
-    const streak = screen.getByRole('radio', { name: /goals.form.typeStreak/ })
+    const standard = screen.getByRole('tab', { name: /goals.form.typeStandard/ })
+    const streak = screen.getByRole('tab', { name: /goals.form.typeStreak/ })
 
-    expect(standard).toHaveAttribute('aria-checked', 'true')
+    expect(standard).toHaveAttribute('aria-selected', 'true')
     fireEvent.click(streak)
-    expect(streak).toHaveAttribute('aria-checked', 'true')
+    expect(streak).toHaveAttribute('aria-selected', 'true')
     fireEvent.click(standard)
-    expect(standard).toHaveAttribute('aria-checked', 'true')
+    expect(standard).toHaveAttribute('aria-selected', 'true')
   })
 
   it('keeps a failed save visible in the sheet', async () => {

@@ -1,3 +1,5 @@
+import userEvent from '@testing-library/user-event'
+import { pressRadioKey } from '@/__tests__/support/radio-key'
 import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
@@ -25,21 +27,22 @@ function Selector({ onChange }: Readonly<{ onChange: (value: GoalType) => void }
 describe('GoalTypeSelector', () => {
   it('uses the shared segmented control', () => {
     render(<Selector onChange={vi.fn()} />)
-    expect(screen.getByRole('radiogroup', { name: 'goals.form.type' })).toHaveClass('bg-[var(--bg-well)]')
+    expect(screen.getByRole('tablist', { name: 'goals.form.type' })).toHaveClass('bg-[var(--bg-well)]')
   })
 
-  it('keeps one tab stop and moves selection and focus with radio keys', () => {
+  it('keeps one tab stop and moves selection and focus with tab keys', async () => {
     const onChange = vi.fn()
     render(<Selector onChange={onChange} />)
-    const standard = screen.getByRole('radio', { name: 'goals.form.typeStandard' })
-    const streak = screen.getByRole('radio', { name: 'goals.form.typeStreak' })
+    const standard = screen.getByRole('tab', { name: 'goals.form.typeStandard' })
+    const streak = screen.getByRole('tab', { name: 'goals.form.typeStreak' })
 
+    await userEvent.tab()
+    expect(standard).toHaveFocus()
     expect([standard.tabIndex, streak.tabIndex]).toEqual([0, -1])
-    standard.focus()
-    fireEvent.keyDown(standard, { key: 'ArrowRight' })
+    await pressRadioKey(standard, 'ArrowRight')
     expect(onChange).toHaveBeenCalledExactlyOnceWith('Streak')
     expect(streak).toHaveFocus()
-    fireEvent.keyDown(streak, { key: 'Home' })
+    await pressRadioKey(streak, 'Home')
     expect(onChange).toHaveBeenLastCalledWith('Standard')
     expect(standard).toHaveFocus()
   })
@@ -47,7 +50,7 @@ describe('GoalTypeSelector', () => {
   it('keeps pointer selection unchanged', () => {
     const onChange = vi.fn()
     render(<Selector onChange={onChange} />)
-    fireEvent.click(screen.getByRole('radio', { name: 'goals.form.typeStreak' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'goals.form.typeStreak' }))
     expect(onChange).toHaveBeenCalledExactlyOnceWith('Streak')
   })
 })

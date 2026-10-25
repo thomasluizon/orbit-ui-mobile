@@ -64,7 +64,7 @@ function deferredFailure() {
 
 function press(label: string) {
   const button = (tree as unknown as { root: { findAll: (predicate: (node: { type: unknown; props: Record<string, unknown>; findAll: (predicate: (child: { type: unknown; props: Record<string, unknown> }) => boolean) => unknown[] }) => boolean) => { props: { onPress?: () => void } }[] } }).root.findAll(
-    (node) => typeof node.props.onPress === 'function' && (
+    (node) => typeof node.type === 'string' && typeof node.props.onPress === 'function' && (
       node.props.accessibilityLabel === label
       || node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0
     ),

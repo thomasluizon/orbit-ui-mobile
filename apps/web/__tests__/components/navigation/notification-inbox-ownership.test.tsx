@@ -188,7 +188,7 @@ it('runs out the delayed delete failure and holds it while the pointer rests on 
   deferred.reject()
   await flushPromises()
   await advance(0)
-  const notice = screen.getByText("Couldn't delete that alert. Try again.").closest('[role="status"]')
+  const notice = screen.getByText("Couldn't delete that alert. Try again.").closest('[data-kind]')
   if (!notice) throw new Error('Expected the failed delete notice')
 
   fireEvent.pointerEnter(notice)

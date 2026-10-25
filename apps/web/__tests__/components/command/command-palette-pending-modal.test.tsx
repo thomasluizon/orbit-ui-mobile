@@ -96,7 +96,7 @@ async function openSheetOverPendingPalette() {
   await waitFor(() => expect(sheet).toContainElement(document.activeElement as HTMLElement))
   await user.click(within(sheet).getByRole('textbox', { name: 'Sheet field' }))
   commitSetupAnnouncement(() => { useAppToastStore.getState().showQueued('Still here', 'Undo', vi.fn()) })
-  await waitFor(() => expect(sheet.querySelector('[data-kind="neutral"][role="status"]')).toHaveTextContent('Still here'))
+  await waitFor(() => expect(sheet.querySelector('[data-kind="neutral"][role="group"]')).toHaveTextContent('Still here'))
   return {
     user, sheet, useShellStore, useUIStore,
     release: () => act(async () => { releaseMenu(); await menuReady }),
@@ -107,7 +107,7 @@ it('keeps focus and notices in the newer Sheet when the real pending menu import
   const { sheet, release, useShellStore, useUIStore } = await openSheetOverPendingPalette()
   await release()
   await waitFor(() => expect(within(sheet).getByRole('textbox')).toHaveFocus())
-  expect(sheet.querySelector('[data-kind="neutral"][role="status"]')).toHaveTextContent('Still here')
+  expect(sheet.querySelector('[data-kind="neutral"][role="group"]')).toHaveTextContent('Still here')
   expect(useShellStore.getState().paletteOpen).toBe(false)
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
