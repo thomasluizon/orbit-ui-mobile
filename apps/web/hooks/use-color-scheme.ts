@@ -1,5 +1,7 @@
 'use client'
 
+import { mediaQueryMatches } from '@/lib/media-query'
+
 import { useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
@@ -95,7 +97,7 @@ export function useColorScheme() {
   const detectAndSaveThemeIfNeeded = useCallback((dbThemePreference: string | null | undefined) => {
     if (dbThemePreference === 'dark' || dbThemePreference === 'light') return
     const detected: ThemeMode =
-      globalThis.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+      mediaQueryMatches('(prefers-color-scheme: light)') ? 'light' : 'dark'
     setCurrentTheme(detected)
     applyThemeTokensToDOM(currentScheme, detected)
     updateThemePreferenceAction({ themePreference: detected }, getHeldAccountId()).catch((error: unknown) => {

@@ -1,5 +1,7 @@
 'use client'
 
+import { mediaQueryMatches } from '@/lib/media-query'
+
 import { useThrottleStore } from '@/stores/throttle-store'
 
 import {
@@ -269,7 +271,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       const el = chatContainerRef.current
       if (el && threadScroll.isFollowing()) el.scrollTo({
         top: el.scrollHeight,
-        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        behavior: mediaQueryMatches('(prefers-reduced-motion: reduce)', true) ? 'auto' : 'smooth',
       })
       afterScroll?.()
     })

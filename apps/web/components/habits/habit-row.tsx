@@ -146,7 +146,7 @@ export function HabitRow({
   completionReason,
   completionStatusUnavailable = false,
   child = false,
-  depth = 0,
+  depth = Number(child),
   drillInsteadOfExpand = false,
   structuralColumn = false,
   selectMode = false,
@@ -186,7 +186,7 @@ export function HabitRow({
   const wellSize = isChild ? 32 : 46
   const wellRadius = 12
 
-  const rowPadding = habitRowPadding(depth, isChild, supportingMeta)
+  const rowPadding = habitRowPadding(isChild, supportingMeta)
   const rowPrimaryAction = selectMode ? onToggleSelection : onDetail
 
   function handleRowClick() {
@@ -359,10 +359,12 @@ function HabitRowLayout({ measureRef, habitId, habitTitle, depth, state, selecte
   const minHeight = isChild ? 52 : 68
   const contentLayoutClass = supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : 'items-center gap-0'
   return (
-    <div ref={measureRef} data-testid="habit-row" data-habit-id={habitId} data-habit-title={habitTitle} data-depth={depth} data-status={state} tabIndex={-1}
-      className={`habit-row relative rounded-[20px] ${selected ? 'bg-[var(--selection-bg)]' : 'bg-[var(--bg-card)]'} ${supportingMeta ? 'grid' : 'flex'} ${contentLayoutClass}`}
-      style={{ minHeight }}>
-      {children}
+    <div ref={measureRef}>
+      <div data-testid="habit-row" data-habit-id={habitId} data-habit-title={habitTitle} data-depth={depth} data-status={state} tabIndex={-1}
+        className={`habit-row relative rounded-[20px] ${selected ? 'bg-[var(--selection-bg)]' : 'bg-[var(--bg-card)]'} ${supportingMeta ? 'grid' : 'flex'} ${contentLayoutClass}`}
+        style={{ minHeight, marginInlineStart: depth * SPACING.s16 }}>
+        {children}
+      </div>
     </div>
   )
 }
@@ -381,11 +383,11 @@ function habitRowReorderProps(onReorder: ((direction: -1 | 1) => void) | undefin
   }
 }
 
-function habitRowPadding(depth: number, isChild: boolean, supportingMeta: boolean): CSSProperties {
+function habitRowPadding(isChild: boolean, supportingMeta: boolean): CSSProperties {
   const defaultPaddingBlock = isChild ? SPACING.s4 : SPACING.s8
   return {
     paddingBlock: supportingMeta ? SPACING.s0 : defaultPaddingBlock,
-    paddingInlineStart: SPACING.s8 + (depth || Number(isChild)) * SPACING.s16,
+    paddingInlineStart: SPACING.s8,
     paddingInlineEnd: supportingMeta ? SPACING.s0 : SPACING.s4,
   }
 }

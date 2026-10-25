@@ -400,6 +400,22 @@ describe('web PostHog adapter', () => {
     }
   })
 
+  it('captures the opening pageview when matchMedia is unavailable', async () => {
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'project-key')
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'matchMedia')!
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: undefined })
+    try {
+      const analytics = await import('@/lib/posthog')
+      await analytics.applyPostHogGate(true)
+      const beforeSend = sdk.init.mock.calls[0]?.[1].before_send
+      expect(beforeSend({ event: '$pageview', properties: {} })).toMatchObject({
+        properties: { display_mode: 'browser' },
+      })
+    } finally {
+      Object.defineProperty(window, 'matchMedia', descriptor)
+    }
+  })
+
   it('queues installation during SDK loading and respects the analytics gate and opt out', async () => {
     vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'project-key')
     const analytics = await import('@/lib/posthog')

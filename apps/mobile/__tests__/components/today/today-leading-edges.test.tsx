@@ -3,6 +3,7 @@ import { StyleSheet, View, type StyleProp, type TextStyle, type ViewStyle } from
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { Resvg } from '@resvg/resvg-js'
 import { createMockHabit, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
+import { SPACING } from '@orbit/shared/theme'
 import { formatAPIDate, formatLocaleDayMonth } from '@orbit/shared/utils'
 import { TodayAstra } from '@/components/today/today-astra'
 import { TodayDateControl } from '@/components/today/today-date-control'
@@ -144,6 +145,20 @@ function topPosition(node: YogaNode): number {
   return top
 }
 
+function assertIndentedCardBounds(rows: [Host, YogaNode][], width: number) {
+  for (const [index, [, node]] of rows.entries()) {
+    const inset = Math.floor(index / 2) * SPACING.s16
+    expect(leadingPosition(node)).toBe(SPACING.s16 + inset)
+    expect(node.getComputedWidth()).toBe(width - 2 * SPACING.s16 - inset)
+    expect(leadingPosition(node) + node.getComputedWidth()).toBe(width - SPACING.s16)
+    expect(node.getComputedHeight()).toBeGreaterThanOrEqual(48)
+    if (index > 0) {
+      const previous = rows[index - 1]![1]
+      expect(topPosition(node) - topPosition(previous) - previous.getComputedHeight()).toBe(index === 1 ? SPACING.s12 : SPACING.s8)
+    }
+  }
+}
+
 function assertPrimaryFill(renderer: ReturnType<typeof create>, nodes: Map<Host, YogaNode>, row: [Host, YogaNode]) {
   const primaryLayer = [...nodes].find(([element]) => element.type === 'Pressable' &&
     element.props.accessibilityLabel?.startsWith('Parent habit'))!
@@ -188,9 +203,9 @@ function assertPaddedBody(nodes: Map<Host, YogaNode>, rowHost: Host) {
     const style = StyleSheet.flatten((element.props.style ?? {}) as StyleProp<ViewStyle>)
     return style.borderRadius === 12 && (style.width === 32 || style.width === 46)
   })!
-  expect(leadingPosition(wellNode) - leadingPosition(bodyNode)).toBeGreaterThanOrEqual(8)
+  expect(leadingPosition(wellNode) - leadingPosition(bodyNode)).toBe(SPACING.s8)
   if (typeof body.props.style !== 'function') throw new Error('Body target has no press feedback')
-  for (const pressed of [false, true]) expect(StyleSheet.flatten(body.props.style({ pressed })).paddingLeft).toBeGreaterThanOrEqual(8)
+  for (const pressed of [false, true]) expect(StyleSheet.flatten(body.props.style({ pressed })).paddingLeft).toBe(SPACING.s8)
 }
 
 function pressAt(element: Host, nodes: Map<Host, YogaNode>, x: number, y: number): boolean {
@@ -283,7 +298,7 @@ function assertParentMetadata(nodes: Map<Host, YogaNode>, [stripHost, stripNode]
 
 describe('Hoje leading edges on Android', () => {
   it.each([320, 384, 600].flatMap((width) => [1, 2].flatMap((fontScale) => [false, true].map((selectMode) => ({ width, fontScale, selectMode })))))(
-    'shares edges per depth at $width dp and $fontScale text scale, selecting=$selectMode', ({ width, fontScale, selectMode }) => {
+    'shares content edges within each indented card depth at $width dp and $fontScale text scale, selecting=$selectMode', ({ width, fontScale, selectMode }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
       const onDetail = vi.fn()
       const onToggleSelection = vi.fn()
@@ -295,7 +310,7 @@ describe('Hoje leading edges on Android', () => {
           {[{ title: 'Leaf', depth: 0, parent: false }, { title: 'Parent', depth: 0, parent: true },
             { title: 'Child', depth: 1, parent: false }, { title: 'Child parent', depth: 1, parent: true },
             { title: 'Grandchild', depth: 2, parent: false }, { title: 'Grandchild parent', depth: 2, parent: true }].map(({ title, depth, parent }) => <HabitRow key={title} habit={createMockHabit({ title: `${title} habit with a long name that needs more than one line` })}
-            structuralColumn isSelectMode={selectMode} depth={depth} hasChildren={parent}
+            structuralColumn isSelectMode={selectMode} depth={depth} hasChildren={parent} panelEnd={title === 'Leaf' || title === 'Grandchild parent'}
             childrenTotal={parent ? 2 : 0} actions={{ onToggleExpand: noop, onToggleSelection, onDetail, onEdit: noop }} />)}
         </View>) as typeof renderer
       })
@@ -317,10 +332,7 @@ describe('Hoje leading edges on Android', () => {
           const expectedEdge = habitTextEdge(textContent(element))
           expect(Math.abs(leadingPosition(node) - expectedEdge)).toBeLessThanOrEqual(1)
         }
-        for (const [, node] of rows) {
-          expect(leadingPosition(node)).toBe(16)
-          expect(node.getComputedHeight()).toBeGreaterThanOrEqual(48)
-        }
+        assertIndentedCardBounds(rows, width)
         const parentRows = [rows[1]!, rows[3]!, rows[5]!]
         const metadata = parentRows.map(([rowHost]) => {
           const strips = [...nodes].filter(([element]) => containsHost(rowHost, element) && element.type === 'View' && element.props.testID === 'habit-row-meta')

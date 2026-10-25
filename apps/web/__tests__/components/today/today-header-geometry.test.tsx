@@ -12,6 +12,7 @@ import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
+import { SPACING } from '@orbit/shared/theme'
 import { formatAPIDate, formatLocaleDayMonth } from '@orbit/shared/utils'
 import { HabitViewSwitch } from '@/components/today/habit-view-switch'
 import { TodayAstra } from '@/components/today/today-astra'
@@ -107,6 +108,15 @@ function assertHeaderControls(controls: { left: number; right: number; top: numb
   const centers = controls.map((control) => (control.top + control.bottom) / 2)
   expect(Math.max(...centers) - Math.min(...centers)).toBeLessThanOrEqual(1)
   if (scale === 1) expect(controls[0]!.top + controls[0]!.height / 2).toBeCloseTo(centers[0]!, 0)
+}
+
+function assertIndentedCardBounds(cards: { right: number; top: number; bottom: number; width: number }[], width: number) {
+  for (const [index, card] of cards.entries()) {
+    const inset = index === 2 ? SPACING.s16 : 0
+    expect(card.width).toBe(width - 2 * SPACING.s16 - inset)
+    expect(card.right).toBe(width - SPACING.s16)
+    if (index > 0) expect(card.top - cards[index - 1]!.bottom).toBe(index === 1 ? SPACING.s12 : SPACING.s8)
+  }
 }
 
 async function expectHeaderFillClearance(page: Page, control: Locator, content: Locator, mode: 'dark' | 'light') {
@@ -457,18 +467,18 @@ describe('Hoje header geometry', () => {
   })
 
   it.each([320, 384, 600].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ width, textScale, selectMode })))))(
-    'shares leading edges per depth at $width with $textScale text scale, selecting=$selectMode', async ({ width, textScale, selectMode }) => {
+    'shares content edges within each indented card depth at $width with $textScale text scale, selecting=$selectMode', async ({ width, textScale, selectMode }) => {
       document.documentElement.style.fontSize = `${16 * textScale}px`
       const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}>
         <TodayAstra today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />
         <TodayDateControl {...props} isTodaySelected />
-        <div style={{ paddingInline: 16 }}>
-          {(['Leaf', 'Parent', 'Child'] as const).map((title) => <div className="habit-panel" key={title}>
-            <HabitRow habit={createMockHabit({ title: `${title} habit with a long name that needs more than one line` })} structuralColumn selectMode={selectMode}
+        <div style={{ paddingInline: 16, display: 'flex', flexDirection: 'column', gap: SPACING.s12 }}>
+          {[['Leaf'], ['Parent', 'Child']].map((titles) => <div className="habit-panel" key={titles[0]}>
+            {titles.map((title) => <HabitRow key={title} habit={createMockHabit({ title: `${title} habit with a long name that needs more than one line` })} structuralColumn selectMode={selectMode}
               depth={title === 'Child' ? 1 : 0} hasChildren={title === 'Parent'}
               childProgress={title === 'Parent' ? { done: 0, total: 2 } : undefined}
               meta={title === 'Parent' ? ['0 de 2'] : []}
-              actions={{ onEdit: noop, onToggleExpand: noop, onToggleSelection: noop }} />
+              actions={{ onEdit: noop, onToggleExpand: noop, onToggleSelection: noop }} />)}
           </div>)}
         </div>
       </NextIntlClientProvider>)
@@ -556,6 +566,10 @@ describe('Hoje header geometry', () => {
             dateCenter: date.getBoundingClientRect().left + date.getBoundingClientRect().width / 2,
             contentEdges: [sentence, ...rows.map((row) => (row.querySelector('[data-habit-row-heading] > div') ?? row.querySelector('[data-habit-row-body] > div, [data-personal-text-content] > div'))!)].map((element) => element.getBoundingClientRect().left),
             insetEdges: rows.map((row) => row.getBoundingClientRect().left),
+            cardBounds: rows.map((row) => {
+              const { left, right, top, bottom, width } = row.getBoundingClientRect()
+              return { left, right, top, bottom, width }
+            }),
             wellInsets: rows.map((row) => {
               const body = row.querySelector('[data-habit-row-body]')!
               const content = row.querySelector('[data-personal-text-content]') ?? body
@@ -600,10 +614,11 @@ describe('Hoje header geometry', () => {
           expect(control.emptyBandHeight).toBeGreaterThan(0)
           expect(control.emptyBandHitsBody).toBe(true)
         }
-        for (const inset of geometry.wellInsets) expect(inset).toBeGreaterThanOrEqual(8)
+        for (const inset of geometry.wellInsets) expect(inset).toBe(SPACING.s8)
         expect(geometry.leafDisclosure).toBe(false)
         expect(geometry.leafBody).toBe(16)
-        expect(geometry.insetEdges).toEqual([16, 16, 16])
+        expect(geometry.insetEdges).toEqual([16, 16, 16 + SPACING.s16])
+        assertIndentedCardBounds(geometry.cardBounds, width)
         expect(geometry.dateCenter).toBeCloseTo(width / 2, 0)
         expect(geometry.contentEdges.slice(0, 3)).toEqual([84, 84, 84])
         expect(geometry.contentEdges.slice(3)).toEqual([100])
