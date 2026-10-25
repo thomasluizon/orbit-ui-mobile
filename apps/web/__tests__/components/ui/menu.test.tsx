@@ -518,3 +518,15 @@ it.each([true, false])('keeps an optional static header outside the action focus
   expect(screen.getAllByRole('menuitem')).toHaveLength(1)
   await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Sign out' })).toHaveFocus())
 })
+
+it('uses the compact menu when matchMedia is unavailable', async () => {
+  const descriptor = Object.getOwnPropertyDescriptor(window, 'matchMedia')!
+  Object.defineProperty(window, 'matchMedia', { configurable: true, value: undefined })
+  try {
+    render(<Menu open title="Habit actions" items={items} />)
+    expect(await screen.findByRole('menu', { name: 'Habit actions' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument()
+  } finally {
+    Object.defineProperty(window, 'matchMedia', descriptor)
+  }
+})
