@@ -55,7 +55,7 @@ describe('explicit date consultation ownership', () => {
     expect(session.begin(original, true, true)).toBeNull()
     expect(session.begin({ ...original, schedule: 'general' }, true, false)).toBeNull()
     expect(session.begin({ ...original, type: null }, true, false)).toBeNull()
-    for (const phrase of ['dia 26', '31 de fevereiro', '03/04']) expect(session.begin({ ...original, phrase }, true, false)).toBeNull()
+    for (const phrase of ['dia 26', '31 de fevereiro', '03-04']) expect(session.begin({ ...original, phrase }, true, false)).toBeNull()
     expect(session.begin(original, true, false)).not.toBeNull()
     expect(session.begin(original, true, false)).toBeNull()
   })

@@ -49,6 +49,20 @@ function createEditor(overrides: Partial<DateInterpretationContext> = {}) {
 }
 
 describe('habit date editor lifecycle', () => {
+  it.each(['segunda', 'segunda-feira', 'seg', 'próxima segunda', 'monday', 'mon', 'next Monday'])('resolves a task weekday %s instead of requiring Habit', (phrase) => {
+    const { editor, fields, context } = createEditor({ referenceDate: '2026-10-26', date: '2026-10-26' })
+    editor.setPhrase(phrase)
+    editor.validate()
+    expect(fields).toMatchObject({ dueDate: '2026-11-02', datePhrase: phrase, dateIssue: '' })
+    expect(context.cadence.unit).toBeNull()
+  })
+
+  it.each(['toda segunda', 'every Monday'])('requires Habit for the recurring task phrase %s', (phrase) => {
+    const { editor, fields } = createEditor()
+    editor.setPhrase(phrase)
+    expect(fields.dateIssue).toBe('habits.form.recurrenceRequiresHabit')
+  })
+
   it.each(['en', 'pt-BR'])('routes weekly counts in %s without a paid request', async (locale) => {
     const { editor, context, fields, requests } = createEditor({ type: 'habit', schedule: 'recurring', locale })
     editor.setPhrase('once a week')
@@ -411,7 +425,7 @@ describe('habit date editor lifecycle', () => {
 
   it.each([
     { phrase: '31 de fevereiro', status: 'invalid', issue: 'habits.form.dateInvalid' },
-    { phrase: '03/04', status: 'ambiguous', issue: 'habits.form.datePhraseUnresolved' },
+    { phrase: '03-04', status: 'ambiguous', issue: 'habits.form.datePhraseUnresolved' },
   ])('requires manual resolution of $status wording without consulting Astra', async ({ phrase, status, issue }) => {
     const { editor, fields, requests } = createEditor()
     editor.setPhrase(phrase)
