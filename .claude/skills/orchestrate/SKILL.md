@@ -662,8 +662,7 @@ only after receipt resolution is durable. Exit 10 with `NEEDS_DECISION` preserve
 and refuses delivery. Route its question through step 7 (under `--sleep`, log it as blocked), and
 do not run readiness or merge until the owner answers and the resulting work is verified.
 
-For a Cloud `ui` order targeting `redesign/main`, inspect the locally materialized diff for the UI
-scope printed in the order. When it matches, run the owed sweep locally after materialization and
+For a Cloud `ui` order that carries the UI review sweep, inspect the locally materialized diff for the UI scope printed in the order. When it matches, run the owed sweep locally after materialization and
 before opening or updating the pull request. This contract is rendered from
 `UI_REVIEW_SWEEP_CONTRACT` in `tools/lib/review-harness.mjs`; composer coverage refuses drift.
 
@@ -1078,13 +1077,8 @@ For a batch with a matching path, require the complete block and replace the PR-
 review with the fixes and resolved threads together. A registered
 `pullfrog-approval` SUCCESS at the current head is the verdict. When that check is ABSENT from the
 rollup, a Pullfrog review with `reviewState` `APPROVED` and `reviewedCommit` equal to that head stands
-in for it. When Pullfrog produced neither, the branch decides what else may: on protected `main`
-nothing may, because a real check exists there and only Pullfrog can publish it; on unprotected
-`redesign/main` no such check exists to forge, so a separate-agent review is admissible **only when
-the pull request comment names the substitution, says Pullfrog could not run, and lists the evidence
-a reader can check**, alongside green checks at the exact head and zero unresolved threads. That is
-the same rule `§5.4.1` and Hard prohibitions state, in the same words. A green check alone is never
-an approval on either branch. A `COMMENTED` review is not a verdict, regardless of when it arrived
+in for it. When Pullfrog produced neither, nothing else may stand in on protected `main`, because a real check exists there and only Pullfrog can publish it.
+That is the same rule `§5.4.1` and Hard prohibitions state. A green check alone is never an approval. A `COMMENTED` review is not a verdict, regardless of when it arrived
 or what triggered it, and a review with an empty body is a progress marker rather than a review.
 Then rerun delivery verification on the new head.
 
@@ -1403,8 +1397,7 @@ names the engine that produced its commits.**
 handoff inventory and in its step 11 report, beside the engine that produced its commits.** Every
 session in that checkout meets four FAILs from `node tools/test-tools.mjs` and `exit 1` from
 `node tools/check-calibration.mjs` while it stands, and a session that finds no record of why reads
-a live switch as a broken harness. The revert is worse unrecorded: run it in a checkout whose
-`origin/redesign/main` predates the `claude` block and it restores a config with no such block at
+a live switch as a broken harness. The revert is worse unrecorded: run it in a checkout whose `origin/main` predates the `claude` block and it restores a config with no such block at
 all, so name the checkout too.
 
 **The engine's isolation flags are not decoration.** `--strict-mcp-config` with no `--mcp-config`
@@ -1419,12 +1412,10 @@ kill is not certain; the flags buy a live signal instead of that margin. `--verb
 beside `stream-json`: the installed binary refuses the pair without it.
 
 **`assertNotStale` fires on that edit only in a worktree cut before the base ref, and stays silent in
-the main checkout.** `tools/lib/orchestrator-config.mjs:29-46` refuses a working copy that disagrees
-with `origin/<base>`, and `:41` returns early for a checkout that already contains
-`origin/redesign/main`. The main checkout sitting on `redesign/main` contains it, so the guard stands
+the main checkout.** `tools/lib/orchestrator-config.mjs:19-36` refuses a working copy that disagrees with `origin/<base>`, and `:31` returns early for a checkout that already contains `origin/main`. The main checkout contains it, so the guard stands
 aside and the edit is silent there, which is the normal case. A worktree cut before that ref does not
-contain it, so every tool that reads the config refuses with the message at `:42-45`. Merge the base
-ref first: `git fetch origin redesign/main && git merge origin/redesign/main`.
+contain it, so every tool that reads the config refuses with the message at `:32-35`. Merge the base
+ref first: `git fetch origin main && git merge --ff-only origin/main`.
 
 **The `--dry-run` is an argv check, not a preflight.** `launch-worker.mjs:259` resolves the
 executable on PATH before the `if (dryRun)` block at `:266`, and `:268` exits before
@@ -1487,18 +1478,12 @@ an unattended run as having no continuation. A headless engine through `launch-w
 because the process is external, the launcher's pid is the wake source with the worker's pid recorded
 beside it, and its output is a commit rather than a conversation.
 
-**The reviewer rule turns on the word *quietly*, not on the seat.** What it bans is a hidden
-substitution, not a substitute that exists. It decides one case only: Pullfrog produced neither the
+**The reviewer rule decides one case only:** Pullfrog produced neither the
 check nor an APPROVED review at the exact head. While that review exists, step 8's `#440` fallback
-supplies the verdict on either branch and this clause never runs. After that, on protected `main`
-the rule is absolute: a real `pullfrog-approval` check exists there, a subagent cannot publish it,
-and nothing may stand in for it. On unprotected `redesign/main` no such check exists to forge, so a
-separate-agent review is admissible **only when the pull request comment names the substitution,
-says Pullfrog could not run, and lists the evidence a reader can check**, alongside green checks at
-the exact head and zero unresolved threads. A green check alone is never an approval, on either branch. Merging on an unnamed
-subagent's word is the failure; saying plainly which agent reviewed what, and why Pullfrog did not,
-is not. Hard prohibitions and step 8 state this same rule in the same words, so a run that reads any
-one of the three reaches the same answer.
+supplies the verdict and this clause never runs. After that, on protected `main` the rule is
+absolute: a real `pullfrog-approval` check exists there, a subagent cannot publish it, and nothing
+may stand in for it. A green check alone is never an approval. Hard prohibitions and step 8 state
+this same rule, so a run that reads any one of the three reaches the same answer.
 
 A run may never merge on a clause it wrote itself in the same pull request that clause would
 excuse. A contract change takes effect for the next run.
@@ -1506,7 +1491,7 @@ excuse. A contract change takes effect for the next run.
 ## §5.7 The queue
 
 **`--sleep` opens pull requests and may merge under D88/D90 standing authority.** The exact-head
-approval Hard prohibitions admits on that branch, its green checks and its zero unresolved threads
+approval Hard prohibitions admits, its green checks and its zero unresolved threads
 remain mandatory. Use
 ordinary squash merge only, never `--admin` or direct merge APIs. Outside that authority, hand off.
 
@@ -1664,22 +1649,18 @@ the wrong branch loses the entire night. Discover it at the start, not at 03:00.
 
 - **Standing merge authority belongs to the orchestrator, never an implementation worker.** D88
   authorizes groundwork merges without asking when checks are green, the exact current head carries
-  an approval admissible on that branch by the bullet below, and zero unresolved threads remain.
+  an approval admissible by the bullet below, and zero unresolved threads remain.
   D90 applies the same terms to screens for the remainder of the redesign, suspending the per-screen
   merge hold. During that period, use only
-  ordinary `gh pr merge --squash` against `redesign/main`, with `--match-head-commit <sha>` for the
+  ordinary `gh pr merge --squash` against the pull request's base, with `--match-head-commit <sha>` for the
   head just verified. Log the evidence. Outside that authority, leave the PR ready for the owner.
-  A green check alone is not an exact-head approval, on either branch.
-- **What may stand in for Pullfrog turns on the branch, and it is the same rule in `§5.4.1` and in
+  A green check alone is not an exact-head approval.
+- **What may stand in for Pullfrog is the same rule in `§5.4.1` and in
   step 8.** It decides one case only: Pullfrog produced neither the check nor an APPROVED review at
-  the exact head. While that review exists, step 8's `#440` fallback supplies the verdict on either
-  branch, and `tools/lib/readiness-receipt.mjs:215-218` implements it with no branch condition.
+  the exact head. While that review exists, step 8's `#440` fallback supplies the verdict,
+  and `reviewSatisfiedOutOfBand` in `tools/lib/readiness-receipt.mjs:130-133` implements it.
   After that, on protected `main` it is absolute: a real `pullfrog-approval` check exists there,
-  only Pullfrog can publish it, and nothing else may stand in for it. On unprotected
-  `redesign/main` no such check exists to forge, so a separate-agent review is admissible **only
-  when the pull request comment names the substitution, says Pullfrog could not run, and lists the
-  evidence a reader can check**, alongside green checks at the exact head and zero unresolved
-  threads. A hidden substitution is the failure; a named one with its evidence is not.
+  only Pullfrog can publish it, and nothing else may stand in for it.
 - **Never `--admin` inside `/orchestrate` or `/sleep`.** Per `CLAUDE.md`, that exception belongs only
   to the canonical `/merge-prs` skill after the owner explicitly invokes it for an already-approved
   frozen PR set. Standing ordinary merge authority does not invoke that skill. Direct merge APIs

@@ -50,7 +50,7 @@ Write its exact path to `decisionLogPath` in the run state once the file exists.
 unresolved owner question in `openOwnerQuestions`, including what it blocks. A relay copies
 the log in full and retains those questions in the open chain.
 
-Start it with the wake time, the head of `redesign/main`, and every open pull request with its state.
+Start it with the wake time, the head of `main`, and every open pull request with its state.
 That header is what tells you later what changed while he slept.
 
 **Append to the log the moment a decision is made, never in a batch at the end.** Context gets
@@ -157,17 +157,16 @@ Cloud implementations are unavailable while `cloud.enabled` is false. When enabl
 
 Stop and log instead of acting, every time:
 
-1. **Never merge to `main`.** Every UI pull request targets `redesign/main` until the redesign ships.
-2. **Never `--admin`, never force push, never rewrite pushed history, never `--no-verify`.**
-3. **Never `--delete-branch` on a branch another pull request is stacked on.** Retarget first.
-4. **Never touch anything a real person sees tonight.** No Play Console release, no production
+1. **Never `--admin`, never force push, never rewrite pushed history, never `--no-verify`.**
+2. **Never `--delete-branch` on a branch another pull request is stacked on.** Retarget first.
+3. **Never touch anything a real person sees tonight.** No Play Console release, no production
    deploy, no production database write, no email, no public post, no external message.
-5. **Never delete a worktree or branch that holds work nobody merged.**
-6. **Apply D90 for the remainder of the redesign.** D76 steps 3 and 7 and D88's per-screen hold
+4. **Never delete a worktree or branch that holds work nobody merged.**
+5. **Apply D90 for the remainder of the redesign.** D76 steps 3 and 7 and D88's per-screen hold
    are suspended, so screens may proceed without a conversation or eyes wait. The granted canvas,
    `DESIGN.md` under D42, the step 6 ui-skills sweep, Pullfrog and all gates still apply. D76 and
    D88's hold return when the redesign ships. Any unresolved product or design choice still blocks.
-7. **Never decide a product or taste question.** Copy, pricing, positioning, brand, and design
+6. **Never decide a product or taste question.** Copy, pricing, positioning, brand, and design
    direction are his. Take the reversible path, which is usually leaving the current behaviour alone,
    log it as blocked, and move on to other work.
 
@@ -180,14 +179,14 @@ design authority with the owner and preserves the implementation requirements an
 
 Before each merge, require all three on the exact current head: green checks, fresh Pullfrog
 approval at that head, and zero unresolved threads. Log the head and evidence. The orchestrator may
-then use ordinary `gh pr merge --squash` against `redesign/main`, with `--match-head-commit <sha>`
+then use ordinary `gh pr merge --squash` against the pull request's base, with `--match-head-commit <sha>`
 to refuse a moved head. Implementation workers never merge.
 
 **Never use `--admin` or a direct merge API in `/sleep`.** Admin merge remains confined to the
 canonical `/merge-prs` skill after the owner explicitly invokes it for an already-approved frozen PR
 set, per `CLAUDE.md`. Neither `/sleep` nor standing authority invokes that exception. Direct APIs
 stay forbidden without exception, including `PUT /repos/{owner}/{repo}/pulls/{number}/merge` and
-GraphQL `mergePullRequest`. Never merge to `main` from this run. Outside D88/D90 authority, leave
+GraphQL `mergePullRequest`. Outside D88/D90 authority, leave
 the PR ready for the owner; do not invent authorization from green checks.
 
 ## 8. Choose the next work in this order
