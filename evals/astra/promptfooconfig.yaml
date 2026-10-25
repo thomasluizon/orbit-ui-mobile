@@ -2,7 +2,7 @@ description: Astra prompt-to-behavior launch gate
 prompts:
   - '{{input}}'
 providers:
-  - id: http
+  - id: file://http-provider.mjs
     label: astra-http
     config:
       url: '{{env.ORBIT_EVAL_BASE_URL}}/api/chat'

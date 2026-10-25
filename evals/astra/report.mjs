@@ -1,4 +1,25 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs'
+
+export function writeResults(results, directory = 'reports') {
+  const repeats = new Map()
+  const attempts = results.map((entry) => {
+    const caseId = entry.testCase.metadata.id
+    const repeat = (repeats.get(caseId) ?? 0) + 1
+    repeats.set(caseId, repeat)
+    return { caseId, repeat, pass: entry.success === true,
+      httpStatus: entry.response?.output?.httpStatus ?? entry.response?.metadata?.http?.status ?? null,
+      reason: entry.error ?? entry.gradingResult?.reason ?? null,
+      assertions: (entry.gradingResult?.componentResults ?? []).map((assertion, index) => ({
+        metric: assertion.assertion?.metric ?? entry.testCase.assert?.[index]?.metric ?? null,
+        pass: assertion.pass === true, reason: assertion.reason ?? null,
+      })),
+    }
+  })
+  mkdirSync(directory, { recursive: true })
+  const path = `${directory}/results.json`
+  writeFileSync(path, `${JSON.stringify(attempts, null, 2)}\n`, { mode: 0o600 })
+  chmodSync(path, 0o600)
+}
 
 export function summarize(results, expectedCases) {
   const descriptors = expectedCases.map((entry) => typeof entry === 'string' ? { id: entry } : entry)

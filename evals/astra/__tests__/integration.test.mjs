@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
@@ -48,7 +48,7 @@ describe('real promptfoo CLI with an offline provider', () => {
       } }],
       extensions: [`file://${root}/hooks.mjs:beforeEach`, `file://${root}/hooks.mjs:afterAll`],
     }))
-    const run = spawnSync(process.execPath, ['--import', resolve(root, '__tests__/fixtures/auth-preload.mjs'), cli, 'eval', '--config', configPath, '--no-write', '--no-share', '--no-cache', '--no-table', '--filter-metadata', 'id=offline-water'], {
+    const run = spawnSync(process.execPath, ['--import', resolve(root, '__tests__/fixtures/auth-preload.mjs'), cli, 'eval', '--config', configPath, '-o', resolve(directory, 'promptfoo.json'), '--no-write', '--no-share', '--no-cache', '--no-table', '--filter-metadata', 'id=offline-water'], {
       cwd: directory, encoding: 'utf8', timeout: 45000,
       env: { ...process.env, ORBIT_EVAL_BASE_URL: 'https://orbit-api-staging-uqu2.onrender.com', PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'),
         PROMPTFOO_DISABLE_TELEMETRY: '1', PROMPTFOO_DISABLE_SHARING: '1' },
@@ -63,10 +63,74 @@ describe('real promptfoo CLI with an offline provider', () => {
     if (status === 'pass') expect(summary.gateStatus).toBe('incomplete')
     expect(summary.cases[0]).toMatchObject({ attempts: 3, passed: broken || noTrace || ['prose-first', 'repeated-figure'].includes(responseMode) ? 0 : 3, skipped: responseMode === 'skipped-composition' ? 3 : 0, unavailable: noTrace ? 3 : 0 })
     expect(readFileSync(summaryPath, 'utf8')).not.toContain('TOOL_TRACE_SECRET')
+    const resultsPath = resolve(directory, 'reports/results.json')
+    expect(existsSync(resultsPath)).toBe(true)
+    expect(statSync(resultsPath).mode & 0o777).toBe(0o600)
+    const attempts = JSON.parse(readFileSync(resultsPath, 'utf8'))
+    expect(attempts.map(({ caseId, repeat, pass, httpStatus }) => ({ caseId, repeat, pass, httpStatus }))).toEqual(
+      [1, 2, 3].map((repeat) => ({ caseId: 'offline-water', repeat,
+        pass: !broken && !noTrace && !['prose-first', 'repeated-figure'].includes(responseMode), httpStatus: 200 })),
+    )
+    for (const attempt of attempts) {
+      expect(attempt.assertions.length).toBe(responseMode === 'missing-composition' ? 3 : 4)
+      expect(attempt.assertions.map(({ metric }) => metric)).toEqual(assertions.map(({ metric }) => metric))
+      for (const assertion of attempt.assertions) {
+        expect(typeof assertion.metric).toBe('string')
+        expect(typeof assertion.pass).toBe('boolean')
+        expect(typeof assertion.reason).toBe('string')
+      }
+    }
+    expect(readFileSync(resultsPath, 'utf8')).not.toContain('TOOL_TRACE_SECRET')
+    if (broken) expect(attempts.every(({ assertions }) => assertions.some(({ metric, pass, reason }) =>
+      metric === 'toolBehavior' && !pass && reason.includes('log_habit')))).toBe(true)
+    if (status !== 'pass') expect(existsSync(resolve(directory, 'promptfoo.json'))).toBe(false)
   })
 })
 
 describe('HTTP provider wiring without a server', () => {
+  it.each(['budget', 'unexpected-refusal', 'unrelated-refusal', 'unauthorized', 'wrong-request'])(
+    'the real HTTP pipeline continues after an expected budget refusal and fails other refusals: %s', (mode) => {
+      offlineCredentials()
+      const directory = mkdtempSync(resolve(tmpdir(), 'astra-http-eval-'))
+      scratch.push(directory)
+      const configPath = resolve(directory, 'config.yaml')
+      writeFileSync(configPath, stringify({
+        ...configuration,
+        providers: [{ ...configuration.providers[0], id: `file://${root}/http-provider.mjs`, config: { ...configuration.providers[0].config,
+          transformResponse: `file://${root}/response.mjs`,
+        } }],
+        defaultTest: { ...configuration.defaultTest,
+          options: { provider: `file://${root}/__tests__/fixtures/grader.mjs` },
+          assert: configuration.defaultTest.assert.map((assertion) => assertion.type === 'javascript'
+            ? { ...assertion, value: assertion.value.replace('file://', `file://${root}/`) } : assertion),
+        },
+        tests: [mode, 'healthy'].map((input) => ({ metadata: { id: input, fixture: 'pro', locale: 'en' }, vars: {
+          input, credentialKey: 'ORBIT_EVAL_TOKEN', expectedHttpStatus: ['budget', 'unrelated-refusal', 'wrong-request'].includes(input) ? 403 : 200,
+          expectations: { allowed: [] }, rubric: 'Describe the result.',
+        } })),
+        extensions: configuration.extensions.map((extension) => extension.replace('file://', `file://${root}/`)),
+      }))
+      const run = spawnSync(process.execPath, ['--import', resolve(root, '__tests__/fixtures/http-preload.mjs'), cli,
+        'eval', '--config', configPath, '--no-write', '--no-share', '--no-cache', '--no-table'], {
+        cwd: directory, encoding: 'utf8', timeout: 45000,
+        env: { ...process.env, ORBIT_EVAL_BASE_URL: 'https://orbit-api-staging-uqu2.onrender.com', ORBIT_EVAL_GRADER: 'offline',
+          PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'), PROMPTFOO_DISABLE_TELEMETRY: '1', PROMPTFOO_DISABLE_SHARING: '1' },
+      })
+      expect(run.error, run.stdout + run.stderr).toBeUndefined()
+      if (mode === 'budget') {
+        expect(run.status, run.stdout + run.stderr).toBe(0)
+        const summary = JSON.parse(readFileSync(resolve(directory, 'reports/summary.json'), 'utf8'))
+        expect(summary.cases.map(({ attempts, passed }) => ({ attempts, passed }))).toEqual([
+          { attempts: 3, passed: 3 }, { attempts: 3, passed: 3 },
+        ])
+        const attempts = JSON.parse(readFileSync(resolve(directory, 'reports/results.json'), 'utf8'))
+        expect(attempts.map(({ httpStatus }) => httpStatus)).toEqual([403, 403, 403, 200, 200, 200])
+      } else {
+        expect(run.status, run.stdout + run.stderr).not.toBe(0)
+        expect(run.stdout + run.stderr).toMatch(mode === 'unauthorized' ? /HTTP call failed with status 401/ : /Target returned HTTP 403/)
+      }
+    },
+  )
   it.each([
     ['ORBIT_EVAL_TOKEN', 200], ['ORBIT_EVAL_FREE_TOKEN', 200], ['ORBIT_EVAL_BUDGET_TOKEN', 403],
   ])('renders multipart and the selected credential: %s, status=%s', async (credentialKey, status) => {
@@ -87,7 +151,7 @@ describe('HTTP provider wiring without a server', () => {
       return Response.json(status === 200 ? chatResponse(test.vars.evalRequestId, [toolCall('query_habits', { date: 'today' })])
         : { error: 'Daily AI message limit reached.', errorCode: 'PAY_GATE' }, { status, headers: { 'X-Orbit-Request-Id': test.vars.evalRequestId } })
     })
-    const provider = await loadApiProvider('http', { options: { config: {
+    const provider = await loadApiProvider(`file://${root}/http-provider.mjs`, { options: { config: {
         ...configuration.providers[0].config,
         url: 'https://astra.invalid/api/chat',
         transformResponse: `file://${root}/response.mjs`,
