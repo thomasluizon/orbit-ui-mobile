@@ -38,6 +38,7 @@ export function AccountEventConnection(): null {
         resumed,
         open: async (signal, lastEventId) => {
           const ticketResponse = await sessionAwareFetch(API.events.ticket, { method: 'POST', signal, cache: 'no-store' })
+          if (ticketResponse.status === 401 && !useAuthStore.getState().isAuthenticated) return { sessionRejected: true }
           if (!ticketResponse.ok) return ticketResponse
           const { ticket, apiBase } = await ticketResponse.json() as TicketResponse
           const url = new URL(API.events.stream, apiBase)

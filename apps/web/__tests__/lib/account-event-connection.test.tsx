@@ -506,6 +506,34 @@ it('stops requesting event tickets after a confirmed refresh rejection', async (
   }
 })
 
+it('reopens a visible authenticated stream after a transient ticket refusal recovers', async () => {
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+  const capture = vi.mocked(Sentry.captureException)
+  capture.mockClear()
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(new Response(null, { status: 401 }))
+    .mockResolvedValueOnce(Response.json({ ticket: 'recovered-ticket', apiBase: 'https://api.example.test' }))
+    .mockResolvedValueOnce(new Response(new ReadableStream<Uint8Array>({ start() {} })))
+  vi.stubGlobal('fetch', fetchMock)
+  vi.useFakeTimers()
+  const view = render(<AccountEventConnection />)
+  try {
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1999) })
+    expect(fetchMock).toHaveBeenCalledOnce()
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(API.events.ticket)
+    expect(String(fetchMock.mock.calls[2]?.[0])).toBe('https://api.example.test/api/events?ticket=recovered-ticket')
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(capture).not.toHaveBeenCalled()
+  } finally {
+    view.unmount()
+    vi.useRealTimers()
+  }
+})
+
 it.each([401, 429, 500])('handles event ticket status %i at the connection boundary', async (status) => {
   vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
   const capture = vi.mocked(Sentry.captureException)
@@ -521,7 +549,7 @@ it.each([401, 429, 500])('handles event ticket status %i at the connection bound
     await act(async () => { await vi.advanceTimersByTimeAsync(59_999) })
     expect(fetchMock).toHaveBeenCalledOnce()
     await act(async () => { await vi.advanceTimersByTimeAsync(1) })
-    expect(fetchMock).toHaveBeenCalledTimes(status === 401 ? 1 : 2)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(capture).toHaveBeenCalledTimes(status === 500 ? 1 : 0)
   } finally {
     view.unmount()

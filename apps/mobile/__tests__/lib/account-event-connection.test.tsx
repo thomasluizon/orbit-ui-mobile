@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
   expoFetch: vi.fn(),
   getToken: vi.fn(() => Promise.resolve('token')),
-  refreshSessionToken: vi.fn(),
+  refreshSession: vi.fn(),
   appStateListeners: new Set<(state: string) => void>(),
   onAppState: (state: string) => { for (const listener of mocks.appStateListeners) listener(state) },
   getItem: vi.fn(),
@@ -42,7 +42,7 @@ vi.mock('expo/fetch', () => ({ fetch: mocks.expoFetch }))
 vi.mock('@/lib/secure-store', () => ({ getToken: mocks.getToken }))
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: (select: (state: { isAuthenticated: boolean }) => boolean) => select({ isAuthenticated: true }),
-  refreshSessionToken: mocks.refreshSessionToken,
+  refreshSession: mocks.refreshSession,
 }))
 
 afterEach(() => {
@@ -487,7 +487,7 @@ function cursorStream(cursor: boolean) {
 it.each([401, 429, 500])('handles event stream status %i at the native connection boundary', async (status) => {
   const capture = vi.mocked(captureError)
   capture.mockClear()
-  mocks.refreshSessionToken.mockResolvedValue(null)
+  mocks.refreshSession.mockResolvedValue({ status: 'unauthorized' })
   mocks.expoFetch.mockResolvedValue(new Response(null, { status, headers: { 'Retry-After': '60' } }))
   vi.useFakeTimers()
   let tree!: TestRenderer.ReactTestRenderer

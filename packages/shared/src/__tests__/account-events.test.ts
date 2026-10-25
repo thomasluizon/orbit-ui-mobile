@@ -307,10 +307,10 @@ it('keeps a starting event connection from invalidating pending account reads', 
   }
 })
 
-it('stops an event connection on unauthorized without reporting or reconnecting', async () => {
+it('stops an event connection on a confirmed session rejection without reporting or reconnecting', async () => {
   vi.useFakeTimers()
   const controller = new AbortController()
-  const open = vi.fn().mockResolvedValue(new Response(null, { status: 401 }))
+  const open = vi.fn().mockResolvedValue({ sessionRejected: true })
   const onError = vi.fn()
   const options = { open, onError, signal: controller.signal, resumed: true,
     onEvent: vi.fn(), onOpen: vi.fn(), onReconnect: vi.fn(), onFirstFailure: vi.fn() }
@@ -319,6 +319,33 @@ it('stops an event connection on unauthorized without reporting or reconnecting'
     await vi.advanceTimersByTimeAsync(60_000)
     expect(open).toHaveBeenCalledOnce()
     expect(onError).not.toHaveBeenCalled()
+    expect(options.onFirstFailure).not.toHaveBeenCalled()
+  } finally {
+    controller.abort()
+    await running
+    vi.useRealTimers()
+  }
+})
+
+it.each(['returned', 'thrown'])('retries an unconfirmed %s unauthorized response without reporting it', async (failure) => {
+  vi.useFakeTimers()
+  const controller = new AbortController()
+  const open = vi.fn()
+  if (failure === 'returned') open.mockResolvedValue(new Response(null, { status: 401 }))
+  else open.mockRejectedValue(createApiClientError(401, null, 'Unauthorized'))
+  const options = { open, signal: controller.signal, resumed: true,
+    onEvent: vi.fn(), onOpen: vi.fn(), onReconnect: vi.fn(), onError: vi.fn(), onFirstFailure: vi.fn() }
+  const running = consumeAccountEventStream(options)
+  try {
+    await vi.advanceTimersByTimeAsync(1999)
+    expect(open).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(open).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(3999)
+    expect(open).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(open).toHaveBeenCalledTimes(3)
+    expect(options.onError).not.toHaveBeenCalled()
     expect(options.onFirstFailure).not.toHaveBeenCalled()
   } finally {
     controller.abort()
