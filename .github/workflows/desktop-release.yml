@@ -106,6 +106,7 @@ jobs:
       DESKTOP_VERSION: ${{ needs.validate.outputs.version }}
       DESKTOP_TARGET: ${{ matrix.target }}
       TAURI_SIGNING_PUBLIC_KEY: ${{ vars.TAURI_SIGNING_PUBLIC_KEY }}
+      ORBIT_DESKTOP_WNS_OBJECT_ID: ${{ vars.ORBIT_DESKTOP_WNS_OBJECT_ID }}
     steps:
       - uses: actions/checkout@v7
         with:

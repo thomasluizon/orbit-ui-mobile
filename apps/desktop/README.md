@@ -2,7 +2,7 @@
 
 A Tauri 2 webview loads the deployed Orbit app directly. Staging opens `https://app-staging.useorbit.org`; production opens `https://app.useorbit.org`. There is no bundled copy of the UI or local server. Requests, Server Actions and Astra streaming stay on the web app's BFF, using its secure httpOnly cookies. A persistent webview retains sign-in between launches. Separate application identifiers isolate staging and production storage.
 
-Links requesting a new window, including invoice downloads, open HTTP and HTTPS destinations in the system browser on both platforms. Rust attaches the handler before creating the configured window. Other schemes cannot launch local files or protocol handlers. The pinned opener crate supplies only its Rust function; its plugin is never registered. The only IPC capability is native sign-in completion, restricted to the exact environment origin and main window.
+Links requesting a new window, including invoice downloads, open HTTP and HTTPS destinations in the system browser on both platforms. Rust attaches the handler before creating the configured window. Other schemes cannot launch local files or protocol handlers. The pinned opener crate supplies only its Rust function; its plugin is never registered. IPC capabilities cover native sign-in completion and push registration, restricted to the exact environment origin and main window.
 
 ## Google sign-in
 
@@ -33,6 +33,20 @@ The Rust updater checks at launch and every six hours while the process is runni
 Staging and production use separate `desktop-staging/latest.json` and `desktop-production/latest.json` assets under this repository's GitHub Releases downloads. Each manifest points to versioned artifacts in its own channel. The plugin verifies artifact signatures and their signed version, and accepts only newer releases. All four platform entries must belong to that channel and version. Updater and notification commands have no webview permissions.
 
 Source configurations deliberately have empty public keys, disabling updates in development builds. Release packaging supplies each environment's actual public key in a Tauri config overlay. No private key belongs in the repository or application.
+
+## Native reminders
+
+The existing notification controls select APNs in the macOS shell and WNS in the Windows shell. Browsers retain Web Push; the shell does not register a Web Push worker. Notifications keep the API's localized title and body. Their launch links use the same web notification destination resolver, including Astra and wrapped destinations. Arrivals refresh the inbox and proactive state without focusing the hidden window.
+
+macOS requests authorization through UserNotifications and registers for the signed bundle's APNs token. The app delegate remains responsible for the window lifecycle. Foreground presentation uses the original APNs notification once; background presentation belongs to the operating system. Both use the API's nested `body.url` for clicks. An absent APNs entitlement leaves registration inert. Select `native/macos/Entitlements.production.plist` or `Entitlements.development.plist` through `bundle.macOS.entitlements` when provisioning the signed shell. The choice follows the provisioning profile, independently of the staging or production topic. Signing and enrollment remain prerequisites for installed-app acceptance.
+
+Windows uses the Windows App SDK's `PushReceived` handler and `CreateChannelAsync` with the service principal Object ID from `ORBIT_DESKTOP_WNS_OBJECT_ID`. The process stays alive after closing the window. It requests a fresh channel in each process and renews the API row with its persistent device UUID. Raw payloads become local AppNotifications, whose invocation handler supports clicks from Action Center while the process runs. No package identity or push COM background activation is used. Explicit Quit ends delivery until the next launch.
+
+The Windows native build pins its SDK and C++/WinRT packages and validates the runtime installer's and bootstrap DLL's Microsoft signatures. The shell carries that runtime installer, runs it quietly only when SDK initialization requires it, and retains the original unpackaged executable. An absent `ORBIT_DESKTOP_WNS_OBJECT_ID` leaves WNS inert. Set the variable separately in GitHub Settings > Environments > `desktop-staging` and `desktop-production` > Environment variables; the desktop release job embeds the corresponding public value. Local builds can set the same environment variable.
+
+Native settings store the device UUID, account ownership and push endpoints, never BFF session credentials. Each attempted renewal is persisted atomically before the API write. Only an accepted registration becomes confirmed. Sign-out revokes both confirmed and uncertain endpoints before clearing sign-in; a failed revocation preserves sign-in for retry. Replacement sessions pause the previous account's native delivery. Native registration and settings commands validate the main window's exact deployed origin as well as its capability.
+
+Server delivery also requires the Apple APNs credentials or the Azure WNS sender credentials described in [the API delivery contract](https://github.com/thomasluizon/orbit-api/pull/922). Unit tests do not establish live delivery without those accounts, provisioning and installed-app acceptance.
 
 ## Build
 
@@ -91,7 +105,7 @@ These tests do not prove operating-system protocol delivery, native menu dispatc
 
 ## Remaining desktop work
 
-Tracks #1560. Background reminders, web release integration, signed and notarized DMGs and landing downloads, performance comparison, installed-app recording and screen-reader acceptance belong to subsequent steps.
+Tracks #1560. Live native reminder acceptance, signed and notarized DMGs and landing downloads, performance comparison, installed-app recording and screen-reader acceptance remain separate delivery steps.
 
 ## Web releases and compatibility
 

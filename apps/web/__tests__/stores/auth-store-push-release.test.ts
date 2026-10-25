@@ -57,7 +57,37 @@ describe('sign-out through the real notifications action wrapper', () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })))
     vi.stubGlobal('location', { href: '/', reload: vi.fn() })
   })
-  afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers() })
+  afterEach(() => { Reflect.deleteProperty(window, '__TAURI_INTERNALS__'); vi.unstubAllGlobals(); vi.useRealTimers() })
+
+  it.each([true, false])('finishes desktop sign-out after the API revocation settles: %s', async (succeeds) => {
+    const { useAuthStore, subscription } = await installSignedInBrowser()
+    const registration = {
+      endpoint: 'https://dm3p.notify.windows.com/?token=current', p256dh: 'wns', auth: 'wns', apnsTopic: null,
+      deviceId: '11111111-1111-4111-8111-111111111111',
+    }
+    const invoke = vi.fn(async (_command: string, payload: { action: string }) => ({
+      supported: true, permission: 'granted', owner: payload.action === 'clear' ? null : 'account-a',
+      registration: payload.action === 'clear' ? null : registration, candidate: null, pending: [],
+    }))
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { configurable: true, value: { invoke } })
+    let finishRelease: () => void = () => undefined
+    actions.unsubscribePush.mockImplementation(async () => {
+      await new Promise<void>((resolve) => { finishRelease = resolve })
+      if (!succeeds) throw new TypeError('Native revocation failed')
+      return { ok: true, data: undefined }
+    })
+    const signedOut = useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(actions.unsubscribePush).toHaveBeenCalledOnce())
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(fetch).not.toHaveBeenCalled()
+    finishRelease()
+    await signedOut
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+    expect(fetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST', headers: expect.any(Headers) })
+    expect(invoke.mock.calls.some(([, payload]) => payload.action === 'clear')).toBe(succeeds)
+    expect(invoke.mock.calls.some(([, payload]) => payload.action === 'suspend')).toBe(!succeeds)
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
+  })
 
   it('settles sign-out and the next cookie operation after an unrecognized action with translations installed', async () => {
     const { useAuthStore, subscription } = await installSignedInBrowser()

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-desktop-push"
+description = "Enables the desktop_push command without any pre-configured scope."
+commands.allow = ["desktop_push"]
+
+[[permission]]
+identifier = "deny-desktop-push"
+description = "Denies the desktop_push command without any pre-configured scope."
+commands.deny = ["desktop_push"]

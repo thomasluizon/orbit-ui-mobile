@@ -7,6 +7,8 @@ import * as Sentry from '@sentry/nextjs'
 import { getNotificationDestination, invalidateNotificationList } from '@orbit/shared/utils'
 import { proactiveKeys } from '@orbit/shared/query'
 import { NOTIFICATION_URL_PARAM, registerServiceWorker } from '@/lib/service-worker-registration'
+import { isDesktopPush } from '@/lib/desktop-runtime'
+import { useAccountId } from '@/lib/account-scope'
 
 type AppRouter = ReturnType<typeof useRouter>
 
@@ -35,6 +37,30 @@ function takeLaunchNotificationUrl(): string | null {
 export function ServiceWorkerBridge(): null {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const accountId = useAccountId()
+
+  useEffect(() => {
+    if (!isDesktopPush()) return
+    let cancelled = false
+    const resume = () => {
+      void import('@/lib/desktop-push').then((module) => {
+        if (!cancelled) return module.resumeDesktopPush(accountId)
+      }).catch((error: unknown) => Sentry.captureException(error))
+    }
+    resume()
+    const interval = setInterval(resume, 60 * 60 * 1000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [accountId])
+
+  useEffect(() => {
+    if (!isDesktopPush()) return
+    function receive() {
+      void invalidateNotificationList(queryClient)
+      void queryClient.invalidateQueries({ queryKey: proactiveKeys.current() })
+    }
+    window.addEventListener('orbit-desktop-push', receive)
+    return () => window.removeEventListener('orbit-desktop-push', receive)
+  }, [queryClient])
 
   useEffect(() => {
     const launchUrl = takeLaunchNotificationUrl()
@@ -42,12 +68,12 @@ export function ServiceWorkerBridge(): null {
   }, [router])
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return
+    if (isDesktopPush() || !('serviceWorker' in navigator)) return
     void registerServiceWorker().catch((error: unknown) => Sentry.captureException(error))
   }, [])
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return undefined
+    if (isDesktopPush() || !('serviceWorker' in navigator)) return undefined
 
     function handleWorkerMessage(event: MessageEvent<unknown>) {
       const message = event.data
