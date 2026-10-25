@@ -10,6 +10,10 @@ mod lifecycle;
 mod links;
 mod localization;
 mod menus;
+mod push;
+mod push_state;
+#[cfg(windows)]
+mod push_windows;
 mod settings;
 mod update_manifest;
 mod update_state;
@@ -20,7 +24,8 @@ fn main() {
     let identifier = context.config().identifier.clone();
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
-            desktop_login::commit_desktop_login
+            desktop_login::commit_desktop_login,
+            push::desktop_push
         ])
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Err(error) = lifecycle::show_main(app) {
@@ -57,6 +62,7 @@ fn main() {
             let callbacks_flow = flow.clone();
             let handle = app.handle().clone();
             menus::install(app.handle())?;
+            push::start(app.handle())?;
             tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
                 .on_navigation(move |url| {
                     if auth::intercepts(&navigation_origin, url) {

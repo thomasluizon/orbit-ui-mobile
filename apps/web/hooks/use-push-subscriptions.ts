@@ -7,8 +7,16 @@ import { bytesToHex } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { isPushNotificationSupported } from './use-push-notification-preferences'
+import { isDesktopPush } from '@/lib/desktop-runtime'
 
 async function currentEndpointHash(): Promise<string | null> {
+  if (isDesktopPush()) {
+    const { desktopEndpoint } = await import('@/lib/desktop-push')
+    const endpoint = await desktopEndpoint()
+    if (!endpoint) return null
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(endpoint))
+    return bytesToHex(new Uint8Array(digest))
+  }
   if (!isPushNotificationSupported()) return null
   const registration = await navigator.serviceWorker.getRegistration()
   const subscription = await registration?.pushManager.getSubscription()
@@ -35,7 +43,7 @@ export function usePushSubscriptions() {
     count: response?.items.length,
     max: response?.max,
     isCurrentDeviceRegistered: Boolean(endpointHash && response?.items.some(
-      (item) => item.transport === 'web' && item.endpointHash === endpointHash,
+      (item) => item.transport === (isDesktopPush() ? 'native' : 'web') && item.endpointHash === endpointHash,
     )),
     isLoading: query.isLoading,
     isError: query.isError,
