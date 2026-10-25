@@ -1,4 +1,5 @@
 import React from 'react'
+import { captureError } from '@/lib/sentry'
 import { afterEach, expect, it, vi } from 'vitest'
 import TestRenderer, { act } from 'react-test-renderer'
 import { focusManager, QueryObserver } from '@tanstack/react-query'
@@ -482,3 +483,26 @@ function cursorStream(cursor: boolean) {
     },
   }) }
 }
+
+it.each([401, 429, 500])('handles event stream status %i at the native connection boundary', async (status) => {
+  const capture = vi.mocked(captureError)
+  capture.mockClear()
+  mocks.refreshSessionToken.mockResolvedValue(null)
+  mocks.expoFetch.mockResolvedValue(new Response(null, { status, headers: { 'Retry-After': '60' } }))
+  vi.useFakeTimers()
+  let tree!: TestRenderer.ReactTestRenderer
+  try {
+    await act(() => { tree = TestRenderer.create(<AccountEventConnection />); return Promise.resolve() })
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(mocks.expoFetch).toHaveBeenCalledOnce()
+    expect(capture).toHaveBeenCalledTimes(status === 500 ? 1 : 0)
+    await act(async () => { await vi.advanceTimersByTimeAsync(59_999) })
+    expect(mocks.expoFetch).toHaveBeenCalledOnce()
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(mocks.expoFetch).toHaveBeenCalledTimes(status === 401 ? 1 : 2)
+    expect(capture).toHaveBeenCalledTimes(status === 500 ? 1 : 0)
+  } finally {
+    await act(() => tree.update(<></>))
+    vi.useRealTimers()
+  }
+})

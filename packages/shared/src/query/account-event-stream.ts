@@ -1,5 +1,5 @@
 import { createApiClientError, extractBackendStatus } from '../utils/error-utils'
-import { errorRetryAfter, isUpstreamStarting } from './retry'
+import { errorRetryAfter, isUpstreamStarting, parseRetryAfter } from './retry'
 import { accountEventPayloadSchema, type AccountEventPayload } from '../types/account-event'
 
 export type ParsedAccountEvent =
@@ -66,6 +66,7 @@ interface AccountEventStreamOptions {
   onEvent: (event: ParsedAccountEvent) => void
   onOpen: (openedAt: number, hasReplayCursor: boolean) => void
   onFirstFailure?: (failedAt: number) => void
+  onError?: (error: unknown) => void
   onReconnect: () => void
   signal: AbortSignal
 }
@@ -87,34 +88,70 @@ function streamIsActive(signal: AbortSignal): boolean {
   return !signal.aborted
 }
 
-export async function consumeAccountEventStream(options: AccountEventStreamOptions): Promise<void> {
-  let lastEventId: string | null = options.lastEventId ?? null
-  let retry = 0
-  let reportNextFailure = options.resumed ?? false
-  while (!options.signal.aborted) {
-    let opened = false
-    let retryAfter: number | null = null
-    try {
-      const response = await options.open(options.signal, lastEventId)
-      const body = requireStreamBody(response)
-      opened = true
-      reportNextFailure = true
-      if (streamIsActive(options.signal)) options.onOpen(Date.now(), Boolean(lastEventId))
-      await readEvents(body, options.signal, (event) => {
-        if (event.id) lastEventId = event.id
-        options.onEvent(event)
-        retry = 0
-      })
-    } catch (error: unknown) {
-      retryAfter = errorRetryAfter(error)
-      retry = Math.min(retry + 1, 5)
-      if (!opened && reportNextFailure && extractBackendStatus(error) !== 429 && !isUpstreamStarting(error) && streamIsActive(options.signal)) {
-        reportNextFailure = false
-        options.onFirstFailure?.(Date.now())
-      }
+function isUnexpectedStreamFailure(error: unknown, signal: AbortSignal): boolean {
+  return streamIsActive(signal) && extractBackendStatus(error) !== 429 && !isUpstreamStarting(error)
+}
+
+interface ConnectionState {
+  lastEventId: string | null
+  retry: number
+  failureReported: boolean
+  reportNextFailure: boolean
+}
+
+function handleStreamFailure(error: unknown, opened: boolean, options: AccountEventStreamOptions, state: ConnectionState): boolean {
+  if (extractBackendStatus(error) === 401) return false
+  if (!state.failureReported && isUnexpectedStreamFailure(error, options.signal)) {
+    state.failureReported = true
+    options.onError?.(error)
+  }
+  state.retry = Math.min(state.retry + 1, 5)
+  if (!opened && state.reportNextFailure && isUnexpectedStreamFailure(error, options.signal)) {
+    state.reportNextFailure = false
+    options.onFirstFailure?.(Date.now())
+  }
+  return true
+}
+
+async function consumeConnectionAttempt(options: AccountEventStreamOptions, state: ConnectionState): Promise<boolean> {
+  let opened = false
+  let retryAfter: number | null = null
+  try {
+    const response = await options.open(options.signal, state.lastEventId)
+    if (response.status === 401) return false
+    if (response.status === 429) {
+      state.retry = Math.min(state.retry + 1, 5)
+      await waitForRetry(options.signal, parseRetryAfter(response.headers?.get('retry-after') ?? null) ?? Math.min(1000 * 2 ** state.retry, 30000))
+      return true
     }
-    if (opened && streamIsActive(options.signal)) options.onReconnect()
-    await waitForRetry(options.signal, retryAfter ?? Math.min(1000 * 2 ** retry, 30000))
+    const body = requireStreamBody(response)
+    opened = true
+    state.failureReported = false
+    state.reportNextFailure = true
+    if (streamIsActive(options.signal)) options.onOpen(Date.now(), Boolean(state.lastEventId))
+    await readEvents(body, options.signal, (event) => {
+      if (event.id) state.lastEventId = event.id
+      options.onEvent(event)
+      state.retry = 0
+    })
+  } catch (error: unknown) {
+    if (!handleStreamFailure(error, opened, options, state)) return false
+    retryAfter = errorRetryAfter(error)
+  }
+  if (opened && streamIsActive(options.signal)) options.onReconnect()
+  await waitForRetry(options.signal, retryAfter ?? Math.min(1000 * 2 ** state.retry, 30000))
+  return true
+}
+
+export async function consumeAccountEventStream(options: AccountEventStreamOptions): Promise<void> {
+  const state: ConnectionState = {
+    lastEventId: options.lastEventId ?? null,
+    retry: 0,
+    failureReported: false,
+    reportNextFailure: options.resumed ?? false,
+  }
+  while (!options.signal.aborted) {
+    if (!await consumeConnectionAttempt(options, state)) return
   }
 }
 

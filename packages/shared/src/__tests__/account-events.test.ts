@@ -306,3 +306,49 @@ it('keeps a starting event connection from invalidating pending account reads', 
     vi.useRealTimers()
   }
 })
+
+it('stops an event connection on unauthorized without reporting or reconnecting', async () => {
+  vi.useFakeTimers()
+  const controller = new AbortController()
+  const open = vi.fn().mockResolvedValue(new Response(null, { status: 401 }))
+  const onError = vi.fn()
+  const options = { open, onError, signal: controller.signal, resumed: true,
+    onEvent: vi.fn(), onOpen: vi.fn(), onReconnect: vi.fn(), onFirstFailure: vi.fn() }
+  const running = consumeAccountEventStream(options)
+  try {
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(open).toHaveBeenCalledOnce()
+    expect(onError).not.toHaveBeenCalled()
+    expect(options.onFirstFailure).not.toHaveBeenCalled()
+  } finally {
+    controller.abort()
+    await running
+    vi.useRealTimers()
+  }
+})
+
+it('retries rate limits on the server delay and reports genuine stream failures once per gap', async () => {
+  vi.useFakeTimers()
+  const controller = new AbortController()
+  const failure = new Error('stream unavailable')
+  const open = vi.fn()
+    .mockResolvedValueOnce(new Response(null, { status: 429, headers: { 'Retry-After': '60' } }))
+    .mockRejectedValue(failure)
+  const onError = vi.fn()
+  const options = { open, onError, signal: controller.signal,
+    onEvent: vi.fn(), onOpen: vi.fn(), onReconnect: vi.fn() }
+  const running = consumeAccountEventStream(options)
+  try {
+    await vi.advanceTimersByTimeAsync(59_999)
+    expect(open).toHaveBeenCalledOnce()
+    expect(onError).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(onError).toHaveBeenCalledExactlyOnceWith(failure)
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(onError).toHaveBeenCalledOnce()
+  } finally {
+    controller.abort()
+    await running
+    vi.useRealTimers()
+  }
+})
