@@ -35,7 +35,7 @@
           "isDraft": false,
           "headRefName": "feature/ticket-1092-fixture",
           "headRefOid": "a38bcc12581c69c65e02237fa10d6ea5c260d960",
-          "baseRefName": "redesign/main",
+          "baseRefName": "integration/next",
           "baseRefOid": "65475a19a05e436af4f168cac8cda498da62e345",
           "mergeStateStatus": "UNSTABLE",
           "statusCheckRollup": {

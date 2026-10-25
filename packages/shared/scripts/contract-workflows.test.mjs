@@ -58,7 +58,6 @@ it('keeps generated contract artifacts eligible for workspace coverage', () => {
 
 describe.each([
   ['contract-rebaseline.yml', 'main', 'chore/contract-snapshot'],
-  ['contract-rebaseline-redesign.yml', 'redesign/main', 'chore/contract-snapshot-redesign'],
 ])('%s publication', (filename, base, branch) => {
   const definition = workflow(filename)
   const carry = definition.jobs.publish.steps.find((step) => step.name?.startsWith('Carry the target branch'))

@@ -213,3 +213,19 @@ describe('progress surface models', () => {
     expect(getGamificationLevelTitleKey(14)).toBe('progressScreen.achievements.levelTitles.legend')
   })
 })
+
+it.each(['en', 'pt-BR'])('formats streak repair dates without ListFormat in %s', (locale) => {
+  const dates = ['2026-08-27', '2026-08-28', '2026-08-29']
+  const [first, second, third] = dates.map((date) => formatStreakDate(date, locale))
+  const expected = locale === 'pt-BR' ? `${first}, ${second} e ${third}` : `${first}, ${second}, and ${third}`
+  const descriptor = Object.getOwnPropertyDescriptor(Intl, 'ListFormat')!
+  Reflect.deleteProperty(Intl, 'ListFormat')
+  try {
+    expect(formatStreakRepairDates([], locale)).toBe('')
+    expect(formatStreakRepairDates(dates.slice(0, 1), locale)).toBe(first)
+    expect(formatStreakRepairDates(dates.slice(0, 2), locale)).toBe(`${first} ${locale === 'pt-BR' ? 'e' : 'and'} ${second}`)
+    expect(formatStreakRepairDates(dates, locale)).toBe(expected)
+  } finally {
+    Object.defineProperty(Intl, 'ListFormat', descriptor)
+  }
+})

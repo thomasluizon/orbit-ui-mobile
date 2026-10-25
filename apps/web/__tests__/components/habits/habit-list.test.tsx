@@ -1168,14 +1168,14 @@ describe('HabitList', () => {
 
   function assertCascadeGeometry(geometry: { depth: number; titleWidth: number; titleSize: number; metadataEdge: number; top: number; bottom: number; inset: number; textEdge: number; wellInset: number; targets: { left: number; right: number; width: number; height: number }[] }[], expectedDepths: number[], width: number, drilling: boolean) {
     for (const [index, row] of geometry.entries()) {
-      expect(row.wellInset, `well at visible depth ${expectedDepths[index]}`).toBe(8 + 16 * expectedDepths[index]!)
+      expect(row.wellInset, `well at visible depth ${expectedDepths[index]}`).toBe(8)
       expect(row.textEdge, `text at visible depth ${expectedDepths[index]}`).toBe(84 + 16 * expectedDepths[index]!)
       expect(row.titleWidth).toBeGreaterThanOrEqual(row.titleSize)
       expect(row.metadataEdge).toBe(row.textEdge)
-      if (index && !drilling) expect(row.top - geometry[index - 1]!.bottom).toBe(expectedDepths[index] === 0 ? 12 : 4)
-      expect(row.inset).toBe(16)
+      if (index && !drilling) expect(row.top - geometry[index - 1]!.bottom).toBe(expectedDepths[index] === 0 ? 12 : 8)
+      expect(row.inset).toBe(16 + 16 * row.depth)
       expect(row.textEdge).toBe(84 + 16 * row.depth)
-      expect(row.wellInset).toBe(8 + 16 * row.depth)
+      expect(row.wellInset).toBe(8)
       for (const target of row.targets) {
         expect(target.left).toBeGreaterThanOrEqual(16)
         expect(target.right).toBeLessThanOrEqual(width - 16)
@@ -1646,7 +1646,7 @@ describe('HabitList', () => {
           const bounds = rows.map((row) => row.getBoundingClientRect()).filter((row) => row.height > 0)
           return bounds.slice(1).map((row, index) => row.top - bounds[index]!.bottom)
         })
-        expect(gaps).toEqual([4, 12])
+        expect(gaps).toEqual([8, 12])
         fireEvent.click(screen.getByRole('button', { name: 'common.collapse' }))
         await page.close()
       }
@@ -2041,7 +2041,7 @@ describe('HabitList', () => {
         }], observation.observer)
       }
       await act(async () => resize(container.querySelector('[data-habit-list]')!))
-      await act(async () => { for (const row of container.querySelectorAll('[data-testid="habit-row"]')) resize(row) })
+      await act(async () => { for (const row of container.querySelectorAll('[data-testid="habit-row"]')) resize(row.parentElement!) })
       expect(Array.from(container.querySelectorAll('[data-testid="habit-row"]')).map((row) => row.getAttribute('data-depth'))).toEqual(width === 320 ? ['0', '1', '2'] : ['0', '1', '2', '3'])
       expect(disclosures[2]!.getAttribute('aria-expanded')).toBe(width === 320 ? null : 'true')
       if (width > 320) expect(container.querySelector(`[id="${disclosures[2]!.getAttribute('aria-controls')}"]`)).toHaveTextContent('Great grandchild')

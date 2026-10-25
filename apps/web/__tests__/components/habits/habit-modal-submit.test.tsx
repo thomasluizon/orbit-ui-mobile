@@ -676,7 +676,7 @@ it('opens the same real complete editor through the list row menu and stages a p
 })
 
 it('keeps the complete parent draft after a definitive destination refusal without another write', async () => {
-  mutation.mockReset().mockRejectedValue(createApiClientError(409, { error: 'Conflict' }, 'Conflict'))
+  mutation.mockReset().mockRejectedValue(createApiClientError(409, { errorCode: 'CONCURRENT_UPDATE_CONFLICT' }, 'Conflict'))
   completion.mockReset()
   detailRefetch.mockClear()
   const { submit, title, onClose } = await renderSheet('edit', prepareParentEditor())
@@ -689,6 +689,7 @@ it('keeps the complete parent draft after a definitive destination refusal witho
   expect(detailRefetch).not.toHaveBeenCalled()
   expect(onClose).not.toHaveBeenCalled()
   expect(title).toHaveValue('Retained title')
+  expect(screen.getByText('toast.errors.conflict')).toBeVisible()
   expect(screen.getAllByRole('textbox', { name: 'habits.form.checklistItemLabel' }).map((input) => (input as HTMLInputElement).value)).toEqual(['Same', 'Same'])
   expect(screen.getByRole('button', { name: /habits.form.parentHabit/ })).toHaveTextContent('Completed off-day destination')
 })

@@ -706,7 +706,9 @@ describe('HabitDetailScreen', () => {
     const geometry = measureInteractionFills(tree.toJSON(), 320, false)
     const rowBounds = geometry.find((part) => part.host.props.testID === 'habit-row')!
     const wellBounds = geometry.find((part) => part.style.width === 32 && part.style.borderRadius === 12 && part.ancestors.includes(rowBounds.slot))!
-    expect(wellBounds.left - rowBounds.left).toBe(24)
+    expect(wellBounds.left - rowBounds.left).toBe(8)
+    const groupBounds = geometry.find((part) => part.host.props.testID === 'detail-children')!
+    expect(rowBounds.left - groupBounds.left).toBe(16)
     expect(StyleSheet.flatten(row.props.style as ViewStyle)).toMatchObject({ backgroundColor: tokens.bgCard, borderRadius: 20 })
     expect(StyleSheet.flatten(row.props.style as ViewStyle).borderWidth ?? 0).toBe(0)
     const outline = row.findByProps({ testID: 'habit-row-outline' })

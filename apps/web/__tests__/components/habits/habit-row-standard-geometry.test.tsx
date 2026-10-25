@@ -1,4 +1,5 @@
 import { compileHabitRowStylesheet, geometryLocale } from '@/__tests__/support/habit-row-standard-geometry'
+import { SPACING } from '@orbit/shared/theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
@@ -86,7 +87,9 @@ describe('habit row standard in Chromium', () => {
         })!
         return well.getBoundingClientRect().left - row.getBoundingClientRect().left
       }))
-      expect(wellEdges).toEqual([8, 8, 8, 8, 24, 8, 8, 8, 8, 8])
+      expect(wellEdges).toEqual(Array.from({ length: 10 }, () => SPACING.s8))
+      expect(rows[4]!.left - rows[3]!.left).toBe(SPACING.s16)
+      expect(rows[4]!.right).toBe(rows[3]!.right)
       for (const row of rows) {
         expect(row.check).toMatchObject({ width: 28, height: 28, radius: '12px' })
         expect(row.radius).toBe('20px')
@@ -96,7 +99,7 @@ describe('habit row standard in Chromium', () => {
         expect(row.left).toBeGreaterThanOrEqual(16)
         expect(row.right).toBeLessThanOrEqual(width - 16)
       }
-      expect(rows.slice(1).map((row, index) => row.top - rows[index]!.bottom)).toEqual(Array.from({ length: 9 }, () => 4))
+      expect(rows.slice(1).map((row, index) => row.top - rows[index]!.bottom)).toEqual(Array.from({ length: 9 }, () => SPACING.s8))
       const emptyParent = page.locator('[data-habit-title="Empty parent"] [data-habit-row-control="check"]')
       expect(await emptyParent.getAttribute('aria-label')).toContain('0/2')
       expect(await emptyParent.locator('[data-habit-check] path').count()).toBe(0)

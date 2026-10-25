@@ -227,10 +227,10 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   )
   T(`${TOOL}: contract-switch removal actually deleted the fixture`, !existsSync(switched.child), switchedResult.stderr)
 
-  const redesign = stageTeardownWorktree("redesign-base", { base: "redesign/main", changed: true, squashMerged: true, contractSwitch: true })
+  const redesign = stageTeardownWorktree("redesign-base", { base: "integration/next", changed: true, squashMerged: true, contractSwitch: true })
   const redesignResult = check(
     TOOL,
-    "without --base a branch merged into redesign/main is removed",
+    "without --base a branch merged into integration/next is removed",
     ["--issue", "ORB-124"],
     { status: 0, stdout: /REMOVED worktree/ },
     { env: orcaEnv([

@@ -352,3 +352,12 @@ it('uses the stable shell main target when the originating control disappears', 
     expect(screen.getByRole('main')).toHaveFocus()
   } finally { unmount(); vi.useRealTimers() }
 })
+
+it('shows a static celebration when matchMedia is unavailable', () => {
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  vi.stubGlobal('matchMedia', undefined)
+  useUIStore.getState().enqueueCelebration('all-done', { count: 1 })
+  const { container } = render(<CelebrationPanel />)
+  expect(container.querySelector('[data-celebration-panel]')).toHaveAttribute('data-phase', 'hold')
+  expect(container.querySelector('[data-entering]')).toBeNull()
+})

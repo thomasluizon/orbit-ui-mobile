@@ -181,7 +181,7 @@ export const cases = async () => {
     JSON.stringify(reviewChecksFor([requiredUnitTests])),
   )
   const unreviewedGreen = readinessCiIsGreen([greenRun], unprotectedReview)
-  const unreviewed = { ...receipt, baseBranch: "redesign/main", ci: { ...receipt.ci, green: unreviewedGreen } }
+  const unreviewed = { ...receipt, baseBranch: "integration/next", ci: { ...receipt.ci, green: unreviewedGreen } }
   T(
     `${TOOL}: an unprotected base with no pullfrog-approval blocks on the review axis ALONE, as CI_STALE`,
     unreviewedGreen === false && JSON.stringify(readinessReport(unreviewed).verdicts) === JSON.stringify(["CI_STALE"]),
@@ -314,7 +314,7 @@ export const cases = async () => {
   )
 
   const reviewsAtHead = (nodes) => pullRequestStateFromGraphQl({
-    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 838, baseRefName: "redesign/main", baseRefOid: BASE_A, baseRef: { name: "redesign/main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes }, statusCheckRollup: null } } },
+    data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 838, baseRefName: "integration/next", baseRefOid: BASE_A, baseRef: { name: "integration/next", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes }, statusCheckRollup: null } } },
   }).reviews
   const botReview = (state, submittedAt, oid) => ({ state, submittedAt, author: { __typename: "Bot", login: "pullfrog" }, commit: { oid } })
   /** Keep real activity and review shapes for the repointed-commit case. */
@@ -325,7 +325,7 @@ export const cases = async () => {
   const repointedReview = botReview("APPROVED", "2026-09-25T21:50:13Z", repointedHead)
   const reviewAfterMerge = botReview("APPROVED", "2026-09-26T02:59:43Z", repointedHead)
   const parsedRepointed = pullRequestStateFromGraphQl({ data: { repository: { nameWithOwner: "owner/repo", pullRequest: {
-    number: 1107, baseRefName: "redesign/main", baseRefOid: BASE_A, baseRef: { name: "redesign/main", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: repointedHead, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, isDraft: false,
+    number: 1107, baseRefName: "integration/next", baseRefOid: BASE_A, baseRef: { name: "integration/next", target: { __typename: "Commit", oid: BASE_A } }, headRefOid: repointedHead, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, isDraft: false,
     commits: { nodes: [{ commit: { oid: repointedHead } }] },
     reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [repointedReview] },
     statusCheckRollup: null,

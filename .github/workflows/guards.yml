@@ -4,7 +4,6 @@ name: Guards
   pull_request:
     branches:
       - main
-      - redesign/main
     types:
       - opened
       - synchronize
@@ -12,7 +11,6 @@ name: Guards
   push:
     branches:
       - main
-      - redesign/main
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -64,14 +62,10 @@ jobs:
           if [ "$BASE_REF" = main ] && grep -Eq '.' "$RUNNER_TEMP/changed-paths.txt"; then
             node tools/check-feature-parity.mjs --write --ci --production "HEAD^1" --base "HEAD^1"
           fi
-          if [ "$BASE_REF" = redesign/main ] && grep -Eq '.' "$RUNNER_TEMP/changed-paths.txt"; then
-            git fetch origin main
-            node tools/check-feature-parity.mjs --write --ci --production origin/main --base "HEAD^1"
-          fi
-        if: ${{ !cancelled() && (github.event_name == 'pull_request' && (github.base_ref == 'main' || github.base_ref == 'redesign/main')) }}
+        if: ${{ !cancelled() && (github.event_name == 'pull_request' && github.base_ref == 'main') }}
       - id: feature-parity__2
         name: "Production Feature Parity: Upload capability evidence"
-        if: ${{ !cancelled() && (github.event_name == 'pull_request' && (github.base_ref == 'main' || github.base_ref == 'redesign/main')) && (always()) }}
+        if: ${{ !cancelled() && (github.event_name == 'pull_request' && github.base_ref == 'main') && (always()) }}
         uses: actions/upload-artifact@v7
         with:
           name: production-feature-parity
