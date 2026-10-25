@@ -72,6 +72,15 @@ describe('date ownership across form transitions', () => {
     expect(action).toHaveAccessibleDescription('shell.composer.offline.reason')
     expect(screen.getByText('shell.composer.offline.reason')).not.toBeVisible()
     expect(Boolean(screen.queryByText('habits.form.aiSuggestLimitReached'))).toBe(used === 5)
+    fireEvent.click(action)
+    expect(dateRequests.request).not.toHaveBeenCalled()
+    connection.isOnline = true
+    owner.refresh()
+    expect(action).not.toHaveAccessibleDescription()
+    expect(action.hasAttribute('disabled')).toBe(used === 5)
+    expect(owner.values()).toMatchObject({ datePhrase: 'after my vacation', dueDate: '2026-10-20' })
+    owner.phrase('tomorrow')
+    expect(owner.values().dueDate).toBe('2026-10-21')
     expect(dateRequests.request).not.toHaveBeenCalled()
   })
 

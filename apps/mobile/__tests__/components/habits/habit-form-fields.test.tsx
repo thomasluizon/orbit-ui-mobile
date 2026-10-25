@@ -1316,6 +1316,28 @@ describe('habit tag suggestions', () => {
     }
   })
 
+  it('retains the native tag limit explanation and recovers when a selected tag is removed', async () => {
+    tagCollection.tags = ['Health', 'Reading', 'Work', 'Rest', 'Travel', 'Home'].map((name, index) => ({ id: String(index + 1), name, color: '#7c3aed' }))
+    await renderTagForm('Run', '', ['1', '2', '3', '4'])
+    expect(button('habits.form.suggestTags').props.disabled).toBe(false)
+    await TestRenderer.act(() => button('Travel').props.onPress())
+    expect(selected()).toBe('1,2,3,4,5')
+    expect(button('habits.form.suggestTags').props.disabled).toBe(true)
+    expect(button('habits.form.suggestTags').props.accessibilityHint).toBe('habits.form.tagLimit')
+    expect(button('Home').props.disabled).toBe(true)
+    await TestRenderer.act(() => {
+      button('habits.form.suggestTags').props.onPress()
+    })
+    expect(tagMutations.suggest).not.toHaveBeenCalled()
+    expect(selected()).toBe('1,2,3,4,5')
+    expect(text('habits.form.tagLimit').filter((node: { props: { accessibilityLiveRegion?: string } }) => node.props.accessibilityLiveRegion === 'polite')).toHaveLength(0)
+    await TestRenderer.act(() => button('Travel').props.onPress())
+    expect(selected()).toBe('1,2,3,4')
+    expect(button('habits.form.suggestTags').props.disabled).toBe(false)
+    expect(button('habits.form.suggestTags').props.accessibilityHint).toBeUndefined()
+    expect(button('Home').props.disabled).toBe(false)
+  })
+
   it('disables remaining proposals at capacity', async () => {
     tagCollection.tags = [{ id: 'existing', name: 'Health', color: '#7c3aed' }]
     tagMutations.suggest.mockResolvedValue({ tags: [
@@ -1627,6 +1649,15 @@ describe('native date ownership across form transitions', () => {
     expect(suggestion.props.accessibilityHint).toBe('shell.composer.offline.reason')
     expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'shell.composer.offline.reason')).toHaveLength(0)
     expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'habits.form.aiSuggestLimitReached')).toHaveLength(used === 5 ? 1 : 0)
+    await TestRenderer.act(() => suggestion.props.onPress())
+    expect(dateRequests.request).not.toHaveBeenCalled()
+    connection.isOnline = true
+    await TestRenderer.act(() => tree.update(<OwningForm />))
+    expect(action('habits.form.suggestDate')[0]!.props.accessibilityHint).toBeUndefined()
+    expect(action('habits.form.suggestDate')[0]!.props.disabled).toBe(used === 5)
+    expect(helpers.form.getValues()).toMatchObject({ datePhrase: 'after my vacation', dueDate: '2026-10-20' })
+    await phrase('tomorrow')
+    expect(helpers.form.getValues('dueDate')).toBe('2026-10-21')
     expect(dateRequests.request).not.toHaveBeenCalled()
   })
 
