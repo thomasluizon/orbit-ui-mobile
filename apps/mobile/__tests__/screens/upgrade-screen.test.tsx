@@ -14,6 +14,9 @@ import { StackRouter, TabRouter, CommonActions, StackActions } from 'expo-router
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 
 import UpgradeScreen from '@/app/upgrade'
+import { StoreBillingProvider } from '@/hooks/store-billing-provider'
+import { useAuthStore } from '@/stores/auth-store'
+import { setAccountId } from '@/lib/account-scope'
 
 const requireConfig = createRequire(import.meta.url)
 const createConfig = requireConfig('../../app.config.js') as () => typeof appJson.expo
@@ -42,6 +45,10 @@ const mocks = vi.hoisted(() => ({
   renderComposition: false,
   realPlayBilling: false,
   connectionOutcome: 'false',
+  connected: false,
+  getPendingTransactionsIOS: vi.fn(),
+  getAvailablePurchases: vi.fn(),
+  syncIOS: vi.fn(),
   reconnect: vi.fn(),
   fetchProducts: vi.fn(),
   locale: 'en',
@@ -145,20 +152,23 @@ vi.mock('@/hooks/use-billing', () => ({
   }),
 }))
 vi.mock('@/hooks/store-billing-provider', async (importOriginal) => {
-  const connection = await import('@/hooks/use-play-billing')
   const actual = await importOriginal<typeof import('@/hooks/store-billing-provider')>()
   return { ...actual, useStoreBilling: (options: Parameters<typeof actual.useStoreBilling>[0]) =>
-    mocks.realPlayBilling ? connection.useStoreBillingConnection(options) : mocks.playBilling }
+    mocks.realPlayBilling ? actual.useStoreBilling(options) : mocks.playBilling }
 })
+vi.mock('@/lib/store-products', () => ({ APP_STORE_PRODUCT_IDS: { monthly: 'orbit.monthly', yearly: 'orbit.yearly' } }))
 vi.mock('expo-iap', async (importOriginal) => ({
   ...await importOriginal<typeof import('expo-iap')>(),
   showManageSubscriptionsIOS: mocks.manageApple,
+  getPendingTransactionsIOS: mocks.getPendingTransactionsIOS,
+  getAvailablePurchases: mocks.getAvailablePurchases,
+  syncIOS: mocks.syncIOS,
   useIAP: (options: { onError?: (error: Error) => void }) => {
     const initialOptions = React.useRef(options)
     React.useEffect(() => {
       if (mocks.connectionOutcome === 'rejected') initialOptions.current.onError?.(new Error('Play initialization failed'))
     }, [])
-    return { connected: false, subscriptions: [], fetchProducts: mocks.fetchProducts, requestPurchase: mocks.playBilling.purchase, reconnect: mocks.reconnect }
+    return { connected: mocks.connected, subscriptions: mocks.connected ? [{ id: 'orbit.monthly', displayPrice: '$4.99', price: 4.99, currency: 'USD' }, { id: 'orbit.yearly', displayPrice: '$39.99', price: 39.99, currency: 'USD' }] : [], fetchProducts: mocks.fetchProducts, requestPurchase: mocks.playBilling.purchase, reconnect: mocks.reconnect }
   },
 }))
 vi.mock('@/hooks/use-subscription-plans', async (importOriginal) => ({
@@ -230,7 +240,7 @@ async function renderScreen() {
   let tree: { root: TestNode; unmount: () => void; toJSON: () => Parameters<typeof measureProfileRow>[0] } | undefined
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(mocks.realPlayBilling
-      ? <QueryClientProvider client={new QueryClient()}><UpgradeScreen /></QueryClientProvider>
+      ? <QueryClientProvider client={new QueryClient()}><StoreBillingProvider><UpgradeScreen /></StoreBillingProvider></QueryClientProvider>
       : <UpgradeScreen />)
     await Promise.resolve()
   })
@@ -471,6 +481,10 @@ describe('UpgradeScreen', () => {
     mocks.plans.couponPercentOff = null
     mocks.realPlayBilling = false
     mocks.connectionOutcome = 'false'
+    mocks.connected = false
+    mocks.getPendingTransactionsIOS.mockReset().mockResolvedValue([])
+    mocks.getAvailablePurchases.mockReset().mockResolvedValue([])
+    mocks.syncIOS.mockReset().mockResolvedValue(true)
     mocks.reconnect.mockReset().mockResolvedValue(false)
     mocks.fetchProducts.mockReset().mockResolvedValue(undefined)
     mocks.locale = 'en'
@@ -759,6 +773,40 @@ describe('UpgradeScreen', () => {
     })
     expect(mocks.playBilling.clearError).toHaveBeenCalledTimes(1)
     expect(mocks.playBilling.purchase).toHaveBeenCalledWith('yearly')
+  })
+
+  it.each(['recovery', 'restore'] as const)('blocks checkout during delayed Apple %s and becomes usable afterward', async (operation) => {
+    Platform.OS = 'ios'
+    setAccountId('account-1')
+    useAuthStore.setState({ user: { userId: 'account-1', name: 'Person', email: 'person@example.test' } })
+    await configureSubscription({ width: 412, locale: 'en', mode: 'dark', state: 'free' })
+    mocks.realPlayBilling = true
+    mocks.connected = true
+    let release!: (purchases: []) => void
+    const pending = new Promise<[]>((resolve) => { release = resolve })
+    if (operation === 'recovery') mocks.getPendingTransactionsIOS.mockReturnValueOnce(pending)
+    else mocks.getAvailablePurchases.mockReturnValueOnce(pending)
+    const tree = await renderScreen()
+    const section = () => tree.root.findAll((node) => typeof node.props.onCheckout === 'function' && typeof node.props.onRestore === 'function')[0]!
+    const checkout = () => tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'upgrade-tier-yearly')[0]!
+      .findAll((node) => node.type === 'Pressable' && typeof node.props.onPress === 'function')[0]!
+    try {
+      if (operation === 'restore') await TestRenderer.act(async () => { (section().props.onRestore as () => void)(); await Promise.resolve() })
+      expect(section().props.isRestoring).toBe(true)
+      expect(checkout().props.disabled).toBe(true)
+      await TestRenderer.act(async () => { (section().props.onCheckout as (interval: string) => void)('yearly'); await Promise.resolve() })
+      expect(mocks.playBilling.purchase).not.toHaveBeenCalled()
+      await TestRenderer.act(async () => { release([]); await new Promise((resolve) => setTimeout(resolve, 0)) })
+      expect(section().props.isRestoring).toBe(false)
+      expect(section().props.checkoutLoading).toBeNull()
+      expect(checkout().props.disabled).toBe(false)
+      await TestRenderer.act(async () => { (checkout().props.onPress as () => void)(); await Promise.resolve() })
+      expect(mocks.playBilling.purchase).toHaveBeenCalledExactlyOnceWith({ type: 'subs', request: { apple: { sku: 'orbit.yearly', appAccountToken: 'account-1' } } })
+    } finally {
+      TestRenderer.act(() => tree.unmount())
+      useAuthStore.setState({ user: null })
+      setAccountId(null)
+    }
   })
 
   it.each((['en', 'pt-BR'] as const).flatMap((locale) => ['false', 'rejected'].map((outcome) => ({ locale, outcome }))))('offers a retry for a $outcome Play connection on the Pro screen in $locale', async ({ locale, outcome }) => {

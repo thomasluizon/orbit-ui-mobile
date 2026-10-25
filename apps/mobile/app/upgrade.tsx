@@ -197,9 +197,10 @@ export default function UpgradeScreen() {
   }, [refetchBilling, refetchStatus, showSuccess, t])
 
   function handleCheckout(interval: SubscriptionInterval) {
+    if (!isOnline || playBilling.isProcessing || playBilling.isRestoring) return
     playBilling.clearError()
     setCheckoutLoading(interval)
-    void playBilling.purchase(interval)
+    void playBilling.purchase(interval).then((started) => { if (started === false) setCheckoutLoading(null) })
   }
 
   function handleManagePlay() {
@@ -304,7 +305,7 @@ export default function UpgradeScreen() {
         yearlyDisplayPrice={playBilling.yearlyOffer?.displayPrice}
         checkoutLoading={checkoutLoading}
         checkoutError={checkoutError}
-        checkoutDisabled={!isOnline}
+        checkoutDisabled={!isOnline || playBilling.isProcessing || playBilling.isRestoring}
         onCheckout={handleCheckout}
         isRestoring={playBilling.isRestoring}
         onRestore={() => { if (isOnline) void playBilling.restorePurchases() }}

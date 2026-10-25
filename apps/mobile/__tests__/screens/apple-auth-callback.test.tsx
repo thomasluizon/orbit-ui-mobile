@@ -67,4 +67,38 @@ describe('Apple callback route', () => {
     expect(mocks.replace).not.toHaveBeenCalled()
     act(() => tree.unmount())
   })
+
+  it('exchanges a new App Link after failure without remounting and deduplicates that callback', async () => {
+    mocks.apiClient.mockRejectedValueOnce(new Error('handoff expired'))
+    const tree = await mount()
+    expect(mocks.state).toBe('failed')
+    mocks.params = { ...mocks.params, handoff: 'retried-handoff', state: `callback-state-${++sequence}` }
+    await SecureStore.setItemAsync('apple_auth_attempt', JSON.stringify({ state: mocks.params.state, startedAt: Date.now() }))
+    let release!: (response: typeof login) => void
+    mocks.apiClient.mockImplementationOnce(() => new Promise((resolve) => { release = resolve }))
+    await act(async () => { tree.update(<AuthCallbackScreen />); await Promise.resolve() })
+    expect(mocks.apiClient).toHaveBeenCalledTimes(2)
+    expect(mocks.state).toBe('pending')
+    await act(async () => { tree.update(<AuthCallbackScreen />); await Promise.resolve() })
+    expect(mocks.apiClient).toHaveBeenCalledTimes(2)
+    await act(async () => { release(login); await Promise.resolve() })
+    expect(mocks.login).toHaveBeenCalledOnce()
+    expect(mocks.replace).toHaveBeenCalledWith('/(tabs)')
+    act(() => tree.unmount())
+  })
+
+  it('ignores an old exchange failure while the new callback awaits account confirmation', async () => {
+    let reject!: (error: Error) => void
+    mocks.apiClient.mockImplementationOnce(() => new Promise((_resolve, rejectPromise) => { reject = rejectPromise }))
+    const tree = await mount()
+    mocks.params = { ...mocks.params, handoff: 'new-handoff', state: `callback-state-${++sequence}` }
+    await SecureStore.setItemAsync('apple_auth_attempt', JSON.stringify({ state: mocks.params.state, startedAt: Date.now() }))
+    mocks.apiClient.mockResolvedValueOnce({ ...login, wasReactivated: true })
+    await act(async () => { tree.update(<AuthCallbackScreen />); await new Promise((resolve) => setTimeout(resolve, 0)) })
+    expect(mocks.state).toBe('account')
+    await act(async () => { reject(new Error('expired old callback')); await Promise.resolve() })
+    expect(mocks.state).toBe('account')
+    expect(mocks.login).not.toHaveBeenCalled()
+    act(() => tree.unmount())
+  })
 })

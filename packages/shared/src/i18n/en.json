@@ -2792,7 +2792,7 @@
       "openai": "OpenAI: for AI chat features and daily summaries",
       "ses": "Amazon SES (us-east-2): for transactional and marketing emails",
       "googlePlay": "Google Play Billing: for subscription purchases on Android",
-      "apple": "Apple: for Sign in with Apple and subscription purchases through the App Store.",
+      "apple": "Apple: for Sign in with Apple and subscription purchases through the App Store",
       "sentry": "Sentry: for crash and error reports. On Android, these include device and OS details, a random installation ID, and an approximate city inferred from the request IP address, without your name, email, or account details",
       "posthog": "PostHog (US Cloud): for product analytics linked to an account identifier and plan details, plus web traffic and performance analytics; we do not send habit or chat content",
       "render": "Render (Ohio, United States): for web and API hosting and the database",

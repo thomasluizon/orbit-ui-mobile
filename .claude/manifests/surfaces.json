@@ -1895,6 +1895,7 @@
       "ownedFiles": [
         "apps/web/app/(auth)/auth-callback/auth-callback-content.tsx",
         "apps/web/app/(auth)/auth-callback/page.tsx",
+        "apps/web/lib/apple-oauth-cookie.ts",
         "apps/web/lib/desktop-auth.ts",
         "apps/web/lib/google-auth-app-intent.ts",
         "apps/web/lib/google-oauth-cookie.ts"
@@ -1912,6 +1913,7 @@
       "ownedFiles": [
         "apps/web/app/(auth)/auth-callback/auth-callback-content.tsx",
         "apps/web/app/(auth)/auth-callback/page.tsx",
+        "apps/web/lib/apple-oauth-cookie.ts",
         "apps/web/lib/desktop-auth.ts",
         "apps/web/lib/google-auth-app-intent.ts",
         "apps/web/lib/google-oauth-cookie.ts"
@@ -1929,6 +1931,7 @@
       "ownedFiles": [
         "apps/web/app/(auth)/auth-callback/auth-callback-content.tsx",
         "apps/web/app/(auth)/auth-callback/page.tsx",
+        "apps/web/lib/apple-oauth-cookie.ts",
         "apps/web/lib/desktop-auth.ts",
         "apps/web/lib/google-auth-app-intent.ts",
         "apps/web/lib/google-oauth-cookie.ts"
@@ -1946,6 +1949,7 @@
       "ownedFiles": [
         "apps/web/app/(auth)/auth-callback/auth-callback-content.tsx",
         "apps/web/app/(auth)/auth-callback/page.tsx",
+        "apps/web/lib/apple-oauth-cookie.ts",
         "apps/web/lib/desktop-auth.ts",
         "apps/web/lib/google-auth-app-intent.ts",
         "apps/web/lib/google-oauth-cookie.ts"
@@ -9346,6 +9350,7 @@
       "href": "/auth-callback",
       "ownedFiles": [
         "apps/mobile/app/auth-callback.tsx",
+        "apps/mobile/components/auth/apple-auth-callback.tsx",
         "apps/mobile/lib/capture-mode.ts"
       ],
       "state": "default",
@@ -9360,6 +9365,7 @@
       "href": "/auth-callback",
       "ownedFiles": [
         "apps/mobile/app/auth-callback.tsx",
+        "apps/mobile/components/auth/apple-auth-callback.tsx",
         "apps/mobile/lib/capture-mode.ts"
       ],
       "state": "default",
@@ -9374,6 +9380,7 @@
       "href": "/auth-callback",
       "ownedFiles": [
         "apps/mobile/app/auth-callback.tsx",
+        "apps/mobile/components/auth/apple-auth-callback.tsx",
         "apps/mobile/lib/capture-mode.ts"
       ],
       "state": "default",
@@ -9388,6 +9395,7 @@
       "href": "/auth-callback",
       "ownedFiles": [
         "apps/mobile/app/auth-callback.tsx",
+        "apps/mobile/components/auth/apple-auth-callback.tsx",
         "apps/mobile/lib/capture-mode.ts"
       ],
       "state": "default",

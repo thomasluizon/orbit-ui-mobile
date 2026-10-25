@@ -717,6 +717,27 @@ describe('useStoreBilling', () => {
     expect(mocks.finishTransaction).toHaveBeenCalledExactlyOnceWith({ purchase, isConsumable: false })
   })
 
+  it.each(['recovery', 'restore'] as const)('exposes the %s lock and accepts checkout after an empty result', async (operation) => {
+    Platform.OS = 'ios'
+    mocks.state.subscriptions = [{ id: 'orbit.monthly', displayPrice: '$4.99', price: 4.99, currency: 'USD' }]
+    let release!: (purchases: []) => void
+    const pending = new Promise<[]>((resolve) => { release = resolve })
+    if (operation === 'recovery') mocks.getPendingTransactionsIOS.mockReturnValueOnce(pending)
+    else mocks.getAvailablePurchases.mockReturnValueOnce(pending)
+    const hook = renderUsePlayBillingLive()
+    await flushAsync()
+    let restoration: Promise<boolean> | undefined
+    if (operation === 'restore') await TestRenderer.act(async () => { restoration = hook.current.restorePurchases(); await Promise.resolve() })
+    expect(hook.current.isRestoring).toBe(true)
+    await TestRenderer.act(async () => { expect(await hook.current.purchase('monthly')).toBe(false) })
+    expect(mocks.requestPurchase).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { release([]); await restoration })
+    await flushAsync()
+    expect(hook.current.isRestoring).toBe(false)
+    await TestRenderer.act(async () => { expect(await hook.current.purchase('monthly')).toBe(true) })
+    expect(mocks.requestPurchase).toHaveBeenCalledOnce()
+  })
+
   it('restores Apple subscriptions only after sync and verification', async () => {
     Platform.OS = 'ios'
     const purchase = { id: 'yearly-transaction', productId: 'orbit.yearly' }

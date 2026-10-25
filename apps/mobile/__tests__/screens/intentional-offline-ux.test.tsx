@@ -4,6 +4,7 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
 import UpgradeScreen from '@/app/upgrade'
 import SupportScreen from '@/app/support'
+import { StoreBillingProvider } from '@/hooks/store-billing-provider'
 
 vi.mock('@/components/referral/referral-drawer', () => ({
   ReferralDrawer: () => null,
@@ -353,7 +354,7 @@ describe('intentional offline UX screens', () => {
   })
 
   it('suppresses live-only billing and plan error cards while offline', async () => {
-    const tree = await renderScreen(<UpgradeScreen />)
+    const tree = await renderScreen(<StoreBillingProvider><UpgradeScreen /></StoreBillingProvider>)
 
     const texts = tree.root.findAllByType('Text').map((node: any) => flattenText(node.props.children))
     expect(texts).toContain('upgrade.billing.offline')

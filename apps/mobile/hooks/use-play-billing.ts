@@ -296,16 +296,16 @@ export function useStoreBillingConnection(options?: { preferReferralOffer?: bool
   }) : extractStoreOffers(subscriptions), [subscriptions, isApple])
 
   const purchase = useCallback(
-    async (interval: SubscriptionInterval, preferReferral = preferReferralOffer) => {
-      if (purchaseBusy.current || restoreBusy.current) return
+    async (interval: SubscriptionInterval, preferReferral = preferReferralOffer): Promise<boolean> => {
+      if (purchaseBusy.current || restoreBusy.current) return false
       const offer = selectStoreOffer(offers, interval, !isApple && preferReferral)
       if (!offer) {
         setErrorKey(`${errorPrefix}.unavailable`)
-        return
+        return false
       }
       if (!userId) {
         setErrorKey(`${errorPrefix}.notSignedIn`)
-        return
+        return false
       }
       purchaseBusy.current = true
       setErrorKey(null)
@@ -324,8 +324,9 @@ export function useStoreBillingConnection(options?: { preferReferralOffer?: bool
           },
           type: 'subs',
         })
+        return true
       } catch (error) {
-        if (!isPurchaseAccountCurrent(account)) return
+        if (!isPurchaseAccountCurrent(account)) return false
         purchaseBusy.current = false
         endVerification()
         setErrorKey(
@@ -333,6 +334,7 @@ export function useStoreBillingConnection(options?: { preferReferralOffer?: bool
             ? mapPlayErrorKey(error as { code?: ErrorCode })?.replace('upgrade.playError', errorPrefix) ?? null
             : `${errorPrefix}.unavailable`,
         )
+        return false
       }
     },
     [beginVerification, endVerification, errorPrefix, isApple, offers, preferReferralOffer, requestPurchase, userId],
@@ -384,14 +386,20 @@ export function useStoreBillingConnection(options?: { preferReferralOffer?: bool
     recoveryAccount.current = userId
     restoreBusy.current = true
     const account = { id: getAccountId(), generation: getAccountGeneration() }
-    void getPendingTransactionsIOS().then(async (purchases) => {
+    void Promise.resolve().then(() => {
+      if (!isPurchaseAccountCurrent(account)) return []
+      setIsRestoring(true)
+      return getPendingTransactionsIOS()
+    }).then(async (purchases) => {
       const owned = purchases.filter((purchase) => Object.values(APP_STORE_PRODUCT_IDS).includes(purchase.productId))
       const { restored, failed } = await verifyOwnedPurchases(owned, () => isPurchaseAccountCurrent(account))
       if (!isPurchaseAccountCurrent(account)) return
       if (restored) await invalidateEntitlement(account)
       if (failed) setErrorKey('upgrade.appStore.error.serviceUnavailable')
     }).catch(() => { if (isPurchaseAccountCurrent(account)) setErrorKey('upgrade.appStore.error.serviceUnavailable') })
-      .finally(() => { if (isPurchaseAccountCurrent(account)) restoreBusy.current = false })
+      .finally(() => {
+        if (isPurchaseAccountCurrent(account)) { restoreBusy.current = false; setIsRestoring(false) }
+      })
   }, [connected, invalidateEntitlement, isApple, userId])
 
   const clearError = useCallback(() => setErrorKey(null), [])
