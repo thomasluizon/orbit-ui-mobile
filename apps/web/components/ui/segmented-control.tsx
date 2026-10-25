@@ -2,7 +2,7 @@
 
 import type { SegmentedControlOption, SegmentedControlProps } from '@orbit/shared/contracts/navigation'
 import * as Primitive from '@radix-ui/react-radio-group'
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
 function SegmentOption<TValue extends string>({
   controlDisabled,
@@ -39,6 +39,12 @@ function SegmentOption<TValue extends string>({
 export function SegmentedControl<TValue extends string>(props: Readonly<SegmentedControlProps<TValue>>) {
   const pendingValue = useRef<string | null>(null)
   const navigationKey = useRef('')
+  const navigationReset = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const clearNavigation = () => {
+    clearTimeout(navigationReset.current)
+    navigationKey.current = ''
+  }
+  useEffect(() => () => { clearTimeout(navigationReset.current) }, [])
   const changeSelection = (value: string) => {
       const option = props.options.find((candidate) => candidate.value === value && !candidate.disabled)
       if (option && !props.disabled && option.value !== props.value && pendingValue.current !== value) {
@@ -50,17 +56,22 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
   return (
     <Primitive.Root value={props.value} onValueChange={changeSelection} disabled={props.disabled} tabIndex={-1} loop
       onKeyDown={(event) => {
-        navigationKey.current = event.key === 'Home' || event.key === 'End' ? event.key : ''
+        clearNavigation()
+        if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+        if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return
+        navigationKey.current = event.key
+        navigationReset.current = setTimeout(() => { navigationKey.current = '' }, 0)
       }}
-      onKeyUp={(event) => { if (event.key === navigationKey.current) navigationKey.current = '' }}
-      onPointerDownCapture={() => { navigationKey.current = '' }}
+      onPointerDownCapture={clearNavigation}
       onFocus={(event) => {
         const key = navigationKey.current
-        if (event.target === event.currentTarget || (key !== 'Home' && key !== 'End')) return
-        const enabledOptions = props.options.filter((option) => !option.disabled)
-        const destination = key === 'Home' ? enabledOptions[0] : enabledOptions.at(-1)
-        if (!destination || event.target.getAttribute('value') !== destination.value) return
-        navigationKey.current = ''
+        if (event.target === event.currentTarget || !key) return
+        if (key === 'Home' || key === 'End') {
+          const enabledOptions = props.options.filter((option) => !option.disabled)
+          const destination = key === 'Home' ? enabledOptions[0] : enabledOptions.at(-1)
+          if (!destination || event.target.getAttribute('value') !== destination.value) return
+        }
+        clearNavigation()
         event.target.click()
       }}
       aria-label={props.label}

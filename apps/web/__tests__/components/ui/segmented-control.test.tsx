@@ -175,3 +175,98 @@ it.each([
     document.removeEventListener('focusin', pressEnd)
   }
 })
+
+describe('released navigation keys', () => {
+  it.each([
+    { key: 'ArrowRight', label: 'Completed', value: 'completed', initialValue: 'all' },
+    { key: 'ArrowDown', label: 'Completed', value: 'completed', initialValue: 'all' },
+    { key: 'ArrowLeft', label: 'All', value: 'all', initialValue: 'completed' },
+    { key: 'ArrowUp', label: 'All', value: 'all', initialValue: 'completed' },
+    { key: 'Home', label: 'All', value: 'all', initialValue: 'completed' },
+    { key: 'End', label: 'Completed', value: 'completed', initialValue: 'all' },
+  ])('checks the enabled destination when $key is released before queued focus', ({ key, label, value, initialValue }) => {
+    vi.useFakeTimers()
+    const onChange = vi.fn()
+    render(<Example choices={key === 'Home' || key === 'End' ? [
+      { value: 'before', label: 'Before', disabled: true },
+      options[0], options[2],
+      { value: 'after', label: 'After', disabled: true },
+    ] : options} initialValue={initialValue} onChange={onChange} />)
+    const selected = screen.getByRole('radio', { checked: true })
+    const destination = screen.getByRole('radio', { name: label })
+    act(() => { selected.focus() })
+    fireEvent.keyDown(selected, { key })
+    fireEvent.keyUp(selected, { key })
+    expect(onChange).not.toHaveBeenCalled()
+    act(() => { vi.runAllTimers() })
+    expect(destination).toHaveFocus()
+    expect(destination).toHaveAttribute('aria-checked', 'true')
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(value)
+  })
+
+  it('checks each destination after two quick ArrowRight taps and leaves ordinary focus unselected', () => {
+    vi.useFakeTimers()
+    const onChange = vi.fn()
+    render(<Example choices={navigationOptions} onChange={onChange} />)
+    act(() => { screen.getByRole('radio', { name: 'All' }).focus() })
+    for (const label of ['Active', 'Completed']) {
+      const selected = screen.getByRole('radio', { checked: true })
+      fireEvent.keyDown(selected, { key: 'ArrowRight' })
+      fireEvent.keyUp(selected, { key: 'ArrowRight' })
+      act(() => { vi.runAllTimers() })
+      expect(screen.getByRole('radio', { name: label, checked: true })).toHaveFocus()
+    }
+    act(() => { screen.getByRole('radio', { name: 'All' }).focus() })
+    expect(screen.getByRole('radio', { name: 'Completed', checked: true })).toBeInTheDocument()
+    expect(onChange.mock.calls).toEqual([['active'], ['completed']])
+  })
+
+  it('retains a released End key through an older arrow focus and reset', () => {
+    vi.useFakeTimers()
+    const onChange = vi.fn()
+    render(<Example choices={navigationOptions} onChange={onChange} />)
+    const first = screen.getByRole('radio', { name: 'All' })
+    const last = screen.getByRole('radio', { name: 'Completed' })
+    act(() => { first.focus() })
+    for (const key of ['ArrowRight', 'End']) {
+      fireEvent.keyDown(first, { key })
+      fireEvent.keyUp(first, { key })
+    }
+    act(() => { vi.runAllTimers() })
+    expect(last).toHaveFocus()
+    expect(last).toHaveAttribute('aria-checked', 'true')
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('completed')
+  })
+
+  it.each(['Home', 'End'])('expires a stationary %s before later ordinary focus', (key) => {
+    vi.useFakeTimers()
+    const onChange = vi.fn()
+    render(<Example choices={navigationOptions} initialValue={key === 'Home' ? 'all' : 'completed'} onChange={onChange} />)
+    const selected = screen.getByRole('radio', { checked: true })
+    act(() => { selected.focus() })
+    fireEvent.keyDown(selected, { key })
+    fireEvent.keyUp(selected, { key })
+    act(() => { vi.runAllTimers() })
+    act(() => { screen.getByRole('radio', { name: 'Active' }).focus() })
+    expect(selected).toHaveAttribute('aria-checked', 'true')
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('cancels pending keyboard selection on pointer down and still activates a pointer choice', () => {
+    vi.useFakeTimers()
+    const onChange = vi.fn()
+    render(<Example choices={navigationOptions} onChange={onChange} />)
+    const first = screen.getByRole('radio', { name: 'All' })
+    const last = screen.getByRole('radio', { name: 'Completed' })
+    act(() => { first.focus() })
+    fireEvent.keyDown(first, { key: 'ArrowRight' })
+    fireEvent.keyUp(first, { key: 'ArrowRight' })
+    fireEvent.pointerDown(last)
+    act(() => { vi.runAllTimers() })
+    expect(first).toHaveAttribute('aria-checked', 'true')
+    expect(onChange).not.toHaveBeenCalled()
+    fireEvent.click(last, { detail: 1 })
+    expect(last).toHaveAttribute('aria-checked', 'true')
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('completed')
+  })
+})

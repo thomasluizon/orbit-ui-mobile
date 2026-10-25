@@ -1,8 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { NextIntlClientProvider } from 'next-intl'
 import { useState } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import type { ActiveView } from '@orbit/shared/stores'
@@ -12,6 +12,8 @@ function Example({ onChange }: Readonly<{ onChange: (view: ActiveView) => void }
   const [value, setValue] = useState<ActiveView>('today')
   return <HabitViewSwitch value={value} onChange={(next) => { setValue(next); onChange(next) }} />
 }
+
+afterEach(() => { vi.useRealTimers() })
 
 describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('HabitViewSwitch in $locale', ({ locale, messages }) => {
   it('checks General after two consecutive ArrowRight presses from Today', async () => {
@@ -25,6 +27,22 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
       await user.keyboard('{ArrowRight>}')
       await waitFor(() => expect(screen.getByRole('radio', { name: label, checked: true })).toHaveFocus())
       await user.keyboard('{/ArrowRight}')
+    }
+    expect(onChange.mock.calls).toEqual([['all'], ['general']])
+  })
+
+  it('checks All and General when each arrow key is released before queued focus', () => {
+    vi.useFakeTimers()
+    const onChange = vi.fn()
+    render(<NextIntlClientProvider locale={locale} messages={messages}><Example onChange={onChange} /></NextIntlClientProvider>)
+    act(() => { screen.getByRole('radio', { name: messages.habits.viewToday }).focus() })
+    for (const label of [messages.habits.viewAll, messages.habits.viewGeneral]) {
+      const selected = screen.getByRole('radio', { checked: true })
+      fireEvent.keyDown(selected, { key: 'ArrowRight' })
+      fireEvent.keyUp(selected, { key: 'ArrowRight' })
+      act(() => { vi.runAllTimers() })
+      expect(screen.getByRole('radio', { name: label })).toHaveFocus()
+      expect(screen.getByRole('radio', { name: label })).toHaveAttribute('aria-checked', 'true')
     }
     expect(onChange.mock.calls).toEqual([['all'], ['general']])
   })
