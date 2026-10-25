@@ -1168,14 +1168,14 @@ describe('HabitList', () => {
 
   function assertCascadeGeometry(geometry: { depth: number; titleWidth: number; titleSize: number; metadataEdge: number; top: number; bottom: number; inset: number; textEdge: number; wellInset: number; targets: { left: number; right: number; width: number; height: number }[] }[], expectedDepths: number[], width: number, drilling: boolean) {
     for (const [index, row] of geometry.entries()) {
-      expect(row.wellInset, `well at visible depth ${expectedDepths[index]}`).toBe(8 + 16 * expectedDepths[index]!)
+      expect(row.wellInset, `well at visible depth ${expectedDepths[index]}`).toBe(8)
       expect(row.textEdge, `text at visible depth ${expectedDepths[index]}`).toBe(84 + 16 * expectedDepths[index]!)
       expect(row.titleWidth).toBeGreaterThanOrEqual(row.titleSize)
       expect(row.metadataEdge).toBe(row.textEdge)
-      if (index && !drilling) expect(row.top - geometry[index - 1]!.bottom).toBe(expectedDepths[index] === 0 ? 12 : 4)
-      expect(row.inset).toBe(16)
+      if (index && !drilling) expect(row.top - geometry[index - 1]!.bottom).toBe(expectedDepths[index] === 0 ? 12 : 8)
+      expect(row.inset).toBe(16 + 16 * row.depth)
       expect(row.textEdge).toBe(84 + 16 * row.depth)
-      expect(row.wellInset).toBe(8 + 16 * row.depth)
+      expect(row.wellInset).toBe(8)
       for (const target of row.targets) {
         expect(target.left).toBeGreaterThanOrEqual(16)
         expect(target.right).toBeLessThanOrEqual(width - 16)

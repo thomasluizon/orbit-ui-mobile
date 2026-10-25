@@ -1468,11 +1468,13 @@ describe('HabitList', () => {
     expect(rowBounds).toHaveLength(expectedDepths.length)
     expect(composition.root.findAllByType('Text').filter((node: { props: { testID?: string; children?: string } }) => node.props.testID === 'habit-row-description').map((node: { props: { children: string } }) => node.props.children)).toEqual(rows.map(() => 'Read two pages before breakfast.'))
     rowBounds.forEach((bounds, index) => {
-      expect(bounds.width).toBe(listWidth - 32)
+      expect(bounds.width).toBe(listWidth - 32 - 16 * expectedDepths[index]!)
+      expect(bounds.left).toBe(16 + 16 * expectedDepths[index]!)
+      if (index) expect(bounds.top - rowBounds[index - 1]!.bottom).toBeCloseTo(expectedDepths[index] === 0 ? 12 : 8, 2)
       const well = geometry.find((part) => [32, 46].includes(Number(part.style.width)) && part.style.borderRadius === 12 && part.ancestors.includes(bounds.slot))!
-      expect(well.left - bounds.left).toBe(8 + 16 * expectedDepths[index]!)
+      expect(well.left - bounds.left).toBe(8)
       const title = geometry.find((part) => part.host.type === 'Text' && part.host.children?.includes(rows[index]!.props.habit.title) && part.style.opacity !== 0 && part.ancestors.includes(bounds.slot))!
-      expect(title.left - bounds.left).toBe(68 + 16 * expectedDepths[index]!)
+      expect(title.left - bounds.left).toBe(68)
       expect(title.width).toBeGreaterThanOrEqual(Number((title.style as import('react-native').TextStyle).fontSize) * fontScale)
     })
     if (!drilling) assertNativeCascadeActions(tree, expectedDepths, width, fontScale)

@@ -1498,7 +1498,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .habit-row-group:not([hidden]) {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--orbit-space-8);
 }
 
 .orbit-focus-inset:focus-visible,

@@ -12,7 +12,7 @@ overdue, current, future, recurring, completed, general and nested habits.
 | Scoped search | `app/(app)/today-shell.tsx`, `today-page-view.tsx`, `use-today-habits-data.ts` | `app/(tabs)/index.tsx`, `components/today/today-date-control.tsx` | Header entry at every width, separate from the web sidebar command palette; in-place debounced search preserves view, date and frequency; filtered rows retain selection and actions; clear on account, view or selected-day changes; close clears filtering |
 | Todos membership and ordering | `components/habits/habit-list.tsx` | `components/habit-list.tsx` | Scheduled roots, overdue group first, due-date groups, completed one-time habits behind Show completed |
 | Geral membership | `components/habits/habit-list.tsx` | `components/habit-list.tsx` | No-set-day roots independent of the Hoje preference, completed habits behind Show completed |
-| Nested habit panels | `components/habits/habit-list.tsx`, `habit-list/tree-helpers.ts` | `components/habit-list.tsx` | Child position order, collapse, drill navigation, child progress and parent settlement including future children in list views |
+| Nested habit panels | `components/habits/habit-list.tsx`, `habit-list/tree-helpers.ts` | `components/habit-list.tsx` | Whole-card 16px indentation per visible depth, 8px within families and 12px between families; child position order, collapse, drill navigation, child progress and parent settlement including future children in list views |
 | Row actions | `components/habits/habit-list.tsx` | `components/habit-list.tsx` | Existing log, unlog, skip, reschedule, edit, duplicate, delete, move-parent, add-child, detail and selection handlers; eligibility and offline refusals retained |
 | Selection and bulk actions | `app/(app)/use-today-selection.ts`, `components/habits/selection-tray.tsx` | `app/(tabs)/use-today-selection.ts`, `components/habits/selection-tray.tsx` | Pinned tray with exit, select-all, log, skip, move and delete controls; visible-tree select all, cascade, confirmation, current account day in Todos and Geral, clear when changing view; move remains available when completion is read only |
 | Move destinations | `components/habits/habit-list.tsx`, `hooks/use-habit-queries.ts` | `components/habit-list.tsx`, `hooks/use-habit-queries.ts` | On-demand complete scheduled and General inventories; shared topology and destination validity independent of visible filters and dates; loading, retry and retained stale target draft |
@@ -40,3 +40,11 @@ the actual current parent instantly. Refreshing or losing a source or target dis
 a stale destination remains a draft until the person chooses another destination or retries.
 Account resets cancel query results and fence late pages and confirmations. Native bulk Move
 continues to require a live result.
+
+Hoje, Todos, Geral and their scoped search results share the row wrapper geometry: the card,
+border, fill and controls start 16px further inward per visible depth, with 8px inner leading
+padding at every depth. Compact and foldable layouts retain the same step and width reduction.
+The wrapper measures the full available list width for drill limits; a drill resets its direct
+children to depth 0. Web Chromium Vitest and Android Yoga composition tests measure the card
+edges and family gaps with selection, nested parents, descriptions and enlarged text. Habit
+detail uses the same card inset at depth 1 and retains its 12px child-row separation.

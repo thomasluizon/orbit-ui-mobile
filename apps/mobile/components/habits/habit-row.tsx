@@ -258,8 +258,8 @@ function buildRowStyle({
   }
 }
 
-function habitRowSpacing(panelEnd: boolean): ViewStyle {
-  return { paddingBottom: panelEnd ? SPACING.s12 : SPACING.s4 }
+function habitRowSpacing(depth: number, panelEnd: boolean): ViewStyle {
+  return { paddingLeft: depth * SPACING.s16, paddingBottom: panelEnd ? SPACING.s12 : SPACING.s8 }
 }
 
 function useHabitRowMetadataFit(metaParts: HabitRowMetaPart[]) {
@@ -479,8 +479,8 @@ export const HabitRow = memo(function HabitRow({
   )
 
   return (
-    <View style={habitRowSpacing(panelEnd)}>
-      <HabitRowLayout onLayout={measureRow} depth={depth} descriptionPresent={Boolean(description)} isChild={isChild} supportingMeta={supportingMeta}
+    <View onLayout={measureRow} style={habitRowSpacing(depth, panelEnd)}>
+      <HabitRowLayout depth={depth} descriptionPresent={Boolean(description)} isChild={isChild} supportingMeta={supportingMeta}
         rowStyle={[rowStyle, style]} outlineColor={bodyPressFeedback.outlineColor} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts}
         metaColor={bodyPressFeedback.metaColor} largeText={largeText} onTokenWidth={onTokenWidth} tokens={tokens}>
         {rowContents}
@@ -505,8 +505,7 @@ function rowMenuTitleMode(title: string | null | undefined) {
   return title ? 'typed' : 'label'
 }
 
-function HabitRowLayout({ onLayout, depth, descriptionPresent, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, metaColor, largeText, onTokenWidth, tokens, children }: Readonly<{
-  onLayout: (event: LayoutChangeEvent) => void
+function HabitRowLayout({ depth, descriptionPresent, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, metaColor, largeText, onTokenWidth, tokens, children }: Readonly<{
   depth: number
   descriptionPresent: boolean
   isChild: boolean
@@ -523,7 +522,7 @@ function HabitRowLayout({ onLayout, depth, descriptionPresent, isChild, supporti
   children: ReactNode
 }>) {
   return (
-    <View testID="habit-row" onLayout={onLayout} style={[supportingMeta ? null : [styles.row, { gap: SPACING.s0 }], rowStyle]}>
+    <View testID="habit-row" style={[supportingMeta ? null : [styles.row, { gap: SPACING.s0 }], rowStyle]}>
       {supportingMeta ? primaryButton : null}
       {supportingMeta ? (
         <View pointerEvents="box-none" style={[styles.row, { minHeight: isChild ? 52 : 68, alignItems: 'flex-start', paddingTop: isChild ? SPACING.s4 : SPACING.s8, paddingBottom: descriptionPresent ? SPACING.s4 : undefined }]}>
@@ -536,7 +535,7 @@ function HabitRowLayout({ onLayout, depth, descriptionPresent, isChild, supporti
       ) : <>{primaryButton}<View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0, gap: SPACING.s4 }}>{children}</View></>}
       {supportingMeta ? (
         <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
-          style={{ flexDirection: 'row', gap: 12, paddingLeft: SPACING.s8 + depth * SPACING.s16, paddingRight: SPACING.s8, paddingTop: descriptionPresent ? SPACING.s0 : SPACING.s4, paddingBottom: SPACING.s8 }}>
+          style={{ flexDirection: 'row', gap: 12, paddingLeft: SPACING.s8, paddingRight: SPACING.s8, paddingTop: descriptionPresent ? SPACING.s0 : SPACING.s4, paddingBottom: SPACING.s8 }}>
           <View style={{ width: 48, flexShrink: 0 }} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} largeText={largeText} onTokenWidth={onTokenWidth} />
@@ -553,7 +552,7 @@ function habitRowBodyLayout(depth: number, supportingMeta: boolean): ViewStyle {
   const defaultPaddingVertical = depth > 0 ? SPACING.s4 : SPACING.s8
   return {
     paddingVertical: supportingMeta ? SPACING.s0 : defaultPaddingVertical,
-    paddingLeft: SPACING.s8 + depth * SPACING.s16,
+    paddingLeft: SPACING.s8,
     paddingRight: supportingMeta ? SPACING.s0 : SPACING.s4,
     alignItems: supportingMeta ? 'flex-start' : 'center',
   }
