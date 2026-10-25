@@ -786,7 +786,7 @@ describe('useLogHabit', () => {
     })
 
     expect(queryClient.getQueryData<HabitScheduleItem[]>(listKey)?.[0]?.isCompleted).toBe(false)
-    expect(mockShowError).toHaveBeenCalledExactlyOnceWith('errors.api.logNotAllowed', 'common.dismiss')
+    expect(mockShowError).toHaveBeenCalledExactlyOnceWith('errors.api.habitNotScheduled', 'common.dismiss')
     expect(captureHabitLogged).not.toHaveBeenCalled()
   })
 
