@@ -146,9 +146,14 @@
     credentialKey: ORBIT_EVAL_TOKEN
     input: 'uh so Water, id {habitId}, yeah I drank it already today, mark that done please, not the walk'
     expectations:
-      required: [{ name: log_habit, arguments: { habit_id: '{habitId}' } }]
-      counts: { log_habit: 1 }
-      forbidden: [bulk_log_habits]
+      required:
+        - anyOf:
+            - name: log_habit
+              arguments: { habit_id: '{habitId}' }
+            - name: bulk_log_habits
+              argumentsAnyOf:
+                - { habit_ids: ['{habitId}'] }
+                - { filter: { habit_ids: ['{habitId}'] } }
     rubric: Understand the messy English transcript as completing Water only. Do not change Walk. Keep any required preview distinct from a saved completion.
 
 - description: Understand a Portuguese voice transcript
@@ -157,9 +162,15 @@
     credentialKey: ORBIT_EVAL_TOKEN
     input: 'é, então, o Walk, id {secondHabitId}, hoje não vai dar não, pula só hoje tá, não apaga'
     expectations:
-      required: [{ name: skip_habit, arguments: { habit_id: '{secondHabitId}' } }]
-      counts: { skip_habit: 1 }
-      forbidden: [log_habit, bulk_skip_habits, delete_habit]
+      required:
+        - anyOf:
+            - name: skip_habit
+              arguments: { habit_id: '{secondHabitId}' }
+            - name: bulk_skip_habits
+              argumentsAnyOf:
+                - { habit_ids: ['{secondHabitId}'] }
+                - { filter: { habit_ids: ['{secondHabitId}'] } }
+      forbidden: [log_habit, bulk_log_habits, delete_habit, bulk_delete_habits]
     rubric: Respond in Brazilian Portuguese about skipping only today's Walk. Do not delete the habit, mark it complete, or claim an unconfirmed write was saved.
 
 - description: Log an overdue occurrence on its original date

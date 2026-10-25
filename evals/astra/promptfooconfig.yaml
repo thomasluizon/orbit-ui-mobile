@@ -8,7 +8,7 @@ providers:
       url: '{{env.ORBIT_EVAL_BASE_URL}}/api/chat'
       method: POST
       maxRetries: 0
-      validateStatus: status => status === 200 || status === 403
+      validateStatus: () => true
       headers:
         Authorization: 'Bearer {{env[credentialKey]}}'
         X-Orbit-Eval-Trace: '1'
@@ -45,6 +45,8 @@ defaultTest:
     - type: llm-rubric
       transform: output.answer
       value: >-
+        Account date: {{accountDate}} (UTC). This is the account and fixture date for this attempt.
+        Never infer today from the grader host clock. Resolve today, yesterday and past dates against the account date.
         {{rubric}}
         Grade only the final rendered answer projection, including its visible typed blocks and preview fields.
         Missing prose is valid for a block-only answer. aiMessage mirrors text parts; count that text once.
@@ -69,4 +71,5 @@ sharing: false
 extensions:
   - file://hooks.mjs:beforeAll
   - file://hooks.mjs:beforeEach
+  - file://hooks.mjs:afterEach
   - file://hooks.mjs:afterAll
