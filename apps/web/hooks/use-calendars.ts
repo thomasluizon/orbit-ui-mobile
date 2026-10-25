@@ -10,7 +10,7 @@ import {
   setSelectedCalendars as setSelectedCalendarsAction,
 } from '@/lib/actions/calendar'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
-import { getQueryGcTime } from '@/lib/query-client'
+import { getQueryGcTime } from '@/lib/query-gc-time'
 
 interface CalendarsQueryOptions {
   enabled?: boolean

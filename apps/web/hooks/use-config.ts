@@ -6,7 +6,7 @@ import { configKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import { configCache } from '@/lib/config-cache'
-import { getQueryGcTime } from '@/lib/query-client'
+import { getQueryGcTime } from '@/lib/query-gc-time'
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { createApiClientError } from '@orbit/shared/utils'
 

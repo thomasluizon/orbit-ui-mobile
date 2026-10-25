@@ -12,7 +12,7 @@ import {
   getTrialUrgent,
 } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
-import { getQueryGcTime } from '@/lib/query-client'
+import { getQueryGcTime } from '@/lib/query-gc-time'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useAccountGeneration } from '@/hooks/use-session-reset'

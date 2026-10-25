@@ -1,7 +1,7 @@
 'use client'
 
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
-import { getQueryGcTime } from '@/lib/query-client'
+import { getQueryGcTime } from '@/lib/query-gc-time'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { calendarKeys, shouldRetryQuery, isUpstreamStarting } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'

@@ -16,7 +16,7 @@ import type {
 } from '@orbit/shared/types/calendar'
 import { z } from 'zod'
 import { fetchJson } from '@/lib/api-fetch'
-import { getQueryGcTime } from '@/lib/query-client'
+import { getQueryGcTime } from '@/lib/query-gc-time'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { getHeldAccountId } from '@/stores/auth-store'
