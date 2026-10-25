@@ -83,7 +83,6 @@ These back required CI checks. They fail a merge.
 
 | Tool | What it does | Usage |
 |---|---|---|
-| `check-review-harness.mjs` | Checks the required review evidence in the body of a UI pull request against its base and changed paths. | `node tools/check-review-harness.mjs --base <ref> --body-file <path> --changed-files-file <path>` |
 | `check-calibration.mjs` | Reports stale agent, skill, worker and ticket classifier model or prompt calibration. The classifier stamp carries its model, prompt digest, verdict and date. | `node tools/check-calibration.mjs` |
 | `check-dashes.mjs` | Fails on an em dash or en dash in a changed file, a PR title, or a PR body. Backs `Dash Ban`. Its baseline may only shrink and cannot name missing files. | `node tools/check-dashes.mjs --files <path>... \| --check-baseline \| --write-baseline \| --text "<string>"` |
 | `check-timeless.mjs` | Rejects machine paths, owner attributions, dated anecdotes and long code comments. Backs `Timeless Text`; reviewed exceptions live in `tools/timeless-allowlist.json`. | `node tools/check-timeless.mjs --all \| --base <ref> \| --staged \| --hook` |

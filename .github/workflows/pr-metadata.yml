@@ -48,13 +48,3 @@ jobs:
 
           node .github/scripts/check-pr-metadata.mjs "$RUNNER_TEMP/pr-metadata.json" "$RUNNER_TEMP/pr-body.md" \
             --changed-files-file "$RUNNER_TEMP/changed-paths.txt"
-
-      - name: Check UI review evidence
-        if: ${{ !cancelled() && github.actor != 'dependabot[bot]' }}
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          node tools/check-review-harness.mjs \
-            --base "$BASE_REF" \
-            --body-file "$RUNNER_TEMP/pr-body.md" \
-            --changed-files-file "$RUNNER_TEMP/changed-paths.txt"
