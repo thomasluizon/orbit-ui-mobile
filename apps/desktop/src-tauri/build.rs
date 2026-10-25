@@ -7,10 +7,12 @@ fn main() {
                 .file("native/macos/push.m")
                 .flag("-fobjc-arc")
                 .flag("-fblocks")
+                .flag("-mmacosx-version-min=10.13")
                 .compile("orbit_push");
-            for framework in ["AppKit", "UserNotifications", "Security"] {
+            for framework in ["AppKit", "Security"] {
                 println!("cargo:rustc-link-lib=framework={framework}");
             }
+            println!("cargo:rustc-link-arg=-Wl,-weak_framework,UserNotifications");
         }
         "windows" => build_windows(),
         _ => panic!("Desktop push requires macOS or Windows"),

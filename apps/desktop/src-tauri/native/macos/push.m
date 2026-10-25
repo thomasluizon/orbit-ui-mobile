@@ -15,6 +15,7 @@ static void emit(int kind, NSString *payload) {
 }
 
 static BOOL configured(void) {
+    if (@available(macOS 10.14, *)) {} else { return NO; }
     SecTaskRef task = SecTaskCreateFromSelf(kCFAllocatorDefault);
     if (!task) return NO;
     CFTypeRef entitlement = SecTaskCopyValueForEntitlement(task, CFSTR("com.apple.developer.aps-environment"), NULL);
@@ -38,13 +39,16 @@ static void failed(id delegate, SEL selector, NSApplication *application, NSErro
     emit(7, @"");
 }
 
+API_AVAILABLE(macos(10.14))
 @interface OrbitPushDelegate : NSObject <UNUserNotificationCenterDelegate>
 @end
 
 @implementation OrbitPushDelegate
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center willPresentNotification:(UNNotification *)notification withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler {
     emit(5, @"");
-    completionHandler(atomic_load(&active) ? (UNNotificationPresentationOptionBanner | UNNotificationPresentationOptionList | UNNotificationPresentationOptionSound) : UNNotificationPresentationOptionNone);
+    UNNotificationPresentationOptions presentation = UNNotificationPresentationOptionAlert | UNNotificationPresentationOptionSound;
+    if (@available(macOS 11.0, *)) presentation = UNNotificationPresentationOptionBanner | UNNotificationPresentationOptionList | UNNotificationPresentationOptionSound;
+    completionHandler(atomic_load(&active) ? presentation : UNNotificationPresentationOptionNone);
 }
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center didReceiveNotificationResponse:(UNNotificationResponse *)response withCompletionHandler:(void (^)(void))completionHandler {
     if ([response.actionIdentifier isEqualToString:UNNotificationDefaultActionIdentifier]) {
@@ -55,10 +59,11 @@ static void failed(id delegate, SEL selector, NSApplication *application, NSErro
 }
 @end
 
-static OrbitPushDelegate *notificationDelegate;
+API_AVAILABLE(macos(10.14)) static OrbitPushDelegate *notificationDelegate;
 
 void orbit_push_init(OrbitPushCallback handler) {
     callback = handler;
+    if (@available(macOS 10.14, *)) {} else { return; }
     if (!configured()) return;
     notificationDelegate = [OrbitPushDelegate new];
     UNUserNotificationCenter.currentNotificationCenter.delegate = notificationDelegate;
@@ -68,6 +73,7 @@ void orbit_push_init(OrbitPushCallback handler) {
     installed = tokenAdded && failureAdded;
 }
 
+static void finish(UNAuthorizationStatus status, BOOL token) API_AVAILABLE(macos(10.14));
 static void finish(UNAuthorizationStatus status, BOOL token) {
     if (status == UNAuthorizationStatusDenied) { emit(3, @""); return; }
     if (status == UNAuthorizationStatusNotDetermined) { emit(1, @""); return; }
@@ -76,6 +82,7 @@ static void finish(UNAuthorizationStatus status, BOOL token) {
 }
 
 void orbit_push_request(BOOL prompt, BOOL token) {
+    if (@available(macOS 10.14, *)) {} else { emit(0, @""); return; }
     if (!configured()) { emit(0, @""); return; }
     if (!installed) { emit(7, @""); return; }
     UNUserNotificationCenter *center = UNUserNotificationCenter.currentNotificationCenter;
@@ -90,6 +97,7 @@ void orbit_push_request(BOOL prompt, BOOL token) {
 }
 
 BOOL orbit_push_stop(void) {
+    if (@available(macOS 10.14, *)) {} else { return YES; }
     if (!configured()) return YES;
     dispatch_sync(dispatch_get_main_queue(), ^{
         [NSApp unregisterForRemoteNotifications];
