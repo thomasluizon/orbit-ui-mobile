@@ -61,7 +61,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
           <ChevronLeft size={20} strokeWidth={1.8} aria-hidden="true" />
         </button>
         <div className="flex min-w-0 flex-1 justify-center">
-          <button type="button" aria-label={`${props.dayName}, ${props.numericDate}${props.isTodaySelected ? '' : `, ${props.goToTodayLabel}`}`}
+          <button data-today-date="" type="button" aria-label={`${props.dayName}, ${props.numericDate}${props.isTodaySelected ? '' : `, ${props.goToTodayLabel}`}`}
             aria-disabled={props.isTodaySelected} onClick={() => { if (!props.isTodaySelected) props.onGoToToday() }}
             className="orbit-today-date-return touch-target transition-none min-h-[48px] min-w-[48px] max-w-full rounded-[12px] px-2 py-1 text-center text-[var(--fg-1)] cursor-pointer aria-disabled:cursor-default hover:aria-[disabled=false]:bg-[var(--bg-hover)] active:aria-[disabled=false]:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2">
             <p className="m-0 whitespace-nowrap font-display text-[1.375rem] font-medium tracking-[-0.02em] text-[var(--fg-1)]">

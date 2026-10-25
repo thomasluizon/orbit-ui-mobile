@@ -116,7 +116,7 @@ for (const mode of ['dark', 'light'] as const) {
 async function assertTodayTextEdges(page: Page, sentenceVisible: boolean, width: number) {
   const geometry = await page.evaluate((includeSentence) => {
     const rows = Array.from(document.querySelectorAll('[data-testid="habit-row"]'))
-    const dates = Array.from(document.querySelectorAll('[data-today-date-row] [title] p'))
+    const dates = Array.from(document.querySelectorAll('[data-today-date-row] [data-today-date] p'))
     const dateRow = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
     const sentence = document.querySelector('.today-astra-sentence')
     const titles = rows.map((row) => ({ element: (row.querySelector('[data-habit-row-heading] > div') ?? row.querySelector('[data-habit-row-body] > div') ?? row.querySelector('[data-personal-text-content] > div'))!, depth: Number(row.getAttribute('data-depth')) }))

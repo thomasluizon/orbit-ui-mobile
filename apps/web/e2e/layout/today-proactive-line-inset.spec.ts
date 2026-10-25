@@ -71,7 +71,7 @@ for (const mode of ['dark', 'light'] as const) {
             const sentence = element.querySelector<HTMLElement>('.today-astra-sentence')!
             const sentenceBounds = sentence.getBoundingClientRect()
             const dateRow = document.querySelector('[data-today-date-row]')!
-            const date = dateRow.querySelector('[title]')!.getBoundingClientRect()
+            const date = dateRow.querySelector('[data-today-date]')!.getBoundingClientRect()
             const column = dateRow.getBoundingClientRect()
             const firstHabitRow = document.querySelector('[data-testid="habit-row"]')!
             const title = firstHabitRow.querySelector('[data-personal-text]')!
