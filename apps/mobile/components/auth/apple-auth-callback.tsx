@@ -31,35 +31,39 @@ export function AppleAuthCallback() {
     const currentSession = await login(response.token, response.refreshToken, {
       userId: response.userId, name: response.name, email: response.email,
     }, epoch, currentAttempt)
-    if (!currentSession?.() || !currentAttempt()) return
+    if (!currentSession) return
+    const ownsOutcome = () => currentSession() && currentAttempt()
+    if (!ownsOutcome()) return
     await clearStoredReferralCode()
-    if (!currentSession() || !currentAttempt()) return
+    if (!ownsOutcome()) return
     const returnUrl = await getStoredAuthReturnUrl(attemptId)
-    if (!currentSession() || !currentAttempt()) return
-    await clearStoredAuthReturnUrl(attemptId, currentSession)
-    if (currentSession() && currentAttempt()) router.replace(getSafeReturnUrl(returnUrl))
+    if (!ownsOutcome()) return
+    await clearStoredAuthReturnUrl(attemptId, ownsOutcome)
+    if (ownsOutcome()) router.replace(getSafeReturnUrl(returnUrl))
   }
 
   useEffect(() => {
     if (isLoading || processed.current === callbackIdentity) return
     processed.current = callbackIdentity
     const epoch = getSessionGeneration().epoch
-    const isCurrentCallback = () => processed.current === callbackIdentity && epoch === getSessionGeneration().epoch
+    const isCurrentCallback = () => processed.current === callbackIdentity
+    const isCurrentExchange = () => isCurrentCallback() && epoch === getSessionGeneration().epoch
     async function complete() {
       if (typeof params.handoff !== 'string' || typeof params.state !== 'string') throw new Error('Invalid OAuth callback')
       const owner = await completeAppleHandoff(params.handoff, params.state)
-      if (!isCurrentCallback()) return
+      if (!isCurrentExchange()) return
       if (owner.response.wasReactivated) { setAccount(owner); setState('account'); return }
       await finish(owner, isCurrentCallback)
     }
-    void complete().catch(() => { if (isCurrentCallback()) setState('failed') })
+    void complete().catch(() => { if (isCurrentExchange()) setState('failed') })
   })
 
   async function continueAccount() {
     if (!account || loading) return
-    const isCurrentCallback = () => processed.current === callbackIdentity && account.epoch === getSessionGeneration().epoch
+    const isCurrentCallback = () => processed.current === callbackIdentity
     setLoading(true)
-    try { await finish(account, isCurrentCallback) } catch { if (isCurrentCallback()) setState('failed') }
+    try { await finish(account, isCurrentCallback) }
+    catch { if (isCurrentCallback() && account.epoch === getSessionGeneration().epoch) setState('failed') }
     finally { if (isCurrentCallback()) setLoading(false) }
   }
 
