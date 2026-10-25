@@ -325,7 +325,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     }
     check(TOOL, "an explicit base that disagrees with the PR is an error",
       ["--issue", ISSUE, "--worktree", mobileAgainstAlternate.path, "--branch", BRANCH, "--repo", "ui", "--base", "main"],
-      { status: 2, stderr: /--base main disagrees with pull request #200 base redesign\/main/ },
+      { status: 2, stderr: /--base main disagrees with pull request #200 base integration\/next/ },
       { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(mobileAgainstAlternate.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, null, { baseRefName: ALTERNATE_BASE }) })
   }
   const ghDescendantPidFile = stage("verify-delivery/gh-descendant.pid", "")
