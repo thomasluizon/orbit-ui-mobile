@@ -556,3 +556,71 @@ it.each([401, 429, 500])('handles event ticket status %i at the connection bound
     vi.useRealTimers()
   }
 })
+
+
+it.each(['interrupted read', 'malformed event'])('reconnects after an account stream %s at the Sentry boundary', async (failure) => {
+  vi.useFakeTimers()
+  vi.mocked(Sentry.captureException).mockClear()
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+  let interrupt!: () => void
+  const body = new ReadableStream<Uint8Array>({ start(stream) {
+    stream.enqueue(new TextEncoder().encode('id: epoch.1\nevent: changes\ndata: {"v":1,"changes":[]}\n\n'))
+    interrupt = () => {
+      if (failure === 'interrupted read') stream.error(new TypeError('network error'))
+      else stream.enqueue(new TextEncoder().encode('id: invalid.1\nevent: changes\ndata: {\n\n'))
+    }
+  } })
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(Response.json({ ticket: 'ticket', apiBase: 'https://api.example.test' }))
+    .mockResolvedValueOnce(new Response(body))
+    .mockResolvedValueOnce(Response.json({ ticket: 'ticket', apiBase: 'https://api.example.test' }))
+    .mockResolvedValueOnce(new Response(new ReadableStream<Uint8Array>({ start() {} })))
+  vi.stubGlobal('fetch', fetchMock)
+  const view = render(<AccountEventConnection />)
+  try {
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    await act(async () => { interrupt(); await vi.advanceTimersByTimeAsync(2000) })
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(new Headers(fetchMock.mock.calls[3]?.[1]?.headers).get('Last-Event-ID')).toBe('epoch.1')
+    expect(Sentry.captureException).toHaveBeenCalledTimes(failure === 'interrupted read' ? 0 : 1)
+    if (failure === 'malformed event') expect(Sentry.captureException).toHaveBeenCalledWith(expect.any(SyntaxError))
+  } finally {
+    view.unmount()
+    vi.useRealTimers()
+  }
+})
+
+it('closes the stream on pagehide and reopens on pageshow without a Sentry error', async () => {
+  vi.useFakeTimers()
+  vi.mocked(Sentry.captureException).mockClear()
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+  let interrupt!: () => void
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(Response.json({ ticket: 'ticket', apiBase: 'https://api.example.test' }))
+    .mockResolvedValueOnce(new Response(new ReadableStream<Uint8Array>({ start(stream) {
+      stream.enqueue(new TextEncoder().encode('event: ready\ndata: {"connectionId":"current"}\n\n'))
+      interrupt = () => stream.error(new TypeError('network error'))
+    } })))
+    .mockResolvedValueOnce(Response.json({ ticket: 'ticket', apiBase: 'https://api.example.test' }))
+    .mockResolvedValueOnce(new Response(new ReadableStream<Uint8Array>({ start() {} })))
+  vi.stubGlobal('fetch', fetchMock)
+  const view = render(<AccountEventConnection />)
+  try {
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    const signal = fetchMock.mock.calls[1]?.[1]?.signal as AbortSignal
+    expect(getAccountEventOrigin()).toBe('current')
+    await act(async () => { window.dispatchEvent(new Event('pagehide')); interrupt(); await vi.advanceTimersByTimeAsync(30_000) })
+    expect(signal.aborted).toBe(true)
+    expect(getAccountEventOrigin()).toBeNull()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(Sentry.captureException).not.toHaveBeenCalled()
+    await act(async () => { window.dispatchEvent(new Event('pageshow')); await vi.advanceTimersByTimeAsync(0) })
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    view.unmount()
+    await act(async () => { window.dispatchEvent(new Event('pageshow')); await vi.advanceTimersByTimeAsync(30_000) })
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+  } finally {
+    view.unmount()
+    vi.useRealTimers()
+  }
+})

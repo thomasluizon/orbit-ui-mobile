@@ -506,3 +506,61 @@ it.each([401, 429, 500])('handles event stream status %i at the native connectio
     vi.useRealTimers()
   }
 })
+
+
+it.each(['interrupted read', 'malformed event'])('reconnects after a native account stream %s at the Sentry boundary', async (failure) => {
+  vi.useFakeTimers()
+  vi.mocked(captureError).mockClear()
+  let interrupt!: () => void
+  mocks.expoFetch.mockResolvedValueOnce({ ok: true, status: 200, body: new ReadableStream<Uint8Array>({ start(stream) {
+    stream.enqueue(new TextEncoder().encode('id: epoch.1\nevent: changes\ndata: {"v":1,"changes":[]}\n\n'))
+    interrupt = () => {
+      if (failure === 'interrupted read') stream.error(new Error('connection reset'))
+      else stream.enqueue(new TextEncoder().encode('id: invalid.1\nevent: changes\ndata: {\n\n'))
+    }
+  } }) }).mockResolvedValueOnce(idleStream())
+  let tree!: TestRenderer.ReactTestRenderer
+  try {
+    await act(async () => { tree = TestRenderer.create(<AccountEventConnection />); await vi.advanceTimersByTimeAsync(0) })
+    await act(async () => { interrupt(); await vi.advanceTimersByTimeAsync(2000) })
+    expect(mocks.expoFetch).toHaveBeenCalledTimes(2)
+    expect(mocks.expoFetch).toHaveBeenLastCalledWith('https://api.useorbit.org/api/events',
+      expect.objectContaining({ headers: { Authorization: 'Bearer token', 'Last-Event-ID': 'epoch.1' } }))
+    expect(captureError).toHaveBeenCalledTimes(failure === 'interrupted read' ? 0 : 1)
+    if (failure === 'malformed event') expect(captureError).toHaveBeenCalledWith(expect.any(SyntaxError))
+  } finally {
+    await act(() => tree.update(<></>))
+    vi.useRealTimers()
+  }
+})
+
+it('cancels a pending native stream read on background and unmount without reporting', async () => {
+  vi.useFakeTimers()
+  vi.mocked(captureError).mockClear()
+  const cancel = vi.fn()
+  mocks.expoFetch.mockImplementation(() => Promise.resolve({ ok: true, status: 200,
+    body: new ReadableStream<Uint8Array>({ start(stream) {
+      stream.enqueue(new TextEncoder().encode('event: ready\ndata: {"connectionId":"mobile"}\n\n'))
+    }, cancel }),
+  }))
+  let tree!: TestRenderer.ReactTestRenderer
+  try {
+    await act(async () => { tree = TestRenderer.create(<AccountEventConnection />); await vi.advanceTimersByTimeAsync(0) })
+    expect(getAccountEventOrigin()).toBe('mobile')
+    const signal = mocks.expoFetch.mock.calls[0]?.[1]?.signal as AbortSignal
+    await act(async () => { mocks.onAppState('background'); await vi.advanceTimersByTimeAsync(30_000) })
+    expect(signal.aborted).toBe(true)
+    expect(cancel).toHaveBeenCalledOnce()
+    expect(getAccountEventOrigin()).toBeNull()
+    expect(mocks.expoFetch).toHaveBeenCalledOnce()
+    await act(async () => { mocks.onAppState('active'); await vi.advanceTimersByTimeAsync(0) })
+    expect(mocks.expoFetch).toHaveBeenCalledTimes(2)
+    await act(async () => { tree.update(<></>); await vi.advanceTimersByTimeAsync(30_000) })
+    expect(cancel).toHaveBeenCalledTimes(2)
+    expect(mocks.expoFetch).toHaveBeenCalledTimes(2)
+    expect(captureError).not.toHaveBeenCalled()
+  } finally {
+    await act(() => tree.update(<></>))
+    vi.useRealTimers()
+  }
+})
