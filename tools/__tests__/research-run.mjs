@@ -35,6 +35,7 @@ process.stdin.on('end', () => {
 })`
 const asyncRun = (staged) => {
   const child = spawn(process.execPath, [...(staged.preload ? ["--require", staged.preload] : []), staged.path, ...staged.argv], { cwd: staged.base, env: process.env })
+  const pids = new Set([child.pid])
   let closed = false
   let stdout = ""
   let stderr = ""
@@ -44,11 +45,13 @@ const asyncRun = (staged) => {
     child.on("error", error => { stderr += error.message })
     child.on("close", status => { closed = true; resolve({ status, stdout, stderr }) })
   })
-  const stop = async () => {
+  let stopping
+  const stop = () => stopping ??= (async () => {
     const wakePath = join(wakeSourceDirectory(staged.base), `${child.pid}.json`)
     let wake = null
     try { wake = JSON.parse(readFileSync(wakePath, "utf8")) } catch (error) { if (error.code !== "ENOENT") throw error }
     const workerPid = wake?.workerPid
+    if (Number.isInteger(workerPid)) pids.add(workerPid)
     const killWorker = () => {
       if (!Number.isInteger(workerPid)) return
       if (process.platform === "win32") spawnSync("taskkill", ["/T", "/F", "/PID", String(workerPid)], { windowsHide: true })
@@ -61,12 +64,19 @@ const asyncRun = (staged) => {
     } finally {
       clearTimeout(watchdog)
       killWorker()
+      const cleanupDeadline = Date.now() + 5000
+      let alive = [...pids].filter(processIsRunning)
+      while (alive.length > 0 && Date.now() < cleanupDeadline) {
+        await new Promise(resolve => setTimeout(resolve, 20))
+        alive = [...pids].filter(processIsRunning)
+      }
+      T("research: fixture cleanup waits for every recorded PID", alive.length === 0, `cleanup exceeded 5000ms; still running PIDs: ${alive.join(", ")}`)
       if (wake) rmSync(wake.logFile, { force: true })
     }
-  }
+  })()
   const deadline = setTimeout(() => { stderr += "research fixture exceeded its execution bound\n"; void stop() }, 120000)
   result.then(() => clearTimeout(deadline))
-  return { child, result, stop }
+  return { child, result, stop, pids }
 }
 const waitForPublishedFile = (path, result, timeoutMs = 60000) => new Promise((resolve) => {
   let settled = false
@@ -120,7 +130,11 @@ const withReadyEngine = async (staged, marker, assertions) => {
   try {
     const readiness = await waitForPublishedFile(marker, running.result)
     T("research: the supervision engine publishes readiness", readiness.ready, readiness.error)
-    if (readiness.ready) await assertions(running, Object.values(JSON.parse(readFileSync(marker, "utf8"))))
+    if (readiness.ready) {
+      const enginePids = Object.values(JSON.parse(readFileSync(marker, "utf8")))
+      for (const pid of [...enginePids, ...readWakeSourceStates(staged.base).live.map(source => source.workerPid)]) running.pids.add(pid)
+      await assertions(running, enginePids)
+    }
   } catch (error) {
     T("research: supervision completes without a fixture error", false, error.message)
   } finally {
@@ -172,6 +186,7 @@ export const cases = async () => {
     const readiness = await waitForPublishedFile(failedMarker, failingRun.result)
     const failedResult = await failingRun.result
     const failedReport = discardLog(failedResult)
+    failingRun.pids.add(failedReport.pid)
     T("research: an engine failure cannot publish findings or report success", failedResult.status === 1 && !existsSync(failed.output) && failedReport.exitCode === 7)
     T("research: exit before readiness returns an assertion result", !readiness.ready && readiness.error.includes("engine exited before marker"))
     T("research: exit before readiness stops the gate and deletes its wake record", !processIsRunning(failedReport.pid) && !existsSync(join(wakeSourceDirectory(failed.base), `${failingRun.child.pid}.json`)))
@@ -207,14 +222,37 @@ setInterval(() => {}, 60000)
   const hardCeilingMinutes = 0.02
   const timeouts = { ...real.timeouts, hardCeilingMinutes, pollSeconds: 0.1 }
   const unpublished = gateCeilingUntilRelease(fixture("unpublished", sleeper, { timeouts }), "unpublished")
-  let unpublishedPids = []
-  await withReadyEngine(unpublished, marker, async (running, pids) => {
-    unpublishedPids = [running.child.pid, ...pids, ...readWakeSourceStates(unpublished.base).live.map(source => source.workerPid)]
-    const readiness = await waitForPublishedFile(`${marker}.missing`, running.result, 20)
-    T("research: a missing marker returns a bounded assertion result while the tree is live", !readiness.ready && readiness.error.includes("within 20ms") && unpublishedPids.every(processIsRunning))
-  })
-  T("research: missing-marker cleanup stops the launcher, gate, engine and descendant", unpublishedPids.length === 4 && unpublishedPids.every(pid => !processIsRunning(pid)))
-  T("research: missing-marker cleanup deletes wake state without publishing findings", !existsSync(join(wakeSourceDirectory(unpublished.base), `${unpublishedPids[0]}.json`)) && !existsSync(unpublished.output))
+  for (let attempt = 0; attempt < 5; attempt++) {
+    rmSync(marker, { force: true })
+    let unpublishedPids = []
+    await withReadyEngine(unpublished, marker, async (running, pids) => {
+      const workerPid = readWakeSourceStates(unpublished.base).live[0].workerPid
+      unpublishedPids = [running.child.pid, workerPid, ...pids]
+      const readiness = await waitForPublishedFile(`${marker}.missing`, running.result, 20)
+      T("research: a missing marker returns a bounded assertion result while the tree is live", !readiness.ready && readiness.error.includes("within 20ms") && unpublishedPids.every(processIsRunning))
+      // A stopped worker tree cannot handle the launcher's graceful termination signal.
+      if (process.platform !== "win32") {
+        process.kill(-workerPid, "SIGSTOP")
+        const stop = running.stop
+        running.stop = async () => {
+          const nativeKill = process.kill
+          // Hold delivery so cleanup must observe termination instead of trusting signal success.
+          process.kill = (pid, signal) => {
+            if (pid !== -workerPid || signal !== "SIGKILL") return nativeKill(pid, signal)
+            const delivered = nativeKill(pid, 0)
+            setTimeout(() => {
+              try { nativeKill(pid, signal) } catch (error) { if (error.code !== "ESRCH") throw error }
+            }, 250)
+            return delivered
+          }
+          try { await stop() } finally { process.kill = nativeKill }
+        }
+      }
+    })
+    const alive = unpublishedPids.filter(processIsRunning)
+    T("research: missing-marker cleanup stops the launcher, gate, engine and descendant", unpublishedPids.length === 4 && alive.length === 0, `attempt ${attempt + 1}: still running PIDs: ${alive.join(", ")}`)
+    T("research: missing-marker cleanup deletes wake state without publishing findings", !existsSync(join(wakeSourceDirectory(unpublished.base), `${unpublishedPids[0]}.json`)) && !existsSync(unpublished.output))
+  }
   rmSync(marker, { force: true })
   const supervised = gateCeilingUntilRelease(fixture("supervised", sleeper, { timeouts }), "supervised")
   writeRunState({ sessionId: "research-session", sleep: true, remaining: ["#1128"] }, supervised.base)
