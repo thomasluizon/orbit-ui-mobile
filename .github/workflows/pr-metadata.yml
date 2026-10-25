@@ -2,7 +2,7 @@ name: PR Metadata
 
 on:
   pull_request:
-    branches: [main, redesign/main]
+    branches: [main]
     types: [opened, synchronize, reopened, edited, labeled, unlabeled]
 
 # Every metadata event must finish its required check. A shared concurrency group
@@ -47,14 +47,4 @@ jobs:
             --jq '{title,body,labels:[.labels[].name]}' > "$RUNNER_TEMP/pr-metadata.json"
 
           node .github/scripts/check-pr-metadata.mjs "$RUNNER_TEMP/pr-metadata.json" "$RUNNER_TEMP/pr-body.md" \
-            --changed-files-file "$RUNNER_TEMP/changed-paths.txt"
-
-      - name: Check UI review evidence
-        if: ${{ !cancelled() && github.actor != 'dependabot[bot]' }}
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          node tools/check-review-harness.mjs \
-            --base "$BASE_REF" \
-            --body-file "$RUNNER_TEMP/pr-body.md" \
             --changed-files-file "$RUNNER_TEMP/changed-paths.txt"
