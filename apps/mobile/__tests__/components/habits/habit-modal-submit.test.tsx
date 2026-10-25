@@ -629,7 +629,7 @@ it('opens the actual complete editor through Today row menu, TodayModals and one
 
 it('keeps the complete parent draft after a definitive destination refusal without another write', async () => {
   const { createApiClientError } = await import('@orbit/shared/utils')
-  mutation.mockReset().mockRejectedValue(createApiClientError(409, { error: 'Conflict' }, 'Conflict'))
+  mutation.mockReset().mockRejectedValue(createApiClientError(409, { errorCode: 'CONCURRENT_UPDATE_CONFLICT' }, 'Conflict'))
   completion.mockReset()
   detailRefetch.mockClear()
   const { tree, submit, title, onClose } = await renderSheet('edit', prepareParentEditor())
@@ -642,6 +642,7 @@ it('keeps the complete parent draft after a definitive destination refusal witho
   expect(detailRefetch).not.toHaveBeenCalled()
   expect(onClose).not.toHaveBeenCalled()
   expect(title.props.value).toBe('Retained title')
+  expect(tree.root.findAll((node) => String(node.type) === 'Text' && node.props.children === 'toast.errors.conflict')).toHaveLength(1)
   const field = tree.root.findAll((node) => String(node.type) === 'Pressable' && String(node.props.accessibilityLabel).startsWith('habits.form.parentHabit'))[0]!
   expect(field.props.accessibilityLabel).toContain('Completed off-day destination')
   void act(() => tree.update(<></>))

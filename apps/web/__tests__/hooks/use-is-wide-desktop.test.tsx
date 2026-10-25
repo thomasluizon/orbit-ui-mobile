@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { useIsWideDesktop } from '@/hooks/use-is-desktop'
+import { useIsDesktop, useIsWideDesktop } from '@/hooks/use-is-desktop'
 
 describe('useIsWideDesktop', () => {
   beforeEach(() => {
@@ -16,4 +16,10 @@ describe('useIsWideDesktop', () => {
     const { result } = renderHook(() => useIsWideDesktop())
     expect(result.current).toBe(expected)
   })
+})
+
+it('keeps compact shell presentation when matchMedia is unavailable', () => {
+  vi.stubGlobal('matchMedia', undefined)
+  const { result } = renderHook(() => [useIsDesktop(), useIsWideDesktop()])
+  expect(result.current).toEqual([false, false])
 })

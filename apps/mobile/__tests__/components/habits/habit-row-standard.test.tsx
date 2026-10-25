@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { SPACING } from '@orbit/shared/theme'
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
@@ -141,12 +142,11 @@ describe('habit row standard on Android', () => {
         actions={scenario.parent ? { onEdit: vi.fn(), onToggleExpand: vi.fn() } : {}} />
       TestRenderer.act(() => { if (tree) tree.update(element); else tree = TestRenderer.create(element) })
       const initial = measureInteractionFills(tree!.toJSON(), 284, false)
-      const row = initial.find((part) => part.host.props.testID === 'habit-row')!
       const content = initial.find((part) => part.host.props.testID === 'habit-row-title-block')!
       const tokenBounds = initial.filter((part) => part.host.props.testID === 'habit-row-meta-token')
       const layoutEvent = (width: number) => ({ nativeEvent: { layout: { x: 0, y: 0, width, height: 52 } } })
       TestRenderer.act(() => {
-        tree!.root.findByProps({ testID: 'habit-row' }).props.onLayout(layoutEvent(row.width))
+        tree!.root.findAllByType('View').find((node: import('react-test-renderer').ReactTestInstance) => typeof node.props.onLayout === 'function')!.props.onLayout(layoutEvent(284))
         tree!.root.findByProps({ testID: 'habit-row-title-block' }).props.onLayout(layoutEvent(content.width))
         tree!.root.findAllByType('View').filter((node: import('react-test-renderer').ReactTestInstance) => node.props.testID === 'habit-row-meta-token')
           .forEach((node: import('react-test-renderer').ReactTestInstance, index: number) => (node.props.onLayout as (event: ReturnType<typeof layoutEvent>) => void)(layoutEvent(tokenBounds[index]!.width)))
@@ -258,14 +258,17 @@ describe('habit row standard on Android', () => {
     const row = tree!.root.findByProps({ testID: 'habit-row' })
     const geometry = measureInteractionFills(tree!.toJSON(), width, false, fontScale)
     const well = geometry.find((part) => part.style.borderRadius === 12 && part.style.width === (depth > 0 ? 32 : 46))!
-    expect(well.left).toBe(8 + 16 * depth)
+    const card = geometry.find((part) => part.host.props.testID === 'habit-row')!
+    expect(card.left).toBe(SPACING.s16 * depth)
+    expect(card.width).toBe(width - SPACING.s16 * depth)
+    expect(well.left - card.left).toBe(SPACING.s8)
     expect(StyleSheet.flatten(row.props.style)).toMatchObject({ borderRadius: 20, backgroundColor: tokens.bgCard })
     expect(StyleSheet.flatten(row.props.style).borderWidth ?? 0).toBe(0)
     const outline = tree!.root.findByProps({ testID: 'habit-row-outline' })
     expect(StyleSheet.flatten(outline.props.style)).toMatchObject({ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: 20, borderWidth: 1, borderColor: tokens.hairline })
     expect(outline.props).toMatchObject({ pointerEvents: 'none', accessible: false, importantForAccessibility: 'no-hide-descendants' })
-    const spacing = tree!.root.findAllByType('View').filter((node: { props: { style: StyleProp<ViewStyle> } }) => StyleSheet.flatten<ViewStyle | undefined>(node.props.style)?.paddingBottom === 4)
-    expect(spacing).toHaveLength(1)
+    const wrapper = geometry.find((part) => part.ancestors.length === 0)!
+    expect(wrapper.bottom - card.bottom).toBe(SPACING.s8)
     const check = tree!.root.findByProps({ testID: 'habit-check' })
     expect(StyleSheet.flatten(check.props.style)).toMatchObject({ width: 28, height: 28, borderRadius: 12, borderWidth: 1, borderColor: tokens.statusEmpty })
     const toggle = tree!.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'habits.statusDot.empty, habits.logHabit: Read')!

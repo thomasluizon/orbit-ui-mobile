@@ -1,9 +1,13 @@
-import { tagCollection, tagMutations, formLocale, createFormHelpers, renderForm } from '@/__tests__/support/habit-form-fields'
+import * as Sentry from '@sentry/nextjs'
+import { createApiClientError } from '@orbit/shared/utils'
+import { tagCollection, modalFeedback, tagMutations, formLocale, createFormHelpers, renderForm } from '@/__tests__/support/habit-form-fields'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import { useTagSelection } from '@/hooks/use-tag-selection'
+
+vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }))
 
 it('keeps rejected tag Name validation beside its input in the owning habit editor', async () => {
   tagMutations.create.mockRejectedValue({ errors: { Name: ['Tag must have at most 50 characters'] } })
@@ -75,6 +79,20 @@ describe('habit tag suggestions', () => {
     tagMutations.create.mockReset()
     tagMutations.delete.mockReset()
     formLocale.language = 'en'
+  })
+
+  it.each([409, 500])('handles rejected tag deletion status %i and restores the selection', async (status) => {
+    tagCollection.tags = [{ id: 'existing', name: 'Health', color: '#7c3aed' }]
+    const failure = createApiClientError(status, status === 409 ? { errorCode: 'CONCURRENT_UPDATE_CONFLICT' } : null, 'Failed')
+    tagMutations.delete.mockRejectedValue(failure)
+    modalFeedback.showError.mockClear()
+    vi.mocked(Sentry.captureException).mockClear()
+    renderTagForm('Read', '', ['existing'])
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'habits.form.deleteTag: Health' })) })
+    await waitFor(() => expect(modalFeedback.showError).toHaveBeenCalledWith(status === 409 ? 'toast.errors.conflict' : 'toast.errors.server'))
+    expect(screen.getByLabelText('Selected tags')).toHaveTextContent('existing')
+    expect(tagMutations.delete).toHaveBeenCalledExactlyOnceWith('existing')
+    expect(Sentry.captureException).toHaveBeenCalledTimes(status === 500 ? 1 : 0)
   })
 
   it.each(['settled', 'pending'])('rejects a deleted existing proposal from a %s request while keeping other proposals', async (phase) => {

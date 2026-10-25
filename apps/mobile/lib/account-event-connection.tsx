@@ -5,6 +5,7 @@ import {
   consumeAccountEventStream, invalidateAccountEvent, invalidateAccountQueriesAtFailure, invalidateAccountQueriesBefore,
 } from '@orbit/shared/query'
 import { useAuthStore } from '@/stores/auth-store'
+import { captureError } from './sentry'
 import { openAccountEventStream } from './account-event-stream'
 import { getAccountEventOrigin, setAccountEventOrigin } from './account-event-origin'
 
@@ -33,6 +34,7 @@ export function AccountEventConnection(): null {
       lastEventId: lastEventId.current,
       resumed: resumed.current,
       open: openAccountEventStream,
+      onError: captureError,
       onOpen: (openedAt, hasReplayCursor) => invalidateAccountQueriesBefore(queryClient, openedAt, hasReplayCursor),
       onFirstFailure: (failedAt) => invalidateAccountQueriesAtFailure(queryClient, failedAt, controller.signal),
       onReconnect: () => setAccountEventOrigin(null),

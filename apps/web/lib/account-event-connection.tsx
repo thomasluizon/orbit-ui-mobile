@@ -1,5 +1,6 @@
 'use client'
 
+import * as Sentry from '@sentry/nextjs'
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -7,7 +8,7 @@ import {
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { useAuthStore } from '@/stores/auth-store'
-import { ApiError, fetchWithUpgradeGuidance, sessionAwareFetch } from './api-fetch'
+import { fetchWithUpgradeGuidance, sessionAwareFetch } from './api-fetch'
 import { getAccountEventOrigin, setAccountEventOrigin } from './account-event-origin'
 
 interface TicketResponse { ticket: string; apiBase: string }
@@ -37,7 +38,8 @@ export function AccountEventConnection(): null {
         resumed,
         open: async (signal, lastEventId) => {
           const ticketResponse = await sessionAwareFetch(API.events.ticket, { method: 'POST', signal, cache: 'no-store' })
-          if (!ticketResponse.ok) throw new ApiError(ticketResponse.status, 'Event ticket unavailable', undefined, ticketResponse.headers.get('retry-after'))
+          if (ticketResponse.status === 401 && !useAuthStore.getState().isAuthenticated) return { sessionRejected: true }
+          if (!ticketResponse.ok) return ticketResponse
           const { ticket, apiBase } = await ticketResponse.json() as TicketResponse
           const url = new URL(API.events.stream, apiBase)
           url.searchParams.set('ticket', ticket)
@@ -47,6 +49,7 @@ export function AccountEventConnection(): null {
             headers: lastEventId ? { 'Last-Event-ID': lastEventId } : undefined,
           })
         },
+        onError: (error) => Sentry.captureException(error),
         onOpen: (openedAt, hasReplayCursor) => invalidateAccountQueriesBefore(queryClient, openedAt, hasReplayCursor),
         onFirstFailure: (failedAt) => invalidateAccountQueriesAtFailure(queryClient, failedAt, connectionSignal),
         onReconnect: () => setAccountEventOrigin(null),

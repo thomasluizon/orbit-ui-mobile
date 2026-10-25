@@ -1820,7 +1820,10 @@ describe('HabitDetailScreen', () => {
           const well = Array.from(row.querySelectorAll('span')).find((element) => getComputedStyle(element).width === '32px')!
           return well.getBoundingClientRect().left - row.getBoundingClientRect().left
         })
-        expect(inset).toBe(24)
+        expect(inset).toBe(8)
+        const cardInset = await page.getByTestId('detail-children').getByTestId('habit-row').evaluate((row) =>
+          row.getBoundingClientRect().left - row.closest('[data-testid="detail-children"]')!.getBoundingClientRect().left)
+        expect(cardInset).toBe(16)
         expect(await page.locator('[data-habit-row-description]').allTextContents()).toEqual(['Read two pages before breakfast.'])
       } finally { await page.close() }
     })

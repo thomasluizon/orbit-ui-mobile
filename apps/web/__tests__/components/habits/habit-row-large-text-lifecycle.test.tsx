@@ -127,7 +127,7 @@ it.each([320, 412, 1352])('hydrates the depth-2 heading and footer before measur
     expect(observations.size).toBe(12)
     const assertObservedOwners = () => {
       for (const row of rows) {
-        expect(observations.has(row)).toBe(true)
+        expect(observations.has(row.parentElement!)).toBe(true)
         expect(observations.has(row.querySelector('[data-habit-row-title-block]')!)).toBe(true)
         for (const token of row.querySelectorAll('[data-habit-row-meta] > span')) expect(observations.has(token)).toBe(true)
       }
