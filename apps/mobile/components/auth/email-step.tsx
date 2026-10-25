@@ -1,4 +1,3 @@
-import { ActionRow } from '@/components/ui/action-row'
 import { AppleSignInButton } from './apple-sign-in-button'
 import { GoogleMark } from '@/components/auth/google-mark'
 import { Text, View } from 'react-native'
@@ -57,13 +56,12 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
       <View style={styles.dividerLine} /><Text style={styles.dividerText}>{t('auth.orContinueWith')}</Text><View style={styles.dividerLine} />
     </View>
     <View style={styles.titleBlock}>
-      <ActionRow align="center"><View style={{ width: '100%' }}>
-      {/* eslint-disable-next-line local/max-button-words -- Google's approved sign-in wording is required. */}
-      <PillButton brand="google" leadingIcon={<GoogleMark />} variant="ghost" onClick={onSignInWithGoogle} disabled={isBusy || !isOnline}
-        loading={isGoogleLoading}>{t('auth.signInWithGoogle')}</PillButton>
+      <View style={{ width: '100%' }}>
+        {/* eslint-disable-next-line local/max-button-words -- Google's approved sign-in wording is required. */}
+        <PillButton brand="google" leadingIcon={<GoogleMark />} variant="ghost" onClick={onSignInWithGoogle} disabled={isBusy || !isOnline}
+          loading={isGoogleLoading}>{t('auth.signInWithGoogle')}</PillButton>
       </View>
       <AppleSignInButton disabled={isBusy || !isOnline} loading={isAppleLoading} onPress={() => onSignInWithApple?.()} />
-      </ActionRow>
       {!isOnline && <Text style={styles.reason}>{t('auth.googleOffline')}</Text>}
       {googleError && <Text accessibilityRole="alert" style={styles.error}>{googleError}</Text>}
     </View>

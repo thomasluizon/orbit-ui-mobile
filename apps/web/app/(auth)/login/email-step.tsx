@@ -1,4 +1,3 @@
-import { ActionRow } from '@/components/ui/action-row'
 import { AppleMark } from '@/components/ui/icons'
 import { GoogleMark } from '@/components/auth/google-mark'
 import Link from 'next/link'
@@ -55,16 +54,16 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
         <span className="h-px flex-1 bg-[var(--hairline)]" />
       </div>
       <div className="flex flex-col gap-2">
-        <ActionRow align="center"><div className="w-full">
-        {/* eslint-disable-next-line local/max-button-words -- Google's approved sign-in wording is required. */}
-        <PillButton brand="google" leadingIcon={<GoogleMark />} variant="ghost" disabled={isBusy || !isOnline}
-          loading={isGoogleLoading} onClick={onSignInWithGoogle}>{t('auth.signInWithGoogle')}</PillButton>
+        <div className="flex flex-col">
+          {/* eslint-disable-next-line local/max-button-words -- Google's approved sign-in wording is required. */}
+          <PillButton brand="google" leadingIcon={<GoogleMark />} variant="ghost" disabled={isBusy || !isOnline}
+            loading={isGoogleLoading} onClick={onSignInWithGoogle}>{t('auth.signInWithGoogle')}</PillButton>
         </div>
-        {process.env.NEXT_PUBLIC_APPLE_CLIENT_ID ? <div className="w-full">
-        {/* eslint-disable-next-line local/max-button-words -- Apple's approved sign-in wording labels the browser action. */}
-        <PillButton variant="ghost" leadingIcon={<AppleMark size={20} aria-hidden />} disabled={isBusy || !isOnline}
-          onClick={onSignInWithApple}>{t('auth.signInWithApple')}</PillButton>
-        </div> : null}</ActionRow>
+        {process.env.NEXT_PUBLIC_APPLE_CLIENT_ID ? <div className="flex flex-col">
+          {/* eslint-disable-next-line local/max-button-words -- Apple's approved sign-in wording labels the browser action. */}
+          <PillButton variant="ghost" leadingIcon={<AppleMark size={20} aria-hidden />} disabled={isBusy || !isOnline}
+            onClick={onSignInWithApple}>{t('auth.signInWithApple')}</PillButton>
+        </div> : null}
         {!isOnline && <p className="text-sm text-[var(--fg-3)]">{t('auth.googleOffline')}</p>}
         {googleError && <p role="alert" className="text-sm text-[var(--status-bad-text)]">{googleError}</p>}
       </div>

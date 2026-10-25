@@ -8,6 +8,7 @@ import { authLocales, authScreenStates, createLoginScreenFixture } from '@orbit/
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { LoginContent } from '@/components/auth/login-content'
+import { measureSafeArea, type GeometryHost } from '@/__tests__/support/safe-area-geometry'
 import { __emitKeyboardEvent, __setWindowDimensions } from '../../test-mocks/react-native'
 
 vi.mock('react-i18next', async (importActual) => ({
@@ -64,7 +65,7 @@ function setFixture(state: Parameters<typeof createLoginScreenFixture>[0], local
   return fixture
 }
 function render() {
-  let tree: { root: Node; unmount: () => void; update: (element: React.ReactElement) => void }
+  let tree: { root: Node; unmount: () => void; update: (element: React.ReactElement) => void; toJSON: () => GeometryHost }
   act(() => { tree = create(<LoginContent />) })
   return tree!
 }
@@ -84,6 +85,33 @@ describe.each(authLocales)('mobile auth composition in %s', (locale) => {
     vi.clearAllMocks()
     void testI18n.changeLanguage(locale)
     setI18n(testI18n)
+  })
+  it.each([320, 1280].flatMap(width => [false, true].flatMap(apple =>
+    (['email', 'google', 'offline'] as const).map(state => ({ width, apple, state })),
+  )))('fills and stacks providers at $width, Apple $apple, $state', ({ width, apple, state }) => {
+    vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', apple ? 'test-client' : '')
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    setFixture(state, locale)
+    const tree = render()
+    try {
+      let index = 0
+      const bounds = [...measureSafeArea(tree.toJSON(), host =>
+        host.props.accessibilityRole === 'button' ? String(index++) : undefined,
+      { width, height: 915 }).values()]
+      const [primary, ...providers] = bounds
+      expect(primary!.width).toBeGreaterThan(0)
+      expect(providers).toHaveLength(apple ? 2 : 1)
+      let previousBottom = primary!.bottom
+      for (const provider of providers) {
+        expect(provider.width).toBeCloseTo(primary!.width, 1)
+        expect(provider.left).toBeCloseTo(primary!.left, 1)
+        expect(provider.top).toBeGreaterThan(previousBottom)
+        previousBottom = provider.bottom
+      }
+    } finally {
+      act(() => tree.unmount())
+      __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
+    }
   })
   it.each(['email', 'code'] as const)('fills the safe viewport and centres the %s column', (step) => {
     setFixture(step, locale)
