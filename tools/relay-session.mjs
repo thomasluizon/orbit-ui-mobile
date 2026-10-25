@@ -9,7 +9,7 @@ import { redactSecrets } from "./lib/github-auth.mjs"
 import { readSessionContext, readSessionMetrics } from "./lib/session-context.mjs"
 import { readBackgroundRuns } from "./lib/background-runs.mjs"
 import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, readSessionChain, refreshChainMetrics, sessionChainEntry, supersededSession, writeSessionChain } from "./lib/session-chain.mjs"
-import { HANDOFF_PROMPT_PATH, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
+import { HANDOFF_PROMPT_PATH, handoffCrank, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
 import { REPO_ROOT, acquireRelayLock, clearWakeSource, isWakeSourceAlive, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, writeRunState } from "./lib/run-state.mjs"
 
 const USAGE = `usage: relay-session.mjs [--retry-wake | --close-chain | --close-terminal <payload>]
@@ -211,7 +211,7 @@ const successorCommand = (model, permissionMode, successorSessionId, repoRoot) =
 
 const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute, wait, confirmMilliseconds }) => {
   const now = new Date().toISOString()
-  const crank = readHandoffRequest(sessionId, repoRoot)?.crank === true || readRunState(repoRoot)?.crank === true
+  const crank = handoffCrank(readHandoffRequest(sessionId, repoRoot), readRunState(repoRoot))
   recordHandoffRequest(sessionId, { command: "handoff", origin: "context-relay", sleep: true, crank }, now, repoRoot)
   const prompt = provePromptPublished(repoRoot, execute, crank)
   const successorSessionId = randomUUID()

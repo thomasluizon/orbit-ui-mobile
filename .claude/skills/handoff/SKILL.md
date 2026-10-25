@@ -16,6 +16,11 @@ is extra work for the NEXT session. You never do that work now.
 `readRunState` from `tools/lib/run-state.mjs`: `crank: true` includes it automatically,
 including on a context relay. The prompt then carries a `## Crank` section telling the next
 session to invoke `/crank` immediately after `/sleep` entry, before queue work.
+Use `handoffCrank` from `tools/lib/handoff-prompt.mjs` to resolve a recorded request against
+the matching run. A later disable wins over an older true request; recording a newer explicit
+true request enables the run again. With no run, record crank intent through
+`recordHandoffRequest` for this session only. Start no queue work and invoke no `/sleep` or
+standalone `/crank` while preparing this handoff.
 
 ## Context relay mode
 

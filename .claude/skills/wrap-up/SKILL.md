@@ -26,10 +26,12 @@ else. Everything else is extra instructions for the NEXT session, and it is pass
 too, verbatim. `/progress` and `/questions` take no arguments from here.
 
 `--crank` includes `--sleep` and passes through to `/handoff` as `--sleep --crank`.
-Before invoking `/handoff`, read the current run with `readRunState` from
-`tools/lib/run-state.mjs` and write `writeRunState({ ...state, crank: true })`, keeping
-its exact `sessionId` and every other field. Read it back to confirm the mode. If no run
-is active, enter `/sleep` through `.claude/skills/crank/SKILL.md` first to establish it.
+Before invoking `/handoff`, use `recordHandoffRequest` from `tools/lib/handoff-prompt.mjs`
+with this session's exact id, `{ command: "wrap-up", origin: "owner", sleep: true, crank: true }`
+and the current ISO timestamp. The owner prompt hook normally records this already.
+It enables crank on a matching active run while preserving every other field. With no run,
+it records successor intent only: start no queue work, create no wake source and invoke no
+`/sleep` or standalone `/crank` in this session. Read back the request to confirm the intent.
 `NEXT.md` carries the `## Crank` instructions required by `/handoff`. The successor invokes
 `/crank` immediately after `/sleep` entry. The mode has no time or relay count limit and
 remains active across context relays until `/crank --disable` or `/crank disable`.

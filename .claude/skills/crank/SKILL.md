@@ -15,11 +15,16 @@ Read the current record with `readRunState` from `tools/lib/run-state.mjs`. Use 
 session id established by `/sleep` or `/orchestrate`. If enabling with no active `/orchestrate`
 run, invoke `.claude/skills/sleep/SKILL.md` first; it enters the canonical orchestrator.
 Never create a separate loop or replace another session's run.
+This standalone entry differs from `/wrap-up --crank` and `/handoff --crank`, which only
+record successor intent when no run exists and never enter `/sleep` in the closing session.
 
 For `/crank`, call `writeRunState({ ...state, crank: true })` with the freshly read record.
 For `/crank --disable` or `/crank disable`, use `crank: false` instead. Keep the same
 `sessionId` and every other field, including sleep mode, queue, relay state and readiness ledger.
 Read back with `readRunState` and confirm the session id and requested boolean.
+The matching run's boolean is authoritative for handoff guards and relay publication.
+`recordHandoffRequest` applies a new true request to that run when recording it, so a later
+disable supersedes an earlier request and a still newer explicit request enables it again.
 Append one decision to this session's decision log using `/sleep`'s decision format. Use the
 record's `decisionLogPath`; if absent, create the log in the session scratchpad outside every
 repository and record that path. Disabling reports that the run is back to the default pace.

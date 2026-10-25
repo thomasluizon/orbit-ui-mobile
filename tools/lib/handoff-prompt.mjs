@@ -3,7 +3,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { REPO_ROOT, gitDirectoryOf } from "./run-state.mjs"
+import { REPO_ROOT, gitDirectoryOf, readRunState, writeRunState } from "./run-state.mjs"
 
 export const HANDOFF_PROMPT_PATH = ".claude/handoffs/NEXT.md"
 const REQUEST_FILE = "orbit-handoff-request.json"
@@ -115,6 +115,10 @@ const readRequests = (repoRoot) => {
   }
 }
 
+/** New requests enable the matching run when recorded; later run writes supersede that intent. */
+export const handoffCrank = (request, state) =>
+  typeof state?.crank === "boolean" ? state.crank : request?.crank === true
+
 /** Records a handoff request from the owner's prompt or the machine's context relay hook and tool. */
 export const recordHandoffRequest = (sessionId, request, recordedAt, repoRoot = REPO_ROOT) => {
   if (!sessionId || !request) return
@@ -125,6 +129,10 @@ export const recordHandoffRequest = (sessionId, request, recordedAt, repoRoot = 
     .slice(0, KEPT_REQUESTS)
   mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
   writeFileSync(requestPath(repoRoot), `${JSON.stringify(Object.fromEntries(kept), null, 2)}\n`)
+  const state = readRunState(repoRoot)
+  if (request.crank === true && state?.sessionId === sessionId) {
+    writeRunState({ ...state, crank: true }, repoRoot)
+  }
 }
 
 export const readHandoffRequest = (sessionId, repoRoot = REPO_ROOT) => (sessionId ? readRequests(repoRoot)[sessionId] ?? null : null)

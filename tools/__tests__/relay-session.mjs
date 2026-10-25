@@ -175,6 +175,17 @@ export const cases = async () => {
     T(`relay-session: crank from ${source} launches no successor before prompt validation`, operations.length === 0)
     T(`relay-session: crank from ${source} is retained in the relay request`, readHandoffRequest("predecessor", missing.checkout)?.crank === true)
   }
+  for (const newerRequest of [false, true]) {
+    const staged = fixture(`crank-disable-${newerRequest}`, { crank: true, crankPrompt: newerRequest })
+    recordHandoffRequest("predecessor", { command: "handoff", origin: "context-relay", sleep: true, crank: true }, new Date().toISOString(), staged.checkout)
+    writeRunState({ ...readRunState(staged.checkout), crank: false }, staged.checkout)
+    if (newerRequest) recordHandoffRequest("predecessor", { command: "handoff", origin: "owner", sleep: true, crank: true }, new Date().toISOString(), staged.checkout)
+    const operations = []
+    const message = await failure({ repoRoot: staged.checkout, sessionId: "predecessor", execute: executeFor(staged.checkout, { commands: operations }), wait: async () => {}, confirmMilliseconds: 10 })
+    T(`relay-session: ${newerRequest ? "newer request enables" : "disable supersedes threshold"} through publication and entry`, message === null && readRunState(staged.checkout).crank === newerRequest, String(message))
+    T("relay-session: published relay request matches the latest mode", readHandoffRequest("predecessor", staged.checkout)?.crank === newerRequest)
+    T("relay-session: successor receives the matching committed prompt", operations.some((args) => args[1] === "send" && args.includes("--text") && args[args.indexOf("--text") + 1].includes("## Crank") === newerRequest))
+  }
   const cranked = fixture("crank-success", { crank: true })
   const crankedOperations = []
   const crankedResult = await relaySession({ repoRoot: cranked.checkout, sessionId: "predecessor", execute: executeFor(cranked.checkout, { commands: crankedOperations }), wait: async () => {}, confirmMilliseconds: 10 })

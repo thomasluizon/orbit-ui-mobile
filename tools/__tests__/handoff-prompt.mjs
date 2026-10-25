@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs"
 import { join } from "node:path"
 
 import { parseHandoffRequest, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../lib/handoff-prompt.mjs"
+import { readRunState, writeRunState } from "../lib/run-state.mjs"
 
 import { T, root } from "./_harness.mjs"
 
@@ -89,4 +90,14 @@ export const cases = () => {
   T(`${UNIT}: an unrecorded session reads as no request`, readHandoffRequest("s1", repoRoot) === null)
   recordHandoffRequest("s1", { command: "handoff", sleep: true }, "2026-01-01T00:00:00Z", repoRoot)
   T(`${UNIT}: a recorded request is read back for its own session`, readHandoffRequest("s1", repoRoot)?.sleep === true && readHandoffRequest("s2", repoRoot) === null)
+  recordHandoffRequest("s1", { command: "wrap-up", sleep: true, crank: true }, "2026-01-01T00:01:00Z", repoRoot)
+  T(`${UNIT}: crank intent without a run never initializes the sleep lifecycle`, readRunState(repoRoot) === null)
+  writeRunState({ sessionId: "s1", crank: false, sleep: false, remaining: ["#1"], relay: { pending: false } }, repoRoot)
+  recordHandoffRequest("s2", { command: "handoff", sleep: true, crank: true }, "2026-01-01T00:02:00Z", repoRoot)
+  T(`${UNIT}: another session cannot enable the run`, readRunState(repoRoot).crank === false)
+  recordHandoffRequest("s1", { command: "wrap-up", sleep: true, crank: true }, "2026-01-01T00:03:00Z", repoRoot)
+  const enabled = readRunState(repoRoot)
+  T(`${UNIT}: a newer explicit request enables the matching run and preserves its lifecycle`, enabled.crank === true && enabled.sleep === false && enabled.remaining[0] === "#1" && enabled.relay.pending === false)
+  recordHandoffRequest("s1", { command: "handoff", sleep: true, crank: false }, "2026-01-01T00:04:00Z", repoRoot)
+  T(`${UNIT}: an ordinary handoff request never disables an active crank mode`, readRunState(repoRoot).crank === true)
 }
