@@ -77,6 +77,8 @@ export const cases = () => {
   T(`${UNIT}: crank requires its section`, validateHandoffPrompt(sleepPrompt, { crank: true }).some((item) => item.includes("## Crank")))
   T(`${UNIT}: a crank section must invoke the skill`, validateHandoffPrompt(`${sleepPrompt}\n## Crank\nContinue quickly.`, { crank: true }).some((item) => item.includes("/crank")))
   T(`${UNIT}: a command outside the crank section does not satisfy it`, validateHandoffPrompt(`${sleepPrompt}\nInvoke /crank.\n## Crank\nContinue.`, { crank: true }).length > 0)
+  T(`${UNIT}: a different heading cannot stand in for Crank`, validateHandoffPrompt(crankPrompt.replace("## Crank", "## Crankiness"), { crank: true }).some((item) => item.includes("## Crank")))
+  T(`${UNIT}: a skill path is not a crank invocation`, validateHandoffPrompt(crankPrompt.replace("Invoke /crank immediately", "Read /crank/SKILL.md immediately"), { crank: true }).some((item) => item.includes("/crank")))
   T(`${UNIT}: a complete crank prompt passes`, validateHandoffPrompt(crankPrompt, { crank: true }).length === 0)
   T(`${UNIT}: crank implies the literal sleep first line`, validateHandoffPrompt(crankPrompt.replace("/sleep\n", "# Next\n"), { sleep: false, crank: true }).some((item) => item.includes("first line")))
   T(`${UNIT}: crank implies the sleep section`, validateHandoffPrompt(crankPrompt.replace("## Sleep", "## Attended"), { crank: true }).some((item) => item.includes("## Sleep")))

@@ -70,7 +70,7 @@ export const parseHandoffRequest = (prompt) => {
 const headingLine = (lines, prefix) => lines.findIndex((line) => line.startsWith(prefix))
 
 const sectionBody = (lines, prefix) => {
-  const start = headingLine(lines, prefix)
+  const start = lines.findIndex((line) => line.trimEnd() === prefix)
   if (start < 0) return null
   const end = lines.findIndex((line, index) => index > start && line.startsWith("## "))
   return lines.slice(start + 1, end < 0 ? lines.length : end).join("\n")
