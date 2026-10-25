@@ -33,6 +33,10 @@ export const useChatStore = create<WebChatStoreState>((set) => ({
   resetAccountScopedChat: () => {
     forgetStoredDraft()
     set({
+      queuedPrompts: [],
+      queuePaused: false,
+      queueReady: false,
+      replyActive: false,
       messages: [],
       proactiveEntryId: null,
       proactiveOutcomes: {},

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProactiveItem } from './factories'
 import type { ChatStoreState } from '../stores/chat-store'
 import { buildRecentChatHistory } from '../utils/chat-history'
@@ -292,5 +292,35 @@ describe('shared chat store', () => {
 
     clearContextualSuggestionIfCurrent(store.getState(), 'habit-2')
     expect(store.getState().contextualSuggestion).toBeNull()
+  })
+})
+
+describe('prompt queue', () => {
+  it('caps waiting prompts at three, removes a row and takes the oldest once', () => {
+    const store = createStoreHarness()
+    const send = vi.fn(async () => true)
+    for (const id of ['first', 'second', 'third']) {
+      expect(store.getState().enqueuePrompt({ id, content: id, send })).toBe(true)
+    }
+    expect(store.getState().enqueuePrompt({ id: 'fourth', content: 'fourth', send })).toBe(false)
+    store.getState().removeQueuedPrompt('second')
+    expect(store.getState().queuedPrompts.map(prompt => prompt.id)).toEqual(['first', 'third'])
+    expect(store.getState().takeQueuedPrompt('first')?.id).toBe('first')
+    expect(store.getState().takeQueuedPrompt('first')).toBeNull()
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('retains queued prompts during replies and pauses after failure', () => {
+    const store = createStoreHarness()
+    store.getState().enqueuePrompt({ id: 'next', content: 'Next', send: async () => true })
+    store.getState().beginReply()
+    expect(store.getState().takeQueuedPrompt('next')).toBeNull()
+    store.getState().finishReply(false)
+    expect(store.getState()).toMatchObject({ queuePaused: true, queueReady: false })
+    expect(store.getState().queuedPrompts).toHaveLength(1)
+    store.getState().beginReply()
+    store.getState().finishReply(true)
+    expect(store.getState()).toMatchObject({ queuePaused: false, queueReady: true })
+    expect(store.getState().takeQueuedPrompt('next')?.content).toBe('Next')
   })
 })

@@ -22,6 +22,10 @@ export const useChatStore = create<MobileChatStoreState>((set) => ({
       captureError(error)
     }
     set({
+      queuedPrompts: [],
+      queuePaused: false,
+      queueReady: false,
+      replyActive: false,
       messages: [],
       proactiveEntryId: null,
       proactiveOutcomes: {},

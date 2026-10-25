@@ -6,7 +6,22 @@ type ChatStoreSet = {
   (state: ChatStoreState | ((state: ChatStoreState) => ChatStoreState), replace: true): void
 }
 
+export interface QueuedPrompt {
+  id: string
+  content: string
+  send: () => Promise<boolean>
+}
+
 export interface ChatStoreState {
+  queuedPrompts: QueuedPrompt[]
+  queuePaused: boolean
+  queueReady: boolean
+  replyActive: boolean
+  enqueuePrompt: (prompt: QueuedPrompt) => boolean
+  removeQueuedPrompt: (id: string) => void
+  takeQueuedPrompt: (id: string) => QueuedPrompt | null
+  beginReply: () => void
+  finishReply: (succeeded: boolean) => void
   messages: ChatMessage[]
   proactiveEntryId: string | null
   clearProactiveEntry: (id: string) => void
@@ -48,6 +63,35 @@ export function prepareChatRequest(
 
 export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
   return {
+    queuedPrompts: [],
+    queuePaused: false,
+    queueReady: false,
+    replyActive: false,
+    enqueuePrompt: (prompt) => {
+      let accepted = false
+      set((state) => {
+        if (state.queuedPrompts.length >= 3) return {}
+        accepted = true
+        return { queuedPrompts: [...state.queuedPrompts, prompt] }
+      })
+      return accepted
+    },
+    removeQueuedPrompt: (id) => set((state) => ({
+      queuedPrompts: state.queuedPrompts.filter(prompt => prompt.id !== id),
+    })),
+    takeQueuedPrompt: (id) => {
+      let prompt: QueuedPrompt | null = null
+      set((state) => {
+        if (state.replyActive || state.isTyping || state.streamingMessageId !== null) return {}
+        prompt = state.queuedPrompts.find(queued => queued.id === id) ?? null
+        return prompt ? { queuedPrompts: state.queuedPrompts.filter(queued => queued.id !== id), queueReady: false, queuePaused: false } : {}
+      })
+      return prompt
+    },
+    beginReply: () => set({ replyActive: true, queueReady: false }),
+    finishReply: (succeeded) => set((state) => ({
+      replyActive: false, queueReady: succeeded, queuePaused: !succeeded && state.queuedPrompts.length > 0,
+    })),
     messages: [],
     proactiveEntryId: null,
     clearProactiveEntry: (id) => set((state) => state.proactiveEntryId === id ? { proactiveEntryId: null } : {}),
