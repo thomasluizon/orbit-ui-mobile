@@ -63,7 +63,7 @@ API_AVAILABLE(macos(10.14)) static OrbitPushDelegate *notificationDelegate;
 
 void orbit_push_init(OrbitPushCallback handler) {
     callback = handler;
-    if (@available(macOS 10.14, *)) {} else { return; }
+    if (@available(macOS 10.14, *)) {
     if (!configured()) return;
     notificationDelegate = [OrbitPushDelegate new];
     UNUserNotificationCenter.currentNotificationCenter.delegate = notificationDelegate;
@@ -71,6 +71,7 @@ void orbit_push_init(OrbitPushCallback handler) {
     BOOL tokenAdded = class_addMethod(delegateClass, @selector(application:didRegisterForRemoteNotificationsWithDeviceToken:), (IMP)registered, "v@:@@");
     BOOL failureAdded = class_addMethod(delegateClass, @selector(application:didFailToRegisterForRemoteNotificationsWithError:), (IMP)failed, "v@:@@");
     installed = tokenAdded && failureAdded;
+    }
 }
 
 static void finish(UNAuthorizationStatus status, BOOL token) API_AVAILABLE(macos(10.14));
@@ -82,7 +83,7 @@ static void finish(UNAuthorizationStatus status, BOOL token) {
 }
 
 void orbit_push_request(BOOL prompt, BOOL token) {
-    if (@available(macOS 10.14, *)) {} else { emit(0, @""); return; }
+    if (@available(macOS 10.14, *)) {
     if (!configured()) { emit(0, @""); return; }
     if (!installed) { emit(7, @""); return; }
     UNUserNotificationCenter *center = UNUserNotificationCenter.currentNotificationCenter;
@@ -94,15 +95,17 @@ void orbit_push_request(BOOL prompt, BOOL token) {
             }];
         } else finish(settings.authorizationStatus, token);
     }];
+    } else { emit(0, @""); }
 }
 
 BOOL orbit_push_stop(void) {
-    if (@available(macOS 10.14, *)) {} else { return YES; }
+    if (@available(macOS 10.14, *)) {
     if (!configured()) return YES;
     dispatch_sync(dispatch_get_main_queue(), ^{
         [NSApp unregisterForRemoteNotifications];
         [UNUserNotificationCenter.currentNotificationCenter removeAllDeliveredNotifications];
     });
+    }
     return YES;
 }
 
