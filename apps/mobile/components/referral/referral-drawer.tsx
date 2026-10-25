@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react'
 import {
   AccessibilityInfo,
   ActivityIndicator,
+  Platform,
   Pressable,
   Share,
   StyleSheet,
@@ -52,7 +53,7 @@ function LoadedContent({
   onCopy,
 }: Readonly<LoadedContentProps>) {
   const { t } = useTranslation()
-  const reward = selectReferralReward(stats)
+  const reward = selectReferralReward(stats, Platform.OS !== 'ios')
   const progress = stats && stats.maxReferrals > 0
     ? stats.successfulReferrals / stats.maxReferrals
     : 0
@@ -147,7 +148,7 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
   const [copied, setCopied] = useState(false)
   const [failedAction, setFailedAction] = useState<'copy' | 'share' | null>(null)
   const isLoaded = !isLoading && !isError
-  const reward = selectReferralReward(stats)
+  const reward = selectReferralReward(stats, Platform.OS !== 'ios')
 
   const shareLink = useCallback(async () => {
     if (!referralUrl) return

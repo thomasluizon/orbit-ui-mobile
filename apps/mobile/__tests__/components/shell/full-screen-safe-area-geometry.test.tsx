@@ -65,7 +65,7 @@ vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => (
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({}), useMarkAllNotificationsRead: () => ({}), useDeleteNotification: () => ({}), useDeleteAllNotifications: () => ({}) }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
 vi.mock('@/hooks/use-billing', () => ({ useBilling: () => ({ isLoading: true, refetch: vi.fn() }) }))
-vi.mock('@/hooks/use-play-billing', () => ({ usePlayBilling: () => ({ clearError: vi.fn() }) }))
+vi.mock('@/hooks/store-billing-provider', () => ({ useStoreBilling: () => ({ clearError: vi.fn() }) }))
 vi.mock('@/hooks/use-subscription-plans', async (original) => ({ ...await original<typeof import('@/hooks/use-subscription-plans')>(), useSubscriptionPlans: () => ({ isLoading: true, refetch: vi.fn() }) }))
 vi.mock('@/hooks/use-subscription-status', () => ({ useSubscriptionStatus: () => ({ isLoading: true, refetch: vi.fn() }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))

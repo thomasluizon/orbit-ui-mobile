@@ -125,12 +125,11 @@ async function verifyFixture(api, account, fixture, today) {
   }
 }
 
-export async function resetFixture(test) {
+export async function resetFixture(test, today = new Date().toISOString().slice(0, 10)) {
   const fixture = test.metadata.fixture
   if (!fixtures.has(fixture)) throw new Error('Unknown fixture.')
   const key = test.vars.credentialKey
   const api = publicApi(key)
-  const today = new Date().toISOString().slice(0, 10)
   const { payload: profile } = await api('GET', 'profile')
   if (process.env.ORBIT_EVAL_BASE_URL !== disposableStagingOrigin
     || typeof profile?.email !== 'string' || !/^thomaslrgregorio\+orbit-eval-[a-z0-9-]+@gmail\.com$/.test(profile.email)) {

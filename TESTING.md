@@ -311,9 +311,10 @@ The invocation follows the installed `codex exec --help` and
 
 The budget case expects HTTP 403 with the verified `PAY_GATE` error code and grades only the
 natural-language `error` text. Other cases expect HTTP 200 and either final text or a valid typed block, preview or outcome.
-The HTTP provider wrapper removes the transport status from promptfoo's abort check only for an expected,
-request-bound budget refusal. Its actual 403 remains in the assertion output and attempt report;
-unexpected authentication failures and unrelated refusals still fail or abort the run.
+The HTTP provider wrapper removes transport status from promptfoo's run-wide abort check for every
+response, retaining it as `metadata.astraHttpStatus` and in the private attempt report. HTTP errors
+fail their own attempts while later cases continue. Rate-limit responses disable scheduler retries.
+Only an expected, request-bound `PAY_GATE` refusal can pass the budget assertions.
 A block-only answer may omit `aiMessage` or return it empty.
 Authentication errors, unrelated refusals, throttling, and transport failures cannot pass as a
 budget refusal. The corpus does not infer a successful mutation from a plausible answer.
@@ -323,11 +324,13 @@ budget refusal. The corpus does not infer a successful mutation from a plausible
 Every case runs three times with caching and HTTP retries disabled. A case passes `pass^3`
 only when all three attempts pass all assertions with complete required evidence.
 `reports/summary.json` and `reports/summary.md` contain only case IDs, family and locale labels, and counts.
-Before deciding the gate, the harness also writes private `reports/results.json` with each attempt's
+After each graded attempt, the harness atomically replaces private `reports/results.json` with each attempt's
 case ID, one-based repeat ordinal within that case, pass state, HTTP status, failure reason, and every
 assertion's metric, pass state and reason. Unknown status, metric or reason is null.
 The file has mode 600 and survives a failed or incomplete gate even when promptfoo does not write
-its requested output file. Reasons can contain private answer details: keep this file local and
+its requested output file. Summaries update after each attempt too; a later fixture or refresh failure
+preserves completed attempts and leaves unrun cases incomplete. Starting a run clears the prior reports.
+Reasons can contain private answer details: keep this file local and
 do not upload it. Copy it into each private window directory before the next run replaces it.
 Each family and locale also receives a pass^3 aggregate; any failing or incomplete case prevents its pass. The Action
 publishes these summaries and a job summary. It does not upload raw responses or a promptfoo
@@ -349,17 +352,23 @@ the capacity case's Stretch proposal; allowing a tool name alone never authorize
 declared operation permits one call; duplicate writes fail even without a `counts` entry.
 `argumentsAnyOf` accepts verified alternative argument forms, such as the bulk tools'
 `habit_ids` and `filter.habit_ids` inputs. Their catalog schemas require exactly one non-null
-selector. Top-level `habit_ids` requires an omitted `filter`; an explicit `filter: null` is
-rejected. An object `filter` permits omitted or null top-level `habit_ids`. Additional arguments
-such as `date` remain permitted.
+selector. The unused selector may be omitted or null. `required[].anyOf` accepts one scoped
+operation from its alternatives, such as a voice request using either a single tool or one bulk
+preview for the same sole target. It authorizes one call across those alternatives, never both.
 `allowed` restricts ambiguity and guardrail cases to read or ask tools.
 The `llm-rubric` assertion receives only `answer`, never the eval trace, tool arguments or execution
 payloads. For a block or operation answer, `answer` is a final rendered-answer projection: ordered
-parts, preview display fields, outcome surfaces, related actions and follow-ups. It excludes query
-tokens, state fingerprints, canonical proposed values and duplicate operation read blocks. Empty
+parts, preview display fields, outcome surfaces, related actions and follow-ups. Preview projections
+retain item titles, proposed field values, list contents, parent choice labels and target counts.
+Operation-level `displayName` and `summary` are internal capability and audit text, so they never
+reach the grader. Both consumers derive localized preview chrome from the shared card presentation.
+The projection excludes query tokens, state fingerprints and duplicate operation read blocks. Empty
 prose is valid. The rubric compares external text with displayed blocks to catch repeated figures,
 including semantic paraphrases. Canonical dates in typed payloads remain transport values; locale
 date formatting still requires rendered consumer acceptance.
+The rubric explicitly receives `vars.accountDate` in UTC, captured once for the attempt and passed
+to the fixture reset. Fixtures set the account timezone to UTC. Relative dates use that account
+date even when the grader host has a different local date.
 
 `beforeEach` generates a new UUID after the fixture reset. The HTTP provider sends it as
 `X-Orbit-Request-Id`, alongside `X-Orbit-Eval-Trace: 1`. The response adapter reads the
@@ -485,9 +494,15 @@ rendered consumers; this harness change does not unblock broad rollout by itself
    Compound cases require every tool and its key arguments. Bulk cases require exactly one bulk
    call and forbid its single-item counterpart. Ambiguity cases allow only appropriate reads
    and asks; the rubric requires a question rather than action.
-3. Extend `catalog.yaml` for newly covered tools using verified API schemas. It contains
-   structural projections of relevant argument fields, permits additional fields, and is used
-   only by the validator. It never changes the tools exposed by the Astra server.
+3. Regenerate `catalog.yaml` from a settled API checkout with
+   `node evals/astra/generate-catalog.mjs <orbit-api checkout>`. This requires the API's .NET SDK
+   and restored package access. The exporter builds into a private temporary artifacts directory,
+   reads the real application tool schemas and the API's `StrictToolSchema` conversion, and leaves
+   the API checkout unchanged. It preserves optional omission and accepts the null values the
+   server's strict schemas permit, including nested objects. It retains executor schema constraints
+   and adds the non-null selector exclusivity enforced by `BulkHabitToolArguments.ParseActionFilter`.
+   The complete generated catalog classifies every application chat tool's write status and rejects
+   unknown arguments. It is used only by the validator and never changes server tools.
 4. Run `npm test --prefix evals/astra`. Its Vitest tests execute the actual promptfoo CLI with
    local providers: a correct case passes all three trials, a deliberately wrong ID fails all
    three, missing evidence is incomplete, and the rubric grader rejects leaked trace content.
@@ -526,6 +541,19 @@ provider `context.vars`, then calls the response transform with only
 `cache-rHaLG5Fo.js` serializes response headers into a lowercase string map. The regression
 suite drives these installed interfaces with fetch interception and source-derived response
 fixtures; no server or live model is used.
+
+The generated tool catalog is derived from orbit-api revision
+`e19ecc99915752866db211786f8005cb88528020`: `IAiTool.cs`, `AiToolRegistry.cs`, every
+application chat tool's `GetParameterSchema`, `BulkHabitToolArguments.cs` and
+`src/Orbit.Infrastructure/AI/StrictToolSchema.cs`. The export command above recompiles those
+sources without writing into the API checkout. `http-provider.mjs` follows the pinned
+`providers-Bn5yoNPJ.js` HTTP response construction, `fetch-C5riNk7b.js` rate-limit error
+construction and `shared-B6JP5nof.js` scheduler's `rateLimitRetryable` handling. The installed
+`index.js` and `evaluatorHelpers-Cge53Cnd.js` supply the `afterEach` result contract.
+Preview field selection follows both `apps/web/components/chat/pending-operation-card.tsx`
+and `apps/mobile/components/chat/pending-operation-card.tsx`, their shared
+`pending-operation-card-view.ts`, `pending-operation-card.ts` and
+`pending-operation-item-summary.ts` under `packages/shared/src/chat`.
 
 ## orbit-api
 

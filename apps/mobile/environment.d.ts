@@ -1,5 +1,8 @@
 declare namespace NodeJS {
   interface ProcessEnv {
+    EXPO_PUBLIC_APPLE_CLIENT_ID?: string
+    EXPO_PUBLIC_APP_STORE_MONTHLY_PRODUCT_ID?: string
+    EXPO_PUBLIC_APP_STORE_YEARLY_PRODUCT_ID?: string
     EXPO_PUBLIC_API_BASE?: string
     EXPO_PUBLIC_POSTHOG_KEY?: string
     EXPO_PUBLIC_SENTRY_DSN?: string

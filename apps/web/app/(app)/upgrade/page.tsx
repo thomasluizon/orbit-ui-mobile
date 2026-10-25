@@ -9,6 +9,8 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 import {
   getTrialDaysLeft,
+  getSubscriptionBillingProvider,
+  shouldFetchStripeBilling,
   resolveSubscriptionScreen,
   resolveUpgradeHeader,
   playManageSubscriptionUrl,
@@ -71,14 +73,13 @@ export default function UpgradePage() {
     discountedAmount,
   } = useSubscriptionPlans()
 
-  const isManageView = Boolean(status?.hasProAccess && !status.isTrialActive)
-  const isStripeBilling = isManageView && status?.source !== 'play' && !status?.isLifetimePro
+  const provider = getSubscriptionBillingProvider(status)
   const {
     billing,
     isLoading: isBillingLoading,
     isError: isBillingError,
     refetch: refetchBilling,
-  } = useBilling(isStripeBilling)
+  } = useBilling(shouldFetchStripeBilling(status, 'web'))
 
   const { checkout: handleCheckout, checkoutLoading, checkoutError } = useStripeCheckout()
   const { hasReturnError, isSettling, retryReturn } = useStripeCheckoutReturn()
@@ -139,7 +140,8 @@ export default function UpgradePage() {
 
     setPortalState('opening')
     try {
-      if (status?.source === 'play') {
+      if (provider === 'app_store') return
+      if (provider === 'play') {
         const packageName = process.env.NEXT_PUBLIC_PLAY_PACKAGE_NAME
         if (!packageName) throw new Error('Missing NEXT_PUBLIC_PLAY_PACKAGE_NAME')
         globalThis.sessionStorage.setItem(PORTAL_RETURN_KEY, intendedAccountId)
@@ -163,7 +165,7 @@ export default function UpgradePage() {
       }
       setPortalState('failed')
     }
-  }, [isOnline, setPortalState, showPersistentError, status, t])
+  }, [isOnline, setPortalState, showPersistentError, provider, t])
 
 
   const retryLoad = () => {
@@ -216,11 +218,12 @@ export default function UpgradePage() {
         />
       </div>
     )
-  } else if (model.content === 'play') {
+  } else if (model.content === 'play' || model.content === 'app_store') {
     content = (
       <div className="flex flex-col gap-6">
         <PlayBillingDashboard
           state={model.state}
+          provider={model.content === 'app_store' ? 'app_store' : 'play'}
           onManagePlay={() => void handleOpenPortal()}
           status={status}
           locale={locale}

@@ -1,4 +1,5 @@
 export {
+  IconBrandAppleFilled as AppleMark,
   IconPlayerSkipForward as SkipForward,
   IconCircle as Circle,
   IconAlertTriangle as AlertTriangle,

@@ -88,7 +88,7 @@ describe('real promptfoo CLI with an offline provider', () => {
 })
 
 describe('HTTP provider wiring without a server', () => {
-  it.each(['budget', 'unexpected-refusal', 'unrelated-refusal', 'unauthorized', 'wrong-request'])(
+  it.each(['budget', 'unexpected-refusal', 'unrelated-refusal', 'unauthorized', 'wrong-request', 'throttled', 'server-error', 'not-found', 'not-json', 'reset-stop'])(
     'the real HTTP pipeline continues after an expected budget refusal and fails other refusals: %s', (mode) => {
       offlineCredentials()
       const directory = mkdtempSync(resolve(tmpdir(), 'astra-http-eval-'))
@@ -104,7 +104,9 @@ describe('HTTP provider wiring without a server', () => {
           assert: configuration.defaultTest.assert.map((assertion) => assertion.type === 'javascript'
             ? { ...assertion, value: assertion.value.replace('file://', `file://${root}/`) } : assertion),
         },
-        tests: [mode, 'healthy'].map((input) => ({ metadata: { id: input, fixture: 'pro', locale: 'en' }, vars: {
+        tests: (mode === 'reset-stop' ? ['healthy', mode] : [mode, 'healthy']).map((input) => ({ metadata: {
+          id: input, fixture: input === 'reset-stop' ? 'unknown' : 'pro', locale: 'en',
+        }, vars: {
           input, credentialKey: 'ORBIT_EVAL_TOKEN', expectedHttpStatus: ['budget', 'unrelated-refusal', 'wrong-request'].includes(input) ? 403 : 200,
           expectations: { allowed: [] }, rubric: 'Describe the result.',
         } })),
@@ -114,10 +116,21 @@ describe('HTTP provider wiring without a server', () => {
         'eval', '--config', configPath, '--no-write', '--no-share', '--no-cache', '--no-table'], {
         cwd: directory, encoding: 'utf8', timeout: 45000,
         env: { ...process.env, ORBIT_EVAL_BASE_URL: 'https://orbit-api-staging-uqu2.onrender.com', ORBIT_EVAL_GRADER: 'offline',
+          ASTRA_TEST_REQUEST_LOG: resolve(directory, 'requests.txt'),
           PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'), PROMPTFOO_DISABLE_TELEMETRY: '1', PROMPTFOO_DISABLE_SHARING: '1' },
       })
       expect(run.error, run.stdout + run.stderr).toBeUndefined()
-      if (mode === 'budget') {
+      expect(readFileSync(resolve(directory, 'requests.txt'), 'utf8').trim().split('\n')).toHaveLength(mode === 'reset-stop' ? 3 : 6)
+      if (mode === 'reset-stop') {
+        expect(run.status, run.stdout + run.stderr).not.toBe(0)
+        expect(run.stdout + run.stderr).toContain('Fixture reset failed for reset-stop')
+        const attempts = JSON.parse(readFileSync(resolve(directory, 'reports/results.json'), 'utf8'))
+        expect(attempts).toHaveLength(3)
+        expect(attempts.every(({ caseId, pass }) => caseId === 'healthy' && pass)).toBe(true)
+        const summary = JSON.parse(readFileSync(resolve(directory, 'reports/summary.json'), 'utf8'))
+        expect(summary.status).toBe('incomplete')
+        expect(summary.cases.map(({ attempts }) => attempts)).toEqual([3, 0])
+      } else if (mode === 'budget') {
         expect(run.status, run.stdout + run.stderr).toBe(0)
         const summary = JSON.parse(readFileSync(resolve(directory, 'reports/summary.json'), 'utf8'))
         expect(summary.cases.map(({ attempts, passed }) => ({ attempts, passed }))).toEqual([
@@ -127,7 +140,13 @@ describe('HTTP provider wiring without a server', () => {
         expect(attempts.map(({ httpStatus }) => httpStatus)).toEqual([403, 403, 403, 200, 200, 200])
       } else {
         expect(run.status, run.stdout + run.stderr).not.toBe(0)
-        expect(run.stdout + run.stderr).toMatch(mode === 'unauthorized' ? /HTTP call failed with status 401/ : /Target returned HTTP 403/)
+        expect(run.stdout + run.stderr).not.toContain('Aborting scan')
+        const attempts = JSON.parse(readFileSync(resolve(directory, 'reports/results.json'), 'utf8'))
+        expect(attempts).toHaveLength(6)
+        const status = ({ unauthorized: 401, throttled: 429, 'server-error': 500, 'not-found': 404, 'not-json': 502 })[mode] ?? 403
+        expect(attempts.map(({ httpStatus }) => httpStatus)).toEqual([status, status, status, 200, 200, 200])
+        expect(attempts.slice(0, 3).every(({ pass }) => !pass)).toBe(true)
+        expect(attempts.slice(3).every(({ pass }) => pass)).toBe(true)
       }
     },
   )

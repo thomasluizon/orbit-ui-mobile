@@ -82,11 +82,14 @@ beforeEach(() => {
   mocks.rawCallbackUrl = 'https://app.useorbit.org/auth-callback?code=old'
   mocks.pendingGoogleSession = { callbackUrl: mocks.rawCallbackUrl, isPending: false,
     returnUrlAttemptId: 'attempt-1' }
+  trackLoginEpoch()
 })
 
 function trackLoginEpoch() {
   let epoch = 0
-  mocks.login.mockImplementation(() => {
+  mocks.getSessionGeneration.mockImplementation(() => ({ epoch, credentialVersion: epoch }))
+  mocks.login.mockImplementation((_token: string, _refreshToken: string | null, _user: unknown, expectedEpoch?: number) => {
+    if (expectedEpoch !== undefined && expectedEpoch !== epoch) return Promise.resolve(null)
     const ownedEpoch = ++epoch
     return Promise.resolve(() => epoch === ownedEpoch)
   })
@@ -162,7 +165,6 @@ it('keeps a newer flow return URL while the older callback waits for login', asy
 it('waits for the pending Google session before claiming a raw callback', async () => {
   mocks.pendingGoogleSession = { callbackUrl: null, isPending: true, returnUrlAttemptId: 'attempt-2' }
   mocks.isAuthReturnUrlAttemptCurrent.mockImplementation((id: string) => id === 'attempt-2')
-  mocks.login.mockResolvedValue(() => true)
   let renderer!: { update: (element: React.ReactElement) => void }
   await TestRenderer.act(async () => {
     renderer = TestRenderer.create(<AuthCallbackScreen />)
@@ -239,7 +241,6 @@ it('keeps the replacement return URL during reactivated Google continuation clea
 it.each(['/calendar?import=1', '/calendar?mode=review'])('returns a reactivated account to %s', async (returnUrl) => {
   mocks.completeGoogleAuthFromUrl.mockResolvedValue({ token: 'access', refreshToken: 'refresh',
     userId: 'user-1', name: 'A', email: 'a@example.com', wasReactivated: true })
-  mocks.login.mockResolvedValue(() => true)
   mocks.getStoredAuthReturnUrl.mockResolvedValue(returnUrl)
   await mountCallback()
   await vi.waitFor(() => expect(mocks.callbackState).toBe('account'))
@@ -251,7 +252,6 @@ it.each(['/calendar?import=1', '/calendar?mode=review'])('returns a reactivated 
 it.each([false, true])('leaves the owning callback on an allowed explicit route, reactivated=%s', async (reactivated) => {
   mocks.completeGoogleAuthFromUrl.mockResolvedValue({ token: 'access', refreshToken: 'refresh',
     userId: 'user-1', name: 'A', email: 'a@example.com', wasReactivated: reactivated })
-  mocks.login.mockResolvedValue(() => true)
   mocks.getStoredAuthReturnUrl.mockResolvedValue(null)
   await mountCallback()
   if (reactivated) {
@@ -259,12 +259,13 @@ it.each([false, true])('leaves the owning callback on an allowed explicit route,
     await TestRenderer.act(async () => { mocks.continueAccount?.(); await Promise.resolve() })
   }
   expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/(tabs)')
+  expect(mocks.getSessionGeneration().epoch).toBe(1)
+  expect(mocks.clearStoredAuthReturnUrl).toHaveBeenCalledWith('attempt-1', expect.any(Function))
   expect(mocks.replace).not.toHaveBeenCalledWith('/')
 })
 
 it.each(['/', '/?source=login', '/login', '/auth-callback?code=old', '/(onboarding)', '//evil.example'])
 ('rejects a return URL that cannot leave the signed-in callback: %s', async (returnUrl) => {
-  mocks.login.mockResolvedValue(() => true)
   mocks.getStoredAuthReturnUrl.mockResolvedValue(returnUrl)
   await mountCallback()
   expect(mocks.replace).toHaveBeenCalledExactlyOnceWith(
