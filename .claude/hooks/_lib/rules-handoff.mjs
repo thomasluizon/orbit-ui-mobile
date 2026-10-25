@@ -2,7 +2,7 @@
 // asked for is refused. The requested mode comes from the owner's prompt or the machine-origin
 // context relay request, so the model cannot talk its way past it.
 
-import { HANDOFF_PROMPT_PATH, validateHandoffPrompt } from "../../../tools/lib/handoff-prompt.mjs"
+import { HANDOFF_PROMPT_PATH, handoffCrank, validateHandoffPrompt } from "../../../tools/lib/handoff-prompt.mjs"
 
 const GIT_COMMIT = /\bgit\b((?:\s+-C\s+(?:"[^"]+"|'[^']+'|\S+))*)[^;&|\n]*?\scommit\b/
 
@@ -19,26 +19,29 @@ const describe = (missing, mode) =>
   `Missing:\n${missing.map((item) => `- ${item}`).join("\n")}\n\n` +
   "Fix the prompt, then commit again. The requirements come from .claude/skills/handoff/SKILL.md.\n"
 
-const modeOf = (request) => (request?.origin === "context-relay" ? "context-relay --sleep" : request?.sleep ? "--sleep" : request ? "attended" : "unrecorded")
+const modeOf = (request, state) => {
+  const mode = request?.origin === "context-relay" ? "context-relay --sleep" : request?.sleep ? "--sleep" : request ? "attended" : "unrecorded"
+  return handoffCrank(request, state) ? `${mode} --crank` : mode
+}
 
 /**
  * Every NEXT.md version a commit could record must comply with the recorded request.
  * `promptsForCommit` returns those versions for the commit's directory, empty when NEXT.md is unchanged.
  */
-export const checkHandoffCommit = ({ command, cwd, request, promptsForCommit }) => {
+export const checkHandoffCommit = ({ command, cwd, request, state, promptsForCommit }) => {
   const directory = gitCommitDirectory(command, cwd)
   if (!directory) return null
   for (const text of promptsForCommit(directory)) {
-    const missing = validateHandoffPrompt(text, { sleep: request ? request.sleep === true : undefined })
-    if (missing.length > 0) return { block: true, message: describe(missing, modeOf(request)) }
+    const missing = validateHandoffPrompt(text, { sleep: request ? request.sleep === true : undefined, crank: handoffCrank(request, state) })
+    if (missing.length > 0) return { block: true, message: describe(missing, modeOf(request, state)) }
   }
   return null
 }
 
 /** After a recorded request, a NEXT.md committed since that request must comply before the session may stop. */
-export const checkHandoffStop = ({ request, headPrompt, headPromptCommittedAt }) => {
+export const checkHandoffStop = ({ request, state, headPrompt, headPromptCommittedAt }) => {
   if (!request || headPrompt === null) return null
   if (!(Date.parse(headPromptCommittedAt) >= Date.parse(request.recordedAt))) return null
-  const missing = validateHandoffPrompt(headPrompt, { sleep: request.sleep === true })
-  return missing.length === 0 ? null : { block: true, message: describe(missing, modeOf(request)) }
+  const missing = validateHandoffPrompt(headPrompt, { sleep: request.sleep === true, crank: handoffCrank(request, state) })
+  return missing.length === 0 ? null : { block: true, message: describe(missing, modeOf(request, state)) }
 }

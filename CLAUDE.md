@@ -97,8 +97,9 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `.claude/skills/ticket/SKILL.md` | GitHub ticket creation, labels, relations, and milestone rules; generated architecture maps are read locally and never committed. |
 | `.claude/skills/orchestrate/SKILL.md` | Ticket execution, worker dispatch, verification, review, readiness and session relay procedures. |
 | `.claude/skills/handoff/SKILL.md` | Spec-driven handoff, living work orders, in-flight inventory and session relay procedures. |
+| `.claude/skills/crank/SKILL.md` | Maximum orchestrator scheduling within existing caps and quality gates, with durable relay inheritance and an explicit disable mode. |
 | `.claude/skills/sleep/SKILL.md` | Unattended orchestrator entry, session adoption and owner reporting. |
-| `.claude/skills/wrap-up/SKILL.md` | Closes a session in one command: `/progress`, then `/questions`, then `/handoff`, with `--sleep` passed through to the last one. An open chain extends both reporting passes across every relay and the current session before owner handoff closes it. |
+| `.claude/skills/wrap-up/SKILL.md` | Closes a session in one command: `/progress`, then `/questions`, then `/handoff`, with `--sleep` and `--crank` passed through to the last one. An open chain extends both reporting passes across every relay and the current session before owner handoff closes it. |
 | `.claude/skills/questions/SKILL.md` | Owner decision criteria and the procedure for unavoidable manual actions. |
 | `.claude/skills/progress/SKILL.md` | Product-level progress reporting from live delivery artifacts. |
 | `.claude/playbooks/redesign-screen.md` | Thirteen-screen D76 loop; D90 suspends human steps 1/3/7/8, keeps 2/4/5/6 and the ui-skills sweep. |

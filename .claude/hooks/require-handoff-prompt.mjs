@@ -4,7 +4,7 @@
 // wedges a shell or a stop.
 
 import { readHandoffRequest } from "../../tools/lib/handoff-prompt.mjs"
-import { REPO_ROOT } from "../../tools/lib/run-state.mjs"
+import { REPO_ROOT, readRunState } from "../../tools/lib/run-state.mjs"
 import { newestCommittedPrompt, promptsForCommit } from "./_lib/handoff-git.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { checkHandoffCommit, checkHandoffStop } from "./_lib/rules-handoff.mjs"
@@ -12,12 +12,14 @@ import { checkHandoffCommit, checkHandoffStop } from "./_lib/rules-handoff.mjs"
 try {
   const input = readStdinJson()
   const request = readHandoffRequest(input?.session_id ?? "")
+  const run = readRunState()
+  const state = run?.sessionId === input?.session_id ? run : null
   let verdict = null
   if (input?.hook_event_name === "Stop") {
     const head = newestCommittedPrompt(REPO_ROOT)
-    verdict = checkHandoffStop({ request, headPrompt: head.text, headPromptCommittedAt: head.committedAt })
+    verdict = checkHandoffStop({ request, state, headPrompt: head.text, headPromptCommittedAt: head.committedAt })
   } else if (typeof input?.tool_input?.command === "string") {
-    verdict = checkHandoffCommit({ command: input.tool_input.command, cwd: input?.cwd || process.cwd(), request, promptsForCommit })
+    verdict = checkHandoffCommit({ command: input.tool_input.command, cwd: input?.cwd || process.cwd(), request, state, promptsForCommit })
   }
   if (verdict?.block) {
     process.stderr.write(verdict.message)
