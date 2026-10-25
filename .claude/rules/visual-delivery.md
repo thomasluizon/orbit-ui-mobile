@@ -34,8 +34,8 @@ D88's per-screen hold. No screen waits for the owner's conversation, inspection 
 judgement against the canvas and `DESIGN.md` under D42, decisions in the ticket before code, a build
 from that ticket, and the ui-skills sweep. Pullfrog and every gate still apply. Screens may merge
 on groundwork terms through the authorized merge workflow; worker merge prohibitions still apply.
-the owner inspects the whole redesign once at the end, on seeded data: web and an APK from
-`redesign/main`. D76 and D88 return when the redesign ships.
+the owner inspects the whole redesign once at the end, on seeded data: web and an APK. D76 and D88
+return when the redesign ships.
 
 Outside D90, each inventoried surface requires **the owner looking at it running**, on seeded data:
 `/dev-server` for web and `/android-generate` for mobile (D76 step 7). A machine judge cannot grant
