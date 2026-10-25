@@ -292,6 +292,9 @@ window using the rotated session prove configuration took effect. There is no au
 
 From `evals/astra`, set `ORBIT_EVAL_GRADER=file://codex-grader.mjs`. Install the Codex CLI on the
 runner and authenticate its existing account session through `codex login` before evaluation;
+the executable must be on the runner's normal `PATH`. The grader removes every `node_modules/.bin`
+entry, including normalized relative entries, before launching the CLI so npm and npx cannot select
+promptfoo's bundled copy. A missing or failing installed CLI fails the rubric closed.
 this provider needs no purchased OpenAI API key. The hosted Action runner does not provision a
 Codex session: selecting this provider there requires an installed, authenticated CLI on that runner.
 The local command is ready to use with the coordinator's authenticated CLI. The provider executes
