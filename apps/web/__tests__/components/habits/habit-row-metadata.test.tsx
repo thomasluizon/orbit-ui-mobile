@@ -52,7 +52,7 @@ describe('integrated row metadata', () => {
     const row = container.querySelector('[data-testid="habit-row"]')!
     const resize = () => act(() => {
       for (const [target, observation] of [...observations]) {
-        const width = target === row ? rowWidth : target.getBoundingClientRect().width
+        const width = target.contains(row) ? rowWidth : target.getBoundingClientRect().width
         const size = { inlineSize: width, blockSize: 52 }
         observation.callback([{
           target, contentRect: new DOMRectReadOnly(0, 0, width, 52),
@@ -75,7 +75,7 @@ describe('integrated row metadata', () => {
       expect(row.querySelectorAll('[data-habit-row-type]')).toHaveLength(1)
       expect(row.querySelector('[data-habit-row-checklist]')?.textContent).toBe('50/50')
       expect(row.querySelector('svg.tabler-icon-list-check')).toHaveAttribute('width', '16')
-      expect(observations.has(row)).toBe(true)
+      expect(observations.has(row.parentElement!)).toBe(true)
       expect(observations.has(row.querySelector('[data-habit-row-title-block]')!)).toBe(true)
       expect([...observations.keys()].every((target) => target.isConnected)).toBe(true)
       if (scenario.supporting) expect(row.querySelector('[data-habit-row-heading] [data-habit-row-meta]')).toBeNull()

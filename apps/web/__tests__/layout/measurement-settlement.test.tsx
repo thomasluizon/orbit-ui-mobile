@@ -163,7 +163,7 @@ async function habitPage(script?: string) {
   return page
 }
 
-it.each([2, 1])('waits for the actual root font before the scale %s resize', async (scale) => {
+it.each([2, 1])('waits for the actual root font before the scale %s resize with constant inner padding on indented cards', async (scale) => {
   const page = await habitPage(habitScript)
   let scaling: Promise<void> | undefined
   try {
@@ -197,7 +197,7 @@ it.each([2, 1])('waits for the actual root font before the scale %s resize', asy
   } finally { await page.close(); await scaling?.catch(() => {}) }
 })
 
-it('waits for both real supporting phases while habit hydration is withheld', async () => {
+it('waits for both real supporting phases on indented cards while habit hydration is withheld', async () => {
   const page = await habitPage()
   let settled = false
   const scaling = setHabitTextScale(page, 2, supportingHabitTitles).then(() => { settled = true })
