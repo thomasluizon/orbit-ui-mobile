@@ -110,16 +110,24 @@ describe('native union accepts both widget callers', () => {
     const packages = { ...lock.packages, 'node_modules/react-native': { version: 'incompatible' } }
     expect(() => requireNativePackages(packages)).toThrow('react-native')
   })
-  it('matches only shared native bridges, registrations and config plugin sources', () => {
+  it('matches audited Android bridges, registrations and config plugin sources', () => {
     for (const [path, hash] of Object.entries(unionSources)) {
       const contents = readFileSync(resolve(mobileRoot, '../..', path))
-      expect(createHash('sha256').update(contents).digest('hex'), path).toBe(hash)
+      if (path === 'apps/mobile/modules/orbit-widget/expo-module.config.json') {
+        const registration = JSON.parse(contents.toString()) as { platforms: string[]; android: { modules: string[] }; apple: { modules: string[] } }
+        expect(registration.apple).toEqual({ modules: ['OrbitWidgetModule'] })
+        expect(registration.platforms.filter((platform) => platform !== 'apple')).toEqual(['android'])
+        expect(registration.android).toEqual({ modules: ['org.useorbit.app.widget.OrbitWidgetModule'] })
+        expect(Object.keys(registration).sort((left, right) => left.localeCompare(right))).toEqual(['android', 'apple', 'platforms'])
+      } else {
+        expect(createHash('sha256').update(contents).digest('hex'), path).toBe(hash)
+      }
     }
   })
   it('registers the audited config plugins', () => {
     const require = createRequire(import.meta.url)
     const config = require('../../app.config.js')() as { plugins: (string | [string, unknown])[] }
-    expect(config.plugins.map(plugin => Array.isArray(plugin) ? plugin[0] : plugin)).toEqual(unionPlugins)
+    expect(config.plugins.map(plugin => Array.isArray(plugin) ? plugin[0] : plugin).filter(plugin => plugin !== './plugins/with-ios-widget')).toEqual(unionPlugins)
   })
   for (const [design, path] of callers) {
     it(`accepts every ${design} widget call with its real argument count`, () => {

@@ -12,11 +12,14 @@ import {
   setToken,
 } from '@/lib/secure-store'
 
-const { getItemAsyncMock, setItemAsyncMock, deleteItemAsyncMock } = vi.hoisted(() => ({
+const { getItemAsyncMock, setItemAsyncMock, deleteItemAsyncMock, clearWidgetTokenMock } = vi.hoisted(() => ({
   getItemAsyncMock: vi.fn(),
   setItemAsyncMock: vi.fn(),
   deleteItemAsyncMock: vi.fn<(key: string) => Promise<void>>(),
+  clearWidgetTokenMock: vi.fn<() => Promise<void>>(),
 }))
+
+vi.mock('@/lib/orbit-widget', () => ({ clearWidgetToken: clearWidgetTokenMock }))
 
 vi.mock('@react-native-async-storage/async-storage', () => {
   const storage = new Map<string, string>()
@@ -54,6 +57,20 @@ describe('mobile secure store helpers', () => {
     await store.setToken('new-token')
     await store.getRefreshToken()
     expect(deleteItemAsyncMock).toHaveBeenCalledTimes(4)
+  })
+
+  it('clears the shared widget Keychain before marking a new iOS install initialized', async () => {
+    Platform.OS = 'ios'
+    await AsyncStorage.clear()
+    vi.resetModules()
+    const store = await import('@/lib/secure-store')
+    clearWidgetTokenMock.mockReset().mockRejectedValueOnce(new Error('Keychain unavailable'))
+    await expect(store.getToken()).rejects.toThrow('Keychain unavailable')
+    expect(await AsyncStorage.getItem('orbit:ios-install')).toBeNull()
+    clearWidgetTokenMock.mockResolvedValue(undefined)
+    await store.getToken()
+    expect(clearWidgetTokenMock).toHaveBeenCalledTimes(2)
+    expect(await AsyncStorage.getItem('orbit:ios-install')).toBe('1')
   })
 
   it('reads and writes auth tokens', async () => {
