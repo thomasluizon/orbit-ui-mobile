@@ -18,9 +18,10 @@ const registration: DesktopPushRegistration = {
 const saved = { ...registration, endpoint: 'https://dm3p.notify.windows.com/?token=previous' }
 let owner: string | null
 let current: DesktopPushRegistration | null
+let pending: { owner: string; registration: DesktopPushRegistration }[]
 
 function snapshot() {
-  return { supported: true, permission: 'granted', owner, registration: current, candidate: registration }
+  return { supported: true, permission: 'granted', owner, registration: current, candidate: registration, pending }
 }
 
 beforeEach(() => {
@@ -29,19 +30,33 @@ beforeEach(() => {
   mocks.generation = 1
   owner = 'account-a'
   current = saved
+  pending = []
   installWebLocks()
   Object.defineProperty(window, '__TAURI_INTERNALS__', { configurable: true, value: { invoke: mocks.invoke } })
   mocks.subscribe.mockResolvedValue(undefined)
   mocks.unsubscribe.mockResolvedValue(undefined)
   mocks.invoke.mockImplementation(async (_command: string, payload: Record<string, unknown>) => {
-    if (payload.action === 'commit') { owner = payload.accountId as string; current = registration }
-    if (payload.action === 'clear') { owner = null; current = null }
+    if (payload.action === 'stage') pending.push({ owner: payload.accountId as string, registration })
+    if (payload.action === 'commit') { owner = payload.accountId as string; current = registration; pending = [] }
+    if (payload.action === 'clear') { owner = null; current = null; pending = [] }
     return snapshot()
   })
 })
 afterEach(() => { Reflect.deleteProperty(window, '__TAURI_INTERNALS__'); vi.unstubAllGlobals() })
 
 describe('desktop push through the native bridge', () => {
+  it('persists the attempted endpoint before the API write so sign-out can revoke an uncertain renewal', async () => {
+    const sequence: string[] = []
+    const native = mocks.invoke.getMockImplementation()!
+    mocks.invoke.mockImplementation(async (command, payload) => {
+      if (payload.action === 'stage' || payload.action === 'commit') sequence.push(payload.action)
+      return native(command, payload)
+    })
+    mocks.subscribe.mockImplementation(async () => { sequence.push('api') })
+    await ensureDesktopPush()
+    expect(sequence).toEqual(['stage', 'api', 'commit'])
+  })
+
   it('renews the saved device on launch without asking for permission', async () => {
     await resumeDesktopPush('account-a')
     expect(mocks.invoke).toHaveBeenCalledWith('desktop_push', { action: 'request', prompt: false })
@@ -59,6 +74,28 @@ describe('desktop push through the native bridge', () => {
     await expect(ensureDesktopPush()).rejects.toBe(conflict)
     expect(mocks.invoke.mock.calls.some(([, payload]) => payload.action === 'commit')).toBe(false)
     expect(current).toBe(saved)
+  })
+
+  it('revokes both possible endpoints after the API accepts renewal but native confirmation fails', async () => {
+    const native = mocks.invoke.getMockImplementation()!
+    mocks.invoke.mockImplementation(async (command, payload) => {
+      if (payload.action === 'commit') throw new Error('Cannot save native confirmation')
+      return native(command, payload)
+    })
+    await expect(ensureDesktopPush()).rejects.toThrow('Cannot save native confirmation')
+    expect((await loadDesktopPush('account-a')).status).toBe('sync-failed')
+    await releaseDesktopPush('account-a')
+    expect(mocks.unsubscribe.mock.calls.map(([payload]) => payload.endpoint)).toEqual([registration.endpoint, saved.endpoint])
+    expect(pending).toEqual([])
+    expect(current).toBeNull()
+  })
+
+  it('pauses the former account when a replacement account owns the session', async () => {
+    mocks.account = 'account-b'
+    await resumeDesktopPush('account-b')
+    expect(mocks.invoke).toHaveBeenCalledWith('desktop_push', { action: 'session', accountId: 'account-b' })
+    expect(current).toBeNull()
+    expect(mocks.subscribe).not.toHaveBeenCalled()
   })
 
   it('does not commit a registration after an account changes during the write', async () => {

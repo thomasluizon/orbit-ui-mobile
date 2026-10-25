@@ -26,6 +26,7 @@ static BOOL configured(void) {
 }
 
 static void registered(id delegate, SEL selector, NSApplication *application, NSData *token) {
+    (void)delegate; (void)selector; (void)application;
     NSMutableString *hex = [NSMutableString stringWithCapacity:token.length * 2];
     const unsigned char *bytes = token.bytes;
     for (NSUInteger index = 0; index < token.length; index++) [hex appendFormat:@"%02x", bytes[index]];
@@ -33,6 +34,7 @@ static void registered(id delegate, SEL selector, NSApplication *application, NS
 }
 
 static void failed(id delegate, SEL selector, NSApplication *application, NSError *error) {
+    (void)delegate; (void)selector; (void)application; (void)error;
     emit(7, @"");
 }
 
@@ -98,5 +100,4 @@ BOOL orbit_push_stop(void) {
 
 void orbit_push_set_active(BOOL enabled) {
     atomic_store(&active, enabled);
-    if (!enabled && configured()) orbit_push_stop();
 }

@@ -30,8 +30,10 @@ pub fn initialize(
     std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
     let bootstrap = directory.join("Microsoft.WindowsAppRuntime.Bootstrap.dll");
     let installer = directory.join("WindowsAppRuntimeInstall.exe");
-    std::fs::write(&bootstrap, include_bytes!(env!("ORBIT_WNS_BOOTSTRAP")))
-        .map_err(|error| error.to_string())?;
+    let embedded = include_bytes!(env!("ORBIT_WNS_BOOTSTRAP"));
+    if std::fs::read(&bootstrap).ok().as_deref() != Some(embedded.as_slice()) {
+        std::fs::write(&bootstrap, embedded).map_err(|error| error.to_string())?;
+    }
     let object_id = CString::new(option_env!("ORBIT_DESKTOP_WNS_OBJECT_ID").unwrap_or(""))
         .map_err(|error| error.to_string())?;
     let path = bootstrap

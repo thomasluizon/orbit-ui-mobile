@@ -26,6 +26,13 @@ const {
 } = await import('@/lib/actions/notifications')
 
 describe('notification server actions', () => {
+  it.each(['org.useorbit.desktop', 'org.useorbit.desktop.staging'] as const)('forwards the append-only native registration fields for %s', async (apnsTopic) => {
+    mockFetch.mockResolvedValue(new Response(null, { status: 200 }))
+    const deviceId = '11111111-1111-4111-8111-111111111111'
+    await subscribePush({ endpoint: 'abcdef012345', keys: { p256dh: 'apns', auth: 'apns' }, apnsTopic, deviceId }, 'account-a')
+    const [, request] = mockFetch.mock.calls[0]!
+    expect(JSON.parse(request.body)).toEqual({ endpoint: 'abcdef012345', p256dh: 'apns', auth: 'apns', apnsTopic, deviceId })
+  })
   beforeEach(() => {
     mockFetch.mockReset()
   })

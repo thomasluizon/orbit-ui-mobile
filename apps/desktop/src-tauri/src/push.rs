@@ -1,6 +1,5 @@
-#[cfg(windows)]
 use crate::push_state::launch_path;
-use crate::push_state::{PushState, Registration};
+use crate::push_state::{PendingRegistration, PushState, Registration};
 use serde::{Deserialize, Serialize};
 use std::{
     path::PathBuf,
@@ -32,6 +31,7 @@ pub enum PushAction {
     Session,
     Status,
     Request,
+    Stage,
     Commit,
     Clear,
 }
@@ -44,6 +44,7 @@ pub struct Snapshot {
     owner: Option<String>,
     registration: Option<Registration>,
     candidate: Option<Registration>,
+    pending: Vec<PendingRegistration>,
 }
 
 pub fn start(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
@@ -107,66 +108,12 @@ fn operate(
 ) -> Result<Snapshot, String> {
     let service = SERVICE.get().ok_or("Push service unavailable")?;
     let _operation = service.operation.lock().unwrap();
-    match action {
-        PushAction::Session => {
-            *service.account.lock().unwrap() = account.clone();
-            let enabled = account.is_some() && service.saved.lock().unwrap().owner == account;
-            unsafe {
-                orbit_push_set_active(enabled);
-            }
-        }
-        PushAction::Commit => {
-            let candidate = service
-                .candidate
-                .lock()
-                .unwrap()
-                .clone()
-                .ok_or("Missing native registration")?;
-            if endpoint.as_deref() != Some(&candidate.endpoint)
-                || account.as_ref().is_none_or(String::is_empty)
-            {
-                return Err("Invalid native registration commit".into());
-            }
-            let mut saved = service.saved.lock().unwrap();
-            let mut next = saved.clone();
-            next.owner = account;
-            next.registration = Some(candidate);
-            next.save(&service.path)
-                .map_err(|error| error.to_string())?;
-            *saved = next;
-            let enabled = saved.owner == *service.account.lock().unwrap();
-            drop(saved);
-            unsafe {
-                orbit_push_set_active(enabled);
-            }
-        }
-        PushAction::Clear => {
-            let mut next = service.saved.lock().unwrap().clone();
-            if next.owner != account {
-                return Err("Native push account changed".into());
-            }
-            next.owner = None;
-            next.registration = None;
-            if !unsafe { orbit_push_stop() } {
-                return Err("Cannot stop native push registration".into());
-            }
-            next.save(&service.path)
-                .map_err(|error| error.to_string())?;
-            *service.saved.lock().unwrap() = next;
-            unsafe {
-                orbit_push_set_active(false);
-            }
-            *service.candidate.lock().unwrap() = None;
-            #[cfg(windows)]
-            service.shown.lock().unwrap().clear();
-        }
-        _ => {}
-    }
+    change_registration(service, &action, account, endpoint)?;
     let token = matches!(action, PushAction::Request);
     let (sender, receiver) = mpsc::channel();
     *service.response.lock().unwrap() = Some(sender);
-    native_request(service, prompt, token)?;
-    let received = wait_for_registration(&receiver, token);
+    let received = native_request(service, prompt, token)
+        .and_then(|()| wait_for_registration(&receiver, token));
     service.response.lock().unwrap().take();
     let (permission, candidate) = received?;
     if let Some(endpoint) = candidate {
@@ -184,7 +131,92 @@ fn operate(
         owner: saved.owner.clone(),
         registration: saved.registration.clone(),
         candidate: service.candidate.lock().unwrap().clone(),
+        pending: saved.pending.clone(),
     })
+}
+
+fn change_registration(
+    service: &PushService,
+    action: &PushAction,
+    account: Option<String>,
+    endpoint: Option<String>,
+) -> Result<(), String> {
+    match action {
+        PushAction::Session => {
+            *service.account.lock().unwrap() = account.clone();
+            let enabled = account.is_some() && service.saved.lock().unwrap().owner == account;
+            if !enabled && !unsafe { orbit_push_stop() } {
+                return Err("Cannot pause native push registration".into());
+            }
+            #[cfg(target_os = "macos")]
+            unsafe {
+                orbit_push_set_active(enabled);
+            }
+        }
+        PushAction::Stage | PushAction::Commit => {
+            let candidate = service
+                .candidate
+                .lock()
+                .unwrap()
+                .clone()
+                .ok_or("Missing native registration")?;
+            if endpoint.as_deref() != Some(&candidate.endpoint)
+                || account.as_ref().is_none_or(String::is_empty)
+                || account != *service.account.lock().unwrap()
+            {
+                return Err("Invalid native registration commit".into());
+            }
+            let mut next = service.saved.lock().unwrap().clone();
+            let owner = account.unwrap();
+            if matches!(action, PushAction::Stage) {
+                next.stage(owner, candidate);
+            } else {
+                next.commit(owner, candidate)?;
+            }
+            next.save(&service.path)
+                .map_err(|error| error.to_string())?;
+            #[cfg(target_os = "macos")]
+            let enabled = next.owner == *service.account.lock().unwrap() && next.pending.is_empty();
+            *service.saved.lock().unwrap() = next;
+            #[cfg(target_os = "macos")]
+            unsafe {
+                orbit_push_set_active(enabled);
+            }
+        }
+        PushAction::Clear => {
+            let mut next = service.saved.lock().unwrap().clone();
+            if account.is_none()
+                || (next.owner != account
+                    && !next
+                        .pending
+                        .iter()
+                        .any(|pending| Some(&pending.owner) == account.as_ref()))
+            {
+                return Err("Native push account changed".into());
+            }
+            if next.owner == account {
+                next.owner = None;
+                next.registration = None;
+            }
+            next.pending
+                .retain(|pending| Some(&pending.owner) != account.as_ref());
+            if !unsafe { orbit_push_stop() } {
+                return Err("Cannot stop native push registration".into());
+            }
+            next.save(&service.path)
+                .map_err(|error| error.to_string())?;
+            *service.saved.lock().unwrap() = next;
+            #[cfg(target_os = "macos")]
+            unsafe {
+                orbit_push_set_active(false);
+            }
+            *service.candidate.lock().unwrap() = None;
+            #[cfg(windows)]
+            service.shown.lock().unwrap().clear();
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 fn wait_for_registration(
@@ -247,12 +279,10 @@ fn receive_value(kind: i32, payload: String) {
     } else if kind == 6 {
         #[cfg(target_os = "macos")]
         if owns_session(service) {
-            if let Err(error) = crate::lifecycle::navigate(
+            open(
                 &service.app,
-                &crate::push_state::apns_launch_path(&payload),
-            ) {
-                eprintln!("Cannot open desktop reminder: {error}");
-            }
+                crate::push_state::apns_destination(&payload).as_deref(),
+            );
         }
         #[cfg(windows)]
         if let Ok(id) = payload.parse::<i32>() {
@@ -311,9 +341,12 @@ fn owns_session(service: &PushService) -> bool {
     account.is_some() && account == service.saved.lock().unwrap().owner
 }
 
-#[cfg(windows)]
 fn open(app: &AppHandle, url: Option<&str>) {
-    if let Err(error) = crate::lifecycle::navigate(app, &launch_path(url)) {
+    let result = match url {
+        Some(url) => crate::lifecycle::navigate(app, &launch_path(Some(url))),
+        None => crate::lifecycle::show_main(app).map_err(Into::into),
+    };
+    if let Err(error) = result {
         eprintln!("Cannot open desktop reminder: {error}");
     }
 }
@@ -323,6 +356,7 @@ unsafe extern "C" {
     fn orbit_push_init(callback: extern "C" fn(i32, *const u8, usize));
     fn orbit_push_request(prompt: bool, token: bool);
     fn orbit_push_stop() -> bool;
+    #[cfg(target_os = "macos")]
     fn orbit_push_set_active(active: bool);
 }
 

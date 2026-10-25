@@ -16,21 +16,23 @@ const snapshotSchema = z.object({
   owner: z.string().nullable(),
   registration: desktopPushRegistrationSchema.nullable(),
   candidate: desktopPushRegistrationSchema.nullable(),
+  pending: z.array(z.object({ owner: z.string(), registration: desktopPushRegistrationSchema })).default([]),
 })
 
 type DesktopSnapshot = z.infer<typeof snapshotSchema>
-async function invoke(action: 'session' | 'status' | 'request' | 'commit' | 'clear', payload: Record<string, unknown> = {}): Promise<DesktopSnapshot> {
+async function invoke(action: 'session' | 'status' | 'request' | 'stage' | 'commit' | 'clear', payload: Record<string, unknown> = {}): Promise<DesktopSnapshot> {
   const native = desktopRuntime()
   if (!native) throw new Error('Desktop push runtime unavailable')
   return snapshotSchema.parse(await native.invoke('desktop_push', { action, ...payload }))
 }
 
 function preference(snapshot: DesktopSnapshot, accountId: string | null): PushPreferenceSnapshot {
-  const subscribed = snapshot.permission === 'granted' && accountId !== null && snapshot.owner === accountId && snapshot.registration !== null
+  const pending = snapshot.pending.some((attempt) => attempt.owner === accountId)
+  const subscribed = snapshot.permission === 'granted' && accountId !== null && snapshot.owner === accountId && snapshot.registration !== null && !pending
   return {
     supported: snapshot.supported, subscribed,
     permission: snapshot.permission === 'unsupported' ? '' : snapshot.permission,
-    status: !snapshot.supported ? 'unsupported' : snapshot.permission === 'denied' ? 'denied' : subscribed ? 'registered' : 'not-registered',
+    status: !snapshot.supported ? 'unsupported' : snapshot.permission === 'denied' ? 'denied' : pending ? 'sync-failed' : subscribed ? 'registered' : 'not-registered',
   }
 }
 
@@ -60,6 +62,7 @@ export async function ensureDesktopPush(accountId = getHeldAccountId(), prompt =
     const snapshot = await invoke('request', { prompt })
     if (!snapshot.candidate || snapshot.permission !== 'granted') return preference(snapshot, accountId)
     assertAccount(accountId, generation)
+    await invoke('stage', { accountId, endpoint: snapshot.candidate.endpoint })
     await subscribePush(subscription(snapshot.candidate), accountId)
     assertAccount(accountId, generation)
     return preference(await invoke('commit', { accountId, endpoint: snapshot.candidate.endpoint }), accountId)
@@ -76,8 +79,15 @@ export async function releaseDesktopPush(accountId: string | null): Promise<void
   if (!accountId) return
   await serializePushSubscriptionMutation(async () => {
     const snapshot = await invoke('status')
-    if (snapshot.owner !== accountId || !snapshot.registration) return
-    await unsubscribePushForCleanup(subscription(snapshot.registration), accountId)
+    const registrations = snapshot.pending.filter((attempt) => attempt.owner === accountId).map((attempt) => attempt.registration)
+    if (snapshot.owner === accountId && snapshot.registration) registrations.push(snapshot.registration)
+    if (registrations.length === 0) return
+    const endpoints = new Set<string>()
+    for (const registration of registrations) {
+      if (endpoints.has(registration.endpoint)) continue
+      await unsubscribePushForCleanup(subscription(registration), accountId)
+      endpoints.add(registration.endpoint)
+    }
     await invoke('clear', { accountId })
   })
 }
@@ -93,7 +103,9 @@ export async function resumeDesktopPush(accountId: string | null): Promise<void>
     })
     return
   }
-  if (snapshot.owner === accountId && snapshot.registration) await ensureDesktopPush(accountId, false)
+  if ((snapshot.owner === accountId && snapshot.registration) || snapshot.pending.some((attempt) => attempt.owner === accountId)) {
+    await ensureDesktopPush(accountId, false)
+  }
 }
 
 export async function desktopEndpoint(): Promise<string | null> {

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::{io::Write, path::Path};
 use uuid::Uuid;
 
 #[cfg(any(windows, test))]
@@ -11,15 +11,14 @@ pub struct RawNotice {
 }
 
 #[cfg(any(target_os = "macos", test))]
-pub fn apns_launch_path(payload: &str) -> String {
+pub fn apns_destination(payload: &str) -> Option<String> {
     let payload = serde_json::from_str::<serde_json::Value>(payload).ok();
-    launch_path(
-        payload
-            .as_ref()
-            .and_then(|payload| payload.get("body"))
-            .and_then(|body| body.get("url"))
-            .and_then(serde_json::Value::as_str),
-    )
+    payload
+        .as_ref()
+        .and_then(|payload| payload.get("body"))
+        .and_then(|body| body.get("url"))
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -33,14 +32,52 @@ pub struct Registration {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
+pub struct PendingRegistration {
+    pub owner: String,
+    pub registration: Registration,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PushState {
     pub device_id: Uuid,
     pub owner: Option<String>,
     pub registration: Option<Registration>,
+    #[serde(default)]
+    pub pending: Vec<PendingRegistration>,
 }
 
 impl PushState {
+    pub fn stage(&mut self, owner: String, registration: Registration) {
+        if !self
+            .pending
+            .iter()
+            .any(|pending| pending.owner == owner && pending.registration == registration)
+        {
+            self.pending.push(PendingRegistration {
+                owner,
+                registration,
+            });
+        }
+    }
+
+    pub fn commit(
+        &mut self,
+        owner: String,
+        registration: Registration,
+    ) -> Result<(), &'static str> {
+        if !self
+            .pending
+            .iter()
+            .any(|pending| pending.owner == owner && pending.registration == registration)
+        {
+            return Err("Native registration was not staged");
+        }
+        self.pending.retain(|pending| pending.owner != owner);
+        self.owner = Some(owner);
+        self.registration = Some(registration);
+        Ok(())
+    }
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         match std::fs::read(path) {
             Ok(bytes) => Ok(serde_json::from_slice(&bytes)?),
@@ -49,6 +86,7 @@ impl PushState {
                     device_id: Uuid::new_v4(),
                     owner: None,
                     registration: None,
+                    pending: Vec::new(),
                 };
                 state.save(path)?;
                 Ok(state)
@@ -58,8 +96,12 @@ impl PushState {
     }
 
     pub fn save(&self, path: &Path) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        std::fs::create_dir_all(path.parent().ok_or("Missing push settings directory")?)?;
-        std::fs::write(path, serde_json::to_vec(self)?)?;
+        let directory = path.parent().ok_or("Missing push settings directory")?;
+        std::fs::create_dir_all(directory)?;
+        let mut file = tempfile::NamedTempFile::new_in(directory)?;
+        file.write_all(&serde_json::to_vec(self)?)?;
+        file.as_file().sync_all()?;
+        file.persist(path)?;
         Ok(())
     }
 
@@ -139,16 +181,16 @@ mod tests {
                 }
             );
             let apns = serde_json::json!({ "aps": { "alert": { "title": title, "body": body }, "sound": "default" }, "body": { "url": url } });
-            assert_eq!(apns_launch_path(&apns.to_string()), launch_path(Some(url)));
+            assert_eq!(apns_destination(&apns.to_string()), Some(url.to_owned()));
         }
         assert_eq!(
-            apns_launch_path(
+            apns_destination(
                 r#"{"aps":{"alert":{"title":"Orbit","body":"Reminder"}},"body":{"url":null}}"#
             ),
-            "/"
+            None
         );
         assert!(serde_json::from_str::<RawNotice>(r#"{"title":123}"#).is_err());
-        assert_eq!(apns_launch_path("invalid"), "/");
+        assert_eq!(apns_destination("invalid"), None);
     }
 
     #[test]
@@ -163,6 +205,14 @@ mod tests {
                 true,
             )
             .unwrap();
+        state.stage("account-a".into(), first.clone());
+        state.stage("account-a".into(), first.clone());
+        state.save(&path).unwrap();
+        state = PushState::load(&path).unwrap();
+        assert_eq!(state.pending.len(), 1);
+        assert_eq!(state.pending[0].registration, first);
+        state.commit("account-a".into(), first.clone()).unwrap();
+        assert!(state.pending.is_empty());
         state.owner = Some("account-a".into());
         state.registration = Some(first.clone());
         state.save(&path).unwrap();
@@ -186,6 +236,7 @@ mod tests {
             device_id: Uuid::new_v4(),
             owner: None,
             registration: None,
+            pending: Vec::new(),
         };
         for endpoint in [
             "http://notify.windows.com/",

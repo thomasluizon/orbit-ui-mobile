@@ -52,6 +52,7 @@ fn build_windows() {
         .flag("/EHsc")
         .compile("orbit_push");
     println!("cargo:rustc-link-lib=windowsapp");
+    println!("cargo:rustc-link-lib=ole32");
     println!(
         "cargo:rustc-env=ORBIT_WNS_BOOTSTRAP={}",
         output

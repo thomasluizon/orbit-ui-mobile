@@ -8,6 +8,7 @@
 #include <winrt/Windows.Foundation.Collections.h>
 #include <chrono>
 #include <string>
+#include <cstdlib>
 
 using namespace winrt::Microsoft::Windows::PushNotifications;
 using namespace winrt::Microsoft::Windows::AppNotifications;
@@ -16,9 +17,16 @@ static Callback callback;
 static PushNotificationChannel channel{nullptr};
 static PushNotificationManager manager{nullptr};
 static winrt::event_token received;
+static winrt::event_token invoked;
+static bool initialized = false;
 static bool registered = false;
 static winrt::guid remoteId;
 static AppNotificationManager notifications{nullptr};
+static CO_MTA_USAGE_COOKIE mtaCookie = nullptr;
+
+static void shutdown_runtime() {
+    if (mtaCookie) CoDecrementMTAUsage(mtaCookie);
+}
 
 struct Apartment {
     HRESULT result = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -32,8 +40,12 @@ static void emit(int kind, std::string const& payload = {}) {
 
 extern "C" int orbit_wns_initialize(wchar_t const* bootstrap, char const* objectId, Callback handler) {
     callback = handler;
-    if (manager) return 0;
+    if (initialized) return 0;
     try {
+        if (!mtaCookie) {
+            winrt::check_hresult(CoIncrementMTAUsage(&mtaCookie));
+            std::atexit(shutdown_runtime);
+        }
         Apartment apartment;
         HMODULE library = LoadLibraryExW(bootstrap, nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
         if (!library) return 1;
@@ -51,16 +63,24 @@ extern "C" int orbit_wns_initialize(wchar_t const* bootstrap, char const* object
             emit(5, std::string(payload.begin(), payload.end()));
         });
         notifications = AppNotificationManager::Default();
-        notifications.NotificationInvoked([](auto const&, AppNotificationActivatedEventArgs const& arguments) {
+        invoked = notifications.NotificationInvoked([](auto const&, AppNotificationActivatedEventArgs const& arguments) {
             auto values = arguments.Arguments();
             if (values.HasKey(L"orbitNoticeId")) emit(6, winrt::to_string(values.Lookup(L"orbitNoticeId")));
         });
         notifications.Register();
+        initialized = true;
         return 0;
-    } catch (...) { return 2; }
+    } catch (...) {
+        try { if (manager) manager.PushReceived(received); } catch (...) {}
+        try { if (notifications) notifications.NotificationInvoked(invoked); } catch (...) {}
+        notifications = nullptr;
+        manager = nullptr;
+        return 1;
+    }
 }
 
 extern "C" void orbit_push_request(bool prompt, bool token) {
+    (void)prompt;
     if (!manager) { emit(0); return; }
     try {
         Apartment apartment;
@@ -101,10 +121,4 @@ extern "C" bool orbit_push_stop() {
         if (notifications) notifications.RemoveAllAsync().get();
         return true;
     } catch (...) { return false; }
-}
-
-extern "C" void orbit_push_set_active(bool active) {
-    if (!active && notifications) {
-        try { Apartment apartment; notifications.RemoveAllAsync().get(); } catch (...) { emit(7); }
-    }
 }
