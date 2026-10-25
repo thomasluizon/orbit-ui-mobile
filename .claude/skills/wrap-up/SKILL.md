@@ -1,7 +1,7 @@
 ---
 name: wrap-up
-description: Close a working session in one command. Runs /progress, then /questions, then /handoff, in that order, and stops. Use when the owner says /wrap-up, wrap up, close out the session, or is about to stop for the day. Pass --sleep through to /handoff to prepare NEXT.md for an unattended next session entered through /sleep. It runs three skills; it never does the work they surface.
-argument-hint: "[--sleep] [extra instructions for the NEXT session]"
+description: Close a working session in one command. Runs /progress, then /questions, then /handoff, in that order, and stops. Use when the owner says /wrap-up, wrap up, close out the session, or is about to stop for the day. Pass --crank through as --sleep --crank to keep maximum velocity active across context relays. Pass --sleep through to /handoff to prepare NEXT.md for an unattended next session entered through /sleep. It runs three skills; it never does the work they surface.
+argument-hint: "[--sleep] [--crank] [extra instructions for the NEXT session]"
 effort: medium
 ---
 
@@ -24,6 +24,16 @@ Three skills, in this order, in one turn:
 **Input**: `$ARGUMENTS`. `--sleep` anywhere in it is passed through to `/handoff` and to nothing
 else. Everything else is extra instructions for the NEXT session, and it is passed to `/handoff`
 too, verbatim. `/progress` and `/questions` take no arguments from here.
+
+`--crank` includes `--sleep` and passes through to `/handoff` as `--sleep --crank`.
+Before invoking `/handoff`, read the current run with `readRunState` from
+`tools/lib/run-state.mjs` and write `writeRunState({ ...state, crank: true })`, keeping
+its exact `sessionId` and every other field. Read it back to confirm the mode. If no run
+is active, enter `/sleep` through `.claude/skills/crank/SKILL.md` first to establish it.
+`NEXT.md` carries the `## Crank` instructions required by `/handoff`. The successor invokes
+`/crank` immediately after `/sleep` entry. The mode has no time or relay count limit and
+remains active across context relays until `/crank --disable` or `/crank disable`.
+The progress and questions handovers below still apply.
 
 ## The order is the point
 

@@ -174,9 +174,9 @@ const assertDrained = (repoRoot, sessionId) => {
   if (blockersMessage.length) throw new Error(`relay drain has ${blockersMessage.join("; ")}`)
 }
 
-const provePromptPublished = (repoRoot, execute) => {
+const provePromptPublished = (repoRoot, execute, crank) => {
   const prompt = readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8")
-  const missing = validateHandoffPrompt(prompt, { sleep: true })
+  const missing = validateHandoffPrompt(prompt, { sleep: true, crank })
   if (missing.length) throw new Error(`NEXT.md misses: ${missing.join("; ")}`)
   const opening = prompt.split(/^## /m)[0]
   const specs = [...new Set(opening.match(/\.claude\/specs\/[\w.-]+\.md/g) ?? [])]
@@ -211,8 +211,9 @@ const successorCommand = (model, permissionMode, successorSessionId, repoRoot) =
 
 const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute, wait, confirmMilliseconds }) => {
   const now = new Date().toISOString()
-  recordHandoffRequest(sessionId, { command: "handoff", origin: "context-relay", sleep: true }, now, repoRoot)
-  const prompt = provePromptPublished(repoRoot, execute)
+  const crank = readHandoffRequest(sessionId, repoRoot)?.crank === true || readRunState(repoRoot)?.crank === true
+  recordHandoffRequest(sessionId, { command: "handoff", origin: "context-relay", sleep: true, crank }, now, repoRoot)
+  const prompt = provePromptPublished(repoRoot, execute, crank)
   const successorSessionId = randomUUID()
   const command = successorCommand(metrics.lastCall.model, previous.relay.permissionMode, successorSessionId, repoRoot)
   assertDrained(repoRoot, sessionId)

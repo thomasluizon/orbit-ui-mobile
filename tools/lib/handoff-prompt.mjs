@@ -10,6 +10,7 @@ const REQUEST_FILE = "orbit-handoff-request.json"
 const KEPT_REQUESTS = 20
 
 const SLEEP_TOKEN = /(?:^|[\s(])(?:--sleep|\/sleep)(?=$|[\s),;!?])/
+const CRANK_TOKEN = /(?:^|[\s(])(?:--crank|\/crank)(?=$|[\s),;!?])/
 // The hook documentation gives the typed text; the transcript stores the expanded command tags. Accept both.
 const HANDOFF_COMMAND = /<command-name>\/(handoff|wrap-up)<\/command-name>|(?:^|[\s(])\/(handoff|wrap-up)(?=$|[\s),;!?])/g
 const TAGGED_ARGS = /<command-args>([\s\S]*?)<\/command-args>/
@@ -62,7 +63,8 @@ export const parseHandoffRequest = (prompt) => {
   const command = first[1] ?? first[2]
   const trailing = text.slice(first.index + first[0].length, next?.index ?? text.length)
   const args = first[1] ? (TAGGED_ARGS.exec(trailing)?.[1] ?? "") : trailing
-  return { command, sleep: SLEEP_TOKEN.test(args) }
+  const crank = CRANK_TOKEN.test(args)
+  return { command, sleep: crank || SLEEP_TOKEN.test(args), crank }
 }
 
 const headingLine = (lines, prefix) => lines.findIndex((line) => line.startsWith(prefix))
@@ -75,17 +77,23 @@ const sectionBody = (lines, prefix) => {
 }
 
 /** Every requirement the prompt misses; `sleep` true or false adds that mode's rules, undefined checks only the shared ones. */
-export const validateHandoffPrompt = (text, { sleep }) => {
+export const validateHandoffPrompt = (text, { sleep, crank }) => {
   const lines = String(text ?? "").split("\n")
   const firstNonEmptyLine = lines.find((line) => line.trim() !== "")?.trim() ?? ""
   const firstHeading = lines.findIndex((line) => line.startsWith("## "))
   const opening = lines.slice(0, firstHeading < 0 ? lines.length : firstHeading).join("\n")
   const missing = []
-  if (sleep === true) {
+  if (sleep === true || crank === true) {
     if (lines[0].replace(/\r$/, "") !== "/sleep") missing.push("the first line must be exactly `/sleep`, so the prompt runs with nothing added")
     if (headingLine(lines, "## Sleep") < 0) missing.push("a `## Sleep` section")
   } else if (sleep === false && firstNonEmptyLine.startsWith("/")) {
     missing.push("an attended prompt must not start with a slash command")
+  }
+  if (crank === true) {
+    const body = sectionBody(lines, "## Crank")
+    if (body === null || !/(?:^|[\s`(])\/crank(?=$|[\s`),;.!?])/.test(body)) {
+      missing.push("a `## Crank` section whose body invokes `/crank` immediately after `/sleep` entry")
+    }
   }
   if (!/\.claude\/specs\/[\w.-]+\.md/.test(opening)) missing.push("the spec path `.claude/specs/<slug>.md` before the first `##` heading")
   const goal = sectionBody(lines, "## Goal")
