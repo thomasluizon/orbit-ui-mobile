@@ -1,4 +1,5 @@
 import { useHabitFormInteraction } from './habit-form-interaction'
+import { Select } from '@/components/ui/select'
 import { ListRow } from '@/components/ui/list-row'
 import { ReminderPermissionNotice } from './reminder-permission-notice'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -186,56 +187,11 @@ export function ReminderSection({
                       onSubmitEditing={addCustomReminder}
                     />
                   </View>
-                  <View style={sectionStyles.unitRow}>
-                    {(["min", "hours", "days"] as const).map((unit) => (
-                      <Pressable disabled={disabled}
-                        key={unit}
-                        style={({ pressed }) => [
-                          sectionStyles.unitButton,
-                          customUnit === unit && sectionStyles.unitButtonActive,
-                          pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
-                        ]}
-
-                        accessibilityRole="button"
-                        onPress={() => setCustomUnit(unit)}
-                      >
-                        <Text
-                          style={[
-                            sectionStyles.unitButtonText,
-                            customUnit === unit &&
-                              sectionStyles.unitButtonTextActive,
-                          ]}
-                        >
-                          {t(
-                            `habits.form.reminderUnit${unit.charAt(0).toUpperCase() + unit.slice(1)}` as "habits.form.reminderUnitMin",
-                          )}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                  <View style={sectionStyles.unitRow}>
-                    {(["before", "after"] as const).map((direction) => (
-                      <Pressable disabled={disabled}
-                        key={direction}
-                        style={({ pressed }) => [
-                          sectionStyles.unitButton,
-                          customDirection === direction && sectionStyles.unitButtonActive,
-                          pressed && { backgroundColor: tokens.bgHover },
-                        ]}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: customDirection === direction }}
-
-                        onPress={() => setCustomDirection(direction)}
-                      >
-                        <Text style={[
-                          sectionStyles.unitButtonText,
-                          customDirection === direction && sectionStyles.unitButtonTextActive,
-                        ]}>
-                          {t(direction === "before" ? "habits.form.reminderBefore" : "habits.form.reminderAfter")}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
+                  <Select value={customUnit} onChange={(value) => setCustomUnit(value as 'min' | 'hours' | 'days')} disabled={disabled} label={t('habits.form.reminderCustom')} options={(['min', 'hours', 'days'] as const).map((unit) => ({ value: unit, label: t(`habits.form.reminderUnit${unit.charAt(0).toUpperCase() + unit.slice(1)}` as 'habits.form.reminderUnitMin') }))} />
+                  <Select value={customDirection} onChange={(value) => setCustomDirection(value as 'before' | 'after')} disabled={disabled} label={t('habits.form.reminderDirection')} options={[
+                    { value: 'before', label: t('habits.form.reminderBefore') },
+                    { value: 'after', label: t('habits.form.reminderAfter') },
+                  ]} />
                   {inline ? <PillButton disabled={disabled} variant="ghost" size="sm" iconOnly label={t("common.add")} onClick={addCustomReminder}><Plus size={20} color={tokens.fg1} /></PillButton> : (
                   <Pressable disabled={disabled}
                     style={({ pressed }) => [

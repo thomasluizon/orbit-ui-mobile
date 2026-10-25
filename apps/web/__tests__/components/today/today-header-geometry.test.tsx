@@ -222,8 +222,8 @@ describe('Hoje header geometry', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         for (const label of [words.habits.viewToday, words.habits.viewAll, words.habits.viewGeneral]) {
-          fireEvent.click(within(rendered.container).getByRole('radio', { name: label }))
-          expect(within(rendered.container).getByRole('radio', { name: label })).toBeChecked()
+          fireEvent.click(within(rendered.container).getByRole('tab', { name: label }))
+          expect(within(rendered.container).getByRole('tab', { name: label })).toHaveAttribute('aria-selected', 'true')
           await page.setContent(`<style>${stylesheet}</style>${rendered.container.innerHTML}`)
       await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
           const search = page.locator('[data-shell-sidebar]').getByRole('button', { name: words.nav.search, exact: true })
@@ -254,7 +254,7 @@ describe('Hoje header geometry', () => {
         await page.setContent(`<style>${stylesheet}</style>${renderToString(<NextIntlClientProvider locale={locale} messages={words}><div className="mx-auto w-full max-w-[740px]"><HabitViewSwitch value="today" onChange={noop} /></div></NextIntlClientProvider>)}`)
       await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate(() => document.fonts.ready)
-        const geometry = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('[data-habit-view-switch] [role="radio"]')).map((radio) => {
+        const geometry = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('[data-habit-view-switch] [role="tab"]')).map((radio) => {
           const span = radio.querySelector('span')!
           const range = document.createRange()
           range.selectNodeContents(span)

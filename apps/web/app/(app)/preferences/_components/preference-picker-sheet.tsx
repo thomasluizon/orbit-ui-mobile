@@ -6,7 +6,7 @@ import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
 import { PillButton } from '@/components/ui/pill-button'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { RadioRow } from '@/components/ui/select-check'
-import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioGroup } from '@/components/ui/radio-group'
 
 export type { PreferencePicker }
 

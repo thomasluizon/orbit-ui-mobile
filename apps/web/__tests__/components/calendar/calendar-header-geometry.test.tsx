@@ -80,9 +80,9 @@ function expectOnboardingRows(geometry: { group: number; top: number; groupWidth
 }
 
 function measureCalendarSegments() {
-  const group = document.querySelector('[data-testid="calendar-header-group"] [role="radiogroup"]')!
+  const group = document.querySelector('[data-testid="calendar-header-group"] [role="tablist"]')!
   const bounds = group.getBoundingClientRect()
-  return [...group.querySelectorAll('[role="radio"]')].map((button) => {
+  return [...group.querySelectorAll('[role="tab"]')].map((button) => {
     const box = button.getBoundingClientRect()
     const label = button.firstElementChild!
     const content = label.getBoundingClientRect()
@@ -397,14 +397,14 @@ describe('Calendar header geometry in Chromium', () => {
       await loadAppFonts(page)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
-        const geometry = await page.evaluate(() => [...document.querySelectorAll<HTMLButtonElement>('[role="radio"]')].map((button) => {
+        const geometry = await page.evaluate(() => [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')].map((button) => {
           const label = button.querySelector('span')!
           const range = document.createRange()
           range.selectNodeContents(label)
           const bounds = range.getBoundingClientRect()
           const box = label.getBoundingClientRect()
           return { text: label.textContent, fits: bounds.width <= box.width + 1, right: bounds.right, lines: range.getClientRects().length, overflow: label.scrollWidth > label.clientWidth,
-            ellipsis: getComputedStyle(label).textOverflow === 'ellipsis', width: button.getBoundingClientRect().width, textWidth: bounds.width, textHeight: bounds.height, height: button.getBoundingClientRect().height, top: button.getBoundingClientRect().top, group: button.closest('[role="radiogroup"]')!.getBoundingClientRect().top, groupWidth: button.closest('[role="radiogroup"]')!.getBoundingClientRect().width }
+            ellipsis: getComputedStyle(label).textOverflow === 'ellipsis', width: button.getBoundingClientRect().width, textWidth: bounds.width, textHeight: bounds.height, height: button.getBoundingClientRect().height, top: button.getBoundingClientRect().top, group: button.closest('[role="tablist"]')!.getBoundingClientRect().top, groupWidth: button.closest('[role="tablist"]')!.getBoundingClientRect().width }
         }))
         for (const label of geometry) {
           expect(label.fits, JSON.stringify(geometry)).toBe(true)
@@ -433,11 +433,11 @@ describe('Calendar header geometry in Chromium', () => {
       await loadAppFonts(page)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
-        const geometry = await page.locator('[role="radiogroup"]').evaluate((group) => {
+        const geometry = await page.locator('[role="tablist"]').evaluate((group) => {
           const bounds = group.getBoundingClientRect()
           const body = group.closest('[data-slot="sheet-body"]')!
           return { width: bounds.width, bodyWidth: body.clientWidth - parseFloat(getComputedStyle(body).paddingLeft) - parseFloat(getComputedStyle(body).paddingRight),
-            segments: [...group.querySelectorAll('[role="radio"]')].map((button) => {
+            segments: [...group.querySelectorAll('[role="tab"]')].map((button) => {
               const box = button.getBoundingClientRect()
               const label = button.firstElementChild!
               const text = document.createRange(); text.selectNodeContents(label)
@@ -584,7 +584,7 @@ describe('Calendar header geometry in Chromium', () => {
       const geometry = await page.evaluate(() => {
         const frame = document.querySelector<HTMLElement>('.orbit-calendar-grid-card')!
         const grid = frame.querySelector<HTMLElement>('[data-testid="month-grid-days"], [data-cols="7"]')!
-        const selector = document.querySelector('[role="radiogroup"]')!.getBoundingClientRect()
+        const selector = document.querySelector('[role="tablist"]')!.getBoundingClientRect()
         const bounds = grid.getBoundingClientRect()
         const gap = Number.parseFloat(getComputedStyle(grid).columnGap)
         const slots = [...grid.children].map((slot) => {
@@ -641,7 +641,7 @@ describe('Calendar header geometry in Chromium', () => {
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
         const geometry = await page.evaluate(() => {
-          const selector = document.querySelector('[role="radiogroup"]')!.getBoundingClientRect()
+          const selector = document.querySelector('[role="tablist"]')!.getBoundingClientRect()
           const controls = [...document.querySelectorAll('[data-testid="calendar-header-group"] [data-testid$="-navigation"] button')].map((button) => {
             const box = button.getBoundingClientRect()
             const content = document.createRange(); content.selectNodeContents(button)
@@ -781,7 +781,7 @@ describe('Calendar header geometry in Chromium', () => {
           const titleText = title.querySelector('span')!
           const range = document.createRange()
           range.selectNodeContents(titleText)
-          const segments = [...document.querySelectorAll<HTMLButtonElement>('[role="radio"]')]
+          const segments = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')]
           const targets = [...document.querySelectorAll<HTMLButtonElement>('button')].map((button) => {
             const bounds = button.getBoundingClientRect()
             const hit = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)

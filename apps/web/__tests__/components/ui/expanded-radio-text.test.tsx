@@ -29,7 +29,7 @@ describe('expanded RadioRow personal text in Chromium', () => {
       stdin: {
         contents: `import React, { useLayoutEffect, useState } from 'react';
           import { createRoot } from 'react-dom/client';
-          import { RadioGroup } from './components/ui/radio-row';
+          import { RadioGroup } from './components/ui/radio-group';
           import { RadioRow } from './components/ui/select-check';
           import { EditorParentField } from './components/habits/editor-parent-field';
           import { EditorParentOwner } from './__tests__/support/editor-parent-owner';

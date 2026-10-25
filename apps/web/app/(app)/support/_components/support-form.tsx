@@ -8,7 +8,7 @@ import {
 import { SupportReplyEmail } from './support-reply-email'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
-import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 import { WifiOff } from '@/components/ui/icons'
 

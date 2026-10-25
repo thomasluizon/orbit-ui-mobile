@@ -6,7 +6,7 @@ import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { HabitChecklist } from '@/components/habits/habit-checklist'
 import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
 import { useTranslations } from 'next-intl'
-import { AppSelect } from '@/components/ui/app-select'
+import { Select } from '@/components/ui/select'
 import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -194,7 +194,7 @@ describe('interaction fill parity in Chromium', () => {
       <HabitDrill drill={drill} t={(key) => key} renderHabitCard={() => null} onAddSubHabit={noop} />
       <Chip ariaLabel="Idle chip">Idle</Chip><Chip active ariaLabel="Selected chip">Selected</Chip>
       <SegmentedControl label="Views" options={[{ value: 'all', label: 'All' }, { value: 'active', label: 'Active' }]} value="all" onChange={noop} />
-      <AppSelect value="before" options={[{ value: 'before', label: 'Before' }, { value: 'after', label: 'After' }]} label="Direction" onChange={noop} />
+      <Select value="before" options={[{ value: 'before', label: 'Before' }, { value: 'after', label: 'After' }]} label="Direction" onChange={noop} />
       <TagEditorRow value="Health" inputAriaLabel="Tag" actionLabel="Save" cancelAriaLabel="Cancel" disabled={false} onChange={noop} onCommit={noop} onCancel={noop} />
     </NextIntlClientProvider>)
     const markup = controls.container.innerHTML
@@ -225,7 +225,7 @@ describe('interaction fill parity in Chromium', () => {
         await direction.hover()
         expect(await direction.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(expectedFill)
       }
-      const segment = page.getByRole('radio', { name: 'Active', exact: true })
+      const segment = page.getByRole('tab', { name: 'Active', exact: true })
       await segment.hover()
       await page.mouse.down()
       expect(await segment.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(expectedFill)

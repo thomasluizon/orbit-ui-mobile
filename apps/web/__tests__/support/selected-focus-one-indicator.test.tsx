@@ -133,7 +133,7 @@ describe('selection yields to keyboard focus', () => {
       expect(await choices.count()).toBeGreaterThan(1)
       for (const control of await choices.all()) {
         await page.locator('[data-reset]').click()
-        const selected = await control.getAttribute('aria-pressed') === 'true' || await control.getAttribute('aria-checked') === 'true'
+        const selected = await control.getAttribute('aria-selected') === 'true' || await control.getAttribute('aria-pressed') === 'true' || await control.getAttribute('aria-checked') === 'true'
         expect(await inspectControlAccentRings(control)).toHaveLength(selected ? 1 : 0)
         await control.hover()
         expect(await inspectControlAccentRings(control)).toHaveLength(selected ? 1 : 0)
@@ -202,7 +202,7 @@ describe('selection yields to keyboard focus', () => {
 })
 
 async function segmentGeometry(page: import('@playwright/test').Page) {
-  return page.locator('[role="radiogroup"]').evaluate((track) => {
+  return page.locator('[role="tablist"]').evaluate((track) => {
     const style = getComputedStyle(track)
     return { padding: style.padding, gap: style.gap, radius: style.borderRadius, shadow: style.boxShadow,
       trackWidth: track.getBoundingClientRect().width, scrollWidth: track.scrollWidth,

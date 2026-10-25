@@ -101,6 +101,14 @@ function buttons(tree: TestTree): TestNode[] {
   return tree.root.findAll((node) => node.props.accessibilityRole === "button");
 }
 
+
+function chooseOption(tree: TestTree, label: string, option: string) {
+  const trigger = tree.root.findAll((node) => typeof node.type === 'string' && node.props.role === 'combobox' && node.props.accessibilityLabel === label)[0]!
+  press(tree, trigger)
+  const choice = tree.root.findAll((node) => typeof node.type === 'string' && node.props.role === 'option' && node.props.accessibilityLabel === option)[0]!
+  press(tree, choice)
+}
+
 describe("ReminderSection", () => {
   it("uses the form toggle label for both the visible title and switch in inline layout", () => {
     const { tree } = renderSection({ inline: true, toggleLabel: "habits.form.reminder", reminderEnabled: false });
@@ -254,16 +262,7 @@ describe("ReminderSection", () => {
         "2",
       );
     });
-    const hoursButton = buttons(tree).find(
-      (node) => descendantText(node) === "habits.form.reminderUnitHours",
-    );
-    (hoursButton!.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: true,
-    });
-    (hoursButton!.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: false,
-    });
-    press(tree, hoursButton!);
+    chooseOption(tree, 'habits.form.reminderCustom', 'habits.form.reminderUnitHours')
     const confirm = buttons(tree).find(
       (node) => node.props.accessibilityLabel === "common.add",
     );
@@ -349,7 +348,7 @@ describe("ReminderSection", () => {
     const { tree, onReminderTimesChange } = renderSection({ reminderTimes: [15] })
     press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAdd')!)
     press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderCustom')!)
-    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAfter')!)
+    chooseOption(tree, 'habits.form.reminderDirection', 'habits.form.reminderAfter')
     const input = tree.root.findAll((node) => node.type === 'TextInput')[0]!
     TestRenderer.act(() => {
       ;(input.props as { onChangeText: (value: string) => void }).onChangeText('30')
@@ -362,7 +361,7 @@ describe("ReminderSection", () => {
     const { tree, onReminderTimesChange, onValidationError } = renderSection({ reminderTimes: [15] })
     press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAdd')!)
     press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderCustom')!)
-    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAfter')!)
+    chooseOption(tree, 'habits.form.reminderDirection', 'habits.form.reminderAfter')
     const input = tree.root.findAll((node) => node.type === 'TextInput')[0]!
     TestRenderer.act(() => {
       ;(input.props as { onChangeText: (value: string) => void }).onChangeText('1440')
@@ -408,6 +407,25 @@ it('fills reminder removal, add, custom units, directions, and commit', () => {
   assertTextFill('habits.form.reminderAdd', tokens.bgHover);
   pressText('habits.form.reminderAdd');
   pressText('habits.form.reminderCustom');
-  for (const text of ['habits.form.reminderUnitMin', 'habits.form.reminderUnitHours', 'habits.form.reminderUnitDays', 'habits.form.reminderBefore', 'habits.form.reminderAfter']) assertTextFill(text, tokens.bgHover);
+  for (const label of ['habits.form.reminderCustom', 'habits.form.reminderDirection']) {
+    const control = tree.root.findAll((node) => typeof node.type === 'string' && node.props.role === 'combobox' && node.props.accessibilityLabel === label)[0]!
+    const style = control.props.style as (state: { pressed: boolean }) => ViewStyle[]
+    expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ backgroundColor: tokens.bgHover, borderRadius: 12 })
+  }
   expectPressFill(tree, 'common.add', tokens.primaryPressed, radius.full);
 });
+
+it('opens the unit select from the edited custom reminder on the first press', () => {
+  const { tree } = renderSection({ reminderTimes: [15] })
+  press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAdd')!)
+  press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderCustom')!)
+  const input = tree.root.findAll((node) => node.type === 'TextInput')[0]!
+  TestRenderer.act(() => (input.props.onChangeText as (value: string) => void)('2'))
+  const trigger = tree.root.findAll((node) => typeof node.type === 'string' && node.props.role === 'combobox' && node.props.accessibilityLabel === 'habits.form.reminderCustom')[0]
+  expect(trigger).toBeDefined()
+  expect(trigger!.props.accessibilityValue).toEqual({ text: 'habits.form.reminderUnitMin' })
+  press(tree, trigger!)
+  const hours = tree.root.findAll((node) => typeof node.type === 'string' && node.props.role === 'option' && node.props.accessibilityLabel === 'habits.form.reminderUnitHours')
+  expect(hours).toHaveLength(1)
+  expect(hours[0]!.props.focusable).toBe(true)
+})

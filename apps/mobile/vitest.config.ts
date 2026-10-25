@@ -102,7 +102,6 @@ export default defineConfig({
         'components/profile/profile-nav-icon.tsx',
         'components/referral/referral-drawer.tsx',
         'components/ui/app-date-picker.tsx',
-        'components/ui/app-select.tsx',
         'components/ui/app-toast.tsx',
         'components/ui/bottom-sheet-app-text-input.tsx',
         'components/ui/expiry-warning.tsx',

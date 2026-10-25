@@ -6,7 +6,7 @@ import { ChevronDown } from '@/components/ui/icons'
 import { usePersonalTextContentRef } from '@/components/ui/personal-text-action'
 import { PersonalText } from '@/components/ui/personal-text'
 import type { RadioRowProps } from '@orbit/shared/contracts/lists'
-import { useRadioGroupItem } from '@/components/ui/radio-row'
+import { RadioItem } from '@/components/ui/radio-group'
 
 const ROW_INDENTS = [SPACING.s16, SPACING.s24, SPACING.s32, SPACING.s48, SPACING.s64, SPACING.s96] as const
 
@@ -103,7 +103,6 @@ function radioRowFill(selected: boolean, proposed: boolean): string {
 export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, description, selected = false, onSelect, onFocus, onBlur, leading, depth = 0, meta, tag, disabled = false, busy = false, reason, proposed = false }: Readonly<RadioRowProps>) {
   const contentId = useId()
   const [disclosed, setDisclosed] = useState(false)
-  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled: disabled || busy, onSelect, selected })
   const secondaryColor = selected ? 'var(--fg-2)' : 'var(--radio-row-secondary,var(--fg-3))'
   const content = <RadioRowContent label={label} selection={selection} hideMeta={hideMeta} wrapLabel={wrapLabel} textMode={textMode} description={description} selected={selected} leading={leading} meta={meta} tag={tag} disabled={disabled || busy} reason={reason} secondaryColor={secondaryColor} contentId={contentId} disclosed={disclosed} proposed={proposed} />
   const style = radioRowStyle(depth, selected, disabled || busy, proposed, wrapLabel, leading)
@@ -112,22 +111,18 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
     : undefined
   const contentRef = usePersonalTextContentRef(accessibilityLabel ?? label)
 
-  const control = <button
-    ref={elementRef}
+  const control = <RadioItem selected={selected} onSelect={onSelect} disabled={disabled || busy}><button
     type="button"
     role="radio"
     data-slot="list-row-body"
     aria-label={accessibilityLabel}
     aria-checked={selected}
-    tabIndex={busy ? -1 : tabIndex}
     aria-disabled={busy || undefined}
     onFocus={onFocus}
     onBlur={onBlur}
-    onClick={busy ? undefined : onActivate}
-    onKeyDown={busy ? undefined : onKeyDown}
     className={`orbit-selection-ring orbit-selection-ring-thin orbit-radio-row flex w-full cursor-pointer items-center border-0 text-left ${textMode === 'personal' ? 'transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)]' : 'transition-[background-color,scale] duration-[var(--dur-hover),150ms] ease-[var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96]'} hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] ${radioRowFill(selected, proposed)} ${textMode === 'personal' ? 'absolute inset-0' : ''}`}
     style={style}
-  >{textMode === 'personal' ? null : content}</button>
+  >{textMode === 'personal' ? null : content}</button></RadioItem>
 
   if (!disabled && textMode === 'personal') return <div className="relative min-w-0 transition-[scale] duration-150 ease-[var(--ease-out)] motion-safe:has-[>button:active]:scale-[0.96] hover:[--radio-row-secondary:var(--fg-2)] hover:[--radio-row-track:var(--fg-3)] has-[>button:active]:[--radio-row-secondary:var(--fg-2)] has-[>button:active]:[--radio-row-track:var(--fg-3)]">
     {control}

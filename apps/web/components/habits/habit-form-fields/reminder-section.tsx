@@ -4,7 +4,7 @@ import { useState, useMemo, type ReactNode } from 'react'
 import { X, Plus } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { HABIT_REMINDER_PRESETS } from '@orbit/shared/utils'
-import { AppSelect } from '@/components/ui/app-select'
+import { Select } from '@/components/ui/select'
 import { ReminderPermissionNotice } from './reminder-permission-notice'
 import { useReminderPermission } from '@/hooks/use-reminder-permission'
 
@@ -157,13 +157,13 @@ export function ReminderSection({
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomReminder() } }}
                       />
                     </label>
-                    <AppSelect
+                    <Select
                       value={customUnit}
                       options={reminderUnitOptions}
                       label={t('habits.form.reminderCustom')}
                       onChange={(val) => setCustomUnit(val as 'min' | 'hours' | 'days')}
                     />
-                    <AppSelect
+                    <Select
                       value={customDirection}
                       options={[
                         { value: 'before', label: t('habits.form.reminderBefore') },

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { CheckboxProps } from '@orbit/shared/contracts/forms'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
@@ -16,6 +17,7 @@ export function Checkbox({
   loading = false,
   as = 'button',
 }: Readonly<CheckboxProps>) {
+  const [focused, setFocused] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const box = (
@@ -41,6 +43,9 @@ export function Checkbox({
   return (
     <Primitive.Root
       checked={checked}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      focusable={!disabled && !loading}
       onCheckedChange={(next) => onChange(next === true)}
       disabled={disabled || loading}
       accessibilityRole="checkbox"
@@ -49,7 +54,7 @@ export function Checkbox({
       data-checked={checked ? '' : undefined}
       data-loading={loading ? '' : undefined}
       data-error={error ? '' : undefined}
-      style={styles.control}
+      style={[styles.control, focused ? { outlineWidth: 2, outlineColor: tokens.fg1, outlineOffset: -2, outlineStyle: 'solid' } : null]}
     >
       {box}
     </Primitive.Root>

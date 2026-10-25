@@ -43,7 +43,7 @@ import {
   writeStoredSupportDraft,
 } from '@/lib/support-draft-storage'
 import { PageHeader } from '@/components/ui/page-header'
-import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 
 type Tokens = ReturnType<typeof createTokensV2>

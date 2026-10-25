@@ -36,21 +36,21 @@ describe('SegmentedControl', () => {
   it('selects only another enabled view while retaining caller selection', () => {
     const onChange = vi.fn()
     const tree = renderNavigation(<SegmentedControl options={options} value="active" onChange={onChange} label="Views" />)
-    const radios = () => tree.hosts().filter((node) => node.props.accessibilityRole === 'radio')
+    const radios = () => tree.hosts().filter((node) => node.props.accessibilityRole === 'tab')
     expect(tree.hosts().some((node) => node.props.accessibilityLabel === 'Views')).toBe(true)
-    expect(radios().filter((node) => node.props.accessibilityState?.checked).map((node) => node.props.testID)).toEqual(['segment-active-selected-enabled'])
+    expect(radios().filter((node) => node.props.accessibilityState?.selected).map((node) => node.props.testID)).toEqual(['segment-active-selected-enabled'])
     press(radios()[1]!)
     expect(onChange).not.toHaveBeenCalled()
     press(radios()[2]!)
     expect(onChange).toHaveBeenCalledExactlyOnceWith('completed')
-    expect(radios()[1]!.props.accessibilityState?.checked).toBe(true)
+    expect(radios()[1]!.props.accessibilityState?.selected).toBe(true)
     tree.unmount()
   })
   it('separates per-option disabled from whole-control disabled', () => {
     const onChange = vi.fn()
     const choices = [options[0], options[1], { ...options[2], disabled: true }] as const
     const tree = renderNavigation(<SegmentedControl options={choices} value="active" onChange={onChange} label="Views" />)
-    const radios = () => tree.hosts().filter((node) => node.props.accessibilityRole === 'radio')
+    const radios = () => tree.hosts().filter((node) => node.props.accessibilityRole === 'tab')
     expect(radios()[2]!.props.accessibilityState?.disabled).toBe(true)
     expect(radios()[2]!.props.testID).toBe('segment-completed-unselected-disabled')
     press(radios()[2]!)
@@ -68,7 +68,7 @@ describe('SegmentedControl', () => {
     const onChange = vi.fn()
     const choices = [options[0], { ...options[1], disabled: true }, options[2]] as const
     const tree = renderNavigation(<StatefulSegmentedControl choices={choices} onChange={onChange} />)
-    const radios = () => tree.hosts().filter((node) => node.props.accessibilityRole === 'radio')
+    const radios = () => tree.hosts().filter((node) => node.props.accessibilityRole === 'tab')
 
     expect(radios().map((node) => node.props.focusable)).toEqual([true, false, true])
     tree.focus(radios()[0]!)

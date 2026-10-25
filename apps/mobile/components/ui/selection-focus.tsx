@@ -30,19 +30,22 @@ interface ArmedRedirect {
   id: string
 }
 
-interface RadioGroupContextValue {
+interface SelectionFocusContextValue {
   accessibilityHint?: string
   commit: () => void
   /** Null without a FocusProvenanceView ancestor, because entry and movement are then the same event. */
   onFocus: ((id: string, onSelect?: () => void) => void) | null
   register: (id: string, nativeHandle: number | null) => () => void
   setElement: (id: string, element: View, nativeHandle: number | null) => void
+  select: (id: string) => void
+  setHandler: (id: string, handler: () => void) => void
+  value: string
   update: (state: Omit<RadioItemState, 'nativeHandle'>) => void
 }
 
-const RadioGroupContext = createContext<RadioGroupContextValue | null>(null)
+const SelectionFocusContext = createContext<SelectionFocusContextValue | null>(null)
 
-export function RadioGroup({ children, onCommit, focusRequest, shouldFocus, ...props }: Readonly<
+export function SelectionFocusProvider({ children, onCommit, focusRequest, shouldFocus, ...props }: Readonly<
   Omit<ViewProps, 'accessibilityRole'> & {
     children: ReactNode
     /** Runs when a row is explicitly pressed, never when native focus moves the selection. */
@@ -52,6 +55,7 @@ export function RadioGroup({ children, onCommit, focusRequest, shouldFocus, ...p
   }
 >) {
   const [items, setItems] = useState<RadioItemState[]>([])
+  const handlersRef = useRef(new Map<string, () => void>())
   const elementsRef = useRef(new Map<string, View>())
   const handledFocusRequest = useRef<number | undefined>(undefined)
   useEffect(() => {
@@ -81,6 +85,7 @@ export function RadioGroup({ children, onCommit, focusRequest, shouldFocus, ...p
     return () => {
       setItems((current) => current.filter((item) => item.id !== id))
       elementsRef.current.delete(id)
+      handlersRef.current.delete(id)
     }
   }, [])
   const update = useCallback((state: Omit<RadioItemState, 'nativeHandle'>) => {
@@ -124,24 +129,32 @@ export function RadioGroup({ children, onCommit, focusRequest, shouldFocus, ...p
     if (!focusedItem.selected) onSelect?.()
   }, [getPreviousFocusTarget, items])
   const onFocus = getPreviousFocusTarget ? handleFocus : null
+  const setHandler = useCallback((id: string, handler: () => void) => { handlersRef.current.set(id, handler) }, [])
+  const select = useCallback((id: string) => {
+    if (!items.some((item) => item.id === id && item.selected)) handlersRef.current.get(id)?.()
+  }, [items])
+  const value = items.find((item) => item.selected)?.id ?? ''
   const accessibilityHint = props.accessibilityHint
   const contextValue = useMemo(() => ({
     accessibilityHint,
+    select,
+    setHandler,
+    value,
     commit,
     onFocus,
     register,
     setElement,
     update,
-  }), [accessibilityHint, commit, onFocus, register, setElement, update])
+  }), [accessibilityHint, commit, onFocus, register, select, setElement, setHandler, update, value])
 
   return (
-    <RadioGroupContext.Provider value={contextValue}>
-      <View {...props} accessibilityRole="radiogroup">{children}</View>
-    </RadioGroupContext.Provider>
+    <SelectionFocusContext.Provider value={contextValue}>
+      {children}
+    </SelectionFocusContext.Provider>
   )
 }
 
-export function useRadioGroupItem({
+export function useSelectionFocusItem({
   disabled,
   onSelect,
   selected,
@@ -150,12 +163,13 @@ export function useRadioGroupItem({
   onSelect?: () => void
   selected: boolean
 }>) {
-  const group = useContext(RadioGroupContext)
+  const group = useContext(SelectionFocusContext)
   const registerWithGroup = group?.register
   const commitGroup = group?.commit
   const handleGroupFocus = group?.onFocus
   const setGroupElement = group?.setElement
   const updateGroup = group?.update
+  const setHandler = group?.setHandler
   const id = useId()
   const nativeHandleRef = useRef<number | null>(null)
 
@@ -166,6 +180,8 @@ export function useRadioGroupItem({
   useLayoutEffect(() => {
     updateGroup?.({ disabled, id, selected })
   }, [disabled, id, selected, updateGroup])
+
+  useLayoutEffect(() => { setHandler?.(id, onSelect ?? (() => undefined)) }, [id, onSelect, setHandler])
 
   const elementRef = useCallback((element: View | null) => {
     if (!element) return
@@ -181,17 +197,22 @@ export function useRadioGroupItem({
     }
     if (!disabled && !selected) onSelect?.()
   }, [disabled, handleGroupFocus, id, onSelect, selected])
-  /** The press is the only commit path, and a D-pad centre press on the focused row already selected it. */
-  const onActivate = useCallback(() => {
-    if (!selected) onSelect?.()
-    commitGroup?.()
-  }, [commitGroup, onSelect, selected])
-
   return {
+    id,
+    onCommit: () => commitGroup?.(),
     accessibilityHint: group?.accessibilityHint,
     elementRef,
     focusable: !disabled,
-    onActivate,
     onFocus,
   }
+}
+
+export function useSelectionFocusGroup() {
+  const group = useContext(SelectionFocusContext)
+  if (!group) throw new Error('Selection options require a focus provider')
+  return group
+}
+
+export function useHasSelectionFocusGroup() {
+  return useContext(SelectionFocusContext) !== null
 }
