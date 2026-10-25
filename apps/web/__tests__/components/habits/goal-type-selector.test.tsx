@@ -27,14 +27,14 @@ function Selector({ onChange }: Readonly<{ onChange: (value: GoalType) => void }
 describe('GoalTypeSelector', () => {
   it('uses the shared segmented control', () => {
     render(<Selector onChange={vi.fn()} />)
-    expect(screen.getByRole('tablist', { name: 'goals.form.type' })).toHaveClass('bg-[var(--bg-well)]')
+    expect(screen.getByRole('radiogroup', { name: 'goals.form.type' })).toHaveClass('bg-[var(--bg-well)]')
   })
 
   it('keeps one tab stop and moves selection and focus with tab keys', async () => {
     const onChange = vi.fn()
     render(<Selector onChange={onChange} />)
-    const standard = screen.getByRole('tab', { name: 'goals.form.typeStandard' })
-    const streak = screen.getByRole('tab', { name: 'goals.form.typeStreak' })
+    const standard = screen.getByRole('radio', { name: 'goals.form.typeStandard' })
+    const streak = screen.getByRole('radio', { name: 'goals.form.typeStreak' })
 
     await userEvent.tab()
     expect(standard).toHaveFocus()
@@ -50,7 +50,7 @@ describe('GoalTypeSelector', () => {
   it('keeps pointer selection unchanged', () => {
     const onChange = vi.fn()
     render(<Selector onChange={onChange} />)
-    fireEvent.click(screen.getByRole('tab', { name: 'goals.form.typeStreak' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'goals.form.typeStreak' }))
     expect(onChange).toHaveBeenCalledExactlyOnceWith('Streak')
   })
 })

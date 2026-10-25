@@ -2,7 +2,7 @@ import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { StyleSheet, Text, useWindowDimensions } from 'react-native'
 import type { SegmentedControlOption, SegmentedControlProps } from '@orbit/shared/contracts/navigation'
-import * as Primitive from '@rn-primitives/tabs'
+import * as Primitive from '@rn-primitives/radio-group'
 import { SelectionFocusProvider, useSelectionFocusItem } from './selection-focus'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -32,11 +32,11 @@ function SegmentOption<TValue extends string>({
     selected,
   })
   return (
-    <Primitive.Trigger value={option.value} disabled={disabled} asChild><Pressable focusInset selectionRingWidth={2}
+    <Primitive.Item value={option.value} disabled={disabled} asChild><Pressable focusInset selectionRingWidth={2}
       onFocus={onFocus} focusable={focusable}
       ref={elementRef}
-      accessibilityRole="tab"
-      accessibilityState={{ selected, disabled }}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected, disabled }}
       disabled={disabled}
       testID={`segment-${option.value}-${selected ? 'selected' : 'unselected'}-${disabled ? 'disabled' : 'enabled'}`}
       style={({ pressed }) => [
@@ -51,7 +51,7 @@ function SegmentOption<TValue extends string>({
       <Text numberOfLines={fontScale > 1.3 ? undefined : 1} style={[styles.label, { color: selected ? tokens.fg1 : tokens.fg2 }]}>
         {option.label}
       </Text>
-    </Pressable></Primitive.Trigger>
+    </Pressable></Primitive.Item>
   )
 }
 
@@ -61,11 +61,11 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
   const tokens = createTokensV2(currentScheme, currentTheme)
 
   return (
-    <SelectionFocusProvider><Primitive.Root value={props.value} onValueChange={(value) => {
+    <SelectionFocusProvider><Primitive.Root disabled={props.disabled} value={props.value} onValueChange={(value) => {
       const option = props.options.find((candidate) => candidate.value === value && !candidate.disabled)
       if (option && !props.disabled && option.value !== props.value) props.onChange(option.value)
-    }}><Primitive.List
-      accessibilityRole="tablist"
+    }}
+      accessibilityRole="radiogroup"
       accessibilityLabel={props.label}
       accessibilityState={{ disabled: props.disabled }}
       testID={`segmented-control-${props.disabled ? 'disabled' : 'enabled'}`}
@@ -86,7 +86,7 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
           tokens={tokens}
         />
       ))}
-    </Primitive.List></Primitive.Root></SelectionFocusProvider>
+    </Primitive.Root></SelectionFocusProvider>
   )
 }
 

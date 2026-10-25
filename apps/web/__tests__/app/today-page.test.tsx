@@ -230,11 +230,11 @@ describe('Hoje date control', () => {
     view.nav.dateNav = { ...baseProps, shortDayName: 'Wed' }
     view.nav.today = '2026-04-08'
     render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}><TodayHeaderRegion view={view} /></NextIntlClientProvider>)
-    const selected = screen.getByRole('tab', { name: activeView === 'all' ? 'Todos' : 'Geral' })
-    expect(selected).toHaveAttribute('aria-selected', 'true')
+    const selected = screen.getByRole('radio', { name: activeView === 'all' ? 'Todos' : 'Geral' })
+    expect(selected).toHaveAttribute('aria-checked', 'true')
     expect(screen.queryByRole('button', { name: 'Previous day' })).toBeNull()
     expect(screen.getByRole('button', { name: ptBr.habits.listOptions })).toBeVisible()
-    fireEvent.click(screen.getByRole('tab', { name: 'Hoje' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Hoje' }))
     expect(view.changeView).toHaveBeenCalledWith('today')
   })
 

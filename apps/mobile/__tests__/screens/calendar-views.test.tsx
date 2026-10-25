@@ -375,7 +375,7 @@ function pressView(tree: Tree, view: string) {
   const segments = (header ?? tree).root.findAll(
     (node) =>
       typeof node.type === "string" &&
-      node.props.accessibilityRole === "tab" &&
+      node.props.accessibilityRole === "radio" &&
       typeof node.props.testID === "string" &&
       node.props.testID.startsWith(`segment-${view}-`),
   );
@@ -603,7 +603,7 @@ describe("CalendarScreen views (mobile)", () => {
       expect(bounds()).toEqual(initialPeriod);
       expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-header-group')[0]).toBe(header);
       expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID?.startsWith(`segment-${view}-`))[0]).toBe(radio);
-      expect(radio.props.accessibilityState.selected).toBe(true);
+      expect(radio.props.accessibilityState.checked).toBe(true);
     } finally {
       TestRenderer.act(() => tree.update(<></>));
     }
@@ -645,7 +645,7 @@ describe("CalendarScreen views (mobile)", () => {
       expect.soft(tree.root.findAll((node) => node.type === 'Sheet').length).toBe(0);
       expect.soft(hostTexts(tree)).not.toContain(title);
       expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID?.startsWith(`segment-${view}-`))[0] === radio).toBe(true);
-      expect(radio.props.accessibilityState.selected).toBe(true);
+      expect(radio.props.accessibilityState.checked).toBe(true);
     } finally {
       TestRenderer.act(() => tree.update(<></>));
     }
@@ -882,7 +882,7 @@ describe("CalendarScreen views (mobile)", () => {
       for (const label of ['common.nextWeek', 'common.previousWeek']) {
         const control = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!;
         TestRenderer.act(() => control.props.onPress());
-        expect(tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)).toHaveLength(1);
+        expect(tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityState?.checked)).toHaveLength(1);
       }
       expect(hostTexts(tree)).toContain(initial);
     } finally { TestRenderer.act(() => tree.unmount()); vi.useRealTimers(); }
@@ -923,7 +923,7 @@ describe("CalendarScreen views (mobile)", () => {
         TestRenderer.act(() => control.props.onPress());
       }
       expect(hostTexts(tree)).toContain('30 ago a 12 set');
-      expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)).toHaveLength(1);
+      expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityState?.checked)).toHaveLength(1);
     } finally { TestRenderer.act(() => tree.unmount()); }
   });
 
@@ -1099,12 +1099,12 @@ describe("CalendarScreen views (mobile)", () => {
     const switchers = monthHeader.root.findAll(
       (node) =>
         typeof node.type === "string" &&
-        node.props.accessibilityRole === "tablist" &&
+        node.props.accessibilityRole === "radiogroup" &&
         node.props.accessibilityLabel === "calendar.view.switchLabel",
     );
     const segments = monthHeader.root.findAll(
       (node) =>
-        typeof node.type === "string" && node.props.accessibilityRole === "tab",
+        typeof node.type === "string" && node.props.accessibilityRole === "radio",
     );
 
     expect(switchers).toHaveLength(1);
@@ -1113,7 +1113,7 @@ describe("CalendarScreen views (mobile)", () => {
       segments.find(
         (segment) => segment.props.testID === "segment-month-selected-enabled",
       )?.props.accessibilityState,
-    ).toMatchObject({ selected: true });
+    ).toMatchObject({ checked: true });
     expect(
       segments.some(
         (segment) => segment.props.testID === "segment-agenda-unselected-enabled",

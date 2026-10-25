@@ -1,6 +1,6 @@
 # Headless control surfaces
 
-**At a glance:** paired selection, picker, tab, toast and form-control owners, primitive
+**At a glance:** paired selection, picker, toast and form-control owners, primitive
 boundaries, retained behavior and verification coverage.
 
 ## Primitive boundary
@@ -17,8 +17,8 @@ Base UI Dialog and native TrueSheet adapters continue to own dialogs.
 | Both year pickers | Existing three-column grid inside its owner's Sheet | Selected-year announcement, scroll reveal, 48px cells and 52px pitch including the 4px gap |
 | Both date fields | Existing calendar grid inside Sheet | Selected-date announcement, month and year navigation, web calendar keyboard navigation and value commit after dismissal |
 | Both time fields | Existing bounded multi-column grid inside Sheet, with headless radio items | Localized typed entry, selected hour/minute, drag ownership, draft and Done |
-| Both PickerRow surfaces | Checkbox primitive around the object selection target | Selected state, proposed label feedback, disabled state and separate value/actions |
-| Both segmented controls and HabitViewSwitch consumers | Tabs primitives | Named current tab, disabled options and view changes; web roving navigation; native individually focusable tabs |
+| Both PickerRow surfaces | Toggle primitive around the object selection target | Selected state, proposed label feedback, disabled state and separate value/actions |
+| Both segmented controls and HabitViewSwitch consumers | Radio group primitives | Named checked value, disabled options and view changes; web roving navigation; native individually focusable radios |
 | Both RadioRow surfaces and their callers | Radio group primitives | Existing names, selected state, disabled reasons, personal text disclosure and explicit activation commits |
 | Settings ListRow switches | Switch primitives | Existing row name, checked state, pending state and target geometry |
 | Both Checkbox components | Checkbox primitives | Existing name, checked/error/loading state and decorative box mode |
@@ -34,7 +34,7 @@ only then does the selected value reach the caller. The parent form keeps its ke
 scroll owner and handled-tap policy.
 
 The native focus provider retains entry provenance and selection on directional focus for radio
-options and tabs. Each enabled option remains a real platform focus target. There is no invisible
+options. Each enabled option remains a real platform focus target. There is no invisible
 roving target. The primitives own press semantics and selected state.
 
 Web radio navigation comes from Radix. The adapter retains selected-item entry, Home/End selection
@@ -72,7 +72,7 @@ queued action. The primitive still handles Escape from its own controls.
 ## Dependency interface evidence
 
 The Radix utility overrides keep each utility at one physical module path across the selected
-primitives. Dropdown Menu uses the same utility family as Select, Radio Group, Tabs and Toast.
+primitives. Dropdown Menu uses the same utility family as Select, Radio Group and Toast.
 The lockfile retains unrelated dependency versions.
 
 Re-derive the consumed interfaces from the installed packages:
@@ -97,3 +97,34 @@ button. The installed `@testing-library/user-event/dist/cjs/event/behavior/keypr
 searches descendants for a submit button and otherwise requires a single input; primitive radio
 inputs expose that limitation. Mounted Chromium coverage verifies the real associated footer
 submission without that adapter.
+
+Web segmented controls keep the shipped radiogroup, radio and checked-state semantics. Arrow keys
+select while ordinary focus inspection preserves the value and the Today pager. The group itself
+is not a keyboard stop. Native options retain individual focus targets and checked announcements.
+Picker rows retain toggle-button selection with separate personal-text disclosure actions.
+
+Form proxy inputs remain in forms for change events and serialization, but carry no layout box.
+Only their named visible control participates in field measurement and pointer interaction.
+
+The segmented-control and picker-row interfaces can be re-derived from these installed sources:
+
+- `@radix-ui/react-radio-group/dist/index.mjs`, `RadioTrigger`, `RadioGroup` and
+  `RadioGroupItemTrigger`: buttons expose `role="radio"` and boolean `aria-checked`, the root
+  exposes `role="radiogroup"`, and arrow-driven focus clicks the enabled item. Roving navigation
+  queues focus in `@radix-ui/react-roving-focus/dist/index.mjs`, `RovingFocusGroupItem`.
+  The adapter clears its navigation key after that task so stationary Home/End presses cannot
+  turn later ordinary focus into selection.
+- `@rn-primitives/radio-group/dist/radio-group.js`, `Root` and `Item`: the root exposes
+  `role="radiogroup"`; items expose `role="radio"`, boolean `aria-checked` and
+  `accessibilityState` with boolean `checked` and `disabled`. Press calls `onValueChange`.
+- `@radix-ui/react-toggle/dist/index.mjs`, `Toggle`: a button exposes boolean `aria-pressed`
+  and calls `onPressedChange` only when enabled. `@rn-primitives/toggle/dist/toggle.js`, `Root`,
+  supplies checked switch defaults; the native picker adapter replaces those with its existing
+  button role and selected state.
+- `@radix-ui/react-checkbox/dist/index.mjs`, `CheckboxBubbleInput`, and
+  `@radix-ui/react-switch/dist/index.mjs`, `SwitchBubbleInput`: form proxies expose
+  `aria-hidden="true"`, `tabIndex=-1` and opacity zero. Radio proxies use the same attributes;
+  Select uses an aria-hidden select. The stylesheet removes these nonvisual layout boxes.
+
+Direct tabs dependencies are removed. The lockfile retains the Radix tabs dependency required
+by the native routing package.

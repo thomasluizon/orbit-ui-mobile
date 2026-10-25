@@ -159,14 +159,14 @@ describe('PlanSelection (mobile)', () => {
     const tree = renderSelection('yearly', state)
     const group = tree.root.findAll(
       (node: { type: unknown; props: Record<string, unknown> }) =>
-        node.type === 'View' && node.props.accessibilityRole === 'tablist',
+        node.type === 'View' && node.props.accessibilityRole === 'radiogroup',
     )[0]
     expect(StyleSheet.flatten(group.props.style)).toEqual(expect.objectContaining({
       alignSelf: 'stretch', width: '100%', flexDirection: 'row', gap: 4, padding: 4,
     }))
     const segments = tree.root.findAll(
       (node: { type: unknown; props: Record<string, unknown> }) =>
-        node.type === 'Pressable' && node.props.accessibilityRole === 'tab',
+        node.type === 'Pressable' && node.props.accessibilityRole === 'radio',
     )
     expect(segments).toHaveLength(2)
     for (const segment of segments) {

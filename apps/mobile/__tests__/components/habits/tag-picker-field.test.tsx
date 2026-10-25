@@ -34,14 +34,14 @@ function buildTags(count: number) {
 
 interface TestButtonNode {
   props: {
-    accessibilityState?: { checked?: boolean; disabled?: boolean }
+    accessibilityState?: { selected?: boolean; disabled?: boolean }
     onPress: () => void
   }
 }
 
 function findButtonWithText(root: { findAll: (predicate: (node: { type: unknown; props: Record<string, unknown>; findAll: (childPredicate: (child: { type: unknown; props: Record<string, unknown> }) => boolean) => unknown[] }) => boolean) => unknown[] }, text: string): TestButtonNode {
   return root.findAll((node) =>
-    typeof node.type === 'string' && ['button', 'checkbox'].includes(String(node.props.accessibilityRole)) &&
+    typeof node.type === 'string' && ['button'].includes(String(node.props.accessibilityRole)) &&
     !(node.props.accessibilityState !== undefined && 'expanded' in (node.props.accessibilityState as Record<string, unknown>)) &&
     node.findAll((child) => child.type === 'Text' && child.props.children === text).length > 0,
   )[0]! as TestButtonNode
@@ -112,7 +112,7 @@ it('selects a tag below the first viewport while the search keyboard is open', a
     row = TestRenderer.create(list.props.renderItem({ item: tags[20], index: 20 }))
   })
   await TestRenderer.act(() => {
-    row.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'checkbox')[0]!.props.onPress()
+    row.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]!.props.onPress()
   })
   expect(onToggle).toHaveBeenCalledWith('tag-20')
 })
@@ -225,7 +225,7 @@ it('selects and deselects a tag and exposes its edit and delete actions', async 
   })
 
   let tagButton = findButtonWithText(tree.root, 'Tag 0')
-  expect(tagButton.props.accessibilityState).toMatchObject({ checked: false, disabled: false })
+  expect(tagButton.props.accessibilityState).toMatchObject({ selected: false, disabled: false })
   await TestRenderer.act(() => {
     tagButton.props.onPress()
   })
@@ -235,7 +235,7 @@ it('selects and deselects a tag and exposes its edit and delete actions', async 
     tree.update(<TagPickerField {...props} selectedIds={['tag-0']} />)
   })
   tagButton = findButtonWithText(tree.root, 'Tag 0')
-  expect(tagButton.props.accessibilityState).toMatchObject({ checked: true, disabled: false })
+  expect(tagButton.props.accessibilityState).toMatchObject({ selected: true, disabled: false })
   await TestRenderer.act(() => {
     tagButton.props.onPress()
     tree.root.findByProps({ accessibilityLabel: 'Edit: Tag 0' }).props.onPress()
@@ -288,7 +288,7 @@ it('renders an editor when an empty tag collection is being created', async () =
     expect(onToggle).not.toHaveBeenCalled()
     await TestRenderer.act(() => pressTextControl(expandedTextControls(tree.root, name, true)[0]!))
     await TestRenderer.act(() => (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)())
-    const row = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === name && (node.props.accessibilityState as { checked?: boolean } | undefined)?.checked === true)[0]!
+    const row = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === name && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true)[0]!
     expect(row).toBeDefined()
     await expectPersonalTextLayout(row, name)
     const rowDisclosure = expandedTextControls(tree.root, `common.showFullText:${JSON.stringify({ name })}`, false)

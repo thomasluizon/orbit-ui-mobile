@@ -71,10 +71,10 @@ describe('Pro tier geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
-      const geometry = await page.locator('[role="tablist"]').evaluate((group) => {
+      const geometry = await page.locator('[role="radiogroup"]').evaluate((group) => {
         const bounds = group.getBoundingClientRect()
         const column = group.parentElement!.getBoundingClientRect()
-        const segments = [...group.querySelectorAll('[role="tab"]')].map((segment) => {
+        const segments = [...group.querySelectorAll('[role="radio"]')].map((segment) => {
           const box = segment.getBoundingClientRect()
           const range = document.createRange()
           range.selectNodeContents(segment.querySelector('span')!)

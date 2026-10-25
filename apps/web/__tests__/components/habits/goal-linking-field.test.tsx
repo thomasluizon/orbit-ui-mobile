@@ -84,9 +84,9 @@ describe('GoalLinkingField', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
-    const activeGoal = await screen.findByRole('checkbox', { name: /Run 100km/, checked: false })
+    const activeGoal = await screen.findByRole('button', { name: /Run 100km/, pressed: false })
     expect(activeGoal).toBeEnabled()
-    expect(activeGoal).toHaveAttribute('aria-checked', 'false')
+    expect(activeGoal).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByRole('button', { name: /Completed Goal/ })).not.toBeInTheDocument()
     expect(screen.queryByText(/Completed Goal/)).not.toBeInTheDocument()
 
@@ -104,7 +104,7 @@ describe('GoalLinkingField', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
     expect(screen.getByText('habits.form.goalInvitation')).toBeInTheDocument()
-    expect(screen.queryByRole('checkbox', { name: /Run 100km/, checked: false })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Run 100km/, pressed: false })).not.toBeInTheDocument()
 
     await act(async () => {
       finishRequest({ items: [
@@ -113,7 +113,7 @@ describe('GoalLinkingField', () => {
       ] })
     })
 
-    const activeGoal = await screen.findByRole('checkbox', { name: /Run 100km/, checked: false })
+    const activeGoal = await screen.findByRole('button', { name: /Run 100km/, pressed: false })
     expect(activeGoal).toBeEnabled()
     expect(screen.queryByText('habits.form.goalInvitation')).not.toBeInTheDocument()
     expect(screen.queryByText('Completed Goal')).not.toBeInTheDocument()
@@ -143,7 +143,7 @@ describe('GoalLinkingField', () => {
     mockFetchJson.mockResolvedValue([createMockGoal({ id: 'existing-goal', title: 'Existing goal' })])
     render(<GoalLinkingField habitId={habitId} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={onToggleGoal} onGoalCreated={onToggleGoal} />, { wrapper: Wrapper })
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
-    await screen.findByRole('checkbox', { name: /Existing goal/, checked: false })
+    await screen.findByRole('button', { name: /Existing goal/, pressed: false })
     fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
     expect(await screen.findByLabelText('Initial linked habits')).toHaveTextContent(habitId ?? '')
     fireEvent.click(screen.getByRole('button', { name: 'Save created goal' }))
@@ -205,7 +205,7 @@ describe('GoalLinkingField', () => {
     expect(onToggle).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name, expanded: true }))
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
-    const row = await screen.findByRole('checkbox', { name, checked: true })
+    const row = await screen.findByRole('button', { name, pressed: true })
     const title = row.querySelector('[data-personal-text]')!
     expect(title).toHaveAttribute('aria-label', name)
     expect(title).toHaveStyle({ whiteSpace: name.includes(' ') ? 'normal' : 'nowrap', wordBreak: 'normal', overflowWrap: 'normal' })

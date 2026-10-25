@@ -95,9 +95,9 @@ describe('PlanSelection', () => {
   it('leads with annual and gives the recommended tier the only filled action', () => {
     renderSelection()
 
-    expect(screen.getAllByRole('tab')).toHaveLength(2)
-    expect(screen.getByRole('tab', { name: 'upgrade.plans.interval.annual' })).toHaveAttribute(
-      'aria-selected',
+    expect(screen.getAllByRole('radio')).toHaveLength(2)
+    expect(screen.getByRole('radio', { name: 'upgrade.plans.interval.annual' })).toHaveAttribute(
+      'aria-checked',
       'true',
     )
     expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
@@ -115,10 +115,10 @@ describe('PlanSelection', () => {
     const onCheckout = vi.fn()
     renderSelection({ onCheckout })
 
-    fireEvent.click(screen.getByRole('tab', { name: 'upgrade.plans.interval.monthly' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'upgrade.plans.interval.monthly' }))
 
-    expect(screen.getByRole('tab', { name: 'upgrade.plans.interval.monthly' })).toHaveAttribute(
-      'aria-selected',
+    expect(screen.getByRole('radio', { name: 'upgrade.plans.interval.monthly' })).toHaveAttribute(
+      'aria-checked',
       'true',
     )
     expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([

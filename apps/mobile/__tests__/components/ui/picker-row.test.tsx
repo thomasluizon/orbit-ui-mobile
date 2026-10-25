@@ -20,7 +20,7 @@ describe('proposed picker names', () => {
     const tokens = createTokensV2('orange', mode)
     let tree: ReturnType<typeof renderer.create>
     await renderer.act(() => { tree = renderer.create(<PickerRow proposed name="Health" selected={false} disabled={false} onToggle={vi.fn()} value="" valueStyle={{}} />) })
-    const control = () => tree.root.findAll((node: TestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'checkbox' && node.props.accessibilityLabel === 'Health')[0]!
+    const control = () => tree.root.findAll((node: TestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Health')[0]!
     const color = () => StyleSheet.flatten(tree.root.findAll((node: TestNode) => node.type === 'Text' && node.props.children === 'Health')[0]!.props.style).color
     try {
       expect(color()).toBe(tokens.fg3)
@@ -36,15 +36,15 @@ describe('proposed picker names', () => {
   })
 })
 
-it.each([false, true])('keeps checkbox selection and honors reduced motion=%s', async (reduced) => {
+it.each([false, true])('keeps toggle selection and honors reduced motion=%s', async (reduced) => {
   motion.reduced = reduced
   theme.currentTheme = 'dark'
   const onToggle = vi.fn()
   let tree: ReturnType<typeof renderer.create>
   await renderer.act(() => { tree = renderer.create(<PickerRow name="Health" selected disabled={false} onToggle={onToggle} value="3" valueStyle={{}} />) })
   try {
-    const control = tree.root.findAll((node: TestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'checkbox')[0]!
-    expect(control.props.accessibilityState).toMatchObject({ checked: true })
+    const control = tree.root.findAll((node: TestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]!
+    expect(control.props.accessibilityState).toMatchObject({ selected: true })
     const resolveStyle = control.props.style as (state: { pressed: boolean }) => ViewStyle[]
     expect(StyleSheet.flatten(resolveStyle({ pressed: true }))).toMatchObject({ backgroundColor: createTokensV2('orange', 'dark').bgHover })
     expect(StyleSheet.flatten(resolveStyle({ pressed: true })).transform ?? []).toEqual(reduced ? [] : [{ scale: 0.96 }])

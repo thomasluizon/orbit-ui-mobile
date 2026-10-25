@@ -57,7 +57,7 @@ describe('selection yields to keyboard focus', () => {
       } finally { cleanup(); await page.close() }
     })
     it.each(['Standard', 'Streak'] as const)(`goal type switch keeps one indicator, ${theme}, selected %s`, async (goalType) => {
-      await verifyRenderedChoices(<GoalTypeSelector goalType={goalType} onTypeChange={vi.fn()} />, '[role="tab"]', theme)
+      await verifyRenderedChoices(<GoalTypeSelector goalType={goalType} onTypeChange={vi.fn()} />, '[role="radio"]', theme)
     })
     it(`a selected inner DateField circle yields to its focused button, ${theme}`, async () => {
       const { container } = render(<button type="button"><span className="orbit-selection-ring orbit-selection-ring-hairline" data-selected>Today</span></button>)
@@ -203,7 +203,7 @@ describe('selection yields to keyboard focus', () => {
 })
 
 async function segmentGeometry(page: import('@playwright/test').Page) {
-  return page.locator('[role="tablist"]').evaluate((track) => {
+  return page.locator('[role="radiogroup"]').evaluate((track) => {
     const style = getComputedStyle(track)
     return { padding: style.padding, gap: style.gap, radius: style.borderRadius, shadow: style.boxShadow,
       trackWidth: track.getBoundingClientRect().width, scrollWidth: track.scrollWidth,

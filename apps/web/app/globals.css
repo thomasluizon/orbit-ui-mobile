@@ -5,6 +5,11 @@
    (pointer: fine) too, so a touch tap cannot latch a hover state. */
 @plugin "../tailwind-hover-variant.mjs";
 
+input[aria-hidden="true"],
+select[aria-hidden="true"] {
+  display: none;
+}
+
 .habit-detail-strip [data-scope='habit'] {
   --habit-strip-cell-size: 8px;
 }

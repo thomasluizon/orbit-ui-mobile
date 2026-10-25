@@ -47,7 +47,6 @@
     "@rn-primitives/select": "1.5.2",
     "@rn-primitives/slot": "1.5.2",
     "@rn-primitives/switch": "1.5.2",
-    "@rn-primitives/tabs": "1.5.2",
     "@rn-primitives/toast": "1.5.2",
     "@rn-primitives/toggle": "1.5.2",
     "@rn-primitives/types": "1.5.2",

@@ -117,7 +117,7 @@ describe('goal creation with habits', () => {
       expect(text(note!)).toHaveLength(1)
       expect(text(excluded!)).toHaveLength(0)
       await openHabitPicker(tree)
-      expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === habit.title)[0]!.props.accessibilityState).toMatchObject({ checked: true })
+      expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === habit.title)[0]!.props.accessibilityState).toMatchObject({ selected: true })
       expect(text(note!)).toHaveLength(1)
       expect(text(excluded!)).toHaveLength(0)
       await TestRenderer.act(() => button(tree, 'common.done').props.onClick())

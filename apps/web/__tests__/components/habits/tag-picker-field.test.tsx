@@ -138,14 +138,14 @@ describe('TagPickerField', () => {
     const { rerender } = render(<TagPickerField {...props} selectedIds={[]} />)
 
     fireEvent.click(screen.getByText('habits.form.tags'))
-    let tagButton = screen.getByRole('checkbox', { name: 'Tag 0', checked: false })
-    expect(tagButton).toHaveAttribute('aria-checked', 'false')
+    let tagButton = screen.getByRole('button', { name: 'Tag 0', pressed: false })
+    expect(tagButton).toHaveAttribute('aria-pressed', 'false')
     fireEvent.click(tagButton)
     expect(onToggle).toHaveBeenLastCalledWith('tag-0')
 
     rerender(<TagPickerField {...props} selectedIds={['tag-0']} />)
-    tagButton = screen.getByRole('checkbox', { checked: true })
-    expect(tagButton).toHaveAttribute('aria-checked', 'true')
+    tagButton = screen.getByRole('button', { pressed: true })
+    expect(tagButton).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(tagButton)
     expect(onToggle).toHaveBeenCalledTimes(2)
 
@@ -186,7 +186,7 @@ describe('TagPickerField', () => {
     expect(onToggle).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name, expanded: true }))
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.tags/ }))
-    const row = await screen.findByRole('checkbox', { name, checked: true })
+    const row = await screen.findByRole('button', { name, pressed: true })
     const title = row.querySelector('[data-personal-text]')!
     expect(title).toHaveAttribute('aria-label', name)
     expect(title).toHaveStyle({ whiteSpace: name.includes(' ') ? 'normal' : 'nowrap', wordBreak: 'normal', overflowWrap: 'normal' })
@@ -212,5 +212,5 @@ it('keeps the suggestions footer anchored when scrolling beyond the tag rows', (
   expect(parseFloat(leadingSpacer.style.height)).toBeLessThanOrEqual(25 * 120)
   expect(scroller).toContainElement(screen.getByTestId('suggestion-footer'))
   fireEvent.scroll(scroller, { target: { scrollTop: 0 } })
-  expect(screen.getByRole('checkbox', { name: 'Tag 0', checked: false })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Tag 0', pressed: false })).toBeEnabled()
 })

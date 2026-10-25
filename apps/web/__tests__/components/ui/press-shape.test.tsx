@@ -225,7 +225,7 @@ describe('interaction fill parity in Chromium', () => {
         await direction.hover()
         expect(await direction.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(expectedFill)
       }
-      const segment = page.getByRole('tab', { name: 'Active', exact: true })
+      const segment = page.getByRole('radio', { name: 'Active', exact: true })
       await segment.hover()
       await page.mouse.down()
       expect(await segment.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(expectedFill)

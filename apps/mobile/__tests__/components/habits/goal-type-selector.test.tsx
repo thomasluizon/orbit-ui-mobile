@@ -51,7 +51,7 @@ describe('GoalTypeSelector', () => {
       tree = create(<Selector onChange={onChange} />)
     })
     const radios = (): any[] => tree.root.findAll(
-      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'tab',
+      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
     )
     expect(radios().map((option) => option.props.focusable)).toEqual([true, true])
     void act(() => focusHost(tree, radios()[0]))
@@ -68,7 +68,7 @@ describe('GoalTypeSelector', () => {
       tree = create(<Selector onChange={onChange} />)
     })
     const streak = tree.root.findAll(
-      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'tab',
+      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
     )[1]!
     void act(() => streak.props.onPress())
     expect(onChange).toHaveBeenCalledExactlyOnceWith('Streak')

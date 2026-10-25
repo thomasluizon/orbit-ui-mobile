@@ -43,7 +43,7 @@ describe('Share progress sheet', () => {
     expect(screen.getByTestId('share-card')).toHaveTextContent('shareCard.stats.activeDays')
     expect(screen.getByTestId('share-card')).toHaveTextContent('74%')
     expect(mocks.wrapped).toHaveBeenLastCalledWith('week', { enabled: true })
-    fireEvent.click(screen.getByRole('tab', { name: 'shareCard.periods.month' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'shareCard.periods.month' }))
     expect(mocks.wrapped).toHaveBeenLastCalledWith('month', { enabled: true })
     expect(mocks.resetFeedback).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
@@ -85,7 +85,7 @@ describe('Share progress sheet', () => {
     }
     expect(mocks.share).not.toHaveBeenCalled()
     expect(mocks.download).not.toHaveBeenCalled()
-    expect(screen.getByRole('tab', { name: 'shareCard.periods.month' })).toBeDisabled()
+    expect(screen.getByRole('radio', { name: 'shareCard.periods.month' })).toBeDisabled()
   })
 
   it('keeps download available without native file sharing', () => {

@@ -47,7 +47,7 @@ describe('PlanSelection card state through presence transitions', () => {
     }
     await waitFor(() => expect(view.container.querySelectorAll('[data-tier-reservation]')).toHaveLength(0))
     expect(view.container.querySelectorAll('[data-tier]')).toHaveLength(2)
-    fireEvent.click(screen.getByRole('tab', { name: en.upgrade.plans.interval.monthly }))
+    fireEvent.click(screen.getByRole('radio', { name: en.upgrade.plans.interval.monthly }))
     expect(view.container.querySelectorAll('[data-tier][data-selected]')).toHaveLength(1)
     expect(view.container.querySelector('[data-tier][data-selected]')).toHaveAttribute('data-tier', 'monthly')
   })

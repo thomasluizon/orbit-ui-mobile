@@ -2,7 +2,7 @@ import { SPACING } from '@orbit/shared/theme'
 import { useMemo, useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native'
 import { usePrefersReducedMotion } from '@/lib/motion'
-import * as Primitive from '@rn-primitives/checkbox'
+import * as Primitive from '@rn-primitives/toggle'
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { useThemeTokens } from '@/hooks/use-theme-tokens'
@@ -28,7 +28,7 @@ export function PickerRow({ name, selected, proposed = false, disabled, onToggle
   const [focused, setFocused] = useState(false)
   return (
     <View style={styles.row}>
-      <Primitive.Root onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} focusable={!disabled} checked={selected} onCheckedChange={onToggle} accessibilityRole="checkbox" accessibilityLabel={name} accessibilityState={{ checked: selected, disabled }} disabled={disabled} onHoverIn={() => { if (proposed) setHovered(true) }} onHoverOut={() => setHovered(false)} style={({ pressed }) => [styles.rowMain, focused ? { outlineWidth: 2, outlineColor: tokens.fg1, outlineStyle: 'solid', outlineOffset: -2 } : null, disabled ? styles.disabled : null, hovered && !disabled ? styles.hovered : null, pressed ? [styles.pressed, reducedMotion ? { transform: [] } : null] : null]}>
+      <Primitive.Root onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} focusable={!disabled} pressed={selected} onPressedChange={onToggle} role={undefined} aria-checked={undefined} accessibilityRole="button" accessibilityLabel={name} accessibilityState={{ selected, disabled }} disabled={disabled} onHoverIn={() => { if (proposed) setHovered(true) }} onHoverOut={() => setHovered(false)} style={({ pressed }) => [styles.rowMain, focused ? { outlineWidth: 2, outlineColor: tokens.fg1, outlineStyle: 'solid', outlineOffset: -2 } : null, disabled ? styles.disabled : null, hovered && !disabled ? styles.hovered : null, pressed ? [styles.pressed, reducedMotion ? { transform: [] } : null] : null]}>
         {({ pressed }) => <PersonalText style={[styles.rowTitle, proposed ? styles.proposedTitle : null, proposed && (pressed || hovered) ? styles.interactiveTitle : null]}>{name}</PersonalText>}
       </Primitive.Root>
       <View style={styles.rowActions}>

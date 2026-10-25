@@ -304,7 +304,7 @@ describe('Hoje date boundaries', () => {
     mocks.date.pinnedDateStr = '2026-04-01'
     let tree!: import('react-test-renderer').ReactTestRenderer & { unmount: () => void }
     await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) as typeof tree })
-    const radio = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'tab' && typeof node.props.testID === 'string' && node.props.testID.startsWith(`segment-${activeView}-`))[0]!
+    const radio = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio' && typeof node.props.testID === 'string' && node.props.testID.startsWith(`segment-${activeView}-`))[0]!
     await TestRenderer.act(() => { (radio.props.onPress as () => void)() })
     expect(mocks.routerReplace).toHaveBeenCalledWith('/(tabs)')
     expect(useUIStore.getState().activeView).toBe(activeView)
@@ -316,9 +316,9 @@ describe('Hoje date boundaries', () => {
     useUIStore.setState({ activeView })
     let tree!: import('react-test-renderer').ReactTestRenderer & { unmount: () => void }
     await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) as typeof tree })
-    const radios = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'tab')
+    const radios = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
     expect(radios).toHaveLength(3)
-    expect(radios.find((radio) => typeof radio.props.testID === 'string' && radio.props.testID.startsWith(`segment-${activeView}-`))?.props.accessibilityState).toMatchObject({ selected: true })
+    expect(radios.find((radio) => typeof radio.props.testID === 'string' && radio.props.testID.startsWith(`segment-${activeView}-`))?.props.accessibilityState).toMatchObject({ checked: true })
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'today-date-row')).toHaveLength(0)
     const list = tree.root.findAll((node) => String(node.type) === 'HabitListProps')[0]!
     expect(list.props.view).toBe(activeView)

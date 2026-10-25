@@ -522,7 +522,7 @@ it('selects an existing tag locally and commits its association only with the ha
   mutation.mockReset().mockResolvedValue(undefined)
   const { submit } = await renderSheet('edit', createMockHabit({ isGeneral: true, frequencyUnit: null }))
   fireEvent.click(screen.getByRole('button', { name: /habits.form.tags/ }))
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Reading' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Reading' }))
   expect(mutation).not.toHaveBeenCalled()
   for (const write of Object.values(tagManagement)) expect(write).not.toHaveBeenCalled()
   await act(async () => fireEvent.click(submit))
