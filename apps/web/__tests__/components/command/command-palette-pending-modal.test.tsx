@@ -21,11 +21,16 @@ vi.mock('@/hooks/use-habits', () => ({
   useSkipHabit: () => ({ mutate: vi.fn() }),
 }))
 
+let releaseMenu = () => {}
+
 beforeEach(() => vi.resetModules())
-afterEach(cleanup)
+afterEach(async () => {
+  cleanup()
+  releaseMenu()
+  await vi.dynamicImportSettled()
+})
 
 async function openSheetOverPendingPalette() {
-  let releaseMenu = () => {}
   let markMenuReady = () => {}
   const pendingMenu = new Promise<void>((resolve) => { releaseMenu = resolve })
   const menuReady = new Promise<void>((resolve) => { markMenuReady = resolve })
@@ -62,6 +67,7 @@ async function openSheetOverPendingPalette() {
   const sheet = await screen.findByRole('dialog', { name: 'Options' })
   await waitFor(() => expect(sheet).toContainElement(document.activeElement as HTMLElement))
   await user.click(within(sheet).getByRole('textbox', { name: 'Sheet field' }))
+  await act(async () => { await import('@/components/ui/toast') })
   act(() => { useAppToastStore.getState().showQueued('Still here', 'Undo', vi.fn()) })
   await waitFor(() => expect(sheet.querySelector('[data-kind="neutral"][role="group"]')).toHaveTextContent('Still here'))
   await waitFor(() => expect(screen.getAllByRole('status').some((region) => region.textContent.includes('Still here'))).toBe(true))
