@@ -10,6 +10,7 @@ module.exports = {
     messages: { icon: 'Use IconButton with a localized label for "{{label}}". Keep visible text for a flow-ending consequence or a drawn contextual action.' },
   },
   create(context) {
+    if (context.filename.replaceAll('\\', '/').includes('/__tests__/')) return {}
     const names = new Set(controls)
     return {
       ImportDeclaration(node) {

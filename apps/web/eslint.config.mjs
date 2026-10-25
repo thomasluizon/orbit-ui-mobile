@@ -263,7 +263,6 @@ export default [
     rules: {
       "local/no-fullbleed-button": "off",
       "local/max-button-words": "off",
-      "local/no-text-icon-action": "off",
       "local/no-double-assertion": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-require-imports": "off",

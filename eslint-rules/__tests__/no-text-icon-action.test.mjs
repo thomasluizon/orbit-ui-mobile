@@ -11,6 +11,7 @@ const tester = new RuleTester({ languageOptions: { parser, parserOptions: { ecma
 
 tester.run('no-text-icon-action', require('../no-text-icon-action.cjs'), {
   valid: [
+    { code: 'const fixture = <Button>Refresh</Button>', filename: '/repo/apps/web/__tests__/fixture.tsx' },
     '<IconButton label="Refresh"><RefreshCw /></IconButton>',
     '<Button iconOnly label="Close"><X /></Button>',
     '<Button>Delete habit</Button>',
