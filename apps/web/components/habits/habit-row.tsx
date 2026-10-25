@@ -359,10 +359,10 @@ function HabitRowLayout({ measureRef, habitId, habitTitle, depth, state, selecte
   const minHeight = isChild ? 52 : 68
   const contentLayoutClass = supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : 'items-center gap-0'
   return (
-    <div ref={measureRef} style={{ paddingInlineStart: depth * SPACING.s16 }}>
+    <div ref={measureRef}>
       <div data-testid="habit-row" data-habit-id={habitId} data-habit-title={habitTitle} data-depth={depth} data-status={state} tabIndex={-1}
         className={`habit-row relative rounded-[20px] ${selected ? 'bg-[var(--selection-bg)]' : 'bg-[var(--bg-card)]'} ${supportingMeta ? 'grid' : 'flex'} ${contentLayoutClass}`}
-        style={{ minHeight }}>
+        style={{ minHeight, marginInlineStart: depth * SPACING.s16 }}>
         {children}
       </div>
     </div>

@@ -65,9 +65,10 @@ export async function assertHabitRowPreviewGeometry(browser: Browser, stylesheet
         resolve({ contentRect: entry!.contentRect.toJSON(), borderBoxSize: sizes(entry!.borderBoxSize), contentBoxSize: sizes(entry!.contentBoxSize), devicePixelContentBoxSize: sizes(entry!.devicePixelContentBoxSize) })
         observer.disconnect()
       })
-      observer.observe(target)
+      observer.observe(target.parentElement!)
     }))))
-    act(() => mounted.container.querySelectorAll('[data-testid="habit-row"]').forEach((target, index) => {
+    act(() => mounted.container.querySelectorAll('[data-testid="habit-row"]').forEach((row, index) => {
+      const target = row.parentElement!
       const observation = observations.get(target)!
       const entry = observed[index]!
       observation.callback([{ ...entry, contentRect: DOMRectReadOnly.fromRect(entry.contentRect), target }], observation.observer)

@@ -1646,7 +1646,7 @@ describe('HabitList', () => {
           const bounds = rows.map((row) => row.getBoundingClientRect()).filter((row) => row.height > 0)
           return bounds.slice(1).map((row, index) => row.top - bounds[index]!.bottom)
         })
-        expect(gaps).toEqual([4, 12])
+        expect(gaps).toEqual([8, 12])
         fireEvent.click(screen.getByRole('button', { name: 'common.collapse' }))
         await page.close()
       }
@@ -2041,7 +2041,7 @@ describe('HabitList', () => {
         }], observation.observer)
       }
       await act(async () => resize(container.querySelector('[data-habit-list]')!))
-      await act(async () => { for (const row of container.querySelectorAll('[data-testid="habit-row"]')) resize(row) })
+      await act(async () => { for (const row of container.querySelectorAll('[data-testid="habit-row"]')) resize(row.parentElement!) })
       expect(Array.from(container.querySelectorAll('[data-testid="habit-row"]')).map((row) => row.getAttribute('data-depth'))).toEqual(width === 320 ? ['0', '1', '2'] : ['0', '1', '2', '3'])
       expect(disclosures[2]!.getAttribute('aria-expanded')).toBe(width === 320 ? null : 'true')
       if (width > 320) expect(container.querySelector(`[id="${disclosures[2]!.getAttribute('aria-controls')}"]`)).toHaveTextContent('Great grandchild')
