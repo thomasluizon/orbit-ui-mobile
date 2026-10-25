@@ -388,11 +388,11 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     scrollToBottom()
   }, [addMessage, handleDailyBudgetExceeded, scrollToBottom, setInput, setIsTyping, t, updateMessage, setSendError, setLastFailedSend, setActiveSteps])
 
-  const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[], firstReveal: Promise<void>, messageCost: 0 | 1) => {
+  const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[], firstReveal: Promise<void>, messageCost: 0 | 1, isCancelled: () => boolean) => {
     if (draftMessageId && response.parts?.some(part => part?.type === 'block')) {
       const accountGeneration = getAccountGeneration()
       await firstReveal
-      if (getAccountGeneration() !== accountGeneration) return
+      if (getAccountGeneration() !== accountGeneration || isCancelled()) return
       threadScroll.holdPosition()
     }
     setIsTyping(false)
@@ -588,9 +588,9 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       if (outcome.kind === 'transportError') throw outcome.error
 
       if (outcome.kind === 'final') {
-        finalReceived = true
-        await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal.completion, attempted.messageCost)
-        return ownsAccount() ? { kind: 'final' } : { kind: 'cancelled' }
+        await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal.completion, attempted.messageCost, isCancelled)
+        finalReceived = !isCancelled()
+        return finalReceived ? { kind: 'final' } : { kind: 'cancelled' }
       }
       if (outcome.kind === 'error' || outcome.kind === 'httpError') {
         return { kind: 'failed', failure: { status: outcome.status, error: outcome.error, code: outcome.code }, draftMessageId }

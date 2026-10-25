@@ -1160,6 +1160,30 @@ describe('mobile useChatComposer', () => {
     expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
     expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(['waiting'])
   })
+
+  it('keeps the queue paused when Stop arrives while final blocks wait to appear', async () => {
+    vi.useFakeTimers()
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValueOnce(stream.response).mockImplementation(() => Promise.resolve(sseStreamResponse(finalFrame(makeChatResponse()))))
+    const composer = await renderComposer()
+    let firstSend!: Promise<void>
+    await TestRenderer.act(async () => { firstSend = composer.current.sendMessage('running'); await vi.advanceTimersByTimeAsync(100) })
+    await TestRenderer.act(async () => { await composer.current.sendMessage('waiting') })
+    await TestRenderer.act(async () => {
+      stream.enqueue(frame(JSON.stringify({ type: 'delta', text: partsFixture.response.aiMessage })) + finalFrame(chatResponseSchema.parse(partsFixture.response)))
+      stream.close()
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    await TestRenderer.act(async () => {
+      composer.current.composerProps.replyControl!.onStop()
+      await vi.advanceTimersByTimeAsync(100)
+      await firstSend
+    })
+    expect(useChatStore.getState().messages.some(message => message.parts?.some(part => part?.type === 'block'))).toBe(false)
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState()).toMatchObject({ queuePaused: true, replyActive: false, queueReady: false })
+    expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(['waiting'])
+  })
   beforeEach(() => {
     mocks.translate = undefined
     mocks.locale = 'en'

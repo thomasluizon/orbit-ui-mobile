@@ -965,6 +965,30 @@ describe('web useChatComposer streaming send', () => {
     expect(mocks.fetch).toHaveBeenCalledTimes(1)
     expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(['waiting'])
   })
+
+  it('keeps the queue paused when Stop arrives while final blocks wait to appear', async () => {
+    vi.useFakeTimers()
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(stream.response).mockImplementation(() => Promise.resolve(sseResponse(finalFrame(makeChatResponse()))))
+    const { result } = renderHook(() => useChatComposer())
+    let firstSend!: Promise<void>
+    await act(async () => { firstSend = result.current.sendMessage('running'); await vi.advanceTimersByTimeAsync(100) })
+    await act(async () => { await result.current.sendMessage('waiting') })
+    await act(async () => {
+      stream.enqueue(frame(JSON.stringify({ type: 'delta', text: partsFixture.response.aiMessage })) + finalFrame(chatResponseSchema.parse(partsFixture.response)))
+      stream.close()
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    await act(async () => {
+      result.current.composerProps.replyControl!.onStop()
+      await vi.advanceTimersByTimeAsync(100)
+      await firstSend
+    })
+    expect(useChatStore.getState().messages.some(message => message.parts?.some(part => part?.type === 'block'))).toBe(false)
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState()).toMatchObject({ queuePaused: true, replyActive: false, queueReady: false })
+    expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(['waiting'])
+  })
   beforeEach(() => {
     mocks.translate = undefined
     mocks.locale = 'en'
