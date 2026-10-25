@@ -174,3 +174,10 @@ describe('chat store', () => {
     })
   })
 })
+
+  it('drops all queued prompts and paused state on account reset', () => {
+    useChatStore.getState().enqueuePrompt({ id: 'private', content: 'Private prompt', send: () => Promise.resolve(true) })
+    useChatStore.getState().finishReply(false)
+    useChatStore.getState().resetAccountScopedChat()
+    expect(useChatStore.getState()).toMatchObject({ queuedPrompts: [], queuePaused: false, queueReady: false, replyActive: false })
+  })

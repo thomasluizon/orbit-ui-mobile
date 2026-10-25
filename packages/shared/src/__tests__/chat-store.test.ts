@@ -320,7 +320,7 @@ describe('prompt queue', () => {
     expect(store.getState().queuedPrompts).toHaveLength(1)
     store.getState().beginReply()
     store.getState().finishReply(true)
-    expect(store.getState()).toMatchObject({ queuePaused: false, queueReady: true })
+    expect(store.getState()).toMatchObject({ queuePaused: true, queueReady: true })
     expect(store.getState().takeQueuedPrompt('next')?.content).toBe('Next')
   })
 })

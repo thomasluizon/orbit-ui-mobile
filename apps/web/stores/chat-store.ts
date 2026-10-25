@@ -37,6 +37,7 @@ export const useChatStore = create<WebChatStoreState>((set) => ({
       queuePaused: false,
       queueReady: false,
       replyActive: false,
+      replyRevision: 0,
       messages: [],
       proactiveEntryId: null,
       proactiveOutcomes: {},

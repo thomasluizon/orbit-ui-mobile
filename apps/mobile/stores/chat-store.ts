@@ -26,6 +26,7 @@ export const useChatStore = create<MobileChatStoreState>((set) => ({
       queuePaused: false,
       queueReady: false,
       replyActive: false,
+      replyRevision: 0,
       messages: [],
       proactiveEntryId: null,
       proactiveOutcomes: {},

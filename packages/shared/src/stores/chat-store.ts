@@ -17,6 +17,7 @@ export interface ChatStoreState {
   queuePaused: boolean
   queueReady: boolean
   replyActive: boolean
+  replyRevision: number
   enqueuePrompt: (prompt: QueuedPrompt) => boolean
   removeQueuedPrompt: (id: string) => void
   takeQueuedPrompt: (id: string) => QueuedPrompt | null
@@ -67,6 +68,7 @@ export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
     queuePaused: false,
     queueReady: false,
     replyActive: false,
+    replyRevision: 0,
     enqueuePrompt: (prompt) => {
       let accepted = false
       set((state) => {
@@ -78,19 +80,20 @@ export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
     },
     removeQueuedPrompt: (id) => set((state) => ({
       queuedPrompts: state.queuedPrompts.filter(prompt => prompt.id !== id),
+      queuePaused: state.queuePaused && state.queuedPrompts.some(prompt => prompt.id !== id),
     })),
     takeQueuedPrompt: (id) => {
       let prompt: QueuedPrompt | null = null
       set((state) => {
         if (state.replyActive || state.isTyping || state.streamingMessageId !== null) return {}
         prompt = state.queuedPrompts.find(queued => queued.id === id) ?? null
-        return prompt ? { queuedPrompts: state.queuedPrompts.filter(queued => queued.id !== id), queueReady: false, queuePaused: false } : {}
+        return prompt ? { queuedPrompts: state.queuedPrompts.filter(queued => queued.id !== id), queueReady: false, queuePaused: state.queuePaused && state.queuedPrompts.length > 1 } : {}
       })
       return prompt
     },
-    beginReply: () => set({ replyActive: true, queueReady: false }),
+    beginReply: () => set(state => ({ replyActive: true, queueReady: false, replyRevision: state.replyRevision + 1 })),
     finishReply: (succeeded) => set((state) => ({
-      replyActive: false, queueReady: succeeded, queuePaused: !succeeded && state.queuedPrompts.length > 0,
+      replyActive: false, queueReady: succeeded, queuePaused: state.queuedPrompts.length > 0 && (state.queuePaused || !succeeded),
     })),
     messages: [],
     proactiveEntryId: null,

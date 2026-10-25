@@ -48,6 +48,7 @@ const mocks = vi.hoisted(() => ({
     isMutating: () => 0,
     invalidateQueries: vi.fn(async (_filters?: InvalidateQueryFilters) => {}),
     setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
     clear: vi.fn(),
   },
 }))
@@ -681,7 +682,7 @@ describe('web useChatComposer streaming send', () => {
     fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
     expect(screen.getByText('Plan my morning')).toBeVisible()
     expect(screen.getAllByRole('textbox')).toHaveLength(1)
-    expect(screen.getByRole('textbox').closest('[data-composer-root]')).toHaveFocus()
+    expect(screen.getByRole('textbox')).toHaveFocus()
     await act(async () => { stream.enqueue(frame('{"type":"delta","text":"Start with water"}')) })
     expect(screen.queryByText('Start with water')).not.toBeInTheDocument()
     await act(async () => { stream.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Start with water' }))); stream.close() })
@@ -714,7 +715,7 @@ describe('web useChatComposer streaming send', () => {
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Plan my morning' } })
     fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
     view.rerender(<ComposerConversationHarness />)
-    expect(screen.getByRole('textbox').closest('[data-composer-root]')).toHaveFocus()
+    expect(screen.getByRole('textbox')).toHaveFocus()
     await act(async () => { stream.enqueue(finalFrame(makeChatResponse())); stream.close() })
   })
 
@@ -738,7 +739,7 @@ describe('web useChatComposer streaming send', () => {
     const group = screen.getByRole('group', { name: 'shell.composer.suggestionsLabel' })
     fireEvent.click(group.querySelector('button')!)
     expect(screen.getAllByRole('textbox')).toHaveLength(1)
-    expect(screen.getByRole('textbox').closest('[data-composer-root]')).toHaveFocus()
+    expect(screen.getByRole('textbox')).toHaveFocus()
     await waitFor(() => expect(screen.getByText('Hi there', { selector: '[data-bubble-role="ai"] p' })).toBeVisible())
   })
 
@@ -884,6 +885,86 @@ describe('web useChatComposer streaming send', () => {
     expect(context).toMatchObject({ messageOrigin: 'followUp', supportsHabitListDoneStatus: true, supportsPendingOperationChanges: true, supportsToolSteps: true, supportsFollowUps: true })
   })
 
+
+  it('keeps three waiting prompts in order, refuses a fourth, removes one and drains after success', async () => {
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(stream.response).mockImplementation(async () => sseResponse(finalFrame(makeChatResponse())))
+    const { result, rerender } = renderHook(() => useChatComposer({ pathname: mocks.pathname }))
+    let firstSend!: Promise<void>
+    act(() => { firstSend = result.current.sendMessage('running') })
+    for (const message of ['first queued', 'second queued', 'third queued']) {
+      await act(async () => { result.current.setInput(message) })
+      await act(async () => { await result.current.sendMessage() })
+    }
+    await act(async () => { result.current.setInput('fourth queued') })
+    await act(async () => { await result.current.sendMessage() })
+    expect(result.current.sendError).toBe('shell.composer.queue.full')
+    expect(result.current.input).toBe('fourth queued')
+    expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(['first queued', 'second queued', 'third queued'])
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    act(() => { result.current.composerProps.queue!.onRemove(useChatStore.getState().queuedPrompts[1]!.id) })
+    expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(['first queued', 'third queued'])
+    await act(async () => { mocks.pathname = '/profile'; rerender() })
+    expect(result.current.composerProps.queue!.items).toHaveLength(2)
+    await act(async () => { stream.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Running reply finished' }))); stream.close(); await firstSend })
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(result.current.isSending).toBe(false))
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user').map(message => message.content)).toEqual(['running', 'first queued', 'third queued'])
+    expect(result.current.input).toBe('fourth queued')
+    expect(useChatStore.getState().queuedPrompts).toEqual([])
+  })
+
+  it('pauses after failure, retains the newer draft and sends retained rows only when requested', async () => {
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(stream.response).mockImplementation(async () => sseResponse(finalFrame(makeChatResponse())))
+    const { result, rerender } = renderHook(() => useChatComposer({ pathname: mocks.pathname }))
+    let firstSend!: Promise<void>
+    act(() => { result.current.setInput('running') })
+    act(() => { firstSend = result.current.sendMessage() })
+    await act(async () => { await result.current.sendMessage('waiting one'); await result.current.sendMessage('waiting two'); result.current.setInput('newer draft') })
+    await act(async () => { stream.enqueue(frame('{"type":"error","error":"Reply failed","status":500}')); stream.close(); await firstSend })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    expect(result.current.input).toBe('newer draft')
+    expect(useChatStore.getState()).toMatchObject({ queuePaused: true, queueReady: false })
+    expect(result.current.composerProps.queue!.items).toHaveLength(2)
+    await act(async () => { result.current.composerProps.queue!.onSend(useChatStore.getState().queuedPrompts[0]!.id) })
+    await waitFor(() => expect(result.current.isSending).toBe(false))
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(['waiting two'])
+    expect(useChatStore.getState().queuePaused).toBe(true)
+  })
+
+  it('stops the running reply and retains queued prompts without starting another request', async () => {
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(stream.response)
+    const { result, rerender } = renderHook(() => useChatComposer({ pathname: mocks.pathname }))
+    let firstSend!: Promise<void>
+    act(() => { firstSend = result.current.sendMessage('running') })
+    await act(async () => { await result.current.sendMessage('waiting') })
+    await act(async () => {
+      result.current.composerProps.replyControl!.onStop()
+      stream.fail(new DOMException('Aborted', 'AbortError'))
+      await firstSend
+    })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState()).toMatchObject({ replyActive: false, queuePaused: true, isTyping: false })
+    expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(['waiting'])
+    expect(result.current.sendError).toBeNull()
+    expect(useChatStore.getState().messages.at(-1)?.content).toBe('shell.composer.queue.stopped')
+  })
+
+  it('retains queued messages when the completed reply consumes the last available message', async () => {
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(stream.response)
+    const { result } = renderHook(() => useChatComposer())
+    let firstSend!: Promise<void>
+     act(() => { firstSend = result.current.sendMessage('running') })
+    await act(async () => { await result.current.sendMessage('waiting') })
+    mocks.queryClient.getQueryData.mockReturnValue(createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 }))
+    await act(async () => { stream.enqueue(finalFrame(makeChatResponse())); stream.close(); await firstSend })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(['waiting'])
+  })
   beforeEach(() => {
     mocks.translate = undefined
     mocks.locale = 'en'
@@ -905,8 +986,9 @@ describe('web useChatComposer streaming send', () => {
     mocks.toggleRecording.mockReset()
     mocks.queryClient.invalidateQueries.mockReset()
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
+    mocks.queryClient.getQueryData.mockReset()
     mocks.queryClient.setQueryData.mockClear()
-    useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null, draft: '', draftHydrated: false, contextualSuggestion: null })
+    useChatStore.setState({ queuedPrompts: [], queuePaused: false, queueReady: false, replyActive: false, replyRevision: 0, messages: [], isTyping: false, streamingMessageId: null, draft: '', draftHydrated: false, contextualSuggestion: null })
     useUIStore.getState().setAstraConversationOpen(false)
     useUIStore.getState().setCalendarHasError(false)
     globalThis.localStorage.clear()
@@ -1513,9 +1595,9 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.canRetryLastSend).toBe(false)
   })
 
-  it('rejects an overlapping send before a second request starts', async () => {
+  it('queues an overlapping send and dispatches it after the running reply', async () => {
     const stream = controlledSseResponse()
-    mocks.fetch.mockResolvedValue(stream.response)
+    mocks.fetch.mockResolvedValueOnce(stream.response).mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
     const { result } = renderHook(() => useChatComposer())
 
     let firstSend!: Promise<void>
@@ -1532,8 +1614,8 @@ describe('web useChatComposer streaming send', () => {
       await firstSend
     })
 
-    expect(mocks.fetch).toHaveBeenCalledTimes(1)
-    expect(useChatStore.getState().messages.filter((message) => message.role === 'user')).toHaveLength(1)
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(2))
+    expect(useChatStore.getState().messages.filter((message) => message.role === 'user').map(message => message.content)).toEqual(['first', 'second'])
   })
 
   it('preserves the active streamed message when the composer remounts', async () => {
@@ -1619,6 +1701,7 @@ describe('web useChatComposer streaming send', () => {
     if (phase === 'step') expect(result.current.activeSteps).toEqual([{ domain: 'habits', access: 'read' }])
     await act(async () => { await result.current.sendMessage('overlapping third request') })
     expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    act(() => useChatStore.getState().removeQueuedPrompt(useChatStore.getState().queuedPrompts[0]!.id))
 
     await act(async () => {
       secondStream.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Second final' })))
@@ -2902,14 +2985,15 @@ describe('web useChatComposer streaming send', () => {
     expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
-  it('refuses a concurrent send inline without queuing another request', async () => {
+  it('queues a concurrent send while leaving the running reply alone', async () => {
     useChatStore.setState({ isTyping: true })
     const { result } = renderHook(() => useChatComposer())
 
     await act(async () => result.current.sendMessage('second message'))
 
     expect(mocks.fetch).not.toHaveBeenCalled()
-    expect(result.current.sendError).toBe('shell.composer.busy.reason')
+    expect(useChatStore.getState()).toMatchObject({ queuedPrompts: [expect.objectContaining({ content: 'second message' })] })
+    expect(result.current.sendError).toBeNull()
   })
 
   it('increments the current non-pro usage cache after a final response', async () => {
