@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
-import { readCredentials, refreshCredential, updateCredentials } from '../credentials.mjs'
+import { readCredentials, refreshCredential, safeFailureMessage, updateCredentials } from '../credentials.mjs'
 import { publicApi } from './api.mjs'
 
 const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>
@@ -177,8 +177,8 @@ export async function runReset(caseId) {
   await resetFixture(test)
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  try { await runReset(process.argv[2]) } catch {
-    process.stderr.write('Astra fixture reset failed; no chat request was sent. Check fixture prerequisites.\n')
+  try { await runReset(process.argv[2]) } catch (error) {
+    process.stderr.write(`Astra fixture reset failed; no chat request was sent. ${safeFailureMessage(error)}\n`)
     process.exitCode = 1
   }
 }

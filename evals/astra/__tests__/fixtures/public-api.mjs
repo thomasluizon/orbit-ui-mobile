@@ -9,6 +9,10 @@ export function fixtureFetch(getState) {
   const undone = new Set()
   return async (url, options) => {
     const { habits, goals, tags, templates, requests, pro, exhausted, capacity, email } = getState()
+    if (new URL(url).pathname === '/health') {
+      requests.push({ path: 'health', method: options.method })
+      return Response.json({ status: 'Healthy', commit: null, checks: [] })
+    }
     const path = new URL(url).pathname.slice(5)
     const body = options.body ? JSON.parse(options.body) : undefined
     const method = options.method

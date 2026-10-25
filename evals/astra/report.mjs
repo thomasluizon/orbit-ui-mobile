@@ -30,9 +30,9 @@ export function summarize(results, expectedCases) {
     const passed = attempts.filter((entry) => entry.success === true).length
     const skipped = attempts.filter((entry) => entry.gradingResult?.componentResults
       ?.some((assertion) => assertion.metadata?.skipped === true)).length
-    const unavailable = attempts.filter((entry) => entry.gradingResult?.componentResults
+    const unavailable = attempts.filter((entry) => entry.response?.metadata?.astraPreconditionFailure === true || entry.gradingResult?.componentResults
       ?.some((assertion) => assertion.metadata?.unavailable === true)).length
-    const failed = attempts.some((entry) => entry.success !== true
+    const failed = attempts.some((entry) => entry.success !== true && entry.response?.metadata?.astraPreconditionFailure !== true
       && (!entry.gradingResult?.componentResults?.some((assertion) => assertion.metadata?.unavailable === true)
         || entry.gradingResult.componentResults.some((assertion) => assertion.pass === false && !assertion.metadata?.unavailable)))
     const missingComposition = attempts.filter((entry) => !entry.gradingResult?.componentResults

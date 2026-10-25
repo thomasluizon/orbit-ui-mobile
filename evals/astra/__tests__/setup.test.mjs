@@ -9,6 +9,7 @@ it.each([false, true])('verifies the real setup turn before a correction; wrongR
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
   let setupRequestId
   vi.stubGlobal('fetch', async (url, options) => {
+    if (new URL(url).pathname === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
     if (new URL(url).pathname === '/api/auth/refresh') return refreshResponse()
     const request = new Request(url, options)
     setupRequestId = request.headers.get('x-orbit-request-id')
@@ -24,7 +25,7 @@ it.each([false, true])('verifies the real setup turn before a correction; wrongR
     clientContext: { supportsParts: true, partKinds: [] }, setup: { input: 'Original exam request',
       composition: { mode: 'preview' }, expectations: { required: [{ name: 'create_habit', arguments: { title: 'Cholesterol exam' } }] } },
   } }
-  if (wrongRequest) await expect(beforeEach({ test })).rejects.toThrow('Correction setup failed')
+  if (wrongRequest) expect((await beforeEach({ test })).test.vars.preconditionFailure).toContain('Correction setup failed')
   else {
     const prepared = await beforeEach({ test })
     expect(prepared.test.vars.evalRequestId).not.toBe(setupRequestId)
