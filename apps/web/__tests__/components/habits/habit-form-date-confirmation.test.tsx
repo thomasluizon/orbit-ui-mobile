@@ -33,6 +33,30 @@ const debounce = () => act(async () => { await vi.advanceTimersByTimeAsync(700) 
 const calendar = () => screen.getByRole('button', { name: /habits.form.taskDate/ })
 
 describe('automatic date field', () => {
+  it.each(['en', 'pt-BR'])('interprets non-local wording when the profile arrives after typing in %s', async (locale) => {
+    formLocale.language = locale
+    mockProfileState.timeZone = undefined
+    const { helpers, refreshProfile } = mount('')
+    const wording = locale === 'en' ? 'next holiday' : 'no próximo feriado'
+    phrase(wording)
+    await debounce()
+    expect(helpers.form.getValues('dueDate')).toBe('')
+    expect(dateRequests.request).not.toHaveBeenCalled()
+    expect(screen.getByText('habits.form.datePhraseUnresolved')).toBeVisible()
+    mockProfileState.timeZone = 'UTC'
+    refreshProfile()
+    await debounce()
+    await debounce()
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+    expect(dateRequests.request).toHaveBeenCalledWith(expect.objectContaining({ phrase: wording, language: locale }))
+    expect(calendar()).toHaveTextContent(formatLocaleDate('2026-10-26', locale))
+    expect(helpers.form.getValues()).toMatchObject({ dueDate: '2026-10-26', datePhrase: wording, dateIssue: '' })
+    expect(helpers.validateAll()).toBeNull()
+    expect(screen.queryByText('habits.form.datePhraseUnresolved')).toBeNull()
+    expect(screen.queryByText('habits.form.dateStale')).toBeNull()
+    expect(screen.getByRole('status', { name: 'habits.form.dateInterpreted' })).toBeVisible()
+  })
+
   it.each(['en', 'pt-BR'])('retains the phrase date when the profile arrives after typing in %s', async (locale) => {
     formLocale.language = locale
     mockProfileState.timeZone = undefined

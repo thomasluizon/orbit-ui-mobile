@@ -9,6 +9,7 @@ interface DateEditorAdapter {
   generalLocked: boolean
   context: () => DateInterpretationContext
   applyRecurrence: (schedule: HabitRecurrence) => void
+  initializeDate: (date: string) => void
   write: (field: 'dueDate' | 'datePhrase' | 'dateIssue', value: string) => void
   request: (input: { phrase: string; language: string }, signal: AbortSignal) => Promise<DateInterpretation>
   failure: (error: unknown) => string
@@ -86,6 +87,7 @@ export class HabitDateEditor {
     if (JSON.stringify({ ...context, generalLocked: this.adapter.generalLocked }) === this.context) return
     if (this.deferredContext !== JSON.stringify({ ...context, timeZone: undefined, referenceDate: '' })) this.deferredContext = ''
     if (this.deferredContext && context.referenceDate) {
+      this.initializeDate()
       this.readPhrase(context.phrase)
       return
     }
@@ -103,6 +105,11 @@ export class HabitDateEditor {
   }
 
   setPhrase(phrase: string): void { this.readPhrase(phrase) }
+
+  initializeDate(): void {
+    const context = this.adapter.context()
+    if (!context.date && context.referenceDate && context.schedule !== 'general') this.adapter.initializeDate(context.referenceDate)
+  }
 
   private readPhrase(phrase: string, choosingType = false): void {
     this.cancel()

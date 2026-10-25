@@ -2190,6 +2190,31 @@ describe('native automatic date field', () => {
   const status = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.accessibilityLabel === label)
   const picker = () => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('habits.form.taskDate,'))[0]!
 
+  it.each(['en', 'pt-BR'])('interprets non-local wording when the profile arrives after typing in %s', async (locale) => {
+    formLocale.language = locale
+    mockProfileState.timeZone = undefined
+    await mount('')
+    const wording = locale === 'en' ? 'next holiday' : 'no próximo feriado'
+    await phrase(wording)
+    await debounce()
+    expect(helpers.form.getValues('dueDate')).toBe('')
+    expect(dateRequests.request).not.toHaveBeenCalled()
+    expect(helpers.form.getValues('dateIssue')).toBe('habits.form.datePhraseUnresolved')
+    expect(input().props.accessibilityHint).toContain('habits.form.datePhraseUnresolved')
+    mockProfileState.timeZone = 'UTC'
+    await TestRenderer.act(() => tree.update(<OwningForm dueDate="" />))
+    await debounce()
+    await debounce()
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+    expect(dateRequests.request).toHaveBeenCalledWith(expect.objectContaining({ phrase: wording, language: locale }))
+    expect(picker().props.accessibilityLabel).toContain(formatLocaleDate('2026-10-26', locale))
+    expect(helpers.form.getValues()).toMatchObject({ dueDate: '2026-10-26', datePhrase: wording, dateIssue: '' })
+    await TestRenderer.act(() => { expect(helpers.validateAll()).toBeNull() })
+    expect(input().props.accessibilityHint).not.toContain('habits.form.datePhraseUnresolved')
+    expect(input().props.accessibilityHint).not.toContain('habits.form.dateStale')
+    expect(status('habits.form.dateInterpreted')).toHaveLength(1)
+  })
+
   it.each(['en', 'pt-BR'])('retains the phrase date when the profile arrives after typing in %s', async (locale) => {
     formLocale.language = locale
     mockProfileState.timeZone = undefined
