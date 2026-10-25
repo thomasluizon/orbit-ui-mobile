@@ -165,7 +165,7 @@ async function verifyOwnedPurchases(purchases: Purchase[], isCurrent: () => bool
   for (const owned of purchases) {
     if (!isCurrent()) break
     try {
-      // react-doctor-disable-next-line async-await-in-loop -- Play transaction acknowledgements mutate the billing client and must settle sequentially. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+      // react-doctor-disable-next-line async-await-in-loop -- Store transaction acknowledgements mutate the billing client and must settle sequentially. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       if (await verifyStorePurchase(owned, isCurrent)) restored = true
       else failed = true
     } catch {
@@ -180,7 +180,7 @@ function isPurchaseAccountCurrent(account: { id: string | null; generation: numb
 }
 
 /**
- * Native store subscription purchasing for the mobile app: connects to Play Billing,
+ * Native store subscription purchasing for the mobile app: connects to native billing,
  * exposes localized offers per interval, runs the purchase sheet, verifies the purchase
  * server-side, and restores previous purchases. The platform selects its native store.
  */
@@ -199,6 +199,15 @@ export function useStoreBillingConnection(options?: { preferReferralOffer?: bool
   const [isRestoring, setIsRestoring] = useState(false)
   const [productQueryState, setProductQueryState] = useState<'loading' | 'ready' | 'failed'>('loading')
   const [productQueryAttempt, setProductQueryAttempt] = useState(0)
+  const [billingUserId, setBillingUserId] = useState(userId)
+  const previousUserId = useRef(userId)
+  if (billingUserId !== userId) {
+    setBillingUserId(userId)
+    setErrorKey(null)
+    setPendingVerifications(0)
+    setIsRestoring(false)
+  }
+
 
   const errorPrefix = isApple ? 'upgrade.appStore.error' : 'upgrade.playError'
 
@@ -223,23 +232,23 @@ export function useStoreBillingConnection(options?: { preferReferralOffer?: bool
       void (async () => {
         const account = purchaseAccount.current
         try {
-          if (!isPurchaseAccountCurrent(account)) return
-          if (!await verifyStorePurchase(purchase, () => isPurchaseAccountCurrent(account))) throw new Error('Missing Play purchase token')
+          if (!account.id || !isPurchaseAccountCurrent(account)) return
+          if (!await verifyStorePurchase(purchase, () => isPurchaseAccountCurrent(account))) throw new Error('Missing store transaction')
           if (!isPurchaseAccountCurrent(account)) return
           await invalidateEntitlement(account)
           if (isPurchaseAccountCurrent(account)) await onPurchased?.()
         } catch {
           if (isPurchaseAccountCurrent(account)) setErrorKey(`${errorPrefix}.serviceUnavailable`)
         } finally {
-          purchaseBusy.current = false
-          endVerification()
+          if (isPurchaseAccountCurrent(account)) { purchaseBusy.current = false; endVerification() }
         }
       })()
     },
     onPurchaseError: (error) => {
+      if (!isPurchaseAccountCurrent(purchaseAccount.current)) return
       purchaseBusy.current = false
       endVerification()
-      if (isPurchaseAccountCurrent(purchaseAccount.current)) setErrorKey(mapPlayErrorKey(error)?.replace('upgrade.playError', errorPrefix) ?? null)
+      setErrorKey(mapPlayErrorKey(error)?.replace('upgrade.playError', errorPrefix) ?? null)
     },
   })
 
@@ -301,7 +310,8 @@ export function useStoreBillingConnection(options?: { preferReferralOffer?: bool
       purchaseBusy.current = true
       setErrorKey(null)
       capturePurchase('purchase_started', isApple ? 'app_store' : 'play')
-      purchaseAccount.current = { id: getAccountId(), generation: getAccountGeneration() }
+      const account = { id: getAccountId(), generation: getAccountGeneration() }
+      purchaseAccount.current = account
       beginVerification()
       try {
         await requestPurchase({
@@ -315,6 +325,7 @@ export function useStoreBillingConnection(options?: { preferReferralOffer?: bool
           type: 'subs',
         })
       } catch (error) {
+        if (!isPurchaseAccountCurrent(account)) return
         purchaseBusy.current = false
         endVerification()
         setErrorKey(
@@ -355,13 +366,21 @@ export function useStoreBillingConnection(options?: { preferReferralOffer?: bool
       if (isPurchaseAccountCurrent(account)) setErrorKey(`${errorPrefix}.serviceUnavailable`)
       return false
     } finally {
-      restoreBusy.current = false
-      setIsRestoring(false)
+      if (isPurchaseAccountCurrent(account)) { restoreBusy.current = false; setIsRestoring(false) }
     }
   }, [errorPrefix, invalidateEntitlement, isApple, onPurchased])
 
   useEffect(() => {
-    if (!isApple || !connected || !userId || recoveryAccount.current === userId) return
+    if (previousUserId.current === userId) return
+    previousUserId.current = userId
+    purchaseAccount.current = { id: getAccountId(), generation: getAccountGeneration() }
+    purchaseBusy.current = false
+    restoreBusy.current = false
+  }, [userId])
+
+  useEffect(() => {
+    if (!userId) { recoveryAccount.current = null; return }
+    if (!isApple || !connected || recoveryAccount.current === userId) return
     recoveryAccount.current = userId
     restoreBusy.current = true
     const account = { id: getAccountId(), generation: getAccountGeneration() }
@@ -372,7 +391,7 @@ export function useStoreBillingConnection(options?: { preferReferralOffer?: bool
       if (restored) await invalidateEntitlement(account)
       if (failed) setErrorKey('upgrade.appStore.error.serviceUnavailable')
     }).catch(() => { if (isPurchaseAccountCurrent(account)) setErrorKey('upgrade.appStore.error.serviceUnavailable') })
-      .finally(() => { restoreBusy.current = false })
+      .finally(() => { if (isPurchaseAccountCurrent(account)) restoreBusy.current = false })
   }, [connected, invalidateEntitlement, isApple, userId])
 
   const clearError = useCallback(() => setErrorKey(null), [])

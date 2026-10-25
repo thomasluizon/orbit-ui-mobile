@@ -6,7 +6,7 @@ export function getGoogleAuthAppIntent({ callback, userAgent, pendingWebState, p
 }>): string | null {
   const params = new URLSearchParams(callback.search)
   const state = params.get('state')
-  if (!state || state === pendingWebState || (!params.get('code') && !params.has('error'))
+  if (!state || state === pendingWebState || (!params.get('code') && !(params.get('provider') === 'apple' && params.get('handoff')) && !params.has('error'))
     || !/Android/i.test(userAgent) || callback.protocol !== 'https:'
     || !packageName || !/^[a-zA-Z][\w]*(?:\.[a-zA-Z][\w]*)+$/.test(packageName)) return null
   return `intent://${callback.host}/auth-callback${callback.search}#Intent;scheme=https;package=${packageName};end`

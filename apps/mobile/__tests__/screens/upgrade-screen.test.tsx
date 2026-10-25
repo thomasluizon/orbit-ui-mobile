@@ -35,6 +35,7 @@ const mocks = vi.hoisted(() => ({
   expoConfig: null as typeof appJson.expo | null,
   apiClient: vi.fn(),
   openURL: vi.fn(),
+  manageApple: vi.fn().mockResolvedValue([]),
   appStateListeners: new Set<(state: AppStateStatus) => void>(),
   showSuccess: vi.fn(),
   isOnline: true,
@@ -151,6 +152,7 @@ vi.mock('@/hooks/store-billing-provider', async (importOriginal) => {
 })
 vi.mock('expo-iap', async (importOriginal) => ({
   ...await importOriginal<typeof import('expo-iap')>(),
+  showManageSubscriptionsIOS: mocks.manageApple,
   useIAP: (options: { onError?: (error: Error) => void }) => {
     const initialOptions = React.useRef(options)
     React.useEffect(() => {
@@ -314,6 +316,18 @@ describe('UpgradeScreen', () => {
       expect(text).not.toContain('R$12')
     }
     expect(mocks.apiClient).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('opens native Apple subscription management on iOS', async () => {
+    Platform.OS = 'ios'
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({ hasProAccess: true, isTrialActive: false, billingProvider: 'app_store', subscriptionSource: null })
+    const tree = await renderScreen()
+    const dashboard = findByType(tree.root, 'PlayBillingDashboard')
+    await TestRenderer.act(async () => { (dashboard.props.onManagePlay as () => void)(); await Promise.resolve() })
+    expect(mocks.manageApple).toHaveBeenCalledOnce()
+    expect(mocks.openURL).not.toHaveBeenCalled()
     TestRenderer.act(() => tree.unmount())
   })
 

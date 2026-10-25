@@ -57,6 +57,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `DESIGN.md` | UI specification, authority order, information architecture and bans; read before frontend work. |
 | `questions.md` | Run-level redesign questions, decision criteria and resolved composition decisions. |
 | `design/canvas/` | Granted drawings, design tokens and surface amendments, including live Astra block actions, chart figures and feminine pt-BR stale copy. Outranks DESIGN.md prose on appearance; never its Information architecture or Bans. |
+| `design/apple-sign-in-surfaces.md` | Apple sign-in owners, rollout configuration, store purchases and verification boundaries. |
 | `design/google-sign-in-surfaces.md` | Google sign-in mark owners and theme, locale and request-state coverage. |
 | `design/habit-form-surfaces.md` | Paired create/edit type and date owners, restored production capabilities and verification boundaries. |
 | `design/habit-row-surfaces.md` | Habit row owners, rounded-square check states, per-row surfaces, retained behaviours and web and Android verification boundaries. |

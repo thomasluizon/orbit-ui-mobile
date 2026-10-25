@@ -1,5 +1,7 @@
 'use client'
 
+import { API } from '@orbit/shared/api'
+
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
@@ -26,12 +28,15 @@ export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebSt
   const accountBackGeneration = useRef<number | null>(null)
   const [loading, setLoading] = useState(false)
   const processed = useRef(false)
+  const [provider, setProvider] = useState<'apple' | 'google'>('google')
 
   useEffect(() => {
     if (processed.current) return
     processed.current = true
     const params = new URLSearchParams(globalThis.location.search)
-    const code = params.get('code')
+    const apple = params.get('provider') === 'apple'
+    if (apple) queueMicrotask(() => setProvider('apple'))
+    const code = apple ? params.get('handoff') : params.get('code')
     const oauthState = params.get('state')
     const intent = getGoogleAuthAppIntent({
       callback: globalThis.location, userAgent: navigator.userAgent, pendingWebState,
@@ -44,7 +49,8 @@ export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebSt
       })
       return
     }
-    if (params.has('error') || !code || !oauthState) {
+    if (apple) globalThis.history.replaceState(null, '', '/auth-callback')
+    if (params.has('error') || !code || !oauthState || (apple && (oauthState !== pendingWebState || params.getAll('state').length !== 1 || params.getAll('handoff').length !== 1))) {
       const storedReturn = sessionStorage.getItem('auth_return_url')
       const calendarReturn = storedReturn === '/calendar?import=1' || storedReturn === '/calendar?mode=review'
       const cancelled = ['access_denied', 'cancel', 'dismiss'].includes(params.get('error') ?? '')
@@ -52,7 +58,7 @@ export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebSt
         if (storedReturn && calendarReturn && cancelled) router.replace(storedReturn)
         else setState('failed')
       }
-      if (oauthState) {
+      if (oauthState && !apple) {
         void fetchWithUpgradeGuidance(`/api/auth/google/code?state=${encodeURIComponent(oauthState)}`, { method: 'DELETE' })
           .then(finish, finish)
       } else queueMicrotask(finish)
@@ -65,9 +71,9 @@ export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebSt
       const generation = ownedGeneration
       const loginResponse = await withCookieSettingLogin(async () => {
         if (generation !== getAccountGeneration()) throw new Error('Authentication session changed')
-        const response = await fetchWithUpgradeGuidance('/api/auth/google/code', {
+        const response = await fetchWithUpgradeGuidance(apple ? API.auth.appleHandoff : '/api/auth/google/code', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code, state: oauthState, language: locale,
+          body: JSON.stringify(apple ? { handoff: code, state: oauthState } : { code, state: oauthState, language: locale,
             ...(referralCode ? { referralCode } : {}) }),
         })
         if (!response.ok || generation !== getAccountGeneration()) throw new Error('Google sign-in failed')
@@ -132,5 +138,5 @@ export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebSt
     <div><PillLink href={appIntent}>{t('auth.openInOrbit')}</PillLink></div>
   </div>
 
-  return <LoginContent callback={{ state, onContinue: () => void continueAccount(), loading }} />
+  return <LoginContent callback={{ state, provider, onContinue: () => void continueAccount(), loading }} />
 }

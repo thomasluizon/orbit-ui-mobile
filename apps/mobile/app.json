@@ -20,6 +20,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "org.useorbit.app",
+      "usesAppleSignIn": true,
       "buildNumber": "1",
       "deploymentTarget": "17.4",
       "associatedDomains": [
@@ -200,6 +201,7 @@
       ],
       "expo-sqlite",
       "expo-iap",
+      "expo-apple-authentication",
       [
         "expo-build-properties",
         {

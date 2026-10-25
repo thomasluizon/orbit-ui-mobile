@@ -68,6 +68,24 @@ describe('Google code callback', () => {
     expect(assign).toHaveBeenCalledOnce()
   })
 
+  it('rejects an Apple state mismatch before exchanging a handoff', async () => {
+    window.history.replaceState(null, '', '/auth-callback?provider=apple&handoff=one-use&state=wrong-state')
+    render(<AuthCallbackContent pendingWebState="expected-state" />)
+    await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(mocks.setAuth).not.toHaveBeenCalled()
+  })
+
+  it('exchanges a matching Apple handoff and signs in', async () => {
+    window.history.replaceState(null, '', '/auth-callback?provider=apple&handoff=one-use&state=expected-state')
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', name: 'Person', email: 'person@example.test' })))
+    render(<AuthCallbackContent pendingWebState="expected-state" />)
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/'))
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/apple/handoff', expect.objectContaining({ body: JSON.stringify({ handoff: 'one-use', state: 'expected-state' }) }))
+    expect(mocks.setAuth).toHaveBeenCalledOnce()
+    expect(window.location.search).toBe('')
+  })
+
   it('exchanges a web-owned Android callback on the web', async () => {
     const assign = vi.fn()
     vi.stubEnv('NEXT_PUBLIC_PLAY_PACKAGE_NAME', 'org.useorbit.app')

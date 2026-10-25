@@ -221,3 +221,7 @@ export function getPendingAuthProvider(callback: { state: 'pending' | 'failed' |
   if (callback?.state !== 'pending') return null
   return callback.provider ?? 'google'
 }
+
+export function getAuthCallbackErrorKey(provider: 'apple' | 'google' | undefined): string {
+  return provider === 'apple' ? 'auth.errors.appleError' : 'auth.errors.googleError'
+}

@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react'
 import { Platform } from 'react-native'
-import { useAccountId } from '@/lib/account-scope'
 import { selectStoreOffer, useStoreBillingConnection } from './use-play-billing'
 
 type PurchasedListener = () => Promise<void> | void
@@ -8,7 +7,7 @@ const StoreBillingContext = createContext<(ReturnType<typeof useStoreBillingConn
   subscribe: (listener: PurchasedListener) => () => void
 }) | null>(null)
 
-function ConnectedStoreBilling({ children }: Readonly<{ children: ReactNode }>) {
+export function StoreBillingProvider({ children }: Readonly<{ children: ReactNode }>) {
   const listeners = useRef(new Set<PurchasedListener>())
   const billing = useStoreBillingConnection({ onPurchased: async () => {
     await Promise.all([...listeners.current].map(async (listener) => listener()))
@@ -18,12 +17,6 @@ function ConnectedStoreBilling({ children }: Readonly<{ children: ReactNode }>) 
     return () => { listeners.current.delete(listener) }
   }
   return <StoreBillingContext.Provider value={{ ...billing, subscribe }}>{children}</StoreBillingContext.Provider>
-}
-
-export function StoreBillingProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const accountId = useAccountId()
-  if (accountId === null) return children
-  return <ConnectedStoreBilling key={accountId}>{children}</ConnectedStoreBilling>
 }
 
 export function useStoreBilling(options?: { preferReferralOffer?: boolean; onPurchased?: PurchasedListener }) {

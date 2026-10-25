@@ -1,3 +1,4 @@
+import { setAccountId } from '@/lib/account-scope'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import React from 'react'
 import { Platform } from 'react-native'
@@ -244,6 +245,7 @@ describe('useStoreBilling', () => {
   })
   beforeEach(() => {
     Platform.OS = 'android'
+    setAccountId('user-abc')
     mocks.getPendingTransactionsIOS.mockReset().mockResolvedValue([])
     mocks.getTransactionJwsIOS.mockReset().mockResolvedValue('signed-transaction')
     mocks.syncIOS.mockReset().mockResolvedValue(true)
@@ -685,6 +687,8 @@ describe('useStoreBilling', () => {
 
   it('uses an account-bound App Store request, native prices and no referral offer', async () => {
     Platform.OS = 'ios'
+    mocks.state.authUser = { userId: '11111111-1111-4111-8111-111111111111' }
+    setAccountId(mocks.state.authUser.userId)
     mocks.state.subscriptions = [
       { id: 'orbit.monthly', displayPrice: '$4.99', price: 4.99, currency: 'USD' },
       { id: 'orbit.yearly', displayPrice: '$39.99', price: 39.99, currency: 'USD' },
@@ -693,7 +697,7 @@ describe('useStoreBilling', () => {
     await flushAsync()
     expect(hook.current.monthlyOffer).toMatchObject({ displayPrice: '$4.99', isReferral: false })
     await TestRenderer.act(async () => { await hook.current.purchase('yearly'); await hook.current.purchase('yearly') })
-    expect(mocks.requestPurchase).toHaveBeenCalledExactlyOnceWith({ type: 'subs', request: { apple: { sku: 'orbit.yearly', appAccountToken: 'user-abc' } } })
+    expect(mocks.requestPurchase).toHaveBeenCalledExactlyOnceWith({ type: 'subs', request: { apple: { sku: 'orbit.yearly', appAccountToken: '11111111-1111-4111-8111-111111111111' } } })
     expect(mocks.fetchProducts).toHaveBeenCalledWith({ skus: ['orbit.monthly', 'orbit.yearly'], type: 'subs' })
   })
 
