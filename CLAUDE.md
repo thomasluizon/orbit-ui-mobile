@@ -1,6 +1,6 @@
 # Orbit
 
-Personal habit tracker. Turborepo monorepo: `apps/web`, `apps/mobile` (Android and iOS), `apps/desktop` (Tauri webview shell), `packages/shared`. Siblings `orbit-api` and `orbit-landing-page` carry their own `CLAUDE.md`, and each workspace has a scoped one, so this root holds only cross-cutting rules.
+Personal habit tracker. Turborepo monorepo: `apps/web`, `apps/mobile` (Android, iPhone and iPad), `apps/desktop` (Tauri webview shell), `packages/shared`. Siblings `orbit-api` and `orbit-landing-page` carry their own `CLAUDE.md`, and each workspace has a scoped one, so this root holds only cross-cutting rules.
 
 ## Maximum implementation (overrides global rule 4, "surgical changes")
 
@@ -105,6 +105,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `.claude/rules/visual-delivery.md` | Visual inventory and critic gates; D90 moves human inspection to the whole-redesign review. |
 | `.claude/skills/android-generate/SKILL.md` | Local APK build, and the emulator install path. Read before building or running the Android app. |
 | `.claude/skills/android-release/SKILL.md` | Dispatching `android-release.yml` to a Google Play track. |
+| `.claude/skills/ios-release/SKILL.md` | Internal TestFlight releases, app and widget signing, and Apple enrollment prerequisites. |
 | `.claude/skills/release/SKILL.md` | Planning production and staging gaps, with pinned releases and live commit verification. |
 | **D1..D42 register** | Historical decision record in the brain vault: `2 Areas/20-29 Orbit Engineering/Decisions/`. Current ticket routing is defined here. |
 

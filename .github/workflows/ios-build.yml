@@ -44,6 +44,9 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Test the compiled widget state and session adapter
+        working-directory: apps/mobile
+        run: npx vitest run __tests__/lib/ios-widget-native.test.ts
       - name: Generate the iOS project and install pods
         working-directory: apps/mobile
         run: npx expo prebuild --platform ios

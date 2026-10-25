@@ -25,7 +25,7 @@ function isOrbitWidgetModule(value: unknown): value is { default: OrbitWidgetMod
 }
 
 function getOrbitWidgetModule(): OrbitWidgetModuleType | null {
-  if (Platform.OS !== 'android') {
+  if (Platform.OS !== 'android' && Platform.OS !== 'ios') {
     return null
   }
 
@@ -36,7 +36,8 @@ function getOrbitWidgetModule(): OrbitWidgetModuleType | null {
   try {
     const loaded = require('../modules/orbit-widget')
     cachedModule = isOrbitWidgetModule(loaded) ? loaded.default : null
-  } catch {
+  } catch (error) {
+    if (Platform.OS === 'ios') throw error
     cachedModule = null
   }
 
@@ -92,7 +93,7 @@ export async function syncWidgetTheme(colorScheme: ColorScheme): Promise<void> {
 /**
  * Fetches today's widget habits through the authenticated API client and pushes them into
  * the native widget cache, so the home-screen widget renders from app-fed data instead of
- * relying on its own background network fetch. No-ops when signed out or off Android.
+ * relying on its own background network fetch. No-ops when signed out or off native.
  */
 export async function syncWidgetData(): Promise<void> {
   const widgetModule = getOrbitWidgetModule()

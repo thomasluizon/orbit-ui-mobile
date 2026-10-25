@@ -1,5 +1,5 @@
 import { patchNextAppRouterHistory } from '@/__tests__/support/next-app-router-history'
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, render, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   completeHabitCreateNavigation,
@@ -34,6 +34,11 @@ async function forwardTo(pathname: string) {
     })
   })
   expect(location.pathname).toBe(pathname)
+}
+
+function BeforeUnloadDuringRender({ event }: Readonly<{ event: Event }>) {
+  window.dispatchEvent(event)
+  return null
 }
 
 describe('habit creation history exits', () => {
@@ -174,5 +179,40 @@ describe('habit creation history exits', () => {
     await waitFor(() => expect(location.pathname).toBe('/calendar'))
     guard.unmount()
     await backTo('/profile')
+  })
+})
+
+describe.each(['render', 'browser task'])('habit creation unload during %s', (dispatchContext) => {
+  it.each([
+    { state: 'dirty', dirty: true, leaving: false, prevented: true },
+    { state: 'clean', dirty: false, leaving: false, prevented: false },
+    { state: 'leaving dirty', dirty: true, leaving: true, prevented: false },
+    { state: 'leaving clean', dirty: false, leaving: true, prevented: false },
+  ])('uses the current $state state without throwing', ({ dirty, leaving, prevented }) => {
+    const guard = renderHook((state) => useHabitCreateNavigationGuard({
+      active: true,
+      ...state,
+      onNavigate: vi.fn(),
+      onReturn: vi.fn(),
+    }), { initialProps: { dirty: !dirty, leaving: !leaving } })
+    guard.rerender({ dirty, leaving })
+    const event = new Event('beforeunload', { cancelable: true })
+    const errors: unknown[] = []
+    const onError = (error: ErrorEvent) => {
+      errors.push(error.error)
+      error.preventDefault()
+    }
+    window.addEventListener('error', onError)
+    try {
+      expect(() => {
+        if (dispatchContext === 'render') render(<BeforeUnloadDuringRender event={event} />)
+        else window.dispatchEvent(event)
+      }).not.toThrow()
+      expect(errors).toEqual([])
+      expect(event.defaultPrevented).toBe(prevented)
+    } finally {
+      window.removeEventListener('error', onError)
+      guard.unmount()
+    }
   })
 })

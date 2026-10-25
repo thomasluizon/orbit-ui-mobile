@@ -34,7 +34,6 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
 import { useCreateTag, useDeleteTag, useSuggestTags, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { HabitTypeField } from './habit-form-fields/habit-type-field'
 import { HabitDateField } from './habit-form-fields/habit-date-field'
@@ -129,14 +128,10 @@ function AstraFallback({
   return (
     <View style={{ gap: 12 }}>
       {atLimit ? <CapacityNotice message={limitMessage} /> : null}
-      {isSuggesting ? (
-        <Skeleton variant="settings" label={readingLabel} />
-      ) : (
-        <View style={{ alignItems: 'flex-start', gap: 8 }}>
-          <PillButton minimumHeight={48} iconOnly label={askLabel} variant="secondary" disabled={disabled || atLimit} onClick={guard(onAsk)}><AstraGlyph size={20} /></PillButton>
-          {!atLimit ? <Text style={{ color: tokens.fg3, fontSize: 12 }}>{costLabel}</Text> : null}
-        </View>
-      )}
+      <View style={{ alignItems: 'flex-start', gap: 8 }}>
+        <PillButton minimumHeight={48} borderless iconOnly label={askLabel} variant="ghost" loading={isSuggesting} hint={isSuggesting ? readingLabel : undefined} disabled={disabled || atLimit} onClick={guard(onAsk)}><AstraGlyph size={20} /></PillButton>
+        {!atLimit ? <Text style={{ color: tokens.fg3, fontSize: 12 }}>{costLabel}</Text> : null}
+      </View>
     </View>
   )
 }
