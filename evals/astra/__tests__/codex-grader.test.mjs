@@ -40,7 +40,8 @@ it('grounds the production rubric in the UTC fixture date across local midnight'
   offlineCredentials()
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-10-25T01:00:00Z'))
-  vi.stubGlobal('fetch', async () => refreshResponse())
+  vi.stubGlobal('fetch', async (url) => new URL(url).pathname === '/health'
+    ? Response.json({ status: 'Healthy', commit: null, checks: [] }) : refreshResponse())
   const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
   const { test } = await prepareAttempt({ test: { metadata: { id: 'date-control' }, vars: {
     credentialKey: 'ORBIT_EVAL_TOKEN', rubric: 'Judge the past occurrence.',

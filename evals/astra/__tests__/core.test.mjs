@@ -61,8 +61,7 @@ describe('production scenario mutation scope', () => {
   it('accepts only the named today reads, including daily summary defaults', () => {
     const { expectations } = scenarios.find((scenario) => scenario.metadata.id === 'single-read-en').vars
     for (const [name, arguments_] of [
-      ['query_habits', { date: 'today' }], ['query_habits', { date: '{accountDate}' }],
-      ['get_daily_summary', {}], ['get_daily_summary', { date_from: null, date_to: null }],
+      ['get_daily_summary', {}], ['query_habits', { date: 'today' }], ['query_habits', { date: '{accountDate}' }], ['get_daily_summary', { date_from: null, date_to: null }],
       ['get_daily_summary', { date_from: '{accountDate}', date_to: '{accountDate}', generate_narrative: false }],
     ]) expect(behavior(envelope([call(name, arguments_)]), context(expectations)).pass).toBe(true)
     for (const [name, arguments_] of [
@@ -79,7 +78,7 @@ describe('production scenario mutation scope', () => {
     const bulk = call('bulk_create_habits', { habits: [habit] })
     expect(behavior(envelope([single]), context(expectations)).pass).toBe(true)
     expect(behavior(envelope([bulk]), context(expectations)).pass).toBe(true)
-    for (const calls of [[], [single, bulk], [bulk, bulk],
+    for (const calls of [[], [single, bulk], [bulk, call('bulk_create_habits', { habits: [habit] })],
       [call('bulk_create_habits', { habits: [habit, { ...habit, title: 'Walk' }] })],
       [call('bulk_create_habits', { habits: [{ ...habit, frequency_unit: 'Week' }] })],
       [call('bulk_create_habits', { habits: [{ ...habit, title: 'Walk' }] })],
