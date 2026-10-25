@@ -295,7 +295,7 @@ runner and authenticate its existing account session through `codex login` befor
 the executable must be on the runner's normal `PATH`. The grader removes every `node_modules/.bin`
 entry, including normalized relative entries, before launching the CLI so npm and npx cannot select
 promptfoo's bundled copy. A missing or failing installed CLI fails the rubric closed.
-this provider needs no purchased OpenAI API key. The hosted Action runner does not provision a
+This provider needs no purchased OpenAI API key. The hosted Action runner does not provision a
 Codex session: selecting this provider there requires an installed, authenticated CLI on that runner.
 The local command is ready to use with the coordinator's authenticated CLI. The provider executes
 `codex exec -m gpt-6.1-sol -s read-only --skip-git-repo-check --ephemeral --output-schema <schema file> -o <output file>`
@@ -311,6 +311,9 @@ The invocation follows the installed `codex exec --help` and
 
 The budget case expects HTTP 403 with the verified `PAY_GATE` error code and grades only the
 natural-language `error` text. Other cases expect HTTP 200 and either final text or a valid typed block, preview or outcome.
+The HTTP provider wrapper removes the transport status from promptfoo's abort check only for an expected,
+request-bound budget refusal. Its actual 403 remains in the assertion output and attempt report;
+unexpected authentication failures and unrelated refusals still fail or abort the run.
 A block-only answer may omit `aiMessage` or return it empty.
 Authentication errors, unrelated refusals, throttling, and transport failures cannot pass as a
 budget refusal. The corpus does not infer a successful mutation from a plausible answer.
@@ -320,6 +323,12 @@ budget refusal. The corpus does not infer a successful mutation from a plausible
 Every case runs three times with caching and HTTP retries disabled. A case passes `pass^3`
 only when all three attempts pass all assertions with complete required evidence.
 `reports/summary.json` and `reports/summary.md` contain only case IDs, family and locale labels, and counts.
+Before deciding the gate, the harness also writes private `reports/results.json` with each attempt's
+case ID, one-based repeat ordinal within that case, pass state, HTTP status, failure reason, and every
+assertion's metric, pass state and reason. Unknown status or missing assertion fields are null.
+The file has mode 600 and survives a failed or incomplete gate even when promptfoo does not write
+its requested output file. Reasons can contain private answer details: keep this file local and
+do not upload it. Copy it into each private window directory before the next run replaces it.
 Each family and locale also receives a pass^3 aggregate; any failing or incomplete case prevents its pass. The Action
 publishes these summaries and a job summary. It does not upload raw responses or a promptfoo
 database. Sharing and database writes are disabled in the configuration. For local runs, set
