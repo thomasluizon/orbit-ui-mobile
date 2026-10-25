@@ -41,7 +41,7 @@ const admissionDecision = async (launcher, fixture, readFileContents) => {
   return observed.completion ?? { status: "unexpected worker publication", ...launcher.output(), record: observed.record }
 }
 
-const launcherResult = async (launcher, timeoutMs = 60000) => {
+export const launcherResult = async (launcher, timeoutMs = 60000) => {
   let deadline
   try {
     return await Promise.race([
@@ -59,7 +59,7 @@ const killFixtureTree = (pid) => {
   else try { process.kill(-pid, "SIGKILL") } catch (error) { if (error.code !== "ESRCH") throw error }
 }
 
-const cleanupLifecycleLaunch = async (launcher, fixture, { discardLog, readFileContents }) => {
+export const cleanupLifecycleLaunch = async (launcher, fixture, { discardLog, readFileContents }) => {
   launcher.child.kill("SIGKILL")
   try {
     discardLog((await launcherResult(launcher, 10000)).stdout)
