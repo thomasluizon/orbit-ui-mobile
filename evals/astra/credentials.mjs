@@ -96,18 +96,20 @@ export async function refreshCredential(key) {
     const path = process.env.ORBIT_EVAL_CREDENTIALS_FILE
     if (!path) throw new Error('Missing credentials file.')
     if (existsSync(`${path}.refresh-failed`)) throw new Error('A refresh already failed; recover the session before another run.')
-    writeFileSync(`${path}.refresh-failed`, '', { mode: 0o600, flag: 'wx' })
     let rotated = false
     const token = await updateCredentials(async (credentials) => {
       const account = credentials[key]
       if (typeof account?.refreshToken !== 'string' || !account.refreshToken.trim()) throw new Error('Missing refresh token.')
       await wakeApi()
+      const refreshUrl = `${apiOrigin()}/api/auth/refresh`
+      const refreshOptions = {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'api-version': '2.0' },
+        body: JSON.stringify({ refreshToken: account.refreshToken }), redirect: 'error', signal: AbortSignal.timeout(120000),
+      }
+      writeFileSync(`${path}.refresh-failed`, '', { mode: 0o600, flag: 'wx' })
       let response
       try {
-        response = await fetch(`${apiOrigin()}/api/auth/refresh`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'api-version': '2.0' },
-          body: JSON.stringify({ refreshToken: account.refreshToken }), redirect: 'error', signal: AbortSignal.timeout(120000),
-        })
+        response = await fetch(refreshUrl, refreshOptions)
       } catch {
         throw new Error('Refresh transport failed; recover the session before another run.')
       }

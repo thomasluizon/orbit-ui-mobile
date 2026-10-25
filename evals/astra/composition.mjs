@@ -97,7 +97,7 @@ export function composition(output, context) {
   const response = parsed?.composition
   const expected = context.vars.composition
   if (!expected || !response) return result(false, 'Missing composition evidence or scenario policy.', { unavailable: true })
-  if (!['data', 'text', 'fallback', 'preview', 'outcome'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
+  if (!['data', 'text', 'clarification', 'fallback', 'preview', 'outcome'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
   if (!validOperations(response)) return result(false, 'Malformed operation or action surfaces.')
   if ((response.followUps?.length ?? 0) > 2 || (response.followUpContext?.length ?? 0) > 2
     || !(response.followUps ?? []).every(text)) return result(false, 'Malformed or excessive follow-ups.')
@@ -131,11 +131,14 @@ export function composition(output, context) {
     || (response.operations ?? []).some((operation) => ['Failed', 'Denied', 'UnsupportedByPolicy'].includes(operation.status))
   if (expected.mode === 'fallback') {
     if (blocks.length || !text(response.aiMessage)) return result(false, 'Missing readable capability fallback or unsupported block.')
-  } else if (expected.mode === 'text') {
+  } else if (expected.mode === 'text' || (expected.mode === 'clarification' && !blocks.length)) {
     if (blocks.length || pending.length || !shortLines(response.aiMessage, 3, expected.allowLists === true)) {
       return result(false, 'No-data answer must contain one to three short lines without headings, lists or paragraphs.')
     }
   } else {
+    if (expected.mode === 'clarification' && (blocks.length !== 1 || blocks[0].kind !== 'choice' || pending.length || outcome)) {
+      return result(false, 'Clarification requires plain text without a block or exactly one choice block without a write.')
+    }
     if (expected.mode === 'preview' && external) return result(false, 'Preview must be the entire answer.')
     if (expected.mode === 'preview' && pending.length !== (expected.previews ?? 1)) return result(false, 'Missing batch preview.')
     if (expected.mode === 'outcome' && !outcome) return result(false, 'Missing typed operation outcome.')

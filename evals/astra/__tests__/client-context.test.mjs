@@ -37,7 +37,7 @@ it.each(['web', 'mobile'])('sends the shared shipped context and a preview polic
 it('assigns an explicit parts composition policy to every main catalog case', () => {
   for (const scenario of scenarios.filter((entry) => entry.vars.clientContext === undefined)) {
     expect(scenario.metadata.platform).toMatch(/^(web|mobile)$/)
-    expect(['data', 'text', 'preview', 'outcome']).toContain(scenario.vars.composition?.mode)
+    expect(['data', 'text', 'clarification', 'preview', 'outcome']).toContain(scenario.vars.composition?.mode)
   }
   expect(configuration.defaultTest.vars).not.toHaveProperty('clientContextJson')
   expect(configuration.defaultTest.vars).not.toHaveProperty('composition')
