@@ -91,7 +91,7 @@ function clientFor({ ahead = [], diverged = [], noDeployment = [], failedNewest 
 
 export async function cases() {
   workflowCases()
-  check("release-plan.mjs", "CLI production refuses redesign branch", ["--environment", "production", "--branch", "redesign/main"], { status: 2 })
+  check("release-plan.mjs", "CLI production refuses redesign branch", ["--environment", "production", "--branch", "integration/next"], { status: 2 })
   androidRecordCases()
   await androidBaselineCases()
   let missingBranch = ""

@@ -55,7 +55,7 @@ export const cases = async () => {
   const release = report.entries[1].releases.find((item) => item.workflow === "release.yml")
   const android = report.entries[1].releases.find((item) => item.workflow === "android-release.yml")
   T("progress-window: source branch differs from dispatch ref, Android retains track and version",
-    release?.environment === "staging" && release.branch === "redesign/main" && release.dispatchBranch === "main" &&
+    release?.environment === "staging" && release.branch === "integration/next" && release.dispatchBranch === "main" &&
     android?.track === "internal" && android.version === "1.3.59" && android.versionCode === "118")
   T("progress-window: pending runs remain visible without a success claim", report.entries.at(-1).releases.every((run) => run.conclusion === null && run.status === "in_progress"))
   T("progress-window: one paginated REST read per source, without GraphQL", staged.calls.length === 8 && new Set(staged.calls.map((call) => call.path)).size === 8 && staged.calls.every((call) => !call.path.includes("graphql")))

@@ -43,7 +43,7 @@ test("Android release branch guards accept internal on every branch and require 
   const jobs = workflow("android-release").jobs
   const buildGuard = jobs["release-android"].steps.find((step) => step.name === "Validate track branch")
   for (const track of ["internal", "open", "production"]) {
-    for (const branch of ["main", "redesign/main", "feature/release"]) {
+    for (const branch of ["main", "integration/next", "feature/release"]) {
       const env = { ...process.env, RELEASE_TRACK: track, GITHUB_REF_NAME: branch }
       const build = spawnSync("bash", ["-e", "-c", buildGuard.run], { env, encoding: "utf8" })
       assert.equal(build.status, track === "internal" || branch === "main" ? 0 : 1, `${track}: ${branch}: ${build.stderr}`)
@@ -99,12 +99,12 @@ test("CI gives each suite runner the host while local worker caps stay bounded",
   assert.ok(nightly.steps.some((step) => step.run === "npx turbo run test --concurrency=1 -- --coverage"))
 })
 
-test("branch analysis runs nightly for both branches and PR coverage analysis stays present", () => {
+test("branch analysis runs nightly for main and PR coverage analysis stays present", () => {
   const nightly = workflow("sonarcloud")
   assert.equal(nightly.on.push, undefined)
   assert.ok(nightly.on.schedule.length)
   assert.ok(Object.hasOwn(nightly.on, "workflow_dispatch"))
-  assert.deepEqual(nightly.jobs.sonarcloud.strategy.matrix.branch, ["main", "redesign/main"])
+  assert.deepEqual(nightly.jobs.sonarcloud.strategy.matrix.branch, ["main"])
   const steps = nightly.jobs.sonarcloud.steps
   const checkoutIndex = steps.findIndex((step) => step.uses?.startsWith("actions/checkout@"))
   const scanIndex = steps.findIndex((step) => step.uses?.startsWith("SonarSource/sonarqube-scan-action@"))

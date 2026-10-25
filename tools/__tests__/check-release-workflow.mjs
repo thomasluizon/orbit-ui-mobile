@@ -371,7 +371,7 @@ export function cases() {
   if (!guard) return
   for (const [environment, branch, accepted, message] of [
     ["production", "main", true],
-    ["production", "redesign/main", false, "Production must build main"],
+    ["production", "integration/next", false, "Production must build main"],
     ["production", "feature/release", false, "Production must build main"],
     ["staging", "feature/release", true],
   ]) {
