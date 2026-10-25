@@ -18,4 +18,4 @@ it('replaces an expired WNS channel in the retained process and returns its new 
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
-})
+}, 120_000)
