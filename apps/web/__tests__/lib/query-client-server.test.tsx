@@ -1,6 +1,9 @@
 // @vitest-environment node
 
 import { renderToStaticMarkup } from 'react-dom/server'
+import { execFile } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { habitKeys } from '@orbit/shared/query'
@@ -37,6 +40,18 @@ afterEach(() => {
 })
 
 describe('server query lifetime', () => {
+  it('releases request contexts under a production-sized heap cap', async () => {
+    vi.useRealTimers()
+    const probe = fileURLToPath(new URL('../../test-support/query-client-heap.ts', import.meta.url))
+    const { stdout } = await promisify(execFile)(process.execPath, [
+      '--expose-gc', '--max-old-space-size=256', '--import', 'tsx', probe,
+    ], { timeout: 10_000 })
+    const samples = JSON.parse(stdout) as { requests: number; heapBytes: number; retainedResponses: number }[]
+    expect(samples.map(sample => sample.requests)).toEqual([0, 100, 200, 300, 400])
+    expect(samples.map(sample => sample.retainedResponses)).toEqual([0, 0, 0, 0, 0])
+    expect(samples[4]!.heapBytes - samples[0]!.heapBytes).toBeLessThan(16 * 1024 * 1024)
+  })
+
   it('creates an isolated client for each server render', () => {
     expect(getQueryClient()).not.toBe(getQueryClient())
   })
