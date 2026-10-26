@@ -30,11 +30,19 @@ function noticeText(nextStatus: SubscriptionStatus) {
 }
 
 describe('lapsed subscription notice (mobile)', () => {
-  it('shows Pro resources without repeating the Astra mark', () => {
-    const text = noticeText(status)
-    expect(text).not.toContain('astra-mark')
-    expect(text).toContain('upgrade.included')
-    expect(text).not.toContain('\"name\":\"minus\"')
+  it('marks the Astra allowance and Pro benefit at their existing sizes', () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<SubscriptionNotice status={status} locale="en" t={t} tokens={tokens} />)
+    })
+    try {
+      for (const [testID, size] of [['astra-mark-16', 16], ['astra-mark', 20]] as const) {
+        const marks = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => node.type === 'Svg' && node.props.testID === testID)
+        expect(marks).toHaveLength(1)
+        expect(marks[0].props).toMatchObject({ width: size, height: size, color: tokens.fg3, accessible: false })
+      }
+      expect(JSON.stringify(tree.toJSON())).toContain('upgrade.included')
+    } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
   it.each([0, 4, 5])('never renders UsageCard at %i of 5 messages', (aiMessagesUsed) => {

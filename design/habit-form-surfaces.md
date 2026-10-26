@@ -15,10 +15,19 @@
 
 All component paths above are relative to each app's `components/habits/` unless another owner is
 named. Timezone context distinguishes unloaded from known null and valid cached profile values.
+
 Explicit dates remain calendar strings. Recurring/flexible root writes carry startDate; tasks and
 direct-child creation retain dueDate. General carries no date. End-date clearing carries clearEndDate.
 Converting a dated habit to a task clears its persisted end date explicitly before returning the
 task request. Untouched dated end dates keep their value.
+
+The title's emoji square shares the field's single-line height: at least 54, growing with the
+current text line height and 12 minimum block insets. The mirror and editable input use equal
+symmetric insets, centring their first line in that height. The emoji and Astra actions centre
+on this first line even when the title wraps; the square does not grow with subsequent lines.
+Validation and suggestion feedback remain below the row and do not affect action alignment.
+Web Chromium and native mounted Yoga tests cover 360 and 412 widths at text scales 1 and 2,
+including empty, typed, wrapped, proposed, suggesting, disabled and feedback states.
 
 The date editor stays mounted while General hides its controls. Returning to a dated draft retains
 its phrase and picker value and requires manual confirmation when its context changed. Common

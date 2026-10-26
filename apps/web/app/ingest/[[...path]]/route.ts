@@ -2,8 +2,6 @@ import { Duplex } from 'node:stream'
 import { createBrotliCompress, createDeflate, createGzip } from 'node:zlib'
 
 const CLIENT_CLOSED_REQUEST = 499
-const POSTHOG_ORIGIN = 'https://us.i.posthog.com'
-const POSTHOG_ASSET_ORIGIN = 'https://us-assets.i.posthog.com'
 const POSTHOG_PATH_PREFIXES = [
   '/e/', '/s/', '/i/', '/flags/', '/static/', '/array/',
   '/api/surveys/', '/api/early_access_features/', '/api/product_tours/',
@@ -46,10 +44,10 @@ function postHogDestination(requestUrl: string): URL | null {
   if (!pathname.startsWith('/ingest/')) return null
   const path = pathname.slice('/ingest'.length)
   if (!POSTHOG_PATH_PREFIXES.some(prefix => path.startsWith(prefix)) || /%(?:2f|5c|25)/i.test(path)) return null
-  const origin = path.startsWith('/static/') || path.startsWith('/array/')
-    ? POSTHOG_ASSET_ORIGIN
-    : POSTHOG_ORIGIN
-  return new URL(path + search, origin)
+  const upstreamPath = path.slice(1)
+  return path.startsWith('/static/') || path.startsWith('/array/')
+    ? new URL(`https://us-assets.i.posthog.com/${upstreamPath}${search}`)
+    : new URL(`https://us.i.posthog.com/${upstreamPath}${search}`)
 }
 
 async function forwardPostHog(request: Request): Promise<Response> {

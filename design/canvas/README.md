@@ -539,7 +539,7 @@ The glyph primitives provide the asset; their consumers below own its placement.
 | `today/today-ai-summary` | Removed the heading glyph and both loading and loaded round-button glyphs. Uses the single slot instead. |
 | `shell/shell-wide` (web) | Retained the sidebar conversation entry. Android uses its composer entry instead. |
 | `shell/composer` | Retained the compact Hoje and habit-detail conversation entry. Wide Hoje uses the sidebar. |
-| `profile/profile-nav-icon` | Removed the Astra settings glyph. The labelled settings row remains aligned with its neighbours. |
+| `profile/profile-nav-icon` | Draws `AstraGlyph` as the Astra settings row's leading icon (#1780). The labelled settings row remains aligned with its neighbours. |
 | `onboarding/onboarding-create-habit` | Removed the proposal-heading glyph; the attribution text and proposed treatment remain. |
 | `habits/habit-create-frame` | Removed the origin glyph; the conversation-origin text remains. |
 | `habits/habit-form-fields/tag-suggestions` | Removed the suggestion-action glyph; its localized label, loading, proposals, acceptance and retry remain. |
@@ -548,7 +548,7 @@ The glyph primitives provide the asset; their consumers below own its placement.
 | `habits/reschedule-sheet` | Removed the heading glyph; Astra attribution, disclosure and proposal actions remain. |
 | `goals/goal-detail-drawer` | Removed the ask row's glyph; the text action and contextual request remain. |
 | `upgrade/page` (web), `app/upgrade` (Android) | Removed the pitch glyph; plans and purchase states remain. |
-| `upgrade/subscription-notice` | Removed the lapsed-plan glyph; notices and recovery actions remain. |
+| `upgrade/subscription-notice` | Removed the lapsed-plan heading glyph; the lapsed Astra messages line uses `AstraGlyph` in place of a chat icon (#1780). Notices and recovery actions remain. |
 | `upgrade/billing-dashboard`, `upgrade/play-billing-dashboard` (web), `upgrade/plan-summary-card` (Android) | Removed plan-summary glyphs; provider-specific management, facts and actions remain. |
 | `review-moment/review-moment-sheet` (Android) | Removed the sheet glyph; rating copy, request and dismissal remain. The web review moment already uses text. |
 | `ui/empty-state` | Retained Astra rendering for its only Astra-mark callers, `chat/chat-empty-state` on each platform, inside the conversation. Other callers use the Orbit mark. |

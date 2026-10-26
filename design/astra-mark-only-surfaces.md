@@ -63,8 +63,8 @@ branding. Retained inline form-fill icons keep their existing accessible names u
 and import actions retain their contextual meanings. Explanatory prose, AI disclosures, conversation participant
 names and settings that name the assistant retain their meaning. The summary action's
 `summary.askAstra` catalog entry has the approved contextual verb even though the current summary
-entry is the proactive line. The Perfil settings entry retains its assistant name and neutral
-`MessageCircle` icon through `PROFILE_SUBMENUS`; it has no adjacent Astra mark.
+entry is the proactive line. The Perfil settings entry retains its assistant name through `PROFILE_SUBMENUS` and draws
+`AstraGlyph` as its leading icon (#1780: Astra always carries the Astra mark).
 
 Habit detail adds one disclosure control. Collapsed, it occupies one compact row with the mark.
 Expanded, the collapse icon shares the suggestion row, leaving the scroll strip room beside it.
@@ -124,7 +124,7 @@ among mark-only controls. It does not add an Astra route or Android tab.
 | Wide sidebar conversation row | `components/shell/shell-wide.tsx`, `components/shell/destination-shell.tsx` | No sidebar; composer owns the front door | `nav.astra` supplies `Astra` beside the glyph, with sibling row treatment; opens the conversation layer |
 | Onboarding shell conversation row | `components/onboarding/onboarding-flow.tsx`, rendered by `components/shell/shell-wide.tsx` | No sidebar | Uses the same `nav.astra` row; selects the existing Astra onboarding entry |
 | Command palette | `components/shell/destination-shell.tsx`, `components/command/command-groups.tsx` | No command palette | No Astra conversation entry exists; the supplied destinations are Hoje, Calendário, Progresso, Perfil, Todos and Geral |
-| Perfil settings navigation | `app/(app)/profile/_components/profile-settings-content.tsx` | `app/(tabs)/profile/_components/profile-settings-content.tsx` | `PROFILE_SUBMENUS` in `packages/shared/src/utils/profile-navigation.ts` supplies `profile.groups.astra`, already `Astra` in both locales; opens `/profile/astra` settings with the neutral `MessageCircle` icon |
+| Perfil settings navigation | `app/(app)/profile/_components/profile-settings-content.tsx` | `app/(tabs)/profile/_components/profile-settings-content.tsx` | `PROFILE_SUBMENUS` in `packages/shared/src/utils/profile-navigation.ts` supplies `profile.groups.astra`, already `Astra` in both locales; opens `/profile/astra` settings with the `AstraGlyph` leading icon |
 | Compact Hoje and habit-detail conversation entry | `components/shell/composer.tsx` | `components/shell/composer.tsx` | Retains the mark-only composer control and contextual accessible name; this input accessory has no sibling destination names |
 
 Android component coverage mounts Perfil with both locale catalogs, checks its visible and

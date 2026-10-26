@@ -209,9 +209,11 @@ function assertSubscriptionContent(container: HTMLElement, { locale, state }: Su
   const pitch = state === 'free' || state === 'trial'
   const expired = state === 'expired'
   const play = state.startsWith('play')
-  expect(container.querySelectorAll('[data-asset="astra-mark"]')).toHaveLength(0)
   const resources = screen.getAllByRole('list', { name: pitch ? messages.upgrade.outcomes.label : messages.upgrade.included })
-  for (const resourcesList of resources) expect(resourcesList.children).toHaveLength(4)
+  for (const resourcesList of resources) {
+    expect(resourcesList.children).toHaveLength(4)
+    expect(resourcesList.querySelectorAll('[data-asset="astra-mark"]')).toHaveLength(1)
+  }
   const action = pitch ? messages.upgrade.plans.cta : expired ? messages.upgrade.billing.lapsed.action
     : play ? messages.upgrade.billing.actions.managePlay : messages.upgrade.billing.actions.manage
   if (state === 'lifetime') {
