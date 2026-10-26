@@ -234,6 +234,16 @@
     "closeRail": "Close panel",
     "openPalette": "Open command palette",
     "composer": {
+      "queue": {
+        "label": "Queued messages",
+        "add": "Add to queue",
+        "full": "The queue holds 3 messages. Remove one to add another.",
+        "remove": "Remove {message} from queue",
+        "send": "Send {message}",
+        "paused": "Queue paused. Send or remove the remaining messages.",
+        "stop": "Stop reply",
+        "stopped": "Reply stopped."
+      },
       "collapse": "Collapse message composer",
       "expand": "Expand message composer",
       "usage": "Messages today: {used} of {limit}",
