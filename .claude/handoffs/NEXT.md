@@ -14,28 +14,29 @@ Check free disk first (`df -g /System/Volumes/Data`); the floor is 50 GiB (about
 
 ## Goal
 
-Finish the spec: every requested production fix, the Astra overhaul (the approved `#1740` plan, `#1755` to `#1761`, `#1762` to `#1764`, then `#1743`, `#1747`, `#1748`, `#1750`), the owner reports, verified releases and an empty board, in `## The order`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff (`node reconcile-order.mjs` in the scratchpad): open 58, placed 58, unplaced 0, placed twice 0. Newly filed scope gets exactly one order bullet in the session it arrives. An external interruption is the only earlier ending.
+Finish the spec: every requested production fix, the Astra overhaul (the approved `#1740` plan, `#1755` to `#1761`, `#1762` to `#1764`, then `#1743`, `#1747`, `#1748`, `#1750`), the owner reports, verified releases and an empty board, in `## The order`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff (`node reconcile-order.mjs` in the scratchpad): open 55, placed 55, unplaced 0, placed twice 0. Newly filed scope gets exactly one order bullet in the session it arrives. An external interruption is the only earlier ending.
 
 ## In flight
 
-UI `main` is `2afd8c99d`, API `main` is `6d068bad`, landing `main` is `14293563`. Staging API serves the `orbit-api#929` head `11cfe961` (branch release run 40319456949, verified); production API serves `b4454cac`; staging and production web serve `4ede9419f`. Read each named worktree and worker log first (`/bin/ls -t $TMPDIR/orbit-workers/`). Codex returned "Selected model is at capacity" twice this relay: relaunch a worker that stops on it, with a relaunch reason.
+UI `main` is `da72cda7a`, API `main` is `f5a1e41d`, landing `main` is `14293563`. Staging API serves `f5a1e41d` (run 40326949024, verified); production API serves `b4454cac`; staging and production web serve `4ede9419f`. No worker runs. Read each named worktree and worker log first (`/bin/ls -t $TMPDIR/orbit-workers/`). Codex returned "Selected model is at capacity" twice this relay: relaunch a worker that stops on it, with a relaunch reason.
 
 | Item | Disposition |
 | --- | --- |
-| Orca | The Orca terminal host has created no terminal since its `async-io-stalled` log line, so `orca terminal create` times out and the relay fails. If a relay fails on it again, quit and reopen the Orca app: its host keeps terminal sessions across an app restart (its log shows `session-attached` after one), and the coordinator runs under the host, not the app. |
-| `orbit-api#929` (`#1756`) | Green, `pullfrog-approval` passed at `11cfe961`, 0 threads, copy approved. Read `run-929-rank/exit2.txt` and `eval-929/evals/astra/reports/summary.md` (`later-929-rank.sh 09:41` ran the two ranking cases); on a pass, merge with `--match-head-commit 11cfe961f0888e2993da99f88ccb46e359faca74`, release API `main` to staging (carries `#1758`; close `#1758` after it), then production. On a fail, a review round. |
-| `orbit-api#930` (`#1755`), `#931` (`#1762`), `#932` (`#1750`), `#933` (`#1747`) | Round 1 pushed on each (`ac5a03e7`, `e82b31d8`, `119ddcb2`, `ff16c5cd`), threads resolved, waiters ran. Read CI and the fresh reviews, base-merge after `#929` lands where files meet, combined local check before merging several, copy approvals, merge, staging. After `#933` is on staging, rerun `eval-env/month-1747.mts` and close `#1747`; launch `#1764`. After `#931`, launch `#1763`. |
-| `ui#2088` (`#1742`) | Pullfrog approved; the flaky shard was rerun. Read `verify-2088/summary.txt` (dependency check, two `ios-simulator.mjs` runs, dependency check); merge when it and CI are green; close `#1742`, then close `#1733` on the same simulator evidence. |
-| `ui#2090` (`#1748`) | Fix `598ff9a0e` pushed (surface inventory); waiter ran. CI, fresh review, copy approval, merge. |
-| `ui#2092` (`#1743`) | Review round stopped on model capacity twice; base merge `073b2b77f` committed, 23 files uncommitted in worktree `ticket-1743-astra-blocks-on-app-rows`. Relaunch with `launch-rb-ui.sh 1743 ...` and `note-1743-rb1.md` and a relaunch reason. |
-| `#1759`, `#1760`, `#1772` | Workers launched (worktrees `ticket-1759-astra-placement-switch`, orbit-api `ticket-1760-astra-preview-revision`, `ticket-1772-habit-list-skip-mix-flake`). Read each result: a pull request, commits, or a NEEDS_DECISION. |
-| `#26` gate | Waits until `orbit-api#929` to `#933` are on staging. Then point `run-26-gate3.sh` at the newest `main`, raise the limits, start it after the 30 minute AppConfig cache window, file results, restore, flags off (list, change, list), then `#582`. The limits read 50, 450, 120000 unless `later-929-rank.sh` is still running. |
+| Orca | The Orca terminal host has created no terminal since its `async-io-stalled` log line, so `orca terminal create` times out. If this session started by hand after a failed relay, that is why. Quitting and reopening the Orca app restores creates; its host keeps terminal sessions across an app restart. |
+| Releases | Production API of `f5a1e41d` (carries `#1755`, `#1762`, `#1747`'s fix, `#1758`) after the staging checks below; staging and production web of `da72cda7a` (carries `ui#2088`, `ui#2090`); the Android Open batch `#1736`, `#1746`, `#1739` from `main`. |
+| `#1747` staging check | `month-1747.mts` ran against `f5a1e41d`: read `month-1747-r3.log` and `month-1747-r3/` in the predecessor's scratchpad (carried). All eleven pass: production, close. Otherwise back on the ticket. |
+| `orbit-api#929` (`#1756`) | Held: live ranking turns still make two model calls (spec bullet). Review round at `--tier deep` with that evidence, base merge, then `later-929-rank.sh` again. |
+| `orbit-api#932` (`#1750`) | Copy fix `f6941315` pushed and recorded. CI and a fresh review, then merge. |
+| `orbit-api#934` (`#1760`), `ui#2093` (`#1772`), `ui#2094` (`#1759`) | Opened by workers. Read each diff, waiters, reviews, copy approvals, merge. |
+| `ui#2092` (`#1743`) | Review round stopped on model capacity twice; base merge `073b2b77f` committed, 23 files uncommitted in worktree `ticket-1743-astra-blocks-on-app-rows`. Relaunch with `launch-rb-ui.sh 1743 ...`, `note-1743-rb1.md` and a relaunch reason. |
+| `#1763`, `#1764` | Unblocked (`orbit-api#931` and `#933` merged). Launch both. |
+| `#26` gate | The Astra API fixes are on staging except `#929` and `#932`. After those, point `run-26-gate3.sh` at the newest `main`, raise the limits, start it after the 30 minute AppConfig cache window, file results, restore, flags off (list, change, list), then `#582`. The limits read 50, 450, 120000. |
 | `#1735` | Close once 24 hours have passed from run 40244503719 (finished 00:20 UTC on the day of this relay) with no `server_failed` event (Render `list_events`, production web `srv-dasu6prbc2fs73ad3kqg`). |
 | `#390` (AVD) | Bulk log round passed. Next: find whether the queued next-day skip replayed (staging app log `Bulk skipped`), rerun the skip round, then delete; then `#1151`'s Android cells, delete the habits and the AVD. |
 | `#1765` to `#1771` | Filed from another surface during this relay; placed in Batch 6. No branch or pull request exists. |
 | `#26` free case, `#1641`, `#1679`, `#1732`, `#62`, `orbit-api#903`, `#732`, `#1113`, `#1619`, `#1662`, `#1617`, `#1716`, `#1706`, `#1674`, `#1726`, `#1658`, `#1654`, `#1562`, `#1751`, `#1757`, `#1761` | As in their spec bullets. |
 
-Inventory: open pull requests are `ui#2088`, `#2090`, `#2092`, `orbit-api#929` to `#933`, `orbit-api#903` and this relay's `ui#1989`, plus any the three running workers open; uncommitted work is `ui#2092`'s 23 files in its worktree; no stash and no detached-head work was created this relay; nothing is committed and unpushed.
+Inventory: open pull requests are `ui#2092`, `#2093`, `#2094`, `orbit-api#929`, `#932`, `#934`, `orbit-api#903` and this relay's `ui#1989`; uncommitted work is `ui#2092`'s 23 files in its worktree; no stash and no detached-head work was created this relay; nothing is committed and unpushed.
 
 ## Then, in this order
 
@@ -56,13 +57,13 @@ Unattended run. Never ask the owner; decide with the recommended option and log 
 - Reading list, entry point, newest-prompt check, scratchpad and carry procedures, Crank and Sleep rules, the do-not-re-ask and refused-route instructions: carried (helper list, decision log range and disk figure updated).
 - Releases row: advanced (staging API of the `#929` head verified); staging and production API of `main` after `#929`, and the Android Open batch `#1736`, `#1746`, `#1739`, carried.
 - `#1743` relaunch row: done (it opened `ui#2092`); its review round carried.
-- `orbit-api#930` row: done (round 1 pushed, thread resolved); merge carried.
-- `orbit-api#929` row: advanced (copy approved and fixed, green, approved, on staging); the ranking check and merge carried.
-- `orbit-api#931`, `#932`, `#933` row: advanced (round 1 pushed on each); merges carried.
-- `ui#2088` to `ui#2091` row: `ui#2091` and `ui#2089` done (merged `4fa047ce4`, `2afd8c99d`; `#1752` closed); `ui#2090` advanced (Guards fix pushed); `ui#2088` advanced (flake rerun, `#1772` filed, acceptance running).
+- `orbit-api#930` row: done (merged `35bda31e`).
+- `orbit-api#929` row: advanced (copy approved and fixed, green, approved); its live check failed, so a review round is carried.
+- `orbit-api#931`, `#932`, `#933` row: `#931` and `#933` done (merged `5e538044`, `f5a1e41d`, staging verified, `#1758` closed); `#932` advanced (copy fix pushed).
+- `ui#2088` to `ui#2091` row: done (merged `4fa047ce4`, `2afd8c99d`, `d23844d46`, `da72cda7a`; `#1752`, `#1742` and `#1733` closed; `#1772` filed and delivered as `ui#2093`).
 - `#26` gate row: advanced (`ui#2091` merged, limits restored); the rerun carried behind the Astra API fixes.
 - `#390`, `#26` free case, `#1641`, `#1679`, `#1732` rows: carried.
-- `#1733` row: carried (close on the `ui#2088` simulator evidence).
+- `#1733` row: done (closed on the `ui#2088` simulator evidence).
 - `#1735` row: carried (the 24 hour window has not ended).
 - The remaining tickets row: carried; `#1759` and `#1760` launched.
 
