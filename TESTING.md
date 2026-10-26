@@ -170,7 +170,7 @@ to finish an eval run.
 From the repository root, install the shared workspace dependencies and the standalone eval package:
 
 ```sh
-npm ci --workspace packages/shared --ignore-scripts
+npm ci --workspace packages/shared --workspace apps/web --ignore-scripts
 npm ci --prefix evals/astra --workspaces=false
 ```
 
@@ -187,6 +187,14 @@ The Action has only `workflow_dispatch`; it never runs on a schedule, push, or p
 Runs consume real message and spend allowance and incur endpoint and rubric-grader charges.
 Use disposable eval accounts. Write scenarios require held previews; correction scenarios create
 a verified setup turn first. The corpus does not approve them or prove persisted changes.
+
+The clean install includes the web workspace so the harness reuses the client ICU translator already
+locked by the repository. It does not add a formatter dependency. The HTTP provider applies the case
+locale after response extraction, because the installed HTTP response transform receives only HTTP
+metadata. The graded answer uses the shared message selectors, action chip resolver, account row
+formatters and locale catalogs. Ordered blocks project their initially displayed fields; hidden audit
+summaries, payloads, collapsed content and untranslated transport labels never enter the rubric. Raw
+composition and tool evidence remain available to the structural assertions.
 
 ### Environment and reproducible fixtures
 
@@ -208,7 +216,7 @@ Do not paste real credentials into a command line, a report, a pull request or t
 {
   "ORBIT_EVAL_TOKEN": { "refreshToken": "<Pro account refresh token>" },
   "ORBIT_EVAL_FREE_TOKEN": { "refreshToken": "<Free account refresh token>" },
-  "ORBIT_EVAL_BUDGET_TOKEN": { "refreshToken": "<exhausted account refresh token>" }
+  "ORBIT_EVAL_BUDGET_TOKEN": { "refreshToken": "<budget account refresh token>" }
 }
 ```
 
@@ -229,8 +237,8 @@ local persistence failed, obtain a fresh session through the existing authentica
 The hook calls `evals/astra/fixtures/reset.mjs` in process after refresh. The same executable can
 be invoked independently from `evals/astra` as `./fixtures/reset.mjs single-read-en`; standalone
 execution refreshes first. It looks up the ID in both corpus YAML files, uses only authenticated
-public API routes, and never calls chat, an admin route, account reset or the database. Water and
-Walk are created once or adopted, and their `habitId` and `secondHabitId` are persisted alongside
+public API routes. Only the budget fixture sends ordinary chat messages; no fixture calls an admin
+route, account reset or the database. Water and Walk are created once or adopted, and their `habitId` and `secondHabitId` are persisted alongside
 the account's refresh token. Empty and medical fixtures soft-delete them; later fixtures restore
 the same IDs. Before any fixture write, the executable reads the profile and requires the exact
 staging origin and an email matching `thomaslrgregorio+orbit-eval-<name>@gmail.com`. Normal resets
@@ -241,8 +249,11 @@ seeding, pending roots return to today and completed or skipped roots advance to
 readback verifies both occurrence dates and both histories. A reset failure stops the attempt.
 
 Use only disposable accounts. The Pro selector needs active Pro or trial access, the Free selector
-needs Free access, and the budget selector must already have exhausted its actual daily allowance.
-The reset verifies these preconditions and never consumes chat messages to manufacture exhaustion.
+needs Free access. The budget selector verifies exhaustion or sends at most five remaining ordinary
+greetings through the public chat route, reading the profile after every request. A typed safety-budget
+refusal is followed by the same independent allowance readback. Missing progress, an unexpected refusal
+or a larger remaining allowance makes the case incomplete with its exact reason in each window and
+the merged report. No setup request opts into tracing.
 The free fixture fills the actual root capacity through bulk creates and its verified
 `HABIT_LIMIT_REACHED` refusal, preserving those roots between attempts. It never changes capacity.
 Never reset message counters or spend, raise a ceiling, or rotate through unapproved accounts.
@@ -259,7 +270,7 @@ its previous state after the run. Header alone or flag alone cannot enable traci
 | `overdue` | Water pending on the configured past date, with today's occurrence also pending |
 | `skipped` | Walk skipped today through the public skip API, with no positive completion |
 | `free-at-limit` | Free account at the actual configured root capacity, with enough message allowance |
-| `budget-exhausted` | Existing daily allowance exhaustion verified from profile; no counters changed or messages spent |
+| `budget-exhausted` | Daily message allowance exhausted through at most five ordinary requests, independently verified from profile; an unavailable precondition stays incomplete |
 
 ### Daily windows and combined report
 
@@ -465,7 +476,10 @@ line limits still apply. Help actions resolve through the same shared surface ma
 Android: schedule help uses `today`, and plan help uses `subscriptions`. A block's arbitrary
 `surfaceId` is not action evidence; calendar blocks have their own rendered calendar action.
 
-The reset executable must prepare these additional fixtures in the requested case locale:
+The reset executable prepares personal titles in the case locale. Portuguese cases use Beber água,
+Caminhada, Saúde, Manhã, Hidratação constante and sessões, including Portuguese checklist items,
+additional habits and parent titles. Stable habit IDs survive locale changes. English cases keep
+the English names below. The reset prepares these additional fixtures:
 
 | Fixture | Required state |
 |---|---|
@@ -480,7 +494,9 @@ The reset executable must prepare these additional fixtures in the requested cas
 
 Calendar OAuth consent, provider staleness and outages cannot be manufactured by these public
 routes. Composition accounts must have no Google connection; resets reject connected accounts
-rather than changing a real integration. Notifications, referrals, earned XP/achievements and
+rather than changing a real integration. Composition resets set the profile language, clear stored
+notifications through the public delete-all route, then seed history. Any notifications produced by
+those writes belong to the case locale; an empty inbox is valid. Referrals, earned XP/achievements and
 revoked API-key metadata retain their actual public read state, which may be empty. The public
 API has no deterministic notification/referral creation route, and key creation requires a
 separate authenticated step-up flow. The reset does not invent these states or bypass that flow.

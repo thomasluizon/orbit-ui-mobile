@@ -21,8 +21,10 @@ export function mergeReports(windows, expected = descriptors) {
       if (entry.passed > entry.attempts || !['pass', 'fail', 'incomplete'].includes(entry.pass3)) throw new Error('Invalid window verdict.')
       const complete = entry.attempts === 3 && entry.passed === 3 && !entry.skipped && !entry.unavailable && !entry.missingComposition
       if (entry.pass3 === 'pass' && !complete) throw new Error('Window claims a pass without complete evidence.')
+      if (entry.unavailableReasons != null && (!Array.isArray(entry.unavailableReasons)
+        || entry.unavailableReasons.some((reason) => typeof reason !== 'string'))) throw new Error('Invalid window precondition reasons.')
       collected.set(entry.id, { id: entry.id, family: entry.family, locale: entry.locale, attempts: entry.attempts,
-        passed: entry.passed, skipped: entry.skipped, unavailable: entry.unavailable, missingComposition: entry.missingComposition, pass3: entry.pass3 })
+        passed: entry.passed, unavailableReasons: entry.unavailableReasons ?? [], skipped: entry.skipped, unavailable: entry.unavailable, missingComposition: entry.missingComposition, pass3: entry.pass3 })
     }
   }
   return aggregate(expected.map(({ id, family = 'legacy', locale = 'unspecified' }) => collected.get(id)

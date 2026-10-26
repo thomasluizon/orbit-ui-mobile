@@ -37,8 +37,12 @@ export function summarize(results, expectedCases) {
         || entry.gradingResult.componentResults.some((assertion) => assertion.pass === false && !assertion.metadata?.unavailable)))
     const missingComposition = attempts.filter((entry) => !entry.gradingResult?.componentResults
       ?.some((assertion) => assertion.assertion?.metric === 'composition' && typeof assertion.pass === 'boolean')).length
+    const unavailableReasons = [...new Set(attempts.flatMap((entry) =>
+      entry.response?.metadata?.astraPreconditionFailure === true
+        && typeof entry.response.metadata.astraPreconditionReason === 'string'
+        ? [entry.response.metadata.astraPreconditionReason] : []))]
     const status = failed ? 'fail' : attempts.length !== 3 || skipped || unavailable || missingComposition ? 'incomplete' : 'pass'
-    return { id, family, locale, missingComposition, attempts: attempts.length, passed, skipped, unavailable, pass3: status }
+    return { id, family, locale, unavailableReasons, missingComposition, attempts: attempts.length, passed, skipped, unavailable, pass3: status }
   })
   const unexpected = results.some((entry) => !descriptors.some((expected) => expected.id === entry.testCase.metadata.id))
   return aggregate(cases, unexpected)
@@ -70,6 +74,9 @@ export function writeReport(summary, directory = 'reports') {
     '| Family | Locale | Cases passing pass^3 | pass^3 |',
     '|---|---|---|---|',
     ...summary.groups.map((entry) => `| ${entry.family} | ${entry.locale} | ${entry.passed}/${entry.cases} | ${entry.pass3} |`),
+    '',
+    ...summary.cases.flatMap((entry) => (entry.unavailableReasons ?? []).map((reason) =>
+      `${entry.id}: incomplete precondition: ${reason.replace(/[\r\n|]/g, ' ')}`)),
     '',
     'Subset summaries cover selected cases only. Merge all windows before a launch decision.',
     'Incomplete is not a launch pass. PendingConfirmation proves a held proposal, never a persisted write.',

@@ -141,7 +141,7 @@
     fixture: composition
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Mostre os registros de Water ({habitId}) de {historyFromLocalized} a {historyToLocalized}.
+    input: Mostre os registros de Beber água ({habitId}) de {historyFromLocalized} a {historyToLocalized}.
     clientContext: *a5
     composition: *a6
     expectations:
@@ -190,7 +190,7 @@
     fixture: composition
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Mostre as métricas de conclusão de Water ({habitId}).
+    input: Mostre as métricas de conclusão de Beber água ({habitId}).
     clientContext: *a5
     composition: *a8
     expectations:
@@ -1637,7 +1637,7 @@
     fixture: composition-logged
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Mostre se Water ({habitId}) foi concluído hoje após minha alteração
+    input: Mostre se Beber água ({habitId}) foi concluído hoje após minha alteração
       aprovada.
     clientContext: *a5
     composition: *a66
@@ -2250,7 +2250,7 @@
     fixture: existing-parents
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: "Post lunch: tomar vitamina D (uma vez por semana) Before bed: tomar
+    input: "Depois do almoço: tomar vitamina D (uma vez por semana) Antes de dormir: tomar
       rosuvastatina (todo dia)"
     clientContext: *a5
     composition:
@@ -2279,7 +2279,7 @@
       forbidden:
         - create_habit
     rubric: Answer in Brazilian Portuguese. One preview with exactly two children
-      under the already existing Post Lunch and Before Bed parents. Vitamin D is
+      under the already existing Depois do almoço and Antes de dormir parents. Vitamin D is
       weekly; rosuvastatin is daily. No prose question, top-level duplicate
       parent or saved claim. Canonical dates inside typed fields are transport
       values; visible prose must use locale dates. Rendered date formatting is

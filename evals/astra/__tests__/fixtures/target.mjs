@@ -1,4 +1,5 @@
 import parseResponse from '../../response.mjs'
+import { visibleAnswer } from '../../visible-answer.mjs'
 import { chatResponse, habitBlock, toolCall } from './producer.mjs'
 
 export default class MockAstra {
@@ -17,8 +18,10 @@ export default class MockAstra {
         : context.vars.responseMode === 'prose-first' ? [prose, habitBlock] : [habitBlock, prose]
     }
     if (context.vars.noTrace) delete response.evalTrace
-    return { output: parseResponse(response, '', { response: {
+    const output = parseResponse(response, '', { response: {
       status: 200, headers: { 'x-orbit-request-id': requestId },
-    } }) }
+    } })
+    if (output.composition) output.answer = visibleAnswer(output.composition, context.vars.clientContext, context.vars.accountDate)
+    return { output }
   }
 }

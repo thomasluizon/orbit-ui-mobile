@@ -1,4 +1,5 @@
 import { loadApiProvider } from 'promptfoo'
+import { visibleAnswer } from './visible-answer.mjs'
 
 export default class AstraHttpProvider {
   constructor(options) {
@@ -11,7 +12,7 @@ export default class AstraHttpProvider {
   async callApi(prompt, context, options) {
     if (context.vars.preconditionFailure) return {
       error: `Precondition unavailable: ${context.vars.preconditionFailure}`,
-      metadata: { astraPreconditionFailure: true },
+      metadata: { astraPreconditionFailure: true, astraPreconditionReason: context.vars.preconditionFailure },
     }
     let response
     try {
@@ -26,8 +27,12 @@ export default class AstraHttpProvider {
       const { status, ...http } = response.metadata.http
       response.metadata = { ...response.metadata, http, astraHttpStatus: status, rateLimitRetryable: false }
     }
-    if (context.vars.clientContext?.supportsParts !== true && response.output?.composition) {
-      response.output.answer = response.output.composition.aiMessage
+    if (response.output?.composition && !response.output.error) {
+      try {
+        response.output.answer = visibleAnswer(response.output.composition, context.vars.clientContext, context.vars.accountDate)
+      } catch {
+        return { error: 'Astra returned an unrenderable visible answer.' }
+      }
     }
     return response
   }
