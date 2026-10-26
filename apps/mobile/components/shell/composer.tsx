@@ -697,7 +697,7 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'column',
   },
-  content: { alignSelf: 'center', width: '100%', maxWidth: 740, gap: 12, padding: SPACING.s16 },
+  content: { gap: 12, padding: SPACING.s16 },
   collapsed: { paddingVertical: SPACING.s4, gap: 0 },
   collapseControl: { width: 48, height: 48, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden' },
   suggestionRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.s12 },
