@@ -1,7 +1,6 @@
 import { z } from 'zod'
-import { createHabitRequestSchema } from './habit'
+import { createHabitRequestSchema, habitSetupSuggestionSchema } from './habit'
 import { createGoalRequestSchema } from './goal'
-import { habitSetupSuggestionSchema } from './habit'
 
 export const onboardingPlatformSchema = z.enum(['web', 'desktop', 'android', 'ios'])
 export const onboardingAttestationSchema = z.object({
@@ -19,7 +18,6 @@ export const onboardingSetupRequestSchema = z.object({
   attestation: onboardingAttestationSchema,
 })
 export const onboardingSetupSuggestionSchema = habitSetupSuggestionSchema
-export const onboardingFallbackSchema = z.object({ code: z.enum(['ONBOARDING_LIMIT', 'ONBOARDING_UNAVAILABLE']) })
 export type OnboardingPlatform = z.infer<typeof onboardingPlatformSchema>
 export type OnboardingAttestation = z.infer<typeof onboardingAttestationSchema>
 export type OnboardingSetupRequest = z.infer<typeof onboardingSetupRequestSchema>
