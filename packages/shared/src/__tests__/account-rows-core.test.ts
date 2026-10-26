@@ -40,3 +40,11 @@ describe('Astra account row presentation', () => {
     for (const kind of ['referral', 'profile', 'plan'] as const) expect(presentAccountRows({ kind, rows, surfaceId: 'profile' })).toEqual(rows)
   })
 })
+
+it('presents the account time zone as a localized name', () => {
+  expect(formatAccountRowValue({ key: 'timeZone', value: 'America/Sao_Paulo', valueType: 'text' }, 'pt-BR', key => key)).toMatch(/^Horário (Padrão de |de )Brasília$/)
+})
+
+it('retains an unsupported account time zone without blanking the block', () => {
+  expect(formatAccountRowValue({ key: 'timeZone', value: 'Unsupported/Zone', valueType: 'text' }, 'pt-BR', t)).toBe('Unsupported/Zone')
+})

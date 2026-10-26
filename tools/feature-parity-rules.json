@@ -1694,7 +1694,7 @@
       "targets": [
         "mobile:content:profile.calendarSync.title"
       ],
-      "reason": "The Calend\u00e1rios sheet replaces the standalone route."
+      "reason": "The Calendários sheet replaces the standalone route."
     },
     "mobile:route:/streak": {
       "targets": [
@@ -3574,7 +3574,7 @@
       "targets": [
         "web:content:profile.calendarSync.title"
       ],
-      "reason": "The Calend\u00e1rios sheet replaces the standalone route."
+      "reason": "The Calendários sheet replaces the standalone route."
     },
     "web:route:/explore": {
       "targets": [
@@ -3967,17 +3967,17 @@
     },
     "mobile:route:/advanced": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "mobile:route:/ai-settings": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "mobile:route:/preferences": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "mobile:route:/retrospective": {
@@ -4500,12 +4500,12 @@
     },
     "web:route:/advanced": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "web:route:/ai-settings": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "web:route:/insights": {
@@ -4516,7 +4516,7 @@
     },
     "web:route:/preferences": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "web:route:/retrospective": {
@@ -4524,6 +4524,96 @@
       "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
       "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:chat.account.open": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "web:control:chat.calendarCard.open": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "web:control:chat.daySummary.open": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "web:control:chat.goalList.progressLink": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "web:control:chat.insight.progressLink": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "web:control:chat.streakCard.open": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "web:control:chat.ranking.refresh": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "web:control:chat.readBlock.delta": {
+      "citation": "DESIGN.md",
+      "rule": "Comparison verdicts and bars replace the separate variation row; percentages are optional.",
+      "reason": "The supplied values share one visual scale and a localized verdict instead of a separate variation row."
+    },
+    "mobile:control:chat.account.open": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "mobile:control:chat.calendarCard.open": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "mobile:control:chat.daySummary.open": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "mobile:control:chat.goalList.progressLink": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "mobile:control:chat.insight.progressLink": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "mobile:control:chat.streakCard.open": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "mobile:control:chat.ranking.refresh": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "mobile:control:chat.readBlock.delta": {
+      "citation": "DESIGN.md",
+      "rule": "Comparison verdicts and bars replace the separate variation row; percentages are optional.",
+      "reason": "The supplied values share one visual scale and a localized verdict instead of a separate variation row."
+    },
+    "web:control:chat.streakCard.current": {
+      "citation": "DESIGN.md",
+      "rule": "The streak figure and plural day unit replace the separate current-streak label.",
+      "reason": "Only the repeated label is removed; the current streak stays visible in CompactFigure."
+    },
+    "mobile:control:chat.streakCard.current": {
+      "citation": "DESIGN.md",
+      "rule": "The streak figure and plural day unit replace the separate current-streak label.",
+      "reason": "Only the repeated label is removed; the current streak stays visible in CompactFigure."
     }
   },
   "tickets": {
@@ -4671,7 +4761,7 @@
     },
     "duplicate-settings-pages": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Perfil sub-menus replace duplicate pages; their individual settings remain in the audit."
     },
     "old-floating-back-to-top": {

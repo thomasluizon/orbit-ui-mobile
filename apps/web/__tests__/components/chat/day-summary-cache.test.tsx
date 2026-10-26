@@ -4,7 +4,7 @@ import { expect, it, vi } from 'vitest'
 import { habitKeys } from '@orbit/shared/query'
 import { habitListQueryFilters } from '@orbit/shared/utils'
 import { createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
-import { inPlaceDayFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
+import { inPlaceDayFixture, rangeDaySummaryFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
 import { DaySummaryCard } from '@/components/chat/day-summary-card'
 
 vi.mock('@/hooks/use-habits', async () => {
@@ -25,6 +25,9 @@ it('subscribes to a log on Hoje through the real habit query cache', async () =>
   expect(screen.getByRole('progressbar', { name: 'chat.daySummary.ring' })).toHaveAttribute('aria-valuenow', '0')
   act(() => { client.setQueryData(key, occurrences.map(item => item.id === 'habit-1' ? { ...item, isLoggedInRange: true } : item)) })
   await waitFor(() => expect(screen.getByRole('button', { name: 'chat.habitList.unlog:Habit 1' })).toBeInTheDocument())
+  expect(screen.getByRole('progressbar', { name: 'chat.daySummary.ring' })).toHaveAttribute('aria-valuenow', '4')
+  act(() => { client.setQueryData(key, occurrences) })
+  await waitFor(() => expect(screen.getByRole('button', { name: 'chat.habitList.log:Habit 1' })).toBeInTheDocument())
   expect(screen.getByRole('progressbar', { name: 'chat.daySummary.ring' })).toHaveAttribute('aria-valuenow', '0')
   view.unmount()
   client.clear()
@@ -37,7 +40,30 @@ it('retains the nothing-due state without a completion ring', () => {
   const view = render(<QueryClientProvider client={client}><DaySummaryCard daySummary={{ ...inPlaceDayFixture, due: 0, done: 0, completionRate: null, rows: [], totalRows: 0 }} /></QueryClientProvider>)
   expect(screen.getByText('chat.daySummary.nothingDue')).toBeInTheDocument()
   expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'chat.daySummary.open' })).toBeEnabled()
+  expect(screen.queryByRole('button', { name: 'chat.daySummary.open' })).not.toBeInTheDocument()
+  view.unmount()
+  client.clear()
+})
+
+it('keeps a seven-day summary and its saved check when the first-day cache changes', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })
+  const filters = { dateFrom: rangeDaySummaryFixture.date, dateTo: rangeDaySummaryFixture.date, includeGeneral: true, includeOverdue: true }
+  const key = habitKeys.list(habitListQueryFilters(filters, true))
+  const habit = createMockHabitScheduleItem({ id: 'habit-1', dueDate: rangeDaySummaryFixture.date })
+  client.setQueryData(key, [habit])
+  const view = render(<QueryClientProvider client={client}><DaySummaryCard daySummary={rangeDaySummaryFixture} /></QueryClientProvider>)
+  const ring = screen.getByRole('progressbar')
+  expect(ring).toHaveAttribute('aria-valuenow', '43')
+  expect(screen.getByRole('img', { name: 'chat.habitList.logged' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /chat.habitList\.(log|unlog):/ })).not.toBeInTheDocument()
+  for (const isLoggedInRange of [true, false]) {
+    await act(async () => {
+      client.setQueryData(key, [{ ...habit, isLoggedInRange }])
+      await new Promise(resolve => setTimeout(resolve, 10))
+    })
+    expect(ring).toHaveAttribute('aria-valuenow', '43')
+    expect(screen.getByRole('img', { name: 'chat.habitList.logged' })).toBeInTheDocument()
+  }
   view.unmount()
   client.clear()
 })

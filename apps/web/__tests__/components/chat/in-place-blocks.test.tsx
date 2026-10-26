@@ -2,7 +2,7 @@ import { personalText } from '@/__tests__/support/personal-text'
 import { ChatBlock } from '@/components/chat/block-registry'
 import { chatNavigationCases } from '@orbit/shared/test-support/chat-navigation-fixtures'
 import type { ReactNode, MouseEventHandler } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { inPlaceDayFixture, inPlaceCalendarFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
 import { createMockHabit, createMockGoal } from '@orbit/shared/__tests__/factories'
@@ -28,7 +28,7 @@ vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => n
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => state.wide }))
 vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({ ...state.query, data: { habitsById: state.habits }, refetch: state.refetch }),
-  useLogHabit: () => ({ mutate: state.mutate }),
+  useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }),
   useHabitMetrics: () => ({ ...state.query, refetch: state.refetch }),
 }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ ...state.query, data: { goalsById: state.goals }, refetch: state.refetch }) }))
@@ -42,6 +42,7 @@ vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({
 }) }))
 beforeEach(() => {
   vi.clearAllMocks()
+  state.mutate.mockReset().mockImplementation(() => new Promise(() => {}))
   state.pathname = '/'
   state.pro = true
   state.disconnected = false
@@ -60,7 +61,7 @@ describe('Astra blocks act on app state', () => {
     expect(screen.getByText('chat.daySummary.rowCount:{"shown":20,"total":25}')).toBeInTheDocument()
     fireEvent.click(log); fireEvent.click(log)
     expect(state.mutate).toHaveBeenCalledTimes(1)
-    expect(state.mutate).toHaveBeenCalledWith(expect.objectContaining({ habitId: 'habit-1', intent: 'log' }), expect.any(Object))
+    expect(state.mutate.mock.calls[0]![0]).toEqual(expect.objectContaining({ habitId: 'habit-1', intent: 'log' }))
     expect(view.container.querySelector('section')).toHaveAttribute('data-state', 'acting')
     state.habits.set('habit-1', createMockHabit({ id: 'habit-1', title: 'Habit 1', isLoggedInRange: true }))
     view.rerender(<DaySummaryCard daySummary={inPlaceDayFixture} />)
@@ -116,19 +117,19 @@ it.each([
   if (expected === 'partiallyFailed') expect(screen.getAllByRole('alert')).toHaveLength(4)
 })
 
-it('keeps the freeze bank read-only with one route to Sequencia', () => {
+it('retains freeze facts under a compact streak without shell navigation', () => {
   const view = render(<StreakCard streakCard={{ currentStreak: 3, longestStreak: 9, level: 1, totalXp: 20, xpForNextLevel: 100, lastActiveDate: null, isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], surfaceId: 'progress' }} />)
-  const bank = view.container.querySelector('[data-component="freeze-bank"]')!
-  expect(bank).toHaveTextContent('2')
-  expect(bank.querySelectorAll('button')).toHaveLength(1)
-  expect(bank.querySelector('button')).toHaveAttribute('aria-label', 'progressScreen.streak.legend')
-  fireEvent.click(screen.getByRole('button', { name: 'chat.streakCard.open' }))
-  expect(state.push).toHaveBeenCalledWith('/progress/streak')
+  expect(view.container.querySelector('[data-component="freeze-bank"]')).toHaveTextContent('progressScreen.streak.banked')
+  expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
+  expect(screen.getByText('streakDisplay.detail.tierTileLabel')).toBeInTheDocument()
+  expect(screen.getByText('progressScreen.streak.protectedDays')).toBeInTheDocument()
+  expect(view.container.querySelector('[data-compact-figure]')).toHaveTextContent('3')
+  expect(screen.queryByRole('button', { name: 'chat.streakCard.open' })).not.toBeInTheDocument()
 })
 
 it('puts at most three numerical figures beside the chart', () => {
   const view = render(<MetricsCard metricsCard={{ period: 'habit', habitId: 'habit-1', completionRate: 50, activeDays: 3, totalCompletions: 3, totalScheduled: 6, currentStreak: 3, bestStreak: 9, hasData: true, surfaceId: 'progress' }} />)
-  expect(view.container.querySelectorAll('[data-state="default"], [data-state="empty"]')).toHaveLength(3)
+  expect(view.container.querySelectorAll('[data-compact-figure]')).toHaveLength(3)
 })
 
 it('keeps cached habits loggable after an offline refetch error', () => {
@@ -148,7 +149,6 @@ it('offers calendar reconnection and disables import after disconnection', () =>
   expect(screen.getByRole('button', { name: /chat.calendarCard.makeHabit/ })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: 'chat.calendarCard.open' }))
   expect(state.push).toHaveBeenCalledWith('/calendar?import=1')
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
 })
 
 it('puts a payload sync error in the calendar actions area', () => {
@@ -158,14 +158,14 @@ it('puts a payload sync error in the calendar actions area', () => {
 })
 
 
-it.each(['child', 'bad'] as const)('keeps a completed %s row outside the parent completion total', (kind) => {
+it.each(['child', 'bad'] as const)('counts a completed %s row according to the single-day schedule', (kind) => {
   const parent = inPlaceDayFixture.rows![0]!
   const extra = { ...parent, id: 'extra', title: 'Extra', depth: kind === 'child' ? 1 : 0, isBadHabit: kind === 'bad' }
-  const snapshot = { ...inPlaceDayFixture, due: 1, done: 0, rows: [parent, extra] }
+  const snapshot = { ...inPlaceDayFixture, due: 2, done: 0, rows: [parent, extra] }
   state.habits.set(extra.id, createMockHabit({ id: extra.id, title: extra.title, isBadHabit: extra.isBadHabit, isLoggedInRange: true }))
   const view = render(<DaySummaryCard daySummary={snapshot} />)
-  expect(screen.getByText('chat.daySummary.doneOfDue:{"done":0,"due":1}')).toBeInTheDocument()
-  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0')
+  expect(screen.getByText(`chat.daySummary.doneOfDue:{"done":${kind === 'child' ? 1 : 0},"due":2}`)).toBeInTheDocument()
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', kind === 'child' ? '50' : '0')
   view.unmount()
 })
 
@@ -188,16 +188,16 @@ it.each(chatNavigationCases.flatMap(scenario => [false, true].map(wide => ({ ...
   const view = render(<NavigationApp part={part} />)
   expect(screen.getByRole('dialog', { name: 'Astra' })).toBeVisible()
   expect(view.container.querySelector('[data-shell-destination]')).toHaveAttribute('inert')
-  const action = screen.queryByRole('link', { name: label }) ?? screen.getByRole('button', { name: label })
-  fireEvent.click(action)
-  if (action.tagName === 'A') expect(action).toHaveAttribute('href', web)
-  expect(state.push).toHaveBeenCalledWith(web)
-  expect(openAtNavigation).toEqual([false])
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
-  view.rerender(<NavigationApp part={part} />)
-  expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
-  expect(screen.getByRole('heading', { name: web })).toBeVisible()
-  expect(view.container.querySelector('[data-shell-destination]')).not.toHaveAttribute('inert')
+  const action = screen.queryByRole('link', { name: label }) ?? screen.queryByRole('button', { name: label })
+  if (['habit row', 'dated habit row', 'day habit row', 'calendar import'].includes(part.kind === 'habitList' ? part.block.date ? 'dated habit row' : 'habit row' : part.kind === 'daySummary' && label.includes('habitList.open') ? 'day habit row' : label.includes('makeHabit') ? 'calendar import' : '')) {
+    expect(action).not.toBeNull()
+    fireEvent.click(action!)
+    expect(state.push).toHaveBeenCalledWith(web)
+    expect(openAtNavigation).toEqual([false])
+  } else {
+    expect(action).toBeNull()
+    expect(state.push).not.toHaveBeenCalled()
+  }
 })
 
 vi.mock('next/link', () => ({ default: ({ href, onClick, onNavigate, children }: {
@@ -210,3 +210,70 @@ vi.mock('next/link', () => ({ default: ({ href, onClick, onNavigate, children }:
   onNavigate?.({ preventDefault: () => { cancellation.prevented = true } })
   if (!cancellation.prevented) state.push(href)
 }}>{children}</a> }))
+
+it('keeps a second day check usable while the first is pending', () => {
+  render(<DaySummaryCard daySummary={inPlaceDayFixture} />)
+  fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.log:{"name":"Habit 1"}' }))
+  const second = screen.getByRole('button', { name: 'chat.habitList.log:{"name":"Habit 2"}' })
+  expect(second).toBeEnabled()
+  fireEvent.click(second)
+  expect(state.mutate).toHaveBeenCalledTimes(2)
+})
+
+it('keeps the ring and total in step with live completion and rollback', () => {
+  const snapshot = { ...inPlaceDayFixture, rows: inPlaceDayFixture.rows!.slice(0, 1), due: 1 }
+  const view = render(<DaySummaryCard daySummary={snapshot} />)
+  state.habits.set('habit-1', createMockHabit({ id: 'habit-1', isLoggedInRange: true }))
+  view.rerender(<DaySummaryCard daySummary={snapshot} />)
+  expect(screen.getByText('chat.daySummary.doneOfDue:{"done":1,"due":1}')).toBeInTheDocument()
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100')
+  state.habits.set('habit-1', createMockHabit({ id: 'habit-1', isLoggedInRange: false }))
+  view.rerender(<DaySummaryCard daySummary={snapshot} />)
+  expect(screen.getByText('chat.daySummary.doneOfDue:{"done":0,"due":1}')).toBeInTheDocument()
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0')
+})
+
+it('marks only the failed day row after overlapping requests settle', async () => {
+  let rejectFirst!: (error: Error) => void
+  let resolveSecond!: () => void
+  state.mutate.mockImplementationOnce(() => new Promise((_, reject) => { rejectFirst = reject }))
+    .mockImplementationOnce(() => new Promise<void>(resolve => { resolveSecond = resolve }))
+  const view = render(<DaySummaryCard daySummary={inPlaceDayFixture} />)
+  fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.log:{"name":"Habit 1"}' }))
+  fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.log:{"name":"Habit 2"}' }))
+  await act(async () => { resolveSecond(); rejectFirst(new Error('offline')) })
+  const rows = view.container.querySelectorAll('[data-habit-block-row]')
+  expect(rows[0]!.querySelector('[role="alert"]')).toHaveTextContent('chat.liveBlock.error')
+  expect(rows[1]!.querySelector('[role="alert"]')).toBeNull()
+  expect(screen.getByRole('button', { name: 'chat.habitList.log:{"name":"Habit 1"}' })).toBeEnabled()
+})
+
+it('keeps a failed check visible on its own day row until retry', async () => {
+  let reject!: (error: Error) => void
+  state.mutate.mockImplementationOnce((_input: unknown, callbacks?: { onError: () => void }) => {
+    const request = new Promise((_, fail) => { reject = fail })
+    void request.catch(() => callbacks?.onError())
+    return request
+  })
+  const view = render(<DaySummaryCard daySummary={inPlaceDayFixture} />)
+  fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.log:{"name":"Habit 1"}' }))
+  await act(async () => { reject(new Error('offline')) })
+  const rows = view.container.querySelectorAll('[data-habit-block-row]')
+  expect(rows[0]!.querySelector('[role="alert"]')).toHaveTextContent('chat.liveBlock.error')
+  expect(rows[1]!.querySelector('[role="alert"]')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.log:{"name":"Habit 1"}' }))
+  expect(rows[0]!.querySelector('[role="alert"]')).toBeNull()
+})
+
+it('offers reconnection when the sync snapshot requires it', () => {
+  render(<CalendarCard calendarCard={{ ...inPlaceCalendarFixture, sync: { enabled: true, status: 'ReconnectRequired', lastSyncedAt: null } }} />)
+  fireEvent.click(screen.getByRole('button', { name: 'chat.calendarCard.open' }))
+  expect(state.push).toHaveBeenCalledWith('/calendar?import=1')
+})
+
+it('does not ask to reload a stale goal block without a reload action', () => {
+  state.query = { isPending: false, isError: true, isRefetchError: true }
+  const view = render(<GoalListCard goalList={{ items: [{ id: 'missing', title: 'Move', current: 1, target: 10, unit: 'km' }] }} />)
+  expect(view.container).not.toHaveTextContent('chat.liveBlock.stale')
+  expect(view.container).toHaveTextContent('chat.liveBlock.unavailable')
+})

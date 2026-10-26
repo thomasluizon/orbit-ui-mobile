@@ -5,12 +5,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { habitKeys } from '@orbit/shared/query'
 import { formatAPIDate, formatAPIDateInTimeZone, habitListQueryFilters } from '@orbit/shared/utils'
-import { createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
-import { inPlaceDayFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
+import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
+import { inPlaceDayFixture, nestedDaySummaryFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
+import type { DaySummaryCard as DaySummaryCardData } from '@orbit/shared/types/chat'
 import { DaySummaryCard } from '@/components/chat/day-summary-card'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { API } from '@orbit/shared/api'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
+import { renderedText } from '../../support/react-test-renderer'
 
 vi.mock('@/lib/queued-api-mutation', () => ({ performQueuedApiMutation: vi.fn() }))
 vi.mock('expo-crypto', () => ({ randomUUID: () => '11111111-1111-4111-8111-111111111111' }))
@@ -24,11 +26,11 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs() })
 
-async function mountDay(habit: HabitScheduleItem, date = inPlaceDayFixture.date) {
+async function mountDay(habit: HabitScheduleItem, date = inPlaceDayFixture.date, summary?: DaySummaryCardData) {
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })
   const key = habitKeys.list(habitListQueryFilters({ dateFrom: date, dateTo: date, includeGeneral: true, includeOverdue: true }, true))
   client.setQueryData(key, [habit])
-  const snapshot = { ...inPlaceDayFixture, date, due: 1, rows: [{ ...inPlaceDayFixture.rows![0]!, isBadHabit: habit.isBadHabit }] }
+  const snapshot = summary ?? { ...inPlaceDayFixture, date, due: 1, rows: [{ ...inPlaceDayFixture.rows![0]!, isBadHabit: habit.isBadHabit }] }
   let view!: GeometryTree
   await act(() => { view = create(<QueryClientProvider client={client}><DaySummaryCard daySummary={snapshot} /></QueryClientProvider>) as GeometryTree })
   return { client, key, view }
@@ -60,5 +62,40 @@ it('writes the retained displayed day after account midnight while it is still d
   expect(performQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({ endpoint: API.habits.log('habit-1'), method: 'POST', payload: { date } }))
   expect(view.root.findAll(node => node.props.accessibilityLabel === 'chat.habitList.unlog:{"name":"Habit 1"}').length).toBeGreaterThan(0)
   expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.isLoggedInRange).toBe(true)
+  await act(() => view.unmount()); client.clear()
+})
+
+it.each([false, true])('reconciles a nested log from logged=%s before the request settles and rolls it back on failure', async (logged) => {
+  const snapshot: DaySummaryCardData = {
+    ...nestedDaySummaryFixture, done: Number(logged), completionRate: Number(logged) * 50,
+    rows: nestedDaySummaryFixture.rows!.map(row => row.depth > 0 ? { ...row, status: logged ? 'done' : 'today' } : row),
+  }
+  const habit = createMockHabitScheduleItem({
+    id: 'habit-1', title: 'Habit 1', dueDate: snapshot.date, hasSubHabits: true,
+    scheduledDates: [snapshot.date], instances: [{ date: snapshot.date, status: 'Pending', logId: null }],
+    children: [createMockHabitScheduleChild({
+      id: 'child-1', title: 'Stretch', dueDate: snapshot.date, isLoggedInRange: logged, scheduledDates: [snapshot.date],
+      instances: [{ date: snapshot.date, status: logged ? 'Completed' : 'Pending', logId: logged ? '11111111-1111-4111-8111-111111111111' : null }],
+    })],
+  })
+  let rejectRequest!: (error: Error) => void
+  vi.mocked(performQueuedApiMutation).mockImplementationOnce(() => new Promise((_, reject) => { rejectRequest = reject }))
+  const { client, key, view } = await mountDay(habit, snapshot.date, snapshot)
+  const initialAction = `chat.habitList.${logged ? 'unlog' : 'log'}:{"name":"Stretch"}`
+  const optimisticAction = `chat.habitList.${logged ? 'log' : 'unlog'}:{"name":"Stretch"}`
+  const control = view.root.findAll(node => node.type === Pressable && node.props.accessibilityLabel === initialAction)[0]!
+  expect(view.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]?.props.accessibilityValue).toMatchObject({ now: Number(logged) * 50 })
+  await act(async () => { (control.props.onPress as () => void)(); await new Promise(resolve => setTimeout(resolve, 10)) })
+  expect(performQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({ endpoint: API.habits.log('child-1'), method: 'POST', payload: { date: snapshot.date } }))
+  expect(view.root.findAll(node => node.type === Pressable && node.props.accessibilityLabel === optimisticAction)).toHaveLength(1)
+  expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.children[0]?.isLoggedInRange).toBe(!logged)
+  expect(renderedText(view.toJSON())).toContain(`chat.daySummary.doneOfDue:{"done":${Number(!logged)},"due":2}`)
+  expect(view.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]?.props.accessibilityValue).toMatchObject({ now: Number(!logged) * 50 })
+  expect(view.root.findAll(node => node.type === Pressable && node.props.accessibilityLabel === 'chat.habitList.log:{"name":"Habit 1"}')[0]?.props.disabled).toBe(false)
+  await act(async () => { rejectRequest(new Error('offline')); await new Promise(resolve => setTimeout(resolve, 10)) })
+  expect(view.root.findAll(node => node.type === Pressable && node.props.accessibilityLabel === initialAction)[0]?.props.disabled).toBe(false)
+  expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.children[0]?.isLoggedInRange).toBe(logged)
+  expect(renderedText(view.toJSON())).toContain(`chat.daySummary.doneOfDue:{"done":${Number(logged)},"due":2}`)
+  expect(view.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]?.props.accessibilityValue).toMatchObject({ now: Number(logged) * 50 })
   await act(() => view.unmount()); client.clear()
 })

@@ -47,9 +47,7 @@ describe('Astra metrics card on mobile', () => {
     expect(root.findAllByType('Text').some(node => node.props.children === 'progressScreen.window.completionRate')).toBe(true)
     expect(root.findAllByType('Text').some(node => node.props.children === 'progressScreen.window.activeDays')).toBe(true)
     expect(root.findByProps({ testID: 'block-frame-item-topHabit-pending' })).toBeDefined()
-    const button = root.findByProps({ testID: 'button-ghost-sm' })
-    ;(button.props.onPress as () => void)()
-    expect(push).toHaveBeenCalledWith('/progress')
+    expect(push).not.toHaveBeenCalled()
   })
 
   it('renders thirty habit bars and routes to the habit', () => {
@@ -59,9 +57,7 @@ describe('Astra metrics card on mobile', () => {
     const control = root.findByProps({ testID: 'bar-chart-control' })
     void act(() => { (control.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { width: 320 } } }) })
     expect(root.findByProps({ testID: 'bar-chart-control' }).findAllByType('Path')).toHaveLength(30)
-    const button = root.findByProps({ testID: 'button-ghost-sm' })
-    ;(button.props.onPress as () => void)()
-    expect(push).toHaveBeenCalledWith({ pathname: '/habits/[id]', params: { id: habitId } })
+    expect(push).not.toHaveBeenCalled()
   })
 
   it('hides an all-null series and wraps row labels', () => {
