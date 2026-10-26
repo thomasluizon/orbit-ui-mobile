@@ -47,8 +47,9 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
   const [shownCount, setShownCount] = useState(20)
   const visibleRows = payloadRows.slice(0, shownCount)
   const totalRows = daySummary.totalRows ?? payloadRows.length
-  const missing = occurrences.data != null && visibleRows.some((item) => !occurrences.data.habitsById.has(item.id))
-  const unavailable = missing || (daySummary.dateTo != null && daySummary.dateTo !== daySummary.date)
+  const isRange = daySummary.dateTo != null && daySummary.dateTo !== daySummary.date
+  const missing = !isRange && occurrences.data != null && visibleRows.some((item) => !occurrences.data.habitsById.has(item.id))
+  const unavailable = missing || isRange
   const frameState = liveBlockState(occurrences, { acting: pendingIds.size > 0, failed: failedIds.size > 0, stale: missing, staleMessage: t('chat.liveBlock.stale'), onRefresh: () => { void occurrences.refetch() } })
   const toggle = (habitId: string) => {
     const control = daySummaryLogControl(occurrences.data?.habitsById.get(habitId), false, readScope ? { ...readScope, date: daySummary.date, today: getAccountDay(new Date(), readScope.timeZone) } : undefined)
@@ -57,7 +58,7 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
   }
   const { done, completionRate } = daySummaryCompletion(daySummary, occurrences.data?.habitsById)
   const rows = visibleRows.map((item) => {
-    const occurrence = occurrences.data?.habitsById.get(item.id)
+    const occurrence = isRange ? undefined : occurrences.data?.habitsById.get(item.id)
     const title = item.title
     const control = daySummaryLogControl(occurrence, item.status === 'overdue', readScope ? { ...readScope, date: daySummary.date, today: getAccountDay(new Date(), readScope.timeZone) } : undefined)
     const check = occurrence ? control : habitSnapshotCheck(item)

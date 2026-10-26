@@ -158,14 +158,14 @@ it('puts a payload sync error in the calendar actions area', () => {
 })
 
 
-it.each(['child', 'bad'] as const)('keeps a completed %s row outside the parent completion total', (kind) => {
+it.each(['child', 'bad'] as const)('counts a completed %s row according to the single-day schedule', (kind) => {
   const parent = inPlaceDayFixture.rows![0]!
   const extra = { ...parent, id: 'extra', title: 'Extra', depth: kind === 'child' ? 1 : 0, isBadHabit: kind === 'bad' }
-  const snapshot = { ...inPlaceDayFixture, due: 1, done: 0, rows: [parent, extra] }
+  const snapshot = { ...inPlaceDayFixture, due: 2, done: 0, rows: [parent, extra] }
   state.habits.set(extra.id, createMockHabit({ id: extra.id, title: extra.title, isBadHabit: extra.isBadHabit, isLoggedInRange: true }))
   const tree = render(<DaySummaryCard daySummary={snapshot} />)
-  expect(renderedText(tree.toJSON())).toContain('chat.daySummary.doneOfDue:{"done":0,"due":1}')
-  expect(tree.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]!.props.accessibilityValue).toEqual(expect.objectContaining({ now: 0 }))
+  expect(renderedText(tree.toJSON())).toContain(`chat.daySummary.doneOfDue:{"done":${kind === 'child' ? 1 : 0},"due":2}`)
+  expect(tree.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]!.props.accessibilityValue).toEqual(expect.objectContaining({ now: kind === 'child' ? 50 : 0 }))
   void act(() => tree.unmount())
 })
 

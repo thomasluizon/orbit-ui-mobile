@@ -158,14 +158,14 @@ it('puts a payload sync error in the calendar actions area', () => {
 })
 
 
-it.each(['child', 'bad'] as const)('keeps a completed %s row outside the parent completion total', (kind) => {
+it.each(['child', 'bad'] as const)('counts a completed %s row according to the single-day schedule', (kind) => {
   const parent = inPlaceDayFixture.rows![0]!
   const extra = { ...parent, id: 'extra', title: 'Extra', depth: kind === 'child' ? 1 : 0, isBadHabit: kind === 'bad' }
-  const snapshot = { ...inPlaceDayFixture, due: 1, done: 0, rows: [parent, extra] }
+  const snapshot = { ...inPlaceDayFixture, due: 2, done: 0, rows: [parent, extra] }
   state.habits.set(extra.id, createMockHabit({ id: extra.id, title: extra.title, isBadHabit: extra.isBadHabit, isLoggedInRange: true }))
   const view = render(<DaySummaryCard daySummary={snapshot} />)
-  expect(screen.getByText('chat.daySummary.doneOfDue:{"done":0,"due":1}')).toBeInTheDocument()
-  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0')
+  expect(screen.getByText(`chat.daySummary.doneOfDue:{"done":${kind === 'child' ? 1 : 0},"due":2}`)).toBeInTheDocument()
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', kind === 'child' ? '50' : '0')
   view.unmount()
 })
 

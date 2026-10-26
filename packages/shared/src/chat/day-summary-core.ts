@@ -5,9 +5,10 @@ import { isHabitDoneForRange } from '../utils/habit-visibility'
 import type { DaySummaryCard } from '../types/chat'
 
 export function daySummaryCompletion(card: DaySummaryCard, occurrences: ReadonlyMap<string, NormalizedHabit> | undefined): { done: number; completionRate: number } {
+  if (card.dateTo != null && card.dateTo !== card.date) return { done: card.done, completionRate: card.completionRate ?? 0 }
   const delta = (card.rows ?? []).reduce((total, row) => {
     const habit = occurrences?.get(row.id)
-    if (!habit || row.depth > 0 || row.isBadHabit) return total
+    if (!habit || row.isBadHabit) return total
     return total + Number(isHabitDoneForRange(habit)) - Number(row.status === 'done')
   }, 0)
   const done = Math.max(0, Math.min(card.due, card.done + delta))

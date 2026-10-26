@@ -47,6 +47,20 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
     expect(record.frame?.title).toBe(locale === 'en' ? count === 1 ? 'New habit' : `${count} new habits` : count === 1 ? 'Novo hábito' : `${count} novos hábitos`)
     expect(record.frame?.count).toBe(count)
+    expect(record.frame?.items).toHaveLength(count)
+  })
+
+  it('keeps the full count and a localized remainder when the create preview is truncated', () => {
+    const complete = makeCreateHabitsPreview(5)
+    const operation = pendingAgentOperationSchema.parse({ ...complete, items: complete.items!.slice(0, 2) })
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    const remainder = locale === 'en' ? 'and 3 more' : 'e mais 3'
+    expect(record.frame).toMatchObject({ title: locale === 'en' ? '5 new habits' : '5 novos hábitos', count: 5 })
+    expect(record.frame?.items).toHaveLength(3)
+    expect(record.frame?.items[2]).toMatchObject({ id: 'remaining', label: remainder, meta: '', control: undefined })
+    expect(record.buttons.some(button => button.label === remainder)).toBe(false)
   })
 
   it.each([1, 2, 3])('keeps a neutral heading for reuse at depth %s', (depth) => {

@@ -4,7 +4,7 @@ import { expect, it, vi } from 'vitest'
 import { habitKeys } from '@orbit/shared/query'
 import { habitListQueryFilters } from '@orbit/shared/utils'
 import { createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
-import { inPlaceDayFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
+import { inPlaceDayFixture, rangeDaySummaryFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
 import { DaySummaryCard } from '@/components/chat/day-summary-card'
 
 vi.mock('@/hooks/use-habits', async () => {
@@ -41,6 +41,29 @@ it('retains the nothing-due state without a completion ring', () => {
   expect(screen.getByText('chat.daySummary.nothingDue')).toBeInTheDocument()
   expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'chat.daySummary.open' })).not.toBeInTheDocument()
+  view.unmount()
+  client.clear()
+})
+
+it('keeps a seven-day summary and its saved check when the first-day cache changes', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })
+  const filters = { dateFrom: rangeDaySummaryFixture.date, dateTo: rangeDaySummaryFixture.date, includeGeneral: true, includeOverdue: true }
+  const key = habitKeys.list(habitListQueryFilters(filters, true))
+  const habit = createMockHabitScheduleItem({ id: 'habit-1', dueDate: rangeDaySummaryFixture.date })
+  client.setQueryData(key, [habit])
+  const view = render(<QueryClientProvider client={client}><DaySummaryCard daySummary={rangeDaySummaryFixture} /></QueryClientProvider>)
+  const ring = screen.getByRole('progressbar')
+  expect(ring).toHaveAttribute('aria-valuenow', '43')
+  expect(screen.getByRole('img', { name: 'chat.habitList.logged' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /chat.habitList\.(log|unlog):/ })).not.toBeInTheDocument()
+  for (const isLoggedInRange of [true, false]) {
+    await act(async () => {
+      client.setQueryData(key, [{ ...habit, isLoggedInRange }])
+      await new Promise(resolve => setTimeout(resolve, 10))
+    })
+    expect(ring).toHaveAttribute('aria-valuenow', '43')
+    expect(screen.getByRole('img', { name: 'chat.habitList.logged' })).toBeInTheDocument()
+  }
   view.unmount()
   client.clear()
 })
