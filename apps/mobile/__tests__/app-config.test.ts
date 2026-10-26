@@ -35,6 +35,22 @@ describe('Android app variant', () => {
     expect(appJson.expo.android.package).toBe('org.useorbit.app')
   })
 
+  it.each(['production', 'staging'])('selects a build version without changing the %s checkout config', (variant) => {
+    vi.stubEnv('ORBIT_APP_VARIANT', variant)
+    vi.stubEnv('ORBIT_APP_VERSION', '2.4.6')
+    const config = createConfig()
+    expect(config.version).toBe('2.4.6')
+    expect(config.ios.buildNumber).toBe(appJson.expo.ios.buildNumber)
+    expect(config.android.versionCode).toBe(appJson.expo.android.versionCode)
+    vi.stubEnv('ORBIT_APP_VERSION', undefined)
+    expect(createConfig().version).toBe(appJson.expo.version)
+  })
+
+  it.each(['', '1.2', '1.2.3-beta', ' 1.2.3', '1.2.3\n'])('rejects invalid build version %j', (version) => {
+    vi.stubEnv('ORBIT_APP_VERSION', version)
+    expect(() => createConfig()).toThrow('Invalid ORBIT_APP_VERSION; expected x.y.z')
+  })
+
   it.each(['production', 'staging'])('generates a verified exact login path for %s without broadening callback or referral routing', async (variant) => {
     process.env.ORBIT_APP_VARIANT = variant
     const config = createConfig()

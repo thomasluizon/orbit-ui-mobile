@@ -18,8 +18,7 @@ function exercise(label, scenario = {}, argumentsList = []) {
   const checkout = join(root, "ios-simulator", label)
   mkdirSync(join(checkout, "tools"), { recursive: true })
   mkdirSync(join(checkout, "apps", "mobile"), { recursive: true })
-  mkdirSync(join(checkout, "apps", "mobile", "scripts"), { recursive: true })
-  for (const file of ["app.json", "app.config.js", "scripts/set-app-version.js"]) {
+  for (const file of ["app.json", "app.config.js"]) {
     cpSync(toolPath(`../apps/mobile/${file}`), join(checkout, "apps", "mobile", file))
   }
   mkdirSync(join(checkout, "node_modules", "expo", "bin"), { recursive: true })
@@ -50,11 +49,18 @@ require("node:child_process").spawnSync = (command, args, options) => {
     if (scenario.noAuth) return { status: 4, stdout: "", stderr: "not signed in" }
     return { status: 0, stdout: scenario.badJson ? "invalid JSON" : JSON.stringify(scenario.deployments ?? deployments), stderr: "" }
   }
-  if (args[0]?.endsWith("set-app-version.js") && !(scenario.fail && joined.includes(scenario.fail))) return originalSpawnSync(command, args, options)
   if (joined.includes("prebuild") || args.includes("-workspace")) {
-    const config = require(${JSON.stringify(join(checkout, "apps", "mobile", "app.config.js"))})()
+    const configured = originalSpawnSync(process.execPath, ["-e", "process.stdout.write(JSON.stringify(require('./app.config.js')()))"], {
+      ...options, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
+    })
+    if (configured.status !== 0) return configured
+    const config = JSON.parse(configured.stdout)
     nativeVersion = config.version
-    appendFileSync(${JSON.stringify(callsPath)}, JSON.stringify({ phase: joined.includes("prebuild") ? "prebuild" : "native-build", version: config.version }) + "\\n")
+    const phase = joined.includes("prebuild") ? "prebuild" : "native-build"
+    appendFileSync(${JSON.stringify(callsPath)}, JSON.stringify({ phase, version: config.version }) + "\\n")
+    if (scenario.cancelPhase === phase) {
+      return originalSpawnSync(process.execPath, ["-e", "process.kill(process.ppid, process.argv[1])", scenario.signal], options)
+    }
   }
   if (args.includes("-arch") && args.includes("-destination")) return { status: 70, stdout: "", stderr: "xcodebuild: error: destination implies architecture, architecture must not also be specified." }
   if (scenario.fail && joined.includes(scenario.fail)) return { status: 1, stdout: "", stderr: "operation failed" }
@@ -94,7 +100,17 @@ export function cases() {
     successful.phases.length === 2 && successful.phases.every((phase) => phase.version === releaseVersion))
   const originalConfig = readFileSync(toolPath("../apps/mobile/app.json"), "utf8")
   const restored = (result) => readFileSync(join(result.checkout, "apps", "mobile", "app.json"), "utf8") === originalConfig
-  T("ios-simulator: restores the checkout app config after a successful build", restored(successful))
+  T("ios-simulator: preserves the checkout app config after a successful build", restored(successful))
+  for (const signal of ["SIGINT", "SIGTERM"]) {
+    for (const cancelPhase of ["prebuild", "native-build"]) {
+      const cancelled = exercise(`cancelled-${cancelPhase}-${signal}`, { cancelPhase, signal }, ["--app-version", "2.4.6"])
+      T(`ios-simulator: ${signal} terminates during ${cancelPhase} with the selected version`,
+        cancelled.status === null && cancelled.signal === signal &&
+        cancelled.phases.at(-1)?.phase === cancelPhase && cancelled.phases.at(-1)?.version === "2.4.6" &&
+        !cancelled.calls.some((call) => call.args.includes("install")), cancelled.stderr)
+      T(`ios-simulator: ${signal} during ${cancelPhase} preserves checkout app config bytes`, restored(cancelled))
+    }
+  }
   T("ios-simulator: pins staging and Xcode for every command", successful.calls.every((call) =>
     call.cwd === join(successful.checkout, "apps", "mobile") && call.environment.ORBIT_APP_VARIANT === "staging" &&
     call.environment.EXPO_PUBLIC_API_BASE === "https://api-staging.useorbit.org" &&
@@ -150,11 +166,8 @@ export function cases() {
   for (const failure of ["bootstatus", "prebuild", "-workspace", "simctl install", "get_app_container", "simctl launch"]) {
     const failed = exercise(`failed-${failure.replaceAll(" ", "-")}`, { fail: failure })
     T(`ios-simulator: stops on ${failure} failure`, failed.status === 1 && failed.calls.at(-1).args.join(" ").includes(failure))
-    T(`ios-simulator: restores checkout version after ${failure} failure`, restored(failed))
+    T(`ios-simulator: preserves checkout version after ${failure} failure`, restored(failed))
   }
-  const stampFailure = exercise("stamp-failure", { fail: "set-app-version.js" })
-  T("ios-simulator: stops if release version stamping fails", stampFailure.status === 1 && restored(stampFailure) &&
-    !stampFailure.calls.some((call) => call.args.includes("prebuild")))
   const staleVersion = exercise("stale-native-version", { staleVersion: true })
   T("ios-simulator: refuses a native build that retained the checkout version",
     staleVersion.status === 1 && /version/.test(staleVersion.stderr) && !staleVersion.calls.some((call) => call.args.includes("install")))

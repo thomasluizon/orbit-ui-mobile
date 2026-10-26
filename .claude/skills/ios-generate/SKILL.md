@@ -31,9 +31,9 @@ with local ad hoc signing. This retains the app and widget Keychain entitlements
 account, signing certificate or provisioning profile. It pins `ORBIT_APP_VARIANT=staging` and
 `EXPO_PUBLIC_API_BASE=https://api-staging.useorbit.org`, disables Sentry upload, installs
 `org.useorbit.app.staging` and launches it. JavaScript is bundled; no development server is needed.
-Before prebuild it runs the release workflows' `scripts/set-app-version.js` so both the native
+Before prebuild it sets `ORBIT_APP_VERSION` for the child commands so both the native
 version and the bundled Expo config carry the selected version, including `X-App-Version` requests.
-It restores `app.json` after compilation, including failed builds, and verifies the built and
+It leaves `app.json` untouched, including on cancellation, and verifies the built and
 installed versions before launching.
 
 Use a background terminal for the build. Logs and checkout-local DerivedData stay under the ignored

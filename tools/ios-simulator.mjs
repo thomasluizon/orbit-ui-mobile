@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process"
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { closeSync, existsSync, mkdirSync, openSync, rmSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { setTimeout } from "node:timers/promises"
@@ -113,17 +113,6 @@ function resolveAppVersion() {
   }
 }
 
-function build(device, version) {
-  const configPath = join(mobile, "app.json")
-  const originalConfig = readFileSync(configPath)
-  try {
-    run(process.execPath, [join(mobile, "scripts", "set-app-version.js"), version])
-    compile(device)
-  } finally {
-    writeFileSync(configPath, originalConfig)
-  }
-}
-
 function compile(device) {
   for (const [name, command, argumentsList] of [
     ["prebuild", process.execPath, [expo, "prebuild", "--platform", "ios"]],
@@ -168,6 +157,7 @@ try {
     fail("Requires macOS, full Xcode with Device Hub and npm ci dependencies. See --help.", 3)
   }
   const version = resolveAppVersion()
+  environment.ORBIT_APP_VERSION = version
   process.stderr.write(`ios-simulator: app version ${version}\n`)
   run("xcodebuild", ["-checkFirstLaunchStatus"])
   run("pod", ["--version"])
@@ -181,7 +171,7 @@ try {
   const device = selectDevice()
   process.stderr.write(`ios-simulator: booting ${device.name} (${device.udid})\n`)
   run("xcrun", ["simctl", "bootstatus", device.udid, "-b"], 5 * 60 * 1000)
-  build(device, version)
+  compile(device)
   const app = join(artifacts, "DerivedData", "Build", "Products", "Release-iphonesimulator", "OrbitStaging.app")
   const readProperty = (path, key) => run("/usr/libexec/PlistBuddy", ["-c", `Print :${key}`, join(path, "Info.plist")])
   if (readProperty(app, "CFBundleIdentifier") !== bundleIdentifier) fail("Build has an unexpected bundle identifier")
