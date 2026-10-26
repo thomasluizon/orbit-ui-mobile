@@ -3,7 +3,7 @@
 import { API } from '@orbit/shared/api'
 
 import { useEffect, useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { useAuthStore, withCookieSettingLogin } from '@/stores/auth-store'
 import { fetchWithUpgradeGuidance } from '@/lib/api-fetch'
@@ -22,6 +22,8 @@ export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebSt
   const t = useTranslations()
   const [appIntent, setAppIntent] = useState<string | null>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const [params] = useState(() => new URLSearchParams(searchParams.toString()))
   const { setAuth } = useAuthStore()
   const [state, setState] = useState<'pending' | 'failed' | 'account'>('pending')
   const [accountBack, setAccountBack] = useState<LoginResponse | null>(null)
@@ -33,13 +35,13 @@ export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebSt
   useEffect(() => {
     if (processed.current) return
     processed.current = true
-    const params = new URLSearchParams(globalThis.location.search)
     const apple = params.get('provider') === 'apple'
     if (apple) queueMicrotask(() => setProvider('apple'))
     const code = apple ? params.get('handoff') : params.get('code')
     const oauthState = params.get('state')
     const intent = getGoogleAuthAppIntent({
-      callback: globalThis.location, userAgent: navigator.userAgent, pendingWebState,
+      callback: { protocol: globalThis.location.protocol, host: globalThis.location.host, search: `?${params}` },
+      userAgent: navigator.userAgent, pendingWebState,
       packageName: process.env.NEXT_PUBLIC_PLAY_PACKAGE_NAME,
     })
     if (intent) {
@@ -106,7 +108,7 @@ export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebSt
     void complete().catch(() => {
       if (ownedGeneration === getAccountGeneration()) setState('failed')
     })
-  }, [locale, pendingWebState, router, setAuth])
+  }, [locale, params, pendingWebState, router, setAuth])
 
   async function continueAccount() {
     const expectedGeneration = accountBackGeneration.current

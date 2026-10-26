@@ -19,7 +19,7 @@ export interface LoginCallback {
 }
 
 export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }>) {
-  const flow = useLoginFlow()
+  const flow = useLoginFlow(Boolean(callback))
   const { t } = flow
   const [callbackDismissed, setCallbackDismissed] = useState(false)
   function continueAccount() {
