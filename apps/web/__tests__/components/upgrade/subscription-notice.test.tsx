@@ -14,9 +14,13 @@ const t = ((key: string, params?: Record<string, unknown>) =>
   params ? `${key}:${JSON.stringify(params)}` : key) as ReturnType<typeof useTranslations>
 
 describe('lapsed subscription notice', () => {
-  it('shows Pro resources without repeating the Astra mark', () => {
+  it('marks the Astra allowance and Pro benefit at their existing sizes', () => {
     const { container } = render(<SubscriptionNotice status={status} locale="en" t={t} />)
-    expect(container.querySelector('[data-asset="astra-mark"]')).not.toBeInTheDocument()
+    const allowance = screen.getByText('upgrade.billing.lapsed.lostMessages:{"limit":7}').closest('li')!
+    expect(allowance.querySelector('[data-asset="astra-mark-16"]')).toHaveAttribute('width', '16')
+    const benefit = screen.getByText('upgrade.outcomes.astra').closest('li')!
+    expect(benefit.querySelector('[data-asset="astra-mark"]')).toHaveAttribute('width', '20')
+    expect(container.querySelectorAll('[data-asset^="astra-mark"]')).toHaveLength(2)
     expect(screen.getByRole('heading', { name: 'upgrade.included' })).toBeInTheDocument()
     expect(container.querySelector('[data-icon="minus"]')).not.toBeInTheDocument()
   })

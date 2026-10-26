@@ -1,8 +1,9 @@
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import type { useTranslations } from 'next-intl'
-import { Calendar, Eye, FileText, MessageCircle } from '@/components/ui/icons'
+import { Calendar, Eye, FileText } from '@/components/ui/icons'
 
 const OUTCOMES = [
-  { key: 'astra', Icon: MessageCircle },
+  { key: 'astra', Icon: AstraGlyph },
   { key: 'calendar', Icon: Calendar },
   { key: 'retrospective', Icon: FileText },
   { key: 'noticing', Icon: Eye },

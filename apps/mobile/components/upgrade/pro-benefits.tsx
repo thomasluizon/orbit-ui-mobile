@@ -1,10 +1,11 @@
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Text, View } from 'react-native'
-import { Calendar, Eye, FileText, MessageCircle } from '@/components/ui/icons'
+import { Calendar, Eye, FileText } from '@/components/ui/icons'
 import { styles } from './styles'
 import type { Tokens, UpgradeTextFn } from './types'
 
 const OUTCOMES = [
-  { key: 'astra', Icon: MessageCircle },
+  { key: 'astra', Icon: AstraGlyph },
   { key: 'calendar', Icon: Calendar },
   { key: 'retrospective', Icon: FileText },
   { key: 'noticing', Icon: Eye },
