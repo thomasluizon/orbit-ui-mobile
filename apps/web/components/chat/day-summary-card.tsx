@@ -23,7 +23,7 @@ function DaySummaryControl({ readOnly, disabled, label, onToggle, children }: Re
   children: ReactNode
 }>) {
   if (readOnly) return <span className="grid size-[var(--touch-min)] place-items-center">{children}</span>
-  return <button data-habit-row-control="check" type="button" disabled={disabled} aria-label={label} onClick={onToggle} className="grid size-[var(--touch-min)] place-items-center rounded-full border-0 bg-transparent hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]">{children}</button>
+  return <button data-habit-row-control="check" type="button" disabled={disabled} aria-label={label} onClick={onToggle} className="grid size-[var(--touch-min)] place-items-center border-0 bg-transparent focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]">{children}</button>
 }
 
 export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummaryCardData }>) {

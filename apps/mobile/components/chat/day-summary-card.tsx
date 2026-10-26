@@ -1,12 +1,13 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { ChevronDown } from '@/components/ui/icons'
-import { useRef, useState, type ReactNode } from 'react'
+import { useRef, useState } from 'react'
 import { daySummaryLogControl } from '@orbit/shared/chat/day-summary-core'
 import { liveBlockState } from '@orbit/shared/chat/live-block-state'
 import type { DaySummaryCard as DaySummaryCardData } from '@orbit/shared/types/chat'
 import { getAccountDay } from '@orbit/shared/utils'
 import { BlockFrame, useReadActionScope } from './read-block-frame'
 import { ProgressRing } from '@/components/ui/progress-ring'
+import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { HabitCheck } from '@/components/habits/habit-check'
 import { HabitBlockRow } from './habit-block-row'
 import { useHabits, useLogHabit } from '@/hooks/use-habits'
@@ -18,17 +19,16 @@ import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-function DaySummaryControl({ readOnly, disabled, label, onToggle, children }: Readonly<{
+function DaySummaryControl({ readOnly, disabled, label, onToggle, status, statusLabel }: Readonly<{
   readOnly: boolean
   disabled: boolean
   label: string
   onToggle: () => void
-  children: ReactNode
+  status: HabitStatus
+  statusLabel: string
 }>) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-  if (readOnly) return <View style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' }}>{children}</View>
-  return <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} accessibilityState={{ disabled: disabled }} onPress={onToggle} style={({ pressed }) => ({ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>{children}</InsetFocusPressable>
+  if (readOnly) return <View style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' }}><HabitCheck status={status} label={statusLabel} /></View>
+  return <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} accessibilityState={{ disabled: disabled }} onPress={onToggle} style={() => ({ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden', backgroundColor: 'transparent' })}>{({ pressed }) => <HabitCheck status={status} label={statusLabel} feedback={pressed} />}</InsetFocusPressable>
 }
 
 export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummaryCardData }>) {
@@ -68,7 +68,7 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
     const control = daySummaryLogControl(occurrence, item.status === 'overdue', readScope ? { ...readScope, date: daySummary.date, today: getAccountDay(new Date(), readScope.timeZone) } : undefined)
     const actionLabel = control.undoUnavailable ? `${title}: ${t(control.statusKey)}` : t(control.actionKey, { name: title })
     return <HabitBlockRow key={item.id} title={title} emoji={item.emoji} label={t('chat.habitList.open', { name: title })}
-      onOpen={() => navigate({ pathname: '/habits/[id]', params: { id: item.id, date: daySummary.date } })} control={occurrence && !unavailable ? <DaySummaryControl readOnly={control.undoUnavailable || !control.writeAllowed} disabled={pendingId !== null || unavailable} label={actionLabel} onToggle={() => toggle(item.id)}><HabitCheck status={control.status} label={t(control.statusKey)} /></DaySummaryControl> : undefined} />
+      onOpen={() => navigate({ pathname: '/habits/[id]', params: { id: item.id, date: daySummary.date } })} control={occurrence && !unavailable ? <DaySummaryControl readOnly={control.undoUnavailable || !control.writeAllowed} disabled={pendingId !== null || unavailable} label={actionLabel} onToggle={() => toggle(item.id)} status={control.status} statusLabel={t(control.statusKey)} /> : undefined} />
   })
   return <View style={{ width: '100%' }}>
     <BlockFrame {...frameState} title={t(daySummary.read ? 'chat.readBlock.dayTitle' : 'chat.daySummary.title')} count={null} items={[

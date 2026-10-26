@@ -41,7 +41,7 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
           if (unavailable || !habitListReadControl(occurrence, item.status, occurrenceDate, readScope).writeAllowed) return
           logHabit.mutate({ habitId: item.id, date: occurrenceDate, intent: logged ? 'unlog' : 'log' })
         }} style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' }}>
-          <HabitCheck status={control.status} label={t(control.statusKey)} />
+          {({ pressed }) => <HabitCheck status={control.status} label={t(control.statusKey)} feedback={pressed} />}
         </Pressable>
       ) : undefined} />
   })
