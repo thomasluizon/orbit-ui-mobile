@@ -132,7 +132,6 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -163,7 +162,6 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -194,7 +192,6 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -225,7 +222,6 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -256,7 +252,6 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -287,7 +282,6 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -318,7 +312,6 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -349,7 +342,6 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -3709,6 +3701,62 @@
       "parentSurfaceId": "route-chat",
       "ownedFiles": [
         "apps/web/components/chat/habit-list-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-month-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-month-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-month-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-month-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-month-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-month-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-month-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-month-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-month-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-month-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-month-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-month-card.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -8591,7 +8639,6 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -8620,7 +8667,6 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -8649,7 +8695,6 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -8678,7 +8723,6 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -8707,7 +8751,6 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -8736,7 +8779,6 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -8765,7 +8807,6 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -8794,7 +8835,6 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -11973,6 +12013,62 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/habit-list-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-month-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-month-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-month-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-month-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-month-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-month-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-month-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-month-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-month-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-month-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-month-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-month-card.tsx"
       ],
       "state": "default",
       "theme": "dark",

@@ -149,6 +149,7 @@ export const API = {
     records: '/api/chat/records',
     habitRanking: '/api/chat/habit-ranking',
     refreshRead: '/api/chat/reads/refresh',
+    refreshHabitMonth: '/api/chat/habit-month/refresh',
   },
 
   ai: {

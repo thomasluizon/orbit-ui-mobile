@@ -3,7 +3,7 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { ChevronDown } from '@/components/ui/icons'
 import { useLocale, useTranslations } from 'next-intl'
-import { refreshReadBlock } from '@/app/actions/chat'
+import { refreshHabitMonth, refreshReadBlock } from '@/app/actions/chat'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
@@ -15,8 +15,10 @@ import { BlockFrame as Frame } from '@/components/ui/block-frame'
 
 const useReadBlockSession = createUseReadBlockSession({
   useState, useRef, useEffect, getAccountGeneration, platform: 'web',
-  refresh: async (token, clientContext, page) => {
-    const result = await refreshReadBlock(token, clientContext, page, getHeldAccountId())
+  refresh: async (token, clientContext, page, _isCurrent, kind) => {
+    const result = kind === 'habitMonth'
+      ? await refreshHabitMonth(token, clientContext, getHeldAccountId())
+      : await refreshReadBlock(token, clientContext, page, getHeldAccountId())
     if (!result.ok) throw new Error(result.code)
     return result.data
   },

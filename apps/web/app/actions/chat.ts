@@ -10,7 +10,7 @@ import type {
   PendingOperationRevisionResult,
   RevisePendingOperationRequest,
 } from '@orbit/shared'
-import { readBlockResponseSchema, type ChatClientContext } from '@orbit/shared/types/chat'
+import { habitMonthReadBlockResponseSchema, readBlockResponseSchema, type ChatClientContext } from '@orbit/shared/types/chat'
 import { proactiveItemSchema, proactiveItemStatusSchema } from '@orbit/shared/types'
 import { serverAuthFetch, serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
@@ -154,4 +154,11 @@ export async function refreshReadBlock(token: string, clientContext: ChatClientC
     method: 'POST',
     body: JSON.stringify({ token, clientContext, page }),
   }, intendedAccountId, readBlockResponseSchema))
+}
+
+export async function refreshHabitMonth(token: string, clientContext: ChatClientContext, intendedAccountId: string | null) {
+  return wrapServerAction(() => serverAuthMutate(API.chat.refreshHabitMonth, {
+    method: 'POST',
+    body: JSON.stringify({ token, clientContext }),
+  }, intendedAccountId, habitMonthReadBlockResponseSchema))
 }
