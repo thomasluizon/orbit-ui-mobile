@@ -1,7 +1,7 @@
 'use client'
 
 import { TypedTextarea } from '@/components/ui/typed-textarea'
-import { useId, useMemo, useState, type ReactNode, type Ref } from 'react'
+import { useId, useMemo, useState, type CSSProperties, type ReactNode, type Ref } from 'react'
 import type { HabitUnderstandingProps, HabitRepeatIntervalProps } from '@orbit/shared/utils'
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
@@ -11,6 +11,7 @@ import { WeekdayPicker } from '@/components/ui/weekday-picker'
 import { Proposed } from '@/components/ui/proposed'
 
 const titleSingleLineHeight = 'var(--habit-title-height)'
+const titleRowStyle = { '--habit-title-height': 'max(54px, calc(1.45rem + 24px))' } as CSSProperties
 const titleTextStyle = { minHeight: titleSingleLineHeight, paddingBlock: `calc((${titleSingleLineHeight} - 1lh) / 2)` }
 
 type HabitUnderstandingWithDisabledEmojiProps = HabitUnderstandingProps & {
@@ -89,7 +90,7 @@ export function HabitUnderstanding({
   return (
     <div className="flex flex-col" style={{ gap: 24 }}>
       <div className="flex flex-col" style={{ gap: 8 }}>
-        <div data-habit-title-row="" className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 [--habit-title-height:max(54px,calc(1.45rem+24px))]">
+        <div data-habit-title-row="" className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2" style={titleRowStyle}>
           <label htmlFor={phraseId} className="form-label col-span-2">{labels.field}</label>
           <div data-habit-phrase-field="" data-focus-perimeter="" className="orbit-field-hover relative min-w-0 flex-1 rounded-[12px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
             <p
