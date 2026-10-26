@@ -11,12 +11,19 @@ export default class MockAstra {
     call.result.payload.instruction = 'TOOL_TRACE_SECRET'
     const response = chatResponse(requestId, [call])
     if (context.vars.responseMode) {
-      response.aiMessage = context.vars.responseMode === 'block-only' ? ''
+      response.aiMessage = ['block-only', 'slow-latency', 'missing-timing'].includes(context.vars.responseMode) ? ''
         : context.vars.responseMode === 'repeated-figure' ? 'One out of one is pending.' : 'Water is ready.'
       const prose = { type: 'text', text: response.aiMessage }
-      response.parts = context.vars.responseMode === 'block-only' ? [habitBlock]
+      response.parts = ['block-only', 'slow-latency', 'missing-timing'].includes(context.vars.responseMode) ? [habitBlock]
         : context.vars.responseMode === 'prose-first' ? [prose, habitBlock] : [habitBlock, prose]
     }
+    if (context.vars.responseMode === 'slow-latency') {
+      const timing = response.evalTrace.timing
+      timing.phases.find((phase) => phase.name === 'model_call').milliseconds += 7000 - timing.totalMilliseconds
+      timing.phases.find((phase) => phase.name === 'model_call').elapsedMilliseconds += 7000 - timing.totalMilliseconds
+      timing.totalMilliseconds = 7000
+    }
+    if (context.vars.responseMode === 'missing-timing') delete response.evalTrace.timing
     if (context.vars.noTrace) delete response.evalTrace
     const output = parseResponse(response, '', { response: {
       status: 200, headers: { 'x-orbit-request-id': requestId },
