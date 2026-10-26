@@ -81,6 +81,16 @@ function contrast(foreground: string, background: Rgb): number {
 }
 
 describe('mobile theme runtime', () => {
+  it.each(MODES)('preserves resolved %s tokens when a partial update contains undefined', (themeMode) => {
+    setRuntimeTheme({ scheme: 'orange', themeMode })
+    const resolved = createTokensV2()
+
+    setRuntimeTheme({ scheme: undefined, themeMode: undefined })
+
+    expect(createTokensV2()).toEqual(resolved)
+    expect(getRuntimeTheme()).toEqual({ scheme: 'orange', themeMode })
+  })
+
   it.each([
     [412, 28, 33.04, -0.56, 34, 35.7, -0.68],
     [639.99, 28, 33.04, -0.56, 34, 35.7, -0.68],

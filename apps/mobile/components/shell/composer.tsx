@@ -10,9 +10,9 @@ import {
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
-import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
+import { isComposerEditable, buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
-import { ActivityIndicator, AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, type TextInput, type LayoutChangeEvent, View, useWindowDimensions } from 'react-native'
+import { AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, type TextInput, type LayoutChangeEvent, View, useWindowDimensions } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import { captureError } from '@/lib/sentry'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -308,8 +308,8 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange, availableWi
   const maximumHeight = 5 * 24 * fontScale + 24
   const emptyHeight = composerEmptyHeight(fontScale, placeholderHeight, allowancePlaceholderHeight, Boolean(props.allowanceReason))
   const inputHeight = props.value.length === 0 ? emptyHeight : Math.min(maximumHeight, Math.max(minimumHeight, contentHeight))
-  const inputDisabled = props.state !== 'idle'
-  const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
+  const inputDisabled = !isComposerEditable(props.state)
+  const canSend = !inputDisabled && hasComposerContent(props.value, props.attachments)
   return (
 <View testID="composer-text-slot" style={[styles.textSlot, { minHeight: inputHeight }]}>
         <Text testID="composer-input-minimum" pointerEvents="none" accessible={false}
@@ -460,7 +460,7 @@ function ComposerInputRow({ props, tokens, inputRef, disclosure }: Readonly<{ pr
   const hasConversationEntry = Boolean(props.onOpenConversation && props.conversationLabel)
   const conversationEntryWidth = hasConversationEntry ? widths.entry : 0
   const availableWidth = widths.field > 0 && widths.actions > 0 && widths.send > 0
-    && (!hasConversationEntry || widths.entry > 0)
+    && (conversationEntryWidth > 0 || !hasConversationEntry)
     ? widths.field - 2 * styles.field.padding - conversationEntryWidth - widths.actions - widths.send - styles.trailingControls.gap
     : undefined
   const pasteFocus = useRef<string | null>(null)
@@ -471,8 +471,8 @@ function ComposerInputRow({ props, tokens, inputRef, disclosure }: Readonly<{ pr
     inputRef.current?.focus()
     inputRef.current?.setSelection(end, end)
   }, [props.value, props.state, inputRef])
-  const inputDisabled = props.state !== 'idle'
-  const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
+  const inputDisabled = !isComposerEditable(props.state)
+  const canSend = !inputDisabled && hasComposerContent(props.value, props.attachments)
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
   const sendIsAccent = canSend || props.state === 'sending'
@@ -501,7 +501,7 @@ function ComposerInputRow({ props, tokens, inputRef, disclosure }: Readonly<{ pr
         focusContrastColor={sendIsAccent ? tokens.bg : undefined}
         accessibilityRole="button"
         accessibilityLabel={props.words.send}
-        accessibilityState={{ disabled: !canSend, busy: props.state === 'sending' }}
+        accessibilityState={{ disabled: !canSend }}
         disabled={!canSend}
         onPress={() => {
           if (canSend) props.onSend()
@@ -518,7 +518,7 @@ function ComposerInputRow({ props, tokens, inputRef, disclosure }: Readonly<{ pr
           !canSend && props.state !== 'sending' ? styles.disabled : null,
         ]}
       >
-        {props.state === 'sending' ? <ActivityIndicator accessible={false} importantForAccessibility="no-hide-descendants" size="small" color={tokens.fgOnPrimary} /> : <ArrowUp size={20} strokeWidth={2} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} />}
+        <ArrowUp size={20} strokeWidth={2} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} />
       </InsetFocusPressable>
       </View>
     </View>
@@ -564,6 +564,26 @@ function ComposerDisclosure({ collapsed, tokens, onToggle, ref }: Readonly<{ col
   </InsetFocusPressable>
 }
 
+function PromptQueue({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
+  const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null)
+  return <>
+      {props.queue?.items.length ? <View accessibilityLabel={props.queue.label} style={styles.tray}>
+        {props.queue.items.map(prompt => <View key={prompt.id} style={[styles.attachmentRow, { backgroundColor: tokens.bgWell, borderColor: tokens.hairline }]}>
+          <InsetFocusPressable accessibilityRole="button" accessibilityLabel={prompt.content} onPress={() => setSelectedPrompt(prompt.content)}
+            style={({ pressed }) => [styles.attachmentNameControl, pressed ? { backgroundColor: tokens.bgHover } : null]}><PersonalText style={[styles.attachmentName, { color: tokens.fg2 }]}>{prompt.content}</PersonalText></InsetFocusPressable>
+          {props.queue?.canSend ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={props.queue.sendLabel(prompt.content)} onPress={() => props.queue?.onSend(prompt.id)}
+            style={({ pressed }) => [styles.iconButton, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><ArrowUp size={20} color={tokens.fg2} /></InsetFocusPressable> : null}
+          <InsetFocusPressable accessibilityRole="button" accessibilityLabel={props.queue?.removeLabel(prompt.content)} onPress={() => props.queue?.onRemove(prompt.id)}
+            style={({ pressed }) => [styles.iconButton, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><X size={20} color={tokens.fg2} /></InsetFocusPressable>
+        </View>)}
+      </View> : null}
+      {props.queue?.pausedReason ? <Text accessibilityLiveRegion="polite" style={[styles.allowanceText, { color: tokens.fg2 }]}>{props.queue.pausedReason}</Text> : null}
+      {props.replyControl ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={props.replyControl.label} onPress={props.replyControl.onStop}
+        style={({ pressed }) => [styles.retry, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><Square size={20} color={tokens.fg2} /><Text style={[styles.retryText, { color: tokens.fg2 }]}>{props.replyControl.label}</Text></InsetFocusPressable> : null}
+    {selectedPrompt && props.queue ? <Sheet title={props.queue.label} onClose={() => setSelectedPrompt(null)}><PersonalText expanded style={[styles.fullAttachmentName, { color: tokens.fg1 }]}>{selectedPrompt}</PersonalText></Sheet> : null}
+  </>
+}
+
 function ComposerContent({ props, tokens, focusTarget, disclosure }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null>; disclosure?: React.ReactNode }>) {
   const attachments = props.attachments ?? []
   const hasAttachments = attachments.length > 0
@@ -580,6 +600,7 @@ function ComposerContent({ props, tokens, focusTarget, disclosure }: Readonly<{ 
         />
       ) : null}
 
+      <PromptQueue props={props} tokens={tokens} />
       <ComposerError props={props} tokens={tokens} />
       {showAllowanceStatus ? <AllowanceStatus props={props} tokens={tokens} focusTarget={focusTarget} disclosure={disclosure} /> : <ComposerStatus props={props} tokens={tokens} focusTarget={focusTarget} disclosure={disclosure} />}
       <ComposerInputRow props={props} tokens={tokens} inputRef={focusTarget} disclosure={withSuggestions ? undefined : disclosure} />
@@ -594,7 +615,7 @@ export function Composer(props: Readonly<MobileComposerProps>) {
   const collapsed = Boolean(props.collapsible && savedCollapsed)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const inputDisabled = props.state !== 'idle'
+  const inputDisabled = !isComposerEditable(props.state)
   const attachments = props.attachments ?? []
   const hasAttachments = attachments.length > 0
   const canRetry = props.onRetry !== undefined

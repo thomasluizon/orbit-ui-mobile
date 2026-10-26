@@ -1,5 +1,6 @@
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { personalText } from '@/__tests__/support/personal-text'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { HabitTag } from '@orbit/shared/types/habit'
 import { TagPickerField } from '@/components/habits/habit-form-fields/tag-picker-field'
@@ -16,6 +17,8 @@ function buildTags(count: number): HabitTag[] {
     color: '#6d5bd0',
   }))
 }
+
+beforeEach(() => measureClampedPersonalText())
 
 describe('TagPickerField', () => {
   it('shows an actionable empty state instead of an empty picker body', () => {

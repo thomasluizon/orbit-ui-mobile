@@ -16,8 +16,8 @@ import {
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
-import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
-import { ArrowUp, ChevronDown, Clipboard, FileText, Image as ImageIcon, Loader2, Plus, Square, X } from '@/components/ui/icons'
+import { isComposerEditable, buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
+import { ArrowUp, ChevronDown, Clipboard, FileText, Image as ImageIcon, Plus, Square, X } from '@/components/ui/icons'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { Sheet } from '@/components/ui/sheet'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -353,8 +353,8 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
       document.fonts.removeEventListener('loadingdone', updatePlaceholder)
     }
   }, [props.state, props.words.placeholder])
-  const inputDisabled = props.state !== 'idle'
-  const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
+  const inputDisabled = !isComposerEditable(props.state)
+  const canSend = (props.state === 'idle' || props.state === 'sending') && hasComposerContent(props.value, props.attachments)
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
   const sendIsAccent = canSend || props.state === 'sending'
@@ -405,14 +405,13 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
         aria-label={props.words.send}
         data-accent={sendIsAccent ? '' : undefined}
         data-focus-on-primary={sendIsAccent ? '' : undefined}
-        aria-busy={props.state === 'sending' || undefined}
         disabled={!canSend}
         onClick={() => {
           if (canSend) props.onSend()
         }}
         className={`relative flex w-[48px] min-h-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-0 transition-[background-color,opacity] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed ${props.state === 'sending' ? '' : 'disabled:opacity-40'} ${sendIsAccent ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-[var(--bg-well)] text-[var(--fg-3)]'}`}
       >
-        {props.state === 'sending' ? <Loader2 size={20} strokeWidth={2} aria-hidden="true" className="animate-spin orbit-essential-loading" /> : <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />}
+        <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />
       </button>
       </div>
     </div>
@@ -455,6 +454,26 @@ function ComposerDisclosure({ collapsed, contentId, onToggle }: Readonly<{ colla
   </button>
 }
 
+function PromptQueue({ props }: Readonly<{ props: WebComposerProps }>) {
+  const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null)
+  return <>
+      {props.queue?.items.length ? <div role="list" aria-label={props.queue.label} className="flex flex-col gap-2">
+        {props.queue.items.map(prompt => <div key={prompt.id} role="listitem" className="flex min-h-12 min-w-0 items-start gap-2 rounded-xl bg-[var(--bg-well)] px-3">
+          <button type="button" aria-label={prompt.content} onClick={() => setSelectedPrompt(prompt.content)}
+            className="min-h-12 min-w-0 flex-1 rounded-lg py-3 text-start text-sm text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"><PersonalText>{prompt.content}</PersonalText></button>
+          {props.queue?.canSend ? <button type="button" aria-label={props.queue.sendLabel(prompt.content)} onClick={() => props.queue?.onSend(prompt.id)}
+            className="flex min-h-12 w-12 shrink-0 items-center justify-center rounded-full text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"><ArrowUp size={20} aria-hidden="true" /></button> : null}
+          <button type="button" aria-label={props.queue?.removeLabel(prompt.content)} onClick={() => props.queue?.onRemove(prompt.id)}
+            className="flex min-h-12 w-12 shrink-0 items-center justify-center rounded-full text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"><X size={20} aria-hidden="true" /></button>
+        </div>)}
+      </div> : null}
+      {props.queue?.pausedReason ? <p role="status" className="m-0 text-sm text-[var(--fg-2)]">{props.queue.pausedReason}</p> : null}
+      {props.replyControl ? <button type="button" aria-label={props.replyControl.label} onClick={props.replyControl.onStop}
+        className="flex min-h-12 items-center gap-2 self-start rounded-full px-3 text-sm text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"><Square size={20} aria-hidden="true" />{props.replyControl.label}</button> : null}
+    {selectedPrompt && props.queue ? <Sheet title={props.queue.label} onClose={() => setSelectedPrompt(null)}><PersonalText expanded>{selectedPrompt}</PersonalText></Sheet> : null}
+  </>
+}
+
 function ComposerContent({ props, disclosure }: Readonly<{ props: WebComposerProps; disclosure?: React.ReactNode }>) {
   const attachments = props.attachments ?? []
   const hasAttachments = attachments.length > 0
@@ -466,6 +485,7 @@ function ComposerContent({ props, disclosure }: Readonly<{ props: WebComposerPro
         <AttachmentTray attachments={attachments} words={props.attachWords} onRemove={props.onAttachRemove} />
       ) : null}
 
+      <PromptQueue props={props} />
       <ComposerError props={props} />
       {showAllowanceStatus ? <AllowanceStatus props={props} disclosure={disclosure} /> : <ComposerStatus props={props} disclosure={disclosure} />}
       <ComposerInputRow props={props} disclosure={withSuggestions ? undefined : disclosure} />
@@ -489,7 +509,7 @@ export function Composer(props: Readonly<WebComposerProps>) {
     disclosureFocusPending.current = false
     composerRef.current?.querySelector<HTMLButtonElement>(collapsed ? '[data-composer-collapse-row]' : '[data-composer-disclosure]')?.focus()
   }, [collapsed])
-  const inputDisabled = props.state !== 'idle'
+  const inputDisabled = !isComposerEditable(props.state)
   useEffect(() => {
     if (!props.autoFocus) return
     const composer = composerRef.current

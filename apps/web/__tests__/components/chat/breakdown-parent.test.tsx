@@ -1,3 +1,4 @@
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -34,6 +35,8 @@ function expectParentRequest() {
   expect(request.habits[0]).toMatchObject({ title: 'House routine', frequencyUnit: 'Day', subHabits: [{ title: 'Dishes' }, { title: 'Laundry' }] })
 }
 beforeEach(() => { bulkCreate.mockReset(); onConfirmed.mockReset() })
+
+beforeEach(() => measureClampedPersonalText())
 
 describe('breakdown parent choice', () => {
   it.each([false, true])('confirms removal before creating or retrying a parent: failure %s', async (failure) => {

@@ -178,7 +178,7 @@
     ".claude/skills/crank/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "9a63d7da9a231eda",
+      "digest": "11fdbdfe9ac81cb5",
       "calibratedAt": "2026-10-25",
       "verdict": "undeclared, inherits the session: toggles durable orchestrator scheduling within existing caps and quality gates, without changing model or effort routing."
     },
@@ -213,7 +213,7 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "df33a01b2ad977a5",
+      "digest": "d1875891c027ab91",
       "calibratedAt": "2026-10-25",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
@@ -223,6 +223,13 @@
       "digest": "9e633595abd89253",
       "calibratedAt": "2026-10-17",
       "verdict": "undeclared, inherits the session: root-causing a production incident across Sentry, Render, Postgres and the LSP is judgement, so this is a follow-up candidate."
+    },
+    ".claude/skills/ios-generate/SKILL.md": {
+      "model": null,
+      "effort": null,
+      "digest": "4443150f795f225f",
+      "calibratedAt": "2026-10-25",
+      "verdict": "undeclared, inherits the session: invokes the local staging simulator build and reports installed metadata and process liveness; it declares no model or effort override."
     },
     ".claude/skills/ios-release/SKILL.md": {
       "model": null,
@@ -248,8 +255,8 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "da405925eb8a6616",
-      "calibratedAt": "2026-10-18",
+      "digest": "aaac751eadd1e31b",
+      "calibratedAt": "2026-10-25",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
@@ -290,8 +297,8 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "93d7e0d1109b2c85",
-      "calibratedAt": "2026-10-17",
+      "digest": "36283620a53472f4",
+      "calibratedAt": "2026-10-25",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
     ".claude/skills/ticket/SKILL.md": {
@@ -311,7 +318,7 @@
     ".claude/skills/wrap-up/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "0891fc368e48bf7f",
+      "digest": "8a5b48d8e485fb5d",
       "calibratedAt": "2026-10-25",
       "verdict": "current: medium effort; the skill invokes three steps in order and waits for the owner between handovers, including under --sleep."
     },

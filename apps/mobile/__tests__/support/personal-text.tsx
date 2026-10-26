@@ -13,18 +13,38 @@ export function pressTextControl(control: ReactTestInstance) {
 }
 
 export async function expectPersonalTextLayout(root: ReactTestInstance, name: string, lineLimit: 1 | 2 = 2) {
-  const text = root.findAll((node) => node.type === PersonalText && node.props.children === name)[0]!
+  let text = root.findAll((node) => node.type === PersonalText && node.props.children === name)[0]!
   expect(text).toBeDefined()
-  if (/\s/u.test(name) && lineLimit === 2) {
+  if (typeof text.props.onClampedChange === 'function') {
+    await measureClampedPersonalText(root, name)
+  } else if (/\s/u.test(name) && lineLimit === 2) {
     const probe = text.findAll((node) => String(node.type) === 'Text' && typeof node.props.onTextLayout === 'function')[0]!
     const onTextLayout = probe.props.onTextLayout
     if (typeof onTextLayout !== 'function') throw new Error('Text measurement callback missing')
     const split = name.indexOf(' ') + 5
     await act(() => onTextLayout({ nativeEvent: { lines: [name.slice(0, split), name.slice(split)].map((line) => ({ text: line, x: 0, y: 0, width: 100, height: 24, descender: 0, capHeight: 16, ascender: 18, xHeight: 12 })) } }))
   }
+  text = root.findAll((node) => node.type === PersonalText && node.props.children === name)[0]!
   const visible = text.findAll((node) => String(node.type) === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants')
   expect(visible).toHaveLength(/\s/u.test(name) && lineLimit === 2 ? 2 : 1)
   expect(visible.map((node) => node.props.children).join(' ')).toBe(name)
   for (const line of visible) expect(line.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'tail' })
   expect(text.findAll((node) => node.props.accessibilityLabel === name).length).toBeGreaterThan(0)
+}
+
+export async function measureClampedPersonalText(root: ReactTestInstance, name: string) {
+  const findProbe = () => root.findAll((node) => node.type === PersonalText && node.props.children === name)[0]!
+    .findAll((node) => String(node.type) === 'Text' && typeof node.props.onTextLayout === 'function')[0]!
+  const first = Math.floor(name.length / 3)
+  const second = Math.floor(name.length * 2 / 3)
+  const lines = [name.slice(0, first), name.slice(first, second), name.slice(second)]
+  const deliverLayout = async (probe: ReactTestInstance) => {
+    const onTextLayout = probe.props.onTextLayout
+    if (typeof onTextLayout !== 'function') throw new Error('Text measurement callback missing')
+    await act(() => onTextLayout({ nativeEvent: { lines: lines.map((text, index) => ({ text, x: 0, y: index * 20, width: 100, height: 20, descender: 0, capHeight: 16, ascender: 18, xHeight: 12 })) } }))
+  }
+  const probe = findProbe()
+  await deliverLayout(probe)
+  const mountedProbe = findProbe()
+  if (mountedProbe !== probe) await deliverLayout(mountedProbe)
 }

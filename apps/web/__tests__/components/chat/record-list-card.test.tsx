@@ -1,3 +1,4 @@
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
@@ -10,6 +11,8 @@ vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ 
 vi.mock('@/lib/api-fetch', () => ({ fetchJson: mocks.fetchJson }))
 vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => mocks.generation, subscribeToAccountGeneration: (callback: () => void) => { mocks.onAccountChange = callback; return () => { mocks.onAccountChange = null } } }))
 vi.mock('@/components/ui/block-frame', () => ({ BlockFrame: ({ state, count, items, body, actions }: BlockFrameProps) => <section data-state={state}><p>{count}</p>{body}{items.map((item) => <div data-testid="record-row" key={item.id}>{item.label}{item.meta}{item.control}</div>)}{actions}</section> }))
+
+beforeEach(() => measureClampedPersonalText())
 
 describe('Astra record list on web', () => {
   beforeEach(() => { vi.clearAllMocks(); mocks.generation = 0 })

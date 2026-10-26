@@ -6,7 +6,23 @@ type ChatStoreSet = {
   (state: ChatStoreState | ((state: ChatStoreState) => ChatStoreState), replace: true): void
 }
 
+export interface QueuedPrompt {
+  id: string
+  content: string
+  send: () => Promise<boolean>
+}
+
 export interface ChatStoreState {
+  queuedPrompts: QueuedPrompt[]
+  queuePaused: boolean
+  queueReady: boolean
+  replyActive: boolean
+  replyRevision: number
+  enqueuePrompt: (prompt: QueuedPrompt) => boolean
+  removeQueuedPrompt: (id: string) => void
+  takeQueuedPrompt: (id: string) => QueuedPrompt | null
+  beginReply: () => void
+  finishReply: (succeeded: boolean) => void
   messages: ChatMessage[]
   proactiveEntryId: string | null
   clearProactiveEntry: (id: string) => void
@@ -48,6 +64,37 @@ export function prepareChatRequest(
 
 export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
   return {
+    queuedPrompts: [],
+    queuePaused: false,
+    queueReady: false,
+    replyActive: false,
+    replyRevision: 0,
+    enqueuePrompt: (prompt) => {
+      let accepted = false
+      set((state) => {
+        if (state.queuedPrompts.length >= 3) return {}
+        accepted = true
+        return { queuedPrompts: [...state.queuedPrompts, prompt] }
+      })
+      return accepted
+    },
+    removeQueuedPrompt: (id) => set((state) => ({
+      queuedPrompts: state.queuedPrompts.filter(prompt => prompt.id !== id),
+      queuePaused: state.queuePaused && state.queuedPrompts.some(prompt => prompt.id !== id),
+    })),
+    takeQueuedPrompt: (id) => {
+      let prompt: QueuedPrompt | null = null
+      set((state) => {
+        if (state.replyActive || state.isTyping || state.streamingMessageId !== null) return {}
+        prompt = state.queuedPrompts.find(queued => queued.id === id) ?? null
+        return prompt ? { queuedPrompts: state.queuedPrompts.filter(queued => queued.id !== id), queueReady: false, queuePaused: state.queuePaused && state.queuedPrompts.length > 1 } : {}
+      })
+      return prompt
+    },
+    beginReply: () => set(state => ({ replyActive: true, queueReady: false, replyRevision: state.replyRevision + 1 })),
+    finishReply: (succeeded) => set((state) => ({
+      replyActive: false, queueReady: succeeded, queuePaused: state.queuedPrompts.length > 0 && (state.queuePaused || !succeeded),
+    })),
     messages: [],
     proactiveEntryId: null,
     clearProactiveEntry: (id) => set((state) => state.proactiveEntryId === id ? { proactiveEntryId: null } : {}),

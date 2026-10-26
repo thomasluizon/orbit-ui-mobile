@@ -106,6 +106,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `.claude/playbooks/redesign-screen.md` | Thirteen-screen D76 loop; D90 suspends human steps 1/3/7/8, keeps 2/4/5/6 and the ui-skills sweep. |
 | `.claude/rules/visual-delivery.md` | Visual inventory and critic gates; D90 moves human inspection to the whole-redesign review. |
 | `.claude/skills/android-generate/SKILL.md` | Local APK build, and the emulator install path. Read before building or running the Android app. |
+| `.claude/skills/ios-generate/SKILL.md` | Local staging simulator build, install, launch and process verification through Xcode Device Hub. |
 | `.claude/skills/android-release/SKILL.md` | Dispatching `android-release.yml` to a Google Play track. |
 | `.claude/skills/ios-release/SKILL.md` | Internal TestFlight releases, app and widget signing, and Apple enrollment prerequisites. |
 | `.claude/skills/release/SKILL.md` | Planning production and staging gaps, with pinned releases and live commit verification. |

@@ -22,6 +22,23 @@ describe('createQueryClient', () => {
     expect(defaults.queries?.gcTime).toBe(24 * 60 * 60 * 1000)
   })
 
+  it('retains browser queries for 24 hours and then removes them', async () => {
+    vi.useFakeTimers()
+    const client = createQueryClient()
+    const queryKey = habitKeys.list({})
+    try {
+      client.setQueryData(queryKey, ['cached habit'])
+      await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1000 - 1)
+      expect(client.getQueryData(queryKey)).toEqual(['cached habit'])
+      await vi.advanceTimersByTimeAsync(1)
+      expect(client.getQueryData(queryKey)).toBeUndefined()
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      client.clear()
+      vi.useRealTimers()
+    }
+  })
+
   it('disables mutation retry', () => {
     const client = createQueryClient()
     const defaults = client.getDefaultOptions()
