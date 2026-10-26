@@ -1578,6 +1578,9 @@ export const postApiChatResponseRecordListsItemItemsItemValueRegExpTwo = new Reg
 export const postApiChatResponseRecordListsItemReadTwoTotalCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiChatResponseAccountRowsTwoSurfaceIdDefault = `profile`;
 export const postApiChatResponseAccountRowsTwoReadTwoTotalCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponseEvalTraceTwoTimingTwoTotalMillisecondsRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$');
+export const postApiChatResponseEvalTraceTwoTimingTwoPhasesItemMillisecondsRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$');
+export const postApiChatResponseEvalTraceTwoTimingTwoPhasesItemElapsedMillisecondsRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$');
 
 
 export const PostApiChatResponse = zod.object({
@@ -2186,7 +2189,15 @@ export const PostApiChatResponse = zod.object({
   "arguments": zod.unknown(),
   "status": zod.string(),
   "result": zod.union([zod.null(),zod.unknown()])
+})),
+  "timing": zod.union([zod.null(),zod.object({
+  "totalMilliseconds": zod.union([zod.number(),zod.stringFormat('double', postApiChatResponseEvalTraceTwoTimingTwoTotalMillisecondsRegExpTwo)]),
+  "phases": zod.array(zod.object({
+  "name": zod.string(),
+  "milliseconds": zod.union([zod.number(),zod.stringFormat('double', postApiChatResponseEvalTraceTwoTimingTwoPhasesItemMillisecondsRegExpTwo)]),
+  "elapsedMilliseconds": zod.union([zod.number(),zod.stringFormat('double', postApiChatResponseEvalTraceTwoTimingTwoPhasesItemElapsedMillisecondsRegExpTwo)])
 }))
+})]).optional()
 })]).optional(),
   "followUpContext": zod.array(zod.object({
   "label": zod.string(),
@@ -4978,6 +4989,9 @@ export const PutApiProfileThemePreferenceBody = zod.object({
 export const PutApiProfileThemePreferenceResponse = zod.void()
 
 
+/**
+ * @deprecated
+ */
 export const PutApiProfileColorSchemeHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -5299,16 +5313,6 @@ export const GetApiSubscriptionsPlansHeader = zod.object({
 })
 
 export const GetApiSubscriptionsPlansResponse = zod.unknown()
-
-
-/**
- * @deprecated
- */
-export const PostApiSubscriptionsAdRewardHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const PostApiSubscriptionsAdRewardResponse = zod.unknown()
 
 
 export const PostApiSubscriptionsWebhookHeader = zod.object({
