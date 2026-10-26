@@ -69,7 +69,8 @@ export function HabitUnderstanding({
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const styles = useMemo(() => createStyles(tokens), [tokens])
+  const [titleLineHeight, setTitleLineHeight] = useState(23)
+  const styles = useMemo(() => createStyles(tokens, titleLineHeight), [tokens, titleLineHeight])
   const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
   const [focused, setFocused] = useState(false)
   const { emojiProposed, selectEmoji, requestEmoji } = useEmojiProposal(onSuggestEmoji, onEmojiSelect)
@@ -83,7 +84,7 @@ export function HabitUnderstanding({
       selectedEmoji={emoji}
       tokens={tokens}
       styles={formStyles}
-      wellSize={46}
+      wellSize={styles.input.minHeight}
       onSelect={selectEmoji}
       onSuggest={requestEmoji}
       canSuggest={canSuggestEmoji}
@@ -104,7 +105,10 @@ export function HabitUnderstanding({
             outlineWidth: focused ? 2 : 1,
             outlineOffset: focused ? -2 : -1,
           }]}>
-            <Text aria-hidden pointerEvents="none" style={styles.inputMirror}>
+            <Text aria-hidden pointerEvents="none" style={styles.inputMirror} onTextLayout={({ nativeEvent }) => {
+              const firstLine = nativeEvent.lines[0]
+              if (firstLine) setTitleLineHeight(firstLine.height)
+            }}>
               {hasValue ? segments.map((segment, index) => (
                 <Text key={`${segment.text}-${index}`} style={segment.consumed ? styles.consumed : null}>
                   {segment.text}
@@ -160,7 +164,17 @@ export function HabitUnderstanding({
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
-function createStyles(tokens: AppTokens) {
+function createStyles(tokens: AppTokens, measuredLineHeight: number) {
+  const singleLineHeight = Math.max(54, measuredLineHeight + SPACING.s12 * 2)
+  const titleTextStyle = {
+    minHeight: singleLineHeight,
+    fontFamily: 'Geist_400Regular',
+    fontSize: 16,
+    lineHeight: 23,
+    includeFontPadding: false,
+    paddingHorizontal: SPACING.s16,
+    paddingVertical: (singleLineHeight - measuredLineHeight) / 2,
+  }
   return StyleSheet.create({
     container: { gap: 24 },
     fieldGroup: { gap: 8 },
@@ -169,7 +183,7 @@ function createStyles(tokens: AppTokens) {
     inputLayer: {
       flex: 1,
       minWidth: 0,
-      minHeight: 54,
+      minHeight: singleLineHeight,
       borderRadius: radius.md,
       outlineWidth: 1,
       outlineOffset: -1,
@@ -178,13 +192,8 @@ function createStyles(tokens: AppTokens) {
       backgroundColor: tokens.bgField,
     },
     inputMirror: {
-      minHeight: 54,
+      ...titleTextStyle,
       color: 'transparent',
-      fontFamily: 'Geist_400Regular',
-      fontSize: 16,
-      lineHeight: 23,
-      paddingHorizontal: SPACING.s16,
-      paddingVertical: SPACING.s12,
     },
     input: {
       position: 'absolute',
@@ -192,12 +201,7 @@ function createStyles(tokens: AppTokens) {
       right: 0,
       bottom: 0,
       left: 0,
-      minHeight: 54,
-      fontFamily: 'Geist_400Regular',
-      fontSize: 16,
-      lineHeight: 23,
-      paddingHorizontal: SPACING.s16,
-      paddingVertical: SPACING.s12,
+      ...titleTextStyle,
       textAlignVertical: 'top',
     },
     consumed: {
@@ -283,7 +287,7 @@ export function HabitRepeatInterval({ visible, intervalWeeks, scheduleLocked = f
   scheduleLocked = scheduleLocked || disabled
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
-  const styles = useMemo(() => createStyles(tokens), [tokens])
+  const styles = useMemo(() => createStyles(tokens, 23), [tokens])
   if (!visible) return null
   return (
     <View style={styles.stepper}>
