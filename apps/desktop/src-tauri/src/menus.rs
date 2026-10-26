@@ -301,19 +301,22 @@ pub fn update_status(app: &AppHandle, status: &Snapshot, enabled: bool) -> tauri
 
 fn toggle_autostart(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let menu = app.state::<DesktopMenu>();
-    let mut login = menu.login.lock().unwrap();
     let manager = app.autolaunch();
-    let result = login.toggle(
-        || manager.is_enabled(),
-        |next| {
-            if next {
-                manager.enable()
-            } else {
-                manager.disable()
-            }
-        },
-    );
-    menu.autostart.set_checked(login.enabled)?;
+    let (result, enabled) = {
+        let mut login = menu.login.lock().unwrap();
+        let result = login.toggle(
+            || manager.is_enabled(),
+            |next| {
+                if next {
+                    manager.enable()
+                } else {
+                    manager.disable()
+                }
+            },
+        );
+        (result, login.enabled)
+    };
+    menu.autostart.set_checked(enabled)?;
     menu.autostart
         .set_text(menu.labels.text(if result.is_ok() {
             "autostart"

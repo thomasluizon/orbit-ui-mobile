@@ -17,7 +17,7 @@ export function desktopOffersSupported() {
   return (window as Window & { __ORBIT_DESKTOP_UPDATES__?: unknown }).__ORBIT_DESKTOP_UPDATES__ === true
 }
 
-async function invoke(action: 'status' | 'web-release' | 'defer' | 'download' | 'install' | 'cancel', commit?: string | null) {
+async function invoke(action: 'status' | 'web-release' | 'defer' | 'download' | 'install' | 'cancel' | 'release', commit?: string | null) {
   const runtime = desktopRuntime()
   if (!runtime) throw new Error('Desktop update runtime unavailable')
   return nativeSnapshotSchema.parse(await runtime.invoke('desktop_update', { action, ...(commit === undefined ? {} : { commit }) }))
@@ -75,7 +75,7 @@ class DesktopUpdateController {
     this.applying = true
     this.failed = false
     try {
-      if (this.native?.shellVersion && this.native.phase !== 'downloaded') {
+      if (this.native?.shellVersion) {
         this.publish()
         this.native = await invoke('download')
         if (this.isStopped()) return
@@ -88,7 +88,13 @@ class DesktopUpdateController {
       this.failed = true
       captureException(error)
       try { forgetDesktopChatCheckpoint() } catch (storageError) { captureException(storageError) }
-    } finally { this.applying = false; this.publish() }
+    } finally {
+      if (this.native?.shellVersion && (this.isStopped() || this.failed)) {
+        try { this.native = await invoke('release') } catch (error) { captureException(error) }
+      }
+      this.applying = false
+      this.publish()
+    }
   }
 
   async poll() {
@@ -147,6 +153,9 @@ export function watchDesktopUpdates(version: string, commit: string | null, requ
   window.addEventListener('focus', poll)
   return () => {
     controller.stopped = true
+    if (controller.supported && controller.native?.shellVersion) {
+      void invoke('release').catch(error => { captureException(error) })
+    }
     stopWeb()
     clearInterval(timer)
     window.removeEventListener('focus', poll)

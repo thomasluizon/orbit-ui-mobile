@@ -114,6 +114,7 @@ pub enum Action {
     Download,
     Install,
     Cancel,
+    Release,
 }
 
 #[tauri::command]
@@ -152,6 +153,7 @@ pub async fn desktop_update(
                 }
                 Action::Defer => state.defer(),
                 Action::Cancel => state.clear_restart(),
+                Action::Release => state.release_install(),
                 _ => {}
             }
         }
@@ -223,8 +225,42 @@ async fn install(app: &AppHandle, url: &tauri::Url) -> Result<(), String> {
 
 fn show_status(app: &AppHandle) {
     let state = app.state::<PendingUpdate>();
-    let state = state.lock().unwrap();
-    if let Err(error) = menus::update_status(app, &state.snapshot(), state.enabled) {
+    if let Err(error) = publish_status(&state, |snapshot, enabled| {
+        menus::update_status(app, snapshot, enabled)
+    }) {
         eprintln!("Cannot show desktop update status: {error}");
+    }
+}
+
+fn publish_status<T, E>(
+    state: &Mutex<UpdateState<T>>,
+    publish: impl FnOnce(&Snapshot, bool) -> Result<(), E>,
+) -> Result<(), E> {
+    let (snapshot, enabled) = {
+        let state = state.lock().unwrap();
+        (state.snapshot(), state.enabled)
+    };
+    publish(&snapshot, enabled)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn status_menu_sink_can_take_the_update_lock() {
+        let state = Mutex::new(UpdateState::new(true));
+        state.lock().unwrap().checked(Ok(Some(("0.2.0".into(), ()))));
+        let result = publish_status(&state, |snapshot, enabled| {
+            assert!(enabled);
+            assert_eq!(snapshot.shell_version.as_deref(), Some("0.2.0"));
+            let mut callback = state
+                .try_lock()
+                .expect("menu sink must not hold the update lock");
+            callback.request_restart();
+            Err("menu unavailable")
+        });
+        assert_eq!(result, Err("menu unavailable"));
+        assert!(state.lock().unwrap().snapshot().restart_requested);
     }
 }

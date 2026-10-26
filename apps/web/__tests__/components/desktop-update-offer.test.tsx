@@ -26,12 +26,18 @@ const native = {
   phase: 'idle', shellVersion: null as string | null, webCommit: null as string | null,
   deferred: false, restartRequested: false, checking: false, checkFailed: false,
 }
+let installIntent = false
 async function operateNative(_command: string, payload: Record<string, unknown>) {
   if (payload.action === 'web-release') native.webCommit = payload.commit as string | null
-  if (payload.action === 'defer') native.deferred = true
+  if (payload.action === 'defer') { native.deferred = true; installIntent = false }
   if (payload.action === 'cancel') native.restartRequested = false
-  if (payload.action === 'download') native.phase = 'downloaded'
-  if (payload.action === 'install') native.phase = 'installing'
+  if (payload.action === 'release') installIntent = false
+  if (payload.action === 'download') { native.phase = 'downloaded'; installIntent = true }
+  if (payload.action === 'install') {
+    if (native.phase !== 'downloaded') throw new Error('Desktop update is not downloaded')
+    native.phase = 'installing'
+    installIntent = false
+  }
   return { ...native }
 }
 const invoke = vi.fn(operateNative)
@@ -48,6 +54,7 @@ beforeEach(() => {
   useUIStore.setState(useUIStore.getInitialState())
   useDesktopUpdateStore.setState({ notice: null, restart: null, later: null })
   Object.assign(native, { phase: 'idle', shellVersion: null, webCommit: null, deferred: false, restartRequested: false, checking: false, checkFailed: false })
+  installIntent = false
   invoke.mockReset().mockImplementation(operateNative)
   reload.mockClear()
   vi.stubEnv('WEB_COMMIT_SHA', currentCommit)
@@ -183,7 +190,7 @@ it('downloads a shell update on Restart, then waits for edits made during the do
   let finishDownload!: () => void
   const original = invoke.getMockImplementation()!
   invoke.mockImplementation(async (command, payload) => {
-    if (payload.action === 'download') {
+    if (payload.action === 'download' && native.phase !== 'downloaded') {
       native.phase = 'downloading'
       await new Promise<void>(resolve => { finishDownload = resolve })
       native.phase = 'downloaded'
@@ -234,6 +241,60 @@ it('shows a failed download with an explicit retry and never installs the failed
   expect(attempts).toBe(1)
   await click(en.common.retry)
   expect(actions()).toContain('install')
+})
+
+it('reserves a cached download through a newer focus check during the asynchronous checkpoint', async () => {
+  native.shellVersion = '0.2.0'
+  await operateNative('desktop_update', { action: 'download' })
+  await operateNative('desktop_update', { action: 'release' })
+  let finishImage!: (response: Response) => void
+  const image = new Promise<Response>(resolve => { finishImage = resolve })
+  vi.mocked(fetch).mockImplementation(async request => request === 'blob:preview' ? image : GET())
+  useChatStore.getState().addMessage({ id: 'image', role: 'user', content: 'Keep this', imageUrl: 'blob:preview', timestamp: new Date() })
+  mount()
+  await tick()
+  await click(en.versionUpdate.restartCta)
+  expect(fetch).toHaveBeenCalledWith('blob:preview')
+  expect(actions()).not.toContain('install')
+  if (!installIntent) Object.assign(native, { shellVersion: '0.3.0', phase: 'available' })
+  await act(async () => { window.dispatchEvent(new Event('focus')) })
+  await tick(60_000)
+  await act(async () => { finishImage(new Response('image', { headers: { 'Content-Type': 'image/png' } })) })
+  await tick(50)
+  expect(screen.queryByText(en.desktopUpdate.failed)).toBeNull()
+  expect(native.phase).toBe('installing')
+  expect(native.shellVersion).toBe('0.2.0')
+  expect(actions().filter(action => action === 'install')).toHaveLength(1)
+  expect(takeDesktopChatCheckpoint('desktop-account')?.chat.messages[0]?.imageUrl).toBe('data:image/png;base64,aW1hZ2U=')
+})
+
+it.each(['checkpoint failure', 'unmount'])('releases the install handoff after %s so a newer offer can appear', async reason => {
+  native.shellVersion = '0.2.0'
+  native.phase = 'available'
+  const application = mount()
+  await tick()
+  const storage = vi.spyOn(Storage.prototype, 'setItem')
+  if (reason === 'checkpoint failure') storage.mockImplementation(() => { throw new Error('storage unavailable') })
+  else invoke.mockImplementation(async (command, payload) => {
+    const snapshot = await operateNative(command, payload)
+    if (payload.action === 'download') useChatStore.setState({ isTyping: true })
+    return snapshot
+  })
+  await click(en.versionUpdate.restartCta)
+  expect(actions()).not.toContain('install')
+  if (reason === 'checkpoint failure') expect(screen.getByRole('status')).toHaveTextContent(en.desktopUpdate.failed)
+  else application.unmount()
+  storage.mockRestore()
+  expect(installIntent).toBe(false)
+  if (!installIntent) Object.assign(native, { shellVersion: '0.3.0', phase: 'available' })
+  useChatStore.setState({ isTyping: false })
+  invoke.mockImplementation(operateNative)
+  if (reason === 'unmount') mount()
+  await tick()
+  expect(screen.getByRole('button', { name: reason === 'checkpoint failure' ? en.common.retry : en.versionUpdate.restartCta })).toBeVisible()
+  await click(reason === 'checkpoint failure' ? en.common.retry : en.versionUpdate.restartCta)
+  expect(native.phase).toBe('installing')
+  expect(native.shellVersion).toBe('0.3.0')
 })
 
 it('a native menu restart waits for streaming and acknowledges the request before applying once', async () => {
@@ -295,7 +356,7 @@ it('keeps a failed shell install retryable and discards its stale checkpoint', a
   await click(en.versionUpdate.restartCta)
   expect(screen.getByRole('status')).toHaveTextContent(en.desktopUpdate.failed)
   expect(localStorage.getItem('orbit-desktop-web-reload')).toBeNull()
-  expect(actions()).not.toContain('download')
+  expect(actions().filter(action => action === 'download')).toHaveLength(1)
   await click(en.common.retry)
   expect(attempts).toBe(2)
   expect(native.phase).toBe('installing')

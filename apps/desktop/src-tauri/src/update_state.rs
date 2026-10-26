@@ -32,6 +32,7 @@ pub struct UpdateState<T> {
     pub check_failed: bool,
     pub enabled: bool,
     restart_requested: bool,
+    install_intent: bool,
     deferred: Option<(Option<String>, Option<String>)>,
 }
 
@@ -46,12 +47,13 @@ impl<T> UpdateState<T> {
             check_failed: false,
             enabled,
             restart_requested: false,
+            install_intent: false,
             deferred: None,
         }
     }
 
     pub fn begin_check(&mut self) -> bool {
-        if !self.enabled || self.checking || self.busy() {
+        if !self.enabled || self.checking || self.busy() || self.install_intent {
             return false;
         }
         self.checking = true;
@@ -61,7 +63,7 @@ impl<T> UpdateState<T> {
     pub fn checked(&mut self, candidate: Result<Option<(String, T)>, ()>) {
         self.checking = false;
         self.check_failed = candidate.is_err();
-        if self.busy() {
+        if self.busy() || self.install_intent {
             return;
         }
         if let Ok(Some((version, package))) = candidate {
@@ -82,12 +84,14 @@ impl<T> UpdateState<T> {
             .take()
             .ok_or("No desktop shell update available")?;
         self.clear_restart();
+        self.install_intent = true;
         self.phase = Phase::Downloading;
         Ok(package)
     }
 
     pub fn downloaded(&mut self, package: T, verified: bool) {
         self.package = Some(package);
+        self.install_intent = verified;
         self.phase = if verified {
             Phase::Downloaded
         } else {
@@ -104,12 +108,14 @@ impl<T> UpdateState<T> {
             .take()
             .ok_or("Missing desktop update package")?;
         self.phase = Phase::Installing;
+        self.install_intent = false;
         Ok(package)
     }
 
     pub fn install_failed(&mut self, package: T) {
         self.package = Some(package);
         self.phase = Phase::Failed;
+        self.install_intent = false;
     }
 
     pub fn busy(&self) -> bool {
@@ -121,7 +127,10 @@ impl<T> UpdateState<T> {
     }
 
     pub fn request_restart(&mut self) {
-        if !self.busy() && (self.version.is_some() || self.web_commit.is_some()) {
+        if !self.busy()
+            && !self.install_intent
+            && (self.version.is_some() || self.web_commit.is_some())
+        {
             self.restart_requested = true;
             self.deferred = None;
         }
@@ -131,11 +140,16 @@ impl<T> UpdateState<T> {
         if !self.busy() {
             self.deferred = Some((self.version.clone(), self.web_commit.clone()));
             self.restart_requested = false;
+            self.release_install();
         }
     }
 
     pub fn clear_restart(&mut self) {
         self.restart_requested = false;
+    }
+
+    pub fn release_install(&mut self) {
+        self.install_intent = false;
     }
 
     pub fn snapshot(&self) -> Snapshot {
@@ -208,6 +222,48 @@ mod tests {
         assert_eq!(verified, "package");
         state.downloaded(verified, true);
         assert_eq!(state.begin_install().unwrap(), "package");
+    }
+
+    #[test]
+    fn downloaded_candidate_survives_a_newer_check_during_install_handoff() {
+        let mut state = UpdateState::new(true);
+        state.checked(Ok(Some(("0.2.0".into(), "accepted package"))));
+        assert!(state.begin_check());
+        let package = state.begin_download().unwrap();
+        state.downloaded(package, true);
+        state.checked(Ok(Some(("0.3.0".into(), "newer package"))));
+        assert_eq!(state.phase, Phase::Downloaded);
+        state.request_restart();
+        assert!(!state.snapshot().restart_requested);
+        state.clear_restart();
+        assert!(!state.begin_check());
+        assert_eq!(state.version.as_deref(), Some("0.2.0"));
+        let package = state.begin_install().unwrap();
+        assert_eq!(package, "accepted package");
+        state.install_failed(package);
+        assert!(state.begin_check());
+        state.checked(Ok(Some(("0.3.0".into(), "newer package"))));
+        assert_eq!(state.phase, Phase::Available);
+    }
+
+    #[test]
+    fn later_or_cancel_releases_a_downloaded_candidate_for_newer_offers() {
+        for defer in [true, false] {
+            let mut state = UpdateState::new(true);
+            state.checked(Ok(Some(("0.2.0".into(), "package"))));
+            let package = state.begin_download().unwrap();
+            state.downloaded(package, true);
+            if defer {
+                state.defer();
+                assert!(state.snapshot().deferred);
+            } else {
+                state.release_install();
+            }
+            assert!(state.begin_check());
+            state.checked(Ok(Some(("0.3.0".into(), "newer package"))));
+            assert!(!state.snapshot().deferred);
+            assert_eq!(state.version.as_deref(), Some("0.3.0"));
+        }
     }
 
     #[test]
