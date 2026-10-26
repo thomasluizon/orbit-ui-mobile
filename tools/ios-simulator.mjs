@@ -1,23 +1,27 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process"
-import { closeSync, existsSync, mkdirSync, openSync, rmSync } from "node:fs"
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { setTimeout } from "node:timers/promises"
 
-const USAGE = `usage: node tools/ios-simulator.mjs [--device <udid>]
+const USAGE = `usage: node tools/ios-simulator.mjs [--device <udid>] [--app-version <x.y.z>]
 
   Prebuild, compile, install and open Orbit Staging on an installed iPhone simulator.
   Uses a Release build with bundled JavaScript and local ad hoc signing, without a development server.
   Retains Keychain entitlements without an Apple account or provisioning profile.
   Prefers a booted iPhone, otherwise the first available iPhone from simctl.
+  Stamps the newest staging Android release version from GitHub Deployments.
+  Refuses an unavailable or invalid version; never uses the checkout version implicitly.
 
   --device <udid>  select an available iPhone by its simulator identifier
+  --app-version <x.y.z>  override the release version without a GitHub lookup
   --help, -h       print usage and exit 0
 
   Requires macOS, Xcode with first-launch setup complete, an iOS runtime with an
   iPhone simulator, CocoaPods on PATH, and npm ci dependencies in this checkout.
+  Requires authenticated gh access to release deployments unless --app-version is set.
   DEVELOPER_DIR selects Xcode; defaults to the standard Xcode application.
   Logs and DerivedData stay in apps/mobile/.artifacts/ios-simulator (ignored).
   Prints the device, installed bundle identifier, version, PID and liveness as JSON.
@@ -27,11 +31,21 @@ const USAGE = `usage: node tools/ios-simulator.mjs [--device <udid>]
               2 invalid arguments, 3 missing prerequisites or requested device`
 
 let requestedDevice
+let requestedAppVersion
+const isAppVersion = (value) => typeof value === "string" && /^\d+\.\d+\.\d+$/.test(value) && value === value.trim()
 for (let index = 2; index < process.argv.length; index++) {
   const argument = process.argv[index]
   if (argument === "--help" || argument === "-h") {
     process.stdout.write(`${USAGE}\n`)
     process.exit(0)
+  }
+  if (argument === "--app-version" && requestedAppVersion === undefined) {
+    requestedAppVersion = process.argv[++index]
+    if (!isAppVersion(requestedAppVersion)) {
+      process.stderr.write("ios-simulator: --app-version requires x.y.z\n")
+      process.exit(2)
+    }
+    continue
   }
   if (argument !== "--device" || requestedDevice) {
     process.stderr.write(`ios-simulator: unknown or repeated option: ${argument}\n`)
@@ -82,7 +96,35 @@ function run(command, argumentsList, timeout = 60000) {
   return result.stdout.trim()
 }
 
-function build(device) {
+function resolveAppVersion() {
+  if (requestedAppVersion !== undefined) return requestedAppVersion
+  try {
+    const path = "repos/thomasluizon/orbit-ui-mobile/deployments?task=android-release&environment=staging&per_page=1"
+    const deployments = JSON.parse(run("gh", ["api", path]))
+    if (!Array.isArray(deployments) || deployments.length === 0) fail("No staging Android deployment record")
+    const payload = deployments[0]?.payload
+    if (payload?.track !== "internal" || payload?.api_base !== environment.EXPO_PUBLIC_API_BASE) {
+      fail("The newest staging Android deployment does not match the internal track and staging API")
+    }
+    if (!isAppVersion(payload.app_version)) fail("The staging Android deployment has an invalid payload.app_version; expected x.y.z")
+    return payload.app_version
+  } catch (error) {
+    fail(`Cannot resolve the simulator app version: ${error.message}. Use --app-version <x.y.z> to supply it explicitly.`)
+  }
+}
+
+function build(device, version) {
+  const configPath = join(mobile, "app.json")
+  const originalConfig = readFileSync(configPath)
+  try {
+    run(process.execPath, [join(mobile, "scripts", "set-app-version.js"), version])
+    compile(device)
+  } finally {
+    writeFileSync(configPath, originalConfig)
+  }
+}
+
+function compile(device) {
   for (const [name, command, argumentsList] of [
     ["prebuild", process.execPath, [expo, "prebuild", "--platform", "ios"]],
     ["build", "xcodebuild", [
@@ -125,6 +167,8 @@ try {
   if (process.platform !== "darwin" || !existsSync(join(developerDirectory, "usr", "bin", "xcodebuild")) || !existsSync(simulatorApplication) || !existsSync(expo)) {
     fail("Requires macOS, full Xcode with Device Hub and npm ci dependencies. See --help.", 3)
   }
+  const version = resolveAppVersion()
+  process.stderr.write(`ios-simulator: app version ${version}\n`)
   run("xcodebuild", ["-checkFirstLaunchStatus"])
   run("pod", ["--version"])
   mkdirSync(artifacts, { recursive: true })
@@ -137,16 +181,18 @@ try {
   const device = selectDevice()
   process.stderr.write(`ios-simulator: booting ${device.name} (${device.udid})\n`)
   run("xcrun", ["simctl", "bootstatus", device.udid, "-b"], 5 * 60 * 1000)
-  build(device)
+  build(device, version)
   const app = join(artifacts, "DerivedData", "Build", "Products", "Release-iphonesimulator", "OrbitStaging.app")
   const readProperty = (path, key) => run("/usr/libexec/PlistBuddy", ["-c", `Print :${key}`, join(path, "Info.plist")])
   if (readProperty(app, "CFBundleIdentifier") !== bundleIdentifier) fail("Build has an unexpected bundle identifier")
+  if (readProperty(app, "CFBundleShortVersionString") !== version) fail("Build app version does not match the requested release version")
   run("xcrun", ["simctl", "install", device.udid, app])
   const installed = run("xcrun", ["simctl", "get_app_container", device.udid, bundleIdentifier, "app"])
   const installedIdentifier = readProperty(installed, "CFBundleIdentifier")
-  const version = readProperty(installed, "CFBundleShortVersionString")
+  const installedVersion = readProperty(installed, "CFBundleShortVersionString")
   const buildNumber = readProperty(installed, "CFBundleVersion")
   if (installedIdentifier !== bundleIdentifier) fail("Installed app has an unexpected bundle identifier")
+  if (installedVersion !== version) fail("Installed app version does not match the requested release version")
   run("open", ["-a", simulatorApplication])
   const launch = run("xcrun", ["simctl", "launch", "--terminate-running-process", device.udid, bundleIdentifier])
   const matched = launch.match(/^org\.useorbit\.app\.staging: ([1-9]\d*)$/)
