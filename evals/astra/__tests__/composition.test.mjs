@@ -6,6 +6,7 @@ import { loadApiProvider } from 'promptfoo'
 import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
 import * as assertions from '../assertions.mjs'
 import parseResponse from '../response.mjs'
+import { visibleAnswer } from '../visible-answer.mjs'
 import { chatResponse, toolCall, preview } from './fixtures/producer.mjs'
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
@@ -25,7 +26,7 @@ function response(parts, aiMessage = 'Ready.', extra = {}) {
 async function gate(produced, vars = {}) {
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
   vi.stubGlobal('fetch', async () => Response.json(produced, { headers: { 'x-orbit-request-id': 'request' } }))
-  const provider = await loadApiProvider('http', { options: { config: { ...config.providers[0].config,
+  const provider = await loadApiProvider(`file://${root}/http-provider.mjs`, { options: { config: { ...config.providers[0].config,
     url: 'https://astra.invalid/api/chat', transformResponse: `file://${root}/response.mjs`,
   } } })
   const received = await provider.callApi('Read habits', { vars: { ...context.vars, ...vars, credentialKey: 'ORBIT_EVAL_TOKEN', historyJson: '[]',
@@ -50,7 +51,7 @@ describe('production composition gate', () => {
     const produced = response([block], text)
     if (text === undefined) delete produced.aiMessage
     expect((await gate(produced)).pass).toBe(true)
-    expect(parseResponse(produced).answer).toContain('Water')
+    expect(visibleAnswer(parseResponse(produced).composition, { supportsParts: true, locale: 'en' })).toContain('Water')
   })
   it.each([
     ['extra text', [block, { type: 'text', text: 'Ready.\nAnother line.' }]],
@@ -150,6 +151,7 @@ describe('preview and outcome composition', () => {
     pending.summary = 'INTERNAL_AUDIT_SENTINEL'
     pending.items[0].fields.push({ ...pending.items[0].fields[0], field: 'habit_id', newValue: 'INTERNAL_ID_SENTINEL' })
     const output = parseResponse(response([], '', { pendingOperations: [pending] }))
+    output.answer = visibleAnswer(output.composition, { supportsParts: true, locale: 'en' })
     expect(output.composition.pendingOperations).toEqual([pending])
     expect(output.answer).toContain('Exame de colesterol')
     expect(output.answer).toContain('15:50')
@@ -165,6 +167,7 @@ describe('preview and outcome composition', () => {
       { value: null, label: 'INTERNAL_ROOT_LABEL' }, { value: 'existing', label: 'Existing parent' },
     ] }]
     const output = parseResponse(response([], '', { pendingOperations: [pending] }))
+    output.answer = visibleAnswer(output.composition, { supportsParts: true, locale: 'en' })
     expect(output.answer).toContain('Existing parent')
     expect(output.answer).not.toContain('INTERNAL_ROOT_LABEL')
   })

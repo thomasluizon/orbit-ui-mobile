@@ -55,7 +55,7 @@ it.each(['en', 'pt-BR'])('runs setup, held correction, every assertion and pass^
     return Response.json({ ...chatResponse(requestId, calls), parts: [], aiMessage: null,
       pendingOperations: [batchPreview(setup ? original : revised)] }, { headers: { 'x-orbit-request-id': requestId } })
   })
-  const provider = await loadApiProvider('http', { options: { config: { ...config.providers[0].config,
+  const provider = await loadApiProvider(`file://${root}/http-provider.mjs`, { options: { config: { ...config.providers[0].config,
     transformResponse: `file://${root}/response.mjs`,
   } } })
   let graded = 0

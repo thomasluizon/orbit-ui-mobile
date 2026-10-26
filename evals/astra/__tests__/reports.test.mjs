@@ -17,3 +17,22 @@ it('rejects repeated, foreign, mislabeled and overcounted cases', () => {
     expect(() => mergeReports(windows, descriptors)).toThrow()
   }
 })
+
+it('preserves exact incomplete preconditions in merged windows and the written report', async () => {
+  const { summarize, writeReport } = await import('../report.mjs')
+  const { mkdtempSync, readFileSync, rmSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const { join } = await import('node:path')
+  const reason = 'Daily safety budget prevented message allowance exhaustion. Setup cannot reset counters, rotate accounts or raise limits.'
+  const attempts = Array.from({ length: 3 }, () => ({ testCase: { metadata: descriptors[0] }, success: false,
+    response: { metadata: { astraPreconditionFailure: true, astraPreconditionReason: reason } } }))
+  const summary = summarize(attempts, [descriptors[0]])
+  expect(summary.cases[0]).toMatchObject({ pass3: 'incomplete', unavailableReasons: [reason] })
+  const merged = mergeReports([summary, window(1)], descriptors)
+  expect(merged.cases[0].unavailableReasons).toEqual([reason])
+  const directory = mkdtempSync(join(tmpdir(), 'astra-report-'))
+  try {
+    writeReport(merged, directory)
+    expect(readFileSync(join(directory, 'summary.md'), 'utf8')).toContain(reason)
+  } finally { rmSync(directory, { recursive: true, force: true }) }
+})
