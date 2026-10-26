@@ -2,7 +2,7 @@ import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixture
 import { createInstance } from 'i18next'
 import ICUCommonJs from 'i18next-icu/cjs'
 import React from 'react'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, type ViewStyle } from 'react-native'
 import type { ReactTestRenderer } from 'react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile, createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
@@ -294,6 +294,10 @@ describe('WrappedPlayer', () => {
       messages.wrapped.previous, messages.shareCard.download, messages.shareCard.share,
     ])
     expect(buttons.map((button) => button.props.testID)).toEqual(['button-ghost-sm', 'button-ghost-sm', 'button-primary-sm'])
+    expect(buttons.map((button) => button.findAll((node) => String(node.type) === 'Text')[0]?.props.children)).toEqual([
+      messages.wrapped.previous, messages.shareCard.download, messages.shareCard.share,
+    ])
+    expect(buttons.map((button) => StyleSheet.flatten((button.props.style as (state: { pressed: boolean }) => ViewStyle[])({ pressed: false })).height)).toEqual([44, 44, 44])
   })
 
   it('shows both final actions as busy while the card renders', () => {

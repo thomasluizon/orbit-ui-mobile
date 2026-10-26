@@ -164,6 +164,12 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
         noticeBottom: notice.getBoundingClientRect().bottom,
         pagerTop: pager.getBoundingClientRect().top,
         pagerBottom: pager.getBoundingClientRect().bottom,
+        pagerActions: [...pager.querySelectorAll('button')].map((button) => ({
+          text: button.textContent, top: button.getBoundingClientRect().top,
+          left: button.getBoundingClientRect().left, right: button.getBoundingClientRect().right,
+          width: button.getBoundingClientRect().width,
+        })),
+        pagerWidth: pager.querySelector('[data-slot="action-row"]')!.getBoundingClientRect().width,
         bannerInset: { left: banner.left - frame.left, right: frame.right - banner.right },
       }
       const scroller = dialog.querySelector('[data-testid="wrapped-page-scroll"]') ?? dialog
@@ -177,6 +183,17 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
         lastSlidePartBottomAtEnd: slideParts[slideParts.length - 1]!.getBoundingClientRect().bottom,
       }
     }, markup)
+  }
+
+  function expectPagerActions(measured: Awaited<ReturnType<typeof measureSlide>>, labels: string[]) {
+    const actions = measured.pagerActions
+    if (actions.reduce((sum, action) => sum + action.width, (actions.length - 1) * 12) <= measured.pagerWidth) {
+      expect(new Set(actions.map((action) => action.top)).size).toBe(1)
+      for (let index = 1; index < actions.length; index += 1) {
+        expect(actions[index]!.left - actions[index - 1]!.right).toBe(12)
+      }
+    }
+    expect(actions.map((action) => action.text)).toEqual(labels)
   }
 
   it.each(VIEWPORTS)('keeps the banner and pager in view on every slide at $width by $height in $locale, toast $toast, safe area $safeArea', async ({ locale, toast, safeArea = false, ...viewport }) => {
@@ -208,6 +225,10 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
         .toHaveAttribute('data-index', String(index))
       const measured = await measureSlide(page, container.innerHTML)
       signal.throwIfAborted()
+
+      expectPagerActions(measured, slide.id === 'share'
+        ? [messages.wrapped.previous, messages.shareCard.download, messages.shareCard.share]
+        : [messages.wrapped.previous, messages.wrapped.next])
 
       expect(measured.pagerBottom, `slide ${slide.id} pager bottom`)
         .toBeLessThanOrEqual(viewport.height - insets.bottom)

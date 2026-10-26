@@ -1,5 +1,5 @@
 import { IconButton } from '@/components/ui/icon-button'
-import { PADDING, SPACING, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { PADDING, SPACING, SHELL_CONTENT_MAX_WIDTH, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { ActionRow } from '@/components/ui/action-row'
@@ -379,9 +379,11 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
 
 function GoalsEmptyState({ tokens, inSection = false, onCreate }: Readonly<{ tokens: AppTokensV2; inSection?: boolean; onCreate: () => void }>) {
   const { t } = useTranslation()
+  const { width } = useWindowDimensions()
+  const action = <PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={onCreate}>{t('progressScreen.goals.createAction')}</PillButton>
 
-  if (!inSection) return <EmptyState title={t('progressScreen.goals.empty')} action={<IconButton label={t('progressScreen.goals.createAction')} onClick={onCreate}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton>} />
-  return <View style={[styles.emptyLine, { backgroundColor: tokens.bgWell }]}><Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.empty')}</Text><IconButton label={t('progressScreen.goals.createAction')} onClick={onCreate}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton></View>
+  if (!inSection) return <EmptyState title={t('progressScreen.goals.empty')} action={action} />
+  return <View style={[styles.emptyLine, { backgroundColor: tokens.bgWell }]}><Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.empty')}</Text>{action}</View>
 }
 
 function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onCreate, filter, setFilter }: Readonly<{ goals: readonly Goal[]; tokens: AppTokensV2; onCreate: () => void; filter: ProgressGoalFilter; setFilter: (filter: ProgressGoalFilter) => void; onOpenGoal: (goalId: string) => void; onRegisterGoal: (goalId: string, instance: View | null) => void }>) {
@@ -424,7 +426,7 @@ function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onCreate, fil
   }
   return (
     <View testID="progress-goals-section" style={styles.goalsSection}>
-      {goals.length > 0 ? <Menu.Root open={filterOpen} onOpenChange={setFilterOpen}><ActionRow><Menu.Trigger asChild><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`}>{t(`progressScreen.goals.${filter}`)}</PillButton></Menu.Trigger><IconButton label={t('goals.create')} onClick={onCreate}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton></ActionRow>
+      {goals.length > 0 ? <Menu.Root open={filterOpen} onOpenChange={setFilterOpen}><ActionRow><Menu.Trigger asChild><PillButton variant="ghost" size="sm" minimumHeight={SMALL_PILL_VISIBLE_MIN} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`}>{t(`progressScreen.goals.${filter}`)}</PillButton></Menu.Trigger><IconButton label={t('goals.create')} onClick={onCreate}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton></ActionRow>
         <Menu.Content title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"
           items={options.map((option) => ({ id: option.value, label: option.label, checked: option.value === filter }))}
           onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} /></Menu.Root> : null}

@@ -12,6 +12,11 @@ describe('Pager', () => {
     try {
       const buttons = tree.hosts().filter((node) => node.props.accessibilityRole === 'button')
       expect(buttons[0]!.props.disabled).toBe(true)
+      for (const label of [words.backLabel, words.forwardLabel]) {
+        expect(tree.hosts().some((node) => node.type === 'Text' && node.props.children === label)).toBe(true)
+      }
+      expect(buttons[0]!.props.testID).toBe('button-ghost-sm')
+      expect(buttons[1]!.props.testID).toBe('button-primary-sm')
       press(buttons[0]!)
       press(buttons[1]!)
       expect(onForward).toHaveBeenCalledTimes(1)

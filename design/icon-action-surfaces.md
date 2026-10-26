@@ -2,11 +2,20 @@
 
 > **At a glance** - universal icon-action owners, accessible names and retained text boundaries on web and Android.
 
-Each source reference identifies the action after migration. Labels remain localized through the existing shared locale keys or caller-supplied translated labels. Both platform primitives use the same 48px round target, neutral interaction fill and disabled or busy behavior. Web exposes its label through both aria-label and the native title tooltip.
+Each source reference identifies the action after migration. Labels remain localized through the existing shared locale keys or caller-supplied translated labels. Both platform primitives use the same 48px round target: 44px neutral interaction paint at radius 22 plus a transparent 2px hit extension on every side. Disabled and busy behavior share that geometry. Web exposes its label through both aria-label and the native title tooltip.
 
 The inventory includes retries, stale refresh, signed paging, disclosure, add controls, copy and sharing, sheet cancellation and per-record actions. Read-block revisions, preview drafts, clipboard feedback, pending requests and focus handoffs retain their original owners.
 
 Text remains for the primary consequence ending a form or confirmation, required sign-in wording, and contextual requests, choices or destinations drawn in the active canvas. In particular, approval and destructive confirmation name their consequence; a pending preview's edit, reject and retry controls use icons. Personal text, calendar values, menu rows and selectable records remain content-bearing controls.
+
+| Retained text surface | Paired owners | Drawing and geometry |
+|---|---|---|
+| Metas empty invitation | Web `app/(app)/progress/_components/progress-content.tsx`, Android `components/progress/progress-content.tsx`, `GoalsEmptyState` | `Orbit Progresso.dc.html` empty invitation, with the retained direct-creation entries in `create-goal-sheet-inventory.md`; one labelled small Create goal pill, primary below 768px and secondary at wider widths, with the empty paragraph |
+| Wrapped paging | Both `components/ui/pager.tsx`, mounted by their `wrapped-player.tsx` | `Orbit Wrapped.dc.html` Pager; labelled Back and Continue pills, both small, with the trailing action row's 12px gap |
+| Wrapped final actions | Web `app/(app)/wrapped/_components/wrapped-player.tsx`, Android `components/wrapped/wrapped-player.tsx` | `Orbit Wrapped.dc.html` sharing; Back, Download and Share remain labelled, equal-height small pills in one trailing row when their intrinsic widths fit |
+| Confirmation footer | Both `components/ui/confirm-sheet.tsx` | `Orbit Sobreposicoes.dc.html` confirmation and `sheet-footer-inventory.md`; labelled ghost Cancel then the filled consequence, equal 44px visible heights and 18px inline padding |
+
+`local/no-text-icon-action` permits only Cancel in the paired confirmation owners, Back in the paired Pager owners, and Download and Share in the paired Wrapped sharing owners, including their existing translations. Refresh and other universal actions remain rejected within those owners. Create goal and Continue retain their contextual labels under the ordinary rule.
 
 Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.html), [Habit create](canvas/Orbit%20Habit%20Create.dc.html), [Habit detail](canvas/Orbit%20Habit%20Detail.dc.html), [overlays](canvas/Orbit%20Sobreposicoes.dc.html), [Wrapped](canvas/Orbit%20Wrapped.dc.html), [sign-in](canvas/Orbit%20Entrar.dc.html) and the shared shape tokens. The universal icon-action order applies to their action controls while preserving the primary consequence and contextual text boundaries above.
 
@@ -96,12 +105,10 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/mobile/components/profile/profile-mcp-guide.tsx:44](../apps/mobile/components/profile/profile-mcp-guide.tsx#L44) | `{copyState === 'copied' ? t('orbitMcp.copied') : t('orbitMcp.copy')}` | Copy |
 | [apps/mobile/components/profile/push-devices-row.tsx:63](../apps/mobile/components/profile/push-devices-row.tsx#L63) | `{t('settings.notifications.openSettings')}` | Settings |
 | [apps/mobile/components/progress/progress-content.tsx:300](../apps/mobile/components/progress/progress-content.tsx#L300) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/mobile/components/progress/progress-content.tsx:383](../apps/mobile/components/progress/progress-content.tsx#L383) | `{t('progressScreen.goals.createAction')}` | Plus |
-| [apps/mobile/components/progress/progress-content.tsx:384](../apps/mobile/components/progress/progress-content.tsx#L384) | `{t('progressScreen.goals.createAction')}` | Plus |
-| [apps/mobile/components/progress/progress-content.tsx:427](../apps/mobile/components/progress/progress-content.tsx#L427) | `{t('goals.create')}` | Plus |
-| [apps/mobile/components/progress/progress-content.tsx:482](../apps/mobile/components/progress/progress-content.tsx#L482) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/mobile/components/progress/progress-content.tsx:636](../apps/mobile/components/progress/progress-content.tsx#L636) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/mobile/components/progress/progress-content.tsx:714](../apps/mobile/components/progress/progress-content.tsx#L714) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/mobile/components/progress/progress-content.tsx:429](../apps/mobile/components/progress/progress-content.tsx#L429) | `{t('goals.create')}` | Plus |
+| [apps/mobile/components/progress/progress-content.tsx:484](../apps/mobile/components/progress/progress-content.tsx#L484) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/mobile/components/progress/progress-content.tsx:638](../apps/mobile/components/progress/progress-content.tsx#L638) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/mobile/components/progress/progress-content.tsx:716](../apps/mobile/components/progress/progress-content.tsx#L716) | `{t('progressScreen.retry')}` | RefreshCw |
 | [apps/mobile/components/referral/referral-drawer.tsx:200](../apps/mobile/components/referral/referral-drawer.tsx#L200) | `{t('common.cancel')}` | X |
 | [apps/mobile/components/referral/referral-drawer.tsx:201](../apps/mobile/components/referral/referral-drawer.tsx#L201) | `{t('referral.drawer.share')}` | Share2 |
 | [apps/mobile/components/search/search-results.tsx:47](../apps/mobile/components/search/search-results.tsx#L47) | `{t(onClearSearch ? 'common.clear' : 'habits.search.create')}` | X |
@@ -112,10 +119,7 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/mobile/components/ui/app-toast.tsx:245](../apps/mobile/components/ui/app-toast.tsx#L245) | `{props.actionLabel}` | RefreshCw |
 | [apps/mobile/components/ui/block-copy-control.tsx:38](../apps/mobile/components/ui/block-copy-control.tsx#L38) | `{label}` | Copy |
 | [apps/mobile/components/ui/block-frame.tsx:189](../apps/mobile/components/ui/block-frame.tsx#L189) | `{frameProps.refreshLabel ?? t('blockFrame.refresh')}` | RefreshCw |
-| [apps/mobile/components/ui/confirm-sheet.tsx:104](../apps/mobile/components/ui/confirm-sheet.tsx#L104) | `{cancelLabel ?? t('common.cancel')}` | X |
 | [apps/mobile/components/ui/expiry-warning.tsx:193](../apps/mobile/components/ui/expiry-warning.tsx#L193) | `{t('auth.refresh')}` | RefreshCw |
-| [apps/mobile/components/ui/pager.tsx:26](../apps/mobile/components/ui/pager.tsx#L26) | `{props.backLabel}` | ChevronLeft |
-| [apps/mobile/components/ui/pager.tsx:28](../apps/mobile/components/ui/pager.tsx#L28) | `{props.forwardLabel}` | ChevronRight |
 | [apps/mobile/components/ui/scroll-to-top-button.tsx:13](../apps/mobile/components/ui/scroll-to-top-button.tsx#L13) | `{t('common.backToTop')}` | ArrowUp |
 | [apps/mobile/components/upgrade/plan-selection.tsx:182](../apps/mobile/components/upgrade/plan-selection.tsx#L182) | `{t('upgrade.plans.retry')}` | RefreshCw |
 | [apps/mobile/components/upgrade/provider-handoff.tsx:54](../apps/mobile/components/upgrade/provider-handoff.tsx#L54) | `{t('upgrade.billing.retry')}` | RefreshCw |
@@ -128,13 +132,11 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/web/app/(app)/profile/_components/fresh-start-modal.tsx:283](../apps/web/app/(app)/profile/_components/fresh-start-modal.tsx#L283) | `{t('common.cancel')}` | X |
 | [apps/web/app/(app)/profile/_components/profile-astra-content.tsx:79](../apps/web/app/(app)/profile/_components/profile-astra-content.tsx#L79) | `{t('upgrade.billing.retry')}` | RefreshCw |
 | [apps/web/app/(app)/profile/_components/profile-subscreen.tsx:35](../apps/web/app/(app)/profile/_components/profile-subscreen.tsx#L35) | `{t('common.retry')}` | RefreshCw |
-| [apps/web/app/(app)/progress/_components/progress-content.tsx:357](../apps/web/app/(app)/progress/_components/progress-content.tsx#L357) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/web/app/(app)/progress/_components/progress-content.tsx:453](../apps/web/app/(app)/progress/_components/progress-content.tsx#L453) | `{t('progressScreen.goals.createAction')}` | Plus |
-| [apps/web/app/(app)/progress/_components/progress-content.tsx:454](../apps/web/app/(app)/progress/_components/progress-content.tsx#L454) | `{t('progressScreen.goals.createAction')}` | Plus |
-| [apps/web/app/(app)/progress/_components/progress-content.tsx:495](../apps/web/app/(app)/progress/_components/progress-content.tsx#L495) | `{t('goals.create')}` | Plus |
-| [apps/web/app/(app)/progress/_components/progress-content.tsx:552](../apps/web/app/(app)/progress/_components/progress-content.tsx#L552) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/web/app/(app)/progress/_components/progress-content.tsx:679](../apps/web/app/(app)/progress/_components/progress-content.tsx#L679) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/web/app/(app)/progress/_components/progress-content.tsx:712](../apps/web/app/(app)/progress/_components/progress-content.tsx#L712) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/web/app/(app)/progress/_components/progress-content.tsx:358](../apps/web/app/(app)/progress/_components/progress-content.tsx#L358) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/web/app/(app)/progress/_components/progress-content.tsx:498](../apps/web/app/(app)/progress/_components/progress-content.tsx#L498) | `{t('goals.create')}` | Plus |
+| [apps/web/app/(app)/progress/_components/progress-content.tsx:555](../apps/web/app/(app)/progress/_components/progress-content.tsx#L555) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/web/app/(app)/progress/_components/progress-content.tsx:682](../apps/web/app/(app)/progress/_components/progress-content.tsx#L682) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/web/app/(app)/progress/_components/progress-content.tsx:715](../apps/web/app/(app)/progress/_components/progress-content.tsx#L715) | `{t('progressScreen.retry')}` | RefreshCw |
 | [apps/web/app/(app)/search/page.tsx:64](../apps/web/app/(app)/search/page.tsx#L64) | `{t('common.retry')}` | RefreshCw |
 | [apps/web/app/(app)/search/page.tsx:69](../apps/web/app/(app)/search/page.tsx#L69) | `{t('habits.search.previous')}` | ChevronLeft |
 | [apps/web/app/(app)/search/page.tsx:70](../apps/web/app/(app)/search/page.tsx#L70) | `{t('habits.search.next')}` | ChevronRight |
@@ -225,9 +227,6 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/web/components/share/share-card-sheet.tsx:59](../apps/web/components/share/share-card-sheet.tsx#L59) | `{t('common.retry')}` | RefreshCw |
 | [apps/web/components/ui/block-copy-control.tsx:33](../apps/web/components/ui/block-copy-control.tsx#L33) | `{t(status === 'copied' ? 'copied' : 'copy')}` | Copy |
 | [apps/web/components/ui/block-frame.tsx:147](../apps/web/components/ui/block-frame.tsx#L147) | `{frameProps.refreshLabel ?? t('refresh')}` | RefreshCw |
-| [apps/web/components/ui/confirm-sheet.tsx:101](../apps/web/components/ui/confirm-sheet.tsx#L101) | `{cancelLabel ?? t('common.cancel')}` | X |
-| [apps/web/components/ui/pager.tsx:26](../apps/web/components/ui/pager.tsx#L26) | `{props.backLabel}` | ChevronLeft |
-| [apps/web/components/ui/pager.tsx:28](../apps/web/components/ui/pager.tsx#L28) | `{props.forwardLabel}` | ChevronRight |
 | [apps/web/components/ui/scroll-to-top-button.tsx:26](../apps/web/components/ui/scroll-to-top-button.tsx#L26) | `{t('common.backToTop')}` | ArrowUp |
 | [apps/web/components/ui/toast.tsx:96](../apps/web/components/ui/toast.tsx#L96) | `{props.actionLabel}` | RefreshCw |
 | [apps/web/components/ui/update-available-banner.tsx:38](../apps/web/components/ui/update-available-banner.tsx#L38) | `{reloadReason ? t('errors.api.reload') : t('forceUpdate.refresh')}` | RefreshCw |

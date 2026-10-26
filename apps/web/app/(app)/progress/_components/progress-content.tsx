@@ -1,6 +1,7 @@
 'use client'
 
 import { IconButton } from '@/components/ui/icon-button'
+import { SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 
@@ -449,9 +450,11 @@ function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
 
 function GoalsEmptyState({ inSection = false, onCreate }: Readonly<{ inSection?: boolean; onCreate: () => void }>) {
   const t = useTranslations()
+  const isDesktop = useIsDesktop()
+  const action = <PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" onClick={onCreate}>{t('progressScreen.goals.createAction')}</PillButton>
 
-  if (!inSection) return <EmptyState title={t('progressScreen.goals.empty')} action={<IconButton label={t('progressScreen.goals.createAction')} onClick={onCreate}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />
-  return <div data-goals-empty className="flex flex-col items-start gap-2 rounded-[12px] bg-[var(--bg-well)] p-4"><p className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.empty')}</p><div data-empty-state-action><IconButton label={t('progressScreen.goals.createAction')} onClick={onCreate}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton></div></div>
+  if (!inSection) return <EmptyState title={t('progressScreen.goals.empty')} action={action} />
+  return <div data-goals-empty className="flex flex-col items-start gap-2 rounded-[12px] bg-[var(--bg-well)] p-4"><p className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.empty')}</p><div data-empty-state-action>{action}</div></div>
 }
 
 function GoalsSection({ goals, onOpenGoal, onCreate, filter, setFilter }: Readonly<{ goals: readonly Goal[]; onCreate: () => void; filter: ProgressGoalFilter; setFilter: (filter: ProgressGoalFilter) => void; onOpenGoal: (goalId: string) => void }>) {
@@ -492,7 +495,7 @@ function GoalsSection({ goals, onOpenGoal, onCreate, filter, setFilter }: Readon
   ] as const
   return (
     <section aria-label={t('progressScreen.sections.goals')} className="flex flex-col gap-section-title-gap">
-      {goals.length > 0 ? <Menu.Root open={filterOpen} onOpenChange={setFilterOpen}><ActionRow><Menu.Trigger asChild><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`}>{t(`progressScreen.goals.${filter}`)}</PillButton></Menu.Trigger><IconButton label={t('goals.create')} onClick={onCreate}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton></ActionRow>
+      {goals.length > 0 ? <Menu.Root open={filterOpen} onOpenChange={setFilterOpen}><ActionRow><Menu.Trigger asChild><PillButton variant="ghost" size="sm" minimumHeight={SMALL_PILL_VISIBLE_MIN} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`}>{t(`progressScreen.goals.${filter}`)}</PillButton></Menu.Trigger><IconButton label={t('goals.create')} onClick={onCreate}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton></ActionRow>
         <Menu.Content title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"
           items={options.map((option) => ({ id: option.value, label: option.label, checked: option.value === filter }))}
           onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} /></Menu.Root> : null}

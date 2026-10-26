@@ -917,27 +917,30 @@ describe('ProgressContent', () => {
     expect(screen.getByText('progressScreen.goals.empty')).toBeInTheDocument()
     expect(container.querySelectorAll('[data-mark="orbit"]')).toHaveLength(1)
     const action = screen.getByRole('button', { name: 'progressScreen.goals.createAction' })
-    expect(action).toHaveAttribute('data-variant', 'ghost')
+    expect(action).toHaveAttribute('data-variant', 'primary')
+    expect(action).toHaveTextContent('progressScreen.goals.createAction')
     fireEvent.click(action)
     expect(screen.getByRole('dialog', { name: 'goals.create' })).toBeInTheDocument()
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
     expect(screen.queryByRole('region', { name: 'progressScreen.sections.streak' })).not.toBeInTheDocument()
   })
 
-  it.each([false, true])('renders the global goal icon for desktop=%s', (isDesktop) => {
+  it.each([false, true])('renders the drawn global goal pill for desktop=%s', (isDesktop) => {
     mocks.isDesktop = isDesktop
     Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     render(<GoalsPage />)
 
-    expect(screen.getByRole('button', { name: 'progressScreen.goals.createAction' })).toHaveAttribute('data-variant', 'ghost')
+    const action = screen.getByRole('button', { name: 'progressScreen.goals.createAction' })
+    expect(action).toHaveAttribute('data-variant', isDesktop ? 'secondary' : 'primary')
+    expect(action).toHaveTextContent('progressScreen.goals.createAction')
   })
 
   it('starts a goal request from the in-section goals-empty action', () => {
     render(<QueryClientProvider client={queryClient}><GoalsPage /></QueryClientProvider>)
 
     const action = screen.getByRole('button', { name: 'progressScreen.goals.createAction' })
-    expect(action).toHaveAttribute('data-variant', 'ghost')
+    expect(action).toHaveAttribute('data-variant', 'primary')
     const section = screen.getByRole('heading', { name: 'progressScreen.sections.goals' }).closest<HTMLElement>('[data-progress-screen]')!
     expect(section.querySelector('[data-empty-state-mark]')).not.toBeNull()
     expect(section).toHaveTextContent('progressScreen.goals.empty')
@@ -986,7 +989,7 @@ describe('ProgressContent', () => {
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
   })
 
-  it.each([412, 1352])('keeps goal action pills at one 48px height at %ipx', async (width) => {
+  it.each([412, 1352])('aligns goal action paint inside equal 48px targets at %ipx', async (width) => {
     mocks.isDesktop = width >= 1024
     mocks.goals.data.allGoals = [createMockGoal()]
     render(<GoalsPage />)
@@ -999,7 +1002,7 @@ describe('ProgressContent', () => {
     expect(filter.parentElement).toHaveStyle({ gap: '12px' })
     for (const action of [filter, create]) {
       expect(action).toHaveAttribute('data-size', 'sm')
-      expect(action).toHaveStyle({ minHeight: '48px' })
+      expect(action).toHaveStyle({ minHeight: '44px' })
       expect(action.style.height).toBe('')
     }
   })

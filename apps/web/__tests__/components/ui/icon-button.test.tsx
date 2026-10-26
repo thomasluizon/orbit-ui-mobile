@@ -10,7 +10,7 @@ describe('IconButton', () => {
     const button = screen.getByRole('button', { name: label })
     expect(button.textContent).toBe('')
     expect(button).toHaveAttribute('title', label)
-    expect(button).toHaveStyle({ width: '48px', minHeight: '48px' })
+    expect(button).toHaveStyle({ width: '44px', minHeight: '44px' })
     fireEvent.click(button)
     expect(onClick).toHaveBeenCalledOnce()
     rerender(<IconButton label={label} onClick={onClick} loading><RefreshCw /></IconButton>)

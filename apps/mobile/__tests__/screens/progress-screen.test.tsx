@@ -10,6 +10,7 @@ import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import * as ReactNative from 'react-native'
 import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga from 'yoga-layout'
+import { BUTTON_SIZES } from '@orbit/shared/theme'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { contrastOnSurface, controlContrast } from '@orbit/shared/__tests__/contrast'
 import { createMockAchievement, createMockGoal } from '@orbit/shared/__tests__/factories'
@@ -419,7 +420,7 @@ describe('mobile ProgressContent', () => {
     }
   })
 
-  it.each([412, 1352])('keeps goal action pills at one 48px height at %ipx', async (width) => {
+  it.each([412, 1352])('aligns goal action paint inside equal 48px targets at %ipx', async (width) => {
     const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 })
     try {
       mocks.goals.data.allGoals = [createMockGoal()]
@@ -435,10 +436,13 @@ describe('mobile ProgressContent', () => {
       const [filter, create] = geometry.controls
       expect(filter!.accessibilityLabel).toBe('progressScreen.goals.filter: progressScreen.goals.all')
       expect(create!.accessibilityLabel).toBe('goals.create')
-      expect(filter!.height).toBe(48)
+      expect(filter!.height).toBe(44)
       expect(create!.height).toBe(filter!.height)
       expect(create!.top).toBe(filter!.top)
       expect(create!.left - filter!.right).toBe(12)
+      const actions = pillButtons(tree.root)
+      expect(actions.map((action) => action.props.hitSlop)).toEqual([2, 2])
+      for (const control of geometry.controls) expect(control.height + 4).toBe(48)
     } finally {
       dimensions.mockRestore()
     }
@@ -829,13 +833,14 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.sections.streak')).toHaveLength(0)
   })
 
-  it.each([[412, 'button-ghost-sm'], [768, 'button-ghost-sm']] as const)('renders the global goal action at %ipx as %s', async (width, testID) => {
+  it.each([[412, 'button-primary-sm'], [768, 'button-secondary-sm']] as const)('renders the global goal action at %ipx as %s', async (width, testID) => {
     const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 892, scale: 1, fontScale: 1 })
     Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     const tree = await renderProgress(undefined, 'goals')
 
     expect(findPill(tree.root, 'progressScreen.goals.createAction').props.testID).toBe(testID)
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'progressScreen.goals.createAction')).toHaveLength(1)
     dimensions.mockRestore()
   })
 
@@ -843,10 +848,10 @@ describe('mobile ProgressContent', () => {
     const tree = await renderProgress(undefined, 'goals')
 
     const action = findPill(tree.root, 'progressScreen.goals.createAction')
-    expect(action.props.testID).toBe('button-ghost-sm')
+    expect(action.props.testID).toBe('button-primary-sm')
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'empty-state-mark-orbit')).toHaveLength(1)
     const style = action.props.style as (state: { pressed: boolean }) => ViewStyle[]
-    expect(StyleSheet.flatten(style({ pressed: false }))).toMatchObject({ width: 48, height: 48 })
+    expect(StyleSheet.flatten(style({ pressed: false }))).toMatchObject({ height: 44, paddingHorizontal: BUTTON_SIZES.sm.paddingX })
     await TestRenderer.act(() => { (action.props.onPress as () => void)() })
     expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(1)
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
