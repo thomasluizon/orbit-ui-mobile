@@ -33,7 +33,7 @@ it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))])('establishe
   else if (fixture === 'free-at-limit') expect(active).toHaveLength(capacity)
   else if (fixture === 'malicious-title') expect(active).toHaveLength(3)
   else expect(active).toHaveLength(2)
-  if (fixture === 'existing-parents') expect(active.map((habit) => habit.title)).toEqual(['Post Lunch', 'Before Bed'])
+  if (fixture === 'existing-parents') expect(active.map((habit) => habit.title)).toEqual(test.metadata.locale === 'pt-BR' ? ['Depois do almoço', 'Antes de dormir'] : ['Post Lunch', 'Before Bed'])
   if (fixture === 'duplicate-titles') expect(active.map((habit) => habit.title)).toEqual(['Caminhada', 'Caminhada'])
   if (fixture.startsWith('composition')) { expect(goals).toHaveLength(1); expect(tags).toHaveLength(1); expect(templates).toHaveLength(1) }
   if (fixture === 'composition-logged') expect(active[0].logs.some((log) => log.date === '2026-10-24')).toBe(true)
@@ -60,8 +60,8 @@ it('does not cycle capacity roots or reset counters on repeated free attempts', 
   expect(habits.filter((habit) => !habit.deleted)).toHaveLength(7)
   expect(requests.slice(count).some(({ method }) => method === 'DELETE')).toBe(false)
 })
-it('rejects a nonexhausted budget fixture without spending a chat message', async () => {
-  await expect(resetFixture(scenario('budget-exhausted'))).rejects.toThrow('not exhausted')
+it('rejects budget setup beyond five ordinary requests without spending a chat message', async () => {
+  await expect(resetFixture(scenario('budget-exhausted'))).rejects.toThrow('more than five')
   expect(requests).toHaveLength(3)
 })
 it('keeps old positive history and IDs intact when public undo cannot restore zero history', async () => {
@@ -140,4 +140,78 @@ it('rejects an ignored occurrence cursor update on independent readback', async 
   vi.stubGlobal('fetch', async (url, options) => options.method === 'PUT' && new URL(url).pathname.includes('/habits/')
     ? new Response(null, { status: 204 }) : intercepted(url, options))
   await expect(resetFixture(scenario('pro'))).rejects.toThrow(/occurrence/)
+})
+
+
+it('restores Portuguese personal fixture text without changing stable identities', async () => {
+  const english = scenario('composition-partial')
+  english.metadata.locale = 'en'
+  await resetFixture(english)
+  const ids = habits.slice(0, 2).map((habit) => habit.id)
+  const portuguese = structuredClone(english)
+  portuguese.metadata.locale = 'pt-BR'
+  await resetFixture(portuguese)
+  const active = habits.filter((habit) => !habit.deleted)
+  expect(active.slice(0, 2).map((habit) => habit.id)).toEqual(ids)
+  expect(active.slice(0, 3).map((habit) => habit.title)).toEqual(['Beber água', 'Caminhada', 'Hábito adicional 1'])
+  expect(tags[0].name).toBe('Saúde')
+  expect(templates[0]).toMatchObject({ name: 'Manhã', items: ['Preparar água', 'Calçar os tênis'] })
+  expect(goals[0]).toMatchObject({ title: 'Hidratação constante', unit: 'sessões' })
+  await resetFixture(english)
+  expect(habits.filter((habit) => !habit.deleted).slice(0, 2).map((habit) => habit.title)).toEqual(['Water', 'Walk'])
+})
+it.each(['en', 'pt-BR'])('clears the other locale notification history before seeding %s', async (locale) => {
+  const test = scenario('composition')
+  test.metadata.locale = locale
+  await resetFixture(test)
+  const language = requests.findIndex(({ path }) => path === 'profile/language')
+  const cleared = requests.findIndex(({ path, method }) => path === 'notifications/all' && method === 'DELETE')
+  const seeded = requests.findIndex(({ path }) => path.endsWith('/log'))
+  expect(cleared).toBeGreaterThan(language)
+  expect(cleared).toBeLessThan(seeded)
+})
+it('establishes allowance exhaustion through ordinary bounded requests and independently reads it back', async () => {
+  let used = 2
+  const intercepted = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => {
+    const path = new URL(url).pathname
+    if (path === '/api/profile') {
+      requests.push({ path: 'profile', method: 'GET' })
+      return Response.json({ email, hasProAccess: false, hasGoogleConnection: false, aiMessagesUsed: used, aiMessagesLimit: 5 })
+    }
+    if (path === '/api/chat') {
+      requests.push({ path: 'chat', method: options.method, body: options.body })
+      expect(options.body).toBeInstanceOf(FormData)
+      expect(options.body.get('message')).toBe('Hello.')
+      expect(options.headers).not.toHaveProperty('X-Orbit-Eval-Trace')
+      used++
+      return used === 4 ? Response.json({ error: 'Daily safety budget exhausted.', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }, { status: 400 }) : Response.json({ aiMessage: 'Hello.' })
+    }
+    return intercepted(url, options)
+  })
+  await resetFixture(scenario('budget-exhausted'))
+  expect(used).toBe(5)
+  expect(requests.filter(({ path }) => path === 'chat')).toHaveLength(3)
+  expect(requests.at(-1).path).toBe('profile')
+  expect(requests.some(({ path }) => /admin|reset/.test(path))).toBe(false)
+})
+
+it.each(['no-progress', 'unexpected-refusal', 'ignored-language-clear'])('stops unsafe or unverifiable setup: %s', async (mode) => {
+  const intercepted = globalThis.fetch
+  let chatRequests = 0
+  vi.stubGlobal('fetch', async (url, options) => {
+    const path = new URL(url).pathname
+    if (path === '/api/profile' && mode !== 'ignored-language-clear') return Response.json({ email,
+      hasProAccess: false, hasGoogleConnection: false, aiMessagesUsed: 2, aiMessagesLimit: 5 })
+    if (path === '/api/chat') {
+      chatRequests++
+      return Response.json({ error: 'Unavailable', errorCode: mode === 'no-progress' ? 'AI_DAILY_BUDGET_EXCEEDED' : 'UNRELATED_ERROR' }, { status: 400 })
+    }
+    if (path === '/api/notifications/all' && mode === 'ignored-language-clear') return Response.json({ error: 'Unavailable' }, { status: 403 })
+    return intercepted(url, options)
+  })
+  const fixture = mode === 'ignored-language-clear' ? 'composition' : 'budget-exhausted'
+  await expect(resetFixture(scenario(fixture))).rejects.toThrow(mode === 'no-progress'
+    ? 'Daily safety budget prevented message allowance exhaustion. Setup cannot reset counters, rotate accounts or raise limits.' : 'HTTP')
+  expect(chatRequests).toBe(mode === 'ignored-language-clear' ? 0 : 1)
 })

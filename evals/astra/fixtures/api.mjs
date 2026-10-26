@@ -4,12 +4,13 @@ export function publicApi(credentialKey) {
   return async (method, path, body, accepted = []) => {
     const token = process.env[credentialKey]
     if (!token) throw new Error('Fixture requires a refreshed credential.')
+    const multipart = body instanceof FormData
     let response
     let payload
     try {
       response = await fetch(`${apiOrigin()}/api/${path}`, {
-        method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'api-version': '2.0' },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        method, headers: { Authorization: `Bearer ${token}`, ...(multipart ? {} : { 'Content-Type': 'application/json' }), 'api-version': '2.0' },
+        ...(body === undefined ? {} : { body: multipart ? body : JSON.stringify(body) }),
         redirect: 'error', signal: AbortSignal.timeout(15000),
       })
       const text = await response.text()

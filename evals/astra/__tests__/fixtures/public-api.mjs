@@ -25,6 +25,7 @@ export function fixtureFetch(getState) {
       habits: habits.filter((habit) => !habit.deleted).map(({ deleted, startDate, ...habit }) => habit), goals, tags, checklistTemplates: templates,
       notifications: [], achievements: [], streakFreezes: [], referrals: [], apiKeys: [], friendships: [], cheers: [], blockedUsers: [], reports: [], friendFeedEvents: [], proactiveItems: [], notionConnection: null, notionTasks: [], conversations: [] })
     if (['profile/timezone', 'profile/language', 'calendar/selected-calendars', 'calendar/auto-sync'].includes(path)) return new Response(null, { status: 204 })
+    if (path === 'notifications/all' && method === 'DELETE') return new Response(null, { status: 204 })
     if (path === 'habits' && method === 'POST') {
       const habit = exportedHabit(body)
       habits.push(habit)

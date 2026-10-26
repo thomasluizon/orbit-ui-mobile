@@ -11,7 +11,7 @@ export default class AstraHttpProvider {
   async callApi(prompt, context, options) {
     if (context.vars.preconditionFailure) return {
       error: `Precondition unavailable: ${context.vars.preconditionFailure}`,
-      metadata: { astraPreconditionFailure: true },
+      metadata: { astraPreconditionFailure: true, astraPreconditionReason: context.vars.preconditionFailure },
     }
     let response
     try {

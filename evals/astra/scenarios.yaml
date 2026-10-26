@@ -79,7 +79,7 @@
   metadata: { id: bulk-skip-pt, category: bulk, family: bulk, locale: pt-BR, platform: mobile, fixture: pro }
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: 'Pule Water ({habitId}) e Walk ({secondHabitId}) hoje, em uma única operação em lote.'
+    input: 'Pule Beber água ({habitId}) e Caminhada ({secondHabitId}) hoje, em uma única operação em lote.'
     composition: { mode: preview }
     expectations:
       required:
@@ -185,7 +185,7 @@
   metadata: { id: voice-pt, category: voice, family: voice, locale: pt-BR, platform: web, fixture: pro }
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: 'é, então, o Walk, id {secondHabitId}, hoje não vai dar não, pula só hoje tá, não apaga'
+    input: 'é, então, a Caminhada, id {secondHabitId}, hoje não vai dar não, pula só hoje tá, não apaga'
     composition: { mode: preview }
     expectations:
       required:
@@ -197,7 +197,7 @@
                 - { habit_ids: ['{secondHabitId}'] }
                 - { filter: { habit_ids: ['{secondHabitId}'] } }
       forbidden: [log_habit, bulk_log_habits, delete_habit, bulk_delete_habits]
-    rubric: Respond in Brazilian Portuguese about skipping only today's Walk. Do not delete the habit, mark it complete, or claim an unconfirmed write was saved.
+    rubric: Respond in Brazilian Portuguese about skipping only today's Caminhada. Do not delete the habit, mark it complete, or claim an unconfirmed write was saved.
 
 - description: Log an overdue occurrence on its original date
   metadata: { id: edge-overdue-en, category: edge, family: edge, locale: en, platform: mobile, fixture: overdue }
@@ -214,12 +214,12 @@
   metadata: { id: edge-skipped-pt, category: edge, family: edge, locale: pt-BR, platform: web, fixture: skipped }
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: O que aconteceu com Walk hoje? Eu tinha pulado.
+    input: O que aconteceu com a Caminhada hoje? Eu tinha pulado.
     composition: { mode: data }
     expectations:
       required: [{ name: query_habits, arguments: { date: today } }]
       allowed: [query_habits, get_daily_summary]
-    rubric: Walk is skipped today in the fixture. Explain that in Brazilian Portuguese without treating it as completed, undoing the skip, or mutating anything.
+    rubric: Caminhada is skipped today in the fixture. Explain that in Brazilian Portuguese without treating it as completed, undoing the skip, or mutating anything.
 
 - description: Respect root habit capacity on a Free account
   metadata: { id: edge-free-limit-en, category: edge, family: edge, locale: en, platform: mobile, fixture: free-at-limit }
