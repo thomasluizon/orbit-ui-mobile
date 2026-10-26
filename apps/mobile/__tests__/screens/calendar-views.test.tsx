@@ -1106,12 +1106,11 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { header.update(<></>); nextHeader.update(<></>); resetHeader.update(<></>); tree.update(<></>); });
   });
 
-  it('leaves the top safe area to the shell', () => {
+  it('leaves every safe area to the shell', () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />) })
     const safeAreas = tree.root.findAll((node) => node.type === SafeAreaView)
-    expect(safeAreas.length).toBeGreaterThan(0)
-    for (const safeArea of safeAreas) expect(safeArea.props.edges).toEqual(['left', 'right'])
+    expect(safeAreas).toHaveLength(0)
     TestRenderer.act(() => tree.update(<></>))
   })
 

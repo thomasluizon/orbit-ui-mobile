@@ -37,5 +37,5 @@ export function AppErrorScreen({ error, retry, standalone = false }: Readonly<{ 
       {!countdown && requestId ? <Text selectable style={[styles.reference, { color: tokens.fg3 }]}>{i18n.t('errorScreen.reference', { requestId })}</Text> : null}
     </ScrollView>
   )
-  return standalone ? <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: tokens.bg }}>{screen}</SafeAreaView> : screen
+  return standalone ? <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: tokens.bg }}>{screen}</SafeAreaView> : screen
 }

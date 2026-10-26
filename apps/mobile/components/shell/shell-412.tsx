@@ -11,6 +11,7 @@ import { ShellHeaderSlotProvider, useShellHeaderHost } from './shell-header-slot
 import { KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
 import { ShellScrollToTopSlotProvider, useShellScrollToTopHost } from './shell-scroll-to-top-slot'
 import { ShellFocusTargetContext, ShellListFocusContext } from './shell-focus-target'
+import { ShellSideInsetsContext, useShellSideInsets } from './shell-side-insets'
 import { RootScrollProvider } from './root-scroll-context'
 import { SHELL_SCROLLER_CLEARANCE, ShellScrollerClearanceContext } from './shell-scroller-clearance'
 
@@ -212,10 +213,11 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
     })
   }
   const insets = useSafeAreaInsets()
+  const sideInsets = useShellSideInsets()
   const { width, fontScale } = useWindowDimensions()
   const minimumBottomHeight = Math.max(SPACING.s64, SPACING.s24 * fontScale + SPACING.s32)
   const safeTop = (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0
-  const columnWidth = Math.min(width, SHELL_CONTENT_MAX_WIDTH)
+  const columnWidth = Math.min(width - insets.left - insets.right, SHELL_CONTENT_MAX_WIDTH)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
   const safeBottom = keyboardVisible ? 0 : insets.bottom
   const viewport = useShellViewport({ navigationEnabled, hasFab: floating, hasHeader: header !== undefined,
@@ -239,7 +241,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
       {...focusCapture}
       testID="shell-412"
       onLayout={(event) => viewport.setHeight(event.nativeEvent.layout.height)}
-      style={[styles.root, { backgroundColor: tokens.bg }, viewport.outerInsets]}
+      style={[styles.root, { backgroundColor: tokens.bg, paddingLeft: sideInsets.left, paddingRight: sideInsets.right }, viewport.outerInsets]}
     >
       <FlowViewport enabled={viewport.scrollable} constrained={viewport.constrained} minimumHeight={viewport.minimumHeight} revealEnd={navigationEnabled && floating}>
         <View
@@ -304,7 +306,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
             <ShellScrollerClearanceContext.Provider value={hasBottomChrome ? scrollerClearance : 0}>
               <RootScrollProvider>
                 <ShellScrollToTopSlotProvider value={registeredScrollToTop.value}>
-                  {shell}
+                  <ShellSideInsetsContext.Provider value={true}>{shell}</ShellSideInsetsContext.Provider>
                 </ShellScrollToTopSlotProvider>
               </RootScrollProvider>
             </ShellScrollerClearanceContext.Provider>

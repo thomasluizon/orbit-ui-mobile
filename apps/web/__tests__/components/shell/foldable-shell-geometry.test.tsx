@@ -9,6 +9,8 @@ import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
+import { AppToastHost } from '@/components/ui/app-toast-host'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import { Composer } from '@/components/shell/composer'
 import { AppBar } from '@/components/ui/app-bar'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
@@ -40,6 +42,28 @@ describe('Foldable shell geometry', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([412, 844])('keeps the page toast gutter inside asymmetric side insets at %ipx', async (width) => {
+    useAppToastStore.getState().showInfo('Saved')
+    const { container } = render(<AppToastHost placement="page" />)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      const session = await page.context().newCDPSession(page)
+      await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 24, bottom: 16, left: 28, right: 64 } })
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const host = document.querySelector('[data-toast-page-host]')!
+        const box = host.getBoundingClientRect()
+        const style = getComputedStyle(host)
+        return { left: box.left, width: box.width, paddingLeft: parseFloat(style.paddingLeft), paddingRight: parseFloat(style.paddingRight) }
+      })
+      const available = width - 28 - 64
+      expect(geometry.left).toBe(28 + (available - Math.min(available, 440)) / 2)
+      expect(geometry.width).toBe(Math.min(available, 440))
+      expect(geometry.paddingLeft).toBe(16)
+      expect(geometry.paddingRight).toBe(16)
+    } finally { await page.close(); useAppToastStore.setState({ currentToast: null, queue: [] }) }
+  })
 
   it.each([412, 1200, 1600])('centres the global failure block at %ipx', async (width) => {
     const markup = renderToStaticMarkup(<GlobalError error={new Error('failed')} reset={vi.fn()} />)
@@ -82,6 +106,7 @@ describe('Foldable shell geometry', () => {
     ...[320, 412, 600].flatMap((width) => [0, 24].map((top) => ({ width, top, bottom: top ? 34 : 0, left: 0, right: 0 }))),
     { width: 412, top: 0, bottom: 21, left: 44, right: 44 },
     { width: 844, top: 0, bottom: 21, left: 44, right: 44 },
+    { width: 844, top: 24, bottom: 21, left: 28, right: 64 },
     { width: 844, top: 0, bottom: 0, left: 0, right: 0 },
   ])(
     'keeps compact shell chrome inside insets at $width with top $top', async ({ width, top, bottom, left, right }) => {
@@ -120,8 +145,8 @@ describe('Foldable shell geometry', () => {
     },
   )
 
-  it.each([320, 412, 600, 1100].flatMap((width) => [24, 48].map((top) => ({ width, top }))))(
-    'applies one safe top inset to the full-screen conversation at $width with top $top', async ({ width, top }) => {
+  it.each([320, 412, 600, 1100].flatMap((width) => [24, 48].map((top) => ({ width, top, left: 28, right: 64 }))))(
+    'applies one safe top inset to the full-screen conversation at $width with top $top', async ({ width, top, left, right }) => {
       const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"
         astraRow={{ label: en.chat.title, onOpen: vi.fn() }} conversationOpen
         conversation={<div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -134,14 +159,17 @@ describe('Foldable shell geometry', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         const session = await page.context().newCDPSession(page)
-        await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom: 34, left: 0, right: 0 } })
+        await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom: 34, left, right } })
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const geometry = await page.evaluate(() => {
           const layer = document.querySelector('[data-shell-conversation]')!.getBoundingClientRect()
           const header = document.querySelector('[data-shell-conversation] header')!.getBoundingClientRect()
           const composer = document.querySelector('[data-conversation-composer]')!.getBoundingClientRect()
-          return { layerTop: layer.top, headerTop: header.top, bottom: layer.bottom, composerBottom: composer.bottom }
+          return { layerTop: layer.top, headerTop: header.top, bottom: layer.bottom, composerBottom: composer.bottom,
+            layerLeft: layer.left, layerRight: layer.right, headerLeft: header.left, headerRight: header.right, composerLeft: composer.left, composerRight: composer.right }
         })
+        for (const edge of [geometry.layerLeft, geometry.headerLeft, geometry.composerLeft]) expect(edge).toBeGreaterThanOrEqual(left)
+        for (const edge of [geometry.layerRight, geometry.headerRight, geometry.composerRight]) expect(edge).toBeLessThanOrEqual(width - right)
         expect(geometry.layerTop).toBe(width < 1024 ? 0 : Math.max(32, top))
         expect(geometry.headerTop).toBe(width < 1024 ? top : Math.max(32, top))
         expect(geometry.bottom).toBe(915)

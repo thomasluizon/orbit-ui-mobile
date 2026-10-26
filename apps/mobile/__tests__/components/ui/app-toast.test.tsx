@@ -7,6 +7,9 @@ import { useAppToastStore } from '@/stores/app-toast-store'
 import { createTokensV2 } from '@/lib/theme'
 import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
 
+const safeArea = vi.hoisted(() => ({ top: 0, bottom: 0, left: 0, right: 0 }))
+vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => safeArea }))
+
 vi.mock('expo-router', () => ({ usePathname: () => '/calendar' }))
 
 const TestRenderer = require('react-test-renderer')
@@ -339,4 +342,22 @@ describe('mobile Toast', () => {
     const working = render(<Toast kind="working" message="Working" />)
     expect(working.root.findAllByProps({ testID: 'caller-icon' })).toHaveLength(0)
   })
+})
+
+it('keeps the overlay toast inside side insets plus its existing gutter', () => {
+  safeArea.left = 28
+  safeArea.right = 64
+  useAppToastStore.setState({ currentToast: null, queue: [] })
+  const tree = render(<AppToast />)
+  try {
+    TestRenderer.act(() => { useAppToastStore.getState().showInfo('Feedback') })
+    const style = StyleSheet.flatten(tree.root.findByProps({ pointerEvents: 'box-none' }).props.style)
+    expect(style.left).toBe(28 + 16)
+    expect(style.left + style.width).toBe(412 - 64 - 16)
+  } finally {
+    safeArea.left = 0
+    safeArea.right = 0
+    TestRenderer.act(() => tree.unmount())
+    useAppToastStore.setState({ currentToast: null, queue: [] })
+  }
 })

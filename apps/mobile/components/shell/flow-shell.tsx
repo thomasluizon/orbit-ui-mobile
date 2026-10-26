@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { SHELL_SCROLLER_CLEARANCE, useShellScrollerClearance } from './shell-scroller-clearance'
+import { ShellSideInsetsContext, useShellSideInsets } from './shell-side-insets'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface FlowShellProps {
@@ -16,12 +17,14 @@ interface FlowShellProps {
 
 export function FlowShell({ children, action, header, notice, mode = 'centered' }: Readonly<FlowShellProps>) {
   const { surfaces } = useAppTheme()
+  const sideInsets = useShellSideInsets()
   const shellClearance = useShellScrollerClearance()
   const clearance = action || notice ? Math.max(shellClearance, SHELL_SCROLLER_CLEARANCE) : shellClearance
 
   return (
+    <ShellSideInsetsContext.Provider value={true}>
     <SafeAreaView
-      style={[styles.root, { backgroundColor: surfaces.screen.backgroundColor }]}
+      style={[styles.root, { backgroundColor: surfaces.screen.backgroundColor, paddingLeft: sideInsets.left, paddingRight: sideInsets.right }]}
       edges={['top', 'bottom']}
       testID="flow-shell"
     >
@@ -37,6 +40,7 @@ export function FlowShell({ children, action, header, notice, mode = 'centered' 
       {notice ? <View style={styles.notice}>{notice}</View> : null}
       {action ? <View style={styles.action}>{action}</View> : null}
     </SafeAreaView>
+    </ShellSideInsetsContext.Provider>
   )
 }
 
