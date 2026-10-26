@@ -1,5 +1,6 @@
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
+import { IntlMessageFormat } from 'intl-messageformat'
 import { resolveMotionPreset } from '../theme'
 import { backendLoginResponseSchema } from '../types/auth'
 import type { LoginCodeFailure } from '../utils/auth-login'
@@ -12,14 +13,11 @@ export const authLocales = ['en', 'pt-BR'] as const
 
 export function authTranslator(locale: typeof authLocales[number]) {
   const catalog = locale === 'en' ? en : ptBR
-  return (key: string, params?: Record<string, unknown>): string => {
+  return (key: string, params?: Record<string, string | number>): string => {
     let value: unknown = catalog
     for (const part of key.split('.')) value = (value as Record<string, unknown>)[part]
     if (typeof value !== 'string') throw new Error('Missing translation: ' + key)
-    return value.replace(/\{(\w+)\}/g, (_, name: string) => {
-      const parameter = params?.[name]
-      return typeof parameter === 'string' || typeof parameter === 'number' ? String(parameter) : '{' + name + '}'
-    })
+    return String(new IntlMessageFormat(value, locale).format(params))
   }
 }
 

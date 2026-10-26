@@ -4180,7 +4180,7 @@
     "streak": {
       "eyebrow": "Sequência",
       "unit": "{count, plural, =0 {dias} one {dia} other {dias}}",
-      "line": "{count, plural, =0 {A sua sequência chegou a # dias.} one {A sua sequência chegou a # dia.} other {A sua sequência chegou a # dias.}}"
+      "line": "{count, plural, =0 {Sua sequência chegou a # dias.} one {Sua sequência chegou a # dia.} other {Sua sequência chegou a # dias.}}"
     },
     "goal": {
       "eyebrow": "Meta",

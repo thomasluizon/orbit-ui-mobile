@@ -3,14 +3,31 @@ import { createTranslator } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { countedMessageExamples, pluralMessageCases } from '@orbit/shared/test-support/plural-messages'
+import { formatCatalogMessage } from '../../e2e/support/messages'
 
-it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('never returns ICU source for plural messages in $locale', ({ locale, messages }) => {
+it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }] as const)('never returns ICU source for plural messages in $locale', ({ locale, messages }) => {
   const t = createTranslator({ locale, messages, onError: (error) => { throw error } })
   for (const { key, values } of pluralMessageCases(messages)) {
     for (const count of [0, 1, 2, 14, 100]) {
-      expect(t(key as Parameters<typeof t>[0], values(count)), `${key}, count=${count}`).not.toMatch(/,\s*plural\s*,/)
+      const formatted = t(key as Parameters<typeof t>[0], values(count))
+      expect(formatted, `${key}, count=${count}`).not.toMatch(/,\s*plural\s*,/)
+      expect(formatCatalogMessage(locale, key, values(count)), `${key}, count=${count}`).toBe(formatted)
     }
   }
+})
+
+it.each([
+  { locale: 'en', lapsed: 'Astra messages went back to 5 a day.', exhausted: "Today's allowance of 15 Astra messages is used.", five: "Today's allowance of 5 Astra messages is used.", events: 'View all (4)' },
+  { locale: 'pt-BR', lapsed: 'A cota da Astra voltou para 5 mensagens por dia.', exhausted: 'Você usou as 15 mensagens de hoje com a Astra.', five: 'Você usou as 5 mensagens de hoje com a Astra.', events: 'Ver todos (4)' },
+] as const)('formats the hermetic layout expectations in $locale', ({ locale, lapsed, exhausted, five, events }) => {
+  expect(formatCatalogMessage(locale, 'upgrade.billing.lapsed.lostMessages', { limit: 5 })).toBe(lapsed)
+  expect(formatCatalogMessage(locale, 'shell.composer.limit.reason', { allowance: 15 })).toBe(exhausted)
+  expect(formatCatalogMessage(locale, 'shell.composer.limit.reason', { allowance: 5 })).toBe(five)
+  expect(formatCatalogMessage(locale, 'calendar.dayDetail.viewAllEvents', { count: 4 })).toBe(events)
+})
+
+it('rejects a layout expectation without the required plural argument', () => {
+  expect(() => formatCatalogMessage('en', 'calendar.dayDetail.viewAllEvents')).toThrow()
 })
 
 it.each([

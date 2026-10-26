@@ -10,6 +10,7 @@ import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/ty
 import { profileSchema } from '@orbit/shared/types/profile'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import { formatCatalogMessage } from '../support/messages'
 import { test } from './upgrade-fixtures'
 
 const habitTitle = 'Rotina da casa'
@@ -46,7 +47,7 @@ for (const width of [412, 1280]) {
             await expect(strip).toHaveCount(0)
             const composer = conversation.locator('[data-composer-root]')
             await expect(composer).toHaveAttribute('data-state', 'atLimit')
-            await expect(composer.getByText(words.shell.composer.limit.reason.replace('{allowance}', String(profile.aiMessagesLimit)), { exact: true })).toBeVisible()
+            await expect(composer.getByText(formatCatalogMessage(locale, 'shell.composer.limit.reason', { allowance: profile.aiMessagesLimit }), { exact: true })).toBeVisible()
             await expect(conversation.getByText(words.chat.empty.title, { exact: true })).toHaveCount(0)
             await expect(empty.getByRole('button')).toHaveCount(0)
           } else {

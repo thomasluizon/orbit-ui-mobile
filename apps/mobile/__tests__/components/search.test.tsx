@@ -2,8 +2,7 @@ import React from 'react'
 import { StyleSheet, type TextStyle } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createInstance } from 'i18next'
-import { I18nextProvider, initReactI18next } from 'react-i18next'
+import { I18nextProvider } from 'react-i18next'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
@@ -17,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Check, Circle } from '@/components/ui/icons'
 import { dismissTopOverlay } from '@/lib/overlay-stack'
 import { createTokensV2 } from '@/lib/theme'
+import { i18n } from '@/lib/i18n'
 
 vi.unmock('react-i18next')
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
@@ -40,8 +40,7 @@ function result(habits: NormalizedHabit[], pending = false, error = false) {
 }
 
 async function mount(locale = 'en') {
-  const i18n = createInstance()
-  await i18n.use(initReactI18next).init({ lng: locale, resources: { en: { translation: en }, 'pt-BR': { translation: ptBR } }, interpolation: { prefix: '{', suffix: '}', escapeValue: false } })
+  await i18n.changeLanguage(locale)
   await TestRenderer.act(() => { tree = TestRenderer.create(<I18nextProvider i18n={i18n}><SearchScreen /></I18nextProvider>) })
 }
 
@@ -260,12 +259,18 @@ describe('mobile search', () => {
     expect(text()).not.toContain('Esc')
   })
 
-  it('shows one result with the singular count', async () => {
-    mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk' })]))
-    await mount()
+  it.each([
+    { locale: 'en', count: 1, expected: '1 habit' },
+    { locale: 'en', count: 4, expected: '4 habits' },
+    { locale: 'pt-BR', count: 1, expected: '1 hábito' },
+    { locale: 'pt-BR', count: 4, expected: '4 hábitos' },
+  ])('formats $count search results in $locale', async ({ locale, count, expected }) => {
+    mocks.query.mockReturnValue(result(Array.from({ length: count }, (_, index) => createMockHabit({ id: `walk-${index}`, title: `Walk ${index + 1}` }))))
+    await mount(locale)
     await type('walk')
-    expect(text()).toContain('1 habit')
-    expect(tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Open Walk')).toHaveLength(1)
+    expect(tree.root.findAll((node) => String(node.type) === 'Text' && renderedText(node.props.children) === expected)).toHaveLength(1)
+    expect(text()).not.toMatch(/[{}|]/)
+    expect(tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.role === 'button')).toHaveLength(count)
   })
 
   it('quotes an empty query and carries it into the create form', async () => {
