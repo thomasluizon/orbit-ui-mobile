@@ -146,16 +146,7 @@ async fn download(app: &AppHandle) -> Result<(), String> {
     let package = {
         let state = app.state::<PendingUpdate>();
         let mut state = state.lock().unwrap();
-        if state.busy() {
-            return Err("Desktop update already in progress".into());
-        }
-        let package = state
-            .package
-            .take()
-            .ok_or("No desktop shell update available")?;
-        state.clear_restart();
-        state.phase = Phase::Downloading;
-        package
+        state.begin_download()?
     };
     show_status(app);
     let result = match package.bytes {
@@ -164,18 +155,20 @@ async fn download(app: &AppHandle) -> Result<(), String> {
     };
     let state = app.state::<PendingUpdate>();
     let mut state = state.lock().unwrap();
-    let (bytes, phase) = match result {
-        Ok(bytes) => (Some(bytes), Phase::Downloaded),
+    let (bytes, verified) = match result {
+        Ok(bytes) => (Some(bytes), true),
         Err(error) => {
             eprintln!("Cannot download desktop update: {error}");
-            (None, Phase::Failed)
+            (None, false)
         }
     };
-    state.package = Some(Package {
-        update: package.update,
-        bytes,
-    });
-    state.phase = phase;
+    state.downloaded(
+        Package {
+            update: package.update,
+            bytes,
+        },
+        verified,
+    );
     Ok(())
 }
 
@@ -187,11 +180,7 @@ async fn install(app: &AppHandle, url: &tauri::Url) -> Result<(), String> {
             return Err("Desktop update is not downloaded".into());
         }
         crate::update_resume::save(app, url).map_err(|error| error.to_string())?;
-        state.phase = Phase::Installing;
-        state
-            .package
-            .take()
-            .ok_or("Missing desktop update package")?
+        state.begin_install()?
     };
     show_status(app);
     let app = app.clone();
@@ -202,8 +191,7 @@ async fn install(app: &AppHandle, url: &tauri::Url) -> Result<(), String> {
             let cleanup = crate::update_resume::clear(&app);
             let state = app.state::<PendingUpdate>();
             let mut state = state.lock().unwrap();
-            state.package = Some(package);
-            state.phase = Phase::Failed;
+            state.install_failed(package);
             return cleanup;
         }
         #[cfg(not(windows))]

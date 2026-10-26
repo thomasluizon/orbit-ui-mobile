@@ -12,7 +12,16 @@ fn resume_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
 pub fn save(app: &AppHandle, url: &Url) -> Result<(), String> {
     let path = resume_path(app)?;
     fs::create_dir_all(path.parent().unwrap()).map_err(|error| error.to_string())?;
-    fs::write(path, url.as_str()).map_err(|error| error.to_string())
+    fs::write(path, resume_url(url).as_str()).map_err(|error| error.to_string())
+}
+
+fn resume_url(url: &Url) -> Url {
+    let mut destination = url.clone();
+    if matches!(url.path(), "/login" | "/auth-callback" | "/onboarding") {
+        destination.set_query(None);
+        destination.set_fragment(None);
+    }
+    destination
 }
 
 pub fn clear(app: &AppHandle) -> Result<(), String> {
@@ -58,6 +67,13 @@ mod tests {
         fs::write(&path, destination).unwrap();
         assert_eq!(read(&path, &origin).unwrap().unwrap().as_str(), destination);
         assert!(read(&path, &origin).unwrap().is_none());
+    }
+
+    #[test]
+    fn authentication_resume_never_persists_one_time_credentials() {
+        let url =
+            Url::parse("https://app.useorbit.org/login?code=one-time&email=person#proof").unwrap();
+        assert_eq!(resume_url(&url).as_str(), "https://app.useorbit.org/login");
     }
 
     #[test]

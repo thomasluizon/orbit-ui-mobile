@@ -73,6 +73,45 @@ impl<T> UpdateState<T> {
         }
     }
 
+    pub fn begin_download(&mut self) -> Result<T, &'static str> {
+        if self.busy() {
+            return Err("Desktop update already in progress");
+        }
+        let package = self
+            .package
+            .take()
+            .ok_or("No desktop shell update available")?;
+        self.clear_restart();
+        self.phase = Phase::Downloading;
+        Ok(package)
+    }
+
+    pub fn downloaded(&mut self, package: T, verified: bool) {
+        self.package = Some(package);
+        self.phase = if verified {
+            Phase::Downloaded
+        } else {
+            Phase::Failed
+        };
+    }
+
+    pub fn begin_install(&mut self) -> Result<T, &'static str> {
+        if self.phase != Phase::Downloaded {
+            return Err("Desktop update is not downloaded");
+        }
+        let package = self
+            .package
+            .take()
+            .ok_or("Missing desktop update package")?;
+        self.phase = Phase::Installing;
+        Ok(package)
+    }
+
+    pub fn install_failed(&mut self, package: T) {
+        self.package = Some(package);
+        self.phase = Phase::Failed;
+    }
+
     pub fn busy(&self) -> bool {
         matches!(self.phase, Phase::Downloading | Phase::Installing)
     }
@@ -128,6 +167,44 @@ mod tests {
         assert!(!state.begin_check());
         state.phase = Phase::Installing;
         assert!(!state.begin_check());
+    }
+
+    #[test]
+    fn download_and_install_failures_keep_the_package_for_explicit_retry() {
+        let mut state = UpdateState::new(true);
+        assert!(state.begin_install().is_err());
+        assert!(state.begin_download().is_err());
+        state.checked(Ok(Some(("0.2.0".into(), "package"))));
+        let package = state.begin_download().unwrap();
+        assert!(state.begin_install().is_err());
+        assert!(state.begin_download().is_err());
+        state.checked(Ok(Some(("0.3.0".into(), "racing check"))));
+        state.downloaded(package, false);
+        assert_eq!(state.phase, Phase::Failed);
+        assert!(state.begin_install().is_err());
+        let package = state.begin_download().unwrap();
+        state.downloaded(package, true);
+        let verified = state.begin_install().unwrap();
+        assert!(!state.begin_check());
+        state.install_failed(verified);
+        assert_eq!(state.phase, Phase::Failed);
+        let verified = state.begin_download().unwrap();
+        assert_eq!(verified, "package");
+        state.downloaded(verified, true);
+        assert_eq!(state.begin_install().unwrap(), "package");
+    }
+
+    #[test]
+    fn serialized_status_matches_the_web_bridge_contract() {
+        let state = UpdateState::<()>::new(true);
+        let snapshot = serde_json::to_value(state.snapshot()).unwrap();
+        assert_eq!(
+            snapshot,
+            serde_json::json!({
+                "phase": "idle", "shellVersion": null, "webCommit": null,
+                "deferred": false, "restartRequested": false, "checking": false, "checkFailed": false,
+            })
+        );
     }
 
     #[test]

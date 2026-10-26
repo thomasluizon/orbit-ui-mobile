@@ -270,7 +270,9 @@ pub fn update_status(app: &AppHandle, status: &Snapshot, enabled: bool) -> tauri
     let menu = app.state::<DesktopMenu>();
     let available = status.shell_version.is_some() || status.web_commit.is_some();
     let busy = matches!(status.phase, Phase::Downloading | Phase::Installing);
-    let check_label = if busy {
+    let check_label = if status.phase == Phase::Downloading {
+        "updateDownloading"
+    } else if busy {
         "updateInstalling"
     } else if available {
         "updateReady"

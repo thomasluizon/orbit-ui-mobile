@@ -35,6 +35,7 @@
   "updateCurrent": "Tudo atualizado. Buscar novamente",
   "updateChecking": "Buscando atualizações...",
   "updateReady": "Atualização disponível",
+  "updateDownloading": "Baixando atualização...",
   "updateInstalling": "Instalando atualização...",
   "updateCheckRetry": "Buscar atualizações (tentar novamente)",
   "updateRestart": "Reiniciar para atualizar",

@@ -35,6 +35,7 @@
   "updateCurrent": "Up to date. Check again",
   "updateChecking": "Checking for updates...",
   "updateReady": "Update available",
+  "updateDownloading": "Downloading update...",
   "updateInstalling": "Installing update...",
   "updateCheckRetry": "Check for updates (try again)",
   "updateRestart": "Restart to update",
