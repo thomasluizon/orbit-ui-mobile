@@ -153,10 +153,10 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
             {children == null && !(title && titleMode === 'typed') ? null : (
               <>
                 {minimumBodyWidth == null ? null : <style>{`
-                  [data-sheet-body-id="${overlayId}"] { padding-inline: ${SHEET_BODY_INSETS[0]}px; }
+                  [data-sheet-body-id="${overlayId}"] { --sheet-body-inline: ${SHEET_BODY_INSETS[0]}px; }
                   ${SHEET_BODY_INSETS.map((inset) => `
                     @container sheet-panel (min-width: ${minimumBodyWidth + inset * 2}px) {
-                      [data-sheet-body-id="${overlayId}"] { padding-inline: ${inset}px; }
+                      [data-sheet-body-id="${overlayId}"] { --sheet-body-inline: ${inset}px; }
                     }
                   `).join('')}
                 `}</style>}

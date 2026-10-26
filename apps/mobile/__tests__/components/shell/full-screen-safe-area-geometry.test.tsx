@@ -177,9 +177,21 @@ it.each(surfaces)('keeps $name inside asymmetric side insets', async (surface) =
     const roots = tree.toJSON() as GeometryHost | GeometryHost[]
     const host = Array.isArray(roots) ? roots.find((root) => root.type === 'Modal')! : roots
     let headerCount = 0
-    const geometry = measureSafeArea(host, (host) => host.props.accessibilityRole === 'header' ? `header-${headerCount++}` : undefined)
+    let surfaceFound = false
+    const geometry = measureSafeArea(host, (node) => {
+      if (!surfaceFound && (node === host && surface.modal || node.props.testID === 'shell-background' || surface.standalone && node.props.testID === 'safe-area-owner')) { surfaceFound = true; return 'surface' }
+      if (node.props.testID === 'page-header') return 'divider'
+      return node.props.accessibilityRole === 'header' ? `header-${headerCount++}` : undefined
+    })
+    const background = geometry.get('surface')!
+    expect(background.left, surface.name).toBe(0)
+    expect(background.width, surface.name).toBe(412)
     expect(headerCount).toBeGreaterThan(0)
-    for (const box of geometry.values()) {
+    if (surface.name === 'throttle modal') expect(geometry.get('header-0')!.left).toBe(state.left + 16)
+    const divider = geometry.get('divider')
+    if (divider) { expect(divider.left).toBe(0); expect(divider.width).toBe(412) }
+    for (const [key, box] of geometry) {
+      if (key === 'surface' || key === 'divider') continue
       expect(box.left, surface.name).toBeGreaterThanOrEqual(state.left)
       expect(box.left + box.width, surface.name).toBeLessThanOrEqual(412 - state.right)
     }
@@ -193,10 +205,10 @@ it('adds side padding to a standalone flow without changing its gutters', async 
   await renderer.act(() => { tree = renderer.create(<FlowShell nav={false} action={<Text>Continue</Text>}><Text>Flow</Text></FlowShell>) as GeometryTree })
   try {
     const owner = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'safe-area-owner')[0]!
-    expect(StyleSheet.flatten(owner.props.style as ViewStyle).paddingLeft).toBe(28)
-    expect(StyleSheet.flatten(owner.props.style as ViewStyle).paddingRight).toBe(64)
+    expect(StyleSheet.flatten(owner.props.style as ViewStyle).paddingLeft ?? 0).toBe(0)
+    expect(StyleSheet.flatten(owner.props.style as ViewStyle).paddingRight ?? 0).toBe(0)
     const scroll = tree.root.findAll(node => String(node.type) === 'ScrollView')[0]!
-    expect(StyleSheet.flatten(scroll.props.contentContainerStyle as ViewStyle).paddingHorizontal).toBe(16)
+    expect(StyleSheet.flatten(scroll.props.contentContainerStyle as ViewStyle)).toMatchObject({ paddingLeft: 16 + state.left, paddingRight: 16 + state.right })
   } finally { await renderer.act(() => tree.unmount()) }
 })
 
@@ -205,13 +217,16 @@ it('shares one side inset between nested shell owners', async () => {
   state.right = 64
   let tree!: GeometryTree
   await renderer.act(() => { tree = renderer.create(<Shell412 nav={false} safeAreaTop={false}>
-    <FlowShell nav={false}><Shell412 nav={false}><Text>Flow</Text></Shell412></FlowShell>
+    <FlowShell nav={false}><Shell412 nav={false}><Text testID="nested-flow-content">Flow</Text></Shell412></FlowShell>
   </Shell412>) as GeometryTree })
   try {
     const owners = tree.root.findAll(node => typeof node.type === 'string' && (node.props.testID === 'shell-412' || node.props.testID === 'safe-area-owner'))
     expect(owners).toHaveLength(3)
     const styles = owners.map(owner => StyleSheet.flatten(owner.props.style as ViewStyle))
-    expect(styles.map(style => style.paddingLeft)).toEqual([28, 0, 0])
-    expect(styles.map(style => style.paddingRight)).toEqual([64, 0, 0])
+    expect(styles.map(style => style.paddingLeft ?? 0)).toEqual([0, 0, 0])
+    expect(styles.map(style => style.paddingRight ?? 0)).toEqual([0, 0, 0])
+    const geometry = measureSafeArea(tree.toJSON(), host => host.props.testID)
+    expect(geometry.get('nested-flow-content')!.left).toBe(16 + state.left)
+    expect(geometry.get('nested-flow-content')!.left + geometry.get('nested-flow-content')!.width).toBe(412 - state.right - 16)
   } finally { await renderer.act(() => tree.unmount()) }
 })

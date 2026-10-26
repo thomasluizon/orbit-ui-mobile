@@ -542,10 +542,12 @@ export function Composer(props: Readonly<WebComposerProps>) {
       data-has-attachments={hasAttachments ? '' : undefined}
       data-can-retry={canRetry ? '' : undefined}
       data-collapsed={props.collapsible ? collapsed : undefined}
-      className={`@container flex shrink-0 flex-col border-t border-[var(--hairline)] bg-[var(--bg)] ${collapsed ? 'gap-0 px-4 py-1' : 'gap-3 p-4'}`}
+      className={`@container flex shrink-0 flex-col border-t border-[var(--hairline)] bg-[var(--bg)] ${collapsed ? 'py-1' : 'py-4'}`}
     >
+      <div data-composer-content="" className={`mx-auto w-full max-w-[740px] px-4 ${collapsed ? 'gap-0' : 'flex flex-col gap-3'}`}>
       {collapsed ? <ComposerDisclosure collapsed contentId={contentId} onToggle={toggleCollapsed} /> : null}
       {props.collapsible ? <div id={contentId} hidden={collapsed} className={collapsed ? 'hidden' : 'flex min-w-0 flex-col gap-3'}>{content}</div> : content}
+      </div>
     </div>
   )
 }

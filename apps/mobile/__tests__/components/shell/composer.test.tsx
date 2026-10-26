@@ -1027,11 +1027,9 @@ describe('Composer (mobile)', () => {
   it('lays out the composer root with native styles', async () => {
     const tree = await renderComposer(props())
     const root = tree.root.findByProps({ testID: 'composer-idle' })
-    expect(StyleSheet.flatten(root.props.style)).toMatchObject({
-      flexDirection: 'column',
-      gap: 12,
-      padding: 16,
-    })
+    expect(StyleSheet.flatten(root.props.style)).toMatchObject({ flexDirection: 'column', borderTopWidth: StyleSheet.hairlineWidth })
+    const content = tree.root.findByProps({ testID: 'composer-content' })
+    expect(StyleSheet.flatten(content.props.style)).toMatchObject({ gap: 12, padding: 16 })
   })
 
   it('animates the Astra conversation control on press', async () => {

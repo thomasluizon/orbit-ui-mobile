@@ -115,7 +115,7 @@ describe('mobile Toast', () => {
     const heightWithoutToast = route.getComputedHeight()
     TestRenderer.act(() => { useAppToastStore.getState().showInfo('Feedback') })
     const hostStyle = StyleSheet.flatten(tree.root.findByProps({ pointerEvents: 'box-none' }).props.style)
-    expect(hostStyle).toMatchObject({ bottom: 16, left: 16, position: 'absolute', width: 380 })
+    expect(hostStyle).toMatchObject({ bottom: 16, left: 0, position: 'absolute', width: 412 })
     const host = Yoga.Node.create()
     const content = Yoga.Node.create()
     content.setHeight(toastHeight)
@@ -352,8 +352,11 @@ it('keeps the overlay toast inside side insets plus its existing gutter', () => 
   try {
     TestRenderer.act(() => { useAppToastStore.getState().showInfo('Feedback') })
     const style = StyleSheet.flatten(tree.root.findByProps({ pointerEvents: 'box-none' }).props.style)
-    expect(style.left).toBe(28 + 16)
-    expect(style.left + style.width).toBe(412 - 64 - 16)
+    expect(style.left).toBe(0)
+    expect(style.width).toBe(412)
+    const content = StyleSheet.flatten(tree.root.findByProps({ testID: 'toast-content-frame' }).props.style)
+    expect(content.left).toBe(28 + 16)
+    expect(content.left + content.width).toBe(412 - 64 - 16)
   } finally {
     safeArea.left = 0
     safeArea.right = 0

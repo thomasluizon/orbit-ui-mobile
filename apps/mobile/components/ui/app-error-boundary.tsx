@@ -1,5 +1,6 @@
 import { useEffect, useState, useTransition } from 'react'
 import { AppState, ScrollView, Text, useWindowDimensions } from 'react-native'
+import { useShellSideInsets } from '@/components/shell/shell-side-insets'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { getErrorSurface, getRetryCountdown } from '@orbit/shared/utils'
 import { i18n } from '@/lib/i18n'
@@ -8,6 +9,7 @@ import { ThemedButton } from '@/components/ui/pill-button'
 import { errorSurfaceStyles as styles } from './error-surface-styles'
 
 export function AppErrorScreen({ error, retry, standalone = false }: Readonly<{ error: unknown; retry: () => void | Promise<void>; standalone?: boolean }>) {
+  const sideInsets = useShellSideInsets()
   const { width } = useWindowDimensions()
   // WHY: The root error screen must render even if theme state is missing: https://github.com/thomasluizon/orbit-tickets/issues/1737
   const runtimeTheme = getRuntimeTheme() as ReturnType<typeof getRuntimeTheme> | undefined
@@ -29,7 +31,7 @@ export function AppErrorScreen({ error, retry, standalone = false }: Readonly<{ 
     startRetry(async () => { await retry() })
   }
   const screen = (
-    <ScrollView style={{ backgroundColor: tokens.bg }} contentContainerStyle={[styles.root, styles.flow]} testID={countdown ? 'throttle-screen' : 'failure-screen'}>
+    <ScrollView style={{ backgroundColor: tokens.bg }} contentContainerStyle={[styles.root, styles.flow, { paddingLeft: styles.root.paddingHorizontal + sideInsets.left, paddingRight: styles.root.paddingHorizontal + sideInsets.right }]} testID={countdown ? 'throttle-screen' : 'failure-screen'}>
       <Text accessibilityRole="header" textBreakStrategy="simple" android_hyphenationFrequency="none" style={[styles.title, width >= 1024 && styles.titleWide, { color: tokens.fg1 }]}>{i18n.t(countdown ? 'errorScreen.throttleTitle' : 'errorScreen.title')}</Text>
       <Text style={[styles.body, { color: tokens.fg2 }]}>{i18n.t(countdown ? 'errorScreen.throttleBody' : 'errorScreen.body')}</Text>
       {countdown ? <Text accessibilityRole="timer" style={[styles.countdown, { color: tokens.fg1 }]}>{countdown.label}</Text> : null}
@@ -37,5 +39,5 @@ export function AppErrorScreen({ error, retry, standalone = false }: Readonly<{ 
       {!countdown && requestId ? <Text selectable style={[styles.reference, { color: tokens.fg3 }]}>{i18n.t('errorScreen.reference', { requestId })}</Text> : null}
     </ScrollView>
   )
-  return standalone ? <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: tokens.bg }}>{screen}</SafeAreaView> : screen
+  return standalone ? <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: tokens.bg }}>{screen}</SafeAreaView> : screen
 }

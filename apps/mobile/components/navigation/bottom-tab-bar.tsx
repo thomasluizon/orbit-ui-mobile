@@ -2,18 +2,21 @@ import { INTERACTION_FILL_CLEARANCE, SPACING, SHELL_CONTENT_MAX_WIDTH, TAB_BAR_M
 import type { TabBarProps } from '@orbit/shared/contracts/navigation'
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { useShellContentStyle } from '@/components/shell/shell-side-insets'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<TabBarProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const contentStyle = useShellContentStyle()
   const { fontScale } = useWindowDimensions()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const activeIndex = items.findIndex((item) => item.id === activeId)
   return (
     <View testID="bottom-tab-destinations" accessibilityRole="tablist" accessibilityLabel={label} style={[styles.container, { backgroundColor: tokens.bg, borderTopColor: tokens.hairline }]}>
+      <View testID="bottom-tab-items" style={[styles.items, contentStyle]}>
       {items.map((item, index) => {
         const active = index === activeIndex
         return (
@@ -30,12 +33,14 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<TabB
           </Pressable>
         )
       })}
+      </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'stretch', alignSelf: 'center', flexDirection: 'row', flexWrap: 'wrap', minHeight: TAB_BAR_MIN_HEIGHT, borderTopWidth: 1, maxWidth: SHELL_CONTENT_MAX_WIDTH, width: '100%' },
+  container: { minHeight: TAB_BAR_MIN_HEIGHT, borderTopWidth: 1, width: '100%' },
+  items: { alignItems: 'stretch', alignSelf: 'center', flexDirection: 'row', flexWrap: 'wrap', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH },
   tab: { borderRadius: 999, alignItems: 'center', flexGrow: 1, flexBasis: 0, gap: 4, minHeight: 48, justifyContent: 'center', paddingVertical: SPACING.s12 },
   indicator: { width: 56, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
   focusIndicator: { position: 'absolute', top: INTERACTION_FILL_CLEARANCE, bottom: INTERACTION_FILL_CLEARANCE, left: INTERACTION_FILL_CLEARANCE, right: INTERACTION_FILL_CLEARANCE, borderRadius: 999 },

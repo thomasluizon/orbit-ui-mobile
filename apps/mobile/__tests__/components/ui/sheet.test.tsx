@@ -944,7 +944,10 @@ it.each([false, true])('adds side insets to every sheet slot with virtualizedBod
     const sheet = tree.root.findByType(TrueSheet)
     expect(sheet.props.insetAdjustment).toBe('automatic')
     const body = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => node.props.testID === (virtualizedBody ? 'sheet-virtualized-body' : 'sheet-body-scroll'))[0]!
-    const styles = [sheet.props.header.props.style, sheet.props.footer.props.style, virtualizedBody ? body.props.style : body.props.contentContainerStyle]
+    const footer = StyleSheet.flatten(sheet.props.footer.props.style)
+    expect(footer.paddingLeft ?? 0).toBe(0)
+    expect(footer.paddingRight ?? 0).toBe(0)
+    const styles = [sheet.props.header.props.style, sheet.props.footer.props.children[1].props.style, virtualizedBody ? body.props.style : body.props.contentContainerStyle]
     for (const declared of styles) {
       const style = StyleSheet.flatten(declared)
       expect(style.paddingLeft).toBe((style.paddingHorizontal ?? 0) + 28)

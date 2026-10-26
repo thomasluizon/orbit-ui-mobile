@@ -182,8 +182,8 @@ export function AppToast({ placement = 'overlay', sheetId }: Readonly<{ placemen
   if (placement !== 'overlay') return <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} outlined={placement === 'sheet'} />
 
   return (
-    <View pointerEvents="box-none" style={[styles.host, styles.overlay, overlayFrame, { bottom: insets.bottom + 16, left: insets.left + overlayFrame.left }]}>
-      <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} />
+    <View pointerEvents="box-none" style={[styles.host, styles.overlay, { bottom: insets.bottom + 16, left: 0, width: screenWidth }]}>
+      <View testID="toast-content-frame" style={[overlayFrame, { left: insets.left + overlayFrame.left }]}><Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} /></View>
     </View>
   )
 }

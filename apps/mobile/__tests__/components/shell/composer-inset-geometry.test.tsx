@@ -219,7 +219,7 @@ it.each(allowanceCases)('keeps Hoje stable near $limit messages at $width with c
       layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
       measured.push({ height: layout.getComputedHeight(), inputTop: nodes.get('composer-field')!.getComputedTop() })
       assertAllowanceNodes(nodes, nearLimit, used === limit)
-      if (!nearLimit && !withSuggestions) expect(nodes.get('composer-field')!.getComputedTop()).toBe(SPACING.s16 + StyleSheet.hairlineWidth)
+      if (!nearLimit && !withSuggestions) expect(nodes.get('composer-field')!.getComputedTop() + nodes.get('composer-field')!.getParent()!.getComputedTop()).toBe(SPACING.s16 + StyleSheet.hairlineWidth)
     } finally { layout.freeRecursive(); await renderer.act(() => tree.unmount()) }
   }
   expect(measured[0]!.height).toBeLessThan(measured[1]!.height)

@@ -96,7 +96,7 @@ describe('Foldable shell geometry', () => {
         return { available: scroller.clientWidth, left: scroller.getBoundingClientRect().left,
           frameLeft: frame.left, frameWidth: frame.width, sectionWidth: section.width }
       })
-      expect(geometry.frameWidth).toBe(width < 1024 ? geometry.available : 592)
+      expect(geometry.frameWidth).toBe(width < 1024 ? Math.min(geometry.available, 740) : 592)
       expect(geometry.frameLeft).toBe(geometry.left + (geometry.available - geometry.frameWidth) / 2)
       expect(geometry.sectionWidth).toBe(geometry.frameWidth - 32)
     } finally { await page.close() }
@@ -133,6 +133,18 @@ describe('Foldable shell geometry', () => {
         })
         expect(geometry.top).toBe(0)
         expect(geometry.bottom).toBe(915)
+        const surfaces = await page.evaluate(() => ['[data-shell="wide"]', '[data-shell-background]', '[data-shell-bottom]', '[data-shell-tab-bar]'].map(selector => {
+          const element = document.querySelector(selector)!
+          const box = element.getBoundingClientRect()
+          const style = getComputedStyle(element)
+          return { selector, left: box.left, width: box.width, paddingLeft: style.paddingLeft, paddingRight: style.paddingRight }
+        }))
+        for (const surface of surfaces) {
+          expect(surface.left, surface.selector).toBe(0)
+          expect(surface.width, surface.selector).toBe(width)
+          expect(surface.paddingLeft, surface.selector).toBe('0px')
+          expect(surface.paddingRight, surface.selector).toBe('0px')
+        }
         expect(geometry.controls).toHaveLength(6)
         expect(geometry.controls[0]!.top).toBe(top)
         for (const control of geometry.controls) {
@@ -150,9 +162,9 @@ describe('Foldable shell geometry', () => {
       const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"
         astraRow={{ label: en.chat.title, onOpen: vi.fn() }} conversationOpen
         conversation={<div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <header style={{ minHeight: 56 }}>Astra</header>
+          <AppBar title="Astra" action={<button type="button">Close</button>} />
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>Thread</div>
-          <div data-conversation-composer="" style={{ minHeight: 88 }}>Composer</div>
+          <Composer state="idle" value="" words={en.shell.composer} suggestions={[]} onChangeValue={vi.fn()} onSend={vi.fn()} />
         </div>} conversationLabel="Astra" tabBar={<nav style={{ height: 80 }}>Tabs</nav>}>
         <h1>Today</h1>
       </ShellWide>)
@@ -164,12 +176,20 @@ describe('Foldable shell geometry', () => {
         const geometry = await page.evaluate(() => {
           const layer = document.querySelector('[data-shell-conversation]')!.getBoundingClientRect()
           const header = document.querySelector('[data-shell-conversation] header')!.getBoundingClientRect()
-          const composer = document.querySelector('[data-conversation-composer]')!.getBoundingClientRect()
-          return { layerTop: layer.top, headerTop: header.top, bottom: layer.bottom, composerBottom: composer.bottom,
+          const composer = document.querySelector('[data-shell-conversation] [data-composer-root]')!.getBoundingClientRect()
+          const title = document.querySelector('[data-shell-conversation] h1')!.getBoundingClientRect()
+          const field = document.querySelector('[data-shell-conversation] textarea')!.getBoundingClientRect()
+          return { titleLeft: title.left, fieldLeft: field.left, fieldRight: field.right, layerTop: layer.top, headerTop: header.top, bottom: layer.bottom, composerBottom: composer.bottom,
             layerLeft: layer.left, layerRight: layer.right, headerLeft: header.left, headerRight: header.right, composerLeft: composer.left, composerRight: composer.right }
         })
-        for (const edge of [geometry.layerLeft, geometry.headerLeft, geometry.composerLeft]) expect(edge).toBeGreaterThanOrEqual(left)
-        for (const edge of [geometry.layerRight, geometry.headerRight, geometry.composerRight]) expect(edge).toBeLessThanOrEqual(width - right)
+        for (const edge of [geometry.titleLeft, geometry.fieldLeft]) expect(edge).toBeGreaterThanOrEqual(left + 16)
+        expect(geometry.fieldRight).toBeLessThanOrEqual(width - right - 16)
+        if (width < 1024) {
+          expect(geometry.layerLeft).toBe(0)
+          expect(geometry.layerRight).toBe(width)
+          expect(geometry.composerLeft).toBe(0)
+          expect(geometry.composerRight).toBe(width)
+        }
         expect(geometry.layerTop).toBe(width < 1024 ? 0 : Math.max(32, top))
         expect(geometry.headerTop).toBe(width < 1024 ? top : Math.max(32, top))
         expect(geometry.bottom).toBe(915)
@@ -444,8 +464,8 @@ describe('Foldable shell geometry', () => {
           pinnedWidth: pinned.width, bottom: bottom.bottom,
         }
       })
-      expect(bounds.width).toBeLessThanOrEqual(740)
-      if (width < 1024) expect(bounds.width).toBe(Math.min(width, 740))
+      if (width < 1024) expect(bounds.width).toBe(width)
+      else expect(bounds.width).toBeLessThanOrEqual(740)
       expect(Math.abs(bounds.leftGap - bounds.rightGap)).toBeLessThanOrEqual(1)
       expect(bounds.documentWidth).toBe(width)
       expect(bounds.scrollerWidth).toBe(bounds.clientWidth)
@@ -487,7 +507,7 @@ describe('Foldable shell geometry', () => {
 
   it.each([
     { width: 1352, height: 706, left: 422 }, { width: 1440, height: 900, left: 466 },
-    { width: 1100, height: 706, left: 296 }, { width: 840, height: 915, left: 50 },
+    { width: 1100, height: 706, left: 296 }, { width: 840, height: 915, left: 0 },
     { width: 412, height: 915, left: 0 },
   ])('fills the conversation column at $width by $height', async ({ width, height, left }) => {
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: width >= 1024, addEventListener: vi.fn(), removeEventListener: vi.fn() })))

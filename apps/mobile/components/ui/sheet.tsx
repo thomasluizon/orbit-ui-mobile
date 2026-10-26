@@ -364,11 +364,13 @@ function createStyles(tokens: Tokens, leftInset: number, rightInset: number) {
       gap: 8,
       justifyContent: 'flex-end',
       paddingHorizontal: PADDING.sheetInline,
+      paddingLeft: PADDING.sheetInline + leftInset,
+      paddingRight: PADDING.sheetInline + rightInset,
       paddingTop: PADDING.sheetFooterTop,
       paddingBottom: PADDING.sheetBottom,
     },
-    footer: { backgroundColor: tokens.bgSheet, paddingLeft: leftInset, paddingRight: rightInset },
-    notice: { paddingHorizontal: PADDING.sheetInline, paddingVertical: SPACING.s16 },
+    footer: { backgroundColor: tokens.bgSheet },
+    notice: { paddingHorizontal: PADDING.sheetInline, paddingLeft: PADDING.sheetInline + leftInset, paddingRight: PADDING.sheetInline + rightInset, paddingVertical: SPACING.s16 },
   })
 }
 

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
+import { ShellSideInsetsContext, useShellContentStyle } from './shell-side-insets'
 import { PersonalText } from '@/components/ui/personal-text'
 import {
   hasComposerContent,
@@ -610,6 +611,7 @@ function ComposerContent({ props, tokens, focusTarget, disclosure }: Readonly<{ 
 }
 
 export function Composer(props: Readonly<MobileComposerProps>) {
+  const contentStyle = useShellContentStyle(SPACING.s16)
   const contentId = useId()
   const savedCollapsed = useUIStore(state => state.habitComposerCollapsed)
   const collapsed = Boolean(props.collapsible && savedCollapsed)
@@ -679,11 +681,13 @@ export function Composer(props: Readonly<MobileComposerProps>) {
       onBlur={() => { focusedTarget.current = null }}
       testID={testID}
       accessibilityState={{ busy: props.state === 'sending' }}
-      style={[styles.root, collapsed ? styles.collapsed : null, { backgroundColor: tokens.bg, borderTopColor: tokens.hairline }]}
+      style={[styles.root, { backgroundColor: tokens.bg, borderTopColor: tokens.hairline }]}
     >
+      <ShellSideInsetsContext.Provider value={true}><View testID="composer-content" style={[styles.content, collapsed ? styles.collapsed : null, contentStyle]}>
       {collapsed ? <ComposerDisclosure collapsed tokens={tokens} onToggle={toggleCollapsed} ref={collapsedDisclosureRef} /> : null}
       {props.collapsible ? <View nativeID={contentId} accessibilityElementsHidden={collapsed} importantForAccessibility={collapsed ? 'no-hide-descendants' : 'auto'}
         style={{ display: collapsed ? 'none' : 'flex', gap: 12 }}>{content}</View> : content}
+      </View></ShellSideInsetsContext.Provider>
     </View>
   )
 }
@@ -692,9 +696,8 @@ const styles = StyleSheet.create({
   root: {
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'column',
-    gap: 12,
-    padding: SPACING.s16,
   },
+  content: { alignSelf: 'center', width: '100%', maxWidth: 740, gap: 12, padding: SPACING.s16 },
   collapsed: { paddingVertical: SPACING.s4, gap: 0 },
   collapseControl: { width: 48, height: 48, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden' },
   suggestionRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.s12 },
