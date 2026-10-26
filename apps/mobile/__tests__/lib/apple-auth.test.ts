@@ -107,4 +107,14 @@ describe('Apple sign-in adapters', () => {
     await SecureStore.setItemAsync('apple_auth_attempt', JSON.stringify({ state: '02'.repeat(32), startedAt: Date.now() - 300_000 }))
     await expect(completeAppleHandoff('handoff', '02'.repeat(32))).rejects.toMatchObject({ reason: 'state_mismatch' })
   })
+
+  it.each(['invalid-json', '{"state":4}', null])('rejects malformed or missing persisted state: %s', async (stored) => {
+    Platform.OS = 'android'
+    await startAppleAuthentication(options())
+    if (stored === null) await SecureStore.deleteItemAsync('apple_auth_attempt')
+    else await SecureStore.setItemAsync('apple_auth_attempt', stored)
+    mocks.apiClient.mockClear()
+    await expect(completeAppleHandoff('handoff', '02'.repeat(32))).rejects.toMatchObject({ reason: 'state_mismatch' })
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
 })

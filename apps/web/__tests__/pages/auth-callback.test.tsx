@@ -4,6 +4,8 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { StrictMode } from 'react'
+import type { ErrorEvent } from '@sentry/nextjs'
+import { beforeSendEvent } from '@/lib/sentry-scrub'
 
 const mocks = vi.hoisted(() => ({ setAuth: vi.fn(), push: vi.fn(), replace: vi.fn(), generation: 0,
   hydrateProfilePresentation: vi.fn(), captureMessage: vi.fn(),
@@ -274,6 +276,47 @@ describe('Google code callback', () => {
       level: 'error', tags: { provider: 'google', reason },
     })
     expect(JSON.stringify(mocks.captureMessage.mock.calls)).not.toContain('private-')
+  })
+
+  it.each([false, true])('scrubs the completed cleanup breadcrumb before reporting, rejected=%s', async (rejected) => {
+    window.history.replaceState(null, '', '/auth-callback?error=private-error&code=private-code&state=private-state&handoff=private-handoff')
+    const breadcrumbs: NonNullable<ErrorEvent['breadcrumbs']> = []
+    const captured: ErrorEvent[] = []
+    fetchMock.mockImplementationOnce(async (url: string, options: RequestInit) => {
+      breadcrumbs.push({ category: 'fetch', type: 'http', level: rejected ? 'error' : 'info',
+        data: { method: options.method, url, ...(rejected ? {} : { status_code: 200 }) } })
+      if (rejected) throw new Error('cleanup unavailable')
+      return new Response('{}')
+    })
+    mocks.captureMessage.mockImplementationOnce((message, context) => {
+      const event = beforeSendEvent({ type: undefined, message, ...context,
+        request: { url: window.location.href }, transaction: window.location.pathname + window.location.search,
+        breadcrumbs }, {})
+      if (event) captured.push(event)
+    })
+    render(<StrictMode><AuthCallbackContent pendingWebState={null} /></StrictMode>)
+    await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
+    expect(fetchMock).toHaveBeenCalledExactlyOnceWith('/api/auth/google/code?state=private-state', expect.objectContaining({ method: 'DELETE' }))
+    expect(captured).toHaveLength(1)
+    expect(captured[0]?.breadcrumbs).toEqual([expect.objectContaining({
+      category: 'fetch', data: expect.objectContaining({ method: 'DELETE', url: '/api/auth/google/code' }),
+    })])
+    expect(captured[0]?.tags).toEqual({ provider: 'google', reason: 'provider_error' })
+    expect(JSON.stringify(captured)).not.toContain('private-')
+  })
+
+  it('reports hydration failure when continuing a reactivated account', async () => {
+    window.history.replaceState(null, '', '/auth-callback?code=secret&state=expected-state')
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', wasReactivated: true })))
+    render(<AuthCallbackContent pendingWebState="expected-state" />)
+    await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('account'))
+    mocks.hydrateProfilePresentation.mockRejectedValueOnce(new Error('private profile content'))
+    await act(async () => { mocks.continueAccount?.() })
+    await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
+    expect(mocks.captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
+      level: 'error', tags: { provider: 'google', reason: 'profile_hydration_failed' },
+    })
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
   it.each(['apple', 'google'])('reports profile hydration failure once for %s', async (provider) => {

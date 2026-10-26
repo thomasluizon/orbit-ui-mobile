@@ -129,6 +129,21 @@ describe('Apple callback route', () => {
     act(() => tree.unmount())
   })
 
+  it('reports hydration failure when continuing a reactivated account', async () => {
+    mocks.apiClient.mockResolvedValueOnce({ ...login, wasReactivated: true })
+    const tree = await mount()
+    expect(mocks.state).toBe('account')
+    mocks.login.mockRejectedValueOnce(new Error('private profile content'))
+    await act(async () => { mocks.continueAccount?.(); await Promise.resolve() })
+    expect(mocks.state).toBe('failed')
+    expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
+      level: 'error', tags: { provider: 'apple', reason: 'profile_hydration_failed' },
+    })
+    expect(mocks.replace).not.toHaveBeenCalled()
+    expect(await getStoredAuthReturnUrl(getAuthReturnUrlAttempt())).toBe('/')
+    act(() => tree.unmount())
+  })
+
   it('does not continue a reactivated account after another session replaces it', async () => {
     mocks.apiClient.mockResolvedValueOnce({ ...login, wasReactivated: true })
     const tree = await mount()
