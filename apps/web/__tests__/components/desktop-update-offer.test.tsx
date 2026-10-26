@@ -26,17 +26,21 @@ const native = {
   phase: 'idle', shellVersion: null as string | null, webCommit: null as string | null,
   deferred: false, restartRequested: false, checking: false, checkFailed: false,
 }
-let installIntent = false
+let installReservation: string | null = null
 async function operateNative(_command: string, payload: Record<string, unknown>) {
   if (payload.action === 'web-release') native.webCommit = payload.commit as string | null
-  if (payload.action === 'defer') { native.deferred = true; installIntent = false }
+  if (payload.action === 'defer') { native.deferred = true; installReservation = null }
   if (payload.action === 'cancel') native.restartRequested = false
-  if (payload.action === 'release') installIntent = false
-  if (payload.action === 'download') { native.phase = 'downloaded'; installIntent = true }
+  if (payload.action === 'release' && payload.reservation === installReservation) installReservation = null
+  if (payload.action === 'download') {
+    if (typeof payload.reservation !== 'string') throw new Error('Missing desktop update reservation')
+    native.phase = 'downloaded'
+    installReservation = payload.reservation
+  }
   if (payload.action === 'install') {
     if (native.phase !== 'downloaded') throw new Error('Desktop update is not downloaded')
     native.phase = 'installing'
-    installIntent = false
+    installReservation = null
   }
   return { ...native }
 }
@@ -54,7 +58,7 @@ beforeEach(() => {
   useUIStore.setState(useUIStore.getInitialState())
   useDesktopUpdateStore.setState({ notice: null, restart: null, later: null })
   Object.assign(native, { phase: 'idle', shellVersion: null, webCommit: null, deferred: false, restartRequested: false, checking: false, checkFailed: false })
-  installIntent = false
+  installReservation = null
   invoke.mockReset().mockImplementation(operateNative)
   reload.mockClear()
   vi.stubEnv('WEB_COMMIT_SHA', currentCommit)
@@ -191,6 +195,7 @@ it('downloads a shell update on Restart, then waits for edits made during the do
   const original = invoke.getMockImplementation()!
   invoke.mockImplementation(async (command, payload) => {
     if (payload.action === 'download' && native.phase !== 'downloaded') {
+      await original(command, payload)
       native.phase = 'downloading'
       await new Promise<void>(resolve => { finishDownload = resolve })
       native.phase = 'downloaded'
@@ -245,8 +250,9 @@ it('shows a failed download with an explicit retry and never installs the failed
 
 it('reserves a cached download through a newer focus check during the asynchronous checkpoint', async () => {
   native.shellVersion = '0.2.0'
-  await operateNative('desktop_update', { action: 'download' })
-  await operateNative('desktop_update', { action: 'release' })
+  const reservation = crypto.randomUUID()
+  await operateNative('desktop_update', { action: 'download', reservation })
+  await operateNative('desktop_update', { action: 'release', reservation })
   let finishImage!: (response: Response) => void
   const image = new Promise<Response>(resolve => { finishImage = resolve })
   vi.mocked(fetch).mockImplementation(async request => request === 'blob:preview' ? image : GET())
@@ -256,7 +262,7 @@ it('reserves a cached download through a newer focus check during the asynchrono
   await click(en.versionUpdate.restartCta)
   expect(fetch).toHaveBeenCalledWith('blob:preview')
   expect(actions()).not.toContain('install')
-  if (!installIntent) Object.assign(native, { shellVersion: '0.3.0', phase: 'available' })
+  if (!installReservation) Object.assign(native, { shellVersion: '0.3.0', phase: 'available' })
   await act(async () => { window.dispatchEvent(new Event('focus')) })
   await tick(60_000)
   await act(async () => { finishImage(new Response('image', { headers: { 'Content-Type': 'image/png' } })) })
@@ -266,6 +272,76 @@ it('reserves a cached download through a newer focus check during the asynchrono
   expect(native.shellVersion).toBe('0.2.0')
   expect(actions().filter(action => action === 'install')).toHaveLength(1)
   expect(takeDesktopChatCheckpoint('desktop-account')?.chat.messages[0]?.imageUrl).toBe('data:image/png;base64,aW1hZ2U=')
+})
+
+it('keeps a remounted controller reservation when an older checkpoint finishes', async () => {
+  native.shellVersion = '0.2.0'
+  native.phase = 'available'
+  const finishImages: ((response: Response) => void)[] = []
+  vi.mocked(fetch).mockImplementation(async request => request === 'blob:preview'
+    ? new Promise<Response>(resolve => { finishImages.push(resolve) }) : GET())
+  useChatStore.getState().addMessage({ id: 'image', role: 'user', content: 'Keep this', imageUrl: 'blob:preview', timestamp: new Date() })
+  const first = mount()
+  await tick()
+  await click(en.versionUpdate.restartCta)
+  expect(finishImages).toHaveLength(1)
+  expect(installReservation).not.toBeNull()
+  first.unmount()
+  expect(installReservation).toBeNull()
+  mount()
+  await tick()
+  await click(en.versionUpdate.restartCta)
+  expect(finishImages).toHaveLength(2)
+  expect(installReservation).not.toBeNull()
+  await act(async () => { finishImages[0]!(new Response('old image', { headers: { 'Content-Type': 'image/png' } })) })
+  await tick(50)
+  if (!installReservation) Object.assign(native, { shellVersion: '0.3.0', phase: 'available' })
+  await act(async () => { window.dispatchEvent(new Event('focus')) })
+  await act(async () => { finishImages[1]!(new Response('image', { headers: { 'Content-Type': 'image/png' } })) })
+  await tick(50)
+  expect(screen.queryByText(en.desktopUpdate.failed)).toBeNull()
+  expect(native.phase).toBe('installing')
+  expect(native.shellVersion).toBe('0.2.0')
+  expect(actions().filter(action => action === 'install')).toHaveLength(1)
+  expect(takeDesktopChatCheckpoint('desktop-account')?.chat.messages[0]?.imageUrl).toBe('data:image/png;base64,aW1hZ2U=')
+})
+
+it.each(['download', 'checkpoint'])('releases a stopped controller when its late %s completes without a successor', async pending => {
+  native.shellVersion = '0.2.0'
+  native.phase = 'available'
+  let finishPending!: () => void
+  const completion = new Promise<void>(resolve => { finishPending = resolve })
+  if (pending === 'checkpoint') {
+    useChatStore.getState().addMessage({ id: 'image', role: 'user', content: 'Keep this', imageUrl: 'blob:preview', timestamp: new Date() })
+    vi.mocked(fetch).mockImplementation(async request => {
+      if (request !== 'blob:preview') return GET()
+      await completion
+      return new Response('image', { headers: { 'Content-Type': 'image/png' } })
+    })
+  } else {
+    invoke.mockImplementation(async (command, payload) => {
+      const snapshot = await operateNative(command, payload)
+      if (payload.action !== 'download') return snapshot
+      native.phase = 'downloading'
+      await completion
+      native.phase = 'downloaded'
+      return { ...native }
+    })
+  }
+  const application = mount()
+  await tick()
+  await click(en.versionUpdate.restartCta)
+  expect(installReservation).not.toBeNull()
+  application.unmount()
+  await act(async () => { finishPending() })
+  await tick(50)
+  expect(installReservation).toBeNull()
+  expect(actions()).not.toContain('install')
+  expect(localStorage.getItem('orbit-desktop-web-reload')).toBeNull()
+  if (!installReservation) Object.assign(native, { shellVersion: '0.3.0', phase: 'available' })
+  mount()
+  await tick()
+  expect(screen.getByRole('button', { name: en.versionUpdate.restartCta })).toBeVisible()
 })
 
 it.each(['checkpoint failure', 'unmount'])('releases the install handoff after %s so a newer offer can appear', async reason => {
@@ -285,8 +361,8 @@ it.each(['checkpoint failure', 'unmount'])('releases the install handoff after %
   if (reason === 'checkpoint failure') expect(screen.getByRole('status')).toHaveTextContent(en.desktopUpdate.failed)
   else application.unmount()
   storage.mockRestore()
-  expect(installIntent).toBe(false)
-  if (!installIntent) Object.assign(native, { shellVersion: '0.3.0', phase: 'available' })
+  expect(installReservation).toBeNull()
+  if (!installReservation) Object.assign(native, { shellVersion: '0.3.0', phase: 'available' })
   useChatStore.setState({ isTyping: false })
   invoke.mockImplementation(operateNative)
   if (reason === 'unmount') mount()

@@ -17,10 +17,10 @@ export function desktopOffersSupported() {
   return (window as Window & { __ORBIT_DESKTOP_UPDATES__?: unknown }).__ORBIT_DESKTOP_UPDATES__ === true
 }
 
-async function invoke(action: 'status' | 'web-release' | 'defer' | 'download' | 'install' | 'cancel' | 'release', commit?: string | null) {
+async function invoke(action: 'status' | 'web-release' | 'defer' | 'download' | 'install' | 'cancel' | 'release', options: { commit?: string | null; reservation?: string } = {}) {
   const runtime = desktopRuntime()
   if (!runtime) throw new Error('Desktop update runtime unavailable')
-  return nativeSnapshotSchema.parse(await runtime.invoke('desktop_update', { action, ...(commit === undefined ? {} : { commit }) }))
+  return nativeSnapshotSchema.parse(await runtime.invoke('desktop_update', { action, ...options }))
 }
 
 class DesktopUpdateController {
@@ -33,6 +33,7 @@ class DesktopUpdateController {
   polling = false
   failed = false
   supported = desktopOffersSupported()
+  readonly reservation = crypto.randomUUID()
 
   constructor(readonly version: string, readonly commit: string | null, readonly requireUpgrade: (minimum: string) => void) {}
 
@@ -77,7 +78,7 @@ class DesktopUpdateController {
     try {
       if (this.native?.shellVersion) {
         this.publish()
-        this.native = await invoke('download')
+        this.native = await invoke('download', { reservation: this.reservation })
         if (this.isStopped()) return
         if (this.native.phase === 'failed') { this.requested = false; return }
       }
@@ -90,7 +91,7 @@ class DesktopUpdateController {
       try { forgetDesktopChatCheckpoint() } catch (storageError) { captureException(storageError) }
     } finally {
       if (this.native?.shellVersion && (this.isStopped() || this.failed)) {
-        try { this.native = await invoke('release') } catch (error) { captureException(error) }
+        try { this.native = await invoke('release', { reservation: this.reservation }) } catch (error) { captureException(error) }
       }
       this.applying = false
       this.publish()
@@ -103,7 +104,7 @@ class DesktopUpdateController {
     try {
       if (this.supported) {
         this.native = await invoke('status')
-        if (this.commit !== null && this.native.webCommit === this.commit) this.native = await invoke('web-release', null)
+        if (this.commit !== null && this.native.webCommit === this.commit) this.native = await invoke('web-release', { commit: null })
         if (!this.isStopped() && this.native.restartRequested) {
           this.requested = true
           this.native = await invoke('cancel')
@@ -134,7 +135,7 @@ class DesktopUpdateController {
     this.web = release
     this.failed = false
     try {
-      if (this.supported) this.native = await invoke('web-release', release.commit === this.commit ? null : release.commit)
+      if (this.supported) this.native = await invoke('web-release', { commit: release.commit === this.commit ? null : release.commit })
     } catch (error) { this.failed = true; captureException(error) }
     this.publish()
   }
@@ -154,7 +155,7 @@ export function watchDesktopUpdates(version: string, commit: string | null, requ
   return () => {
     controller.stopped = true
     if (controller.supported && controller.native?.shellVersion) {
-      void invoke('release').catch(error => { captureException(error) })
+      void invoke('release', { reservation: controller.reservation }).catch(error => { captureException(error) })
     }
     stopWeb()
     clearInterval(timer)

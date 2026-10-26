@@ -5,6 +5,7 @@ use crate::{
 use std::{sync::Mutex, time::Duration};
 use tauri::{AppHandle, Manager, WebviewWindow};
 use tauri_plugin_updater::{Update, UpdaterExt};
+use uuid::Uuid;
 
 const CHECK_INTERVAL: Duration = Duration::from_secs(60);
 struct Package {
@@ -122,6 +123,7 @@ pub async fn desktop_update(
     window: WebviewWindow,
     action: Action,
     commit: Option<String>,
+    reservation: Option<Uuid>,
 ) -> Result<Snapshot, String> {
     let app = window.app_handle().clone();
     let tauri::utils::config::WebviewUrl::External(origin) = &app.config().app.windows[0].url
@@ -133,7 +135,13 @@ pub async fn desktop_update(
         return Err("Invalid desktop update origin".into());
     }
     match action {
-        Action::Download => download(&app).await?,
+        Action::Download => {
+            download(
+                &app,
+                reservation.ok_or("Missing desktop update reservation")?,
+            )
+            .await?
+        }
         Action::Install => install(&app, &url).await?,
         _ => {
             let state = app.state::<PendingUpdate>();
@@ -153,7 +161,9 @@ pub async fn desktop_update(
                 }
                 Action::Defer => state.defer(),
                 Action::Cancel => state.clear_restart(),
-                Action::Release => state.release_install(),
+                Action::Release => {
+                    state.release_install(reservation.ok_or("Missing desktop update reservation")?)
+                }
                 _ => {}
             }
         }
@@ -163,11 +173,11 @@ pub async fn desktop_update(
     Ok(snapshot)
 }
 
-async fn download(app: &AppHandle) -> Result<(), String> {
+async fn download(app: &AppHandle, reservation: Uuid) -> Result<(), String> {
     let package = {
         let state = app.state::<PendingUpdate>();
         let mut state = state.lock().unwrap();
-        state.begin_download()?
+        state.begin_download(reservation)?
     };
     show_status(app);
     let result = match package.bytes {
@@ -250,7 +260,10 @@ mod tests {
     #[test]
     fn status_menu_sink_can_take_the_update_lock() {
         let state = Mutex::new(UpdateState::new(true));
-        state.lock().unwrap().checked(Ok(Some(("0.2.0".into(), ()))));
+        state
+            .lock()
+            .unwrap()
+            .checked(Ok(Some(("0.2.0".into(), ()))));
         let result = publish_status(&state, |snapshot, enabled| {
             assert!(enabled);
             assert_eq!(snapshot.shell_version.as_deref(), Some("0.2.0"));
