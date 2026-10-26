@@ -4,6 +4,7 @@ import { Platform } from 'react-native'
 import { API } from '@orbit/shared/api'
 import { googleCodeAuthResponseSchema, type GoogleCodeAuthResponse } from '@orbit/shared/types/auth'
 import { buildGoogleAuthorizeUrl, bytesToHex } from '@orbit/shared/utils'
+import { AuthCallbackError, readAuthCallbackInput } from '@orbit/shared/utils/auth-callback-failure'
 import { apiClient } from './api-client'
 import {
   createAuthReturnUrlAttempt,
@@ -41,13 +42,14 @@ export async function completeGoogleAuthFromUrl(
   referralCode?: string,
 ): Promise<GoogleCodeAuthResponse> {
   const params = extractGoogleAuthParams(rawUrl)
-  if (params.error || !params.code || !params.state) throw new Error('Authentication failed')
-  const verifier = getPendingGoogleAuthVerifier(params.state)
-  if (!verifier) throw new Error('Invalid OAuth state')
+  const input = readAuthCallbackInput(Boolean(params.error), params.code, params.state)
+  if (input.reason) throw new AuthCallbackError(input.reason)
+  const verifier = getPendingGoogleAuthVerifier(input.state)
+  if (!verifier) throw new AuthCallbackError('state_mismatch')
   return apiClient<GoogleCodeAuthResponse>(API.auth.googleCode, {
     method: 'POST',
     body: JSON.stringify({
-      code: params.code,
+      code: input.code,
       codeVerifier: verifier,
       redirectUri: AUTH_CALLBACK_URL,
       language,

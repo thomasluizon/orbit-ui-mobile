@@ -2,6 +2,7 @@ import React from 'react'
 import * as SecureStore from 'expo-secure-store'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
+import { captureMessage } from '@sentry/react-native'
 import AuthCallbackScreen from '@/app/auth-callback'
 import { createAuthReturnUrlAttempt, getAuthReturnUrlAttempt, getStoredAuthReturnUrl, storeAuthReturnUrl } from '@/lib/auth-flow'
 
@@ -65,12 +66,41 @@ async function mount() {
 }
 
 describe('Apple callback route', () => {
+  it.each([
+    ['handoff', 'missing_code'], ['state', 'missing_state'],
+  ] as const)('reports missing %s once without exchanging credentials', async (field, reason) => {
+    const original = mocks.params[field]
+    mocks.params[field] = ''
+    const tree = await mount()
+    expect(mocks.state).toBe('failed')
+    expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
+      level: 'error', tags: { provider: 'apple', reason },
+    })
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    act(() => tree.unmount())
+    mocks.params[field] = original
+  })
+
+  it('reports session hydration failure without sending the rejected error content', async () => {
+    mocks.login.mockRejectedValueOnce(new Error('private profile content'))
+    const tree = await mount()
+    expect(mocks.state).toBe('failed')
+    expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
+      level: 'error', tags: { provider: 'apple', reason: 'profile_hydration_failed' },
+    })
+    expect(mocks.replace).not.toHaveBeenCalled()
+    act(() => tree.unmount())
+  })
+
   it('rejects a state mismatch without exchanging or installing a session', async () => {
     mocks.params.state = 'unowned-state-0000'
     const tree = await mount()
     expect(mocks.state).toBe('failed')
     expect(mocks.apiClient).not.toHaveBeenCalled()
     expect(mocks.login).not.toHaveBeenCalled()
+    expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
+      level: 'error', tags: { provider: 'apple', reason: 'state_mismatch' },
+    })
     act(() => tree.unmount())
   })
 
@@ -81,6 +111,7 @@ describe('Apple callback route', () => {
     expect(mocks.login).toHaveBeenCalledWith('session-token', 'refresh-token', expect.objectContaining({ userId: 'account-1' }), expectedEpoch, expect.any(Function))
     expect(mocks.epoch).toBe(expectedEpoch + 1)
     expect(mocks.replace).toHaveBeenCalledWith('/(tabs)')
+    expect(captureMessage).not.toHaveBeenCalled()
     expect(await getStoredAuthReturnUrl(getAuthReturnUrlAttempt())).toBeNull()
     act(() => tree.unmount())
   })
@@ -154,6 +185,9 @@ describe('Apple callback route', () => {
     mocks.apiClient.mockRejectedValueOnce(new Error('handoff expired'))
     const tree = await mount()
     expect(mocks.state).toBe('failed')
+    expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
+      level: 'error', tags: { provider: 'apple', reason: 'exchange_failed' },
+    })
     mocks.params = { ...mocks.params, handoff: 'retried-handoff', state: `callback-state-${++sequence}` }
     await SecureStore.setItemAsync('apple_auth_attempt', JSON.stringify({ state: mocks.params.state, startedAt: Date.now() }))
     let release!: (response: typeof login) => void

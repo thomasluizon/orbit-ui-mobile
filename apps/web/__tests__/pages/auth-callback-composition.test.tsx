@@ -2,6 +2,8 @@ import { cleanup, render, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { API } from '@orbit/shared/api'
 import { AuthCallbackContent } from '@/app/(auth)/auth-callback/auth-callback-content'
 import { LoginContent } from '@/app/(auth)/login/login-content'
 import { useAuthStore } from '@/stores/auth-store'
@@ -30,13 +32,20 @@ beforeEach(async () => {
   useAuthStore.setState(useAuthStore.getInitialState())
   await useOnboardingDraftStore.persist.rehydrate()
   sessionStorage.clear()
-  fetchMock.mockImplementation(async () => new Response(JSON.stringify(loginResponse)))
+  fetchMock.mockImplementation(async (url) => {
+    if (url === API.profile.get) return new Response(JSON.stringify(createMockProfile()))
+    if (url === '/api/auth/google/code' || url === API.auth.appleHandoff || url === '/api/auth/verify-code') {
+      return new Response(JSON.stringify(loginResponse))
+    }
+    throw new Error('Unexpected authentication request')
+  })
 })
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
 describe('callback query ownership with the real login child', () => {
   it.each([
     ['google', 'code=c&state=s', '/api/auth/google/code', { code: 'c', state: 's', language: 'en' }],
+    ['google', 'code=123456&email=person%40example.test&state=s', '/api/auth/google/code', { code: '123456', state: 's', language: 'en' }],
     ['apple', 'provider=apple&handoff=h&state=s', '/api/auth/apple/handoff', { handoff: 'h', state: 's' }],
   ] as const)('exchanges the %s callback without navigating to login', async (_provider, query, endpoint, body) => {
     window.history.replaceState(null, '', `/auth-callback?${query}`)

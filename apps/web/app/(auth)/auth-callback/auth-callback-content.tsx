@@ -1,6 +1,8 @@
 'use client'
 
 import { API } from '@orbit/shared/api'
+import { AuthCallbackError, createAuthCallbackFailureReporter, readAuthCallbackInput, type AuthCallbackFailureReason } from '@orbit/shared/utils/auth-callback-failure'
+import { captureMessage } from '@sentry/nextjs'
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -24,6 +26,7 @@ export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebSt
   const router = useRouter()
   const searchParams = useSearchParams()
   const [params] = useState(() => new URLSearchParams(searchParams.toString()))
+  const [reportFailure] = useState(() => createAuthCallbackFailureReporter(params.get('provider') === 'apple' ? 'apple' : 'google', captureMessage))
   const { setAuth } = useAuthStore()
   const [state, setState] = useState<'pending' | 'failed' | 'account'>('pending')
   const [accountBack, setAccountBack] = useState<LoginResponse | null>(null)
@@ -52,13 +55,15 @@ export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebSt
       return
     }
     if (apple) globalThis.history.replaceState(null, '', '/auth-callback')
-    if (params.has('error') || !code || !oauthState || (apple && (oauthState !== pendingWebState || params.getAll('state').length !== 1 || params.getAll('handoff').length !== 1))) {
+    const inputFailure = readAuthCallbackInput(params.has('error'), code, oauthState).reason
+      ?? (apple && (oauthState !== pendingWebState || params.getAll('state').length !== 1 || params.getAll('handoff').length !== 1) ? 'state_mismatch' : null)
+    if (inputFailure) {
       const storedReturn = sessionStorage.getItem('auth_return_url')
       const calendarReturn = storedReturn === '/calendar?import=1' || storedReturn === '/calendar?mode=review'
       const cancelled = ['access_denied', 'cancel', 'dismiss'].includes(params.get('error') ?? '')
       const finish = () => {
         if (storedReturn && calendarReturn && cancelled) router.replace(storedReturn)
-        else setState('failed')
+        else { reportFailure(inputFailure); setState('failed') }
       }
       if (oauthState && !apple) {
         void fetchWithUpgradeGuidance(`/api/auth/google/code?state=${encodeURIComponent(oauthState)}`, { method: 'DELETE' })
@@ -68,19 +73,21 @@ export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebSt
     }
 
     let ownedGeneration = getAccountGeneration()
+    let failureReason: AuthCallbackFailureReason = 'exchange_failed'
     async function complete() {
       const referralCode = getCookieValue('referral_code')
       const generation = ownedGeneration
       const loginResponse = await withCookieSettingLogin(async () => {
-        if (generation !== getAccountGeneration()) throw new Error('Authentication session changed')
+        if (generation !== getAccountGeneration()) throw new AuthCallbackError('session_changed')
         const response = await fetchWithUpgradeGuidance(apple ? API.auth.appleHandoff : '/api/auth/google/code', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(apple ? { handoff: code, state: oauthState } : { code, state: oauthState, language: locale,
             ...(referralCode ? { referralCode } : {}) }),
         })
-        if (!response.ok || generation !== getAccountGeneration()) throw new Error('Google sign-in failed')
+        if (generation !== getAccountGeneration()) throw new AuthCallbackError('session_changed')
+        if (!response.ok) throw new AuthCallbackError('exchange_failed')
         const result = await response.json() as LoginResponse
-        if (generation !== getAccountGeneration()) throw new Error('Authentication session changed')
+        if (generation !== getAccountGeneration()) throw new AuthCallbackError('session_changed')
         if (!result.wasReactivated) {
           setAuth(result)
           ownedGeneration = getAccountGeneration()
@@ -88,14 +95,15 @@ export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebSt
         return result
       })
       if (loginResponse.wasReactivated) {
-        if (generation !== getAccountGeneration()) return
+        if (generation !== getAccountGeneration()) { reportFailure('session_changed'); return }
         accountBackGeneration.current = generation
         setAccountBack(loginResponse)
         setState('account')
         return
       }
+      failureReason = 'profile_hydration_failed'
       await hydrateProfilePresentation()
-      if (ownedGeneration !== getAccountGeneration()) return
+      if (ownedGeneration !== getAccountGeneration()) { reportFailure('session_changed'); return }
       if (referralCode) {
         document.cookie = 'referral_code=;max-age=0;path=/;samesite=strict;secure'
       }
@@ -105,22 +113,23 @@ export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebSt
       setRouteTransitionIntent('replace')
       router.push(safeUrl)
     }
-    void complete().catch(() => {
+    void complete().catch((error: unknown) => {
+      reportFailure(error instanceof AuthCallbackError ? error.reason : failureReason)
       if (ownedGeneration === getAccountGeneration()) setState('failed')
     })
-  }, [locale, params, pendingWebState, router, setAuth])
+  }, [locale, params, pendingWebState, reportFailure, router, setAuth])
 
   async function continueAccount() {
     const expectedGeneration = accountBackGeneration.current
-    if (!accountBack || loading || expectedGeneration === null
-      || expectedGeneration !== getAccountGeneration()) return
+    if (!accountBack || loading || expectedGeneration === null) return
+    if (expectedGeneration !== getAccountGeneration()) { reportFailure('session_changed'); return }
     setLoading(true)
     let ownedGeneration = expectedGeneration
     try {
       setAuth(accountBack)
       ownedGeneration = getAccountGeneration()
       await hydrateProfilePresentation()
-      if (ownedGeneration !== getAccountGeneration()) return
+      if (ownedGeneration !== getAccountGeneration()) { reportFailure('session_changed'); return }
       const storedReturn = sessionStorage.getItem('auth_return_url')
       sessionStorage.removeItem('auth_return_url')
       if (getCookieValue('referral_code')) {
@@ -130,6 +139,7 @@ export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebSt
       const safeUrl = storedReturn?.startsWith('/') && !storedReturn.startsWith('//') ? storedReturn : '/'
       router.push(safeUrl)
     } catch {
+      reportFailure(ownedGeneration === getAccountGeneration() ? 'profile_hydration_failed' : 'session_changed')
       if (ownedGeneration === getAccountGeneration()) setState('failed')
     }
     finally { setLoading(false) }
