@@ -1,8 +1,11 @@
+import { IntlMessageFormat } from 'intl-messageformat'
+import en from '@orbit/shared/i18n/en.json'
+import pt from '@orbit/shared/i18n/pt-BR.json'
 import { act, create } from 'react-test-renderer'
 import type { GeometryTree } from '../../support/safe-area-geometry'
 import { renderedText } from '../../support/react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { getAccountDay } from '@orbit/shared/utils'
@@ -14,8 +17,12 @@ import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { API } from '@orbit/shared/api'
 import { chatPartSchema, habitMonthCardSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
-const state = vi.hoisted(() => ({ isError: false, locale: 'en', habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
-vi.mock('react-i18next', async importOriginal => ({ ...await importOriginal<typeof import('react-i18next')>(), useTranslation: () => ({ i18n: { language: state.locale }, t: (key: string) => key }) }))
+const state = vi.hoisted(() => ({ isError: false, locale: 'en', actualCopy: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
+vi.mock('react-i18next', async importOriginal => ({ ...await importOriginal<typeof import('react-i18next')>(), useTranslation: () => ({ i18n: { language: state.locale }, t: (key: string, values?: Record<string, string | number>) => {
+  if (!state.actualCopy) return key
+  const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, state.locale === 'en' ? en : pt)
+  return typeof message === 'string' ? new IntlMessageFormat(message, state.locale).format(values) : key
+} }) }))
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: state.push }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: state.isError ? undefined : { habitsById: state.habits }, isError: state.isError, isPending: false }), useLogHabit: () => ({ mutate: state.mutate }), useHabitMetrics: () => ({}) }))
@@ -36,7 +43,7 @@ async function press(tree: GeometryTree, label: string) {
   const button = tree.root.findAll(node => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0]!
   await act(() => { (button.props.onPress as () => void)() })
 }
-beforeEach(() => { state.isError = false; vi.mocked(apiClient).mockReset(); state.locale = 'en'; state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
+beforeEach(() => { state.isError = false; vi.mocked(apiClient).mockReset(); state.locale = 'en'; state.actualCopy = false; state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
 
 describe('focused Android read compositions', () => {
   it.each(['en', 'pt-BR'])('keeps figures, dates and zero baseline honest in %s', async locale => {
@@ -187,4 +194,36 @@ it.each((['habitList', 'daySummary'] as const).flatMap(kind => [true, false].fla
     expect(renderedText(tree.toJSON())).not.toContain('Done')
     expect(state.mutate).not.toHaveBeenCalled()
     await act(() => tree.unmount())
+})
+
+it.each([['en', 'chat'], ['en', 'refresh'], ['pt-BR', 'chat'], ['pt-BR', 'refresh']] as const)('distinguishes habit counts from completions in %s through %s', async (locale, source) => {
+  state.locale = locale
+  state.actualCopy = true
+  const labels = locale === 'en'
+    ? { habits: 'Habits completed', unit: 'habits', completions: 'Completions', completionUnit: 'completions' }
+    : { habits: 'Hábitos concluídos', unit: 'hábitos', completions: 'Conclusões', completionUnit: 'conclusões' }
+  const cases = [
+    { kind: 'periodTotal', block: completedHabitTotalFixture, figures: ['3'], habits: true },
+    { kind: 'periodComparison', block: completedHabitComparisonFixture, figures: ['3', '1', '+2 (+200%)'], habits: true },
+    { kind: 'periodTotal', block: focusedPeriodTotalFixture, figures: ['12'], habits: false },
+    { kind: 'periodComparison', block: focusedPeriodComparisonFixture, figures: ['12', '0', '+12'], habits: false },
+    { kind: 'periodTotal', block: { ...focusedPeriodTotalFixture, metrics: completedHabitTotalFixture.metrics }, figures: ['12'], habits: false },
+    { kind: 'periodComparison', block: { ...focusedPeriodComparisonFixture, current: completedHabitComparisonFixture.current, baseline: completedHabitComparisonFixture.baseline }, figures: ['12', '0', '+12'], habits: false },
+  ]
+  for (const { kind, block, figures, habits } of cases) {
+    const expected = habits
+      ? { title: labels.habits, unit: labels.unit, other: labels.completions }
+      : { title: labels.completions, unit: labels.completionUnit, other: labels.habits }
+    const parsed = source === 'chat'
+      ? chatPartSchema.parse({ type: 'block', kind, block })
+      : readBlockResponseSchema.parse({ kind, block, read: block.read })
+    if (!parsed || !('kind' in parsed)) throw new Error(`${kind} ${source} did not parse`)
+    const tree = await mount(parsed)
+    const text = renderedText(tree.toJSON())
+    expect(text).toContain(expected.title)
+    expect(text).toContain(expected.unit)
+    for (const figure of figures) expect(text).toContain(figure)
+    expect(text).not.toContain(expected.other)
+    await act(() => tree.unmount())
+  }
 })

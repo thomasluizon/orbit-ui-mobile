@@ -275,6 +275,22 @@ export const focusedPeriodComparisonFixture = {
   habitId: null, read: focusedReadMetadataFixture,
 }
 
+export const completedHabitTotalFixture = {
+  ...focusedPeriodTotalFixture,
+  metric: 'completedHabits' as const, unit: 'habits' as const, value: 3,
+  metrics: { ...focusedPeriodMetricsFixture, positiveLogRecords: 5, completedHabits: 3 },
+  read: { ...focusedReadMetadataFixture, scope: { ...focusedReadMetadataFixture.scope, metric: 'completedHabits' } },
+}
+
+export const completedHabitComparisonFixture = {
+  ...focusedPeriodComparisonFixture,
+  metric: 'completedHabits' as const, unit: 'habits' as const,
+  current: completedHabitTotalFixture.metrics,
+  baseline: { ...focusedPeriodComparisonFixture.baseline, positiveLogRecords: 2, completedHabits: 1 },
+  currentValue: 3, baselineValue: 1, absoluteDelta: 2, relativeDelta: 2,
+  read: completedHabitTotalFixture.read,
+}
+
 export const focusedHistoryFixture = {
   kind: 'habitHistory' as const, totalCount: 2,
   items: [{ id: 'log-one', title: '2026-09-01', logDate: '2026-09-01', value: 0 }],
