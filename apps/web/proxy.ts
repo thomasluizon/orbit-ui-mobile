@@ -11,10 +11,39 @@ import {
 } from '@/lib/auth-api'
 import { accountEventApiBase } from '@/lib/account-event-api-base'
 import { isPublicPath } from '@/lib/public-paths'
+import { z } from 'zod'
+import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
+import { desktopAttemptSchema } from '@/lib/desktop-auth'
 
 const CONTENT_SECURITY_POLICY = 'Content-Security-Policy'
 const STATIC_IMAGE_PATH = /\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/
 const PUBLIC_ROOT_FILES = new Set(['/sw.js', '/robots.txt'])
+const desktopCallbackAttemptSchema = z.object({
+  state: z.string().min(1),
+  desktop: desktopAttemptSchema,
+})
+
+function redirectDesktopCallback(request: NextRequest): NextResponse | null {
+  const params = request.nextUrl.searchParams
+  if (request.nextUrl.pathname !== '/auth-callback' || params.get('provider') === 'apple') return null
+
+  let stored: unknown = null
+  try {
+    stored = JSON.parse(request.cookies.get(GOOGLE_OAUTH_COOKIE)?.value ?? 'null')
+  } catch { stored = null }
+  const pending = desktopCallbackAttemptSchema.safeParse(stored)
+  if (!pending.success || params.getAll('state').length !== 1 || params.get('state') !== pending.data.state) return null
+
+  const query = new URLSearchParams()
+  for (const key of ['code', 'state', 'error']) {
+    const values = params.getAll(key)
+    if (values.length === 1) query.set(key, values[0]!)
+  }
+  return NextResponse.redirect(new URL(`/api/auth/desktop/callback?${query}`, request.url), {
+    status: 307,
+    headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' },
+  })
+}
 
 async function resolveProxySession(request: NextRequest): Promise<{
   token: string | null
@@ -173,7 +202,7 @@ export async function proxy(request: NextRequest) {
   }
 
   return secureResponse(
-    await applyRefreshedSession(
+    redirectDesktopCallback(request) ?? await applyRefreshedSession(
       NextResponse.next({ request: { headers: requestHeaders } }),
       session.refreshedTokens,
     ),
