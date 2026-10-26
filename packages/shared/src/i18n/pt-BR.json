@@ -1132,7 +1132,7 @@
       "completionSummary": "{done, plural, =0 {# de {total} registrados} one {# de {total} registrado} other {# de {total} registrados}}",
       "nothingDue": "nada programado",
       "viewAllEventsLabel": "Ver todos",
-      "viewAllEvents": "{count, plural, =0 {Ver todos (#)} one {Ver evento (#)} other {Ver todos (#)}}",
+      "viewAllEvents": "{count, plural, =0 {Ver todos (#)} one {Ver todos (#)} other {Ver todos (#)}}",
       "eventsTitle": "Na sua agenda",
       "importEvents": "Importar eventos",
       "searchEvents": "Buscar eventos",
