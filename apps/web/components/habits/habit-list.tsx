@@ -6,7 +6,7 @@ import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
 
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 
-import { Fragment, Suspense, useMemo, useCallback, useEffect, useId, useState, useRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
+import { Fragment, Suspense, useMemo, useCallback, useEffect, useLayoutEffect, useId, useState, useRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
@@ -520,7 +520,7 @@ export function HabitList({
 
   useEffect(() => { onAllLoadedIdsChange?.(allLoadedIds) }, [allLoadedIds, onAllLoadedIdsChange])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     promptDataRef.current = {
       getChildren,
       visibility,
@@ -584,7 +584,7 @@ export function HabitList({
     [childrenProgressMap],
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const confirmedResolutions = confirmedResolutionsRef.current
     refreshConfirmedResolutions(
       confirmedResolutions,
