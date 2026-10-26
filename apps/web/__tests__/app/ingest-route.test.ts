@@ -79,6 +79,26 @@ describe('PostHog streaming proxy', () => {
   })
 
   it.each([
+    ['/ingest//evil.example/e/', null],
+    ['/ingest/e/@evil.example', 'https://us.i.posthog.com/e/@evil.example'],
+    ['/ingest/static/@evil.example', 'https://us-assets.i.posthog.com/static/@evil.example'],
+    ['/ingest/array/@evil.example', 'https://us-assets.i.posthog.com/array/@evil.example'],
+  ])('keeps the destination host fixed for %s', async (path, destination) => {
+    fetchUpstream.mockResolvedValue(new Response('ok'))
+
+    const response = await GET(new Request(`https://app.example.test${path}`))
+
+    if (destination === null) {
+      expect(response.status).toBe(404)
+      expect(fetchUpstream).not.toHaveBeenCalled()
+    } else {
+      expect(response.status).toBe(200)
+      expect(fetchUpstream).toHaveBeenCalledTimes(1)
+      expect(fetchUpstream.mock.calls[0]![0]).toEqual(new URL(destination))
+    }
+  })
+
+  it.each([
     '/e/?compression=gzip-js', '/s/', '/i/v1/logs', '/flags/?v=2',
     '/api/surveys/', '/api/early_access_features/', '/api/product_tours/',
     '/api/web_experiments/', '/api/conversations/v1/widget/message',
