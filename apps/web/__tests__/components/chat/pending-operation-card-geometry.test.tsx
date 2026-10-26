@@ -1,6 +1,6 @@
 import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import type { Page } from '@playwright/test'
-import { makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makePlacementPreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -108,6 +108,24 @@ describe('Pending preview geometry in Chromium', () => {
   })
   afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412].flatMap(width => locales.flatMap(locale => [1, 2].map(textScale => ({ width, locale, textScale })))))('keeps long placement destinations within the preview at $width in $locale at text scale $textScale', async ({ width, locale, textScale }) => {
+    const operation = makePlacementPreview()
+    operation.items![0]!.placement!.destinationName = 'MorningRoutineWithoutSpaces'.repeat(8)
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt} timeZone="UTC"><div style={{ width, padding: 16 }}>
+      <PendingOperationCard pendingOperation={operation} onRevise={vi.fn()} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
+    </div></NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 1200 } })
+    try {
+      await page.setContent(`<style>${stylesheet} html { font-size: ${16 * textScale}px; }</style>${container.innerHTML}`)
+      await page.evaluate(() => document.fonts.ready)
+      const overflow = await page.evaluate(() => {
+        const frame = document.querySelector<HTMLElement>('section[data-state]')!
+        return frame.scrollWidth - frame.clientWidth
+      })
+      expect(overflow).toBeLessThanOrEqual(1)
+    } finally { await page.close() }
+  })
 
   it.each([390, 840, 1352].flatMap(width => locales.flatMap(locale => ['dark', 'light'].flatMap(mode => ['pending', 'done', 'failed', 'stale'].map(state => ({ width, locale, mode, state }))))))('keeps drawn block spacing and sans count at $width in $locale $mode while $state', async ({ width, locale, mode, state }) => {
     const messages = locale === 'en' ? en : pt
