@@ -2416,18 +2416,18 @@
       "soFar": "{period} (até agora)",
       "comparison": {
         "habits": {
-          "ahead": "{current} tem mais {count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}: {value}, contra {previous} em {baseline}.",
-          "behind": "{current} tem menos {count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}: {value}, contra {previous} em {baseline}.",
+          "ahead": "{current} supera {baseline}: {value} {count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}, contra {previous}.",
+          "behind": "{current} fica abaixo de {baseline}: {value} {count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}, contra {previous}.",
           "equal": "{current} e {baseline} têm o mesmo total: {value} {count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}."
         },
         "records": {
-          "ahead": "{current} tem mais {count, plural, =0 {conclusões} one {conclusão} other {conclusões}}: {value}, contra {previous} em {baseline}.",
-          "behind": "{current} tem menos {count, plural, =0 {conclusões} one {conclusão} other {conclusões}}: {value}, contra {previous} em {baseline}.",
+          "ahead": "{current} supera {baseline}: {value} {count, plural, =0 {conclusões} one {conclusão} other {conclusões}}, contra {previous}.",
+          "behind": "{current} fica abaixo de {baseline}: {value} {count, plural, =0 {conclusões} one {conclusão} other {conclusões}}, contra {previous}.",
           "equal": "{current} e {baseline} têm o mesmo total: {value} {count, plural, =0 {conclusões} one {conclusão} other {conclusões}}."
         },
         "days": {
-          "ahead": "{current} tem mais {count, plural, =0 {dias} one {dia} other {dias}}: {value}, contra {previous} em {baseline}.",
-          "behind": "{current} tem menos {count, plural, =0 {dias} one {dia} other {dias}}: {value}, contra {previous} em {baseline}.",
+          "ahead": "{current} supera {baseline}: {value} {count, plural, =0 {dias} one {dia} other {dias}}, contra {previous}.",
+          "behind": "{current} fica abaixo de {baseline}: {value} {count, plural, =0 {dias} one {dia} other {dias}}, contra {previous}.",
           "equal": "{current} e {baseline} têm o mesmo total: {value} {count, plural, =0 {dias} one {dia} other {dias}}."
         }
       }

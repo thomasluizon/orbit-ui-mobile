@@ -2422,12 +2422,12 @@
         },
         "records": {
           "ahead": "{current} is ahead: {value} {count, plural, one {completion} other {completions}} against {previous} in {baseline}.",
-          "behind": "{current} has fewer {count, plural, one {completion} other {completions}}: {value} against {previous} in {baseline}.",
+          "behind": "{current} is behind: {value} {count, plural, one {completion} other {completions}} against {previous} in {baseline}.",
           "equal": "{current} and {baseline} have the same total: {value} {count, plural, one {completion} other {completions}}."
         },
         "days": {
           "ahead": "{current} is ahead: {value} {count, plural, one {day} other {days}} against {previous} in {baseline}.",
-          "behind": "{current} has fewer {count, plural, one {day} other {days}}: {value} against {previous} in {baseline}.",
+          "behind": "{current} is behind: {value} {count, plural, one {day} other {days}} against {previous} in {baseline}.",
           "equal": "{current} and {baseline} have the same total: {value} {count, plural, one {day} other {days}}."
         }
       }

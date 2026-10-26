@@ -27,6 +27,17 @@ for (const [locale, messages] of [['en', en], ['pt-BR', pt]] as const) {
         : currentValue === 1 ? 'hábito concluído' : 'hábitos concluídos')
       expect(presentation.verdict).not.toMatch(/completions?|conclus(?:ão|ões)/i)
     })
+    it.each([
+      ['habits', locale === 'en' ? 'habit completed' : 'hábito concluído', locale === 'en' ? 'habits completed' : 'hábitos concluídos'],
+      ['records', locale === 'en' ? 'completion' : 'conclusão', locale === 'en' ? 'completions' : 'conclusões'],
+      ['days', locale === 'en' ? 'day' : 'dia', locale === 'en' ? 'days' : 'dias'],
+    ] as const)('puts the %s unit right after the current figure in both directions', (unit, singular, plural) => {
+      const behind = comparisonPresentation({ ...completedHabitComparisonFixture, unit, currentValue: 1, baselineValue: 4 }, locale, translate)
+      const ahead = comparisonPresentation({ ...completedHabitComparisonFixture, unit, currentValue: 4, baselineValue: 1 }, locale, translate)
+      expect(behind.verdict).toContain(`1 ${singular}`)
+      expect(ahead.verdict).toContain(`4 ${plural}`)
+      expect(`${behind.verdict} ${ahead.verdict}`).not.toMatch(/\b(?:mais|menos|fewer)\b/)
+    })
     it.each([[88, 20, 'ahead'], [2, 20, 'behind'], [0, 0, 'equal']] as const)('answers a comparison of %s and %s', (currentValue, baselineValue, _direction) => {
       const card = { ...focusedPeriodComparisonFixture, currentValue, baselineValue }
       const presentation = comparisonPresentation(card, locale, translate)
