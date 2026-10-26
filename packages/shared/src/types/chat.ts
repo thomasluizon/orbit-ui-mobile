@@ -38,6 +38,7 @@ export const chatClientContextSchema = z.object({
   messageOrigin: z.literal('followUp').optional(),
   entryPointIntent: z.literal('support').optional(),
   supportsMessageAllowance: z.boolean().optional(),
+  supportsCompletedHabitsMetric: z.boolean().optional(),
 })
 
 export type ChatClientContext = z.infer<typeof chatClientContextSchema>
@@ -205,13 +206,14 @@ export const periodHabitMetricsSchema = z.object({
   currentStreak: z.number(),
   bestStreak: z.number(),
   streakScope: z.literal('period'),
+  completedHabits: z.number().nullish(),
 })
 
-const periodMetricSchema = z.enum(['positiveLogRecords', 'distinctLoggedDates', 'metScheduledDates', 'scheduledDates'])
+const periodMetricSchema = z.enum(['positiveLogRecords', 'distinctLoggedDates', 'metScheduledDates', 'scheduledDates', 'completedHabits'])
 
 export const periodTotalCardSchema = z.object({
   metric: periodMetricSchema,
-  unit: z.enum(['records', 'days']),
+  unit: z.enum(['records', 'days', 'habits']),
   value: z.number(),
   metrics: periodHabitMetricsSchema,
   series: completionSeriesSchema,
@@ -221,7 +223,7 @@ export const periodTotalCardSchema = z.object({
 
 export const periodComparisonCardSchema = z.object({
   metric: periodMetricSchema,
-  unit: z.enum(['records', 'days']),
+  unit: z.enum(['records', 'days', 'habits']),
   current: periodHabitMetricsSchema,
   baseline: periodHabitMetricsSchema,
   currentValue: z.number(),

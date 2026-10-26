@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { recordListDestination } from '../chat/record-list-core'
 import { acceptReadBlockResponse, formatReadWindow, readBlockPresentation, readBlockFailureKey, readBlockWindow } from '../chat/read-block-core'
-import { chatPartSchema, readBlockResponseSchema } from '../types/chat'
+import { chatClientContextSchema, chatPartSchema, readBlockResponseSchema } from '../types/chat'
 import { buildChatClientContext } from '../chat/client-context'
-import { focusedDatedHabitListFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '../test-support/chat-fixtures'
+import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '../test-support/chat-fixtures'
 
 const total = readBlockResponseSchema.parse({ kind: 'periodTotal', block: focusedPeriodTotalFixture, read: focusedReadMetadataFixture })
 
@@ -13,9 +13,31 @@ describe('query-bound read contracts', () => {
     expect(context.partKinds).toEqual(expect.arrayContaining(['periodTotal', 'periodComparison', 'recordList']))
     expect(context.supportsDatedHabitListCard).toBe(true)
     expect(context.supportsHabitHistoryCard).toBe(true)
+    expect(chatClientContextSchema.parse(context)).toHaveProperty('supportsCompletedHabitsMetric', true)
     expect(chatPartSchema.parse({ type: 'block', ...total })).toMatchObject({ kind: 'periodTotal', block: focusedPeriodTotalFixture })
     expect(chatPartSchema.parse({ type: 'block', kind: 'periodComparison', block: focusedPeriodComparisonFixture })).toMatchObject({ block: { baselineValue: 0, relativeDelta: null } })
     expect(chatPartSchema.parse({ type: 'block', kind: 'recordList', block: focusedHistoryFixture })).toMatchObject({ block: { items: [{ logDate: '2026-09-01', value: 0 }] } })
+  })
+
+  it.each([
+    { kind: 'periodTotal', block: completedHabitTotalFixture },
+    { kind: 'periodComparison', block: completedHabitComparisonFixture },
+  ])('preserves the completed habit contract on $kind in chat and refresh', part => {
+    expect(chatPartSchema.parse({ type: 'block', ...part })).toMatchObject(part)
+    expect(readBlockResponseSchema.parse({ ...part, read: part.block.read })).toMatchObject(part)
+  })
+
+  it.each([undefined, null, 0])('preserves an optional completed habit count of %s on legacy totals', completedHabits => {
+    const block = { ...focusedPeriodTotalFixture, metrics: { ...focusedPeriodTotalFixture.metrics, completedHabits } }
+    expect(chatPartSchema.parse({ type: 'block', kind: 'periodTotal', block })).toMatchObject({ block })
+  })
+
+  it('rejects a malformed completed habit count and unknown metric or unit', () => {
+    for (const block of [
+      { ...completedHabitTotalFixture, metrics: { ...completedHabitTotalFixture.metrics, completedHabits: 'three' } },
+      { ...completedHabitTotalFixture, metric: 'unknown' },
+      { ...completedHabitTotalFixture, unit: 'unknown' },
+    ]) expect(chatPartSchema.parse({ type: 'block', kind: 'periodTotal', block })).toBeNull()
   })
 
   it('accepts the producer dated schedule through chat parsing', () => {
