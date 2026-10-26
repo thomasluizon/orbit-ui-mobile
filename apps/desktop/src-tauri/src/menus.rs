@@ -2,7 +2,8 @@ use crate::{
     lifecycle,
     localization::Labels,
     settings::LoginSetting,
-    updates::{self, Status},
+    update_state::{Phase, Snapshot},
+    updates,
 };
 use std::sync::Mutex;
 use tauri::{
@@ -251,7 +252,7 @@ pub fn handle(app: &AppHandle, event: tauri::menu::MenuEvent) {
             Ok(())
         }
         "restart-update" => {
-            updates::restart(app);
+            updates::request_restart(app);
             Ok(())
         }
         "quit" => {
@@ -265,28 +266,33 @@ pub fn handle(app: &AppHandle, event: tauri::menu::MenuEvent) {
     }
 }
 
-pub fn update_status(app: &AppHandle, status: Status) -> tauri::Result<()> {
+pub fn update_status(app: &AppHandle, status: &Snapshot, enabled: bool) -> tauri::Result<()> {
     let menu = app.state::<DesktopMenu>();
-    let (check_label, can_check, can_restart) = match status {
-        Status::Disabled => ("updateUnavailable", false, false),
-        Status::Idle => ("updateCurrent", true, false),
-        Status::Checking => ("updateChecking", false, false),
-        Status::Ready | Status::InstallFailed => ("updateReady", false, true),
-        Status::Installing => ("updateInstalling", false, false),
-        Status::CheckFailed => ("updateCheckRetry", true, false),
+    let available = status.shell_version.is_some() || status.web_commit.is_some();
+    let busy = matches!(status.phase, Phase::Downloading | Phase::Installing);
+    let check_label = if busy {
+        "updateInstalling"
+    } else if available {
+        "updateReady"
+    } else if status.checking {
+        "updateChecking"
+    } else if status.check_failed {
+        "updateCheckRetry"
+    } else if enabled {
+        "updateCurrent"
+    } else {
+        "updateUnavailable"
     };
     menu.check_updates.set_text(menu.labels.text(check_label))?;
-    menu.check_updates.set_enabled(can_check)?;
+    menu.check_updates
+        .set_enabled(enabled && !busy && !status.checking)?;
     for restart in &menu.restart_updates {
-        restart.set_text(
-            menu.labels
-                .text(if matches!(status, Status::InstallFailed) {
-                    "updateRestartRetry"
-                } else {
-                    "updateRestart"
-                }),
-        )?;
-        restart.set_enabled(can_restart)?;
+        restart.set_text(menu.labels.text(if status.phase == Phase::Failed {
+            "updateRestartRetry"
+        } else {
+            "updateRestart"
+        }))?;
+        restart.set_enabled(available && !busy)?;
     }
     Ok(())
 }
