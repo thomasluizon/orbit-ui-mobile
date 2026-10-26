@@ -2,7 +2,7 @@ import { personalText } from '@/__tests__/support/personal-text'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
-import { focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -162,4 +162,33 @@ it('refreshes a habit month through its dedicated action and replaces the full s
   expect(refreshHabitMonth).toHaveBeenCalledWith('signed-month', expect.objectContaining({ platform: 'web', partKinds: expect.arrayContaining(['habitMonth']) }), null)
   fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
   await waitFor(() => expect(refreshHabitMonth).toHaveBeenLastCalledWith('month-two', expect.anything(), null))
+})
+
+it.each([['en', 'chat'], ['en', 'refresh'], ['pt-BR', 'chat'], ['pt-BR', 'refresh']] as const)('distinguishes habit counts from completions in %s through %s', async (locale, source) => {
+  const labels = locale === 'en'
+    ? { habits: 'Habits', unit: 'habits', completions: 'Completions', completionUnit: 'completions' }
+    : { habits: 'Hábitos', unit: 'hábitos', completions: 'Conclusões', completionUnit: 'conclusões' }
+  const cases = [
+    { kind: 'periodTotal', block: completedHabitTotalFixture, figures: ['3'], habits: true },
+    { kind: 'periodComparison', block: completedHabitComparisonFixture, figures: ['3', '1', '+2 (+200%)'], habits: true },
+    { kind: 'periodTotal', block: focusedPeriodTotalFixture, figures: ['12'], habits: false },
+    { kind: 'periodComparison', block: focusedPeriodComparisonFixture, figures: ['12', '0', '+12'], habits: false },
+    { kind: 'periodTotal', block: { ...focusedPeriodTotalFixture, metrics: completedHabitTotalFixture.metrics }, figures: ['12'], habits: false },
+    { kind: 'periodComparison', block: { ...focusedPeriodComparisonFixture, current: completedHabitComparisonFixture.current, baseline: completedHabitComparisonFixture.baseline }, figures: ['12', '0', '+12'], habits: false },
+  ]
+  for (const { kind, block, figures, habits } of cases) {
+    const expected = habits
+      ? { title: labels.habits, unit: labels.unit, other: labels.completions }
+      : { title: labels.completions, unit: labels.completionUnit, other: labels.habits }
+    const parsed = source === 'chat'
+      ? chatPartSchema.parse({ type: 'block', kind, block })
+      : readBlockResponseSchema.parse({ kind, block, read: block.read })
+    if (!parsed || !('kind' in parsed)) throw new Error(`${kind} ${source} did not parse`)
+    const view = mount(parsed, locale)
+    expect(screen.getByRole('heading', { name: expected.title })).toBeInTheDocument()
+    expect(screen.getByText(expected.unit)).toBeInTheDocument()
+    for (const figure of figures) expect(screen.getByText(figure)).toBeInTheDocument()
+    expect(view.container.textContent).not.toContain(expected.other)
+    view.unmount()
+  }
 })

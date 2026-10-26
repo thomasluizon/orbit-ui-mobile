@@ -1327,13 +1327,15 @@
       "expired": "Ask the original question again.",
       "delta": "Change",
       "metric": {
-        "positiveLogRecords": "Positive log records",
+        "positiveLogRecords": "Completions",
+        "completedHabits": "Habits",
         "distinctLoggedDates": "Days with logs",
         "metScheduledDates": "Scheduled days met",
         "scheduledDates": "Scheduled days"
       },
       "unit": {
-        "records": "{count, plural, one {record} other {records}}",
+        "records": "{count, plural, one {completion} other {completions}}",
+        "habits": "{count, plural, one {habit} other {habits}}",
         "days": "{count, plural, one {day} other {days}}"
       }
     },
