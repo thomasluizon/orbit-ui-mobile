@@ -103,3 +103,10 @@ describe('mobile chat store', () => {
     expect(useChatStore.getState().draft).toBe('')
   })
 })
+
+  it('drops all queued prompts and paused state on account reset', async () => {
+    useChatStore.getState().enqueuePrompt({ id: 'private', content: 'Private prompt', send: () => Promise.resolve(true) })
+    useChatStore.getState().finishReply(false)
+    await useChatStore.getState().resetAccountScopedChat()
+    expect(useChatStore.getState()).toMatchObject({ queuedPrompts: [], queuePaused: false, queueReady: false, replyActive: false })
+  })

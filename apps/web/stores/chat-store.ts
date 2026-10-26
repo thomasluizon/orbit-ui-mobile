@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { createChatStoreState, type ChatStoreState } from '@orbit/shared/stores'
+import { forgetDesktopChatCheckpoint } from '@/lib/web-reload-state'
 
 interface WebChatStoreState extends ChatStoreState {
   resetAccountScopedChat: () => void
@@ -12,10 +13,12 @@ interface WebChatStoreState extends ChatStoreState {
  * sign in, so an unguarded throw would block the sign in rather than the Astra screen.
  */
 function forgetStoredDraft(): void {
-  try {
-    globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
-  } catch {
-    return
+  for (const forgetDraft of [() => globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY), forgetDesktopChatCheckpoint]) {
+    try {
+      forgetDraft()
+    } catch {
+      continue
+    }
   }
 }
 
@@ -30,6 +33,11 @@ export const useChatStore = create<WebChatStoreState>((set) => ({
   resetAccountScopedChat: () => {
     forgetStoredDraft()
     set({
+      queuedPrompts: [],
+      queuePaused: false,
+      queueReady: false,
+      replyActive: false,
+      replyRevision: 0,
       messages: [],
       proactiveEntryId: null,
       proactiveOutcomes: {},

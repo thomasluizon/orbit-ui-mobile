@@ -2,6 +2,7 @@ export const AI_MESSAGE_COUNTER_THRESHOLD = 2
 
 export * from './composer-controls'
 export * from './reply-state'
+export * from './prompt-queue'
 export { buildComposerChips, resolveConversationSuggestions, resolveComposerChipStatus, resolveComposerChipSurface, resolveComposerDockSuggestions, resolveComposerStripLayout, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, type ComposerChip, type ComposerChipState, type ComposerChipSurface } from './composer-chips'
 export * from './action-chips'
 export * from './client-context'

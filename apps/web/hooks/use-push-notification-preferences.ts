@@ -24,7 +24,6 @@ import {
   settlePushCleanupBeforeAbort,
 } from '@/lib/push-subscription-owner'
 import { getActiveServiceWorkerRegistration } from '@/lib/service-worker-registration'
-import { loadDesktopPush, ensureDesktopPush, requestDesktopPushPermission, releaseDesktopPush } from '@/lib/desktop-push'
 import { isDesktopPush } from '@/lib/desktop-runtime'
 
 /** `checking` covers the first render, before the browser reports its push support and subscription. */
@@ -116,7 +115,10 @@ export function getPushStatusMessageKey(
 
 /** Reports registered only for the account that turned push on in this browser, never for an earlier one. */
 export async function loadPushNotificationState(accountId: string | null): Promise<PushPreferenceSnapshot> {
-  if (isDesktopPush()) return loadDesktopPush(accountId)
+  if (isDesktopPush()) {
+    const { loadDesktopPush } = await import('@/lib/desktop-push')
+    return loadDesktopPush(accountId)
+  }
   if (!isPushNotificationSupported()) {
     return createUnsupportedSnapshot()
   }
@@ -150,7 +152,10 @@ export async function subscribeToPushNotifications(
   vapidKey: string | undefined = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
   intendedAccountId: string | null = getHeldAccountId(),
 ): Promise<PushPreferenceSnapshot> {
-  if (isDesktopPush()) return ensureDesktopPush(intendedAccountId)
+  if (isDesktopPush()) {
+    const { ensureDesktopPush } = await import('@/lib/desktop-push')
+    return ensureDesktopPush(intendedAccountId)
+  }
   if (!isPushNotificationSupported()) {
     return createUnsupportedSnapshot()
   }
@@ -203,7 +208,11 @@ async function persistPushSubscription(
 
 /** Keeps a working endpoint when a reminder is enabled, replacing only an endpoint another account owns. */
 export async function ensurePushSubscription(): Promise<PushPreferenceSnapshot> {
-  if (isDesktopPush()) return ensureDesktopPush()
+  if (isDesktopPush()) {
+    const intendedAccountId = getHeldAccountId()
+    const { ensureDesktopPush } = await import('@/lib/desktop-push')
+    return ensureDesktopPush(intendedAccountId)
+  }
   if (!isPushNotificationSupported() || Notification.permission !== 'granted') {
     return subscribeToPushNotifications()
   }
@@ -237,7 +246,10 @@ export async function ensurePushSubscription(): Promise<PushPreferenceSnapshot> 
 }
 
 export async function requestWebPushPermission(): Promise<WebPushPermissionOutcome> {
-  if (isDesktopPush()) return requestDesktopPushPermission()
+  if (isDesktopPush()) {
+    const { requestDesktopPushPermission } = await import('@/lib/desktop-push')
+    return requestDesktopPushPermission()
+  }
   if (!isPushNotificationSupported()) return 'unsupported'
   const permission = await readOrRequestPushPermission()
   return permission === 'granted' ? 'granted' : 'denied'
@@ -247,7 +259,9 @@ export async function unsubscribeFromPushNotifications(
   permission: WebPushPermission,
 ): Promise<PushPreferenceSnapshot> {
   if (isDesktopPush()) {
-    await releaseDesktopPush(getHeldAccountId())
+    const intendedAccountId = getHeldAccountId()
+    const { releaseDesktopPush, loadDesktopPush } = await import('@/lib/desktop-push')
+    await releaseDesktopPush(intendedAccountId)
     return loadDesktopPush(getHeldAccountId())
   }
   if (!isPushNotificationSupported()) {
@@ -280,7 +294,10 @@ export async function unsubscribeFromPushNotifications(
  * lock, and uses a settling action failure mode instead of waiting for a UI reload (#994).
  */
 export async function releasePushSubscription(accountId = getHeldAccountId()): Promise<void> {
-  if (isDesktopPush()) return releaseDesktopPush(accountId)
+  if (isDesktopPush()) {
+    const { releaseDesktopPush } = await import('@/lib/desktop-push')
+    return releaseDesktopPush(accountId)
+  }
   if (!accountId || !('serviceWorker' in navigator)) return
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(new Error('Push release timed out')), 5000)

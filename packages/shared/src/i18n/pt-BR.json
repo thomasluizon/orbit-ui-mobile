@@ -234,6 +234,16 @@
     "closeRail": "Fechar painel",
     "openPalette": "Abrir paleta de comandos",
     "composer": {
+      "queue": {
+        "label": "Mensagens na fila",
+        "add": "Adicionar à fila",
+        "full": "A fila comporta 3 mensagens. Remova uma para adicionar outra.",
+        "remove": "Remover {message} da fila",
+        "send": "Enviar {message}",
+        "paused": "Fila pausada. Envie ou remova as mensagens restantes.",
+        "stop": "Parar resposta",
+        "stopped": "Resposta interrompida."
+      },
       "collapse": "Recolher campo de mensagem",
       "expand": "Expandir campo de mensagem",
       "usage": "Mensagens hoje: {used} de {limit}",
@@ -4008,6 +4018,9 @@
     "readyTitle": "Atualização pronta",
     "readyDescription": "Uma nova versão do Orbit terminou de baixar. Reinicie para concluir a atualização.",
     "restartCta": "Reiniciar agora"
+  },
+  "desktopUpdate": {
+    "required": "Esta versão do Orbit precisa ser atualizada. No menu do app, escolha Buscar atualizações e depois Reiniciar para atualizar."
   },
   "forceUpdate": {
     "title": "Esta versão do Orbit parou de funcionar",

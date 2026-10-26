@@ -7,6 +7,9 @@ import { i18n } from '@/lib/i18n'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { getRuntimeTheme, setRuntimeTheme } from '@/lib/theme'
+import * as theme from '@/lib/theme'
+
+vi.mock('@/lib/use-app-theme', async () => await import('../../../lib/use-app-theme'))
 
 interface TestNode {
   props: { children?: unknown; accessibilityRole?: string; textBreakStrategy?: string; android_hyphenationFrequency?: string; numberOfLines?: number; onPress?: () => void; disabled?: boolean; accessibilityState?: unknown; style?: StyleProp<TextStyle> }
@@ -17,8 +20,8 @@ interface TestTree {
 }
 const { act, create }: { act: (callback: () => void | Promise<void>) => void | Promise<void>; create: (element: ReactElement) => TestTree } = require('react-test-renderer')
 let tree: TestTree
-async function mount(error: unknown, retry: () => void | Promise<void> = vi.fn()) {
-  await act(() => { tree = create(<AppErrorScreen error={error} retry={retry} />) })
+async function mount(error: unknown, retry: () => void | Promise<void> = vi.fn(), standalone = false) {
+  await act(() => { tree = create(<AppErrorScreen error={error} retry={retry} standalone={standalone} />) })
   return tree
 }
 function textContent() { return tree.root.findAllByType('Text').map((node) => node.props.children).join(' ') }
@@ -26,6 +29,31 @@ function button() { return tree.root.findByType('Pressable') }
 afterEach(async () => { await act(() => tree.unmount()); vi.useRealTimers(); vi.restoreAllMocks() })
 
 describe('AppErrorScreen', () => {
+  it.each(['en', 'pt-BR'])('renders and retries without providers when the runtime theme is broken in %s', async (locale) => {
+    await i18n.changeLanguage(locale)
+    const previousTheme = { ...getRuntimeTheme() }
+    const retry = vi.fn()
+    Object.assign(getRuntimeTheme(), { scheme: undefined, themeMode: undefined })
+    try {
+      expect(() => theme.createTokensV2()).toThrow()
+      await mount(new Error('private startup failure'), retry, true)
+      expect(textContent()).toContain((locale === 'en' ? en : pt).errorScreen.body)
+      expect(textContent()).not.toContain('private startup failure')
+      await act(() => { button().props.onPress?.() })
+      expect(retry).toHaveBeenCalledOnce()
+      expect(getRuntimeTheme().themeMode).toBeUndefined()
+    } finally { setRuntimeTheme(previousTheme) }
+  })
+
+  it('renders and retries when runtime theme state is missing', async () => {
+    vi.spyOn(theme, 'getRuntimeTheme').mockReturnValue(undefined as unknown as ReturnType<typeof getRuntimeTheme>)
+    const retry = vi.fn()
+    await mount(new Error('private startup failure'), retry, true)
+    expect(textContent()).toContain(i18n.t('errorScreen.body'))
+    await act(() => { button().props.onPress?.() })
+    expect(retry).toHaveBeenCalledOnce()
+  })
+
   it.each([412, 1024])('renders the drawn failure title size at %ipx', async (width) => {
     __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
     await mount({ status: 500 })

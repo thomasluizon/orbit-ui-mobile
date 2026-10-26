@@ -111,6 +111,18 @@ type ExpectedComposerSuggestions =
       ExpectedComposerSuggestion,
     ]
 type ExpectedComposerBase = {
+  replyControl?: { label: string; onStop: () => void }
+  queue?: {
+    label: string
+    items: readonly { id: string; content: string }[]
+    pausedReason?: string
+    canSend: boolean
+    removeLabel: (message: string) => string
+    sendLabel: (message: string) => string
+    onRemove: (id: string) => void
+    onSend: (id: string) => void
+  }
+
   collapsible?: boolean
   words: ExpectedComposerWords
   value: string

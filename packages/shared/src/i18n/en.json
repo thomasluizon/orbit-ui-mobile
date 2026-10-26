@@ -234,6 +234,16 @@
     "closeRail": "Close panel",
     "openPalette": "Open command palette",
     "composer": {
+      "queue": {
+        "label": "Queued messages",
+        "add": "Add to queue",
+        "full": "The queue holds 3 messages. Remove one to add another.",
+        "remove": "Remove {message} from queue",
+        "send": "Send {message}",
+        "paused": "Queue paused. Send or remove the remaining messages.",
+        "stop": "Stop reply",
+        "stopped": "Reply stopped."
+      },
       "collapse": "Collapse message composer",
       "expand": "Expand message composer",
       "usage": "Messages today: {used} of {limit}",
@@ -4008,6 +4018,9 @@
     "readyTitle": "Update ready",
     "readyDescription": "A new version of Orbit finished downloading. Restart to finish updating.",
     "restartCta": "Restart now"
+  },
+  "desktopUpdate": {
+    "required": "This version of Orbit needs an update. In the app menu, choose Check for updates, then Restart to update."
   },
   "forceUpdate": {
     "title": "This version of Orbit has stopped working",

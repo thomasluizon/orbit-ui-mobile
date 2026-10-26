@@ -1,5 +1,6 @@
 import { focusManager, QueryClient } from '@tanstack/react-query'
 import { configureAccountQueryDefaults, shouldRetryQuery, queryRetryDelay } from '@orbit/shared/query'
+import { getQueryGcTime } from './query-gc-time'
 
 focusManager.setEventListener((handleFocus) => {
   if (typeof window === 'undefined') return
@@ -17,7 +18,7 @@ export function createQueryClient(): QueryClient {
     defaultOptions: {
       queries: {
         staleTime: 5 * 60 * 1000,
-        gcTime: 24 * 60 * 60 * 1000,
+        gcTime: getQueryGcTime(24 * 60 * 60 * 1000),
         retry: (failureCount, error) => {
           if (typeof navigator !== 'undefined' && !navigator.onLine) return false
           return shouldRetryQuery(failureCount, error)

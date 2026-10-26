@@ -87,6 +87,8 @@ const VERDICTS = {
     "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session.",
   ".claude/skills/investigate/SKILL.md":
     "undeclared, inherits the session: root-causing a production incident across Sentry, Render, Postgres and the LSP is judgement, so this is a follow-up candidate.",
+  ".claude/skills/ios-generate/SKILL.md":
+    "undeclared, inherits the session: invokes the local staging simulator build and reports installed metadata and process liveness; it declares no model or effort override.",
   ".claude/skills/ios-release/SKILL.md":
     "undeclared, inherits the session: verifies iOS signing prerequisites, release parameters and internal TestFlight processing through the manual workflow; it declares no model or effort override.",
   ".claude/skills/lesson/SKILL.md":

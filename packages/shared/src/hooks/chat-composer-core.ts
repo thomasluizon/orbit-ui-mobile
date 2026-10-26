@@ -1,3 +1,5 @@
+import type { ChatResponse } from '../types/chat'
+import type { Profile } from '../types/profile'
 import type { QueryClient } from '@tanstack/query-core'
 import {
   apiKeyKeys,
@@ -180,4 +182,19 @@ export function selectActionInvalidations(
     goals: actions?.some((action) => CHAT_GOAL_ACTION_TYPES.has(action.type)) ?? false,
     tags,
   }
+}
+
+export async function settleChatResponse(queryClient: QueryClient, response: ChatResponse, messageCost: 0 | 1): Promise<void> {
+  if (messageCost && response.messageAllowanceConsumed !== false) queryClient.setQueryData<Profile>(profileKeys.detail(), current =>
+    current ? { ...current, aiMessagesUsed: current.aiMessagesUsed + messageCost } : current,
+  )
+  const invalidations = selectActionInvalidations(response.actions)
+  if (invalidations.habits || invalidations.tags) void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
+  if (invalidations.habits) {
+    void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+    void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+  }
+  if (invalidations.goals) void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+  if (invalidations.tags) void queryClient.invalidateQueries({ queryKey: tagKeys.lists() })
+  if (response.operations?.some(operation => operation.status === 'Succeeded')) await invalidateAgentQueries(queryClient)
 }

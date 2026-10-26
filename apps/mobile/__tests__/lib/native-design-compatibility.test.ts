@@ -97,6 +97,8 @@ function requireThemeKeys(source: string) {
   }
 }
 
+const iosOnlyPlugins = new Set(['./plugins/with-ios-widget', './plugins/with-ios-scene'])
+
 describe('native union accepts both widget callers', () => {
   it('resolves every audited native package to the shared version', () => {
     requireNativePackages(lock.packages)
@@ -127,7 +129,7 @@ describe('native union accepts both widget callers', () => {
   it('registers the audited config plugins', () => {
     const require = createRequire(import.meta.url)
     const config = require('../../app.config.js')() as { plugins: (string | [string, unknown])[] }
-    expect(config.plugins.map(plugin => Array.isArray(plugin) ? plugin[0] : plugin).filter(plugin => plugin !== './plugins/with-ios-widget')).toEqual(unionPlugins)
+    expect(config.plugins.map(plugin => Array.isArray(plugin) ? plugin[0] : plugin).filter(plugin => !iosOnlyPlugins.has(plugin))).toEqual(unionPlugins)
   })
   for (const [design, path] of callers) {
     it(`accepts every ${design} widget call with its real argument count`, () => {

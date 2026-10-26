@@ -13,7 +13,7 @@ import {
   useWindowDimensions,
 } from 'react-native'
 import { SPACING, GOOGLE_SIGN_IN_BUTTON, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN, type ButtonVariant } from '@orbit/shared/theme'
-import { createTokensV2, mixHex, radius } from '@/lib/theme'
+import { createTokensV2, mixHex, radius, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 
@@ -39,8 +39,15 @@ function buttonFocusStyle(variant: ButtonVariant, outlineColor: string): ViewSty
   }
 }
 
-/** The canonical five-variant pill action in the shared two-size geometry. */
-export function Button({
+type NativeButtonProps = Readonly<ButtonProps & { retainLeadingIcon?: boolean } & Omit<PressableProps, 'children' | 'onFocus' | 'onBlur'> & { ref?: Ref<View>; buttonRef?: Ref<View>; accessibilityRole?: 'button' | 'link'; quiet?: boolean; borderless?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>
+
+export function Button(props: NativeButtonProps) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  return <ThemedButton {...props} tokens={createTokensV2(currentScheme, currentTheme)} />
+}
+
+export function ThemedButton({
+  tokens,
   buttonRef,
   ref,
   onPress,
@@ -71,10 +78,8 @@ export function Button({
   borderless = false,
   formId: _formId,
   ...pressableProps
-}: Readonly<ButtonProps & { retainLeadingIcon?: boolean } & Omit<PressableProps, 'children' | 'onFocus' | 'onBlur'> & { ref?: Ref<View>; buttonRef?: Ref<View>; accessibilityRole?: 'button' | 'link'; quiet?: boolean; borderless?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>) {
+}: NativeButtonProps & { tokens: AppTokensV2 }) {
   const composedRef = useComposedRefs(ref, buttonRef)
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
   const size = useContext(ActionRowContext) ? 'sm' : requestedSize
   const sizeSpec = BUTTON_SIZES[size]
   const prefersReducedMotion = usePrefersReducedMotion()

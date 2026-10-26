@@ -18,6 +18,7 @@ mod settings;
 mod update_manifest;
 mod update_state;
 mod updates;
+mod web_release;
 
 fn main() {
     let context = context();
@@ -64,6 +65,10 @@ fn main() {
             menus::install(app.handle())?;
             push::start(app.handle())?;
             tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
+                .initialization_script(web_release::initialization_script(
+                    origin,
+                    &app.package_info().version.to_string(),
+                ))
                 .on_navigation(move |url| {
                     if auth::intercepts(&navigation_origin, url) {
                         desktop_login::start(handle.clone(), flow.clone());
