@@ -47,9 +47,16 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-          cache-dependency-path: evals/astra/package-lock.json
-      - name: Install the isolated eval package
-        run: npm ci --workspaces=false
+          cache-dependency-path: |
+            package-lock.json
+            evals/astra/package-lock.json
+      - name: Install shared dependencies and the eval package
+        working-directory: ${{ github.workspace }}
+        run: |
+          npm ci --workspace packages/shared --ignore-scripts
+          npm ci --prefix evals/astra --workspaces=false
+      - name: Verify the clean eval install
+        run: npm test -- __tests__/install.test.mjs
       - name: Prepare private rotating credentials
         shell: bash
         env:
