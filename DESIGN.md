@@ -89,6 +89,14 @@ Owners above are under each app's `components/` directory. Both languages and bo
 
 **Conversation copying:** message text stays selectable on web and Android. A copyable block in an Astra reply carries one copy control; every fenced or indented code block qualifies. No message carries a per-message copy control. The small control sits in its own row above the block, never over its text; this rule supersedes the per-message copy pill in `design/canvas/Orbit Astra Conversation.dc.html` (#1388).
 
+**Compact Astra answers (#1743).** Astra read blocks omit manual refresh and footer links to shell destinations.
+Account, calendar, day summary, goal list, recap and streak answers keep their useful rows,
+figures and in-place actions; Perfil, Calendário, Hoje and Progresso remain shell destinations.
+The streak figure and plural day unit replace the separate current-streak label.
+Comparison verdicts and bars replace the separate variation row; percentages are optional.
+Signed paging and useful disclosure remain named icon controls. Write previews retain edit,
+reject and one filled primary approval. Frame inset is 16px with a 12px content rhythm.
+
 **Conversation participants:** the first message in each consecutive run of Astra messages starts
 with a 24px `AstraGlyph` in `--fg-1` on its own row at the thread's 16px inset. An 8px gap
 separates the mark from the first content below it. Following messages have no mark or reserved

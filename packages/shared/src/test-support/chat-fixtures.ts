@@ -190,6 +190,20 @@ export function makePendingWriteSummaryOperation(scenario: typeof pendingWriteSu
 }
 
 export const partialScheduleSummaryCases = [
+  { name: 'change habit polarity', fields: [
+    { field: 'is_bad_habit', oldValue: 'false', newValue: 'True', proposedValue: true },
+  ], english: 'Build this habit → Reduce this habit', portuguese: 'Fortalecer este hábito → Reduzir este hábito' },
+  { name: 'change flexible tracking without a schedule', fields: [
+    { field: 'is_flexible', oldValue: 'true', newValue: 'False', proposedValue: false },
+  ], english: 'Choose any day → Keep fixed days', portuguese: 'Escolher qualquer dia → Manter dias fixos' },
+  { name: 'change general tracking without a schedule', fields: [
+    { field: 'is_general', oldValue: 'true', newValue: 'False', proposedValue: false },
+  ], english: 'Do it anytime → Follow a schedule', portuguese: 'Fazer a qualquer hora → Seguir um horário' },
+  { name: 'change cadence and habit polarity together', fields: [
+    { field: 'frequency_unit', oldValue: 'Week', newValue: 'Day', proposedValue: 'Day' },
+    { field: 'frequency_quantity', oldValue: '1', newValue: '1', proposedValue: 1 },
+    { field: 'is_bad_habit', oldValue: 'true', newValue: 'False', proposedValue: false },
+  ], english: '1 week · Reduce this habit → 1 day · Build this habit', portuguese: '1 semana · Reduzir este hábito → 1 dia · Fortalecer este hábito' },
   { name: 'retain flexible tracking', fields: [
     { field: 'frequency_unit', oldValue: 'Week', newValue: 'Week', proposedValue: 'Week' },
     { field: 'frequency_quantity', oldValue: '2', newValue: '3', proposedValue: 3 },

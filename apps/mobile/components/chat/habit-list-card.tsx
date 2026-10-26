@@ -1,5 +1,6 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { ChevronDown } from '@/components/ui/icons'
+import { habitSnapshotCheck } from '@orbit/shared/chat/day-summary-core'
 import { HabitBlockRow } from './habit-block-row'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState } from 'react'
@@ -32,6 +33,7 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
   const visibleItems = habitList.items.slice(0, shownCount)
   const rows = visibleItems.map((item) => {
     const occurrence = occurrences.data?.habitsById.get(item.id)
+    const snapshotCheck = habitSnapshotCheck(item)
     const { control, logged, unavailable } = habitListRowState(item, occurrence, Boolean(habitList.read), occurrenceDate, logHabit.isPending, readScope)
     return <HabitBlockRow key={item.id} title={item.title} emoji={item.emoji}
       label={t('chat.habitList.open', { name: item.title })}
@@ -43,7 +45,7 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
         }} style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' }}>
           {({ pressed }) => <HabitCheck status={control.status} label={t(control.statusKey)} feedback={pressed} />}
         </Pressable>
-      ) : undefined} />
+      ) : <View style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' }}><HabitCheck status={snapshotCheck.status} label={t(snapshotCheck.statusKey)} /></View>} />
   })
 
   return (

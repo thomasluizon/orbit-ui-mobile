@@ -215,7 +215,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(summarize([change('frequency_unit', 'Month', 'Month', 'Day'), change('is_general', 'true')]))
       .toBe(messages.chat.preview.summary.anytime)
     expect(summarize([change('frequency_unit', 'Month', 'Month', 'Day'), change('is_flexible', 'true')]))
-      .toBe(messages.chat.preview.summary.repeatInMonths)
+      .toBe(`${messages.chat.preview.summary.repeatInMonths} · ${messages.chat.preview.summary.anyDay}`)
   })
 
   it('localizes weekdays from the typed proposal instead of exposing the JSON display value', () => {

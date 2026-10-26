@@ -37,3 +37,12 @@ export function habitReadStatusKey(status: import('../types/chat').HabitListCard
   if (status === 'done') return isBadHabit ? 'habits.statusDot.bad' : 'chat.habitList.logged'
   return status === 'overdue' ? 'chat.habitList.overdue' : null
 }
+
+export function habitSnapshotCheck(item: Pick<import('../types/chat').HabitListCardItem, 'status' | 'isBadHabit'>): {
+  status: NonNullable<StatusRingProps['status']>; statusKey: string
+} {
+  return {
+    status: item.status === 'done' ? item.isBadHabit ? 'bad' : 'done' : item.status === 'overdue' ? 'overdue' : 'empty',
+    statusKey: habitReadStatusKey(item.status, item.isBadHabit) ?? 'chat.habitList.pending',
+  }
+}

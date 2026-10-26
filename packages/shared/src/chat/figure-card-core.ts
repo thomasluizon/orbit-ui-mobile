@@ -19,7 +19,7 @@ export function comparisonPresentation(card: PeriodComparisonCard, locale: strin
   const maximum = Math.max(card.currentValue, card.baselineValue, 1)
   return {
     verdict: translate(`chat.figure.comparison.${card.unit}.${direction}`, {
-      current, baseline, value: new Intl.NumberFormat(locale).format(card.currentValue),
+      current, baseline, count: card.currentValue, value: new Intl.NumberFormat(locale).format(card.currentValue),
       previous: new Intl.NumberFormat(locale).format(card.baselineValue),
     }),
     bars: [

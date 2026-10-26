@@ -53,8 +53,9 @@ it.each([320, 412, 1352].flatMap(width => (['en', 'pt-BR'] as const).flatMap(loc
         expect(text.clipped).toBe(false)
       }
     }
-    const details = await page.locator('[data-answer-block="pickList"] [data-slot="check-row-description"]').evaluateAll(elements => elements.map(element => ({ height: element.getBoundingClientRect().height, lineHeight: parseFloat(getComputedStyle(element).lineHeight) })))
-    for (const detail of details) expect(detail.height).toBeCloseTo(detail.lineHeight, 1)
+    const details = await page.locator('[data-answer-block="pickList"] [data-habit-block-meta]').evaluateAll(elements => elements.map(element => ({ height: element.getBoundingClientRect().height, lineHeight: parseFloat(getComputedStyle(element).lineHeight) })))
+    expect(details).toHaveLength(2)
+    for (const detail of details) { expect(detail.height).toBeGreaterThanOrEqual(detail.lineHeight); expect(detail.height / detail.lineHeight).toBeCloseTo(Math.round(detail.height / detail.lineHeight), 2) }
     const names = await page.locator('[data-answer-block="pickList"] [data-personal-text]').evaluateAll(elements => elements.map(element => ({ height: element.getBoundingClientRect().height, lineHeight: parseFloat(getComputedStyle(element).lineHeight), clamp: getComputedStyle(element).webkitLineClamp })))
     for (const name of names) { expect(name.height).toBeLessThanOrEqual(name.lineHeight * 2 + 1); expect(name.clamp).toBe('2') }
     const actions = await page.locator('[data-action-row]').evaluateAll(rows => rows.map(row => ({ end: row.getBoundingClientRect().right, buttonEnd: row.querySelector('button')!.getBoundingClientRect().right })))
@@ -68,12 +69,12 @@ it('keeps selected option foreground and completed habit foreground separate', a
   const page = await browser.newPage()
   try {
     await page.setContent(`<style>${stylesheet}</style><div class="dark" style="${Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')}">${container.innerHTML}</div>`)
-    const colors = await page.getByRole('checkbox').evaluateAll(rows => rows.map(row => getComputedStyle((row.closest('[data-slot="list-row-body"]') ?? row).querySelector('[data-slot="check-row-label"], [data-personal-text]')!).color))
-    const tokens = await page.locator('.dark').evaluate(element => { const probe = document.createElement('span'); element.append(probe); probe.style.color = 'var(--fg-2)'; const resting = getComputedStyle(probe).color; probe.style.color = 'var(--fg-3)'; const completed = getComputedStyle(probe).color; probe.remove(); return { resting, completed } })
+    const colors = await page.getByRole('checkbox').evaluateAll(rows => rows.map(row => getComputedStyle((row.closest('[data-habit-block-row], [data-slot="list-row-body"]') ?? row).querySelector('[data-slot="check-row-label"], [data-personal-text]')!).color))
+    const tokens = await page.locator('.dark').evaluate(element => { const probe = document.createElement('span'); element.append(probe); probe.style.color = 'var(--fg-3)'; const resting = getComputedStyle(probe).color; probe.style.color = 'var(--fg-3)'; const completed = getComputedStyle(probe).color; probe.remove(); return { resting, completed } })
     expect(colors).toEqual([tokens.resting, tokens.resting, tokens.completed])
     fireEvent.click(container.querySelector('[role="checkbox"]')!)
     await page.setContent(`<style>${stylesheet}</style><div class="dark" style="${Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')}">${container.innerHTML}</div>`)
-    const selected = await page.getByRole('checkbox').first().evaluate(row => getComputedStyle((row.closest('[data-slot="list-row-body"]') ?? row).querySelector('[data-slot="check-row-label"], [data-personal-text]')!).color)
+    const selected = await page.getByRole('checkbox').first().evaluate(row => getComputedStyle((row.closest('[data-habit-block-row], [data-slot="list-row-body"]') ?? row).querySelector('[data-slot="check-row-label"], [data-personal-text]')!).color)
     const foreground = await page.locator('.dark').evaluate(element => { const probe = document.createElement('span'); probe.style.color = 'var(--fg-1)'; element.append(probe); const color = getComputedStyle(probe).color; probe.remove(); return color })
     expect(selected).toBe(foreground)
   } finally { await page.close() }

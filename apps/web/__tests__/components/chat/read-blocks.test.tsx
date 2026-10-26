@@ -8,16 +8,17 @@ import pt from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { getAccountDay } from '@orbit/shared/utils'
+import { inPlaceDayFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
 import { ChatBlock } from '@/components/chat/block-registry'
 import { habitMonthFixture } from '@orbit/shared/test-support/habit-month-fixture'
 import { refreshHabitMonth, refreshReadBlock } from '@/app/actions/chat'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { chatPartSchema, habitMonthCardSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
-const state = vi.hoisted(() => ({ habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
+const state = vi.hoisted(() => ({ isError: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
 vi.mock('@/app/actions/chat', () => ({ refreshReadBlock: vi.fn(), refreshHabitMonth: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push }) }))
-vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: state.habits }, isPending: false }), useLogHabit: () => ({ mutate: state.mutate }), useHabitMetrics: () => ({}) }))
+vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: state.isError ? undefined : { habitsById: state.habits }, isError: state.isError, isPending: false }), useLogHabit: () => ({ mutate: state.mutate }), useHabitMetrics: () => ({}) }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false }) }))
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'UTC' } }) }))
@@ -29,7 +30,7 @@ const total = { type: 'block' as const, kind: 'periodTotal' as const, block: foc
 function mount(part: Parameters<typeof ChatBlock>[0]['part'] = total, locale: 'en' | 'pt-BR' = 'en') {
   return render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><ChatBlock part={part} onActionChipClick={vi.fn()} /></NextIntlClientProvider>)
 }
-beforeEach(() => { vi.mocked(refreshReadBlock).mockReset(); vi.mocked(refreshHabitMonth).mockReset(); state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
+beforeEach(() => { state.isError = false; vi.mocked(refreshReadBlock).mockReset(); vi.mocked(refreshHabitMonth).mockReset(); state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
 
 describe('focused read compositions', () => {
   it.each(['en', 'pt-BR'] as const)('renders compact totals and scaled comparison bars in %s', locale => {
@@ -135,21 +136,37 @@ it.each(['en', 'pt-BR'] as const)('renders the calendar month with done, missed,
   expect(screen.getByTestId('month-grid-days').children.length % 7).toBe(0)
   fireEvent.click(screen.getByTestId('calendar-day-select-2026-09-03'))
   expect(state.push).toHaveBeenCalledWith('/calendar?date=2026-09-03')
-  expect(screen.getByRole('button', { name: locale === 'en' ? 'Refresh' : 'Atualizar' }).textContent).toBe('')
+  expect(screen.queryByRole('button', { name: locale === 'en' ? 'Refresh' : 'Atualizar' })).not.toBeInTheDocument()
 })
 
-it('refreshes a habit month through its dedicated action and replaces the full snapshot', async () => {
+it('replaces the month snapshot when a new reply revision arrives without a refresh action', () => {
   const card = habitMonthCardSchema.parse(habitMonthFixture)
-  vi.mocked(refreshHabitMonth).mockResolvedValue({ ok: true, data: {
-    kind: 'habitMonth', block: { ...card, today: '2026-09-12', calendar: { ...card.calendar, logs: {} } },
-    read: { ...card.read!, revision: 'two', refreshToken: 'month-two' },
-  } })
-  mount({ kind: 'habitMonth', block: card })
-  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
-  await waitFor(() => expect(screen.getByTestId('calendar-day-select-2026-09-12')).toHaveAttribute('aria-current', 'date'))
+  const view = mount({ kind: 'habitMonth', block: card })
+  const next = { ...card, today: '2026-09-12', calendar: { ...card.calendar, logs: {} }, read: { ...card.read!, revision: 'two', refreshToken: 'month-two' } }
+  view.rerender(<NextIntlClientProvider locale="en" messages={en}><ChatBlock part={{ kind: 'habitMonth', block: next }} onActionChipClick={vi.fn()} /></NextIntlClientProvider>)
+  expect(screen.getByTestId('calendar-day-select-2026-09-12')).toHaveAttribute('aria-current', 'date')
   expect(screen.getByTestId('calendar-day-select-2026-09-01').querySelector('[data-outcome]')).toHaveAttribute('data-outcome', 'none')
+  expect(screen.queryByRole('button', { name: 'Refresh' })).not.toBeInTheDocument()
   expect(refreshReadBlock).not.toHaveBeenCalled()
-  expect(refreshHabitMonth).toHaveBeenCalledWith('signed-month', expect.objectContaining({ platform: 'web', partKinds: expect.arrayContaining(['habitMonth']) }), null)
-  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
-  await waitFor(() => expect(refreshHabitMonth).toHaveBeenLastCalledWith('month-two', expect.anything(), null))
+  expect(refreshHabitMonth).not.toHaveBeenCalled()
+})
+
+it.each((['habitList', 'daySummary'] as const).flatMap(kind => [true, false].flatMap(isError => ([
+  ['done', false, 'done'], ['done', true, 'bad'], ['overdue', false, 'overdue'],
+  ['overdue', true, 'overdue'], ['today', false, 'empty'], ['today', true, 'empty'],
+] as const).map(([status, isBadHabit, expected]) => ({ kind, isError, status, isBadHabit, expected })))))(
+  'keeps $kind snapshot $status with bad=$isBadHabit read-only and query error=$isError', ({ kind, isError, status, isBadHabit, expected }) => {
+    state.isError = isError
+    const items = focusedDatedHabitListFixture.items.map(item => ({ ...item, status, isBadHabit }))
+    const part = kind === 'habitList'
+      ? { kind, block: { ...focusedDatedHabitListFixture, items } }
+      : { kind, block: { ...inPlaceDayFixture, rows: items, totalRows: 1 } }
+    const view = mount(part)
+    const row = view.container.querySelector('[data-habit-block-row]')!
+    const check = row.querySelector('[data-habit-check]')!
+    expect(check).toHaveAttribute('data-status', expected)
+    expect(check.closest('button')).toBeNull()
+    expect(row.querySelector('[data-habit-block-meta]')).toBeNull()
+    expect(state.mutate).not.toHaveBeenCalled()
+    view.unmount()
 })

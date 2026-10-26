@@ -28,7 +28,7 @@ export function summarizePendingOperationItem(
   const changed = fields.filter(field => field.oldValue !== field.newValue && !['habit_id', 'title', 'emoji'].includes(field.field))
   if (['updateHabit', 'updateHabits'].includes(actionKey ?? '') && changed.length) {
     const changedSchedule = changed.some(field => ['frequency_unit', 'frequency_quantity', 'days', 'due_date', 'due_time', 'is_general', 'is_flexible'].includes(field.field))
-    const summarizedFields = changedSchedule ? fields.filter(field => !['habit_id', 'title', 'emoji'].includes(field.field)) : changed
+    const summarizedFields = changedSchedule ? fields.filter(field => !['habit_id', 'title', 'emoji'].includes(field.field) && (field.field !== 'is_bad_habit' || changed.includes(field))) : changed
     const before = summarizePendingOperationItem(summarizedFields.map(field => ({ ...field, oldValue: field.oldValue, newValue: field.oldValue ?? field.newValue, proposedValue: field.oldValue ?? field.proposedValue })), translate, formatTime, locale, 'scheduleDiff')
     const after = summarizePendingOperationItem(summarizedFields, translate, formatTime, locale, 'scheduleDiff')
     return before === after ? after : translate('chat.preview.beforeAfter', { before, after })
@@ -87,7 +87,6 @@ function createChange(field: PendingOperationChange, translate: PreviewTranslati
 }
 
 function booleanChange(field: PendingOperationChange, translate: PreviewTranslation, scheduleSummarized: boolean): string[] | undefined {
-  if (['is_bad_habit', 'is_general', 'is_flexible'].includes(field.field)) return []
   const keyPair = BOOLEAN_OUTCOMES[field.field]
   const boolean = field.newValue?.toLowerCase()
   if (!keyPair || (boolean !== 'true' && boolean !== 'false')) return undefined

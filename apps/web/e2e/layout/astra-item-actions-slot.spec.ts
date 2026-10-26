@@ -17,7 +17,7 @@ for (const width of [320, 412, 1352]) {
       : 'Ler os livros que escolhi para aprender sobre todos os lugares e pessoas ao redor do mundo antes do café da manhã'
     const preview = makeCreateHabitsPreview(2)
     preview.expiresAtUtc = '2099-01-01T00:00:00Z'
-    preview.items = preview.items!.map((item, index) => index === 0 ? { ...item, entityName: name, fields: item.fields.map(field => ({ ...field, entityName: name, newValue: name })) } : item)
+    preview.items = preview.items!.map((item, index) => index === 0 ? { ...item, entityName: name, fields: [...item.fields.map(field => ({ ...field, entityName: name, newValue: name, proposedValue: name })), { ...item.fields[0]!, entityName: name, field: 'due_time', newValue: '09:00', proposedValue: '09:00', valueType: 'time' }] } : item)
     const event = chatStreamEventSchema.parse({ type: 'final', response: { aiMessage: messages.chat.operation.approve, actions: [], pendingOperations: [preview] } })
 
     test.describe(`Astra typed item trailing action at ${width} in ${locale}`, () => {
@@ -42,13 +42,13 @@ for (const width of [320, 412, 1352]) {
           while (!row.contains(control)) row = row.parentElement!
           const labelBounds = label.getBoundingClientRect()
           const actionBounds = control.getBoundingClientRect()
-          const metaBounds = row.firstElementChild!.children[1]!.getBoundingClientRect()
+          const metaBounds = row.querySelector('[data-preview-item-meta]')!.getBoundingClientRect()
           const disclosure = [...row.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === name)!.getBoundingClientRect()
           const lineHeight = parseFloat(getComputedStyle(label).lineHeight)
           return { nameLeft: labelBounds.left, metaLeft: metaBounds.left, disclosureLeft: disclosure.left, disclosureRight: disclosure.right, rowLeft: row.getBoundingClientRect().left, direction: getComputedStyle(row).flexDirection, branches: row.children.length, firstLineTop: labelBounds.top, firstLineBottom: labelBounds.top + lineHeight, labelHeight: labelBounds.height, lineHeight, labelRight: labelBounds.right, actionLeft: actionBounds.left, actionCenter: actionBounds.top + actionBounds.height / 2, actionBottom: actionBounds.bottom, rowBottom: row.getBoundingClientRect().bottom }
         }, name)
         expect(geometry.nameLeft).toBeCloseTo(geometry.metaLeft, 1)
-        expect(geometry.nameLeft - geometry.disclosureLeft).toBeCloseTo(8, 1)
+        expect(geometry.nameLeft - geometry.disclosureLeft).toBeCloseTo(64, 1)
         expect(geometry.disclosureLeft).toBeGreaterThanOrEqual(geometry.rowLeft + 2)
         expect(geometry.disclosureRight + 2).toBeLessThanOrEqual(geometry.actionLeft)
         expect(geometry.direction).toBe('row')

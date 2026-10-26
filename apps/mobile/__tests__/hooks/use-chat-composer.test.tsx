@@ -484,8 +484,8 @@ describe('mobile useChatComposer', () => {
     const tree = await renderConversationHarness()
     await TestRenderer.act(async () => { useUIStore.getState().setAstraConversationOpen(true); await Promise.resolve() })
     const radios = () => visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
-    const { Button: AnswerButton } = await import('@/components/ui/pill-button')
-    const submit = () => tree.root.findAllByType(AnswerButton).find((node: { props: { children?: string } }) => node.props.children === 'chat.choice.submit')!
+    const { IconButton: AnswerButton } = await import('@/components/ui/icon-button')
+    const submit = () => tree.root.findAllByType(AnswerButton).find((node: { props: { label?: string } }) => node.props.label === 'chat.choice.submit')!
     await TestRenderer.act(async () => { radios()[2]!.props.onPress(); await Promise.resolve() })
     await TestRenderer.act(async () => { await submit().props.onClick() })
     expect(submit().props.disabled).toBe(true)
@@ -1355,8 +1355,8 @@ describe('mobile useChatComposer', () => {
     let thread!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { thread = TestRenderer.create(<Harness />); mountedTrees.push(thread) })
     const radios = () => thread.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
-    const { Button: AnswerButton } = await import('@/components/ui/pill-button')
-    const submit = () => thread.root.findAllByType(AnswerButton).find((node: { props: { children?: string } }) => node.props.children === 'chat.choice.submit')!.props.onClick()
+    const { IconButton: AnswerButton } = await import('@/components/ui/icon-button')
+    const submit = () => thread.root.findAllByType(AnswerButton).find((node: { props: { label?: string } }) => node.props.label === 'chat.choice.submit')!.props.onClick()
     await TestRenderer.act(() => {
       radios()[2]!.props.onPress()
       thread.root.findAllByType('TextInput').find((node: { props: { maxLength?: number } }) => node.props.maxLength === 500)!.props.onChangeText('After work')

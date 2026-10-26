@@ -3,7 +3,7 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { ChevronDown } from '@/components/ui/icons'
 import { useRef, useState, type ReactNode } from 'react'
-import { daySummaryLogControl } from '@orbit/shared/chat/day-summary-core'
+import { daySummaryLogControl, habitSnapshotCheck } from '@orbit/shared/chat/day-summary-core'
 import { liveBlockState } from '@orbit/shared/chat/live-block-state'
 import type { DaySummaryCard as DaySummaryCardData } from '@orbit/shared/types/chat'
 import { getAccountDay } from '@orbit/shared/utils'
@@ -59,9 +59,10 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
     const occurrence = occurrences.data?.habitsById.get(item.id)
     const title = item.title
     const control = daySummaryLogControl(occurrence, item.status === 'overdue', readScope ? { ...readScope, date: daySummary.date, today: getAccountDay(new Date(), readScope.timeZone) } : undefined)
+    const check = occurrence ? control : habitSnapshotCheck(item)
     const actionLabel = control.undoUnavailable ? `${title}: ${t(control.statusKey)}` : t(control.actionKey, { name: title })
     return <HabitBlockRow key={item.id} title={title} emoji={item.emoji} label={t('chat.habitList.open', { name: title })}
-      onOpen={() => navigate(`/habits/${item.id}?date=${daySummary.date}`)} control={occurrence && !unavailable ? <DaySummaryControl readOnly={control.undoUnavailable || !control.writeAllowed} disabled={pendingId !== null || unavailable} label={actionLabel} onToggle={() => toggle(item.id)}><HabitCheck status={control.status} label={t(control.statusKey)} /></DaySummaryControl> : undefined} />
+      onOpen={() => navigate(`/habits/${item.id}?date=${daySummary.date}`)} control={<DaySummaryControl readOnly={!occurrence || unavailable || control.undoUnavailable || !control.writeAllowed} disabled={pendingId !== null || unavailable} label={actionLabel} onToggle={() => toggle(item.id)}><HabitCheck status={check.status} label={t(check.statusKey)} /></DaySummaryControl>} />
   })
   return <div className="w-full">
     <BlockFrame {...frameState} title={t(daySummary.read ? 'chat.readBlock.dayTitle' : 'chat.daySummary.title')} count={null} items={[

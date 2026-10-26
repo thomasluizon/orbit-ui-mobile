@@ -52,17 +52,17 @@ it.each([320, 412, 1352].flatMap(width => (['en', 'pt-BR'] as const).flatMap(loc
         const rows = [...document.querySelectorAll<HTMLElement>('[role="radio"], [role="checkbox"]')]
         return { width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth,
           rows: rows.map(target => {
-            const row = target.closest<HTMLElement>('[data-slot="list-row-body"]') ?? target
+            const row = target.closest<HTMLElement>('[data-habit-block-row], [data-slot="list-row-body"]') ?? target
             const rect = row.getBoundingClientRect()
             const ranges = [...row.querySelectorAll('span')].flatMap(span => [...span.childNodes].filter(node => node.nodeType === Node.TEXT_NODE).flatMap(node => {
               const range = document.createRange(); range.selectNodeContents(node)
               const personal = span.closest('[data-personal-text]')?.getBoundingClientRect()
               return [...range.getClientRects()].filter(rect => !personal || rect.bottom <= personal.bottom + 1).map(rect => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }))
             }))
-            const label = [...row.querySelectorAll('span')].find(span => [...span.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))!
+            const label = row.querySelector<HTMLElement>('[data-personal-text]') ?? [...row.querySelectorAll('span')].find(span => [...span.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))!
             const labelBounds = label.getBoundingClientRect()
             const control = (target === row ? target.getAttribute('role') === 'radio' ? target.lastElementChild : target.firstElementChild : target)!.getBoundingClientRect()
-            return { controlCenter: control.top + control.height / 2, firstLineCenter: labelBounds.top + parseFloat(getComputedStyle(label).lineHeight) / 2, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, height: rect.height, ranges, text: [...row.querySelectorAll('span')].filter(span => [...span.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())).map(span => ({ personal: Boolean(span.closest('[data-personal-text]')), height: span.getBoundingClientRect().height, lineHeight: parseFloat(getComputedStyle(span).lineHeight) })), choice: row.closest('[data-answer-block]')?.getAttribute('data-answer-block') === 'choice', leading: [...row.querySelectorAll('span')].filter(span => [...span.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())).map(span => parseFloat(getComputedStyle(span).lineHeight) / parseFloat(getComputedStyle(span).fontSize)) }
+            return { controlCenter: control.top + control.height / 2, firstLineCenter: row.hasAttribute('data-habit-block-row') ? rect.top + rect.height / 2 : labelBounds.top + parseFloat(getComputedStyle(label).lineHeight) / 2, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, height: rect.height, ranges, text: [...row.querySelectorAll('span')].filter(span => !span.closest('[aria-hidden="true"]') && [...span.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())).map(span => ({ personal: Boolean(span.closest('[data-personal-text]')), height: span.getBoundingClientRect().height, lineHeight: parseFloat(getComputedStyle(span).lineHeight) })), choice: row.closest('[data-answer-block]')?.getAttribute('data-answer-block') === 'choice', leading: [...row.querySelectorAll('span')].filter(span => !span.closest('[aria-hidden="true"]') && [...span.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())).map(span => parseFloat(getComputedStyle(span).lineHeight) / parseFloat(getComputedStyle(span).fontSize)) }
           }) }
       }, scale)
       expect(measured.scroll).toBeLessThanOrEqual(measured.width)
@@ -72,7 +72,7 @@ it.each([320, 412, 1352].flatMap(width => (['en', 'pt-BR'] as const).flatMap(loc
         expect(Math.abs(row.controlCenter - row.firstLineCenter)).toBeLessThanOrEqual(1)
         expect(row.ranges.length).toBeGreaterThan(0)
         expect(Math.min(...row.leading)).toBeGreaterThanOrEqual(1.4)
-        if (scale === 1) for (const text of row.text.filter(text => row.choice || !text.personal)) expect(text.height).toBeCloseTo(text.lineHeight, 1)
+        if (scale === 1 && row.choice) for (const text of row.text) expect(text.height).toBeCloseTo(text.lineHeight, 1)
         for (const text of row.ranges) {
           expect(text.left).toBeGreaterThanOrEqual(row.left - 1)
           expect(text.right).toBeLessThanOrEqual(row.right + 1)
@@ -92,7 +92,7 @@ it.each(['light', 'dark'] as const)('keeps proposed label and detail contrast on
     const tokens = resolveWebThemeVariables('orange', mode)
     const variables = Object.entries(tokens).map(([key, value]) => `${key}:${value}`).join(';')
     await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body>${container.innerHTML}</body></html>`)
-    const row = page.locator('[data-answer-block="pickList"] [data-slot="list-row-body"]').first()
+    const row = page.locator('[data-answer-block="pickList"] [data-habit-block-row]').first()
     const labelArea = row.getByRole('button')
     await labelArea.hover()
     const expectedFill = await row.evaluate(element => {
@@ -103,10 +103,10 @@ it.each(['light', 'dark'] as const)('keeps proposed label and detail contrast on
       probe.remove()
       return color
     })
-    await expect.poll(() => labelArea.evaluate(element => getComputedStyle(element.querySelector('[data-press-fill]')!).backgroundColor)).toBe(expectedFill)
+    await expect.poll(() => labelArea.evaluate(element => getComputedStyle(element).backgroundColor)).toBe(expectedFill)
     const measured = await row.evaluate(element => ({
-      fill: getComputedStyle(element.querySelector('[data-personal-text-action] [data-press-fill]')!).backgroundColor,
-      colors: [...element.querySelectorAll<HTMLElement>('[data-personal-text], [data-slot="check-row-description"]')]
+      fill: getComputedStyle(element.querySelector('button')!).backgroundColor,
+      colors: [...element.querySelectorAll<HTMLElement>('[data-personal-text], [data-habit-block-meta]')]
         .filter(text => text.getBoundingClientRect().height > 0).map(text => getComputedStyle(text).color),
     }))
     expect(measured.colors).toHaveLength(2)

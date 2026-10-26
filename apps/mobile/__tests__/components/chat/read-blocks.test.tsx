@@ -6,6 +6,7 @@ import { focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryF
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { getAccountDay } from '@orbit/shared/utils'
+import { inPlaceDayFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
 import { ChatBlock } from '@/components/chat/block-registry'
 import { habitMonthFixture } from '@orbit/shared/test-support/habit-month-fixture'
 import { apiClient } from '@/lib/api-client'
@@ -13,11 +14,11 @@ import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { API } from '@orbit/shared/api'
 import { chatPartSchema, habitMonthCardSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
-const state = vi.hoisted(() => ({ locale: 'en', habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
+const state = vi.hoisted(() => ({ isError: false, locale: 'en', habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
 vi.mock('react-i18next', async importOriginal => ({ ...await importOriginal<typeof import('react-i18next')>(), useTranslation: () => ({ i18n: { language: state.locale }, t: (key: string) => key }) }))
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: state.push }) }))
-vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: state.habits }, isPending: false }), useLogHabit: () => ({ mutate: state.mutate }), useHabitMetrics: () => ({}) }))
+vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: state.isError ? undefined : { habitsById: state.habits }, isError: state.isError, isPending: false }), useLogHabit: () => ({ mutate: state.mutate }), useHabitMetrics: () => ({}) }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false }) }))
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'UTC' } }) }))
@@ -35,7 +36,7 @@ async function press(tree: GeometryTree, label: string) {
   const button = tree.root.findAll(node => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0]!
   await act(() => { (button.props.onPress as () => void)() })
 }
-beforeEach(() => { vi.mocked(apiClient).mockReset(); state.locale = 'en'; state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
+beforeEach(() => { state.isError = false; vi.mocked(apiClient).mockReset(); state.locale = 'en'; state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
 
 describe('focused Android read compositions', () => {
   it.each(['en', 'pt-BR'])('keeps figures, dates and zero baseline honest in %s', async locale => {
@@ -154,18 +155,36 @@ it.each(['en', 'pt-BR'])('renders the shared month grid and exact day navigation
   await act(() => tree.unmount())
 })
 
-it('refreshes the month through its dedicated route without sending a page parameter', async () => {
+it('replaces the month snapshot when a new reply revision arrives without a refresh action', async () => {
   const card = habitMonthCardSchema.parse(habitMonthFixture)
-  const refreshed = { kind: 'habitMonth', block: { ...card, today: '2026-09-12' }, read: { ...card.read!, revision: 'two', refreshToken: 'month-two' } }
-  vi.mocked(apiClient).mockResolvedValue(refreshed)
   const tree = await mount({ kind: 'habitMonth', block: card })
-  await press(tree, 'blockFrame.refresh')
-  expect(apiClient).toHaveBeenCalledWith(API.chat.refreshHabitMonth, expect.objectContaining({ method: 'POST',
-    body: expect.stringContaining('signed-month'),
-  }), expect.anything())
-  expect(JSON.parse(vi.mocked(apiClient).mock.calls[0]![1]!.body as string)).toMatchObject({ token: 'signed-month', clientContext: { platform: 'mobile', partKinds: expect.arrayContaining(['habitMonth']) } })
-  expect(JSON.parse(vi.mocked(apiClient).mock.calls[0]![1]!.body as string)).not.toHaveProperty('page')
-  await press(tree, 'blockFrame.refresh')
-  expect(JSON.parse(vi.mocked(apiClient).mock.calls[1]![1]!.body as string).token).toBe('month-two')
+  const next = { ...card, today: '2026-09-12', calendar: { ...card.calendar, logs: {} }, read: { ...card.read!, revision: 'two', refreshToken: 'month-two' } }
+  await act(() => tree.update(<ChatBlock part={{ kind: 'habitMonth', block: next }} onActionChipClick={vi.fn()} />))
+  const today = tree.root.findAll(node => String(node.type) === 'View' && node.props.testID === 'calendar-day-slot-2026-09-12')[0]!
+  expect(today.findAll(node => String(node.type) === 'View' && node.props.testID === 'day-today-ring')).toHaveLength(1)
+  const first = tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.testID === 'calendar-day-select-2026-09-01')[0]!
+  expect(first.findAll(node => String(node.type) === 'View' && node.props.testID === 'day-cell-none')).toHaveLength(1)
+  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'blockFrame.refresh')).toHaveLength(0)
+  expect(apiClient).not.toHaveBeenCalled()
   await act(() => tree.unmount())
+})
+
+it.each((['habitList', 'daySummary'] as const).flatMap(kind => [true, false].flatMap(isError => ([
+  ['done', false, 'done'], ['done', true, 'bad'], ['overdue', false, 'overdue'],
+  ['overdue', true, 'overdue'], ['today', false, 'empty'], ['today', true, 'empty'],
+] as const).map(([status, isBadHabit, expected]) => ({ kind, isError, status, isBadHabit, expected })))))(
+  'keeps $kind snapshot $status with bad=$isBadHabit read-only and query error=$isError', async ({ kind, isError, status, isBadHabit, expected }) => {
+    state.isError = isError
+    const items = focusedDatedHabitListFixture.items.map(item => ({ ...item, status, isBadHabit }))
+    const part = kind === 'habitList'
+      ? { kind, block: { ...focusedDatedHabitListFixture, items } }
+      : { kind, block: { ...inPlaceDayFixture, rows: items, totalRows: 1 } }
+    const tree = await mount(part)
+    const row = tree.root.findAll(node => node.props.testID === 'habit-block-row')[0]!
+    const check = row.findAll(node => node.props.testID === 'habit-check')[0]!
+    expect(check.props.accessibilityLabel).toBe(status === 'done' ? isBadHabit ? 'habits.statusDot.bad' : 'chat.habitList.logged' : status === 'overdue' ? 'chat.habitList.overdue' : 'chat.habitList.pending')
+    expect(row.findAll(node => node.props.accessibilityRole === 'button' && typeof node.props.onPress === 'function').every(node => node.props.accessibilityLabel === 'chat.habitList.open')).toBe(true)
+    expect(renderedText(tree.toJSON())).not.toContain('Done')
+    expect(state.mutate).not.toHaveBeenCalled()
+    await act(() => tree.unmount())
 })
