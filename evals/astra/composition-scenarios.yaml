@@ -2379,6 +2379,10 @@
     composition:
       mode: refine
     refine:
+      preserve:
+        - title
+        - type
+        - checklistItems
       expected:
         days:
           - Monday
@@ -2506,6 +2510,10 @@
     composition:
       mode: refine
     refine:
+      preserve:
+        - title
+        - type
+        - checklistItems
       expected:
         days:
           - Monday

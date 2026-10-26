@@ -72,8 +72,14 @@ export function refineResult(output, vars) {
   if (!vars.baselineDrafts.every((draft, index) => isDeepStrictEqual(output.drafts[index], draft.id === original.id ? revised : draft))) {
     return result(false, 'Refine changed another draft or the draft order.')
   }
+  for (const field of vars.refine.preserve ?? []) {
+    if (!isDeepStrictEqual(revised[field], original[field])) return result(false, `Refine changed the unrequested ${field}.`)
+  }
   for (const [field, value] of Object.entries(vars.refine.expected ?? {})) {
-    if (!isDeepStrictEqual(revised[field], value)) return result(false, `Refine did not apply the requested ${field}.`)
+    const matches = field === 'days'
+      ? revised.days.length === value.length && value.every((day) => revised.days.includes(day))
+      : isDeepStrictEqual(revised[field], value)
+    if (!matches) return result(false, `Refine did not apply the requested ${field}.`)
   }
   return result(true, 'Verified one rewritten draft and unchanged siblings.')
 }

@@ -209,7 +209,10 @@ Refine cases first verify a real suggestion setup turn with the tool and composi
 send one of those drafts, the instruction and language as JSON to
 `POST /api/chat/habit-suggestions/refine`. This endpoint returns one draft rather than a chat
 response or eval trace. Its assertions validate that draft's shape, original identity and requested
-schedule, then verify that replacing it preserves every sibling and its order. They do not invent
+schedule, treating selected weekdays as a set while rejecting duplicates. Schedule-only cases also
+require the selected title, habit type and checklist to stay unchanged. The semantic grader receives
+the original selected draft and instruction to check meaning beyond those deterministic constraints.
+Replacing the selected draft must preserve every sibling and its order. The assertions do not invent
 tool evidence for the refine request. Each attempt consumes two message allowances, so reserve six
 messages per refine case's three attempts. Harness tests exercise this flow offline; never treat
 their passing result as evidence from a live model run.

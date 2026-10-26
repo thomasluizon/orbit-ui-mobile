@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
+import { assertions as promptfooAssertions } from 'promptfoo'
 import { composition, behavior, structural } from '../assertions.mjs'
 import { validDraft, suggestionAnswer } from '../suggestions.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
@@ -113,8 +114,54 @@ it.each(['en', 'pt-BR'])('drives verified chat setup and one real HTTP refine re
   expect(response.error).toBeUndefined()
   expect(response.output.drafts[1]).toEqual(baseline[1])
   for (const assertion of [structural, behavior, composition]) expect((await assertion(response.output, { vars: test.vars })).pass).toBe(true)
+  const grader = { id: () => 'offline-refine-grader', callApi: vi.fn(async () => ({
+    output: JSON.stringify({ pass: true, score: 1, reason: 'Captured baseline context.' }),
+  })) }
+  const grade = await promptfooAssertions.runAssertion({
+    prompt: test.vars.input, assertion: configuration.defaultTest.assert.find((assertion) => assertion.type === 'llm-rubric'),
+    test: { ...test, options: { provider: grader } }, vars: test.vars, providerResponse: { output: response.output },
+  })
+  expect(grade.pass).toBe(true)
+  const gradingPrompt = grader.callApi.mock.calls[0][0]
+  expect(gradingPrompt).toContain('Original selected draft:')
+  expect(gradingPrompt).toContain(JSON.stringify(baseline[0]).replaceAll('"', '\\"'))
+  expect(gradingPrompt).toContain(test.vars.input)
   response.output.drafts[1].title = 'Unrequested change'
   expect(composition(response.output, { vars: test.vars }).pass).toBe(false)
+})
+it.each(['en', 'pt-BR'])('preserves the selected draft in %s', async (locale) => {
+  const test = scenario('suggestions-refine', locale)
+  const baseline = suggestionResponse('request', locale).parts[1].block.drafts
+  test.vars.refineDraft = structuredClone(baseline[0])
+  test.vars.baselineDrafts = structuredClone(baseline)
+  const revised = { ...baseline[0], ...test.vars.refine.expected, dueEndTime: '22:40:00' }
+  const check = async (draft, siblings = [baseline[1]]) => {
+    const response = { httpStatus: 200, refinedDraft: draft, drafts: [draft, ...siblings] }
+    return Promise.all([structural, behavior, composition].map(async (assertion) => (await assertion(response, { vars: test.vars })).pass))
+  }
+  expect(await check(revised)).toEqual([true, true, true])
+  for (const fields of [
+    { title: locale === 'en' ? 'Cycle outdoors' : 'Pedalar ao ar livre' },
+    { checklistItems: [locale === 'en' ? 'Cycle around the block' : 'Dar uma volta de bicicleta'] },
+    { type: 'Task', days: [], frequencyUnit: null, frequencyQuantity: null },
+  ]) expect(await check({ ...revised, ...fields })).toEqual([false, false, false])
+  expect(await check(revised, [{ ...baseline[1], title: 'Unrequested change' }])).toEqual([false, false, false])
+  const response = { httpStatus: 200, refinedDraft: revised, drafts: [baseline[1], revised] }
+  expect(composition(response, { vars: test.vars }).pass).toBe(false)
+})
+it.each(['en', 'pt-BR'])('compares selected weekdays as a set in %s', async (locale) => {
+  const test = scenario('suggestions-refine', locale)
+  test.vars.refineDraft = suggestionDraft()
+  test.vars.baselineDrafts = [suggestionDraft()]
+  const revised = suggestionDraft({ ...test.vars.refine.expected, dueEndTime: '22:40:00' })
+  for (const [days, pass] of [
+    [[...revised.days].reverse(), true], [revised.days.slice(1), false],
+    [[...revised.days, 'Saturday'], false], [[...revised.days, 'Monday'], false],
+  ]) {
+    const draft = { ...revised, days }
+    const response = { httpStatus: 200, refinedDraft: draft, drafts: [draft] }
+    for (const assertion of [structural, behavior, composition]) expect((await assertion(response, { vars: test.vars })).pass).toBe(pass)
+  }
 })
 it.each([{}, [], { draft: suggestionDraft() }, suggestionDraft(), suggestionDraft({ id: '22222222-2222-4222-8222-222222222222' })])(
   'fails malformed, unchanged or mismatched refine responses %#', async (refinedDraft) => {
