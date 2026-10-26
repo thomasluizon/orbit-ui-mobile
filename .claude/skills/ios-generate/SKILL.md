@@ -21,7 +21,8 @@ requires Xcode with Device Hub, completed first-launch setup, CocoaPods on PATH,
 runtime with an iPhone simulator, and dependencies installed through `npm ci`.
 
 Each run regenerates `apps/mobile/ios` with Expo prebuild, then compiles Release for the simulator
-without signing. It pins `ORBIT_APP_VARIANT=staging` and
+with local ad hoc signing. This retains the app and widget Keychain entitlements without an Apple
+account, signing certificate or provisioning profile. It pins `ORBIT_APP_VARIANT=staging` and
 `EXPO_PUBLIC_API_BASE=https://api-staging.useorbit.org`, disables Sentry upload, installs
 `org.useorbit.app.staging` and launches it. JavaScript is bundled; no development server is needed.
 

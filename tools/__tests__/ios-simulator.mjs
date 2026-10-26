@@ -74,10 +74,13 @@ export function cases() {
     call.environment.SENTRY_DISABLE_AUTO_UPLOAD === "true" && call.environment.CI === "1"))
   const prebuild = successful.calls.find((call) => call.args.includes("prebuild"))
   const build = successful.calls.find((call) => call.args.includes("-workspace"))
-  T("ios-simulator: regenerates iOS and builds unsigned Release with checkout-local DerivedData",
+  T("ios-simulator: regenerates iOS and builds Release with checkout-local DerivedData",
     prebuild?.args.slice(-3).join(" ") === "prebuild --platform ios" && build?.args.includes("Release") &&
-    build.args.includes("iphonesimulator") && build.args.includes("CODE_SIGNING_ALLOWED=NO") &&
+    build.args.includes("iphonesimulator") &&
     build.args.includes(join(successful.checkout, "apps", "mobile", ".artifacts", "ios-simulator", "DerivedData")))
+  T("ios-simulator: retains Keychain entitlements through local ad hoc signing without an Apple account",
+    build?.args.includes("CODE_SIGNING_ALLOWED=YES") && build.args.includes("CODE_SIGN_IDENTITY=-") &&
+    !build.args.includes("CODE_SIGNING_REQUIRED=NO"))
   T("ios-simulator: uses the selected destination's architecture without a conflicting arch flag",
     build?.args.includes(`platform=iOS Simulator,id=${secondIdentifier}`) && build.args.includes("ONLY_ACTIVE_ARCH=YES") && !build.args.includes("-arch"))
   const phases = successful.calls.map((call) => call.args.join(" ")).join("\n")

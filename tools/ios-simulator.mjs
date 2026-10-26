@@ -9,7 +9,8 @@ import { setTimeout } from "node:timers/promises"
 const USAGE = `usage: node tools/ios-simulator.mjs [--device <udid>]
 
   Prebuild, compile, install and open Orbit Staging on an installed iPhone simulator.
-  Uses a Release build with bundled JavaScript and no signing or development server.
+  Uses a Release build with bundled JavaScript and local ad hoc signing, without a development server.
+  Retains Keychain entitlements without an Apple account or provisioning profile.
   Prefers a booted iPhone, otherwise the first available iPhone from simctl.
 
   --device <udid>  select an available iPhone by its simulator identifier
@@ -89,7 +90,7 @@ function build(device) {
       "-configuration", "Release", "-sdk", "iphonesimulator",
       "-destination", `platform=iOS Simulator,id=${device.udid}`, "-jobs", "2",
       "-derivedDataPath", join(artifacts, "DerivedData"), "ONLY_ACTIVE_ARCH=YES",
-      "CODE_SIGNING_ALLOWED=NO", "CODE_SIGNING_REQUIRED=NO", "build",
+      "CODE_SIGNING_ALLOWED=YES", "CODE_SIGN_IDENTITY=-", "build",
     ]],
   ]) {
     const logPath = join(artifacts, `${name}.log`)
