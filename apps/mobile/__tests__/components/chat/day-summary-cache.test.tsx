@@ -43,7 +43,7 @@ it('retains the nothing-due state without a completion ring', async () => {
   await act(() => { tree = create(<QueryClientProvider client={client}><DaySummaryCard daySummary={{ ...inPlaceDayFixture, due: 0, done: 0, completionRate: null, rows: [], totalRows: 0 }} /></QueryClientProvider>) as GeometryTree })
   expect(tree.root.findAll(node => node.props.children === 'chat.daySummary.nothingDue').length).toBeGreaterThan(0)
   expect(tree.root.findAll(node => node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
-  expect(tree.root.findAll(node => node.props.children === 'chat.daySummary.open' && typeof node.props.onClick === 'function').length).toBeGreaterThan(0)
+  expect(tree.root.findAll(node => node.props.children === 'chat.daySummary.open' && typeof node.props.onClick === 'function')).toHaveLength(0)
   await act(() => tree.unmount())
   client.clear()
 })

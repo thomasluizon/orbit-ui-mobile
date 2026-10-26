@@ -37,7 +37,7 @@ it('retains the nothing-due state without a completion ring', () => {
   const view = render(<QueryClientProvider client={client}><DaySummaryCard daySummary={{ ...inPlaceDayFixture, due: 0, done: 0, completionRate: null, rows: [], totalRows: 0 }} /></QueryClientProvider>)
   expect(screen.getByText('chat.daySummary.nothingDue')).toBeInTheDocument()
   expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'chat.daySummary.open' })).toBeEnabled()
+  expect(screen.queryByRole('button', { name: 'chat.daySummary.open' })).not.toBeInTheDocument()
   view.unmount()
   client.clear()
 })

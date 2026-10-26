@@ -48,17 +48,24 @@ describe('Astra list cards on web', () => {
     }
   })
 
+  it('uses the habit letter fallback and keeps completion status out of the meta line', () => {
+    render(<HabitListCard habitList={{ ...habits, read: { queryId: 'query', queryFamily: 'habits', scope: {}, revision: '1', completeness: 'complete', refreshToken: 'token' }, items: [{ ...habits.items[0]!, emoji: null, status: 'done' }] }} />)
+    expect(screen.getByText('W')).toBeInTheDocument()
+    expect(screen.queryByText('chat.habitList.logged')).not.toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'chat.habitList.pending' })).toHaveAttribute('data-status', 'empty')
+  })
+
   it('logs from authoritative occurrence state, opens the habit, and pages the count', () => {
     render(<HabitListCard habitList={habits} />)
 
-    expect(screen.getByText('chat.habitList.count:{"shown":3,"total":4}')).toBeInTheDocument()
+    expect(screen.getByText('chat.habitList.count:{"shown":4,"total":4}')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /chat\.habitList\.open.*Water/ }))
     expect(mocks.push).toHaveBeenCalledWith('/habits/habit-1')
 
     fireEvent.click(screen.getByRole('button', { name: /chat\.habitList\.log.*Water/ }))
     expect(mocks.mutate).toHaveBeenNthCalledWith(1, { habitId: 'habit-1', date: expect.any(String), intent: 'log' })
 
-    fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.more' }))
+    expect(screen.queryByRole('button', { name: 'chat.habitList.more' })).not.toBeInTheDocument()
     expect(screen.getByText('chat.habitList.count:{"shown":4,"total":4}')).toBeInTheDocument()
   })
 
@@ -66,7 +73,7 @@ describe('Astra list cards on web', () => {
     mocks.occurrencesById.set('habit-1', { isCompleted: false, isLoggedInRange: true })
     render(<HabitListCard habitList={habits} />)
 
-    expect(screen.getByText('chat.habitList.logged')).toHaveAttribute('data-ring-status', 'done')
+    expect(screen.getByRole('img', { name: 'chat.habitList.logged' })).toHaveAttribute('data-status', 'done')
     fireEvent.click(screen.getByRole('button', { name: /chat\.habitList\.unlog.*Water/ }))
     expect(mocks.mutate).toHaveBeenCalledWith({ habitId: 'habit-1', date: expect.any(String), intent: 'unlog' })
   })
@@ -94,8 +101,7 @@ describe('Astra list cards on web', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Run 10 km' }))
     expect(onOpenGoal).toHaveBeenCalledWith('goal-1')
-    fireEvent.click(screen.getByRole('button', { name: 'chat.goalList.progressLink' }))
-    expect(mocks.push).toHaveBeenCalledWith('/progress/goals')
+    expect(screen.queryByRole('button', { name: 'chat.goalList.progressLink' })).not.toBeInTheDocument()
   })
 
   it('shows API goal tracking and a localized projection without changing older rows', () => {

@@ -1,7 +1,7 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { ChevronDown } from '@/components/ui/icons'
-import { PersonalText } from '@/components/ui/personal-text'
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { HabitBlockRow } from './habit-block-row'
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { useChatNavigation } from '@/hooks/use-chat-navigation'
@@ -10,13 +10,13 @@ import type { HabitListCard as HabitListCardData } from '@orbit/shared/types/cha
 import { habitListOccurrenceFilters, habitListReadControl, habitListRowState } from '@orbit/shared/chat/habit-list-core'
 import { formatAPIDate } from '@orbit/shared/utils'
 import { BlockFrame, useReadActionScope } from './read-block-frame'
-import { StatusRing } from '@/components/ui/status-ring'
+import { HabitCheck } from '@/components/habits/habit-check'
 
 import { useHabits, useLogHabit } from '@/hooks/use-habits'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-const PAGE_SIZE = 3
+const PAGE_SIZE = 20
 
 export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCardData }>) {
   const { t } = useTranslation()
@@ -32,32 +32,25 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
   const visibleItems = habitList.items.slice(0, shownCount)
   const rows = visibleItems.map((item) => {
     const occurrence = occurrences.data?.habitsById.get(item.id)
-    const { control, logged, unavailable, snapshotStatusKey } = habitListRowState(item, occurrence, Boolean(habitList.read), occurrenceDate, logHabit.isPending, readScope)
-    return {
-      id: item.id,
-      label: (
-        <Pressable accessibilityRole="button" accessibilityLabel={t('chat.habitList.open', { name: item.title })} onPress={() => navigate({ pathname: '/habits/[id]', params: { id: item.id, ...(habitList.date ? { date: habitList.date } : {}) } })} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: 0, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>
-          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 32, height: 32, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: tokens.bgWell }}><Text>{item.emoji ?? '•'}</Text></View>
-          <View style={{ flex: 1, minWidth: 0 }}><PersonalText style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19.6 }}>{item.title}</PersonalText></View>
-        </Pressable>
-      ),
-      meta: snapshotStatusKey ? t(snapshotStatusKey) : undefined,
-      control: occurrence ? (
+    const { control, logged, unavailable } = habitListRowState(item, occurrence, Boolean(habitList.read), occurrenceDate, logHabit.isPending, readScope)
+    return <HabitBlockRow key={item.id} title={item.title} emoji={item.emoji}
+      label={t('chat.habitList.open', { name: item.title })}
+      onOpen={() => navigate({ pathname: '/habits/[id]', params: { id: item.id, ...(habitList.date ? { date: habitList.date } : {}) } })}
+      control={occurrence ? (
         <Pressable disabled={unavailable} accessibilityRole="button" accessibilityLabel={t(logged ? 'chat.habitList.unlog' : 'chat.habitList.log', { name: item.title })} onPress={() => {
           if (unavailable || !habitListReadControl(occurrence, item.status, occurrenceDate, readScope).writeAllowed) return
           logHabit.mutate({ habitId: item.id, date: occurrenceDate, intent: logged ? 'unlog' : 'log' })
         }} style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' }}>
-          <StatusRing status={control.status} size={24} label={t(control.statusKey)} />
+          <HabitCheck status={control.status} label={t(control.statusKey)} />
         </Pressable>
-      ) : undefined,
-    }
+      ) : undefined} />
   })
 
   return (
     <View style={{ width: '100%' }}>
-      <BlockFrame state="resting" title={t(habitList.read ? 'nav.habits' : habitList.scope === 'all' ? 'chat.habitList.allTitle' : 'chat.habitList.title')} count={habitList.items.length === 0 ? null : t('chat.habitList.count', { shown: visibleItems.length, total: habitList.totalCount ?? habitList.items.length })} items={rows} body={habitList.items.length === 0 ? (
+      <BlockFrame state="resting" title={t(habitList.read ? 'nav.habits' : habitList.scope === 'all' ? 'chat.habitList.allTitle' : 'chat.habitList.title')} count={habitList.items.length === 0 ? null : t('chat.habitList.count', { shown: visibleItems.length, total: habitList.totalCount ?? habitList.items.length })} items={[]} body={habitList.items.length === 0 ? (
         <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{t(habitList.read || habitList.scope === 'all' ? 'chat.habitList.allEmpty' : 'chat.habitList.todayEmpty')}</Text>
-      ) : undefined} actions={visibleItems.length < habitList.items.length ? (
+      ) : <View style={{ gap: 8 }}>{rows}</View>} actions={visibleItems.length < habitList.items.length ? (
         <IconButton label={t('chat.habitList.more')} onClick={() => setShownCount((count) => count + PAGE_SIZE)}><ChevronDown size={20} strokeWidth={1.5} accessible={false} /></IconButton>
       ) : undefined} />
     </View>

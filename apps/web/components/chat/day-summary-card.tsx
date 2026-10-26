@@ -3,15 +3,14 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { ChevronDown } from '@/components/ui/icons'
 import { useRef, useState, type ReactNode } from 'react'
-import { daySummaryLogControl, habitReadStatusKey } from '@orbit/shared/chat/day-summary-core'
+import { daySummaryLogControl } from '@orbit/shared/chat/day-summary-core'
 import { liveBlockState } from '@orbit/shared/chat/live-block-state'
 import type { DaySummaryCard as DaySummaryCardData } from '@orbit/shared/types/chat'
 import { getAccountDay } from '@orbit/shared/utils'
 import { BlockFrame, useReadActionScope } from './read-block-frame'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { HabitCheck } from '@/components/habits/habit-check'
-import { PersonalText } from '@/components/ui/personal-text'
-import { Button } from '@/components/ui/pill-button'
+import { HabitBlockRow } from './habit-block-row'
 import { useHabits, useLogHabit } from '@/hooks/use-habits'
 import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { useTranslations } from 'next-intl'
@@ -24,7 +23,7 @@ function DaySummaryControl({ readOnly, disabled, label, onToggle, children }: Re
   children: ReactNode
 }>) {
   if (readOnly) return <span className="grid size-[var(--touch-min)] place-items-center">{children}</span>
-  return <button type="button" disabled={disabled} aria-label={label} onClick={onToggle} className="grid size-[var(--touch-min)] place-items-center rounded-full border-0 bg-transparent hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]">{children}</button>
+  return <button data-habit-row-control="check" type="button" disabled={disabled} aria-label={label} onClick={onToggle} className="grid size-[var(--touch-min)] place-items-center rounded-full border-0 bg-transparent hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]">{children}</button>
 }
 
 export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummaryCardData }>) {
@@ -58,23 +57,18 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
   const completionRate = daySummary.completionRate ?? 0
   const rows = visibleRows.map((item) => {
     const occurrence = occurrences.data?.habitsById.get(item.id)
-    const snapshotStatusKey = habitReadStatusKey(item.status, item.isBadHabit)
     const title = item.title
     const control = daySummaryLogControl(occurrence, item.status === 'overdue', readScope ? { ...readScope, date: daySummary.date, today: getAccountDay(new Date(), readScope.timeZone) } : undefined)
     const actionLabel = control.undoUnavailable ? `${title}: ${t(control.statusKey)}` : t(control.actionKey, { name: title })
-    return { id: item.id, wrapLabel: true, label: <button type="button" aria-label={t('chat.habitList.open', { name: title })} onClick={() => navigate(`/habits/${item.id}?date=${daySummary.date}`)} className="flex min-h-[var(--touch-min)] w-full min-w-0 items-center gap-3 rounded-[12px] border-0 bg-transparent px-2 py-1 text-left text-sm text-[var(--fg-1)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"><span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-[var(--bg-well)]">{item.emoji ?? '•'}</span><PersonalText className="flex-1">{title}</PersonalText></button>,
-      meta: daySummary.read ? snapshotStatusKey ? t(snapshotStatusKey) : undefined : control.status === 'bad' ? t('habits.statusDot.bad') : item.status === 'overdue' ? t('chat.habitList.overdue') : undefined,
-      ...(failedId === item.id ? { status: 'failed' as const } : {}),
-      control: occurrence && !unavailable ? <DaySummaryControl readOnly={control.undoUnavailable || !control.writeAllowed} disabled={pendingId !== null || unavailable} label={actionLabel} onToggle={() => toggle(item.id)}><HabitCheck status={control.status} label={t(control.statusKey)} /></DaySummaryControl> : undefined,
-    }
+    return <HabitBlockRow key={item.id} title={title} emoji={item.emoji} label={t('chat.habitList.open', { name: title })}
+      onOpen={() => navigate(`/habits/${item.id}?date=${daySummary.date}`)} control={occurrence && !unavailable ? <DaySummaryControl readOnly={control.undoUnavailable || !control.writeAllowed} disabled={pendingId !== null || unavailable} label={actionLabel} onToggle={() => toggle(item.id)}><HabitCheck status={control.status} label={t(control.statusKey)} /></DaySummaryControl> : undefined} />
   })
   return <div className="w-full">
     <BlockFrame {...frameState} title={t(daySummary.read ? 'chat.readBlock.dayTitle' : 'chat.daySummary.title')} count={null} items={[
-      ...rows,
       { id: 'overdue', wrapLabel: true, label: t('chat.daySummary.overdue'), control: <span className="tabular-nums">{daySummary.overdueCount}</span> },
       ...(!daySummary.read ? [{ id: 'streak', wrapLabel: true, label: t('chat.daySummary.streak'), control: <span className="tabular-nums">{daySummary.currentStreak}</span> }] : []),
     ]}
-      body={<>{daySummary.due > 0 && daySummary.completionRate != null ? <ProgressRing value={completionRate} label={t(daySummary.read ? 'chat.daySummary.doneOfDue' : 'chat.daySummary.ring', { done, due: daySummary.due })} /> : null}<p className="text-sm text-[var(--fg-3)]">{daySummary.due === 0 ? t(daySummary.read ? 'chat.readBlock.nothingDue' : 'chat.daySummary.nothingDue') : t('chat.daySummary.doneOfDue', { done, due: daySummary.due })}</p>{totalRows > 20 ? <p className="text-sm text-[var(--fg-3)]">{t('chat.daySummary.rowCount', { shown: visibleRows.length, total: totalRows })}</p> : null}</>}
-      actions={<>{visibleRows.length < payloadRows.length ? <IconButton label={t('chat.recordList.more')} onClick={() => setShownCount(count => count + 20)}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}{occurrences.isError || failedId !== null ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('chat.liveBlock.error')}</p> : null}<Button variant="ghost" size="sm" onClick={() => navigate(daySummary.read ? `/?date=${daySummary.date}` : '/')}>{t('chat.daySummary.open')}</Button></>} />
+      body={<><div className="flex flex-col gap-2">{rows}</div>{daySummary.due > 0 && daySummary.completionRate != null ? <ProgressRing value={completionRate} label={t(daySummary.read ? 'chat.daySummary.doneOfDue' : 'chat.daySummary.ring', { done, due: daySummary.due })} /> : null}<p className="text-sm text-[var(--fg-3)]">{daySummary.due === 0 ? t(daySummary.read ? 'chat.readBlock.nothingDue' : 'chat.daySummary.nothingDue') : t('chat.daySummary.doneOfDue', { done, due: daySummary.due })}</p>{totalRows > 20 ? <p className="text-sm text-[var(--fg-3)]">{t('chat.daySummary.rowCount', { shown: visibleRows.length, total: totalRows })}</p> : null}</>}
+      actions={<>{visibleRows.length < payloadRows.length ? <IconButton label={t('chat.recordList.more')} onClick={() => setShownCount(count => count + 20)}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}{occurrences.isError || failedId !== null ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('chat.liveBlock.error')}</p> : null}</>} />
   </div>
 }

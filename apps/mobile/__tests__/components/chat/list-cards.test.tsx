@@ -57,10 +57,16 @@ describe('Astra list cards on mobile', () => {
     }
   })
 
+  it('uses the letter fallback without a repeated completion line', () => {
+    const tree = render(<HabitListCard habitList={{ ...habits, items: [{ ...habits.items[0]!, emoji: null, status: 'done' }] }} />)
+    expect(renderedText(tree.toJSON())).toContain('W')
+    expect(renderedText(tree.toJSON())).not.toContain('chat.habitList.logged')
+  })
+
   it('logs from authoritative occurrence state, opens the habit, and pages the count', () => {
     const tree = render(<HabitListCard habitList={habits} />)
     expect(renderedText(tree.toJSON())).toContain('chat.habitList.count')
-    expect(renderedText(tree.toJSON())).toContain('3')
+    expect(renderedText(tree.toJSON())).toContain('4')
 
     const open = tree.root.findByProps({ accessibilityLabel: 'chat.habitList.open:{"name":"Water"}' })
     TestRenderer.act(() => open.props.onPress())
@@ -70,8 +76,7 @@ describe('Astra list cards on mobile', () => {
     TestRenderer.act(() => log.props.onPress())
     expect(mocks.mutate).toHaveBeenCalledWith(expect.objectContaining({ habitId: 'habit-1', intent: 'log' }))
 
-    const more = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && node.props.accessibilityLabel === 'chat.habitList.more')[0]
-    TestRenderer.act(() => more.props.onPress())
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'chat.habitList.more' })).toHaveLength(0)
     expect(renderedText(tree.toJSON())).toContain('4')
   })
 
@@ -79,7 +84,7 @@ describe('Astra list cards on mobile', () => {
     mocks.occurrencesById.set('habit-1', { isCompleted: false, isLoggedInRange: true })
     const tree = render(<HabitListCard habitList={habits} />)
 
-    expect(tree.root.findByProps({ testID: 'ring-done' }).props.children).toBe('chat.habitList.logged')
+    expect(tree.root.findAllByProps({ testID: 'habit-check' })[0].props.accessibilityLabel).toBe('chat.habitList.logged')
     const unlog = tree.root.findByProps({ accessibilityLabel: 'chat.habitList.unlog:{"name":"Water"}' })
     TestRenderer.act(() => unlog.props.onPress())
     expect(mocks.mutate).toHaveBeenCalledWith(expect.objectContaining({ habitId: 'habit-1', intent: 'unlog' }))
@@ -112,9 +117,7 @@ describe('Astra list cards on mobile', () => {
     TestRenderer.act(() => goal.props.onPress())
     expect(onOpenGoal).toHaveBeenCalledWith('goal-1')
 
-    const progress = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.goalList.progressLink'))[0]
-    TestRenderer.act(() => progress.props.onPress())
-    expect(mocks.push).toHaveBeenCalledWith('/progress/goals')
+    expect(renderedText(tree.toJSON())).not.toContain('chat.goalList.progressLink')
   })
 
   it('shows API goal tracking and projection', () => {
