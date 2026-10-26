@@ -59,7 +59,9 @@ export function suggestionResponse(requestId, locale = 'en') {
       title: portuguese ? 'Alongamento' : 'Stretch', dueTime: '21:15:00', dueEndTime: '21:20:00',
       checklistItems: [portuguese ? 'Alongar as pernas' : 'Stretch your legs'],
       reason: portuguese ? 'Soltar o corpo no fim do dia.' : 'Relax at the end of the day.' })]
-  return { ...chatResponse(requestId, [toolCall('suggest_habits', { instruction: 'evening habits', language: locale, count: 2 })]),
+  const call = toolCall('suggest_habits', { instruction: portuguese ? 'hábitos para a noite' : 'evening habits', language: locale, count: 2 })
+  call.result.payload = { language: locale, drafts }
+  return { ...chatResponse(requestId, [call]),
     operations: [{ operationId: 'suggest_habits', sourceName: 'suggest_habits', riskClass: 'Low',
       confirmationRequirement: 'None', status: 'Succeeded', summary: null, targetId: null, targetName: null,
       policyReason: null, pendingOperationId: null, payload: { language: locale, drafts } }],

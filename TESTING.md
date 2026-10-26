@@ -293,11 +293,11 @@ its previous state after the run. Header alone or flag alone cannot enable traci
 ### Daily windows and combined report
 
 The Pro daily ceiling cannot cover the full corpus in one window. Reserve three messages per
-ordinary case and six per refine or medical correction case, which has a paid setup turn on each attempt.
+ordinary case and six per refine or medical correction case, each with a paid setup turn per attempt.
 Read the real profile allowance before planning a window; the message limit, model-call ceiling
 and spend backstop all still apply. Leave `repeat: 3`, serial execution, no retries and caching
-disabled. Keep each case's three attempts in one window. The current Pro corpus needs about six
-daily windows at the message ceiling, potentially more if a spend or call ceiling is reached.
+disabled. Keep each case's three attempts in one window. Plan the number of daily windows from the
+selected cases and current allowance; a spend or call ceiling can require additional windows.
 Use the same account while its Pro access remains active; do not buy quota or add accounts.
 
 From `evals/astra`, select case IDs with the installed promptfoo metadata filter and preserve each
