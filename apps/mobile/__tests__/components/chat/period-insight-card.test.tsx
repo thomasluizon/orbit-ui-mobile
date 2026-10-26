@@ -51,20 +51,15 @@ describe('period insight card on mobile', () => {
     useUIStore.getState().setAstraConversationOpen(true)
     pathname = '/'
     const root = render(<App />)
-    const progress = root.findByProps({ accessibilityLabel: 'chat.insight.progressLink' })
-    void act(() => { (progress.props.onPress as () => void)() })
-    expect(push).toHaveBeenCalledWith('/progress')
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
-    expect(root.findAllByType('View').filter(node => node.props.testID === 'shell-conversation')).toHaveLength(0)
-    expect(root.findByProps({ testID: 'shell-background' }).props.importantForAccessibility).toBe('auto')
-    expect(root.findAllByType('Text').some(node => node.props.children === '/progress')).toBe(true)
+    expect(root.findAllByType('Text').some(node => node.props.children === 'chat.insight.progressLink')).toBe(false)
+    expect(push).not.toHaveBeenCalled()
   })
 
   it('starts with scoped figures and reveals every supplied narrative section', () => {
     const root = render(<PeriodInsightCard periodInsight={insight} />)
     const chart = root.findByProps({ testID: 'bar-chart-control' })
     void act(() => { (chart.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { width: 320 } } }) })
-    expect(root.findAllByType('Path')).toHaveLength(7)
+    expect(chart.findAllByType('Path')).toHaveLength(7)
     expect(root.findAllByType('Text').some(node => node.props.children === 'chat.insight.title')).toBe(true)
     expect(root.findAllByType('Text').some(node => node.props.children === 'chat.insight.currentStreak')).toBe(false)
     expect(root.findAllByType('Text').some(node => node.props.children === 'chat.insight.bestStreak')).toBe(false)
@@ -91,7 +86,7 @@ describe('period insight card on mobile', () => {
 
   it('omits a missing chart with empty narrative defaults', () => {
     const root = render(<PeriodInsightCard periodInsight={{ ...insight, series: null, narrative: { highlights: '', trends: '', suggestion: '', missed: '' } }} />)
-    expect(root.findAllByType('Path')).toHaveLength(0)
+    expect(root.findAllByType('Path')).toHaveLength(2)
     const more = root.findByProps({ accessibilityLabel: 'chat.habitList.more' })
     void act(() => { (more.props.onPress as () => void)() })
     expect(root.findAllByType('Text').some(node => node.props.children === 'chat.insight.highlights')).toBe(false)

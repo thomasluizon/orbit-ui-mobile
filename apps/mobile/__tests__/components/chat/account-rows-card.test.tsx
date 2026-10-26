@@ -54,9 +54,7 @@ describe('Astra account rows on mobile', () => {
     expect(output).toContain('chat.account.no')
     expect(output).not.toContain('hidden')
     expect(output).not.toContain('upgrade.')
-    const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && controlName(node).includes('chat.account.open'))[0]
-    TestRenderer.act(() => open.props.onPress())
-    expect(mocks.push).toHaveBeenCalledWith('/profile')
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
   it('keeps an account email intact and reveals its complete value in one tap', async () => {

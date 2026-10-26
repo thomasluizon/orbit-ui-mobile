@@ -6,8 +6,8 @@ The granted Astra conversation canvas defines the item rows, action order and ou
 | Surface | Web and Android behavior |
 | --- | --- |
 | Pending item preview | One named row per item with a localized cadence, date or time; only items marked `removesData: true` carry an irreversible mark. |
-| Compact preview actions | Primary action named from `actionKey` with the target count, ghost Edit, a spacer and ghost Reject; whole controls reflow when the row cannot fit. |
-| Wide preview actions | Secondary action named from `actionKey` with the target count, ghost Edit, a spacer and ghost Reject; whole controls reflow when the panel cannot fit them. |
+| Compact preview actions | One filled Create or Save action, with counted accessible naming and icon-only Edit and Reject; whole controls reflow when the row cannot fit. |
+| Wide preview actions | The same filled primary action and icon-only Edit and Reject; whole controls reflow when the panel cannot fit them. |
 | Breakdown draft footer | Add habit, More actions and Approve are the three visible actions. Approve is primary with rows; Add habit is primary in an empty draft. More actions opens the shared compact sheet or wide anchored menu with Edit and Reject, keeping their accessible names. |
 | Breakdown recovery footer | Pending disables editing and disclosure. Capacity feedback stays neutral, adding is disabled at the limit, no-write failures retain the draft, and partial failure keeps only Retry. Completed and rejected previews retain their terminal status. |
 | Inline item title | A pending item with an editable title opens an in-place Input on title activation. Enter or blur revises the held preview; Escape discards the draft. Unchanged drafts leave the proposal intact; edited values use the existing revision validation. Approval stays disabled while any visible title draft differs from its accepted proposal, including after revision failure. Restoring the accepted name or completing the revision enables approval. Enter and Escape return focus to the title control; blur preserves the next focus destination. Busy, stale and terminal rows cannot rename. No item title carries a disclosure chevron. |
@@ -24,9 +24,9 @@ The granted Astra conversation canvas defines the item rows, action order and ou
 | Repeated operation | One operation id renders once, with its original reply and saved operation state. |
 | Legacy action labels | Checklist updates, parent changes and goal links use localized labels with the habit name for PascalCase and snake_case tool names. |
 | Tool trace | Completed steps stay after their request and above their own reply blocks. |
-| Frame geometry | The card keeps its 24 inset, 24 header gap and 12 row inset without reserving an absent description. The header count uses tabular sans numerals. |
+| Frame geometry | The card keeps its 16 inset, 12 header gap and 12 record-row inset without reserving an absent description. The header count uses tabular sans numerals. |
 | Rejected preview | Rows and actions collapse to the counted rejection sentence stating that nothing was saved. |
-| Habit list pagination | The ghost Show more control hugs its content and reveals the next page in place. |
+| Habit list pagination | Lists reveal up to twenty rows before an icon-only Show more control is needed. |
 | Assistant introduction | Model prose remains intact; repeated confirmation requests require an API prompt change. |
 
 Field diff labels, raw enums and redundant item names are removed from preview rows.
@@ -69,7 +69,7 @@ The `preview item titles` amendment in
 `design/canvas/Orbit Astra Conversation.dc.html` retains full-name disclosure for
 terminal rows and the stable Proposed wrapper. The Chromium preview geometry suite
 measures the padded row inside that wrapper and includes the terminal title control
-in its bounds. The 24px frame inset, 24px header gap, 12px row inset, first-line action
+in its bounds. The 16px frame inset, 12px header gap, 12px record-row inset, first-line action
 alignment and overflow bounds apply in every state. Android's BlockFrame style and
 Yoga suites retain the matching row and frame contracts.
 
@@ -134,3 +134,44 @@ and block selection and commits without replacing the focused native control. St
 refusals keep their existing disabled disclosure. Other RadioGroup consumers do not
 switch rows to disabled during requests; move-parent refusals describe inventory
 constraints rather than request state.
+
+## Compact answer blocks
+
+All fourteen typed block kinds share the paired BlockFrame surface: a 16px inset,
+12px content rhythm and a quiet Orbit mark in the header. Read blocks have no manual
+refresh or shell-navigation footer. Signed paging, actual record actions and expanded
+retrospective details retain named icon controls. Stale write previews retain their
+existing authorization recovery, which prepares a replacement proposal before approval.
+
+Habit lists, dated summaries, rankings, retrospective habit rows and metric habit rows
+use the paired `chat/habit-block-row` with HabitRowLeading and HabitCheck where an
+occurrence supplies completion state. The canonical emoji well supplies its letter
+fallback. Completion stays in the check, with no repeated Done metadata. Habit list and
+day-summary checks use the same useLogHabit cache update and rollback as Hoje. Ranking
+and retrospective counts describe a period, so they do not invent a single-day toggle.
+Pick-list options use the same row and check for selection, retaining title disclosure
+and proposed-state feedback. History records retain their dated numeric meaning; the
+record contract does not carry habit identity or an emoji.
+
+Totals, comparisons, metrics and streaks use the paired CompactFigure for a value and
+unit on one line. Comparisons name supplied month windows, mark partial months as so
+far, lead with their supplied completion comparison and use bars on one shared scale.
+The total still reads `card.value`, and comparisonPresentation still reads currentValue
+and baselineValue. The distinct-habit count integration belongs to #1763 after #1762.
+Profile-only account payloads without a plan row remain a producer limitation. Supplied
+plan rows use Orbit Pro or Free and retain their trial and expiry dates. Time zones use
+the locale database's long generic name.
+
+Write previews retain inline rename, editing, rejection, parent resolution and approval.
+The preview title names a create count or the habit being edited. The emoji well and
+short schedule summary share the row. Creates omit default tracking flags and root
+identity; schedule edits show supplied before and after values. Proposed semantics and
+feedback remain while the dashed outline is removed from the framed rows.
+
+Paired component suites cover the block registry, paging, failures, account changes,
+selection and preview authorization. The rendered web mutation case holds a log request
+open, observes the completed check, then rejects it and observes rollback. Chromium
+Vitest measures title/check centres in the day-summary rows at phone and desktop widths;
+native Yoga covers the corresponding blocks and named actions. Staging screenshots,
+Android rendering and per-kind independent design and copy approval remain coordinator
+verification tasks.

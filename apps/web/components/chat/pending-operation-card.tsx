@@ -26,7 +26,6 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { addPendingOperationListRow, changePendingOperationListRow, isPendingOperationEditableField, pendingOperationListRows, removePendingOperationListRow } from '@orbit/shared/hooks'
 import { XCircle, X, Plus, RefreshCw, Pencil } from '@/components/ui/icons'
-import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { RadioRow } from '@/components/ui/select-check'
 import { RadioGroup } from '@/components/ui/radio-group'
@@ -190,7 +189,7 @@ function ParentChoice({ itemName, field, labels, disabled, onSelect, selectedVal
 }
 
 const pendingOperationRenderers = {
-  blockFrame: (props) => <BlockFrame {...props} items={props.items.map((item) => ({ ...item, label: typeof item.label === 'string' && item.id !== 'remaining' ? <PreviewItemTitle key={item.id} title={item.label} icon={item.icon} rename={item.rename} proposed={item.proposed} /> : item.label }))} />,
+  blockFrame: (props) => <BlockFrame {...props} items={props.items.map((item) => ({ ...item, meta: item.id === 'remaining' ? item.meta : undefined, label: typeof item.label === 'string' && item.id !== 'remaining' ? <PreviewItemTitle key={item.id} title={item.label} meta={item.meta} icon={item.icon} rename={item.rename} proposed={item.proposed} /> : item.label }))} />,
   button: ({ label, ...props }) => <PreviewButton label={label} {...props} />,
   confirmSheet: (props) => <ConfirmSheet {...props} />,
   stepUp: (props) => <div className="basis-full min-w-0"><StepUp {...props} /></div>,
@@ -206,7 +205,6 @@ const pendingOperationRenderers = {
 } satisfies PendingOperationCardRenderers
 
 function PreviewButton({ label, icon, variant, focusRequest, shouldFocus, ...props }: Readonly<import('@orbit/shared/chat').PendingOperationButtonSpec>) {
-  const wide = useIsWideDesktop()
   const buttonRef = useRef<HTMLButtonElement>(null)
   const handledFocusRequest = useRef<number | undefined>(undefined)
   useEffect(() => {
@@ -216,7 +214,7 @@ function PreviewButton({ label, icon, variant, focusRequest, shouldFocus, ...pro
     buttonRef.current?.focus()
   }, [focusRequest, props.disabled, shouldFocus])
   if (icon) return <IconButton label={props.accessibleName ?? label} buttonRef={buttonRef} disabled={props.disabled} loading={props.loading} hint={props.hint} onClick={props.onClick}>{icon === 'refresh' ? <RefreshCw size={20} /> : icon === 'edit' ? <Pencil size={20} /> : <X size={20} />}</IconButton>
-  return <Button buttonRef={buttonRef} size="sm" variant={variant === 'primary' && wide ? 'secondary' : variant} {...props}>{label}</Button>
+  return <Button buttonRef={buttonRef} size="sm" variant={variant} {...props}>{label}</Button>
 }
 
 export function PendingOperationCard({

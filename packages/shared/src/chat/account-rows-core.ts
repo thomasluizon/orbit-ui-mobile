@@ -36,6 +36,7 @@ export function accountRowLabelKey(key: string): string | null {
 export function formatAccountRowValue(row: AccountRow, locale: string, translate: (key: string) => string): string {
   const value = row.value
   if (value == null || value === '') return translate('chat.account.notSet')
+  if (row.key === 'timeZone') return new Intl.DateTimeFormat(locale, { timeZone: value, timeZoneName: 'longGeneric' }).formatToParts(new Date()).find(part => part.type === 'timeZoneName')!.value
   if (row.valueType === 'date') return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(value))
   if (row.valueType === 'boolean') return translate(value === 'true' ? 'chat.account.yes' : 'chat.account.no')
   if (row.valueType === 'enum') {

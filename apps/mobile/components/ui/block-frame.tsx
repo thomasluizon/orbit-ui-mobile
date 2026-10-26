@@ -1,4 +1,5 @@
 import { IconButton } from '@/components/ui/icon-button'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 import { ActionRow } from './action-row'
 
 import { SPACING, SMALL_PILL_VISIBLE_MIN, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -123,7 +124,7 @@ function FrameRowContent(props: FrameRowProps) {
 }
 
 function FrameRow(props: FrameRowProps) {
-  return <Proposed proposed={props.item.proposed === true} scope="row" label={props.proposedLabel ?? ''} keepMounted>
+  return <Proposed appearance="plain" proposed={props.item.proposed === true} scope="row" label={props.proposedLabel ?? ''} keepMounted>
     <FrameRowContent {...props} />
     {props.item.body ? <View style={{ paddingHorizontal: SPACING.s12, paddingBottom: SPACING.s12 }}>{props.item.body}</View> : null}
   </Proposed>
@@ -181,16 +182,8 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens
   hasIrreversibleItem: boolean
   tokens: AppTokensV2
 }>) {
-  const { t } = useTranslation()
 
-  if (frameProps.state === 'stale') {
-    return (
-      <ActionRow>
-        {frameProps.onRefresh ? <IconButton label={frameProps.refreshLabel ?? t('blockFrame.refresh')} onClick={frameProps.onRefresh}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
-        {frameProps.staleActions}
-      </ActionRow>
-    )
-  }
+  if (frameProps.state === 'stale') return <StaleFrameFooter frameProps={frameProps} />
 
   if (!hasIrreversibleItem && (!canRenderActions || frameProps.actions == null)) return null
 
@@ -213,6 +206,17 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens
   )
 }
 
+function StaleFrameFooter({ frameProps }: Readonly<{ frameProps: BlockFrameProps }>) {
+  const { t } = useTranslation()
+    if (!frameProps.onRefresh && !frameProps.staleActions) return null
+    return (
+      <ActionRow>
+        {frameProps.onRefresh ? <IconButton label={frameProps.refreshLabel ?? t('blockFrame.refresh')} onClick={frameProps.onRefresh}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
+        {frameProps.staleActions}
+      </ActionRow>
+    )
+}
+
 function FrameHeader({ props, tokens }: Readonly<{ props: Readonly<BlockFrameProps>; tokens: AppTokensV2 }>) {
   const [clamped, setClamped] = useState(false)
   const titleRef = useRef<Text>(null)
@@ -227,13 +231,18 @@ function FrameHeader({ props, tokens }: Readonly<{ props: Readonly<BlockFramePro
   }
   return (
       <View style={[styles.header, props.titleMode === 'typed' && { flexDirection: 'column', alignItems: 'stretch' }]}>
-        {props.titleMode === 'typed' ? <View onLayout={props.focusTitleOnMount ? focusTitle : undefined}><PersonalText onClampedChange={setClamped} accessibilityRef={personalTitleRef} accessibilityRole="header" style={[styles.title, { flex: 0, color: tokens.fg1 }]}>{props.title}</PersonalText></View> : <Text ref={titleRef} onLayout={props.focusTitleOnMount ? focusTitle : undefined} numberOfLines={props.wrapTitle ? undefined : 1} style={[styles.title, { color: tokens.fg1 }]}>{props.title}</Text>}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
+        <OrbitMark size={20} />
+        {props.titleContent ? <View style={{ flex: 1, minWidth: 0 }}>{props.titleContent}</View> : props.titleMode === 'typed' ? <View onLayout={props.focusTitleOnMount ? focusTitle : undefined}><PersonalText onClampedChange={setClamped} accessibilityRef={personalTitleRef} accessibilityRole="header" style={[styles.title, { flex: 0, color: tokens.fg1 }]}>{props.title}</PersonalText></View> : <Text ref={titleRef} onLayout={props.focusTitleOnMount ? focusTitle : undefined} numberOfLines={props.wrapTitle ? undefined : 1} style={[styles.title, { color: tokens.fg1 }]}>{props.title}</Text>}
+        <FrameHeaderDetails props={props} tokens={tokens} clamped={clamped} />
+      </View>
+  )
+}
+
+function FrameHeaderDetails({ props, tokens, clamped }: Readonly<{ props: BlockFrameProps; tokens: AppTokensV2; clamped: boolean }>) {
+  return <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
           {props.count !== null && (props.count !== undefined || props.items.length > 0) ? <Text style={[styles.count, { color: tokens.fg3 }]}>{props.count ?? props.items.length}</Text> : null}
           {props.titleMode === 'typed' ? <PersonalTextDetails iconOnly clamped={clamped}>{props.title}</PersonalTextDetails> : null}
         </View>
-      </View>
-  )
 }
 
 export function BlockFrame(props: Readonly<BlockFrameProps>) {
@@ -292,10 +301,10 @@ const styles = StyleSheet.create({
   frame: {
     maxHeight: '100%',
     minHeight: 0,
-    gap: 24,
+    gap: 12,
     borderRadius: PROPOSED_RADIUS.block,
     borderWidth: 1,
-    padding: SPACING.s24,
+    padding: SPACING.s16,
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { flex: 1, fontFamily: 'Geist_500Medium', fontSize: 16 },

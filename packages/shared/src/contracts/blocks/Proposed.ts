@@ -8,6 +8,7 @@ export const PROPOSED_RADIUS = {
 } as const satisfies Record<ProposedScope, number>
 
 export type ProposedProps = {
+  readonly appearance?: 'plain'
   readonly proposed: boolean
   readonly scope: ProposedScope
   readonly label: string

@@ -1,10 +1,9 @@
+import { HabitBlockRow } from './habit-block-row'
 import { ChevronsUp, ChevronDown } from '@/components/ui/icons'
 
 import { IconButton } from '@/components/ui/icon-button'
-import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { formatReadWindow } from '@orbit/shared/chat/read-block-core'
 import { Text, View } from 'react-native'
 import { getInsightPages } from '@orbit/shared/chat'
@@ -13,13 +12,11 @@ import type { PeriodInsightCard as PeriodInsightData } from '@orbit/shared/types
 import { mapCompletionSeries } from '@orbit/shared/utils'
 import { BarChart } from '@/components/ui/bar-chart'
 import { BlockFrame } from './read-block-frame'
-import { Button } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: PeriodInsightData }>) {
   const { t, i18n } = useTranslation()
-  const navigate = useChatNavigation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [expanded, setExpanded] = useState(false)
@@ -42,13 +39,13 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
     periodInsight.topHabits.forEach((habit, habitIndex) => rows.push({
       id: `top-${habitIndex}`,
       wrapLabel: true,
-      label: <PersonalTextDetails outset>{`${t('chat.insight.topHabit')}: ${habit.name}`}</PersonalTextDetails>,
+      label: <HabitBlockRow title={habit.name} emoji={habit.emoji} meta={t('chat.insight.topHabit')} label={`${t('chat.insight.topHabit')}: ${habit.name}`} />,
       control: <Text style={{ color: tokens.fg1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 16, fontVariant: ['tabular-nums'] }}>{habit.completionRate}%</Text>,
     }))
     periodInsight.needsAttention.forEach((habit, habitIndex) => rows.push({
       id: `attention-${habitIndex}`,
       wrapLabel: true,
-      label: <PersonalTextDetails outset>{`${t('chat.insight.needsAttention')}: ${habit.name}`}</PersonalTextDetails>,
+      label: <HabitBlockRow title={habit.name} emoji={habit.emoji} meta={t('chat.insight.needsAttention')} label={`${t('chat.insight.needsAttention')}: ${habit.name}`} />,
       control: <Text style={{ color: tokens.fg1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 16, fontVariant: ['tabular-nums'] }}>{habit.completionRate}%</Text>,
     }))
   }
@@ -67,7 +64,6 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
         </View>}
         actions={<>
           <IconButton label={t(expanded ? 'chat.readBlock.less' : 'chat.habitList.more')} expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? <ChevronsUp size={20} accessible={false} /> : <ChevronDown size={20} accessible={false} />}</IconButton>
-          <Button variant="ghost" size="sm" accessibilityRole="link" accessibleName={t('chat.insight.progressLink')} onClick={() => navigate('/progress')}>{t('chat.insight.progressLink')}</Button>
         </>}
       />
     </View>

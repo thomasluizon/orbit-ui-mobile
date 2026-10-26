@@ -27,8 +27,7 @@ describe('Astra status cards on web', () => {
   it('labels the day ring and opens Today', () => {
     render(<DaySummaryCard daySummary={{ date: '2026-09-26', due: 3, done: 1, completionRate: 33, overdueCount: 2, currentStreak: 4, surfaceId: 'today' }} />)
     expect(screen.getByRole('progressbar', { name: /done.*1.*due.*3/ })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'chat.daySummary.open' }))
-    expect(mocks.push).toHaveBeenCalledWith('/')
+    expect(screen.queryByRole('button', { name: 'chat.daySummary.open' })).not.toBeInTheDocument()
   })
 
   it('keeps overdue visible when nothing is due today', () => {
@@ -44,8 +43,7 @@ describe('Astra status cards on web', () => {
     expect(screen.getByRole('progressbar')).toHaveAttribute('data-max', '2300')
     expect(document.querySelectorAll('[data-state="earned"]')).toHaveLength(3)
     expect(document.querySelectorAll('[data-state="unearned"]')).toHaveLength(3)
-    fireEvent.click(screen.getByRole('button', { name: 'chat.streakCard.open' }))
-    expect(mocks.push).toHaveBeenCalledWith('/progress/streak')
+    expect(screen.queryByRole('button', { name: 'chat.streakCard.open' })).not.toBeInTheDocument()
   })
 
   it('ends the streak strip on the account date across device midnight', () => {
@@ -69,8 +67,7 @@ describe('Astra status cards on web', () => {
     expect(screen.getByRole('img', { name: /Event 0/ })).toBeInTheDocument()
     expect(screen.getAllByRole('img')[0]).toHaveTextContent('chat.calendarCard.allDay')
     expect(screen.queryByText('chat.calendarCard.sync')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'chat.calendarCard.open' }))
-    expect(mocks.push).toHaveBeenCalledWith('/calendar')
+    expect(screen.queryByRole('button', { name: 'chat.calendarCard.open' })).not.toBeInTheDocument()
   })
 
   it.each([
@@ -96,7 +93,7 @@ it('renders API streak, calendar and both record list blocks in the final messag
   if (event.type !== 'final') throw new Error('Expected a final event')
   const message = { id: 'status', role: 'ai' as const, timestamp: new Date(), ...buildChatFinalMessageFields(event.response, []) }
   const { container, rerender } = render(<MessageBubble message={message} />)
-  expect(screen.getByRole('button', { name: 'chat.streakCard.open' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'chat.streakCard.open' })).not.toBeInTheDocument()
   expect(screen.getByRole('img', { name: /Dentist/ })).toBeInTheDocument()
   expect(screen.getByText('Morning')).toBeInTheDocument()
   expect(screen.getByText('Evening')).toBeInTheDocument()

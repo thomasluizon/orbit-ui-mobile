@@ -44,8 +44,7 @@ describe('Astra record list on web', () => {
     expect(screen.getByText('chat.recordList.noMatches:{"query":"missing"}')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'chat.recordList.clearFilter' }))
     expect(screen.getAllByTestId('record-row')).toHaveLength(20)
-    fireEvent.click(screen.getByRole('button', { name: 'chat.recordList.open.keys' }))
-    expect(mocks.push).toHaveBeenCalledWith('/profile')
+    expect(screen.queryByRole('button', { name: 'chat.recordList.open.keys' })).not.toBeInTheDocument()
   })
 
   it('does not show a chip for tags', () => {

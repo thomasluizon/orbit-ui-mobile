@@ -8,7 +8,7 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { SharedPendingOperationCard, type PendingOperationCardAdapterProps, type PendingOperationCardRenderers, type PendingOperationVerificationProps } from './shared-pending-operation-card'
 import { buildPendingOperationCardLabels, PENDING_OPERATION_ITEM_SEARCH_THRESHOLD, PENDING_OPERATION_WEEKDAYS, type PendingOperationEditSheetProps } from '@orbit/shared/chat'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, Pressable, Text, View, useWindowDimensions } from 'react-native'
+import { AccessibilityInfo, Pressable, Text, View } from 'react-native'
 import { usePendingOperationStepUpVerification } from '@/hooks/use-pending-operation-card-state'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
@@ -21,7 +21,7 @@ import { Switch } from '@/components/ui/switch'
 import { addPendingOperationListRow, changePendingOperationListRow, isPendingOperationEditableField, pendingOperationListRows, removePendingOperationListRow } from '@orbit/shared/hooks'
 import { XCircle, X, Plus, RefreshCw, Pencil } from '@/components/ui/icons'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { SPACING, TOUCH_TARGET_MIN, WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { RadioRow } from '@/components/ui/select-check'
@@ -200,7 +200,7 @@ function ParentChoice({ itemName, field, labels, disabled, onSelect, selectedVal
 }
 
 const pendingOperationRenderers = {
-  blockFrame: (props) => <BlockFrame {...props} items={props.items.map((item) => ({ ...item, label: typeof item.label === 'string' && item.id !== 'remaining' ? <PreviewItemTitle key={item.id} title={item.label} icon={item.icon} rename={item.rename} proposed={item.proposed} /> : item.label }))} />,
+  blockFrame: (props) => <BlockFrame {...props} items={props.items.map((item) => ({ ...item, meta: item.id === 'remaining' ? item.meta : undefined, label: typeof item.label === 'string' && item.id !== 'remaining' ? <PreviewItemTitle key={item.id} title={item.label} meta={item.meta} icon={item.icon} rename={item.rename} proposed={item.proposed} /> : item.label }))} />,
   button: ({ label, ...props }) => <PreviewButton label={label} {...props} />,
   confirmSheet: (props) => <ConfirmSheet {...props} />,
   stepUp: (props) => <View style={{ flexBasis: '100%', minWidth: 0 }}><StepUp {...props} /></View>,
@@ -219,7 +219,6 @@ function PreviewNotice({ message }: Readonly<{ message: string }>) {
 }
 
 function PreviewButton({ label, icon, variant, focusRequest, shouldFocus, ...props }: Readonly<import('@orbit/shared/chat').PendingOperationButtonSpec>) {
-  const { width } = useWindowDimensions()
   const buttonRef = useRef<View>(null)
   const handledFocusRequest = useRef<number | undefined>(undefined)
   useEffect(() => {
@@ -232,7 +231,7 @@ function PreviewButton({ label, icon, variant, focusRequest, shouldFocus, ...pro
     }
   }, [focusRequest, props.disabled, shouldFocus])
   if (icon) return <IconButton label={props.accessibleName ?? label} buttonRef={buttonRef} disabled={props.disabled} loading={props.loading} hint={props.hint} onClick={props.onClick}>{icon === 'refresh' ? <RefreshCw size={20} /> : icon === 'edit' ? <Pencil size={20} /> : <X size={20} />}</IconButton>
-  return <Button buttonRef={buttonRef} size="sm" variant={variant === 'primary' && width >= WIDE_DESKTOP_BREAKPOINT ? 'secondary' : variant} {...props}>{label}</Button>
+  return <Button buttonRef={buttonRef} size="sm" variant={variant} {...props}>{label}</Button>
 }
 
 function RejectedPreview({ message }: Readonly<{ message: string }>) {

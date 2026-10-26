@@ -93,7 +93,7 @@ describe('PendingOperationCard (mobile)', () => {
     const { tree } = renderCard(makeChildSchedulePreview(scenario.child))
     const row = tree.root.findByProps({ testID: 'block-frame-item-0-child-0-pending-proposed' })
     expect(renderedText(row)).toContain(scenario.child.title)
-    expect(row.findAllByType(Text).map((node: ReactTestInstance) => renderedText(node))).toContain((locale === 'en' ? scenario.english : scenario.portuguese).replace('21:30', '9:30 PM').replace('23:00', '11:00 PM'))
+    expect(row.findAllByType(Text).map((node: ReactTestInstance) => renderedText(node))).toContain((locale === 'en' ? scenario.english.replace(/ · (\d{2}:\d{2})/g, ' · at $1') : scenario.portuguese.replace(/ · (\d{2}:\d{2})/g, ' · às $1')).replace('21:30', '9:30 PM').replace('23:00', '11:00 PM'))
   })
 
   it.each(['en', 'pt-BR'])('shows every evening routine child and revises child removal in %s', async (locale) => {
@@ -108,7 +108,7 @@ describe('PendingOperationCard (mobile)', () => {
       const row = tree.root.findByProps({ testID: `block-frame-item-0-child-${index}-pending-proposed` })
       expect(StyleSheet.flatten(row.props.style).paddingStart).toBe(24)
       expect(renderedText(row)).toContain(child.title)
-      expect(renderedText(row)).toContain(`${(locale === 'en' ? en : ptBR).habits.frequency.everyDay} · ${index === 2 ? '11:00 PM' : '9:30 PM'}`)
+      expect(renderedText(row)).toContain(`${(locale === 'en' ? en : ptBR).habits.frequency.everyDay} · ${locale === 'en' ? 'at' : 'às'} ${index === 2 ? '11:00 PM' : '9:30 PM'}`)
     }
     const messages = locale === 'en' ? en : ptBR
     expect(renderedText(tree.toJSON())).not.toContain(messages.chat.preview.summary.buildHabit)
@@ -143,7 +143,7 @@ describe('PendingOperationCard (mobile)', () => {
     visibleLocale.actual = true
     visibleLocale.language = locale
     const { tree } = renderCard(makeCreateHabitsPreview(count))
-    expect(renderedText(tree.toJSON())).toContain(locale === 'en' ? count === 1 ? 'New habit' : 'New habits' : count === 1 ? 'Novo hábito' : 'Novos hábitos')
+    expect(renderedText(tree.toJSON())).toContain(locale === 'en' ? count === 1 ? 'New habit' : `${count} new habits` : count === 1 ? 'Novo hábito' : `${count} novos hábitos`)
     expect(renderedText(tree.toJSON())).not.toContain((locale === 'en' ? en : ptBR).chat.pendingOp.capability['habits-bulk-write'])
   })
 
@@ -325,7 +325,7 @@ describe('PendingOperationCard (mobile)', () => {
       visibleLocale.actual = true
       visibleLocale.language = locale
       const operation = makePendingWriteSummaryOperation(scenario)
-      const expected = locale === 'en' ? scenario.english : scenario.portuguese
+      const expected = locale === 'en' ? scenario.english.replace(/ · (\d{2}:\d{2})/g, ' · at $1') : scenario.portuguese.replace(/ · (\d{2}:\d{2})/g, ' · às $1')
       const { tree } = renderCard(operation)
       expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => node.props.children === expected)).toHaveLength(1)
       expect(renderedText(tree.toJSON())).not.toContain(operation.items![0]!.entityId!)
@@ -335,7 +335,7 @@ describe('PendingOperationCard (mobile)', () => {
       visibleLocale.actual = true
       visibleLocale.language = locale
       const operation = makePartialScheduleSummaryOperation(scenario)
-      const expected = locale === 'en' ? scenario.english : scenario.portuguese
+      const expected = locale === 'en' ? scenario.english.replace(/ · (\d{2}:\d{2})/g, ' · at $1') : scenario.portuguese.replace(/ · (\d{2}:\d{2})/g, ' · às $1')
       const { tree } = renderCard(operation)
       expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => node.props.children === expected)).toHaveLength(1)
     })

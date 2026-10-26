@@ -1,25 +1,23 @@
 import { useTranslation } from 'react-i18next'
-import { Text } from 'react-native'
-import { formatReadWindow } from '@orbit/shared/chat/read-block-core'
+import { Text, View } from 'react-native'
+import { comparisonPresentation } from '@orbit/shared/chat/figure-card-core'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { BlockFrame } from './read-block-frame'
+import { CompactFigure, FigureList } from './compact-figure'
 import type { PeriodComparisonCard as PeriodComparison } from '@orbit/shared/types/chat'
 
 export function PeriodComparisonCard({ card }: Readonly<{ card: PeriodComparison }>) {
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const locale = i18n.language
-  const number = new Intl.NumberFormat(locale)
-  const delta = new Intl.NumberFormat(locale, { signDisplay: 'exceptZero' }).format(card.absoluteDelta)
-  const relative = card.baselineValue !== 0 && card.relativeDelta != null ? new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1, signDisplay: 'exceptZero' }).format(card.relativeDelta) : null
-  const figure = (value: string) => <Text style={{ color: tokens.fg1, fontSize: 16, fontVariant: ['tabular-nums'] }}>{value}</Text>
-  return <BlockFrame state="resting" title={t(`chat.readBlock.metric.${card.metric}`)} wrapTitle count={null}
-    items={[
-      { id: 'current', wrapLabel: true, label: formatReadWindow(card.current.window, locale), control: figure(number.format(card.currentValue)) },
-      { id: 'baseline', wrapLabel: true, label: formatReadWindow(card.baseline.window, locale), control: figure(number.format(card.baselineValue)) },
-      { id: 'delta', wrapLabel: true, label: t('chat.readBlock.delta'), control: figure(`${delta}${relative ? ` (${relative})` : ''}`) },
-    ]}
-    body={<Text style={{ color: tokens.fg3, fontSize: 14 }}>{t(`chat.readBlock.unit.${card.unit}`, { count: card.currentValue })}</Text>} />
+  const presentation = comparisonPresentation(card, i18n.language, t)
+  return <BlockFrame state="resting" title={presentation.verdict} wrapTitle count={null} items={[]}
+    body={<FigureList>
+      {presentation.bars.map(bar => <View key={bar.id} style={{ minWidth: 0, gap: 4 }}>
+        <Text style={{ fontSize: 12, color: tokens.fg3 }}>{bar.label}</Text>
+        <CompactFigure value={new Intl.NumberFormat(i18n.language).format(bar.value)} unit={t(`chat.readBlock.unit.${card.unit}`, { count: bar.value })} />
+        <View accessible={false} style={{ height: 8, width: '100%', overflow: 'hidden', borderRadius: 8, backgroundColor: tokens.trackEmpty }}><View testID={`comparison-bar-${bar.id}`} style={{ height: 8, width: `${bar.width}%`, borderRadius: 8, backgroundColor: tokens.fg2 }} /></View>
+      </View>)}
+    </FigureList>} />
 }

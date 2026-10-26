@@ -1,5 +1,5 @@
 import { IconButton } from '@/components/ui/icon-button'
-import { ChevronDown, RefreshCw } from '@/components/ui/icons'
+import { ChevronDown } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { Text } from 'react-native'
 import { API } from '@orbit/shared/api'
@@ -45,7 +45,7 @@ function ReadBlockSession({ snapshot: initial, children }: ReadBlockBoundaryProp
 
 export function BlockFrame(props: Readonly<BlockFrameProps>) {
   const context = useContext(ReadContext)
-  return context ? <QueryBlockFrame props={props} context={context} /> : <Frame {...props} />
+  return context ? <QueryBlockFrame props={props} context={context} /> : <Frame {...props} onRefresh={undefined} />
 }
 
 function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; context: ReadBlockState }>) {
@@ -57,12 +57,11 @@ function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; 
   const { state, message, window, canPage } = readBlockPresentation(snapshot, props.state, pending, failure)
   const actions = <>
     {canPage ? <IconButton label={t('chat.recordList.more')} disabled={pending} onClick={() => { void run(true) }}><ChevronDown size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
-    <IconButton label={t('blockFrame.refresh')} disabled={pending} onClick={() => { void run(false) }}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
     {props.actions}
   </>
   const body = <>{window ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{formatReadWindow(window, locale)}</Text> : null}{message && state !== 'stale' ? <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontSize: 14 }}>{t(message)}</Text> : null}{props.body}</>
   const frameProps = readBlockFrameProps(props, state, message, () => { void run(false) }, t, actions)
-  return <Frame {...frameProps} body={body} />
+  return <Frame {...frameProps} onRefresh={undefined} body={body} />
 }
 
 export function useReadActionScope() {

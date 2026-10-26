@@ -37,8 +37,7 @@ describe('Astra account rows on web', () => {
     expect(screen.getByText(/set\./)).toBeInTheDocument()
     expect(screen.queryByText('hidden')).not.toBeInTheDocument()
     expect(screen.queryByText(/upgrade\./)).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'chat.account.open' }))
-    expect(mocks.push).toHaveBeenCalledWith('/profile')
+    expect(screen.queryByRole('button', { name: 'chat.account.open' })).not.toBeInTheDocument()
   })
 
   it('discloses complete account values without navigating', () => {

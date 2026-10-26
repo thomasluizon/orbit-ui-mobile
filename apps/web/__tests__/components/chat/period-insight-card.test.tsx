@@ -56,7 +56,7 @@ describe('period insight card on web', () => {
     expect(screen.queryByText('chat.insight.currentStreak')).not.toBeInTheDocument()
     expect(screen.queryByText('chat.insight.bestStreak')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'chat.habitList.more' })).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.getByRole('link', { name: 'chat.insight.progressLink' })).toHaveAttribute('href', '/progress')
+    expect(screen.queryByRole('link', { name: 'chat.insight.progressLink' })).not.toBeInTheDocument()
   })
 
   it('omits a missing chart and retains empty narrative defaults', () => {

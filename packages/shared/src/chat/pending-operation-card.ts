@@ -8,6 +8,7 @@ export const PENDING_OPERATION_ITEM_SEARCH_THRESHOLD = 8
 export interface PendingOperationCardLabels {
   formatTime: (value: string) => string
   approve: (count: number) => string
+  approveName?: (count: number) => string
   parentChoiceRequired: string
   noParent: string
   acting: string
@@ -120,9 +121,12 @@ export function buildPendingOperationCardLabels(
       : getAgentCapabilityActionLabelKey(pendingOperation.capabilityId) ?? 'chat.pendingOp.action.applyChanges')
   return {
     formatTime,
-    approve: (count) => hasMixedDeletion ? translate('chat.pendingOp.action.applyChanges')
+    approve: (count) => createsHabits ? translate('chat.operation.create')
+      : ['updateHabit', 'updateHabits'].includes(actionKey ?? '') ? translate('common.save')
+      : hasMixedDeletion ? translate('chat.pendingOp.action.applyChanges')
       : actionKey && COUNTED_ACTIONS.includes(actionKey)
         ? translate(`chat.operation.approveCount.${actionKey}`, { count }) : actionLabel,
+    approveName: (count) => hasMixedDeletion ? translate('chat.pendingOp.action.applyChanges') : actionKey && COUNTED_ACTIONS.includes(actionKey) ? translate(`chat.operation.approveCount.${actionKey}`, { count }) : actionLabel,
     parentChoiceRequired: translate('chat.operation.parentChoiceRequired'),
     noParent: translate('habits.moveParent.toRoot'),
     acting: translate('blockFrame.status.acting'),
@@ -173,7 +177,9 @@ export function buildPendingOperationCardLabels(
       : translate('chat.operation.confirmActionTitle', { action: confirm }),
     irreversible: translate('chat.operation.irreversible'),
     name: createsHabits ? translate('chat.operation.newHabits', { count: pendingOperation.changeTargetCount ?? pendingOperation.items?.length ?? 1 })
-      : translate(capabilityKey ?? 'chat.operation.unknown'),
+      : ['updateHabit', 'updateHabits'].includes(actionKey ?? '') && pendingOperation.items?.length === 1
+        ? translate('chat.operation.editHabit', { name: pendingOperation.items[0]!.entityName })
+        : translate(capabilityKey ?? 'chat.operation.unknown'),
     pending: translate('chat.operation.pending'),
     pendingTitle: translate('chat.operation.pendingTitle'),
     proposed: translate('chat.preview.proposed'),

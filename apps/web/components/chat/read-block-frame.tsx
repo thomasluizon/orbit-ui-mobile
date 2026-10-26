@@ -1,7 +1,7 @@
 'use client'
 
 import { IconButton } from '@/components/ui/icon-button'
-import { ChevronDown, RefreshCw } from '@/components/ui/icons'
+import { ChevronDown } from '@/components/ui/icons'
 import { useLocale, useTranslations } from 'next-intl'
 import { refreshReadBlock } from '@/app/actions/chat'
 import { getHeldAccountId } from '@/stores/auth-store'
@@ -39,7 +39,7 @@ function ReadBlockSession({ snapshot: initial, children }: ReadBlockBoundaryProp
 
 export function BlockFrame(props: Readonly<BlockFrameProps>) {
   const context = useContext(ReadContext)
-  return context ? <QueryBlockFrame props={props} context={context} /> : <Frame {...props} />
+  return context ? <QueryBlockFrame props={props} context={context} /> : <Frame {...props} onRefresh={undefined} />
 }
 
 function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; context: ReadBlockState }>) {
@@ -49,12 +49,11 @@ function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; 
   const { state, message, window, canPage } = readBlockPresentation(snapshot, props.state, pending, failure)
   const actions = <>
     {canPage ? <IconButton label={t('chat.recordList.more')} disabled={pending} onClick={() => { void run(true) }}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
-    <IconButton label={t('blockFrame.refresh')} disabled={pending} onClick={() => { void run(false) }}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
     {props.actions}
   </>
   const body = <>{window ? <p className="text-sm text-[var(--fg-3)]">{formatReadWindow(window, locale)}</p> : null}{message && state !== 'stale' ? <p role="status" className="text-sm text-[var(--fg-2)]">{t(message)}</p> : null}{props.body}</>
   const frameProps = readBlockFrameProps(props, state, message, () => { void run(false) }, t, actions)
-  return <Frame {...frameProps} body={body} />
+  return <Frame {...frameProps} onRefresh={undefined} body={body} />
 }
 
 export function useReadActionScope() {

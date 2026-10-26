@@ -139,13 +139,13 @@ const tintAdapter: ProposedTintAdapter = {
   },
 }
 
-export function Proposed({ proposed, scope, label, children, inset = false, keepMounted = false }: Readonly<ProposedProps>) {
+export function Proposed({ proposed, scope, label, children, inset = false, keepMounted = false, appearance }: Readonly<ProposedProps>) {
   if (!proposed && !keepMounted) return children
 
   return (
     <div
       aria-label={proposed ? label : undefined}
-      className={!proposed ? undefined : inset ? "outline outline-1 outline-dashed outline-[var(--hairline-strong)] -outline-offset-1" : "border border-dashed border-[var(--hairline-strong)]"}
+      className={appearance === 'plain' || !proposed ? undefined : inset ? "outline outline-1 outline-dashed outline-[var(--hairline-strong)] -outline-offset-1" : "border border-dashed border-[var(--hairline-strong)]"}
       data-proposed={proposed ? '' : undefined}
       role={proposed ? 'group' : undefined}
       style={{ borderRadius: PROPOSED_RADIUS[scope] }}

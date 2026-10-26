@@ -45,17 +45,14 @@ describe('focused Android read compositions', () => {
     await act(() => tree.unmount())
     const comparison = await mount({ kind: 'periodComparison', block: focusedPeriodComparisonFixture })
     const text = renderedText(comparison.toJSON())
-    expect(text).toContain('+12')
+    expect(text).toContain('12')
     expect(text).not.toContain('%')
     await act(() => comparison.unmount())
   })
 
-  it('uses the exact refresh token and validates the resulting period card', async () => {
-    vi.mocked(apiClient).mockResolvedValue({ kind: 'periodTotal', block: { ...focusedPeriodTotalFixture, value: 18 }, read: { ...focusedReadMetadataFixture, revision: 'two' } })
+  it('omits manual refresh controls from a total', async () => {
     const tree = await mount()
-    await press(tree, 'blockFrame.refresh')
-    expect(renderedText(tree.toJSON())).toContain('18')
-    expect(apiClient).toHaveBeenCalledWith(API.chat.refreshRead, expect.objectContaining({ method: 'POST', body: expect.stringContaining('signed-query') }), expect.anything())
+    expect(tree.root.findAll(node => node.props.accessibilityLabel === 'blockFrame.refresh')).toHaveLength(0)
     await act(() => tree.unmount())
   })
 
@@ -73,9 +70,9 @@ describe('focused Android read compositions', () => {
 
   it.each(['READ_QUERY_STALE', 'READ_QUERY_EXPIRED', 'offline'])('keeps useful figures after %s', async code => {
     vi.mocked(apiClient).mockRejectedValue(Object.assign(new Error(code), { code }))
-    const tree = await mount()
-    await press(tree, 'blockFrame.refresh')
-    expect(renderedText(tree.toJSON())).toContain('12')
+    const tree = await mount({ kind: 'recordList', block: focusedHistoryFixture })
+    await press(tree, 'chat.recordList.more')
+    expect(renderedText(tree.toJSON())).toContain('Sep 1, 2026')
     expect(renderedText(tree.toJSON())).toContain(code === 'READ_QUERY_STALE' ? 'chat.readBlock.stale' : code === 'READ_QUERY_EXPIRED' ? 'chat.readBlock.expired' : 'chat.readBlock.error')
     await act(() => tree.unmount())
   })
@@ -83,8 +80,8 @@ describe('focused Android read compositions', () => {
   it('discards the old account response', async () => {
     let resolve!: (result: ReadBlockResponse) => void
     vi.mocked(apiClient).mockImplementation(() => new Promise(done => { resolve = done }))
-    const tree = await mount()
-    await press(tree, 'blockFrame.refresh')
+    const tree = await mount({ kind: 'recordList', block: focusedHistoryFixture })
+    await press(tree, 'chat.recordList.more')
     await act(() => advanceAccountGeneration())
     await act(() => { resolve({ kind: 'periodTotal', block: { ...focusedPeriodTotalFixture, value: 99 }, read: focusedReadMetadataFixture }) })
     expect(renderedText(tree.toJSON())).not.toContain('99')
@@ -100,7 +97,7 @@ it.each(['chat', 'refresh'] as const)('retains a parsed %s historical schedule a
   expect(parsed).not.toBeNull()
   if (!parsed || !('kind' in parsed) || parsed.kind !== 'habitList') throw new Error('Dated habit block did not parse')
   const tree = await mount(parsed)
-  expect(renderedText(tree.toJSON())).toContain('chat.habitList.logged')
+  expect(renderedText(tree.toJSON())).not.toContain('chat.habitList.logged')
   await press(tree, 'chat.habitList.log')
   expect(state.mutate).not.toHaveBeenCalled()
   await press(tree, 'chat.habitList.open')
@@ -126,9 +123,7 @@ it('keeps stale recap disclosure and Progress available without refreshing', asy
   for (const text of ['Walked', 'Mornings', 'Start small', 'Reading', 'Walk', 'Read']) expect(renderedText(tree.toJSON())).toContain(text)
   await press(tree, 'chat.readBlock.less')
   expect(renderedText(tree.toJSON())).not.toContain('Walked')
-  const progress = tree.root.findAll(node => node.props.accessibilityRole === 'link' && node.props.accessibilityLabel === 'chat.insight.progressLink' && typeof node.props.onPress === 'function')[0]!
-  await act(() => { (progress.props.onPress as () => void)() })
-  expect(state.push).toHaveBeenCalledWith('/progress')
+  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'chat.insight.progressLink')).toHaveLength(0)
   expect(apiClient).not.toHaveBeenCalled()
   await act(() => tree.unmount())
 })
@@ -136,7 +131,7 @@ it('keeps stale recap disclosure and Progress available without refreshing', asy
 it('withholds signed paging for a stale query', async () => {
   const tree = await mount({ kind: 'recordList', block: { ...focusedHistoryFixture, read: { ...focusedHistoryFixture.read, completeness: 'stale' } } })
   expect(tree.root.findAll(node => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'chat.recordList.more')).toHaveLength(0)
-  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'blockFrame.refresh' && String(node.type) === 'Pressable')).toHaveLength(1)
+  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'blockFrame.refresh' && String(node.type) === 'Pressable')).toHaveLength(0)
   expect(apiClient).not.toHaveBeenCalled()
   await act(() => tree.unmount())
 })

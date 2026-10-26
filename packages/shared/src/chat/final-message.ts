@@ -5,7 +5,9 @@ function buildChatParts(response: Omit<ChatResponse, 'actions'>): ChatPart[] {
   if (response.parts != null) {
     const parts = response.parts.filter(part => part !== null)
     const identities = new Set<string>()
+    const figureAnswer = parts.some(part => part.type === 'block' && ['periodTotal', 'periodComparison'].includes(part.kind))
     if (parts.length > 0) return parts.filter(part => {
+      if (figureAnswer && part.type === 'text') return false
       if (part.type !== 'block') return true
       const identity = 'blockId' in part.block ? part.block.blockId
         : 'read' in part.block ? part.block.read?.queryId : undefined

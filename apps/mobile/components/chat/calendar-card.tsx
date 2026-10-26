@@ -3,13 +3,12 @@ import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { liveBlockState, calendarBlockErrorKey } from '@orbit/shared/chat/live-block-state'
 import type { CalendarCard as CalendarCardData } from '@orbit/shared/types/chat'
 import type { BlockFrameItem } from '@orbit/shared/contracts/blocks'
 import { EventRow } from '@/components/dates/event-row'
 import { BlockFrame } from './read-block-frame'
-import { Button } from '@/components/ui/pill-button'
+import { IconButton } from '@/components/ui/icon-button'
 import { Plus } from '@/components/ui/icons'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useProfile } from '@/hooks/use-profile'
@@ -39,7 +38,7 @@ export function CalendarCard({ calendarCard }: Readonly<{ calendarCard: Calendar
     const source = (calendars.data?.length ?? 0) > 1 ? event.calendarName ?? undefined : undefined
     const timing = allDay ? { allDayLabel: t('chat.calendarCard.allDay') } : { time: displayClock(event.start) }
     return { id: eventId ?? `event-${index}`, wrapLabel: true, label: <EventRow title={title} {...timing} source={source}
-      action={eventId ? <Button variant="ghost" size="sm" iconOnly minimumHeight={TOUCH_TARGET_MIN} label={t('chat.calendarCard.makeHabit', { title })} disabled={notConnected || eventsQuery.isError || missing} onClick={() => navigate({ pathname: '/calendar', params: { import: '1', event: eventId } })}><Plus size={20}  /></Button> : null} /> }
+      action={eventId ? <IconButton label={t('chat.calendarCard.makeHabit', { title })} disabled={notConnected || eventsQuery.isError || missing} onClick={() => navigate({ pathname: '/calendar', params: { import: '1', event: eventId } })}><Plus size={20}  /></IconButton> : null} /> }
   })
   if (calendarCard.sync) {
     const failed = syncFailed
@@ -52,6 +51,6 @@ export function CalendarCard({ calendarCard }: Readonly<{ calendarCard: Calendar
   return <View style={{ width: '100%' }}>
     <BlockFrame {...frameState} title={t('chat.calendarCard.title')} count={calendarCard.events.length} items={items}
       body={calendarCard.events.length === 0 ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.calendarCard.empty')}</Text> : undefined}
-      actions={<>{errorKey ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText, fontSize: 14 }}>{t(errorKey)}</Text> : null}<Button variant="ghost" size="sm" onClick={() => navigate(notConnected ? '/calendar?import=1' : '/calendar')}>{t('chat.calendarCard.open')}</Button></>} />
+      actions={<>{errorKey ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText, fontSize: 14 }}>{t(errorKey)}</Text> : null}</>} />
   </View>
 }

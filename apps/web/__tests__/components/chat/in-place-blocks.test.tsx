@@ -116,19 +116,16 @@ it.each([
   if (expected === 'partiallyFailed') expect(screen.getAllByRole('alert')).toHaveLength(4)
 })
 
-it('keeps the freeze bank read-only with one route to Sequencia', () => {
+it('shows a compact streak without freeze management or shell navigation', () => {
   const view = render(<StreakCard streakCard={{ currentStreak: 3, longestStreak: 9, level: 1, totalXp: 20, xpForNextLevel: 100, lastActiveDate: null, isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], surfaceId: 'progress' }} />)
-  const bank = view.container.querySelector('[data-component="freeze-bank"]')!
-  expect(bank).toHaveTextContent('2')
-  expect(bank.querySelectorAll('button')).toHaveLength(1)
-  expect(bank.querySelector('button')).toHaveAttribute('aria-label', 'progressScreen.streak.legend')
-  fireEvent.click(screen.getByRole('button', { name: 'chat.streakCard.open' }))
-  expect(state.push).toHaveBeenCalledWith('/progress/streak')
+  expect(view.container.querySelector('[data-component="freeze-bank"]')).toBeNull()
+  expect(view.container.querySelector('[data-compact-figure]')).toHaveTextContent('3')
+  expect(screen.queryByRole('button', { name: 'chat.streakCard.open' })).not.toBeInTheDocument()
 })
 
 it('puts at most three numerical figures beside the chart', () => {
   const view = render(<MetricsCard metricsCard={{ period: 'habit', habitId: 'habit-1', completionRate: 50, activeDays: 3, totalCompletions: 3, totalScheduled: 6, currentStreak: 3, bestStreak: 9, hasData: true, surfaceId: 'progress' }} />)
-  expect(view.container.querySelectorAll('[data-state="default"], [data-state="empty"]')).toHaveLength(3)
+  expect(view.container.querySelectorAll('[data-compact-figure]')).toHaveLength(3)
 })
 
 it('keeps cached habits loggable after an offline refetch error', () => {
@@ -146,9 +143,7 @@ it('offers calendar reconnection and disables import after disconnection', () =>
   expect(view.container.querySelector('section')).toHaveAttribute('data-state', 'partiallyFailed')
   expect(screen.getByRole('alert')).toHaveTextContent('chat.calendarCard.syncState.ReconnectRequired')
   expect(screen.getByRole('button', { name: /chat.calendarCard.makeHabit/ })).toBeDisabled()
-  fireEvent.click(screen.getByRole('button', { name: 'chat.calendarCard.open' }))
-  expect(state.push).toHaveBeenCalledWith('/calendar?import=1')
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  expect(screen.queryByRole('button', { name: 'chat.calendarCard.open' })).not.toBeInTheDocument()
 })
 
 it('puts a payload sync error in the calendar actions area', () => {
@@ -188,16 +183,16 @@ it.each(chatNavigationCases.flatMap(scenario => [false, true].map(wide => ({ ...
   const view = render(<NavigationApp part={part} />)
   expect(screen.getByRole('dialog', { name: 'Astra' })).toBeVisible()
   expect(view.container.querySelector('[data-shell-destination]')).toHaveAttribute('inert')
-  const action = screen.queryByRole('link', { name: label }) ?? screen.getByRole('button', { name: label })
-  fireEvent.click(action)
-  if (action.tagName === 'A') expect(action).toHaveAttribute('href', web)
-  expect(state.push).toHaveBeenCalledWith(web)
-  expect(openAtNavigation).toEqual([false])
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
-  view.rerender(<NavigationApp part={part} />)
-  expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
-  expect(screen.getByRole('heading', { name: web })).toBeVisible()
-  expect(view.container.querySelector('[data-shell-destination]')).not.toHaveAttribute('inert')
+  const action = screen.queryByRole('link', { name: label }) ?? screen.queryByRole('button', { name: label })
+  if (['habit row', 'dated habit row', 'day habit row', 'calendar import'].includes(part.kind === 'habitList' ? part.block.date ? 'dated habit row' : 'habit row' : part.kind === 'daySummary' && label.includes('habitList.open') ? 'day habit row' : label.includes('makeHabit') ? 'calendar import' : '')) {
+    expect(action).not.toBeNull()
+    fireEvent.click(action!)
+    expect(state.push).toHaveBeenCalledWith(web)
+    expect(openAtNavigation).toEqual([false])
+  } else {
+    expect(action).toBeNull()
+    expect(state.push).not.toHaveBeenCalled()
+  }
 })
 
 vi.mock('next/link', () => ({ default: ({ href, onClick, onNavigate, children }: {
