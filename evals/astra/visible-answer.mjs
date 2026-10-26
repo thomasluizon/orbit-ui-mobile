@@ -1,3 +1,4 @@
+import { suggestionAnswer } from './suggestions.mjs'
 import { tsImport } from 'tsx/esm/api'
 import { catalogTranslator } from './catalog-translator.mjs'
 import { visibleBlock } from './visible-blocks.mjs'
@@ -36,6 +37,7 @@ function projectionCannotWrite() { throw new Error('Visible answer projection ca
 export function visibleAnswer(composition, clientContext, accountDate) {
   if (clientContext?.supportsParts !== true) return composition.aiMessage
   const locale = clientContext.locale ?? 'en'
+  if (composition.parts?.some((part) => part.kind === 'habitSuggestions')) return suggestionAnswer(composition.parts, locale)
   const t = catalogTranslator(locale)
   const options = { t, locale, timeFormat: clientContext.timeFormat, accountDate }
   const props = { message: { ...composition, role: 'ai', content: composition.aiMessage ?? '' },
