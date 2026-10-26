@@ -198,6 +198,22 @@ initially displayed fields; hidden audit summaries, payloads, collapsed content 
 transport labels never enter the rubric. Raw
 composition and tool evidence remain available to the structural assertions.
 
+Suggestion cases negotiate the API's `habitSuggestions` kind explicitly. The eval projects the
+producer's draft fields directly, including the localized date, checklist, schedule and reason;
+this covers the API capability independently of the shared client block schema. The composition
+gate requires complete distinct drafts and accepts only the producer's short introduction before
+the block. Duplicate cases reuse the localized `pro` fixture and require its registered habit ID
+as `existingHabitId`, rejecting a second draft for the same habit.
+
+Refine cases first verify a real suggestion setup turn with the tool and composition gates, then
+send one of those drafts, the instruction and language as JSON to
+`POST /api/chat/habit-suggestions/refine`. This endpoint returns one draft rather than a chat
+response or eval trace. Its assertions validate that draft's shape, original identity and requested
+schedule, then verify that replacing it preserves every sibling and its order. They do not invent
+tool evidence for the refine request. Each attempt consumes two message allowances, so reserve six
+messages per refine case's three attempts. Harness tests exercise this flow offline; never treat
+their passing result as evidence from a live model run.
+
 ### Environment and reproducible fixtures
 
 | Key | Purpose |
@@ -277,7 +293,7 @@ its previous state after the run. Header alone or flag alone cannot enable traci
 ### Daily windows and combined report
 
 The Pro daily ceiling cannot cover the full corpus in one window. Reserve three messages per
-ordinary case and six per medical correction case, which has a paid setup turn on each attempt.
+ordinary case and six per refine or medical correction case, which has a paid setup turn on each attempt.
 Read the real profile allowance before planning a window; the message limit, model-call ceiling
 and spend backstop all still apply. Leave `repeat: 3`, serial execution, no retries and caching
 disabled. Keep each case's three attempts in one window. The current Pro corpus needs about six

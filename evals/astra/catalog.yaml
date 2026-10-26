@@ -6037,3 +6037,29 @@
         - name
         - color
       additionalProperties: false
+- type: function
+  writes: false
+  function:
+    name: suggest_habits
+    parameters:
+      type: object
+      properties:
+        instruction:
+          type: string
+          maxLength: 1000
+        language:
+          type: string
+          enum:
+            - en
+            - pt
+            - pt-BR
+        count:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          maximum: 5
+      required:
+        - instruction
+        - language
+      additionalProperties: false
