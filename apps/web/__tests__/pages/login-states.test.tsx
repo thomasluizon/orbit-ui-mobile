@@ -140,6 +140,17 @@ describe.each(authLocales)('auth screen composition in %s', (locale) => {
     view.rerender(<LoginContent />)
     expect(screen.getByText(t('referral.loginBanner'))).toBeInTheDocument()
   })
+
+  it.each([1, 4])('formats %s waiting habits with the same copy as the fixture', (count) => {
+    const { t } = setFixture('from onboarding', locale)
+    mocks.flow.pendingHabitCount = count
+    render(<LoginContent />)
+    const expected = locale === 'en'
+      ? `${count} ${count === 1 ? 'habit' : 'habits'} waiting on this device.`
+      : `${count} ${count === 1 ? 'hábito' : 'hábitos'} esperando neste aparelho.`
+    expect(screen.getByText(t('auth.onboarding.habits', { count }))).toHaveTextContent(expected)
+    expect(screen.queryByText((locale === 'en' ? en : ptBR).auth.onboarding.habits)).not.toBeInTheDocument()
+  })
 })
 
 

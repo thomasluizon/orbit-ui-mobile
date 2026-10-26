@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import {
+  isArgumentElement,
   isLiteralElement,
   isNumberElement,
   isPluralElement,
@@ -67,6 +68,11 @@ describe('Portuguese ICU zero plurals', () => {
     key, message, elements: parse(message, { ignoreTag: true }),
   })).filter(({ elements }) => allMessageElements(elements).some(isPluralElement))
   const customZeroMessages = new Map([
+    ['habits.count', 'nenhum hábito'],
+    ['habits.deleteListConfirmMessage', 'name sai da sua lista. Você pode desfazer pela mensagem que aparece.'],
+    ['habits.breakdown.createCount', 'nenhum hábito'],
+    ['habits.breakdown.createdSuccess', 'nenhum hábito criado'],
+    ['goals.detail.derivedStreak', 'O progresso da sequência é calculado automaticamente, então não pode ser editado aqui.'],
     ['wrapped.slides.streak.caption', 'Seu próximo registro começa uma nova sequência.'],
     ['progressScreen.streak.covered', 'Um congelamento cobriu date. Não resta nenhum.'],
     ['progressScreen.streak.automaticCovered', 'O Orbit cobriu date automaticamente com um congelamento. Não resta nenhum.'],
@@ -95,9 +101,12 @@ describe('Portuguese ICU zero plurals', () => {
   })
 
   it.each(messages)('renders $key with zero using plural copy or its custom zero message', ({ key, message, elements }) => {
+    const numericArguments = new Set(allMessageElements(elements)
+      .filter((element) => isPluralElement(element) || isNumberElement(element))
+      .map((element) => element.value))
     const values = Object.fromEntries(allMessageElements(elements)
       .filter((element) => !isLiteralElement(element) && !isPoundElement(element))
-      .map((element) => [element.value, isPluralElement(element) || isNumberElement(element) ? 0 : element.value]))
+      .map((element) => [element.value, numericArguments.has(element.value) ? 0 : element.value]))
     const expected = customZeroMessages.get(key)
       ?? new IntlMessageFormat(pluralAtZero(elements), 'pt-BR').format(values)
 
@@ -274,8 +283,8 @@ describe('i18n locale parity', () => {
     ] as const) {
       for (const message of [
         locale.habits.deleteConfirmMessage,
-        ...locale.habits.bulkDeleteMessage.split(' | '),
-        ...locale.habits.deleteListConfirmMessage.split(' | '),
+        ...[0, 1, 2].map((count) => String(new IntlMessageFormat(locale.habits.bulkDeleteMessage).format({ count }))),
+        ...[0, 1, 2].map((count) => String(new IntlMessageFormat(locale.habits.deleteListConfirmMessage).format({ count, name: 'List' }))),
         locale.goals.detail.deleteConfirm,
       ]) {
         expect(message.toLowerCase()).toContain(undoLabel)
@@ -286,12 +295,12 @@ describe('i18n locale parity', () => {
 
   it('keeps zero, one, and many forms for habit deletion in both locales', () => {
     for (const locale of [en, ptBR]) {
-      const [zero, one, many] = locale.habits.deleteListConfirmMessage.split(' | ')
-      expect(locale.habits.deleteListConfirmMessage.split(' | ')).toHaveLength(3)
-      expect(zero).toContain('{name}')
-      expect(zero).not.toContain('{count}')
-      expect(one).toContain('{count}')
-      expect(many).toContain('{count}')
+      const formatter = new IntlMessageFormat(locale.habits.deleteListConfirmMessage)
+      const [zero, one, many] = [0, 1, 2].map((count) => String(formatter.format({ count, name: 'List' })))
+      expect(zero).toContain('List')
+      expect(zero).not.toMatch(/\d/)
+      expect(one).toContain('1 item ')
+      expect(many).toContain(locale === en ? '2 items ' : '2 itens ')
     }
     expect(en.habits.deleteConfirmTitle).toBe('Delete this habit?')
     expect(ptBR.habits.deleteConfirmTitle).toBe('Apagar este hábito?')
@@ -467,5 +476,71 @@ describe('Calendar any-time overflow names', () => {
       expect(accessibleName.startsWith(String(visible.format({ count })))).toBe(true)
       expect(accessibleName).toContain(count === 1 ? singular : plural)
     }
+  })
+})
+
+describe('native plural messages', () => {
+  it('prevents pipe plurals from reaching plain translation calls on either platform', () => {
+    for (const messages of [en, ptBR]) {
+      expect([...flatten(messages)].filter(([, message]) => message.includes(' | ')).map(([key]) => key)).toEqual([])
+    }
+  })
+})
+
+
+describe('counted message grammar', () => {
+  const cardinalArguments = new Set([
+    'count', 'n', 'days', 'minutes', 'hours', 'allowance', 'limit', 'max',
+    'total', 'done', 'used', 'shown', 'current', 'banked', 'ceiling', 'due', 'scheduled',
+    'needed', 'overage', 'proDays', 'skippedCount', 'totalCount',
+  ])
+  const invariantMessages = {
+    abbreviatedUnits: [
+      'notifications.minutesAgo', 'notifications.hoursAgo', 'notifications.daysAgo',
+      'habits.schedule.dueInDays', 'habits.frequency.flexibleLabel',
+    ],
+    positionsAndNumericReadouts: [
+      'auth.codeDigit', 'habits.reorderMoved', 'habits.reorderBoundary',
+      'habits.moveParent.invalidDepth', 'habits.rowProgress', 'habits.frequency.flexibleProgress',
+      'habits.form.checklistItemLabel', 'calendar.showingCount',
+      'charts.bar.selectedDay', 'charts.bar.readout', 'chat.choice.position',
+      'chat.habitList.count', 'chat.insight.pageAnnounce', 'chat.streakCard.xp',
+      'chat.recordList.count', 'chat.preview.summary.repeatInterval',
+      'wrapped.progressLabel', 'onboarding.flow.step', 'upgrade.billing.usage.aiMessagesOf',
+      'goals.streak.ofTarget', 'progressScreen.streak.freezesCount',
+      'progressScreen.goals.position', 'progressScreen.goals.reorderMoved',
+      'progressScreen.goals.reorderBoundary', 'progressScreen.achievements.xp',
+      'progressScreen.achievements.progress', 'progressScreen.achievements.progressLabel',
+    ],
+    formattedWeekdayNames: [
+      'habits.form.understoodDay', 'habits.form.understoodDayAt',
+      'habits.form.understoodDays', 'habits.form.understoodDaysAt',
+      'calendar.recurrenceWeeklyDays', 'onboarding.flow.when.cadence.fixed',
+      'onboarding.flow.when.cadence.fixedAt',
+    ],
+    suppliedUnitOrUnitlessQuantity: [
+      'chat.goalList.progress', 'goals.progressOf', 'goals.detail.progressUpdated',
+      'goals.detail.historyProgress', 'progressScreen.goals.progress',
+      'celebration.goal.line', 'celebration.goal.lineWithoutUnit',
+    ],
+    invariantQuantifiers: [
+      'notifications.bellWithCount', 'shell.composer.usage',
+      'habits.form.moreSelected', 'calendar.timeGrid.moreLabel',
+      'chat.preview.more', 'goals.detail.showAllHistory',
+    ],
+  }
+
+  it('requires ICU plurals for cardinal messages unless their grammar is count invariant', () => {
+    const invariantKeys = new Set(Object.values(invariantMessages).flat())
+    const violations: string[] = []
+    for (const [locale, messages] of [['en', en], ['pt-BR', ptBR]] as const) {
+      for (const [key, message] of flatten(messages)) {
+        const elements = allMessageElements(parse(message, { ignoreTag: true }))
+        if (!elements.some((element) => (isArgumentElement(element) || isNumberElement(element)) && cardinalArguments.has(element.value))) continue
+        if (elements.some(isPluralElement) || invariantKeys.has(key)) continue
+        violations.push(`${locale}:${key}`)
+      }
+    }
+    expect(violations).toEqual([])
   })
 })

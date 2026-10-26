@@ -1,3 +1,4 @@
+import { createTranslator } from 'next-intl'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -33,7 +34,7 @@ for (const width of [320, 360, 384, 412]) {
           for (const label of [words.profile.allowance.title, words.profile.proactiveAstra.title, words.profile.aiSummary.title]) {
             await markRequiredLabels(groups.getByText(label, { exact: true }))
           }
-          await markRequiredLabels(allowance.getByText(words.profile.allowance.usage.replace('{used}', '0').replace('{limit}', '15'), { exact: true }))
+          await markRequiredLabels(allowance.getByText(createTranslator({ locale, messages: words })('profile.allowance.usage', { used: 0, limit: 15 }), { exact: true }))
           await expect(groups.getByRole('switch')).toHaveCount(hasProAccess ? 2 : 0)
           await expectLabelsFit(page, groups)
           const spacing = await allowance.evaluate((panel) => {

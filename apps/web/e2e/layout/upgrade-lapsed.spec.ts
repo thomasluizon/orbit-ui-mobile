@@ -4,6 +4,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { subscriptionStatusSchema } from '@orbit/shared/types/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { formatCatalogMessage } from '../support/messages'
 import { subscriptionFixtures, test } from './upgrade-fixtures'
 
 const exhaustedLapsedSubscription = subscriptionStatusSchema.parse({
@@ -30,7 +31,7 @@ for (const [locale, messages] of [['pt-BR', ptBr], ['en', en]] as const) {
         const upgradeScreen = page.locator('[data-upgrade-screen]')
         await expect(upgradeScreen.getByRole('heading', { name: messages.upgrade.billing.lapsed.title, exact: true })).toBeVisible()
         for (const line of [
-          messages.upgrade.billing.lapsed.lostMessages.replace('{limit}', '5'),
+          formatCatalogMessage(locale, 'upgrade.billing.lapsed.lostMessages', { limit: exhaustedLapsedSubscription.aiMessagesLimit }),
           messages.upgrade.billing.lapsed.lostCalendar,
           messages.upgrade.billing.lapsed.lostRetrospective,
         ]) {

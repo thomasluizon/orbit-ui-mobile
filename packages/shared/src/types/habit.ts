@@ -645,6 +645,7 @@ const bulkSkipItemResultSchema = z.object({
   status: bulkItemStatusSchema,
   habitId: z.string(),
   error: z.string().nullable(),
+  errorCode: z.string().nullable().optional(),
 })
 
 export const bulkSkipResultSchema = z.object({

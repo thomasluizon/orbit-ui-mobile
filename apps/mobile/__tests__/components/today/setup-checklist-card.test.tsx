@@ -1,3 +1,4 @@
+import { testI18n } from '@/__tests__/support/i18n'
 import React from 'react'
 import TestRenderer, { act } from 'react-test-renderer'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -20,9 +21,7 @@ const profileState = vi.hoisted(() => ({ profile: undefined as Profile | undefin
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => profileState }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({
   t: (key: string, values?: Record<string, string | number>) => {
-    let message: unknown = profileState.locale === 'en' ? en : pt
-    for (const part of key.split('.')) message = (message as Record<string, unknown>)[part]
-    return String(message).replace(/\{(\w+)\}/g, (_, name: string) => String(values?.[name]))
+    return testI18n.getFixedT(profileState.locale)(key, values)
   },
 }) }))
 

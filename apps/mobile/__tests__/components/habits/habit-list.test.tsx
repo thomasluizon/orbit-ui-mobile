@@ -1,3 +1,4 @@
+import { testI18n } from '@/__tests__/support/i18n'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { resetAccountQueries } from '@orbit/shared/query'
 import { createMoveInventoryFixture } from '@orbit/shared/__tests__/move-inventory-fixtures'
@@ -325,15 +326,12 @@ let capturedDrillOptions: HabitVisibilityOptions | undefined
 
 vi.mock('react-i18next', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-i18next')>()
-  const { default: messages } = await import('@orbit/shared/i18n/en.json')
   return {
   ...actual,
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) => {
       if (key === 'habits.deleteListConfirmMessage') {
-        return messages.habits.deleteListConfirmMessage
-          .replaceAll('{name}', String(params?.name))
-          .replaceAll('{count}', String(params?.count))
+        return testI18n.getFixedT('en')(key, params)
       }
       return params ? `${key}(${JSON.stringify(params)})` : key
     },

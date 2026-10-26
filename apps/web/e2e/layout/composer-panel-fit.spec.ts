@@ -8,6 +8,7 @@ import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { formatCatalogMessage } from '../support/messages'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { measureFieldInset } from './field-inset-geometry'
 import { composerPlaceholderFits } from './composer-column-paint'
@@ -135,7 +136,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         if (state !== 'idle') {
           await expect(field).toBeDisabled()
           await expect(composer).toContainText(state === 'offline' ? messages.shell.composer.offline.reason
-            : messages.shell.composer.limit.reason.replace('{allowance}', String(profile.aiMessagesLimit)))
+            : formatCatalogMessage(locale, 'shell.composer.limit.reason', { allowance: profile.aiMessagesLimit }))
         }
       })
     }

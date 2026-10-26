@@ -1,3 +1,4 @@
+import { testI18n } from '@/__tests__/support/i18n'
 import { Resvg } from '@resvg/resvg-js'
 import { ScrollView, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { __setWindowDimensions, __resetTestHostConfig } from '../../../test-mocks/react-native'
@@ -27,11 +28,7 @@ const mocks = vi.hoisted(() => ({
   realPlayBilling: false, connectionOutcome: 'false', reconnect: vi.fn(), fetchProducts: vi.fn(),
 }))
 function translate(key: string, parameters?: Record<string, unknown>): string {
-  let value: unknown = mocks.locale === 'pt-BR' ? ptBr : en
-  for (const part of key.split('.')) value = Reflect.get(value as object, part)
-  let message = String(value)
-  for (const [name, parameter] of Object.entries(parameters ?? {})) message = message.replaceAll(`{${name}}`, String(parameter))
-  return message
+  return testI18n.getFixedT(mocks.locale)(key, parameters)
 }
 vi.mock('@/lib/i18n', () => ({ i18n: { language: 'en' } }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: translate, i18n: { language: mocks.locale } }) }))
@@ -153,6 +150,7 @@ describe('Android final Pro step', () => {
     mocks.profile = createMockProfile({ isTrialActive: true, hasProAccess: true, plan: 'pro', trialEndsAt: new Date(Date.now() + 7 * 86400000).toISOString() })
     mocks.refetch.mockResolvedValue({ data: mocks.profile, isError: false })
     const { tree, finish } = await mount()
+    expect(text(tree.root).join(' ')).not.toContain(', plural,')
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'onboarding-step-trial')).toHaveLength(1)
     expect(text(tree.root)).toContain(plural(translate('upgrade.convert.trialDaysLeft', { days: getTrialDaysLeft(mocks.profile) }), getTrialDaysLeft(mocks.profile)!))
     const date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(mocks.profile.trialEndsAt!))

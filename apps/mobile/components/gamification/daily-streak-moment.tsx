@@ -40,7 +40,7 @@ export function DailyStreakMoment({ streak, entering }: { streak: number; enteri
           <Animated.Text testID="daily-streak-number" style={[styles.number, styles.fragment, { color: tokens.fg1 }, entering ? {
             opacity: progress, transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] } : undefined]}>{current}</Animated.Text>
         </View>
-        <Text style={[styles.label, { color: tokens.fg2 }]}>{plural(t('celebration.streak.unit'), streak)}</Text>
+        <Text style={[styles.label, { color: tokens.fg2 }]}>{plural(t('celebration.streak.unit', { count: streak }), streak)}</Text>
       </View>
     </View>
   )

@@ -3,7 +3,7 @@
 import { useCallback, useLayoutEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import type { HabitResolutionMode } from '@orbit/shared/utils'
-import { executeBulkMoveParent, getFailedBulkHabitIds, isBulkCompletionAllowed, type BulkActionsOptions, type BulkResultItem } from '@orbit/shared/hooks'
+import { executeBulkMoveParent, getBulkActionFailures, isBulkCompletionAllowed, type BulkActionsOptions, type BulkResultItem } from '@orbit/shared/hooks'
 import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits, useBulkMoveHabitParent } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { reportsAccountChanged } from '@/app/actions/action-result'
@@ -55,17 +55,18 @@ export function useBulkActions({
   }, [habitListRef])
 
   const finish = useCallback((outcome: BulkActionOutcome, retry: (ids: string[]) => void) => {
-    const failedIds = getFailedBulkHabitIds(outcome.results)
+    const { retryIds, reasonKeys } = getBulkActionFailures(outcome.results)
     if (outcome.ambiguousIds?.length) {
       showToast(t('habits.bulkBar.connectionRefreshed'))
     }
-    if (failedIds.length === 0) return onSuccess()
-    onPartialFailure(failedIds)
-    showQueued(
-      t('habits.bulkBar.partialFailure', { count: failedIds.length }),
-      t('habits.bulkBar.retryFailed'),
-      () => retry(failedIds),
-    )
+    if (retryIds.length === 0) onSuccess()
+    else onPartialFailure(retryIds)
+    const messages = reasonKeys.map((key) => t(key))
+    if (retryIds.length > 0) messages.push(t('habits.bulkBar.partialFailure', { count: retryIds.length }))
+    if (messages.length === 0) return
+    const message = messages.join('\n')
+    if (retryIds.length === 0) showToast(message)
+    else showQueued(message, t('habits.bulkBar.retryFailed'), () => retry(retryIds))
   }, [onPartialFailure, onSuccess, showQueued, showToast, t])
 
   async function executeDelete(ids: string[]) {

@@ -1,3 +1,5 @@
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useLayoutEffect } from 'react'
@@ -25,9 +27,14 @@ vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showToast, showQueued }),
 }))
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-}))
+const translationLocale = vi.hoisted(() => ({ current: 'en' }))
+
+vi.mock('next-intl', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next-intl')>()
+  return { ...actual, useTranslations: () => actual.createTranslator({
+    locale: translationLocale.current, messages: translationLocale.current === 'en' ? en : ptBR,
+  }) }
+})
 
 function renderBulkActions(
   selectedHabitIds: Set<string>,
@@ -91,8 +98,71 @@ describe('useBulkActions reversibility boundary', () => {
   })
 
   afterEach(() => {
+    translationLocale.current = 'en'
     vi.unstubAllGlobals()
     vi.useRealTimers()
+  })
+
+  it.each([
+    { locale: 'en', reason: 'This habit is not due yet on that date.', message: '2 selected rows could not be updated.' },
+    { locale: 'pt-BR', reason: 'Este hábito ainda não está disponível nessa data.', message: 'Não foi possível atualizar 2 linhas selecionadas.' },
+  ])('retries only transient rows from a mixed skip and explains the permanent reason in $locale', async ({ locale, reason, message }) => {
+    translationLocale.current = locale
+    bulkSkip.mutateAsync.mockResolvedValueOnce({ results: [
+      { index: 0, status: 'Failed', habitId: 'permanent', error: 'Not due', errorCode: 'HABIT_NOT_YET_DUE' },
+      { index: 1, status: 'Failed', habitId: 'retry-a', error: 'Conflict', errorCode: 'CONCURRENT_UPDATE_CONFLICT' },
+      { index: 2, status: 'Failed', habitId: 'retry-b', error: 'Server failed', errorCode: 'MUTATION_FAILED' },
+      { index: 3, status: 'Success', habitId: 'done', error: null, errorCode: null },
+    ] }).mockResolvedValueOnce(bulkSuccess(['retry-a', 'retry-b']))
+    const { result, onPartialFailure, onSuccess, settleBulkHabitResolutions } = renderBulkActions(new Set(['permanent', 'retry-a', 'retry-b', 'done']))
+    await act(async () => { await result.current.confirmBulkSkip() })
+    expect(onPartialFailure).toHaveBeenCalledWith(['retry-a', 'retry-b'])
+    expect(settleBulkHabitResolutions).toHaveBeenCalledWith([{ habitId: 'done', mode: 'skip' }], VIEWED_DATE)
+    expect(showQueued.mock.calls[0]?.[0]).toBe(`${reason}\n${message}`)
+    const retry = showQueued.mock.calls[0]?.[2] as (() => void)
+    await act(async () => { retry(); await Promise.resolve() })
+    expect(bulkSkip.mutateAsync).toHaveBeenLastCalledWith([
+      { habitId: 'retry-a', date: VIEWED_DATE }, { habitId: 'retry-b', date: VIEWED_DATE },
+    ])
+    expect(onSuccess).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    { locale: 'en', reason: 'This habit is already done for that date.' },
+    { locale: 'pt-BR', reason: 'Este hábito já foi feito nessa data.' },
+  ])('clears a permanently rejected skip and explains it without Retry in $locale', async ({ locale, reason }) => {
+    translationLocale.current = locale
+    bulkSkip.mutateAsync.mockResolvedValueOnce({ results: [
+      { index: 0, status: 'Failed', habitId: 'h-1', error: 'Already completed', errorCode: 'HABIT_ALREADY_COMPLETED' },
+    ] })
+    const { result, onSuccess, onPartialFailure } = renderBulkActions(new Set(['h-1']))
+    await act(async () => { await result.current.confirmBulkSkip() })
+    expect(onSuccess).toHaveBeenCalledOnce()
+    expect(onPartialFailure).not.toHaveBeenCalled()
+    expect(showToast).toHaveBeenCalledWith(reason)
+    expect(showQueued).not.toHaveBeenCalled()
+    translationLocale.current = 'en'
+  })
+
+  it.each([
+    { locale: 'en', message: '1 selected row could not be updated.' },
+    { locale: 'pt-BR', message: 'Não foi possível atualizar 1 linha selecionada.' },
+  ])('keeps only transient skip failures selected with a singular Retry message in $locale', async ({ locale, message }) => {
+    translationLocale.current = locale
+    bulkSkip.mutateAsync.mockResolvedValueOnce({ results: [
+      { index: 0, status: 'Success', habitId: 'h-1', error: null, errorCode: null },
+      { index: 1, status: 'Failed', habitId: 'h-2', error: 'Mutation failed', errorCode: 'MUTATION_FAILED' },
+    ] }).mockResolvedValueOnce(bulkSuccess(['h-2']))
+    const { result, onSuccess, onPartialFailure } = renderBulkActions(new Set(['h-1', 'h-2']))
+    await act(async () => { await result.current.confirmBulkSkip() })
+    expect(onPartialFailure).toHaveBeenCalledWith(['h-2'])
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(showQueued.mock.calls[0]?.[0]).toBe(message)
+    const retry = showQueued.mock.calls[0]?.[2] as (() => void)
+    expect(retry).toBeTypeOf('function')
+    await act(async () => { retry(); await Promise.resolve() })
+    expect(bulkSkip.mutateAsync).toHaveBeenLastCalledWith([{ habitId: 'h-2', date: VIEWED_DATE }])
+    translationLocale.current = 'en'
   })
 
   it.each([
