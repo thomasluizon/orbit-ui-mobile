@@ -19,7 +19,7 @@ import { fetchAuthEndpoint, getCookieValue, handleVerifySuccess, isOfflinePrefli
 import { NOTIFICATION_URL_PARAM } from '@/lib/service-worker-registration'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
-export function useLoginFlow() {
+export function useLoginFlow(isAuthCallback = false) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const t = useTranslations()
@@ -93,7 +93,7 @@ export function useLoginFlow() {
     const codes = searchParams.getAll('code')
     const queryEmail = emails.length === 0 ? undefined : emails.length === 1 ? emails[0] : null
     const queryCode = codes.length === 0 ? undefined : codes.length === 1 ? codes[0] : null
-    const link = readLoginEmailLink(queryEmail, queryCode, lastLink)
+    const link = readLoginEmailLink(queryEmail, queryCode, lastLink, !isAuthCallback)
     if (link !== undefined) setIncomingLink(link)
     if (link) {
       setLastLink(link)
@@ -119,6 +119,7 @@ export function useLoginFlow() {
   }, [attemptScope, incomingLink, resetTurnstileToken, turnstileSiteKey])
 
   useEffect(() => {
+    if (isAuthCallback) return
     const clean = new URLSearchParams(searchParamsKey)
     if (!clean.has('email') && !clean.has('code')) return
     if (!readLoginEmailLink(clean.getAll('email').length === 1 ? clean.get('email') : null, clean.getAll('code').length === 1 ? clean.get('code') : null)) {
@@ -129,7 +130,7 @@ export function useLoginFlow() {
     clean.delete('code')
     const query = clean.toString()
     window.history.replaceState(null, '', `/login${query ? `?${query}` : ''}`)
-  }, [attemptScope, searchParamsKey])
+  }, [attemptScope, isAuthCallback, searchParamsKey])
 
   useEffect(() => {
     if (!incomingLink || !isOnline || (turnstileSiteKey && !turnstileToken) || isSubmitting) return

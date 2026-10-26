@@ -1,8 +1,8 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
 
 import { SPACING } from '@orbit/shared/theme'
-
 
 import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
 
@@ -17,7 +17,7 @@ import type { useChatComposer } from '@/hooks/use-chat-composer'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { Composer } from '@/components/shell/composer'
-import { ChevronDown, Lightbulb, X } from '@/components/ui/icons'
+import { ChevronDown, Lightbulb, X, RefreshCw } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { WorkingMark } from '@/components/ui/toast'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -37,7 +37,7 @@ function PromptLibraryLoadFailure({ onBack, onRetry }: Readonly<{ onBack: () => 
   return <div data-prompt-library="" className="absolute inset-0 z-[1] flex min-h-0 flex-col bg-[var(--bg)]">
     <AppBar title={t('chat.templates.title')} titleRef={headingRef} onBack={onBack} backLabel={t('chat.templates.back')} />
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-      <ErrorState message={t('common.error')} action={<Button variant="ghost" onClick={onRetry}>{t('common.retry')}</Button>} />
+      <ErrorState message={t('common.error')} action={<IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />
     </div>
   </div>
 }
@@ -242,7 +242,6 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
       returnToConversation()
     }
   }
-
 
   const handleActionChipClick = useCallback((entityId: string, actionType: string) => {
     if (CHAT_GOAL_ACTION_TYPES.has(actionType)) {

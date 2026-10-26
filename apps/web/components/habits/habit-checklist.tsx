@@ -1,10 +1,12 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { useCallback, useId } from 'react'
-import { GripHorizontal, X, Copy, Plus, RotateCcw } from '@/components/ui/icons'
+import { GripHorizontal, X, Copy, Plus, RotateCcw, Trash2 } from '@/components/ui/icons'
 import { useDragAccessibility } from '@/components/ui/drag-accessibility'
 import { useTranslations } from 'next-intl'
 import {
@@ -227,18 +229,7 @@ export function HabitChecklist({
 
       {editable && items.length > 0 && (
         <div className="flex justify-end">
-          <button
-            type="button"
-            className="inline-flex min-h-[var(--touch-min)] min-w-[var(--touch-min)] items-center justify-center orbit-hover-text rounded-full px-2 text-[var(--status-bad-text)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)]"
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 12,
-              fontWeight: 500,
-            }}
-            onClick={clearAll}
-          >
-            {t('habits.form.clearChecklist')}
-          </button>
+          <IconButton label={t('habits.form.clearChecklist')} onClick={clearAll}><Trash2 size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
         </div>
       )}
 

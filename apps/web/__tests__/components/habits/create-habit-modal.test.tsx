@@ -1000,7 +1000,7 @@ describe('CreateHabitModal', () => {
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={onOpenChange} />,
     )
-    fireEvent.click(screen.getByText('common.cancel'))
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
@@ -1008,7 +1008,7 @@ describe('CreateHabitModal', () => {
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
-    expect(screen.getByText('habits.form.addSubHabit')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'habits.form.addSubHabit' })).toBeDefined()
     expect(screen.queryByText('habits.form.subHabits')).toBeNull()
   })
 

@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { useTranslations } from 'next-intl'
 import { OrbitMark } from '@/components/ui/orbit-mark'
@@ -31,7 +33,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
           <li className="flex flex-col items-center gap-4 rounded-[var(--r-card)] p-8 text-center">
             {isError ? <>
               <p className="text-sm text-[var(--fg-3)]">{t('notifications.loadError')}</p>
-              <button type="button" className="chip" onClick={onRetry}>{t('common.retry')}</button>
+              <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
             </> : <>
               <OrbitMark size={96} />
               <p className="text-sm text-[var(--fg-3)]">{t('notifications.empty')}</p>

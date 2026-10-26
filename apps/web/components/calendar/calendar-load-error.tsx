@@ -1,10 +1,10 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { SPACING } from '@orbit/shared/theme'
 
-
 import { useTranslations } from 'next-intl'
-import { PillButton } from '@/components/ui/pill-button'
 
 interface CalendarLoadErrorProps {
   onRetry: () => void
@@ -27,9 +27,7 @@ export function CalendarLoadError({ onRetry }: Readonly<CalendarLoadErrorProps>)
       <p className="text-sm text-[var(--fg-2)]" style={{ margin: SPACING.s0 }}>
         {t('calendar.loadError')}
       </p>
-      <PillButton variant="ghost" onClick={onRetry}>
-        {t('common.retry')}
-      </PillButton>
+      <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
     </div>
   )
 }

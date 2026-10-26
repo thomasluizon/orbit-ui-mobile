@@ -29,7 +29,7 @@ export function sheetSlotButtons(root: unknown, slot: 'SheetBody' | 'SheetAction
   if (!container) throw new Error(`Expected the ${slot} slot`)
   return container
     .findAll(isButton)
-    .map((node) => (typeof node.props.accessibilityLabel === 'string' ? node.props.accessibilityLabel : textOf(node)))
+    .map((node) => (typeof node.props.accessibilityLabel === 'string' ? node.props.accessibilityLabel : typeof node.props.label === 'string' ? node.props.label : textOf(node)))
 }
 
 /** Whether the footer groups its actions in `ActionRow`. */
@@ -47,6 +47,7 @@ export function expectSmallSheetActions(root: unknown): void {
     if (typeof button.props.style === 'function') {
       expect(button.props.testID).toMatch(/-sm$/)
       expect(StyleSheet.flatten(button.props.style({ pressed: false })).width).toBeUndefined()
+      expect(textOf(button)).not.toBe('')
     } else {
       expect(button.props.size).toBe('sm')
       expect(button.props.matchedWidth).toBeFalsy()

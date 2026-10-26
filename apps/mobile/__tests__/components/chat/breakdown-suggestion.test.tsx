@@ -10,7 +10,7 @@ import {
   makeBulkCreateResponse,
 } from '@orbit/shared/test-support/chat-fixtures'
 import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
-import { renderedText } from '../../support/react-test-renderer'
+import { controlName, renderedText } from '../../support/react-test-renderer'
 
 const TestRenderer = require('react-test-renderer')
 let isPending = false
@@ -50,7 +50,7 @@ function renderBreakdown(warning?: ConflictWarning) {
 
 function press(tree: any, label: string) {
   return tree.root.findAll((node: any) =>
-    typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes(label),
+    typeof node.props?.onPress === 'function' && controlName(node).includes(label),
   )[0]
 }
 
@@ -226,12 +226,12 @@ it('disables approval and editing after removing every Android proposal', async 
     await act(() => openConfirmation(tree).onConfirm())
   }
   expect(renderedText(tree.root)).toContain('chat.breakdown.empty')
-  expect(press(tree, 'habits.breakdown.addHabit').props.testID).toBe('button-primary-sm')
+  expect(press(tree, 'habits.breakdown.addHabit').props.testID).toBe('button-ghost-sm')
   expect(press(tree, 'chat.preview.approve').props.testID).toBe('button-secondary-sm')
   expect(press(tree, 'chat.preview.approve').props.accessibilityState.disabled).toBe(true)
   await act(() => moreActions(tree).props.onPress())
-  expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'menuitem' && renderedText(node.props.children).includes('chat.preview.edit'))[0]!.props.accessibilityState).toMatchObject({ disabled: true })
-  expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'menuitem' && renderedText(node.props.children).includes('chat.preview.reject'))[0]!.props.accessibilityState).toMatchObject({ disabled: false })
+  expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'menuitem' && controlName(node).includes('chat.preview.edit'))[0]!.props.accessibilityState).toMatchObject({ disabled: true })
+  expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'menuitem' && controlName(node).includes('chat.preview.reject'))[0]!.props.accessibilityState).toMatchObject({ disabled: false })
   expect(bulkCreate).not.toHaveBeenCalled()
   await act(() => tree.update(<></>))
 })
@@ -257,7 +257,7 @@ it('keeps removed proposals out of Android failure recovery', async () => {
   expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
   expect(tree.root.findAll((node) => String(node.props.accessibilityLabel).includes('habits.breakdown.removeHabit') && String(node.props.accessibilityLabel).includes('Dishes'))).toHaveLength(0)
   expect(tree.root.findAll((node) => String(node.props.accessibilityLabel).includes('habits.breakdown.removeHabit') && String(node.props.accessibilityLabel).includes('Laundry'))).toHaveLength(0)
-  expect(tree.root.findAll((node) => String(node.type) === 'Pressable' && renderedText(node.props.children) === 'chat.preview.approve')).toHaveLength(0)
+  expect(tree.root.findAll((node) => String(node.type) === 'Pressable' && controlName(node) === 'chat.preview.approve')).toHaveLength(0)
   await act(async () => { press(tree, 'chat.batch.retry').props.onPress(); await Promise.resolve() })
   expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
   expect(bulkCreate).toHaveBeenCalledTimes(2)
@@ -345,8 +345,8 @@ it('keeps a rejected batch editable until it fits a persistent capacity constrai
     await act(() => press(tree, 'chat.preview.approve').props.onPress())
     await act(() => (tree.root.findAll(node => String(node.type) === 'ConfirmSheet')[0]!.props.onConfirm as () => void)())
     expect(bulkCreate).toHaveBeenCalledTimes(attempt)
-    expect(tree.root.findAll(node => String(node.type) === 'Text' && node.props.accessibilityLiveRegion === 'polite' && renderedText(node.props.children) === 'habits.breakdown.capacityDenied')).toHaveLength(1)
-    expect(tree.root.findAll(node => String(node.type) === 'Text' && node.props.accessibilityRole === 'alert' && renderedText(node.props.children).length > 0)).toHaveLength(0)
+    expect(tree.root.findAll(node => String(node.type) === 'Text' && node.props.accessibilityLiveRegion === 'polite' && controlName(node) === 'habits.breakdown.capacityDenied')).toHaveLength(1)
+    expect(tree.root.findAll(node => String(node.type) === 'Text' && node.props.accessibilityRole === 'alert' && controlName(node).length > 0)).toHaveLength(0)
     await act(() => moreActions(tree).props.onPress())
     expect(press(tree, 'chat.preview.reject').props.disabled).toBe(false)
     await act(() => (tree.root.findAll(node => node.props.accessibilityLabel === 'attempt-dismiss')[0]!.props.onPress as () => void)())
@@ -450,7 +450,6 @@ it('does not send blank-only drafts and can add to an empty proposal', async () 
   expect(bulkCreate).not.toHaveBeenCalled()
   expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
 })
-
 
 it('keeps a blank added row editable when it is focused again', async () => {
   const tree: ReactTestRenderer = renderBreakdown()

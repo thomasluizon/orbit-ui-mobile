@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { createTranslator } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -186,4 +186,17 @@ describe('Profile API key row geometry', () => {
     } finally { await page.close() }
   })
 
+})
+
+it.each(['en', 'pt-BR'])('shows distinct key creation choices in %s', async (locale) => {
+  settings.locale = locale as 'en' | 'pt-BR'
+  const t = createTranslator({ locale, messages: locale === 'en' ? en : ptBR })
+  const view = render(<QueryClientProvider client={new QueryClient()}><ProfileApiKeys profile={{ ...profileFixture, hasProAccess: true }} unlocked /></QueryClientProvider>)
+  try {
+    fireEvent.click(screen.getByRole('button', { name: t('profile.apiKeys.create') }))
+    for (const key of ['profile.apiKeys.createScoped', 'profile.apiKeys.create'] as const) {
+      const label = t(key)
+      expect(await screen.findByRole('menuitem', { name: label })).toHaveTextContent(label)
+    }
+  } finally { view.unmount() }
 })

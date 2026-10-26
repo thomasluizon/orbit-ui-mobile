@@ -84,7 +84,7 @@ describe('CreateGoalSheet', () => {
 
   it('shows add deadline button', () => {
     render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
-    expect(screen.getByText('goals.form.addDeadline')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'goals.form.addDeadline' })).toBeInTheDocument()
   })
 
   it('shows validation error when submitting without target value', () => {

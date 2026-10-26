@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { ChevronDown } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
 import { useState } from 'react'
 import { useChatNavigation } from '@/hooks/use-chat-navigation'
@@ -9,7 +11,7 @@ import { habitListOccurrenceFilters, habitListReadControl, habitListRowState } f
 import { formatAPIDate } from '@orbit/shared/utils'
 import { BlockFrame, useReadActionScope } from './read-block-frame'
 import { StatusRing } from '@/components/ui/status-ring'
-import { Button } from '@/components/ui/pill-button'
+
 import { useHabits, useLogHabit } from '@/hooks/use-habits'
 
 const PAGE_SIZE = 3
@@ -52,7 +54,7 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
       <BlockFrame state="resting" title={t(habitList.read ? 'nav.habits' : habitList.scope === 'all' ? 'chat.habitList.allTitle' : 'chat.habitList.title')} count={habitList.items.length === 0 ? null : t('chat.habitList.count', { shown: visibleItems.length, total: habitList.totalCount ?? habitList.items.length })} items={rows} body={habitList.items.length === 0 ? (
         <p className="text-sm text-[var(--fg-3)]">{t(habitList.read || habitList.scope === 'all' ? 'chat.habitList.allEmpty' : 'chat.habitList.todayEmpty')}</p>
       ) : undefined} actions={visibleItems.length < habitList.items.length ? (
-        <Button variant="ghost" size="sm" onClick={() => setShownCount((count) => count + PAGE_SIZE)}>{t('chat.habitList.more')}</Button>
+        <IconButton label={t('chat.habitList.more')} onClick={() => setShownCount((count) => count + PAGE_SIZE)}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
       ) : undefined} />
     </div>
   )

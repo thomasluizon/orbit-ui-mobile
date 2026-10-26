@@ -19,9 +19,9 @@ export function Pager(props: Readonly<PagerProps>) {
         ))}
       </ol>
       <ActionRow>
-        <PillButton variant="ghost" disabled={!props.onBack} onClick={props.onBack}>{props.backLabel}</PillButton>
+        <PillButton variant="ghost" accessibleName={props.backLabel} disabled={!props.onBack} onClick={props.onBack}>{props.backLabel}</PillButton>
         {props.forwardLabel !== undefined ? (
-          <PillButton disabled={!props.onForward} onClick={props.onForward}>{props.forwardLabel}</PillButton>
+          <PillButton accessibleName={props.forwardLabel} disabled={!props.onForward} onClick={props.onForward}>{props.forwardLabel}</PillButton>
         ) : props.forwardSlot}
       </ActionRow>
     </div>

@@ -1,12 +1,14 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { ChevronDown, RefreshCw } from '@/components/ui/icons'
 import { useLocale, useTranslations } from 'next-intl'
 import { useEffect, useRef } from 'react'
 import type { HabitRankingCard as HabitRankingDefinition } from '@orbit/shared/types/chat'
 import { formatHabitRankingPeriod } from '@orbit/shared/chat'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ListRow } from '@/components/ui/list-row'
-import { Button } from '@/components/ui/pill-button'
+
 import { useHabitRanking } from '@/hooks/use-habit-ranking'
 
 export function HabitRankingCard({ habitRanking, isOnline = true }: Readonly<{ habitRanking: HabitRankingDefinition; isOnline?: boolean }>) {
@@ -36,7 +38,7 @@ export function HabitRankingCard({ habitRanking, isOnline = true }: Readonly<{ h
       <p role="status" className="text-sm text-[var(--fg-2)]">{status ? t(status) : ''}</p>
     </div>}
     actions={<>
-      {ranking.ranking.nextCursor && !ranking.requiresRefresh ? <Button variant="ghost" size="sm" focusableWhenLoading onFocus={() => { moreFocused.current = true }} onBlur={() => { moreFocused.current = false }} disabled={!isOnline || ranking.pending === 'open' || ranking.pending === 'refresh'} loading={ranking.pending === 'page'} onClick={() => { if (!blocked) void ranking.showMore() }}>{t('more')}</Button> : null}
-      <Button variant="ghost" size="sm" buttonRef={refreshRef} focusableWhenLoading disabled={!isOnline || ranking.pending === 'open' || ranking.pending === 'page'} loading={ranking.pending === 'refresh'} onClick={() => { if (!blocked) void ranking.refresh() }}>{t('refresh')}</Button>
+      {ranking.ranking.nextCursor && !ranking.requiresRefresh ? <IconButton label={t('more')} focusableWhenLoading onFocus={() => { moreFocused.current = true }} onBlur={() => { moreFocused.current = false }} disabled={!isOnline || ranking.pending === 'open' || ranking.pending === 'refresh'} loading={ranking.pending === 'page'} onClick={() => { if (!blocked) void ranking.showMore() }}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
+      <IconButton label={t('refresh')} buttonRef={refreshRef} focusableWhenLoading disabled={!isOnline || ranking.pending === 'open' || ranking.pending === 'page'} loading={ranking.pending === 'refresh'} onClick={() => { if (!blocked) void ranking.refresh() }}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
     </>} />
 }

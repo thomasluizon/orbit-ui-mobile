@@ -1,13 +1,14 @@
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { IconButton } from '@/components/ui/icon-button'
+import { SPACING } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { ListRow } from '@/components/ui/list-row'
-import { Pressable, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { getNativePushStatusPresentation, type NativePushRegistrationStatus } from '@orbit/shared/utils'
 import type { NotificationPermissionStatus } from '@/lib/push-notification-permissions'
 import { RowList } from '@/components/ui/row-list'
 import { PillButton } from '@/components/ui/pill-button'
-import { RotateCcw } from '@/components/ui/icons'
+import { RotateCcw, Settings } from '@/components/ui/icons'
 import type { AppTokensV2 } from '@/lib/theme'
 
 function PushDevicesFeedback({
@@ -59,9 +60,7 @@ function PushDevicesFeedback({
         </Text>
       ) : null}
       {permissionStatus === 'denied' ? (
-        <Pressable accessibilityRole="button" onPress={onOpenSettings} style={{ minHeight: TOUCH_TARGET_MIN, paddingHorizontal: SPACING.s16, justifyContent: 'center' }}>
-          <Text style={{ color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{t('settings.notifications.openSettings')}</Text>
-        </Pressable>
+        <IconButton label={t('settings.notifications.openSettings')} onPress={onOpenSettings}><Settings size={20} strokeWidth={1.5} accessible={false} /></IconButton>
       ) : null}
     </>
   )

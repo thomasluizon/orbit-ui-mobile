@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+
 import { SPACING } from '@orbit/shared/theme'
 
 
@@ -142,14 +144,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem }: Read
   if (frameProps.state === 'stale') {
     return (
       <ActionRow>
-        {frameProps.onRefresh ? <button
-          className="flex min-h-[var(--touch-min)] items-center gap-2 rounded-full px-3 text-[var(--fg-1)] hover:bg-[var(--bg-hover)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
-          onClick={frameProps.onRefresh}
-          type="button"
-        >
-          <RefreshCw aria-hidden="true" size={20} strokeWidth={1.5} />
-          <span>{frameProps.refreshLabel ?? t('refresh')}</span>
-        </button> : null}
+        {frameProps.onRefresh ? <IconButton label={frameProps.refreshLabel ?? t('refresh')} onClick={frameProps.onRefresh}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
         {frameProps.staleActions}
       </ActionRow>
     )

@@ -1,3 +1,4 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { Text, View } from 'react-native'
 import { Plus, Trash2 } from '@/components/ui/icons'
@@ -91,20 +92,7 @@ export function SubHabitEditor({
           ))}
         </View>
       ) : null}
-      <Pressable
-        style={({ pressed }) => [
-          styles.addSubHabitButton,
-          subHabits.length >= MAX_SUB_HABITS && { opacity: 0.45 },
-          pressed && { transform: [{ scale: 0.96 }] },
-        ]}
-        disabled={subHabits.length >= MAX_SUB_HABITS}
-        onPress={onAddSubHabit}
-        accessibilityRole="button"
-        accessibilityLabel={t('habits.form.addSubHabit')}
-      >
-        <Plus size={16} color={tokens.fg2} strokeWidth={2} />
-        <Text style={styles.addSubHabitText}>{t('habits.form.addSubHabit')}</Text>
-      </Pressable>
+      <IconButton label={t('habits.form.addSubHabit')} disabled={subHabits.length >= MAX_SUB_HABITS} onPress={onAddSubHabit}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton>
     </View>
   )
 }

@@ -178,7 +178,7 @@ describe('habit form focus treatments', () => {
       />,
     )
 
-    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminderAdd' }))
     fireEvent.click(screen.getByText('habits.form.reminderCustom'))
 
     const input = screen.getByLabelText('habits.form.reminderCustomLabel')

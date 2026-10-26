@@ -1,3 +1,4 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { ActionRow } from './action-row'
 
 import { SPACING, SMALL_PILL_VISIBLE_MIN, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -185,18 +186,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens
   if (frameProps.state === 'stale') {
     return (
       <ActionRow>
-        {frameProps.onRefresh ? <Pressable
-          accessibilityLabel={frameProps.refreshLabel ?? t('blockFrame.refresh')}
-          accessibilityRole="button"
-          onPress={frameProps.onRefresh}
-          style={({ pressed }) => [
-            styles.refreshButton,
-            { backgroundColor: pressed ? tokens.bgHover : 'transparent' },
-          ]}
-        >
-          <RefreshCw accessible={false} color={tokens.fg1} size={20} strokeWidth={1.5} />
-          <Text style={[styles.refreshLabel, { color: tokens.fg1 }]}>{frameProps.refreshLabel ?? t('blockFrame.refresh')}</Text>
-        </Pressable> : null}
+        {frameProps.onRefresh ? <IconButton label={frameProps.refreshLabel ?? t('blockFrame.refresh')} onClick={frameProps.onRefresh}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
         {frameProps.staleActions}
       </ActionRow>
     )
@@ -329,8 +319,6 @@ const styles = StyleSheet.create({
   actionSkeleton: { height: TOUCH_TARGET_MIN, borderRadius: 8 },
   hiddenMessage: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
   staleMessage: { fontFamily: 'Geist_400Regular', fontSize: 14 },
-  refreshButton: { minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, overflow: 'hidden', paddingHorizontal: SPACING.s12 },
-  refreshLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   actionRow: { gap: 12, padding: actionHitPadding, margin: -actionHitPadding },
   actionGuard: { padding: actionHitPadding, margin: -actionHitPadding },
   confirmNote: { fontFamily: 'Geist_400Regular', fontSize: 14 },

@@ -1,3 +1,5 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { ProBenefits } from './pro-benefits'
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
@@ -147,8 +149,8 @@ export function PlanSelection({
             message={t('upgrade.plans.error')}
             action={
               <>
-                {/* eslint-disable-next-line local/max-button-words -- The granted Pro drawing requires the three-word retry label in pt-BR. */}
-                <PillButton variant="ghost" onClick={onRetry}>{t('upgrade.plans.retry')}</PillButton>
+                { }
+                <IconButton label={t('upgrade.plans.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
               </>
             }
           />

@@ -1,3 +1,4 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useHabitFormInteraction } from './habit-form-fields/habit-form-interaction'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
@@ -7,7 +8,7 @@ import {
   Text,
   StyleSheet,
 } from 'react-native'
-import { ChevronUp, ChevronDown, X, Copy, Plus, RotateCcw } from '@/components/ui/icons'
+import { ChevronUp, ChevronDown, X, Copy, Plus, RotateCcw, Trash2 } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
@@ -379,14 +380,7 @@ export function HabitChecklist({
 
       {editable && items.length > 0 && (
         <View style={styles.clearRow}>
-          <Pressable
-            accessibilityRole="button"
-            disabled={disabled}
-            onPress={guard(clearAll)}
-            style={({ pressed }) => [styles.clearAction, pressed ? { backgroundColor: tokens.bgHover } : null]}
-          >
-            <Text style={[styles.clearText, { color: tokens.statusBadText }]}>{t('habits.form.clearChecklist')}</Text>
-          </Pressable>
+          <IconButton label={t('habits.form.clearChecklist')} disabled={disabled} onPress={guard(clearAll)}><Trash2 size={20} strokeWidth={1.5} accessible={false} /></IconButton>
         </View>
       )}
 

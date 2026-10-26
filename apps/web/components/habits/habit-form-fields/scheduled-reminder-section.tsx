@@ -1,6 +1,7 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { ListRow } from '@/components/ui/list-row'
 import { toTime24 } from '@orbit/shared/utils'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useState } from 'react'
 import { X, Plus } from '@/components/ui/icons'
@@ -112,14 +113,7 @@ export function ScheduledReminderSection({
 
           <div>
             {!showForm && !atLimit && (
-              <button
-                type="button"
-                className="chip"
-                onClick={() => setShowForm(true)}
-              >
-                <Plus size={16} strokeWidth={2} aria-hidden="true" />
-                {t(nested ? 'habits.form.reminderAddTime' : 'habits.form.scheduledReminderAdd')}
-              </button>
+              <IconButton label={t(nested ? 'habits.form.reminderAddTime' : 'habits.form.scheduledReminderAdd')} onClick={() => setShowForm(true)}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
             )}
 
             {atLimit && (
@@ -141,7 +135,7 @@ export function ScheduledReminderSection({
                     onClear={() => setTime('')}
                   />
                   <div className="flex justify-end gap-2">
-                    {inline ? <PillButton variant="ghost" size="sm" disabled={!time} onClick={addScheduledReminder}>{t('common.add')}</PillButton> : <button type="button" className="habit-control-motion shrink-0 rounded-full bg-[var(--primary)] px-4 py-2 text-[14px] font-medium text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:scale-[0.96] disabled:opacity-40" disabled={!time} onClick={addScheduledReminder}>{t('common.add')}</button>}
+                    <IconButton label={t('common.add')} disabled={!time} onClick={addScheduledReminder}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
                     <button type="button" aria-label={t('common.cancel')} className="habit-control-motion touch-target grid size-10 shrink-0 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96]" onClick={() => { setShowForm(false); setTime('') }}>
                       <X size={16} strokeWidth={1.8} aria-hidden="true" />
                     </button>

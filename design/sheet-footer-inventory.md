@@ -1,7 +1,9 @@
 # Sheet footer surfaces
 
 Every paired footer uses small, intrinsic-width actions aligned to the trailing edge,
-with the existing ghost dismissal before the filled action.
+with the drawn text ghost Cancel before the filled action. Both keep a 44px visible
+height, 18px inline padding and at least a 48px target through the transparent hit
+extension. Sharing and notification deletion keep their drawn labelled consequences.
 
 | Surface | Web owner | Android owner | States |
 |---|---|---|---|
@@ -15,7 +17,9 @@ with the existing ghost dismissal before the filled action.
 | Create habit | `components/habits/create-habit-modal.tsx` | `components/habits/create-habit-modal.tsx` | Habit, sub-habit, submitting |
 | Edit habit | `components/habits/edit-habit-modal.tsx` | `components/habits/edit-habit-modal.tsx` | Editing, submitting |
 | Create goal from habit | `components/habits/create-goal-from-habit-sheet.tsx` | `components/habits/create-goal-from-habit-sheet.tsx` | Editing, submitting |
+| Create goal | `components/goals/create-goal-sheet.tsx` | `components/goals/create-goal-sheet.tsx` | Editing, submitting |
 | Edit goal | `components/goals/edit-goal-modal.tsx` | `components/goals/edit-goal-modal.tsx` | Editing, submitting |
+| Goal progress | `components/goals/goal-detail-drawer/goal-progress-form.tsx` | `components/goals/goal-detail-drawer/goal-progress-form.tsx` | Editing, submitting |
 | Move parent | `components/habits/habit-list/move-parent-overlay.tsx` | `components/habit-list/move-parent-dialog.tsx` | Selecting, submitting |
 | Milestone share | `components/milestone-share/milestone-share-prompt.tsx` | `components/milestone-share/milestone-share-prompt.tsx` | Download, native share, sharing, error |
 | Marketing consent | `components/marketing-consent/marketing-consent-prompt.tsx` | `components/marketing-consent/marketing-consent-prompt.tsx` | Decline, accept |

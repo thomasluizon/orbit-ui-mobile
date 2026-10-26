@@ -317,7 +317,7 @@ describe('Sheet virtualized body (mobile)', () => {
   }
 
   it.each([
-    { name: 'the new tag action', editor: undefined, matches: (node: { props: Record<string, unknown> }) => node.props.children === 'habits.form.newTag' },
+    { name: 'the new tag action', editor: undefined, matches: (node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'habits.form.newTag' },
     { name: 'an open tag editor', editor: <View testID="tag-editor" />, matches: (node: { props: Record<string, unknown> }) => node.props.testID === 'tag-editor' },
   ])('scrolls $name with the tag rows inside the bounded list', async ({ editor, matches }) => {
     let tree: any

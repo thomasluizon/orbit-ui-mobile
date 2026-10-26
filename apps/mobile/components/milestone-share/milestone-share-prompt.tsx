@@ -1,3 +1,4 @@
+import { PillButton } from '@/components/ui/pill-button'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -9,7 +10,7 @@ import { canPromptEngagement, hasOpenPromptBlockingOverlay, parseMilestoneShareK
 import { buildReferralUrl } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { ActionRow } from '@/components/ui/action-row'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { useShareCard } from '@/hooks/use-share-card'
 import { createTokensV2 } from '@/lib/theme'
@@ -146,20 +147,13 @@ export function MilestoneSharePrompt() {
             >
               {t('milestoneShare.later')}
             </PromptQuietAction>
-            <PillButton
-              size="sm"
-              loading={isSharing}
-              disabled={isSharing}
-              onClick={() =>
+            <PillButton size="sm" loading={isSharing} disabled={isSharing} onClick={() =>
                 void share({
                   shareTitle: t('milestoneShare.shareTitle'),
                   shareText: t('milestoneShare.shareText'),
                   url: referralUrl,
                 })
-              }
-            >
-              {t('milestoneShare.share')}
-            </PillButton>
+              }>{t('milestoneShare.share')}</PillButton>
           </ActionRow>
         </>
       )}

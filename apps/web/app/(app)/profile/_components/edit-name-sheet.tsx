@@ -2,7 +2,6 @@
 
 import { SPACING } from '@orbit/shared/theme'
 
-
 import { PersonalText } from '@/components/ui/personal-text'
 
 import { useTranslations } from 'next-intl'
@@ -85,9 +84,7 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
       title={t('profile.editName.title')}
       actions={(
         <ActionRow>
-          <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => closeSheet()}>
-            {t('common.cancel')}
-          </PillButton>
+          <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
           <PillButton size="sm" onClick={handleSave} disabled={mutation.isPending} loading={mutation.isPending}>
             {t('common.save')}
           </PillButton>

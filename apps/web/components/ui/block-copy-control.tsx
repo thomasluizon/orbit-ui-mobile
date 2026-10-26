@@ -1,10 +1,11 @@
 'use client'
 
+import { Copy } from '@/components/ui/icons'
+
+import { IconButton } from '@/components/ui/icon-button'
+
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
-import { Copy } from './icons'
-import { Button } from './pill-button'
 
 export function BlockCopyControl({ text }: Readonly<{ text: string }>) {
   const t = useTranslations('chat.blockCopy')
@@ -29,9 +30,7 @@ export function BlockCopyControl({ text }: Readonly<{ text: string }>) {
   }
 
   return <>
-    <Button variant="ghost" size="sm" minimumHeight={SMALL_PILL_VISIBLE_MIN} leadingIcon={<Copy size={16} aria-hidden="true" />} onClick={() => void copyBlock()} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-      {t(status === 'copied' ? 'copied' : 'copy')}
-    </Button>
+    <IconButton label={t(status === 'copied' ? 'copied' : 'copy')} onClick={() => void copyBlock()} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}><Copy size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
     <span role="status" aria-live="polite" className={status === 'error' ? 'markdown-copy-error' : 'sr-only'}>
       {status === 'idle' ? '' : t(status === 'error' ? 'copyError' : 'copied')}
     </span>

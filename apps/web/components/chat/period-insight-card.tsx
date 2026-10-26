@@ -1,5 +1,9 @@
 'use client'
 
+import { ChevronsUp, ChevronDown } from '@/components/ui/icons'
+
+import { IconButton } from '@/components/ui/icon-button'
+
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -10,7 +14,7 @@ import type { PeriodInsightCard as PeriodInsightData } from '@orbit/shared/types
 import { mapCompletionSeries } from '@orbit/shared/utils'
 import { BarChart } from '@/components/ui/bar-chart'
 import { BlockFrame } from './read-block-frame'
-import { Button } from '@/components/ui/pill-button'
+
 import { ChatLink } from './chat-link'
 
 export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: PeriodInsightData }>) {
@@ -61,7 +65,7 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
         items={rows}
         body={body}
         actions={<>
-          <Button variant="ghost" size="sm" expanded={expanded} hasPopup={false} onClick={() => setExpanded(!expanded)}>{t(expanded ? 'chat.readBlock.less' : 'chat.habitList.more')}</Button>
+          <IconButton label={t(expanded ? 'chat.readBlock.less' : 'chat.habitList.more')} expanded={expanded} hasPopup={false} onClick={() => setExpanded(!expanded)}>{expanded ? <ChevronsUp size={20} aria-hidden="true" /> : <ChevronDown size={20} aria-hidden="true" />}</IconButton>
           <ChatLink variant="ghost" size="sm" href="/progress">{t('chat.insight.progressLink')}</ChatLink>
         </>}
       />

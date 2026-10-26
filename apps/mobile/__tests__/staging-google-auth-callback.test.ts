@@ -47,7 +47,7 @@ describe('staging Google callback', () => {
         redirectUri: `${origin}/auth-callback`, language: 'pt-BR' }),
     }, googleCodeAuthResponseSchema)
     await expect(completeGoogleAuthFromUrl(`${origin}/auth-callback?code=code&state=wrong`, 'pt-BR'))
-      .rejects.toThrow('Invalid OAuth state')
+      .rejects.toMatchObject({ reason: 'state_mismatch' })
     expect(apiClient).toHaveBeenCalledOnce()
     await callback.clearPendingGoogleAuthSession()
   })

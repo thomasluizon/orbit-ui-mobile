@@ -1,5 +1,6 @@
 import React from 'react'
 import { beforeEach, expect, it, vi } from 'vitest'
+import { captureMessage } from '@sentry/react-native'
 
 import AuthCallbackScreen from '@/app/auth-callback'
 
@@ -116,6 +117,30 @@ it.each(['logout', 'replacement login'])('does not install an exchanged account 
   })
 
   expect(mocks.login).not.toHaveBeenCalled()
+  expect(mocks.replace).not.toHaveBeenCalled()
+  expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
+    level: 'error', tags: { provider: 'google', reason: 'session_changed' },
+  })
+})
+
+it('reports a fixed exchange reason once without exposing the rejected error', async () => {
+  mocks.completeGoogleAuthFromUrl.mockRejectedValue(new Error('private-code private-state private@example.test'))
+  await mountCallback()
+  expect(mocks.callbackState).toBe('failed')
+  expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
+    level: 'error', tags: { provider: 'google', reason: 'exchange_failed' },
+  })
+  expect(mocks.login).not.toHaveBeenCalled()
+  expect(mocks.replace).not.toHaveBeenCalled()
+})
+
+it('reports session hydration failure without sending the rejected error content', async () => {
+  mocks.login.mockRejectedValueOnce(new Error('private profile content'))
+  await mountCallback()
+  expect(mocks.callbackState).toBe('failed')
+  expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
+    level: 'error', tags: { provider: 'google', reason: 'profile_hydration_failed' },
+  })
   expect(mocks.replace).not.toHaveBeenCalled()
 })
 

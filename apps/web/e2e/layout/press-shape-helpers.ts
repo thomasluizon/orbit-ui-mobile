@@ -1,6 +1,7 @@
 import { expect, type Locator } from '@playwright/test'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { readControlPaint } from './control-paint'
+import { readControlHitArea } from '../../test-support/control-hit-area'
 
 async function readHitBoxOnceStill(control: Locator) {
   await expect(async () => {
@@ -35,32 +36,13 @@ async function waitForHoverStateToSettle(control: Locator, hovered: boolean) {
   })
 }
 
-async function readTargetGeometry(control: Locator, fillPseudo?: '::after') {
+export async function readTargetGeometry(control: Locator, fillPseudo?: '::after') {
   const paint = await control.evaluate(readControlPaint)
-  return control.evaluate((element, { fillPseudo, paint }) => {
+  const hit = await control.evaluate(readControlHitArea)
+  return control.evaluate((element, { fillPseudo, paint, hit }) => {
     const bounds = element.getBoundingClientRect()
     const smallPill = element.matches('.orbit-pill-action[data-size="sm"]')
-    const hitChecks = [
-      [bounds.left - 2, bounds.top + bounds.height / 2],
-      [bounds.right + 1.99, bounds.top + bounds.height / 2],
-      [bounds.left + bounds.width / 2, bounds.top - 2],
-      [bounds.left + bounds.width / 2, bounds.bottom + 1.99],
-    ].map(([x, y]) => element.contains(document.elementFromPoint(x!, y!)))
-    const hit = { left: bounds.left, top: bounds.top, right: bounds.right, bottom: bounds.bottom }
     const pixels = (value: string) => Number.parseFloat(value) || 0
-    for (const pseudo of ['::before', '::after']) {
-      const style = getComputedStyle(element, pseudo)
-      if (style.content === 'none' || style.content === 'normal' || style.pointerEvents === 'none' || style.position !== 'absolute') continue
-      const elementStyle = getComputedStyle(element)
-      const width = pixels(style.width) + (style.boxSizing === 'border-box' ? 0 : pixels(style.paddingLeft) + pixels(style.paddingRight) + pixels(style.borderLeftWidth) + pixels(style.borderRightWidth))
-      const height = pixels(style.height) + (style.boxSizing === 'border-box' ? 0 : pixels(style.paddingTop) + pixels(style.paddingBottom) + pixels(style.borderTopWidth) + pixels(style.borderBottomWidth))
-      const left = bounds.left + pixels(elementStyle.borderLeftWidth) + (style.left === 'auto' ? bounds.width - pixels(style.right) - width : pixels(style.left))
-      const top = bounds.top + pixels(elementStyle.borderTopWidth) + (style.top === 'auto' ? bounds.height - pixels(style.bottom) - height : pixels(style.top))
-      hit.left = Math.min(hit.left, left)
-      hit.top = Math.min(hit.top, top)
-      hit.right = Math.max(hit.right, left + width)
-      hit.bottom = Math.max(hit.bottom, top + height)
-    }
     const fill = element.querySelector('[data-press-fill]') ?? element
     const fillStyle = getComputedStyle(fill, fillPseudo)
     const fillBox = fillPseudo ? {
@@ -77,7 +59,7 @@ async function readTargetGeometry(control: Locator, fillPseudo?: '::after') {
     const opaqueHoverFill = getComputedStyle(probe).backgroundColor
     probe.remove()
     return {
-      smallPill, hitChecks, reserveInline: paint.reserveInline, reserveBlock: paint.reserveBlock,
+      smallPill, hitChecks: hit.checks, reserveInline: paint.reserveInline, reserveBlock: paint.reserveBlock,
       hoverFill,
       opaqueHoverFill,
       hit,
@@ -88,7 +70,7 @@ async function readTargetGeometry(control: Locator, fillPseudo?: '::after') {
       opacity: fillPseudo ? fillStyle.opacity : paint.opacity,
       radius: fillPseudo ? Math.min(pixels(fillStyle.borderTopLeftRadius), fillBox.width / 2, fillBox.height / 2) : paint.radii[0]!,
     }
-  }, { fillPseudo: fillPseudo ?? null, paint })
+  }, { fillPseudo: fillPseudo ?? null, paint, hit })
 }
 
 function paintEdgeInset(edge: 'left' | 'top' | 'right' | 'bottom', smallPill: boolean, reserved: boolean) {

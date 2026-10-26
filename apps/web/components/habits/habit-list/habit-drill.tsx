@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useState, type ReactNode } from 'react'
@@ -7,7 +9,7 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
-import { ArrowLeft } from '@/components/ui/icons'
+import { ArrowLeft, RefreshCw } from '@/components/ui/icons'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
@@ -137,9 +139,7 @@ export function HabitDrill({
           <p role="alert" style={{ margin: SPACING.s0, color: 'var(--fg-2)', fontSize: 14, lineHeight: 1.5 }}>
             {drill.drillError}
           </p>
-          <PillButton variant="ghost" onClick={() => void drill.refreshCurrent()}>
-            {t('common.retry')}
-          </PillButton>
+          <IconButton label={t('common.retry')} onClick={() => void drill.refreshCurrent()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
         </div>
       ) : null}
 

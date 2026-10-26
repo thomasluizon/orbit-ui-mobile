@@ -167,7 +167,7 @@ describe('mobile WrappedSlide', () => {
     expect(tree.root.findAll((node) => node.props.children === 'wrapped.slides.consistency.thin')).toHaveLength(0)
     if (isError) {
       expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert').length).toBeGreaterThan(0)
-      const retry = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.findAll((child) => child.props.children === 'wrapped.retry').length > 0)[0]!
+      const retry = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'wrapped.retry')[0]!
       void renderer.act(() => (retry.props.onPress as () => void)())
       expect(profileState.refetch).toHaveBeenCalledOnce()
     } else {

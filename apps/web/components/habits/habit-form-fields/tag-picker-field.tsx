@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { PickerRow } from '@/components/ui/picker-row'
 import { PickerList } from '@/components/ui/picker-list'
@@ -7,7 +9,7 @@ import { PickerList } from '@/components/ui/picker-list'
 import { useMemo, useState, type ReactNode } from 'react'
 import type { HabitTag } from '@orbit/shared/types/habit'
 import { useTranslations } from 'next-intl'
-import { Pencil, Trash2 } from '@/components/ui/icons'
+import { Pencil, Trash2, Plus } from '@/components/ui/icons'
 import { ListRow } from '@/components/ui/list-row'
 import { Sheet } from '@/components/ui/sheet'
 
@@ -66,10 +68,10 @@ function TagPickerRow({ tag, selected, atLimit, disabled, onToggle, onEdit, onDe
 
 function TagPickerList({ tags, selectedIds, atLimit, disabled, editor, suggestions, onToggle, onCreate, onEdit, onDelete, editLabel, deleteLabel }: Readonly<TagPickerListProps>) {
   const t = useTranslations()
-  const empty = !editor ? <div className="flex flex-col items-center px-6 py-8 text-center" style={{ gap: 12 }}><p className="max-w-full truncate text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noTags')}</p><button type="button" className="chip mt-2" onClick={onCreate}>{t('habits.form.newTag')}</button></div> : null
+  const empty = !editor ? <div className="flex flex-col items-center px-6 py-8 text-center" style={{ gap: 12 }}><p className="max-w-full truncate text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noTags')}</p><IconButton label={t('habits.form.newTag')} onClick={onCreate}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton></div> : null
   return (
     <PickerList scrollFooter={<>
-      {tags.length > 0 && !editor ? <button type="button" className="chip mt-2 self-start" onClick={onCreate}>{t('habits.form.newTag')}</button> : null}
+      {tags.length > 0 && !editor ? <IconButton label={t('habits.form.newTag')} onClick={onCreate}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
       {editor}
       {suggestions}
     </>} items={tags} getName={(tag) => tag.name} getKey={(tag) => tag.id} searchLabel={t('habits.form.searchTags')} empty={empty} renderRow={(tag) => <TagPickerRow tag={tag} selected={selectedIds.has(tag.id)} atLimit={atLimit} disabled={disabled} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} editLabel={editLabel} deleteLabel={deleteLabel} />} />

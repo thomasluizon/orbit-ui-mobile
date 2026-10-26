@@ -456,11 +456,12 @@ describe('alerts', () => {
     const row = screen.getByRole('dialog').querySelector('[data-slot="sheet-actions"]')!.firstElementChild as HTMLElement
     expect(row).toHaveAttribute('data-slot', 'action-row')
     expect(row.style.justifyContent).toBe('flex-end')
-    expect([...row.children].map((button) => button.textContent))
+    expect([...row.children].map((button) => button.getAttribute('aria-label') ?? button.textContent))
       .toEqual([en.notifications.markAsRead, 'Open in Progress', en.notifications.delete])
     for (const button of row.querySelectorAll('button')) {
       expect(button).toHaveAttribute('data-size', 'sm')
       expect(button.style.width).toBe('auto')
+      expect(button.textContent).not.toBe('')
     }
   })
 

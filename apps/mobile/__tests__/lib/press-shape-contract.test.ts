@@ -409,9 +409,9 @@ function unconsumedPressStyles(sources: Map<string, ParsedSource>, used: Set<ts.
 }
 
 describe('mobile press shapes', () => {
-  it('delegates session recovery feedback to the shared small ghost pill', () => {
+  it('delegates session recovery feedback to the shared icon button', () => {
     const contents = readFileSync(resolve('components/ui/expiry-warning.tsx'), 'utf8')
-    expect(contents).toMatch(/<PillButton\s[^>]*variant="ghost"[^>]*size="sm"/)
+    expect(contents).toMatch(/<IconButton\s[^>]*label=/)
     expect(contents).not.toMatch(/<Pressable\b/)
   })
 

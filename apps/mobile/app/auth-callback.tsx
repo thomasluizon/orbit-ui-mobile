@@ -1,4 +1,6 @@
 import { AppleAuthCallback } from '@/components/auth/apple-auth-callback'
+import { captureMessage } from '@sentry/react-native'
+import { AuthCallbackError, createAuthCallbackFailureReporter, readAuthCallbackInput, type AuthCallbackFailureReason } from '@orbit/shared/utils/auth-callback-failure'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLinkingURL } from 'expo-linking'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -51,22 +53,33 @@ function GoogleAuthCallbackScreen() {
   const candidateUrl = useMemo(() => resolveGoogleAuthCallbackUrl({
     sessionCallbackUrl, rawUrl, params, callbackUrl: AUTH_CALLBACK_URL,
   }), [params, rawUrl, sessionCallbackUrl])
+  const failureIdentity = JSON.stringify([candidateUrl, sessionReturnUrlAttemptId])
+  const [failureReport, setFailureReport] = useState(() => ({ identity: failureIdentity,
+    report: createAuthCallbackFailureReporter('google', captureMessage) }))
+  if (failureReport.identity !== failureIdentity) {
+    setFailureReport({ identity: failureIdentity, report: createAuthCallbackFailureReporter('google', captureMessage) })
+  }
+  const reportFailure = failureReport.report
 
   useEffect(() => {
     if (processedAttemptRef.current !== null || sessionCallbackUrl || isPending) return
     let mounted = true
     async function recoverCallback() {
       try {
-        if (candidateUrl && !await recoverPendingGoogleAuthCallbackUrl(candidateUrl)) setState('failed')
+        if (candidateUrl && !await recoverPendingGoogleAuthCallbackUrl(candidateUrl) && mounted) {
+          const callback = extractGoogleAuthParams(candidateUrl)
+          reportFailure(readAuthCallbackInput(Boolean(callback.error), callback.code, callback.state).reason ?? 'state_mismatch')
+          setState('failed')
+        }
       } catch {
-        if (mounted) setState('failed')
+        if (mounted) { reportFailure('state_mismatch'); setState('failed') }
       } finally {
         if (mounted) setCheckedLink(true)
       }
     }
     void recoverCallback()
     return () => { mounted = false }
-  }, [candidateUrl, isPending, sessionCallbackUrl])
+  }, [candidateUrl, isPending, reportFailure, sessionCallbackUrl])
 
   useEffect(() => {
     if (!sessionCallbackUrl || sessionReturnUrlAttemptId === null) return
@@ -77,29 +90,32 @@ function GoogleAuthCallbackScreen() {
     returnUrlAttemptRef.current = returnUrlAttemptId
     const sessionEpoch = getSessionGeneration().epoch
     async function handleCallback(url: string): Promise<GoogleAuthCompletion> {
+      let failureReason: AuthCallbackFailureReason = 'exchange_failed'
       try {
-        if (extractGoogleAuthParams(url).error) throw new Error('Authentication failed')
+        if (extractGoogleAuthParams(url).error) throw new AuthCallbackError('provider_error')
         const referral = await getStoredReferralCode()
-        if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId) || sessionEpoch !== getSessionGeneration().epoch) return
+        if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId) || sessionEpoch !== getSessionGeneration().epoch) { reportFailure('session_changed'); return }
         const response = await completeGoogleAuthFromUrl(url, i18n.language, referral ?? undefined)
-        if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId) || sessionEpoch !== getSessionGeneration().epoch) return
+        if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId) || sessionEpoch !== getSessionGeneration().epoch) { reportFailure('session_changed'); return }
         await clearPendingGoogleAuthSession(returnUrlAttemptId)
-        if (sessionEpoch !== getSessionGeneration().epoch) return
+        if (sessionEpoch !== getSessionGeneration().epoch) { reportFailure('session_changed'); return }
         if (response.wasReactivated) {
           return { status: 'reactivated', response, sessionEpoch }
         }
+        failureReason = 'profile_hydration_failed'
         const isCurrentLoginSession = await login(response.token, response.refreshToken, {
           userId: response.userId, name: response.name, email: response.email,
         }, sessionEpoch)
-        if (!isCurrentLoginSession?.() || !isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
+        if (!isCurrentLoginSession?.() || !isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) { reportFailure('session_changed'); return }
         if (referral) await clearStoredReferralCode()
-        if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) return
+        if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) { reportFailure('session_changed'); return }
         const storedReturnUrl = await getStoredAuthReturnUrl(returnUrlAttemptId)
-        if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) return
+        if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) { reportFailure('session_changed'); return }
         await clearStoredAuthReturnUrl(returnUrlAttemptId, isCurrentLoginSession)
-        if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) return
+        if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) { reportFailure('session_changed'); return }
         router.replace(getSafeReturnUrl(storedReturnUrl))
-      } catch {
+      } catch (error: unknown) {
+        reportFailure(error instanceof AuthCallbackError ? error.reason : failureReason)
         if (!ownsReturnUrl(() => sessionEpoch === getSessionGeneration().epoch, returnUrlAttemptId)) return
         await clearPendingGoogleAuthSession(returnUrlAttemptId)
         return { status: 'failed' }
@@ -115,9 +131,10 @@ function GoogleAuthCallbackScreen() {
       })
       .catch(() => {
         if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
+        reportFailure('exchange_failed')
         setState('failed')
       })
-  }, [i18n.language, login, router, sessionCallbackUrl, sessionReturnUrlAttemptId])
+  }, [i18n.language, login, reportFailure, router, sessionCallbackUrl, sessionReturnUrlAttemptId])
 
   useEffect(() => {
     if (shouldRetainEmptyAuthCallback(captureBuildEnabled) || processedAttemptRef.current !== null || state !== 'pending'
@@ -150,7 +167,7 @@ function GoogleAuthCallbackScreen() {
       await clearStoredAuthReturnUrl(returnUrlAttemptId, isCurrentLoginSession)
       if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) return
       router.replace(getSafeReturnUrl(storedReturnUrl))
-    } catch { setState('failed') }
+    } catch { reportFailure('profile_hydration_failed'); setState('failed') }
     finally { setLoading(false) }
   }
 

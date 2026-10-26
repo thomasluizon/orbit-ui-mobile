@@ -1,6 +1,7 @@
 'use client'
 
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 
 import { useTranslations } from 'next-intl'
 
@@ -24,19 +25,7 @@ export function GoalLoadError({ onRetry }: Readonly<GoalLoadErrorProps>) {
       >
         {t('goals.detail.loadError')}
       </p>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="inline-flex appearance-none cursor-pointer items-center border-0 bg-transparent p-0 text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"
-        style={{
-          minHeight: TOUCH_TARGET_MIN,
-          fontFamily: 'var(--font-sans)',
-          fontSize: 14,
-          fontWeight: 500,
-        }}
-      >
-        {t('common.retry')}
-      </button>
+      <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
     </div>
   )
 }

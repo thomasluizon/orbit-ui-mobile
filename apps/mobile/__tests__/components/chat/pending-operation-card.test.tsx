@@ -10,7 +10,7 @@ import type { PendingAgentOperation } from '@orbit/shared/types/ai'
 import type { PendingOperationRevisionResponse, RefreshPendingOperation, RevisePendingOperation } from '@orbit/shared/hooks'
 import { makeHeldHabitMessage, makePendingAgentOperation, pendingWriteSummaryCases, makePendingWriteSummaryOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '@orbit/shared/test-support/chat-fixtures'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
-import { renderedText } from '../../support/react-test-renderer'
+import { controlName, renderedText } from '../../support/react-test-renderer'
 import { createTokensV2, radius } from '@/lib/theme'
 import { sheetTestControls } from '../../support/sheet-double'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
@@ -70,7 +70,7 @@ function renderCard(overrides: Partial<PendingAgentOperation> = {}, onRevise?: R
 
 function press(tree: any, label: string) {
   return tree.root.findAll((node: any) =>
-    typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes(label),
+    typeof node.props?.onPress === 'function' && (controlName(node).includes(label) || renderedText(node.props.children).includes(label)),
   )[0]
 }
 
@@ -185,7 +185,7 @@ describe('PendingOperationCard (mobile)', () => {
     TestRenderer.act(() => press(tree, 'chat.operation.approveCount.deleteHabits').props.onPress())
     TestRenderer.act(() => tree.root.findByType('ConfirmSheet').props.onConfirm())
     expect(tree.root.findAllByType(Text).filter((node: ReactTestInstance) => node.props.children === 'blockFrame.status.acting')).toHaveLength(10)
-    const actions = tree.root.findAllByType(Pressable).filter((node: ReactTestInstance) => (typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.startsWith('chat.operation.remove')) || renderedText(node.props.children).includes('chat.operation.reject') || renderedText(node.props.children).includes('chat.operation.approveCount'))
+    const actions = tree.root.findAllByType(Pressable).filter((node: ReactTestInstance) => (typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.startsWith('chat.operation.remove')) || controlName(node).includes('chat.operation.reject') || controlName(node).includes('chat.operation.approveCount'))
     for (const action of actions) expect(action.props.disabled).toBe(true)
     expect(tree.root.findByProps({ testID: 'block-frame-body' }).props.accessibilityState).toEqual({ busy: true })
     expect(tree.root.findByProps({ testID: 'block-frame-body' }).props.accessibilityLiveRegion).toBe('polite')
@@ -319,7 +319,6 @@ describe('PendingOperationCard (mobile)', () => {
       })
     })
   })
-
 
   describe.each(['en', 'pt-BR'])('visible write summaries in %s', (locale) => {
     it.each(pendingWriteSummaryCases)('shows $name', (scenario) => {
@@ -465,7 +464,7 @@ describe('PendingOperationCard (mobile)', () => {
     const revise = vi.fn()
     const { tree } = renderCard({ displayName: 'bulk_update_habit_emojis', items: null, previewFingerprint: null }, revise)
     expect(tree.root.findAllByProps({ accessibilityLabel: 'chat.operation.edit' })).toHaveLength(0)
-    expect(renderedText(tree.toJSON())).toContain('chat.operation.reject')
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'chat.operation.reject' }).length).toBeGreaterThan(0)
     expect(renderedText(tree.toJSON())).toContain('chat.operation.approve')
   })
 
@@ -704,11 +703,11 @@ describe('PendingOperationCard (mobile)', () => {
     TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
     const body = tree.root.findByProps({ testID: 'sheet-body-slot' }) as ReactTestInstance
     const label = 'chat.operation.field.reminder_enabled'
-    expect(body.findAll((node: ReactTestInstance) => node.type === Text && node.props.children === label)).toHaveLength(1)
+    expect(body.findAll((node: ReactTestInstance) => node.type === Text && (node.props.label ?? node.props.accessibilityLabel ?? node.props.children) === label)).toHaveLength(1)
     const control = body.findAll((node: ReactTestInstance) => node.type === Pressable)[0]!
     expect(control.props.accessibilityRole).toBe('switch')
     expect(control.props.accessibilityLabel).toBe(label)
-    expect(control.findAll((node: ReactTestInstance) => node.type === Text && node.props.children === label).length > 0).toBe(true)
+    expect(control.findAll((node: ReactTestInstance) => node.type === Text && (node.props.label ?? node.props.accessibilityLabel ?? node.props.children) === label).length > 0).toBe(true)
     expect(control.props.accessibilityState).toMatchObject({ checked: true })
     TestRenderer.act(() => (control.props.onPress as () => void)())
     expect(control.props.accessibilityState).toMatchObject({ checked: false })
@@ -732,7 +731,7 @@ describe('PendingOperationCard (mobile)', () => {
     const body = tree.root.findByProps({ testID: 'sheet-body-slot' })
     const foreground = createTokensV2('purple', 'dark').fg1
     for (const label of ['chat.operation.field.reminder_enabled', 'chat.operation.field.days']) {
-      const text = body.findAllByType(Text).find((node: any) => node.props.children === label)
+      const text = body.findAllByType(Text).find((node: any) => (node.props.label ?? node.props.accessibilityLabel ?? node.props.children) === label)
       expect(StyleSheet.flatten(text?.props.style)).toMatchObject({ color: foreground })
     }
     expect(body.findAllByType(ScrollView)).toHaveLength(0)
@@ -983,8 +982,8 @@ describe('PendingOperationCard (mobile)', () => {
       confirmationRequirement: 'None', status: 'Succeeded', targetId: 'habit-created', targetName: 'Beber água',
     } } })
     expect(renderedText(tree.toJSON())).toContain('Beber água')
-    expect(renderedText(tree.toJSON())).toContain('chat.operation.edit')
-    expect(renderedText(tree.toJSON())).toContain('chat.operation.reject')
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'chat.operation.edit' }).length).toBeGreaterThan(0)
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'chat.operation.reject' }).length).toBeGreaterThan(0)
     await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
     expect(renderedText(tree.toJSON())).toContain('status.done')
     expect(tree.root.findAllByType(Pressable).filter((node: import('react-test-renderer').ReactTestInstance) =>
@@ -1303,7 +1302,6 @@ describe('parent choice revision', () => {
   })
 })
 
-
 describe('parent choice keyboard focus', () => {
   const radios = (tree: ReactTestRenderer) => tree.root.findAll((node: ReactTestInstance) => node.type === ('Pressable' as unknown) && node.props.accessibilityRole === 'radio')
   it.each([2, 1, 0])('retains native focus through revision with continuation %i', async count => {
@@ -1319,11 +1317,10 @@ describe('parent choice keyboard focus', () => {
     expect.soft(__getFocusedNativeTag()).toBe(chosenTag)
     expect(onRevise).toHaveBeenCalledOnce()
     await TestRenderer.act(async () => { finish(count === 0 ? { ok: false, error: 'option_not_offered' } : { ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, preview: { ...resolveParentChoicePreview(operation, '0', '11111111-1111-1111-1111-111111111111'), changes: [], changeTargetCount: count || 1 }, cancelled: false } }); await Promise.resolve() })
-    const destination = count === 2 ? radios(tree)[0]! : count === 0 ? radios(tree)[0]! : tree.root.findAll((node: ReactTestInstance) => node.type === ('Pressable' as unknown) && node.props.accessibilityRole === 'button' && renderedText(node.props.children).includes('chat.operation.approveCount'))[0]!
+    const destination = count === 2 ? radios(tree)[0]! : count === 0 ? radios(tree)[0]! : tree.root.findAll((node: ReactTestInstance) => node.type === ('Pressable' as unknown) && node.props.accessibilityRole === 'button' && controlName(node).includes('chat.operation.approveCount'))[0]!
     expect(__getFocusedNativeTag()).toBe(destination.props.__nativeTag)
   })
 })
-
 
 it('preserves native focus moved elsewhere during a parent revision', async () => {
   __setTouchMode(false)
@@ -1340,7 +1337,6 @@ it('preserves native focus moved elsewhere during a parent revision', async () =
   await TestRenderer.act(async () => { finish({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, preview: { ...resolveParentChoicePreview(operation, '0', null), changes: [], changeTargetCount: 2 }, cancelled: false } }); await Promise.resolve() })
   expect(__getFocusedNativeTag()).toBe(elsewhere.props.__nativeTag)
 })
-
 
 it('edits an offered parent in Full Edit before saving the preview', async () => {
   const operation = makeParentChoicePreview(1)

@@ -1,9 +1,13 @@
 'use client'
 
+import { ChevronDown } from '@/components/ui/icons'
+
+import { IconButton } from '@/components/ui/icon-button'
+
 import { useMemo, useRef, useState } from 'react'
 import { buildPreferencePickerModel, getTimezoneList, type PreferencePicker } from '@orbit/shared/utils'
 import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { RadioRow } from '@/components/ui/select-check'
 import { RadioGroup } from '@/components/ui/radio-group'
@@ -104,13 +108,7 @@ function TimeZoneOptions({
       ) : null}
       {visibleCount < ordered.length ? (
         <div>
-          <PillButton
-            size="sm"
-            variant="ghost"
-            onClick={() => setVisibleCount((count) => count + TIME_ZONE_PAGE_SIZE)}
-          >
-            {showMoreLabel}
-          </PillButton>
+          <IconButton label={showMoreLabel} onClick={() => setVisibleCount((count) => count + TIME_ZONE_PAGE_SIZE)}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
         </div>
       ) : null}
     </div>

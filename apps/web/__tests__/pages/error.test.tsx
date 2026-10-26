@@ -29,7 +29,6 @@ import AppError from '@/app/(app)/error'
 import AuthError from '@/app/(auth)/error'
 import GlobalError from '@/app/global-error'
 
-
 describe('AppError', () => {
   const mockReset = vi.fn()
 
@@ -60,7 +59,6 @@ describe('AppError', () => {
   })
 })
 
-
 describe('AuthError', () => {
   const mockReset = vi.fn()
 
@@ -80,13 +78,13 @@ describe('AuthError', () => {
   it('renders the retry button', () => {
     const error = new Error('fail') as Error & { digest?: string }
     render(<AuthError error={error} reset={mockReset} />)
-    expect(screen.getByText('common.retry')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'common.retry' })).toBeInTheDocument()
   })
 
   it('calls reset when retry button is clicked', () => {
     const error = new Error('fail') as Error & { digest?: string }
     render(<AuthError error={error} reset={mockReset} />)
-    fireEvent.click(screen.getByText('common.retry'))
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
     expect(mockReset).toHaveBeenCalledTimes(1)
   })
 
@@ -98,7 +96,6 @@ describe('AuthError', () => {
     expect(screen.queryByText(error.message)).not.toBeInTheDocument()
   })
 })
-
 
 describe('GlobalError', () => {
   const mockReset = vi.fn()

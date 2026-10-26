@@ -48,7 +48,7 @@ function openSheet(tree: Tree) {
   TestRenderer.act(() => { (entry.props.onClick as () => void)() })
 }
 function action(tree: Tree, label: string) {
-  return tree.root.findAll((node) => node.type === PillButton && node.props.children === label)[0]!
+  return tree.root.findAll((node) => node.type === PillButton && (node.props.label ?? node.props.accessibilityLabel ?? node.props.children) === label)[0]!
 }
 function feedbackRegions(tree: Tree) {
   return tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityLiveRegion === 'polite')

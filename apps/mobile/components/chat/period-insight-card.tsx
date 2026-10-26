@@ -1,3 +1,6 @@
+import { ChevronsUp, ChevronDown } from '@/components/ui/icons'
+
+import { IconButton } from '@/components/ui/icon-button'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -63,7 +66,7 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
           {expanded ? pages.slice(1).map(page => <View key={page.titleKey} style={{ gap: 8 }}><Text style={{ color: tokens.fg1, fontSize: 14 }}>{t(page.titleKey)}</Text><Text style={{ color: tokens.fg2, fontSize: 14 }}>{page.text}</Text></View>) : null}
         </View>}
         actions={<>
-          <Button variant="ghost" size="sm" expanded={expanded} accessibleName={t(expanded ? 'chat.readBlock.less' : 'chat.habitList.more')} onClick={() => setExpanded(!expanded)}>{t(expanded ? 'chat.readBlock.less' : 'chat.habitList.more')}</Button>
+          <IconButton label={t(expanded ? 'chat.readBlock.less' : 'chat.habitList.more')} expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? <ChevronsUp size={20} accessible={false} /> : <ChevronDown size={20} accessible={false} />}</IconButton>
           <Button variant="ghost" size="sm" accessibilityRole="link" accessibleName={t('chat.insight.progressLink')} onClick={() => navigate('/progress')}>{t('chat.insight.progressLink')}</Button>
         </>}
       />

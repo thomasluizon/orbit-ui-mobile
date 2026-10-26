@@ -1,4 +1,5 @@
-import { PADDING, SPACING, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { IconButton } from '@/components/ui/icon-button'
+import { PADDING, SPACING, SHELL_CONTENT_MAX_WIDTH, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { ActionRow } from '@/components/ui/action-row'
@@ -55,7 +56,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { FreezeBank } from '@/components/ui/freeze-bank'
-import { ChevronDown, ChevronRight, Lock, Snowflake } from '@/components/ui/icons'
+import { ChevronDown, ChevronRight, Lock, Snowflake, RefreshCw, Plus } from '@/components/ui/icons'
 import { AchievementMark } from '@/components/gamification/achievement-mark'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -296,7 +297,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens }:
   const tier = t(getStreakTierLabelKey(currentStreak))
   const dayWords = { active: t('progressScreen.streak.active'), frozen: t('progressScreen.streak.frozen'), missed: t('progressScreen.streak.missed'), today: t('progressScreen.streak.today') }
   if (canView && freeze.streakQuery.isError) {
-    return <View testID="progress-streak-section" style={styles.streakSection}><Text accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void freeze.streakQuery.refetch()}>{t('progressScreen.retry')}</PillButton>} /></View>
+    return <View testID="progress-streak-section" style={styles.streakSection}><Text accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text><ErrorState message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={() => void freeze.streakQuery.refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} /></View>
   }
   const loading = canView && !freeze.streakInfo
   return (
@@ -379,13 +380,15 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
 function GoalsEmptyState({ tokens, inSection = false, onCreate }: Readonly<{ tokens: AppTokensV2; inSection?: boolean; onCreate: () => void }>) {
   const { t } = useTranslation()
   const { width } = useWindowDimensions()
-  if (!inSection) return <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} onClick={onCreate}>{t('progressScreen.goals.createAction')}</PillButton>} />
-  return <View style={[styles.emptyLine, { backgroundColor: tokens.bgWell }]}><Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.empty')}</Text><PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={onCreate}>{t('progressScreen.goals.createAction')}</PillButton></View>
+  const action = <PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={onCreate}>{t('progressScreen.goals.createAction')}</PillButton>
+
+  if (!inSection) return <EmptyState title={t('progressScreen.goals.empty')} action={action} />
+  return <View style={[styles.emptyLine, { backgroundColor: tokens.bgWell }]}><Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.empty')}</Text>{action}</View>
 }
 
 function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onCreate, filter, setFilter }: Readonly<{ goals: readonly Goal[]; tokens: AppTokensV2; onCreate: () => void; filter: ProgressGoalFilter; setFilter: (filter: ProgressGoalFilter) => void; onOpenGoal: (goalId: string) => void; onRegisterGoal: (goalId: string, instance: View | null) => void }>) {
   const { t } = useTranslation()
-  const { width } = useWindowDimensions()
+
   const reorder = useReorderGoals()
   const [filterOpen, setFilterOpen] = useState(false)
   const announceReorderResult = (message: string) => {
@@ -423,7 +426,7 @@ function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onCreate, fil
   }
   return (
     <View testID="progress-goals-section" style={styles.goalsSection}>
-      {goals.length > 0 ? <Menu.Root open={filterOpen} onOpenChange={setFilterOpen}><ActionRow><Menu.Trigger asChild><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`}>{t(`progressScreen.goals.${filter}`)}</PillButton></Menu.Trigger><PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={onCreate}>{t('goals.create')}</PillButton></ActionRow>
+      {goals.length > 0 ? <Menu.Root open={filterOpen} onOpenChange={setFilterOpen}><ActionRow><Menu.Trigger asChild><PillButton variant="ghost" size="sm" minimumHeight={SMALL_PILL_VISIBLE_MIN} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`}>{t(`progressScreen.goals.${filter}`)}</PillButton></Menu.Trigger><IconButton label={t('goals.create')} onClick={onCreate}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton></ActionRow>
         <Menu.Content title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"
           items={options.map((option) => ({ id: option.value, label: option.label, checked: option.value === filter }))}
           onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} /></Menu.Root> : null}
@@ -478,7 +481,7 @@ function WindowSection({ tokens }: Readonly<{ tokens: AppTokensV2 }>) {
     )
     return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens} statusText={t('progressScreen.window.empty')}><EmptyState title={t('progressScreen.window.empty')} action={emptyAction} /></WindowFrame>
   }
-  if (retrospective.isError) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void retrospective.refetch()}>{t('progressScreen.retry')}</PillButton>} /></WindowFrame>
+  if (retrospective.isError) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><ErrorState message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={() => void retrospective.refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} /></WindowFrame>
   if (!retrospective.data) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
   const metrics = retrospective.data.metrics
   const bestWeekday = getBestRetrospectiveWeekdayKey(metrics.weeklyConsistency)
@@ -594,7 +597,7 @@ function ProgressGoalsContent() {
   const goalCardRefs = useRef(new Map<string, View>())
   const pageHeadingRef = useRef<Text>(null)
   const { t } = useTranslation()
-  const { width } = useWindowDimensions()
+
   const theme = useAppTheme()
   const tokens = useMemo(() => createTokensV2(theme.currentScheme, theme.currentTheme), [theme.currentScheme, theme.currentTheme])
   const goals = useGoals()
@@ -632,7 +635,7 @@ function ProgressGoalsContent() {
       <View testID="progress-sections" style={styles.sections}>
         <ProgressPageHeading focusRef={pageHeadingRef} title={t('progressScreen.sections.goals')} />
         {loading ? <ProgressLoading label={t('progressScreen.loading')} screen="goals" /> : null}
-        {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
+        {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} /></View> : null}
         {empty ? <View style={styles.empty}><GoalsEmptyState onCreate={openCreateGoal} tokens={tokens} /></View> : null}
         {!loading && !error && !empty ? <GoalsSection filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={openGoal} onRegisterGoal={registerGoalCard} goals={allGoals} tokens={tokens} /> : null}
       </View>
@@ -710,7 +713,7 @@ function ProgressGamificationContent({ screen }: Readonly<{ screen: 'streak' | '
   const retry = () => { void account.refetch(); void gamification.refetch() }
   return <ProgressSubscreen screen={screen}>
     <ScrollView style={styles.root} contentContainerStyle={[styles.sections, { paddingBottom: clearance }]}>
-      {error ? <ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={retry}>{t('progressScreen.retry')}</PillButton>} />
+      {error ? <ErrorState message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} />
         : loading ? <ProgressLoading label={t('progressScreen.loading')} screen={screen} />
         : screen === 'streak' ? <StreakSection accountProfile={account.profile} canView={available} gamificationProfile={gamification.profile} tokens={tokens} />
         : <AchievementsSection gamificationAvailable={available} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} />}

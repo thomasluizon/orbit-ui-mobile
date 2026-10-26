@@ -1,5 +1,7 @@
 'use client'
 
+import { PillButton } from '@/components/ui/pill-button'
+
 import { useState } from 'react'
 import { Check, Copy, Loader2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
@@ -9,7 +11,7 @@ import { useReferral } from '@/hooks/use-referral'
 import { ErrorState } from '@/components/ui/error-state'
 import { InfoCard } from '@/components/ui/info-card'
 import { ListRow } from '@/components/ui/list-row'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { ActionRow } from '@/components/ui/action-row'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -175,9 +177,7 @@ function ReferralDrawerContent({
               ) : null}
               <ActionRow>
                 <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
-                <PillButton size="sm" onClick={() => void shareLink()}>
-                  {t('referral.drawer.share')}
-                </PillButton>
+                <PillButton size="sm" onClick={() => void shareLink()}>{t('referral.drawer.share')}</PillButton>
               </ActionRow>
             </>
           ) : undefined

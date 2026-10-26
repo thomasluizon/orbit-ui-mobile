@@ -1,7 +1,8 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { X, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { SPACING } from '@orbit/shared/theme'
-
 
 import { PersonalText } from '@/components/ui/personal-text'
 
@@ -11,7 +12,7 @@ import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { calendarEntryOutcome } from '@orbit/shared/utils'
 import { Sheet } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { ActionRow } from '@/components/ui/action-row'
 
 export function CalendarEntryDetails({ entries, title, displayTime, onClose }: Readonly<{
@@ -33,11 +34,11 @@ export function CalendarEntryDetails({ entries, title, displayTime, onClose }: R
         <PersonalText expanded style={{ margin: SPACING.s0,  color: 'var(--fg-1)', fontFamily: 'var(--font-sans)', fontSize: '1.0625rem', lineHeight: 1.4 }}>{entry.title}</PersonalText>
         <p style={{ margin: SPACING.s0, color: 'var(--fg-2)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', lineHeight: 1.4 }}>{t('calendar.entryMeta', { time: entry.dueTime ? displayTime(entry.dueTime) : t('calendar.timeGrid.noSetTime'), status: t(calendarEntryOutcome(entry).labelKey) })}</p>
       </div>)}
-      {matching.length === 0 ? <div className="flex flex-col items-start" style={{ gap: 12 }}><p style={{ margin: SPACING.s0, color: 'var(--fg-2)', fontSize: '1rem', lineHeight: 1.55 }}>{t('calendar.entrySearchEmpty', { query: query.trim() })}</p><PillButton variant="ghost" onClick={() => { setQuery(''); setPage(0) }}>{t('calendar.dayDetail.clearEventSearch')}</PillButton></div> : null}
+      {matching.length === 0 ? <div className="flex flex-col items-start" style={{ gap: 12 }}><p style={{ margin: SPACING.s0, color: 'var(--fg-2)', fontSize: '1rem', lineHeight: 1.55 }}>{t('calendar.entrySearchEmpty', { query: query.trim() })}</p><IconButton label={t('calendar.dayDetail.clearEventSearch')} onClick={() => { setQuery(''); setPage(0) }}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton></div> : null}
       {entries.length >= 8 ? <p role="status" aria-live="polite" aria-atomic="true" style={{ margin: SPACING.s0, color: 'var(--fg-2)', fontSize: '0.75rem', lineHeight: 1.4 }}>{t('calendar.showingCount', { shown: visible.length, total: matching.length })}</p> : null}
       {matching.length > 20 ? <ActionRow>
-        <PillButton variant="ghost" disabled={page === 0} onClick={() => setPage(page - 1)}>{t('common.previous')}</PillButton>
-        <PillButton variant="ghost" disabled={(page + 1) * 20 >= matching.length} onClick={() => setPage(page + 1)}>{t('common.next')}</PillButton>
+        <IconButton label={t('common.previous')} disabled={page === 0} onClick={() => setPage(page - 1)}><ChevronLeft size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+        <IconButton label={t('common.next')} disabled={(page + 1) * 20 >= matching.length} onClick={() => setPage(page + 1)}><ChevronRight size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
       </ActionRow> : null}
     </div>
   </Sheet>

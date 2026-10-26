@@ -3,6 +3,8 @@
 import type { useTranslations } from 'next-intl'
 import type { SubscriptionScreenState } from '@orbit/shared/utils'
 import { Icon } from '@/components/ui/icon'
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 
 export function ProviderHandoff({ provider, state, onManage, t }: Readonly<{
@@ -33,9 +35,9 @@ export function ProviderHandoff({ provider, state, onManage, t }: Readonly<{
         </> : null}
       </div>
       <div className="flex">
-        <PillButton variant="primary" loading={opening} disabled={state === 'offline'} onClick={onManage}>
-          {t(failed ? 'upgrade.billing.retry' : manageLabel)}
-        </PillButton>
+        {failed ? <IconButton label={t('upgrade.billing.retry')} onClick={onManage}><RefreshCw size={20} /></IconButton> :         <PillButton variant="primary" loading={opening} disabled={state === 'offline'} onClick={onManage}>
+          {t(manageLabel)}
+        </PillButton>}
       </div>
       {state === 'offline' ? <p className="t-secondary">{t('upgrade.billing.offline')}</p> : null}
     </section>

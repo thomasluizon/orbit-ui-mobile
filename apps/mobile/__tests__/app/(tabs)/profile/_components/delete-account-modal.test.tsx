@@ -88,8 +88,8 @@ function textContent(node: unknown): string {
 
 function button(tree: ReturnType<typeof TestRenderer.create>, label: string) {
   return tree.root.find(
-    (node: { props: { accessibilityRole?: string }; children: unknown[] }) =>
-      node.props.accessibilityRole === 'button' && textContent(node) === label,
+    (node: { props: { accessibilityRole?: string; accessibilityLabel?: string }; children: unknown[] }) =>
+      node.props.accessibilityRole === 'button' && (node.props.accessibilityLabel ?? textContent(node)) === label,
   )
 }
 

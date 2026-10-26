@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { API } from '@orbit/shared/api'
 import { appleHandoffRequestSchema, appleNativeRequestSchema, appleStartResponseSchema, backendLoginResponseSchema } from '@orbit/shared/types/auth'
 import { bytesToHex } from '@orbit/shared/utils'
+import { AuthCallbackError } from '@orbit/shared/utils/auth-callback-failure'
 import { apiClient } from './api-client'
 import { AUTH_CALLBACK_URL } from './google-auth-callback'
 import { createAuthReturnUrlAttempt, isAuthReturnUrlAttemptCurrent } from './auth-flow'
@@ -68,15 +69,17 @@ export async function startAppleAuthentication(options: {
 
 async function exchangeHandoff(handoff: string, state: string) {
   const stored = await SecureStore.getItemAsync(APPLE_ATTEMPT_KEY)
-  const attempt = attemptSchema.parse(stored ? JSON.parse(stored) : null)
+  let attempt: z.infer<typeof attemptSchema>
+  try { attempt = attemptSchema.parse(stored ? JSON.parse(stored) : null) }
+  catch { throw new AuthCallbackError('state_mismatch') }
   if (attempt.state !== state || attempt.startedAt > Date.now() || Date.now() - attempt.startedAt >= 300_000
-    || useAuthStore.getState().isAuthenticated) throw new Error('Invalid OAuth state')
+    || useAuthStore.getState().isAuthenticated) throw new AuthCallbackError('state_mismatch')
   const owner = pendingAttempt ?? { state, attemptId: createAuthReturnUrlAttempt(), epoch: getSessionGeneration().epoch }
   const isCurrent = () => isAuthReturnUrlAttemptCurrent(owner.attemptId) && owner.epoch === getSessionGeneration().epoch
-  if (owner.state !== state || !isCurrent()) throw new Error('Authentication session changed')
+  if (owner.state !== state || !isCurrent()) throw new AuthCallbackError('session_changed')
   const body = appleHandoffRequestSchema.parse({ handoff, state })
   const response = await apiClient(API.auth.appleHandoff, { method: 'POST', body: JSON.stringify(body), skipAuthRecovery: true, isCurrent }, backendLoginResponseSchema)
-  if (!isCurrent()) throw new Error('Authentication session changed')
+  if (!isCurrent()) throw new AuthCallbackError('session_changed')
   await SecureStore.deleteItemAsync(APPLE_ATTEMPT_KEY)
   pendingAttempt = null
   return { response, attemptId: owner.attemptId, epoch: owner.epoch }

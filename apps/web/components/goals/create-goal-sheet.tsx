@@ -46,9 +46,7 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps & { restore
         title={t('goals.create')}
         actions={(
           <ActionRow>
-            <PillButton size="sm" variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>
-              {t('common.cancel')}
-            </PillButton>
+            <PillButton size="sm" variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>{t('common.cancel')}</PillButton>
             <PillButton size="sm" leadingIcon={<Plus size={16} strokeWidth={2} aria-hidden="true" />} formId={formId} disabled={isSubmitting} loading={isSubmitting}>
               {t('goals.create')}
             </PillButton>

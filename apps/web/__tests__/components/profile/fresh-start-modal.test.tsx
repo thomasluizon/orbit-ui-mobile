@@ -3,8 +3,6 @@ import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 
-
-
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
     if (params) return `${key}:${JSON.stringify(params)}`
@@ -40,8 +38,6 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
-
-
 import { buildAccountScopedStorageKey } from '@orbit/shared/utils'
 import { FreshStartModal } from '@/app/(app)/profile/_components/fresh-start-modal'
 import {
@@ -49,7 +45,6 @@ import {
   recoverSameAccount,
   replaceAccountWith,
 } from '@/__tests__/support/account-change'
-
 
 describe('FreshStartModal', () => {
   beforeEach(() => {
@@ -312,7 +307,7 @@ describe('FreshStartModal', () => {
     const onOpenChange = vi.fn()
     render(<FreshStartModal open onOpenChange={onOpenChange} />)
 
-    fireEvent.click(screen.getByText('common.cancel'))
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
 
     expect(sheetTestControls.isDismissPending).toBe(true)
     expect(onOpenChange).not.toHaveBeenCalled()

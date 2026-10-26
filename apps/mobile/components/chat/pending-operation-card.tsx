@@ -1,3 +1,4 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { WeekdayPicker } from '@/components/ui/weekday-picker'
 import { toTime24 } from '@orbit/shared/utils'
 import { PreviewItemTitle } from './preview-item-title'
@@ -18,7 +19,7 @@ import { StepUp } from '@/components/ui/step-up'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { addPendingOperationListRow, changePendingOperationListRow, isPendingOperationEditableField, pendingOperationListRows, removePendingOperationListRow } from '@orbit/shared/hooks'
-import { XCircle, X } from '@/components/ui/icons'
+import { XCircle, X, Plus, RefreshCw, Pencil } from '@/components/ui/icons'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { SPACING, TOUCH_TARGET_MIN, WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -74,7 +75,7 @@ function ListFieldEditor({ field, value, labels, busy, error, onChange }: Readon
         <ListRowFields field={field} row={row} rowLabel={rowLabel} labels={labels} busy={busy} change={(key, next) => onChange(changePendingOperationListRow(value, index, key, next))} />
       </View>
     })}
-    <Button size="sm" variant="ghost" disabled={busy || atLimit} onClick={() => onChange(addPendingOperationListRow(value, field))}>{labels.addListRow}</Button>
+    <IconButton label={labels.addListRow} disabled={busy || atLimit} onClick={() => onChange(addPendingOperationListRow(value, field))}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton>
     {atLimit ? <Text style={{ color: tokens.fg2 }}>{field === 'checklist_items' ? labels.checklistLimit : labels.scheduledLimit}</Text> : null}
   </View>
 }
@@ -88,7 +89,6 @@ function RemoveItemButton({ label, disabled, onClick }: Readonly<{ label: string
     style={({ pressed }) => ({ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}
   ><X accessible={false} color={tokens.fg2} size={20} strokeWidth={1.5} /></Pressable>
 }
-
 
 function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, error, onSelectItem, onChange, onClose, onSave }: Readonly<PendingOperationEditSheetProps>) {
   const { sheetRef, closeSheet } = useSheetHost()
@@ -218,7 +218,7 @@ function PreviewNotice({ message }: Readonly<{ message: string }>) {
   return <Text accessibilityRole="text" accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55 }}>{message}</Text>
 }
 
-function PreviewButton({ label, variant, focusRequest, shouldFocus, ...props }: Readonly<import('@orbit/shared/chat').PendingOperationButtonSpec>) {
+function PreviewButton({ label, icon, variant, focusRequest, shouldFocus, ...props }: Readonly<import('@orbit/shared/chat').PendingOperationButtonSpec>) {
   const { width } = useWindowDimensions()
   const buttonRef = useRef<View>(null)
   const handledFocusRequest = useRef<number | undefined>(undefined)
@@ -231,6 +231,7 @@ function PreviewButton({ label, variant, focusRequest, shouldFocus, ...props }: 
       AccessibilityInfo.sendAccessibilityEvent(buttonRef.current, 'focus')
     }
   }, [focusRequest, props.disabled, shouldFocus])
+  if (icon) return <IconButton label={props.accessibleName ?? label} buttonRef={buttonRef} disabled={props.disabled} loading={props.loading} hint={props.hint} onClick={props.onClick}>{icon === 'refresh' ? <RefreshCw size={20} /> : icon === 'edit' ? <Pencil size={20} /> : <X size={20} />}</IconButton>
   return <Button buttonRef={buttonRef} size="sm" variant={variant === 'primary' && width >= WIDE_DESKTOP_BREAKPOINT ? 'secondary' : variant} {...props}>{label}</Button>
 }
 

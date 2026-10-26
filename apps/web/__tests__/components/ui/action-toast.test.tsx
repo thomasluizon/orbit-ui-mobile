@@ -29,6 +29,29 @@ describe('action toast dismissal', () => {
     vi.useRealTimers()
   })
 
+  it('runs an icon retry once without dismissing the failed notice', () => {
+    const retry = vi.fn()
+    const dismissed = vi.fn()
+    render(<Toast kind="neutral" message="notifications.deleteError" actionLabel="common.retry" actionIcon="refresh" onAction={retry} onDone={dismissed} />)
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(retry).toHaveBeenCalledOnce()
+    expect(dismissed).not.toHaveBeenCalled()
+  })
+
+  it('retries the failed deletion from the notice host', async () => {
+    const execute = vi.fn().mockRejectedValue(new Error('Unavailable'))
+    queuePendingNotificationDelete('notification', execute)
+    render(<NotificationDeleteNotice />)
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    execute.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(getPendingNotificationDeleteIdsSnapshot()).toEqual(['notification'])
+    expect(execute).not.toHaveBeenCalled()
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    expect(execute).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: 'common.retry' })).toBeInTheDocument()
+  })
+
   it('expires a hosted undo after five seconds without running undo', async () => {
     const undo = vi.fn()
     const dismissed = vi.fn()

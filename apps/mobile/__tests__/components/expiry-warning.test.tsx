@@ -8,7 +8,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { i18n } from '@/lib/i18n'
 import { useAuthStore } from '@/stores/auth-store'
 import { createTokensV2, radius } from '@/lib/theme'
-import { BUTTON_SIZES, SMALL_PILL_VISIBLE_MIN, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SMALL_PILL_VISIBLE_MIN, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 vi.unmock('react-i18next')
 
@@ -134,8 +134,8 @@ function renderedText(instance: TestInstance): string[] {
 
 function action(instance: TestInstance, label: string): TestNode {
   const match = hostNodes(instance, 'Pressable').find((node) =>
-    node.findAll(
-      (child) => child.type === 'Text' && child.props.children === label,
+    node.props.accessibilityLabel === label || node.findAll(
+      (child) => child.type === 'Text' && (child.props.label ?? child.props.accessibilityLabel ?? child.props.children) === label,
     ).length > 0,
   )
   expect(match, label).toBeDefined()
@@ -213,7 +213,7 @@ describe('ExpiryWarning', () => {
     await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
     expect(textContent(hostNodes(instance, 'Text')[0]!.props.children as React.ReactNode)).toBe(next)
     expect(StyleSheet.flatten(hostNodes(instance, 'Text')[0]!.props.style)).toMatchObject({ fontVariant: ['tabular-nums'] })
-    expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
+    expect(action(instance, i18n.t('auth.refresh')).props.accessibilityLabel).toBe(i18n.t('auth.refresh'))
   })
 
   it('uses the shared card radius for the notice', async () => {
@@ -234,13 +234,14 @@ describe('ExpiryWarning', () => {
       borderRadius: radius.full,
       overflow: 'hidden',
       height: SMALL_PILL_VISIBLE_MIN,
+      width: SMALL_PILL_VISIBLE_MIN,
       minHeight: SMALL_PILL_VISIBLE_MIN,
       minWidth: SMALL_PILL_VISIBLE_MIN,
-      paddingVertical: SPACING.s4,
-      paddingHorizontal: BUTTON_SIZES.sm.paddingX,
+      paddingHorizontal: 0,
       backgroundColor: 'transparent',
     })
-    expect(Number(actionStyle(instance).height) + 2 * (recoveryAction.props.hitSlop as number)).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN)
+    expect(Number(actionStyle(instance).height) + 2 * (recoveryAction.props.hitSlop as number | undefined ?? 0)).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN)
+    expect(Number(actionStyle(instance).width) + 2 * (recoveryAction.props.hitSlop as number | undefined ?? 0)).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN)
     expect(actionStyle(instance, true)).toMatchObject({ backgroundColor: tokens.bgHover })
     await TestRenderer.act(() => { (action(instance, i18n.t('auth.refresh')).props.onHoverIn as () => void)() })
     expect(actionStyle(instance)).toMatchObject({ backgroundColor: tokens.bgHover })
@@ -274,7 +275,7 @@ describe('ExpiryWarning', () => {
     expect(hostNodes(instance, 'View')).toHaveLength(0)
     await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(1) })
     expect(mocks.refreshSession).toHaveBeenCalledOnce()
-    expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
+    expect(action(instance, i18n.t('auth.refresh')).props.accessibilityLabel).toBe(i18n.t('auth.refresh'))
     expect(mocks.authState.isAuthenticated).toBe(true)
     await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(29_999) })
     expect(mocks.refreshSession).toHaveBeenCalledOnce()
@@ -336,7 +337,7 @@ describe('ExpiryWarning', () => {
     })
     const instance = await renderExpiredWarning(Date.now() + 4 * 60_000)
 
-    expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
+    expect(action(instance, i18n.t('auth.refresh')).props.accessibilityLabel).toBe(i18n.t('auth.refresh'))
     await TestRenderer.act(async () => {
       await (action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>)()
     })
@@ -359,7 +360,7 @@ describe('ExpiryWarning', () => {
     const instance = await renderExpiredWarning()
 
     expect(renderedText(instance)).toContain(i18n.t('auth.sessionRefreshFailed'))
-    expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
+    expect(action(instance, i18n.t('auth.refresh')).props.accessibilityLabel).toBe(i18n.t('auth.refresh'))
     expect(renderedText(instance)).not.toContain(i18n.t('auth.login'))
 
     await TestRenderer.act(async () => {
@@ -377,7 +378,7 @@ describe('ExpiryWarning', () => {
     mocks.refreshSession.mockResolvedValue({ status: 'unauthorized' })
     const instance = await renderExpiredWarning()
 
-    expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
+    expect(action(instance, i18n.t('auth.refresh')).props.accessibilityLabel).toBe(i18n.t('auth.refresh'))
     expect(renderedText(instance)).not.toContain(i18n.t('auth.login'))
 
     await TestRenderer.act(async () => {
@@ -400,7 +401,7 @@ describe('ExpiryWarning', () => {
     })
 
     expect(renderedText(instance)).toContain(i18n.t('auth.sessionRefreshFailed'))
-    expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
+    expect(action(instance, i18n.t('auth.refresh')).props.accessibilityLabel).toBe(i18n.t('auth.refresh'))
     expect(renderedText(instance)).not.toContain(i18n.t('auth.login'))
     expect(mocks.clearSessionAndResetAuth).not.toHaveBeenCalled()
     expect(mocks.authState.isAuthenticated).toBe(true)
@@ -507,7 +508,7 @@ describe('ExpiryWarning', () => {
 
     expect(action(instance, i18n.t('auth.refresh')).props.disabled).toBe(true)
     expect(hostNodes(instance, 'ActivityIndicator')).toHaveLength(1)
-    expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
+    expect(action(instance, i18n.t('auth.refresh')).props.accessibilityLabel).toBe(i18n.t('auth.refresh'))
 
     await TestRenderer.act(async () => {
       await press()

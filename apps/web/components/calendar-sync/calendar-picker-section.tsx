@@ -1,13 +1,14 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw, ChevronDown } from '@/components/ui/icons'
 import { SPACING } from '@orbit/shared/theme'
-
 
 import { useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { CheckRow } from '@/components/ui/check-row'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { useCalendars, useSetSelectedCalendars } from '@/hooks/use-calendars'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -66,9 +67,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
           >
             {t('calendar.calendars.error')}
           </span>
-          <button type="button" className="chip shrink-0" onClick={() => void refetch()}>
-            {t('calendar.retry')}
-          </button>
+          <IconButton label={t('calendar.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
         </div>
       )}
 
@@ -109,9 +108,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
             {t('calendar.showingCount', { shown: Math.min(visibleCount, calendars.length), total: calendars.length })}
           </span>
           {visibleCount < calendars.length ? (
-            <PillButton variant="ghost" size="sm" onClick={() => setVisibleCount((count) => count + 20)}>
-              {t('calendar.showMore')}
-            </PillButton>
+            <IconButton label={t('calendar.showMore')} onClick={() => setVisibleCount((count) => count + 20)}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
           ) : null}
         </div>
       ) : null}

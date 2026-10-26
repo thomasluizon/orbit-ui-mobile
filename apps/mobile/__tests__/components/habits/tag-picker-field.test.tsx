@@ -20,7 +20,8 @@ vi.mock('@/components/ui/list-row', () => ({
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'default', currentTheme: 'light' }),
 }))
-vi.mock('@/lib/theme', () => ({
+vi.mock('@/lib/theme', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/theme')>(),
   createTokensV2: () => new Proxy({}, { get: () => '#000000' }),
 }))
 
@@ -43,7 +44,7 @@ function findButtonWithText(root: { findAll: (predicate: (node: { type: unknown;
   return root.findAll((node) =>
     typeof node.type === 'string' && ['button'].includes(String(node.props.accessibilityRole)) &&
     !(node.props.accessibilityState !== undefined && 'expanded' in (node.props.accessibilityState as Record<string, unknown>)) &&
-    node.findAll((child) => child.type === 'Text' && child.props.children === text).length > 0,
+    (node.props.accessibilityLabel === text || node.findAll((child) => child.type === 'Text' && child.props.children === text).length > 0),
   )[0]! as TestButtonNode
 }
 

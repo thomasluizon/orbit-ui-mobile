@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+
 import { Trash2, Plus } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { MAX_HABIT_TITLE_LENGTH, MAX_SUB_HABITS } from '@orbit/shared/validation'
@@ -48,15 +50,7 @@ export function SubHabitEditor({
           ))}
         </div>
       )}
-      <button
-        type="button"
-        className="chip"
-        disabled={subHabits.length >= MAX_SUB_HABITS}
-        onClick={onAddSubHabit}
-      >
-        <Plus size={16} strokeWidth={2} aria-hidden="true" />
-        {t('habits.form.addSubHabit')}
-      </button>
+      <IconButton label={t('habits.form.addSubHabit')} disabled={subHabits.length >= MAX_SUB_HABITS} onClick={onAddSubHabit}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
     </div>
   )
 }

@@ -96,9 +96,7 @@ export function ConfirmSheet({
     closeSheet(() => { setLifecycle((current) => ({ ...current, mounted: false })); onConfirm() })
   }
   const cancelButton = (
-    <PillButton variant="ghost" size="sm" minimumHeight={minimumActionHeight} buttonRef={cancelRef} disabled={actionsDisabled} onClick={cancel}>
-      {cancelLabel ?? t('common.cancel')}
-    </PillButton>
+    <PillButton variant="ghost" size="sm" minimumHeight={minimumActionHeight} buttonRef={cancelRef} disabled={actionsDisabled} onClick={cancel}>{cancelLabel ?? t('common.cancel')}</PillButton>
   )
   const confirmButton = (
     <PillButton

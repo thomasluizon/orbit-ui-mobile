@@ -97,7 +97,7 @@ function press(tree: Tree, label: string) {
     press(tree, messages.notifications.options)
   }
   const button = hosts(tree, 'Pressable', label)[0] ?? hosts(tree, 'Pressable').find(
-    (node) => node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0,
+    (node) => node.props.accessibilityLabel === label || node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0,
   )
   expect(button, label).toBeDefined()
   TestRenderer.act(() => button!.props.onPress?.())
@@ -240,8 +240,8 @@ describe('mobile alerts', () => {
     const pressed = surface(true)
     expect(pressed, 'Retry must visibly change its surface while pressed').not.toBe(resting)
     const tokens = createTokensV2('purple', mode)
-    const label = retry.findAll((node) => node.type === 'Text' && node.props.children === en.common.retry)[0]!
-    const { color: foreground } = StyleSheet.flatten(label.props.style) as { color: string }
+    const glyph = retry.findAll((node) => node.type === 'RefreshCw')[0]!
+    const foreground = glyph.props.color as string
     expect(contrastOnSurface(foreground, [tokens.bg, pressed])).toBeGreaterThanOrEqual(4.5)
     expect(surface(false), 'Retry must restore its resting surface after release').toBe(resting)
   })
@@ -301,7 +301,7 @@ describe('mobile alerts', () => {
     seed(1)
     const tree = render()
     const action = (label: string) => hosts(tree, 'Pressable').find(
-      (node) => node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0,
+      (node) => node.props.accessibilityLabel === label || node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0,
     )!
     press(tree, en.notifications.options)
     for (const label of [en.notifications.markAllReadMenu, en.notifications.deleteAll]) {
@@ -328,7 +328,7 @@ describe('mobile alerts', () => {
     expect(body.findAll((node) => node.type === 'Text' && node.props.children === longBody)).toHaveLength(1)
     expect(body.findAll((node) => node.type === 'Pressable')).toHaveLength(0)
     for (const label of ['Open in Progress', en.notifications.markAsRead, en.notifications.delete]) {
-      expect(actions.findAll((node) => node.type === 'Text' && node.props.children === label)).toHaveLength(1)
+      expect(actions.findAll((node) => node.type === 'Pressable' && (node.props.accessibilityLabel === label || node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0))).toHaveLength(1)
     }
   })
 
@@ -340,8 +340,8 @@ describe('mobile alerts', () => {
       onMarkAsRead={vi.fn()}
       onDelete={vi.fn()}
     />)
-    const actionLabels = testId(tree, 'sheet-actions-slot')[0]!.findAll((node) => node.type === 'Text')
-      .map((node) => node.props.children)
+    const actionLabels = testId(tree, 'sheet-actions-slot')[0]!.findAll((node) => node.type === 'Pressable')
+      .map((node) => node.props.accessibilityLabel ?? node.findAll((child) => child.type === 'Text')[0]?.props.children)
 
     expect(actionLabels).toEqual([en.notifications.markAsRead, en.notifications.delete])
   })
@@ -563,8 +563,7 @@ describe('mobile alerts', () => {
     for (const action of confirmation.findAll((node) => node.type === 'Pressable' && node.props.testID?.startsWith('button-') === true)) {
       const style = action.props.style
       const bounds = StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style)
-      expect(bounds.minHeight).toBeGreaterThanOrEqual(48)
-      expect(bounds.height).toBeUndefined()
+      expect(bounds.height ?? bounds.minHeight).toBeGreaterThanOrEqual(48)
     }
     expect(state.clear).not.toHaveBeenCalled()
     press(tree, messages.common.cancel)
@@ -600,8 +599,8 @@ describe('mobile alerts', () => {
     expect(StyleSheet.flatten(row!.props.style as StyleProp<ViewStyle>)).toMatchObject({
       flexDirection: 'row', justifyContent: 'flex-end', gap: 12,
     })
-    expect(slot.findAll((node) => node.type === 'Text' && typeof node.props.children === 'string')
-      .map((node) => node.props.children))
+    expect(slot.findAll((node) => node.type === 'Pressable')
+      .map((node) => node.props.accessibilityLabel ?? node.findAll((child) => child.type === 'Text')[0]?.props.children))
       .toEqual([en.notifications.markAsRead, 'Open in Progress', en.notifications.delete])
     expect(slot.findAll((node) => node.type === 'View' && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).flex === 1)).toHaveLength(0)
   })
@@ -637,7 +636,7 @@ describe('mobile alerts', () => {
     const tree = render(<NotificationDetailModal open notification={createMockNotification({ url, habitId })}
       onClose={onClose} onMarkAsRead={vi.fn()} onDelete={vi.fn()} />)
     const label = en.notifications.openIn.replace('{target}', labelTarget)
-    const target = hosts(tree, 'Pressable').find((node) => node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0)!
+    const target = hosts(tree, 'Pressable').find((node) => node.props.accessibilityLabel === label || node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0)!
     TestRenderer.act(() => target.props.onPress?.())
 
     expect(sheetTestControls.isDismissPending).toBe(true)

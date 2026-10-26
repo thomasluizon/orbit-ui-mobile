@@ -116,14 +116,7 @@ export function DeleteAccountModal({
               </Text>
             ) : null}
             <ActionRow>
-              <PillButton
-                size="sm"
-                variant="ghost"
-                disabled={loading}
-                onClick={() => closeSheet()}
-              >
-                {t('common.cancel')}
-              </PillButton>
+              <PillButton size="sm" variant="ghost" disabled={loading} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
               <PillButton
                 size="sm"
                 variant="destructive"

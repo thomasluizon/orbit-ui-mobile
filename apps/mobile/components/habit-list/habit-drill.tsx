@@ -1,3 +1,4 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { useState, type ReactElement, type ReactNode, type RefObject } from 'react'
 import {
   FlatList,
@@ -16,7 +17,7 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
-import { ArrowLeft } from '@/components/ui/icons'
+import { ArrowLeft, RefreshCw } from '@/components/ui/icons'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -161,9 +162,7 @@ export function HabitDrill({
       <Text style={styles.drillErrorText} accessibilityLiveRegion="polite">
         {drill.drillError}
       </Text>
-      <PillButton variant="ghost" onClick={() => void drill.refreshCurrent()}>
-        {t('common.retry')}
-      </PillButton>
+      <IconButton label={t('common.retry')} onClick={() => void drill.refreshCurrent()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
     </View>
   ) : (
     <View>

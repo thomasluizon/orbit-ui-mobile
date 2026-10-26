@@ -1,3 +1,4 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { Pressable, Text, View } from 'react-native'
 import { Plus, X } from '@/components/ui/icons'
@@ -55,21 +56,7 @@ export function EditGoalDeadlineField({
           ) : null}
         </View>
       ) : (
-        <Pressable
-          style={({ pressed }) => [
-            styles.addDeadlineButton,
-            pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] },
-          ]}
-          onPress={() => onChangeDeadline(formatAPIDate(new Date()))}
-          hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel={t('goals.form.addDeadline')}
-        >
-          <Plus size={16} color={tokens.fg1} strokeWidth={1.8} />
-          <Text style={styles.addDeadlineText}>
-            {t('goals.form.addDeadline')}
-          </Text>
-        </Pressable>
+        <IconButton label={t('goals.form.addDeadline')} onPress={() => onChangeDeadline(formatAPIDate(new Date()))} hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton>
       )}
     </View>
   )

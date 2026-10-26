@@ -1,3 +1,5 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { Copy } from '@/components/ui/icons'
 import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
@@ -39,9 +41,7 @@ function McpWebSheet({ onClose }: Readonly<{ onClose: () => void }>) {
       actions={<>
         <PillButton variant="ghost" size="sm" onClick={() => closeSheet()}>{t('orbitMcp.done')}</PillButton>
         <View accessibilityLiveRegion="polite" style={styles.copyAction}>
-          <PillButton size="sm" loading={copyState === 'copying'} disabled={copyState === 'copying'} onClick={() => void copyEndpoint()}>
-            {copyState === 'copied' ? t('orbitMcp.copied') : t('orbitMcp.copy')}
-          </PillButton>
+          <IconButton label={copyState === 'copied' ? t('orbitMcp.copied') : t('orbitMcp.copy')} loading={copyState === 'copying'} disabled={copyState === 'copying'} onClick={() => void copyEndpoint()}><Copy size={20} strokeWidth={1.5} accessible={false} /></IconButton>
         </View>
       </>}
     >

@@ -94,7 +94,7 @@ function all(root: ReactTestInstance, type: string) { return root.findAll((node)
 function text(root: ReactTestInstance): unknown[] { return all(root, 'Text').map((node) => node.props.children) }
 function callback(node: ReactTestInstance, name: string): () => void | Promise<void> { return Reflect.get(node.props, name) as () => void | Promise<void> }
 function action(root: ReactTestInstance, label: string): ReactTestInstance {
-  const element = root.findAll((node) => (node.props.children === label || text(node).includes(label)) && (String(node.type) === 'PillButton' || node.props.accessibilityRole === 'link'))[0]
+  const element = root.findAll((node) => ((node.props.label ?? node.props.accessibilityLabel ?? node.props.children) === label || text(node).includes(label)) && (String(node.type) === 'PillButton' || node.props.accessibilityRole === 'link'))[0]
   expect(element).toBeDefined()
   return element!
 }

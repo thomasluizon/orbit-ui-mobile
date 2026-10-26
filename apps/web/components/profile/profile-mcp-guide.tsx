@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { Copy } from '@/components/ui/icons'
 import { useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { SPACING } from '@orbit/shared/theme'
@@ -34,9 +36,7 @@ function McpWebSheet({ onClose }: Readonly<{ onClose: () => void }>) {
       actions={<>
         <PillButton variant="ghost" size="sm" onClick={() => closeSheet()}>{t('orbitMcp.done')}</PillButton>
         <span aria-live="polite">
-          <PillButton descriptionId={copyMessageId} size="sm" loading={copyState === 'copying'} disabled={copyState === 'copying'} onClick={() => void copyEndpoint()}>
-            {copyState === 'copied' ? t('orbitMcp.copied') : t('orbitMcp.copy')}
-          </PillButton>
+          <IconButton label={copyState === 'copied' ? t('orbitMcp.copied') : t('orbitMcp.copy')} descriptionId={copyMessageId} loading={copyState === 'copying'} disabled={copyState === 'copying'} onClick={() => void copyEndpoint()}><Copy size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
         </span>
       </>}
     >

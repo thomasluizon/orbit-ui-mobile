@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { ChevronDown, RefreshCw } from '@/components/ui/icons'
 import { useLocale, useTranslations } from 'next-intl'
 import { refreshReadBlock } from '@/app/actions/chat'
 import { getHeldAccountId } from '@/stores/auth-store'
@@ -10,7 +12,6 @@ import { createUseReadBlockSession, type ReadBlockState, type ReadBlockBoundaryP
 import { formatReadWindow, readBlockPresentation, readBlockFrameProps } from '@orbit/shared/chat/read-block-core'
 import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 import { BlockFrame as Frame } from '@/components/ui/block-frame'
-import { Button } from '@/components/ui/pill-button'
 
 const useReadBlockSession = createUseReadBlockSession({
   useState, useRef, useEffect, getAccountGeneration, platform: 'web',
@@ -47,8 +48,8 @@ function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; 
   const { snapshot, pending, failure, run } = context
   const { state, message, window, canPage } = readBlockPresentation(snapshot, props.state, pending, failure)
   const actions = <>
-    {canPage ? <Button variant="ghost" size="sm" disabled={pending} onClick={() => { void run(true) }}>{t('chat.recordList.more')}</Button> : null}
-    <Button variant="ghost" size="sm" disabled={pending} onClick={() => { void run(false) }}>{t('blockFrame.refresh')}</Button>
+    {canPage ? <IconButton label={t('chat.recordList.more')} disabled={pending} onClick={() => { void run(true) }}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
+    <IconButton label={t('blockFrame.refresh')} disabled={pending} onClick={() => { void run(false) }}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
     {props.actions}
   </>
   const body = <>{window ? <p className="text-sm text-[var(--fg-3)]">{formatReadWindow(window, locale)}</p> : null}{message && state !== 'stale' ? <p role="status" className="text-sm text-[var(--fg-2)]">{t(message)}</p> : null}{props.body}</>

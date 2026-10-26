@@ -1,3 +1,5 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { notionConnectionSheetState } from '@orbit/shared/types/notion-connection'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { Text, View, StyleSheet } from 'react-native'
@@ -46,7 +48,7 @@ export function NotionConnectionSheet({ callbackFailed, controller, onClose, onA
   const connect = () => onAuthorize((url) => { setLeaving(true); closeSheet(() => { onClose(); onOpenUrl(url) }) })
   const actions = <>
     {hasConnection ? <PillButton variant="ghost" loading={disconnect.isPending} disabled={!isOnline || busy} onClick={() => setConfirming(true)}>{t('profile.connections.disconnect')}</PillButton> : null}
-    {connection.isError ? <PillButton disabled={!isOnline || connection.isFetching} loading={connection.isFetching} onClick={() => void connection.refetch()}>{t('common.retry')}</PillButton>
+    {connection.isError ? <IconButton label={t('common.retry')} disabled={!isOnline || connection.isFetching} loading={connection.isFetching} onClick={() => void connection.refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
       : <PillButton disabled={disabled} loading={authorize.isPending || leaving} onClick={connect}>{t(`profile.connections.${actionKey}`)}</PillButton>}
   </>
   return <>

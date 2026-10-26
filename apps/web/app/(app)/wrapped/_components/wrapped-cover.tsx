@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
 import { Chip } from '@/components/ui/chip'
@@ -84,7 +86,7 @@ function CoverBody({
       <div className="w-full">
         <ErrorState
           message={t('wrapped.error')}
-          action={<Button size="sm" onClick={onRetry}>{t('wrapped.retry')}</Button>}
+          action={<IconButton label={t('wrapped.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>}
         />
       </div>
     )

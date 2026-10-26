@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 
 import { getHabitTypeLabelKey, getHabitRowTypeLabelKey, splitDescriptionLinks } from '@orbit/shared/utils'
@@ -70,7 +72,7 @@ import { MonthGrid } from '@/components/dates/month-grid'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from '@/components/ui/icons'
+import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2, RefreshCw } from '@/components/ui/icons'
 import { DateRow } from '@/components/ui/date-row'
 import { CreateHabitModal } from './create-habit-modal'
 import { HabitDetailFields } from './habit-detail-fields'
@@ -139,7 +141,7 @@ function LogDateError({ visible }: Readonly<{ visible: boolean }>) {
 function DayHabitsStatus({ reasonKey, onRetry }: Readonly<{ reasonKey: ReturnType<typeof getHabitDetailChildUnavailableReasonKey>; onRetry: () => void }>) {
   const t = useTranslations()
   if (reasonKey === 'calendar.dayCell.notScheduled') return null
-  return <div className="flex flex-wrap items-center gap-3 py-3"><p className="text-sm text-[var(--fg-2)]">{t(reasonKey)}</p>{reasonKey === 'habits.detail.dayHabitsLoadError' ? <PillButton variant="ghost" size="sm" onClick={onRetry}>{t('habits.detail.retry')}</PillButton> : null}</div>
+  return <div className="flex flex-wrap items-center gap-3 py-3"><p className="text-sm text-[var(--fg-2)]">{t(reasonKey)}</p>{reasonKey === 'habits.detail.dayHabitsLoadError' ? <IconButton label={t('habits.detail.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}</div>
 }
 
 function UnscheduledChildReason({ reason, notScheduledReason }: Readonly<{ reason?: string; notScheduledReason: string }>) {
@@ -459,7 +461,7 @@ function HabitDetailProfile({ habitId, date, fromToday = false, parentId }: Read
       else router.push(date ? `/?date=${date}` : '/')
     }} />}>
       {isError
-        ? <ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('habits.detail.retry')}</PillButton>} />
+        ? <ErrorState message={t('common.error')} action={<IconButton label={t('habits.detail.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />
         : <div role="status" aria-busy="true" aria-label={t('profile.loading')} className="flex flex-col gap-4">
             <Skeleton variant="habit-row" grouped />
             <Skeleton variant="stat-tile" grouped />
@@ -623,7 +625,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   }
 
   if (detailQuery.isLoading) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><div className="flex flex-col gap-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><HistoryLoading /></div></HabitDetailFrame>
-  if (detailQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></HabitDetailFrame>
+  if (detailQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><ErrorState message={t('habits.detail.loadError')} action={<IconButton label={t('habits.detail.retry')} onClick={retryFailedQueries}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /></HabitDetailFrame>
 
   const children = (detailQuery.data as HabitDetail).children.map((sourceChild) => {
     const child = normalizeDrillDetailChild(sourceChild, habit.id, dateStr)

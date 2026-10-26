@@ -2,7 +2,6 @@
 
 import { SPACING } from '@orbit/shared/theme'
 
-
 import { useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { resetAccountQueries } from '@orbit/shared/query'
@@ -253,9 +252,7 @@ function FreshStartActions({
   if (step === 'info') {
     return (
       <ActionRow>
-        <PillButton size="sm" variant="ghost" onClick={onCancel}>
-          {t('common.cancel')}
-        </PillButton>
+        <PillButton size="sm" variant="ghost" onClick={onCancel}>{t('common.cancel')}</PillButton>
         <PillButton size="sm" variant="caution" onClick={onContinue}>
           {t('profile.freshStart.reviewDeletion')}
         </PillButton>
@@ -281,9 +278,7 @@ function FreshStartActions({
         </p>
       ) : null}
       <ActionRow>
-        <PillButton size="sm" variant="ghost" disabled={loading} onClick={onCancel}>
-          {t('common.cancel')}
-        </PillButton>
+        <PillButton size="sm" variant="ghost" disabled={loading} onClick={onCancel}>{t('common.cancel')}</PillButton>
         <PillButton
           size="sm"
           variant="caution"

@@ -106,7 +106,7 @@ describe('NotificationDetailModal', () => {
 
   it('calls onDelete and closes when delete clicked', () => {
     render(<QueryClientProvider client={new QueryClient()}><NotificationDetailModal {...defaultProps} /></QueryClientProvider>)
-    fireEvent.click(screen.getByText('notifications.delete'))
+    fireEvent.click(screen.getByRole('button', { name: 'notifications.delete' }))
     expect(defaultProps.onDelete).toHaveBeenCalledWith('n1')
     expect(defaultProps.onOpenChange).toHaveBeenCalledWith(false)
   })

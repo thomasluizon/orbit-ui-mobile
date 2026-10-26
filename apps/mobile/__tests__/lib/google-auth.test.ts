@@ -194,7 +194,7 @@ describe('mobile Google authorization code flow', () => {
     const newCallback = `${callback}?code=new-code&state=${authorizeUrl().searchParams.get('state')}`
     expect(setPendingGoogleAuthCallbackUrl(oldCallback)).toBe(false)
     expect(setPendingGoogleAuthCallbackUrl(newCallback)).toBe(true)
-    await expect(completeGoogleAuthFromUrl(oldCallback, 'en')).rejects.toThrow('Invalid OAuth state')
+    await expect(completeGoogleAuthFromUrl(oldCallback, 'en')).rejects.toMatchObject({ reason: 'state_mismatch' })
     await expect(completeGoogleAuthFromUrl(newCallback, 'en')).resolves.toEqual(loginResponse)
   })
 })

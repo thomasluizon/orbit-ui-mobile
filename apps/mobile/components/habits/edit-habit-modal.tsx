@@ -216,7 +216,6 @@ function EditHabitDraft({
     })
   }, [closeSheet, onClose, router])
 
-
   const { toggleGoal, selectCreatedGoal } = useHabitGoalSelection(setSelectedGoalIds, relationshipFieldsTouchedRef)
 
   const handleSlipAlertEnabledChange = useCallback((nextEnabled: boolean) => {
@@ -516,7 +515,6 @@ function EditHabitDraft({
     }
   }, [formHelpers, i18n.language, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
-
   const visibleFailure = visibleEmojiFailure(emojiFailure, sessionHabitId, watchedTitle)
 
   return (
@@ -529,14 +527,7 @@ function EditHabitDraft({
         title={t(formHelpers.isOneTime ? 'habits.editTask' : 'habits.editHabit')}
         actions={(
           <ActionRow>
-            <PillButton
-              size="sm"
-              variant="ghost"
-              disabled={saving}
-              onClick={dismissGuard.requestDismiss}
-            >
-              {t('common.cancel')}
-            </PillButton>
+            <PillButton size="sm" variant="ghost" disabled={saving} onClick={dismissGuard.requestDismiss}>{t('common.cancel')}</PillButton>
             <PillButton
               size="sm"
               disabled={detailFieldsPending || saving}

@@ -1,3 +1,5 @@
+import * as Menu from '@/components/ui/dropdown-menu'
+import { IconButton } from '@/components/ui/icon-button'
 import { PADDING, SPACING } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
@@ -21,7 +23,7 @@ import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { Input } from '@/components/ui/input'
-import { Key } from '@/components/ui/icons'
+import { Key, RefreshCw, Copy, Plus } from '@/components/ui/icons'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -90,7 +92,7 @@ function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readon
     return (
       <View style={styles.errorState}>
         <Text accessibilityRole="alert" style={[styles.message, { color: tokens.statusBadText }]}>{t('orbitMcp.apiKeysError')}</Text>
-        <PillButton size="sm" variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
+        <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
       </View>
     )
   }
@@ -276,13 +278,7 @@ function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
         <Text style={[styles.warning, { color: tokens.statusOverdueText }]}>{t('orbitMcp.keyCreatedWarning')}</Text>
         <View style={[styles.keyWell, { backgroundColor: tokens.bgField, borderColor: tokens.borderControl }]}>
           <Text selectable style={[styles.keyValue, { color: tokens.fg2 }]}>{createdKey.key}</Text>
-          <PillButton
-            size="sm"
-            variant="ghost"
-            onClick={() => { void copyKey() }}
-          >
-            {copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}
-          </PillButton>
+          <IconButton label={copied ? t('orbitMcp.copied') : t('orbitMcp.copy')} onClick={() => { void copyKey() }}><Copy size={20} strokeWidth={1.5} accessible={false} /></IconButton>
         </View>
       </View>
     </Sheet>
@@ -418,21 +414,17 @@ function ApiKeyCreateControls({
         disabled={creating || stepUpBusy}
         onChange={onReadOnlyChange}
       />
-      <ActionRow>
-        {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
-        <PillButton variant="ghost" size="sm" loading={stepUpBusy} disabled={creating || stepUpBusy} onClick={onCreateScoped}>
-          {t('profile.apiKeys.createScoped')}
-        </PillButton>
-        <PillButton
-          variant="secondary"
-          size="sm"
-          disabled={creating || stepUpBusy}
-          loading={stepUpBusy}
-          onClick={onCreate}
-        >
-          {t('profile.apiKeys.create')}
-        </PillButton>
-      </ActionRow>
+      <Menu.Root>
+        <ActionRow>
+          <Menu.Trigger asChild disabled={creating || stepUpBusy}>
+            <IconButton label={t('profile.apiKeys.create')} disabled={creating || stepUpBusy} loading={stepUpBusy}><Plus size={20} accessible={false} /></IconButton>
+          </Menu.Trigger>
+        </ActionRow>
+        <Menu.Content title={t('profile.apiKeys.create')} items={[
+          { id: 'scoped', label: t('profile.apiKeys.createScoped'), disabled: creating || stepUpBusy },
+          { id: 'unscoped', label: t('profile.apiKeys.create'), disabled: creating || stepUpBusy },
+        ]} onSelect={(id) => { if (id === 'scoped') onCreateScoped(); else onCreate() }} />
+      </Menu.Root>
     </View>
   )
 }

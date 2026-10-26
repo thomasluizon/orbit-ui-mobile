@@ -186,7 +186,6 @@ function EditHabitDraft({
     onDismiss: () => closeSheet(() => onOpenChange(false)),
   })
 
-
   const { toggleGoal, selectCreatedGoal } = useHabitGoalSelection(setSelectedGoalIds, relationshipFieldsTouchedRef)
 
   const handleSlipAlertEnabledChange = useCallback((nextEnabled: boolean) => {
@@ -490,14 +489,7 @@ function EditHabitDraft({
         title={t(formHelpers.isOneTime ? 'habits.editTask' : 'habits.editHabit')}
         actions={(
           <ActionRow>
-            <PillButton
-              size="sm"
-              variant="ghost"
-              disabled={saving}
-              onClick={dismissGuard.requestDismiss}
-            >
-              {t('common.cancel')}
-            </PillButton>
+            <PillButton size="sm" variant="ghost" disabled={saving} onClick={dismissGuard.requestDismiss}>{t('common.cancel')}</PillButton>
             <PillButton
               size="sm"
               formId={formId}

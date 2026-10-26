@@ -983,8 +983,9 @@ describe('Hoje header geometry', () => {
         const actions = Array.from(document.querySelectorAll('[data-slot="action-row"] button')).map((button) => {
           const bounds = button.getBoundingClientRect()
           const text = document.createRange()
-          text.selectNodeContents(button.querySelector('span')!)
-          return { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom, width: bounds.width, height: bounds.height, lines: text.getClientRects().length }
+          const label = button.querySelector('span')
+          if (label) text.selectNodeContents(label)
+          return { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom, width: bounds.width, height: bounds.height, lines: label ? text.getClientRects().length : 1 }
         })
         return { headingWidth: range.getBoundingClientRect().width, available: heading.getBoundingClientRect().width, lines: range.getClientRects().length, actions }
       })

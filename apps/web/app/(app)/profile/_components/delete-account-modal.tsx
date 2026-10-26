@@ -2,7 +2,6 @@
 
 import { SPACING } from '@orbit/shared/theme'
 
-
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -121,14 +120,7 @@ export function DeleteAccountModal({
               </p>
             ) : null}
             <ActionRow>
-              <PillButton
-                size="sm"
-                variant="ghost"
-                disabled={loading}
-                onClick={() => closeSheet()}
-              >
-                {t('common.cancel')}
-              </PillButton>
+              <PillButton size="sm" variant="ghost" disabled={loading} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
               <PillButton
                 size="sm"
                 variant="destructive"

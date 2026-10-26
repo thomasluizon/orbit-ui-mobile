@@ -6,6 +6,8 @@ import { getSessionGeneration, refreshSession, useAuthStore } from '@/stores/aut
 import { useLogout } from '@/hooks/use-logout'
 import { createTokensV2, radius, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 
 const WARN_AT_MINUTES = 5
@@ -188,15 +190,7 @@ export function ExpiryWarning() {
             t('auth.sessionExpiring', { minutes: minutesLeft ?? 0 })
           )}
         </Text>
-        <PillButton
-          variant="ghost"
-          size="sm"
-          onClick={() => void handleAction()}
-          disabled={isRefreshing}
-          loading={isRefreshing}
-        >
-          {isTerminal ? t('auth.login') : t('auth.refresh')}
-        </PillButton>
+        {isTerminal ? <PillButton variant="ghost" onClick={() => void handleAction()}>{t('auth.login')}</PillButton> : <IconButton label={t('auth.refresh')} onClick={() => void handleAction()} disabled={isRefreshing} loading={isRefreshing}><RefreshCw size={20} accessible={false} /></IconButton>}
       </View>
     </View>
   )
