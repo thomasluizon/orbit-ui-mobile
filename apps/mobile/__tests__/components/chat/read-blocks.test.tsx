@@ -7,10 +7,11 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { getAccountDay } from '@orbit/shared/utils'
 import { ChatBlock } from '@/components/chat/block-registry'
+import { habitMonthFixture } from '@orbit/shared/test-support/habit-month-fixture'
 import { apiClient } from '@/lib/api-client'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { API } from '@orbit/shared/api'
-import { chatPartSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
+import { chatPartSchema, habitMonthCardSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
 const state = vi.hoisted(() => ({ locale: 'en', habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
 vi.mock('react-i18next', async importOriginal => ({ ...await importOriginal<typeof import('react-i18next')>(), useTranslation: () => ({ i18n: { language: state.locale }, t: (key: string) => key }) }))
@@ -138,5 +139,38 @@ it('withholds signed paging for a stale query', async () => {
   expect(tree.root.findAll(node => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'chat.recordList.more')).toHaveLength(0)
   expect(tree.root.findAll(node => node.props.accessibilityLabel === 'blockFrame.refresh' && String(node.type) === 'Pressable')).toHaveLength(1)
   expect(apiClient).not.toHaveBeenCalled()
+  await act(() => tree.unmount())
+})
+
+
+it.each(['en', 'pt-BR'])('renders the shared month grid and exact day navigation in %s', async locale => {
+  state.locale = locale
+  const card = habitMonthCardSchema.parse(habitMonthFixture)
+  const tree = await mount({ kind: 'habitMonth', block: card })
+  for (const [date, outcome] of [['01', 'full'], ['02', 'none'], ['03', 'none'], ['04', 'not-scheduled']] as const) {
+    const day = tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.testID === `calendar-day-select-2026-09-${date}`)[0]!
+    expect(day.findAll(node => String(node.type) === 'View' && node.props.testID === `day-cell-${outcome}`)).toHaveLength(1)
+  }
+  const today = tree.root.findAll(node => String(node.type) === 'View' && node.props.testID === 'calendar-day-slot-2026-09-11')[0]!
+  expect(today.findAll(node => String(node.type) === 'View' && node.props.testID === 'day-today-ring')).toHaveLength(1)
+  const skipped = tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.testID === 'calendar-day-select-2026-09-03')[0]!
+  await act(() => { (skipped.props.onPress as () => void)() })
+  expect(state.push).toHaveBeenCalledWith({ pathname: '/calendar', params: { date: '2026-09-03' } })
+  await act(() => tree.unmount())
+})
+
+it('refreshes the month through its dedicated route without sending a page parameter', async () => {
+  const card = habitMonthCardSchema.parse(habitMonthFixture)
+  const refreshed = { kind: 'habitMonth', block: { ...card, today: '2026-09-12' }, read: { ...card.read!, revision: 'two', refreshToken: 'month-two' } }
+  vi.mocked(apiClient).mockResolvedValue(refreshed)
+  const tree = await mount({ kind: 'habitMonth', block: card })
+  await press(tree, 'blockFrame.refresh')
+  expect(apiClient).toHaveBeenCalledWith(API.chat.refreshHabitMonth, expect.objectContaining({ method: 'POST',
+    body: expect.stringContaining('signed-month'),
+  }), expect.anything())
+  expect(JSON.parse(vi.mocked(apiClient).mock.calls[0]![1]!.body as string)).toMatchObject({ token: 'signed-month', clientContext: { platform: 'mobile', partKinds: expect.arrayContaining(['habitMonth']) } })
+  expect(JSON.parse(vi.mocked(apiClient).mock.calls[0]![1]!.body as string)).not.toHaveProperty('page')
+  await press(tree, 'blockFrame.refresh')
+  expect(JSON.parse(vi.mocked(apiClient).mock.calls[1]![1]!.body as string).token).toBe('month-two')
   await act(() => tree.unmount())
 })

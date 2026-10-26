@@ -43,8 +43,9 @@ export function buildCalendarMonthModel(
   dayMap: Map<string, CalendarDayEntry[]>,
   weekStartsOn: 0 | 1,
   todayKey: string,
+  dateRange?: { from: string; to: string },
 ): CalendarMonthModel {
-  const gridDays = buildMonthGridDays(currentMonth, dayMap, weekStartsOn, todayKey)
+  const gridDays = buildMonthGridDays(currentMonth, dayMap, weekStartsOn, todayKey, dateRange)
   const monthDays = gridDays.filter((day) => day.isCurrentMonth)
   return { gridDays, monthStats: deriveCalendarStats(monthDays, todayKey) }
 }
@@ -84,6 +85,7 @@ function buildMonthGridDays(
   dayMap: Map<string, CalendarDayEntry[]>,
   weekStartsOn: 0 | 1,
   todayKey: string,
+  dateRange?: { from: string; to: string },
 ): CalendarMonthDay[] {
   const monthStart = startOfMonth(currentMonth)
   const monthEnd = endOfMonth(currentMonth)
@@ -100,7 +102,7 @@ function buildMonthGridDays(
       date,
       dateStr,
       day: getDate(date),
-      isCurrentMonth: isSameMonth(date, currentMonth),
+      isCurrentMonth: isSameMonth(date, currentMonth) && (!dateRange || (dateStr >= dateRange.from && dateStr <= dateRange.to)),
       isToday: dateStr === todayKey,
       entries,
       completedCount,

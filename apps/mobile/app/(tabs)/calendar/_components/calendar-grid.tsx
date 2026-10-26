@@ -29,6 +29,7 @@ export interface WeekdayHeader {
 
 interface CalendarGridProps {
   gridDays: GridDay[]
+  compact?: boolean
   weekdayHeaders: WeekdayHeader[]
   selectedDay: string | null
   isLoading?: boolean
@@ -152,6 +153,7 @@ function CalendarGridLoading({ gridDays, gap, label, weekdayLabels }: Readonly<{
 
 export function CalendarGrid({
   gridDays,
+  compact = false,
   weekdayHeaders,
   selectedDay,
   isLoading,
@@ -166,7 +168,7 @@ export function CalendarGrid({
   todayKey,
 }: Readonly<CalendarGridProps>) {
   const { width } = useWindowDimensions()
-  const gridGap = width - 2 * CALENDAR_MONTH_GRID_GEOMETRY.inlineInset < CALENDAR_GRID_GAP_CONTENT_BREAKPOINT ? 0 : CALENDAR_MONTH_GRID_GEOMETRY.gap
+  const gridGap = compact || width - 2 * CALENDAR_MONTH_GRID_GEOMETRY.inlineInset < CALENDAR_GRID_GAP_CONTENT_BREAKPOINT ? 0 : CALENDAR_MONTH_GRID_GEOMETRY.gap
   const locale = language === 'pt-BR' ? ptBR : enUS
   const words: DayCellWords = {
     none: t('calendar.dayCell.none'),
@@ -180,7 +182,7 @@ export function CalendarGrid({
 
   if (isLoading) {
     const loadingGrid = (
-      <View ref={gridRef} collapsable={false} testID="calendar-grid" style={styles.calendarGrid}>
+      <View ref={gridRef} collapsable={false} testID="calendar-grid" style={compact ? styles.compactGrid : styles.calendarGrid}>
         <CalendarGridLoading weekdayLabels={weekdayHeaders.length > 0 ? weekdayHeaders.map((weekday) => weekday.label) : formatWeekdayLabels(language, 1)} gridDays={gridDays} gap={gridGap} label={t('calendar.loading')} />
       </View>
     )
@@ -190,7 +192,7 @@ export function CalendarGrid({
   }
 
   const grid = (
-    <View ref={gridRef} collapsable={false} testID="calendar-grid" style={styles.calendarGrid}>
+    <View ref={gridRef} collapsable={false} testID="calendar-grid" style={compact ? styles.compactGrid : styles.calendarGrid}>
       <Animated.View
         key={monthKey}
         entering={monthEntering}
@@ -229,6 +231,7 @@ export function CalendarGrid({
 }
 
 const styles = StyleSheet.create({
+  compactGrid: { padding: SPACING.s0 },
   calendarGrid: { paddingHorizontal: CALENDAR_MONTH_GRID_GEOMETRY.inlineInset, paddingTop: SPACING.s0, paddingBottom: SPACING.s8 },
   gridCard: {
     width: '100%',

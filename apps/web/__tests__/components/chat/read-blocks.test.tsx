@@ -9,12 +9,13 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { getAccountDay } from '@orbit/shared/utils'
 import { ChatBlock } from '@/components/chat/block-registry'
-import { refreshReadBlock } from '@/app/actions/chat'
+import { habitMonthFixture } from '@orbit/shared/test-support/habit-month-fixture'
+import { refreshHabitMonth, refreshReadBlock } from '@/app/actions/chat'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
-import { chatPartSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
+import { chatPartSchema, habitMonthCardSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
 const state = vi.hoisted(() => ({ habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
-vi.mock('@/app/actions/chat', () => ({ refreshReadBlock: vi.fn() }))
+vi.mock('@/app/actions/chat', () => ({ refreshReadBlock: vi.fn(), refreshHabitMonth: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: state.habits }, isPending: false }), useLogHabit: () => ({ mutate: state.mutate }), useHabitMetrics: () => ({}) }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false }) }))
@@ -28,7 +29,7 @@ const total = { type: 'block' as const, kind: 'periodTotal' as const, block: foc
 function mount(part: Parameters<typeof ChatBlock>[0]['part'] = total, locale: 'en' | 'pt-BR' = 'en') {
   return render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><ChatBlock part={part} onActionChipClick={vi.fn()} /></NextIntlClientProvider>)
 }
-beforeEach(() => { vi.mocked(refreshReadBlock).mockReset(); state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
+beforeEach(() => { vi.mocked(refreshReadBlock).mockReset(); vi.mocked(refreshHabitMonth).mockReset(); state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
 
 describe('focused read compositions', () => {
   it.each(['en', 'pt-BR'] as const)('renders the exact total and zero-baseline comparison in %s', locale => {
@@ -130,4 +131,35 @@ it('withholds signed paging for a stale query', () => {
   expect(screen.queryByRole('button', { name: 'Show more' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled()
   expect(refreshReadBlock).not.toHaveBeenCalled()
+})
+
+
+it.each(['en', 'pt-BR'] as const)('renders the calendar month with done, missed, skipped, future and today states in %s', locale => {
+  const card = habitMonthCardSchema.parse(habitMonthFixture)
+  mount({ kind: 'habitMonth', block: card }, locale)
+  for (const [date, outcome] of [['01', 'full'], ['02', 'none'], ['03', 'none'], ['04', 'not-scheduled']] as const) {
+    expect(screen.getByTestId(`calendar-day-select-2026-09-${date}`).querySelector('[data-outcome]')).toHaveAttribute('data-outcome', outcome)
+  }
+  expect(screen.getByTestId('calendar-day-select-2026-09-11')).toHaveAttribute('aria-current', 'date')
+  expect(screen.getByTestId('calendar-day-select-2026-09-12')).toHaveAccessibleName(new RegExp((locale === 'en' ? en : pt).calendar.dayCell.future, 'i'))
+  expect(screen.getByTestId('month-grid-days').children.length % 7).toBe(0)
+  fireEvent.click(screen.getByTestId('calendar-day-select-2026-09-03'))
+  expect(state.push).toHaveBeenCalledWith('/calendar?date=2026-09-03')
+  expect(screen.getByRole('button', { name: locale === 'en' ? 'Refresh' : 'Atualizar' }).textContent).toBe('')
+})
+
+it('refreshes a habit month through its dedicated action and replaces the full snapshot', async () => {
+  const card = habitMonthCardSchema.parse(habitMonthFixture)
+  vi.mocked(refreshHabitMonth).mockResolvedValue({ ok: true, data: {
+    kind: 'habitMonth', block: { ...card, today: '2026-09-12', calendar: { ...card.calendar, logs: {} } },
+    read: { ...card.read!, revision: 'two', refreshToken: 'month-two' },
+  } })
+  mount({ kind: 'habitMonth', block: card })
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+  await waitFor(() => expect(screen.getByTestId('calendar-day-select-2026-09-12')).toHaveAttribute('aria-current', 'date'))
+  expect(screen.getByTestId('calendar-day-select-2026-09-01').querySelector('[data-outcome]')).toHaveAttribute('data-outcome', 'none')
+  expect(refreshReadBlock).not.toHaveBeenCalled()
+  expect(refreshHabitMonth).toHaveBeenCalledWith('signed-month', expect.objectContaining({ platform: 'web', partKinds: expect.arrayContaining(['habitMonth']) }), null)
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+  await waitFor(() => expect(refreshHabitMonth).toHaveBeenLastCalledWith('month-two', expect.anything(), null))
 })

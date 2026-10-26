@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from 'react'
 import type { AnswerBlockProps, ChatBlockKind, MessageBubbleProps } from '@orbit/shared/chat'
-import type { ChatBlockPart, ChatMessage, ReadBlockResponse } from '@orbit/shared/types/chat'
+import type { ChatBlockPart, ChatMessage, ReadBlockSnapshot } from '@orbit/shared/types/chat'
 import { HabitListCard } from './habit-list-card'
 import { HabitRankingCard } from './habit-ranking-card'
 import { GoalListCard } from './goal-list-card'
@@ -11,6 +11,7 @@ import { ReadBlockBoundary } from './read-block-frame'
 import { PeriodInsightCard } from './period-insight-card'
 import { DaySummaryCard } from './day-summary-card'
 import { StreakCard } from './streak-card'
+import { HabitMonthCard } from './habit-month-card'
 import { CalendarCard } from './calendar-card'
 import { RecordListCard } from './record-list-card'
 import { AccountRowsCard } from './account-rows-card'
@@ -32,6 +33,7 @@ const blockRegistry: { [Kind in ChatBlockKind]: (block: BlockContent[Kind], onOp
   daySummary: block => <DaySummaryCard daySummary={block} />,
   streak: block => <StreakCard streakCard={block} />,
   calendar: block => <CalendarCard calendarCard={block} />,
+  habitMonth: block => <HabitMonthCard card={block} />,
   recordList: block => <RecordListCard recordList={block} />,
   accountRows: block => <AccountRowsCard accountRows={block} />,
   choice: (block, _onOpen, props) => <ChoiceBlock key={block.blockId} block={block} {...props} />,
@@ -47,7 +49,7 @@ export function ChatBlock<Kind extends ChatBlockKind>({ part, onActionChipClick,
 }>) {
   const savedAnswer = 'blockId' in part.block ? savedAnswers?.[part.block.blockId] : undefined
   if ('read' in part.block && part.block.read) {
-    const snapshot = { kind: part.kind, block: part.block, read: part.block.read } as ReadBlockResponse
+    const snapshot = { kind: part.kind, block: part.block, read: part.block.read } as ReadBlockSnapshot
     return <ReadBlockBoundary snapshot={snapshot}>{current => <Fragment key={current.read.revision}>{blockRegistry[part.kind](current.block as BlockContent[Kind], onActionChipClick, { interaction, expired, savedAnswer })}</Fragment>}</ReadBlockBoundary>
   }
   return blockRegistry[part.kind](part.block, onActionChipClick, { interaction, expired, savedAnswer })
