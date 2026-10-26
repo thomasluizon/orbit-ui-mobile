@@ -4,7 +4,7 @@ import { habitRankingCardSchema } from './habit-ranking'
 export { habitRankingCardSchema, habitRankingResponseSchema, type HabitRankingCard, type HabitRankingResponse } from './habit-ranking'
 import { proactiveItemSchema } from './proactive'
 import type { ChatBlockKind } from '../chat/block-kinds'
-import { frequencyUnitSchema } from './habit'
+import { calendarMonthResponseSchema, frequencyUnitSchema } from './habit'
 import { completionSeriesSchema, retrospectiveHabitStatSchema } from './gamification'
 import {
   agentOperationResultSchema,
@@ -397,6 +397,28 @@ export const calendarCardSchema = z.object({
 
 export type CalendarCard = z.infer<typeof calendarCardSchema>
 
+export const habitMonthCardSchema = z.object({
+  dateFrom: z.iso.date(),
+  dateTo: z.iso.date(),
+  today: z.iso.date(),
+  weekStartDay: z.union([z.literal(0), z.literal(1)]),
+  calendar: calendarMonthResponseSchema,
+  language: z.string().optional(),
+  surfaceId: z.string().optional(),
+  read: readBlockMetadataSchema.nullish(),
+})
+
+export type HabitMonthCard = z.infer<typeof habitMonthCardSchema>
+
+export const habitMonthReadBlockResponseSchema = z.object({
+  kind: z.literal('habitMonth'),
+  block: habitMonthCardSchema,
+  read: readBlockMetadataSchema,
+})
+
+export type HabitMonthReadBlockResponse = z.infer<typeof habitMonthReadBlockResponseSchema>
+
+
 export const recordListCardSchema = z.object({
   read: readBlockMetadataSchema.nullish(),
   kind: z.enum(['notifications', 'tags', 'templates', 'keys', 'habitHistory']),
@@ -481,6 +503,7 @@ const chatBlockSchemas = {
   daySummary: daySummaryCardSchema,
   streak: streakCardSchema,
   calendar: calendarCardSchema,
+  habitMonth: habitMonthCardSchema,
   recordList: recordListCardSchema,
   accountRows: accountRowsCardSchema,
   choice: choiceBlockSchema,
@@ -504,6 +527,7 @@ export const chatPartSchema = z.union([
     blockPartSchema('daySummary'),
     blockPartSchema('streak'),
     blockPartSchema('calendar'),
+    blockPartSchema('habitMonth'),
     blockPartSchema('recordList'),
     blockPartSchema('accountRows'),
     blockPartSchema('choice'),
@@ -529,6 +553,7 @@ export const readBlockResponseSchema = z.discriminatedUnion('kind', [
 ])
 
 export type ReadBlockResponse = z.infer<typeof readBlockResponseSchema>
+export type ReadBlockSnapshot = ReadBlockResponse | HabitMonthReadBlockResponse
 export type ReadBlockPart = Exclude<ChatBlockPart, { kind: 'choice' | 'pickList' }>
 
 export const chatFollowUpSchema = z.object({

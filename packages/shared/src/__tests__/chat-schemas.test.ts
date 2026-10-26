@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { z } from 'zod'
 import { actionResultSchema, chatMessageSchema, chatResponseSchema, chatStreamEventSchema } from '../types/chat'
+import { habitMonthFixture } from '../test-support/habit-month-fixture'
 import { CHAT_BLOCK_KINDS } from '../chat/block-kinds'
 import { buildChatFinalMessageFields, getChatMessageParts } from '../chat/final-message'
 import { createChatSseParser } from '../chat/sse-stream'
@@ -51,6 +52,7 @@ describe('ordered chat parts', () => {
       { type: 'block', kind: 'periodComparison', block: focusedPeriodComparisonFixture },
       ...partsFixture.blocks.slice(3),
       { type: 'block', kind: 'habitRanking', block: habitRankingCardFixture },
+      { type: 'block', kind: 'habitMonth', block: habitMonthFixture },
     ]
     expect(blocks.map(part => part.kind)).toEqual(CHAT_BLOCK_KINDS)
     const response = { ...partsFixture.response, parts: blocks }

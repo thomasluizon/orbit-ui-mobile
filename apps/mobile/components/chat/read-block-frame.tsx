@@ -3,7 +3,7 @@ import { ChevronDown, RefreshCw } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { Text } from 'react-native'
 import { API } from '@orbit/shared/api'
-import { readBlockResponseSchema } from '@orbit/shared/types/chat'
+import { habitMonthReadBlockResponseSchema, readBlockResponseSchema } from '@orbit/shared/types/chat'
 import { apiClient } from '@/lib/api-client'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -17,8 +17,9 @@ import { BlockFrame as Frame } from '@/components/ui/block-frame'
 
 const useReadBlockSession = createUseReadBlockSession({
   useState, useRef, useEffect, getAccountGeneration, platform: 'mobile',
-  refresh: async (token, clientContext, page, isCurrent) => {
+  refresh: async (token, clientContext, page, isCurrent, kind) => {
     try {
+      if (kind === 'habitMonth') return await apiClient(API.chat.refreshHabitMonth, { method: 'POST', body: JSON.stringify({ token, clientContext }), isCurrent, silent: true }, habitMonthReadBlockResponseSchema)
       return await apiClient(API.chat.refreshRead, { method: 'POST', body: JSON.stringify({ token, clientContext, page }), isCurrent, silent: true }, readBlockResponseSchema)
     } catch (error) {
       if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') throw new Error(error.code)

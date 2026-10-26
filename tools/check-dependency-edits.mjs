@@ -12,6 +12,8 @@ const USAGE = `usage: check-dependency-edits.mjs [--root <path>] [--tolerance-se
   Walks installed node_modules trees under <root> for files later than their package's extraction.
   For a flagged package, compares all regular files with its integrity-verified locked archive.
   Matching contents pass regardless of extraction duration; modified, missing or extra files fail.
+  Verified Expo packages may add specific native outputs; published files are always compared.
+  SQLite generated sources must match an archived vendor source. Native outputs force verification.
   Without a locked archive, the timestamp finding remains. Unverifiable locked archives fail.
   Archives are read from file: paths or fetched over HTTPS with a 30 second timeout.
   Generated .next/standalone copies are excluded, including roots inside that output.
@@ -100,6 +102,16 @@ function collectPackageFiles(directory, collected, installed = true) {
   }
 }
 
+/** Expo hardcodes these outputs in its native producers; see #1742. Never skip published files. */
+function nativeOutputKind(packageDirectory, name) {
+  if (basename(packageDirectory) === "expo-modules-jsi") {
+    if (["apple/.DerivedData/", "apple/.build/", "apple/.swiftpm/", "apple/Products/ExpoModulesJSI.xcframework/"]
+      .some((prefix) => name.startsWith(prefix)) || name === "apple/.generated/module.modulemap") return "jsi"
+  }
+  if (basename(packageDirectory) === "expo-sqlite" && ["ios/sqlite3.c", "ios/sqlite3.h"].includes(name)) return "sqlite"
+  return null
+}
+
 function scanPackage(packageDirectory) {
   let missingManifest = false
   try {
@@ -121,7 +133,9 @@ function scanPackage(packageDirectory) {
   let extractedAtMs = collected.length > 0 ? collected[0].modifiedAtMs : 0
   for (const file of collected) if (file.modifiedAtMs < extractedAtMs) extractedAtMs = file.modifiedAtMs
   const lateFiles = collected.filter((file) => file.modifiedAtMs > extractedAtMs + toleranceSeconds * 1000)
-  if (missingManifest || lateFiles.length > 0) flaggedPackages.push({ packageDirectory, collected, lateFiles, extractedAtMs })
+  const nativeOutputs = collected.some((file) =>
+    nativeOutputKind(packageDirectory, relative(packageDirectory, file.path).split(sep).join("/")) !== null)
+  if (missingManifest || lateFiles.length > 0 || nativeOutputs) flaggedPackages.push({ packageDirectory, collected, lateFiles, extractedAtMs })
 }
 
 function findLockedArchive(packageDirectory) {
@@ -195,7 +209,20 @@ async function compareLockedPackage(packageDirectory, collected, locked) {
       if (!installed.delete(name)) differences.push({ path, packageDirectory, reason: "missing" })
       else if (!readFileSync(path).equals(readFileSync(file.path))) differences.push({ path, packageDirectory, reason: "modified" })
     }
-    for (const name of installed) differences.push({ path: join(packageDirectory, name), packageDirectory, reason: "extra" })
+    for (const name of installed) {
+      const path = join(packageDirectory, name)
+      const kind = nativeOutputKind(packageDirectory, name.split(sep).join("/"))
+      if (kind === "jsi") continue
+      if (kind === "sqlite") {
+        const contents = readFileSync(path)
+        const verifiedCopy = ["sqlite3", "sqlcipher"].some((variant) => {
+          const vendor = join(unpacked, "vendor", variant, basename(name))
+          return existsSync(vendor) && contents.equals(readFileSync(vendor))
+        })
+        if (verifiedCopy) continue
+      }
+      differences.push({ path, packageDirectory, reason: "extra" })
+    }
     return differences
   } finally {
     rmSync(scratch, { recursive: true, force: true })

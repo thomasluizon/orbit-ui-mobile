@@ -1767,6 +1767,9 @@
       "xp": "{current} of {next} XP",
       "open": "See it on Progress"
     },
+    "habitMonth": {
+      "title": "Habit calendar"
+    },
     "calendarCard": {
       "title": "Calendar",
       "allDay": "All day",
