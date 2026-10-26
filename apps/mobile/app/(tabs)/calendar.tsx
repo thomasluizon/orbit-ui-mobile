@@ -165,18 +165,25 @@ function resolveMonthEntering(monthSlide: MonthSlide) {
 }
 
 export default function CalendarScreen() {
+  const { setParams } = useRouter();
   const { profile, error: profileError, refetch: refetchProfile } = useProfile();
   const params = useLocalSearchParams<{ date?: string }>();
   const routeDate = resolveHabitDetailRouteDate(params.date);
   const acceptRouteDate = useAccountBoundRouteRequest(routeDate ?? '');
   const [selectedDay, setSelectedDay] = useAccountScopedState(() => acceptRouteDate && routeDate ? routeDate : formatAPIDate(new Date()));
+  const [view, setView] = useState<CalendarView>('month');
   const [observedRouteDate, setObservedRouteDate] = useState(routeDate);
   if (observedRouteDate !== routeDate) {
     setObservedRouteDate(routeDate);
-    if (acceptRouteDate && routeDate) setSelectedDay(routeDate);
+    if (acceptRouteDate && routeDate) {
+      setSelectedDay(routeDate);
+      setView('month');
+    }
   }
+  useEffect(() => {
+    if (params.date !== undefined) setParams({ date: undefined });
+  }, [params.date, setParams]);
   const currentMonth = useMemo(() => calendarMonthForDay(selectedDay), [selectedDay]);
-  const [view, setView] = useState<CalendarView>('month');
   const monthQuery = useCalendarData(currentMonth);
 
   return (
