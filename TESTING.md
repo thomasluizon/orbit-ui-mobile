@@ -368,11 +368,41 @@ A block-only answer may omit `aiMessage` or return it empty.
 Authentication errors, unrelated refusals, throttling, and transport failures cannot pass as a
 budget refusal. The corpus does not infer a successful mutation from a plausible answer.
 
+### Read latency budget
+
+Read cases also require the median API turn time across their three attempts to be strictly below
+`READ_LATENCY_BUDGET_MILLISECONDS` in `evals/astra/latency.mjs`. The starting value is 5000 ms from
+#1761. Before merge, the coordinator replaces it with the measured budget from #1740 gate 4 staging
+per-phase medians, then records both live runs on the pull request: the current build must pass and
+the build with the second model call forced back on must fail. Fixture timings do not calibrate the
+budget. Live runs consume model allowance and belong to the coordinator.
+
+The corpus classifies `composition.mode: data` as read cases, together with legacy `fallback` cases
+that declare nonempty read-only `expectations.allowed` tools. Preview, clarification and refusal
+cases retain their existing assertions. Each read case must still pass every capability assertion;
+a slow outlier alone does not fail latency when the three-run median is below the budget.
+
+The input is request-bound `evalTrace.timing` from the API timing producer in #1754:
+`totalMilliseconds` and `phases`, whose entries contain `name`, exclusive `milliseconds`, and
+`elapsedMilliseconds`. All values must be finite nonnegative numbers. Successful read traces require
+`moderation`, `context_load`, `prompt_build`, `model_call`, `tool_call`, `save`, `composition`, `budget`
+and `other`. Missing, malformed or mismatched timing fails the budget. Exclusive phase times must
+sum to the turn total within 1 ms for floating point rounding. Repeated scopes, including a second
+model call, are summed by name within each turn before taking the three-run phase medians.
+The reports show total and per-phase medians in milliseconds; phase medians need not sum to the
+total median. Merged windows preserve and validate these results against the current budget;
+older read summaries without latency evidence must be rerun. No fixture setup or grader time enters
+the API turn measurement.
+
+Run the offline budget and report checks with
+`npm test --prefix evals/astra -- __tests__/latency.test.mjs __tests__/reports.test.mjs __tests__/trace.test.mjs`.
+
 ### Assertions, trace evidence, and the launch decision
 
 Every case runs three times with caching and HTTP retries disabled. A case passes `pass^3`
 only when all three attempts pass all assertions with complete required evidence.
-`reports/summary.json` and `reports/summary.md` contain only case IDs, family and locale labels, and counts.
+`reports/summary.json` and `reports/summary.md` contain case IDs, family and locale labels, counts,
+and sanitized read latency medians and verdicts.
 After each graded attempt, the harness atomically replaces private `reports/results.json` with each attempt's
 case ID, one-based repeat ordinal within that case, pass state, HTTP status, failure reason, and every
 assertion's metric, pass state and reason. Unknown status, metric or reason is null.

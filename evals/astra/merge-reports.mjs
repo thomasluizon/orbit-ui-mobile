@@ -2,10 +2,11 @@
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
+import { describeCase, validateLatencySummary } from './latency.mjs'
 import { aggregate, writeReport } from './report.mjs'
 
 export const descriptors = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>
-  parse(readFileSync(new URL(path, import.meta.url), 'utf8')).map((test) => test.metadata))
+  parse(readFileSync(new URL(path, import.meta.url), 'utf8')).map(describeCase))
 
 export function mergeReports(windows, expected = descriptors) {
   const collected = new Map()
@@ -23,8 +24,12 @@ export function mergeReports(windows, expected = descriptors) {
       if (entry.pass3 === 'pass' && !complete) throw new Error('Window claims a pass without complete evidence.')
       if (entry.unavailableReasons != null && (!Array.isArray(entry.unavailableReasons)
         || entry.unavailableReasons.some((reason) => typeof reason !== 'string'))) throw new Error('Invalid window precondition reasons.')
+      if (descriptor.readLatency) {
+        validateLatencySummary(entry.latency)
+        if (entry.latency.status === 'fail' && entry.pass3 === 'pass') throw new Error('Window claims a pass despite a failed latency budget.')
+      }
       collected.set(entry.id, { id: entry.id, family: entry.family, locale: entry.locale, attempts: entry.attempts,
-        passed: entry.passed, unavailableReasons: entry.unavailableReasons ?? [], skipped: entry.skipped, unavailable: entry.unavailable, missingComposition: entry.missingComposition, pass3: entry.pass3 })
+        passed: entry.passed, ...(descriptor.readLatency ? { latency: entry.latency } : {}), unavailableReasons: entry.unavailableReasons ?? [], skipped: entry.skipped, unavailable: entry.unavailable, missingComposition: entry.missingComposition, pass3: entry.pass3 })
     }
   }
   return aggregate(expected.map(({ id, family = 'legacy', locale = 'unspecified' }) => collected.get(id)

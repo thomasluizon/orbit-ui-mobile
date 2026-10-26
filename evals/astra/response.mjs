@@ -7,7 +7,7 @@ export function extractTrace(response, responseRequestId) {
     return { state: 'mismatched', reason: 'Trace and HTTP response identities differ.' }
   }
   return {
-    state: 'available', requestId: trace.traceId, responseRequestId,
+    state: 'available', requestId: trace.traceId, responseRequestId, timing: trace.timing,
     calls: trace.toolCalls.map((call) => ({
       id: call?.id, name: call?.name, arguments: call?.arguments,
       resultStatus: call?.status, result: call?.result,

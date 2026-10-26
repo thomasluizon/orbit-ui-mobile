@@ -23,7 +23,7 @@ export function chatResponse(requestId, toolCalls = []) {
     policyDenials: null, correlationId: requestId, relatedSurfaces: null, habitList: null,
     goalList: null, metricsCard: null, periodInsight: null, daySummary: null, streak: null,
     calendar: null, recordLists: null, accountRows: null, followUps: null,
-    evalTrace: { traceId: requestId, toolCalls },
+    evalTrace: { traceId: requestId, toolCalls, timing: turnTiming() },
   }
 }
 
@@ -41,4 +41,14 @@ export function preview(name = 'Cholesterol exam') {
         { entityId: '00000000-0000-0000-0000-000000000000', entityName: name, field: 'frequency_unit', oldValue: null, newValue: 'OneTime', valueType: 'enum', proposedValue: 'OneTime', isEditable: true },
       ],
     }] }
+}
+
+// Producer fixture: #1754 ProcessUserChatCommandHandlerTests.Timing read turn.
+export function turnTiming() {
+  const names = ['moderation', 'context_load', 'context_load', 'prompt_build', 'budget', 'budget',
+    'model_call', 'budget', 'tool_call', 'budget', 'budget', 'model_call', 'budget', 'save', 'composition', 'other']
+  const durations = [1, 2, 0, 3, 11, 0, 13, 0, 7, 11, 0, 13, 0, 5, 0, 0]
+  return { totalMilliseconds: 66, phases: names.map((name, index) => ({
+    name, milliseconds: durations[index], elapsedMilliseconds: durations[index],
+  })) }
 }
