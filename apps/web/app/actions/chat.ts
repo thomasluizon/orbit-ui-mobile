@@ -23,10 +23,11 @@ export async function revisePendingOperation(
   request: RevisePendingOperationRequest,
   intendedAccountId: string | null,
 ): Promise<PendingOperationActionResult<PendingOperationRevisionResult>> {
+  const clientContext = buildChatClientContext({ platform: 'web', locale: await getLocale() })
   return wrapServerAction(() =>
     serverAuthMutate<PendingOperationRevisionResult>(API.ai.pendingOperationRevise(id), {
       method: 'POST',
-      body: JSON.stringify(request),
+      body: JSON.stringify({ ...request, clientContext }),
     }, intendedAccountId),
   )
 }
@@ -36,8 +37,10 @@ export async function refreshPendingOperation(
   id: string,
   intendedAccountId: string | null,
 ): Promise<PendingOperationActionResult<PendingOperationRevisionResult>> {
+  const clientContext = buildChatClientContext({ platform: 'web', locale: await getLocale() })
+  const query = new URLSearchParams({ clientContext: JSON.stringify(clientContext) })
   return wrapServerAction(() =>
-    serverAuthMutate<PendingOperationRevisionResult>(API.ai.pendingOperationRefresh(id), {
+    serverAuthMutate<PendingOperationRevisionResult>(`${API.ai.pendingOperationRefresh(id)}?${query.toString()}`, {
       method: 'POST',
     }, intendedAccountId),
   )
@@ -48,8 +51,10 @@ export async function confirmPendingOperation(
   id: string,
   intendedAccountId: string | null,
 ): Promise<PendingOperationActionResult<PendingAgentOperationConfirmation>> {
+  const clientContext = buildChatClientContext({ platform: 'web', locale: await getLocale() })
+  const query = new URLSearchParams({ clientContext: JSON.stringify(clientContext) })
   return wrapServerAction(() =>
-    serverAuthMutate<PendingAgentOperationConfirmation>(API.ai.pendingOperationConfirm(id), {
+    serverAuthMutate<PendingAgentOperationConfirmation>(`${API.ai.pendingOperationConfirm(id)}?${query.toString()}`, {
       method: 'POST',
     }, intendedAccountId),
   )
@@ -90,10 +95,11 @@ export async function executePendingOperation(
   confirmationToken: string,
   intendedAccountId: string | null,
 ): Promise<PendingOperationActionResult<AgentExecuteOperationResponse>> {
+  const clientContext = buildChatClientContext({ platform: 'web', locale: await getLocale() })
   return wrapServerAction(() =>
     serverAuthMutate<AgentExecuteOperationResponse>(API.ai.pendingOperationExecute(id), {
       method: 'POST',
-      body: JSON.stringify({ confirmationToken }),
+      body: JSON.stringify({ confirmationToken, clientContext }),
     }, intendedAccountId),
   )
 }

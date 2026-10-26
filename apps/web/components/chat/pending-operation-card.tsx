@@ -101,11 +101,13 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
     </ActionRow>}
   >
     <div className="flex flex-col gap-4">
+      {item.placement?.selected === 'checklist_item' ? <p className="text-sm text-[var(--fg-2)]">{labels.placementChecklistNote}</p> : null}
       {editableItems.length > 1 ? <div className="flex flex-col gap-2">{showSearch ? <Input label={labels.search} value={query} onChange={setQuery} disabled={busy} /> : null}<RadioGroup aria-label={labels.editTitle}>{editableItems.filter((entry) => !showSearch || entry.entityName.toLocaleLowerCase().includes(query.toLocaleLowerCase())).map((entry) =>
         busy
           ? <RadioRow key={entry.itemId} label={entry.entityName} textMode="personal" selected={entry.itemId === item.itemId} busy reason={labels.acting} />
           : <RadioRow key={entry.itemId} label={entry.entityName} textMode="personal" selected={entry.itemId === item.itemId} onSelect={() => onSelectItem(entry.itemId)} />)}</RadioGroup></div> : null}
-      {item.fields.filter(isPendingOperationEditableField).map((field) => {
+      {item.fields.filter((field) => isPendingOperationEditableField(field)
+        && !(item.placement?.selected === 'new_parent' && field.field === 'parent_habit_id')).map((field) => {
         const label = labels.fieldLabels[field.field] ?? field.field
         const choices = item.fieldOptions?.find((entry) => entry.field === field.field && entry.field === 'parent_habit_id')
         if (choices) return <ParentChoice key={field.field} itemId={item.itemId} itemName={item.entityName} field={choices} labels={labels} disabled={busy}
@@ -189,6 +191,20 @@ function ParentChoice({ itemName, field, labels, disabled, onSelect, selectedVal
   </div>
 }
 
+function PlacementChoice({ itemName, placement, labels, disabled, busy, onSelect }: Readonly<Parameters<PendingOperationCardRenderers['placementChoice']>[0]>) {
+  return <div className="flex min-w-0 flex-col gap-2">
+    <p className="text-sm text-[var(--fg-2)]">{labels.placementRecommendation(placement)}</p>
+    {placement.selected === 'checklist_item' ? <p className="text-sm text-[var(--fg-2)]">{labels.placementChecklistNote}</p> : null}
+    <RadioGroup aria-label={labels.placementGroup(itemName)} className="flex min-w-0 flex-col gap-1">
+      {[placement.selected, ...placement.alternatives].sort((first, second) => first.localeCompare(second)).map((value) => <RadioRow key={value}
+        label={labels.placementOption(value, placement.destinationName)} wrapLabel proposed textMode={value === 'new_parent' ? undefined : 'personal'}
+        description={value === placement.recommended ? labels.placementRecommended : undefined}
+        selected={value === placement.selected}
+        {...(busy ? { busy: true as const, reason: labels.acting } : disabled ? { disabled: true as const, reasonScope: 'group' as const } : { onSelect: () => onSelect(value) })} />)}
+    </RadioGroup>
+  </div>
+}
+
 const pendingOperationRenderers = {
   blockFrame: (props) => <BlockFrame {...props} items={props.items.map((item) => ({ ...item, label: typeof item.label === 'string' && item.id !== 'remaining' ? <PreviewItemTitle key={item.id} title={item.label} icon={item.icon} rename={item.rename} proposed={item.proposed} /> : item.label }))} />,
   button: ({ label, ...props }) => <PreviewButton label={label} {...props} />,
@@ -196,6 +212,7 @@ const pendingOperationRenderers = {
   stepUp: (props) => <div className="basis-full min-w-0"><StepUp {...props} /></div>,
   verification: (props) => <StepUpVerificationSheet {...props} />,
   editSheet: (props) => <EditPendingOperationSheet {...props} />,
+  placementChoice: (props) => <PlacementChoice key={props.itemId} {...props} />,
   parentChoice: (props) => <ParentChoice key={props.itemId} {...props} />,
   removeItem: (label, disabled, onClick) => <button
     type="button" aria-label={label} disabled={disabled} onClick={onClick}

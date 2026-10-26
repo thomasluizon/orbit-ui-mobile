@@ -5,6 +5,7 @@ import type {
   PendingOperationRevisionResult,
   RevisePendingOperationRequest,
 } from '../types/ai'
+import type { PendingOperationPlacementEdit } from './pending-operation-placement-core'
 
 export interface PendingOperationRevisionState {
   sourceId: string
@@ -172,12 +173,14 @@ export function pendingOperationRevisionRequest(
   previewFingerprint: string,
   selected: readonly PendingOperationItem[],
   edits?: { itemId: string; values: Record<string, unknown> },
+  placement?: PendingOperationPlacementEdit,
 ): RevisePendingOperationRequest {
   return {
     previewFingerprint,
     items: selected.map((item) => ({
       itemId: item.itemId,
       ...(edits?.itemId === item.itemId ? { edits: edits.values } : {}),
+      ...(placement?.itemId === item.itemId ? { placement: placement.value } : {}),
     })),
   }
 }

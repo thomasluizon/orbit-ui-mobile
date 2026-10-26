@@ -35,6 +35,7 @@ export function buildChatClientContext({
     supportsRecordListCard: true,
     supportsAccountRowsCard: true,
     supportsPendingOperationChanges: true,
+    supportsPendingOperationPlacement: true,
     supportsToolSteps: true,
     supportsFollowUps: true,
     supportsFollowUpContext: true,

@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { API } from "@orbit/shared/api";
+import { buildChatClientContext } from "@orbit/shared/chat";
 import type {
   AgentExecuteOperationResponse,
   AgentStepUpChallenge,
@@ -38,6 +39,7 @@ export function usePendingOperationExecution({
   handleExecutedOperation,
 }: UsePendingOperationExecutionOptions) {
   const { t, i18n } = useTranslation();
+  const getClientContext = useCallback(() => buildChatClientContext({ platform: 'mobile', locale: i18n.language }), [i18n.language]);
   const [batchCount, setBatchCount] = useState(0);
   const trackBatch = useCallback(async <Result,>(operation: () => Promise<Result>) => {
     setBatchCount((count) => count + 1);
@@ -49,21 +51,21 @@ export function usePendingOperationExecution({
     try {
       const result = await apiClient<PendingOperationRevisionResult>(API.ai.pendingOperationRevise(id), {
         method: 'POST',
-        body: JSON.stringify(request),
+        body: JSON.stringify({ ...request, clientContext: getClientContext() }),
       });
       return { ok: true as const, result };
     } catch (error: unknown) {
       return {
         ok: false as const,
         error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'),
-        stale: error instanceof ApiClientError && error.status === 409,
+        stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404),
       };
     }
-  }, [t]);
+  }, [getClientContext, t]);
 
   const refreshPendingOperationForBubble = useCallback(async (id: string) => {
     try {
-      const result = await apiClient<PendingOperationRevisionResult>(API.ai.pendingOperationRefresh(id), {
+      const result = await apiClient<PendingOperationRevisionResult>(`${API.ai.pendingOperationRefresh(id)}?${new URLSearchParams({ clientContext: JSON.stringify(getClientContext()) }).toString()}`, {
         method: 'POST',
       });
       return { ok: true as const, result };
@@ -71,16 +73,16 @@ export function usePendingOperationExecution({
       return {
         ok: false as const,
         error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'),
-        stale: error instanceof ApiClientError && error.status === 409,
+        stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404),
       };
     }
-  }, [t]);
+  }, [getClientContext, t]);
 
   const confirmAndExecutePendingOperation = useCallback(
     async (pendingOperationId: string): Promise<PendingExecutionResult> => {
       try {
         const confirmation = await apiClient<PendingAgentOperationConfirmation>(
-          API.ai.pendingOperationConfirm(pendingOperationId),
+          `${API.ai.pendingOperationConfirm(pendingOperationId)}?${new URLSearchParams({ clientContext: JSON.stringify(getClientContext()) }).toString()}`,
           {
             method: "POST",
           },
@@ -92,6 +94,7 @@ export function usePendingOperationExecution({
             method: "POST",
             body: JSON.stringify({
               confirmationToken: confirmation.confirmationToken,
+              clientContext: getClientContext(),
             }),
           },
         );
@@ -99,17 +102,17 @@ export function usePendingOperationExecution({
         await handleExecutedOperation(execution);
         return { ok: true, response: execution };
       } catch (error: unknown) {
-        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic"), stale: error instanceof ApiClientError && error.status === 409 };
+        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic"), stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404) };
       }
     },
-    [handleExecutedOperation, t],
+    [getClientContext, handleExecutedOperation, t],
   );
 
   const preparePendingOperationStepUp = useCallback(
     async (pendingOperationId: string): Promise<PreparedStepUpExecution> => {
       try {
         const confirmation = await apiClient<PendingAgentOperationConfirmation>(
-          API.ai.pendingOperationConfirm(pendingOperationId),
+          `${API.ai.pendingOperationConfirm(pendingOperationId)}?${new URLSearchParams({ clientContext: JSON.stringify(getClientContext()) }).toString()}`,
           {
             method: "POST",
           },
@@ -129,10 +132,10 @@ export function usePendingOperationExecution({
           confirmationToken: confirmation.confirmationToken,
         };
       } catch (error: unknown) {
-        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic"), stale: error instanceof ApiClientError && error.status === 409 };
+        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic"), stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404) };
       }
     },
-    [i18n.language, t],
+    [getClientContext, i18n.language, t],
   );
 
   const verifyAndExecutePendingOperationStepUp = useCallback(
@@ -155,17 +158,17 @@ export function usePendingOperationExecution({
           API.ai.pendingOperationExecute(pendingOperationId),
           {
             method: "POST",
-            body: JSON.stringify({ confirmationToken }),
+            body: JSON.stringify({ confirmationToken, clientContext: getClientContext() }),
           },
         );
 
         await handleExecutedOperation(execution);
         return { ok: true, response: execution };
       } catch (error: unknown) {
-        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic"), stale: error instanceof ApiClientError && error.status === 409 };
+        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic"), stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404) };
       }
     },
-    [handleExecutedOperation, t],
+    [getClientContext, handleExecutedOperation, t],
   );
 
   const prepareStepUpForBubble = useCallback(
