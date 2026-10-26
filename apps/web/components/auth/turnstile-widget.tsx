@@ -1,8 +1,9 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { PillButton } from '@/components/ui/pill-button'
 
 type WidgetState = 'idle' | 'loading' | 'solved' | 'failed' | 'expired'
 
@@ -156,7 +157,7 @@ export function TurnstileWidget({
           ? t(state === 'failed' ? 'auth.turnstileFailed' : 'auth.turnstileExpired') : ''}
       </p>
       {(state === 'failed' || state === 'expired') &&
-        <PillButton variant="ghost" size="sm" onClick={retry}>{t('auth.turnstileRetry')}</PillButton>}
+        <IconButton label={t('auth.turnstileRetry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>}
     </div>
   )
 }

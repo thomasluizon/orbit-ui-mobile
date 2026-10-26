@@ -1,6 +1,6 @@
 'use client'
 
-import { SPACING } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 
 import { useEffect, useId, useRef, useEffectEvent, type ReactNode } from 'react'
@@ -134,7 +134,7 @@ export function WrappedPlayer({
           </button>
         </div>
 
-        <div key={current.id} data-testid="wrapped-page-scroll" className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+        <div key={current.id} data-testid="wrapped-page-scroll" style={{ minHeight: TOUCH_TARGET_MIN }} className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
           <WrappedSlide
             slide={current}
             recap={recap}
@@ -234,7 +234,7 @@ interface PlayerPagerProps {
 
 function PlayerPager(props: Readonly<PlayerPagerProps>) {
   return (
-    <div data-testid="wrapped-pager" style={{ padding: `${SPACING.s8}px ${SPACING.s16}px` }}>
+    <div data-testid="wrapped-pager" className="py-2 [@media(max-height:400px)]:py-1" style={{ paddingInline: SPACING.s16 }}>
       {props.isLast ? (
         <Pager
           count={props.count}

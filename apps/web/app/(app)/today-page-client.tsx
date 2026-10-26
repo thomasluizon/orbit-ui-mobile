@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { animate, m, useMotionValue, useReducedMotion } from 'motion/react'
@@ -17,7 +19,7 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { PreloadedProfileContext, useProfile } from '@/hooks/use-profile'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { ErrorState } from '@/components/ui/error-state'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { Skeleton } from '@/components/ui/skeleton'
 
 interface TodayPageClientProps {
@@ -91,7 +93,7 @@ export function TodayPageClient({
   })
   if (!profile) {
     return isError
-      ? <><h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1><ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /></>
+      ? <><h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1><ErrorState message={t('common.error')} action={<IconButton label={t('common.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /></>
       : <div role="status" aria-busy="true" aria-label={t('profile.loading')} className="mx-auto flex w-full max-w-[740px] flex-col gap-6 p-4">
           <h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1>
           <Skeleton variant="settings" grouped />

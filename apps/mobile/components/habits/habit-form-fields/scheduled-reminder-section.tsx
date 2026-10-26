@@ -1,14 +1,15 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { useHabitFormInteraction } from './habit-form-interaction'
 import { ListRow } from '@/components/ui/list-row'
 import { toTime24 } from '@orbit/shared/utils'
 import { ReminderPermissionNotice } from './reminder-permission-notice'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
-import { PillButton } from "@/components/ui/pill-button";
+
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo } from "react";
 import { View, Text, } from "react-native";
-import { X, Plus } from "@/components/ui/icons";
+import { X, Plus } from '@/components/ui/icons';
 import { useTranslation } from "react-i18next";
 import type { ScheduledReminderWhen } from "@orbit/shared/types/habit";
 import {
@@ -154,20 +155,7 @@ export function ScheduledReminderSection({
           )}
 
           {!showForm && !atLimit && (
-            <Pressable disabled={disabled}
-              style={({ pressed }) => [
-                sectionStyles.addButton,
-                pressed && { transform: [{ scale: 0.96 }] },
-              ]}
-              hitSlop={{ top: 4, bottom: 4 }}
-              accessibilityRole="button"
-              onPress={() => setShowForm(true)}
-            >
-              <Plus size={16} color={tokens.fg2} strokeWidth={2} />
-              <Text style={sectionStyles.addButtonText}>
-                {t(nested ? "habits.form.reminderAddTime" : "habits.form.scheduledReminderAdd")}
-              </Text>
-            </Pressable>
+            <IconButton label={t(nested ? 'habits.form.reminderAddTime' : 'habits.form.scheduledReminderAdd')} disabled={disabled} hitSlop={{ top: 4, bottom: 4 }} accessibilityRole="button" onPress={() => setShowForm(true)}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton>
           )}
 
           {atLimit && (
@@ -191,10 +179,8 @@ export function ScheduledReminderSection({
                   onClear={() => setTime("")}
                 />
                 <View style={sectionStyles.timeControls}>
-                  {inline ? <PillButton variant="ghost" size="sm" disabled={disabled || (!time)} onClick={addScheduledReminder}>{t("common.add")}</PillButton> : (
-                  <Pressable style={({ pressed }) => [sectionStyles.timeAddButton, !time && { opacity: 0.45 }, pressed && { transform: [{ scale: 0.96 }] }]} disabled={disabled || !time} accessibilityRole="button" onPress={addScheduledReminder}>
-                    <Text style={sectionStyles.timeAddButtonText}>{t("common.add")}</Text>
-                  </Pressable>
+                  {inline ? <IconButton label={t("common.add")} disabled={disabled || (!time)} onClick={addScheduledReminder}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton> : (
+                  <IconButton label={t("common.add")} disabled={disabled || !time} onPress={addScheduledReminder}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton>
                   )}
                   <Pressable disabled={disabled} style={({ pressed }) => [sectionStyles.timeCancelButton, pressed && { transform: [{ scale: 0.96 }] }]} accessibilityRole="button" accessibilityLabel={t("common.cancel")} onPress={() => { setShowForm(false); setTime(""); }}>
                     <X size={16} color={tokens.fg3} strokeWidth={1.8} />

@@ -60,6 +60,33 @@ describe('Android action toast dismissal', () => {
     return tree.root.findAllByProps({ testID: 'toast-neutral' })
   }
 
+  it('runs an icon retry once without dismissing the failed notice', () => {
+    const retry = vi.fn()
+    const dismissed = vi.fn()
+    mount(<Toast kind="neutral" message="notifications.deleteError" actionLabel="common.retry" actionIcon="refresh" onAction={retry} onDone={dismissed} />)
+    const action = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+      node.type === 'Pressable' && node.props.accessibilityLabel === 'common.retry')[0]
+    act(() => action.props.onPress())
+    expect(retry).toHaveBeenCalledOnce()
+    expect(dismissed).not.toHaveBeenCalled()
+  })
+
+  it('retries the failed deletion from the notice host', async () => {
+    const execute = vi.fn().mockRejectedValue(new Error('Unavailable'))
+    queuePendingNotificationDelete('notification', execute)
+    mount(<NotificationDeleteNotice />)
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    execute.mockClear()
+    const action = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+      node.type === 'Pressable' && node.props.accessibilityLabel === 'common.retry')[0]
+    act(() => action.props.onPress())
+    expect(getPendingNotificationDeleteIdsSnapshot()).toEqual(['notification'])
+    expect(execute).not.toHaveBeenCalled()
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    expect(execute).toHaveBeenCalledOnce()
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'common.retry' }).length).toBeGreaterThan(0)
+  })
+
   it('expires a hosted undo after five seconds without running undo', () => {
     const undo = vi.fn()
     const dismissed = vi.fn()

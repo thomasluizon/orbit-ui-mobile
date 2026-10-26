@@ -1,4 +1,3 @@
-
 import { useCallback, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2 } from '@/lib/theme'
@@ -27,7 +26,7 @@ function FailedDeleteToast({ notificationId }: Readonly<{ notificationId: string
 
   return (
     <Toast kind="neutral" message={t('notifications.deleteError')}
-      actionLabel={t('common.retry')} onAction={retry}
+      actionLabel={t('common.retry')} actionIcon="refresh" onAction={retry}
       doneAfterMs={FAILED_DELETE_NOTICE_LIFE_MS} onDone={dismiss} />
   )
 }

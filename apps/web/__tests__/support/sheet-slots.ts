@@ -23,6 +23,7 @@ export function expectSmallSheetActions(): void {
   for (const button of buttons) {
     expect(button).toHaveAttribute('data-size', 'sm')
     expect(['', 'auto']).toContain(button.style.width)
+    expect(button.textContent).not.toBe('')
   }
   if (buttons.length > 1) {
     expect(buttons[0]).toHaveAttribute('data-variant', 'ghost')

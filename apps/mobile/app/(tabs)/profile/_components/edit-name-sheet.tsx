@@ -93,9 +93,7 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
       title={t('profile.editName.title')}
       actions={(
         <ActionRow>
-          <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => closeSheet()}>
-            {t('common.cancel')}
-          </PillButton>
+          <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
           <PillButton size="sm" onClick={handleSave} disabled={mutation.isPending} loading={mutation.isPending}>
             {t('common.save')}
           </PillButton>

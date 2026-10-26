@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { isRecapShareEmpty, type RecapSharePeriod } from '@orbit/shared/utils'
@@ -8,8 +10,8 @@ import { useShareCard } from '@/hooks/use-share-card'
 import { useReferralInvitation } from '@/hooks/use-referral-invitation'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { PillButton } from '@/components/ui/pill-button'
-import { Download, Share2 } from '@/components/ui/icons'
+
+import { Download, Share2, RefreshCw } from '@/components/ui/icons'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -40,10 +42,10 @@ export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
   const ready = Boolean(recap && !isLoading && !isError && !isEmpty)
   const disabled = !ready || isSharing
   const actions = <>
-    <PillButton variant={canShareFiles ? 'ghost' : 'primary'} disabled={disabled} loading={isSharing} onClick={() => void download()} leadingIcon={<Download size={16} strokeWidth={2} aria-hidden="true" />}>{t('shareCard.download')}</PillButton>
-    {canShareFiles ? <PillButton disabled={disabled} loading={isSharing} onClick={() => {
+    <IconButton label={t('shareCard.download')} disabled={disabled} loading={isSharing} onClick={() => void download()}><Download size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+    {canShareFiles ? <IconButton label={t('shareCard.share')} disabled={disabled} loading={isSharing} onClick={() => {
       if (recap) void share({ shareTitle: t('shareCard.shareTitle'), shareText: invitation, url: recap.shareDeepLink })
-    }} leadingIcon={<Share2 size={16} strokeWidth={2} aria-hidden="true" />}>{t('shareCard.share')}</PillButton> : null}
+    }}><Share2 size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
   </>
 
   return (
@@ -54,7 +56,7 @@ export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
           {isLoading || (!recap && !isError) ? <div role="progressbar" aria-busy="true" aria-label={t('shareCard.loading')} className="flex min-h-[640px] flex-col justify-center gap-section-gap">
             {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
           </div> : null}
-          {isError ? <ErrorState message={t('shareCard.error')} action={<PillButton variant="ghost" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /> : null}
+          {isError ? <ErrorState message={t('shareCard.error')} action={<IconButton label={t('common.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /> : null}
           {!isLoading && !isError && isEmpty ? <EmptyState title={t('shareCard.empty')} /> : null}
           {ready && recap ? <ShareCard ref={captureRef} recap={recap} variant="progress" /> : null}
         </div>

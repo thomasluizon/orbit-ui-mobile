@@ -1,7 +1,7 @@
-import { SPACING } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useEffect, useMemo } from 'react'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
-import { BackHandler, Pressable, ScrollView, Text, View } from 'react-native'
+import { BackHandler, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { scheduleOnRN } from 'react-native-worklets'
@@ -100,7 +100,7 @@ export function WrappedPlayer({
         <ScrollView
           key={current.id}
           testID="wrapped-page-scroll"
-          style={styles.player}
+          style={[styles.player, { minHeight: TOUCH_TARGET_MIN }]}
           contentContainerStyle={[styles.slideScrollContent, { paddingBottom: clearance }]}
           showsVerticalScrollIndicator={false}
         >
@@ -190,6 +190,8 @@ interface PlayerPagerProps {
 }
 
 function PlayerPager(props: Readonly<PlayerPagerProps>) {
+  const { height } = useWindowDimensions()
+  const verticalPadding = height <= 400 ? SPACING.s12 : SPACING.s16
   const pagerProps = {
     count: props.count,
     index: props.index,
@@ -197,7 +199,7 @@ function PlayerPager(props: Readonly<PlayerPagerProps>) {
     backLabel: props.backLabel,
   }
   return (
-    <View testID="wrapped-pager" style={[styles.pager, { paddingBottom: props.bottomInset + SPACING.s16 }]}>
+    <View testID="wrapped-pager" style={[styles.pager, { paddingTop: verticalPadding, paddingBottom: props.bottomInset + verticalPadding }]}>
       {props.isLast ? (
         <Pager
           {...pagerProps}

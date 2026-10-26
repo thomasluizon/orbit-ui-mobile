@@ -173,9 +173,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
         actions={
           resetStep === 'info' ? (
               <ActionRow>
-                <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>
-                  {t('common.cancel')}
-                </PillButton>
+                <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
                 <PillButton
                   size="sm"
                   variant="caution"
@@ -199,14 +197,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                   </Text>
                 ) : null}
                 <ActionRow>
-                  <PillButton
-                    size="sm"
-                    variant="ghost"
-                    disabled={resetLoading}
-                    onClick={() => closeSheet()}
-                  >
-                    {t('common.cancel')}
-                  </PillButton>
+                  <PillButton size="sm" variant="ghost" disabled={resetLoading} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
                   <PillButton
                     size="sm"
                     variant="caution"

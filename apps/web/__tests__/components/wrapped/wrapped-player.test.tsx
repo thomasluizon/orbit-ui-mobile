@@ -198,7 +198,7 @@ describe('WrappedPlayer', () => {
     expect(controls.style.flexWrap).toBe('wrap')
     expect(controls.style.gap).toBe('12px')
     const buttons = within(controls).getAllByRole('button')
-    expect(buttons.map((button) => button.textContent)).toEqual(['wrapped.previous', 'shareCard.download', 'shareCard.share'])
+    expect(buttons.map((button) => button.getAttribute('aria-label') ?? button.textContent)).toEqual(['wrapped.previous', 'shareCard.download', 'shareCard.share'])
     expect(buttons.map((button) => button.dataset.variant)).toEqual(['ghost', 'ghost', 'primary'])
     expect(buttons.map((button) => button.dataset.size)).toEqual(['sm', 'sm', 'sm'])
     expect(screen.queryByTestId('wrapped-next-zone')).not.toBeInTheDocument()

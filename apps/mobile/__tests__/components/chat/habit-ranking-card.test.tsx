@@ -8,7 +8,7 @@ import { ChatBlock } from '@/components/chat/block-registry'
 import { HabitRankingCard } from '@/components/chat/habit-ranking-card'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { i18n } from '@/lib/i18n'
-import { renderedText } from '../../support/react-test-renderer'
+import { controlName } from '../../support/react-test-renderer'
 
 vi.unmock('react-i18next')
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
@@ -32,7 +32,7 @@ let tree: ReactTestRenderer & { toJSON: () => unknown; unmount: () => void }
 async function mount(element: React.ReactElement) { await renderer.act(() => { tree = renderer.create(element) as typeof tree }) }
 const content = () => JSON.stringify(tree.toJSON())
 function button(name: string): ReactTestInstance {
-  return tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && (node.props.accessibilityLabel === name || renderedText(node.props.children).includes(name)))[0]!
+  return tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && (node.props.accessibilityLabel === name || controlName(node).includes(name)))[0]!
 }
 async function press(name: string) { await renderer.act(async () => { (button(name).props.onPress as () => void)(); await Promise.resolve() }) }
 beforeEach(async () => { advanceAccountGeneration(); vi.clearAllMocks(); await i18n.changeLanguage('en'); mocks.request.mockResolvedValue(next) })

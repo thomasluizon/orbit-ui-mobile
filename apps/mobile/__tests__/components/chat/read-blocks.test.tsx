@@ -136,7 +136,7 @@ it('keeps stale recap disclosure and Progress available without refreshing', asy
 it('withholds signed paging for a stale query', async () => {
   const tree = await mount({ kind: 'recordList', block: { ...focusedHistoryFixture, read: { ...focusedHistoryFixture.read, completeness: 'stale' } } })
   expect(tree.root.findAll(node => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'chat.recordList.more')).toHaveLength(0)
-  expect(renderedText(tree.toJSON())).toContain('blockFrame.refresh')
+  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'blockFrame.refresh' && String(node.type) === 'Pressable')).toHaveLength(1)
   expect(apiClient).not.toHaveBeenCalled()
   await act(() => tree.unmount())
 })

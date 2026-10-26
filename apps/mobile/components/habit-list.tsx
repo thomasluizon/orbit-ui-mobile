@@ -1265,7 +1265,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       bulkMovingIds ?? movingHabitId, selectedMoveParentId, moveState.targetChosen,
     )
 
-
     const canSubmitMoveParent = !inventoryState && moveState.targetChosen && moveIds.length > 0 && !isMovingParent &&
       !moveParentMutation.isPending && selectedMoveOption !== null && !selectedMoveOption.disabled
 
@@ -1720,7 +1719,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               <HabitListEmptyState
                 title={t('habits.loadError')}
                 description=""
-                actionLabel={t('common.retry')}
+                actionLabel={t('common.retry')} actionIcon="refresh"
                 onAction={() => void refetch()}
                 variant="secondary"
               />

@@ -353,7 +353,7 @@ describe('CreateHabitModal (mobile)', () => {
     const close = vi.fn()
     const tree = renderModal(<CreateHabitModal open presentation="screen" onClose={close} />)
     const press = (label: string) => {
-      const button = tree.root.findAll((node) => node.type === PillButton && node.props.children === label)[0]
+      const button = tree.root.findAll((node) => node.type === PillButton && (node.props.label ?? node.props.children) === label)[0]
       TestRenderer.act(() => button.props.onClick())
     }
     TestRenderer.act(() => { dismissTopOverlay('system-back') })
@@ -364,7 +364,7 @@ describe('CreateHabitModal (mobile)', () => {
     TestRenderer.act(() => { dismissTopOverlay('system-back') })
     expect(close).not.toHaveBeenCalled()
     TestRenderer.act(() => sheetTestControls.completeDismissal())
-    expect(tree.root.findAll((node) => node.type === PillButton && node.props.children === 'common.keepEditing')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === PillButton && (node.props.label ?? node.props.children) === 'common.keepEditing')).toHaveLength(1)
     expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.open)).toHaveLength(1)
     expect(mockFormStatus.dirty).toBe(true)
     expect(close).not.toHaveBeenCalled()
@@ -389,7 +389,7 @@ describe('CreateHabitModal (mobile)', () => {
     expect(mockReplace).not.toHaveBeenCalled()
     expect(discard().props.open).toBe(true)
     if (choice !== 'confirm') {
-      const keepEditing = tree.root.findAll((node) => node.type === PillButton && node.props.children === 'common.keepEditing')[0]
+      const keepEditing = tree.root.findAll((node) => node.type === PillButton && (node.props.label ?? node.props.children) === 'common.keepEditing')[0]
       const closeControl = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss')[0]
       TestRenderer.act(() => choice === 'close' ? closeControl.props.onPress() : keepEditing.props.onClick())
       expect(discard().props.open).toBe(false)
@@ -968,7 +968,7 @@ await Promise.resolve()
     expect(mockPush).not.toHaveBeenCalled()
     expect(close).not.toHaveBeenCalled()
     expect(findSubmit(tree.root).props.disabled).not.toBe(true)
-    expect(tree.root.findAll((node) => node.type === PillButton && node.props.children === 'common.upgrade')).toHaveLength(legacySubHabit ? 1 : 0)
+    expect(tree.root.findAll((node) => node.type === PillButton && (node.props.label ?? node.props.children) === 'common.upgrade')).toHaveLength(legacySubHabit ? 1 : 0)
     const notice = tree.root.findAll((node) => node.props.testID === 'capacity-notice')[0]!
     const texts = notice.findAll((node: { type: unknown }) => node.type === 'Text').map((node: { props: { children: string } }) => node.props.children)
     expect(texts).toContain(legacySubHabit ? 'habits.form.proRequired' : 'habits.form.capacityBody:{"limit":1000}')
@@ -983,7 +983,7 @@ await Promise.resolve()
     const close = vi.fn()
     const tree = renderModal(<CreateHabitModal open onClose={close} />)
     await TestRenderer.act(async () => { findSubmit(tree.root).props.onPress(); await Promise.resolve() })
-    const upgrade = tree.root.findAll((node) => node.type === PillButton && node.props.children === 'common.upgrade')
+    const upgrade = tree.root.findAll((node) => node.type === PillButton && (node.props.label ?? node.props.children) === 'common.upgrade')
     expect(upgrade).toHaveLength(1)
     sheetTestControls.defer(true)
     await TestRenderer.act(async () => { upgrade[0]!.props.onClick(); await Promise.resolve() })
@@ -991,7 +991,7 @@ await Promise.resolve()
       expect(sheetTestControls.isDismissPending).toBe(false)
       expect(mockPush).not.toHaveBeenCalled()
       await TestRenderer.act(async () => {
-        tree.root.findAll((node) => node.type === PillButton && node.props.children === 'common.discardChangesAction')[0].props.onClick()
+        tree.root.findAll((node) => node.type === PillButton && (node.props.label ?? node.props.children) === 'common.discardChangesAction')[0].props.onClick()
         await Promise.resolve()
       })
       await TestRenderer.act(async () => { sheetTestControls.completeDismissal(); await Promise.resolve() })

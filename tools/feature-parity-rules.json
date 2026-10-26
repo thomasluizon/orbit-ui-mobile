@@ -288,6 +288,15 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:control:common.top": {
+      "targets": [
+        "mobile:control:common.backToTop"
+      ],
+      "owners": [
+        "apps/mobile/components/ui/scroll-to-top-button.tsx"
+      ],
+      "reason": "The scroll-to-top capability retains its accessible back-to-top label on the shared icon button."
+    },
     "mobile:control:dataExport.button": {
       "targets": [
         "mobile:control:profile.settingsRows.export"
@@ -2022,6 +2031,15 @@
         "web:control:common.selectTime"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:common.top": {
+      "targets": [
+        "web:control:common.backToTop"
+      ],
+      "owners": [
+        "apps/web/components/ui/scroll-to-top-button.tsx"
+      ],
+      "reason": "The scroll-to-top capability retains its accessible back-to-top label on the shared icon button."
     },
     "web:control:contextMenu.addSubHabit": {
       "targets": [

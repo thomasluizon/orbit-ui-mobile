@@ -20,6 +20,7 @@ import { ActionChips } from '@/components/chat/action-chips'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { readControlHitArea } from '@/test-support/control-hit-area'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }), useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
@@ -287,10 +288,10 @@ describe('Pending preview geometry in Chromium', () => {
         const rowBounds = row.getBoundingClientRect()
         const buttons = Array.from(row.querySelectorAll('button')).map((button) => {
           const bounds = button.getBoundingClientRect()
-          const label = button.querySelector('span')!
-          return { label: button.textContent, top: bounds.top, left: bounds.left, right: bounds.right, labelHeight: label.getBoundingClientRect().height, lineHeight: parseFloat(getComputedStyle(label).lineHeight), variant: button.dataset.variant }
+          const label = button.querySelector('span, svg')!
+          return { label: button.getAttribute('aria-label') ?? button.textContent, top: bounds.top, left: bounds.left, right: bounds.right, labelHeight: label.getBoundingClientRect().height, lineHeight: label.tagName.toLowerCase() === 'svg' ? 20 : parseFloat(getComputedStyle(label).lineHeight), width: bounds.width, height: bounds.height, icon: label.tagName.toLowerCase() === 'svg', variant: button.dataset.variant }
         })
-        const more = Array.from(document.querySelectorAll('button')).find((button) => button.textContent === moreLabel)!
+        const more = Array.from(document.querySelectorAll('button')).find((button) => button.getAttribute('aria-label') === moreLabel)!
         const moreWidth = more.getBoundingClientRect().width
         const moreRowWidth = more.closest('[data-action-row]')!.getBoundingClientRect().width
         const visiblePrimary = Array.from(document.querySelectorAll('[data-variant="primary"]')).filter((button) => button.getBoundingClientRect().width > 0).length
@@ -302,6 +303,14 @@ describe('Pending preview geometry in Chromium', () => {
         expect(button.left).toBeGreaterThanOrEqual(geometry.rowLeft)
         expect(button.right).toBeLessThanOrEqual(geometry.rowRight)
         expect(button.labelHeight).toBeLessThanOrEqual(button.lineHeight + 0.5)
+        if (button.icon) { expect(button.width).toBe(44); expect(button.height).toBe(44) }
+      }
+      for (const control of await page.locator('[data-action-row] .orbit-pill-action[aria-label]').all()) {
+        await control.evaluate(element => element.scrollIntoView({ block: 'center' }))
+        const hit = await control.evaluate(readControlHitArea)
+        expect(hit.width).toBeGreaterThanOrEqual(48)
+        expect(hit.height).toBeGreaterThanOrEqual(48)
+        expect(hit.checks).toEqual([true, true, true, true])
       }
       expect(geometry.buttons[2]?.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
       expect(geometry.visiblePrimary).toBe(1)

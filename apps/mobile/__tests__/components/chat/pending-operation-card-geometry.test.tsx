@@ -104,12 +104,12 @@ describe('Pending preview geometry on Android', () => {
     const tree = render(<PendingOperationCard pendingOperation={counted ? { ...makeCreateHabitsPreview(), actionKey: counted } : operation} {...handlers} />)
     const row = tree.root.find((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'action-row')
     const buttons = row.findAllByType(Button)
-    const labels = buttons.map((button: { props: { children: string } }) => button.props.children)
+    const labels = buttons.map((button: { props: { label?: string; children: string } }) => button.props.label ?? button.props.children)
     expect(labels).toEqual([i18n.t('chat.operation.reject'), i18n.t('chat.operation.edit'), counted ? i18n.t(['createHabits', 'rescheduleHabits', 'updateHabitEmojis'].includes(counted) ? `chat.operation.approveCount.${counted}` : `chat.operation.approveAction.${counted}`, { count: 12 }) : i18n.t('chat.operation.approve')])
     expect(buttons[2].props.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
     if (!counted) expect(renderedText(tree.toJSON())).toContain(i18n.t('habits.frequency.everyDay'))
     expect(renderedText(tree.toJSON())).not.toContain('frequency_unit')
-    expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => node.props.children === (counted ? 'Habit 1' : 'Beber água') && node.props.importantForAccessibility !== 'no-hide-descendants')).toHaveLength(1)
+    expect(tree.root.findAllByType(Text).filter((node: { props: { label?: string; children?: unknown; importantForAccessibility?: string } }) => node.props.children === (counted ? 'Habit 1' : 'Beber água') && node.props.importantForAccessibility !== 'no-hide-descendants')).toHaveLength(1)
     const rowStyle = StyleSheet.flatten(row.props.style)
     const frame = tree.root.findByProps({ testID: 'block-frame-resting' })
     const frameStyle = StyleSheet.flatten(frame.props.style)
@@ -121,13 +121,22 @@ describe('Pending preview geometry on Android', () => {
       layout.setFlexWrap(rowStyle.flexWrap === 'wrap' ? Yoga.WRAP_WRAP : Yoga.WRAP_NO_WRAP)
       layout.setGap(Yoga.GUTTER_ALL, rowStyle.gap)
       layout.setJustifyContent(rowStyle.justifyContent === 'flex-end' ? Yoga.JUSTIFY_FLEX_END : Yoga.JUSTIFY_FLEX_START)
-      buttons.forEach((button: { findByType: (type: unknown) => { props: { style: (state: { pressed: boolean }) => StyleProp<ViewStyle> } }; findAllByType: (type: unknown) => { props: { style: StyleProp<TextStyle>; children: string } }[] }) => {
-        const style = StyleSheet.flatten(button.findByType(Pressable).props.style({ pressed: false }))
-        const label = button.findAllByType(Text)[0]!
-        const labelStyle = StyleSheet.flatten(label.props.style)
+      buttons.forEach((button: { findByType: (type: unknown) => { props: { style: (state: { pressed: boolean }) => StyleProp<ViewStyle>; hitSlop: number } }; findAllByType: (type: unknown) => { props: { style: StyleProp<TextStyle>; children: string } }[] }) => {
+        const pressable = button.findByType(Pressable)
+        const style = StyleSheet.flatten(pressable.props.style({ pressed: false }))
+        const label = button.findAllByType(Text)[0]
+        const labelStyle = label ? StyleSheet.flatten(label.props.style) : undefined
         const action = Yoga.Node.create()
-        action.setWidth(textWidth(label.props.children, Number(labelStyle.fontSize)) + Number(style.paddingHorizontal) * 2)
-        action.setHeight(Number(style.height))
+        action.setWidth(label ? textWidth(label.props.children, Number(labelStyle!.fontSize)) + Number(style.paddingHorizontal) * 2 : Number(style.width))
+        if (!label) {
+          expect(style.width).toBe(44)
+          expect(style.height).toBe(44)
+          expect(Number(style.width) + 2 * pressable.props.hitSlop).toBeGreaterThanOrEqual(48)
+          expect(Number(style.height) + 2 * pressable.props.hitSlop).toBeGreaterThanOrEqual(48)
+        }
+        expect(Number(style.height ?? style.minHeight)).toBe(44)
+        expect(Number(style.height ?? style.minHeight) + 2 * pressable.props.hitSlop).toBeGreaterThanOrEqual(48)
+        action.setHeight(Number(style.height ?? style.minHeight))
         layout.insertChild(action, layout.getChildCount())
       })
       layout.calculateLayout(rowWidth, 'auto', Yoga.DIRECTION_LTR)
@@ -162,7 +171,7 @@ describe('Pending preview geometry on Android', () => {
     const onRevise = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: null, preview: null, cancelled: true } })
     const pendingOperation = { ...operation, changeTargetCount: count, items: Array.from({ length: count }, (_, index) => ({ ...originalItem, itemId: `item-${index}`, entityName: `Habit ${index}` })) }
     const tree = render(<PendingOperationCard pendingOperation={pendingOperation} {...handlers} onRevise={onRevise} />)
-    const reject = tree.root.findAllByType(Button).find((button: { props: { children?: unknown; importantForAccessibility?: string } }) => button.props.children === i18n.t('chat.operation.reject'))
+    const reject = tree.root.findAllByType(Button).find((button: { props: { label?: string; children?: unknown; importantForAccessibility?: string } }) => button.props.label === i18n.t('chat.operation.reject'))
     await TestRenderer.act(async () => { reject.props.onClick(); await Promise.resolve() })
     const expected = locale === 'en' ? count === 1 ? 'The change was rejected. Nothing was saved.' : 'The 3 changes were rejected. Nothing was saved.' : count === 1 ? 'A mudança foi rejeitada. Nada foi salvo.' : 'As 3 mudanças foram rejeitadas. Nada foi salvo.'
     expect(renderedText(tree.toJSON())).toContain(expected)
@@ -176,7 +185,7 @@ describe('Pending preview geometry on Android', () => {
     await i18n.changeLanguage(locale)
     const tree = render(<HabitListCard habitList={habitListCardFixture} />)
     const more = tree.root.findByType(Button)
-    expect(more.props.children).toBe(i18n.t('chat.habitList.more'))
+    expect(more.props.label).toBe(i18n.t('chat.habitList.more'))
     const actionRow = tree.root.find((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'action-row')
     expect(actionRow.findAllByType(Button)).toHaveLength(1)
     expect(renderedText(tree.toJSON())).not.toContain(habitListCardFixture.items[3]!.title)

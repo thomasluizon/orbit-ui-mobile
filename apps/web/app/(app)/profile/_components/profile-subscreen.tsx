@@ -1,11 +1,13 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { ProfileSubmenuId } from '@orbit/shared/utils/profile-navigation'
 import { PROFILE_SUBMENUS } from '@orbit/shared/utils/profile-navigation'
 import { ErrorState } from '@/components/ui/error-state'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { PageHeader } from '@/components/ui/page-header'
 import { useProfile } from '@/hooks/use-profile'
 import { ProfileAccountContent } from './profile-account-content'
@@ -30,7 +32,7 @@ export function ProfileSubscreen({ screen }: Readonly<{ screen: ProfileSubmenuId
   return <div className="w-full min-w-0">
     <PageHeader title={t(submenu.labelKey)} backLabel={t('common.backToProfile')} onBack={() => router.replace('/profile')} />
     <div className="orbit-content-frame flex flex-col py-4" style={{ gap: 12 }} data-testid={`profile-settings-group-${screen}`}>
-      {isLoading ? <Skeleton variant="settings" rows={8} label={t('profile.loading')} /> : error ? <ErrorState message={t('errors.loadProfile')} action={<PillButton variant="ghost" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /> : <Content profile={profile} patchProfile={patchProfile} />}
+      {isLoading ? <Skeleton variant="settings" rows={8} label={t('profile.loading')} /> : error ? <ErrorState message={t('errors.loadProfile')} action={<IconButton label={t('common.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /> : <Content profile={profile} patchProfile={patchProfile} />}
     </div>
   </div>
 }

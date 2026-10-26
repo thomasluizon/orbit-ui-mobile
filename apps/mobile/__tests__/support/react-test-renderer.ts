@@ -10,3 +10,7 @@ export function renderedText(node: unknown): string {
   }
   return ''
 }
+
+export function controlName(node: { props: { accessibilityLabel?: string; accessibleName?: string; children?: unknown } }): string {
+  return node.props.accessibilityLabel ?? node.props.accessibleName ?? renderedText(node.props.children)
+}

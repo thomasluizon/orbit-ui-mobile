@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
@@ -17,7 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Button } from '@/components/ui/pill-button'
 import * as Menu from '@/components/ui/dropdown-menu'
-import { AlertTriangle, MoreVertical, Plus, Trash2 } from '@/components/ui/icons'
+import { AlertTriangle, MoreVertical, Plus, Trash2, RefreshCw } from '@/components/ui/icons'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 
 function buildBreakdownRows({ card, t, editingDisabled }: Readonly<{ card: ReturnType<typeof useBreakdownSuggestionState>; t: ReturnType<typeof useTranslations>; editingDisabled: boolean }>) {
@@ -50,7 +52,7 @@ function BreakdownActions({ card, isPending, editingDisabled, warning, parentNam
   const menuId = useId()
   const createErrorKey = card.hasSubmitted ? 'habits.breakdown.retryError' : 'habits.breakdown.createError'
   const isEmpty = card.habits.length === 0
-  const addVariant = isEmpty ? 'primary' : 'ghost'
+
   const approveVariant = isEmpty ? 'secondary' : 'primary'
   return (
 <>
@@ -58,9 +60,9 @@ function BreakdownActions({ card, isPending, editingDisabled, warning, parentNam
         <p role="status" className={card.atCapacity && !card.hasSubmitted ? 'basis-full text-sm text-[var(--fg-2)]' : 'sr-only'}>{card.atCapacity && !card.hasSubmitted ? t('habits.breakdown.limit', { limit: MAX_BULK_OPERATION_SIZE }) : ''}</p>
         <p role="alert" className={card.createError ? 'basis-full text-sm text-[var(--status-bad-text)]' : 'sr-only'}>{card.createError ? t(createErrorKey) : ''}</p>
         {warning?.hasConflict ? <p className="flex basis-full items-center gap-2 text-sm text-[var(--fg-2)]"><AlertTriangle aria-hidden="true" size={16} className="text-[var(--status-overdue)]" />{t('chat.breakdown.conflict', { name: warning.conflictingHabits[0]?.habitTitle ?? parentName })}</p> : null}
-        {card.partiallyFailed ? <Button size="sm" disabled={isPending} loading={isPending} onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : (
+        {card.partiallyFailed ? <IconButton label={t('chat.batch.retry', { count: card.failedIds.length })} disabled={isPending} loading={isPending} onClick={() => void card.submit(card.failedIds)}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : (
           <>
-            <Button size="sm" variant={addVariant} leadingIcon={<Plus aria-hidden="true" size={16} />} disabled={editingDisabled || card.confirmOpen || card.atCapacity} onClick={card.addHabit}>{t('habits.breakdown.addHabit')}</Button>
+            <IconButton label={t('habits.breakdown.addHabit')} disabled={editingDisabled || card.confirmOpen || card.atCapacity} onClick={card.addHabit}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
             <Menu.Root open={menuOpen && !editingDisabled} onOpenChange={setMenuOpen}><Menu.Trigger asChild><Button buttonRef={actionsRef} size="sm" variant="ghost" iconOnly label={t('habits.actions.more')} controlsId={menuId} hasPopup="menu" expanded={menuOpen && !editingDisabled} disabled={editingDisabled} >
               <MoreVertical aria-hidden="true" size={20} />
             </Button></Menu.Trigger>

@@ -1,3 +1,4 @@
+
 import { Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'
@@ -29,7 +30,7 @@ export function HabitCreateActions({ presentation, pending, empty, subHabit, onC
       </PillButton>
       ) : (
         <ActionRow>
-          <PillButton variant="ghost" disabled={pending} onClick={onCancel}>{t('common.cancel')}</PillButton>
+          <PillButton size="sm" variant="ghost" disabled={pending} onClick={onCancel}>{t('common.cancel')}</PillButton>
           <PillButton size="sm" loading={pending}
         hint={empty ? t('habits.form.createWhy') : undefined} onClick={onSubmit}>
         {label}

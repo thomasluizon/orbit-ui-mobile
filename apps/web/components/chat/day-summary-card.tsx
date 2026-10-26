@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { ChevronDown } from '@/components/ui/icons'
 import { useRef, useState, type ReactNode } from 'react'
 import { daySummaryLogControl, habitReadStatusKey } from '@orbit/shared/chat/day-summary-core'
 import { liveBlockState } from '@orbit/shared/chat/live-block-state'
@@ -73,6 +75,6 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
       ...(!daySummary.read ? [{ id: 'streak', wrapLabel: true, label: t('chat.daySummary.streak'), control: <span className="tabular-nums">{daySummary.currentStreak}</span> }] : []),
     ]}
       body={<>{daySummary.due > 0 && daySummary.completionRate != null ? <ProgressRing value={completionRate} label={t(daySummary.read ? 'chat.daySummary.doneOfDue' : 'chat.daySummary.ring', { done, due: daySummary.due })} /> : null}<p className="text-sm text-[var(--fg-3)]">{daySummary.due === 0 ? t(daySummary.read ? 'chat.readBlock.nothingDue' : 'chat.daySummary.nothingDue') : t('chat.daySummary.doneOfDue', { done, due: daySummary.due })}</p>{totalRows > 20 ? <p className="text-sm text-[var(--fg-3)]">{t('chat.daySummary.rowCount', { shown: visibleRows.length, total: totalRows })}</p> : null}</>}
-      actions={<>{visibleRows.length < payloadRows.length ? <Button variant="ghost" size="sm" onClick={() => setShownCount(count => count + 20)}>{t('chat.recordList.more')}</Button> : null}{occurrences.isError || failedId !== null ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('chat.liveBlock.error')}</p> : null}<Button variant="ghost" size="sm" onClick={() => navigate(daySummary.read ? `/?date=${daySummary.date}` : '/')}>{t('chat.daySummary.open')}</Button></>} />
+      actions={<>{visibleRows.length < payloadRows.length ? <IconButton label={t('chat.recordList.more')} onClick={() => setShownCount(count => count + 20)}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}{occurrences.isError || failedId !== null ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('chat.liveBlock.error')}</p> : null}<Button variant="ghost" size="sm" onClick={() => navigate(daySummary.read ? `/?date=${daySummary.date}` : '/')}>{t('chat.daySummary.open')}</Button></>} />
   </div>
 }

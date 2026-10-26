@@ -19,14 +19,7 @@ vi.mock('@/components/gamification/ring-motif', () => ({
     <div>{eyebrow}{anchor}</div>
   ),
 }))
-vi.mock('@/components/ui/pill-button', () => ({
-  Button: ({ disabled, onClick, children, size = 'md', variant = 'primary' }: {
-    disabled?: boolean; onClick: () => void; children: React.ReactNode; size?: string; variant?: string
-  }) => <button type="button" disabled={disabled} onClick={onClick} data-size={size} data-variant={variant}>{children}</button>,
-  PillButton: ({ disabled, onClick, children }: {
-    disabled?: boolean; onClick: () => void; children: React.ReactNode
-  }) => <button type="button" disabled={disabled} onClick={onClick}>{children}</button>,
-}))
+
 vi.mock('@/components/ui/orbit-mark', () => ({ OrbitMark: () => <span data-testid="orbit-mark" /> }))
 vi.mock('@/components/ui/icon', () => ({
   Icon: ({ name }: { name: string }) => <span data-icon={name} />,

@@ -127,7 +127,7 @@ describe('MessageBubble write blocks (mobile)', () => {
   }
 
   function press(tree: TestInstance, label: string) {
-    const button = tree.root.findAll((node) => typeof node.props.onPress === 'function' && renderedText(node.props.children).includes(label))[0]
+    const button = tree.root.findAll((node) => typeof node.props.onPress === 'function' && (node.props.accessibilityLabel ?? renderedText(node.props.children)).includes(label))[0]
     if (!button) throw new Error(`Missing button ${label}`)
     return button.props.onPress!
   }
@@ -143,8 +143,8 @@ describe('MessageBubble write blocks (mobile)', () => {
       tree = TestRenderer.create(<MessageBubble message={makeHeldHabitMessage()} onPendingOperationRevise={vi.fn()} onPendingOperationConfirmExecute={confirm} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onActionChipClick={onOpenTarget} />)
     })
     expect(blocks(tree)).toHaveLength(1)
-    expect(renderedText(tree.root)).toContain('chat.operation.edit')
-    expect(renderedText(tree.root)).toContain('chat.operation.reject')
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.operation.edit').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.operation.reject').length).toBeGreaterThan(0)
     expect(renderedText(tree.root)).not.toContain('chat.operation.risk')
     await TestRenderer.act(async () => { press(tree, 'chat.operation.approve')(); await Promise.resolve() })
     expect(renderedText(tree.root)).toContain('status.done')
@@ -317,8 +317,8 @@ describe('MessageBubble write blocks (mobile)', () => {
     await TestRenderer.act(() => { tree.update(<StoredBubble />) })
     const output = renderedText(tree.root)
     expect(output).toContain('chat.operation.approve')
-    expect(output).toContain('chat.operation.edit')
-    expect(output).toContain('chat.operation.reject')
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.operation.edit').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.operation.reject').length).toBeGreaterThan(0)
     expect(resolveClarification).toHaveBeenCalledTimes(1)
   })
 

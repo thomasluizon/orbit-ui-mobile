@@ -19,6 +19,7 @@ export interface PreviewItemTitleProps {
 
 
 export interface PendingOperationButtonSpec {
+  icon?: 'refresh' | 'close' | 'edit'
   disabled?: boolean
   focusRequest?: number
   shouldFocus?: () => boolean
@@ -244,12 +245,14 @@ function pendingActions<Node>(
   if (action !== 'buttons') return undefined
   if (card.status === 'failed') return render.fragment(render.button({
     label: labels.retry,
+    icon: 'refresh',
     disabled: card.busy || revision?.busy === true || card.hasRequiredChoices === true,
     variant: 'primary',
     onClick: () => (destructive ? card.setConfirmOpen(true) : void card.execute()),
   }))
   const reject = render.button({
     label: labels.reject,
+    icon: 'close',
     disabled: card.busy || revision?.busy === true,
     variant: 'ghost',
     onClick: revision?.canRevise ? () => void revision.rejectAll() : card.dismiss,
@@ -270,6 +273,7 @@ function pendingActions<Node>(
     reject,
     render.button({
       label: labels.edit,
+      icon: 'edit',
       disabled: card.busy || revision.busy,
       variant: 'ghost',
       onClick: () => revision.startEdit(firstEditableItem.itemId),

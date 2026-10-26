@@ -1,3 +1,4 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { useHabitFormInteraction } from './habit-form-interaction'
 import { Select } from '@/components/ui/select'
 import { ListRow } from '@/components/ui/list-row'
@@ -7,7 +8,7 @@ import { PillButton } from "@/components/ui/pill-button";
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo, type ReactNode } from "react";
 import { View, Text, } from "react-native";
-import { X, Plus } from "@/components/ui/icons";
+import { X, Plus } from '@/components/ui/icons';
 import { useTranslation } from "react-i18next";
 import { HABIT_REMINDER_PRESETS } from "@orbit/shared/utils";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
@@ -136,23 +137,10 @@ export function ReminderSection({
           ) : null}
 
           {atLimit ? <Text style={sectionStyles.limitText}>{t("habits.form.relativeReminderMax")}</Text> : null}
-          {!atLimit ? <Pressable disabled={disabled}
-            style={({ pressed }) => [
-              sectionStyles.addButton,
-              pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
-            ]}
-
-            accessibilityRole="button"
-            onPress={() => {
+          {!atLimit ? <IconButton label={t("habits.form.reminderAdd")} disabled={disabled} onPress={() => {
               setShowAddReminder(!showAddReminder);
               setShowCustomInput(false);
-            }}
-          >
-            <Plus size={16} color={tokens.fg2} strokeWidth={2} />
-            <Text style={sectionStyles.addButtonText}>
-              {t("habits.form.reminderAdd")}
-            </Text>
-          </Pressable> : null}
+            }}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
 
           {showAddReminder && !atLimit && (
             <View style={sectionStyles.dropdown}>

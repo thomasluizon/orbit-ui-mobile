@@ -418,7 +418,7 @@ describe('controlled full editor checklist', () => {
     const { tree, onClose } = await renderSheet('edit', editedHabit)
     press(tree, 'habits.form.duplicateChecklistItem')
     press(tree, 'habits.form.removeChecklistItem', 1)
-    const clear = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === 'habits.form.clearChecklist').length > 0)[0]!
+    const clear = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'habits.form.clearChecklist')[0]!
     void act(() => (clear.props.onPress as () => void)())
     expect(mutation).not.toHaveBeenCalled()
     const cancel = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === 'common.cancel').length > 0)[0]!

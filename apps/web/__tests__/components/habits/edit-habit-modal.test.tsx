@@ -8,7 +8,6 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import type { HabitFormProposal } from '@orbit/shared/utils'
 
-
 const mockUpdateMutateAsync = vi.fn()
 const mockSuggestMutateAsync = vi.fn()
 const mockFormReset = vi.fn()
@@ -207,7 +206,6 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
   },
 }))
 
-
 function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -216,7 +214,6 @@ function renderWithProviders(ui: React.ReactElement) {
     <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
   )
 }
-
 
 describe('EditHabitModal', () => {
   const defaultHabit = createMockHabit({ id: 'h-1', title: 'Exercise', frequencyUnit: 'Day' })
@@ -304,7 +301,7 @@ describe('EditHabitModal', () => {
     renderWithProviders(
       <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
     )
-    expect(screen.getByText('common.cancel')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'common.cancel' })).toBeDefined()
     expect(screen.getByText('common.save')).toBeDefined()
   })
 
@@ -464,7 +461,7 @@ describe('EditHabitModal', () => {
         habit={defaultHabit}
       />,
     )
-    fireEvent.click(screen.getByText('common.cancel'))
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 

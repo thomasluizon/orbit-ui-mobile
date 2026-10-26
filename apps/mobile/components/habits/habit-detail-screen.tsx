@@ -1,3 +1,4 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { DescriptionCopyButton } from './description-copy-button'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
@@ -68,7 +69,7 @@ import { MonthGrid } from '@/components/dates/month-grid'
 import { PillButton } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from '@/components/ui/icons'
+import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2, RefreshCw } from '@/components/ui/icons'
 import { DateRow } from '@/components/ui/date-row'
 import { CreateHabitModal } from './create-habit-modal'
 import { HabitDetailFields } from './habit-detail-fields'
@@ -116,7 +117,7 @@ function Surface({ children }: Readonly<{ children: React.ReactNode }>) {
 function DayHabitsStatus({ reasonKey, onRetry, tokens }: Readonly<{ reasonKey: ReturnType<typeof getHabitDetailChildUnavailableReasonKey>; onRetry: () => void; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
   if (reasonKey === 'calendar.dayCell.notScheduled') return null
-  return <View style={styles.dayHabitsStatus}><Text style={[styles.muted, { color: tokens.fg2 }]}>{t(reasonKey)}</Text>{reasonKey === 'habits.detail.dayHabitsLoadError' ? <PillButton variant="ghost" size="sm" onClick={onRetry}>{t('habits.detail.retry')}</PillButton> : null}</View>
+  return <View style={styles.dayHabitsStatus}><Text style={[styles.muted, { color: tokens.fg2 }]}>{t(reasonKey)}</Text>{reasonKey === 'habits.detail.dayHabitsLoadError' ? <IconButton label={t('habits.detail.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}</View>
 }
 
 function UnscheduledChildReason({ reason, notScheduledReason, tokens }: Readonly<{ reason?: string; notScheduledReason: string; tokens: ReturnType<typeof createTokensV2> }>) {
@@ -203,7 +204,7 @@ function HabitDescription({ description, tokens }: Readonly<{ description: strin
     <Text style={[styles.sectionTitle, { color: tokens.fg2 }]}>{t('habits.form.description')}</Text>
     <Text testID="habit-description" selectable style={[styles.muted, { fontSize: 16, lineHeight: 24.8, color: tokens.fg2 }]}>{parts.some(({ href }) => href) ? parts.map(({ text, href, offset }) => href ? <Text key={offset} selectable accessibilityRole="link" accessibilityLabel={text} onPress={() => { void openLink(href) }} style={{ color: tokens.fg1, textDecorationLine: 'underline' }}>{text}</Text> : text) : description}</Text>
     <Text accessibilityLiveRegion="polite" style={failedLink ? [styles.muted, { color: tokens.statusBadText }] : { position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{failedLink ? t('common.error') : ''}</Text>
-    {failedLink ? <View style={{ alignItems: 'flex-start' }}><PillButton variant="ghost" onClick={() => { void openLink(failedLink) }}>{t('common.retry')}</PillButton></View> : null}
+    {failedLink ? <View style={{ alignItems: 'flex-start' }}><IconButton label={t('common.retry')} onClick={() => { void openLink(failedLink) }}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton></View> : null}
     <DescriptionCopyButton key={description} description={description} />
   </View>
 }
@@ -405,7 +406,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
       else router.replace(date ? { pathname: '/(tabs)', params: { date } } : '/(tabs)')
     }} />}>
       {isError
-        ? <View style={styles.content}><ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('habits.detail.retry')}</PillButton>} /></View>
+        ? <View style={styles.content}><ErrorState message={t('common.error')} action={<IconButton label={t('habits.detail.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} /></View>
         : <View accessible accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} accessibilityState={{ busy: true }} style={[styles.content, styles.profileLoading]}>
             <Skeleton variant="habit-row" grouped />
             <Skeleton variant="stat-tile" grouped />
@@ -570,7 +571,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
 
   const appBar = <HabitDetailNavigation parentId={parentId} titleIsHeading={detailQuery.isLoading || detailQuery.isError || !habit || !detailQuery.data} onBack={back} />
   if (detailQuery.isLoading) return <FlowShell nav={false} mode="detail" header={appBar}><View style={styles.content}><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><HistoryLoading /></View></FlowShell>
-  if (detailQuery.isError || !habit || !detailQuery.data) return <FlowShell nav={false} mode="detail" header={appBar}><View style={styles.content}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></View></FlowShell>
+  if (detailQuery.isError || !habit || !detailQuery.data) return <FlowShell nav={false} mode="detail" header={appBar}><View style={styles.content}><ErrorState message={t('habits.detail.loadError')} action={<IconButton label={t('habits.detail.retry')} onClick={retryFailedQueries}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} /></View></FlowShell>
 
   const children = detailQuery.data.children.map((sourceChild) => {
     const child = normalizeDrillDetailChild(sourceChild, habit.id, dateStr)

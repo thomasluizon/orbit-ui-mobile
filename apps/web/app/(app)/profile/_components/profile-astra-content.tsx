@@ -1,7 +1,9 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { ErrorState } from '@/components/ui/error-state'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { Skeleton } from '@/components/ui/skeleton'
 import { useStripeCheckoutReturn } from '@/hooks/use-stripe-checkout-return'
 import { useRouter } from 'next/navigation'
@@ -74,6 +76,6 @@ export function ProfileAstraContent({ profile, patchProfile }: Readonly<ProfileC
   const [apiKeysUnlocked] = useAccountScopedState(() => isStepUpVerified('keys'))
   const astraSettings = useAstraSettingsController(profile, patchProfile)
   if (isSettling) return <Skeleton variant="settings" rows={8} label={t('profile.loading')} />
-  if (hasReturnError) return <ErrorState message={t('upgrade.billing.error')} action={<PillButton variant="ghost" onClick={retryReturn}>{t('upgrade.billing.retry')}</PillButton>} />
+  if (hasReturnError) return <ErrorState message={t('upgrade.billing.error')} action={<IconButton label={t('upgrade.billing.retry')} onClick={retryReturn}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />
   return buildAstraRows({ profile, router, t }, astraSettings, apiKeysUnlocked)
 }

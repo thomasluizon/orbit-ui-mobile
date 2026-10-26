@@ -17,6 +17,9 @@ import { CalendarHeader } from '@/app/(app)/calendar/_components/calendar-shell'
 import { TodayDateControl } from '@/app/(app)/today-shell'
 import { HabitDrill } from '@/components/habits/habit-list/habit-drill'
 import { Chip } from '@/components/ui/chip'
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Sheet } from '@/components/ui/sheet'
 import { TagEditorRow } from '@/components/habits/habit-form-fields/tag-editor-row'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -118,6 +121,58 @@ describe('interaction fill parity in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each(['dark', 'light'] as const)('keeps icon paint 2px inside its 48px hit area in %s', async (mode) => {
+    const controls = render(<IconButton label="Refresh" onClick={vi.fn()}><RefreshCw size={20} /></IconButton>)
+    const markup = controls.container.innerHTML
+    controls.unmount()
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      const declarations = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value};`).join('')
+      await page.setContent(`<style>${stylesheet}:root{${declarations}} body{padding:48px} button{transition:none !important}</style>${markup}`)
+      const button = page.getByRole('button', { name: 'Refresh', exact: true })
+      await button.hover()
+      const hovered = await button.evaluate(readControlPaint)
+      expect(hovered.target.right - hovered.target.left).toBe(48)
+      expect(hovered.target.bottom - hovered.target.top).toBe(48)
+      for (const edge of ['left', 'top', 'right', 'bottom'] as const) {
+        expect(Math.abs(hovered.bounds[edge] - hovered.target[edge])).toBe(2)
+      }
+      expect(hovered.radii).toEqual([22, 22, 22, 22])
+      expect(await button.evaluate((element) => {
+        const box = element.getBoundingClientRect()
+        return [[box.left - 2, box.top + box.height / 2], [box.right + 1.99, box.top + box.height / 2], [box.left + box.width / 2, box.top - 2], [box.left + box.width / 2, box.bottom + 1.99]]
+          .map(([x, y]) => element.contains(document.elementFromPoint(x!, y!)))
+      })).toEqual([true, true, true, true])
+      await page.mouse.down()
+      expect(await button.evaluate(readControlPaint)).toEqual(hovered)
+      await page.mouse.up()
+    } finally { await page.close() }
+  })
+
+  it.each([
+    { locale: 'en', cancel: 'Cancel', confirm: 'Delete habit' },
+    { locale: 'pt-BR', cancel: 'Cancelar', confirm: 'Apagar hábito' },
+  ])('keeps confirmation footer pills equally tall and padded in $locale', async ({ cancel, confirm }) => {
+    const controls = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}>
+      <ConfirmSheet open destructive title={confirm} message={confirm} cancelLabel={cancel} confirmLabel={confirm} onCancel={vi.fn()} onConfirm={vi.fn()} />
+    </NextIntlClientProvider>)
+    const markup = document.querySelector('[role="dialog"]')!.outerHTML
+    controls.unmount()
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${markup}`)
+      await loadAppFonts(page)
+      const actions = await page.getByRole('button', { name: cancel, exact: true }).locator('..').evaluate((row) => [...row.querySelectorAll('button')].map((button) => {
+        const style = getComputedStyle(button)
+        return { text: button.textContent, height: button.getBoundingClientRect().height, padding: [style.paddingInlineStart, style.paddingInlineEnd] }
+      }))
+      expect(actions).toEqual([
+        { text: cancel, height: 44, padding: ['18px', '18px'] },
+        { text: confirm, height: 44, padding: ['18px', '18px'] },
+      ])
+    } finally { await page.close() }
+  })
 
   it('bounds day hover paint and keeps read-only fills invisible under a hovered group', async () => {
     const controls = render(<div style={{ width: 97 }}>

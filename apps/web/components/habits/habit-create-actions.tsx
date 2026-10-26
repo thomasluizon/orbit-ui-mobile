@@ -30,7 +30,7 @@ export function HabitCreateActions({ presentation, pending, empty, subHabit, onl
         </PillButton>
       ) : (
         <ActionRow>
-          <PillButton variant="ghost" disabled={pending} onClick={onCancel}>{t('common.cancel')}</PillButton>
+          <PillButton size="sm" variant="ghost" disabled={pending} onClick={onCancel}>{t('common.cancel')}</PillButton>
           <PillButton size="sm" formId={formId}
           descriptionId={descriptionId} loading={pending}>
           {label}

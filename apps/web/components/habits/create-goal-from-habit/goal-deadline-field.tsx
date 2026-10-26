@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { Plus, X } from '@/components/ui/icons'
@@ -48,22 +50,7 @@ export function GoalDeadlineField({
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              fontWeight: 500,
-              minHeight: TOUCH_TARGET_MIN,
-              padding: SPACING.s0,
-              gap: 8,
-            }}
-            onClick={() => onChangeDeadline(formatAPIDate(new Date()))}
-          >
-            <Plus size={16} strokeWidth={1.8} aria-hidden="true" />
-            {t('goals.form.addDeadline')}
-          </button>
+          <IconButton label={t('goals.form.addDeadline')} onClick={() => onChangeDeadline(formatAPIDate(new Date()))}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
         )}
         {deadline && isGoalDeadlinePast(deadline) && (
           <p

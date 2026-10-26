@@ -10,6 +10,7 @@ import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import * as ReactNative from 'react-native'
 import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga from 'yoga-layout'
+import { BUTTON_SIZES } from '@orbit/shared/theme'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { contrastOnSurface, controlContrast } from '@orbit/shared/__tests__/contrast'
 import { createMockAchievement, createMockGoal } from '@orbit/shared/__tests__/factories'
@@ -293,7 +294,7 @@ function findProgressHabitHost(host: HabitRowHost): HabitRowHost | undefined {
 }
 
 function findPill(root: TestNode, label: string): TestNode {
-  return pillButtons(root).find((button) => button.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === label).length > 0)!
+  return pillButtons(root).find((button) => button.props.accessibilityLabel === label || button.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === label).length > 0)!
 }
 
 function pillButtons(root: TestNode): TestNode[] {
@@ -394,7 +395,7 @@ describe('mobile ProgressContent', () => {
 
   it('offers Share progress from the populated period window', async () => {
     const tree = await renderProgress()
-    expect(tree.root.findAll((node) => node.type === PillButton && node.props.children === 'shareCard.entry')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === PillButton && (node.props.label ?? node.props.children) === 'shareCard.entry')).toHaveLength(1)
   })
 
   it.each([320, 412, 840])('uses 16 between streak children and window tiles at %ipx', async (width) => {
@@ -419,7 +420,7 @@ describe('mobile ProgressContent', () => {
     }
   })
 
-  it.each([412, 1352])('keeps goal action pills at one 48px height at %ipx', async (width) => {
+  it.each([412, 1352])('aligns goal action paint inside equal 48px targets at %ipx', async (width) => {
     const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 })
     try {
       mocks.goals.data.allGoals = [createMockGoal()]
@@ -434,11 +435,14 @@ describe('mobile ProgressContent', () => {
       expect(geometry.controls).toHaveLength(2)
       const [filter, create] = geometry.controls
       expect(filter!.accessibilityLabel).toBe('progressScreen.goals.filter: progressScreen.goals.all')
-      expect(create!.labels).toEqual(['goals.create'])
-      expect(filter!.height).toBe(48)
+      expect(create!.accessibilityLabel).toBe('goals.create')
+      expect(filter!.height).toBe(44)
       expect(create!.height).toBe(filter!.height)
       expect(create!.top).toBe(filter!.top)
       expect(create!.left - filter!.right).toBe(12)
+      const actions = pillButtons(tree.root)
+      expect(actions.map((action) => action.props.hitSlop)).toEqual([2, 2])
+      for (const control of geometry.controls) expect(control.height + 4).toBe(48)
     } finally {
       dimensions.mockRestore()
     }
@@ -836,6 +840,7 @@ describe('mobile ProgressContent', () => {
     const tree = await renderProgress(undefined, 'goals')
 
     expect(findPill(tree.root, 'progressScreen.goals.createAction').props.testID).toBe(testID)
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'progressScreen.goals.createAction')).toHaveLength(1)
     dimensions.mockRestore()
   })
 
@@ -846,8 +851,7 @@ describe('mobile ProgressContent', () => {
     expect(action.props.testID).toBe('button-primary-sm')
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'empty-state-mark-orbit')).toHaveLength(1)
     const style = action.props.style as (state: { pressed: boolean }) => ViewStyle[]
-    expect(StyleSheet.flatten(style({ pressed: false })).minHeight).toBe(44)
-    expect(action.props.hitSlop).toBeDefined()
+    expect(StyleSheet.flatten(style({ pressed: false }))).toMatchObject({ height: 44, paddingHorizontal: BUTTON_SIZES.sm.paddingX })
     await TestRenderer.act(() => { (action.props.onPress as () => void)() })
     expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(1)
     expect(useUIStore.getState().astraConversationOpen).toBe(false)

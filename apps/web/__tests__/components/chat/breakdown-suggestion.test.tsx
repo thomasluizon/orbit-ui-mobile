@@ -74,7 +74,7 @@ it('disables approval when every proposed row has been removed', async () => {
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-remove' }))
   }
   expect(screen.getByText('chat.breakdown.empty')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'habits.breakdown.addHabit' })).toHaveAttribute('data-variant', 'primary')
+  expect(screen.getByRole('button', { name: 'habits.breakdown.addHabit' })).toHaveAttribute('data-variant', 'ghost')
   expect(screen.getByRole('button', { name: 'chat.preview.approve' })).toHaveAttribute('data-variant', 'secondary')
   fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
   expect(await screen.findByRole('menuitem', { name: 'chat.preview.edit' })).toBeDisabled()
@@ -226,9 +226,7 @@ it('keeps complete successful proposal names reachable without editing', async (
   expect(disclosure).toHaveAttribute('aria-expanded', 'true')
   expect(disclosure.parentElement).toHaveTextContent(title)
 
-
 })
-
 
 it('adds and focuses an editable one-time row, then approves it in the same batch', async () => {
   bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success', 'Success', 'Success']))
@@ -414,7 +412,6 @@ it('does not send blank-only drafts and can add to an empty proposal', async () 
   await waitFor(() => expect(bulkCreate).not.toHaveBeenCalled())
   expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
 })
-
 
 it('keeps a blank added row editable when it is focused again', () => {
   render(<BreakdownSuggestion {...defaultProps} />)

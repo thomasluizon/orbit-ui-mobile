@@ -1,3 +1,4 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { SPACING, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
@@ -9,8 +10,8 @@ import { buildHabitCreateHref, buildSearchEntries, searchCommands, type SearchCo
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { PageHeader } from '@/components/ui/page-header'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/pill-button'
-import { Search } from '@/components/ui/icons'
+
+import { Search, RefreshCw, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SearchEmpty, Searching, SearchResult } from '@/components/search/search-results'
 import { CommandGroups } from '@/components/command/command-groups'
@@ -61,7 +62,7 @@ export default function SearchScreen() {
     </View>
     <ScrollView role="list" keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.list, styles.columnInset, { paddingBottom: clearance }]} accessibilityState={{ busy: search.busy }}>
       {search.showLoading && (search.text.trim() ? <Searching /> : <><Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg3 }]}>{t('command.groups.search')}</Text>{[0, 1, 2].map((index) => <Skeleton key={index} variant="habit-row" label={t('habits.search.searching')} />)}</>)}
-      {search.isError && <View accessibilityRole="alert"><Text style={{ color: tokens.fg3 }}>{t('habits.search.loadError')}</Text><Button size="sm" variant="ghost" onClick={() => void search.refetch()}>{t('common.retry')}</Button></View>}
+      {search.isError && <View accessibilityRole="alert"><Text style={{ color: tokens.fg3 }}>{t('habits.search.loadError')}</Text><IconButton label={t('common.retry')} onClick={() => void search.refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton></View>}
       {!search.busy && !search.isError && <>
         {habits.length > 0 && (search.query && !commandPage
           ? <Text style={[styles.count, { color: tokens.fg3 }]}>{t('habits.search.count', { count: search.data?.totalCount ?? 0 })}</Text>
@@ -72,8 +73,8 @@ export default function SearchScreen() {
       </>}
       {!commandPage && <CommandGroups hideCreate={hideCreate} query={search.text} onSelect={selectCommand} />}
       <View style={styles.pagination}><ActionRow>
-        {search.page > 1 && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page - 1)}>{t('habits.search.previous')}</Button>}
-        {(search.data?.totalPages ?? 0) > search.page && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page + 1)}>{t('habits.search.next')}</Button>}
+        {search.page > 1 && <IconButton label={t('habits.search.previous')} disabled={search.busy} onClick={() => search.setPage(search.page - 1)}><ChevronLeft size={20} strokeWidth={1.5} accessible={false} /></IconButton>}
+        {(search.data?.totalPages ?? 0) > search.page && <IconButton label={t('habits.search.next')} disabled={search.busy} onClick={() => search.setPage(search.page + 1)}><ChevronRight size={20} strokeWidth={1.5} accessible={false} /></IconButton>}
       </ActionRow></View>
     </ScrollView>
   </View>

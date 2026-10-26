@@ -1,8 +1,9 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { SPACING } from '@orbit/shared/theme'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { lazy, Suspense, useState } from 'react'
-import { Plus } from '@/components/ui/icons'
+import { Plus, X, RefreshCw } from '@/components/ui/icons'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -42,8 +43,8 @@ function GoalHabitList({ items, selectedIds, onChange, disabled, onClose, onCrea
   return <View style={styles.list}>
     {items.length >= 8 ? <Text style={[styles.count, { color: tokens.fg3 }]}>{t('habits.form.availableCount', { count: items.length })}</Text> : null}
     {items.length >= 21 ? <BottomSheetAppTextInput value={query} onChangeText={setQuery} accessibilityLabel={t('goals.form.searchHabits')} placeholder={t('goals.form.searchHabits')} /> : null}
-    {items.length === 0 ? <EmptyState title={t('goals.form.habitsInvitation')} action={<PillButton leadingIcon={<Plus size={16} strokeWidth={2} />} disabled={disabled || openingHabitForm} loading={openingHabitForm} onClick={onCreateHabit}>{t('habits.createHabit')}</PillButton>} /> : null}
-    {items.length >= 21 ? <KeyboardAwareFlatList key={query} data={filtered} renderItem={renderHabit} keyExtractor={(habit) => habit.id} style={styles.virtualList} initialNumToRender={8} windowSize={5} nestedScrollEnabled keyboardShouldPersistTaps="handled" ListEmptyComponent={<EmptyState title={t('habits.moveParent.noSearchResults')} action={<PillButton variant="ghost" onClick={onClose}>{t('common.close')}</PillButton>} />} /> : filtered.map((habit) => <View key={habit.id}>{renderHabit({ item: habit })}</View>)}
+    {items.length === 0 ? <EmptyState title={t('goals.form.habitsInvitation')} action={<IconButton label={t('habits.createHabit')} disabled={disabled || openingHabitForm} loading={openingHabitForm} onClick={onCreateHabit}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton>} /> : null}
+    {items.length >= 21 ? <KeyboardAwareFlatList key={query} data={filtered} renderItem={renderHabit} keyExtractor={(habit) => habit.id} style={styles.virtualList} initialNumToRender={8} windowSize={5} nestedScrollEnabled keyboardShouldPersistTaps="handled" ListEmptyComponent={<EmptyState title={t('habits.moveParent.noSearchResults')} action={<IconButton label={t('common.close')} onClick={onClose}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>} />} /> : filtered.map((habit) => <View key={habit.id}>{renderHabit({ item: habit })}</View>)}
   </View>
 }
 
@@ -54,7 +55,7 @@ export function GoalHabitsPicker({ selectedIds, goalType, onChange, disabled, on
   const { creatingHabit, setCreatingHabit, habitFormState, openHabitForm, habits, items } = useGoalHabitCreation(closeSheet)
   if (creatingHabit) return <Suspense fallback={null}><CreateHabitModal open onClose={() => setCreatingHabit(false)} /></Suspense>
   return <Sheet ref={sheetRef} open actions={<PillButton onClick={() => closeSheet()}>{t('common.done')}</PillButton>} title={t('goals.linkedHabits')} onClose={onClose} virtualizedBody={items.length >= 21}>
-    {habits.isLoading ? <Skeleton variant="settings" rows={3} label={t('common.loading')} /> : habits.isError ? <View accessibilityRole="alert"><Text style={{ color: tokens.fg2 }}>{t('goals.form.habitsError')}</Text><PillButton variant="ghost" onClick={() => void habits.refetch()}>{t('common.retry')}</PillButton></View> : <GoalHabitList items={items} selectedIds={selectedIds} onChange={onChange} disabled={disabled} onClose={() => closeSheet()} openingHabitForm={habitFormState === 'loading'} onCreateHabit={() => void openHabitForm()} />}
+    {habits.isLoading ? <Skeleton variant="settings" rows={3} label={t('common.loading')} /> : habits.isError ? <View accessibilityRole="alert"><Text style={{ color: tokens.fg2 }}>{t('goals.form.habitsError')}</Text><IconButton label={t('common.retry')} onClick={() => void habits.refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton></View> : <GoalHabitList items={items} selectedIds={selectedIds} onChange={onChange} disabled={disabled} onClose={() => closeSheet()} openingHabitForm={habitFormState === 'loading'} onCreateHabit={() => void openHabitForm()} />}
     {habitFormState === 'error' ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText }}>{t('goals.form.habitFormError')}</Text> : null}
     <GoalHabitsSelectionNote selectedIds={selectedIds} goalType={goalType} />
     {selectedIds.length >= MAX_HABITS_PER_GOAL ? <CapacityNotice message={t('goals.detail.linkedLimit', { count: MAX_HABITS_PER_GOAL })} /> : null}

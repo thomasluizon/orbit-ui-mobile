@@ -229,3 +229,20 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [412, 1352].flatMap((width) => [true
   expect(bounds).toEqual([52, 52])
   TestRenderer.act(() => tree.unmount())
 })
+
+it.each(['en', 'pt-BR'])('shows distinct key creation choices in %s', async (locale) => {
+  await i18n.changeLanguage(locale)
+  let tree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<ProfileApiKeys profile={createMockProfile({ hasProAccess: true })} unlocked />) })
+  try {
+    const trigger = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Pressable' && node.props.accessibilityLabel === i18n.t('profile.apiKeys.create'))[0]!
+    await TestRenderer.act(() => trigger.props.onPress())
+    for (const key of ['profile.apiKeys.createScoped', 'profile.apiKeys.create']) {
+      const label = i18n.t(key)
+      const buttons = tree.root.findAll((node: { type: unknown; props: Record<string, unknown>; findAllByType: (type: typeof Text) => { props: { children: unknown } }[] }) =>
+        node.type === 'Pressable' && node.props.accessibilityRole === 'menuitem'
+        && node.findAllByType(Text).some((text: { props: { children: unknown } }) => text.props.children === label))
+      expect(buttons).toHaveLength(1)
+    }
+  } finally { TestRenderer.act(() => tree.unmount()) }
+})

@@ -1,3 +1,4 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { useHabitFormInteraction } from './habit-form-interaction'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { PickerRow } from '@/components/ui/picker-row'
@@ -6,7 +7,7 @@ import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useMemo, useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Pencil, Trash2 } from '@/components/ui/icons'
+import { Pencil, Trash2, Plus } from '@/components/ui/icons'
 import type { HabitTag } from '@orbit/shared/types/habit'
 import type { createTokensV2 } from '@/lib/theme'
 import { useThemeTokens } from '@/hooks/use-theme-tokens'
@@ -48,10 +49,10 @@ export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, s
   const filtered = tags.filter((tag) => tag.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   const renderTag = ({ item: tag }: { item: HabitTag }) => {
     const selected = selectedSet.has(tag.id)
-    return <PickerRow name={tag.name} selected={selected} disabled={disabled || (!selected && atLimit)} onToggle={() => onToggle(tag.id)} value={selected ? '✓' : ''} valueStyle={styles.rowValue} valueHidden><Pressable focusInset accessibilityRole="button" accessibilityLabel={`${editLabel}: ${tag.name}`} disabled={disabled} style={({ pressed }) => [styles.iconButton, disabled ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onEdit(tag)}><Pencil size={16} color={tokens.fg3} strokeWidth={1.8} /></Pressable><Pressable focusInset accessibilityRole="button" accessibilityLabel={`${deleteLabel}: ${tag.name}`} disabled={disabled} style={({ pressed }) => [styles.iconButton, disabled ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onDelete(tag.id)}><Trash2 size={16} color={tokens.fg3} strokeWidth={1.8} /></Pressable></PickerRow>
+    return <PickerRow name={tag.name} selected={selected} disabled={disabled || (!selected && atLimit)} onToggle={() => onToggle(tag.id)} value={selected ? '✓' : ''} valueStyle={styles.rowValue} valueHidden><Pressable accessibilityRole="button" accessibilityLabel={`${editLabel}: ${tag.name}`} disabled={disabled} style={({ pressed }) => [styles.iconButton, disabled ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onEdit(tag)}><Pencil size={16} color={tokens.fg3} strokeWidth={1.8} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`${deleteLabel}: ${tag.name}`} disabled={disabled} style={({ pressed }) => [styles.iconButton, disabled ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onDelete(tag.id)}><Trash2 size={16} color={tokens.fg3} strokeWidth={1.8} /></Pressable></PickerRow>
   }
   const trailingControls = <>
-    {tags.length > 0 && !editor ? <Pressable focusInset accessibilityRole="button" disabled={disabled} style={styles.action} onPress={guard(onCreate)}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.newTag')}</Text></Pressable> : null}
+    {tags.length > 0 && !editor ? <IconButton label={t('habits.form.newTag')} disabled={disabled} onPress={guard(onCreate)}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
     {editor}
     {suggestions}
   </>
@@ -61,7 +62,7 @@ export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, s
     {open ? <Sheet open title={t('habits.form.tags')} virtualizedBody={tags.length >= 21} onClose={() => { setOpen(false); setQuery('') }}><View style={styles.list}>
       {tags.length >= 8 ? <Text style={styles.count}>{t('habits.form.availableCount', { count: tags.length })}</Text> : null}
       {tags.length >= 21 ? <BottomSheetAppTextInput isChangeDisabled={isDisabled} editable={!disabled} accessibilityState={{ disabled }} value={query} onChangeText={guard(setQuery)} accessibilityLabel={t('habits.form.searchTags')} placeholder={t('habits.form.searchTags')} style={styles.search} /> : null}
-      {tags.length === 0 && !editor ? <View style={styles.empty}><Text numberOfLines={1} style={styles.emptyTitle}>{t('habits.form.noTags')}</Text><Pressable focusInset accessibilityRole="button" disabled={disabled} style={styles.action} onPress={guard(onCreate)}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.newTag')}</Text></Pressable></View> : null}
+      {tags.length === 0 && !editor ? <View style={styles.empty}><Text numberOfLines={1} style={styles.emptyTitle}>{t('habits.form.noTags')}</Text><IconButton label={t('habits.form.newTag')} disabled={disabled} onPress={guard(onCreate)}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton></View> : null}
       {tags.length >= 21 ? <KeyboardAwareFlatList key={query} data={filtered} renderItem={renderTag} keyExtractor={(tag) => tag.id} style={styles.virtualList} initialNumToRender={8} windowSize={5} nestedScrollEnabled keyboardShouldPersistTaps="handled" ListFooterComponent={trailingControls} /> : <>{filtered.map((tag) => <View key={tag.id}>{renderTag({ item: tag })}</View>)}{trailingControls}</>}
     </View></Sheet> : null}
   </>

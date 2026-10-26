@@ -1,3 +1,5 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { SPACING } from '@orbit/shared/theme'
 import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { ScrollView, StyleSheet } from 'react-native'
@@ -10,7 +12,7 @@ import { createTokensV2 } from '@/lib/theme'
 import type { ProfileSubmenuId } from '@orbit/shared/utils/profile-navigation'
 import { PROFILE_SUBMENUS } from '@orbit/shared/utils/profile-navigation'
 import { ErrorState } from '@/components/ui/error-state'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { PageHeader } from '@/components/ui/page-header'
 import { useProfile } from '@/hooks/use-profile'
 import { ProfileAccountContent } from './profile-account-content'
@@ -39,7 +41,7 @@ export function ProfileSubscreen({ screen }: Readonly<{ screen: ProfileSubmenuId
   return <SafeAreaView edges={pageEnd.safeAreaEdges} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
     <PageHeader title={t(submenu.labelKey)} backLabel={t('common.backToProfile')} onBack={() => router.dismissTo('/profile')} />
     <ScrollView testID={`profile-settings-group-${screen}`} style={styles.container} contentContainerStyle={[contentFrameStyle, styles.content, { paddingBottom: pageEnd.paddingBottom }]}>
-      {isLoading ? <Skeleton variant="settings" rows={8} label={t('profile.loading')} /> : error ? <ErrorState message={t('errors.loadProfile')} action={<PillButton variant="ghost" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /> : <Content profile={profile} patchProfile={patchProfile} />}
+      {isLoading ? <Skeleton variant="settings" rows={8} label={t('profile.loading')} /> : error ? <ErrorState message={t('errors.loadProfile')} action={<IconButton label={t('common.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} /> : <Content profile={profile} patchProfile={patchProfile} />}
     </ScrollView>
   </SafeAreaView>
 }

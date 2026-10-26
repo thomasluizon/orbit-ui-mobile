@@ -296,18 +296,6 @@ vi.mock("@/components/ui/select-check", () => ({
   RadioGlyph: () => null,
 }));
 
-vi.mock("@/components/ui/pill-button", () => ({
-  PillButton: ({
-    children,
-    onClick,
-    disabled,
-  }: {
-    children?: unknown;
-    onClick?: () => void;
-    disabled?: boolean;
-  }) => React.createElement("PillButton", { onClick, disabled }, children as never),
-}));
-
 vi.mock("react-native", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-native")>();
   return {
@@ -660,7 +648,7 @@ describe("CalendarSyncScreen", () => {
 
     expect(tree!.root.findAll((node) => node.props.children === "calendar.errorTitle")).not.toHaveLength(0);
     expect(tree!.root.findAll((node) => node.props.children === "calendar.notConnectedTitle")).toHaveLength(0);
-    const retry = tree!.root.find((node) => node.props.children === "calendar.retry" && typeof node.props.onClick === "function");
+    const retry = tree!.root.find((node) => node.props.label === "calendar.retry" && typeof node.props.onClick === "function");
     await TestRenderer.act(async () => {
       (retry.props.onClick as () => void)();
       await Promise.resolve();
@@ -846,7 +834,7 @@ describe("CalendarSyncScreen", () => {
       props: Record<string, unknown>;
     }[];
   }) {
-    return root.findAll((node) => node.props.children === "calendar.showMore");
+    return root.findAll((node) => node.props.accessibilityLabel === "calendar.showMore");
   }
 
   it.each([false, true])("paints the pager and reveals the next page (reduced motion: %s)", async (reducedMotion) => {
@@ -872,12 +860,10 @@ describe("CalendarSyncScreen", () => {
       (node: TestNode) =>
         node.props.accessibilityRole === "button" &&
         typeof node.props.onPress === "function" &&
-        node.findAll((child: TestNode) =>
-          child.props.children === "calendar.showMore",
-        ).length > 0,
+        node.props.accessibilityLabel === "calendar.showMore",
     );
 
-    expectPressPaint(pressable, { fill: tokens.bgHoverOpaque, restFill: tokens.bgElev, overlay: true, borderRadius: 999, scale: reducedMotion ? 1 : 0.96 });
+    expectPressPaint(pressable, { fill: tokens.bgHover, borderRadius: 9999, scale: reducedMotion ? null : 0.96 });
     await TestRenderer.act(async () => {
       (pressable.props.onPress as () => void)();
       await Promise.resolve();
@@ -1071,7 +1057,7 @@ describe("CalendarSyncScreen", () => {
     ).toBeGreaterThan(0);
     expect(
       tree.root.findAll(
-        (node: TestNode) => node.props.children === "calendar.retry",
+        (node: TestNode) => node.props.label === "calendar.retry",
       ),
     ).toHaveLength(0);
   });

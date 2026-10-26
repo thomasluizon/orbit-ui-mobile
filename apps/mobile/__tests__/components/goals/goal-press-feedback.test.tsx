@@ -7,7 +7,7 @@ import { GoalProgressHistorySection } from '@/components/goals/goal-detail-secti
 import { GoalDeadlineField } from '@/components/habits/create-goal-from-habit/goal-deadline-field'
 import { createStyles as createDeadlineStyles } from '@/components/habits/create-goal-from-habit/styles'
 import { expectPressPaint } from '@/__tests__/support/press-feedback'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 
 const state = vi.hoisted((): { reducedMotion: boolean; mode: 'dark' | 'light' } => ({ reducedMotion: false, mode: 'dark' }))
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => state.reducedMotion }))
@@ -32,6 +32,16 @@ function render(element: React.ReactElement) {
 
 afterEach(() => { void act(() => { trees.splice(0).forEach((tree) => tree.unmount()) }) })
 
+function expectDeadlinePress(tokens: ReturnType<typeof createTokensV2>, reducedMotion: boolean) {
+  for (const deadline of ['', formatAPIDate(new Date())]) {
+    const onChangeDeadline = vi.fn()
+    const button = render(<GoalDeadlineField tokens={tokens} styles={createDeadlineStyles(tokens)} deadline={deadline} onChangeDeadline={onChangeDeadline} />).root.findByType('Pressable')
+    expectPressPaint(button, { fill: tokens.bgHover, borderRadius: deadline ? 999 : radius.full, scale: reducedMotion ? deadline ? 1 : null : 0.96 })
+    void act(() => { (button.props.onPress as () => void)() })
+    expect(onChangeDeadline).toHaveBeenCalledWith(deadline ? '' : formatAPIDate(new Date()))
+}
+}
+
 describe('goal control press paint', () => {
   it.each(['dark', 'light'] as const)('retains fill and callbacks with and without reduced motion in %s', (mode) => {
     state.mode = mode
@@ -40,17 +50,11 @@ describe('goal control press paint', () => {
       state.reducedMotion = reducedMotion
       const onRetry = vi.fn()
       const retry = render(<GoalLoadError styles={createDetailStyles(tokens)} onRetry={onRetry} />).root.findByType('Pressable')
-      expectPressPaint(retry, { fill: tokens.bgHover, borderRadius: 999, scale: reducedMotion ? null : 0.96 })
+      expectPressPaint(retry, { fill: tokens.bgHover, borderRadius: radius.full, scale: reducedMotion ? null : 0.96 })
       void act(() => { (retry.props.onPress as () => void)() })
       expect(onRetry).toHaveBeenCalledOnce()
 
-      for (const deadline of ['', formatAPIDate(new Date())]) {
-        const onChangeDeadline = vi.fn()
-        const button = render(<GoalDeadlineField tokens={tokens} styles={createDeadlineStyles(tokens)} deadline={deadline} onChangeDeadline={onChangeDeadline} />).root.findByType('Pressable')
-        expectPressPaint(button, { fill: tokens.bgHover, borderRadius: 999, scale: reducedMotion ? 1 : 0.96 })
-        void act(() => { (button.props.onPress as () => void)() })
-        expect(onChangeDeadline).toHaveBeenCalledWith(deadline ? '' : formatAPIDate(new Date()))
-      }
+      expectDeadlinePress(tokens, reducedMotion)
 
       const history = render(<GoalProgressHistorySection entries={[1, 2, 3, 4].map((value) => ({ createdAtUtc: '2025-06-15T00:00:00Z', previousValue: value - 1, value }))} target={4} unit="books" formatDate={(date) => date} showAllLabel="Show all" showLessLabel="Show less" />)
       const toggle = history.root.findByType('Pressable')

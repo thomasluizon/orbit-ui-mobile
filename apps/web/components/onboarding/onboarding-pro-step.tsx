@@ -1,5 +1,7 @@
 'use client'
 
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { buildAccountScopedStorageKey, getTrialDaysLeft, TRIAL_EXPIRED_SEEN_KEY } from '@orbit/shared/utils'
@@ -65,7 +67,7 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
   const exitAction = <PillButton variant="ghost" loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton>
   let content
   if (plan === 'loading' || plan === 'Pro') content = <section aria-busy aria-label={t('common.loading')} className="flex flex-col gap-6">{title}<ProSkeleton />{exitAction}</section>
-  else if (plan === null) content = <section className="flex flex-col gap-6">{title}<ErrorState message={t('upgrade.billing.error')} action={<PillButton variant="ghost" onClick={retry}>{t('upgrade.billing.retry')}</PillButton>} />{exitAction}</section>
+  else if (plan === null) content = <section className="flex flex-col gap-6">{title}<ErrorState message={t('upgrade.billing.error')} action={<IconButton label={t('upgrade.billing.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />{exitAction}</section>
   else if (plan === 'Trial') content = <section data-onboarding-step="trial" className="flex flex-col gap-8"><ProPitch focusOnMount headingId="onboarding-title" profile={profile ?? null} trialDaysLeft={getTrialDaysLeft(profile)} titleKey="onboarding.flow.trial.title" bodyKey="onboarding.flow.trial.body" dateHint={profile?.trialEndsAt ? t('upgrade.billing.plan.trialHint', { date: new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(profile.trialEndsAt)) }) : undefined} t={t} /><PillButton loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton></section>
   else content = <section data-onboarding-step="paywall" className="flex flex-col gap-6">{title}{!isOnline ? <ErrorState message={t('upgrade.billing.offline')} /> : null}<PricingSection profile={null} plans={plans.plans} isLoadingPlans={plans.isLoading} isPlansError={plans.isError} isOnline={isOnline} trialDaysLeft={null} checkoutLoading={checkoutLoading ?? (finishing ? 'yearly' : null)} checkoutError={checkoutError} discountedAmount={plans.discountedAmount} onCheckout={(interval) => void checkout(interval)} stayFreeHref="/" onStayFree={() => exit()} onRetryPlans={() => void plans.refetch()} t={t} /></section>
   return <div className="w-full py-8">{content}<p role="alert" className="text-sm text-[var(--fg-2)]">{finishFailed ? t('onboarding.flow.completionFailed') : ''}</p></div>

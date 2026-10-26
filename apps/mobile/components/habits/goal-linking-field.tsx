@@ -1,3 +1,5 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { Plus } from '@/components/ui/icons'
 import { useHabitFormInteraction } from './habit-form-fields/habit-form-interaction'
 import { SPACING } from '@orbit/shared/theme'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
@@ -16,7 +18,7 @@ import { useThemeTokens } from '@/hooks/use-theme-tokens'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { KeyboardAwareFlatList } from '@/components/ui/keyboard-aware-scroll-view'
 import { ListRow } from '@/components/ui/list-row'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { ActionRow } from '@/components/ui/action-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { CreateGoalSheet } from '../goals/create-goal-sheet'
@@ -62,8 +64,8 @@ export function GoalLinkingField(props: Readonly<GoalLinkingFieldProps>) {
     <>
       <ListRow disabled={disabled} title={t('habits.form.goals')} value={t('habits.form.selectedCount', { count: selectedGoalIds.length })} placement="column" onClick={() => setOpen(true)} />
       {selectedGoals.length > 0 ? <View style={styles.chips}>{selectedGoals.slice(0, 3).map((goal) => <View key={goal.id} style={styles.chip}><PersonalTextDetails lines={1} textStyle={styles.chipText}>{goal.title}</PersonalTextDetails></View>)}{selectedGoals.length > 3 ? <View style={[styles.chip, { paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s8 }]}><Text style={styles.chipText}>{t('habits.form.moreSelected', { count: selectedGoals.length - 3 })}</Text></View> : null}</View> : null}
-      {open ? <Sheet ref={sheetRef} open title={t('habits.form.goals')} virtualizedBody={activeGoals.length >= 21} actions={activeGoals.length ? <ActionRow><PillButton onClick={openCreateGoal} disabled={disabled || atGoalLimit}>{t('goals.create')}</PillButton></ActionRow> : undefined} onClose={() => setOpen(false)}>
-        {activeGoals.length === 0 ? <View style={styles.empty}><Text style={styles.emptyTitle}>{t('habits.form.goalInvitation')}</Text><PillButton onClick={openCreateGoal} disabled={disabled || atGoalLimit}>{t('habits.form.createGoal')}</PillButton></View> : <GoalPickerList goals={activeGoals} selectedIds={selectedGoalIds} atLimit={atGoalLimit} onToggle={onToggleGoal} />}
+      {open ? <Sheet ref={sheetRef} open title={t('habits.form.goals')} virtualizedBody={activeGoals.length >= 21} actions={activeGoals.length ? <ActionRow><IconButton label={t('goals.create')} onClick={openCreateGoal} disabled={disabled || atGoalLimit}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton></ActionRow> : undefined} onClose={() => setOpen(false)}>
+        {activeGoals.length === 0 ? <View style={styles.empty}><Text style={styles.emptyTitle}>{t('habits.form.goalInvitation')}</Text><IconButton label={t('habits.form.createGoal')} onClick={openCreateGoal} disabled={disabled || atGoalLimit}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton></View> : <GoalPickerList goals={activeGoals} selectedIds={selectedGoalIds} atLimit={atGoalLimit} onToggle={onToggleGoal} />}
       </Sheet> : null}
       {creating ? <CreateGoalSheet open initialHabitIds={initialHabitIds} onCreated={handleCreated} onClose={() => setCreating(false)} /> : null}
     </>

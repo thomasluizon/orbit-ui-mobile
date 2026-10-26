@@ -63,7 +63,7 @@ function slot(tree: any, name: 'SheetBody' | 'SheetActions') {
 async function pressButton(container: any, label: string) {
   const button = container.findAll((node: any) =>
     typeof node.type === 'string' && node.props.accessibilityRole === 'button' && typeof node.props.onPress === 'function'
-    && (node.props.accessibilityLabel === label || node.findAll((child: any) => child.props.children === label).length > 0))[0]
+    && (node.props.accessibilityLabel === label || node.findAll((child: any) => (child.props.label ?? child.props.accessibilityLabel ?? child.props.children) === label).length > 0))[0]
   await TestRenderer.act(async () => {
     button.props.onPress()
     await Promise.resolve()

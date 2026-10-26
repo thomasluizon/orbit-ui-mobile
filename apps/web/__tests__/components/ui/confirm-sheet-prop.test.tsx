@@ -2,6 +2,7 @@ import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/s
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { BUTTON_SIZES } from '@orbit/shared/theme'
 import { sheetTestControls } from '../../support/sheet-double'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -14,6 +15,11 @@ describe('ConfirmSheet controlled close', () => {
     render(<ConfirmSheet open inlineActions={inlineActions} title="Delete habit" message="Permanent action" confirmLabel="Delete habit" onCancel={vi.fn()} onConfirm={vi.fn()} />)
     expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'Delete habit'])
     expectSmallSheetActions()
+    const cancel = screen.getByRole('button', { name: 'common.cancel' })
+    expect(cancel).toHaveTextContent('common.cancel')
+    expect(cancel).not.toHaveAttribute('data-borderless')
+    expect(cancel).toHaveStyle({ paddingInlineStart: `${BUTTON_SIZES.sm.paddingX}px`, paddingInlineEnd: `${BUTTON_SIZES.sm.paddingX}px`, height: '40px' })
+    expect(screen.getByRole('button', { name: 'Delete habit' })).toHaveStyle({ height: '40px' })
   })
   it('finishes sheet dismissal before unmounting when open becomes false', () => {
     sheetTestControls.defer(true)

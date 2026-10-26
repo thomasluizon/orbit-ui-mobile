@@ -1,7 +1,8 @@
 'use client'
 
-import { SPACING } from '@orbit/shared/theme'
+import { IconButton } from '@/components/ui/icon-button'
 
+import { SPACING } from '@orbit/shared/theme'
 
 import { PersonalText } from '@/components/ui/personal-text'
 
@@ -14,6 +15,9 @@ import {
   Check,
   Link as LinkIcon,
   AlertTriangle,
+  ChevronLeft,
+  ChevronDown,
+  RefreshCw,
 } from '@/components/ui/icons'
 import { useQueryClient } from '@tanstack/react-query'
 import { PillButton } from '@/components/ui/pill-button'
@@ -122,7 +126,6 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
     return resolveCalendarImportEvents(isReviewMode, suggestions, eventsQuery.data)
   }, [isReviewMode, suggestions, eventsQuery.data])
 
-
   const eventsKey = calendarImportEventsKey(isReviewMode, weekStartDay, incomingEvents)
   if (eventsKey !== previousEventsKey) {
     setPreviousEventsKey(eventsKey)
@@ -164,7 +167,6 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   })
 
   const importedCount = importResult?.imported ?? 0
-
 
   function toggleAll() {
     if (allSelected) {
@@ -385,9 +387,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                 isReviewMode ? t('calendar.autoSync.reviewModeEmpty') : t('calendar.noEvents')
               }
               action={
-                <PillButton variant="ghost" onClick={onClose}>
-                  {t('common.goBack')}
-                </PillButton>
+                <IconButton label={t('common.goBack')} onClick={onClose}><ChevronLeft size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
               }
             />
           ) : (
@@ -434,17 +434,11 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                   className="flex flex-col items-center"
                   style={{ gap: 8, paddingTop: SPACING.s12 }}
                 >
-                  <button
-                    type="button"
-                    className="chip"
-                    onClick={() =>
+                  <IconButton label={t('calendar.showMore')} onClick={() =>
                       setVisibleCount((count) =>
                         Math.min(count + EVENTS_PAGE_SIZE, events.length),
                       )
-                    }
-                  >
-                    {t('calendar.showMore')}
-                  </button>
+                    }><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
                   <span
                     style={{
                       fontFamily: 'var(--font-mono)',
@@ -558,10 +552,8 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
             </p>
           </div>
           <div className="flex gap-3"><ActionRow>
-            <PillButton variant="ghost" onClick={onClose}>
-              {t('common.goBack')}
-            </PillButton>
-            <PillButton onClick={handleRetry}>{t('calendar.retry')}</PillButton>
+            <IconButton label={t('common.goBack')} onClick={onClose}><ChevronLeft size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+            <IconButton label={t('calendar.retry')} onClick={handleRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
           </ActionRow></div>
         </div>
       )}

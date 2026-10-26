@@ -1,3 +1,5 @@
+import { IconButton } from '@/components/ui/icon-button'
+import { ChevronDown, RefreshCw } from '@/components/ui/icons'
 import { AccessibilityInfo, findNodeHandle, Text, View } from 'react-native'
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -5,7 +7,7 @@ import type { HabitRankingCard as HabitRankingDefinition } from '@orbit/shared/t
 import { formatHabitRankingPeriod } from '@orbit/shared/chat'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ListRow } from '@/components/ui/list-row'
-import { Button } from '@/components/ui/pill-button'
+
 import { useHabitRanking } from '@/hooks/use-habit-ranking'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -40,7 +42,7 @@ export function HabitRankingCard({ habitRanking, isOnline = true }: Readonly<{ h
       <Text accessibilityLiveRegion="polite" style={{ fontSize: 14, color: tokens.fg2 }}>{status ? t(`chat.ranking.${status}`) : ''}</Text>
     </View>}
     actions={<>
-      {ranking.ranking.nextCursor && !ranking.requiresRefresh ? <Button variant="ghost" size="sm" focusableWhenLoading disabled={!isOnline || ranking.pending === 'open' || ranking.pending === 'refresh'} loading={ranking.pending === 'page'} onClick={() => { if (!blocked) void ranking.showMore() }}>{t('chat.ranking.more')}</Button> : null}
-      <Button variant="ghost" size="sm" buttonRef={refreshRef} focusableWhenLoading disabled={!isOnline || ranking.pending === 'open' || ranking.pending === 'page'} loading={ranking.pending === 'refresh'} onClick={() => { if (!blocked) void ranking.refresh() }}>{t('chat.ranking.refresh')}</Button>
+      {ranking.ranking.nextCursor && !ranking.requiresRefresh ? <IconButton label={t('chat.ranking.more')} focusableWhenLoading disabled={!isOnline || ranking.pending === 'open' || ranking.pending === 'refresh'} loading={ranking.pending === 'page'} onClick={() => { if (!blocked) void ranking.showMore() }}><ChevronDown size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
+      <IconButton label={t('chat.ranking.refresh')} buttonRef={refreshRef} focusableWhenLoading disabled={!isOnline || ranking.pending === 'open' || ranking.pending === 'page'} loading={ranking.pending === 'refresh'} onClick={() => { if (!blocked) void ranking.refresh() }}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
     </>} />
 }

@@ -1,6 +1,7 @@
 'use client'
 
-
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
 
 import { useCallback, useEffect, useMemo } from 'react'
@@ -18,7 +19,7 @@ import {
 import type { SubscriptionPortalState, SubscriptionScreenContent, SubscriptionScreenState } from '@orbit/shared/utils'
 import { PageHeader } from '@/components/ui/page-header'
 import { ErrorState } from '@/components/ui/error-state'
-import { PillButton } from '@/components/ui/pill-button'
+
 import { Skeleton } from '@/components/ui/skeleton'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
@@ -39,7 +40,6 @@ import { useSubscriptionStatus } from '@/hooks/use-subscription-status'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useHeldAccountId } from '@/stores/auth-store'
-
 
 const PORTAL_RETURN_KEY = 'orbit.subscription.portal-return'
 
@@ -167,7 +167,6 @@ export default function UpgradePage() {
     }
   }, [isOnline, setPortalState, showPersistentError, provider, t])
 
-
   const retryLoad = () => {
     if (hasReturnError) { retryReturn(); return }
     void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()])
@@ -187,9 +186,7 @@ export default function UpgradePage() {
       <ErrorState
         message={t('upgrade.billing.error')}
         action={
-          <PillButton variant="ghost" loading={isSettling} onClick={retryLoad}>
-            {t('upgrade.billing.retry')}
-          </PillButton>
+          <IconButton label={t('upgrade.billing.retry')} loading={isSettling} onClick={retryLoad}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
         }
       />
     )

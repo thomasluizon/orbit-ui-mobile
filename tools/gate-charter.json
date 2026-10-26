@@ -419,6 +419,16 @@
     "snapshot": "none",
     "constants": "none"
   },
+  "eslint-rules/no-text-icon-action.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "universal icon-action labels",
+        "source": "DESIGN.md Buttons; proof: npm test -w @orbit/eslint-rules -- __tests__/no-text-icon-action.test.mjs"
+      }
+    ]
+  },
   "eslint-rules/no-unjustified-disable.cjs": {
     "scope": "changed-files",
     "snapshot": "none",

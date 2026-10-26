@@ -568,11 +568,11 @@ describe('habit search', () => {
     expect(screen.queryByRole('button', { name: 'Next' })).toBeNull()
   })
 
-  it.each([[false, 'primary'], [true, 'secondary']] as const)('uses the no-results action variant for wide=%s', async (wide, variant) => {
+  it.each([false, true])('uses a neutral icon action for no results with wide=%s', async (wide) => {
     mocks.wide = wide
     mount(true)
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'yoga' } })
-    expect(await screen.findByRole('button', { name: 'Create habit' })).toHaveAttribute('data-variant', variant)
+    expect(await screen.findByRole('button', { name: 'Create habit' })).toHaveAttribute('data-variant', 'ghost')
   })
 
   it.each([false, true])('offers retry on the search page while preserving the query with wide=%s', async (wide) => {

@@ -7,7 +7,8 @@ import { useCallback, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useToastLifecycle } from '@/hooks/use-toast-lifecycle'
 import type { ToastProps } from '@orbit/shared/contracts/feedback'
-import { Check, X } from '@/components/ui/icons'
+import { IconButton } from '@/components/ui/icon-button'
+import { Check, X, RefreshCw } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 
 export function WorkingMark() {
@@ -92,14 +93,14 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
 
       {props.actionLabel ? (
         <div className="ms-auto flex shrink-0 items-center gap-3">
-          <Primitive.Action altText={props.actionLabel}
+          {props.actionIcon ? <Primitive.Action altText={props.actionLabel} asChild><IconButton label={props.actionLabel} onFocus={() => setFocused(true)} onClickCapture={(event) => event.preventDefault()} onClick={() => props.onAction()}><RefreshCw size={20} aria-hidden="true" /></IconButton></Primitive.Action> : <>          <Primitive.Action altText={props.actionLabel}
             className={`cursor-pointer whitespace-nowrap border-0 bg-transparent p-3 text-sm font-medium ${colors.action} underline underline-offset-4 hover:text-[var(--fg-2)] ${props.kind === 'lost' ? 'active:text-[var(--fg-1)]' : 'active:text-[var(--fg-2)]'} active:underline-offset-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]`}
             style={{ fontFamily: 'var(--font-sans)', minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, margin: -SPACING.s4 }}
             onFocus={() => setFocused(true)}
             onClick={(event) => { event.preventDefault(); props.onAction() }}
           >
             {props.actionLabel}
-          </Primitive.Action>
+          </Primitive.Action></>}
           <Primitive.Close asChild><PillButton variant="ghost" size="sm" iconOnly label={t('common.close')} minimumHeight={TOUCH_TARGET_MIN} onClick={dismiss}>
             <X size={20} aria-hidden="true" />
           </PillButton></Primitive.Close>

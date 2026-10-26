@@ -84,9 +84,7 @@ export function NotificationDetailModal({
               {targetKey ? t('notifications.openIn', { target: t(targetKey) }) : t('notifications.view')}
             </Button>
           ) : null}
-          <Button variant="destructive" size="sm" onClick={handleDelete}>
-            {t('notifications.delete')}
-          </Button>
+          <Button variant="destructive" size="sm" onClick={handleDelete}>{t('notifications.delete')}</Button>
         </>
       }
     >

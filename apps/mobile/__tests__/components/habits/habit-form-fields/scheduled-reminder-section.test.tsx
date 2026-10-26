@@ -193,7 +193,7 @@ describe("ScheduledReminderSection", () => {
       scheduledReminders: [],
     });
     const reveal = buttons(tree).find(
-      (node) => !node.props.accessibilityLabel,
+      (node) => node.props.accessibilityLabel === "habits.form.scheduledReminderAdd",
     )!;
     (reveal.props.style as (state: { pressed: boolean }) => unknown)({
       pressed: true,
@@ -203,7 +203,7 @@ describe("ScheduledReminderSection", () => {
     });
     press(reveal);
     const add = buttons(tree).find(
-      (node) => !node.props.accessibilityLabel && node.props.disabled === true,
+      (node) => node.props.accessibilityLabel === "common.add" && node.props.disabled === true,
     );
     (add!.props.style as (state: { pressed: boolean }) => unknown)({
       pressed: true,
@@ -222,7 +222,7 @@ describe("ScheduledReminderSection", () => {
     const { tree, onSetScheduledReminders } = render({
       scheduledReminders: undefined,
     });
-    press(buttons(tree).find((node) => !node.props.accessibilityLabel)!);
+    press(buttons(tree).find((node) => node.props.accessibilityLabel === "habits.form.scheduledReminderAdd")!);
     const picker = tree.root.findAll((node) => node.type === "TimeField")[0]!;
     TestRenderer.act(() => {
       (picker.props as { onClear: () => void }).onClear();
@@ -237,7 +237,7 @@ describe("ScheduledReminderSection", () => {
     expect(sameDay!.props.accessibilityState).toEqual({ checked: false });
     press(sameDay!);
     const add = buttons(tree).find(
-      (node) => !node.props.accessibilityLabel && node.props.disabled === false,
+      (node) => node.props.accessibilityLabel === "common.add" && node.props.disabled === false,
     );
     (add!.props.style as (state: { pressed: boolean }) => unknown)({
       pressed: true,
@@ -245,8 +245,8 @@ describe("ScheduledReminderSection", () => {
     (add!.props.style as (state: { pressed: boolean }) => unknown)({
       pressed: false,
     });
-    const addText = tree.root.findAll((node) => node.type === "Text" && node.props.children === "common.add")[0]!;
-    expect(StyleSheet.flatten(addText.props.style)).toMatchObject({ fontSize: 14 });
+    expect(add!.props.accessibilityLabel).toBe("common.add");
+    expect(add!.findAll((node) => node.type === "Text")).toHaveLength(0);
     press(add!);
     expect(onSetScheduledReminders).toHaveBeenCalledWith([
       { when: "same_day", time: "09:00" },
@@ -257,7 +257,7 @@ describe("ScheduledReminderSection", () => {
     const { tree, onValidationError, onSetScheduledReminders } = render({
       scheduledReminders: [{ when: "same_day", time: "09:00" }],
     });
-    press(buttons(tree).find((node) => !node.props.accessibilityLabel)!);
+    press(buttons(tree).find((node) => node.props.accessibilityLabel === "habits.form.scheduledReminderAdd")!);
     const picker = tree.root.findAll((node) => node.type === "TimeField")[0]!;
     TestRenderer.act(() => {
       (picker.props as { onChange: (value: string) => void }).onChange("09:00");
@@ -265,7 +265,7 @@ describe("ScheduledReminderSection", () => {
     press(
       buttons(tree).find(
         (node) =>
-          !node.props.accessibilityLabel && node.props.disabled === false,
+          node.props.accessibilityLabel === "common.add" && node.props.disabled === false,
       )!,
     );
     expect(onValidationError).toHaveBeenCalledWith(
@@ -278,7 +278,7 @@ describe("ScheduledReminderSection", () => {
     const { tree, onSetScheduledReminders } = render({
       scheduledReminders: [],
     });
-    press(buttons(tree).find((node) => !node.props.accessibilityLabel)!);
+    press(buttons(tree).find((node) => node.props.accessibilityLabel === "habits.form.scheduledReminderAdd")!);
     const picker = tree.root.findAll((node) => node.type === "TimeField")[0]!;
     TestRenderer.act(() => {
       (picker.props as { onChange: (value: string) => void }).onChange("17:30");
@@ -294,7 +294,7 @@ describe("ScheduledReminderSection", () => {
     expect(tree.root.findAll((node) => node.type === "TimeField")).toHaveLength(
       0,
     );
-    press(buttons(tree).find((node) => !node.props.accessibilityLabel)!);
+    press(buttons(tree).find((node) => node.props.accessibilityLabel === "habits.form.scheduledReminderAdd")!);
     const reopenedPicker = tree.root.findAll(
       (node) => node.type === "TimeField",
     )[0]!;
@@ -317,13 +317,13 @@ describe("ScheduledReminderSection", () => {
   it('adds a day-before time to the relative request', () => {
     const { tree, onSetScheduledReminders } = render({ scheduledReminders: [], nested: true })
     press(buttons(tree).find((node) =>
-      node.findAll((child) => child.type === 'Text' && child.props.children === 'habits.form.reminderAddTime').length > 0)!)
+      node.props.accessibilityLabel === 'habits.form.reminderAddTime')!)
     press(tree.root.findAll((node) => node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.scheduledReminderDayBefore')[0]!)
     const picker = tree.root.findAll((node) => node.type === 'TimeField')[0]!
     TestRenderer.act(() => {
       ;(picker.props as { onChange: (value: string) => void }).onChange('18:00')
     })
-    press(buttons(tree).find((node) => !node.props.accessibilityLabel && node.props.disabled === false)!)
+    press(buttons(tree).find((node) => node.props.accessibilityLabel === "common.add" && node.props.disabled === false)!)
     expect(onSetScheduledReminders).toHaveBeenCalledWith([{ when: 'day_before', time: '18:00' }])
     const form = {
       ...buildEmptyHabitFormValues('2025-03-10'),

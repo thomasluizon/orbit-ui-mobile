@@ -43,11 +43,13 @@ vi.mock('@/components/ui/pill-button', () => ({
     size?: string
     variant?: string
   }) => React.createElement('Button', { disabled, onPress: onClick, size, variant }, children),
-  PillButton: ({ disabled, onClick, children }: {
+  PillButton: ({ disabled, onClick, children, label, size }: {
     disabled?: boolean
     onClick?: () => void
     children: React.ReactNode
-  }) => React.createElement('Button', { disabled, onPress: onClick }, children),
+    label?: string
+    size?: string
+  }) => React.createElement('Button', { disabled, onPress: onClick, label, accessibilityLabel: label, size }, children),
 }))
 vi.mock('@/components/ui/orbit-mark', () => ({
   OrbitMark: () => React.createElement('OrbitMark'),
@@ -90,7 +92,7 @@ function nodesByType(root: TestNode, type: string) {
 }
 
 function nodeWithChild(root: TestNode, type: string, child: string) {
-  return nodesByType(root, type).find((node) => node.props.children === child)
+  return nodesByType(root, type).find((node) => (node.props.accessibilityLabel ?? node.props.children) === child)
 }
 
 describe('mobile WrappedCover', () => {

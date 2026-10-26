@@ -12,7 +12,6 @@ import { OverlayHost } from '@/components/ui/overlay-host'
 import { useUIStore } from '@/stores/ui-store'
 import { PortalHost } from '@rn-primitives/portal'
 
-
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 type TestNode = ReturnType<typeof TestRenderer.create>['root']
@@ -96,7 +95,7 @@ vi.mock('@/components/shell/shell-412', async () => {
 })
 vi.mock('@/components/navigation/bottom-tab-bar', () => ({ BottomTabBar: ({ items, activeId, onSelect }: { items: { id: string; label: string }[]; activeId: string; onSelect: (id: string) => void }) => React.createElement('TabBar', { items, activeId, onSelect }) }))
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, onClick, disabled, loading, variant = 'primary', size = 'md', hint }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; loading?: boolean; variant?: string; size?: string; hint?: string }) => React.createElement('PillButton', { onClick, disabled: disabled || loading, variant, size, hint }, children),
+  PillButton: ({ children, label, onClick, disabled, loading, variant = 'primary', size = 'md', hint }: { children: React.ReactNode; label?: string; onClick: () => void; disabled?: boolean; loading?: boolean; variant?: string; size?: string; hint?: string }) => React.createElement('PillButton', { label, onClick, disabled: disabled || loading, variant, size, hint }, children),
 }))
 vi.mock('@/components/ui/app-toast', () => ({ Toast: ({ message }: { message: string }) => React.createElement('Toast', { message }) }))
 vi.mock('@/components/onboarding/onboarding-welcome', () => ({
@@ -129,7 +128,7 @@ async function enterSentence(tree: ReturnType<typeof TestRenderer.create>, sente
 }
 
 async function click(tree: ReturnType<typeof TestRenderer.create>, label: string) {
-  const button = byType(tree.root, 'PillButton').find((node) => node.props.children === label)
+  const button = byType(tree.root, 'PillButton').find((node) => (node.props.label ?? node.props.accessibilityLabel ?? node.props.children) === label)
   expect(button).toBeDefined()
   await TestRenderer.act(() => prop<() => void>(button!, 'onClick')())
 }
@@ -150,7 +149,7 @@ async function pressTextAction(tree: ReturnType<typeof TestRenderer.create>, lab
 }
 
 function findTextAction(tree: ReturnType<typeof TestRenderer.create>, label: string): TestNode {
-  const action = byType(tree.root, 'PillButton').find((node) => node.props.children === label)
+  const action = byType(tree.root, 'PillButton').find((node) => (node.props.label ?? node.props.accessibilityLabel ?? node.props.children) === label)
   expect(action).toBeDefined()
   return action!
 }
