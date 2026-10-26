@@ -4073,6 +4073,9 @@
     "restartCta": "Reiniciar agora"
   },
   "desktopUpdate": {
+    "downloading": "Baixando a atualização...",
+    "installing": "Instalando a atualização...",
+    "failed": "Não foi possível concluir a atualização. Tente de novo.",
     "required": "Esta versão do Orbit precisa ser atualizada. No menu do app, escolha Buscar atualizações e depois Reiniciar para atualizar."
   },
   "forceUpdate": {

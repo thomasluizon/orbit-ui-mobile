@@ -34,12 +34,10 @@
   "updateUnavailable": "Updates unavailable in this build",
   "updateCurrent": "Up to date. Check again",
   "updateChecking": "Checking for updates...",
-  "updateReady": "Update ready",
+  "updateReady": "Update available",
+  "updateDownloading": "Downloading update...",
   "updateInstalling": "Installing update...",
   "updateCheckRetry": "Check for updates (try again)",
   "updateRestart": "Restart to update",
-  "updateRestartRetry": "Restart to update (try again)",
-  "updateNotice": "An update is ready. Finish your conversation, then choose Restart to update from the app menu.",
-  "updateFailed": "Update could not be installed",
-  "updateRetryNotice": "Your conversation is still open. Choose Restart to update from the app menu to try again."
+  "updateRestartRetry": "Restart to update (try again)"
 }

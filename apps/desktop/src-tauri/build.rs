@@ -18,7 +18,11 @@ fn main() {
         _ => panic!("Desktop push requires macOS or Windows"),
     }
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
-        tauri_build::AppManifest::new().commands(&["commit_desktop_login", "desktop_push"]),
+        tauri_build::AppManifest::new().commands(&[
+            "commit_desktop_login",
+            "desktop_push",
+            "desktop_update",
+        ]),
     ))
     .expect("cannot build desktop context")
 }
