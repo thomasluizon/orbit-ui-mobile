@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import { renderToString } from 'react-dom/server'
@@ -8,6 +8,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import shellEn from '../../../desktop/locales/en.json'
 import shellPtBR from '../../../desktop/locales/pt-BR.json'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { DesktopReleaseBoundary } from '@/components/desktop-release-boundary'
 import { Providers } from '@/lib/providers'
 import { writeDesktopChatCheckpoint } from '@/lib/desktop-chat-checkpoint'
@@ -162,7 +163,7 @@ it('restores structured Astra state and visibility through the real provider com
   expect(sessionStorage.length).toBe(0)
 })
 
-it('turns a newly raised floor into the update path without reloading or losing the open conversation', async () => {
+it('offers a newly raised floor and preserves the conversation until Restart is chosen', async () => {
   vi.useFakeTimers()
   vi.stubGlobal('__TAURI_INTERNALS__', {})
   vi.stubGlobal('__ORBIT_DESKTOP_VERSION__', '0.1.2')
@@ -170,7 +171,7 @@ it('turns a newly raised floor into the update path without reloading or losing 
   vi.stubGlobal('location', { reload })
   vi.stubGlobal('fetch', vi.fn(async () => Response.json({ ...await GET().json(), minimumShellVersion: '0.2.0' })))
   useChatStore.setState({ messages: [makeHeldHabitMessage()], isTyping: true })
-  render(<NextIntlClientProvider locale="en" messages={en}><Providers><p>Hoje</p></Providers></NextIntlClientProvider>)
+  render(<NextIntlClientProvider locale="en" messages={en}><Providers><p>Hoje</p><UpdateAvailableBanner /></Providers></NextIntlClientProvider>)
   await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
   expect(screen.getByText('Hoje')).toBeVisible()
   expect(screen.queryByRole('alert')).toBeNull()
@@ -178,6 +179,9 @@ it('turns a newly raised floor into the update path without reloading or losing 
     useChatStore.getState().setIsTyping(false)
     await vi.advanceTimersByTimeAsync(2000)
   })
+  expect(screen.getByText('Hoje')).toBeVisible()
+  expect(screen.queryByRole('alert')).toBeNull()
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.versionUpdate.restartCta })) })
   expect(screen.queryByText('Hoje')).toBeNull()
   expect(screen.getByRole('alert')).toHaveTextContent(en.desktopUpdate.required)
   expect(reload).not.toHaveBeenCalled()

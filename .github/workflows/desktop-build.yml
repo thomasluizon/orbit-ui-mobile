@@ -64,7 +64,7 @@ jobs:
         run: |
           npm run type-check -w @orbit/desktop
           npm run test -w @orbit/desktop
-          npm run test -w @orbit/web -- --project jsdom __tests__/lib/desktop-web-release.test.ts __tests__/components/desktop-release-boundary.test.tsx
+          npm run test -w @orbit/web -- --project jsdom __tests__/lib/desktop-web-release.test.ts __tests__/components/desktop-release-boundary.test.tsx __tests__/components/desktop-update-offer.test.tsx
       - name: Check target and test native context on the runner host
         env:
           DESKTOP_TARGET: ${{ matrix.target }}

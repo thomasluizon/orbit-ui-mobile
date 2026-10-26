@@ -16,6 +16,7 @@ mod push_state;
 mod push_windows;
 mod settings;
 mod update_manifest;
+mod update_resume;
 mod update_state;
 mod updates;
 mod web_release;
@@ -26,7 +27,8 @@ fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             desktop_login::commit_desktop_login,
-            push::desktop_push
+            push::desktop_push,
+            updates::desktop_update
         ])
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Err(error) = lifecycle::show_main(app) {
@@ -64,7 +66,11 @@ fn main() {
             let handle = app.handle().clone();
             menus::install(app.handle())?;
             push::start(app.handle())?;
-            tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
+            let mut window_config = app.config().app.windows[0].clone();
+            if let Some(destination) = update_resume::take(app.handle(), origin)? {
+                window_config.url = tauri::utils::config::WebviewUrl::External(destination);
+            }
+            tauri::WebviewWindowBuilder::from_config(app, &window_config)?
                 .initialization_script(web_release::initialization_script(
                     origin,
                     &app.package_info().version.to_string(),

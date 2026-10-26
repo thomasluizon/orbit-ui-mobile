@@ -71,6 +71,9 @@ pub fn window_state_flags() -> StateFlags {
 
 pub fn on_window_event(window: &tauri::Window, event: &WindowEvent) {
     if window.label() == "main" {
+        if let WindowEvent::Focused(true) = event {
+            crate::updates::check(window.app_handle());
+        }
         if let WindowEvent::CloseRequested { api, .. } = event {
             api.prevent_close();
             if let Err(error) = hide_to_tray(window.app_handle()) {

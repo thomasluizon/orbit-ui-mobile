@@ -1773,6 +1773,14 @@ Work down this list and stop at the first match: focus already moves there, so n
 
 ## Special surfaces
 
+**Desktop updates.** macOS and Windows use the existing neutral update banner in the shell notice
+slot. The stable polite region starts empty, then offers Restart now and Later after typing,
+Astra replies, edits and mutations settle. The notice preserves the existing radius, spacing and
+actions. Later hides the exact offer until the next launch or a newer version. Downloading and
+installation replace its message in place; failure keeps Retry and Later in that surface. Native
+App or File and tray restart actions use the same settle and checkpoint owner. This is the desktop
+runtime adapter; browser and mobile update paths keep their existing platform actions.
+
 **Email sign-in links.** The login code step captures the incoming address and code together,
 removes the secret from navigable history and completes through the same guarded owner as manual
 entry. Waiting for connectivity or fresh bot protection retains the existing code step. Verification
