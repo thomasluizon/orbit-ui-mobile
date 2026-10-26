@@ -21,6 +21,7 @@ interface PickerRowProps {
 }
 
 export function PickerRow({ name, selected, proposed = false, disabled, onToggle, value, valueStyle, valueHidden, children }: Readonly<PickerRowProps>) {
+  const [clamped, setClamped] = useState(false)
   const tokens = useThemeTokens()
   const reducedMotion = usePrefersReducedMotion()
   const styles = useMemo(() => createStyles(tokens), [tokens])
@@ -29,11 +30,11 @@ export function PickerRow({ name, selected, proposed = false, disabled, onToggle
   return (
     <View style={styles.row}>
       <Primitive.Root onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} focusable={!disabled} pressed={selected} onPressedChange={onToggle} role={undefined} aria-checked={undefined} accessibilityRole="button" accessibilityLabel={name} accessibilityState={{ selected, disabled }} disabled={disabled} onHoverIn={() => { if (proposed) setHovered(true) }} onHoverOut={() => setHovered(false)} style={({ pressed }) => [styles.rowMain, focused ? { outlineWidth: 2, outlineColor: tokens.fg1, outlineStyle: 'solid', outlineOffset: -2 } : null, disabled ? styles.disabled : null, hovered && !disabled ? styles.hovered : null, pressed ? [styles.pressed, reducedMotion ? { transform: [] } : null] : null]}>
-        {({ pressed }) => <PersonalText style={[styles.rowTitle, proposed ? styles.proposedTitle : null, proposed && (pressed || hovered) ? styles.interactiveTitle : null]}>{name}</PersonalText>}
+        {({ pressed }) => <PersonalText onClampedChange={setClamped} style={[styles.rowTitle, proposed ? styles.proposedTitle : null, proposed && (pressed || hovered) ? styles.interactiveTitle : null]}>{name}</PersonalText>}
       </Primitive.Root>
       <View style={styles.rowActions}>
         <Text accessible={valueHidden ? false : undefined} style={valueStyle}>{value}</Text>
-        <PersonalTextDetails iconOnly>{name}</PersonalTextDetails>
+        <PersonalTextDetails iconOnly clamped={clamped}>{name}</PersonalTextDetails>
         {children}
       </View>
     </View>

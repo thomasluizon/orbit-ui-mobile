@@ -2,7 +2,7 @@
 
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { PersonalText } from '@/components/ui/personal-text'
@@ -56,6 +56,7 @@ export function HabitDrill({
   subHabitRefusal,
   onShowCompleted,
 }: Readonly<HabitDrillProps>) {
+  const [clamped, setClamped] = useState(false)
   const addRow = drill.currentParentId ? (
     <ListRow
       compact={false}
@@ -82,7 +83,7 @@ export function HabitDrill({
                 letterSpacing: '-0.01em',
               }}
             >
-              <PersonalText>{drill.currentParent?.title ?? ''}</PersonalText>
+              <PersonalText onClampedChange={setClamped}>{drill.currentParent?.title ?? ''}</PersonalText>
             </h2>
             <div className="flex items-center justify-between gap-2">
           <button
@@ -113,7 +114,7 @@ export function HabitDrill({
                 total: drill.drillChildren.length,
               })}
             </p>
-              <PersonalTextDetails iconOnly>{drill.currentParent?.title ?? ''}</PersonalTextDetails>
+              <PersonalTextDetails iconOnly clamped={clamped}>{drill.currentParent?.title ?? ''}</PersonalTextDetails>
             </div>
           </div>
         </div>

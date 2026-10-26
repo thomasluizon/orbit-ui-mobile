@@ -9,7 +9,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { actionResultSchema } from '@orbit/shared/types/chat'
 import { makeEmojiToolResult, toolResultRegressionCases } from '../../../../../packages/shared/src/test-support/tool-result-fixtures'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
-import { expandedTextControls, pressTextControl } from '@/__tests__/support/personal-text'
+import { measureClampedPersonalText, expandedTextControls, pressTextControl } from '@/__tests__/support/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { Button } from '@/components/ui/pill-button'
 import { BlockFrame } from '@/components/ui/block-frame'
@@ -127,6 +127,7 @@ describe.each([
     expect(tree.root.findAll(node => node.type === PersonalTextDetails).map(node => node.props.children)).toEqual(labels)
     for (const label of labels) {
       expect(renderedText(tree.root)).toContain(label)
+      await measureClampedPersonalText(tree.root, label)
       await act(() => pressTextControl(expandedTextControls(tree.root, label, false)[0]!))
       expect(expandedTextControls(tree.root, label, true)).toHaveLength(1)
     }

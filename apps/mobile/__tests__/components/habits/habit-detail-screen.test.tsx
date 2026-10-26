@@ -1,6 +1,6 @@
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
-import { expandedTextControls, pressTextControl, expectPersonalTextLayout } from '@/__tests__/support/personal-text'
+import { measureClampedPersonalText, expandedTextControls, pressTextControl, expectPersonalTextLayout } from '@/__tests__/support/personal-text'
 import { PersonalText } from '@/components/ui/personal-text'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import React from 'react'
@@ -1235,6 +1235,7 @@ describe('HabitDetailScreen', () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
     await TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
     const tags = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'habit-detail-tags')[0]!
+    await measureClampedPersonalText(tree.root, name)
     const disclosure = expandedTextControls(tags, name, false)[0]!
     expect(disclosure).toBeDefined()
     await expectPersonalTextLayout(tree.root, name, 1)

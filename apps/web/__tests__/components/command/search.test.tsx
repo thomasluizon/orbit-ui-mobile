@@ -1,3 +1,4 @@
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -51,6 +52,8 @@ beforeEach(() => {
   mocks.query.mockReturnValue(result([]))
 })
 afterEach(() => { Reflect.deleteProperty(navigator, 'onLine') })
+
+beforeEach(() => measureClampedPersonalText())
 
 describe('habit search', () => {
   it.each([412, 500, 840, 1440].flatMap((width) => ['en', 'pt-BR'].map((locale) => ({ width, locale }))))('shows only habit search at $width in $locale', async ({ width, locale }) => {

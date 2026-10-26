@@ -1,4 +1,5 @@
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fireEvent, render, screen } from '@testing-library/react'
@@ -55,7 +56,7 @@ function mountSurface(surface: string) {
   }
   if (surface === 'goal picker') {
     const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } })
-    queryClient.setQueryData(goalKeys.lists(), Array.from({ length: 21 }, (_, index) => createMockGoal({ id: `goal-${index}`, title: `Goal ${index}` })))
+    queryClient.setQueryData(goalKeys.lists(), Array.from({ length: 21 }, (_, index) => createMockGoal({ id: `goal-${index}`, title: index === 0 ? 'UnbrokenToken'.repeat(24) : `Goal ${index}` })))
     const rendered = render(<QueryClientProvider client={queryClient}><GoalLinkingField selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} /></QueryClientProvider>)
     fireEvent.click(screen.getByRole('button', { name: /habits.form.goals/ }))
     return rendered
@@ -96,6 +97,7 @@ describe('other clipped control containers in Chromium', () => {
   afterAll(async () => { vi.unstubAllGlobals(); await closeChrome(browserLaunch) }, 30_000)
 
   it.each(cases)('goal picker fills only the hovered control at $width in $mode', async ({ width, mode }) => {
+    const restoreMeasurement = measureClampedPersonalText()
     const { container, unmount } = mountSurface('goal picker')
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
@@ -104,6 +106,7 @@ describe('other clipped control containers in Chromium', () => {
       const row = page.locator('[data-picker-row]').first()
       const toggle = row.locator('button[aria-pressed]')
       const disclosure = row.locator('button[aria-expanded]')
+      expect(await toggle.locator('[data-personal-text]').evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true)
       const background = async (selector: string) => row.evaluate((element, target) => {
         for (const animation of element.getAnimations({ subtree: true })) animation.finish()
         return getComputedStyle(target ? element.querySelector(target)! : element).backgroundColor
@@ -120,7 +123,7 @@ describe('other clipped control containers in Chromium', () => {
       await row.locator('span.font-mono').hover()
       expect(await background('')).toBe(restingRow)
       expect(await background('button[aria-pressed]')).toBe(restingToggle)
-    } finally { unmount(); await page.close() }
+    } finally { unmount(); restoreMeasurement(); await page.close() }
   })
 
   for (const { surface, selector } of surfaces) {

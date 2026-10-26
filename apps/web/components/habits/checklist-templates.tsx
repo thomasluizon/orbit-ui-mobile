@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
@@ -31,6 +31,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
   const deleteTemplate = useDeleteChecklistTemplate()
   const [open, setOpen] = useAccountScopedState(false)
   const { sheetRef, closeSheet } = useSheetHost()
+  const [clampedTemplates, setClampedTemplates] = useState<Record<string, boolean>>({})
   const [showSave, setShowSave] = useAccountScopedState(false)
   const [templateName, setTemplateName] = useAccountScopedState('')
 
@@ -141,12 +142,12 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
             {templates.map((template) => (
               <div key={template.id} className="flex min-w-0 flex-col gap-1 px-4 py-2">
                 <button type="button" aria-label={template.name} className="orbit-list-row-body min-h-[var(--touch-min)] w-full min-w-0 rounded-[12px] px-2 py-1 text-left text-[17px] font-normal leading-[1.4] text-[var(--fg-1)]" onClick={() => handleLoad(template.id)}>
-                  <PersonalText>{template.name}</PersonalText>
+                  <PersonalText onClampedChange={(clamped) => setClampedTemplates((current) => current[template.id] === clamped ? current : { ...current, [template.id]: clamped })}>{template.name}</PersonalText>
                 </button>
                 <div className="flex min-w-0 items-center gap-2 px-2 text-sm text-[var(--fg-3)]">
                   <Icon name="template" size={20} />
                   <span className="min-w-0 flex-1">{t('habits.form.templateItemCount', { count: template.items.length })}</span>
-                  <PersonalTextDetails iconOnly>{template.name}</PersonalTextDetails>
+                  <PersonalTextDetails iconOnly clamped={clampedTemplates[template.id]}>{template.name}</PersonalTextDetails>
                   <button type="button" aria-label={`${t('common.delete')}: ${template.name}`} className="orbit-list-row-body grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full" onClick={() => handleDelete(template.id)}>
                     <Icon name="trash" size={20} color="var(--status-bad)" />
                   </button>

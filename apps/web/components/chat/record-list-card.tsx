@@ -1,5 +1,6 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 
 import { useEffect, useState } from 'react'
@@ -17,6 +18,12 @@ import { Check } from '@/components/ui/icons'
 import { fetchJson } from '@/lib/api-fetch'
 import { useMarkNotificationRead } from '@/hooks/use-notifications'
 import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
+
+function RecordTitle({ item, unread, locale }: Readonly<{ item: RecordListCardData['items'][number]; unread: boolean; locale: string }>) {
+  const style = { color: unread ? 'var(--fg-1)' : 'var(--fg-2)', fontWeight: unread ? 600 : 400 }
+  if (item.logDate) return <PersonalText style={style}>{formatReadWindow({ from: item.logDate, to: item.logDate }, locale)}</PersonalText>
+  return <PersonalTextDetails outset textStyle={style}>{item.title}</PersonalTextDetails>
+}
 
 export function RecordListCard({ recordList }: Readonly<{ recordList: RecordListCardData }>) {
   const t = useTranslations()
@@ -79,7 +86,7 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
     const details = [unread ? t('chat.recordList.unread') : null, item.detail, item.value == null ? null : new Intl.NumberFormat(locale).format(item.value), item.date ? date.format(new Date(item.date)) : null, itemCount, keyState].filter(Boolean)
     return {
       id: item.id,
-      label: <PersonalTextDetails outset textStyle={{ color: unread ? 'var(--fg-1)' : 'var(--fg-2)', fontWeight: unread ? 600 : 400 }}>{item.logDate ? formatReadWindow({ from: item.logDate, to: item.logDate }, locale) : item.title}</PersonalTextDetails>,
+      label: <RecordTitle item={item} unread={unread} locale={locale} />,
       wrapLabel: true,
       meta: details.join(' · '),
       wrapMeta: true,

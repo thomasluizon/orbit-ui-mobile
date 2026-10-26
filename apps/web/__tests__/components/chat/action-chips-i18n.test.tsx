@@ -1,6 +1,7 @@
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { actionResultSchema } from '@orbit/shared/types/chat'
@@ -13,6 +14,8 @@ const resolveClarification = vi.hoisted(() => vi.fn(() => new Promise(() => {}))
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: resolveClarification, isPending: false }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+
+beforeEach(() => measureClampedPersonalText())
 
 describe.each([
   { locale: 'en', messages: en, zero: '0 habits', singular: '1 habit', plural: '185 habits' },
