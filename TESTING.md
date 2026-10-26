@@ -381,6 +381,10 @@ The corpus classifies `composition.mode: data` as read cases, together with lega
 that declare nonempty read-only `expectations.allowed` tools. Preview, clarification and refusal
 cases retain their existing assertions. Each read case must still pass every capability assertion;
 a slow outlier alone does not fail latency when the three-run median is below the budget.
+Fewer than three completed requests or a fixture-precondition failure leaves latency incomplete,
+with no median or budget verdict. Precondition failures send no chat request and contribute no
+timing sample. Invalid timing from a request that ran remains a failure, even alongside an unrun
+attempt or a blocked precondition. Real capability failures also retain their failure verdict.
 
 The input is request-bound `evalTrace.timing` from the API timing producer in #1754:
 `totalMilliseconds` and `phases`, whose entries contain `name`, exclusive `milliseconds`, and

@@ -26,7 +26,7 @@ export function mergeReports(windows, expected = descriptors) {
         || entry.unavailableReasons.some((reason) => typeof reason !== 'string'))) throw new Error('Invalid window precondition reasons.')
       if (descriptor.readLatency) {
         validateLatencySummary(entry.latency)
-        if (entry.latency.status === 'fail' && entry.pass3 === 'pass') throw new Error('Window claims a pass despite a failed latency budget.')
+        if (entry.latency.status !== 'pass' && entry.pass3 === 'pass') throw new Error('Window claims a pass without passing latency evidence.')
       }
       collected.set(entry.id, { id: entry.id, family: entry.family, locale: entry.locale, attempts: entry.attempts,
         passed: entry.passed, ...(descriptor.readLatency ? { latency: entry.latency } : {}), unavailableReasons: entry.unavailableReasons ?? [], skipped: entry.skipped, unavailable: entry.unavailable, missingComposition: entry.missingComposition, pass3: entry.pass3 })

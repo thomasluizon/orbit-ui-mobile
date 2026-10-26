@@ -43,7 +43,8 @@ export function summarize(results, expectedCases) {
         && typeof entry.response.metadata.astraPreconditionReason === 'string'
         ? [entry.response.metadata.astraPreconditionReason] : []))]
     const latency = readLatency ? summarizeLatency(attempts) : undefined
-    const status = failed || (attempts.length > 0 && latency?.status === 'fail') ? 'fail' : attempts.length !== 3 || skipped || unavailable || missingComposition ? 'incomplete' : 'pass'
+    const status = failed || latency?.status === 'fail' ? 'fail'
+      : attempts.length !== 3 || skipped || unavailable || missingComposition || latency?.status === 'incomplete' ? 'incomplete' : 'pass'
     return { id, family, locale, ...(latency ? { latency } : {}), unavailableReasons, missingComposition, attempts: attempts.length, passed, skipped, unavailable, pass3: status }
   })
   const unexpected = results.some((entry) => !descriptors.some((expected) => expected.id === entry.testCase.metadata.id))
