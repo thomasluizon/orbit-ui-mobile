@@ -170,7 +170,7 @@ to finish an eval run.
 From the repository root, install the shared workspace dependencies and the standalone eval package:
 
 ```sh
-npm ci --workspace packages/shared --workspace apps/web --ignore-scripts
+npm ci --workspace packages/shared --ignore-scripts
 npm ci --prefix evals/astra --workspaces=false
 ```
 
@@ -181,19 +181,21 @@ The `.github/workflows/astra-eval.yml` Action uses the same two install commands
 clean-install regression check before preparing credentials. Run it locally with
 `npm test --prefix evals/astra -- __tests__/install.test.mjs`. The check
 copies tracked harness and workspace inputs to a temporary directory, runs these documented installs,
-imports the harness and executes the real promptfoo CLI with offline providers through all hooks.
+imports every runtime harness module and executes the real promptfoo CLI with offline providers
+through all hooks.
 The check requires npm registry access or a populated npm cache; it uses no Orbit or grader credentials.
 The Action has only `workflow_dispatch`; it never runs on a schedule, push, or pull request.
 Runs consume real message and spend allowance and incur endpoint and rubric-grader charges.
 Use disposable eval accounts. Write scenarios require held previews; correction scenarios create
 a verified setup turn first. The corpus does not approve them or prove persisted changes.
 
-The clean install includes the web workspace so the harness reuses the client ICU translator already
-locked by the repository. It does not add a formatter dependency. The HTTP provider applies the case
-locale after response extraction, because the installed HTTP response transform receives only HTTP
-metadata. The graded answer uses the shared message selectors, action chip resolver, account row
-formatters and locale catalogs. Ordered blocks project their initially displayed fields; hidden audit
-summaries, payloads, collapsed content and untranslated transport labels never enter the rubric. Raw
+The standalone eval package declares the ICU translator and its React peer at the versions locked
+for the clients; the shared-only install does not install peer dependencies.
+The HTTP provider applies the case locale after response extraction, because the installed HTTP
+response transform receives only HTTP metadata. The graded answer uses the shared message selectors,
+action chip resolver, account row formatters and locale catalogs. Ordered blocks project their
+initially displayed fields; hidden audit summaries, payloads, collapsed content and untranslated
+transport labels never enter the rubric. Raw
 composition and tool evidence remain available to the structural assertions.
 
 ### Environment and reproducible fixtures
