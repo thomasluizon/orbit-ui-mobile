@@ -4,7 +4,7 @@ import React from 'react'
 import Animated from 'react-native-reanimated'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
-import { buildComposerChips, CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
+import { buildChatClientContext, buildComposerChips, CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { createMockHabit, createMockProfile, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { goalKeys, habitKeys, profileKeys } from '@orbit/shared/query'
 import { chatResponseSchema, type ChatMessage, type ChatResponse } from '@orbit/shared/types/chat'
@@ -2259,9 +2259,11 @@ describe('mobile useChatComposer', () => {
       result = await composer.current.confirmAndExecutePendingOperation('pending-1')
     })
 
+    const clientContext = buildChatClientContext({ platform: 'mobile', locale: 'en' })
+    const query = new URLSearchParams({ clientContext: JSON.stringify(clientContext) }).toString()
     expect(mocks.apiClient).toHaveBeenNthCalledWith(
       1,
-      API.ai.pendingOperationConfirm('pending-1'),
+      `${API.ai.pendingOperationConfirm('pending-1')}?${query}`,
       expect.objectContaining({ method: 'POST' }),
     )
     expect(mocks.apiClient).toHaveBeenNthCalledWith(
@@ -2269,7 +2271,7 @@ describe('mobile useChatComposer', () => {
       API.ai.pendingOperationExecute('pending-1'),
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ confirmationToken: 'token-1' }),
+        body: JSON.stringify({ confirmationToken: 'token-1', clientContext }),
       }),
     )
     expect(result).toMatchObject({ ok: true })

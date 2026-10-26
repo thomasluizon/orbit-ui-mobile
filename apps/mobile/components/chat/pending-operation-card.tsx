@@ -110,11 +110,13 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
     </ActionRow>}
   >
     <View style={{ gap: 16 }}>
+      {item.placement?.selected === 'checklist_item' ? <Text style={{ color: tokens.fg2 }}>{labels.placementChecklistNote}</Text> : null}
       {editableItems.length > 1 ? <View style={{ gap: 8 }}>{showSearch ? <Input label={labels.search} value={query} onChange={setQuery} disabled={busy} /> : null}<RadioGroup accessibilityLabel={labels.editTitle}>{editableItems.filter((entry) => !showSearch || entry.entityName.toLocaleLowerCase().includes(query.toLocaleLowerCase())).map((entry) =>
         busy
           ? <RadioRow key={entry.itemId} label={entry.entityName} textMode="personal" selected={entry.itemId === item.itemId} busy reason={labels.acting} />
           : <RadioRow key={entry.itemId} label={entry.entityName} textMode="personal" selected={entry.itemId === item.itemId} onSelect={() => onSelectItem(entry.itemId)} />)}</RadioGroup></View> : null}
-      {item.fields.filter(isPendingOperationEditableField).map((field) => {
+      {item.fields.filter((field) => isPendingOperationEditableField(field)
+        && !(item.placement?.selected === 'new_parent' && field.field === 'parent_habit_id')).map((field) => {
         const label = labels.fieldLabels[field.field] ?? field.field
         const choices = item.fieldOptions?.find((entry) => entry.field === field.field && entry.field === 'parent_habit_id')
         if (choices) return <ParentChoice key={field.field} itemId={item.itemId} itemName={item.entityName} field={choices} labels={labels} disabled={busy}
@@ -199,6 +201,23 @@ function ParentChoice({ itemName, field, labels, disabled, onSelect, selectedVal
   </View>
 }
 
+function PlacementChoice({ itemName, placement, labels, disabled, busy, onSelect }: Readonly<Parameters<PendingOperationCardRenderers['placementChoice']>[0]>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const textStyle = { color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55 }
+  return <View style={{ minWidth: 0, gap: SPACING.s8 }}>
+    <Text style={textStyle}>{labels.placementRecommendation(placement)}</Text>
+    {placement.selected === 'checklist_item' ? <Text style={textStyle}>{labels.placementChecklistNote}</Text> : null}
+    <RadioGroup accessibilityLabel={labels.placementGroup(itemName)}>
+      {[placement.selected, ...placement.alternatives].sort((first, second) => first.localeCompare(second)).map((value) => <RadioRow key={value}
+        label={labels.placementOption(value, placement.destinationName)} wrapLabel proposed textMode={value === 'new_parent' ? undefined : 'personal'}
+        description={value === placement.recommended ? labels.placementRecommended : undefined}
+        selected={value === placement.selected}
+        {...(busy ? { busy: true as const, reason: labels.acting } : disabled ? { disabled: true as const, reasonScope: 'group' as const } : { onSelect: () => onSelect(value) })} />)}
+    </RadioGroup>
+  </View>
+}
+
 const pendingOperationRenderers = {
   blockFrame: (props) => <BlockFrame {...props} items={props.items.map((item) => ({ ...item, label: typeof item.label === 'string' && item.id !== 'remaining' ? <PreviewItemTitle key={item.id} title={item.label} icon={item.icon} rename={item.rename} proposed={item.proposed} /> : item.label }))} />,
   button: ({ label, ...props }) => <PreviewButton label={label} {...props} />,
@@ -206,6 +225,7 @@ const pendingOperationRenderers = {
   stepUp: (props) => <View style={{ flexBasis: '100%', minWidth: 0 }}><StepUp {...props} /></View>,
   verification: (props) => <StepUpVerificationSheet {...props} />,
   editSheet: (props) => <EditPendingOperationSheet {...props} />,
+  placementChoice: (props) => <PlacementChoice key={props.itemId} {...props} />,
   parentChoice: (props) => <ParentChoice key={props.itemId} {...props} />,
   removeItem: (label, disabled, onClick) => <RemoveItemButton label={label} disabled={disabled} onClick={onClick} />,
   notice: (message) => <PreviewNotice message={message} />,

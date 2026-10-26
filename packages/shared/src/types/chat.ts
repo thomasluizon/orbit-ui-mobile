@@ -30,6 +30,7 @@ export const chatClientContextSchema = z.object({
   supportsRecordListCard: z.boolean().optional(),
   supportsAccountRowsCard: z.boolean().optional(),
   supportsPendingOperationChanges: z.boolean().optional(),
+  supportsPendingOperationPlacement: z.boolean().optional(),
   supportsToolSteps: z.boolean().optional(),
   supportsFollowUps: z.boolean().optional(),
   supportsFollowUpContext: z.boolean().optional(),

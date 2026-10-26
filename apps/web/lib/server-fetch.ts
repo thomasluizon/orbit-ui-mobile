@@ -172,7 +172,7 @@ export async function serverAuthMutate<T = unknown>(
   schema?: ZodType<T>,
 ): Promise<T> {
   const { skipAuthRecovery, ...requestInit } = init
-  const astraAction = /^\/api\/ai\/pending-operations\/[^/]+\/(confirm|execute)$/.exec(path)
+  const astraAction = /^\/api\/ai\/pending-operations\/[^/]+\/(confirm|execute)$/.exec(path.replace(/\?.*$/, ''))
   if (astraAction) {
     return observeProxyFailure(`/api/ai/pending-operations/:id/${astraAction[1]}`, (recordUpstream) =>
       fetchWithSession(path, requestInit, schema, intendedAccountId, recordUpstream, undefined, skipAuthRecovery),

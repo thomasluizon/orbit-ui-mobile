@@ -3,12 +3,15 @@ import type { PendingAgentOperation, PendingOperationItem } from '@orbit/shared/
 import type { PendingOperationMessageState } from '@orbit/shared/chat'
 import {
   pendingOperationEdits, pendingOperationRevisionRequest,
+  createUsePendingOperationPlacement, type PendingOperationPlacementEdit,
   createPendingOperationRevisionState, reconcilePendingOperationRevisionState,
   selectPendingOperationRevisionItem, changePendingOperationRevisionDraft,
   applyPendingOperationRevisionPreview,
   type RevisePendingOperation,
   type RefreshPendingOperation,
 } from '@orbit/shared/hooks'
+
+const usePendingOperationPlacement = createUsePendingOperationPlacement(useCallback)
 
 export function usePendingOperationRevision(
   initialOperation: PendingAgentOperation,
@@ -43,13 +46,13 @@ export function usePendingOperationRevision(
   const operationRef = useRef(operation)
   useLayoutEffect(() => { operationRef.current = operation }, [operation])
 
-  const revise = useCallback(async (selected: readonly PendingOperationItem[], edits?: { itemId: string; values: Record<string, unknown> }): Promise<boolean> => {
+  const revise = useCallback(async (selected: readonly PendingOperationItem[], edits?: { itemId: string; values: Record<string, unknown> }, placement?: PendingOperationPlacementEdit): Promise<boolean> => {
     if (!onRevise || !operation.previewFingerprint || busy) return false
     const requestFingerprint = operation.previewFingerprint
     setBusy(true)
     setRevisionError(undefined)
     try {
-      const response = await onRevise(operation.id, pendingOperationRevisionRequest(requestFingerprint, selected, edits))
+      const response = await onRevise(operation.id, pendingOperationRevisionRequest(requestFingerprint, selected, edits, placement))
       if (operationRef.current.id !== operation.id || operationRef.current.previewFingerprint !== requestFingerprint) return false
       if (!response.ok) {
         setStaleFingerprint(response.stale ? requestFingerprint : undefined)
@@ -128,11 +131,15 @@ export function usePendingOperationRevision(
     }
   }, [draft, editingItem, items, operation.previewFingerprint, revise])
 
+  const hasTitleDrafts = items.some((item) => titleDrafts[item.itemId] !== undefined
+    && titleDrafts[item.itemId] !== item.fields.find((field) => field.field === 'title')?.newValue)
+  const switchPlacement = usePendingOperationPlacement(items, revise, busy || stale || rejected || hasTitleDrafts || Boolean(editingItem))
+
   return {
+    switchPlacement,
     operation, items, canRevise, editingItem, draft, editedItemIds, authorizationVersion: synchronized.authorizationVersion,
     busy, stale, rejected, error, errorSource: currentError?.source,
-    hasTitleDrafts: items.some((item) => titleDrafts[item.itemId] !== undefined
-      && titleDrafts[item.itemId] !== item.fields.find((field) => field.field === 'title')?.newValue),
+    hasTitleDrafts,
     setTitleDraft: (itemId: string, title: string | undefined) => setTitleDrafts((current) => ({ ...current, [itemId]: title })),
     canRefresh: Boolean(onRefresh && !refreshUnavailable), refresh,
     markStale: () => {
