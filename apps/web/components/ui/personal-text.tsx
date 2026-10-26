@@ -7,6 +7,7 @@ type PersonalTextProps = Omit<ComponentProps<'span'>, 'children'> & {
   lines?: 1 | 2
   expanded?: boolean
   unclamped?: boolean
+  onClampedChange?: (clamped: boolean) => void
 }
 
 export function useReadableLineHeight(ref: RefObject<HTMLSpanElement | null>, text: string, style: CSSProperties | undefined, enabled = true) {
@@ -27,6 +28,29 @@ export function useReadableLineHeight(ref: RefObject<HTMLSpanElement | null>, te
   return enabled && long ? 'max(1.4em, ' + (typeof style?.lineHeight === 'number' ? `${style.lineHeight}em` : style?.lineHeight ?? '1.4em') + ')' : style?.lineHeight
 }
 
+function useClampedText(ref: RefObject<HTMLSpanElement | null>, text: string, lines: number, expanded: boolean, onClampedChange?: (clamped: boolean) => void) {
+  useLayoutEffect(() => {
+    const element = ref.current
+    if (!element || expanded || !onClampedChange) return
+    let active = true
+    const measure = () => {
+      if (!active) return
+      const overflowingToken = [...element.querySelectorAll('span')].some((token) => token.scrollWidth > token.clientWidth)
+      onClampedChange(element.scrollHeight > element.clientHeight || element.scrollWidth > element.clientWidth || overflowingToken)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    document.fonts.addEventListener('loadingdone', measure)
+    void document.fonts.ready.then(measure)
+    return () => {
+      active = false
+      observer.disconnect()
+      document.fonts.removeEventListener('loadingdone', measure)
+    }
+  }, [ref, text, lines, expanded, onClampedChange])
+}
+
 function ScrollableToken({ children, accessibleName, className = '', ...props }: Readonly<Omit<PersonalTextProps, 'expanded' | 'unclamped'> & { accessibleName: string }>) {
   const [overflowing, setOverflowing] = useState(false)
   const scrollerRef = useRef<HTMLSpanElement>(null)
@@ -43,12 +67,13 @@ function ScrollableToken({ children, accessibleName, className = '', ...props }:
   return <span {...props} ref={scrollerRef} tabIndex={overflowing ? 0 : undefined} role={overflowing ? 'region' : undefined} aria-label={accessibleName} className={`overflow-x-auto ${overflowing ? 'pointer-events-auto' : ''} ${className}`}><span className="inline-block">{children}</span></span>
 }
 
-export function PersonalText({ children, lines: lineLimit = 2, expanded = false, unclamped = false, className = '', style, ...props }: Readonly<PersonalTextProps>) {
+export function PersonalText({ children, lines: lineLimit = 2, expanded = false, unclamped = false, onClampedChange, className = '', style, ...props }: Readonly<PersonalTextProps>) {
   const parts = children.split(/(\s+)/u)
   const singleToken = parts.filter((part) => part.trim()).length <= 1
   const singleLine = singleToken || lineLimit === 1 && !expanded
   const textStyle = { ...style, whiteSpace: singleLine ? 'nowrap' : 'normal', overflowWrap: 'normal', wordBreak: 'normal', hyphens: 'none' } as const
   const textRef = useRef<HTMLSpanElement>(null)
+  useClampedText(textRef, children, lineLimit, expanded, onClampedChange)
   const readableLineHeight = useReadableLineHeight(textRef, children, style, !singleToken)
   if (expanded && singleToken) return <span className={`block min-w-0 max-w-full px-1 ${className}`} style={{ ...textStyle, lineHeight: readableLineHeight ?? 1.4 }}>
     <ScrollableToken {...props} data-personal-text="" data-personal-text-expanded="" accessibleName={children} className="block min-w-0 max-w-full">{children}</ScrollableToken>

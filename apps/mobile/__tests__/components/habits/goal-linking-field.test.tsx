@@ -1,4 +1,4 @@
-import { expandedTextControls, pressTextControl, expectPersonalTextLayout } from '@/__tests__/support/personal-text'
+import { measureClampedPersonalText, expandedTextControls, pressTextControl, expectPersonalTextLayout } from '@/__tests__/support/personal-text'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import React from 'react'
 import { FlatList, StyleSheet } from 'react-native'
@@ -143,6 +143,7 @@ it('selects a goal below the first viewport while the search keyboard is open', 
     const element = <GoalLinkingField selectedGoalIds={['long-goal']} atGoalLimit={false} onToggleGoal={onToggle} />
     let tree!: import('react-test-renderer').ReactTestRenderer
     await TestRenderer.act(() => { tree = TestRenderer.create(element) })
+    await measureClampedPersonalText(tree.root, name)
     const disclosure = expandedTextControls(tree.root, name, false)[0]!
     expect(disclosure).toBeDefined()
     await expectPersonalTextLayout(tree.root, name, 1)
@@ -154,6 +155,7 @@ it('selects a goal below the first viewport while the search keyboard is open', 
     await TestRenderer.act(() => (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)())
     const row = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === name && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true)[0]!
     expect(row).toBeDefined()
+    await measureClampedPersonalText(tree.root, name)
     await expectPersonalTextLayout(row, name)
     const rowDisclosure = expandedTextControls(tree.root, `common.showFullText:${JSON.stringify({ name })}`, false)
     expect(rowDisclosure).toHaveLength(1)

@@ -1,3 +1,4 @@
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import React from 'react'
 import { StyleSheet, type TextStyle } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
@@ -324,6 +325,7 @@ describe('mobile search', () => {
     mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title, isOverdue: true })]))
     await mount()
     await pressText(page === 'log' ? 'Log a habit' : 'Skip a habit')
+    await measureClampedPersonalText(tree.root, title)
     const disclosure = tree.root.findAll((node) => String(node.type) === 'Pressable' && (node.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded === false)[0]!
     expect(disclosure.props.accessibilityLabel).toBe(en.common.showFullText.replace('{name}', title))
     await TestRenderer.act(() => { (disclosure.props.onPress as () => void)() })

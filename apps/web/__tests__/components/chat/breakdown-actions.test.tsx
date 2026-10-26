@@ -1,7 +1,8 @@
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { NextIntlClientProvider } from 'next-intl'
-import { expect, it, vi } from 'vitest'
+import { beforeEach, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { breakdownSubHabits, makeBulkCreateResponse } from '@orbit/shared/test-support/chat-fixtures'
@@ -13,6 +14,8 @@ vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, onConfirm, confirmLabel }: { open: boolean; onConfirm: () => void; confirmLabel: string }) =>
     open ? <div role="dialog"><button onClick={onConfirm}>{confirmLabel}</button></div> : null,
 }))
+
+beforeEach(() => measureClampedPersonalText())
 
 it.each([320, 1352].flatMap(width => (['en', 'pt-BR'] as const).map(locale => ({ width, locale }))))(
   'keeps actions keyboard reachable and drafts intact at $width in $locale', async ({ width, locale }) => {

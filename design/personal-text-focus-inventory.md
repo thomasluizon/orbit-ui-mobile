@@ -44,3 +44,33 @@ accessible native text with horizontal `ScrollView` for expanded lines. Unclampe
 web keyboard-focusable scroller. Overflow tab stops, DOM action separation and
 CSS outline clearance are web platform adapters; they do not change the native
 word-boundary or disclosure behavior.
+
+## Overflow-only disclosure consumers
+
+`PersonalTextDetails` renders plain text until its collapsed text overflows. Web
+measures vertical overflow, horizontal overflow and ellipsized word spans, and
+rechecks on element resize, initial font readiness and subsequent font loads.
+Native text reports unclamped `onTextLayout` lines. Single-line names and long
+unbroken tokens use the same measurement path. Expanded inline text keeps a hidden,
+inaccessible collapsed measurement so reflow can remove a disclosure that no
+longer reveals anything. Measurement never adds a keyboard stop.
+
+Every consumer below has a web and mobile owner. Names remain eligible for
+conditional disclosure because their length is person-controlled. Generated log
+dates in `record-list-card.tsx` use plain `PersonalText`.
+
+| Consumer family | Owners | Measurement owner |
+| --- | --- | --- |
+| Goal titles and linked habit names | `chat/goal-list-card.tsx` | Inline details |
+| Insight habit names | `chat/period-insight-card.tsx` | Inline details |
+| Top habit figures | `chat/metrics-card.tsx` | Inline details |
+| Operation targets and action names | `chat/operation-outcomes.tsx`, `chat/action-chips.tsx` | Inline details |
+| Suggested habit names | `chat/breakdown-suggestion.tsx` | Inline details |
+| Record titles | `chat/record-list-card.tsx` | Inline details; generated log dates stay plain |
+| Connected workspace name | `profile/notion-connection-sheet.tsx` | Inline details |
+| Tags and selected goal names | `habits/habit-detail-screen.tsx`, `habits/habit-form-fields/tag-picker-field.tsx`, `habits/goal-linking-field.tsx` | Single-line inline details |
+| Block titles | `ui/block-frame.tsx` | The visible heading reports overflow to its sibling icon control |
+| Picker names | `ui/picker-row.tsx` | The visible toggle label reports overflow to its sibling icon control |
+| Checklist template names | `habits/checklist-templates.tsx` | Each visible load label reports overflow independently |
+| Drill heading | Web `habits/habit-list/habit-drill.tsx`, mobile `habit-list/habit-drill.tsx` | The visible heading reports overflow to its sibling icon control |
+| Search names | Web `command/command-row.tsx`, mobile `search/search-results.tsx` | The visible result label reports overflow to its sibling icon control |

@@ -1,3 +1,4 @@
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -38,6 +39,8 @@ async function openNotion() {
   await screen.findByText(en.profile.connections.notConnected)
   fireEvent.click(screen.getByRole('button', { name: /Notion/ }))
 }
+beforeEach(() => measureClampedPersonalText())
+
 it('opens the existing calendar sheet route and hides Notion when disabled', () => {
   mocks.enabled = false; mount()
   expect(screen.getByRole('link', { name: en.profile.connections.googleCalendar })).toHaveAttribute('href', '/calendar?import=1')

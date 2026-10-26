@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import { ChatBlock } from '@/components/chat/block-registry'
 import { chatNavigationCases } from '@orbit/shared/test-support/chat-navigation-fixtures'
 import type { ReactNode, MouseEventHandler } from 'react'
@@ -92,7 +93,8 @@ describe('Astra blocks act on app state', () => {
     state.goals.set('goal-1', createMockGoal({ id: 'goal-1', title: 'Move', currentValue: 6, targetValue: 10, isProgressDerived: true, linkedHabits: [{ id: 'habit-1', title: 'Walk' }] }))
     render(<GoalListCard goalList={{ items: [{ id: 'goal-1', title: 'Move', current: 1, target: 10, unit: 'km' }] }} />)
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '10')
-    expect(screen.getByRole('button', { name: 'goals.linkedHabits: Walk' })).toBeInTheDocument()
+    expect(screen.getByText(personalText('goals.linkedHabits: Walk'))).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'goals.linkedHabits: Walk' })).not.toBeInTheDocument()
   })
 })
 

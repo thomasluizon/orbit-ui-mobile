@@ -1,3 +1,4 @@
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
@@ -269,7 +270,10 @@ describe('ChecklistTemplates across an account change', () => {
 
     expect(screen.getByPlaceholderText('habits.form.templateNamePlaceholder')).toHaveValue('Account A checklist')
   })
+  afterEach(() => vi.restoreAllMocks())
+
   it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full template name %s without loading it', (name) => {
+    measureClampedPersonalText()
     mockTemplates.mockReturnValue({ data: [{ id: 'template-1', name, items: ['Run'] }] })
     const onLoad = vi.fn()
     render(<ChecklistTemplates items={[]} onLoad={onLoad} />)

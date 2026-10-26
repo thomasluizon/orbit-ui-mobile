@@ -1,3 +1,4 @@
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import type { Page } from '@playwright/test'
 import { makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
@@ -104,7 +105,7 @@ describe('Pending preview geometry in Chromium', () => {
     const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
     stylesheet = `${compiled.css}\n${fonts}\n@font-face { font-family: TestSpaceGrotesk; font-weight: 500; src: url(data:font/ttf;base64,${displayFont}); }\n:root { ${variables}; --font-sans: TestGeist; --font-mono: TestMono; --font-display: TestSpaceGrotesk; }`
   })
-  afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+  afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each([390, 840, 1352].flatMap(width => locales.flatMap(locale => ['dark', 'light'].flatMap(mode => ['pending', 'done', 'failed', 'stale'].map(state => ({ width, locale, mode, state }))))))('keeps drawn block spacing and sans count at $width in $locale $mode while $state', async ({ width, locale, mode, state }) => {
@@ -235,6 +236,7 @@ describe('Pending preview geometry in Chromium', () => {
   })
 
   it.each([412, 1352].flatMap(width => locales.flatMap(locale => ['goal', 'goal-disclosure', 'breakdown', 'actions'].flatMap(surface => (surface === 'actions' ? [false] : [false, true]).map(expanded => ({ width, locale, surface, expanded }))))))('keeps the $surface outset unclipped at $width in $locale while expanded $expanded', async ({ width, locale, surface, expanded }) => {
+    measureClampedPersonalText()
     const messages = locale === 'en' ? en : pt
     const content = surface === 'actions' ? <ActionChips actions={[makeActionResult()]} onChipClick={vi.fn()} /> : surface === 'breakdown' ? <BreakdownSuggestion parentName="House routine" subHabits={breakdownSubHabits} onConfirmed={vi.fn()} onCancelled={vi.fn()} /> : <GoalListCard goalList={goalListCardFixture} onOpenGoal={surface === 'goal' ? vi.fn() : undefined} />
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><div style={{ width: Math.min(width, 740), padding: 16 }}>{content}</div></NextIntlClientProvider>)

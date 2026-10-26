@@ -74,6 +74,7 @@ export function ChecklistTemplates({
   const deleteTemplate = useDeleteChecklistTemplate()
   const [open, setOpen] = useState(false)
   const { sheetRef, closeSheet } = useSheetHost()
+  const [clampedTemplates, setClampedTemplates] = useState<Record<string, boolean>>({})
   const [showSave, setShowSave] = useState(false)
   const [templateName, setTemplateName] = useState('')
 
@@ -185,12 +186,12 @@ export function ChecklistTemplates({
             {templates.map((template) => (
               <View key={template.id} style={styles.templateRow}>
                 <Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel={template.name} focusInset style={({ pressed }) => [styles.templateLoad, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]} onPress={() => handleLoad(template.id)}>
-                  <PersonalText style={styles.templateName}>{template.name}</PersonalText>
+                  <PersonalText onClampedChange={(clamped) => setClampedTemplates((current) => current[template.id] === clamped ? current : { ...current, [template.id]: clamped })} style={styles.templateName}>{template.name}</PersonalText>
                 </Pressable>
                 <View style={styles.templateActions}>
                   <Icon name="template" size={20} color={tokens.fg3} />
                   <Text style={styles.templateCount}>{t('habits.form.templateItemCount', { count: template.items.length })}</Text>
-                  <PersonalTextDetails iconOnly>{template.name}</PersonalTextDetails>
+                  <PersonalTextDetails iconOnly clamped={clampedTemplates[template.id]}>{template.name}</PersonalTextDetails>
                   <Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel={`${t('common.delete')}: ${template.name}`} focusInset style={({ pressed }) => [styles.templateDelete, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]} onPress={() => handleDelete(template.id)}>
                     <Icon name="trash" size={20} color={tokens.statusBad} />
                   </Pressable>
