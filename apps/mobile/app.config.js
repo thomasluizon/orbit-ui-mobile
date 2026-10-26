@@ -23,12 +23,17 @@ function withLocalPlugins(plugins) {
 
 module.exports = () => {
   const baseConfig = appJson.expo ?? {};
+  const appVersion = process.env.ORBIT_APP_VERSION;
+  if (appVersion !== undefined && (!/^\d+\.\d+\.\d+$/.test(appVersion) || appVersion !== appVersion.trim())) {
+    throw new Error('Invalid ORBIT_APP_VERSION; expected x.y.z');
+  }
   const captureMode = readBooleanEnv("EXPO_PUBLIC_CAPTURE_MODE", false);
   const appleTeamId = process.env.ORBIT_APPLE_TEAM_ID?.trim();
   const appStoreId = process.env.ORBIT_IOS_APP_STORE_ID?.trim();
   if (appStoreId && !/^\d+$/.test(appStoreId)) throw new Error('Invalid iOS App Store id');
   const productionConfig = {
     ...baseConfig,
+    version: appVersion ?? baseConfig.version,
     updates: { ...baseConfig.updates, enabled: false },
     ios: {
       ...baseConfig.ios,

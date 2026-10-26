@@ -20,10 +20,21 @@ It defaults to the standard Xcode application; an existing `DEVELOPER_DIR` overr
 requires Xcode with Device Hub, completed first-launch setup, CocoaPods on PATH, an installed iOS
 runtime with an iPhone simulator, and dependencies installed through `npm ci`.
 
+The app version comes from the newest `android-release` GitHub Deployment in `staging`,
+whose payload must identify the `internal` track and the staging API. Authenticate `gh` with
+repository read access, or pass `--app-version <x.y.z>` to select a version explicitly and skip
+the lookup. Missing records, authentication failures and malformed versions stop the command
+with that override in the error; the checkout version is never used implicitly.
+
 Each run regenerates `apps/mobile/ios` with Expo prebuild, then compiles Release for the simulator
-without signing. It pins `ORBIT_APP_VARIANT=staging` and
+with local ad hoc signing. This retains the app and widget Keychain entitlements without an Apple
+account, signing certificate or provisioning profile. It pins `ORBIT_APP_VARIANT=staging` and
 `EXPO_PUBLIC_API_BASE=https://api-staging.useorbit.org`, disables Sentry upload, installs
 `org.useorbit.app.staging` and launches it. JavaScript is bundled; no development server is needed.
+Before prebuild it sets `ORBIT_APP_VERSION` for the child commands so both the native
+version and the bundled Expo config carry the selected version, including `X-App-Version` requests.
+It leaves `app.json` untouched, including on cancellation, and verifies the built and
+installed versions before launching.
 
 Use a background terminal for the build. Logs and checkout-local DerivedData stay under the ignored
 `apps/mobile/.artifacts/ios-simulator` directory. An overlapping invocation in the same checkout is refused;
