@@ -88,7 +88,8 @@ describe('WidgetKit prebuild plugin using the installed Expo project template', 
     for (const configuration of configurations) {
       const settings = project.pbxXCBuildConfigurationSection()[configuration.value]!.buildSettings
       expect(settings).toMatchObject({ PRODUCT_BUNDLE_IDENTIFIER: `${bundleIdentifier}.widget`,
-        TARGETED_DEVICE_FAMILY: '"1,2"', IPHONEOS_DEPLOYMENT_TARGET: '17.4', SKIP_INSTALL: 'YES', APPLICATION_EXTENSION_API_ONLY: 'YES' })
+        TARGETED_DEVICE_FAMILY: '"1,2"', IPHONEOS_DEPLOYMENT_TARGET: '17.4', SKIP_INSTALL: 'YES', APPLICATION_EXTENSION_API_ONLY: 'YES',
+        PODS_ROOT: '"$(SRCROOT)/Pods"' })
       expect(settings).not.toHaveProperty('DEVELOPMENT_TEAM')
       expect(settings).not.toHaveProperty('PROVISIONING_PROFILE_SPECIFIER')
     }

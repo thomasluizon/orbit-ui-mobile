@@ -1,3 +1,4 @@
+import { testI18n } from '@/__tests__/support/i18n'
 import { SettingsGroup } from '@/components/ui/settings-group';
 import { PersonalText } from '@/components/ui/personal-text'
 import React from "react";
@@ -134,7 +135,7 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     i18n: { language: mocks.language },
     t: (key: string, params?: Record<string, unknown>) =>
-      key === 'calendar.calendars.title' ? (mocks.language === 'pt-BR' ? ptBR : en).calendar.calendars.title : key === 'calendar.eventsFound' ? (mocks.language === 'pt-BR' ? ptBR : en).calendar.eventsFound.replaceAll('{count}', String(params?.count)) : params ? `${key}(${JSON.stringify(params)})` : key,
+      key === 'calendar.calendars.title' ? (mocks.language === 'pt-BR' ? ptBR : en).calendar.calendars.title : key === 'calendar.eventsFound' ? testI18n.getFixedT(mocks.language)(key, params) : params ? `${key}(${JSON.stringify(params)})` : key,
   }),
 }));
 

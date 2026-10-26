@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { applyThemeTokensToDOM, resolveWebThemeVariables } from '@/lib/theme-dom'
 
 import {
   applyProfilePresentation,
@@ -87,6 +88,22 @@ describe('profile presentation helpers', () => {
     expect(document.documentElement).toHaveClass('scheme-orange', 'dark')
     expect(document.documentElement.style.getPropertyValue('--primary')).toBe('#C4530F')
     expect(document.cookie).toContain('orbit_color_scheme=orange')
+  })
+
+  it.each(['light', 'dark'] as const)('keeps resolved system %s tokens after hydrating a null theme preference', async (themeMode) => {
+    globalThis.window.matchMedia = createMatchMediaMock(themeMode === 'light')
+    applyThemeTokensToDOM('orange', themeMode)
+    const profile = createMockProfile({ themePreference: null })
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json(profile)))
+
+    await expect(hydrateProfilePresentation()).resolves.toEqual(profile)
+
+    expect(document.documentElement).toHaveClass(themeMode)
+    expect(document.cookie).toContain(`orbit_theme_mode=${themeMode}`)
+    const variables = resolveWebThemeVariables('orange', themeMode)
+    for (const [property, value] of Object.entries(variables)) {
+      expect(document.documentElement.style.getPropertyValue(property)).toBe(value)
+    }
   })
 
   it.each(['purple', 'blue', 'green', 'rose', 'orange', 'cyan', null])(

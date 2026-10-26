@@ -212,7 +212,7 @@ describe('Composer', () => {
     expect(send.textContent).toBe('')
     expect(send.querySelector('[data-asset^="astra-mark"]')).toBeNull()
     expect(send.querySelectorAll('svg')).toHaveLength(1)
-    expect(send.querySelector('svg')).toHaveClass(state === 'sending' ? 'tabler-icon-loader-2' : 'tabler-icon-arrow-up')
+    expect(send.querySelector('svg')).toHaveClass('tabler-icon-arrow-up')
   })
 
   it.each([en, ptBR].flatMap(messages => (['idle', 'atLimit', 'offline', 'sending'] as const).map(state => ({ messages, state }))))(
@@ -346,15 +346,14 @@ describe('Composer', () => {
   })
 
   it.each(['idle', 'sending', 'offline', 'atLimit', 'recording', 'transcribing'] as const)(
-    'replaces the send arrow with progress only while sending: %s', state => {
+    'keeps the upward send arrow in every composer state: %s', state => {
       const view = render(<Composer {...props({ state, value: 'Draft', limitReason: 'reason', onVoice: vi.fn(), voiceWords })} />)
       const send = screen.getByRole('button', { name: words.send })
       expect(send.querySelector('[data-asset="astra-mark"]')).toBeNull()
       expect(send.querySelectorAll('svg')).toHaveLength(1)
       expect(send.lastElementChild).toHaveAttribute('aria-hidden', 'true')
-      expect(send.querySelectorAll('.orbit-essential-loading')).toHaveLength(state === 'sending' ? 1 : 0)
-      if (state === 'sending') expect(send).toHaveAttribute('aria-busy', 'true')
-      else expect(send).not.toHaveAttribute('aria-busy')
+      expect(send.querySelectorAll('.orbit-essential-loading')).toHaveLength(0)
+      expect(send).not.toHaveAttribute('aria-busy')
       view.unmount()
     },
   )
@@ -472,16 +471,16 @@ describe('Composer', () => {
 
   it('restores input focus when the composer still owns focus after sending', () => {
     const view = render(<Composer {...props({ state: 'sending' })} autoFocus />)
-    expect(screen.getByRole('textbox').closest('[data-composer-root]')).toHaveFocus()
+    expect(screen.getByRole('textbox')).toHaveFocus()
     view.rerender(<Composer {...props()} autoFocus />)
     expect(screen.getByRole('textbox')).toHaveFocus()
   })
 
-  it('keeps input focus in the composer when an active input becomes disabled', () => {
+  it('keeps input focus when a reply begins', () => {
     const view = render(<Composer {...props()} autoFocus />)
     expect(screen.getByRole('textbox')).toHaveFocus()
     view.rerender(<Composer {...props({ state: 'sending' })} autoFocus />)
-    expect(screen.getByRole('textbox').closest('[data-composer-root]')).toHaveFocus()
+    expect(screen.getByRole('textbox')).toHaveFocus()
   })
 
   it('keeps focus on the stop control as recording ends in transcription', () => {
@@ -653,7 +652,7 @@ describe('Composer', () => {
     ['idle with text', { state: 'idle', value: 'oi' }, true, false],
     ['idle with an image only', { state: 'idle', attachments: [{ id: 'image-id', kind: 'image', name: 'walk.png' }] }, false, true],
     ['idle with a file only', { state: 'idle', attachments: [{ id: 'file-id', kind: 'file', name: 'notes.txt' }] }, true, false],
-    ['sending', { state: 'sending', value: 'oi' }, true, true],
+    ['sending', { state: 'sending', value: 'oi' }, true, false],
     ['atLimit', { state: 'atLimit', value: 'oi', limitReason: 'limit sentinel' }, false, true],
     ['offline', { state: 'offline', value: 'oi', limitReason: 'offline sentinel' }, false, true],
     ['recording', { state: 'recording', value: 'oi', onVoice: vi.fn(), voiceWords }, false, true],
@@ -671,7 +670,7 @@ describe('Composer', () => {
       expect(send).toHaveClass('enabled:hover:bg-[var(--primary-hover)]')
     }
     expect(send.querySelectorAll('svg')).toHaveLength(1)
-    expect(send.querySelectorAll('.orbit-essential-loading')).toHaveLength(_case === 'sending' ? 1 : 0)
+    expect(send.querySelectorAll('.orbit-essential-loading')).toHaveLength(0)
     expect(send.querySelector('[data-asset^="astra-mark"]')).toBeNull()
     if (_case === 'sending') expect(send).not.toHaveClass('disabled:opacity-40')
     else if (disabled) expect(send).toHaveClass('disabled:opacity-40')
@@ -715,13 +714,13 @@ describe('Composer', () => {
     expect(onSend).toHaveBeenCalledOnce()
   })
 
-  it('disables input and send and hides suggestions during sending', () => {
+  it('keeps input and send enabled and hides suggestions during sending', () => {
     render(<Composer {...props({ state: 'sending', value: 'oi' })} />)
-    expect(screen.getByRole('textbox', { name: words.placeholder })).toBeDisabled()
+    expect(screen.getByRole('textbox', { name: words.placeholder })).toBeEnabled()
     const send = screen.getByRole('button', { name: words.send })
-    expect(send).toBeDisabled()
-    expect(send).toHaveAttribute('aria-busy', 'true')
-    expect(send.querySelector('.orbit-essential-loading')).not.toBeNull()
+    expect(send).toBeEnabled()
+    expect(send).not.toHaveAttribute('aria-busy')
+    expect(send.querySelector('.orbit-essential-loading')).toBeNull()
     expect(screen.queryByRole('group', { name: words.suggestionsLabel })).not.toBeInTheDocument()
   })
 
@@ -922,3 +921,25 @@ describe('Composer', () => {
     expect(onChangeValue).not.toHaveBeenCalled()
   })
 })
+
+
+  it.each([en, ptBR])('shows removable queued rows, manual sends and a separate stop control in both languages', (messages) => {
+    const onRemove = vi.fn()
+    const onQueuedSend = vi.fn()
+    const onStop = vi.fn()
+    const copy = messages.shell.composer.queue
+    const queue = {
+      label: copy.label, items: [{ id: 'first', content: 'First request' }, { id: 'second', content: 'Second request' }],
+      pausedReason: copy.paused, canSend: true,
+      removeLabel: (message: string) => copy.remove.replace('{message}', message),
+      sendLabel: (message: string) => copy.send.replace('{message}', message),
+      onRemove, onSend: onQueuedSend,
+    }
+    render(<Composer {...props({ queue, replyControl: { label: copy.stop, onStop }, value: 'New draft' })} />)
+    fireEvent.click(screen.getByRole('button', { name: queue.removeLabel('Second request') }))
+    fireEvent.click(screen.getByRole('button', { name: queue.sendLabel('First request') }))
+    fireEvent.click(screen.getByRole('button', { name: copy.stop }))
+    expect(onRemove).toHaveBeenCalledWith('second')
+    expect(onQueuedSend).toHaveBeenCalledWith('first')
+    expect(onStop).toHaveBeenCalledOnce()
+  })

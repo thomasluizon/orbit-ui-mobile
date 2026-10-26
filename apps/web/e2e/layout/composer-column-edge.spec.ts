@@ -8,6 +8,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { notificationsResponseSchema } from '@orbit/shared/types/notification'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { formatCatalogMessage } from '../support/messages'
 import { test } from './upgrade-fixtures'
 import { measureScrollbarGutter } from './scrollbar-geometry'
 import { measureChromePaint } from './composer-column-paint'
@@ -117,7 +118,7 @@ for (const width of [600, 1100]) {
             await expectRightEdge(composer.locator('[data-composer-input-row]'), rowRight)
             if (atLimit) {
               await expect(composer.locator('[data-composer-status-slot]')).toHaveCSS('min-height', '96px')
-              const reason = words.shell.composer.limit.reason.replace('{allowance}', '5')
+              const reason = formatCatalogMessage(locale, 'shell.composer.limit.reason', { allowance: 5 })
               await expectRightEdge(composer.getByText(reason, { exact: true }), rowRight)
               await expect(composer.getByText(words.shell.composer.limit.renewal, { exact: true })).toHaveCount(1)
               await expect(composer.locator('[data-composer-usage]')).toHaveCount(0)

@@ -167,9 +167,23 @@ comparison is absent; this harness cannot override that selection. D147 selects 
 at low effort with the existing per-user daily ceiling. Do not increase quotas or backstops
 to finish an eval run.
 
-Install with `npm ci --prefix evals/astra --workspaces=false`. From `evals/astra`, run
-`npx promptfoo eval` after preparing the environment below. The `.github/workflows/astra-eval.yml`
-Action has only `workflow_dispatch`; it never runs on a schedule, push, or pull request.
+From the repository root, install the shared workspace dependencies and the standalone eval package:
+
+```sh
+npm ci --workspace packages/shared --ignore-scripts
+npm ci --prefix evals/astra --workspaces=false
+```
+
+The harness imports shared TypeScript source, whose dependencies resolve from the root install.
+The shared workspace install skips lifecycle scripts and does not install the app workspaces.
+From `evals/astra`, run `npx promptfoo eval` after preparing the environment below.
+The `.github/workflows/astra-eval.yml` Action uses the same two install commands and runs the
+clean-install regression check before preparing credentials. Run it locally with
+`npm test --prefix evals/astra -- __tests__/install.test.mjs`. The check
+copies tracked harness and workspace inputs to a temporary directory, runs these documented installs,
+imports the harness and executes the real promptfoo CLI with offline providers through all hooks.
+The check requires npm registry access or a populated npm cache; it uses no Orbit or grader credentials.
+The Action has only `workflow_dispatch`; it never runs on a schedule, push, or pull request.
 Runs consume real message and spend allowance and incur endpoint and rubric-grader charges.
 Use disposable eval accounts. Write scenarios require held previews; correction scenarios create
 a verified setup turn first. The corpus does not approve them or prove persisted changes.

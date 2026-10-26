@@ -130,7 +130,7 @@ it.each(['offline', 'atLimit'] as const)('disables every idea and shows the reas
   conversation(send, state)
   fireEvent.click(screen.getAllByRole('button', { name: 'Browse ideas' })[0]!)
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Ideas' })).toHaveFocus())
-  expect(within(document.querySelector<HTMLElement>('[data-prompt-library]')!).getByText(state === 'offline' ? en.shell.composer.offline.reason : en.shell.composer.limit.reason.replace('{allowance}', '5'))).toBeInTheDocument()
+  expect(within(document.querySelector<HTMLElement>('[data-prompt-library]')!).getByText(state === 'offline' ? en.shell.composer.offline.reason : createTranslator({ locale: 'en', messages: en })('shell.composer.limit.reason', { allowance: 5 }))).toBeInTheDocument()
   const row = screen.getByRole('button', { name: 'Plan my morning' })
   expect(row).toBeDisabled()
   fireEvent.click(row)

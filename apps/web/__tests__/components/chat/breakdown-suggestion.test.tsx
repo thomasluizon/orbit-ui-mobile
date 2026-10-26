@@ -1,3 +1,4 @@
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { createApiClientError } from '@orbit/shared/utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -41,6 +42,8 @@ beforeEach(() => {
 })
 
 afterEach(() => vi.restoreAllMocks())
+
+beforeEach(() => measureClampedPersonalText())
 
 it('confirms removal of a named proposal and submits only the retained row', async () => {
   bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success']))

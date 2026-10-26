@@ -7,7 +7,7 @@ import { SPACING } from '@orbit/shared/theme'
 
 import { ActionRow } from './action-row'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type {
   BlockFrameItemStatus,
   BlockFrameProps,
@@ -167,6 +167,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem }: Read
 }
 
 export function BlockFrame(props: Readonly<BlockFrameProps>) {
+  const [clamped, setClamped] = useState(false)
   const titleRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     if (props.focusTitleOnMount) titleRef.current?.focus({ preventScroll: true })
@@ -189,12 +190,12 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
       }}
     >
       <header className={`flex shrink-0 gap-3 ${props.titleMode === 'typed' ? 'min-w-0 flex-col' : 'items-center'}`}>
-        <h3 ref={titleRef} tabIndex={props.focusTitleOnMount ? -1 : undefined} className={props.titleMode === 'typed' ? 'min-w-0 text-base font-medium' : props.wrapTitle ? 'min-w-0 flex-1 break-words text-base font-medium' : 'min-w-0 flex-1 truncate text-base font-medium'}>{props.titleMode === 'typed' ? <PersonalText>{props.title}</PersonalText> : props.title}</h3>
+        <h3 ref={titleRef} tabIndex={props.focusTitleOnMount ? -1 : undefined} className={props.titleMode === 'typed' ? 'min-w-0 text-base font-medium' : props.wrapTitle ? 'min-w-0 flex-1 break-words text-base font-medium' : 'min-w-0 flex-1 truncate text-base font-medium'}>{props.titleMode === 'typed' ? <PersonalText onClampedChange={setClamped}>{props.title}</PersonalText> : props.title}</h3>
         <div className="flex shrink-0 items-center justify-end gap-3">
           {props.count !== null && (props.count !== undefined || props.items.length > 0) ? (
             <span className="font-sans text-xs tabular-nums text-[var(--fg-3)]">{props.count ?? props.items.length}</span>
           ) : null}
-          {props.titleMode === 'typed' ? <PersonalTextDetails iconOnly>{props.title}</PersonalTextDetails> : null}
+          {props.titleMode === 'typed' ? <PersonalTextDetails iconOnly clamped={clamped}>{props.title}</PersonalTextDetails> : null}
         </div>
       </header>
       <FrameStaleMessage frameProps={props} />

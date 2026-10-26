@@ -1,3 +1,4 @@
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MetricsCard as MetricsCardData } from '@orbit/shared/types/chat'
@@ -27,6 +28,8 @@ beforeEach(() => {
     constructor(private callback: (entries: { contentRect: { width: number } }[]) => void) {}
   })
 })
+
+beforeEach(() => measureClampedPersonalText())
 
 describe('Astra metrics card on web', () => {
   it('renders overview rows, seven bars and the Progress chip', () => {

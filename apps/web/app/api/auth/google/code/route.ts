@@ -2,11 +2,11 @@ import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { resolveSystemLocale } from '@orbit/shared/utils'
 import { NextResponse, type NextRequest } from 'next/server'
 import { z } from 'zod'
-import { setSessionCookies } from '@/lib/auth-api'
+import { AUTH_COOKIE, setSessionCookies } from '@/lib/auth-api'
 import { buildBffForwardingHeaders } from '@/app/api/_utils/bff-forwarding'
 import { buildAuthErrorPayload, buildRequestIdResponseHeaders, ORBIT_REQUEST_ID_HEADER, resolveRequestId, resolveResponseRequestId } from '@/lib/auth-proxy'
 import { googleCodeAuthRequestSchema, googleCodeAuthResponseSchema } from '@orbit/shared/types/auth'
-import { getGoogleOAuthSessionOwner, GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
+import { getGoogleOAuthRefreshOwner, getGoogleOAuthSessionOwner, GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
 
 const callbackSchema = z.object({
   code: z.string().min(1),
@@ -14,6 +14,10 @@ const callbackSchema = z.object({
   language: z.string(),
   referralCode: z.string().optional(),
 })
+
+function logFailure(step: string, reason: string, requestId: string, status: number) {
+  process.stderr.write(JSON.stringify({ event: 'google_oauth_failed', step, reason, status, requestId }) + '\n')
+}
 
 export function DELETE(request: NextRequest) {
   const response = NextResponse.json({})
@@ -42,12 +46,18 @@ export async function POST(request: NextRequest) {
   try { pendingValue = pendingRaw ? JSON.parse(pendingRaw) : null } catch { pendingValue = null }
   const pending = z.object({
     verifier: z.string(), state: z.string(), redirectUri: z.string(), sessionOwner: z.string(),
+    refreshOwner: z.string().nullable().optional(),
   }).safeParse(pendingValue)
   const callback = callbackSchema.safeParse(await request.json().catch(() => null))
   if (!pending.success || !callback.success || pending.data.state !== callback.data.state) {
+    const reason = !pending.success ? 'pending_cookie_invalid' : !callback.success ? 'callback_invalid' : 'state_mismatch'
+    logFailure('state', reason, requestId, 400)
     return NextResponse.json({ error: 'Invalid OAuth state', requestId }, { status: 400, headers })
   }
-  if (pending.data.sessionOwner !== getGoogleOAuthSessionOwner(request)) {
+  const ownsRefresh = !request.cookies.get(AUTH_COOKIE)?.value && pending.data.refreshOwner
+    && pending.data.refreshOwner === getGoogleOAuthRefreshOwner(request)
+  if (pending.data.sessionOwner !== getGoogleOAuthSessionOwner(request) && !ownsRefresh) {
+    logFailure('session', 'session_changed', requestId, 400)
     return finish(NextResponse.json({ error: 'Authentication session changed', requestId }, { status: 400, headers }))
   }
 
@@ -58,6 +68,8 @@ export async function POST(request: NextRequest) {
     language: callback.data.language,
     ...(callback.data.referralCode ? { referralCode: callback.data.referralCode } : {}),
   })
+  let step = 'transport'
+  let failureRequestId = requestId
   try {
     const response = await fetch(`${process.env.API_BASE ?? 'http://localhost:5000'}/api/auth/google/code`, {
       method: 'POST',
@@ -70,15 +82,22 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify(body),
     })
-    const data: unknown = await response.json().catch(() => null)
+    step = 'response'
     const backendRequestId = resolveResponseRequestId(response, requestId)
+    failureRequestId = backendRequestId
     headers.set(ORBIT_REQUEST_ID_HEADER, backendRequestId)
-    if (!response.ok) return finish(NextResponse.json(buildAuthErrorPayload(data, backendRequestId), { status: response.status, headers }))
+    const data: unknown = await response.json().catch(() => null)
+    if (!response.ok) {
+      logFailure('api', 'upstream_rejected', backendRequestId, response.status)
+      return finish(NextResponse.json(buildAuthErrorPayload(data, backendRequestId), { status: response.status, headers }))
+    }
     const loginResponse = googleCodeAuthResponseSchema.parse(data)
+    step = 'cookies'
     await setSessionCookies(loginResponse.token, loginResponse.refreshToken)
     const { token: _token, refreshToken: _refreshToken, ...safeResponse } = loginResponse
     return finish(NextResponse.json(safeResponse, { headers }))
   } catch {
-    return finish(NextResponse.json({ error: 'Authentication failed', requestId }, { status: 500, headers }))
+    logFailure(step, 'exception', failureRequestId, 500)
+    return finish(NextResponse.json({ error: 'Authentication failed', requestId: failureRequestId }, { status: 500, headers }))
   }
 }

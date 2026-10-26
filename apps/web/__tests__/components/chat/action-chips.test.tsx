@@ -1,5 +1,6 @@
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { makeActionResult } from '@orbit/shared/test-support/chat-fixtures'
 import { ActionChips } from '@/components/chat/action-chips'
@@ -29,6 +30,8 @@ vi.mock('next-intl', () => ({
         : key
   },
 }))
+
+beforeEach(() => measureClampedPersonalText())
 
 describe('ActionChips', () => {
   it.each([

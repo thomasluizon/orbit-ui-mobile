@@ -21,3 +21,13 @@ it('keeps code and offline login fixtures on their intended steps', () => {
   })
   expect(createLoginScreenFixture('account back', 'en').accountBack?.wasReactivated).toBe(true)
 })
+
+it.each([
+  { locale: 'en', count: 1, expected: '1 habit waiting on this device.' },
+  { locale: 'en', count: 4, expected: '4 habits waiting on this device.' },
+  { locale: 'pt-BR', count: 1, expected: '1 hábito esperando neste aparelho.' },
+  { locale: 'pt-BR', count: 4, expected: '4 hábitos esperando neste aparelho.' },
+] as const)('formats $count waiting habits in $locale', ({ locale, count, expected }) => {
+  const { t } = createLoginScreenFixture('from onboarding', locale)
+  expect(t('auth.onboarding.habits', { count })).toBe(expected)
+})

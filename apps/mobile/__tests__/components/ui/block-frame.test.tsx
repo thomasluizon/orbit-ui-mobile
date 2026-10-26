@@ -135,6 +135,13 @@ describe('BlockFrame on mobile', () => {
     } finally { layout.freeRecursive(); config.free(); void act(() => tree.unmount()) }
   })
 
+  it('renders fitting typed labels without a disclosure button or chevron', () => {
+    const name = 'Read for 20 minutes'
+    const tree = render(<PersonalTextDetails>{name}</PersonalTextDetails>)
+    expect(tree.root.findAll((node) => node.type === 'Pressable' && prop(node, 'accessibilityRole') === 'button')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.type === 'ChevronDown')).toHaveLength(0)
+  })
+
   it('keeps typed labels beside their trailing actions and aligns growing rows to the first line', () => {
     const name = 'Read the books I chose to learn about all the places and people around the world before breakfast every morning'
     const tree = render(<BlockFrame {...frame({ items: [{

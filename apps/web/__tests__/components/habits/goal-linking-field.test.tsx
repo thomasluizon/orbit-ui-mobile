@@ -1,3 +1,4 @@
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { personalText } from '@/__tests__/support/personal-text'
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { act, cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -26,6 +27,8 @@ let queryClient: QueryClient
 function Wrapper({ children }: { children: React.ReactNode }) {
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 }
+
+beforeEach(() => measureClampedPersonalText())
 
 describe('GoalLinkingField', () => {
   beforeEach(() => {

@@ -7,7 +7,7 @@ import { createRequire } from 'node:module'
 import appJson from '../../app.json'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
-import { createInstance } from 'i18next'
+import { testI18n } from '@/__tests__/support/i18n'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { StackRouter, TabRouter, CommonActions, StackActions } from 'expo-router/build/react-navigation/routers'
@@ -91,13 +91,6 @@ const mocks = vi.hoisted(() => ({
     isRestoring: false,
   },
 }))
-
-const testI18n = createInstance()
-void testI18n.init({
-  resources: { en: { translation: en }, 'pt-BR': { translation: ptBR } },
-  lng: 'en', initAsync: false,
-  interpolation: { prefix: '{', suffix: '}' },
-})
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({

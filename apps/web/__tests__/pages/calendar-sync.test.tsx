@@ -26,14 +26,17 @@ const toastSuccess = vi.hoisted(() => vi.fn())
 
 let countLocale: 'en' | 'pt-BR' | null = null
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (key === 'calendar.eventsFound' && countLocale) return (countLocale === 'pt-BR' ? ptBR : en).calendar.eventsFound.replaceAll('{count}', String(params?.count))
-    if (params) return `${key}:${JSON.stringify(params)}`
-    return key
-  },
-  useLocale: () => 'en',
-}))
+vi.mock('next-intl', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next-intl')>()
+  return {
+    useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+      if (key === 'calendar.eventsFound' && countLocale) return actual.createTranslator({ locale: countLocale, messages: countLocale === 'pt-BR' ? ptBR : en })('calendar.eventsFound', { count: Number(params?.count) })
+      if (params) return `${key}:${JSON.stringify(params)}`
+      return key
+    },
+    useLocale: () => 'en',
+  }
+})
 
 vi.mock('next/link', () => ({
   default: ({ children, href, ...props }: { children: React.ReactNode; href: string; [k: string]: unknown }) => (

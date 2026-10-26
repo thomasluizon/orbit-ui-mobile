@@ -1,6 +1,10 @@
 import { prepareChatRequest, type ChatStoreState } from '../stores/chat-store'
 import type { ComposerProps } from '../contracts/composer'
 
+export function isComposerEditable(state: ComposerProps['state']): boolean {
+  return state === 'idle' || state === 'sending'
+}
+
 type ComposerAction = { id: string; label: string; icon: string; disabled?: boolean }
 
 export function buildComposerControls(props: ComposerProps): {

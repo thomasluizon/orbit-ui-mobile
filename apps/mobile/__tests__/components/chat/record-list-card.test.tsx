@@ -1,4 +1,4 @@
-import { expandedTextControls, pressTextControl, expectPersonalTextLayout } from '@/__tests__/support/personal-text'
+import { measureClampedPersonalText, expandedTextControls, pressTextControl, expectPersonalTextLayout } from '@/__tests__/support/personal-text'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
@@ -110,6 +110,7 @@ describe('Astra record list on mobile', () => {
     const element = <RecordListCard recordList={{ kind: 'tags', totalCount: 1, items: [{ id: 'long-record', title: name }] }} />
     let tree!: import('react-test-renderer').ReactTestRenderer
     await TestRenderer.act(() => { tree = TestRenderer.create(element) })
+    await measureClampedPersonalText(tree.root, name)
     const disclosure = expandedTextControls(tree.root, name, false)[0]!
     expect(disclosure).toBeDefined()
     await expectPersonalTextLayout(tree.root, name, 2)

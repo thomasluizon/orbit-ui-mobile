@@ -52,15 +52,16 @@ export function SearchResult({ habit, query, onOpen, actionLabel, disabled = fal
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const [clamped, setClamped] = useState(false)
   const [pressed, setPressed] = useState(false)
   const matches = buildSearchMatchLines(query, habit, t)
   const accessibleName = [actionLabel ?? t('habits.search.open', { name: habit.title }), ...matches.map((match) => match.text)].join(' ')
   return <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><Pressable role="button" accessibilityRole="button" disabled={disabled} accessibilityLabel={accessibleName} accessibilityState={{ disabled }} onPress={onOpen} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} style={({ pressed }) => [styles.row, { flex: 1, minWidth: 0 }, { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, borderColor: tokens.hairlineGhost, borderWidth: 1 }]}>
     <View importantForAccessibility="no-hide-descendants" style={[styles.well, { backgroundColor: tokens.bgWell }]}>{habit.emoji ? <Text style={styles.emoji}>{habit.emoji}</Text> : <Text style={[styles.initial, { color: tokens.fg2 }]}>{habitInitial(habit.title)}</Text>}</View>
-    <View style={styles.content}><PersonalText style={[styles.name, { color: tokens.fg1, lineHeight: 23.8 }]}>{habit.title}</PersonalText>
+    <View style={styles.content}><PersonalText onClampedChange={setClamped} style={[styles.name, { color: tokens.fg1, lineHeight: 23.8 }]}>{habit.title}</PersonalText>
       {matches.map((match) => <View key={match.id} style={{ minWidth: 0 }}><Text style={[styles.match, { color: hoverForeground(currentTheme, tokens.fg3, pressed) }]}>{match.label}</Text>{match.fragment !== null ? <PersonalText style={[styles.match, { color: tokens.fg2 }]}>{match.fragment}</PersonalText> : null}</View>)}
     </View><ChevronRight size={20} color={tokens.fg3} />
-  </Pressable>{actionLabel ? <PersonalTextDetails iconOnly>{habit.title}</PersonalTextDetails> : null}</View>
+  </Pressable>{actionLabel ? <PersonalTextDetails iconOnly clamped={clamped}>{habit.title}</PersonalTextDetails> : null}</View>
 }
 
 const styles = StyleSheet.create({

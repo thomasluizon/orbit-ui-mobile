@@ -68,6 +68,8 @@ function addWidgetTarget(config, project) {
     APPLICATION_EXTENSION_API_ONLY: 'YES', SKIP_INSTALL: 'YES',
     CURRENT_PROJECT_VERSION: config.ios.buildNumber, MARKETING_VERSION: config.version,
     GENERATE_INFOPLIST_FILE: 'NO', CLANG_ENABLE_MODULES: 'YES',
+    // WHY: #1732 inherited React Native ccache wrappers resolve through PODS_ROOT on the non-pod widget.
+    PODS_ROOT: '"$(SRCROOT)/Pods"',
     PRODUCT_BUNDLE_IDENTIFIER: widgetIdentifiers(config).bundleIdentifier,
     ...(config.ios.appleTeamId ? { DEVELOPMENT_TEAM: config.ios.appleTeamId } : {}),
     ...(process.env.IOS_WIDGET_PROVISIONING_PROFILE_NAME ? {

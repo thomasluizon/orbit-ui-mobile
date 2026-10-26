@@ -189,9 +189,7 @@ vi.mock('next-intl', async (importOriginal) => {
     if (dragLocale.portuguese) return createTranslator({ locale: 'pt-BR', messages: ptBR })
     const t = (key: string, params?: Record<string, unknown>) => {
       if (key === 'habits.deleteListConfirmMessage') {
-        return messages.habits.deleteListConfirmMessage
-          .replaceAll('{name}', String(params?.name))
-          .replaceAll('{count}', String(params?.count))
+        return createTranslator({ locale: 'en', messages })(key, { name: String(params?.name), count: Number(params?.count) })
       }
       if (params && Object.keys(params).length > 0) {
         return `${key}(${JSON.stringify(params)})`

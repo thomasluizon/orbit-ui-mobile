@@ -1,5 +1,5 @@
 import { IconButton } from '@/components/ui/icon-button'
-import type { ReactElement, ReactNode, RefObject } from 'react'
+import { useState, type ReactElement, type ReactNode, type RefObject } from 'react'
 import {
   FlatList,
   Pressable,
@@ -85,6 +85,7 @@ export function HabitDrill({
 }: Readonly<HabitDrillProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const [clamped, setClamped] = useState(false)
   const renderItem: ListRenderItem<NormalizedHabit> = ({ item: child }) => {
     const nestedChildren = drill.getDrillChildren(child.id)
     return renderHabitCard(
@@ -102,7 +103,7 @@ export function HabitDrill({
       <View style={styles.drillControls}>
         <View style={[styles.drillHeader, { flexDirection: 'column', alignItems: 'stretch' }]}>
           <View style={[styles.drillHeading, { flex: 0 }]}>
-            <PersonalText accessibilityRole="header" style={styles.drillTitle}>
+            <PersonalText onClampedChange={setClamped} accessibilityRole="header" style={styles.drillTitle}>
               {drill.currentParent?.title ?? ''}
             </PersonalText>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -123,7 +124,7 @@ export function HabitDrill({
                 total: drill.drillChildren.length,
               })}
             </Text>
-              <PersonalTextDetails iconOnly>{drill.currentParent?.title ?? ''}</PersonalTextDetails>
+              <PersonalTextDetails iconOnly clamped={clamped}>{drill.currentParent?.title ?? ''}</PersonalTextDetails>
             </View>
           </View>
         </View>

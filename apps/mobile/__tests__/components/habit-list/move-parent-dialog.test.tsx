@@ -1,3 +1,4 @@
+import { testI18n } from '@/__tests__/support/i18n'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import React from 'react'
@@ -467,12 +468,8 @@ describe('move picker initial positioning', () => {
 
 describe('bulk move translated footer styles', () => {
   it.each([{ locale: 'en', messages: en, expected: 'Move 100 habits' },
-    { locale: 'pt-BR', messages: ptBR, expected: 'Mover 100 hábitos' }])('keeps intrinsic pills for $locale with three digits', ({ messages, expected }) => {
-    const t = (key: string, params?: Record<string, unknown>) => {
-      let value: unknown = messages
-      for (const segment of key.split('.')) value = (value as Record<string, unknown>)[segment]
-      return String(value).replaceAll('{count}', String(params?.count))
-    }
+    { locale: 'pt-BR', messages: ptBR, expected: 'Mover 100 hábitos' }])('keeps intrinsic pills for $locale with three digits', ({ locale, messages, expected }) => {
+    const t = testI18n.getFixedT(locale)
     const { tree } = renderDialog({ t, movingHabitCount: 100 })
     expect(tree.root.findAll((node) => node.type === 'Sheet')[0]!.props.title).toBe(expected)
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual([messages.common.cancel, messages.habits.moveParent.confirm])

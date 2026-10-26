@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { NextResponse, type NextRequest } from 'next/server'
 import { buildGoogleAuthorizeUrl } from '@orbit/shared/utils'
-import { getGoogleOAuthSessionOwner, GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
+import { getGoogleOAuthRefreshOwner, getGoogleOAuthSessionOwner, GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
 import { desktopAttemptSchema, desktopRedirectUri } from '@/lib/desktop-auth'
 
 export function GET(request: NextRequest) {
@@ -31,6 +31,7 @@ export function GET(request: NextRequest) {
   const response = NextResponse.redirect(authorizeUrl)
   response.cookies.set(GOOGLE_OAUTH_COOKIE, JSON.stringify({
     verifier, state, redirectUri, sessionOwner: getGoogleOAuthSessionOwner(request),
+    refreshOwner: getGoogleOAuthRefreshOwner(request),
     ...(desktop?.success ? { desktop: desktop.data } : {}),
   }), {
     httpOnly: true,

@@ -1,16 +1,17 @@
 import { execFileSync } from 'node:child_process'
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { parse } from 'yaml'
 import { describe, expect, it } from 'vitest'
 
 interface Workflow<Job extends string> {
-  on: Record<string, { paths?: string[] } | null>
+  on: Record<string, { branches?: string[]; paths?: string[] } | null>
   jobs: Record<Job, {
     'runs-on': string
+    'timeout-minutes': number
     env: Record<string, string>
-    steps: { name?: string; run?: string }[]
+    steps: { name?: string; run?: string; uses?: string; if?: string; with?: Record<string, string> }[]
   }>
 }
 
@@ -47,12 +48,97 @@ describe('iOS build and release boundaries', () => {
     expect(commands).toContain("-destination 'generic/platform=iOS Simulator'")
     expect(commands).toContain('CODE_SIGNING_ALLOWED=NO')
     expect(commands).not.toMatch(/simctl|expo start/)
+    expect(commands).toContain('-workspace ios/OrbitStaging.xcworkspace -scheme OrbitStaging')
+    expect(commands).toContain('-configuration Release -sdk iphonesimulator')
+    expect(workflow.jobs.compile['timeout-minutes']).toBeGreaterThanOrEqual(55)
+  })
+
+  it('reuses compiler outputs while regenerating and compiling every source revision', () => {
+    const workflow = readWorkflow<'compile'>('ios-build')
+    const { steps, env } = workflow.jobs.compile
+    const cacheIndex = steps.findIndex((step) => step.uses === 'actions/cache@v6')
+    expect(cacheIndex).toBeGreaterThanOrEqual(0)
+    const cache = steps[cacheIndex]!
+    expect(cache.with?.path).toBe('${{ env.CCACHE_DIR }}')
+    expect(env.USE_CCACHE).toBe('1')
+    expect(env.CCACHE_DIR).toBe('${{ github.workspace }}/.cache/ios-ccache')
+    for (const input of ['runner.arch', 'package-lock.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/plugins/**', 'apps/mobile/modules/**']) {
+      expect(cache.with?.key).toContain(input)
+    }
+    expect(cache.with?.key).toContain('${{ github.run_id }}-${{ github.run_attempt }}')
+    expect(cache.with?.key).toBe(`${cache.with?.['restore-keys']?.trim()}\${{ github.run_id }}-\${{ github.run_attempt }}`)
+    const installIndex = steps.findIndex((step) => step.run?.includes('brew install ccache'))
+    const prebuildIndex = steps.findIndex((step) => step.run?.includes('expo prebuild --platform ios'))
+    const compileIndex = steps.findIndex((step) => step.run?.includes('xcodebuild -workspace'))
+    expect(installIndex).toBeGreaterThanOrEqual(0)
+    expect(installIndex).toBeLessThan(prebuildIndex)
+    expect(cacheIndex).toBeLessThan(prebuildIndex)
+    expect(prebuildIndex).toBeLessThan(compileIndex)
+    expect(steps[prebuildIndex]?.if).toBeUndefined()
+    expect(steps[compileIndex]?.if).toBeUndefined()
+    expect(steps.some((step) => step.run?.includes('ccache --zero-stats'))).toBe(true)
+    expect(steps.some((step) => step.run?.includes('ccache --show-stats'))).toBe(true)
+    expect(workflow.on.push?.branches).toEqual(['main'])
+    expect(workflow.on.push?.paths).toEqual(workflow.on.pull_request?.paths)
   })
 
   it('keeps credentialed TestFlight publishing manual', () => {
     const workflow = readWorkflow<'release'>('ios-release')
     expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
     expect(workflow.jobs.release['runs-on']).toMatch(/^macos-/)
+  })
+
+  it('exports the installed cache executable to compiler subprocesses', () => {
+    const workflow = readWorkflow<'compile'>('ios-build')
+    const script = workflow.jobs.compile.steps.find((step) => step.run?.includes('xcodebuild -workspace'))?.run
+    expect(script).toBeTypeOf('string')
+    const directory = mkdtempSync(join(tmpdir(), 'orbit-ios-compiler-'))
+    writeFileSync(join(directory, 'ccache'), '#!/bin/sh\nexit 0\n', { mode: 0o755 })
+    writeFileSync(join(directory, 'xcodebuild'), `#!/bin/sh
+      : "\${CCACHE_BINARY:?Compiler subprocess must receive CCACHE_BINARY}"
+      test "$CCACHE_BINARY" = "$EXPECTED_CCACHE_BINARY"
+    `, { mode: 0o755 })
+    try {
+      expect(() => execFileSync('/bin/bash', ['-c', script!], {
+        env: {
+          ...process.env, PATH: `${directory}:${process.env.PATH}`, RUNNER_TEMP: directory,
+          CCACHE_BINARY: '', EXPECTED_CCACHE_BINARY: join(directory, 'ccache'),
+        },
+        stdio: 'pipe',
+      })).not.toThrow()
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    ['no compiler calls', 0, 0, 0, 0, false],
+    ['only uncacheable calls', 0, 0, 0, 4, false],
+    ['cold cache misses', 1, 0, 0, 0, true],
+    ['direct cache hits', 0, 1, 0, 0, true],
+    ['preprocessed cache hits', 0, 0, 1, 0, true],
+  ] as const)('checks cache activity with %s', (_name, misses, directHits, preprocessedHits, links, accepted) => {
+    const workflow = readWorkflow<'compile'>('ios-build')
+    const step = workflow.jobs.compile.steps.find((candidate) => candidate.name === 'Report compiler cache statistics')
+    expect(step?.if).toBe('${{ !cancelled() }}')
+    expect(step?.run).toBeTypeOf('string')
+    const directory = mkdtempSync(join(tmpdir(), 'orbit-ios-cache-stats-'))
+    writeFileSync(join(directory, 'ccache'), `#!/bin/sh
+      case "$1" in
+        --show-stats) printf 'Local storage:\n  Cache size (GB): 0.0 / 2.0 ( 0.00%%)\n' ;;
+        --print-stats) printf 'cache_miss\t${misses}\ndirect_cache_hit\t${directHits}\npreprocessed_cache_hit\t${preprocessedHits}\ncalled_for_link\t${links}\n' ;;
+        *) exit 2 ;;
+      esac
+    `, { mode: 0o755 })
+    const report = () => execFileSync('/bin/bash', ['-c', step!.run!], {
+      env: { ...process.env, PATH: `${directory}:${process.env.PATH}` }, stdio: 'pipe',
+    })
+    try {
+      if (accepted) expect(report).not.toThrow()
+      else expect(report).toThrow('::error::ccache recorded zero cacheable compiler calls')
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
   })
 
   it.each([

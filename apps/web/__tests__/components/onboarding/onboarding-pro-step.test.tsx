@@ -1,3 +1,4 @@
+import { createTranslator } from 'next-intl'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -23,13 +24,10 @@ const mocks = vi.hoisted(() => ({
   checkout: vi.fn(), checkoutLoading: null as 'monthly' | 'yearly' | null,
   beforeRedirect: undefined as (() => Promise<void>) | undefined,
 }))
-vi.mock('next-intl', () => ({ useLocale: () => mocks.locale, useTranslations: (namespace?: string) => (key: string, parameters?: Record<string, unknown>) => translate(namespace ? `${namespace}.${key}` : key, parameters) }))
+vi.mock('next-intl', async (importOriginal) => ({ ...await importOriginal<typeof import('next-intl')>(), useLocale: () => mocks.locale, useTranslations: (namespace?: string) => (key: string, parameters?: Record<string, unknown>) => translate(namespace ? `${namespace}.${key}` : key, parameters) }))
 function translate(key: string, parameters?: Record<string, unknown>): string {
-  let value: unknown = mocks.locale === 'pt-BR' ? ptBr : en
-  for (const part of key.split('.')) value = Reflect.get(value as object, part)
-  let message = String(value)
-  for (const [name, parameter] of Object.entries(parameters ?? {})) message = message.replaceAll(`{${name}}`, String(parameter))
-  return message
+  const t = createTranslator({ locale: mocks.locale, messages: mocks.locale === 'pt-BR' ? ptBr : en })
+  return t(key as Parameters<typeof t>[0], parameters as Record<string, string | number>)
 }
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile, refetch: mocks.refetch }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.online }) }))
@@ -95,6 +93,7 @@ describe('Onboarding final Pro step', () => {
     const profile = createMockProfile({ hasProAccess: true, isTrialActive: true, trialEndsAt: end, plan: 'pro' })
     mocks.refetch.mockResolvedValue({ data: profile, isError: false })
     const view = await mount(profile)
+    expect(view.container.textContent).not.toContain(', plural,')
     expect(view.container.querySelector('[data-onboarding-step="trial"]')).toBeInTheDocument()
     expect(screen.getByText(plural(translate('upgrade.convert.trialDaysLeft', { days: getTrialDaysLeft(profile) }), getTrialDaysLeft(profile)!))).toBeInTheDocument()
     const date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(end))

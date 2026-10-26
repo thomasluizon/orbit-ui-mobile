@@ -576,8 +576,8 @@ describe('Composer (mobile)', () => {
   it.each([false, true].flatMap(withOpener => ['idle', 'sending'].map(state => ({ withOpener, state }))))('uses one send icon with opener=$withOpener in $state', ({ withOpener, state }) => {
     const tree = renderComposer(props({ state, value: 'Draft', suggestions: [], ...(withOpener ? { onOpenConversation: vi.fn(), conversationLabel: 'Open conversation' } : {}) }))
     const send = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === words.send)[0]!
-    expect(send.findAllByType(ArrowUp)).toHaveLength(state === 'idle' ? 1 : 0)
-    expect(send.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ActivityIndicator')).toHaveLength(state === 'sending' ? 1 : 0)
+    expect(send.findAllByType(ArrowUp)).toHaveLength(1)
+    expect(send.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ActivityIndicator')).toHaveLength(0)
     expect(send.findAllByType(AstraGlyph)).toHaveLength(0)
     expect(send.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Text')).toHaveLength(0)
     expect(StyleSheet.flatten(send.props.style).width).toBe(48)
@@ -1156,7 +1156,7 @@ describe('Composer (mobile)', () => {
     ['idle with text', { state: 'idle', value: 'oi' }, true, false],
     ['idle with an image only', { state: 'idle', attachments: [{ id: 'image-id', kind: 'image', name: 'walk.png' }] }, false, true],
     ['idle with a file only', { state: 'idle', attachments: [{ id: 'file-id', kind: 'file', name: 'notes.txt' }] }, true, false],
-    ['sending', { state: 'sending', value: 'oi' }, true, true],
+    ['sending', { state: 'sending', value: 'oi' }, true, false],
     ['atLimit', { state: 'atLimit', value: 'oi', limitReason: 'limit sentinel' }, false, true],
     ['offline', { state: 'offline', value: 'oi', limitReason: 'offline sentinel' }, false, true],
     ['recording', { state: 'recording', value: 'oi', onVoice: vi.fn(), voiceWords }, false, true],
@@ -1207,13 +1207,13 @@ describe('Composer (mobile)', () => {
     expect(onSend).toHaveBeenCalledOnce()
   })
 
-  it('disables input and send and hides suggestions during sending', async () => {
+  it('keeps input and send enabled and hides suggestions during sending', async () => {
     const tree = await renderComposer(props({ state: 'sending', value: 'oi' }))
-    expect(byLabel(tree.root, words.placeholder)[0].props.editable).toBe(false)
+    expect(byLabel(tree.root, words.placeholder)[0].props.editable).toBe(true)
     const send = byLabel(tree.root, words.send)[0]
-    expect(send.props.disabled).toBe(true)
-    expect(send.props.accessibilityState.busy).toBe(true)
-    expect(send.findAll((node: { type: unknown }) => node.type === 'ActivityIndicator')).toHaveLength(1)
+    expect(send.props.disabled).toBe(false)
+    expect(send.props.accessibilityState.busy).toBeUndefined()
+    expect(send.findAll((node: { type: unknown }) => node.type === 'ActivityIndicator')).toHaveLength(0)
     expect(byLabel(tree.root, words.suggestionsLabel)).toHaveLength(0)
   })
 
@@ -1415,9 +1415,9 @@ describe('daily allowance and habit capacity styles', () => {
   it.each([en, ptBR])('fills the daily notice with neutral tabular usage or the exhausted reason', (messages) => {
     for (const state of ['idle', 'atLimit'] as const) {
       const tree = renderComposer(props({ state, suggestions: [], renewalHint: messages.shell.composer.limit.renewal,
-        allowanceReason: messages.shell.composer.limit.reason.replace('{allowance}', '5'),
+        allowanceReason: String(new IntlMessageFormat(messages.shell.composer.limit.reason, messages === ptBR ? 'pt-BR' : 'en').format({ allowance: 5 })),
         usageMessage: state === 'idle' ? messages.shell.composer.usage.replace('{used}', '3').replace('{limit}', '5') : undefined,
-        ...(state === 'atLimit' ? { limitReason: messages.shell.composer.limit.reason.replace('{allowance}', '5') } : {}) }))
+        ...(state === 'atLimit' ? { limitReason: String(new IntlMessageFormat(messages.shell.composer.limit.reason, messages === ptBR ? 'pt-BR' : 'en').format({ allowance: 5 })) } : {}) }))
       const slot = tree.root.findByProps({ testID: 'composer-status-slot' })
       expect(StyleSheet.flatten(slot.props.style).minHeight).toBe(96)
       expect(slot.findAllByType('Text').map((text: { props: { children: string } }) => text.props.children)).toContain(messages.shell.composer.limit.renewal)
@@ -1442,3 +1442,26 @@ describe('daily allowance and habit capacity styles', () => {
     TestRenderer.act(() => tree.unmount())
   })
 })
+
+
+  it.each([en, ptBR])('shows removable queued rows, manual sends and a separate stop control in both languages', async (messages) => {
+    const onRemove = vi.fn()
+    const onQueuedSend = vi.fn()
+    const onStop = vi.fn()
+    const copy = messages.shell.composer.queue
+    const queue = {
+      label: copy.label, items: [{ id: 'first', content: 'First request' }, { id: 'second', content: 'Second request' }],
+      pausedReason: copy.paused, canSend: true,
+      removeLabel: (message: string) => copy.remove.replace('{message}', message),
+      sendLabel: (message: string) => copy.send.replace('{message}', message),
+      onRemove, onSend: onQueuedSend,
+    }
+    const tree = await renderComposer(props({ queue, replyControl: { label: copy.stop, onStop }, value: 'New draft' }))
+    TestRenderer.act(() => byLabel(tree.root, queue.removeLabel('Second request'))[0].props.onPress())
+    TestRenderer.act(() => byLabel(tree.root, queue.sendLabel('First request'))[0].props.onPress())
+    TestRenderer.act(() => byLabel(tree.root, copy.stop)[0].props.onPress())
+    expect(onRemove).toHaveBeenCalledWith('second')
+    expect(onQueuedSend).toHaveBeenCalledWith('first')
+    expect(onStop).toHaveBeenCalledOnce()
+    TestRenderer.act(() => tree.unmount())
+  })

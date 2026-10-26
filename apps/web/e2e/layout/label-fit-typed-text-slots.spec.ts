@@ -1,3 +1,4 @@
+import { createTranslator } from 'next-intl'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -17,7 +18,7 @@ import { test } from './upgrade-fixtures'
 const day = '2026-09-04'
 const names = ['UnbrokenToken'.repeat(24), 'Read the books I chose to learn about all the places and people around the world before breakfast every morning']
 
-async function checkTypedHeadline(page: Page, scope: Locator, name: string) {
+async function checkTypedHeadline(page: Page, scope: Locator, name: string, clipped: boolean) {
   const title = scope.locator('[data-personal-text]').filter({ hasText: name }).first()
   await expect(title).toBeVisible()
   await markUserText(page, names)
@@ -26,12 +27,14 @@ async function checkTypedHeadline(page: Page, scope: Locator, name: string) {
     const style = getComputedStyle(element)
     return { whiteSpace: style.whiteSpace, wordBreak: style.wordBreak, clamp: style.webkitLineClamp }
   })).toEqual({ whiteSpace: name.includes(' ') ? 'normal' : 'nowrap', wordBreak: 'normal', clamp: name.includes(' ') ? '2' : 'none' })
+  expect(await title.evaluate((element) => element.scrollWidth > element.clientWidth + 0.5 || element.scrollHeight > element.clientHeight + 0.5)).toBe(clipped)
 }
 
 for (const width of [320, 1352]) {
   for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
     for (const [index, name] of names.entries()) {
       test.describe(`${locale} typed slots at ${width}px with name ${index}`, () => {
+        const clipped = width === 320 || index === 0
         const profile = profileSchema.parse({ ...profileFixture, language: locale, hasProAccess: true })
         const tags = tagListSchema.parse([{ id: 'long-tag', name, color: '#808080' }])
         const goals = paginatedGoalResponseSchema.parse({ items: [createMockGoal({ id: 'long-goal', title: name })], page: 1, pageSize: 100, totalPages: 1, totalCount: 1 })
@@ -52,15 +55,18 @@ for (const width of [320, 1352]) {
           for (const label of [words.habits.form.goals, words.habits.form.tags]) {
             await form.getByRole('button').filter({ has: page.getByText(label, { exact: true }) }).click()
             const picker = page.getByRole('dialog', { name: label, exact: true })
-            await checkTypedHeadline(page, picker, name)
+            await checkTypedHeadline(page, picker, name, clipped)
             const toggle = picker.locator('button[aria-pressed]').filter({ hasText: name })
             await expect(toggle).toHaveCount(1)
             await expect(toggle).toHaveAccessibleName(name)
             await expect(toggle).toHaveAttribute('aria-pressed', 'false')
-            await picker.getByRole('button', { name: words.common.showFullText.replace('{name}', name), expanded: false, exact: true }).click()
-            const full = page.getByRole('dialog', { name, exact: true })
-            await expect(full.locator('[data-personal-text-expanded]').last()).toHaveText(name)
-            await full.getByRole('button', { name: words.common.close, exact: true }).click()
+            const disclose = picker.getByRole('button', { name: words.common.showFullText.replace('{name}', name), expanded: false, exact: true })
+            if (clipped) {
+              await disclose.click()
+              const full = page.getByRole('dialog', { name, exact: true })
+              await expect(full.locator('[data-personal-text-expanded]').last()).toHaveText(name)
+              await full.getByRole('button', { name: words.common.close, exact: true }).click()
+            } else await expect(disclose).toHaveCount(0)
             await expect(toggle).toHaveAttribute('aria-pressed', 'false')
             await picker.getByRole('button', { name: words.common.close, exact: true }).click()
           }
@@ -72,13 +78,16 @@ for (const width of [320, 1352]) {
           await row.locator('[data-habit-row-control="menu"]').click()
           await page.getByRole('menu', { name, exact: true }).getByRole('menuitem', { name: words.habits.actions.openSubHabits, exact: true }).click()
           const heading = page.getByRole('heading', { name, level: 2, exact: true })
-          await markRequiredLabels(heading.locator('..').getByText(words.habits.drillProgress.replace('{done}', '0').replace('{total}', '1'), { exact: true }))
-          await checkTypedHeadline(page, page.getByRole('main'), name)
+          await markRequiredLabels(heading.locator('..').getByText(createTranslator({ locale, messages: words })('habits.drillProgress', { done: 0, total: 1 }), { exact: true }))
+          await checkTypedHeadline(page, page.getByRole('main'), name, clipped)
           await expect(heading.locator('[data-personal-text]')).toHaveAttribute('aria-label', name)
-          await page.getByRole('button', { name: words.common.showFullText.replace('{name}', name), expanded: false, exact: true }).click()
-          const full = page.getByRole('dialog', { name, exact: true })
-          await expect(full.locator('[data-personal-text-expanded]').last()).toHaveText(name)
-          await full.getByRole('button', { name: words.common.close, exact: true }).click()
+          const disclose = page.getByRole('button', { name: words.common.showFullText.replace('{name}', name), expanded: false, exact: true })
+          if (clipped) {
+            await disclose.click()
+            const full = page.getByRole('dialog', { name, exact: true })
+            await expect(full.locator('[data-personal-text-expanded]').last()).toHaveText(name)
+            await full.getByRole('button', { name: words.common.close, exact: true }).click()
+          } else await expect(disclose).toHaveCount(0)
           await page.getByRole('button', { name: words.common.back, exact: true }).click()
           await expect(row).toBeVisible()
         })

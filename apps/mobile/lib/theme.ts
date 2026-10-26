@@ -77,9 +77,8 @@ let runtimeTheme: ThemeRuntime = {
 
 export function setRuntimeTheme(next: Partial<ThemeRuntime>) {
   runtimeTheme = {
-    ...runtimeTheme,
-    ...next,
     scheme: 'orange',
+    themeMode: next.themeMode ?? runtimeTheme.themeMode,
   }
 }
 

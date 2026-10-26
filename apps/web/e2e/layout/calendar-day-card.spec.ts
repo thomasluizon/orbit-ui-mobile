@@ -9,6 +9,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { formatCatalogMessage } from '../support/messages'
 import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
@@ -49,7 +50,7 @@ for (const width of [320, 412, 1280]) {
       const label = page.getByRole('button', { name: habitTitle, exact: true })
       await expect(label).toBeVisible()
       const card = label.locator('xpath=ancestor::section[1]')
-      await expect(card.getByRole('button', { name: ptBR.calendar.dayDetail.viewAllEvents.replace('{count}', '4'), exact: true })).toBeVisible()
+      await expect(card.getByRole('button', { name: formatCatalogMessage('pt-BR', 'calendar.dayDetail.viewAllEvents', { count: events.length }), exact: true })).toBeVisible()
       await page.evaluate(async () => { await document.fonts.ready })
       const geometry = await card.evaluate((element, habitTitle) => {
         const bounds = element.getBoundingClientRect()

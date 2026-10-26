@@ -1,5 +1,6 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
+import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
@@ -32,6 +33,12 @@ function recordFilterStyle(tokens: ReturnType<typeof createTokensV2>, focused: b
     color: tokens.fg1,
     fontSize: 14,
   }
+}
+
+function RecordTitle({ item, unread, locale, tokens }: Readonly<{ item: RecordListCardData['items'][number]; unread: boolean; locale: string; tokens: ReturnType<typeof createTokensV2> }>) {
+  const style = { color: unread ? tokens.fg1 : tokens.fg2, fontFamily: unread ? 'Geist_600SemiBold' : 'Geist_400Regular', fontSize: 14 }
+  if (item.logDate) return <PersonalText style={style}>{formatReadWindow({ from: item.logDate, to: item.logDate }, locale)}</PersonalText>
+  return <PersonalTextDetails outset textStyle={style}>{item.title}</PersonalTextDetails>
 }
 
 export function RecordListCard({ recordList }: Readonly<{ recordList: RecordListCardData }>) {
@@ -98,7 +105,7 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
     const details = [unread ? t('chat.recordList.unread') : null, item.detail, item.value == null ? null : new Intl.NumberFormat(i18n.language).format(item.value), item.date ? date.format(new Date(item.date)) : null, itemCount, keyState].filter(Boolean)
     return {
       id: item.id,
-      label: <PersonalTextDetails outset textStyle={{ color: unread ? tokens.fg1 : tokens.fg2, fontFamily: unread ? 'Geist_600SemiBold' : 'Geist_400Regular', fontSize: 14 }}>{item.logDate ? formatReadWindow({ from: item.logDate, to: item.logDate }, i18n.language) : item.title}</PersonalTextDetails>,
+      label: <RecordTitle item={item} unread={unread} locale={i18n.language} tokens={tokens} />,
       wrapLabel: true,
       meta: details.join(' · '),
       wrapMeta: true,

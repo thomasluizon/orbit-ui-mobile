@@ -1,3 +1,4 @@
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { readControlPaint } from '@/e2e/layout/control-paint'
 import { personalText } from '@/__tests__/support/personal-text'
@@ -310,6 +311,8 @@ function openRescueGate() {
   mocks.metrics = { ...mocks.metrics, currentStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 40, lastCompletedDate: '2026-08-20' }
   mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
 }
+
+beforeEach(() => measureClampedPersonalText())
 
 describe('HabitDetailScreen', () => {
   beforeEach(() => {

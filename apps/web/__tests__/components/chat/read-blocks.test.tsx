@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
@@ -54,9 +55,9 @@ describe('focused read compositions', () => {
   it('pages history with the signed cursor and preserves dated zero-valued logs', async () => {
     vi.mocked(refreshReadBlock).mockResolvedValue({ ok: true, data: { kind: 'recordList', block: { ...focusedHistoryFixture, items: [{ id: 'log-two', title: '2026-09-02', logDate: '2026-09-02', value: -1 }], read: { ...focusedHistoryFixture.read, completeness: 'complete', nextCursor: null } }, read: { ...focusedHistoryFixture.read, completeness: 'complete', nextCursor: null } } })
     mount({ kind: 'recordList', block: focusedHistoryFixture })
-    expect(screen.getByRole('button', { name: 'Sep 1, 2026' })).toBeInTheDocument()
+    expect(screen.getByText(personalText('Sep 1, 2026'))).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Show more' }))
-    await screen.findByRole('button', { name: 'Sep 2, 2026' })
+    await screen.findByText(personalText('Sep 2, 2026'))
     expect(screen.getByText('0')).toBeInTheDocument()
     expect(screen.getByText('-1')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Show more' })).not.toBeInTheDocument()
@@ -117,8 +118,8 @@ it('keeps stale recap disclosure and Progress available without refreshing', () 
   expect(screen.getByRole('link', { name: en.chat.insight.progressLink })).toHaveAttribute('href', '/progress')
   fireEvent.click(screen.getByRole('button', { name: 'Show more' }))
   for (const text of ['Walked', 'Mornings', 'Start small', 'Reading']) expect(screen.getByText(text)).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: `${en.chat.insight.topHabit}: Walk` })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: `${en.chat.insight.needsAttention}: Read` })).toBeInTheDocument()
+  expect(screen.getByText(personalText(`${en.chat.insight.topHabit}: Walk`))).toBeInTheDocument()
+  expect(screen.getByText(personalText(`${en.chat.insight.needsAttention}: Read`))).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: en.chat.readBlock.less }))
   expect(screen.queryByText('Walked')).not.toBeInTheDocument()
   expect(refreshReadBlock).not.toHaveBeenCalled()
