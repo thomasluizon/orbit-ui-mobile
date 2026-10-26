@@ -22,7 +22,7 @@ UI `main` is `ce85201ff`, API `main` is `d78e430a`, landing `main` is `14293563`
 
 | Item | Disposition |
 | --- | --- |
-| `#1788` worker | Running at the relay (`default`, worktree `ticket-1788-suggestion-preview-all`, branch `feature/ticket-1788-suggestion-preview-all`); outcome unknown. Read the worktree and its launcher log first, read the diff, then review, merge, staging API, the three-draft check, and relaunch `#1751` (`note-1751.md`, deep, recorded relaunch reason). |
+| `orbit-api#944` (`#1788`) | Delivered at `355be340` (3 commits, build 0, 15,539 tests); diff read (one `AccountChangeSetService` owns the combine; every draft checked first; a failing draft returns its index; staged members cancelled unless bound). CI, Pullfrog, merge, staging API, the three-draft check on `qa@useorbit.org`, then relaunch `#1751` (`note-1751.md` plus `POST /api/chat/habit-suggestions/preview-all`, deep, recorded relaunch reason). |
 | `#1789` worker | Running at the relay (`deep`, worktree `ticket-1789-astra-request-token-ceiling`, branch `fix/ticket-1789-astra-request-token-ceiling`); outcome unknown. Read its diff and per-call measurements, review, merge, staging API, then `fixture-1764.mjs setup`, the eleventh-template append, cleanup, close `#1789` and `#1764`. |
 | Staging web run 40416589451 | Read its result (`/api/health` commit `27204bb28`, the desktop shell publish job). Then production web of the verified staging commit, the `#1778` proof against production, CodeQL alert 43 on `main`, and close `#1769` and `#1781` per their bullets. Then a staging web of a `main` that carries `#1743` (`ce85201ff` or newer). |
 | `ui#2110` (`#1783`) | Pushed at `549ebd13e` (coordinator round 1 plus a `main` merge, copy approved); `pullfrog-approval` success after the push, 0 threads; the only red is `Tool and Hook Tests`, the `#1790` race. It now shares `surfaces.json` and both i18n files with newer `main`, so base-merge `main`, regenerate the surface manifest if it differs, push once with a body section, CI, review, merge; then `ui#2112`, staging web, and the `#1786` staging acceptance through its web flow. |
@@ -37,7 +37,7 @@ UI `main` is `ce85201ff`, API `main` is `d78e430a`, landing `main` is `14293563`
 | `#1735` | Close after 00:20 UTC with no `server_failed` event since run 40244503719. |
 | `#1779`, `#1748`, `#1756`, `orbit-api#903`, `#390`, `#62`, `#1151`, `#1732`, `#1777`, Apple enrollment and the rest | As in their spec bullets. |
 
-Inventory: open pull requests are `ui#2112`, `#2110`, `#2108`, `#2102`, this relay's `ui#1989`, `orbit-api#903`, plus whatever the two running workers opened; landing has none. Unpushed work: `ticket-1761-astra-latency-budget` (`969146d89`), `ticket-1774-safe-area-edges` (`e695ed55c`, `94b375024`). Branches with no pull request: `feature/ticket-1751-habit-suggestion-cards` (clean, no commits, waits on `#1788`). Stashes: none in any root. Running workers: `#1788`, `#1789`. Owner questions open: none.
+Inventory: open pull requests are `ui#2112`, `#2110`, `#2108`, `#2102`, this relay's `ui#1989`, `orbit-api#903`, `orbit-api#944`, plus whatever the `#1789` worker opened; landing has none. Unpushed work: `ticket-1761-astra-latency-budget` (`969146d89`), `ticket-1774-safe-area-edges` (`e695ed55c`, `94b375024`). Branches with no pull request: `feature/ticket-1751-habit-suggestion-cards` (clean, no commits, waits on `#1788`). Stashes: none in any root. Running workers: `#1789`. Owner questions open: none.
 
 ## Then, in this order
 
