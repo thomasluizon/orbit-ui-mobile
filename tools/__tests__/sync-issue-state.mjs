@@ -35,6 +35,11 @@ export const cases = () => {
   }
   const config = realOrchestratorConfig()
   const staged = stageWithConfig("sync-issue-state", TOOL, { ...config, repos: { ...config.repos, ui: repo.path } })
+  T(
+    `${TOOL}: ticket binding uses no regular expression constructor`,
+    !/\bnew\s+RegExp\s*\(/.test(readFileSync(staged.path, "utf8")),
+    "ticket binding must use fixed patterns rather than construct a regular expression from arguments",
+  )
   stage("staged/sync-issue-state/.claude/linear-to-github-map.json", JSON.stringify({ issues: { "ORB-215": { number: 221 } } }))
   const message = stage("sync-issue-state/message.md", "PR #700 is ready on the final head.")
   const argv = ["--issue", "ORB-215", "--repo", "ui", "--pr", "700", "--state", "ready", "--head-sha", HEAD, "--base-sha", BASE, "--message-file", message]
@@ -199,5 +204,77 @@ export const cases = () => {
     const okBody = stage(`sync-issue-state/ok-body-${field}`, "")
     const result = run(TOOL, argv, { path: staged.path, env: orcaEnv([...readPlan(issue(), pr), ...writePlan(okStatus, okComment, okBody)]) })
     T(`${TOOL}: a reference in the pull request ${field} satisfies the binding`, result.status === 0, result.stderr || result.stdout)
+  }
+
+  for (const [field, reference, accepted] of [
+    ["body", "ORB-215", true],
+    ["body", "orb-215", true],
+    ["body", "ORB-2150", false],
+    ["body", "ORB-0215", false],
+    ["body", "AORB-215", false],
+    ["body", "ORB-215Z", false],
+    ["body", "_ORB-215_", true],
+    ["body", "ORB-216,ORB-215", true],
+    ["body", "#221", true],
+    ["body", "#2210", false],
+    ["body", "#0221", false],
+    ["body", "A#221", false],
+    ["body", "#221Z", false],
+    ["body", "_#221_", true],
+    ["body", "#222,#221", true],
+    ["body", "thomasluizon/orbit-tickets#221", true],
+    ["body", "THOMASLUIZON/ORBIT-TICKETS#221", true],
+    ["body", "other/orbit-tickets#221", false],
+    ["body", "thomasluizon/other#221", false],
+    ["body", "thomasluizon/orbit-tickets#2210", false],
+    ["body", "(thomasluizon/orbit-tickets#221)", true],
+    ["body", "other/orbit-tickets#221,thomasluizon/orbit-tickets#221", true],
+    ["headRefName", "feature/ticket-221-work", true],
+    ["headRefName", "feature/TICKET-221-work", true],
+    ["headRefName", "feature/ticket-2210-work", false],
+    ["headRefName", "feature/ticket-0221-work", false],
+    ["headRefName", "feature/Aticket-221-work", false],
+    ["headRefName", "feature/_ticket-221-work", true],
+    ["headRefName", "ticket-222-ticket-221-work", true],
+    ["headRefName", "feature/ticket-221", false],
+    ["title", "ticket-221-work", false],
+    ["body", "ticket-221-work", false],
+    ...["A", "0", "_", ".", "/", "-"].map((prefix) => ["body", `${prefix}thomasluizon/orbit-tickets#221`, false]),
+  ]) {
+    const referenceArgv = [...argv]
+    referenceArgv[1] = "#221"
+    const referenceStatus = stage("sync-issue-state/boundary-status", "must remain")
+    const result = run(TOOL, referenceArgv, {
+      path: staged.path,
+      env: orcaEnv([...readPlan(issue(), pullRequest({
+        headRefName: "fix/unrelated", title: "Unrelated", body: "Unrelated", [field]: reference,
+      })), ...writePlan(referenceStatus, commentMarker, commentBody)]),
+    })
+    T(
+      `${TOOL}: ${field} ${JSON.stringify(reference)} is ${accepted ? "accepted" : "refused"}`,
+      accepted ? result.status === 0 && !existsSync(referenceStatus) : result.status === 2 && /does not reference/.test(result.stderr) && existsSync(referenceStatus),
+      result.stderr || result.stdout,
+    )
+  }
+
+  stage("staged/sync-issue-state/.claude/linear-to-github-map.json", JSON.stringify({ issues: {} }))
+  for (const [reference, accepted] of [
+    ["ORB-215", false], ["ORB-221", false], ["#221", true],
+    ["thomasluizon/orbit-tickets#221", true],
+  ]) {
+    const referenceArgv = [...argv]
+    referenceArgv[1] = "#221"
+    const referenceStatus = stage("sync-issue-state/unmigrated-status", "must remain")
+    const result = run(TOOL, referenceArgv, {
+      path: staged.path,
+      env: orcaEnv([...readPlan(issue(), pullRequest({
+        headRefName: "fix/unrelated", title: "Unrelated", body: reference,
+      })), ...writePlan(referenceStatus, commentMarker, commentBody)]),
+    })
+    T(
+      `${TOOL}: an unmigrated ticket ${accepted ? "accepts" : "refuses"} ${reference}`,
+      accepted ? result.status === 0 && JSON.parse(result.stdout).issue === "#221" && !existsSync(referenceStatus) : result.status === 2 && /does not reference/.test(result.stderr) && existsSync(referenceStatus),
+      result.stderr || result.stdout,
+    )
   }
 }

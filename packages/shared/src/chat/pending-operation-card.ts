@@ -1,4 +1,4 @@
-import type { PendingAgentOperation, PendingOperationChange } from '../types/ai'
+import type { HabitPlacement, PendingAgentOperation, PendingOperationChange, PendingOperationPlacement } from '../types/ai'
 import { PENDING_OPERATION_WEEKDAYS, PREVIEW_ACTION_KEYS, summarizePendingOperationItem } from './pending-operation-item-summary'
 import { getAgentCapabilityActionLabelKey, getAgentCapabilityLabelKey } from '../utils/agent-pending-operation'
 
@@ -6,6 +6,11 @@ export { PENDING_OPERATION_WEEKDAYS } from './pending-operation-item-summary'
 export const PENDING_OPERATION_ITEM_SEARCH_THRESHOLD = 8
 
 export interface PendingOperationCardLabels {
+  placementGroup: (name: string) => string
+  placementOption: (value: HabitPlacement, destination: string) => string
+  placementRecommended: string
+  placementRecommendation: (placement: PendingOperationPlacement) => string
+  placementChecklistNote: string
   formatTime: (value: string) => string
   approve: (count: number) => string
   approveName?: (count: number) => string
@@ -120,6 +125,13 @@ export function buildPendingOperationCardLabels(
       ? `chat.operation.source.${actionKey}`
       : getAgentCapabilityActionLabelKey(pendingOperation.capabilityId) ?? 'chat.pendingOp.action.applyChanges')
   return {
+    placementGroup: (name) => translate('chat.placement.group', { name }),
+    placementOption: (value, name) => translate(`chat.placement.option.${value}`, { name }),
+    placementRecommended: translate('chat.placement.recommended'),
+    placementRecommendation: (placement) => `${translate('chat.placement.recommendation', {
+      placement: translate(`chat.placement.option.${placement.recommended}`, { name: placement.destinationName }),
+    })} ${placement.reason[locale.startsWith('pt') ? 'pt-BR' : 'en']}`,
+    placementChecklistNote: translate('chat.placement.checklistNote'),
     formatTime,
     approve: (count) => createsHabits ? translate('chat.operation.create')
       : ['updateHabit', 'updateHabits'].includes(actionKey ?? '') ? translate('common.save')

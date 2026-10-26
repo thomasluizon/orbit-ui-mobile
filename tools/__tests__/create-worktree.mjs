@@ -58,6 +58,7 @@ if (basename(process.argv[1]) === "worktree" && process.argv[2] === "create") {
   )
   const createdCommit = git(created, ["rev-parse", "HEAD"]).stdout.trim()
   T(`${TOOL}: the created worktree starts at origin/main`, createdCommit === remoteCommit, `created ${createdCommit}, remote ${remoteCommit}\n${result.stderr}`)
+  if (process.platform !== "win32") shellArguments(repository)
   await killedHolder(fixtureRoot, repository)
   await killedHolder(fixtureRoot, repository, true)
   await survivingChild(fixtureRoot, repository)
@@ -73,6 +74,34 @@ if (require("node:path").basename(process.argv[1]) === "worktree") process.exit(
     T(`${TOOL}: rebuilds a ${contents ? "corrupt" : "truncated"} refresh marker`,
       recovered.status === 0, JSON.stringify(recovered))
   }
+}
+
+const shellArguments = (repository) => {
+  const captured = join(root, "create-worktree", "arguments.json")
+  const markers = ["substitution-marker", "backtick-marker"].map((name) => join(root, "create-worktree", name))
+  const orca = stage("create-worktree/bin/record-arguments", `#!/usr/bin/env node
+const { writeFileSync } = require("node:fs")
+writeFileSync(${JSON.stringify(captured)}, JSON.stringify(process.argv.slice(2)))
+`)
+  chmodSync(orca, 0o755)
+  const comments = [
+    `$(touch ${markers[0]})`,
+    "`touch " + markers[1] + "`",
+    "semicolon;value",
+    "and&&value",
+    "pipe|value",
+    "two words",
+    "first line\nsecond line",
+  ]
+  const args = ["--repo", `path:${repository}`, "--name", "shell-arguments", "--base-branch", "main",
+    "--no-parent", ...comments.flatMap((comment) => ["--comment", comment]), "--json"]
+  check(TOOL, "passes shell metacharacters through the lock gate", args, { status: 0 }, { env: { ORCA_BIN: orca } })
+  const received = existsSync(captured) ? JSON.parse(readFileSync(captured, "utf8")) : null
+  const expected = ["worktree", "create", ...args]
+  T(`${TOOL}: preserves every shell metacharacter argument byte for byte`,
+    JSON.stringify(received) === JSON.stringify(expected), JSON.stringify({ received, expected }))
+  const createdMarkers = markers.filter((marker) => existsSync(marker))
+  T(`${TOOL}: shell arguments never execute marker commands`, createdMarkers.length === 0, JSON.stringify(createdMarkers))
 }
 
 const survivingChild = async (fixtureRoot, repository, killSupervisor = false) => {

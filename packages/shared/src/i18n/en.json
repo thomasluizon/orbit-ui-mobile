@@ -1296,6 +1296,17 @@
     }
   },
   "chat": {
+    "placement": {
+      "group": "Placement for {name}",
+      "option": {
+        "sub_habit": "Sub-habit in {name}",
+        "checklist_item": "Checklist item in {name}",
+        "new_parent": "New parent habit"
+      },
+      "recommended": "Recommended",
+      "recommendation": "Astra suggests: {placement}.",
+      "checklistNote": "This item follows its parent habit’s settings. Your draft settings are kept if you pick a habit option again."
+    },
     "operationUpdated": "See the updated result above.",
     "replyReady": "Reply ready.",
     "unreadableReply": "This answer could not be displayed. Please ask again.",

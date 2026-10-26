@@ -122,18 +122,28 @@ if (
 }
 if (pullRequest.number !== prNumber) fail(2, `GitHub returned pull request ${pullRequest.number}, not ${prNumber}. Nothing was written`)
 
-// Every value interpolated here came through resolveTicket, but escaping keeps this safe if ticket
-// syntax or the configured repository name later admits regular-expression metacharacters.
-const escapeForPattern = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-const qualifiedReference = `${config.tickets.repository}#${resolved.number}`
-const ticketMention = new RegExp(
-  `(?:(?:^|[^A-Z0-9])${escapeForPattern(issue)}(?:$|[^A-Z0-9])|(?:^|[^A-Z0-9])#${resolved.number}(?:$|[^A-Z0-9])|(?:^|[^A-Z0-9_./-])${escapeForPattern(qualifiedReference)}(?:$|[^A-Z0-9]))`,
-  "i",
-)
-const branchTicketMention = new RegExp(`(?:^|[^A-Z0-9])ticket-${resolved.number}-`, "i")
+const ticketNumber = String(resolved.number)
+const ticketRepository = config.tickets.repository.toLowerCase()
+const ticketMention = (value) => {
+  for (const [, identifier] of value.matchAll(/(?:^|[^A-Z0-9])(ORB-[1-9]\d*)(?=$|[^A-Z0-9])/gi)) {
+    if (identifier.toUpperCase() === resolved.identifier) return true
+  }
+  for (const match of value.matchAll(/#([1-9]\d*)(?=$|[^A-Z0-9])/gi)) {
+    if (match[1] !== ticketNumber) continue
+    if (match.index === 0 || /[^A-Z0-9]/i.test(value[match.index - 1])) return true
+    const repositoryStart = match.index - ticketRepository.length
+    if (repositoryStart < 0) continue
+    const repository = value.slice(repositoryStart, match.index).toLowerCase()
+    if (
+      repository === ticketRepository &&
+      (repositoryStart === 0 || /[^A-Z0-9_./-]/i.test(value[repositoryStart - 1]))
+    ) return true
+  }
+  return false
+}
 const referencesTicket =
-  branchTicketMention.test(pullRequest.headRefName) ||
-  [pullRequest.headRefName, pullRequest.title, pullRequest.body].some((value) => ticketMention.test(value))
+  [...pullRequest.headRefName.matchAll(/(?:^|[^A-Z0-9])ticket-([1-9]\d*)(?=-)/gi)].some(([, number]) => number === ticketNumber) ||
+  [pullRequest.headRefName, pullRequest.title, pullRequest.body].some(ticketMention)
 if (!referencesTicket) {
   fail(2, `Pull request ${expectedSlug}#${prNumber} does not reference ${issue} in its branch, title, or body. Nothing was written`)
 }

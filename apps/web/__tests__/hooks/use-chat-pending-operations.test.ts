@@ -90,6 +90,22 @@ describe('useChatPendingOperations', () => {
     expect(outcome).toMatchObject({ ok: true })
   })
 
+  it.each([404, 409])('treats a %s placement revision or refresh as stale', async (status) => {
+    const failure = { ok: false, status, error: 'pending_operation_not_found', sessionRefreshFailed: false }
+    mocks.revisePendingOperation.mockResolvedValue(failure)
+    mocks.refreshPendingOperation.mockResolvedValue(failure)
+    const { result } = renderHook(() => useChatPendingOperations(vi.fn()))
+    const request = { previewFingerprint: 'current', items: [{ itemId: '0', placement: 'new_parent' as const }] }
+    await act(async () => {
+      await expect(result.current.revisePendingOperationForBubble('pending-1', request)).resolves.toMatchObject({ ok: false, stale: true })
+    })
+    await act(async () => {
+      await expect(result.current.refreshPendingOperationForBubble('pending-1')).resolves.toMatchObject({ ok: false, stale: true })
+    })
+    expect(mocks.confirmPendingOperation).not.toHaveBeenCalled()
+    expect(mocks.executePendingOperation).not.toHaveBeenCalled()
+  })
+
   it('revises without confirming or executing', async () => {
     const response = { isSuccess: true, error: null, pendingOperationId: 'pending-1',
       cancelled: false, preview: { changes: [], changeTargetCount: 1, items: [], previewFingerprint: 'next' } }

@@ -120,7 +120,7 @@
     "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^24.5.2",
     "@types/react": "~19.2.14",
-    "@vitest/coverage-v8": "^4.1.9",
+    "@vitest/coverage-v8": "^4.1.12",
     "babel-preset-expo": "~57.0.2",
     "eslint-config-expo": "~57.0.2",
     "eslint-plugin-react-hooks": "^7.1.1",
@@ -131,7 +131,7 @@
     "tsx": "^4.20.6",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.62.1",
-    "vitest": "^4.1.9",
+    "vitest": "^4.1.12",
     "yoga-layout": "^3.2.1"
   }
 }

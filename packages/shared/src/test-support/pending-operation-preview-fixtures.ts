@@ -283,3 +283,25 @@ export function makeChildSchedulePreview(child: Readonly<Record<string, unknown>
       ? { ...field, newValue: JSON.stringify([child]), proposedValue: [child] } : field),
   })) })
 }
+
+export function makePlacementPreview(selected: 'sub_habit' | 'checklist_item' | 'new_parent' = 'checklist_item'): PendingAgentOperation {
+  const operation = makeCreateHabitsPreview(2)
+  const first = operation.items![0]!
+  return pendingAgentOperationSchema.parse({ ...operation, items: [{ ...first,
+    fields: [...first.fields, makeEveningRoutinePreview('en').items![0]!.fields.find((field) => field.field === 'sub_habits')!, ...[
+      { field: 'parent_habit_id', newValue: 'Morning routine', proposedValue: '11111111-1111-4111-8111-111111111111', valueType: 'text' },
+      { field: 'frequency_unit', newValue: 'Day', proposedValue: 'Day', valueType: 'text' },
+      { field: 'frequency_quantity', newValue: '1', proposedValue: 1, valueType: 'number' },
+      { field: 'due_time', newValue: '07:30', proposedValue: '07:30', valueType: 'time' },
+      { field: 'reminder_enabled', newValue: 'True', proposedValue: true, valueType: 'boolean' },
+      { field: 'tag_names', newValue: '["Health"]', proposedValue: ['Health'], valueType: 'text' },
+      { field: 'goal_ids', newValue: '["22222222-2222-4222-8222-222222222222"]', proposedValue: ['22222222-2222-4222-8222-222222222222'], valueType: 'text' },
+    ].map((field) => ({ entityId: emptyId, entityName: first.entityName, oldValue: null, isEditable: true, ...field }))],
+    placement: {
+      selected, recommended: 'checklist_item', reasonKey: 'chat.placement.destinationChecklist',
+      reason: { en: 'You already keep 4 checklist items here.', 'pt-BR': 'Você já tem 4 itens no checklist aqui.' },
+      alternatives: ['sub_habit', 'checklist_item', 'new_parent'].filter((value) => value !== selected),
+      destinationId: '11111111-1111-4111-8111-111111111111', destinationName: 'Morning routine',
+    },
+  }, operation.items![1]!] })
+}

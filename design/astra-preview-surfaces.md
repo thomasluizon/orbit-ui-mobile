@@ -6,6 +6,7 @@ The granted Astra conversation canvas defines the item rows, action order and ou
 | Surface | Web and Android behavior |
 | --- | --- |
 | Pending item preview | One named row per item with a localized cadence, date or time; only items marked `removesData: true` carry an irreversible mark. |
+| Placement choice | Destination-aware radio choices show the selected placement, recommendation and supplied localized reason. A switch revises every retained item ID with only the chosen item's placement patch. Approval and other revisions wait for the returned preview. Checklist items show their destination's settings note instead of independent draft schedules or nested activities; full Edit retains those settings for switching back. Offline failures retain the selected placement for retry; expired previews require refresh before approval. |
 | Compact preview actions | One filled Create or Save action, with counted accessible naming and icon-only Edit and Reject; whole controls reflow when the row cannot fit. |
 | Wide preview actions | The same filled primary action and icon-only Edit and Reject; whole controls reflow when the panel cannot fit them. |
 | Breakdown draft footer | Add habit, More actions and Approve are the three visible actions. Approve is primary with rows; Add habit is primary in an empty draft. More actions opens the shared compact sheet or wide anchored menu with Edit and Reject, keeping their accessible names. |

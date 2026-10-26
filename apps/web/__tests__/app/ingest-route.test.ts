@@ -13,15 +13,25 @@ afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
 describe('PostHog streaming proxy', () => {
   it.each([
     ['/ingest/static/array.js?v=1', 'https://us-assets.i.posthog.com/static/array.js?v=1'],
+    ['/ingest/static/1.434.15/surveys.js', 'https://us-assets.i.posthog.com/static/1.434.15/surveys.js'],
+    ['/ingest/array/project-token/config', 'https://us-assets.i.posthog.com/array/project-token/config'],
     ['/ingest/array/project-token/config.js', 'https://us-assets.i.posthog.com/array/project-token/config.js'],
     ['/ingest/e/?ip=1', 'https://us.i.posthog.com/e/?ip=1'],
-    ['/ingest/batch/', 'https://us.i.posthog.com/batch/'],
     ['/ingest/flags/?v=2', 'https://us.i.posthog.com/flags/?v=2'],
-    ['/ingest/decide/?v=3', 'https://us.i.posthog.com/decide/?v=3'],
     ['/ingest/s/', 'https://us.i.posthog.com/s/'],
     ['/ingest/i/v0/e/', 'https://us.i.posthog.com/i/v0/e/'],
-    ['/ingest/staticity/', 'https://us.i.posthog.com/staticity/'],
-    ['/ingest', 'https://us.i.posthog.com/'],
+    ['/ingest/i/v1/logs?token=project-token', 'https://us.i.posthog.com/i/v1/logs?token=project-token'],
+    ['/ingest/i/v1/metrics?token=project-token', 'https://us.i.posthog.com/i/v1/metrics?token=project-token'],
+    ['/ingest/api/surveys/?token=project-token', 'https://us.i.posthog.com/api/surveys/?token=project-token'],
+    ['/ingest/api/early_access_features/?token=project-token', 'https://us.i.posthog.com/api/early_access_features/?token=project-token'],
+    ['/ingest/api/product_tours/?token=project-token', 'https://us.i.posthog.com/api/product_tours/?token=project-token'],
+    ['/ingest/api/web_experiments/?token=project-token', 'https://us.i.posthog.com/api/web_experiments/?token=project-token'],
+    ['/ingest/api/conversations/v1/widget/message', 'https://us.i.posthog.com/api/conversations/v1/widget/message'],
+    ['/ingest/api/conversations/v1/widget/messages/ticket-id?token=project-token', 'https://us.i.posthog.com/api/conversations/v1/widget/messages/ticket-id?token=project-token'],
+    ['/ingest/api/conversations/v1/widget/messages/ticket-id/read', 'https://us.i.posthog.com/api/conversations/v1/widget/messages/ticket-id/read'],
+    ['/ingest/api/conversations/v1/widget/tickets?token=project-token', 'https://us.i.posthog.com/api/conversations/v1/widget/tickets?token=project-token'],
+    ['/ingest/api/conversations/v1/widget/restore', 'https://us.i.posthog.com/api/conversations/v1/widget/restore'],
+    ['/ingest/api/conversations/v1/widget/restore/request', 'https://us.i.posthog.com/api/conversations/v1/widget/restore/request'],
   ])('forwards %s to %s without dropping the response body', async (path, destination) => {
     fetchUpstream.mockResolvedValue(new Response('upstream payload', {
       status: 202, statusText: 'Accepted',
@@ -39,9 +49,43 @@ describe('PostHog streaming proxy', () => {
     expect(await response.text()).toBe('upstream payload')
   })
 
-  it('forwards a streamed event body and client context without application credentials', async () => {
+  it.each([
+    '/ingest/api/users/@me/', '/ingest/api/projects/', '/ingest/api/',
+    '/ingest', '/ingest/', '/ingest/staticity/', '/ingest/array-like/',
+    '/ingest/events/', '/ingest/flagship/', '/ingest/batch/', '/ingest/decide/?v=3',
+    '/ingest/e', '/ingest/flags', '/ingest/static', '/ingest/api/surveys',
+    '/ingest/api/surveys-admin/', '/ingest/api/conversations/v1/widget-admin/',
+    '/ingest/e/..%2F..%2Fapi/users/@me/', '/ingest/static/..%5capi/users/@me/',
+    '/ingest/e/%252e%252e%252fapi/users/@me/',
+    '/ingest/static/%2e%2e/api/users/@me/', '/ingest/e/../api/users/@me/',
+    '/ingest//api/users/@me/', '/ingest//other.example.test/e/',
+    '/ingesthttps://other.example.test/e/', '/ingestion/e/',
+  ])('rejects %s without contacting PostHog', async path => {
+    fetchUpstream.mockResolvedValue(new Response('PostHog body'))
+
+    const response = await GET(new Request(`https://app.example.test${path}`))
+
+    expect(response.status).toBe(404)
+    expect(await response.text()).toBe('')
+    expect(fetchUpstream).not.toHaveBeenCalled()
+  })
+
+  it('builds the upstream URL from the fixed origin and preserves the original query encoding', async () => {
     fetchUpstream.mockResolvedValue(new Response('ok'))
-    const request = new Request('https://app.example.test/ingest/e/?compression=gzip-js', {
+
+    await GET(new Request('http://app.example.test:8080/ingest/e/?token=a%2Fb&value=one+two&value=%20'))
+
+    expect(fetchUpstream.mock.calls[0]![0]).toEqual(new URL('https://us.i.posthog.com/e/?token=a%2Fb&value=one+two&value=%20'))
+  })
+
+  it.each([
+    '/e/?compression=gzip-js', '/s/', '/i/v1/logs', '/flags/?v=2',
+    '/api/surveys/', '/api/early_access_features/', '/api/product_tours/',
+    '/api/web_experiments/', '/api/conversations/v1/widget/message',
+    '/static/array.js', '/array/project-token/config',
+  ])('forwards a streamed body and client context for %s without application credentials', async path => {
+    fetchUpstream.mockResolvedValue(new Response('ok'))
+    const request = new Request(`https://app.example.test/ingest${path}`, {
       method: 'POST', body: 'event payload',
       headers: { cookie: 'auth=private', authorization: 'Bearer private', host: 'app.example.test',
         'content-type': 'text/plain', 'content-encoding': 'gzip', origin: 'https://app.example.test',
@@ -57,7 +101,11 @@ describe('PostHog streaming proxy', () => {
     expect(options.signal).toBe(request.signal)
     expect(options.body).toBe(request.body)
     expect(await new Response(options.body).text()).toBe('event payload')
-    expect(headers.get('host')).toBe('us.i.posthog.com')
+    const hostname = path.startsWith('/static/') || path.startsWith('/array/')
+      ? 'us-assets.i.posthog.com'
+      : 'us.i.posthog.com'
+    expect(fetchUpstream.mock.calls[0]![0]).toEqual(new URL(`https://${hostname}${path}`))
+    expect(headers.get('host')).toBe(hostname)
     expect(headers.get('content-type')).toBe('text/plain')
     expect(headers.get('content-encoding')).toBe('gzip')
     expect(headers.get('origin')).toBe('https://app.example.test')

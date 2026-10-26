@@ -1,5 +1,5 @@
 import { pendingOperationSubHabits } from './pending-operation-sub-habits'
-import type { AgentOperationResult, PendingAgentOperation, PendingOperationChange, PendingOperationItem, PendingOperationFieldOptions } from '../types/ai'
+import type { AgentOperationResult, HabitPlacement, PendingAgentOperation, PendingOperationChange, PendingOperationItem, PendingOperationFieldOptions, PendingOperationPlacement } from '../types/ai'
 import type {
   PendingOperationCardStatus,
   PreparedPendingOperationStepUp,
@@ -112,6 +112,7 @@ export interface PendingOperationCardRenderers<Node> {
   verification: (props: PendingOperationVerificationProps) => Node
   editSheet: (props: PendingOperationEditSheetProps) => Node
   parentChoice: (props: { itemId: string; focusRequest?: number; shouldFocus?: () => boolean; itemName: string; field: PendingOperationFieldOptions; labels: PendingOperationCardLabels; disabled: boolean; onSelect: (value: unknown, ownsFocus?: () => boolean) => void }) => Node
+  placementChoice: (props: { itemId: string; itemName: string; placement: PendingOperationPlacement; labels: PendingOperationCardLabels; disabled: boolean; busy: boolean; onSelect: (value: HabitPlacement) => void }) => Node
   removeItem: (label: string, disabled: boolean, onClick: () => void) => Node
   notice: (message: string) => Node
   fragment: (...children: (Node | null | undefined)[]) => Node
@@ -159,6 +160,7 @@ export interface PendingOperationCardActions {
     saveEdit: () => Promise<boolean>
     hasRequiredChoices?: boolean
     chooseParent?: (itemId: string, value: unknown, ownsFocus?: () => boolean) => Promise<boolean>
+    switchPlacement?: (itemId: string, value: HabitPlacement) => Promise<boolean>
     hasTitleDrafts?: boolean
     setTitleDraft?: (itemId: string, title: string | undefined) => void
     renameItem?: (itemId: string, title: string) => Promise<boolean>
@@ -169,7 +171,7 @@ export interface PendingOperationCardActions {
 }
 
 type CardRevision = NonNullable<PendingOperationCardActions['revision']>
-type PreviewItem = Pick<PendingOperationItem, 'itemId' | 'entityId' | 'entityName' | 'fields' | 'removesData' | 'fieldOptions'>
+type PreviewItem = Pick<PendingOperationItem, 'itemId' | 'entityId' | 'entityName' | 'fields' | 'removesData' | 'fieldOptions' | 'placement'>
 
 const NAVIGABLE_OPERATION_ACTIONS: Readonly<Record<string, string | null>> = {
   create_habit: 'CreateHabit', update_habit: 'UpdateHabit', create_sub_habit: 'CreateSubHabit',
@@ -303,6 +305,22 @@ function parentChoiceBody<Node>(
   })
 }
 
+function previewItemBody<Node>(
+  item: PreviewItem, parentChoice: PendingOperationFieldOptions | undefined, firstParentChoiceId: string | undefined,
+  card: PendingOperationCardActions, labels: PendingOperationCardLabels, render: PendingOperationCardRenderers<Node>,
+): Node | undefined {
+  const parent = parentChoiceBody(item, parentChoice, firstParentChoiceId, card, labels, render)
+  if (!item.placement || card.status != null) return parent
+  const revision = card.revision
+  return render.fragment(parent, render.placementChoice({
+    itemId: item.itemId, itemName: item.entityName, placement: item.placement, labels,
+    busy: card.busy || revision?.busy === true,
+    disabled: card.busy || !revision?.canRevise || revision.busy || revision.stale
+      || revision.hasTitleDrafts === true || Boolean(revision.editingItem),
+    onSelect: (value) => { void revision?.switchPlacement?.(item.itemId, value) },
+  }))
+}
+
 function previewRows<Node>(
   pendingOperation: PendingAgentOperation,
   card: PendingOperationCardActions,
@@ -321,7 +339,7 @@ function previewRows<Node>(
       : results || card.status === 'failed' ? undefined : card.status
     const edited = revision?.editedItemIds.includes(item.itemId) === true
     const parentChoice = item.fieldOptions?.find((field) => field.field === 'parent_habit_id')
-    const summary = labels.summarize(item.fields.filter((field) => !parentChoice || field.field !== 'parent_habit_id')) || labels.pending
+    const summary = placementSummary(item, labels, Boolean(parentChoice))
     const parent: PendingOperationFrame<Node>['items'][number] = {
       id: item.itemId,
       label: item.fields.find((field) => ['title', 'name'].includes(field.field))?.newValue || item.entityName || labels.name,
@@ -331,7 +349,7 @@ function previewRows<Node>(
         ? { label: labels.fieldLabels.title!, disabled: card.busy || revision.busy,
             onSave: (title: string) => revision.renameItem!(item.itemId, title),
             onDraftChange: (title: string | undefined) => revision.setTitleDraft?.(item.itemId, title) } : undefined,
-      body: parentChoiceBody(item, parentChoice, firstParentChoiceId, card, labels, render),
+      body: previewItemBody(item, parentChoice, firstParentChoiceId, card, labels, render),
       meta: edited ? `${labels.edited} · ${summary}` : summary,
       status,
       irreversible: item.removesData === true && card.status == null,
@@ -343,7 +361,7 @@ function previewRows<Node>(
         ? itemControl(item, items.length, revision, card, labels, render, status, result?.habitId)
         : completedTargetControl(result?.habitId ?? (items.length === 1 ? card.completedOperation?.targetId ?? item.entityId : item.entityId), item.entityName, card, labels, render, status),
     }
-    return [parent, ...pendingOperationSubHabits(item.fields).map((child, childIndex) => ({
+    return [parent, ...(item.placement?.selected === 'checklist_item' ? [] : pendingOperationSubHabits(item.fields)).map((child, childIndex) => ({
       id: `${item.itemId}-child-${childIndex}`, label: child.title,
       icon: child.fields.find((field) => field.field === 'emoji')?.newValue ?? undefined,
       meta: labels.summarize(child.fields, 'createHabit'), indented: true,
@@ -360,6 +378,14 @@ function previewRows<Node>(
     irreversible: false, proposed: false, wrapLabel: true, wrapMeta: true, editable: false, control: undefined,
   })
   return rows
+}
+
+function placementSummary(item: PreviewItem, labels: PendingOperationCardLabels, parentChoice: boolean): string {
+  const placement = item.placement
+  const summary = labels.summarize(item.fields.filter((field) => !(parentChoice || placement) || field.field !== 'parent_habit_id'))
+  if (!placement) return summary || labels.pending
+  const selected = labels.placementOption(placement.selected, placement.destinationName)
+  return placement.selected === 'checklist_item' || !summary ? selected : `${selected} · ${summary}`
 }
 
 function groupedChanges(changes: readonly PendingOperationChange[]): PreviewItem[] {
