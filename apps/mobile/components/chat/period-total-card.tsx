@@ -11,8 +11,9 @@ export function PeriodTotalCard({ card }: Readonly<{ card: PeriodTotal }>) {
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  return <BlockFrame state="resting" title={t(`chat.readBlock.metric.${card.metric}`)} wrapTitle titleContent={<CompactFigure value={new Intl.NumberFormat(i18n.language).format(card.value)} unit={t(`chat.readBlock.unit.${card.unit}`, { count: card.value })} />} count={null} items={[]}
+  return <BlockFrame state="resting" title={t(`chat.readBlock.metric.${card.metric}`)} wrapTitle count={null} items={[]}
     body={<View style={{ minWidth: 0, gap: 8 }}>
+      <CompactFigure value={new Intl.NumberFormat(i18n.language).format(card.value)} unit={t(`chat.readBlock.unit.${card.unit}`, { count: card.value })} />
       <Text style={{ color: tokens.fg3, fontSize: 14 }}>{formatFigurePeriod(card.metrics.window, i18n.language, t)}</Text>
     </View>} />
 }

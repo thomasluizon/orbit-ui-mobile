@@ -196,34 +196,57 @@ it.each((['habitList', 'daySummary'] as const).flatMap(kind => [true, false].fla
     await act(() => tree.unmount())
 })
 
-it.each([['en', 'chat'], ['en', 'refresh'], ['pt-BR', 'chat'], ['pt-BR', 'refresh']] as const)('distinguishes habit counts from completions in %s through %s', async (locale, source) => {
-  state.locale = locale
-  state.actualCopy = true
-  const labels = locale === 'en'
-    ? { habits: 'Habits completed', unit: 'habits', completions: 'Completions', completionUnit: 'completions' }
-    : { habits: 'Hábitos concluídos', unit: 'hábitos', completions: 'Conclusões', completionUnit: 'conclusões' }
-  const cases = [
-    { kind: 'periodTotal', block: completedHabitTotalFixture, figures: ['3'], habits: true },
-    { kind: 'periodComparison', block: completedHabitComparisonFixture, figures: ['3', '1', '+2 (+200%)'], habits: true },
-    { kind: 'periodTotal', block: focusedPeriodTotalFixture, figures: ['12'], habits: false },
-    { kind: 'periodComparison', block: focusedPeriodComparisonFixture, figures: ['12', '0', '+12'], habits: false },
-    { kind: 'periodTotal', block: { ...focusedPeriodTotalFixture, metrics: completedHabitTotalFixture.metrics }, figures: ['12'], habits: false },
-    { kind: 'periodComparison', block: { ...focusedPeriodComparisonFixture, current: completedHabitComparisonFixture.current, baseline: completedHabitComparisonFixture.baseline }, figures: ['12', '0', '+12'], habits: false },
-  ]
-  for (const { kind, block, figures, habits } of cases) {
-    const expected = habits
-      ? { title: labels.habits, unit: labels.unit, other: labels.completions }
-      : { title: labels.completions, unit: labels.completionUnit, other: labels.habits }
+it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as const).flatMap(source => (['periodTotal', 'periodComparison'] as const).map(kind => ({ locale, source, kind })))))(
+  'distinguishes habit counts from completions in $locale through $source for $kind', async ({ locale, source, kind: blockKind }) => {
+    state.locale = locale
+    state.actualCopy = true
+    const labels = locale === 'en'
+      ? { habits: 'Habits completed', unit: 'habits', completions: 'Completions', completionUnit: 'completions' }
+      : { habits: 'Hábitos concluídos', unit: 'hábitos', completions: 'Conclusões', completionUnit: 'conclusões' }
+    const cases = [
+      { kind: 'periodTotal', block: completedHabitTotalFixture, figures: ['3'], habits: true },
+      { kind: 'periodComparison', block: completedHabitComparisonFixture, figures: ['3', '1'], habits: true },
+      { kind: 'periodTotal', block: focusedPeriodTotalFixture, figures: ['12'], habits: false },
+      { kind: 'periodComparison', block: focusedPeriodComparisonFixture, figures: ['12', '0'], habits: false },
+      { kind: 'periodTotal', block: { ...focusedPeriodTotalFixture, metrics: completedHabitTotalFixture.metrics }, figures: ['12'], habits: false },
+      { kind: 'periodComparison', block: { ...focusedPeriodComparisonFixture, current: completedHabitComparisonFixture.current, baseline: completedHabitComparisonFixture.baseline }, figures: ['12', '0'], habits: false },
+    ]
+    for (const { kind, block, figures, habits } of cases.filter(candidate => candidate.kind === blockKind)) {
+      const expected = habits
+        ? { title: labels.habits, unit: labels.unit }
+        : { title: labels.completions, unit: labels.completionUnit }
+      const parsed = source === 'chat'
+        ? chatPartSchema.parse({ type: 'block', kind, block })
+        : readBlockResponseSchema.parse({ kind, block, read: block.read })
+      if (!parsed || !('kind' in parsed)) throw new Error(`${kind} ${source} did not parse`)
+      const tree = await mount(parsed)
+      const text = renderedText(tree.toJSON())
+      expect(text).toContain(expected.title)
+      expect(text).toContain(expected.unit)
+      const compactFigures = tree.root.findAll(node => String(node.type) === 'View' && node.props.testID === 'compact-figure')
+      expect(compactFigures.map(figure => renderedText(figure).trim().split(/\s+/)[0])).toEqual(figures)
+      expect(text).not.toMatch(habits ? /completions?|conclus(?:ão|ões)/i : /habits?|hábitos?/i)
+      expect(text).not.toContain('chat.figure.comparison.')
+      await act(() => tree.unmount())
+    }
+})
+
+it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as const).flatMap(source =>
+  (['periodTotal', 'periodComparison'] as const).flatMap(kind =>
+    (['distinctLoggedDates', 'metScheduledDates', 'scheduledDates'] as const).map(metric => ({ locale, source, kind, metric }))))))(
+  'names $metric in $kind through $source in $locale', async ({ locale, source, kind, metric }) => {
+    state.locale = locale
+    state.actualCopy = true
+    const block = { ...(kind === 'periodTotal' ? focusedPeriodTotalFixture : focusedPeriodComparisonFixture), metric, unit: 'days' }
     const parsed = source === 'chat'
       ? chatPartSchema.parse({ type: 'block', kind, block })
       : readBlockResponseSchema.parse({ kind, block, read: block.read })
     if (!parsed || !('kind' in parsed)) throw new Error(`${kind} ${source} did not parse`)
+    const messages = locale === 'en' ? en : pt
     const tree = await mount(parsed)
-    const text = renderedText(tree.toJSON())
-    expect(text).toContain(expected.title)
-    expect(text).toContain(expected.unit)
-    for (const figure of figures) expect(text).toContain(figure)
-    expect(text).not.toContain(expected.other)
+    expect(renderedText(tree.toJSON())).toContain(messages.chat.readBlock.metric[metric])
+    const figures = tree.root.findAll(node => String(node.type) === 'View' && node.props.testID === 'compact-figure')
+    expect(figures).toHaveLength(kind === 'periodTotal' ? 1 : 2)
+    for (const figure of figures) expect(renderedText(figure)).toContain(locale === 'en' ? 'days' : 'dias')
     await act(() => tree.unmount())
-  }
 })

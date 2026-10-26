@@ -14,6 +14,7 @@ export function PeriodComparisonCard({ card }: Readonly<{ card: PeriodComparison
   const presentation = comparisonPresentation(card, i18n.language, t)
   return <BlockFrame state="resting" title={presentation.verdict} wrapTitle count={null} items={[]}
     body={<FigureList>
+      <Text style={{ fontSize: 14, color: tokens.fg2 }}>{t(`chat.readBlock.metric.${card.metric}`)}</Text>
       {presentation.bars.map(bar => <View key={bar.id} style={{ minWidth: 0, gap: 4 }}>
         <Text style={{ fontSize: 12, color: tokens.fg3 }}>{bar.label}</Text>
         <CompactFigure value={new Intl.NumberFormat(i18n.language).format(bar.value)} unit={t(`chat.readBlock.unit.${card.unit}`, { count: bar.value })} />

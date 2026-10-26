@@ -2396,6 +2396,11 @@
     "figure": {
       "soFar": "{period} (até agora)",
       "comparison": {
+        "habits": {
+          "ahead": "Sim, {current} está à frente: {value} {count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}, contra {previous} em {baseline}.",
+          "behind": "{current} está atrás: {value} {count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}, contra {previous} em {baseline}.",
+          "equal": "{current} e {baseline} têm o mesmo total: {value} {count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}."
+        },
         "records": {
           "ahead": "Sim, {current} está à frente: {value} {count, plural, =0 {conclusões} one {conclusão} other {conclusões}}, contra {previous} em {baseline}.",
           "behind": "{current} tem menos {count, plural, =0 {conclusões} one {conclusão} other {conclusões}}: {value}, contra {previous} em {baseline}.",

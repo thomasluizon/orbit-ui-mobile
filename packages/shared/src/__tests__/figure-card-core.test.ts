@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { comparisonPresentation, formatFigurePeriod } from '../chat/figure-card-core'
-import { focusedPeriodComparisonFixture } from '../test-support/chat-fixtures'
+import { completedHabitComparisonFixture, focusedPeriodComparisonFixture } from '../test-support/chat-fixtures'
 import en from '../i18n/en.json'
 import pt from '../i18n/pt-BR.json'
 
@@ -14,6 +14,15 @@ for (const [locale, messages] of [['en', en], ['pt-BR', pt]] as const) {
     it('names complete and running months from the supplied windows', () => {
       expect(formatFigurePeriod({ from: '2026-10-01', to: '2026-10-25' }, locale, translate)).toContain(locale === 'en' ? 'October 2026 (so far)' : 'outubro de 2026 (até agora)')
       expect(formatFigurePeriod({ from: '2026-09-01', to: '2026-09-30' }, locale, translate)).not.toContain(locale === 'en' ? 'so far' : 'até agora')
+    })
+    it.each([[3, 1], [1, 3], [0, 0]] as const)('names completed habits in a comparison of %s and %s', (currentValue, baselineValue) => {
+      const card = { ...completedHabitComparisonFixture, currentValue, baselineValue }
+      const presentation = comparisonPresentation(card, locale, translate)
+      expect(presentation.verdict).toContain(String(currentValue))
+      expect(presentation.verdict).toContain(locale === 'en'
+        ? currentValue === 1 ? 'habit completed' : 'habits completed'
+        : currentValue === 1 ? 'hábito concluído' : 'hábitos concluídos')
+      expect(presentation.verdict).not.toMatch(/completions?|conclus(?:ão|ões)/i)
     })
     it.each([[88, 20, 'ahead'], [2, 20, 'behind'], [0, 0, 'equal']] as const)('answers a comparison of %s and %s', (currentValue, baselineValue, _direction) => {
       const card = { ...focusedPeriodComparisonFixture, currentValue, baselineValue }

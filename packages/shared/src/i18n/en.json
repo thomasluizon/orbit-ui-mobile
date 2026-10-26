@@ -2396,6 +2396,11 @@
     "figure": {
       "soFar": "{period} (so far)",
       "comparison": {
+        "habits": {
+          "ahead": "Yes, {current} is ahead: {value} {count, plural, one {habit completed} other {habits completed}} against {previous} in {baseline}.",
+          "behind": "{current} is behind: {value} {count, plural, one {habit completed} other {habits completed}} against {previous} in {baseline}.",
+          "equal": "{current} and {baseline} have the same total: {value} {count, plural, one {habit completed} other {habits completed}}."
+        },
         "records": {
           "ahead": "Yes, {current} is ahead: {value} {count, plural, one {completion} other {completions}} against {previous} in {baseline}.",
           "behind": "{current} has fewer {count, plural, one {completion} other {completions}}: {value} against {previous} in {baseline}.",
