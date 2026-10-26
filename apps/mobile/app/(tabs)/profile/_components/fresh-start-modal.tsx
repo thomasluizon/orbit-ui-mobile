@@ -1,4 +1,3 @@
-import { IconButton } from '@/components/ui/icon-button'
 import { SPACING } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
@@ -174,7 +173,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
         actions={
           resetStep === 'info' ? (
               <ActionRow>
-                <IconButton label={t('common.cancel')} onClick={() => closeSheet()}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+                <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
                 <PillButton
                   size="sm"
                   variant="caution"
@@ -198,7 +197,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                   </Text>
                 ) : null}
                 <ActionRow>
-                  <IconButton label={t('common.cancel')} disabled={resetLoading} onClick={() => closeSheet()}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+                  <PillButton size="sm" variant="ghost" disabled={resetLoading} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
                   <PillButton
                     size="sm"
                     variant="caution"

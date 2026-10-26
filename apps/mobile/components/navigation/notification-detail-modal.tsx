@@ -1,5 +1,3 @@
-import { IconButton } from '@/components/ui/icon-button'
-import { Trash2 } from '@/components/ui/icons'
 import { SPACING } from '@orbit/shared/theme'
 import { useMemo } from 'react'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -86,7 +84,7 @@ export function NotificationDetailModal({
               {targetKey ? t('notifications.openIn', { target: t(targetKey) }) : t('notifications.view')}
             </Button>
           ) : null}
-          <IconButton label={t('notifications.delete')} onClick={handleDelete}><Trash2 size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+          <Button variant="destructive" size="sm" onClick={handleDelete}>{t('notifications.delete')}</Button>
         </>
       }
     >

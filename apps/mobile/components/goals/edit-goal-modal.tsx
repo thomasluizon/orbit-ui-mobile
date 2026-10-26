@@ -1,5 +1,3 @@
-import { IconButton } from '@/components/ui/icon-button'
-import { X } from '@/components/ui/icons'
 import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Text, TextInput, View } from 'react-native'
@@ -186,7 +184,7 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
         title={t('goals.detail.edit')}
         actions={(
           <ActionRow>
-            <IconButton label={t('common.cancel')} disabled={isSubmitting} onClick={dismissGuard.requestDismiss}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+            <PillButton size="sm" variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>{t('common.cancel')}</PillButton>
             <PillButton size="sm" onClick={() => void onSubmit()} disabled={isSubmitting} loading={isSubmitting}>
               {t('common.save')}
             </PillButton>

@@ -1,9 +1,8 @@
-import { IconButton } from '@/components/ui/icon-button'
 import { useTranslation } from 'react-i18next'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
-import { Plus, X } from '@/components/ui/icons'
+import { Plus } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { ActionRow } from '@/components/ui/action-row'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -45,7 +44,7 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {
         title={t('goals.create')}
         actions={(
           <ActionRow>
-            <IconButton label={t('common.cancel')} disabled={isSubmitting} onClick={dismissGuard.requestDismiss}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+            <PillButton size="sm" variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>{t('common.cancel')}</PillButton>
             <PillButton size="sm" leadingIcon={<Plus size={16} strokeWidth={2} />} onClick={() => void onSubmit()} disabled={isSubmitting} loading={isSubmitting}>
               {t('goals.create')}
             </PillButton>

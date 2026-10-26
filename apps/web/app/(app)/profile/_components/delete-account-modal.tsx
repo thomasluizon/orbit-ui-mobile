@@ -1,7 +1,5 @@
 'use client'
 
-import { IconButton } from '@/components/ui/icon-button'
-
 import { SPACING } from '@orbit/shared/theme'
 
 import { useRouter } from 'next/navigation'
@@ -17,7 +15,7 @@ import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { ActionRow } from '@/components/ui/action-row'
-import { TriangleAlert, X } from '@/components/ui/icons'
+import { TriangleAlert } from '@/components/ui/icons'
 import { ErrorState } from '@/components/ui/error-state'
 
 interface DeleteAccountModalProps {
@@ -122,7 +120,7 @@ export function DeleteAccountModal({
               </p>
             ) : null}
             <ActionRow>
-              <IconButton label={t('common.cancel')} disabled={loading} onClick={() => closeSheet()}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+              <PillButton size="sm" variant="ghost" disabled={loading} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
               <PillButton
                 size="sm"
                 variant="destructive"

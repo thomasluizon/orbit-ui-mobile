@@ -1,5 +1,3 @@
-import { IconButton } from '@/components/ui/icon-button'
-import { X } from '@/components/ui/icons'
 import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -529,7 +527,7 @@ function EditHabitDraft({
         title={t(formHelpers.isOneTime ? 'habits.editTask' : 'habits.editHabit')}
         actions={(
           <ActionRow>
-            <IconButton label={t('common.cancel')} disabled={saving} onClick={dismissGuard.requestDismiss}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+            <PillButton size="sm" variant="ghost" disabled={saving} onClick={dismissGuard.requestDismiss}>{t('common.cancel')}</PillButton>
             <PillButton
               size="sm"
               disabled={detailFieldsPending || saving}

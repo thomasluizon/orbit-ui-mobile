@@ -8,6 +8,7 @@ import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { readControlHitArea } from '@/test-support/control-hit-area'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-referral', () => ({
@@ -54,7 +55,7 @@ describe('Referral drawer sheet insets in Chromium', () => {
         const bodyBounds = body.getBoundingClientRect()
         const bodyStyle = getComputedStyle(body)
         const copy = body.querySelector('[aria-label="referral.drawer.copyLink"]')!
-        const share = document.querySelector('[aria-label="referral.drawer.share"]')!
+        const share = [...document.querySelectorAll('[data-slot="sheet-actions"] button')].find(button => button.textContent === 'referral.drawer.share')!
         const shareBounds = share.getBoundingClientRect()
         const hits = [
           [shareBounds.left + 1, shareBounds.top + shareBounds.height / 2],
@@ -83,8 +84,12 @@ describe('Referral drawer sheet insets in Chromium', () => {
         expect(surface.right).toBeCloseTo(measured.edge.right, 1)
       }
       expect(measured.share.right).toBeCloseTo(measured.edge.right, 1)
-      expect(measured.shareHeight).toBe(48)
+      expect(measured.shareHeight).toBe(44)
       expect(measured.hits).toEqual([true, true, true, true])
+      const hit = await page.getByRole('button', { name: 'referral.drawer.share', exact: true }).evaluate(readControlHitArea)
+      expect(hit.width).toBeGreaterThanOrEqual(48)
+      expect(hit.height).toBeGreaterThanOrEqual(48)
+      expect(hit.checks).toEqual([true, true, true, true])
     } finally { await page.close() }
   })
 

@@ -1,7 +1,5 @@
 'use client'
 
-import { IconButton } from '@/components/ui/icon-button'
-
 import { useId } from 'react'
 import { useTranslations } from 'next-intl'
 import { useGoalProgressEntry } from '@/hooks/use-goal-progress-entry'
@@ -14,7 +12,7 @@ import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { useUpdateGoalProgress } from '@/hooks/use-goals'
-import { Check, X } from '@/components/ui/icons'
+import { Check } from '@/components/ui/icons'
 
 interface GoalProgressFormProps {
   goal: Goal
@@ -43,7 +41,7 @@ export function GoalProgressForm({ goal, refetchDetail, onClose }: Readonly<Goal
   return <>
     <Sheet ref={sheetRef} open title={t('goals.updateProgress')} onClose={!busy && dismiss.canDismiss ? onClose : undefined} onAttemptDismiss={requestDismiss} actions={
       <ActionRow>
-        <IconButton label={t('common.cancel')} disabled={busy} onClick={requestDismiss}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+        <PillButton size="sm" variant="ghost" disabled={busy} onClick={requestDismiss}>{t('common.cancel')}</PillButton>
         <PillButton accessibleName={t('common.save')} disabled={busy} loading={busy} formId={formId} leadingIcon={<Check size={16} aria-hidden="true" />}>{t('common.save')}</PillButton>
       </ActionRow>
     }>

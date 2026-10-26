@@ -1,7 +1,5 @@
 'use client'
 
-import { IconButton } from '@/components/ui/icon-button'
-import { X } from '@/components/ui/icons'
 import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 
 import { useState, useCallback, useEffect, useId, useMemo, useRef } from 'react'
@@ -177,7 +175,7 @@ export function EditGoalModal({
         title={t('goals.detail.edit')}
         actions={(
           <ActionRow>
-            <IconButton label={t('common.cancel')} disabled={isSubmitting} onClick={dismissGuard.requestDismiss}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+            <PillButton size="sm" variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>{t('common.cancel')}</PillButton>
             <PillButton size="sm" formId={formId} disabled={isSubmitting} loading={isSubmitting}>
               {t('common.save')}
             </PillButton>

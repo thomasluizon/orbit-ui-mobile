@@ -310,7 +310,7 @@ describe('mobile alerts', () => {
     press(tree, 'attempt-dismiss')
     press(tree, 'Alert 0. unread. Progress')
     expect(action(en.notifications.markAsRead).props.testID).toBe('button-ghost-sm')
-    expect(action('Delete').props.testID).toBe('button-ghost-sm')
+    expect(action('Delete').props.testID).toBe('button-destructive-sm')
   })
 
   it('keeps detail actions in the pinned sheet slot when a long body scrolls', () => {

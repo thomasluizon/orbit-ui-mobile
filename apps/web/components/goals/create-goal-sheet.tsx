@@ -1,11 +1,9 @@
 'use client'
 
-import { IconButton } from '@/components/ui/icon-button'
-
 import { useTranslations } from 'next-intl'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { Plus, X } from '@/components/ui/icons'
+import { Plus } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { ActionRow } from '@/components/ui/action-row'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -48,7 +46,7 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps & { restore
         title={t('goals.create')}
         actions={(
           <ActionRow>
-            <IconButton label={t('common.cancel')} disabled={isSubmitting} onClick={dismissGuard.requestDismiss}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+            <PillButton size="sm" variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>{t('common.cancel')}</PillButton>
             <PillButton size="sm" leadingIcon={<Plus size={16} strokeWidth={2} aria-hidden="true" />} formId={formId} disabled={isSubmitting} loading={isSubmitting}>
               {t('goals.create')}
             </PillButton>

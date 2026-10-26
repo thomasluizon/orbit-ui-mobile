@@ -229,9 +229,8 @@ describe('MilestoneSharePrompt', () => {
               [bounds.left + bounds.width / 2, bounds.top - 2],
               [bounds.left + bounds.width / 2, bounds.bottom + 1.99],
             ].map(([x, y]) => button.contains(document.elementFromPoint(x!, y!)))
-            const iconOnly = button.textContent === ''
             const label = button.querySelector('span, svg')!.getBoundingClientRect()
-            return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height, hits, iconOnly, labelLeft: label.left, labelRight: label.right }
+            return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height, hits, text: button.textContent, labelLeft: label.left, labelRight: label.right }
           })
           return { left, right, buttons }
         })
@@ -240,8 +239,9 @@ describe('MilestoneSharePrompt', () => {
           expect(button.left).toBeGreaterThanOrEqual(measured.left)
           expect(button.right).toBeLessThanOrEqual(measured.right)
           expect(button.width).toBeLessThan(measured.right - measured.left)
-          expect(button.height).toBe(button.iconOnly ? 48 : 44)
-          expect(button.hits).toEqual(button.iconOnly ? [false, false, false, false] : [true, true, true, true])
+          expect(button.height).toBe(44)
+          expect(button.text).not.toBe('')
+          expect(button.hits).toEqual([true, true, true, true])
           expect(button.labelLeft).toBeGreaterThan(button.left)
           expect(button.labelRight).toBeLessThan(button.right)
         }

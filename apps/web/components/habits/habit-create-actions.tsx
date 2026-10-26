@@ -1,9 +1,5 @@
 'use client'
 
-import { X } from '@/components/ui/icons'
-
-import { IconButton } from '@/components/ui/icon-button'
-
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
 import { ActionRow } from '@/components/ui/action-row'
@@ -34,7 +30,7 @@ export function HabitCreateActions({ presentation, pending, empty, subHabit, onl
         </PillButton>
       ) : (
         <ActionRow>
-          <IconButton label={t('common.cancel')} disabled={pending} onClick={onCancel}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+          <PillButton size="sm" variant="ghost" disabled={pending} onClick={onCancel}>{t('common.cancel')}</PillButton>
           <PillButton size="sm" formId={formId}
           descriptionId={descriptionId} loading={pending}>
           {label}

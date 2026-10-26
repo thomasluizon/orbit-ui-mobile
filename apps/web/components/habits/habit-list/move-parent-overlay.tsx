@@ -5,7 +5,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { SPACING } from '@orbit/shared/theme'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Home, Search, RefreshCw, X } from '@/components/ui/icons'
+import { Home, Search, RefreshCw } from '@/components/ui/icons'
 import { plural } from '@/lib/plural'
 import { getMoveParentRowAvailability, getMoveParentPickerRows, getMoveParentScrollOffset, type MoveParentPickerProps, type MoveParentRowProps } from '@orbit/shared/utils/move-parent'
 import { ErrorState } from '@/components/ui/error-state'
@@ -135,7 +135,7 @@ export function MoveParentOverlay({
       title={title}
       actions={selectionOnly ? undefined :
         <ActionRow>
-          <IconButton label={t('common.cancel')} disabled={isMoving} onClick={() => closeSheet()}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+          <PillButton size="sm" variant="ghost" disabled={isMoving} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
           <PillButton size="sm" disabled={!canSubmit} loading={isMoving} onClick={() => void confirmMove()}>
             {t('habits.moveParent.confirm')}
           </PillButton>

@@ -640,7 +640,9 @@ describe('PendingOperationCard', () => {
     rerender(<PendingOperationCard pendingOperation={{ ...highRisk, previewFingerprint: 'preview-2', items: [secondItem] }} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
 
     expect(sheetTestControls.isDismissPending).toBe(true)
-    expect(screen.getByLabelText('common.cancel', { selector: 'button' })).toBeDisabled()
+    const cancel = screen.getByText('common.cancel').closest('button')
+    expect(cancel).toHaveTextContent('common.cancel')
+    expect(cancel).toBeDisabled()
     expect(screen.getByText('stepUp.confirm').closest('button')).toBeDisabled()
     fireEvent.click(screen.getByText('close-overlay'))
     act(() => sheetTestControls.completeDismissal())

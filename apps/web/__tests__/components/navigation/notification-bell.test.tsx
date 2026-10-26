@@ -234,7 +234,7 @@ describe('alerts', () => {
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'close-overlay' }))
     fireEvent.click(screen.getByRole('button', { name: 'Alert 0. unread. Progress' }))
     expect(within(screen.getByRole('dialog')).getByRole('button', { name: en.notifications.markAsRead })).toHaveAttribute('data-variant', 'ghost')
-    expect(screen.getByRole('button', { name: 'Delete' })).toHaveAttribute('data-variant', 'ghost')
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveAttribute('data-variant', 'destructive')
   })
 
   it.each([
@@ -460,7 +460,8 @@ describe('alerts', () => {
       .toEqual([en.notifications.markAsRead, 'Open in Progress', en.notifications.delete])
     for (const button of row.querySelectorAll('button')) {
       expect(button).toHaveAttribute('data-size', 'sm')
-      expect(button.style.width).toBe(button.getAttribute('aria-label') ? '48px' : 'auto')
+      expect(button.style.width).toBe('auto')
+      expect(button.textContent).not.toBe('')
     }
   })
 

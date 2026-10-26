@@ -121,13 +121,21 @@ describe('Pending preview geometry on Android', () => {
       layout.setFlexWrap(rowStyle.flexWrap === 'wrap' ? Yoga.WRAP_WRAP : Yoga.WRAP_NO_WRAP)
       layout.setGap(Yoga.GUTTER_ALL, rowStyle.gap)
       layout.setJustifyContent(rowStyle.justifyContent === 'flex-end' ? Yoga.JUSTIFY_FLEX_END : Yoga.JUSTIFY_FLEX_START)
-      buttons.forEach((button: { findByType: (type: unknown) => { props: { style: (state: { pressed: boolean }) => StyleProp<ViewStyle> } }; findAllByType: (type: unknown) => { props: { style: StyleProp<TextStyle>; children: string } }[] }) => {
-        const style = StyleSheet.flatten(button.findByType(Pressable).props.style({ pressed: false }))
+      buttons.forEach((button: { findByType: (type: unknown) => { props: { style: (state: { pressed: boolean }) => StyleProp<ViewStyle>; hitSlop: number } }; findAllByType: (type: unknown) => { props: { style: StyleProp<TextStyle>; children: string } }[] }) => {
+        const pressable = button.findByType(Pressable)
+        const style = StyleSheet.flatten(pressable.props.style({ pressed: false }))
         const label = button.findAllByType(Text)[0]
         const labelStyle = label ? StyleSheet.flatten(label.props.style) : undefined
         const action = Yoga.Node.create()
         action.setWidth(label ? textWidth(label.props.children, Number(labelStyle!.fontSize)) + Number(style.paddingHorizontal) * 2 : Number(style.width))
-        if (!label) expect(style.width).toBe(48)
+        if (!label) {
+          expect(style.width).toBe(44)
+          expect(style.height).toBe(44)
+          expect(Number(style.width) + 2 * pressable.props.hitSlop).toBeGreaterThanOrEqual(48)
+          expect(Number(style.height) + 2 * pressable.props.hitSlop).toBeGreaterThanOrEqual(48)
+        }
+        expect(Number(style.height ?? style.minHeight)).toBe(44)
+        expect(Number(style.height ?? style.minHeight) + 2 * pressable.props.hitSlop).toBeGreaterThanOrEqual(48)
         action.setHeight(Number(style.height ?? style.minHeight))
         layout.insertChild(action, layout.getChildCount())
       })

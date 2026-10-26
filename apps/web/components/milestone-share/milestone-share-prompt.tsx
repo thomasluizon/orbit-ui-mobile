@@ -1,7 +1,6 @@
 'use client'
 
-import { IconButton } from '@/components/ui/icon-button'
-import { Download, Share2 } from '@/components/ui/icons'
+import { PillButton } from '@/components/ui/pill-button'
 import { SPACING } from '@orbit/shared/theme'
 
 import { useEffect, useId, useRef } from 'react'
@@ -168,9 +167,9 @@ export function MilestoneSharePrompt() {
             <PromptQuietAction onClick={dismiss}>
               {t('milestoneShare.later')}
             </PromptQuietAction>
-            <IconButton label={t('milestoneShare.download')} loading={isSharing} disabled={isSharing} onClick={() => void download()}><Download size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+            <PillButton size="sm" variant={canShareFiles ? 'ghost' : 'primary'} loading={isSharing} disabled={isSharing} onClick={() => void download()}>{t('milestoneShare.download')}</PillButton>
             {canShareFiles && (
-              <IconButton label={t('milestoneShare.share')} loading={isSharing} disabled={isSharing} onClick={handleShare}><Share2 size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+              <PillButton size="sm" loading={isSharing} disabled={isSharing} onClick={handleShare}>{t('milestoneShare.share')}</PillButton>
             )}
           </ActionRow>
         </>

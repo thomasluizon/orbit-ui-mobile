@@ -1,5 +1,3 @@
-import { IconButton } from '@/components/ui/icon-button'
-import { X } from '@/components/ui/icons'
 import { SPACING } from '@orbit/shared/theme'
 import { PersonalText } from '@/components/ui/personal-text'
 import { useState } from 'react'
@@ -95,7 +93,7 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
       title={t('profile.editName.title')}
       actions={(
         <ActionRow>
-          <IconButton label={t('common.cancel')} disabled={mutation.isPending} onClick={() => closeSheet()}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+          <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
           <PillButton size="sm" onClick={handleSave} disabled={mutation.isPending} loading={mutation.isPending}>
             {t('common.save')}
           </PillButton>

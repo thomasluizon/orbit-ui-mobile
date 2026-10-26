@@ -60,7 +60,10 @@ describe('Astra record list on mobile', () => {
     expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'record-row')).toHaveLength(20)
     const filter = tree.root.findAll((node: any) => node.props.accessibilityLabel === 'chat.recordList.filter' && typeof node.props.onChangeText === 'function')[0]!
     const filterTrigger = tree.root.findAll((node: any) => node.type === Pressable && controlName(node) === 'chat.recordList.filter')[0]
-    expect(StyleSheet.flatten(filterTrigger.props.style({ pressed: false })).height).toBe(48)
+    const filterPaint = StyleSheet.flatten(filterTrigger.props.style({ pressed: false }))
+    expect(filterPaint).toMatchObject({ width: 44, height: 44 })
+    expect(filterPaint.width + 2 * filterTrigger.props.hitSlop).toBeGreaterThanOrEqual(48)
+    expect(filterPaint.height + 2 * filterTrigger.props.hitSlop).toBeGreaterThanOrEqual(48)
     TestRenderer.act(() => filter.props.onChangeText('Key 3'))
     expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'record-row')).toHaveLength(2)
     TestRenderer.act(() => filter.props.onChangeText('missing'))

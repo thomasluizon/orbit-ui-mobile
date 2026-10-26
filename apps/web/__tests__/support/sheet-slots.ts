@@ -22,11 +22,11 @@ export function expectSmallSheetActions(): void {
   const buttons = within(footer).getAllByRole('button')
   for (const button of buttons) {
     expect(button).toHaveAttribute('data-size', 'sm')
-    if (button.textContent === '') expect(button.style.width).toBe('48px')
-    else expect(['', 'auto']).toContain(button.style.width)
+    expect(['', 'auto']).toContain(button.style.width)
+    expect(button.textContent).not.toBe('')
   }
   if (buttons.length > 1) {
     expect(buttons[0]).toHaveAttribute('data-variant', 'ghost')
-    if (buttons.at(-1)!.textContent !== '') expect(buttons.at(-1)).not.toHaveAttribute('data-variant', 'ghost')
+    expect(buttons.at(-1)).not.toHaveAttribute('data-variant', 'ghost')
   }
 }

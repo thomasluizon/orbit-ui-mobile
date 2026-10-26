@@ -216,7 +216,7 @@ describe('GoalDetailDrawer', () => {
     const node = tree.root
       .findAll(
         (candidate: any) =>
-          candidate.props.accessibilityLabel === label &&
+          (candidate.props.accessibilityLabel ?? flattenText(candidate.props.children)) === label &&
           typeof candidate.props.onPress === 'function',
       )
       .at(0)
@@ -288,6 +288,7 @@ describe('GoalDetailDrawer', () => {
     TestRenderer.act(() => sheetTestControls.completeDismissal())
     expect(tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === 'goals.progress' && typeof node.props.onChangeText === 'function').length).toBeGreaterThan(0)
     expect(onClose).not.toHaveBeenCalled()
+    expect(collectText(tree.toJSON())).toContain('common.cancel')
     press(tree, 'common.cancel')
     expect(sheetTestControls.isDismissPending).toBe(true)
     TestRenderer.act(() => sheetTestControls.completeDismissal())

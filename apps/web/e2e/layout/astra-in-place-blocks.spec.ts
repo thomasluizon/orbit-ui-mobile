@@ -12,6 +12,7 @@ import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fix
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
+import { readTargetGeometry } from './press-shape-helpers'
 
 for (const width of [320, 412, 1352]) {
   for (const locale of ['en', 'pt-BR'] as const) {
@@ -43,9 +44,9 @@ for (const width of [320, 412, 1352]) {
         const targets = blocks.locator('button[aria-label]')
         expect(await targets.count()).toBeGreaterThanOrEqual(41)
         for (const target of await targets.all()) {
-          const size = await target.evaluate(element => ({ width: element.getBoundingClientRect().width, height: element.getBoundingClientRect().height }))
-          expect(size.width).toBeGreaterThanOrEqual(48)
-          expect(size.height).toBeGreaterThanOrEqual(48)
+          const { hit } = await readTargetGeometry(target)
+          expect(hit.width).toBeGreaterThanOrEqual(48)
+          expect(hit.height).toBeGreaterThanOrEqual(48)
         }
         const overflow = await blocks.evaluateAll(elements => elements.map(element => element.scrollWidth > element.clientWidth + 1))
         expect(overflow).toEqual([false, false])

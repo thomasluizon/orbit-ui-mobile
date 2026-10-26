@@ -173,7 +173,9 @@ describe('HabitChecklist press paint', () => {
     }
     const clear = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === i18n.t('habits.form.clearChecklist'))[0]!
     expect(pressPaint(clear, false).backgroundColor).toBe('transparent')
-    expect(pressPaint(clear, true)).toMatchObject({ backgroundColor: tokens.bgHover, overflow: 'hidden', borderRadius: radius.full, height: 48, width: 48 })
+    expect(pressPaint(clear, true)).toMatchObject({ backgroundColor: tokens.bgHover, overflow: 'hidden', borderRadius: radius.full, height: 44, width: 44 })
+    expect(Number(pressPaint(clear, true).height) + 2 * Number(clear.props.hitSlop)).toBeGreaterThanOrEqual(48)
+    expect(Number(pressPaint(clear, true).width) + 2 * Number(clear.props.hitSlop)).toBeGreaterThanOrEqual(48)
     themeState.mode = 'dark'
   })
 

@@ -1,7 +1,5 @@
 'use client'
 
-import { IconButton } from '@/components/ui/icon-button'
-import { X } from '@/components/ui/icons'
 import { useState, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -491,7 +489,7 @@ function EditHabitDraft({
         title={t(formHelpers.isOneTime ? 'habits.editTask' : 'habits.editHabit')}
         actions={(
           <ActionRow>
-            <IconButton label={t('common.cancel')} disabled={saving} onClick={dismissGuard.requestDismiss}><X size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+            <PillButton size="sm" variant="ghost" disabled={saving} onClick={dismissGuard.requestDismiss}>{t('common.cancel')}</PillButton>
             <PillButton
               size="sm"
               formId={formId}

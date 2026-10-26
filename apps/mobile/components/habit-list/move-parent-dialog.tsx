@@ -2,7 +2,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { SPACING } from '@orbit/shared/theme'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
-import { Home, Search, RefreshCw, X } from '@/components/ui/icons'
+import { Home, Search, RefreshCw } from '@/components/ui/icons'
 import { plural } from '@/lib/plural'
 import { getMoveParentRowAvailability, getMoveParentPickerRows, getMoveParentScrollOffset, type MoveParentOption, type MoveParentPickerProps, type MoveParentRowProps } from '@orbit/shared/utils/move-parent'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -155,7 +155,7 @@ export function MoveParentDialog({
       title={title}
       actions={selectionOnly ? undefined :
         <ActionRow>
-          <IconButton label={t('common.cancel')} disabled={isPending} onClick={() => closeSheet()}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+          <PillButton size="sm" variant="ghost" disabled={isPending} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
           <PillButton size="sm" disabled={!canSubmit} loading={isPending} onClick={() => void confirmMove()}>
             {t('habits.moveParent.confirm')}
           </PillButton>

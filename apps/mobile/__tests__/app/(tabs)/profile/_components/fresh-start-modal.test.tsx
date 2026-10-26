@@ -192,10 +192,10 @@ describe('FreshStartModal', () => {
       return Object.assign({}, ...style({ pressed: false }).filter(Boolean)).width
     }
     expect(width('profile.freshStart.reviewDeletion')).toBeUndefined()
-    expect(width('common.cancel')).toBe(48)
+    expect(width('common.cancel')).toBeUndefined()
     await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
     expect(width('profile.freshStart.deleteData')).toBeUndefined()
-    expect(width('common.cancel')).toBe(48)
+    expect(width('common.cancel')).toBeUndefined()
   })
 
   it.each(['choose', 'confirm'] as const)('cancels from the %s step without resetting data', async (step) => {

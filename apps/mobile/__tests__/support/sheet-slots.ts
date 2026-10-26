@@ -46,9 +46,8 @@ export function expectSmallSheetActions(root: unknown): void {
   for (const button of buttons) {
     if (typeof button.props.style === 'function') {
       expect(button.props.testID).toMatch(/-sm$/)
-      const width = StyleSheet.flatten(button.props.style({ pressed: false })).width
-      if (button.findAll((node) => node.type === 'Text').length === 0) expect(width).toBe(48)
-      else expect(width).toBeUndefined()
+      expect(StyleSheet.flatten(button.props.style({ pressed: false })).width).toBeUndefined()
+      expect(textOf(button)).not.toBe('')
     } else {
       expect(button.props.size).toBe('sm')
       expect(button.props.matchedWidth).toBeFalsy()
@@ -57,6 +56,6 @@ export function expectSmallSheetActions(root: unknown): void {
   const variant = (button: SlotNode) => button.props.variant ?? String(button.props.testID).split('-')[1]
   if (buttons.length > 1) {
     expect(variant(buttons[0]!)).toBe('ghost')
-    if (buttons.at(-1)!.findAll((node) => node.type === 'Text').length > 0) expect(variant(buttons.at(-1)!)).not.toBe('ghost')
+    expect(variant(buttons.at(-1)!)).not.toBe('ghost')
   }
 }

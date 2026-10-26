@@ -11,6 +11,7 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { Markdown } from '@/components/ui/markdown'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { readControlHitArea } from '@/test-support/control-hit-area'
 
 const cases = [320, 1352].flatMap(width => [1, 2].flatMap(scale => (['en', 'pt-BR'] as const).flatMap(locale => (['dark', 'light'] as const).map(mode => ({ width, scale, locale, mode })))))
 
@@ -77,12 +78,19 @@ describe('Astra code copy geometry in Chromium', () => {
         expect(block.buttonLeft).toBeGreaterThanOrEqual(16)
         expect(block.buttonRight).toBeLessThanOrEqual(width - 16)
         expect(block.preRight).toBeLessThanOrEqual(width - 16)
-        expect(block.height).toBe(48)
-        expect(block.width).toBe(48)
+        expect(block.height).toBe(44)
+        expect(block.width).toBe(44)
         expect(block.labelHeight + 8).toBeLessThanOrEqual(block.height)
         expect(block.labelScrollWidth).toBeLessThanOrEqual(block.labelWidth + 1)
         expect(block.selectable).not.toBe('none')
         expect(block.overflow).toBe('auto')
+      }
+      for (const control of await page.locator('[data-copyable-block] button').all()) {
+        await control.evaluate(element => element.scrollIntoView({ block: 'center' }))
+        const hit = await control.evaluate(readControlHitArea)
+        expect(hit.width).toBeGreaterThanOrEqual(48)
+        expect(hit.height).toBeGreaterThanOrEqual(48)
+        expect(hit.checks).toEqual([true, true, true, true])
       }
       expect(await page.locator('body').evaluate(body => body.scrollWidth)).toBeLessThanOrEqual(width)
       const button = page.getByRole('button').first()

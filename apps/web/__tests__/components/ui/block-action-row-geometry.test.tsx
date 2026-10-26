@@ -15,6 +15,7 @@ import { OperationOutcomes } from '@/components/chat/operation-outcomes'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { readControlHitArea } from '@/test-support/control-hit-area'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
@@ -62,14 +63,24 @@ describe('Block action row geometry in Chromium', () => {
           const bounds = pill.getBoundingClientRect()
           const style = getComputedStyle(pill)
           const children = [...pill.children].map(child => child.getBoundingClientRect().width)
-          const intrinsicWidth = pill.getAttribute('aria-label') ? 48 : Math.max(parseFloat(style.minWidth) || 0, children.reduce((sum, child) => sum + child, 0) + Math.max(0, children.length - 1) * parseFloat(style.columnGap) + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight))
+          const intrinsicWidth = pill.getAttribute('aria-label') ? 44 : Math.max(parseFloat(style.minWidth) || 0, children.reduce((sum, child) => sum + child, 0) + Math.max(0, children.length - 1) * parseFloat(style.columnGap) + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight))
           return { width: bounds.width, intrinsicWidth, top: bounds.top, height: bounds.height, left: bounds.left, right: bounds.right, variant: pill.dataset.variant }
         })
         return { contentEnd, pills }
       }))
       expect(rows.map(row => row.pills.length)).toEqual([1, 1, 2])
+      for (const control of await page.locator('[data-action-row] .orbit-pill-action').all()) {
+        await control.evaluate(element => element.scrollIntoView({ block: 'center' }))
+        const hit = await control.evaluate(readControlHitArea)
+        expect(hit.width).toBeGreaterThanOrEqual(48)
+        expect(hit.height).toBeGreaterThanOrEqual(48)
+        expect(hit.checks).toEqual([true, true, true, true])
+      }
       for (const row of rows) {
-        for (const pill of row.pills) expect(Math.abs(pill.width - pill.intrinsicWidth)).toBeLessThanOrEqual(1)
+        for (const pill of row.pills) {
+          expect(Math.abs(pill.width - pill.intrinsicWidth)).toBeLessThanOrEqual(1)
+          expect(pill.height).toBe(44)
+        }
         expect(Math.abs(row.pills.at(-1)!.right - row.contentEnd)).toBeLessThanOrEqual(0.5)
       }
       const [reject, approve] = rows[2]!.pills

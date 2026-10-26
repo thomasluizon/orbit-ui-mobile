@@ -233,13 +233,15 @@ describe('ExpiryWarning', () => {
     expect(actionStyle(instance)).toMatchObject({
       borderRadius: radius.full,
       overflow: 'hidden',
-      height: TOUCH_TARGET_MIN,
+      height: SMALL_PILL_VISIBLE_MIN,
+      width: SMALL_PILL_VISIBLE_MIN,
       minHeight: SMALL_PILL_VISIBLE_MIN,
       minWidth: SMALL_PILL_VISIBLE_MIN,
       paddingHorizontal: 0,
       backgroundColor: 'transparent',
     })
     expect(Number(actionStyle(instance).height) + 2 * (recoveryAction.props.hitSlop as number | undefined ?? 0)).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN)
+    expect(Number(actionStyle(instance).width) + 2 * (recoveryAction.props.hitSlop as number | undefined ?? 0)).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN)
     expect(actionStyle(instance, true)).toMatchObject({ backgroundColor: tokens.bgHover })
     await TestRenderer.act(() => { (action(instance, i18n.t('auth.refresh')).props.onHoverIn as () => void)() })
     expect(actionStyle(instance)).toMatchObject({ backgroundColor: tokens.bgHover })

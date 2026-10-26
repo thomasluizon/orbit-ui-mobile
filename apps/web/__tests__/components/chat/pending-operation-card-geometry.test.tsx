@@ -19,6 +19,7 @@ import { ActionChips } from '@/components/chat/action-chips'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { readControlHitArea } from '@/test-support/control-hit-area'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }), useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
@@ -300,7 +301,14 @@ describe('Pending preview geometry in Chromium', () => {
         expect(button.left).toBeGreaterThanOrEqual(geometry.rowLeft)
         expect(button.right).toBeLessThanOrEqual(geometry.rowRight)
         expect(button.labelHeight).toBeLessThanOrEqual(button.lineHeight + 0.5)
-        if (button.icon) { expect(button.width).toBe(48); expect(button.height).toBe(48) }
+        if (button.icon) { expect(button.width).toBe(44); expect(button.height).toBe(44) }
+      }
+      for (const control of await page.locator('[data-action-row] .orbit-pill-action[aria-label]').all()) {
+        await control.evaluate(element => element.scrollIntoView({ block: 'center' }))
+        const hit = await control.evaluate(readControlHitArea)
+        expect(hit.width).toBeGreaterThanOrEqual(48)
+        expect(hit.height).toBeGreaterThanOrEqual(48)
+        expect(hit.checks).toEqual([true, true, true, true])
       }
       expect(geometry.buttons[2]?.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
       expect(geometry.visiblePrimary).toBe(1)
