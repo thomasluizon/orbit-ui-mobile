@@ -24,7 +24,7 @@ UI `main` is `da72cda7a`, API `main` is `f5a1e41d`, landing `main` is `14293563`
 | --- | --- |
 | Orca | The Orca terminal host has created no terminal since its `async-io-stalled` log line, so `orca terminal create` times out. If this session started by hand after a failed relay, that is why. Quitting and reopening the Orca app restores creates; its host keeps terminal sessions across an app restart. |
 | Releases | Production API of `f5a1e41d` (carries `#1755`, `#1762`, `#1747`'s fix, `#1758`) after the staging checks below; staging and production web of `da72cda7a` (carries `ui#2088`, `ui#2090`); the Android Open batch `#1736`, `#1746`, `#1739` from `main`. |
-| `#1747` staging check | `month-1747.mts` ran against `f5a1e41d`: read `month-1747-r3.log` and `month-1747-r3/` in the predecessor's scratchpad (carried). All eleven pass: production, close. Otherwise back on the ticket. |
+| `#1747` staging check | PASSED on `f5a1e41d` (all eleven prompts 200, habit month block and refresh equal Calendário; evidence on the ticket). Next: production API, then close. |
 | `orbit-api#929` (`#1756`) | Held: live ranking turns still make two model calls (spec bullet). Review round at `--tier deep` with that evidence, base merge, then `later-929-rank.sh` again. |
 | `orbit-api#932` (`#1750`) | Copy fix `f6941315` pushed and recorded. CI and a fresh review, then merge. |
 | `orbit-api#934` (`#1760`), `ui#2093` (`#1772`), `ui#2094` (`#1759`) | Opened by workers. Read each diff, waiters, reviews, copy approvals, merge. |
