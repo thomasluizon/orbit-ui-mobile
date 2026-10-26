@@ -1328,7 +1328,7 @@
       "delta": "Variação",
       "metric": {
         "positiveLogRecords": "Conclusões",
-        "completedHabits": "Hábitos",
+        "completedHabits": "Hábitos concluídos",
         "distinctLoggedDates": "Dias com registros",
         "metScheduledDates": "Dias cumpridos",
         "scheduledDates": "Dias agendados"

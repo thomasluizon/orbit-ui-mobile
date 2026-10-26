@@ -186,8 +186,8 @@ it.each([['en', 'chat'], ['en', 'refresh'], ['pt-BR', 'chat'], ['pt-BR', 'refres
   state.locale = locale
   state.actualCopy = true
   const labels = locale === 'en'
-    ? { habits: 'Habits', unit: 'habits', completions: 'Completions', completionUnit: 'completions' }
-    : { habits: 'Hábitos', unit: 'hábitos', completions: 'Conclusões', completionUnit: 'conclusões' }
+    ? { habits: 'Habits completed', unit: 'habits', completions: 'Completions', completionUnit: 'completions' }
+    : { habits: 'Hábitos concluídos', unit: 'hábitos', completions: 'Conclusões', completionUnit: 'conclusões' }
   const cases = [
     { kind: 'periodTotal', block: completedHabitTotalFixture, figures: ['3'], habits: true },
     { kind: 'periodComparison', block: completedHabitComparisonFixture, figures: ['3', '1', '+2 (+200%)'], habits: true },

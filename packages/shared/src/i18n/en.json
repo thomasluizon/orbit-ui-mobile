@@ -1328,7 +1328,7 @@
       "delta": "Change",
       "metric": {
         "positiveLogRecords": "Completions",
-        "completedHabits": "Habits",
+        "completedHabits": "Habits completed",
         "distinctLoggedDates": "Days with logs",
         "metScheduledDates": "Scheduled days met",
         "scheduledDates": "Scheduled days"

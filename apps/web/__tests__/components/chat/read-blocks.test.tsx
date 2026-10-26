@@ -166,8 +166,8 @@ it('refreshes a habit month through its dedicated action and replaces the full s
 
 it.each([['en', 'chat'], ['en', 'refresh'], ['pt-BR', 'chat'], ['pt-BR', 'refresh']] as const)('distinguishes habit counts from completions in %s through %s', async (locale, source) => {
   const labels = locale === 'en'
-    ? { habits: 'Habits', unit: 'habits', completions: 'Completions', completionUnit: 'completions' }
-    : { habits: 'Hábitos', unit: 'hábitos', completions: 'Conclusões', completionUnit: 'conclusões' }
+    ? { habits: 'Habits completed', unit: 'habits', completions: 'Completions', completionUnit: 'completions' }
+    : { habits: 'Hábitos concluídos', unit: 'hábitos', completions: 'Conclusões', completionUnit: 'conclusões' }
   const cases = [
     { kind: 'periodTotal', block: completedHabitTotalFixture, figures: ['3'], habits: true },
     { kind: 'periodComparison', block: completedHabitComparisonFixture, figures: ['3', '1', '+2 (+200%)'], habits: true },
