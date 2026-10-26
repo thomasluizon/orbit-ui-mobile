@@ -11,6 +11,7 @@ import { HabitListCard } from '@/components/chat/habit-list-card'
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   mutate: vi.fn(),
+  pending: false,
   locale: 'en-US',
   occurrencesById: new Map<string, { isCompleted: boolean; isLoggedInRange: boolean }>(),
 }))
@@ -24,7 +25,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('@/hooks/use-habits', () => ({
   useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }),
   useHabits: () => ({ data: { habitsById: mocks.occurrencesById } }),
-  useLogHabit: () => ({ mutate: mocks.mutate }),
+  useLogHabit: () => ({ mutate: mocks.mutate, mutateAsync: mocks.mutate, isPending: mocks.pending }),
 }))
 vi.mock('@/components/ui/status-ring', () => ({ StatusRing: ({ status, label }: { status: string; label: string }) => <span data-ring-status={status}>{label}</span> }))
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: () => <span /> }))
@@ -41,6 +42,8 @@ vi.mock('@/components/ui/block-frame', () => ({
 describe('Astra list cards on web', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.pending = false
+    mocks.mutate.mockReset().mockImplementation(() => new Promise(() => {}))
     mocks.locale = 'en-US'
     mocks.occurrencesById.clear()
     for (const item of habits.items) {
@@ -121,6 +124,17 @@ describe('Astra list cards on web', () => {
   it.each([['on_track', 'onTrack'], ['at_risk', 'atRisk'], ['behind', 'behind'], ['no_deadline', 'noDeadline']] as const)('localizes %s tracking', (status, key) => {
     render(<GoalListCard goalList={{ items: [{ id: 'goal-1', title: 'Run 10 km', current: 4, target: 10, unit: 'km', trackingStatus: status }] }} />)
     expect(screen.getByText(`goals.metrics.${key}`)).toBeInTheDocument()
+  })
+  it('locks only the pending habit while allowing another habit to log', () => {
+    const view = render(<HabitListCard habitList={habits} />)
+    fireEvent.click(screen.getByRole('button', { name: /chat.habitList.log.*Water/ }))
+    mocks.pending = true
+    view.rerender(<HabitListCard habitList={habits} />)
+    expect(screen.getByRole('button', { name: /chat.habitList.log.*Water/ })).toBeDisabled()
+    const second = screen.getAllByRole('button', { name: /chat.habitList.log/ })[1]!
+    expect(second).toBeEnabled()
+    fireEvent.click(second)
+    expect(mocks.mutate).toHaveBeenCalledTimes(2)
   })
 })
 

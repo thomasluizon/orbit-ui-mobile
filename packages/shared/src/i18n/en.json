@@ -1367,6 +1367,7 @@
       "position": "{position} of {total}"
     },
     "liveBlock": {
+      "unavailable": "Some details may be out of date.",
       "stale": "This block could not be updated. Reload to see the latest state.",
       "error": "We could not update this block. Try again."
     },
@@ -1555,8 +1556,8 @@
         "referrals-write": "Referral details",
         "support-write": "Support message",
         "habits-delete": "Delete habits",
-        "habits-bulk-write": "Bulk habit changes",
-        "habits-bulk-delete": "Bulk habit delete",
+        "habits-bulk-write": "Change habits",
+        "habits-bulk-delete": "Delete habits",
         "goals-delete": "Delete goals",
         "tags-delete": "Delete tags",
         "notifications-delete": "Delete notifications",
@@ -1799,8 +1800,7 @@
       "more": "Show more",
       "filter": "Filter list",
       "noMatches": "No loaded records match “{query}”.",
-      "clearFilter": "Clear filter",
-      "open": { "notifications": "Open Alerts", "tags": "Open Tags", "templates": "Open Templates", "keys": "Open Profile" }
+      "clearFilter": "Clear filter"
     },
     "account": {
       "title": { "profile": "Your profile", "plan": "Your plan", "referral": "Your referral" },
@@ -2025,6 +2025,7 @@
       "batchFailed": "Some items could not be saved. Ask Astra to try only the failed items.",
       "unavailableRecovery": "That didn't work. Ask Astra for a new preview.",
       "unknown": "Astra operation",
+      "changeHabits": "{count, plural, one {Change # habit} other {Change # habits}}",
       "newHabits": "{count, plural, one {New habit} other {# new habits}}",
       "pendingTitle": "Awaiting confirmation",
       "pending": "Nothing has changed yet",
@@ -2405,15 +2406,22 @@
       "weekStartDaySet": "Week starts on {weekStartDay, select, 0 {Sunday} 1 {Monday} other {the selected day}}."
     },
     "figure": {
+      "totalUnit": {
+        "positiveLogRecords": "{count, plural, one {completion} other {completions}}",
+        "completedHabits": "{count, plural, one {habit completed} other {habits completed}}",
+        "distinctLoggedDates": "{count, plural, one {day with logs} other {days with logs}}",
+        "metScheduledDates": "{count, plural, one {scheduled day met} other {scheduled days met}}",
+        "scheduledDates": "{count, plural, one {scheduled day} other {scheduled days}}"
+      },
       "soFar": "{period} (so far)",
       "comparison": {
         "habits": {
-          "ahead": "Yes, {current} is ahead: {value} {count, plural, one {habit completed} other {habits completed}} against {previous} in {baseline}.",
+          "ahead": "{current} is ahead: {value} {count, plural, one {habit completed} other {habits completed}} against {previous} in {baseline}.",
           "behind": "{current} is behind: {value} {count, plural, one {habit completed} other {habits completed}} against {previous} in {baseline}.",
           "equal": "{current} and {baseline} have the same total: {value} {count, plural, one {habit completed} other {habits completed}}."
         },
         "records": {
-          "ahead": "Yes, {current} is ahead: {value} {count, plural, one {completion} other {completions}} against {previous} in {baseline}.",
+          "ahead": "{current} is ahead: {value} {count, plural, one {completion} other {completions}} against {previous} in {baseline}.",
           "behind": "{current} has fewer {count, plural, one {completion} other {completions}}: {value} against {previous} in {baseline}.",
           "equal": "{current} and {baseline} have the same total: {value} {count, plural, one {completion} other {completions}}."
         },

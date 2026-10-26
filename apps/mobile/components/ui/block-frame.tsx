@@ -232,7 +232,7 @@ function FrameHeader({ props, tokens }: Readonly<{ props: Readonly<BlockFramePro
   return (
       <View style={[styles.header, props.titleMode === 'typed' && { flexDirection: 'column', alignItems: 'stretch' }]}>
         <OrbitMark size={20} />
-        {props.titleContent ? <View style={{ flex: 1, minWidth: 0 }}>{props.titleContent}</View> : props.titleMode === 'typed' ? <View onLayout={props.focusTitleOnMount ? focusTitle : undefined}><PersonalText onClampedChange={setClamped} accessibilityRef={personalTitleRef} accessibilityRole="header" style={[styles.title, { flex: 0, color: tokens.fg1 }]}>{props.title}</PersonalText></View> : <Text ref={titleRef} onLayout={props.focusTitleOnMount ? focusTitle : undefined} numberOfLines={props.wrapTitle ? undefined : 1} style={[styles.title, { color: tokens.fg1 }]}>{props.title}</Text>}
+        {props.titleContent ? <View accessibilityRole="header" style={{ flex: 1, minWidth: 0 }}>{props.titleContent}</View> : props.titleMode === 'typed' ? <View onLayout={props.focusTitleOnMount ? focusTitle : undefined}><PersonalText onClampedChange={setClamped} accessibilityRef={personalTitleRef} accessibilityRole="header" style={[styles.title, { flex: 0, color: tokens.fg1 }]}>{props.title}</PersonalText></View> : <Text ref={titleRef} onLayout={props.focusTitleOnMount ? focusTitle : undefined} numberOfLines={props.wrapTitle ? undefined : 1} style={[styles.title, { color: tokens.fg1 }]}>{props.title}</Text>}
         <FrameHeaderDetails props={props} tokens={tokens} clamped={clamped} />
       </View>
   )

@@ -27,7 +27,7 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: 'en
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: state.pro, timeZone: 'UTC', uses24HourClock: true } }) }))
 vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({ ...state.query, data: { habitsById: state.habits }, refetch: state.refetch }),
-  useLogHabit: () => ({ mutate: state.mutate }),
+  useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }),
   useHabitMetrics: () => ({ ...state.query, refetch: state.refetch }),
 }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ ...state.query, data: { goalsById: state.goals }, refetch: state.refetch }) }))
@@ -50,6 +50,7 @@ function press(tree: GeometryTree, name: string) {
 }
 beforeEach(() => {
   vi.clearAllMocks()
+  state.mutate.mockReset().mockImplementation(() => new Promise(() => {}))
   state.pro = true
   state.disconnected = false
   useUIStore.getState().setAstraConversationOpen(true)
@@ -67,7 +68,7 @@ describe('Astra blocks act on app state', () => {
     const log = tree.root.findAll(node => node.props.accessibilityLabel === name && typeof node.props.onPress === 'function')[0]!
     void act(() => { (log.props.onPress as () => void)(); (log.props.onPress as () => void)() })
     expect(state.mutate).toHaveBeenCalledTimes(1)
-    expect(state.mutate).toHaveBeenCalledWith(expect.objectContaining({ habitId: 'habit-1', intent: 'log' }), expect.any(Object))
+    expect(state.mutate.mock.calls[0]![0]).toEqual(expect.objectContaining({ habitId: 'habit-1', intent: 'log' }))
     state.habits.set('habit-1', createMockHabit({ id: 'habit-1', title: 'Habit 1', isLoggedInRange: true }))
     void act(() => { tree.update(<DaySummaryCard daySummary={inPlaceDayFixture} />) })
     expect(tree.root.findAll(node => node.props.accessibilityLabel === 'chat.habitList.unlog:{"name":"Habit 1"}').length).toBeGreaterThan(0)
@@ -117,9 +118,10 @@ it.each([
   void act(() => tree.unmount())
 })
 
-it('shows a compact streak without freeze management or shell navigation', () => {
+it('retains freeze facts under a compact streak without shell navigation', () => {
   const tree = render(<StreakCard streakCard={{ currentStreak: 3, longestStreak: 9, level: 1, totalXp: 20, xpForNextLevel: 100, lastActiveDate: null, isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], surfaceId: 'progress' }} />)
-  expect(tree.root.findAll(node => node.props.testID === 'freeze-bank')).toHaveLength(0)
+  expect(tree.root.findAll(node => node.props.testID === 'freeze-bank').length).toBeGreaterThan(0)
+  for (const key of ['progressScreen.streak.longest', 'streakDisplay.detail.tierTileLabel', 'progressScreen.streak.banked', 'progressScreen.streak.protectedDays']) expect(renderedText(tree.toJSON())).toContain(key)
   expect(tree.root.findAll(node => node.props.testID === 'compact-figure').length).toBeGreaterThan(0)
   expect(tree.root.findAll(node => node.props.accessibilityLabel === 'chat.streakCard.open')).toHaveLength(0)
   void act(() => tree.unmount())
@@ -142,7 +144,8 @@ it('offers calendar reconnection and disables import after disconnection', () =>
   expect(renderedText(tree.toJSON())).toContain('chat.calendarCard.syncState.ReconnectRequired')
   const importButton = tree.root.findAll(node => node.type === Pressable && String(node.props.accessibilityLabel).startsWith('chat.calendarCard.makeHabit'))[0]!
   expect(importButton.props.disabled).toBe(true)
-  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'chat.calendarCard.open')).toHaveLength(0)
+  press(tree, 'chat.calendarCard.open')
+  expect(state.push).toHaveBeenCalledWith({ pathname: '/calendar', params: { import: '1' } })
   void act(() => tree.unmount())
 })
 
@@ -189,5 +192,77 @@ it.each(chatNavigationCases)('reveals the destination outside full-screen Astra 
     expect(tree.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')).toHaveLength(0)
     expect(state.push).not.toHaveBeenCalled()
   }
+  void act(() => tree.unmount())
+})
+
+it('keeps a second day check usable while the first is pending', () => {
+  const tree = render(<DaySummaryCard daySummary={inPlaceDayFixture} />)
+  press(tree, 'chat.habitList.log:{"name":"Habit 1"}')
+  const second = tree.root.findAll(node => node.type === Pressable && node.props.accessibilityLabel === 'chat.habitList.log:{"name":"Habit 2"}')[0]!
+  expect(second.props.disabled).toBe(false)
+  press(tree, 'chat.habitList.log:{"name":"Habit 2"}')
+  expect(state.mutate).toHaveBeenCalledTimes(2)
+  void act(() => tree.unmount())
+})
+
+it('keeps the ring and total in step with live completion and rollback', () => {
+  const snapshot = { ...inPlaceDayFixture, rows: inPlaceDayFixture.rows!.slice(0, 1), due: 1 }
+  const tree = render(<DaySummaryCard daySummary={snapshot} />)
+  state.habits.set('habit-1', createMockHabit({ id: 'habit-1', isLoggedInRange: true }))
+  void act(() => tree.update(<DaySummaryCard daySummary={snapshot} />))
+  expect(renderedText(tree.toJSON())).toContain('chat.daySummary.doneOfDue:{"done":1,"due":1}')
+  expect(tree.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]!.props.accessibilityValue).toMatchObject({ now: 100 })
+  state.habits.set('habit-1', createMockHabit({ id: 'habit-1', isLoggedInRange: false }))
+  void act(() => tree.update(<DaySummaryCard daySummary={snapshot} />))
+  expect(renderedText(tree.toJSON())).toContain('chat.daySummary.doneOfDue:{"done":0,"due":1}')
+  void act(() => tree.unmount())
+})
+
+it('marks only the failed day row after overlapping requests settle', async () => {
+  let rejectFirst!: (error: Error) => void
+  let resolveSecond!: () => void
+  state.mutate.mockImplementationOnce(() => new Promise((_, reject) => { rejectFirst = reject }))
+    .mockImplementationOnce(() => new Promise<void>(resolve => { resolveSecond = resolve }))
+  const tree = render(<DaySummaryCard daySummary={inPlaceDayFixture} />)
+  press(tree, 'chat.habitList.log:{"name":"Habit 1"}')
+  press(tree, 'chat.habitList.log:{"name":"Habit 2"}')
+  await act(async () => { resolveSecond(); rejectFirst(new Error('offline')); await Promise.resolve() })
+  const rows = tree.root.findAll(node => node.type === View && node.props.testID === 'habit-block-row')
+  expect(rows[0]!.findAll(node => node.type === Text && node.props.accessibilityRole === 'alert')).toHaveLength(1)
+  expect(rows[1]!.findAll(node => node.type === Text && node.props.accessibilityRole === 'alert')).toHaveLength(0)
+  expect(tree.root.findAll(node => node.type === Pressable && node.props.accessibilityLabel === 'chat.habitList.log:{"name":"Habit 1"}')[0]!.props.disabled).toBe(false)
+  await act(() => tree.unmount())
+})
+
+it('keeps a failed check visible on its own day row until retry', async () => {
+  let reject!: (error: Error) => void
+  state.mutate.mockImplementationOnce((_input: unknown, callbacks?: { onError: () => void }) => {
+    const request = new Promise((_, fail) => { reject = fail })
+    void request.catch(() => callbacks?.onError())
+    return request
+  })
+  const tree = render(<DaySummaryCard daySummary={inPlaceDayFixture} />)
+  press(tree, 'chat.habitList.log:{"name":"Habit 1"}')
+  await act(async () => { reject(new Error('offline')); await Promise.resolve() })
+  const rows = tree.root.findAll(node => node.type === View && node.props.testID === 'habit-block-row')
+  expect(rows[0]!.findAll(node => node.type === Text && node.props.accessibilityRole === 'alert')).toHaveLength(1)
+  expect(rows[1]!.findAll(node => node.type === Text && node.props.accessibilityRole === 'alert')).toHaveLength(0)
+  press(tree, 'chat.habitList.log:{"name":"Habit 1"}')
+  expect(rows[0]!.findAll(node => node.type === Text && node.props.accessibilityRole === 'alert')).toHaveLength(0)
+  await act(() => tree.unmount())
+})
+
+it('offers reconnection when the sync snapshot requires it', () => {
+  const tree = render(<CalendarCard calendarCard={{ ...inPlaceCalendarFixture, sync: { enabled: true, status: 'ReconnectRequired', lastSyncedAt: null } }} />)
+  press(tree, 'chat.calendarCard.open')
+  expect(state.push).toHaveBeenCalledWith({ pathname: '/calendar', params: { import: '1' } })
+  void act(() => tree.unmount())
+})
+
+it('does not ask to reload a stale goal block without a reload action', () => {
+  state.query = { isPending: false, isError: true, isRefetchError: true }
+  const tree = render(<GoalListCard goalList={{ items: [{ id: 'missing', title: 'Move', current: 1, target: 10, unit: 'km' }] }} />)
+  expect(renderedText(tree.toJSON())).not.toContain('chat.liveBlock.stale')
+  expect(renderedText(tree.toJSON())).toContain('chat.liveBlock.unavailable')
   void act(() => tree.unmount())
 })

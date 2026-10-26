@@ -40,8 +40,9 @@ function ReadBlockSession({ snapshot: initial, children }: ReadBlockBoundaryProp
 }
 
 export function BlockFrame(props: Readonly<BlockFrameProps>) {
+  const t = useTranslations()
   const context = useContext(ReadContext)
-  return context ? <QueryBlockFrame props={props} context={context} /> : <Frame {...props} onRefresh={undefined} />
+  return context ? <QueryBlockFrame props={props} context={context} /> : <Frame {...(props.state === 'stale' ? { ...props, staleMessage: t('chat.liveBlock.unavailable') } : props)} onRefresh={undefined} />
 }
 
 function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; context: ReadBlockState }>) {

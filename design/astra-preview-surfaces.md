@@ -86,15 +86,15 @@ routine proposal in both locales.
 
 | Family | Paired owner and behavior |
 | --- | --- |
-| Habits and dated schedules | `chat/habit-list-card` and `chat/day-summary-card` retain requested rows and resolved dates; live completion eligibility is separate from the saved totals. |
-| Metrics and streaks | `chat/metrics-card` uses the declared period measures; `chat/streak-card` preserves its supplied figures and as-of window. Current freeze management remains in Sequência. |
+| Habits and dated schedules | `chat/habit-list-card` and `chat/day-summary-card` retain requested rows and resolved dates. Day totals and rings follow live root-habit completion while preserving counts for unlisted rows. Each pending or failed check belongs to its own row. |
+| Metrics and streaks | `chat/metrics-card` uses the declared period measures and shows a saved window once; `chat/streak-card` preserves its supplied figures and as-of window, with read-only FreezeBank facts below the figure. Current freeze management remains in Sequência. |
 | Totals and comparisons | `chat/period-total-card` and `chat/period-comparison-card` expose the requested figure or both windows and supplied delta; zero baselines omit a relative percentage. |
 | Logs and history | `chat/record-list-card` renders `habitHistory` as dated, numeric rows without hiding zero or negative values. |
 | Goals | `chat/goal-list-card` retains saved progress and names actual linked sources once, with the existing detail action. |
 | Calendar | `chat/calendar-card` retains event titles and timing while current connection, permissions and event availability govern import actions. |
 | Records | `chat/record-list-card` keeps mark-read, safe key metadata and established navigation; tags and templates add no destination. |
 | Account | `chat/account-rows-card` retains safe profile, plan and referral facts, copy/share and navigation. Plans add no purchasing content. |
-| Retrospectives | `chat/period-insight-card` leads with dates and figures; Show more retains every supplied narrative section and habit detail, including stale saved recaps. Disclosure and the Progresso link share the stale refresh footer; signed paging stays withheld. The Progresso destination retains the supported recap/share flow. |
+| Retrospectives | `chat/period-insight-card` leads with dates and figures; Show more retains every supplied narrative section and habit detail, including stale saved recaps. Habit rows carry their percentage within the row and open the supplied habit id; legacy rows retain name disclosure. Signed paging stays withheld for stale reads. The Progresso destination retains the supported recap/share flow. |
 | Recovery and paging | `chat/read-block-frame` adapts the existing BlockFrame to signed refresh and cursor paging. Failed refresh preserves the snapshot; mismatched query ids and changed page revisions are rejected. Account changes and unmounts discard late responses. |
 
 New renderers remain below the existing lazy conversation import. Both locales and appearances
@@ -138,10 +138,11 @@ constraints rather than request state.
 
 ## Compact answer blocks
 
-All fourteen typed block kinds share the paired BlockFrame surface: a 16px inset,
+All fifteen typed block kinds share the paired BlockFrame surface: a 16px inset,
 12px content rhythm and a quiet Orbit mark in the header. Read blocks have no manual
-refresh or shell-navigation footer. Signed paging, actual record actions and expanded
-retrospective details retain named icon controls. Stale write previews retain their
+refresh or shell-navigation footer. Stale rankings retain an exact-query recovery icon;
+disconnected calendar blocks retain their named reconnection icon. Signed paging,
+actual record actions and expanded retrospective details retain named icon controls. Stale write previews retain their
 existing authorization recovery, which prepares a replacement proposal before approval.
 
 Habit lists, dated summaries, rankings, retrospective habit rows and metric habit rows
@@ -155,13 +156,15 @@ and proposed-state feedback. History records retain their dated numeric meaning;
 record contract does not carry habit identity or an emoji.
 
 Totals, comparisons, metrics and streaks use the paired CompactFigure for a value and
-unit on one line. Comparisons name supplied month windows, mark partial months as so
+unit on one line. Totals put the figure in the marked header and name the specific measure
+once. Comparisons name supplied month windows, mark partial months as so
 far, lead with their supplied completion comparison and use bars on one shared scale.
-The total still reads `card.value`, and comparisonPresentation still reads currentValue
-and baselineValue. The distinct-habit count integration belongs to #1763 after #1762.
+The total reads `card.value`, and comparisonPresentation reads currentValue and
+baselineValue. Each figure names its declared metric; completed-habit counts stay
+distinct from completion logs.
 Profile-only account payloads without a plan row remain a producer limitation. Supplied
 plan rows use Orbit Pro or Free and retain their trial and expiry dates. Time zones use
-the locale database's long generic name.
+the locale database's long generic name, falling back to the supplied id when unavailable.
 
 Write previews retain inline rename, editing, rejection, parent resolution and approval.
 The preview title names a create count or the habit being edited. The emoji well and

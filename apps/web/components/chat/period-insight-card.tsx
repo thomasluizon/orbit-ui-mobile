@@ -1,6 +1,7 @@
 'use client'
 
 import { HabitBlockRow } from './habit-block-row'
+import { useChatNavigation } from '@/hooks/use-chat-navigation'
 
 import { ChevronsUp, ChevronDown } from '@/components/ui/icons'
 
@@ -20,6 +21,7 @@ import { BlockFrame } from './read-block-frame'
 export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: PeriodInsightData }>) {
   const t = useTranslations()
   const locale = useLocale()
+  const navigate = useChatNavigation()
   const [expanded, setExpanded] = useState(false)
   const pages = getInsightPages(periodInsight)
   const points = periodInsight.series ? mapCompletionSeries(periodInsight.series, locale) : []
@@ -36,23 +38,17 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
     label: t(`chat.insight.${figure.id}`),
     control: <span className="text-base tabular-nums text-[var(--fg-1)]" style={{ fontFamily: 'var(--font-display)' }}>{figure.value}</span>,
   }))
-  if (expanded) {
-    periodInsight.topHabits.forEach((habit, habitIndex) => rows.push({
-      id: `top-${habitIndex}`,
-      wrapLabel: true,
-      label: <HabitBlockRow title={habit.name} emoji={habit.emoji} meta={t('chat.insight.topHabit')} label={`${t('chat.insight.topHabit')}: ${habit.name}`} />,
-      control: <span className="text-base tabular-nums text-[var(--fg-1)]">{habit.completionRate}%</span>,
-    }))
-    periodInsight.needsAttention.forEach((habit, habitIndex) => rows.push({
-      id: `attention-${habitIndex}`,
-      wrapLabel: true,
-      label: <HabitBlockRow title={habit.name} emoji={habit.emoji} meta={t('chat.insight.needsAttention')} label={`${t('chat.insight.needsAttention')}: ${habit.name}`} />,
-      control: <span className="text-base tabular-nums text-[var(--fg-1)]">{habit.completionRate}%</span>,
-    }))
-  }
+  const habitRows = expanded ? [
+    { id: 'top', label: t('chat.insight.topHabit'), habits: periodInsight.topHabits },
+    { id: 'attention', label: t('chat.insight.needsAttention'), habits: periodInsight.needsAttention },
+  ].flatMap(group => group.habits.map((habit, index) => <HabitBlockRow key={`${group.id}-${index}`} title={habit.name} emoji={habit.emoji}
+    meta={group.label} label={`${group.label}: ${habit.name}`} onOpen={habit.habitId ? () => navigate(`/habits/${habit.habitId}`) : undefined}
+    control={<span className="text-base tabular-nums text-[var(--fg-1)]">{habit.completionRate}%</span>} />)) : []
+
   const body = <div aria-live="polite" className="flex min-w-0 flex-col gap-3">
     <p className="text-sm text-[var(--fg-3)]">{formatReadWindow({ from: periodInsight.dateFrom, to: periodInsight.dateTo }, locale)}</p>
     {points.some(point => point.scheduled > 0) ? <BarChart points={points} label={t('chat.insight.chartLabel')} /> : null}
+    {habitRows}
     {expanded ? pages.slice(1).map(page => <div key={page.titleKey} className="flex flex-col gap-2"><h4 className="text-sm font-medium text-[var(--fg-1)]">{t(page.titleKey)}</h4><p className="text-sm text-[var(--fg-2)] [overflow-wrap:anywhere]">{page.text}</p></div>) : null}
   </div>
 

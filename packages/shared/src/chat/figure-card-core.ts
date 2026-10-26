@@ -17,11 +17,12 @@ export function comparisonPresentation(card: PeriodComparisonCard, locale: strin
   const baseline = formatFigurePeriod(card.baseline.window, locale, translate)
   const direction = card.currentValue > card.baselineValue ? 'ahead' : card.currentValue < card.baselineValue ? 'behind' : 'equal'
   const maximum = Math.max(card.currentValue, card.baselineValue, 1)
-  return {
-    verdict: translate(`chat.figure.comparison.${card.unit}.${direction}`, {
+  const verdict = translate(`chat.figure.comparison.${card.unit}.${direction}`, {
       current, baseline, count: card.currentValue, value: new Intl.NumberFormat(locale).format(card.currentValue),
       previous: new Intl.NumberFormat(locale).format(card.baselineValue),
-    }),
+    })
+  return {
+    verdict: verdict.charAt(0).toLocaleUpperCase(locale) + verdict.slice(1),
     bars: [
       { id: 'current', label: current, value: card.currentValue, width: card.currentValue / maximum * 100 },
       { id: 'baseline', label: baseline, value: card.baselineValue, width: card.baselineValue / maximum * 100 },

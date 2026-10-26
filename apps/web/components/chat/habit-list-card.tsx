@@ -4,7 +4,8 @@ import { IconButton } from '@/components/ui/icon-button'
 import { ChevronDown } from '@/components/ui/icons'
 import { habitSnapshotCheck } from '@orbit/shared/chat/day-summary-core'
 import { HabitBlockRow } from './habit-block-row'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { createUseHabitBlockLog } from '@orbit/shared/hooks/habit-block-log-core'
 import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { useTranslations } from 'next-intl'
 import type { HabitListCard as HabitListCardData } from '@orbit/shared/types/chat'
@@ -16,11 +17,13 @@ import { HabitCheck } from '@/components/habits/habit-check'
 import { useHabits, useLogHabit } from '@/hooks/use-habits'
 
 const PAGE_SIZE = 20
+const useHabitBlockLog = createUseHabitBlockLog({ useState, useRef })
 
 export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCardData }>) {
   const t = useTranslations()
   const navigate = useChatNavigation()
   const logHabit = useLogHabit()
+  const { pendingIds, failedIds, log } = useHabitBlockLog(logHabit.mutateAsync)
   const readScope = useReadActionScope()
   const [today] = useState(() => formatAPIDate(new Date()))
   const occurrenceDate = habitList.date ?? today
@@ -30,14 +33,14 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
   const rows = visibleItems.map((item) => {
     const occurrence = occurrences.data?.habitsById.get(item.id)
     const snapshotCheck = habitSnapshotCheck(item)
-    const { control, logged, unavailable } = habitListRowState(item, occurrence, Boolean(habitList.read), occurrenceDate, logHabit.isPending, readScope)
-    return <HabitBlockRow key={item.id} title={item.title} emoji={item.emoji}
+    const { control, logged, unavailable } = habitListRowState(item, occurrence, Boolean(habitList.read), occurrenceDate, pendingIds.has(item.id), readScope)
+    return <HabitBlockRow key={item.id} title={item.title} emoji={item.emoji} error={failedIds.has(item.id) ? t('chat.liveBlock.error') : undefined}
       label={t('chat.habitList.open', { name: item.title })}
       onOpen={() => navigate(habitList.date ? `/habits/${item.id}?date=${habitList.date}` : `/habits/${item.id}`)}
       control={occurrence ? (
         <button disabled={unavailable} aria-label={t(logged ? 'chat.habitList.unlog' : 'chat.habitList.log', { name: item.title })} data-habit-row-control="check" className="grid size-[var(--touch-min)] place-items-center habit-check-target shrink-0 border-0 bg-transparent transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" onClick={() => {
           if (unavailable || !habitListReadControl(occurrence, item.status, occurrenceDate, readScope).writeAllowed) return
-          logHabit.mutate({ habitId: item.id, date: occurrenceDate, intent: logged ? 'unlog' : 'log' })
+          void log({ habitId: item.id, date: occurrenceDate, intent: logged ? 'unlog' : 'log' })
         }} type="button">
           <HabitCheck status={control.status} label={t(control.statusKey)} />
         </button>

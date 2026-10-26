@@ -2,7 +2,7 @@ import { personalText } from '@/__tests__/support/personal-text'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
-import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -18,7 +18,7 @@ import { chatPartSchema, habitMonthCardSchema, readBlockResponseSchema, type Rea
 const state = vi.hoisted(() => ({ isError: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
 vi.mock('@/app/actions/chat', () => ({ refreshReadBlock: vi.fn(), refreshHabitMonth: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push }) }))
-vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: state.isError ? undefined : { habitsById: state.habits }, isError: state.isError, isPending: false }), useLogHabit: () => ({ mutate: state.mutate }), useHabitMetrics: () => ({}) }))
+vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: state.isError ? undefined : { habitsById: state.habits }, isError: state.isError, isPending: false }), useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }), useHabitMetrics: () => ({}) }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false }) }))
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'UTC' } }) }))
@@ -38,6 +38,8 @@ describe('focused read compositions', () => {
     expect(screen.getByText('12')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Refresh' })).not.toBeInTheDocument()
     expect(view.container.querySelector('[data-compact-figure]')).toHaveTextContent(locale === 'en' ? '12completions' : '12conclusões')
+    expect(screen.getByRole('heading')).toContainElement(view.container.querySelector('[data-compact-figure]'))
+    expect(screen.queryByText((locale === 'en' ? en : pt).chat.readBlock.metric.positiveLogRecords)).not.toBeInTheDocument()
     view.unmount()
     const comparison = mount({ kind: 'periodComparison', block: focusedPeriodComparisonFixture }, locale)
     expect(screen.getByText('0')).toBeInTheDocument()
@@ -76,6 +78,11 @@ describe('focused read compositions', () => {
     await act(async () => { resolve({ ok: true, data: { kind: 'recordList', block: { ...focusedHistoryFixture, items: [{ id: 'late', title: 'Other account' }] }, read: focusedHistoryFixture.read } }) })
     expect(screen.queryByText('Other account')).not.toBeInTheDocument()
   })
+})
+
+it('shows a saved metric window only once through the owning read composition', () => {
+  mount({ kind: 'metrics', block: { surfaceId: 'progress', period: 'month', hasData: true, completionRate: 80, totalCompletions: 12, totalScheduled: 10, activeDays: 9, currentStreak: 2, bestStreak: 4, periodMetrics: focusedPeriodMetricsFixture, read: focusedReadMetadataFixture } })
+  expect(screen.getAllByText('Sep 1, 2026 - Sep 30, 2026')).toHaveLength(1)
 })
 
 it.each(['chat', 'refresh'] as const)('keeps a parsed %s historical schedule read-only and navigates with its original date', source => {
@@ -193,7 +200,7 @@ it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as con
         : readBlockResponseSchema.parse({ kind, block, read: block.read })
       if (!parsed || !('kind' in parsed)) throw new Error(`${kind} ${source} did not parse`)
       const view = mount(parsed, locale)
-      expect(screen.getByText(expected.title)).toBeVisible()
+      expect(screen.getByRole('heading')).toHaveTextContent(new RegExp(expected.title, 'i'))
       const compactFigures = [...view.container.querySelectorAll('[data-compact-figure]')]
       expect(compactFigures.map(figure => figure.firstElementChild?.textContent)).toEqual(figures)
       expect(compactFigures[0]).toHaveTextContent(expected.unit)
@@ -214,8 +221,9 @@ it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as con
     if (!parsed || !('kind' in parsed)) throw new Error(`${kind} ${source} did not parse`)
     const messages = locale === 'en' ? en : pt
     const view = mount(parsed, locale)
-    expect(screen.getByText(messages.chat.readBlock.metric[metric])).toBeVisible()
+    if (kind === 'periodTotal') expect(screen.getByRole('heading')).toHaveTextContent(new RegExp(messages.chat.readBlock.metric[metric], 'i'))
+    else expect(screen.getByText(messages.chat.readBlock.metric[metric])).toBeVisible()
     expect(view.container.querySelectorAll('[data-compact-figure]')).toHaveLength(kind === 'periodTotal' ? 1 : 2)
-    expect(screen.getAllByText(locale === 'en' ? 'days' : 'dias')).toHaveLength(kind === 'periodTotal' ? 1 : 2)
+    for (const figure of view.container.querySelectorAll('[data-compact-figure]')) expect(figure).toHaveTextContent(locale === 'en' ? 'days' : 'dias')
     view.unmount()
 })

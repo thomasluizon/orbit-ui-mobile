@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { recordListDestination } from '../chat/record-list-core'
 import { acceptReadBlockResponse, formatReadWindow, readBlockPresentation, readBlockFailureKey, readBlockWindow } from '../chat/read-block-core'
 import { chatClientContextSchema, chatPartSchema, readBlockResponseSchema } from '../types/chat'
 import { buildChatClientContext } from '../chat/client-context'
@@ -108,12 +107,4 @@ it('keeps query recovery distinct from live action eligibility', () => {
   expect(readBlockPresentation({ ...partial, read: { ...partial.read, recovery: null } }, 'resting', false, null).message).toBe('chat.readBlock.partial')
   const history = readBlockResponseSchema.parse({ kind: 'recordList', block: focusedHistoryFixture, read: focusedHistoryFixture.read })
   expect(readBlockPresentation(history, 'resting', false, null)).toMatchObject({ state: 'resting', message: null, window: { from: '2026-09-01', to: '2026-09-30' } })
-})
-
-it('keeps record navigation within established destinations', () => {
-  expect(recordListDestination({ ...focusedHistoryFixture, surfaceId: 'profile' })).toBeNull()
-  expect(recordListDestination({ kind: 'keys', totalCount: 0, items: [], surfaceId: 'profile' })).toBe('/profile')
-  expect(recordListDestination({ kind: 'notifications', totalCount: 0, items: [], surfaceId: 'notifications' })).toBe('/notifications')
-  expect(recordListDestination({ kind: 'tags', totalCount: 0, items: [] })).toBeNull()
-  expect(recordListDestination({ kind: 'templates', totalCount: 0, items: [] })).toBeNull()
 })

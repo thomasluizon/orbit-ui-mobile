@@ -137,3 +137,8 @@ describe('Astra account rows on mobile', () => {
   })
 
 })
+
+it('renders the profile when the time zone is unsupported', () => {
+  const tree = render(<AccountRowsCard accountRows={{ kind: 'profile', surfaceId: 'profile', rows: [{ key: 'timeZone', value: 'Unsupported/Zone', valueType: 'text' }] }} />)
+  expect(renderedText(tree.toJSON())).toContain('Unsupported/Zone')
+})

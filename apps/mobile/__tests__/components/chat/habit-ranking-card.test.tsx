@@ -35,7 +35,7 @@ function button(name: string): ReactTestInstance {
   return tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && (node.props.accessibilityLabel === name || controlName(node).includes(name)))[0]!
 }
 async function press(name: string) { await renderer.act(async () => { (button(name).props.onPress as () => void)(); await Promise.resolve() }) }
-beforeEach(async () => { advanceAccountGeneration(); vi.clearAllMocks(); await i18n.changeLanguage('en'); mocks.request.mockResolvedValue(next) })
+beforeEach(async () => { advanceAccountGeneration(); vi.clearAllMocks(); mocks.request.mockReset(); await i18n.changeLanguage('en'); mocks.request.mockResolvedValue(next) })
 afterEach(async () => { await renderer.act(() => tree.unmount()); await i18n.changeLanguage('en') })
 
 describe('Android habit ranking renderer and actions', () => {
@@ -46,6 +46,7 @@ describe('Android habit ranking renderer and actions', () => {
     expect(content()).toContain(locale === 'en' ? 'From Jul 1, 2026' : 'De 1 de jul. de 2026')
     expect(content()).toContain(locale === 'en' ? 'Through Sep 30, 2026' : 'Até 30 de set. de 2026')
     expect(button(locale === 'en' ? '1. Water, 1,200 completions' : '1. Water, 1.200 conclusões')).toBeDefined()
+    for (const rank of ['1', '2']) expect(tree.root.findAll(node => String(node.type) === 'Text' && node.props.children === rank)).toHaveLength(1)
   })
   it('appends tied server rows once through the real action owner', async () => {
     await mount(<HabitRankingCard habitRanking={card} />)
@@ -58,13 +59,24 @@ describe('Android habit ranking renderer and actions', () => {
     expect(path.searchParams.get('cursor')).toBe(card.ranking.nextCursor)
     expect(content()).not.toContain('Show more')
   })
-  it('retains counts and reports an expired page without a refresh footer', async () => {
+  it('retains counts and recovers an expired page through exact-query refresh', async () => {
     mocks.request.mockRejectedValueOnce(new ApiClientError(409, 'Stale'))
     await mount(<HabitRankingCard habitRanking={card} />)
     await press('Show more')
     expect(content()).toContain('Ranking changed.')
     expect(content()).toContain('1,200 completions')
-    expect(tree.root.findAll(node => node.props.accessibilityLabel === 'Refresh')).toHaveLength(0)
+    mocks.request.mockRejectedValueOnce(new ApiClientError(503, 'Offline')).mockResolvedValueOnce(card.ranking)
+    await press('Refresh')
+    expect(content()).toContain('Could not refresh. Try again.')
+    await press('Refresh')
+    expect(mocks.request).toHaveBeenCalledTimes(3)
+    for (const [request] of mocks.request.mock.calls.slice(1)) {
+      const path = new URL(request as string, 'https://example.test')
+      expect(path.searchParams.get('queryToken')).toBe(card.ranking.queryToken)
+      expect(path.searchParams.get('cursor')).toBeNull()
+      expect(path.searchParams.get('refresh')).toBe('true')
+    }
+    expect(button('Show more')).toBeDefined()
   })
   it('opens the actual habit and handles a removed target within the ranking', async () => {
     mocks.request.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new ApiClientError(404, 'Removed'))

@@ -19,6 +19,9 @@ for (const [locale, messages] of [['en', en], ['pt-BR', pt]] as const) {
       const card = { ...completedHabitComparisonFixture, currentValue, baselineValue }
       const presentation = comparisonPresentation(card, locale, translate)
       expect(presentation.verdict).toContain(String(currentValue))
+      expect(presentation.verdict[0]).toBe(presentation.verdict[0]!.toLocaleUpperCase(locale))
+      expect(presentation.verdict).not.toMatch(/^(?:Sim|Yes),/)
+      expect(presentation.verdict).not.toMatch(/está (?:à frente|atrás)/)
       expect(presentation.verdict).toContain(locale === 'en'
         ? currentValue === 1 ? 'habit completed' : 'habits completed'
         : currentValue === 1 ? 'hábito concluído' : 'hábitos concluídos')
@@ -28,6 +31,9 @@ for (const [locale, messages] of [['en', en], ['pt-BR', pt]] as const) {
       const card = { ...focusedPeriodComparisonFixture, currentValue, baselineValue }
       const presentation = comparisonPresentation(card, locale, translate)
       expect(presentation.verdict).toContain(String(currentValue))
+      expect(presentation.verdict[0]).toBe(presentation.verdict[0]!.toLocaleUpperCase(locale))
+      expect(presentation.verdict).not.toMatch(/^(?:Sim|Yes),/)
+      expect(presentation.verdict).not.toMatch(/está (?:à frente|atrás)/)
       expect(presentation.verdict).toContain(locale === 'en' ? 'completions' : 'conclusões')
       expect(presentation.bars[0]!.width).toBe(currentValue / Math.max(currentValue, baselineValue, 1) * 100)
       expect(presentation.bars[1]!.width).toBe(baselineValue / Math.max(currentValue, baselineValue, 1) * 100)

@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PeriodInsightCard as PeriodInsightData } from '@orbit/shared/types/chat'
 import { PeriodInsightCard } from '@/components/chat/period-insight-card'
 
+const push = vi.hoisted(() => vi.fn())
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
+
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
   useTranslations: () => (key: string, values?: { done?: number; scheduled?: number }) =>
@@ -51,6 +54,7 @@ describe('period insight card on web', () => {
     expect(screen.getByRole('button', { name: 'chat.readBlock.less' })).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByRole('button', { name: 'chat.readBlock.less' })).toHaveAttribute('aria-haspopup', 'false')
     expect(screen.getByRole('button', { name: 'chat.insight.needsAttention: Read' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'chat.insight.needsAttention: Read' }).closest('[data-habit-block-row]')).toHaveTextContent('20%')
     fireEvent.click(screen.getByRole('button', { name: 'chat.readBlock.less' }))
     expect(screen.queryByText('Reading')).not.toBeInTheDocument()
     expect(screen.queryByText('chat.insight.currentStreak')).not.toBeInTheDocument()
@@ -75,5 +79,14 @@ describe('period insight card on web', () => {
     fireEvent.click(disclosure)
     expect(disclosure).toHaveAttribute('aria-expanded', 'true')
     expect(disclosure.parentElement).toHaveTextContent(name)
+  })
+
+  it('opens the supplied habit from a recap row', () => {
+    push.mockClear()
+    const habitId = '92ca0543-c3e1-4f41-9370-c55e1bfa8157'
+    render(<PeriodInsightCard periodInsight={{ ...insight, topHabits: [{ ...insight.topHabits[0]!, habitId }] }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.more' }))
+    fireEvent.click(screen.getByRole('button', { name: 'chat.insight.topHabit: Walk' }))
+    expect(push).toHaveBeenCalledWith(`/habits/${habitId}`)
   })
 })

@@ -99,3 +99,8 @@ describe('Astra account rows on web', () => {
   })
 
 })
+
+it('renders the profile when the time zone is unsupported', () => {
+  render(<AccountRowsCard accountRows={{ kind: 'profile', surfaceId: 'profile', rows: [{ key: 'timeZone', value: 'Unsupported/Zone', valueType: 'text' }] }} />)
+  expect(screen.getByText('Unsupported/Zone')).toBeInTheDocument()
+})

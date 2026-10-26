@@ -15,7 +15,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => mocks.router }))
 const card = habitRankingCardSchema.parse(habitRankingCardFixture)
 const next = habitRankingResponseSchema.parse(habitRankingNextPageFixture)
 const provider = (children: React.ReactNode, locale = 'en') => <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}>{children}</NextIntlClientProvider>
-beforeEach(() => { advanceAccountGeneration(); vi.clearAllMocks(); mocks.load.mockResolvedValue({ ok: true, data: next }); mocks.check.mockResolvedValue({ ok: true, data: true }) })
+beforeEach(() => { advanceAccountGeneration(); vi.clearAllMocks(); mocks.load.mockReset(); mocks.check.mockReset(); mocks.load.mockResolvedValue({ ok: true, data: next }); mocks.check.mockResolvedValue({ ok: true, data: true }) })
 afterEach(cleanup)
 
 describe('habit ranking renderer and actions', () => {
@@ -26,6 +26,8 @@ describe('habit ranking renderer and actions', () => {
     expect(screen.getByText(locale === 'en' ? 'From Jul 1, 2026' : 'De 1 de jul. de 2026')).toBeInTheDocument()
     expect(screen.getByText(locale === 'en' ? 'Through Sep 30, 2026' : 'Até 30 de set. de 2026')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /1\. Water/ })).toBeInTheDocument()
+    expect(screen.getByText('1')).toBeVisible()
+    expect(screen.getByText('2')).toBeVisible()
     expect(screen.queryByText(/completion rate|consistência/i)).not.toBeInTheDocument()
   })
   it('keeps existing rows and focus during paging, guards double presses and focuses refresh on the last page', async () => {
@@ -67,6 +69,22 @@ describe('habit ranking renderer and actions', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /1\. Water/ })) })
     expect(screen.getByRole('status')).toHaveTextContent('Habit unavailable.')
     expect(mocks.router.push).not.toHaveBeenCalled()
+  })
+  it('recovers a stale ranking with exact-query refresh and retries failed refreshes', async () => {
+    mocks.load.mockResolvedValueOnce({ ok: false, status: 409, error: 'Stale' })
+      .mockResolvedValueOnce({ ok: false, status: 503, error: 'Offline' })
+      .mockResolvedValueOnce({ ok: true, data: card.ranking })
+    render(provider(<HabitRankingCard habitRanking={card} />))
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Show more' })) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Refresh' })) })
+    expect(screen.getByRole('status')).toHaveTextContent(en.chat.ranking.refreshFailed)
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Refresh' })) })
+    expect(mocks.load.mock.calls).toEqual([
+      [card.ranking.queryToken, card.ranking.nextCursor, false],
+      [card.ranking.queryToken, null, true], [card.ranking.queryToken, null, true],
+    ])
+    expect(screen.getByRole('button', { name: 'Show more' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Refresh' })).not.toBeInTheDocument()
   })
   it('opens the actual habit and retains the answer when returning', async () => {
     const view = render(provider(<HabitRankingCard habitRanking={card} />))

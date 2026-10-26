@@ -21,7 +21,7 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({
   i18n: { language: mocks.language },
 }) }))
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: ({ label }: { label: string }) => <View accessibilityRole="progressbar" accessibilityLabel={label} /> }))
-vi.mock('@/components/ui/progress-bar', () => ({ ProgressBar: ({ value, max }: { value: number; max: number }) => <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max, now: value }} /> }))
+vi.mock('@/components/ui/progress-bar', () => ({ ProgressBar: ({ value, max, label }: { value: number; max: number; label: string }) => <View accessibilityRole="progressbar" accessibilityLabel={label} accessibilityValue={{ min: 0, max, now: value }} /> }))
 vi.mock('@/components/ui/pill-button', () => ({ Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => <Pressable accessibilityRole="button" onPress={onClick}><Text>{children}</Text></Pressable> }))
 vi.mock('@/components/ui/block-frame', () => ({ BlockFrame: ({ items, body, actions }: BlockFrameProps) => <View>{body}{items.map((item) => <View testID="card-row" nativeID={item.status ?? 'normal'} key={item.id}>{item.label}{item.meta ? <Text>{item.meta}</Text> : null}{item.control}</View>)}{actions}</View> }))
 vi.mock('@/lib/theme', async (importOriginal) => {
@@ -62,7 +62,7 @@ describe('Astra status cards on mobile', () => {
 
   it('shows at most six earned and unearned discs', () => {
     const tree = render(<StreakCard streakCard={{ currentStreak: 0, longestStreak: 4, level: 11, totalXp: 12200, xpForNextLevel: 14400, lastActiveDate: null, isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], achievementDiscs: Array.from({ length: 8 }, (_, index) => ({ id: `achievement-${index}`, iconKey: 'satellite', earnedAt: index % 2 ? null : '2026-09-26T10:00:00Z' })), surfaceId: 'progress' }} />)
-    expect(tree.root.findByProps({ accessibilityRole: 'progressbar' }).props.accessibilityValue).toEqual({ min: 0, max: 2300, now: 100 })
+    expect(tree.root.findByProps({ accessibilityRole: 'progressbar', accessibilityLabel: 'progressScreen.achievements.xpProgress' }).props.accessibilityValue).toEqual({ min: 0, max: 2300, now: 100 })
     expect(tree.root.findAll((node: any) => node.type === View && String(node.props?.testID).startsWith('achievement-mark-'))).toHaveLength(6)
     expect(mocks.push).not.toHaveBeenCalled()
   })

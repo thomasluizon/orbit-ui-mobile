@@ -2,7 +2,7 @@ import { personalText } from '@/__tests__/support/personal-text'
 import { ChatBlock } from '@/components/chat/block-registry'
 import { chatNavigationCases } from '@orbit/shared/test-support/chat-navigation-fixtures'
 import type { ReactNode, MouseEventHandler } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { inPlaceDayFixture, inPlaceCalendarFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
 import { createMockHabit, createMockGoal } from '@orbit/shared/__tests__/factories'
@@ -28,7 +28,7 @@ vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => n
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => state.wide }))
 vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({ ...state.query, data: { habitsById: state.habits }, refetch: state.refetch }),
-  useLogHabit: () => ({ mutate: state.mutate }),
+  useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }),
   useHabitMetrics: () => ({ ...state.query, refetch: state.refetch }),
 }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ ...state.query, data: { goalsById: state.goals }, refetch: state.refetch }) }))
@@ -42,6 +42,7 @@ vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({
 }) }))
 beforeEach(() => {
   vi.clearAllMocks()
+  state.mutate.mockReset().mockImplementation(() => new Promise(() => {}))
   state.pathname = '/'
   state.pro = true
   state.disconnected = false
@@ -60,7 +61,7 @@ describe('Astra blocks act on app state', () => {
     expect(screen.getByText('chat.daySummary.rowCount:{"shown":20,"total":25}')).toBeInTheDocument()
     fireEvent.click(log); fireEvent.click(log)
     expect(state.mutate).toHaveBeenCalledTimes(1)
-    expect(state.mutate).toHaveBeenCalledWith(expect.objectContaining({ habitId: 'habit-1', intent: 'log' }), expect.any(Object))
+    expect(state.mutate.mock.calls[0]![0]).toEqual(expect.objectContaining({ habitId: 'habit-1', intent: 'log' }))
     expect(view.container.querySelector('section')).toHaveAttribute('data-state', 'acting')
     state.habits.set('habit-1', createMockHabit({ id: 'habit-1', title: 'Habit 1', isLoggedInRange: true }))
     view.rerender(<DaySummaryCard daySummary={inPlaceDayFixture} />)
@@ -116,9 +117,12 @@ it.each([
   if (expected === 'partiallyFailed') expect(screen.getAllByRole('alert')).toHaveLength(4)
 })
 
-it('shows a compact streak without freeze management or shell navigation', () => {
+it('retains freeze facts under a compact streak without shell navigation', () => {
   const view = render(<StreakCard streakCard={{ currentStreak: 3, longestStreak: 9, level: 1, totalXp: 20, xpForNextLevel: 100, lastActiveDate: null, isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], surfaceId: 'progress' }} />)
-  expect(view.container.querySelector('[data-component="freeze-bank"]')).toBeNull()
+  expect(view.container.querySelector('[data-component="freeze-bank"]')).toHaveTextContent('progressScreen.streak.banked')
+  expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
+  expect(screen.getByText('streakDisplay.detail.tierTileLabel')).toBeInTheDocument()
+  expect(screen.getByText('progressScreen.streak.protectedDays')).toBeInTheDocument()
   expect(view.container.querySelector('[data-compact-figure]')).toHaveTextContent('3')
   expect(screen.queryByRole('button', { name: 'chat.streakCard.open' })).not.toBeInTheDocument()
 })
@@ -143,7 +147,8 @@ it('offers calendar reconnection and disables import after disconnection', () =>
   expect(view.container.querySelector('section')).toHaveAttribute('data-state', 'partiallyFailed')
   expect(screen.getByRole('alert')).toHaveTextContent('chat.calendarCard.syncState.ReconnectRequired')
   expect(screen.getByRole('button', { name: /chat.calendarCard.makeHabit/ })).toBeDisabled()
-  expect(screen.queryByRole('button', { name: 'chat.calendarCard.open' })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'chat.calendarCard.open' }))
+  expect(state.push).toHaveBeenCalledWith('/calendar?import=1')
 })
 
 it('puts a payload sync error in the calendar actions area', () => {
@@ -205,3 +210,70 @@ vi.mock('next/link', () => ({ default: ({ href, onClick, onNavigate, children }:
   onNavigate?.({ preventDefault: () => { cancellation.prevented = true } })
   if (!cancellation.prevented) state.push(href)
 }}>{children}</a> }))
+
+it('keeps a second day check usable while the first is pending', () => {
+  render(<DaySummaryCard daySummary={inPlaceDayFixture} />)
+  fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.log:{"name":"Habit 1"}' }))
+  const second = screen.getByRole('button', { name: 'chat.habitList.log:{"name":"Habit 2"}' })
+  expect(second).toBeEnabled()
+  fireEvent.click(second)
+  expect(state.mutate).toHaveBeenCalledTimes(2)
+})
+
+it('keeps the ring and total in step with live completion and rollback', () => {
+  const snapshot = { ...inPlaceDayFixture, rows: inPlaceDayFixture.rows!.slice(0, 1), due: 1 }
+  const view = render(<DaySummaryCard daySummary={snapshot} />)
+  state.habits.set('habit-1', createMockHabit({ id: 'habit-1', isLoggedInRange: true }))
+  view.rerender(<DaySummaryCard daySummary={snapshot} />)
+  expect(screen.getByText('chat.daySummary.doneOfDue:{"done":1,"due":1}')).toBeInTheDocument()
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100')
+  state.habits.set('habit-1', createMockHabit({ id: 'habit-1', isLoggedInRange: false }))
+  view.rerender(<DaySummaryCard daySummary={snapshot} />)
+  expect(screen.getByText('chat.daySummary.doneOfDue:{"done":0,"due":1}')).toBeInTheDocument()
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0')
+})
+
+it('marks only the failed day row after overlapping requests settle', async () => {
+  let rejectFirst!: (error: Error) => void
+  let resolveSecond!: () => void
+  state.mutate.mockImplementationOnce(() => new Promise((_, reject) => { rejectFirst = reject }))
+    .mockImplementationOnce(() => new Promise<void>(resolve => { resolveSecond = resolve }))
+  const view = render(<DaySummaryCard daySummary={inPlaceDayFixture} />)
+  fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.log:{"name":"Habit 1"}' }))
+  fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.log:{"name":"Habit 2"}' }))
+  await act(async () => { resolveSecond(); rejectFirst(new Error('offline')) })
+  const rows = view.container.querySelectorAll('[data-habit-block-row]')
+  expect(rows[0]!.querySelector('[role="alert"]')).toHaveTextContent('chat.liveBlock.error')
+  expect(rows[1]!.querySelector('[role="alert"]')).toBeNull()
+  expect(screen.getByRole('button', { name: 'chat.habitList.log:{"name":"Habit 1"}' })).toBeEnabled()
+})
+
+it('keeps a failed check visible on its own day row until retry', async () => {
+  let reject!: (error: Error) => void
+  state.mutate.mockImplementationOnce((_input: unknown, callbacks?: { onError: () => void }) => {
+    const request = new Promise((_, fail) => { reject = fail })
+    void request.catch(() => callbacks?.onError())
+    return request
+  })
+  const view = render(<DaySummaryCard daySummary={inPlaceDayFixture} />)
+  fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.log:{"name":"Habit 1"}' }))
+  await act(async () => { reject(new Error('offline')) })
+  const rows = view.container.querySelectorAll('[data-habit-block-row]')
+  expect(rows[0]!.querySelector('[role="alert"]')).toHaveTextContent('chat.liveBlock.error')
+  expect(rows[1]!.querySelector('[role="alert"]')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.log:{"name":"Habit 1"}' }))
+  expect(rows[0]!.querySelector('[role="alert"]')).toBeNull()
+})
+
+it('offers reconnection when the sync snapshot requires it', () => {
+  render(<CalendarCard calendarCard={{ ...inPlaceCalendarFixture, sync: { enabled: true, status: 'ReconnectRequired', lastSyncedAt: null } }} />)
+  fireEvent.click(screen.getByRole('button', { name: 'chat.calendarCard.open' }))
+  expect(state.push).toHaveBeenCalledWith('/calendar?import=1')
+})
+
+it('does not ask to reload a stale goal block without a reload action', () => {
+  state.query = { isPending: false, isError: true, isRefetchError: true }
+  const view = render(<GoalListCard goalList={{ items: [{ id: 'missing', title: 'Move', current: 1, target: 10, unit: 'km' }] }} />)
+  expect(view.container).not.toHaveTextContent('chat.liveBlock.stale')
+  expect(view.container).toHaveTextContent('chat.liveBlock.unavailable')
+})

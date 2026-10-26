@@ -30,6 +30,12 @@ it('subscribes to a log on Hoje through the real habit query cache', async () =>
     await new Promise(resolve => setTimeout(resolve, 10))
   })
   expect(tree.root.findAll(node => node.props.accessibilityLabel === 'chat.habitList.unlog:Habit 1').length).toBeGreaterThan(0)
+  expect(tree.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]?.props.accessibilityValue).toMatchObject({ now: 4 })
+  await act(async () => {
+    client.setQueryData(key, occurrences)
+    await new Promise(resolve => setTimeout(resolve, 10))
+  })
+  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'chat.habitList.log:Habit 1').length).toBeGreaterThan(0)
   expect(tree.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]?.props.accessibilityValue).toMatchObject({ now: 0 })
   await act(() => tree.unmount())
   client.clear()

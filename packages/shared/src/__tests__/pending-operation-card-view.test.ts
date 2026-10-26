@@ -86,12 +86,12 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(record.frame?.count).toBe(1)
   })
 
-  it('keeps a neutral heading for a mixed preview', () => {
+  it('counts the habits being changed in a mixed preview', () => {
     const operation = makeMixedHabitsPreview()
     const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
     const { record, render } = createRenderers()
     renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
-    expect(record.frame?.title).toBe(messages.chat.pendingOp.capability['habits-bulk-write'])
+    expect(record.frame?.title).toBe(locale === 'en' ? 'Change 5 habits' : 'Alterar 5 hábitos')
   })
 })
 
@@ -972,4 +972,10 @@ describe('parent choice presentation and focus intent', () => {
     renderPendingOperationCard({ card: { ...card, revision: { ...card.revision, busy: false, operation: resolved, items: resolved.items! } }, labels, onVerifyStepUp: vi.fn(), pendingOperation: resolved, render: complete.render })
     expect(complete.record.buttons.find(button => button.label === 'Approve')).toMatchObject({ disabled: false, focusRequest: 3 })
   })
+})
+
+it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('counts multiple habit edits in $locale', ({ locale, messages }) => {
+  const operation = { ...makeCreateHabitsPreview(3), actionKey: 'updateHabits' }
+  const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), value => value, locale)
+  expect(labels.name).toBe(locale === 'en' ? 'Change 3 habits' : 'Alterar 3 hábitos')
 })

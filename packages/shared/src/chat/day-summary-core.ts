@@ -2,6 +2,17 @@ import type { NormalizedHabit } from '../types/habit'
 import type { StatusRingProps } from '../contracts/lists'
 import { getHabitLogDateDecision } from '../utils/habit-card-helpers'
 import { isHabitDoneForRange } from '../utils/habit-visibility'
+import type { DaySummaryCard } from '../types/chat'
+
+export function daySummaryCompletion(card: DaySummaryCard, occurrences: ReadonlyMap<string, NormalizedHabit> | undefined): { done: number; completionRate: number } {
+  const delta = (card.rows ?? []).reduce((total, row) => {
+    const habit = occurrences?.get(row.id)
+    if (!habit || row.depth > 0 || row.isBadHabit) return total
+    return total + Number(isHabitDoneForRange(habit)) - Number(row.status === 'done')
+  }, 0)
+  const done = Math.max(0, Math.min(card.due, card.done + delta))
+  return { done, completionRate: card.due > 0 ? done / card.due * 100 : 0 }
+}
 
 export function daySummaryLogControl(habit: NormalizedHabit | undefined, overdue = false, readDate?: { date: string; today: string; timeZone: string | null; ready: boolean }): {
   logged: boolean

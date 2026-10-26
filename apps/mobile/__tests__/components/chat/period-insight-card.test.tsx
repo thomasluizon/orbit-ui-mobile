@@ -8,7 +8,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { PeriodInsightCard } from '@/components/chat/period-insight-card'
 
 let pathname = '/'
-const push = vi.fn((destination: string) => { pathname = destination })
+const push = vi.fn((destination: string | { pathname: string; params: { id: string } }) => { pathname = typeof destination === 'string' ? destination : destination.pathname })
 vi.mock('expo-router', () => ({ useRouter: () => ({ push }) }))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
@@ -74,7 +74,8 @@ describe('period insight card on mobile', () => {
     const announcement = root.findByProps({ testID: 'insight-detail-announcement' })
     expect(announcement.props.accessibilityLiveRegion).toBe('polite')
     expect(announcement.findAllByType('Text').some(node => node.props.children === 'Reading')).toBe(true)
-    expect(root.findByProps({ testID: 'block-frame-item-attention-0-pending' })).toBeDefined()
+    const attentionRow = root.findAllByType('View').find(node => node.props.testID === 'habit-block-row' && node.findAllByType('Text').some(text => text.props.children === 'Read'))!
+    expect(attentionRow.findAllByType('Text').some(node => JSON.stringify(node.props.children) === '[20,"%"]')).toBe(true)
     const less = root.findByProps({ accessibilityLabel: 'chat.readBlock.less' })
     expect(less.props.accessibilityState).toMatchObject({ expanded: true })
     void act(() => { (less.props.onPress as () => void)() })
@@ -98,6 +99,15 @@ describe('period insight card on mobile', () => {
     void act(() => { (more.props.onPress as () => void)() })
     const label = root.findAllByType('Text').find(node => node.props.children === `chat.insight.needsAttention: ${name}`)
     expect(label?.props.numberOfLines).toBeUndefined()
+  })
+
+  it('opens the supplied habit from a recap row', () => {
+    push.mockClear()
+    const habitId = '92ca0543-c3e1-4f41-9370-c55e1bfa8157'
+    const root = render(<PeriodInsightCard periodInsight={{ ...insight, topHabits: [{ ...insight.topHabits[0]!, habitId }] }} />)
+    void act(() => { (root.findByProps({ accessibilityLabel: 'chat.habitList.more' }).props.onPress as () => void)() })
+    void act(() => { (root.findByProps({ accessibilityLabel: 'chat.insight.topHabit: Walk' }).props.onPress as () => void)() })
+    expect(push).toHaveBeenCalledWith({ pathname: '/habits/[id]', params: { id: habitId } })
   })
 
 })

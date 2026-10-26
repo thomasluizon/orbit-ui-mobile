@@ -1367,6 +1367,7 @@
       "position": "{position} de {total}"
     },
     "liveBlock": {
+      "unavailable": "Alguns dados podem estar desatualizados.",
       "stale": "Não foi possível atualizar este bloco. Recarregue para ver como está agora.",
       "error": "Não foi possível atualizar este bloco. Tente de novo."
     },
@@ -1555,8 +1556,8 @@
         "referrals-write": "Dados de indicação",
         "support-write": "Mensagem para suporte",
         "habits-delete": "Apagar hábitos",
-        "habits-bulk-write": "Alterações de hábitos em lote",
-        "habits-bulk-delete": "Apagar hábitos em lote",
+        "habits-bulk-write": "Alterar hábitos",
+        "habits-bulk-delete": "Apagar hábitos",
         "goals-delete": "Apagar metas",
         "tags-delete": "Apagar tags",
         "notifications-delete": "Apagar notificações",
@@ -1799,8 +1800,7 @@
       "more": "Mostrar mais",
       "filter": "Filtrar lista",
       "noMatches": "Nenhum registro carregado corresponde a “{query}”.",
-      "clearFilter": "Limpar filtro",
-      "open": { "notifications": "Abrir Avisos", "tags": "Abrir Tags", "templates": "Abrir Modelos", "keys": "Abrir Perfil" }
+      "clearFilter": "Limpar filtro"
     },
     "account": {
       "title": { "profile": "Seu perfil", "plan": "Seu plano", "referral": "Sua indicação" },
@@ -2025,6 +2025,7 @@
       "batchFailed": "Alguns itens não foram salvos. Peça à Astra para tentar só os que falharam.",
       "unavailableRecovery": "Não funcionou. Peça uma nova prévia à Astra.",
       "unknown": "Operação da Astra",
+      "changeHabits": "{count, plural, =0 {Alterar # hábitos} one {Alterar # hábito} other {Alterar # hábitos}}",
       "newHabits": "{count, plural, =0 {# novos hábitos} one {Novo hábito} other {# novos hábitos}}",
       "pendingTitle": "Aguardando confirmação",
       "pending": "Nada mudou ainda",
@@ -2405,20 +2406,27 @@
       "weekStartDaySet": "A semana começa {weekStartDay, select, 0 {no domingo} 1 {na segunda-feira} other {no dia escolhido}}."
     },
     "figure": {
+      "totalUnit": {
+        "positiveLogRecords": "{count, plural, =0 {conclusões} one {conclusão} other {conclusões}}",
+        "completedHabits": "{count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}",
+        "distinctLoggedDates": "{count, plural, =0 {dias com registros} one {dia com registros} other {dias com registros}}",
+        "metScheduledDates": "{count, plural, =0 {dias cumpridos} one {dia cumprido} other {dias cumpridos}}",
+        "scheduledDates": "{count, plural, =0 {dias agendados} one {dia agendado} other {dias agendados}}"
+      },
       "soFar": "{period} (até agora)",
       "comparison": {
         "habits": {
-          "ahead": "Sim, {current} está à frente: {value} {count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}, contra {previous} em {baseline}.",
-          "behind": "{current} está atrás: {value} {count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}, contra {previous} em {baseline}.",
+          "ahead": "{current} tem mais {count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}: {value}, contra {previous} em {baseline}.",
+          "behind": "{current} tem menos {count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}: {value}, contra {previous} em {baseline}.",
           "equal": "{current} e {baseline} têm o mesmo total: {value} {count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}."
         },
         "records": {
-          "ahead": "Sim, {current} está à frente: {value} {count, plural, =0 {conclusões} one {conclusão} other {conclusões}}, contra {previous} em {baseline}.",
+          "ahead": "{current} tem mais {count, plural, =0 {conclusões} one {conclusão} other {conclusões}}: {value}, contra {previous} em {baseline}.",
           "behind": "{current} tem menos {count, plural, =0 {conclusões} one {conclusão} other {conclusões}}: {value}, contra {previous} em {baseline}.",
           "equal": "{current} e {baseline} têm o mesmo total: {value} {count, plural, =0 {conclusões} one {conclusão} other {conclusões}}."
         },
         "days": {
-          "ahead": "{current} está à frente: {value} {count, plural, =0 {dias} one {dia} other {dias}}, contra {previous} em {baseline}.",
+          "ahead": "{current} tem mais {count, plural, =0 {dias} one {dia} other {dias}}: {value}, contra {previous} em {baseline}.",
           "behind": "{current} tem menos {count, plural, =0 {dias} one {dia} other {dias}}: {value}, contra {previous} em {baseline}.",
           "equal": "{current} e {baseline} têm o mesmo total: {value} {count, plural, =0 {dias} one {dia} other {dias}}."
         }

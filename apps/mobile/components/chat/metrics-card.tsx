@@ -46,7 +46,7 @@ export function MetricsCard({ metricsCard: snapshot }: Readonly<{ metricsCard: M
         titleMode={habitId && habitTitle ? 'typed' : 'label'}
         count={null}
         items={rows}
-        body={<FigureList>{metricsCard.periodMetrics ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{formatReadWindow(metricsCard.periodMetrics.window, i18n.language)}</Text> : null}{figures.map(figure => <CompactFigure key={figure.id} value={figure.value ?? t('chat.metrics.noFigure')} unit={t(metricsFigureLabelKey(figure.id, figure.labelKey))} />)}{chart}</FigureList>}
+        body={<FigureList>{!metricsCard.read && metricsCard.periodMetrics ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{formatReadWindow(metricsCard.periodMetrics.window, i18n.language)}</Text> : null}{figures.map(figure => <CompactFigure key={figure.id} value={figure.value ?? t('chat.metrics.noFigure')} unit={t(metricsFigureLabelKey(figure.id, figure.labelKey))} />)}{chart}</FigureList>}
       />
     </View>
   )

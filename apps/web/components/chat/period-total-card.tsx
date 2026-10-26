@@ -9,9 +9,8 @@ import type { PeriodTotalCard as PeriodTotal } from '@orbit/shared/types/chat'
 export function PeriodTotalCard({ card }: Readonly<{ card: PeriodTotal }>) {
   const t = useTranslations()
   const locale = useLocale()
-  return <BlockFrame state="resting" title={t(`chat.readBlock.metric.${card.metric}`)} wrapTitle count={null} items={[]}
+  return <BlockFrame state="resting" title={t(`chat.readBlock.metric.${card.metric}`)} wrapTitle titleContent={<CompactFigure value={new Intl.NumberFormat(locale).format(card.value)} unit={t(`chat.figure.totalUnit.${card.metric}`, { count: card.value })} />} count={null} items={[]}
     body={<div className="flex min-w-0 flex-col gap-2">
-      <CompactFigure value={new Intl.NumberFormat(locale).format(card.value)} unit={t(`chat.readBlock.unit.${card.unit}`, { count: card.value })} />
       <p className="text-sm text-[var(--fg-3)]">{formatFigurePeriod(card.metrics.window, locale, t)}</p>
     </div>} />
 }

@@ -5,7 +5,7 @@ import { act, create } from 'react-test-renderer'
 import type { GeometryTree } from '../../support/safe-area-geometry'
 import { renderedText } from '../../support/react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { getAccountDay } from '@orbit/shared/utils'
@@ -25,7 +25,7 @@ vi.mock('react-i18next', async importOriginal => ({ ...await importOriginal<type
 } }) }))
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: state.push }) }))
-vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: state.isError ? undefined : { habitsById: state.habits }, isError: state.isError, isPending: false }), useLogHabit: () => ({ mutate: state.mutate }), useHabitMetrics: () => ({}) }))
+vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: state.isError ? undefined : { habitsById: state.habits }, isError: state.isError, isPending: false }), useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }), useHabitMetrics: () => ({}) }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false }) }))
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'UTC' } }) }))
@@ -51,6 +51,9 @@ describe('focused Android read compositions', () => {
     const tree = await mount()
     expect(renderedText(tree.toJSON())).toContain('12')
     expect(renderedText(tree.toJSON())).toContain('2026')
+    const header = tree.root.findAll(node => String(node.type) === 'View' && node.props.accessibilityRole === 'header')[0]!
+    expect(renderedText(header)).toContain('12')
+    expect(renderedText(tree.toJSON())).not.toContain('chat.readBlock.metric.positiveLogRecords')
     await act(() => tree.unmount())
     const comparison = await mount({ kind: 'periodComparison', block: focusedPeriodComparisonFixture })
     const text = renderedText(comparison.toJSON())
@@ -96,6 +99,12 @@ describe('focused Android read compositions', () => {
     expect(renderedText(tree.toJSON())).not.toContain('99')
     await act(() => tree.unmount())
   })
+})
+
+it('shows a saved metric window only once through the owning read composition', async () => {
+  const tree = await mount({ kind: 'metrics', block: { surfaceId: 'progress', period: 'month', hasData: true, completionRate: 80, totalCompletions: 12, totalScheduled: 10, activeDays: 9, currentStreak: 2, bestStreak: 4, periodMetrics: focusedPeriodMetricsFixture, read: focusedReadMetadataFixture } })
+  expect(renderedText(tree.toJSON()).split('Sep 1, 2026 - Sep 30, 2026')).toHaveLength(2)
+  await act(() => tree.unmount())
 })
 
 it.each(['chat', 'refresh'] as const)('retains a parsed %s historical schedule and rejects a direct press on an ineligible action', async source => {
@@ -221,7 +230,7 @@ it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as con
       if (!parsed || !('kind' in parsed)) throw new Error(`${kind} ${source} did not parse`)
       const tree = await mount(parsed)
       const text = renderedText(tree.toJSON())
-      expect(text).toContain(expected.title)
+      expect(text.toLocaleLowerCase(locale)).toContain(expected.title.toLocaleLowerCase(locale))
       expect(text).toContain(expected.unit)
       const compactFigures = tree.root.findAll(node => String(node.type) === 'View' && node.props.testID === 'compact-figure')
       expect(compactFigures.map(figure => renderedText(figure).trim().split(/\s+/)[0])).toEqual(figures)
@@ -244,7 +253,7 @@ it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as con
     if (!parsed || !('kind' in parsed)) throw new Error(`${kind} ${source} did not parse`)
     const messages = locale === 'en' ? en : pt
     const tree = await mount(parsed)
-    expect(renderedText(tree.toJSON())).toContain(messages.chat.readBlock.metric[metric])
+    expect(renderedText(tree.toJSON()).toLocaleLowerCase(locale)).toContain(messages.chat.readBlock.metric[metric].toLocaleLowerCase(locale))
     const figures = tree.root.findAll(node => String(node.type) === 'View' && node.props.testID === 'compact-figure')
     expect(figures).toHaveLength(kind === 'periodTotal' ? 1 : 2)
     for (const figure of figures) expect(renderedText(figure)).toContain(locale === 'en' ? 'days' : 'dias')
