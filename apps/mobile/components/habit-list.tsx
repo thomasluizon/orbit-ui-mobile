@@ -776,7 +776,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }, [activeDragItems])
     const isDndEnabled = view !== 'all' && !isSelectMode
 
-    useEffect(() => {
+    useLayoutEffect(() => {
       promptDataRef.current = {
         getChildren,
         visibility,
@@ -843,7 +843,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [childrenProgressMap],
     )
 
-    useEffect(() => {
+    useLayoutEffect(() => {
       const confirmedResolutions = confirmedResolutionsRef.current
       refreshConfirmedResolutions(
         confirmedResolutions,
