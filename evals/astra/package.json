@@ -12,6 +12,8 @@
   },
   "devDependencies": {
     "promptfoo": "0.124.1",
+    "react": "19.2.3",
+    "use-intl": "4.13.6",
     "vitest": "4.1.12",
     "yaml": "2.9.1"
   }
