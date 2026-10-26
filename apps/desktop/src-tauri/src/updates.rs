@@ -76,6 +76,25 @@ async fn check_release(
     )))
 }
 
+pub fn offer_or_check(app: &AppHandle) {
+    let available = {
+        let state = app.state::<PendingUpdate>();
+        let mut state = state.lock().unwrap();
+        let available = state.version.is_some() || state.web_commit.is_some();
+        if available {
+            state.reveal();
+        }
+        available
+    };
+    if available {
+        if let Err(error) = lifecycle::show_main(app) {
+            eprintln!("Cannot show desktop update: {error}");
+        }
+    } else {
+        check(app);
+    }
+}
+
 pub fn request_restart(app: &AppHandle) {
     app.state::<PendingUpdate>()
         .lock()

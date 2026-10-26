@@ -114,7 +114,12 @@ class DesktopUpdateController {
     this.requested = false
     this.failed = false
     this.publish()
-    try { if (this.supported) this.native = await invoke('defer') }
+    try {
+      if (this.supported) {
+        this.native = await invoke('defer')
+        this.deferred = null
+      }
+    }
     catch (error) { this.deferred = null; this.failed = true; captureException(error) }
     this.publish()
   }

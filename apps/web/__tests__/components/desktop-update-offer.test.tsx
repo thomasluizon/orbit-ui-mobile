@@ -308,3 +308,17 @@ it('clears the native web menu offer after the new build has loaded', async () =
   expect(native.webCommit).toBeNull()
   expect(screen.queryByRole('button', { name: en.versionUpdate.restartCta })).toBeNull()
 })
+
+it('the native Update available item reveals a deferred notice without restarting', async () => {
+  vi.stubEnv('WEB_COMMIT_SHA', nextCommit)
+  mount()
+  await tick()
+  await click(en.versionUpdate.laterCta)
+  expect(native.deferred).toBe(true)
+  native.deferred = false
+  await tick()
+  expect(screen.getByRole('button', { name: en.versionUpdate.restartCta })).toBeVisible()
+  expect(reload).not.toHaveBeenCalled()
+  expect(actions()).not.toContain('download')
+  expect(actions()).not.toContain('install')
+})

@@ -248,7 +248,7 @@ pub fn handle(app: &AppHandle, event: tauri::menu::MenuEvent) {
         "support" => lifecycle::navigate(app, "/support"),
         "autostart" => toggle_autostart(app),
         "check-updates" => {
-            updates::check(app);
+            updates::offer_or_check(app);
             Ok(())
         }
         "restart-update" => {
@@ -287,7 +287,7 @@ pub fn update_status(app: &AppHandle, status: &Snapshot, enabled: bool) -> tauri
     };
     menu.check_updates.set_text(menu.labels.text(check_label))?;
     menu.check_updates
-        .set_enabled(enabled && !busy && !status.checking)?;
+        .set_enabled((enabled || available) && !busy && !status.checking)?;
     for restart in &menu.restart_updates {
         restart.set_text(menu.labels.text(if status.phase == Phase::Failed {
             "updateRestartRetry"

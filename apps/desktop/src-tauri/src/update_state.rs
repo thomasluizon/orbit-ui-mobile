@@ -116,6 +116,10 @@ impl<T> UpdateState<T> {
         matches!(self.phase, Phase::Downloading | Phase::Installing)
     }
 
+    pub fn reveal(&mut self) {
+        self.deferred = None;
+    }
+
     pub fn request_restart(&mut self) {
         if !self.busy() && (self.version.is_some() || self.web_commit.is_some()) {
             self.restart_requested = true;
@@ -167,6 +171,18 @@ mod tests {
         assert!(!state.begin_check());
         state.phase = Phase::Installing;
         assert!(!state.begin_check());
+    }
+
+    #[test]
+    fn opening_the_native_offer_reveals_it_without_requesting_installation() {
+        let mut state = UpdateState::new(true);
+        state.checked(Ok(Some(("0.2.0".into(), "package"))));
+        state.defer();
+        assert!(state.snapshot().deferred);
+        state.reveal();
+        assert!(!state.snapshot().deferred);
+        assert!(!state.snapshot().restart_requested);
+        assert_eq!(state.phase, Phase::Available);
     }
 
     #[test]
