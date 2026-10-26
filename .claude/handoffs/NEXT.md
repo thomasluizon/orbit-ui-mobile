@@ -14,7 +14,7 @@ Check free disk first (`df -g /System/Volumes/Data`); the floor is 50 GiB (about
 
 ## Goal
 
-Finish the spec: every requested production fix, the Astra overhaul (the approved `#1740` plan, `#1756` to `#1761`, `#1763`, `#1764`, `#1773`, then `#1743`, `#1748`, `#1750`, `#1751`), the owner reports, verified releases and an empty board, in `## The order`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff (`node reconcile-order.mjs` in the scratchpad): open 51, placed 51, unplaced 0, placed twice 0. Newly filed scope gets exactly one order bullet in the session it arrives. An external interruption is the only earlier ending.
+Finish the spec: every requested production fix, the Astra overhaul (the approved `#1740` plan, `#1756` to `#1761`, `#1763`, `#1764`, `#1773`, then `#1743`, `#1748`, `#1750`, `#1751`), the owner reports, verified releases and an empty board, in `## The order`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff (`node reconcile-order.mjs` in the scratchpad): open 52, placed 52, unplaced 0, placed twice 0. Newly filed scope gets exactly one order bullet in the session it arrives. An external interruption is the only earlier ending.
 
 ## In flight
 
@@ -22,6 +22,7 @@ UI `main` is `b715cad53`, API `main` is `e248808f`, landing `main` is `14293563`
 
 | Item | Disposition |
 | --- | --- |
+| `#1774` (owner report) | Filed from the owner's iPhone foldable simulator screenshot: content runs under the side camera housing and status column. Launch it FIRST (delivery order, `deep`), then prove it on the iOS simulator (`/ios-generate`) in both orientations and on the throwaway AVD in landscape. |
 | Releases | Production web of `da72cda7a` (run 40335385507; verify `/api/health` at `https://orbit-web-3qmv.onrender.com` if its watcher did not). Then production API of `e248808f` (carries `#1750`, `#1760`; staging verified). The Android Open batch `#1736`, `#1746`, `#1739` from `main` (add `#1759`, `#1763` if merged first). |
 | `orbit-api#929` (`#1756`) | Head `607bc241` (round 2 plus base merge) pushed; staging branch release run 40335493168 dispatched, unverified. Verify staging `/health` at `607bc241`, then `later-929-rank.sh <HH:MM>` (30 minutes after the raise) and read `Astra turn timing`: one `model_call` per ranking turn passes. CI and a fresh review on `607bc241`, merge, staging API of `main`. |
 | `ui#2092` (`#1743`) | Round finished with 4 commits in worktree `ticket-1743-astra-blocks-on-app-rows`, unpushed (log `#1743-51454-1793021411207.log`). Read report and diff against `DESIGN.md`, merge `origin/main` if behind, body, reply and resolve the 3 threads, push once (gated on `merge-tree` exit 0); then CI, review, per-block `/second-opinion` rounds. |
