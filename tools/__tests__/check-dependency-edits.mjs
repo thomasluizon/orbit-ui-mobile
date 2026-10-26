@@ -4,7 +4,7 @@ import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, symlink
 import { createRequire } from "node:module"
 import { join, sep } from "node:path"
 
-import { check, root, stage, T } from "./_harness.mjs"
+import { check, REPO_ROOT, root, stage, T } from "./_harness.mjs"
 
 const TOOL = "check-dependency-edits.mjs"
 /** One extraction time for the whole staged tree, exactly as npm writes one. */
@@ -70,7 +70,124 @@ const stageLockedPackage = (label, ignoreFiles = []) => {
   return { ...tree, packageDirectory, lock, archiveName }
 }
 
+/** Output locations are taken from the installed Expo producers, never a package-wide build glob. */
+const stageExpoBuild = (name, label) => {
+  const tree = stageTree(`${name}-${label}`)
+  const source = join(tree.repository, "published")
+  const packageDirectory = join(tree.nodeModules, name)
+  const sourceFiles = name === "expo-modules-jsi" ? [
+    "package.json", "apple/Package.swift", "apple/scripts/build-xcframework.sh",
+    "apple/scripts/generate-modulemap.sh", "apple/scripts/create-stub-xcframework.sh",
+    "apple/Sources/ExpoModulesJSI/Protocols/JavaScriptRepresentable.swift",
+  ] : [
+    "package.json", "ios/ExpoSQLite.podspec", "ios/SQLiteModule.swift",
+    "vendor/sqlite3/sqlite3.c", "vendor/sqlite3/sqlite3.h",
+    "vendor/sqlcipher/sqlite3.c", "vendor/sqlcipher/sqlite3.h",
+  ]
+  for (const file of sourceFiles) {
+    mkdirSync(join(source, file, ".."), { recursive: true })
+    cpSync(join(REPO_ROOT, "node_modules", name, file), join(source, file))
+  }
+  // Even a published file inside an output directory must remain protected by the archive.
+  if (name === "expo-modules-jsi") writeAt(join(source, "apple/.DerivedData/published.h"), "published bytes", at(0))
+  const tar = createRequire(import.meta.url)("next/dist/compiled/tar")
+  const archivePath = join(tree.repository, "package.tgz")
+  tar.c({ file: archivePath, cwd: tree.repository, gzip: true, sync: true }, ["published"])
+  cpSync(source, packageDirectory, { recursive: true })
+  const stamp = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name)
+      if (entry.isDirectory()) stamp(path)
+      else utimesSync(path, at(0), at(0))
+    }
+  }
+  stamp(packageDirectory)
+  writeFileSync(join(tree.repository, "package-lock.json"), JSON.stringify({ packages: {
+    [`node_modules/${name}`]: {
+      resolved: "file:package.tgz",
+      integrity: `sha512-${createHash("sha512").update(readFileSync(archivePath)).digest("base64")}`,
+    },
+  } }))
+  return { ...tree, source, packageDirectory }
+}
+
+const expoBuildCases = () => {
+  for (const name of ["expo-modules-jsi", "expo-sqlite"]) {
+    const built = stageExpoBuild(name, "native-outputs")
+    const generated = name === "expo-modules-jsi" ? [
+      "apple/.DerivedData/Build/Products/Release-iphonesimulator/ExpoModulesJSI.swiftmodule/arm64-apple-ios-simulator.swiftmodule",
+      "apple/.DerivedData/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/ExpoModulesJSI-Swift.h",
+      "apple/.build/workspace-state.json", "apple/.swiftpm/configuration/workspace-state.json",
+      "apple/.generated/module.modulemap",
+      "apple/Products/ExpoModulesJSI.xcframework/Info.plist",
+      "apple/Products/ExpoModulesJSI.xcframework/ios-arm64_x86_64-simulator/.build-hash",
+      "apple/Products/ExpoModulesJSI.xcframework/ios-arm64_x86_64-simulator/ExpoModulesJSI.framework/ExpoModulesJSI",
+    ] : ["ios/sqlite3.c", "ios/sqlite3.h"]
+    if (name === "expo-modules-jsi") {
+      const producer = readFileSync(join(built.source, "apple/scripts/build-xcframework.sh"), "utf8")
+      for (const assignment of [
+        'DERIVED_DATA_PATH="${PACKAGE_DIR}/.DerivedData"', 'SPM_BUILD_PATH="${PACKAGE_DIR}/.build"',
+        'SPM_WORKSPACE_PATH="${PACKAGE_DIR}/.swiftpm"',
+        'XCFRAMEWORK_PATH="${PACKAGE_DIR}/Products/${PACKAGE_NAME}.xcframework"',
+      ]) T(`JSI producer confirms ${assignment}`, producer.includes(assignment))
+      T("JSI modulemap producer confirms the generated directory",
+        readFileSync(join(built.source, "apple/scripts/generate-modulemap.sh"), "utf8").includes('GENERATED_DIR="${PACKAGE_DIR}/.generated"'))
+    } else {
+      const producer = readFileSync(join(built.source, "ios/ExpoSQLite.podspec"), "utf8")
+      T("SQLite producer confirms vendor copies into ios", producer.includes("FileUtils.cp(source, destination)") &&
+        producer.includes("File.join(__dir__, '..', 'ios', file)") &&
+        producer.includes("useSQLCipher ? 'sqlcipher' : 'sqlite3'"))
+    }
+    for (const variant of name === "expo-sqlite" ? ["sqlite3", "sqlcipher"] : ["jsi"]) {
+      for (const run of [1, 2]) {
+        for (const file of generated) {
+          const contents = name === "expo-sqlite"
+            ? readFileSync(join(built.source, "vendor", variant, file.slice(4)))
+            : `native build output ${run}\n`
+          writeAt(join(built.packageDirectory, file), contents, at(600 * run))
+        }
+        check(TOOL, `${name} ${variant} native outputs pass after run ${run}`, ["--root", built.repository], { status: 0 })
+      }
+    }
+    for (const file of generated) utimesSync(join(built.packageDirectory, file), at(0), at(0))
+    check(TOOL, `${name} outputs also pass with preserved extraction timestamps`, ["--root", built.repository], { status: 0 })
+    const sourceFile = name === "expo-modules-jsi"
+      ? "apple/Sources/ExpoModulesJSI/Protocols/JavaScriptRepresentable.swift" : "ios/SQLiteModule.swift"
+    const mutations = [sourceFile, name === "expo-modules-jsi" ? "apple/.DerivedData/published.h" : "vendor/sqlite3/sqlite3.c"]
+    if (name === "expo-sqlite") mutations.push("ios/sqlite3.c", "ios/sqlite3.h")
+    for (const file of mutations) {
+      const path = join(built.packageDirectory, file)
+      const original = readFileSync(path)
+      writeAt(path, "modified source bytes\n", at(0))
+      check(TOOL, `${name} still rejects changed ${file} beside outputs`, ["--root", built.repository], { status: 1, stderr: new RegExp(`(?:modified|extra):.*${file.replaceAll(".", "\\.")}`) })
+      writeAt(path, original, at(0))
+    }
+    rmSync(join(built.packageDirectory, sourceFile))
+    check(TOOL, `${name} still rejects missing source beside outputs`, ["--root", built.repository], { status: 1, stderr: /missing:/ })
+    cpSync(join(built.source, sourceFile), join(built.packageDirectory, sourceFile))
+    for (const file of name === "expo-modules-jsi"
+      ? ["apple/Sources/extra.swift", "apple/.DerivedData-other/output.o", "apple/Products/other.framework/binary", "apple/.generated/extra.swift"]
+      : ["ios/extra.swift", "ios/sqlite3.c.backup", "build/extra.js"]) {
+      writeAt(join(built.packageDirectory, file), "unexpected bytes\n", at(1800))
+      check(TOOL, `${name} rejects extra ${file} outside exact output locations`, ["--root", built.repository], { status: 1, stderr: /extra:/ })
+      rmSync(join(built.packageDirectory, file))
+    }
+    const archivePath = join(built.repository, "package.tgz")
+    const archiveBytes = readFileSync(archivePath)
+    writeFileSync(archivePath, Buffer.concat([archiveBytes, Buffer.from("corruption")]))
+    check(TOOL, `${name} outputs never bypass archive integrity`, ["--root", built.repository], { status: 1, stderr: /integrity mismatch/ })
+    writeFileSync(archivePath, archiveBytes)
+    for (const file of generated) utimesSync(join(built.packageDirectory, file), at(600), at(600))
+    rmSync(join(built.repository, "package-lock.json"))
+    check(TOOL, `${name} outputs without a verified archive retain timestamp failures`, ["--root", built.repository], { status: 1 })
+  }
+  const unrelated = stageLockedPackage("unrelated-native-outputs")
+  writeAt(join(unrelated.packageDirectory, "apple/.DerivedData/output.o"), "native output", at(600))
+  check(TOOL, "native output rules never exempt other packages", ["--root", unrelated.repository], { status: 1, stderr: /extra:/ })
+}
+
 export const cases = () => {
+  expoBuildCases()
   for (const [label, ignoreFiles] of [
     ["renamed-ignore", [".gitignore"]],
     ["npmignore-first", [".npmignore", ".gitignore"]],
