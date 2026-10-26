@@ -141,3 +141,19 @@ it('removes incoming auth secrets from request URLs and navigation breadcrumbs',
   expect(serialized.includes('entry%40example.invalid')).toBe(false)
   expect(serialized.includes('/login')).toBe(true)
 })
+
+it.each(['https://app-staging.useorbit.org/', 'orbit-staging://', '/'])('scrubs OAuth URLs throughout a callback failure event: %s', (prefix) => {
+  const callback = `${prefix}auth-callback?code=private-code&state=private-state&handoff=private-handoff&error=private-error`
+  const cleanup = 'https://app-staging.useorbit.org/api/auth/google/code?state=private-state'
+  const result = beforeSendEvent({ type: undefined, message: 'auth_callback_failed', transaction: callback,
+    request: { url: callback, headers: { Referer: callback } }, breadcrumbs: [
+      { category: 'fetch', type: 'http', level: 'info', data: { method: 'DELETE', url: cleanup, status_code: 200 } },
+      { category: 'navigation', data: { from: callback, to: '/login?state=private-state' } },
+      { message: `Opening ${callback}` },
+      { category: 'fetch', data: { url: '/api/calendar?mode=review', status_code: 200 } },
+    ] }, {})
+  expect(JSON.stringify(result)).not.toContain('private-')
+  expect(result?.transaction).toBe(`${prefix}auth-callback`)
+  expect(result?.breadcrumbs?.[0]?.data).toEqual({ method: 'DELETE', url: 'https://app-staging.useorbit.org/api/auth/google/code', status_code: 200 })
+  expect(result?.breadcrumbs?.[3]?.data?.url).toBe('/api/calendar?mode=review')
+})
