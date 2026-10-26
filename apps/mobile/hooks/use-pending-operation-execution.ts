@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { API } from "@orbit/shared/api";
 import { buildChatClientContext } from "@orbit/shared/chat";
+import { pendingOperationRevisionResultSchema } from "@orbit/shared/types";
 import type {
   AgentExecuteOperationResponse,
   AgentStepUpChallenge,
@@ -52,7 +53,7 @@ export function usePendingOperationExecution({
       const result = await apiClient<PendingOperationRevisionResult>(API.ai.pendingOperationRevise(id), {
         method: 'POST',
         body: JSON.stringify({ ...request, clientContext: getClientContext() }),
-      });
+      }, pendingOperationRevisionResultSchema);
       return { ok: true as const, result };
     } catch (error: unknown) {
       return {
@@ -67,7 +68,7 @@ export function usePendingOperationExecution({
     try {
       const result = await apiClient<PendingOperationRevisionResult>(`${API.ai.pendingOperationRefresh(id)}?${new URLSearchParams({ clientContext: JSON.stringify(getClientContext()) }).toString()}`, {
         method: 'POST',
-      });
+      }, pendingOperationRevisionResultSchema);
       return { ok: true as const, result };
     } catch (error: unknown) {
       return {

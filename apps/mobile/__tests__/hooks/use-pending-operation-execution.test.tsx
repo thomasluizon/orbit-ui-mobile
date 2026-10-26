@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { buildChatClientContext } from '@orbit/shared/chat'
 import { ApiClientError } from '@orbit/shared/utils'
+import { pendingOperationRevisionResultSchema } from '@orbit/shared/types'
 
-const clientContext = buildChatClientContext({ platform: 'mobile', locale: 'pt-BR' })
-const query = new URLSearchParams({ clientContext: JSON.stringify(clientContext) }).toString()
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types'
 
 import { usePendingOperationExecution } from '@/hooks/use-pending-operation-execution'
+
+const clientContext = buildChatClientContext({ platform: 'mobile', locale: 'pt-BR' })
+const query = new URLSearchParams({ clientContext: JSON.stringify(clientContext) }).toString()
 
 const TestRenderer = require('react-test-renderer')
 const React = require('react')
@@ -99,7 +101,7 @@ describe('usePendingOperationExecution step-up flow', () => {
     const result = await hook.current.revisePendingOperationForBubble('pending-1', request)
     expect(mocks.apiClient).toHaveBeenCalledWith(API.ai.pendingOperationRevise('pending-1'), {
       method: 'POST', body: JSON.stringify({ ...request, clientContext }),
-    })
+    }, pendingOperationRevisionResultSchema)
     expect(result).toEqual({ ok: true, result: response })
     expect(mocks.apiClient).toHaveBeenCalledOnce()
     expect(appendExecutionMessage).not.toHaveBeenCalled()
@@ -112,7 +114,7 @@ describe('usePendingOperationExecution step-up flow', () => {
     const appendExecutionMessage = vi.fn(async () => {})
     const hook = await renderExecution(appendExecutionMessage)
     const result = await hook.current.refreshPendingOperationForBubble('pending-1')
-    expect(mocks.apiClient).toHaveBeenCalledWith(`${API.ai.pendingOperationRefresh('pending-1')}?${query}`, { method: 'POST' })
+    expect(mocks.apiClient).toHaveBeenCalledWith(`${API.ai.pendingOperationRefresh('pending-1')}?${query}`, { method: 'POST' }, pendingOperationRevisionResultSchema)
     expect(mocks.apiClient).toHaveBeenCalledOnce()
     expect(result).toEqual({ ok: true, result: response })
     expect(appendExecutionMessage).not.toHaveBeenCalled()

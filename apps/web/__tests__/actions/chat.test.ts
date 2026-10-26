@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { buildChatClientContext } from '@orbit/shared/chat'
+import { pendingOperationRevisionResultSchema } from '@orbit/shared/types'
 
 const clientContext = buildChatClientContext({ platform: 'web', locale: 'pt-BR' })
 const query = new URLSearchParams({ clientContext: JSON.stringify(clientContext) }).toString()
@@ -68,10 +69,10 @@ describe('chat server actions', () => {
       const request = { previewFingerprint: 'current', items: [{ itemId: '0', placement: 'checklist_item' as const }, { itemId: '1' }] }
       await revisePendingOperation('pending-1', request, null)
       expect(mockServerAuthMutate).toHaveBeenLastCalledWith('/api/ai/pending-operations/pending-1/revise',
-        { method: 'POST', body: JSON.stringify({ ...request, clientContext }) }, null)
+        { method: 'POST', body: JSON.stringify({ ...request, clientContext }) }, null, pendingOperationRevisionResultSchema)
       await refreshPendingOperation('pending-1', null)
       expect(mockServerAuthMutate).toHaveBeenLastCalledWith(`/api/ai/pending-operations/pending-1/preview/refresh?${query}`,
-        { method: 'POST' }, null)
+        { method: 'POST' }, null, pendingOperationRevisionResultSchema)
     })
 
     it('requests a step-up challenge', async () => {

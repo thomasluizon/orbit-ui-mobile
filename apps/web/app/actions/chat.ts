@@ -11,7 +11,7 @@ import type {
   RevisePendingOperationRequest,
 } from '@orbit/shared'
 import { readBlockResponseSchema, type ChatClientContext } from '@orbit/shared/types/chat'
-import { proactiveItemSchema, proactiveItemStatusSchema } from '@orbit/shared/types'
+import { pendingOperationRevisionResultSchema, proactiveItemSchema, proactiveItemStatusSchema } from '@orbit/shared/types'
 import { serverAuthFetch, serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
@@ -28,7 +28,7 @@ export async function revisePendingOperation(
     serverAuthMutate<PendingOperationRevisionResult>(API.ai.pendingOperationRevise(id), {
       method: 'POST',
       body: JSON.stringify({ ...request, clientContext }),
-    }, intendedAccountId),
+    }, intendedAccountId, pendingOperationRevisionResultSchema),
   )
 }
 
@@ -42,7 +42,7 @@ export async function refreshPendingOperation(
   return wrapServerAction(() =>
     serverAuthMutate<PendingOperationRevisionResult>(`${API.ai.pendingOperationRefresh(id)}?${query.toString()}`, {
       method: 'POST',
-    }, intendedAccountId),
+    }, intendedAccountId, pendingOperationRevisionResultSchema),
   )
 }
 
