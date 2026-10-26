@@ -215,3 +215,30 @@ it.each(['no-progress', 'unexpected-refusal', 'ignored-language-clear'])('stops 
     ? 'Daily safety budget prevented message allowance exhaustion. Setup cannot reset counters, rotate accounts or raise limits.' : 'HTTP')
   expect(chatRequests).toBe(mode === 'ignored-language-clear' ? 0 : 1)
 })
+
+
+it('rejects an HTTP-successful notification clear that leaves the other locale inbox intact', async () => {
+  const intercepted = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => new URL(url).pathname === '/api/notifications' && options.method === 'GET'
+    ? Response.json({ items: [{ id: '11111111-1111-4111-8111-111111111111', title: 'You reached level 12', body: 'Level up',
+      url: null, habitId: null, isRead: false, createdAtUtc: '2026-10-24T12:00:00Z' }], unreadCount: 1, totalCount: 1, sourceRevision: 'previous' })
+    : intercepted(url, options))
+  await expect(resetFixture(scenario('composition'))).rejects.toThrow('Notification fixture clear failed independent readback.')
+  expect(requests.some(({ path }) => path.endsWith('/log'))).toBe(false)
+})
+it('adopts roots in the other locale before registering stable IDs', async () => {
+  const english = scenario('pro')
+  english.metadata.locale = 'en'
+  await resetFixture(english)
+  const ids = habits.map((habit) => habit.id)
+  const { updateCredentials } = await import('../credentials.mjs')
+  await updateCredentials((credentials) => {
+    delete credentials.ORBIT_EVAL_TOKEN.habitId
+    delete credentials.ORBIT_EVAL_TOKEN.secondHabitId
+  })
+  const portuguese = structuredClone(english)
+  portuguese.metadata.locale = 'pt-BR'
+  await resetFixture(portuguese)
+  expect(habits.map((habit) => habit.id)).toEqual(ids)
+  expect(habits.map((habit) => habit.title)).toEqual(['Beber água', 'Caminhada'])
+})

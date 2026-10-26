@@ -170,7 +170,7 @@ to finish an eval run.
 From the repository root, install the shared workspace dependencies and the standalone eval package:
 
 ```sh
-npm ci --workspace packages/shared --ignore-scripts
+npm ci --workspace packages/shared --workspace apps/web --ignore-scripts
 npm ci --prefix evals/astra --workspaces=false
 ```
 
@@ -187,6 +187,14 @@ The Action has only `workflow_dispatch`; it never runs on a schedule, push, or p
 Runs consume real message and spend allowance and incur endpoint and rubric-grader charges.
 Use disposable eval accounts. Write scenarios require held previews; correction scenarios create
 a verified setup turn first. The corpus does not approve them or prove persisted changes.
+
+The clean install includes the web workspace so the harness reuses the client ICU translator already
+locked by the repository. It does not add a formatter dependency. The HTTP provider applies the case
+locale after response extraction, because the installed HTTP response transform receives only HTTP
+metadata. The graded answer uses the shared message selectors, action chip resolver, account row
+formatters and locale catalogs. Ordered blocks project their initially displayed fields; hidden audit
+summaries, payloads, collapsed content and untranslated transport labels never enter the rubric. Raw
+composition and tool evidence remain available to the structural assertions.
 
 ### Environment and reproducible fixtures
 
@@ -208,7 +216,7 @@ Do not paste real credentials into a command line, a report, a pull request or t
 {
   "ORBIT_EVAL_TOKEN": { "refreshToken": "<Pro account refresh token>" },
   "ORBIT_EVAL_FREE_TOKEN": { "refreshToken": "<Free account refresh token>" },
-  "ORBIT_EVAL_BUDGET_TOKEN": { "refreshToken": "<exhausted account refresh token>" }
+  "ORBIT_EVAL_BUDGET_TOKEN": { "refreshToken": "<budget account refresh token>" }
 }
 ```
 

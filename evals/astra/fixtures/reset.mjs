@@ -44,7 +44,9 @@ async function stableHabits(api, key, exported, today, names) {
   ]) {
     const configured = key === 'ORBIT_EVAL_TOKEN' ? process.env[environmentKey] : undefined
     if (configured && account[field] && configured !== account[field]) throw new Error('Configured habit ID disagrees with the private fixture registry.')
-    let id = account[field] ?? configured ?? exported.habits.find((habit) => habit.title === title)?.id
+    const position = field === 'habitId' ? 0 : 1
+    const titles = ['en', 'pt-BR'].map((locale) => fixtureNames(locale).habits[position])
+    let id = account[field] ?? configured ?? exported.habits.find((habit) => titles.includes(habit.title))?.id
     if (!id) id = idFrom((await api('POST', 'habits', dailyHabit(title, dateOffset(today, -6)))).payload)
     else if (!exported.habits.some((habit) => habit.id === id)) await api('POST', `habits/${id}/restore`)
     await remember(key, field, id)
@@ -153,7 +155,11 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
     if (!/^\d{4}-\d{2}-\d{2}$/.test(overdue) || overdue < dateOffset(today, -7) || overdue >= today) throw new Error('Overdue date must be within the public log window and before today.')
     process.env.ORBIT_EVAL_OVERDUE_DATE = overdue
   }
-  if (fixture.startsWith('composition')) await api('DELETE', 'notifications/all')
+  if (fixture.startsWith('composition')) {
+    await api('DELETE', 'notifications/all')
+    const { payload: notifications } = await api('GET', 'notifications')
+    if (!Array.isArray(notifications?.items) || notifications.items.length) throw new Error('Notification fixture clear failed independent readback.')
+  }
   let exported = await snapshot(api)
   const account = await stableHabits(api, key, exported, today, names)
   exported = await snapshot(api)
