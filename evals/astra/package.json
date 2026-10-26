@@ -16,5 +16,10 @@
     "use-intl": "4.13.6",
     "vitest": "4.1.12",
     "yaml": "2.9.1"
+  },
+  "overrides": {
+    "@azure/identity": {
+      "@azure/msal-node": "^7.1.0"
+    }
   }
 }
