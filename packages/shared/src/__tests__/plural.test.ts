@@ -1,3 +1,4 @@
+import { IntlMessageFormat } from 'intl-messageformat'
 import { describe, expect, it } from 'vitest'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
@@ -20,16 +21,16 @@ describe('plural', () => {
   })
 
   it('selects the singular and plural day celebration copy in both locales', () => {
-    expect(plural(en.celebration.day.line.replace('{count}', '1'), 1)).toBe(
+    expect(new IntlMessageFormat(en.celebration.day.line, 'en').format({ count: 1 })).toBe(
       'Your 1 habit for today is done.',
     )
-    expect(plural(en.celebration.day.line.replaceAll('{count}', '2'), 2)).toBe(
+    expect(new IntlMessageFormat(en.celebration.day.line, 'en').format({ count: 2 })).toBe(
       'All 2 habits for today are done.',
     )
-    expect(plural(ptBR.celebration.day.line.replace('{count}', '1'), 1)).toBe(
+    expect(new IntlMessageFormat(ptBR.celebration.day.line, 'pt-BR').format({ count: 1 })).toBe(
       'Tudo feito: 1 hábito hoje.',
     )
-    expect(plural(ptBR.celebration.day.line.replaceAll('{count}', '2'), 2)).toBe(
+    expect(new IntlMessageFormat(ptBR.celebration.day.line, 'pt-BR').format({ count: 2 })).toBe(
       'Tudo feito: 2 hábitos hoje.',
     )
   })

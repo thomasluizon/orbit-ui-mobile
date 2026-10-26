@@ -2,15 +2,15 @@ import { measureTextOverflow } from './text-overflow-geometry'
 import { expect, type Locator, type Page } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import { plural } from '@orbit/shared/utils/plural'
+import { createTranslator } from 'next-intl'
 import { formatPrice, monthlyEquivalent } from '@orbit/shared/utils/subscription-pricing'
 import { subscriptionPlansFixtures } from '../../test-support/hermetic/mock-api/fixtures/subscription-plans'
 import { test } from './upgrade-fixtures'
 
-function singleLineLabels(messages: typeof en, trial: boolean): string[] {
+function singleLineLabels(locale: string, messages: typeof en, trial: boolean): string[] {
   return [
     ...(trial ? [
-      plural(messages.upgrade.convert.trialDaysLeft.replaceAll('{days}', '14'), 14),
+      createTranslator({ locale, messages })('upgrade.convert.trialDaysLeft', { days: 14 }),
     ] : [
       messages.upgrade.convert.freeEyebrow,
       messages.upgrade.convert.trustLine,
@@ -128,7 +128,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           await assertSingleLineHeading(pitchHeading,
             `${locale} ${subscriptionState} at ${width}px`, width)
 
-          for (const label of singleLineLabels(messages, subscriptionState === 'trial')) {
+          for (const label of singleLineLabels(locale, messages, subscriptionState === 'trial')) {
             const lines = await renderedLineCounts(page, label)
             expect(lines.length, `${label} is present at ${width}px`).toBeGreaterThan(0)
             if (width > 320) {

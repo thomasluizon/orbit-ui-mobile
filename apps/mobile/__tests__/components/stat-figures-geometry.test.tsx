@@ -1,3 +1,4 @@
+import { IntlMessageFormat } from 'intl-messageformat'
 import React from 'react'
 import { StyleSheet, View, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
@@ -96,7 +97,7 @@ it.each([en, ptBR].flatMap((catalog) => [320, 360, 384, 412].flatMap((width) => 
         tierLabel={catalog.streakDisplay.detail.tierTileLabel} protectedDays={[]} words={{
           active: catalog.progressScreen.streak.active, frozen: catalog.progressScreen.streak.frozen, missed: catalog.progressScreen.streak.missed, today: catalog.progressScreen.streak.today,
           legendLabel: catalog.progressScreen.streak.legend, bankedLabel: catalog.progressScreen.streak.banked, usedLabel: catalog.progressScreen.streak.used,
-          nextLabel: catalog.progressScreen.streak.next, nextProgressLabel: catalog.progressScreen.streak.nextProgress, nextFreezeProgress: catalog.progressScreen.streak.nextOf.replace('{current}', '4').replace('{total}', '7'),
+          nextLabel: catalog.progressScreen.streak.next, nextProgressLabel: catalog.progressScreen.streak.nextProgress, nextFreezeProgress: String(new IntlMessageFormat(catalog.progressScreen.streak.nextOf, catalog === ptBR ? 'pt-BR' : 'en').format({ current: 4, total: 7 })),
           protectedLabel: catalog.progressScreen.streak.protectedDays, protectedEmpty: catalog.progressScreen.streak.protectedEmpty,
           protectedDay: catalog.progressScreen.streak.protected, protectedToday: catalog.progressScreen.streak.protectedToday,
         }} />

@@ -1,3 +1,4 @@
+import { IntlMessageFormat } from 'intl-messageformat'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import postcss from 'postcss'
@@ -35,7 +36,7 @@ const mocks = vi.hoisted((): TodayAstraMocks => ({
 function portugueseTranslation(key: string, values?: { days: number }) {
   const leaf = key.split('.').reduce<unknown>((value, part) => (value as Record<string, unknown>)[part], ptBr)
   if (typeof leaf !== 'string') throw new Error('Expected a translation leaf')
-  return leaf.replace('{days}', String(values?.days))
+  return String(new IntlMessageFormat(leaf, 'pt-BR').format(values))
 }
 
 vi.mock('next-intl', () => ({

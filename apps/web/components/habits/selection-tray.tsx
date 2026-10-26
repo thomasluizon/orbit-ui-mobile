@@ -151,7 +151,7 @@ export function SelectionTray({
             {selectedCount}
           </span>
           {' '}
-          {plural(t('common.selectedSuffix'), selectedCount)}
+          {plural(t('common.selectedSuffix', { count: selectedCount }), selectedCount)}
         </span>
         <button
           type="button"

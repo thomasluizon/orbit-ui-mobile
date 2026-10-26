@@ -58,7 +58,6 @@ function BreakdownActions({ card, isPending, editingDisabled, warning, parentNam
         <p role="status" className={card.atCapacity && !card.hasSubmitted ? 'basis-full text-sm text-[var(--fg-2)]' : 'sr-only'}>{card.atCapacity && !card.hasSubmitted ? t('habits.breakdown.limit', { limit: MAX_BULK_OPERATION_SIZE }) : ''}</p>
         <p role="alert" className={card.createError ? 'basis-full text-sm text-[var(--status-bad-text)]' : 'sr-only'}>{card.createError ? t(createErrorKey) : ''}</p>
         {warning?.hasConflict ? <p className="flex basis-full items-center gap-2 text-sm text-[var(--fg-2)]"><AlertTriangle aria-hidden="true" size={16} className="text-[var(--status-overdue)]" />{t('chat.breakdown.conflict', { name: warning.conflictingHabits[0]?.habitTitle ?? parentName })}</p> : null}
-        {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
         {card.partiallyFailed ? <Button size="sm" disabled={isPending} loading={isPending} onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : (
           <>
             <Button size="sm" variant={addVariant} leadingIcon={<Plus aria-hidden="true" size={16} />} disabled={editingDisabled || card.confirmOpen || card.atCapacity} onClick={card.addHabit}>{t('habits.breakdown.addHabit')}</Button>

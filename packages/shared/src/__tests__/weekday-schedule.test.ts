@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { IntlMessageFormat } from 'intl-messageformat'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 import { buildHabitUnderstandingSentence } from '../utils/habit-form-helpers'
@@ -36,7 +37,7 @@ const localizedScheduleCases = scheduleCases.flatMap((scheduleCase) =>
 function translator(messages: typeof en | typeof ptBR) {
   return (key: string, values?: Record<string, string | number>): string => {
     const template = key.split('.').reduce<unknown>((current, part) => Reflect.get(current as object, part), messages) as string
-    return Object.entries(values ?? {}).reduce((sentence, [name, value]) => sentence.replace(`{${name}}`, String(value)), template)
+    return String(new IntlMessageFormat(template, messages === ptBR ? 'pt-BR' : 'en').format(values))
   }
 }
 

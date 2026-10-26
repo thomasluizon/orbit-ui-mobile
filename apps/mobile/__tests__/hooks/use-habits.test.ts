@@ -49,7 +49,7 @@ vi.mock('expo-crypto', () => ({ randomUUID: () => '11111111-1111-4111-8111-11111
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
-      key === 'errors.api.logNotAllowed' ? enMessages.errors.api.logNotAllowed
+      key === 'errors.api.habitNotScheduled' ? enMessages.errors.api.habitNotScheduled
         : params ? `${key}:${JSON.stringify(params)}` : key,
     i18n: { language: 'en' },
   }),
@@ -1287,7 +1287,7 @@ describe('mobile habit hooks', () => {
 
     expect(getHabitList()[0]?.isCompleted).toBe(false)
     expect(mocks.showError).toHaveBeenCalledOnce()
-    expect(mocks.showError).toHaveBeenCalledWith(enMessages.errors.api.logNotAllowed, 'common.dismiss')
+    expect(mocks.showError).toHaveBeenCalledWith(enMessages.errors.api.habitNotScheduled, 'common.dismiss')
   })
 
   it('shows the generic mapped error once for a network failure', () => {

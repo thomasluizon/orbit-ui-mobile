@@ -198,7 +198,7 @@ it.each(allowanceCases)('keeps Hoje stable near $limit messages at $width with c
   const measured: { height: number; inputTop: number }[] = []
   for (const used of [limit - 3, limit - 2, limit - 1, limit]) {
     const nearLimit = limit - used <= AI_MESSAGE_COUNTER_THRESHOLD
-    const reason = messages.shell.composer.limit.reason.replace('{allowance}', String(limit))
+    const reason = String(new IntlMessageFormat(messages.shell.composer.limit.reason, messages === ptBR ? 'pt-BR' : 'en').format({ allowance: limit }))
     let tree!: Tree
     await renderer.act(() => {
       tree = renderer.create(<Composer value="" suggestions={withSuggestions && used < limit ? dailySuggestions(messages) : []}
@@ -348,7 +348,7 @@ it.each(allowanceCases)('retains the measured frame through allowance transition
   translation.words = { 'nav.astra': messages.nav.astra, 'habits.form.suggestDate': messages.habits.form.suggestDate,
     'shell.composer.limit.placeholder': messages.shell.composer.limit.placeholder }
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
-  const reason = messages.shell.composer.limit.reason.replace('{allowance}', String(limit))
+  const reason = String(new IntlMessageFormat(messages.shell.composer.limit.reason, messages === ptBR ? 'pt-BR' : 'en').format({ allowance: limit }))
   const onSend = vi.fn()
   const onChangeValue = vi.fn()
   const configuration = { value: '', words: messages.shell.composer, suggestions: [], onSend, onChangeValue,
@@ -415,7 +415,7 @@ it.each([['en', en], ['pt-BR', ptBR]] as const)('keeps the 50-message counter on
   const usage = new IntlMessageFormat(messages.shell.composer.usage, locale).format({ used: 48, limit: 50 }) as string
   await renderer.act(() => {
     tree = renderer.create(<Composer state="idle" value="" suggestions={[]} words={messages.shell.composer}
-      allowanceReason={messages.shell.composer.limit.reason.replace('{allowance}', '50')}
+      allowanceReason={String(new IntlMessageFormat(messages.shell.composer.limit.reason, messages === ptBR ? 'pt-BR' : 'en').format({ allowance: 50 }))}
       renewalHint={messages.shell.composer.limit.renewal}
       usageMessage={usage} onChangeValue={vi.fn()} onSend={vi.fn()} />) as Tree
   })

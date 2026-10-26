@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { IntlMessageFormat } from 'intl-messageformat'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 import { readHabitPhrase, readTypedHabitPhrase } from '../utils/habit-phrase-parser'
@@ -320,7 +321,7 @@ describe('habit form helpers', () => {
   ])('uses the weekday article in the habit summary for %s', (selected, expected) => {
     const translate = (key: string, values?: Record<string, string | number>) => {
       const message = key.split('.').reduce<unknown>((current, part) => Reflect.get(current as object, part), ptBR) as string
-      return Object.entries(values ?? {}).reduce((result, [name, value]) => result.replace(`{${name}}`, String(value)), message)
+      return String(new IntlMessageFormat(message, 'pt-BR').format(values))
     }
     const days = selected.split(',')
     const options = days.map((value) => ({ value, label: value }))
@@ -332,7 +333,7 @@ describe('habit form helpers', () => {
   it('formats singular and multi-day pt-BR schedules naturally', () => {
     const translate = (key: string, values?: Record<string, string | number>) => {
       const message = key.split('.').reduce<unknown>((current, part) => Reflect.get(current as object, part), ptBR) as string
-      return Object.entries(values ?? {}).reduce((result, [name, value]) => result.replace(`{${name}}`, String(value)), message)
+      return String(new IntlMessageFormat(message, 'pt-BR').format(values))
     }
     const days = [
       { value: 'Monday', label: 'Seg' },
@@ -389,10 +390,7 @@ describe('habit form helpers', () => {
   }) => {
     const translate = (key: string, values?: Record<string, string | number>) => {
       const message = messages[key.replace('habits.form.', '') as keyof typeof messages]
-      return Object.entries(values ?? {}).reduce(
-        (result, [name, value]) => result.replace(`{${name}}`, String(value)),
-        message,
-      )
+      return String(new IntlMessageFormat(message, locale).format(values))
     }
 
     expect(buildHabitUnderstandingSentence([], [], false, 'Month', 1, '', locale, translate))
@@ -446,10 +444,7 @@ describe('habit form helpers', () => {
   }) => {
     const translate = (key: string, values?: Record<string, string | number>) => {
       const message = messages[key.replace('habits.form.', '') as keyof typeof messages]
-      return Object.entries(values ?? {}).reduce(
-        (result, [name, value]) => result.replace(`{${name}}`, String(value)),
-        message,
-      )
+      return String(new IntlMessageFormat(message, locale).format(values))
     }
 
     expect(buildHabitUnderstandingSentence([], [], true, 'Month', 1, '', locale, translate)).toBe(month)
@@ -837,7 +832,7 @@ describe('habit form helpers', () => {
   it('templates the repeat interval with the complete weekday summary', () => {
     const translate = (key: string, values?: Record<string, string | number>) => {
       const message = key.split('.').reduce<unknown>((current, part) => Reflect.get(current as object, part), en) as string
-      return Object.entries(values ?? {}).reduce((result, [name, value]) => result.replace(`{${name}}`, String(value)), message)
+      return String(new IntlMessageFormat(message, 'en').format(values))
     }
     expect(buildHabitUnderstandingSentence(
       ['Wednesday', 'Thursday'],
@@ -1066,8 +1061,7 @@ describe('drawn cadence sentences', () => {
     const translate = (key: string, values?: Record<string, string | number>) => {
       const template = key.split('.').reduce<unknown>((value, part) =>
         (value as Record<string, unknown>)[part], messages) as string
-      return Object.entries(values ?? {}).reduce((sentence, [name, value]) =>
-        sentence.replace(`{${name}}`, String(value)), template)
+      return String(new IntlMessageFormat(template, locale).format(values))
     }
     const dayOptions = Object.entries(messages.dates.daysShort).map(([day, label]) => ({
       value: day.charAt(0).toUpperCase() + day.slice(1), label,
@@ -1091,7 +1085,7 @@ describe('manual schedule understanding', () => {
   ] as const)('describes %s flexible %s with quantity %i accurately', (unit, flexible, quantity, expected) => {
     const translate = (key: string, values?: Record<string, string | number>) => {
       const template = en.habits.form[key.replace('habits.form.', '') as keyof typeof en.habits.form]
-      return Object.entries(values ?? {}).reduce((sentence, [name, value]) => sentence.replace(`{${name}}`, String(value)), template)
+      return String(new IntlMessageFormat(template, 'en').format(values))
     }
     expect(buildHabitUnderstandingSentence([], [], flexible, unit, quantity, '', 'en', translate)).toBe(expected)
     expect(buildHabitUnderstandingSentence([], [], flexible, unit, quantity, '08:00', 'en', translate)).toBe(`${expected} at 08:00`)

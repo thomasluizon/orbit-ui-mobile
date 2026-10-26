@@ -103,3 +103,18 @@ describe('plural', () => {
     expect(t('habits.clarification.successCreated', { name: 'Corrida' })).toBe(expected)
   })
 })
+
+describe('native plural messages', () => {
+  it.each([
+    { locale: 'en', suffix: ['selected', 'selected', 'selected'], unit: ['days', 'day', 'days'], habit: ['no habits', 'one habit', '2 habits'], trial: ['0 days remaining', '1 day remaining', '2 days remaining'] },
+    { locale: 'pt-BR', suffix: ['selecionados', 'selecionado', 'selecionados'], unit: ['dias', 'dia', 'dias'], habit: ['nenhum hábito', 'um hábito', '2 hábitos'], trial: ['faltam 0 dias', 'falta 1 dia', 'faltam 2 dias'] },
+  ])('renders count, n and days selectors without a plural wrapper in $locale', ({ locale, suffix, unit, habit, trial }) => {
+    const t = createTranslator({ locale, messages: locale === 'en' ? en : ptBR })
+    for (const count of [0, 1, 2]) {
+      expect(t('common.selectedSuffix', { count })).toBe(suffix[count])
+      expect(t('celebration.streak.unit', { count })).toBe(unit[count])
+      expect(t('habits.count', { n: count })).toBe(habit[count])
+      expect(t('profile.subscription.trialDaysLeft', { days: count })).toBe(trial[count])
+    }
+  })
+})

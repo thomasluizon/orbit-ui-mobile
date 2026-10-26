@@ -255,7 +255,7 @@ function TodayScreenContent() {
             onMove={() => habitListRef.current?.openBulkMove()}
             onDelete={selection.handleOpenBulkDelete}
             onClose={clearSelection}
-            countSuffixLabel={plural(t('common.selectedSuffix'), selection.selectedCount)}
+            countSuffixLabel={plural(t('common.selectedSuffix', { count: selection.selectedCount }), selection.selectedCount)}
             selectAllLabel={t('common.selectAll')}
             deselectAllLabel={t('common.deselectAll')}
             logLabel={t('habits.bulkBar.log')}

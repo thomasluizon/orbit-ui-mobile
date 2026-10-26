@@ -310,9 +310,9 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     ['parent_id', '00000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000002', 'Move under the selected habit', 'Mover para dentro do hábito selecionado'],
     ['color', '#ffffff', '#ffffff', 'Tag color: #ffffff', 'Cor da tag: #ffffff'],
     ['goal_type', 'Standard', 'Standard', 'Progress', 'Progresso'],
-    ['goal_ids', '["00000000-0000-4000-8000-000000000002"]', ['00000000-0000-4000-8000-000000000002'], 'Replace goal links with 1 selected goals', 'Substituir vínculos por 1 metas selecionadas'],
-    ['habit_ids', '["00000000-0000-4000-8000-000000000002"]', ['00000000-0000-4000-8000-000000000002'], 'Replace habit links with 1 selected habits', 'Substituir vínculos por 1 hábitos selecionados'],
-    ['positions', '[{"id":"00000000-0000-4000-8000-000000000002","position":0}]', [{ id: '00000000-0000-4000-8000-000000000002', position: 0 }], 'Reorder 1 items', 'Reordenar 1 itens'],
+    ['goal_ids', '["00000000-0000-4000-8000-000000000002"]', ['00000000-0000-4000-8000-000000000002'], 'Replace goal links with 1 selected goal', 'Substituir vínculos por 1 meta selecionada'],
+    ['habit_ids', '["00000000-0000-4000-8000-000000000002"]', ['00000000-0000-4000-8000-000000000002'], 'Replace habit links with 1 selected habit', 'Substituir vínculos por 1 hábito selecionado'],
+    ['positions', '[{"id":"00000000-0000-4000-8000-000000000002","position":0}]', [{ id: '00000000-0000-4000-8000-000000000002', position: 0 }], 'Reorder 1 item', 'Reordenar 1 item'],
     ['items', '[]', [], 'Clear the checklist', 'Limpar a lista'],
     ['note', 'Read outside', 'Read outside', 'Read outside', 'Read outside'],
     ['due_end_time', '09:00', '09:00', 'Until clock:09:00', 'Até clock:09:00'],
@@ -326,7 +326,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     ['theme_preference', 'light', 'light', 'Use the Light theme', 'Usar tema Claro'],
     ['interval', 'monthly', 'monthly', 'Monthly', 'Mensal'],
     ['interval', 'yearly', 'yearly', 'Yearly', 'Anual'],
-    ['scopes', '["habits:read"]', ['habits:read'], 'Grant 1 selected permissions', 'Conceder 1 permissões selecionadas'],
+    ['scopes', '["habits:read"]', ['habits:read'], 'Grant 1 selected permission', 'Conceder 1 permissão selecionada'],
   ] as const)('summarizes producer-shaped %s proposals', (field, newValue, proposedValue, english, portuguese) => {
     expect(summarize([change(field, newValue, proposedValue)])).toBe(locale === 'en' ? english : portuguese)
   })
