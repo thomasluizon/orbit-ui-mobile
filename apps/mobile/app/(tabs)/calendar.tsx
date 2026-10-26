@@ -44,6 +44,7 @@ import {
   formatAPIDate,
   isCalendarDayLoggable,
   parseAPIDate,
+  resolveHabitDetailRouteDate,
   MAX_RANGE_DAYS,
   buildCalendarMonthModel,
   formatWeekdayLabels,
@@ -165,7 +166,15 @@ function resolveMonthEntering(monthSlide: MonthSlide) {
 
 export default function CalendarScreen() {
   const { profile, error: profileError, refetch: refetchProfile } = useProfile();
-  const [selectedDay, setSelectedDay] = useAccountScopedState(() => formatAPIDate(new Date()));
+  const params = useLocalSearchParams<{ date?: string }>();
+  const routeDate = resolveHabitDetailRouteDate(params.date);
+  const acceptRouteDate = useAccountBoundRouteRequest(routeDate ?? '');
+  const [selectedDay, setSelectedDay] = useAccountScopedState(() => acceptRouteDate && routeDate ? routeDate : formatAPIDate(new Date()));
+  const [observedRouteDate, setObservedRouteDate] = useState(routeDate);
+  if (observedRouteDate !== routeDate) {
+    setObservedRouteDate(routeDate);
+    if (acceptRouteDate && routeDate) setSelectedDay(routeDate);
+  }
   const currentMonth = useMemo(() => calendarMonthForDay(selectedDay), [selectedDay]);
   const [view, setView] = useState<CalendarView>('month');
   const monthQuery = useCalendarData(currentMonth);

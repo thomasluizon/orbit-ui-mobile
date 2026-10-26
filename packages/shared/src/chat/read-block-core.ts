@@ -1,8 +1,8 @@
 import { readWindowSchema } from '../types/chat'
-import type { ReadBlockResponse } from '../types/chat'
+import type { ReadBlockSnapshot } from '../types/chat'
 import type { BlockFrameProps, BlockFrameState } from '../contracts/blocks'
 
-export function acceptReadBlockResponse(previous: ReadBlockResponse, next: ReadBlockResponse, page: boolean): ReadBlockResponse {
+export function acceptReadBlockResponse(previous: ReadBlockSnapshot, next: ReadBlockSnapshot, page: boolean): ReadBlockSnapshot {
   if (previous.kind !== next.kind || previous.read.queryId !== next.read.queryId || previous.read.queryFamily !== next.read.queryFamily) {
     throw new Error('READ_QUERY_MISMATCH')
   }
@@ -45,7 +45,7 @@ export function readBlockWindow(scope: Record<string, unknown>): { from: string;
   return window.success ? window.data : null
 }
 
-export function readBlockPresentation(snapshot: ReadBlockResponse, localState: import('../contracts/blocks').BlockFrameState, pending: boolean, failure: string | null): { state: import('../contracts/blocks').BlockFrameState; message: string | null; window: { from: string; to: string } | null; canPage: boolean } {
+export function readBlockPresentation(snapshot: ReadBlockSnapshot, localState: import('../contracts/blocks').BlockFrameState, pending: boolean, failure: string | null): { state: import('../contracts/blocks').BlockFrameState; message: string | null; window: { from: string; to: string } | null; canPage: boolean } {
   const read = snapshot.read
   const stale = failure === 'chat.readBlock.stale' || read.completeness === 'stale'
   let state = localState
@@ -57,7 +57,7 @@ export function readBlockPresentation(snapshot: ReadBlockResponse, localState: i
   if (!message && stale) message = 'chat.readBlock.stale'
   if (!message && read.completeness === 'partial' && (read.recovery || !read.nextCursor)) message = 'chat.readBlock.partial'
   if (!message && localState === 'stale') message = 'chat.readBlock.actionsUnavailable'
-  const window = ['periodTotal', 'periodComparison', 'periodInsight'].includes(snapshot.kind) ? null : readBlockWindow(read.scope)
+  const window = ['periodTotal', 'periodComparison', 'periodInsight', 'habitMonth'].includes(snapshot.kind) ? null : readBlockWindow(read.scope)
   return { state, message, window, canPage: Boolean(read.nextCursor) && state !== 'stale' }
 }
 

@@ -1,3 +1,5 @@
+import { buildChatClientContext } from '@orbit/shared/chat'
+import { habitMonthReadBlockResponseSchema } from '@orbit/shared/types/chat'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockServerAuthMutate = vi.fn()
@@ -10,6 +12,7 @@ vi.mock('@/lib/server-fetch', () => ({
 
 const {
   getCurrentProactiveItem,
+  refreshHabitMonth,
   confirmPendingOperation,
   issuePendingOperationStepUp,
   verifyPendingOperationStepUp,
@@ -141,4 +144,15 @@ describe('chat server actions', () => {
       )
     })
   })
+})
+
+
+it('uses the authenticated habit-month refresh endpoint with its dedicated schema', async () => {
+  const clientContext = buildChatClientContext({ platform: 'web', locale: 'en' })
+  mockServerAuthMutate.mockResolvedValue({})
+  const response = await refreshHabitMonth('signed-month', clientContext, 'account-one')
+  expect(response.ok).toBe(true)
+  expect(mockServerAuthMutate).toHaveBeenLastCalledWith('/api/chat/habit-month/refresh', {
+    method: 'POST', body: JSON.stringify({ token: 'signed-month', clientContext }),
+  }, 'account-one', habitMonthReadBlockResponseSchema)
 })

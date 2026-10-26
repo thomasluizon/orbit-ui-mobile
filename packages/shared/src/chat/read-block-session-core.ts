@@ -1,4 +1,4 @@
-import type { ChatClientContext, ReadBlockResponse } from '../types/chat'
+import type { ChatClientContext, ReadBlockSnapshot } from '../types/chat'
 import { buildChatClientContext } from './client-context'
 import { acceptReadBlockResponse, readBlockFailureKey } from './read-block-core'
 
@@ -8,12 +8,12 @@ export interface ReadActionScope {
 }
 
 export type ReadBlockBoundaryProps<Content> = Readonly<{
-  snapshot: ReadBlockResponse
-  children: (current: ReadBlockResponse) => Content
+  snapshot: ReadBlockSnapshot
+  children: (current: ReadBlockSnapshot) => Content
 }>
 
 export interface ReadBlockState {
-  snapshot: ReadBlockResponse
+  snapshot: ReadBlockSnapshot
   actionScope: ReadActionScope
   pending: boolean
   failure: string | null
@@ -26,11 +26,11 @@ export interface ReadBlockSessionAdapters {
   useEffect: (effect: () => () => void, dependencies: readonly unknown[]) => void
   getAccountGeneration: () => number
   platform: ChatClientContext['platform']
-  refresh: (token: string, clientContext: ChatClientContext, page: boolean, isCurrent: () => boolean) => Promise<ReadBlockResponse>
+  refresh: (token: string, clientContext: ChatClientContext, page: boolean, isCurrent: () => boolean, kind: ReadBlockSnapshot['kind']) => Promise<ReadBlockSnapshot>
 }
 
 export function createUseReadBlockSession(adapters: ReadBlockSessionAdapters): (
-  initial: ReadBlockResponse, locale: string, actionScope: ReadActionScope,
+  initial: ReadBlockSnapshot, locale: string, actionScope: ReadActionScope,
 ) => ReadBlockState {
   const { useState, useRef, useEffect, getAccountGeneration } = adapters
   return function useReadBlockSession(initial, locale, actionScope) {
@@ -50,7 +50,7 @@ export function createUseReadBlockSession(adapters: ReadBlockSessionAdapters): (
       setFailure(null)
       try {
         const clientContext = buildChatClientContext({ platform: adapters.platform, locale })
-        const response = await adapters.refresh(token, clientContext, page, isCurrent)
+        const response = await adapters.refresh(token, clientContext, page, isCurrent, snapshot.kind)
         if (isCurrent()) setSnapshot(acceptReadBlockResponse(snapshot, response, page))
       } catch (error) {
         if (isCurrent()) setFailure(readBlockFailureKey(error))

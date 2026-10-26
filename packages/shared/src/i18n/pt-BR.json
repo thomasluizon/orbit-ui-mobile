@@ -1756,6 +1756,9 @@
       "xp": "{current} de {next} XP",
       "open": "Ver no Progresso"
     },
+    "habitMonth": {
+      "title": "Calendário de hábitos"
+    },
     "calendarCard": {
       "title": "Calendário",
       "allDay": "O dia todo",

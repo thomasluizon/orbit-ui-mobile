@@ -21,6 +21,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 interface CalendarGridProps {
   currentMonth: Date
+  compact?: boolean
+  dateRange?: { from: string; to: string }
   dayMap: Map<string, CalendarDayEntry[]>
   onSelectDay: (dateStr: string) => void
   selectedDateStr?: string | null
@@ -172,6 +174,8 @@ function useMonthGridFocus(gridDays: CalendarMonthDay[], selectedDateStr: string
 
 export function CalendarGrid({
   currentMonth,
+  compact = false,
+  dateRange,
   dayMap,
   onSelectDay,
   selectedDateStr = null,
@@ -186,8 +190,8 @@ export function CalendarGrid({
   const weekdayLabels = useMemo(() => formatWeekdayLabels(locale, weekStartsOn), [locale, weekStartsOn])
 
   const { gridDays } = useMemo(
-    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn, todayKey),
-    [currentMonth, dayMap, weekStartsOn, todayKey],
+    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn, todayKey, dateRange),
+    [currentMonth, dayMap, weekStartsOn, todayKey, dateRange],
   )
 
   const { focusedDate, moveTabStop, onKeyDown } = useMonthGridFocus(gridDays, selectedDateStr, todayKey)
@@ -208,7 +212,7 @@ export function CalendarGrid({
 
   if (isLoading) {
     return (
-      <div data-testid="calendar-grid" className="orbit-calendar-grid-frame" style={{ padding: `${SPACING.s0}px ${PADDING.screenGutter}px ${SPACING.s8}px` }}>
+      <div data-testid="calendar-grid" className="orbit-calendar-grid-frame" style={{ padding: compact ? SPACING.s0 : `${SPACING.s0}px ${PADDING.screenGutter}px ${SPACING.s8}px` }}>
         <div data-testid="calendar-grid-card" className="orbit-calendar-grid-card">
           <MonthGrid weekdayLabels={weekdayLabels} gap="var(--calendar-grid-gap)" loadingLabel={t('calendar.loading')}>
             {gridDays.map((cell) => <div key={cell.dateStr} style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }}><Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped /></div>)}
@@ -221,7 +225,7 @@ export function CalendarGrid({
   return (
     <div
       data-testid="calendar-grid"
-      className="orbit-calendar-grid-frame" style={{ padding: `${SPACING.s0}px ${PADDING.screenGutter}px ${SPACING.s8}px` }}
+      className="orbit-calendar-grid-frame" style={{ padding: compact ? SPACING.s0 : `${SPACING.s0}px ${PADDING.screenGutter}px ${SPACING.s8}px` }}
     >
       <div
         data-testid="calendar-grid-card"

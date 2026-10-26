@@ -1080,6 +1080,23 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { header.update(<></>); tree.update(<></>); })
   })
 
+  it('opens a routed calendar day and consumes later date requests on the mounted screen', () => {
+    state.routeParams = { date: '2026-08-03' };
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    const header = renderMonthHeader(tree);
+    expect(calendarGridProps.current?.selectedDay).toBe('2026-08-03');
+    expect(formatAPIDate(state.calendarDataCalls.mock.lastCall![0])).toBe('2026-08-01');
+    state.routeParams = { date: '2026-09-03' };
+    TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+    const nextHeader = renderMonthHeader(tree);
+    expect(calendarGridProps.current?.selectedDay).toBe('2026-09-03');
+    TestRenderer.act(() => advanceAccountGeneration());
+    const resetHeader = renderMonthHeader(tree);
+    expect(calendarGridProps.current?.selectedDay).toBe(formatAPIDate(new Date()));
+    TestRenderer.act(() => { header.update(<></>); nextHeader.update(<></>); resetHeader.update(<></>); tree.update(<></>); });
+  });
+
   it('leaves the top safe area to the shell', () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />) })
