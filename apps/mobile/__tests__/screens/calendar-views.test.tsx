@@ -712,7 +712,7 @@ describe("CalendarScreen views (mobile)", () => {
       for (let ancestor = host.parent; ancestor; ancestor = ancestor.parent) {
         if (typeof ancestor.type !== 'string') continue;
         inset += Number(StyleSheet.flatten<ViewStyle>(ancestor.props.style).paddingTop ?? 0);
-        inset += Number(StyleSheet.flatten<ViewStyle>(ancestor.props.contentContainerStyle).paddingTop ?? 0);
+        inset += Number(StyleSheet.flatten<ViewStyle>(ancestor.props.contentContainerStyle ?? {}).paddingTop ?? 0);
       }
       return inset;
     };
