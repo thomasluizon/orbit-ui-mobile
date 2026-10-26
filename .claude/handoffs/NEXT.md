@@ -18,11 +18,11 @@ Finish the spec: every requested production fix, the Astra overhaul (led by the 
 
 ## In flight
 
-UI `main` is `fb5e74e26`, API `main` is `b35f0175`, landing `main` is `14293563`. Staging web serves `d7da3fc97` (verified); the production web release of `d7da3fc97` (run 40244503719) was running at the drain. Read each named worktree first; every worker below has exited unless its row says otherwise.
+UI `main` is `fb5e74e26`, API `main` is `b35f0175`, landing `main` is `14293563`. Staging and production web serve `d7da3fc97` (both verified; production run 40244503719). Read each named worktree first; every worker below has exited unless its row says otherwise.
 
 | Item | Disposition |
 | --- | --- |
-| Web releases of `d7da3fc97` | Staging verified (run 40242047011). Production web (run 40244503719) carries `ui#2072`, `ui#2076`, `ui#2078`, `ui#2073` (the production out-of-memory fix) and `ui#2077`: confirm `https://app.useorbit.org/api/health` reports `d7da3fc97` (or re-run `tools/wait-release.mjs --repo ui --run 40244503719 --sha d7da3fc97cce01d35ffcb5a2b075a44ccaf35b1a --workflow-sha d7da3fc97cce01d35ffcb5a2b075a44ccaf35b1a --service-url https://app.useorbit.org`), read production web logs for 24 hours (`#1735`), then the first production Desktop Release, the desktop sign-in proof against staging, and close `#1679`. Then a staging release of `main` `fb5e74e26` (`ui#2082`, `ui#2075`) and production after it. Batch an Android Open release for `#1737`, `#1738` and the next Android merges. |
+| Web releases of `d7da3fc97` | Staging verified (run 40242047011). Production web verified (run 40244503719) with `ui#2072`, `ui#2076`, `ui#2078`, `ui#2073` (the production out-of-memory fix) and `ui#2077`. Read production web logs for 24 hours (`#1735`), then the first production Desktop Release, the desktop sign-in proof against staging, and close `#1679`. Then a staging release of `main` `fb5e74e26` (`ui#2082`, `ui#2075`) and production after it. Batch an Android Open release for `#1737`, `#1738` and the next Android merges. |
 | `ui#2082` (`#1752`) | Merged as `f5b716491`. Watch the next ten PR runs for that palette case, then close `#1752`. |
 | `ui#2075` (`#1733`) | Merged as `fb5e74e26`. Sign in on the iOS simulator with a staging fixed-code account (`tools/ios-simulator.mjs`, `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`), close `#1733`; launch `#1742` from `main` at once. |
 | `ui#2074` (`#1736`) | Rounds 1 and 2 pushed as `f63bcdfd1` with the merged body; thread resolved. CI, review, `/second-opinion` copy approval framed as a claimed defect (check pt-BR for European forms such as "A sua sequência"), merge, web release and Android Open. |
