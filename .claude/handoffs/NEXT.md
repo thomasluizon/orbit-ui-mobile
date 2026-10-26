@@ -18,11 +18,11 @@ Finish the spec: every requested production fix, the owner's orders (`#1777` to 
 
 ## In flight
 
-UI `main` is `101ce89ae`, API `main` is `d78e430a`, landing `main` is `14293563`. Staging web release of `5501695b` is run 40411035765 (its watcher was live at the drain; check it landed with `/api/health` on `https://app-staging.useorbit.org`); production web serves `a3f4b9afd`. Staging API serves `fcfb7964`; production API serves `1dcfc7a9`. Android Open 1.3.103 (162). Start `tools/wait-ci.mjs` for every open pull request below that has no live waiter.
+UI `main` is `101ce89ae`, API `main` is `d78e430a`, landing `main` is `14293563`. Staging web serves `5501695b` (run 40411035765, verified by wait-release and `/api/health`); production web serves `a3f4b9afd`. Staging API serves `fcfb7964`; production API serves `1dcfc7a9`. Android Open 1.3.103 (162). Start `tools/wait-ci.mjs` for every open pull request below that has no live waiter.
 
 | Item | Disposition |
 | --- | --- |
-| Staging web | Confirm run 40411035765 deployed `5501695b`, run the `#1778` headless Chromium proof in its spec bullet, then dispatch staging web of `main` `101ce89ae` (carries `#1781`'s shell) and production web, then close `#1781` and `#1778` per their bullets. |
+| Staging web | Run the `#1778` headless Chromium proof in its spec bullet, then dispatch staging web of `main` `101ce89ae` (carries `#1781`'s shell) and production web, then close `#1781` and `#1778` per their bullets. |
 | `ui#2092` (`#1743`) | Base merge pushed at `cab20e1c1` (round 4 approved at `d01f1179f`, re-check approved). CI, Pullfrog at the new head, merge, then launch `#1751` (the coordinator runs its per-card `/second-opinion` rounds). |
 | `ui#2110` (`#1783`) | Read whole; Pullfrog found no UI defect (its only blocker is `#1787` deployed). One coordinator fix round as its spec bullet lists (pt-BR `tellAstra`, unused `onboardingFallbackSchema`, duplicate import, surface manifest), copy re-check, push once, CI, review, merge once `orbit-api#943` and `#942` are on staging (both merged). |
 | `orbit-api#942` (`#1786`) | Merged as `5b8e8c43`. The targeted staging plan and apply in its spec bullet, staging API, four keys read back, then production. |
@@ -41,7 +41,7 @@ Inventory: open pull requests are `ui#2111`, `#2110`, `#2109`, `#2108`, `#2102`,
 ## Then, in this order
 
 1. Answer any owner message first, in his language, and give each order a ticket or a rescope before the turn ends.
-2. Start the CI waiters, confirm the staging web release, then the in-flight rows above, pool full under the load gate; `#1751` the moment `ui#2092` merges.
+2. Start the CI waiters, then the in-flight rows above, pool full under the load gate; `#1751` the moment `ui#2092` merges.
 3. The rest of `## The order`.
 
 ## Crank
@@ -56,7 +56,7 @@ Unattended run. Never ask the owner; decide with the recommended option and log 
 
 - Reading list, entry point, newest-prompt check, Crank and Sleep rules, the do-not-re-ask, company-facts and refused-route instructions: carried.
 - Scratchpad carry and helpers: carried (`carry-from-predecessor.sh`, this session's scratchpad first; new helpers `staging-eval-usage.sh`, `eval-env/demo-refresh.mjs`, `eval-env/fixture-1764.mjs`; `avd-accept/qa-session.mjs` for the qa account).
-- Staging web row: advanced (run 40411035765 dispatched with a watcher); proof and production carried.
+- Staging web row: done for `5501695b` (run 40411035765, verified); the proof, staging of `101ce89ae` and production carried.
 - `ui#2107` row: done (merged as `101ce89ae`).
 - `ui#2092` row: advanced (re-check approved, base merge pushed `cab20e1c1`); merge and `#1751` carried.
 - `ui#2110` row: advanced (whole diff read, copy checked, fixes listed); fix round carried.
