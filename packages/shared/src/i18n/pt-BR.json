@@ -1299,13 +1299,13 @@
     "placement": {
       "group": "Onde colocar {name}",
       "option": {
-        "sub_habit": "Sub-hábito em {name}",
-        "checklist_item": "Item do checklist em {name}",
+        "sub_habit": "Sub-hábito de {name}",
+        "checklist_item": "Item do checklist de {name}",
         "new_parent": "Novo hábito principal"
       },
       "recommended": "Recomendado",
       "recommendation": "Astra sugere: {placement}.",
-      "checklistNote": "Este item segue as configurações do hábito principal. As configurações do rascunho ficam guardadas se você voltar a criar um hábito."
+      "checklistNote": "Este item segue as configurações do hábito principal. As configurações do rascunho ficam guardadas se você escolher de novo uma opção de hábito."
     },
     "operationUpdated": "Veja o resultado atualizado acima.",
     "replyReady": "Resposta pronta.",
