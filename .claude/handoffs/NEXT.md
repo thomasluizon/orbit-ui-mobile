@@ -18,15 +18,15 @@ Finish the spec: every requested production fix, the owner's orders (`#1777` to 
 
 ## In flight
 
-UI `main` is `101ce89ae`, API `main` is `5b8e8c43`, landing `main` is `14293563`. Staging web release of `5501695b` is run 40411035765 (its watcher was live at the drain; check it landed with `/api/health` on `https://app-staging.useorbit.org`); production web serves `a3f4b9afd`. Staging API serves `fcfb7964`; production API serves `1dcfc7a9`. Android Open 1.3.103 (162). Start `tools/wait-ci.mjs` for every open pull request below that has no live waiter.
+UI `main` is `101ce89ae`, API `main` is `d78e430a`, landing `main` is `14293563`. Staging web release of `5501695b` is run 40411035765 (its watcher was live at the drain; check it landed with `/api/health` on `https://app-staging.useorbit.org`); production web serves `a3f4b9afd`. Staging API serves `fcfb7964`; production API serves `1dcfc7a9`. Android Open 1.3.103 (162). Start `tools/wait-ci.mjs` for every open pull request below that has no live waiter.
 
 | Item | Disposition |
 | --- | --- |
 | Staging web | Confirm run 40411035765 deployed `5501695b`, run the `#1778` headless Chromium proof in its spec bullet, then dispatch staging web of `main` `101ce89ae` (carries `#1781`'s shell) and production web, then close `#1781` and `#1778` per their bullets. |
 | `ui#2092` (`#1743`) | Base merge pushed at `cab20e1c1` (round 4 approved at `d01f1179f`, re-check approved). CI, Pullfrog at the new head, merge, then launch `#1751` (the coordinator runs its per-card `/second-opinion` rounds). |
-| `ui#2110` (`#1783`) | Read whole; Pullfrog found no UI defect (its only blocker is `#1787` deployed). One coordinator fix round as its spec bullet lists (pt-BR `tellAstra`, unused `onboardingFallbackSchema`, duplicate import, surface manifest), copy re-check, push once, CI, review, merge after `orbit-api#943` and `#942` are on staging. |
+| `ui#2110` (`#1783`) | Read whole; Pullfrog found no UI defect (its only blocker is `#1787` deployed). One coordinator fix round as its spec bullet lists (pt-BR `tellAstra`, unused `onboardingFallbackSchema`, duplicate import, surface manifest), copy re-check, push once, CI, review, merge once `orbit-api#943` and `#942` are on staging (both merged). |
 | `orbit-api#942` (`#1786`) | Merged as `5b8e8c43`. The targeted staging plan and apply in its spec bullet, staging API, four keys read back, then production. |
-| `orbit-api#943` (`#1787`) | Delivered (`cc9b42c4`), diff read. CI, review, merge, staging API, then `#1783`'s web acceptance. |
+| `orbit-api#943` (`#1787`) | Merged as `d78e430a`. Staging API of `main` with `#1786`'s staging apply, then `#1783`'s web acceptance. |
 | `ui#2111` (`#1769`) | Round 3, CodeQL red and green proven with the exact query. CI (its own CodeQL must close alert 43), review, merge, staging and production web, close. |
 | `ui#2109` (`#1785`) | Round 1 pushed at `22a228f23`, threads resolved. CI, review, merge. |
 | `ui#2108` (`#1761`) | Round 1 `969146d89` committed, NOT pushed, in `ticket-1761-astra-latency-budget`. After the gate rerun: set the budget number, record both runs, resolve the thread, push once. |
@@ -36,7 +36,7 @@ UI `main` is `101ce89ae`, API `main` is `5b8e8c43`, landing `main` is `14293563`
 | `#1735` | Close after 00:20 UTC with no `server_failed` event since run 40244503719. |
 | `#1779`, `#1748`, `#1756`, `orbit-api#903`, `#390`, `#62`, `#1151`, `#1732`, `#1777`, Apple enrollment and the rest | As in their spec bullets. |
 
-Inventory: open pull requests are `ui#2111`, `#2110`, `#2109`, `#2108`, `#2102`, `#2092`, this relay's `ui#1989`, `orbit-api#943` and `#903`; landing has none. Unpushed work: `ticket-1761-astra-latency-budget` (`969146d89`), `ticket-1774-safe-area-edges` (`e695ed55c`, `94b375024`). Stashes: none in either root. Running workers: none. Owner questions open: none.
+Inventory: open pull requests are `ui#2111`, `#2110`, `#2109`, `#2108`, `#2102`, `#2092`, this relay's `ui#1989`, `orbit-api#903`; landing has none. Unpushed work: `ticket-1761-astra-latency-budget` (`969146d89`), `ticket-1774-safe-area-edges` (`e695ed55c`, `94b375024`). Stashes: none in either root. Running workers: none. Owner questions open: none.
 
 ## Then, in this order
 
@@ -61,7 +61,7 @@ Unattended run. Never ask the owner; decide with the recommended option and log 
 - `ui#2092` row: advanced (re-check approved, base merge pushed `cab20e1c1`); merge and `#1751` carried.
 - `ui#2110` row: advanced (whole diff read, copy checked, fixes listed); fix round carried.
 - `orbit-api#942` row: done (merged as `5b8e8c43`); the apply and releases carried.
-- `#1787` row: done as a launch (delivered as `orbit-api#943`); review and merge carried.
+- `#1787` row: done (delivered and merged as `orbit-api#943`, `d78e430a`); staging API and acceptance carried.
 - `ui#2108` row: advanced (round 1 committed, held for the budget number).
 - `ui#2109` row: advanced (Pullfrog's two P2 fixed, pushed `22a228f23`).
 - `#1769` row: advanced (round 3 delivered as `ui#2111`).
