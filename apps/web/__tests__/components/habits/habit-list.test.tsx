@@ -126,7 +126,7 @@ vi.mock('@/app/(app)/today-provider', () => ({
 }))
 
 
-const mockHabitsData = {
+let mockHabitsData = {
   habitsById: new Map<string, NormalizedHabit>(),
   childrenByParent: new Map<string, string[]>(),
   topLevelHabits: [] as NormalizedHabit[],
@@ -2663,7 +2663,12 @@ describe('HabitList', () => {
     expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
   })
 
-  it('uses the current logged and skipped mix when confirmation is accepted', async () => {
+  it.each([
+    ['after effects', true],
+    ['before effects', true],
+    ['before effects', false],
+    ['after delayed dismissal', true],
+  ] as const)('uses the current logged and skipped mix when confirmation is accepted %s with persisted completion %s', async (timing, completed) => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -2674,34 +2679,63 @@ describe('HabitList', () => {
       id: 'child',
       title: 'Child',
       parentId: 'parent',
-      isCompleted: true,
+      isCompleted: completed,
     })
     mockHabitsData.habitsById.set(parent.id, parent)
     mockHabitsData.habitsById.set(child.id, child)
     mockHabitsData.childrenByParent.set(parent.id, [child.id])
     mockHabitsData.topLevelHabits = [parent]
+    let resolveSkip: () => void = () => {}
+    const pendingSkip = new Promise<void>((resolve) => { resolveSkip = resolve })
+    skipHabitMutateAsync.mockReturnValue(pendingSkip)
     const ref = React.createRef<HabitListHandle>()
-    const renderList = () => <HabitList ref={ref} filters={defaultFilters} />
+    function ConfirmInLayout({ confirm }: { confirm: boolean }) {
+      React.useLayoutEffect(() => {
+        if (confirm) fireEvent.click(screen.getByRole('button', { name: 'habits.autoLogParentConfirm' }))
+      }, [confirm])
+      return null
+    }
+    const renderList = (confirm = false) => <>
+      <HabitList ref={ref} filters={defaultFilters} />
+      <ConfirmInLayout confirm={confirm} />
+    </>
     const { rerenderWithProviders } = renderWithProviders(renderList())
 
-    act(() => ref.current?.checkAndPromptParentLog(child.id))
-
-    act(() => {
-      mockHabitsData.habitsById.set(child.id, {
-        ...child,
-        isCompleted: false,
-        isFlexible: true,
-        flexibleTarget: 1,
-        flexibleCompleted: 1,
-        isLoggedInRange: false,
-      })
-      mockHabitsDataUpdatedAt += 1
-      rerenderWithProviders(renderList())
+    await act(async () => {
+      ref.current?.checkAndPromptParentLog(child.id)
     })
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
+    if (timing === 'after delayed dismissal') {
+      sheetTestControls.defer(true)
+      await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+      expect(sheetTestControls.isDismissPending).toBe(true)
+      expect(skipHabitMutateAsync).not.toHaveBeenCalled()
+      expect(logHabitMutateAsync).not.toHaveBeenCalled()
+    }
 
+    await act(async () => {
+      mockHabitsData = {
+        ...mockHabitsData,
+        habitsById: new Map(mockHabitsData.habitsById).set(child.id, {
+          ...child,
+          isCompleted: false,
+          isFlexible: true,
+          flexibleTarget: 1,
+          flexibleCompleted: 1,
+          isLoggedInRange: false,
+        }),
+      }
+      mockHabitsDataUpdatedAt += 1
+      rerenderWithProviders(renderList(timing === 'before effects'))
+    })
+    if (timing === 'after effects') await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+
+    if (timing === 'after delayed dismissal') act(() => sheetTestControls.completeDismissal())
+
+    expect(logHabitMutateAsync).not.toHaveBeenCalled()
+    expect(skipHabitMutateAsync).toHaveBeenCalledOnce()
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
-    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, intent: 'log' })
+    await act(async () => { resolveSkip(); await pendingSkip })
   })
 
   it('settles the parent exactly once for a burst of sibling completions', async () => {

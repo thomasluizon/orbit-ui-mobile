@@ -285,7 +285,7 @@ vi.mock('@/lib/offline-state', () => ({
   upsertOfflineEntity: () => Promise.resolve(),
 }))
 
-const mockHabitsData = {
+let mockHabitsData = {
   habitsById: new Map<string, NormalizedHabit>(),
   childrenByParent: new Map<string, string[]>(),
   topLevelHabits: [] as NormalizedHabit[],
@@ -3542,7 +3542,12 @@ describe('HabitList', () => {
     expect(skipMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
   })
 
-  it('uses the current logged and skipped mix when confirmation is accepted', async () => {
+  it.each([
+    ['after effects', true],
+    ['before effects', true],
+    ['before effects', false],
+    ['after delayed dismissal', true],
+  ] as const)('uses the current logged and skipped mix when confirmation is accepted %s with persisted completion %s', async (timing, completed) => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -3553,20 +3558,32 @@ describe('HabitList', () => {
       id: 'child',
       title: 'Child',
       parentId: 'parent',
-      isCompleted: true,
+      isCompleted: completed,
     })
     seedHabits([parent, child])
+    let resolveSkip: () => void = () => {}
+    const pendingSkip = new Promise<void>((resolve) => { resolveSkip = resolve })
+    skipMutateAsync.mockReturnValue(pendingSkip)
     const ref = React.createRef<HabitListHandle>()
-    const renderList = () => (
-      <HabitList
-        ref={ref}
-        view="today"
-        filters={{}}
-        showCompleted
-        onCreatePress={vi.fn()}
-      />
+    function ConfirmInLayout({ confirm }: { confirm: boolean }) {
+      React.useLayoutEffect(() => {
+        if (confirm) pressConfirm(tree, 'habits.autoLogParentConfirm')
+      }, [confirm])
+      return null
+    }
+    const renderList = (confirm = false) => (
+      <>
+        <HabitList
+          ref={ref}
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />
+        <ConfirmInLayout confirm={confirm} />
+      </>
     )
-    let tree: any
+    let tree: import('react-test-renderer').ReactTestRenderer
     TestRenderer.act(() => {
       tree = createTestTree(renderList())
     })
@@ -3575,7 +3592,15 @@ describe('HabitList', () => {
       ref.current?.checkAndPromptParentLog(child.id)
       await Promise.resolve()
     })
+    if (timing === 'after delayed dismissal') {
+      sheetTestControls.defer(true)
+      TestRenderer.act(() => pressConfirm(tree, 'habits.autoLogParentConfirm'))
+      expect(sheetTestControls.isDismissPending).toBe(true)
+      expect(skipMutateAsync).not.toHaveBeenCalled()
+      expect(logMutateAsync).not.toHaveBeenCalled()
+    }
     TestRenderer.act(() => {
+      mockHabitsData = { ...mockHabitsData }
       seedHabits([
         parent,
         {
@@ -3588,15 +3613,18 @@ describe('HabitList', () => {
         },
       ])
       mockHabitsDataUpdatedAt += 1
-      tree.update(renderList())
+      tree.update(renderList(timing === 'before effects'))
     })
     await TestRenderer.act(async () => {
-      pressConfirm(tree, 'habits.autoLogParentConfirm')
+      if (timing === 'after effects') pressConfirm(tree, 'habits.autoLogParentConfirm')
+      if (timing === 'after delayed dismissal') sheetTestControls.completeDismissal()
       await Promise.resolve()
     })
 
+    expect(skipMutateAsync).toHaveBeenCalledOnce()
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
-    expect(logMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+    expect(logMutateAsync).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { resolveSkip(); await pendingSkip })
   })
 
   it('settles an overdue parent when the last child is marked completed', async () => {
