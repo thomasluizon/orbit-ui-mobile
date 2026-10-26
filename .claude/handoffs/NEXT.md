@@ -18,11 +18,11 @@ Finish the spec: every requested production fix, the Astra overhaul (the approve
 
 ## In flight
 
-UI `main` is `59abed358`, API `main` is `6d068bad`, landing `main` is `14293563`. Staging and production API serve `b4454cac` (verified); staging web serves `4ede9419f` (verified); production web of `4ede9419f` was dispatched (run 40276362748) with a wait-release that may still run. One worker may still run: the `#1743` relaunch. Read each named worktree and worker log first.
+UI `main` is `59abed358`, API `main` is `6d068bad`, landing `main` is `14293563`. Staging and production API serve `b4454cac` (verified); staging and production web serve `4ede9419f` (verified, production run 40276362748). No worker runs; the `#1743` relaunch finished. Read each named worktree and worker log first.
 
 | Item | Disposition |
 | --- | --- |
-| Production web run 40276362748 | Read its result (`gh run view`, then `/api/health` on `https://orbit-web-3qmv.onrender.com` must show `4ede9419f`). Then the next Android Open batches `#1736`, `#1746` and `#1739` from `main`. Then staging API of `6d068bad` (`#1758`) and production after it; close `#1758` on staging. |
+| Releases | Production web of `4ede9419f` is done (verified). Next: the next Android Open batches `#1736`, `#1746` and `#1739` from `main`. Then staging API of `6d068bad` (`#1758`) and production after it; close `#1758` on staging. |
 | `#1743` relaunch | Worktree `ticket-1743-astra-blocks-on-app-rows` (deep, second launch). Read the outcome: a pull request, commits, or a NEEDS_DECISION. Then the per-block `/second-opinion` rounds the ticket orders. |
 | `orbit-api#930` (`#1755`) | Round 1 committed `ac5a03e7`, not pushed (worktree `ticket-1755-astra-redundant-work`). `body-round.sh api 930 <worker log> 930-rb1`, reply file for `PRRT_kwDORKgXhc6wJV-c`, `answer-push.sh`, waiter, review, copy approval, merge. |
 | `orbit-api#929` (`#1756`) | Pushed `83324b90`, thread resolved; its waiter finished. Read CI and the fresh review, copy approval of the framing examples, merge, staging. |
@@ -56,7 +56,7 @@ Unattended run. Never ask the owner; decide with the recommended option and log 
 ## Previous prompt, disposition
 
 - Reading list, entry point, newest-prompt check, scratchpad and carry procedures, Crank and Sleep rules, the do-not-re-ask and refused-route instructions: carried (helper list and decision log pointers updated; the carry repoint step added).
-- Releases row: done for staging and production API of `b4454cac` and staging web of `4ede9419f` (verified); production web dispatched (carried as the first row); Android Open carried; the `#1754` and `#1745` staging checks done and both closed; the `#1747` check failed (fix `orbit-api#933`); the `#1757` staging check carried in its bullet.
+- Releases row: done for staging and production API of `b4454cac` and staging and production web of `4ede9419f` (verified); Android Open carried; the `#1754` and `#1745` staging checks done and both closed; the `#1747` check failed (fix `orbit-api#933`); the `#1757` staging check carried in its bullet.
 - `ui#2084` (`#1733`) row: done (merged `4ede9419f`); the close carried; `#1742` launched (now `ui#2088`).
 - `ui#2087` row: done (merged `59abed358`); the gate rerun carried behind `ui#2091`; the limits are raised.
 - `ui#2086` row: done (merged `468e2b5db`).
