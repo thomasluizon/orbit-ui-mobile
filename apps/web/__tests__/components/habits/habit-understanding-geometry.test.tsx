@@ -23,6 +23,51 @@ describe('habit understanding geometry', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([360, 412].flatMap(width => [1, 2].map(scale => ({ width, scale }))))('aligns title accessories with the first line at $width and scale $scale', async ({ width, scale }) => {
+    const states = [
+      { value: 'Read' }, { value: '' }, { value: 'Read', isEmojiSuggesting: true },
+      { value: 'Read', error: 'Required', emojiSuggestionError: 'Try again' },
+      { value: 'Read', emojiSuggestionHint: 'Enter a title' },
+      { value: 'Read', isSuggestionDisabled: true }, { value: 'Read', proposed: true },
+      { value: 'Read a long title with all its words visible every morning before work '.repeat(3) },
+    ]
+    const page = await browser.newPage({ viewport: { width, height: 1600 } })
+    let singleLineHeight = 0
+    try {
+      for (const state of states) {
+        const view = render(<NextIntlClientProvider locale="en" messages={en}><HabitUnderstanding
+          {...state} emoji="" days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={null} consumed={[]} showSchedule={false}
+          labels={buildHabitUnderstandingLabels(key => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()}
+          onToggleDay={vi.fn()} onQuantityChange={vi.fn()} onSuggestEmoji={vi.fn()} canSuggestEmoji />
+        </NextIntlClientProvider>)
+        try {
+          await page.setContent(`<style>${stylesheet}:root{font-size:${16 * scale}px}</style><main style="padding:16px">${view.container.innerHTML}</main>`)
+          await loadAppFonts(page)
+          const field = await page.locator('[data-habit-phrase-field] textarea').evaluate(input => {
+            const bounds = input.getBoundingClientRect()
+            const style = getComputedStyle(input)
+            return { height: bounds.height, center: bounds.y + bounds.height / 2,
+              firstLine: bounds.y + parseFloat(style.paddingTop) + parseFloat(style.lineHeight) / 2 }
+          })
+          if (!singleLineHeight) singleLineHeight = field.height
+          const emoji = (await page.getByRole('button', { name: en.habits.form.emojiOpenPicker }).boundingBox())!
+          const paint = (await page.locator('[data-emoji-well]').boundingBox())!
+          const astra = (await page.getByRole('button', { name: en.habits.form.suggestEmoji }).boundingBox())!
+          expect(Math.abs(emoji.height - singleLineHeight), JSON.stringify({ state, field, emoji, paint, astra })).toBeLessThanOrEqual(1)
+          expect(Math.abs(emoji.width - emoji.height)).toBeLessThanOrEqual(1)
+          expect(Math.abs(paint.height - emoji.height)).toBeLessThanOrEqual(1)
+          for (const button of [emoji, astra]) expect(Math.abs(button.y + button.height / 2 - field.firstLine)).toBeLessThanOrEqual(1)
+          if (state.value === 'Read') {
+            expect(Math.abs(field.height - singleLineHeight)).toBeLessThanOrEqual(1)
+            expect(Math.abs(field.center - field.firstLine)).toBeLessThanOrEqual(1)
+          }
+          if (state.value.length > 100) expect(field.height).toBeGreaterThan(singleLineHeight)
+          expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+        } finally { view.unmount() }
+      }
+    } finally { await page.close() }
+  })
+
   it.each((['en', 'pt-BR'] as const).flatMap(locale => [false, true].map(proposed => ({ locale, proposed }))))('keeps emoji feedback full width and fill borders absent in $locale, proposed: $proposed', async ({ locale, proposed }) => {
     const messages = locale === 'en' ? en : ptBR
     const form = (busy: boolean) => <NextIntlClientProvider locale={locale} messages={messages}><HabitUnderstanding value="Run" emoji="🏃" proposed={proposed} days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={null} consumed={[]} showSchedule={false}
@@ -85,10 +130,10 @@ describe('habit understanding geometry', () => {
       expect(well.y).toBeGreaterThanOrEqual(title.y)
       expect(well.y + well.height).toBeLessThanOrEqual(title.y + title.height)
       expect(well.x).toBeGreaterThan(title.x + title.width)
-      expect(astra.y).toBe(well.y)
+      expect(astra.y + astra.height / 2).toBe(well.y + well.height / 2)
       const painted = (await page.locator('[data-emoji-well]').boundingBox())!
-      expect(painted.width).toBe(46)
-      expect(painted.height).toBe(46)
+      expect(painted.width).toBe(well.width)
+      expect(painted.height).toBe(well.height)
       expect(astra.x).toBeGreaterThanOrEqual(well.x + well.width)
       expect(astra.x + astra.width).toBeLessThanOrEqual(Math.min(width, 640) - 16)
       expect(await page.getByText(en.habits.form.titleRequired, { exact: true }).isVisible()).toBe(false)

@@ -19,6 +19,14 @@ Every concrete text control and input-producing primitive or wrapper in the web 
 | OTP | Centred digit | Design-system OTP cells. The input captures keystrokes invisibly; the visible digit is centred, so no inline inset applies. |
 | Attachment pickers | No drawn glyph | Hidden file inputs are listed for completeness and excluded from text geometry. |
 
+## Habit title accessories
+
+Habit title mirror and editable controls retain 16 inline insets. Their symmetric block insets
+are at least 12 and expand to centre the first line within the standard 54 minimum height.
+The emoji square uses this single-line field height at the current text scale; wrapped titles
+retain the same square and both trailing actions centre on the first line. Feedback below the
+row does not enter this geometry. Paired Vitest geometry cases cover 360 and 412 at scales 1 and 2.
+
 ## Checklist add surfaces
 
 The checklist add row uses the shared Input and a separate ghost small icon-only PillButton with an 8 gap in each owning composition:

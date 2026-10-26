@@ -188,7 +188,7 @@ describe("HabitEmojiSelector mobile", () => {
       expect(group.getComputedHeight()).toBeLessThanOrEqual(field.getComputedHeight());
       expect(group.getComputedLeft() + group.getComputedWidth()).toBeLessThanOrEqual(row.getComputedWidth());
       expect(targets[1]!.getComputedLeft()).toBeGreaterThan(targets[0]!.getComputedWidth());
-      expect(style(painted)).toMatchObject({ width: 46, height: 46, backgroundColor: createTokensV2("orange", "light").bgWell });
+      expect(style(painted)).toMatchObject({ width: field.getComputedHeight(), height: field.getComputedHeight(), backgroundColor: createTokensV2("orange", "light").bgWell });
     } finally { row.freeRecursive(); }
   });
 
