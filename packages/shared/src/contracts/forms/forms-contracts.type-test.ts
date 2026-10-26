@@ -32,6 +32,7 @@ type MarkedVariant = Extract<InputProps, { marks: readonly { start: number; end:
 type ExpectedSingleLineVariant = {
   proposed?: boolean
   label: string
+  labelIcon?: React.ReactNode
   hideLabel?: boolean
   value: string
   onChange: (value: string) => void
