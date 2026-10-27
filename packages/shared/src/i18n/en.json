@@ -1296,6 +1296,27 @@
     }
   },
   "chat": {
+    "habitSuggestions": {
+      "title": "Habit ideas",
+      "add": "Add",
+      "edit": "Edit",
+      "tweak": "Tweak",
+      "swap": "Swap",
+      "addAll": "Add all",
+      "prompt": "Tweak this habit...",
+      "apply": "Apply",
+      "existing": "Already exists",
+      "current": "Current",
+      "proposed": "Proposed",
+      "review": "In preview",
+      "added": "Added",
+      "refineError": "Could not adjust this idea. Try again.",
+      "previewError": "Could not prepare the preview. Try again.",
+      "conflictError": "Your routine changed. Adjust this idea or try again.",
+      "swapInstruction": "Suggest a different idea for this slot.",
+      "scheduleError": "Could not load the current schedule. Try again.",
+      "offline": "Connect to continue."
+    },
     "placement": {
       "group": "Placement for {name}",
       "option": {

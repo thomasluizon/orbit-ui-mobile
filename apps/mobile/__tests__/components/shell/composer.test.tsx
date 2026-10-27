@@ -140,7 +140,7 @@ it.each([en, ptBR])('shows each suggestion action with only the decorative mark'
       expect(control.props.accessibilityLabel).toBe(chips[index]!.label)
       expect(textValues(control)).toEqual([chips[index]!.label])
       const marks = control.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
-        typeof node.type === 'string' && node.props.testID === 'astra-mark-16')
+        typeof node.type === 'string' && node.props.testID === 'astra-mark')
       expect(marks).toHaveLength(1)
       expect(marks[0]!.props.accessible).toBe(false)
     }
@@ -790,7 +790,8 @@ describe('Composer (mobile)', () => {
           expect(style.maxWidth).toBe(256)
           expect(style.minHeight).toBe(48)
           expect(style.height).toBeUndefined()
-          expect(style.alignItems).toBe('flex-start')
+          expect(style.alignItems).toBe('center')
+          expect(StyleSheet.flatten(chip.findByProps({ testID: 'composer-suggestion-content' }).props.style).alignItems).toBe('flex-start')
           expect(text.props.children).toBe(suggestion.label)
           expect(suggestion.label).not.toContain(title)
           expect(text.props.numberOfLines).toBeUndefined()
@@ -895,7 +896,7 @@ describe('Composer (mobile)', () => {
             target.calculateLayout(undefined, undefined)
             expect(Math.abs(target.getComputedWidth() - content.getComputedWidth() - 24 - 2 * StyleSheet.hairlineWidth)).toBeLessThanOrEqual(1)
           } finally { target.freeRecursive(); config.free() }
-          expect(style.alignItems).toBe('flex-start')
+          expect(style.alignItems).toBe('center')
           expect(StyleSheet.flatten(chip.findAllByType('Text')[0]!.props.style).flexShrink).toBe(1)
           expect(chip.findAllByType('Text')[0]!.props.numberOfLines).toBeUndefined()
           TestRenderer.act(() => chip.findByProps({ testID: 'composer-suggestion-content' }).props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: chipWidth - 24 - 2 * StyleSheet.hairlineWidth, height: 24 } } }))

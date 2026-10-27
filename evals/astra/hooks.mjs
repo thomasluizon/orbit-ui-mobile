@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { tsImport } from 'tsx/esm/api'
 import { apiOrigin, healthyApi, readCredentials, refreshCredential, safeFailureMessage } from './credentials.mjs'
 import { dateOffset, resetFixture } from './fixtures/reset.mjs'
+import { requireEvalAccess } from './fixtures/api.mjs'
 import { prepareCorrection } from './setup.mjs'
 import { descriptors } from './merge-reports.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
@@ -12,6 +13,7 @@ const { buildChatClientContext } = await tsImport('../../packages/shared/src/cha
 
 let completedResults = []
 let selectedCases = []
+const accountAccess = new Map()
 
 function persistResults(results, expectedCases) {
   writeResults(results)
@@ -24,18 +26,27 @@ function persistResults(results, expectedCases) {
 export async function beforeAll({ suite }) {
   completedResults = []
   selectedCases = suite.tests.map((test) => test.metadata)
+  accountAccess.clear()
   persistResults(completedResults, selectedCases)
   const required = ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_CREDENTIALS_FILE']
   for (const key of new Set(required)) {
     if (!process.env[key]) throw new Error(`Missing required environment variable: ${key}`)
   }
   apiOrigin()
-  readCredentials()
   if (process.env.ORBIT_EVAL_OVERDUE_DATE && !/^\d{4}-\d{2}-\d{2}$/.test(process.env.ORBIT_EVAL_OVERDUE_DATE)) throw new Error('ORBIT_EVAL_OVERDUE_DATE must be an ISO calendar date.')
   const { apiCommit } = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
   const health = await healthyApi({ fresh: true })
   if (!/^[a-f0-9]{40}$/.test(apiCommit) || apiCommit !== health.commit) {
     throw new Error(`Astra catalog ${apiCommit} differs from API ${health.commit}. Regenerate from a clean API checkout at that commit with node evals/astra/generate-catalog.mjs <api-checkout>.`)
+  }
+  readCredentials()
+  await requireAccountPolicies(suite.tests)
+}
+
+async function requireAccountPolicies(tests) {
+  for (const key of new Set(tests.map((test) => test.vars.credentialKey))) {
+    await refreshCredential(key)
+    accountAccess.set(key, await requireEvalAccess(key))
   }
 }
 
@@ -53,7 +64,7 @@ async function prepareAttempt(test) {
   const today = new Date().toISOString().slice(0, 10)
   test.vars.accountDate = today
   process.env.ORBIT_EVAL_OVERDUE_DATE ??= dateOffset(today, -1)
-  await resetFixture(test, today)
+  await resetFixture(test, today, accountAccess.get(test.vars.credentialKey) === true)
   const account = readCredentials()[test.vars.credentialKey]
   const substitutions = {
     accountDate: today,

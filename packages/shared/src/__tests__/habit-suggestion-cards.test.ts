@@ -1,0 +1,152 @@
+import { describe, expect, it, vi } from 'vitest'
+import { habitSuggestionDraftSchema } from '../types/habit-suggestions'
+import { chatMessageSchema, chatResponseSchema } from '../types/chat'
+import { HabitSuggestionController, type HabitSuggestionActions } from '../chat/habit-suggestion-controller'
+import { habitSuggestionCreateValues, habitSuggestionFormState, habitSuggestionStatus } from '../chat/habit-suggestions'
+import { buildEditHabitFormState } from '../utils/habit-form-state'
+import { buildUpdateHabitRequest } from '../utils/habit-request-builders'
+import { createMockHabit } from './factories'
+import { updatePendingOperationMessage } from '../chat/pending-operation-message-state'
+import { applyPendingOperationRevisionPreview, createPendingOperationRevisionState } from '../hooks/pending-operation-revision-core'
+import { habitSuggestionSchedule } from '../chat/habit-suggestion-view'
+import { createTimeDisplay } from '../utils/locale-format'
+import { buildChatClientContext } from '../chat/client-context'
+import { habitSuggestionDraftFixture as draft, habitSuggestionsFixture as card, makeHabitSuggestionMessage, makeHabitSuggestionPreview, makeHabitSuggestionBatchPreview } from '../test-support/habit-suggestion-fixtures'
+
+function setup() {
+  let message = makeHabitSuggestionMessage()
+  const controller = new HabitSuggestionController()
+  const actions: HabitSuggestionActions = {
+    refine: vi.fn(async original => ({ ...original, title: 'Read one page' })),
+    preview: vi.fn(async () => ({ response: makeHabitSuggestionPreview() })), isCurrent: () => true,
+    transition: update => { message = update(message) },
+  }
+  return { controller, actions, message: () => message }
+}
+
+describe('habit suggestion contract and card state', () => {
+  it('negotiates on both platforms and parses a block-only response', () => {
+    for (const platform of ['web', 'mobile'] as const) expect(buildChatClientContext({ platform, locale: 'en' }).partKinds).toContain('habitSuggestions')
+    expect(chatResponseSchema.parse({ actions: [], parts: makeHabitSuggestionMessage().parts }).parts?.[0]).toEqual(makeHabitSuggestionMessage().parts?.[0])
+    expect(habitSuggestionDraftSchema.safeParse({ ...draft, dueTime: 22 }).success).toBe(false)
+  })
+  it('prefills type, schedule, checklist, emoji and reminders', () => {
+    expect(habitSuggestionCreateValues(draft)).toMatchObject({ title: 'Read', itemType: 'habit', dueTime: '22:00', dueEndTime: '22:15',
+      dueDate: draft.dueDate, frequencyUnit: 'Day', frequencyQuantity: 1, reminderEnabled: true, emoji: '📖', checklistItems: [{ text: 'Choose a book', isChecked: false }, { text: 'Read a page', isChecked: false }] })
+    expect(habitSuggestionCreateValues({ ...draft, type: 'Task', frequencyUnit: null, frequencyQuantity: null, reminderMinutesBefore: null })).toMatchObject({ itemType: 'task', reminderEnabled: false })
+  })
+  it('uses the account clock preference for suggested and current times', () => {
+    const display = createTimeDisplay('pt-BR', false)
+    expect(habitSuggestionSchedule(draft, 'pt-BR', key => key, display.displayTime)).toContain('10:00 PM')
+  })
+  it('replaces the existing recurrence interval through form state and the update request', () => {
+    const habit = createMockHabit({ intervalWeeks: 2, frequencyUnit: 'Week', days: ['Friday'] })
+    const snapshot = buildEditHabitFormState(habit)
+    const state = habitSuggestionFormState(snapshot, { ...draft, existingHabitId: habit.id, days: ['Monday'] })
+    expect(state.formValues).toMatchObject({ intervalWeeks: 1, days: ['Monday'] })
+    expect(buildUpdateHabitRequest(state.formValues, false, state.originalEndDate, state.reminderTimes, state.selectedGoalIds))
+      .toMatchObject({ intervalWeeks: 1, days: ['Monday'] })
+    expect(habitSuggestionFormState(snapshot)).toBe(snapshot)
+  })
+  it('refines only one slot and retains the other draft identity', async () => {
+    const { controller, actions, message } = setup()
+    controller.tweak(card.drafts[1]!.id); controller.setInstruction('later in the evening')
+    await controller.refine(draft, 'one page', actions)
+    expect(controller.getSnapshot()).toMatchObject({ tweaking: card.drafts[1]!.id, instruction: 'later in the evening' })
+    const part = message().parts?.[0]
+    expect(part?.type === 'block' && part.kind === 'habitSuggestions' && part.block.drafts[1]).toBe(card.drafts[1])
+    expect(actions.refine).toHaveBeenCalledExactlyOnceWith(draft, 'one page')
+    expect(controller.getSnapshot().revisions[draft.id]).toBe(1)
+  })
+  it('retains the draft and instruction on refine failure and retries', async () => {
+    const { controller, actions, message } = setup()
+    vi.mocked(actions.refine).mockRejectedValueOnce(new Error('Unavailable'))
+    controller.tweak(draft.id); controller.setInstruction('one page')
+    await controller.refine(draft, 'one page', actions)
+    expect(message()).toEqual(makeHabitSuggestionMessage())
+    expect(controller.getSnapshot()).toMatchObject({ instruction: 'one page', errors: { [draft.id]: 'chat.habitSuggestions.refineError' } })
+    await controller.retry(draft.id, message(), actions)
+    expect(actions.refine).toHaveBeenCalledTimes(2)
+    expect(controller.getSnapshot().errors[draft.id]).toBe('')
+  })
+  it('holds a single preview and sends only remaining drafts for add all', async () => {
+    const { controller, actions, message } = setup()
+    await controller.preview([draft], false, message(), actions)
+    expect(habitSuggestionStatus(message(), draft.id)).toBe('preview')
+    expect(message().appliedHabitSuggestions).toBeUndefined()
+    await controller.preview(card.drafts, true, message(), actions)
+    expect(vi.mocked(actions.preview).mock.calls).toEqual([[[draft], false], [[card.drafts[1]], true]])
+  })
+  it('restores rejected previews and excludes completed and uncertain previews', async () => {
+    const { controller, actions, message } = setup()
+    await controller.preview(card.drafts, true, message(), actions)
+    const operationId = makeHabitSuggestionPreview().pendingOperation!.id
+    const withState = (state: NonNullable<ReturnType<typeof message>['pendingOperationStates']>[string]) => ({ ...message(), pendingOperationStates: { [operationId]: state } })
+    expect(habitSuggestionStatus(withState({ rejected: true }), draft.id)).toBe('available')
+    expect(habitSuggestionStatus(withState({ status: 'done' }), draft.id)).toBe('applied')
+    expect(habitSuggestionStatus(withState({ status: 'done', dismissed: true }), draft.id)).toBe('applied')
+    expect(habitSuggestionStatus(withState({ status: 'failed', dismissed: true, canRetry: false }), draft.id)).toBe('preview')
+    expect(habitSuggestionStatus(withState({ status: 'failed', canRetry: false }), draft.id)).toBe('preview')
+  })
+  it('attaches batch conflicts to the indexed slot and retries without losing drafts', async () => {
+    const { controller, actions, message } = setup()
+    vi.mocked(actions.preview).mockResolvedValueOnce({ conflictIndex: 1 })
+    await controller.preview(card.drafts, true, message(), actions)
+    expect(message()).toEqual(makeHabitSuggestionMessage())
+    expect(controller.getSnapshot().errors).toEqual({ [card.drafts[1]!.id]: 'chat.habitSuggestions.conflictError' })
+    await controller.retry(card.drafts[1]!.id, message(), actions)
+    expect(message().pendingOperations).toHaveLength(1)
+  })
+  it('retries a failed batch with the current refined draft', async () => {
+    const { controller, actions, message } = setup()
+    vi.mocked(actions.preview).mockRejectedValueOnce(new Error('Unavailable'))
+    await controller.preview(card.drafts, true, message(), actions)
+    await controller.refine(draft, 'one page', actions)
+    await controller.retry('all', message(), actions)
+    expect(vi.mocked(actions.preview).mock.lastCall?.[0]).toEqual([{ ...draft, title: 'Read one page' }, card.drafts[1]])
+  })
+  it.each([0, 1])('releases removed batch slot %s after revision and persisted approval', async removedIndex => {
+    const { controller, actions, message } = setup()
+    const operation = makeHabitSuggestionBatchPreview().pendingOperation!
+    vi.mocked(actions.preview).mockResolvedValueOnce({ response: makeHabitSuggestionBatchPreview() })
+    await controller.preview(card.drafts, true, message(), actions)
+    const selected = operation.items!.filter((_, index) => index !== removedIndex)
+    const preview = { changes: [], changeTargetCount: 1, previewFingerprint: 'revised',
+      items: selected.map(item => ({ ...item, itemId: '0/0', entityName: 'Edited title' })) }
+    const revised = applyPendingOperationRevisionPreview(createPendingOperationRevisionState(operation), preview, undefined, selected)
+    actions.transition(current => updatePendingOperationMessage(current, operation.id, {
+      operation: revised.operation, originalItemIds: [...revised.originalItemIds],
+    }))
+    const persisted = () => chatMessageSchema.parse({ ...JSON.parse(JSON.stringify(message())), timestamp: message().timestamp })
+    expect(habitSuggestionStatus(persisted(), card.drafts[removedIndex]!.id)).toBe('available')
+    actions.transition(current => updatePendingOperationMessage(current, operation.id, { status: 'done' }))
+    expect(habitSuggestionStatus(persisted(), card.drafts[removedIndex]!.id)).toBe('available')
+    expect(habitSuggestionStatus(persisted(), card.drafts[1 - removedIndex]!.id)).toBe('applied')
+  })
+  it('restores an older batch after a previous single-preview rejection without relying on binding insertion order', async () => {
+    const { controller, actions, message } = setup()
+    vi.mocked(actions.preview).mockResolvedValueOnce({ response: makeHabitSuggestionPreview('previous-preview') })
+    await controller.preview([card.drafts[1]!], false, message(), actions)
+    actions.transition(current => updatePendingOperationMessage(current, 'previous-preview', { rejected: true }))
+    const operation = makeHabitSuggestionBatchPreview().pendingOperation!
+    vi.mocked(actions.preview).mockResolvedValueOnce({ response: makeHabitSuggestionBatchPreview() })
+    await controller.preview(card.drafts, true, message(), actions)
+    actions.transition(current => ({ ...current, habitSuggestionItems: undefined }))
+    actions.transition(current => updatePendingOperationMessage(current, operation.id, {
+      status: 'done', originalItemIds: [operation.items![1]!.itemId],
+    }))
+    expect(habitSuggestionStatus(message(), draft.id)).toBe('available')
+    expect(habitSuggestionStatus(message(), card.drafts[1]!.id)).toBe('applied')
+  })
+  it('prevents concurrent previews and ignores an account replacement', async () => {
+    const { controller, actions, message } = setup()
+    let deliver: (response: Awaited<ReturnType<HabitSuggestionActions['preview']>>) => void = () => {}
+    vi.mocked(actions.preview).mockImplementationOnce(() => new Promise(resolve => { deliver = resolve }))
+    const pending = controller.preview(card.drafts, true, message(), actions)
+    await controller.preview(card.drafts, true, message(), actions)
+    expect(actions.preview).toHaveBeenCalledTimes(1)
+    actions.isCurrent = () => false
+    deliver({ response: makeHabitSuggestionPreview() }); await pending
+    expect(message().pendingOperations).toBeUndefined()
+  })
+})

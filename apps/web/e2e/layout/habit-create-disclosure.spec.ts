@@ -9,7 +9,7 @@ import { setLayoutFixtureSession } from './profile-session'
 import { LAYOUT_FIXED_TIME } from './clock.mjs'
 
 async function assertInlineGlyph(phrase: Locator, glyph: Locator, date: Locator) {
-  const mark = glyph.locator('[data-asset="astra-mark-16"]')
+  const mark = glyph.locator('[data-asset="astra-mark"]')
   await expect(mark).toHaveCount(1)
   await expect(mark).toHaveAttribute('color', 'var(--fg-3)')
   await expect(glyph).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')

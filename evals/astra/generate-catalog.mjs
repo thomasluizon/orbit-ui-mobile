@@ -22,6 +22,7 @@ try {
   <ItemGroup>
     <ProjectReference Include="${xml(join(apiRoot, 'src/Orbit.Api/Orbit.Api.csproj'))}" />
     <Compile Include="${xml(fileURLToPath(new URL('./catalog-export.cs', import.meta.url)))}" Link="Program.cs" />
+    <Compile Include="${xml(fileURLToPath(new URL('./catalog-constructor.cs', import.meta.url)))}" Link="CatalogConstructor.cs" />
   </ItemGroup>
 </Project>`)
   const output = join(directory, 'catalog.json')

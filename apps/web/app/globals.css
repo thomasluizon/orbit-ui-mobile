@@ -2725,3 +2725,14 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 [data-prompt-slot] { font-weight: 500; }
 [data-prompt-idea="live"] [data-slot="prompt-idea-title"] { overflow-wrap: anywhere; }
+
+@keyframes habit-suggestion-swap {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .habit-suggestion-swap {
+    animation: habit-suggestion-swap var(--dur-fast) var(--ease-standard);
+  }
+}

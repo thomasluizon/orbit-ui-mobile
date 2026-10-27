@@ -47,6 +47,8 @@ import {
 } from '@orbit/shared/utils'
 import type { HabitFormProposal, HabitPhraseFormOwnership } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
+import { habitSuggestionCreateValues } from '@orbit/shared/chat'
+import type { HabitSuggestionDraft } from '@orbit/shared/types'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import {
   buildSubHabitRequest,
@@ -112,6 +114,7 @@ interface CreateHabitModalProps {
   presentation?: 'sheet' | 'screen'
   leaveGuard?: ComponentType<{ leaving: boolean; requestLeave: () => void }>
   fromConversation?: boolean
+  initialSuggestion?: HabitSuggestionDraft
   initialTitle?: string
   onCreated?: () => void
   initialDate?: string | null
@@ -133,6 +136,7 @@ export function CreateHabitModal({
   onCreated,
   initialDate,
   initialTitle = '',
+  initialSuggestion,
   presentation = 'sheet',
   leaveGuard,
   fromConversation = false,
@@ -279,16 +283,16 @@ export function CreateHabitModal({
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
   }, [])
 
-  const resetOnOpenRef = useRef({ initialDate, initialTitle, parentHabit, activeView, formHelpers, tags })
+  const resetOnOpenRef = useRef({ initialDate, initialTitle, initialSuggestion, parentHabit, activeView, formHelpers, tags })
   useEffect(() => {
-    resetOnOpenRef.current = { initialDate, initialTitle, parentHabit, activeView, formHelpers, tags }
+    resetOnOpenRef.current = { initialDate, initialTitle, initialSuggestion, parentHabit, activeView, formHelpers, tags }
   })
 
   useEffect(() => {
     if (!open) return
 
     void Promise.resolve().then(() => {
-      const { initialDate, initialTitle, parentHabit, activeView, formHelpers, tags } = resetOnOpenRef.current
+      const { initialDate, initialTitle, initialSuggestion, parentHabit, activeView, formHelpers, tags } = resetOnOpenRef.current
       const fallbackDate = initialDate ?? ''
 
       setEmojiFailure(null)
@@ -303,6 +307,7 @@ export function CreateHabitModal({
       replaceSubHabits([])
       setReminderTimes([0, 15])
 
+      let initialReminderTimes = [0, 15]
       let prefill: ReturnType<typeof buildParentHabitFormState> | null = null
 
       if (parentHabit) {
@@ -311,7 +316,14 @@ export function CreateHabitModal({
         applyHabitFormMode(prefill.mode, formHelpers)
         tags.resetTags(prefill.selectedTagIds)
         setSelectedGoalIds(prefill.selectedGoalIds)
-        setReminderTimes(prefill.reminderTimes)
+        initialReminderTimes = prefill.reminderTimes
+        setReminderTimes(initialReminderTimes)
+      } else if (initialSuggestion) {
+        formHelpers.form.reset(habitSuggestionCreateValues(initialSuggestion))
+        applyHabitFormMode(initialSuggestion.type === 'Task' ? 'oneTime' : 'recurring', formHelpers)
+        initialReminderTimes = initialSuggestion.reminderMinutesBefore === null ? [] : [initialSuggestion.reminderMinutesBefore]
+        setReminderTimes(initialReminderTimes)
+        setReminderWasManuallyToggled(true)
       } else if (activeView === 'general') {
         formHelpers.setGeneral()
         formHelpers.form.setValue('itemType', 'habit')
@@ -333,7 +345,7 @@ export function CreateHabitModal({
       )
       setInitialSubHabitsSnapshot(JSON.stringify([]))
       setInitialReminderTimesSnapshot(
-        JSON.stringify(prefill?.reminderTimes ?? [0, 15]),
+        JSON.stringify(initialReminderTimes),
       )
     })
     // react-doctor-disable-next-line exhaustive-deps -- reset-on-open must run once per open transition only, never re-fire on formHelpers/tags/parentHabit reference churn while already open; latest values are read from resetOnOpenRef, updated every render https://github.com/thomasluizon/orbit-ui-mobile/issues/243
