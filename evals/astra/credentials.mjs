@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 
 export const credentialKeys = ['ORBIT_EVAL_TOKEN', 'ORBIT_EVAL_FREE_TOKEN', 'ORBIT_EVAL_BUDGET_TOKEN']
 const readiness = new Map()
+const credentialHistory = new Set()
 
 async function waitForHealthyApi(origin) {
   const deadline = Date.now() + 180000
@@ -65,8 +66,9 @@ export function redactCredentials(text) {
   try { secrets.push(...Object.values(readCredentials()).flatMap((account) => Object.values(account))) } catch {
     // An unreadable credential file already produces a message without its contents.
   }
+  for (const secret of secrets.filter((value) => typeof value === 'string' && value.length)) credentialHistory.add(secret)
   let message = text
-  for (const secret of secrets.filter((value) => typeof value === 'string' && value.length).sort((a, b) => b.length - a.length)) {
+  for (const secret of [...credentialHistory].sort((a, b) => b.length - a.length)) {
     message = message.replaceAll(secret, '[redacted]')
   }
   return message

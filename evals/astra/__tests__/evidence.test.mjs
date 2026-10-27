@@ -82,6 +82,44 @@ it('redacts credential echoes in answers, renderer errors, assertion reasons and
   expect(evidence.renderError.message).toBe(evidence.answer)
 })
 
+it('keeps earlier credential echoes redacted when later attempts rotate or clear credentials', () => {
+  const credentialsPath = offlineCredentials()
+  const secrets = ['first-attempt-access', 'first-attempt-refresh', 'second-attempt-access', 'second-attempt-refresh']
+  const entries = []
+  let directory
+  for (let index = 0; index < 3; index += 1) {
+    const echo = index < 2 ? secrets.slice(index * 2, index * 2 + 2).join('\n') : 'Credentials cleared.'
+    if (index < 2) {
+      vi.stubEnv('ORBIT_EVAL_TOKEN', secrets[index * 2])
+      writeFileSync(credentialsPath, JSON.stringify({ ORBIT_EVAL_TOKEN: { refreshToken: secrets[index * 2 + 1] } }))
+    } else {
+      delete process.env.ORBIT_EVAL_TOKEN
+      writeFileSync(credentialsPath, '{}')
+    }
+    const output = outputFor()
+    output.answer = echo
+    const entry = { testCase: { metadata: { id: 'evidence' } }, response: { output }, success: false,
+      gradingResult: { reason: echo, componentResults: [
+        { assertion: { metric: 'finalAnswer' }, pass: false, reason: echo },
+      ] } }
+    entries.push(entry)
+    if (index === 0) directory = persist(output, entry).directory
+    else writeResults(entries, directory)
+    const compact = readFileSync(join(directory, 'results.json'), 'utf8')
+    for (let repeat = 1; repeat <= Math.min(index + 1, 2); repeat += 1) {
+      const text = readFileSync(join(directory, `attempts/evidence-r${repeat}.json`), 'utf8')
+      for (const secret of secrets) {
+        expect(text).not.toContain(secret)
+        expect(compact).not.toContain(secret)
+      }
+      expect(JSON.parse(text)).toMatchObject({ answer: '[redacted]\n[redacted]',
+        reason: '[redacted]\n[redacted]', graderRationale: '[redacted]\n[redacted]',
+        assertions: [{ metric: 'finalAnswer', pass: false, reason: '[redacted]\n[redacted]' }] })
+      expect(JSON.parse(compact)[repeat - 1].assertions[0].reason).toBe('[redacted]\n[redacted]')
+    }
+  }
+})
+
 it('keeps declared nested and union arguments while omitting unknown credential fields', () => {
   const call = toolCall('ask', { form: 'pickList', action: 'create_habits', items: [{ id: 'water', label: 'Water',
     arguments: { title: 'Water', cookie: 'private-nested-cookie', checklist_items: [
