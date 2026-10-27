@@ -75,7 +75,7 @@ async function inspectControl(page: Page, control: Locator, context: string, cle
     return `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ''}${classes}[${element.getAttribute('aria-label') ?? element.textContent.trim().replace(/\s+/g, ' ').slice(0, 100)}]`
   }, undefined, { timeout: ACTION_TIMEOUT_MS }))
   context = `${context}, ${name}`
-  const overlays = page.locator('[role="menu"]:visible, [role="dialog"]:visible, [role="listbox"]:visible')
+  const overlays = page.locator('[role="menu"], [role="dialog"], [role="listbox"]')
   const existingOverlays = await runAction(context, 'read overlays', async () => ({
     overlays: await overlays.count(), conversations: await page.locator('[data-shell-conversation]:visible').count(),
   }))
