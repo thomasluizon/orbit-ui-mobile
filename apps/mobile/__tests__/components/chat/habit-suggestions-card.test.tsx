@@ -13,13 +13,13 @@ import en from '@orbit/shared/i18n/en.json'
 
 vi.unmock('react-i18next')
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
-const mocks = vi.hoisted(() => ({ refine: vi.fn(), preview: vi.fn(), confirm: vi.fn(), create: vi.fn(), edit: vi.fn() }))
+const mocks = vi.hoisted(() => ({ refine: vi.fn(), preview: vi.fn(), confirm: vi.fn(), relationshipsLoaded: true, create: vi.fn(), edit: vi.fn() }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (time: string) => time }) }))
 vi.mock('@/hooks/use-habit-suggestion-actions', () => ({ useHabitSuggestionActions: (id: string) => ({
   refine: mocks.refine, preview: mocks.preview, isCurrent: () => true,
   transition: (update: Parameters<ReturnType<typeof useChatStore.getState>['transitionMessage']>[1]) => useChatStore.getState().transitionMessage(id, update),
 }) }))
-vi.mock('@/hooks/use-habits', () => ({ useHabitDetail: () => ({ data: { ...createMockHabit({ id: 'existing', dueTime: '06:00:00', dueEndTime: '06:15:00' }), children: [] }, isError: false }) }))
+vi.mock('@/hooks/use-habits', () => ({ useHabitDetail: () => ({ data: { ...createMockHabit({ id: 'existing', dueTime: '06:00:00', dueEndTime: '06:15:00' }), children: [], ...(!mocks.relationshipsLoaded ? { linkedGoals: undefined, slipAlertEnabled: undefined } : {}) }, isError: false }) }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: (props: unknown) => { mocks.create(props); return null } }))
 vi.mock('@/components/habits/edit-habit-modal', () => ({ EditHabitModal: (props: unknown) => { mocks.edit(props); return null } }))
 let tree: ReactTestRenderer & { toJSON: () => unknown; unmount: () => void }
@@ -34,7 +34,7 @@ const content = () => JSON.stringify(tree.toJSON())
 const buttons = (name: string) => tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && (node.props.accessibilityLabel === name || controlName(node) === name))
 async function press(name: string, index = 0) { await renderer.act(async () => { (buttons(name)[index]!.props.onPress as () => void)(); await Promise.resolve() }) }
 beforeEach(async () => {
-  vi.clearAllMocks(); useChatStore.setState({ messages: [makeHabitSuggestionMessage()] })
+  vi.clearAllMocks(); mocks.relationshipsLoaded = true; useChatStore.setState({ messages: [makeHabitSuggestionMessage()] })
   mocks.refine.mockReset().mockResolvedValue({ ...draft, title: 'Read one page' })
   mocks.preview.mockReset().mockResolvedValue({ response: makeHabitSuggestionPreview() })
   mocks.confirm.mockReset().mockResolvedValue({ ok: true, response: { operation: { ...makeHabitSuggestionPreview().operation, status: 'Succeeded' } } })
@@ -105,11 +105,12 @@ describe('habit suggestion actions on Android', () => {
   })
   it('shows the current and proposed schedules and edits the existing habit', async () => {
     const message = makeHabitSuggestionMessage()
+    mocks.relationshipsLoaded = false
     const adjustment = { ...draft, existingHabitId: '33333333-3333-4333-8333-333333333333' }
     message.parts = [{ type: 'block', kind: 'habitSuggestions', block: { language: 'pt-BR', drafts: [adjustment] } }]
     useChatStore.setState({ messages: [message] }); await i18n.changeLanguage('pt-BR'); await mount()
     expect(content()).toContain('Já existe'); expect(content()).toContain('Atual'); expect(content()).toContain('6:00')
     await press('Editar')
-    expect(mocks.edit.mock.lastCall?.[0]).toMatchObject({ initialSuggestion: adjustment })
+    expect(mocks.edit.mock.lastCall?.[0]).toMatchObject({ initialSuggestion: adjustment, relationshipFieldsLoaded: false })
   })
 })

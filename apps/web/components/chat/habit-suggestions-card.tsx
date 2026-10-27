@@ -6,6 +6,7 @@ import type { ChatMessage, HabitSuggestionDraft, HabitSuggestionsCard as Suggest
 import { habitSuggestionSchedule, createUseHabitSuggestionView, type HabitSuggestionView } from '@orbit/shared/chat'
 import { useHabitSuggestionActions } from '@/hooks/use-habit-suggestion-actions'
 import { useChatCardOperation } from '@/hooks/use-chat-card-operation'
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitDetail } from '@/hooks/use-habits'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { IconButton } from '@/components/ui/icon-button'
@@ -21,6 +22,7 @@ const useHabitSuggestionView = createUseHabitSuggestionView({ useState, useSyncE
 function SuggestionRow({ draft, view, isOnline }: Readonly<{ draft: HabitSuggestionDraft; view: HabitSuggestionView; isOnline: boolean }>) {
   const t = useTranslations()
   const locale = useLocale()
+  const { displayTime } = useTimeFormat()
   const current = useHabitDetail(draft.existingHabitId ?? null)
   const disabled = view.disabled || !view.available(draft.id)
   const error = view.state.errors[draft.id]
@@ -28,14 +30,14 @@ function SuggestionRow({ draft, view, isOnline }: Readonly<{ draft: HabitSuggest
   return <div className="flex min-w-0 flex-col gap-2" data-suggestion-id={draft.id} aria-busy={view.state.busy === draft.id}>
     <div key={revision} className={revision ? 'habit-suggestion-swap' : undefined}>
       <Proposed proposed scope="block" inset label={t('chat.habitSuggestions.proposed')}>
-        <HabitBlockRow proposed title={draft.title} emoji={draft.emoji} meta={habitSuggestionSchedule(draft, locale, t)} reason={draft.reason} />
+        <HabitBlockRow proposed title={draft.title} emoji={draft.emoji} meta={habitSuggestionSchedule(draft, locale, t, displayTime)} reason={draft.reason} />
       </Proposed>
     </div>
     {draft.existingHabitId ? <div className="flex flex-col gap-2 text-xs text-[var(--fg-3)]">
       <span>{t('chat.habitSuggestions.existing')}</span>
       <div className="flex flex-wrap gap-3">
-        <div className="min-w-0 flex-1"><span className="text-[var(--fg-2)]">{t('chat.habitSuggestions.current')}</span><p>{current.data ? habitSuggestionSchedule(current.data, locale, t) : current.isError ? t('chat.habitSuggestions.scheduleError') : t('common.loading')}</p></div>
-        <div className="min-w-0 flex-1"><span className="text-[var(--fg-2)]">{t('chat.habitSuggestions.proposed')}</span><p>{habitSuggestionSchedule(draft, locale, t)}</p></div>
+        <div className="min-w-0 flex-1"><span className="text-[var(--fg-2)]">{t('chat.habitSuggestions.current')}</span><p>{current.data ? habitSuggestionSchedule(current.data, locale, t, displayTime) : current.isError ? t('chat.habitSuggestions.scheduleError') : t('common.loading')}</p></div>
+        <div className="min-w-0 flex-1"><span className="text-[var(--fg-2)]">{t('chat.habitSuggestions.proposed')}</span><p>{habitSuggestionSchedule(draft, locale, t, displayTime)}</p></div>
       </div>
       {current.isError ? <IconButton label={t('common.retry')} disabled={!isOnline} onClick={() => void current.refetch()}><RefreshCw size={20} /></IconButton> : null}
     </div> : null}

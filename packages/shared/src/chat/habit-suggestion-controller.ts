@@ -40,7 +40,7 @@ export class HabitSuggestionController {
       const refined = await actions.refine(draft, instruction.trim())
       if (!actions.isCurrent()) return
       actions.transition(message => replaceHabitSuggestion(message, draft.id, refined))
-      this.update({ tweaking: null, instruction: '', revisions: { ...this.state.revisions, [draft.id]: (this.state.revisions[draft.id] ?? 0) + 1 } })
+      this.update({ ...(this.state.tweaking === draft.id ? { tweaking: null, instruction: '' } : {}), revisions: { ...this.state.revisions, [draft.id]: (this.state.revisions[draft.id] ?? 0) + 1 } })
       this.retries.delete(draft.id)
     } catch {
       if (actions.isCurrent()) this.update({ errors: { ...this.state.errors, [draft.id]: 'chat.habitSuggestions.refineError' } })

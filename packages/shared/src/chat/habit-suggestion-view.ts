@@ -6,17 +6,17 @@ import type { HabitSuggestionActions } from './habit-suggestion-controller'
 import { HabitSuggestionController } from './habit-suggestion-controller'
 import { habitSuggestionStatus } from './habit-suggestions'
 import { computeHabitFrequencyLabel } from '../utils/habit-card-helpers'
-import { formatLocaleDate, formatLocaleTime } from '../utils/locale-format'
+import { formatLocaleDate } from '../utils/locale-format'
 import type { HabitDetail } from '../types/habit'
 
 type Schedule = Pick<HabitDetail, 'frequencyUnit' | 'frequencyQuantity' | 'days' | 'dueDate' | 'dueTime' | 'dueEndTime'> & Partial<Pick<HabitDetail, 'isGeneral' | 'isFlexible'>>
 
-export function habitSuggestionSchedule(schedule: Schedule, locale: string, t: (key: string, values?: Record<string, string | number | Date>) => string): string {
+export function habitSuggestionSchedule(schedule: Schedule, locale: string, t: (key: string, values?: Record<string, string | number | Date>) => string, displayTime: (value: string) => string): string {
   const cadence = computeHabitFrequencyLabel({ ...schedule, isFlexible: schedule.isFlexible ?? false, isGeneral: schedule.isGeneral ?? false }, t)
   const start = schedule.dueDate ? formatLocaleDate(schedule.dueDate, locale) : null
   if (schedule.isGeneral) return t('habits.form.noSchedule')
-  return [cadence, start, schedule.dueTime ? formatLocaleTime(schedule.dueTime, locale) : null,
-    schedule.dueEndTime ? formatLocaleTime(schedule.dueEndTime, locale) : null].filter(Boolean).join(' · ')
+  return [cadence, start, schedule.dueTime ? displayTime(schedule.dueTime) : null,
+    schedule.dueEndTime ? displayTime(schedule.dueEndTime) : null].filter(Boolean).join(' · ')
 }
 
 export interface HabitSuggestionView {
@@ -48,7 +48,9 @@ export function createUseHabitSuggestionView({ useState, useSyncExternalStore }:
     controller, state, drafts, disabled,
     editing: card.drafts.find(draft => draft.id === editing) ?? null,
     edit: setEditing,
-    applied: (id: string) => actions.transition(current => ({ ...current, appliedHabitSuggestions: [...(current.appliedHabitSuggestions ?? []), id] })),
+    applied: (id: string) => {
+      if (actions.isCurrent()) actions.transition(current => ({ ...current, appliedHabitSuggestions: [...(current.appliedHabitSuggestions ?? []), id] }))
+    },
     available: (id: string) => habitSuggestionStatus(message, id) === 'available',
     add: (id: string) => controller.preview(card.drafts.filter(draft => draft.id === id), false, message, actions),
     retry: (id: string) => controller.retry(id, message, actions),

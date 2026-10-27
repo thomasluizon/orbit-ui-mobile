@@ -6,6 +6,7 @@ import { habitSuggestionSchedule, createUseHabitSuggestionView, type HabitSugges
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { useHabitSuggestionActions } from '@/hooks/use-habit-suggestion-actions'
 import { useChatCardOperation } from '@/hooks/use-chat-card-operation'
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitDetail } from '@/hooks/use-habits'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -25,6 +26,7 @@ function SuggestionRow({ draft, view, isOnline }: Readonly<{ draft: HabitSuggest
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const { displayTime } = useTimeFormat()
   const current = useHabitDetail(draft.existingHabitId ?? null)
   const disabled = view.disabled || !view.available(draft.id)
   const error = view.state.errors[draft.id]
@@ -41,14 +43,14 @@ function SuggestionRow({ draft, view, isOnline }: Readonly<{ draft: HabitSuggest
   return <View testID={`suggestion-${draft.id}`} style={{ minWidth: 0, gap: 8 }} accessibilityState={{ busy: view.state.busy === draft.id }}>
     <Animated.View style={{ opacity }}>
       <Proposed proposed scope="block" inset label={t('chat.habitSuggestions.proposed')}>
-        <HabitBlockRow proposed title={draft.title} emoji={draft.emoji} meta={habitSuggestionSchedule(draft, i18n.language, t)} reason={draft.reason} />
+        <HabitBlockRow proposed title={draft.title} emoji={draft.emoji} meta={habitSuggestionSchedule(draft, i18n.language, t, displayTime)} reason={draft.reason} />
       </Proposed>
     </Animated.View>
     {draft.existingHabitId ? <View style={{ gap: 8 }}>
       <Text style={{ fontSize: 12, color: tokens.fg3 }}>{t('chat.habitSuggestions.existing')}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-        <View style={{ flex: 1, minWidth: 0 }}><Text style={{ fontSize: 12, color: tokens.fg2 }}>{t('chat.habitSuggestions.current')}</Text><Text style={{ fontSize: 12, color: tokens.fg3 }}>{current.data ? habitSuggestionSchedule(current.data, i18n.language, t) : current.isError ? t('chat.habitSuggestions.scheduleError') : t('common.loading')}</Text></View>
-        <View style={{ flex: 1, minWidth: 0 }}><Text style={{ fontSize: 12, color: tokens.fg2 }}>{t('chat.habitSuggestions.proposed')}</Text><Text style={{ fontSize: 12, color: tokens.fg3 }}>{habitSuggestionSchedule(draft, i18n.language, t)}</Text></View>
+        <View style={{ flex: 1, minWidth: 0 }}><Text style={{ fontSize: 12, color: tokens.fg2 }}>{t('chat.habitSuggestions.current')}</Text><Text style={{ fontSize: 12, color: tokens.fg3 }}>{current.data ? habitSuggestionSchedule(current.data, i18n.language, t, displayTime) : current.isError ? t('chat.habitSuggestions.scheduleError') : t('common.loading')}</Text></View>
+        <View style={{ flex: 1, minWidth: 0 }}><Text style={{ fontSize: 12, color: tokens.fg2 }}>{t('chat.habitSuggestions.proposed')}</Text><Text style={{ fontSize: 12, color: tokens.fg3 }}>{habitSuggestionSchedule(draft, i18n.language, t, displayTime)}</Text></View>
       </View>
       {current.isError ? <IconButton label={t('common.retry')} disabled={!isOnline} onPress={() => void current.refetch()}><RefreshCw size={20} color={tokens.fg2} /></IconButton> : null}
     </View> : null}

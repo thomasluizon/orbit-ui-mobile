@@ -185,15 +185,15 @@ verification tasks.
 `components/chat/habit-suggestions-card.tsx` and `habit-suggestion-editor.tsx` own the
 paired web and Android suggestion surfaces. Each draft reuses `HabitBlockRow` and its
 emoji tile, title and schedule metadata, with the supplied reason on one quiet line.
-The proposed row retains its inset dashed outline. Its four named icon actions are
+Schedule times use the account clock preference. The proposed row retains its inset dashed outline. Its four named icon actions are
 Add, Edit, Tweak and Swap. Add all is the primary pill below the remaining drafts.
 
 | Surface | States and behavior |
 | --- | --- |
 | Add | Requests one pending preview through the single-draft endpoint, focuses the existing preview and waits for approval. Pending and uncertain previews keep their slots reserved. Rejection makes the draft available again. |
 | Add all | Sends all available drafts in one request for one pending preview. Applied drafts and slots already held by another preview are excluded. An indexed conflict stays under its draft with Retry; every draft remains intact. |
-| Edit | Opens the existing complete creation or edit form with the draft's type, emoji, schedule, reminder and checklist prefilled. Existing-habit identity and unrelated settings stay with the edit form. The person's explicit form submission retains the ordinary form save behavior. |
-| Tweak | Opens the single-line prompt under its draft. Submission sends that draft and instruction, replaces only that slot and retains neighboring rows. Failure keeps the draft and instruction with a visible Retry. |
+| Edit | Opens the existing complete creation or edit form with the draft's type, emoji, schedule, reminder and checklist prefilled. Existing-habit identity and unrelated settings stay with the edit form. Unloaded relationship fields retain the form's unknown state and are omitted unless explicitly edited. The person's explicit form submission retains the ordinary form save behavior. |
+| Tweak | Opens the single-line prompt under its draft. Submission sends that draft and instruction, replaces only that slot and retains neighboring rows and an instruction being typed under another card. Failure keeps the draft and instruction with a visible Retry. |
 | Swap | Sends the localized request for another idea for the same slot through refinement. The replacement cross-fades at the fast motion duration to prevent a jarring change; reduced motion settles immediately. |
 | Existing habit | Shows the localized Already exists label and the loaded current schedule beside the proposed schedule. A failed current read has its own Retry; editing waits for the current habit. |
 | Completed and offline | Completed slots leave the available draft set. Offline keeps the ideas visible and disables remote actions with a localized reason. |

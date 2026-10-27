@@ -3,6 +3,8 @@ import { habitSuggestionDraftSchema } from '../types/habit-suggestions'
 import { chatResponseSchema } from '../types/chat'
 import { HabitSuggestionController, type HabitSuggestionActions } from '../chat/habit-suggestion-controller'
 import { habitSuggestionCreateValues, habitSuggestionStatus } from '../chat/habit-suggestions'
+import { habitSuggestionSchedule } from '../chat/habit-suggestion-view'
+import { createTimeDisplay } from '../utils/locale-format'
 import { buildChatClientContext } from '../chat/client-context'
 import { habitSuggestionDraftFixture as draft, habitSuggestionsFixture as card, makeHabitSuggestionMessage, makeHabitSuggestionPreview } from '../test-support/habit-suggestion-fixtures'
 
@@ -28,9 +30,15 @@ describe('habit suggestion contract and card state', () => {
       dueDate: draft.dueDate, frequencyUnit: 'Day', frequencyQuantity: 1, reminderEnabled: true, emoji: '📖', checklistItems: [{ text: 'Choose a book', isChecked: false }, { text: 'Read a page', isChecked: false }] })
     expect(habitSuggestionCreateValues({ ...draft, type: 'Task', frequencyUnit: null, frequencyQuantity: null, reminderMinutesBefore: null })).toMatchObject({ itemType: 'task', reminderEnabled: false })
   })
+  it('uses the account clock preference for suggested and current times', () => {
+    const display = createTimeDisplay('pt-BR', false)
+    expect(habitSuggestionSchedule(draft, 'pt-BR', key => key, display.displayTime)).toContain('10:00 PM')
+  })
   it('refines only one slot and retains the other draft identity', async () => {
     const { controller, actions, message } = setup()
+    controller.tweak(card.drafts[1]!.id); controller.setInstruction('later in the evening')
     await controller.refine(draft, 'one page', actions)
+    expect(controller.getSnapshot()).toMatchObject({ tweaking: card.drafts[1]!.id, instruction: 'later in the evening' })
     const part = message().parts?.[0]
     expect(part?.type === 'block' && part.kind === 'habitSuggestions' && part.block.drafts[1]).toBe(card.drafts[1])
     expect(actions.refine).toHaveBeenCalledExactlyOnceWith(draft, 'one page')
