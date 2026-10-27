@@ -32,7 +32,7 @@ export function PreviewItemTitle(props: Readonly<PreviewItemTitleProps>) {
 }
 
 const styles = StyleSheet.create({
-  row: { minHeight: TOUCH_TARGET_MIN, minWidth: 0, marginHorizontal: -8, flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },
+  row: { minHeight: TOUCH_TARGET_MIN, minWidth: 0, marginHorizontal: -8, flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 12, overflow: 'hidden', paddingHorizontal: 8, paddingVertical: 4 },
   words: { flex: 1, minWidth: 0, gap: 4 },
   text: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19.6 },
 })
