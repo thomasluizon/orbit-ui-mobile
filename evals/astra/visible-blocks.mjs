@@ -3,7 +3,7 @@ import { tsImport } from 'tsx/esm/api'
 const shared = Object.assign({}, ...await Promise.all([
   'chat/account-rows-core', 'chat/metrics-card-core', 'chat/habit-ranking-core', 'chat/habit-list-core',
   'chat/day-summary-core', 'chat/read-block-core', 'chat/record-list-core', 'chat/answer-block-controller',
-  'utils/goal-metrics', 'utils/progress', 'utils/streak-week', 'utils/completion-series', 'types/chat',
+  'chat/gamification-card-core', 'utils/goal-metrics', 'utils/progress', 'utils/streak-week', 'utils/completion-series', 'types/chat',
 ].map((path) => tsImport(`../../packages/shared/src/${path}.ts`, import.meta.url))))
 
 function habitList(card, { t }) {
@@ -91,6 +91,34 @@ function streak(card, { t, locale, accountDate }) {
       .map((disc) => ({ name: t(`gamification.achievements.${disc.id}.name`), earned: disc.earnedAt != null })),
   }
 }
+function gamification(card, { t, locale }) {
+  const { profile, achievements, streak } = card.state
+  const presentation = streak ? shared.gamificationStreakPresentation(streak, card.read, locale, t) : null
+  return { title: t(shared.gamificationCardTitleKey(card)),
+    streak: presentation ? { title: t('progressScreen.sections.streak'), current: new Intl.NumberFormat(locale).format(streak.currentStreak), unit: t('progressScreen.streak.currentLabel', { count: streak.currentStreak }),
+      longest: { label: presentation.freeze.longestLabel, value: presentation.freeze.longestValue },
+      tier: { label: presentation.freeze.tierLabel, value: presentation.freeze.tierValue },
+      days: presentation.days.map((day, index) => ({ date: presentation.labels[index], status: presentation.dayWords[day.status] })),
+      banked: { label: presentation.freeze.words.bankedLabel, value: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated },
+      used: { label: presentation.freeze.words.usedLabel, value: streak.freezesUsedThisMonth },
+      next: streak.streakFreezesAccumulated < streak.maxStreakFreezesAccumulated ? presentation.freeze.words.nextFreezeProgress : undefined,
+      protected: { label: presentation.freeze.words.protectedLabel, days: presentation.freeze.protectedDays.map(day => ({ date: day.dateLabel, state: day.isToday ? presentation.freeze.words.protectedToday : presentation.freeze.words.protectedDay })),
+        empty: presentation.freeze.protectedDays.length === 0 ? presentation.freeze.words.protectedEmpty : undefined },
+    } : undefined,
+    level: profile ? t('progressScreen.achievements.level', { level: profile.level, title: t(shared.getGamificationLevelTitleKey(profile.level)) }) : undefined,
+    xp: profile ? t('progressScreen.achievements.xp', { current: profile.totalXp, next: profile.xpForNextLevel }) : undefined,
+    achievements: achievements?.achievements.map(achievement => {
+      const name = t(`gamification.achievements.${achievement.id}.name`)
+      const current = achievement.progressCurrent
+      const target = achievement.progressTarget
+      return { name, description: t(`gamification.achievements.${achievement.id}.description`),
+        state: t(achievement.isEarned ? 'progressScreen.achievements.earnedState' : 'progressScreen.achievements.unearnedState', { name }),
+        earned: achievement.isEarned ? t('progressScreen.achievements.earnedLabel') : undefined,
+        progress: current != null && target != null ? t('progressScreen.achievements.progress', { current, target }) : undefined }
+    }),
+    empty: achievements?.achievements.length === 0 ? t('progressScreen.achievements.empty') : undefined,
+  }
+}
 function calendar(card, { t, locale, timeFormat = '24h' }) {
   return { title: t('chat.calendarCard.title'), count: card.events.length,
     events: card.events.map((event) => ({ title: event.title,
@@ -139,7 +167,7 @@ function answerBlock(block, { t }, kind) {
     freeText: view.freeTextLabel, submit: view.submitLabel }
 }
 const renderers = { habitList, goalList, metrics, periodTotal, periodComparison, periodInsight, daySummary, streak,
-  calendar, recordList, accountRows, habitRanking, choice: (card, options) => answerBlock(card, options, 'choice'),
+  gamification, calendar, recordList, accountRows, habitRanking, choice: (card, options) => answerBlock(card, options, 'choice'),
   pickList: (card, options) => answerBlock(card, options, 'pickList') }
 
 function projectBlock(part, options) {

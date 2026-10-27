@@ -6,7 +6,7 @@ export { habitRankingCardSchema, habitRankingResponseSchema, type HabitRankingCa
 import { proactiveItemSchema } from './proactive'
 import type { ChatBlockKind } from '../chat/block-kinds'
 import { calendarMonthResponseSchema, frequencyUnitSchema } from './habit'
-import { completionSeriesSchema, retrospectiveHabitStatSchema } from './gamification'
+import { completionSeriesSchema, retrospectiveHabitStatSchema, gamificationProfileSchema, achievementSchema, streakInfoSchema } from './gamification'
 import {
   agentOperationResultSchema,
   pendingAgentOperationSchema,
@@ -379,6 +379,26 @@ export const streakCardSchema = z.object({
 
 export type StreakCard = z.infer<typeof streakCardSchema>
 
+export const gamificationCardSchema = z.object({
+  state: z.object({
+    profile: gamificationProfileSchema.extend({ levelTitleKey: z.string() }).nullable(),
+    achievements: z.object({ achievements: z.array(achievementSchema) }).nullable(),
+    streak: streakInfoSchema.extend({ repairsRemainingThisMonth: z.number() }).nullable(),
+  }),
+  surfaceId: z.string().default('progress'),
+  read: readBlockMetadataSchema.nullish(),
+})
+
+export type GamificationCard = z.infer<typeof gamificationCardSchema>
+
+export const gamificationReadBlockResponseSchema = z.object({
+  kind: z.literal('gamification'),
+  block: gamificationCardSchema,
+  read: readBlockMetadataSchema,
+})
+
+export type GamificationReadBlockResponse = z.infer<typeof gamificationReadBlockResponseSchema>
+
 export const calendarCardSchema = z.object({
   read: readBlockMetadataSchema.nullish(),
   events: z.array(z.object({
@@ -506,6 +526,7 @@ const chatBlockSchemas = {
   periodInsight: periodInsightCardSchema,
   daySummary: daySummaryCardSchema,
   streak: streakCardSchema,
+  gamification: gamificationCardSchema,
   calendar: calendarCardSchema,
   habitMonth: habitMonthCardSchema,
   recordList: recordListCardSchema,
@@ -531,6 +552,7 @@ export const chatPartSchema = z.union([
     blockPartSchema('periodInsight'),
     blockPartSchema('daySummary'),
     blockPartSchema('streak'),
+    blockPartSchema('gamification'),
     blockPartSchema('calendar'),
     blockPartSchema('habitMonth'),
     blockPartSchema('recordList'),
@@ -558,7 +580,7 @@ export const readBlockResponseSchema = z.discriminatedUnion('kind', [
 ])
 
 export type ReadBlockResponse = z.infer<typeof readBlockResponseSchema>
-export type ReadBlockSnapshot = ReadBlockResponse | HabitMonthReadBlockResponse
+export type ReadBlockSnapshot = ReadBlockResponse | HabitMonthReadBlockResponse | GamificationReadBlockResponse
 export type ReadBlockPart = Exclude<ChatBlockPart, { kind: 'choice' | 'pickList' | 'habitSuggestions' }>
 
 export const chatFollowUpSchema = z.object({

@@ -7,6 +7,7 @@ export const CHAT_BLOCK_KINDS = [
   'periodInsight',
   'daySummary',
   'streak',
+  'gamification',
   'calendar',
   'recordList',
   'accountRows',

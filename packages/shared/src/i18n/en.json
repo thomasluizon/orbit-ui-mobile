@@ -1784,6 +1784,10 @@
       "open": "Open Today",
       "rowCount": "{total, plural, one {{shown} of # habit shown} other {{shown} of # habits shown}}"
     },
+    "gamificationCard": {
+      "title": "Level and achievements",
+      "levelTitle": "Level"
+    },
     "streakCard": {
       "title": "Your streak and XP",
       "days": "Recent streak days",
