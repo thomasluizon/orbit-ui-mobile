@@ -51,6 +51,11 @@ describe('question block contract and state', () => {
     block.questions.forEach((question, index) => expect(isQuestionAnswered(question, invalid[index]!)).toBe(false))
     expect(isQuestionAnswered(block.questions[1]!, { questionId: 'activities', selectedIds: ['walk', 'walk'] })).toBe(false)
   })
+  it('retains a slider whose decimal span equals its step through the chat parser', () => {
+    const part = { type: 'block', kind: 'question', block: { ...block, questions: [{ ...block.questions[3]!, min: 0.1, max: 0.3, step: 0.2 }] } }
+    expect(chatPartSchema.parse(part)).toEqual(part)
+    expect(questionSliderValue(0.1, 0.3, 0.2, 1)).toBeCloseTo(0.3)
+  })
   it('snaps fractional slider positions to decimal steps from a negative minimum', () => {
     expect(Array.from({ length: 7 }, (_, index) => questionSliderValue(-0.3, 0.3, 0.1, index / 6))).toEqual([-0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3])
   })

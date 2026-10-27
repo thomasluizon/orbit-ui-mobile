@@ -35,7 +35,7 @@ export const questionSchema = z.discriminatedUnion('type', [
   z.strictObject({ ...base, type: z.literal('multipleChoice'), options: options.refine(values => values.every(value => !value.recommended)) }),
   z.strictObject({ ...base, type: z.literal('scale'), allowFreeText: z.literal(false), lowLabel: text(120), highLabel: text(120) }),
   z.strictObject({ ...base, type: z.literal('slider'), allowFreeText: z.literal(false), min: z.number().min(-1e9).max(1e9), max: z.number().min(-1e9).max(1e9), step: z.number().positive(), unit: text(24) })
-    .refine(value => value.max > value.min && value.step <= value.max - value.min && isOnQuestionStep(value.max, value.min, value.step)),
+    .refine(value => value.max > value.min && isOnQuestionStep(value.max, value.min, value.step)),
   z.strictObject({ ...base, type: z.literal('yesNo') }),
 ])
 
