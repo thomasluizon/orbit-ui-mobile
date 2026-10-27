@@ -14,6 +14,7 @@ import { buildHabitRowMetaTokens, HabitRowContent, MetaStrip, type HabitRowMetaT
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
 import { useHabitRowSupportingMeta, useHabitRowMetadataFit } from './use-habit-row-large-text'
+import { useHabitRowActivation } from './use-habit-row-activation'
 
 export type { HabitRowMetaToken }
 
@@ -306,14 +307,20 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
 }>) {
   const t = useTranslations()
   const contentId = useId()
+  const activation = useHabitRowActivation(onClick)
+  const reorder = habitRowReorderProps(onReorder, reorderInstructionsId, t('dragAndDrop.roleDescription'))
   const accessibleLabel = [label, meta.filter((token) => typeof token === 'string' || token.kind !== 'type').map((token) => typeof token === 'string' ? token : token.label).join('·')].filter(Boolean).join(' ')
   const layoutClass = supportingMeta ? 'grid grid-cols-subgrid grid-rows-subgrid' : 'flex'
   const paddingStyle = { ...rowPadding, gap: supportingMeta ? undefined : 12, rowGap: supportingMeta ? 0 : undefined, alignItems: largeText ? 'flex-start' : undefined }
   const control = (
       <button
         type="button"
-        onClick={onClick}
-        {...habitRowReorderProps(onReorder, reorderInstructionsId, t('dragAndDrop.roleDescription'))}
+        {...reorder}
+        {...activation}
+        onKeyDown={(event) => {
+          reorder.onKeyDown?.(event)
+          if (!event.defaultPrevented) activation.onKeyDown(event)
+        }}
         data-habit-row-body=""
         aria-label={accessibleLabel}
         aria-describedby={[descriptionId, reorderInstructionsId].filter(Boolean).join(' ')}
