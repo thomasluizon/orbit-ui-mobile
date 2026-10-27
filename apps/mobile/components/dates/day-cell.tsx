@@ -1,5 +1,6 @@
+import { MovingDaySelection } from './month-selection'
 import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
-import { useState } from 'react'
+import { useContext, useState } from 'react'
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared/utils'
 import { Pressable, StyleSheet, Text, View, type AccessibilityState } from 'react-native'
@@ -70,16 +71,20 @@ type MobileDayCellProps = DayCellProps & {
 }
 
 function DayCellCircle({ props, size, tokens, pressed, focused }: Readonly<{ props: DayCellProps; size: number; tokens: Tokens; pressed: boolean; focused: boolean }>) {
+  const moving = useContext(MovingDaySelection)
   const outcome = resolveDayCellOutcome(props)
   const contents = props.future
     ? <Text testID="day-future-numeral" style={[styles.numeral, { color: tokens.fg2 }]}>{props.day}</Text>
     : props.habitHistory
       ? <HabitHistoryContents props={props} outcome={outcome} size={34} tokens={tokens} pressed={pressed} />
       : <DayCellContents props={props} outcome={outcome} size={34} tokens={tokens} pressed={pressed} />
-  const ring = props.today || props.selected || focused || props.focused
+  const selectedFill = moving ? 'transparent' : tokens.selectionBg
+  const restingFill = props.loggable || props.raised ? tokens.bgWell : 'transparent'
+  const backgroundColor = props.selected ? selectedFill : pressed ? 'transparent' : restingFill
+  const ring = props.today || (props.selected && !moving) || focused || props.focused
     ? <View pointerEvents="none" testID={props.today ? 'day-today-ring' : 'day-selection-ring'} style={[styles.pressFill, { borderRadius: size / 2, borderColor: tokens.primary, borderWidth: 2 }]} />
     : null
-  return <View style={{ width: '100%', maxWidth: size }}><View testID="day-circle" style={[styles.container, { width: '100%', aspectRatio: 1, borderRadius: size / 2, overflow: 'hidden', backgroundColor: props.selected ? tokens.selectionBg : pressed ? 'transparent' : props.loggable || props.raised ? tokens.bgWell : 'transparent' }]}>
+  return <View style={{ width: '100%', maxWidth: size }}><View testID="day-circle" style={[styles.container, { width: '100%', aspectRatio: 1, borderRadius: size / 2, overflow: 'hidden', backgroundColor }]}>
     {pressed && !props.selected ? <PressFill size={size} tokens={tokens} /> : null}
     {contents}
     {ring}

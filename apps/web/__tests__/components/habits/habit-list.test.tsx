@@ -41,7 +41,7 @@ const dragLocale = vi.hoisted(() => ({ portuguese: false, english: false }))
 const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined, hasProAccess: true }))
 const accountHabitCount = vi.hoisted(() => ({ count: 0, isLoaded: true }))
 const setFrequencyFilters = vi.hoisted(() => vi.fn())
-const moveControllerOwner = vi.hoisted(() => ({ loaded: vi.fn(), initialize: vi.fn() }))
+const moveControllerOwner = vi.hoisted(() => ({ loaded: vi.fn(), initialize: vi.fn(), mounted: vi.fn() }))
 const moveModuleLoad = vi.hoisted(() => ({
   generation: 0, hold: null as Promise<void> | null, pending: null as Promise<unknown> | null, requested: vi.fn(), ready: vi.fn(),
 }))
@@ -77,6 +77,15 @@ vi.mock('@orbit/shared/hooks/move-parent-core', async (importOriginal) => {
   return { ...actual, createMoveParentState: () => {
     moveControllerOwner.initialize()
     return actual.createMoveParentState()
+  } }
+})
+
+vi.mock('@/components/habits/habit-list/move-parent-controller', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/habit-list/move-parent-controller')>()
+  const { useEffect } = await import('react')
+  return { ...actual, MoveParentController: function MountedController(props: React.ComponentProps<typeof actual.MoveParentController>) {
+    useEffect(() => { moveControllerOwner.mounted() }, [])
+    return <actual.MoveParentController {...props} />
   } }
 })
 
@@ -831,7 +840,7 @@ describe('HabitList', () => {
     else await screen.findByTestId('move-source')
     fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
     expect(onBulkMove).toHaveBeenCalledOnce()
-    expect(moveControllerOwner.initialize).toHaveBeenCalledOnce()
+    expect(moveControllerOwner.mounted).toHaveBeenCalledOnce()
     await act(async () => { releaseMove({ results: [
       { index: 0, habitId: 'source', status: 'Success' },
       { index: 1, habitId: 'past', status: 'Failed', error: 'Move refused by server' },
@@ -848,7 +857,7 @@ describe('HabitList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(onBulkMove).toHaveBeenNthCalledWith(2, ['past'], 'future')
-    expect(moveControllerOwner.initialize).toHaveBeenCalledOnce()
+    expect(moveControllerOwner.mounted).toHaveBeenCalledOnce()
   })
 
   it.each(['single', 'bulk'] as const)('captures the %s source before a delayed Move import and a changed view', async (entry) => {
@@ -1151,7 +1160,7 @@ describe('HabitList', () => {
     const disclosure = container.querySelector<HTMLButtonElement>('[data-habit-title="Branch"] [data-habit-row-control="disclosure"]')!
     if (width !== 320 || textScale === 1) {
       fireEvent.click(disclosure)
-      expect(container.querySelector('[data-habit-title="Grandchild"]')).toBeNull()
+      expect(container.querySelector('[data-habit-title="Grandchild"]')?.closest('[inert]')).not.toBeNull()
       fireEvent.click(disclosure)
       expect(container.querySelector('[data-habit-title="Grandchild"]')).toBeInTheDocument()
     }
@@ -1583,6 +1592,7 @@ describe('HabitList', () => {
     mockHabitsData.topLevelHabits = [parent, single]
     const { container } = renderWithProviders(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
     fireEvent.click(screen.getByRole('button', { name: 'common.collapse' }))
+    await waitFor(() => expect(container.querySelector('[data-motion-disclosure]')).toHaveAttribute('hidden'))
     const cssPath = resolve(process.cwd(), 'app/globals.css')
     const stylesheet = await postcss([tailwind()]).process(readFileSync(cssPath, 'utf8'), { from: cssPath })
     const launch = launchChrome()
@@ -1639,6 +1649,7 @@ describe('HabitList', () => {
           if (panel.track) expect(contrastOnSurface(panel.track, [panel.canvas, panel.card])).toBeGreaterThanOrEqual(3)
         }
         fireEvent.click(screen.getByRole('button', { name: 'common.expand' }))
+        await waitFor(() => expect(container.querySelector('[data-motion-disclosure] > div')).toHaveStyle({ height: 'auto' }))
         await page.setContent(`<html class="${mode}"><style>${stylesheet.css}:root{${variables}}</style><body style="background:var(--bg)">${container.innerHTML}</body></html>`)
         const gaps = await page.locator('[data-testid="habit-row"]').evaluateAll((rows) => {
           const bounds = rows.map((row) => row.getBoundingClientRect()).filter((row) => row.height > 0)
@@ -1804,7 +1815,9 @@ describe('HabitList', () => {
     expect(disclosure).toHaveAccessibleName('common.expand')
     expect(disclosure).toHaveAttribute('aria-expanded', 'false')
     expect(disclosure).toHaveAttribute('aria-controls', panelId)
-    expect(screen.queryByText(personalText(child.title))).toBeNull()
+    expect(document.getElementById(panelId)).toHaveAttribute('inert')
+    expect(document.getElementById(panelId)).toHaveAttribute('aria-hidden', 'true')
+    await waitFor(() => expect(screen.queryByText(personalText(child.title))).toBeNull())
     expect(document.getElementById(panelId)).not.toBeVisible()
     expect(screen.getByText(personalText(secondChild.title))).toBeInTheDocument()
 
@@ -2183,7 +2196,7 @@ describe('HabitList', () => {
       vi.advanceTimersByTime(1400)
     })
 
-    expect(screen.queryByTestId('habit-card-h-1')).toBeNull()
+    expect(screen.getByTestId('habit-card-h-1').closest('[inert]')).not.toBeNull()
     result.unmount()
     setTimeoutSpy.mockRestore()
     vi.useRealTimers()

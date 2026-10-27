@@ -29,7 +29,7 @@ function AnswerOptions({ view, controller }: Pick<AnswerContentProps, 'view' | '
         {...(view.disabled ? { disabled: true as const, reasonScope: 'group' as const } : { disabled: false as const })} />
     : <Proposed appearance="plain" key={option.id} proposed={option.proposed} scope="row" label={view.proposedLabel} inset keepMounted>
         {option.personal ? <HabitBlockRow proposed={option.proposed} title={option.label} meta={option.description} expanded={option.expanded}
-          onOpen={() => controller.toggleExpanded(option.id)} control={<Pressable data-slot="check-row-control" accessibilityRole="checkbox" accessibilityLabel={option.label} accessibilityState={{ checked: option.selected, disabled: view.disabled }} disabled={view.disabled} onPress={() => controller.check(option.id, !option.selected)} style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}><HabitCheck status={option.selected ? 'done' : 'empty'} /></Pressable>} />
+          onOpen={() => controller.toggleExpanded(option.id)} control={<Pressable data-slot="check-row-control" accessibilityRole="checkbox" accessibilityLabel={option.label} accessibilityState={{ checked: option.selected, disabled: view.disabled }} disabled={view.disabled} onPress={() => controller.check(option.id, !option.selected)} style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>{({ pressed }) => <HabitCheck status={option.selected ? 'done' : 'empty'} feedback={pressed && !view.disabled} />}</Pressable>} />
           : <CheckRow selection wrapLabel label={option.label} description={option.description} checked={option.selected} disabled={view.disabled} onChange={checked => controller.check(option.id, checked)} />}
       </Proposed>)
 }

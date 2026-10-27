@@ -42,7 +42,7 @@ export const MotionPressable = forwardRef<View, Readonly<MotionPressableProps>>(
           transform: [{ scale: !props.disabled && !prefersReducedMotion && (pressed || active) ? orbitalMotion.press.scale : 1 }],
           transitionProperty: ['transform', 'backgroundColor'],
           transitionDuration: prefersReducedMotion ? motionDurations.instant : motionDurations.press,
-          transitionTimingFunction: `cubic-bezier(${motionEasings.standard.join(',')})`,
+          transition: `transform ${prefersReducedMotion ? 0 : motionDurations.press}ms cubic-bezier(${motionEasings.standard.join(',')})`,
         },
       ]}
     >

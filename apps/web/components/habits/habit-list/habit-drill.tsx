@@ -4,6 +4,7 @@ import { IconButton } from '@/components/ui/icon-button'
 
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
+import { ListMotionItem, ListPresence } from '@/components/motion/list-motion'
 import { useState, type ReactNode } from 'react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { useDrillNavigation } from '@/hooks/use-drill-navigation'
@@ -152,16 +153,16 @@ export function HabitDrill({
             </>
           ) : (
             <div className="flex min-w-0 flex-col gap-3">
-              {drill.drillChildren.map((child) => {
+              <ListPresence>{drill.drillChildren.map((child) => {
                 const nestedChildren = drill.getDrillChildren(child.id)
-                return renderHabitCard(
+                return <ListMotionItem key={child.id}>{renderHabitCard(
                   child,
                   0,
                   nestedChildren.length > 0,
                   child.hasSubHabits || nestedChildren.length > 0,
                   { isDrillCard: true },
-                )
-              })}
+                )}</ListMotionItem>
+              })}</ListPresence>
               {addRow}
             </div>
           )}

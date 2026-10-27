@@ -105,7 +105,7 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
       wrapLabel: true,
       meta: details.join(' · '),
       wrapMeta: true,
-      control: unread ? <Pressable accessibilityRole="button" accessibilityLabel={t('notifications.markRead', { title: item.title })} onPress={() => void markNotification(item.id)} style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' }}><Check size={20} strokeWidth={1.8} color={tokens.fg2} /></Pressable> : undefined,
+      control: unread ? <Pressable accessibilityRole="button" accessibilityLabel={t('notifications.markRead', { title: item.title })} onPress={() => void markNotification(item.id)} style={({ pressed }) => ({ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 20, backgroundColor: pressed ? tokens.bgHover : 'transparent', alignItems: 'center', justifyContent: 'center' })}><Check size={20} strokeWidth={1.8} color={tokens.fg2} /></Pressable> : undefined,
     }
   })
   return <View style={{ width: '100%' }}>

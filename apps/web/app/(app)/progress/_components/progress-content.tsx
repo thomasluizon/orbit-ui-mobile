@@ -1,5 +1,6 @@
 'use client'
 
+import { ListMotionItem, ListPresence } from '@/components/motion/list-motion'
 import { IconButton } from '@/components/ui/icon-button'
 import { SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 
@@ -428,7 +429,7 @@ function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
       style={{
         translate: transform ? `${transform.x}px ${transform.y}px` : undefined,
         transform: transform ? `scaleX(${transform.scaleX}) scaleY(${transform.scaleY})` : undefined,
-        transition: 'background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), scale 150ms var(--ease-out)',
+        transition: 'background-color var(--dur-hover) var(--ease-standard), box-shadow var(--dur-hover) var(--ease-standard), scale var(--dur-press) var(--ease-out)',
       }}
       aria-roledescription={canReorder ? attributes['aria-roledescription'] : undefined}
       aria-describedby={canReorder ? attributes['aria-describedby'] : undefined}
@@ -501,14 +502,12 @@ function GoalsSection({ goals, onOpenGoal, onCreate, filter, setFilter }: Readon
           onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} /></Menu.Root> : null}
       {goals.length === 0 ? <GoalsEmptyState onCreate={onCreate} inSection /> : null}
       {goals.length > 0 && filtered.length === 0 ? <div data-goals-empty className="flex flex-col items-start gap-2 rounded-[12px] bg-[var(--bg-well)] p-4"><p className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.filterEmpty')}</p><PillButton variant="ghost" size="sm" minimumHeight={48} onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></div> : null}
-      {filtered.length > 0 ? (
-        <DndContext accessibility={dragAccessibility} sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
-          {filtered.map((goal) => {
+      <DndContext accessibility={dragAccessibility} sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
+          <ListPresence>{filtered.map((goal) => {
             const index = goals.findIndex((item) => item.id === goal.id)
-            return <GoalCard key={goal.id} goal={goal} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} onMove={move} onOpen={() => onOpenGoal(goal.id)} />
-          })}
+            return <ListMotionItem key={goal.id}><GoalCard goal={goal} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} onMove={move} onOpen={() => onOpenGoal(goal.id)} /></ListMotionItem>
+          })}</ListPresence>
         </div></SortableContext></DndContext>
-      ) : null}
       {reorderAnnouncements.map((message, index) => (
         <p key={index} role="status" aria-live="polite" aria-atomic="true" data-testid="goal-reorder-status" className="sr-only">{message}</p>
       ))}

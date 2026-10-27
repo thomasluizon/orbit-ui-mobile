@@ -88,7 +88,7 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
       wrapLabel: true,
       meta: details.join(' · '),
       wrapMeta: true,
-      control: unread ? <button type="button" aria-label={t('notifications.markRead', { title: item.title })} className="grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" onClick={() => void markNotification(item.id)}><Check size={20} strokeWidth={1.8} aria-hidden="true" /></button> : undefined,
+      control: unread ? <button type="button" aria-label={t('notifications.markRead', { title: item.title })} className="grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" onClick={() => void markNotification(item.id)}><Check size={20} strokeWidth={1.8} aria-hidden="true" /></button> : undefined,
     }
   })
   return <div className="w-full">

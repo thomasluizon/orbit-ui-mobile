@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 
 export function measureSplitSegmentWords(): string[] {
-  return [...document.querySelectorAll('[role="radio"] > span, [data-segmented-control] [data-menu-trigger] > span, [role="menu"] .orbit-menu-label')].flatMap((label) => {
+  return [...document.querySelectorAll('[role="radio"] > span:not([aria-hidden="true"]), [data-segmented-control] [data-menu-trigger] > span, [role="menu"] .orbit-menu-label')].flatMap((label) => {
     const text = label.firstChild!
     return [...text.textContent!.matchAll(/\S+/g)].filter((word) => {
       const range = document.createRange()

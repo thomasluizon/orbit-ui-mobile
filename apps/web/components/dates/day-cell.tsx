@@ -2,7 +2,9 @@
 
 import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 
-import type { CSSProperties } from 'react'
+import { useContext, type CSSProperties, type ReactNode } from 'react'
+import { MovingDaySelection } from './month-selection'
+import { SelectionIndicator } from '@/components/ui/selection-indicator'
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared/utils'
 
@@ -96,6 +98,7 @@ function HabitHistoryContents({ props, outcome, size }: Readonly<{ props: DayCel
 }
 
 export function DayCell(props: Readonly<DayCellProps>) {
+  const selectionId = useContext(MovingDaySelection)
   const outcome = resolveDayCellOutcome(props)
   const size = props.size ?? MONTH_GRID_TARGET_MIN
   const statusSize = 34
@@ -113,16 +116,7 @@ export function DayCell(props: Readonly<DayCellProps>) {
     : props.habitHistory
       ? <HabitHistoryContents props={props} outcome={outcome} size={statusSize} />
       : <DayCellContents props={props} outcome={outcome} size={statusSize} />
-  const circle = <span
-    data-day-circle=""
-    className={'orbit-day-circle relative inline-flex items-center justify-center ' + (props.selected ? 'orbit-day-selected' : props.loggable || props.raised ? 'orbit-day-well' : '')}
-    style={{ width: '100%', maxWidth: size, aspectRatio: 1, borderRadius: size / 2 }}
-  >
-    <PressFill selected={props.selected} />
-    {contents}
-    <span aria-hidden="true" data-day-position-ring="" className="pointer-events-none absolute inset-0"
-      style={{ borderRadius: 'inherit', boxShadow: `var(--day-focus-ring, ${props.today || props.selected ? 'inset 0 0 0 2px var(--primary)' : 'none'})` }} />
-  </span>
+  const circle = <DayCellCircle props={props} size={size} contents={contents} selectionId={selectionId} />
 
   if (interactive) {
     return <button {...commonProps} type="button" onClick={props.onPress}
@@ -133,4 +127,18 @@ export function DayCell(props: Readonly<DayCellProps>) {
   }
   return <span {...commonProps} role="img" aria-hidden={props.outsideMonth ? true : undefined}
     className="inline-flex shrink-0 items-center justify-center">{circle}</span>
+}
+
+function DayCellCircle({ props, size, contents, selectionId }: Readonly<{ props: DayCellProps; size: number; contents: ReactNode; selectionId: string | null }>) {
+  return <span
+    data-day-circle=""
+    className={'orbit-day-circle isolate relative inline-flex items-center justify-center ' + (props.selected ? selectionId ? '' : 'orbit-day-selected' : props.loggable || props.raised ? 'orbit-day-well' : '')}
+    style={{ width: '100%', maxWidth: size, aspectRatio: 1, borderRadius: size / 2 }}
+  >
+    {props.selected && selectionId ? <SelectionIndicator id={selectionId} calendar /> : null}
+    <PressFill selected={props.selected} />
+    {contents}
+    <span aria-hidden="true" data-day-position-ring="" className="pointer-events-none absolute inset-0"
+      style={{ borderRadius: 'inherit', boxShadow: `var(--day-focus-ring, ${props.today || (props.selected && !selectionId) ? 'inset 0 0 0 2px var(--primary)' : 'none'})` }} />
+  </span>
 }

@@ -1,3 +1,5 @@
+import { ContentFade } from '@/components/motion/content-fade'
+import { createListCellMotion, useListLayoutMotion } from '@/lib/list-motion'
 import { TodayLaunchContent } from '@/components/today/today-launch-content'
 import { getFriendlyErrorMessage, isTodayLaunchCache } from '@orbit/shared/utils'
 import { getMoveParentInventory } from '@orbit/shared/utils/move-parent'
@@ -769,6 +771,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const activeDragItems = dragOverrideItems ?? flatItems
+    const reducedListMotion = useListLayoutMotion(JSON.stringify([isLoading, activeDragItems.map((item) => item.id), drill.drillChildren.map((item) => item.id)]), isDraggingList)
+    const cellMotion = useMemo(() => createListCellMotion(reducedListMotion), [reducedListMotion])
     const activeDragItemsRef = useRef(activeDragItems)
     useEffect(() => {
       activeDragItemsRef.current = activeDragItems
@@ -1511,9 +1515,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       ],
     )
 
-    /* No Reanimated entering animation here: a layout animation nested inside a
-       react-native-draggable-flatlist cell fights the cell's own translateY transform
-       and mis-positions rows. https://github.com/thomasluizon/orbit-ui-mobile/pull/486 */
     const renderItem = useCallback(
       ({ item, drag, getIndex }: RenderItemParams<DragItem>) => {
         const index = getIndex() ?? 0
@@ -1678,7 +1679,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     if (isLoading) {
       return (
         <>
-          <FlatList
+          <ContentFade key="loading" fill><FlatList
             ref={stateListRef}
             onFocus={revealListFocus}
             onScroll={handleListScroll}
@@ -1696,7 +1697,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             onScrollBeginDrag={onScrollBeginDrag}
             accessibilityState={{ busy: true }}
             showsVerticalScrollIndicator={false}
-          />
+          /></ContentFade>
           {commonOverlays}
         </>
       )
@@ -1752,7 +1753,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }
 
     if (view === 'all') return <>
-      <FlatList
+      <ContentFade key="all" fill><FlatList
         ref={allListRef}
         onFocus={revealListFocus}
         testID="habit-list-all"
@@ -1773,13 +1774,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         scrollEventThrottle={16}
         onScrollBeginDrag={onScrollBeginDrag}
         showsVerticalScrollIndicator={false}
-      />
+      /></ContentFade>
       {commonOverlays}
     </>
 
     return (
       <>
-        <DraggableFlatList
+        <ContentFade key="habits" fill><DraggableFlatList
+          {...cellMotion}
           ref={scrollContainerRef}
           onLayout={measureList}
           onFocus={revealListFocus}
@@ -1804,7 +1806,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           initialNumToRender={10}
           maxToRenderPerBatch={8}
           windowSize={11}
-        />
+        /></ContentFade>
         {commonOverlays}
       </>
     )
