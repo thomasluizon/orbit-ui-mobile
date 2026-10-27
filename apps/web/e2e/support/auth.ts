@@ -1,8 +1,10 @@
 import { expect, type Page } from '@playwright/test'
 import { smokeEnv } from './env'
 import { openSignIn } from './sign-in-entry'
+import { installTurnstileStub } from './turnstile'
 
 export async function authenticate(page: Page): Promise<void> {
+  await installTurnstileStub(page)
   await openSignIn(page)
 
   await page.locator('input[name="email"]').fill(smokeEnv.testEmail)
