@@ -147,7 +147,7 @@ describe('sub-screen start edges in isolated Chromium', () => {
             return { ...owner, back: bounds(back), body: bounds(body), box: bounds(content.firstElementChild!) }
           }, state)
           expect.soft(Math.abs(geometry.body.left - geometry.box.left - 16)).toBeLessThanOrEqual(0.5)
-          expect.soft(geometry.column.width).toBe(width < 1024 ? width : 740)
+          expect.soft(geometry.column.width).toBe(Math.min(width, 740))
           expect.soft(geometry.content.width).toBeLessThanOrEqual(740)
           expect.soft(geometry.column.left + geometry.column.width / 2).toBe(width / 2)
           // WHY: #1570 centres the capped column inside the usable scroller. https://github.com/thomasluizon/orbit-tickets/issues/1570
