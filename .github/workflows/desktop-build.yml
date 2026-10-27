@@ -59,7 +59,7 @@ jobs:
       - name: Report Windows PowerShell version
         if: runner.os == 'Windows'
         shell: powershell
-        run: $PSVersionTable.PSVersion.ToString()
+        run: $PSVersionTable
       - name: Cache Windows App SDK downloads
         if: runner.os == 'Windows'
         uses: actions/cache@v6

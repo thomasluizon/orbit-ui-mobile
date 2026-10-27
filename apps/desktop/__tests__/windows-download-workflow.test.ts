@@ -23,7 +23,7 @@ it.each(['desktop-build', 'desktop-release'])('%s restores verified downloads be
   const host = steps.find(step => step.name === 'Report Windows PowerShell version')!
   expect(host.shell).toBe('powershell')
   expect(host.if).toBe("runner.os == 'Windows'")
-  expect(host.run).toContain('$PSVersionTable.PSVersion')
+  expect(host.run).toContain('$PSVersionTable')
 })
 
 it('keeps web releases on the reusable desktop test and publication paths', () => {
