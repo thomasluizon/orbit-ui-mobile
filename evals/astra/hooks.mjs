@@ -20,7 +20,7 @@ function persistResults(results, expectedCases) {
   return { summary, markdown: writeReport(summary) }
 }
 
-export function beforeAll({ suite }) {
+export async function beforeAll({ suite }) {
   completedResults = []
   selectedCases = suite.tests.map((test) => test.metadata)
   persistResults(completedResults, selectedCases)
@@ -31,6 +31,24 @@ export function beforeAll({ suite }) {
   apiOrigin()
   readCredentials()
   if (process.env.ORBIT_EVAL_OVERDUE_DATE && !/^\d{4}-\d{2}-\d{2}$/.test(process.env.ORBIT_EVAL_OVERDUE_DATE)) throw new Error('ORBIT_EVAL_OVERDUE_DATE must be an ISO calendar date.')
+  await requireUnmeteredAccounts(suite.tests)
+}
+
+async function requireUnmeteredAccounts(tests) {
+  for (const key of new Set(tests.map((test) => test.vars.credentialKey))) {
+    await refreshCredential(key)
+    try {
+      const response = await fetch(`${apiOrigin()}/api/config`, {
+        method: 'GET', headers: { Authorization: `Bearer ${process.env[key]}`, 'api-version': '2.0' },
+        redirect: 'error', signal: AbortSignal.timeout(120000),
+      })
+      if (!response.ok || (await response.json())?.features?.astra_eval_unmetered?.enabled !== true) {
+        throw new Error('Unmetered eval access is unavailable.')
+      }
+    } catch {
+      throw new Error(`Eval preflight failed: turn on astra_eval_unmetered for ${key} through /flag on staging, then verify /api/config and retry.`)
+    }
+  }
 }
 
 export async function beforeEach({ test }) {

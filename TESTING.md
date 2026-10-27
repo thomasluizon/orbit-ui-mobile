@@ -164,8 +164,13 @@ Workers compile these specs and run the repository's Vitest suites, including th
 It pins promptfoo, uses its maintained HTTP provider, and sends multipart `message`, `clientContext` and
 `history` fields to `POST /api/chat`. The server selects Astra's model. The superseded model
 comparison is absent; this harness cannot override that selection. D147 selects `gpt-6-luna`
-at low effort with the existing per-user daily ceiling. Do not increase quotas or backstops
-to finish an eval run.
+at low effort. Before a staging run, turn on the plain `astra_eval_unmetered` flag for every
+selected eval account through `/flag`, keeping global enablement off. This flag resolves on
+only in staging. The startup hook waits for `/health`, refreshes each selected account and
+reads its authenticated `/api/config`; `features.astra_eval_unmetered.enabled` must be `true`
+before any case starts. A missing or disabled flag stops the run with the account selector
+and the `/flag` action to fix it. Restore the previous account targeting after the run.
+Do not raise or restore quotas through `staging-ai-limits.sh` for an eval window.
 
 From the repository root, install the shared workspace dependencies and the standalone eval package:
 
