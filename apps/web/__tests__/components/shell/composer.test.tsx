@@ -345,7 +345,7 @@ describe('Composer', () => {
     } finally { astraCopy.name = 'nav.astra'; view.unmount() }
   })
 
-  it.each(['idle', 'sending', 'offline', 'atLimit'] as const)(
+  it.each(['idle', 'sending', 'offline'] as const)(
     'keeps the upward send arrow while composing: %s', state => {
       const view = render(<Composer {...props({ state, value: 'Draft', limitReason: 'reason', onVoice: vi.fn(), voiceWords })} />)
       const send = screen.getByRole('button', { name: words.send })
@@ -944,10 +944,10 @@ describe('Composer', () => {
     expect(onAttachImage).not.toHaveBeenCalled()
   })
 
-  it('allows voice at the Astra limit while keeping attachment choices disabled', async () => {
+  it.each(['', 'Existing draft'])('allows voice at the Astra limit while keeping attachment choices disabled with draft=%j', async (value) => {
     const onVoice = vi.fn()
     const onAttachFile = vi.fn()
-    render(<Composer {...props({ state: 'atLimit', limitReason: 'limit sentinel', onVoice, voiceWords, onAttachFile, attachWords })} />)
+    render(<Composer {...props({ state: 'atLimit', value, limitReason: 'limit sentinel', onVoice, voiceWords, onAttachFile, attachWords })} />)
     fireEvent.pointerDown(screen.getByRole('button', { name: words.actions }), { button: 0, ctrlKey: false })
     expect(await screen.findByRole('menuitem', { name: attachWords.file })).toBeDisabled()
     fireEvent.keyDown(document, { key: 'Escape' })

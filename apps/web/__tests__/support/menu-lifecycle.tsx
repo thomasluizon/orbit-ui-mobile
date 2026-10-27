@@ -33,14 +33,17 @@ function HabitMenus() {
 
 function ComposerMenu() {
   const [selections, setSelections] = useState(0)
+  const [value, setValue] = useState('Retained draft')
+  const [state, setState] = useState<'idle' | 'sending'>('idle')
   const wide = useViewportMatch('(min-width: 1024px)')
   const bottomRef = useRef<HTMLDivElement>(null)
   const compactMenu = useCompactComposerMenu(wide, bottomRef)
+  const composerState = state === 'idle' ? { state: 'idle' as const } : { state: 'sending' as const }
   return <div data-shell>
     <button data-shell-astra-row style={{ display: wide ? undefined : 'none' }}>Astra</button>
-    <div ref={bottomRef} style={{ position: 'fixed', bottom: 96, width: '100%' }}>
+    <div ref={bottomRef} style={{ position: 'fixed', bottom: 48, width: '100%' }}>
       {!wide ? <CompactComposerMenuContext value={compactMenu}>
-        <Composer state="idle" value="Retained draft" onChangeValue={() => {}} onSend={() => {}} words={words.shell.composer}
+        <Composer {...composerState} value={value} onChangeValue={setValue} onSend={() => { setValue(''); setState('sending') }} words={words.shell.composer}
           suggestions={[]} onAttachFile={() => {}} onAttachImage={() => setSelections((count) => count + 1)} onVoice={() => {}}
           attachWords={{ ...words.shell.composer.attach, remove: (name) => name }} voiceWords={words.shell.composer.voice} />
       </CompactComposerMenuContext> : null}

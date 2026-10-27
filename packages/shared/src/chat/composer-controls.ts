@@ -5,9 +5,32 @@ export function isComposerEditable(state: ComposerProps['state']): boolean {
   return state === 'idle' || state === 'sending'
 }
 
-export function isComposerVoiceVisible(props: ComposerProps): boolean {
-  return Boolean(props.onVoice) && (props.state === 'recording' || props.state === 'transcribing'
+function isComposerVoiceVisible(props: ComposerProps): boolean {
+  return Boolean(props.onVoice) && (props.state === 'atLimit' || props.state === 'recording' || props.state === 'transcribing'
     || !hasComposerContent(props.value, props.attachments))
+}
+
+export function buildComposerPrimaryControl(props: ComposerProps): {
+  kind: 'send' | 'stop' | 'microphone'; label: string; disabled: boolean; accented: boolean; onSelect: () => void
+} {
+  if (isComposerVoiceVisible(props) && props.onVoice) {
+    const onVoice = props.onVoice
+    const recording = props.state === 'recording'
+    const active = recording || props.state === 'transcribing'
+    const disabled = props.state !== 'idle' && props.state !== 'atLimit' && !recording
+    return {
+      kind: active ? 'stop' : 'microphone',
+      label: props.voiceWords[active ? 'stop' : 'start'],
+      disabled, accented: recording,
+      onSelect: () => { if (!disabled) onVoice() },
+    }
+  }
+  const canSend = isComposerEditable(props.state) && hasComposerContent(props.value, props.attachments)
+  return {
+    kind: 'send', label: props.words.send,
+    disabled: !canSend, accented: canSend || props.state === 'sending',
+    onSelect: () => { if (canSend) props.onSend() },
+  }
 }
 
 type ComposerAction = { id: string; label: string; icon: string; disabled?: boolean }

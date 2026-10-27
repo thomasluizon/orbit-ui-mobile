@@ -16,7 +16,7 @@ import {
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
-import { isComposerEditable, isComposerVoiceVisible, buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
+import { isComposerEditable, buildComposerPrimaryControl, buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { ArrowUp, ChevronDown, Clipboard, FileText, Image as ImageIcon, Mic, Plus, Square, X } from '@/components/ui/icons'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { Sheet } from '@/components/ui/sheet'
@@ -306,32 +306,20 @@ function useTextActionMenu(inputRef: React.RefObject<HTMLTextAreaElement | null>
 
 const composerInputMetrics = 'px-2 py-3 text-base'
 
-function ComposerVoiceControl({ props }: Readonly<{ props: ComposerProps & { onVoice: () => void; voiceWords: ComposerVoiceWords } }>) {
-  const isRecording = props.state === 'recording'
-  const voiceActive = isRecording || props.state === 'transcribing'
-  const voiceDisabled = props.state !== 'idle' && props.state !== 'atLimit' && !isRecording
-  return <button type="button" aria-label={voiceActive ? props.voiceWords.stop : props.voiceWords.start} title={voiceActive ? props.voiceWords.stop : props.voiceWords.start}
-    data-composer-microphone={voiceActive ? undefined : ''} data-focus-on-primary={isRecording ? '' : undefined} disabled={voiceDisabled} onClick={props.onVoice}
-    className={`flex w-[48px] min-h-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-0 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40 ${isRecording ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-transparent text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)]'}`}>
-    {voiceActive ? <Square size={16} fill="currentColor" aria-hidden="true" /> : <Mic size={20} strokeWidth={2} aria-hidden="true" />}
-  </button>
-}
-
-function ComposerSendControl({ props }: Readonly<{ props: ComposerProps }>) {
-  const canSend = isComposerEditable(props.state) && hasComposerContent(props.value, props.attachments)
-  const sendIsAccent = canSend || props.state === 'sending'
-  return <button
-    type="button"
-    aria-label={props.words.send}
-    data-accent={sendIsAccent ? '' : undefined}
-    data-focus-on-primary={sendIsAccent ? '' : undefined}
-    disabled={!canSend}
-    onClick={() => {
-      if (canSend) props.onSend()
+function ComposerPrimaryControl({ props, inputRef }: Readonly<{ props: ComposerProps; inputRef: React.RefObject<HTMLTextAreaElement | null> }>) {
+  const action = buildComposerPrimaryControl(props)
+  const isSend = action.kind === 'send'
+  return <button type="button" aria-label={action.label} title={isSend ? undefined : action.label}
+    data-accent={isSend && action.accented ? '' : undefined}
+    data-composer-microphone={action.kind === 'microphone' ? '' : undefined}
+    data-focus-on-primary={action.accented ? '' : undefined}
+    disabled={action.disabled} onClick={() => {
+      if (isSend && !action.disabled) inputRef.current?.focus()
+      action.onSelect()
     }}
-    className={`relative flex w-[48px] min-h-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-0 transition-[background-color,opacity] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed ${props.state === 'sending' ? '' : 'disabled:opacity-40'} ${sendIsAccent ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-[var(--bg-well)] text-[var(--fg-3)]'}`}
-  >
-    <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />
+    className={`relative flex w-[48px] min-h-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-0 ease-[var(--ease-standard)] duration-[var(--dur-hover-control)] disabled:cursor-not-allowed ${isSend ? 'transition-[background-color,opacity]' : 'transition-[background-color]'} ${!isSend || props.state !== 'sending' ? 'disabled:opacity-40' : ''} ${action.accented ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : isSend ? 'bg-[var(--bg-well)] text-[var(--fg-3)]' : 'bg-transparent text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)]'}`}>
+    {isSend ? <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />
+      : action.kind === 'stop' ? <Square size={16} fill="currentColor" aria-hidden="true" /> : <Mic size={20} strokeWidth={2} aria-hidden="true" />}
   </button>
 }
 
@@ -379,7 +367,6 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
   const canSend = (props.state === 'idle' || props.state === 'sending') && hasComposerContent(props.value, props.attachments)
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
-  const showVoice = isComposerVoiceVisible(props)
   function clearMessage() { props.onChangeValue(''); inputRef.current?.focus() }
 
   return (
@@ -422,7 +409,7 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
           props.onChangeValue(text)
         }} />
 
-      {showVoice && props.onVoice ? <ComposerVoiceControl props={props} /> : <ComposerSendControl props={props} />}
+      <ComposerPrimaryControl props={props} inputRef={inputRef} />
       </div>
     </div>
   )

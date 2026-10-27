@@ -11,7 +11,7 @@ import {
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
-import { isComposerEditable, isComposerVoiceVisible, buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
+import { isComposerEditable, buildComposerPrimaryControl, buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, type TextInput, type LayoutChangeEvent, View, useWindowDimensions } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
@@ -440,57 +440,34 @@ function ComposerTextControls({ props, tokens, inMenu, onPasteText, onClear, onL
   </View>
 }
 
-function ComposerVoiceControl({ props, tokens, onLayout }: Readonly<{
-  props: ComposerProps & { onVoice: () => void; voiceWords: ComposerVoiceWords }; tokens: AppTokensV2; onLayout: (event: LayoutChangeEvent) => void
-}>) {
-  const isRecording = props.state === 'recording'
-  const voiceActive = isRecording || props.state === 'transcribing'
-  const voiceDisabled = props.state !== 'idle' && props.state !== 'atLimit' && !isRecording
-  return <InsetFocusPressable
-    testID={voiceActive ? 'composer-stop-recording' : 'composer-microphone'}
-    onLayout={onLayout}
-    focusColor={tokens.primary}
-    accessibilityRole="button"
-    accessibilityLabel={voiceActive ? props.voiceWords.stop : props.voiceWords.start}
-    accessibilityState={{ disabled: voiceDisabled }}
-    disabled={voiceDisabled}
-    onPress={() => { if (!voiceDisabled) props.onVoice() }}
-    focusContrastColor={isRecording ? tokens.bg : undefined}
-    style={({ pressed }) => composerActionStyle(tokens, isRecording, voiceDisabled, pressed)}>
-    {voiceActive ? <Square size={16} fill={isRecording ? tokens.fgOnPrimary : tokens.fg3} color={isRecording ? tokens.fgOnPrimary : tokens.fg3} /> : <Mic size={20} strokeWidth={2} color={tokens.fg3} />}
-  </InsetFocusPressable>
+function composerSendStyle(tokens: AppTokensV2, accented: boolean, disabled: boolean, sending: boolean, pressed: boolean) {
+  return [styles.sendButton,
+    { backgroundColor: accented ? pressed ? tokens.primaryPressed : tokens.primary : tokens.bgWell },
+    disabled && !sending ? styles.disabled : null,
+  ]
 }
 
-function ComposerSendControl({ props, tokens, onLayout }: Readonly<{
-  props: ComposerProps; tokens: AppTokensV2; onLayout: (event: LayoutChangeEvent) => void
+function ComposerPrimaryControl({ props, tokens, onLayout, inputRef }: Readonly<{
+  props: ComposerProps; tokens: AppTokensV2; onLayout: (event: LayoutChangeEvent) => void; inputRef: React.RefObject<TextInput | null>
 }>) {
-  const canSend = isComposerEditable(props.state) && hasComposerContent(props.value, props.attachments)
-  const sendIsAccent = canSend || props.state === 'sending'
-  return <InsetFocusPressable
-    testID={sendIsAccent ? 'composer-send-accent' : 'composer-send-neutral'}
-    onLayout={onLayout}
-    focusColor={tokens.primary}
-    focusContrastColor={sendIsAccent ? tokens.bg : undefined}
-    accessibilityRole="button"
-    accessibilityLabel={props.words.send}
-    accessibilityState={{ disabled: !canSend }}
-    disabled={!canSend}
-    onPress={() => {
-      if (canSend) props.onSend()
+  const action = buildComposerPrimaryControl(props)
+  const testIds = {
+    send: action.accented ? 'composer-send-accent' : 'composer-send-neutral',
+    stop: 'composer-stop-recording', microphone: 'composer-microphone',
+  }
+  const color = action.accented ? tokens.fgOnPrimary : tokens.fg3
+  return <InsetFocusPressable testID={testIds[action.kind]} onLayout={onLayout}
+    focusColor={tokens.primary} focusContrastColor={action.accented ? tokens.bg : undefined}
+    accessibilityRole="button" accessibilityLabel={action.label}
+    accessibilityState={{ disabled: action.disabled }} disabled={action.disabled} onPress={() => {
+      if (action.kind === 'send' && !action.disabled) inputRef.current?.focus()
+      action.onSelect()
     }}
-    style={({ pressed }) => [
-      styles.sendButton,
-      {
-        backgroundColor: sendIsAccent
-          ? pressed
-            ? tokens.primaryPressed
-            : tokens.primary
-          : tokens.bgWell,
-      },
-      !canSend && props.state !== 'sending' ? styles.disabled : null,
-    ]}
-  >
-    <ArrowUp size={20} strokeWidth={2} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} />
+    style={({ pressed }) => action.kind === 'send'
+      ? composerSendStyle(tokens, action.accented, action.disabled, props.state === 'sending', pressed)
+      : composerActionStyle(tokens, action.accented, action.disabled, pressed)}>
+    {action.kind === 'send' ? <ArrowUp size={20} strokeWidth={2} color={color} />
+      : action.kind === 'stop' ? <Square size={16} fill={color} color={color} /> : <Mic size={20} strokeWidth={2} color={color} />}
   </InsetFocusPressable>
 }
 
@@ -519,7 +496,6 @@ function ComposerInputRow({ props, tokens, inputRef, disclosure }: Readonly<{ pr
   const inputDisabled = !isComposerEditable(props.state)
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
-  const showVoice = isComposerVoiceVisible(props)
   function clearMessage() { props.onChangeValue(''); inputRef.current?.focus() }
 
   return (
@@ -538,8 +514,7 @@ function ComposerInputRow({ props, tokens, inputRef, disclosure }: Readonly<{ pr
           props.onChangeValue(text)
         }} />
 
-      {showVoice && props.onVoice ? <ComposerVoiceControl props={props} tokens={tokens} onLayout={event => measureWidth('send', event)} />
-        : <ComposerSendControl props={props} tokens={tokens} onLayout={event => measureWidth('send', event)} />}
+      <ComposerPrimaryControl props={props} tokens={tokens} inputRef={inputRef} onLayout={event => measureWidth('send', event)} />
       </View>
     </View>
   )
