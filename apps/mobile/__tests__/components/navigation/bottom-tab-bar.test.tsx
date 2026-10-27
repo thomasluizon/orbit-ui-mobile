@@ -7,7 +7,12 @@ import {
 import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { PortalHost } from '@rn-primitives/portal'
+import { TAB_BAR_LABEL_MAX_FONT_SCALE } from '@orbit/shared/contracts/navigation'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { createTokensV2 } from '@/lib/theme'
 import { press, renderNavigation } from '../ui/navigation-render'
@@ -184,3 +189,40 @@ describe('BottomTabBar', () => {
     tree.unmount()
   })
 })
+
+afterEach(() => __resetTestHostConfig())
+
+it.each([en, ptBR].flatMap((messages) => [320, 360, 384, 412].flatMap((width) => [1, 1.3, 1.6, 2].map((fontScale) => ({ messages, width, fontScale })))))(
+  'reveals full-size destination content only above the cap at $width and $fontScale in $messages.nav.calendar',
+  async ({ messages, width, fontScale }) => {
+    __setWindowDimensions({ width, height: 740, scale: 1, fontScale })
+    const onSelect = vi.fn()
+    const destinations = ['today', 'calendar', 'progress', 'profile'] as const
+    let tree!: ReactTestRenderer
+    await act(() => { tree = create(<><BottomTabBar activeId="today" label={messages.nav.mainNavigation} onSelect={onSelect}
+      items={destinations.map((id) => ({ id, label: messages.nav[id], icon: () => <View testID={`viewer-icon-${id}`} /> }))} /><PortalHost /></>) })
+    const hosts = () => tree.root.findAll((node) => typeof node.type === 'string')
+    try {
+      for (const id of destinations) {
+        const tab = () => hosts().find((node) => node.props.accessibilityRole === 'tab' && node.props.accessibilityLabel === messages.nav[id])!
+        await act(() => { (tab().props.onLongPress as (() => void) | undefined)?.() })
+        const viewer = hosts().find((node) => node.props.testID === 'tab-large-content-viewer')
+        if (fontScale > TAB_BAR_LABEL_MAX_FONT_SCALE) {
+          expect(viewer).toBeDefined()
+          expect(viewer!.props.accessibilityLabel).toBe(messages.nav[id])
+          const label = viewer!.findAll((node) => String(node.type) === 'Text')[0]!
+          expect(label.props.children).toBe(messages.nav[id])
+          expect(label.props.maxFontSizeMultiplier).toBe(0)
+          expect(StyleSheet.flatten(label.props.style as StyleProp<TextStyle>).fontSize).toBe(12)
+          expect(viewer!.findAll((node) => node.props.testID === `viewer-icon-${id}`).length).toBeGreaterThan(0)
+        } else expect(viewer).toBeUndefined()
+        expect(onSelect).not.toHaveBeenCalled()
+        await act(() => { (tab().props.onPressOut as (() => void) | undefined)?.() })
+        expect(hosts().find((node) => node.props.testID === 'tab-large-content-viewer')).toBeUndefined()
+        await act(() => { (tab().props.onPress as () => void)() })
+        expect(onSelect).toHaveBeenCalledExactlyOnceWith(id)
+        onSelect.mockClear()
+      }
+    } finally { await act(() => tree.update(<></>)) }
+  },
+)

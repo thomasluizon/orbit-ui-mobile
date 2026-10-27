@@ -319,7 +319,7 @@ export function Screen(){return <button className="${promotion} bg-[var(--bg)] h
     { path: "apps/web/components/navigation/bottom-tab-bar.tsx", before: "group rounded-full", after: "group rounded-full hover:bg-[var(--bg-hover)]" },
     { path: "apps/web/components/shell/shell-wide.tsx", owner: "SidebarItem", before: "? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'", after: "? 'text-[var(--primary-soft)]'" },
     { path: "apps/web/components/shell/shell-wide.tsx", owner: "SidebarAstraRow", before: "? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'", after: "? 'text-[var(--primary-soft)]'" },
-    { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "styles.tab,", after: "styles.tab, hoveredId === item.id && { backgroundColor: tokens.bgHover }," },
+    { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "style={styles.tab}", after: "style={[styles.tab, hoveredId === item.id && { backgroundColor: tokens.bgHover }]}" },
   ]
   for (const [index, owner] of interactionOwners.entries()) {
     const label = owner.owner ? `${owner.path} ${owner.owner}` : owner.path
