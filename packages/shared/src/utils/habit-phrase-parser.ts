@@ -37,6 +37,19 @@ const ENGLISH_NUMBERS: Readonly<Record<string, number>> = {
 const PT_NUMBER = '(?:\\d{1,3}|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte)'
 const EN_NUMBER = '(?:\\d{1,3}|one|once|two|twice|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty)'
 
+const WEEKDAY_NEGATIONS = new Set([
+  'menos', 'exceto', 'sem', 'nao', 'nunca', 'salvo', 'tirando',
+  'except', 'excluding', 'not', 'never', 'without', "don't", 'cannot',
+])
+const WEEKDAY_QUALIFIERS = new Set([
+  'on', 'in', 'at', 'for', 'from', 'to', 'of', 'the', 'an', 'this', 'that', 'these', 'those',
+  'next', 'last', 'coming', 'upcoming', 'following', 'every', 'each',
+  'ao', 'aos', 'as', 'no', 'nos', 'nas', 'na', 'a', 'o', 'os', 'em', 'de', 'do', 'dos', 'da', 'das',
+  'para', 'um', 'uma', 'uns', 'umas', 'proxima', 'proximas', 'proximo', 'proximos',
+  'neste', 'nestes', 'nesta', 'nestas', 'nesse', 'nesses', 'nessa', 'nessas',
+  'este', 'estes', 'esta', 'estas', 'esse', 'esses', 'essa', 'essas', 'toda', 'todas', 'todo', 'todos',
+])
+
 const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
   'pt-BR': {
     weekdays: [
@@ -200,8 +213,25 @@ function matchWeekdays(text: string, patterns: LocalePatterns) {
 }
 
 function hasWeekdayNegation(text: string, locale: SupportedLocale): boolean {
-  return /\b(?:menos|exceto|sem(?: ser)?|nao|nunca|salvo|tirando|except|excluding|not|never|without|don't|cannot)\s+(?:(?:on|in|at|for|from|to|of|the|an|this|that|these|those|next|last|coming|upcoming|following|every|each|ao|aos|as|no|nos|nas|na|a|o|os|em|de|do|dos|da|das|para|um|uma|uns|umas|proxim[ao]s?|nest[ea]s?|ness[ea]s?|est[ea]s?|ess[ea]s?|tod[ao]s?)\s+)*$/u.test(text)
-    || (locale === 'en' && /\bno\s+$/u.test(text))
+  const words = Array.from(text.matchAll(/\b(don't|[a-z]+)\s+/gu))
+  let cursor = text.length
+  for (const match of words.reverse()) {
+    if (match.index + match[0].length !== cursor) return false
+    const word = match[1]!
+    if (WEEKDAY_NEGATIONS.has(word)
+      || (word === 'ser' && /\bsem $/u.test(text.slice(0, match.index)))
+      || (locale === 'en' && word === 'no' && cursor === text.length)) return true
+    if (!WEEKDAY_QUALIFIERS.has(word)) return false
+    cursor = match.index
+  }
+  return false
+}
+
+function isWeekdayExclusionListSeparator(text: string): boolean {
+  const separator = /^\s*,?\s*(?:and|e)\s+/u.exec(text) ?? /^\s*,\s*/u.exec(text)
+  if (!separator) return false
+  const preposition = text.slice(separator[0].length)
+  return preposition === '' || /^(?:on|aos|as|no|nos|nas)\s+$/u.test(preposition)
 }
 
 function readWeekdayExclusion(
@@ -225,9 +255,9 @@ function readWeekdayExclusion(
   for (const [index, { match }] of weekdays.entries()) {
     const glue = remaining.slice(cursor, match.index)
     const allowed = index === 0
-      ? /^\s+(?:(?:on|aos|as|no|nos|nas|a|o)\s+)?$/u
-      : /^\s*(?:,\s*(?:(?:and|e)\s+)?|(?:and|e)\s+)(?:(?:on|aos|as|no|nos|nas)\s+)?$/u
-    if (match.index < cursor || !allowed.test(glue)) return 'unresolved'
+      ? /^\s+(?:(?:on|aos|as|no|nos|nas|a|o)\s+)?$/u.test(glue)
+      : isWeekdayExclusionListSeparator(glue)
+    if (match.index < cursor || !allowed) return 'unresolved'
     cursor = match.index + match[0].length
   }
   if (remaining.slice(cursor).replace(/[\s,.!?;:]+/gu, '')) return 'unresolved'
