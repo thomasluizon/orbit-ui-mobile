@@ -2,6 +2,19 @@ import { agentExecuteOperationResponseSchema, pendingAgentOperationSchema, type 
 
 const emptyId = '00000000-0000-0000-0000-000000000000'
 
+export function makeExistingHabitPreview(entityEmoji?: string | null, actionKey = 'updateHabit', changesOnly = false): PendingAgentOperation {
+  const entityId = '00000000-0000-4000-8000-000000000006'
+  const entityName = 'Dentista'
+  const fields = [{ entityId, entityName, entityEmoji, field: 'due_date', oldValue: '2026-10-28',
+    newValue: '2026-11-04', proposedValue: '2026-11-04', valueType: 'date', isEditable: true }]
+  return pendingAgentOperationSchema.parse({
+    ...makeCreateHabitsPreview(1), capabilityId: 'habits.write', actionKey,
+    changes: fields, changeTargetCount: 1,
+    items: changesOnly ? null : [{ itemId: entityId, entityId, entityName, entityEmoji,
+      stateFingerprint: 'existing-habit-state', removesData: actionKey === 'deleteHabit', fields }],
+  })
+}
+
 export function makeBulkCreateExecutionResponse(statuses?: readonly ('Success' | 'Failed')[]): AgentExecuteOperationResponse {
   const successCount = statuses?.filter((status) => status === 'Success').length ?? 0
   return agentExecuteOperationResponseSchema.parse({

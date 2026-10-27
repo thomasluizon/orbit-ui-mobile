@@ -1,6 +1,6 @@
 import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import type { Page } from '@playwright/test'
-import { makePlacementPreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeExistingHabitPreview, makePlacementPreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -108,6 +108,35 @@ describe('Pending preview geometry in Chromium', () => {
   })
   afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 390, 412, 480, 840, 1280].flatMap(width => locales.flatMap(locale => [1, 2].map(textScale => ({ width, locale, textScale })))))('fits the date change at $width in $locale at text scale $textScale', async ({ width, locale, textScale }) => {
+    setViewport(width)
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt} timeZone="UTC"><div style={{ width: Math.min(width, 740), padding: 16 }}>
+      <PendingOperationCard pendingOperation={makeExistingHabitPreview()} onRevise={vi.fn()} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
+    </div></NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 1200 } })
+    try {
+      await page.setContent(`<style>${stylesheet} html { font-size: ${16 * textScale}px; }</style>${container.innerHTML}`)
+      await page.evaluate(() => document.fonts.ready)
+      const geometry = await page.evaluate(() => {
+        const meta = document.querySelector<HTMLElement>('[data-preview-item-meta]')!
+        const range = document.createRange()
+        range.selectNodeContents(meta)
+        const fragments = Array.from(range.getClientRects())
+        const bounds = meta.getBoundingClientRect()
+        return { text: meta.textContent, lines: new Set(fragments.map(rect => rect.top)).size,
+          clipped: fragments.some(rect => rect.left < bounds.left - 1 || rect.right > bounds.right + 1 || rect.bottom > bounds.bottom + 1),
+          overflow: document.documentElement.scrollWidth > window.innerWidth,
+          fontSize: parseFloat(getComputedStyle(meta).fontSize) }
+      })
+      expect(geometry.text).toContain('→')
+      expect(geometry.lines).toBeGreaterThan(0)
+      if (textScale === 1) expect(geometry.lines).toBe(1)
+      expect(geometry.clipped).toBe(false)
+      expect(geometry.overflow).toBe(false)
+      expect(geometry.fontSize).toBe(12 * textScale)
+    } finally { await page.close() }
+  })
 
   it.each([320, 412].flatMap(width => locales.flatMap(locale => [1, 2].map(textScale => ({ width, locale, textScale })))))('keeps long placement destinations within the preview at $width in $locale at text scale $textScale', async ({ width, locale, textScale }) => {
     const operation = makePlacementPreview()

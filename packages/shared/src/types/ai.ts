@@ -67,6 +67,7 @@ export type UserDataCatalogEntry = z.infer<typeof userDataCatalogEntrySchema>
 export const pendingOperationChangeSchema = z.object({
   entityId: z.string(),
   entityName: z.string(),
+  entityEmoji: z.string().nullish(),
   field: z.string(),
   oldValue: z.string().nullable(),
   newValue: z.string().nullable(),
@@ -107,6 +108,7 @@ export const pendingOperationItemSchema = z.object({
   itemId: z.string(),
   entityId: z.string().nullable(),
   entityName: z.string(),
+  entityEmoji: z.string().nullish(),
   fields: z.array(pendingOperationChangeSchema),
   stateFingerprint: z.string(),
   removesData: z.boolean().nullable().optional(),

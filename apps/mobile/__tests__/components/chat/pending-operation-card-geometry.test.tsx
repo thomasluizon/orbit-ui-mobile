@@ -1,4 +1,4 @@
-import { makeParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeExistingHabitPreview, makeParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle, type TextStyle } from 'react-native'
@@ -79,6 +79,23 @@ function expectTrailingLines(bounds: ReturnType<ReturnType<typeof Yoga.Node.crea
 afterEach(async () => { __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }); await i18n.changeLanguage('en'); vi.clearAllMocks() })
 
 describe('Pending preview geometry on Android', () => {
+  it.each([320, 390, 412, 480, 840, 1280].flatMap(width => locales.flatMap(locale => [1, 2].map(scale => ({ width, locale, scale })))))('fits the date change at $width in $locale with text scale $scale', async ({ width, locale, scale }) => {
+    __setWindowDimensions({ width, height: 1800, scale: 1, fontScale: scale })
+    await i18n.changeLanguage(locale)
+    const tree = render(<PendingOperationCard pendingOperation={makeExistingHabitPreview()} {...handlers} />)
+    try {
+      const meta = tree.root.findByProps({ testID: 'preview-item-meta' })
+      expect(meta.props.numberOfLines).toBeUndefined()
+      expect(meta.props.adjustsFontSizeToFit).not.toBe(true)
+      expect(StyleSheet.flatten(meta.props.style).fontSize).toBe(12)
+      const measured = measureProfileRow(tree.toJSON(), Math.min(width, 740) - 32, scale)
+      const date = measured.texts.find(text => text.label.includes('→'))!
+      expect(date).toBeDefined()
+      expect(date.clipped).toBe(false)
+      if (scale === 1) expect(date.height).toBeLessThanOrEqual(12 * 1.4 + 1)
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
   it.each([320, 412, 1352].flatMap(width => locales.flatMap(locale => [1, 2].map(scale => ({ width, locale, scale })))))('fits parent choices at $width in $locale with text scale $scale', async ({ width, locale, scale }) => {
     __setWindowDimensions({ width, height: 1800, scale: 1, fontScale: scale })
     await i18n.changeLanguage(locale)

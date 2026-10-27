@@ -27,11 +27,7 @@ export function summarizePendingOperationItem(
 ): string {
   const changed = fields.filter(field => field.oldValue !== field.newValue && !['habit_id', 'title', 'emoji'].includes(field.field))
   if (['updateHabit', 'updateHabits'].includes(actionKey ?? '') && changed.length) {
-    const changedSchedule = changed.some(field => ['frequency_unit', 'frequency_quantity', 'days', 'due_date', 'due_time', 'is_general', 'is_flexible'].includes(field.field))
-    const summarizedFields = changedSchedule ? fields.filter(field => !['habit_id', 'title', 'emoji'].includes(field.field) && (field.field !== 'is_bad_habit' || changed.includes(field))) : changed
-    const before = summarizePendingOperationItem(summarizedFields.map(field => ({ ...field, oldValue: field.oldValue, newValue: field.oldValue ?? field.newValue, proposedValue: field.oldValue ?? field.proposedValue })), translate, formatTime, locale, 'scheduleDiff')
-    const after = summarizePendingOperationItem(summarizedFields, translate, formatTime, locale, 'scheduleDiff')
-    return before === after ? after : translate('chat.preview.beforeAfter', { before, after })
+    return summarizeHabitUpdate(fields, changed, translate, formatTime, locale)
   }
   const value = (name: string) => fields.find((field) => field.field === name)?.newValue
   const action = fields.find((field) => field.valueType === 'action')
@@ -44,6 +40,30 @@ export function summarizePendingOperationItem(
   const time = value('due_time')
   const summary = [cadence.label, intervalLabel, dateLabel, time ? translate('chat.preview.atTime', { time: formatTime(time) }) : null, ...additionalChanges(fields, translate, formatTime, locale, cadence.complete, creating)].filter(Boolean).join(' · ')
   return summary || (actionKey && PREVIEW_ACTION_KEYS.includes(actionKey) ? translate(`chat.operation.source.${actionKey}`) : '')
+}
+
+function summarizeHabitUpdate(
+  fields: readonly PendingOperationChange[], changed: readonly PendingOperationChange[],
+  translate: PreviewTranslation, formatTime: (value: string) => string, locale: string,
+): string {
+  const dateChange = compactDateChange(changed, translate, locale)
+  if (dateChange) return dateChange
+  const changedSchedule = changed.some(field => ['frequency_unit', 'frequency_quantity', 'days', 'due_date', 'due_time', 'is_general', 'is_flexible'].includes(field.field))
+  const summarizedFields = changedSchedule ? fields.filter(field => !['habit_id', 'title', 'emoji'].includes(field.field) && (field.field !== 'is_bad_habit' || changed.includes(field))) : changed
+  const before = summarizePendingOperationItem(summarizedFields.map(field => ({ ...field, oldValue: field.oldValue, newValue: field.oldValue ?? field.newValue, proposedValue: field.oldValue ?? field.proposedValue })), translate, formatTime, locale, 'scheduleDiff')
+  const after = summarizePendingOperationItem(summarizedFields, translate, formatTime, locale, 'scheduleDiff')
+  return before === after ? after : translate('chat.preview.beforeAfter', { before, after })
+}
+
+function compactDateChange(fields: readonly PendingOperationChange[], translate: PreviewTranslation, locale: string): string | undefined {
+  const field = fields[0]
+  if (fields.length !== 1 || !field || !['due_date', 'date'].includes(field.field)
+    || !field.oldValue || !field.newValue || !/^\d{4}-\d{2}-\d{2}$/.test(field.oldValue) || !/^\d{4}-\d{2}-\d{2}$/.test(field.newValue)) return undefined
+  const sameYear = field.oldValue.slice(0, 4) === field.newValue.slice(0, 4)
+  return translate('chat.preview.beforeAfter', {
+    before: formatLocaleDate(parseAPIDate(field.oldValue), locale, { day: 'numeric', month: 'numeric', ...(!sameYear ? { year: '2-digit' } as const : {}) }),
+    after: formatLocaleDate(parseAPIDate(field.newValue), locale, { day: 'numeric', month: 'numeric', year: '2-digit' }),
+  })
 }
 
 function weekIntervalSummary(value: string | null | undefined, translate: PreviewTranslation, omitDefault: boolean): string | null {
