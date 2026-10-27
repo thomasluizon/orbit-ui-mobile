@@ -7,6 +7,8 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { channelVersion, planShellRelease } from '../scripts/release-plan.ts'
 import channel from '../__fixtures__/channel-staging.json'
 
+// WHY: Git-driven cases can exceed five seconds on Windows runners; allow headroom for process startup (#1818).
+const gitTestTimeout = 30_000
 const directories: string[] = []
 const originalDirectory = process.cwd()
 afterEach(() => {
@@ -71,7 +73,7 @@ it('skips shell publication for a web-only commit and compares the selected chan
   const source = commit('web.ts', 'web')
   expect(planShellRelease('staging', source, '0.1.1', [])).toBeNull()
   expect(planShellRelease('production', source, '0.1.0', [])).toBeNull()
-})
+}, gitTestTimeout)
 
 it('publishes changed shell sources and skips reserved versions after a failed publication', () => {
   repository()
@@ -79,21 +81,21 @@ it('publishes changed shell sources and skips reserved versions after a failed p
   expect(planShellRelease('staging', source, '0.1.1', ['desktop-staging-v0.1.2', 'desktop-production-v9.0.0'])).toBe('0.1.3')
   expect(planShellRelease('production', source, null, [])).toBe('0.1.0')
   expect(planShellRelease('staging', source, '0.1.1', [], '1.0.0')).toBe('1.0.0')
-})
+}, gitTestTimeout)
 
 it('publishes a shell meeting a raised web-owned compatibility floor', () => {
   repository()
   mkdirSync('apps/web', { recursive: true })
   const source = commit('apps/web/web-compatibility.json', JSON.stringify({ minimumShellVersion: '1.0.0' }))
   expect(planShellRelease('staging', source, '0.1.1', [], '1.0.0')).toBe('1.0.0')
-})
+}, gitTestTimeout)
 
 it('fails if the baseline tag is unavailable or checkout is not the selected commit', () => {
   const source = repository()
   expect(() => planShellRelease('staging', source, '0.1.2', [])).toThrow()
   expect(() => planShellRelease('staging', 'a'.repeat(40), '0.1.1', [])).toThrow('selected web commit')
   expect(() => planShellRelease('staging', source, '0.1.1', [], '1.0.0')).toThrow('minimum shell version')
-})
+}, gitTestTimeout)
 
 it('tests the pinned source and gates both web deployments on the reusable publisher', () => {
   const require = createRequire(import.meta.url)
