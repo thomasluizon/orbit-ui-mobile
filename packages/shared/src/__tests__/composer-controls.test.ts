@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildComposerControls, selectComposerAction } from '../chat/composer-controls'
+import { buildComposerControls, buildComposerPrimaryControl, selectComposerAction } from '../chat/composer-controls'
 import type { ComposerProps } from '../contracts/composer'
 
 function composerProps() {
@@ -46,6 +46,59 @@ describe('composer controls', () => {
     expect(buildComposerControls({ ...recording, state: 'transcribing' })).toMatchObject({ disabled: true })
     expect(buildComposerControls({ ...props, state: 'sending' })).toMatchObject({ disabled: true })
     expect(buildComposerControls({ ...props, state: 'offline', limitReason: 'Offline' })).toMatchObject({ disabled: true })
+  })
+
+  it('shows the microphone on an empty field and starts voice from it', () => {
+    const props = composerProps()
+    const control = buildComposerPrimaryControl(props)
+    expect(control).toMatchObject({ kind: 'microphone', label: 'Record', disabled: false, accented: false })
+    control.onSelect()
+    expect(props.onVoice).toHaveBeenCalledTimes(1)
+    expect(props.onSend).not.toHaveBeenCalled()
+  })
+
+  it('replaces the microphone with send once the field has content', () => {
+    const props = { ...composerProps(), value: 'Plan my week' }
+    const control = buildComposerPrimaryControl(props)
+    expect(control).toMatchObject({ kind: 'send', label: 'Send', disabled: false, accented: true })
+    control.onSelect()
+    expect(props.onSend).toHaveBeenCalledTimes(1)
+    expect(props.onVoice).not.toHaveBeenCalled()
+  })
+
+  it('keeps an empty send disabled and inert when voice is unavailable', () => {
+    const { onVoice, voiceWords, ...withoutVoice } = composerProps()
+    expect(onVoice).toBeDefined()
+    expect(voiceWords).toBeDefined()
+    const control = buildComposerPrimaryControl(withoutVoice)
+    expect(control).toMatchObject({ kind: 'send', disabled: true, accented: false })
+    control.onSelect()
+    expect(withoutVoice.onSend).not.toHaveBeenCalled()
+  })
+
+  it('stops a recording and blocks the control while transcribing', () => {
+    const props = composerProps()
+    const recording: ComposerProps = { ...props, value: 'Draft', state: 'recording', onVoice: props.onVoice, voiceWords: props.voiceWords }
+    const stop = buildComposerPrimaryControl(recording)
+    expect(stop).toMatchObject({ kind: 'stop', label: 'Stop', disabled: false, accented: true })
+    stop.onSelect()
+    expect(props.onVoice).toHaveBeenCalledTimes(1)
+    const transcribing = buildComposerPrimaryControl({ ...recording, state: 'transcribing' })
+    expect(transcribing).toMatchObject({ kind: 'stop', label: 'Stop', disabled: true, accented: false })
+    transcribing.onSelect()
+    expect(props.onVoice).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps voice reachable at the limit and inert offline', () => {
+    const props = { ...composerProps(), value: 'Draft' }
+    const limited = buildComposerPrimaryControl({ ...props, state: 'atLimit', limitReason: 'Daily limit' })
+    expect(limited).toMatchObject({ kind: 'microphone', disabled: false })
+    limited.onSelect()
+    expect(props.onVoice).toHaveBeenCalledTimes(1)
+    const offline = buildComposerPrimaryControl({ ...props, value: '', state: 'offline', limitReason: 'Offline' })
+    expect(offline).toMatchObject({ kind: 'microphone', disabled: true })
+    offline.onSelect()
+    expect(props.onVoice).toHaveBeenCalledTimes(1)
   })
 
   it('dispatches only the selected action and ignores unknown or unavailable actions', () => {
