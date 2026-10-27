@@ -35,7 +35,9 @@ function PromptLibraryLoadFailure({ onBack, onRetry }: Readonly<{ onBack: () => 
   const headingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => { headingRef.current?.focus() }, [])
   return <div data-prompt-library="" className="absolute inset-0 z-[1] flex min-h-0 flex-col bg-[var(--bg)]">
-    <AppBar title={t('chat.templates.title')} titleRef={headingRef} onBack={onBack} backLabel={t('chat.templates.back')} />
+    <div data-conversation-header="" className="shrink-0">
+      <AppBar title={t('chat.templates.title')} titleRef={headingRef} onBack={onBack} backLabel={t('chat.templates.back')} />
+    </div>
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
       <ErrorState message={t('common.error')} action={<IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />
     </div>
@@ -110,7 +112,7 @@ function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{
   const t = useTranslations()
   const pendingIdea = useChatStore(state => state.contextualSuggestion)
   if (!pendingIdea?.id.startsWith('prompt-library:')) return null
-  return <div className="px-4">
+  return <div data-pending-prompt="" className="mx-auto w-full max-w-[740px] px-4">
     {hasDraft ? <p role="status" className="text-sm text-[var(--fg-3)]">{t('chat.templates.draftKept')}</p> : null}
     <ListRow accessibilityLabel={findPromptSlot(pendingIdea.prompt) ? undefined : pendingIdea.label} icon={findPromptSlot(pendingIdea.prompt) ? undefined : <AstraGlyph size={24} />} placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={hasDraft || !!disabledReason} onClick={() => onSelect(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
   </div>
@@ -293,7 +295,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     <ChatCardOperationContext.Provider value={trackCardOperation}>
     <div className="relative flex h-full flex-col">
       <div className="isolate flex min-h-0 flex-1 flex-col" inert={libraryOpen} aria-hidden={libraryOpen}>
-      <div className="relative z-10 shrink-0">
+      <div data-conversation-header="" className="relative z-10 shrink-0">
         <AppBar
           title={t('chat.title')}
           titleVisual={<AstraGlyph size={16} />}
@@ -321,14 +323,14 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           setPendingVisible(feed.scrollHeight - feed.clientHeight - feed.scrollTop < 40)
         }}
         className="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
-        style={{ padding: SPACING.s16 }}
+        style={{ padding: SPACING.s16, paddingLeft: 'calc(16px + var(--shell-safe-left, 0px))', paddingRight: 'calc(16px + var(--shell-safe-right, 0px))' }}
         role="feed"
         aria-busy={replyWorking || isPendingOperationBusy}
         aria-label={t('chat.title')}
       >
-        {showSuggestions && <ChatEmptyState browseAction={<Button buttonRef={browseEmptyRef} variant="ghost" onClick={() => openLibrary(browseEmptyRef)}>{t('chat.templates.browse')}</Button>} />}
+        {showSuggestions && <div className="mx-auto w-full max-w-[708px]"><ChatEmptyState browseAction={<Button buttonRef={browseEmptyRef} variant="ghost" onClick={() => openLibrary(browseEmptyRef)}>{t('chat.templates.browse')}</Button>} /></div>}
 
-        <div ref={threadContentRef} className="flex flex-col gap-4">
+        <div ref={threadContentRef} className="mx-auto flex w-full max-w-[708px] flex-col gap-4">
         {messages.map((msg, index) => (
           <article
             key={msg.id}

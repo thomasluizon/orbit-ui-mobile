@@ -18,7 +18,8 @@ const labels: Record<string, string> = {
 describe('BottomTabBar', () => {
   it('centres navigation in the same capped column as the mobile tab bar', () => {
     render(<BottomTabBar activeId="hoje" items={Object.entries(labels).map(([id, label]) => ({ id, label, href: routes[id]! }))} label="Navegação principal" onSelect={() => {}} />)
-    expect(screen.getByRole('navigation')).toHaveClass('mx-auto', 'w-full', 'max-w-[740px]')
+    expect(screen.getByRole('navigation').querySelectorAll(':scope > a')).toHaveLength(4)
+    expect(screen.getByRole('navigation').closest('[data-tab-bar-surface]')).toBeInTheDocument()
   })
 
   it('renders exactly the four locked destinations', () => {

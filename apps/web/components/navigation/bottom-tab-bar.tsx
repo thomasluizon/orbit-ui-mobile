@@ -31,7 +31,8 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<Omit
   }
   const activeIndex = items.findIndex((item) => item.id === activeId)
   return (<>
-    <nav aria-label={label} style={{ minHeight: TAB_BAR_MIN_HEIGHT }} className="mx-auto flex flex-nowrap w-full max-w-[740px] border-t border-[var(--hairline)] bg-[var(--bg)]">
+    <div data-tab-bar-surface="" className="relative w-full bg-[var(--bg)]">
+    <nav data-tab-items="" aria-label={label} style={{ minHeight: TAB_BAR_MIN_HEIGHT }} className="mx-auto flex flex-nowrap w-full max-w-[740px] border-t border-transparent bg-[var(--bg)]">
       {items.map((item, index) => {
         const active = index === activeIndex
         return (
@@ -54,6 +55,7 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<Omit
         )
       })}
     </nav>
+    </div>
     {preview ? createPortal(<div className="pointer-events-none fixed inset-0 z-tooltip flex items-center justify-center p-4">
       <div role="tooltip" aria-label={preview.item.label} className="flex max-w-full flex-col items-center gap-3 rounded-[var(--r-card)] border border-[var(--hairline)] bg-[var(--bg)] p-6">
         {preview.item.icon ? <span className="flex size-[1.5rem] items-center justify-center [&_svg]:size-full">{preview.item.icon({ active: preview.item.id === activeId })}</span> : null}

@@ -11,6 +11,8 @@ import { ShellHeaderSlotProvider, useShellHeaderHost } from './shell-header-slot
 import { KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
 import { ShellScrollToTopSlotProvider, useShellScrollToTopHost } from './shell-scroll-to-top-slot'
 import { ShellFocusTargetContext, ShellListFocusContext } from './shell-focus-target'
+import { useShellContentStyle } from './shell-side-insets'
+import { ShellContent } from './shell-content'
 import { RootScrollProvider } from './root-scroll-context'
 import { SHELL_SCROLLER_CLEARANCE, ShellScrollerClearanceContext } from './shell-scroller-clearance'
 
@@ -63,6 +65,7 @@ function ShellBottomChrome({
   minimumViewportHeight: number
   onTabBarHeight: (height: number) => void
 }>) {
+  const noticeStyle = useShellContentStyle(PADDING.screenGutter)
   if (!visible) return null
   const actionMinimum = !navigationEnabled && pinnedSlot !== undefined ? BUTTON_SIZES.md.height : 0
   const minimumHeight = floating ? minimumViewportHeight : actionMinimum
@@ -77,12 +80,12 @@ function ShellBottomChrome({
     >
       <View style={[styles.bottomColumn, { minHeight: minimumHeight }, floating && styles.floatingColumn]}>
         <ShellBottomViewport floating={floating} minimumHeight={minimumHeight}>
-            {notice !== undefined ? <View testID="shell-notice" style={styles.notice}>{notice}</View> : null}
+            {notice !== undefined ? <View testID="shell-notice" style={[styles.notice, noticeStyle]}>{notice}</View> : null}
             {pinnedSlot !== undefined ? (
               <View testID="shell-composer-band" style={[styles.composerBand, { minHeight: actionMinimum, display: conversationOpen ? 'none' : 'flex' }]}>
                 <ScrollView testID="shell-pinned-slot" scrollEnabled={!floating} nestedScrollEnabled={!floating}
                   style={[styles.pinnedSlot, floating && styles.floatingPinnedSlot, { minHeight: actionMinimum }]}
-                  keyboardShouldPersistTaps="handled">{pinnedSlot}</ScrollView>
+                  keyboardShouldPersistTaps="handled">{navigationEnabled ? pinnedSlot : <ShellContent>{pinnedSlot}</ShellContent>}</ScrollView>
               </View>
             ) : null}
         </ShellBottomViewport>
@@ -175,6 +178,15 @@ function useShellViewport({ navigationEnabled, hasFab, hasHeader, hasTabBar, saf
   }
 }
 
+function ShellPageContent({ framed, navigationEnabled, safeAreaTop, children }: Readonly<{
+  framed: boolean
+  navigationEnabled: boolean
+  safeAreaTop?: boolean
+  children: ReactNode
+}>) {
+  return <ShellContent inset={framed || navigationEnabled && safeAreaTop !== false} style={styles.pageContent}>{children}</ShellContent>
+}
+
 export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean; fabPending?: boolean }>) {
   const mainRef = useRef<View>(null)
   const focusTarget = useRef<number | null>(null)
@@ -212,10 +224,9 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
     })
   }
   const insets = useSafeAreaInsets()
-  const { width, fontScale } = useWindowDimensions()
+  const { fontScale } = useWindowDimensions()
   const minimumBottomHeight = Math.max(SPACING.s64, SPACING.s24 * fontScale + SPACING.s32)
   const safeTop = (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0
-  const columnWidth = Math.min(width, SHELL_CONTENT_MAX_WIDTH)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
   const safeBottom = keyboardVisible ? 0 : insets.bottom
   const viewport = useShellViewport({ navigationEnabled, hasFab: floating, hasHeader: header !== undefined,
@@ -244,21 +255,21 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
       <FlowViewport enabled={viewport.scrollable} constrained={viewport.constrained} minimumHeight={viewport.minimumHeight} revealEnd={navigationEnabled && floating}>
         <View
           testID="shell-background"
-          style={[styles.background, { width: columnWidth, paddingTop: viewport.innerInsets.top }]}
+          style={[styles.background, { paddingTop: viewport.innerInsets.top }]}
           importantForAccessibility={conversationOpen ? 'no-hide-descendants' : 'auto'}
         >
           {header !== undefined ? (
-            navigationEnabled ? <View testID="shell-header" onLayout={event => viewport.setHeaderHeight(event.nativeEvent.layout.height)}>{header}</View> : (
-              <ScrollView testID="shell-header" style={[styles.pinnedSlot, styles.flowHeader]} keyboardShouldPersistTaps="handled">{header}</ScrollView>
+            navigationEnabled ? <View testID="shell-header" onLayout={event => viewport.setHeaderHeight(event.nativeEvent.layout.height)}><ShellContent>{header}</ShellContent></View> : (
+              <ScrollView testID="shell-header" style={[styles.pinnedSlot, styles.flowHeader]} keyboardShouldPersistTaps="handled"><ShellContent>{header}</ShellContent></ScrollView>
             )
           ) : null}
 
           <View ref={mainRef} focusable testID="shell-scroller" style={[styles.scroller, floating && styles.floatingScroller, viewport.relaxedScroller && styles.flowScroller]}>
-            <ShellListFocusContext.Provider value={revealListFocus}>{props.children}</ShellListFocusContext.Provider>
+            <ShellListFocusContext.Provider value={revealListFocus}><ShellPageContent framed={header !== undefined} navigationEnabled={navigationEnabled} safeAreaTop={props.safeAreaTop}>{props.children}</ShellPageContent></ShellListFocusContext.Provider>
             <ShellScrollToTopSlot visible={!conversationOpen} content={registeredScrollToTop.content ?? props.scrollToTop} />
             {props.fab !== undefined ? (
               <View testID="shell-fab-band" pointerEvents="box-none" style={styles.fabBand}>
-                <View testID="shell-fab" pointerEvents="box-none" style={styles.fab}>{props.fab}</View>
+                <ShellContent style={{ height: SHELL_SCROLLER_CLEARANCE }} pointerEvents="box-none"><View style={{ flex: 1 }} pointerEvents="box-none"><View testID="shell-fab" pointerEvents="box-none" style={styles.fab}>{props.fab}</View></View></ShellContent>
               </View>
             ) : null}
           </View>
@@ -287,7 +298,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
           accessibilityLabel={props.conversationLabel}
           accessibilityViewIsModal
           testID="shell-conversation"
-          style={[styles.conversation, { backgroundColor: tokens.bg, width: columnWidth, paddingTop: insets.top }]}
+          style={[styles.conversation, { backgroundColor: tokens.bg, paddingTop: insets.top }]}
         >
           {props.conversation}
         </View>
@@ -328,9 +339,10 @@ const styles = StyleSheet.create({
   },
   background: {
     alignSelf: 'center',
-    maxWidth: SHELL_CONTENT_MAX_WIDTH,
+    width: '100%',
     flex: 1,
   },
+  pageContent: { flex: 1 },
   scroller: {
     flex: 1,
     minHeight: TOUCH_TARGET_MIN,
@@ -353,13 +365,13 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   notice: {
+    alignSelf: 'center', maxWidth: SHELL_CONTENT_MAX_WIDTH, width: '100%',
     paddingHorizontal: PADDING.screenGutter,
   },
   bottomColumn: {
     flexShrink: 1,
     minHeight: 0,
     alignSelf: 'center',
-    maxWidth: SHELL_CONTENT_MAX_WIDTH,
     width: '100%',
   },
   floatingColumn: { flexGrow: 1 },
@@ -370,7 +382,7 @@ const styles = StyleSheet.create({
   fab: { bottom: 16, position: 'absolute', right: 16 },
   conversation: {
     alignSelf: 'center',
-    maxWidth: SHELL_CONTENT_MAX_WIDTH,
+    width: '100%',
     bottom: 0,
     position: 'absolute',
     top: 0,

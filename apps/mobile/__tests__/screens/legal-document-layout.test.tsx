@@ -30,7 +30,8 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('react-native-safe-area-context', () => ({
+vi.mock('react-native-safe-area-context', async (original) => ({
+  ...await original<typeof import('react-native-safe-area-context')>(),
   SafeAreaView: (props: React.PropsWithChildren<{ edges?: string[] }>) =>
     React.createElement('SafeAreaView', props, props.children),
 }))

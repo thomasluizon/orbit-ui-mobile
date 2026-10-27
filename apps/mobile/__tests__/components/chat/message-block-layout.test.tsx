@@ -43,6 +43,8 @@ afterEach(async () => {
 
 it.each([412, 1352])('aligns Android first Astra avatars and continuation blocks at %s', async width => {
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+  const contentWidth = Math.min(width, 740)
+  const contentLeft = (width - contentWidth) / 2 + 16
   const messages = [
     makeHeldHabitMessage({ id: 'first', content: 'First paragraph.\n\nSecond paragraph.', pendingOperations: [] }),
     makeChatBlockLayoutMessage(chatBlockLayoutCases[0]!, false),
@@ -62,11 +64,11 @@ it.each([412, 1352])('aligns Android first Astra avatars and continuation blocks
   try {
     const list = conversation.root.findAll(node => node.type === FlatList)[0]!.props as unknown as FlatListProps<ChatMessage>
     const items = Array.from(list.data!)
-    await renderer.act(() => { feed = renderer.create(<View style={list.contentContainerStyle}>
+    await renderer.act(() => { feed = renderer.create(<View><View style={list.contentContainerStyle}>
       {items.map((item, index) => <View key={item.id} testID={`turn-${index}`}>
         {list.renderItem!({ item, index, separators: { highlight: vi.fn(), unhighlight: vi.fn(), updateProps: vi.fn() } })}
       </View>)}
-    </View>) as GeometryTree })
+    </View></View>) as GeometryTree })
     const turns = items.map((_, index) => feed.root.findAll(node => typeof node.type === 'string' && node.props.testID === `turn-${index}`)[0]!)
     expect(turns.map(turn => turn.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-avatar').length)).toEqual([1, 0, 0, 1, 0])
     expect(turns.map(turn => turn.findAll(node => typeof node.type === 'string' && node.props.testID === 'block-frame-resting').length)).toEqual([0, 2, 0, 2, 0])
@@ -86,11 +88,11 @@ it.each([412, 1352])('aligns Android first Astra avatars and continuation blocks
       expect(mark.bottom - mark.top).toBe(24)
     }
     for (const key of ['prose-0', 'prose-2', 'block-0', 'block-1', 'block-2', 'block-3']) {
-      expect(geometry.get(key)!.left).toBe(16)
+      expect(geometry.get(key)!.left).toBe(contentLeft)
     }
     expect(geometry.get('prose-0')!.top - geometry.get('avatar-0')!.bottom).toBe(8)
     expect(geometry.get('block-2')!.top - geometry.get('avatar-1')!.bottom).toBe(8)
-    expect(geometry.get('block-0')!.width).toBe(width - 32)
+    expect(geometry.get('block-0')!.width).toBe(contentWidth - 32)
   } finally {
     await renderer.act(() => { feed.unmount(); conversation.unmount() })
   }
@@ -113,12 +115,12 @@ it.each([412, 1352].flatMap(width => ['empty', 'user', 'ai'].map(previous => ({ 
     await renderer.act(() => { conversation = renderer.create(<AstraConversation chat={chat} />) as GeometryTree })
     const renderFeed = () => {
       const list = conversation.root.findAll(node => node.type === FlatList)[0]!.props as unknown as FlatListProps<ChatMessage>
-      return <View style={list.contentContainerStyle}>
+      return <View><View style={list.contentContainerStyle}>
         {Array.from(list.data!).map((item, index) => <React.Fragment key={item.id}>
           {list.renderItem!({ item, index, separators: { highlight: vi.fn(), unhighlight: vi.fn(), updateProps: vi.fn() } })}
         </React.Fragment>)}
         {list.ListFooterComponent as React.ReactElement}
-      </View>
+      </View></View>
     }
     try {
       await renderer.act(() => { feed = renderer.create(renderFeed()) as GeometryTree })
@@ -133,6 +135,7 @@ it.each([412, 1352].flatMap(width => ['empty', 'user', 'ai'].map(previous => ({ 
       ] }} />) })
       await renderer.act(() => { feed.update(renderFeed()) })
       const completed = measure()
+      expect(running.left).toBe((width - Math.min(width, 740)) / 2 + 16)
       expect(running.left).toBe(completed.get('thinking-trace-completed')!.left)
       expect(running.left).toBe(completed.get('message-prose')!.left)
       expect(runningMarks).toBe(1)
@@ -143,6 +146,8 @@ it.each([412, 1352].flatMap(width => ['empty', 'user', 'ai'].map(previous => ({ 
 
 it.each(cases)('spaces Android $kind at $width in $locale with prose=$prose', async ({ width, locale, scenario, prose }) => {
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+  const contentWidth = Math.min(width, 740)
+  const contentLeft = (width - contentWidth) / 2 + 16
   await i18n.changeLanguage(locale)
   const chat = {
     threadScroll: createChatThreadScroll(), flatListRef: { current: null },
@@ -156,11 +161,11 @@ it.each(cases)('spaces Android $kind at $width in $locale with prose=$prose', as
   await renderer.act(() => { conversation = renderer.create(<AstraConversation chat={chat} />) as GeometryTree })
   try {
     const list = conversation.root.findAll(node => node.type === FlatList)[0]!.props as unknown as FlatListProps<ChatMessage>
-    await renderer.act(() => { feed = renderer.create(<View style={list.contentContainerStyle}>
+    await renderer.act(() => { feed = renderer.create(<View><View style={list.contentContainerStyle}>
       {Array.from(list.data!).map((item, index) => <React.Fragment key={item.id}>
         {list.renderItem!({ item, index, separators: { highlight: vi.fn(), unhighlight: vi.fn(), updateProps: vi.fn() } })}
       </React.Fragment>)}
-    </View>) as GeometryTree })
+    </View></View>) as GeometryTree })
     let frameIndex = 0
     let proseIndex = 0
     const geometry = measureSafeArea(feed.toJSON(), host => {
@@ -173,8 +178,8 @@ it.each(cases)('spaces Android $kind at $width in $locale with prose=$prose', as
     expect(geometry.get('block-0')!.top - currentProse.bottom).toBeCloseTo(16, 1)
     for (let index = 0; index < scenario.count; index++) {
       const block = geometry.get(`block-${index}`)!
-      expect(block.left).toBeCloseTo(16, 1)
-      expect(block.width).toBeCloseTo(width - 32, 1)
+      expect(block.left).toBeCloseTo(contentLeft, 1)
+      expect(block.width).toBeCloseTo(contentWidth - 32, 1)
       if (index > 0) expect(block.top - geometry.get(`block-${index - 1}`)!.bottom).toBeCloseTo(16, 1)
     }
   } finally {

@@ -1,3 +1,4 @@
+import { ShellContent } from '@/components/shell/shell-content'
 import { SPACING, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { useMemo } from 'react'
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -32,7 +33,7 @@ export function LegalDocumentLayout({ title, headerTitle, lastUpdated, sections,
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={pageEnd.safeAreaEdges}>
       <PageHeader backLabel={backLabel} onBack={onBack} title={headerTitle} />
-      <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: pageEnd.paddingBottom }]} showsVerticalScrollIndicator={false}>
+      <ShellContent style={{ flex: 1 }}><ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: pageEnd.paddingBottom }]} showsVerticalScrollIndicator={false}>
         <View testID="legal-document" style={styles.document}>
           <View style={styles.titleBlock}>
             <Text style={[styles.title, width >= 640 ? styles.titleWide : undefined, { color: tokens.fg1 }]}>{title}</Text>
@@ -57,7 +58,7 @@ export function LegalDocumentLayout({ title, headerTitle, lastUpdated, sections,
             ))}
           </View>
         </View>
-      </ScrollView>
+      </ScrollView></ShellContent>
     </SafeAreaView>
   )
 }

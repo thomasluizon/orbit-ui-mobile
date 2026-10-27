@@ -28,7 +28,8 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('react-native-safe-area-context', () => ({
+vi.mock('react-native-safe-area-context', async (original) => ({
+  ...await original<typeof import('react-native-safe-area-context')>(),
   SafeAreaView: ({ children }: { children: React.ReactNode }) =>
     React.createElement('SafeAreaView', null, children),
 }))

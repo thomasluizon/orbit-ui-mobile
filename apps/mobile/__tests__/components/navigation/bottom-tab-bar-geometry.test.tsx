@@ -200,7 +200,7 @@ describe('Native bottom tab layout', () => {
       const pinned = nodes.get('shell-pinned-slot')!
       const button = nodes.get('button-primary-md')!
       const header = nodes.get('shell-header')!
-      const backTarget = nodes.get('nav-header-back')!.getChild(0).getChild(0)
+      const backTarget = nodes.get('nav-header-back-control')!
       const backBounds = bounds(backTarget)
       const headerBounds = bounds(header)
       expect(backTarget.getComputedHeight()).toBe(48)

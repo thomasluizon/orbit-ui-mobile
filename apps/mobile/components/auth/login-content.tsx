@@ -1,3 +1,4 @@
+import { ShellContent } from '@/components/shell/shell-content'
 import { getPendingAuthProvider, getAuthCallbackErrorKey } from '@orbit/shared/utils'
 import { SPACING } from '@orbit/shared/theme'
 import { useEffect, useState } from 'react'
@@ -54,7 +55,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
     ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
     : null
   return <View style={styles.root}>
-    <KeyboardAwareScrollView containerStyle={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+    <ShellContent style={{ flex: 1 }}><KeyboardAwareScrollView containerStyle={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
       contentContainerStyle={[styles.scrollContent, keyboardOpen && styles.scrollKeyboardOpen, wide && styles.scrollWide]} keyboardShouldPersistTaps="always"
       showsVerticalScrollIndicator={false}>
       <View style={[styles.formColumn, !wide && styles.formCompact, width < 336 && { paddingHorizontal: SPACING.s8 }, wide && styles.panel]}>
@@ -87,7 +88,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
         </LoginStepStage>}
         <LoginValidationMessage message={flow.validationGeneralError} isOnline={flow.isOnline} styles={styles} />
       </View>
-    </KeyboardAwareScrollView>
+    </KeyboardAwareScrollView></ShellContent>
   </View>
 }
 

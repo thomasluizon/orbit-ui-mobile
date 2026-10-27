@@ -31,6 +31,12 @@ describe('Bottom tab geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it('keeps each indicator inside a direct navigation link', () => {
+    const { container } = render(<BottomTabBar label={en.nav.mainNavigation} activeId="hoje" onSelect={vi.fn()}
+      items={SHELL_DESTINATION_IDS.map(id => ({ id, href: '/', label: en.nav[DESTINATION_ICONS[id].commandId], icon: ({ active }) => <DestinationIcon destination={id} active={active} /> }))} />)
+    expect(container.querySelectorAll('nav > a > [data-tab-indicator]')).toHaveLength(4)
+  })
+
   it('measures the common one-line limit from the shipped fonts in both locales', async () => {
     const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
     try {

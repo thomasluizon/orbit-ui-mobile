@@ -107,7 +107,7 @@ describe('BottomTabBar', () => {
 
   it('keeps destinations within the large-screen content column', () => {
     const tree = renderNavigation(<BottomTabBar items={items} activeId="today" onSelect={vi.fn()} label="Navigation" />)
-    const destinations = tree.hosts().find((node) => node.props.testID === 'bottom-tab-destinations')
+    const destinations = tree.hosts().find((node) => node.props.testID === 'bottom-tab-items')
     expect(StyleSheet.flatten(destinations?.props.style)).toMatchObject({
       alignSelf: 'center',
       maxWidth: 740,

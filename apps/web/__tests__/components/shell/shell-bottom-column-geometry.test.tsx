@@ -246,7 +246,8 @@ describe('Shell bottom column geometry', () => {
         expect(geometry.fab.hit).toBe('Create')
         expect(geometry.fab.topClearance).toBeGreaterThanOrEqual(8)
         expect(geometry.fab.bottomClearance).toBeGreaterThanOrEqual(8)
-        expect(geometry.tabs).toEqual(geometry.column)
+        expect(geometry.tabs).toEqual({ left: 0, right: width })
+        expect(geometry.column.right - geometry.column.left).toBe(Math.min(width, 740))
       }
     } finally { await page.close(); view.unmount() }
   })

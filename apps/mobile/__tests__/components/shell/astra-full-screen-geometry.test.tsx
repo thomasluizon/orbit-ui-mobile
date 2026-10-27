@@ -64,7 +64,7 @@ it.each([412, 840])('pins the full conversation over navigation at %ipx', async 
     const tabs = geometry.get('tabs')!
     expect(layer.top).toBe(0)
     expect(layer.bottom).toBe(915)
-    expect(layer.width).toBe(Math.min(width, 740))
+    expect(layer.width).toBe(width)
     expect(layer.left).toBe((width - layer.width) / 2)
     expect(tabs.top).toBeGreaterThanOrEqual(layer.top)
     expect(tabs.bottom).toBeLessThanOrEqual(layer.bottom)

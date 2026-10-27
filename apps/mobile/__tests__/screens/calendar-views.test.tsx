@@ -712,7 +712,7 @@ describe("CalendarScreen views (mobile)", () => {
       for (let ancestor = host.parent; ancestor; ancestor = ancestor.parent) {
         if (typeof ancestor.type !== 'string') continue;
         inset += Number(StyleSheet.flatten<ViewStyle>(ancestor.props.style).paddingTop ?? 0);
-        inset += Number(StyleSheet.flatten<ViewStyle>(ancestor.props.contentContainerStyle).paddingTop ?? 0);
+        inset += Number(StyleSheet.flatten<ViewStyle>(ancestor.props.contentContainerStyle ?? {}).paddingTop ?? 0);
       }
       return inset;
     };
@@ -1106,12 +1106,11 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { header.update(<></>); nextHeader.update(<></>); resetHeader.update(<></>); tree.update(<></>); });
   });
 
-  it('leaves the top safe area to the shell', () => {
+  it('leaves every safe area to the shell', () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />) })
     const safeAreas = tree.root.findAll((node) => node.type === SafeAreaView)
-    expect(safeAreas.length).toBeGreaterThan(0)
-    for (const safeArea of safeAreas) expect(safeArea.props.edges).toEqual(['left', 'right'])
+    expect(safeAreas).toHaveLength(0)
     TestRenderer.act(() => tree.update(<></>))
   })
 

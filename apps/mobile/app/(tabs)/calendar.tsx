@@ -73,7 +73,6 @@ import { createTokensV2 } from "@/lib/theme";
 import { useRootScrollToTop } from '@/components/shell/root-scroll-context'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from "@/lib/use-app-theme";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Sheet, useSheetHost } from '@/components/ui/sheet';
 import { PillButton } from "@/components/ui/pill-button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -772,7 +771,7 @@ function CalendarScreenContent({
   }[view];
 
   return (
-    <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+    <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <ScreenReaderHeading title={t('nav.calendar')} />
       <CalendarOptions tokens={tokens} onGoogleCalendar={profile ? openGoogleCalendar : undefined} />
 
@@ -849,7 +848,7 @@ function CalendarScreenContent({
           })}
         />
       </Sheet>) : null}
-    </SafeAreaView>
+    </View>
   );
 }
 
