@@ -2905,3 +2905,8 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   .orbit-sheet-panel[data-ending-style] { transform: none; }
   .orbit-menu-panel { animation: none; }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-route-motion],
+  [data-toast-motion] { transform: none !important; }
+}

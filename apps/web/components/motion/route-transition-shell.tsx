@@ -122,6 +122,7 @@ export function RouteTransitionShell({
   return (
     <LazyMotion features={domMax}>
       <m.div
+        data-route-motion=""
         key={pathname}
         className={className}
         custom={transitionMotion}

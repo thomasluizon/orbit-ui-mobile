@@ -65,7 +65,7 @@ function ToastSurface({ props, dismiss, setHovered, setFocused }: Readonly<{
   const colors = { neutral: neutralColors, working: neutralColors, done: neutralColors, lost: lossColors }[props.kind]
 
   return (
-    <motion.div inert={!present} aria-hidden={!present || undefined}
+    <motion.div data-toast-motion="" inert={!present} aria-hidden={!present || undefined}
       initial={{ opacity: 0, y: preset.shift, scale: preset.scaleFrom }}
       animate={{ opacity: 1, y: 0, scale: 1, transition: { duration: preset.enterDuration / 1000, ease: preset.enterEasing, ...spatialTransition } }}
       exit={{ opacity: 0, y: preset.shift, scale: preset.scaleFrom, transition: { duration: preset.exitDuration / 1000, ease: preset.exitEasing, ...spatialTransition } }}>
