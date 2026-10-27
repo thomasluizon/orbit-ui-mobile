@@ -906,7 +906,7 @@ describe('mobile useChatComposer', () => {
     __setFocusImpl(focus)
     const tree = await renderConversationHarness()
     TestRenderer.act(() => inputHosts(tree)[0].props.onFocus())
-    const voiceButton = visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.actions')[0]
+    const voiceButton = visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.voice.start')[0]
     const voiceTag = voiceButton.props.__nativeTag
     TestRenderer.act(() => { __setTouchMode(false); __focusHost(voiceTag) })
     expect(__getFocusedNativeTag()).toBe(voiceTag)
