@@ -22,6 +22,7 @@ interface LocalePatterns {
   daily: RegExp
   count: RegExp
   interval: RegExp
+  weeklySuffix: RegExp
   times: RegExp[]
   numberWords: Readonly<Record<string, number>>
 }
@@ -84,6 +85,7 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
     daily: /(?<![a-z])(todo dia|todos os dias|diariamente|toda manha|toda noite)(?![a-z])/gu,
     count: new RegExp(`\\b(${PT_NUMBER})\\s*(?:vez|vezes|x)\\s*(?:(?:por|na|a|em)\\s*)?semana\\b`, 'gu'),
     interval: new RegExp(`\\ba\\s+cada\\s+(${PT_NUMBER})\\s+semanas?\\b`, 'gu'),
+    weeklySuffix: /^\s+((?:a cada|de cada|cada|toda|por) semana|todas as semanas)\b/u,
     times: [
       /\b(?:as|a)\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?\b(?![:\dh]|[.,]\d)/gu,
       /(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)\b(?![:\d]|[.,]\d)/gu,
@@ -104,6 +106,7 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
     daily: /\b(every day|daily|each day|every morning|every evening)\b/gu,
     count: new RegExp(`\\b(?:(once|twice)|(${EN_NUMBER})\\s*(?:time|times|x))\\s*(?:(?:a|per|each)\\s*)?week\\b`, 'gu'),
     interval: new RegExp(`\\bevery\\s+(${EN_NUMBER})\\s+weeks?\\b`, 'gu'),
+    weeklySuffix: /^\s+((?:every|each|per|a) week)\b/u,
     times: [
       /\bat\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?\s*(am|pm)?\b(?![:\dh]|[.,]\d)/gu,
       /(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)\s*(am|pm)?\b(?![:\d]|[.,]\d)/gu,
@@ -244,8 +247,10 @@ function hasUnmodeledWeekdayPrefix(text: string): boolean {
 function hasUnmodeledWeekdaySuffix(text: string): boolean {
   const word = /^\s+(\S+)/u.exec(text)?.[1]?.replace(/[,.!?;:]+$/u, '')
   if (word && UNMODELED_WEEKDAY_QUALIFIERS.has(word) && !WEEKDAY_PERIOD_WORDS.has(word)) return true
-  return /^\s+(?:of|in|on|every|each|this|next|last)\s+(?:(?:the|every|each|this|next|last|odd|even)\s+)*(?:months?|years?|weeks?)\b/u.test(text)
-    || /^\s+(?:de cada|a cada|do|da|de|cada|em|nas|nos)\s+(?:mes(?:es)?|anos?|semanas?)\b/u.test(text)
+  return /^\s+(?:of|in|on|every|each|this|next|last)\s+(?:(?:the|every|each|this|next|last|odd|even)\s+)*(?:months?|years?)\b/u.test(text)
+    || /^\s+(?:de cada|a cada|do|da|de|cada|em|nas|nos)\s+(?:mes(?:es)?|anos?)\b/u.test(text)
+    || /^\s+(?:of|in|on|every|each)\s+(?:the\s+)?(?:this|next|last|odd|even|alternate|alternating)\s+weeks?\b/u.test(text)
+    || /^\s+(?:(?:de cada|a cada|do|da|de|cada|em|nas|nos)\s+)?semanas?\s+(?:pares|impares|alternadas)\b/u.test(text)
 }
 
 function hasUnmodeledWeekday(text: string, patterns: LocalePatterns): boolean {
@@ -417,7 +422,15 @@ function extractCadence(remaining: string, phrase: NormalizedPhrase, patterns: L
   if (weekdayMatches.length > 0) {
     cadence = 'fixed'
     days = [...new Set(weekdayMatches.map(({ day }) => day))]
-    for (const { match } of weekdayMatches) consumed.push(toToken(phrase, match, 'weekday'))
+    for (const { match } of weekdayMatches) {
+      consumed.push(toToken(phrase, match, 'weekday'))
+      const weekdayEnd = match.index + match[0].length
+      const suffix = patterns.weeklySuffix.exec(remaining.slice(weekdayEnd))
+      if (suffix) {
+        const end = weekdayEnd + suffix[0].length
+        consumed.push({ start: phrase.originalStarts[end - suffix[1]!.length]!, end: phrase.originalEnds[end - 1]!, kind: 'interval' })
+      }
+    }
   } else {
     const count = extractCount(remaining, patterns)
     if (count) {

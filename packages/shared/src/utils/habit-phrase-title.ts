@@ -6,6 +6,14 @@ export interface AppliedHabitPhraseFields {
   dueTime: boolean
 }
 
+function trimTitleSeparators(title: string): string {
+  let start = 0
+  let end = title.length
+  while (start < end && /[,;\s]/u.test(title[start]!)) start += 1
+  while (end > start && /[,;\s]/u.test(title[end - 1]!)) end -= 1
+  return title.slice(start, end)
+}
+
 function removeOrphanedGlue(
   sentence: string,
   locale: SupportedLocale,
@@ -67,6 +75,6 @@ export function getHabitPhraseTitle(
   if (consumed.some((token) => token.kind !== 'time')) {
     removeOrphanedGlue(sentence, locale, characters, removed, protectedCharacters)
   }
-  const title = characters.join('').replaceAll(/\s+/gu, ' ').trim().replaceAll(/^[,;\s]+|[,;\s]+$/gu, '')
+  const title = trimTitleSeparators(characters.join('').replaceAll(/\s+/gu, ' '))
   return title || sentence.trim()
 }
