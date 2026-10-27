@@ -1784,6 +1784,10 @@
       "open": "Abrir Hoje",
       "rowCount": "{total, plural, =0 {{shown} de # hábitos exibidos} one {{shown} de # hábito exibido} other {{shown} de # hábitos exibidos}}"
     },
+    "gamificationCard": {
+      "title": "Nível e conquistas",
+      "levelTitle": "Nível"
+    },
     "streakCard": {
       "title": "Sua sequência e XP",
       "days": "Dias recentes da sequência",

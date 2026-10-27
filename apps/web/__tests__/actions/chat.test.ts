@@ -1,5 +1,5 @@
 import { buildChatClientContext } from '@orbit/shared/chat'
-import { habitMonthReadBlockResponseSchema } from '@orbit/shared/types/chat'
+import { gamificationReadBlockResponseSchema, habitMonthReadBlockResponseSchema } from '@orbit/shared/types/chat'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { pendingOperationRevisionResultSchema } from '@orbit/shared/types'
 
@@ -17,6 +17,7 @@ vi.mock('@/lib/server-fetch', () => ({
 const {
   getCurrentProactiveItem,
   refreshHabitMonth,
+  refreshGamification,
   confirmPendingOperation,
   revisePendingOperation,
   refreshPendingOperation,
@@ -171,4 +172,13 @@ it('uses the authenticated habit-month refresh endpoint with its dedicated schem
   expect(mockServerAuthMutate).toHaveBeenLastCalledWith('/api/chat/habit-month/refresh', {
     method: 'POST', body: JSON.stringify({ token: 'signed-month', clientContext }),
   }, 'account-one', habitMonthReadBlockResponseSchema)
+})
+
+it('uses the authenticated gamification refresh endpoint without paging or a replacement query', async () => {
+  mockServerAuthMutate.mockResolvedValue({})
+  const response = await refreshGamification('signed-query', clientContext, 'account-one')
+  expect(response.ok).toBe(true)
+  expect(mockServerAuthMutate).toHaveBeenLastCalledWith('/api/chat/gamification/refresh', {
+    method: 'POST', body: JSON.stringify({ token: 'signed-query', clientContext }),
+  }, 'account-one', gamificationReadBlockResponseSchema)
 })

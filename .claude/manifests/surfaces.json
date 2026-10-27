@@ -3647,6 +3647,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "block-chat-gamification-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/gamification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/gamification-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-gamification-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/gamification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/gamification-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-gamification-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/gamification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/gamification-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-gamification-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/gamification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/gamification-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "block-chat-goal-list-card",
       "platform": "web",
       "kind": "block",
@@ -12489,6 +12545,62 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/follow-up-chips.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-gamification-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/gamification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/gamification-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-gamification-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/gamification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/gamification-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-gamification-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/gamification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/gamification-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-gamification-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/gamification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/gamification-card.tsx"
       ],
       "state": "default",
       "theme": "dark",

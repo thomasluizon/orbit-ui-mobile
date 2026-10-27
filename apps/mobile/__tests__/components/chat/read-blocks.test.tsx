@@ -6,6 +6,7 @@ import type { GeometryTree } from '../../support/safe-area-geometry'
 import { renderedText } from '../../support/react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { gamificationCardCases, gamificationCardFixture } from '@orbit/shared/test-support/gamification-card-fixtures'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { getAccountDay } from '@orbit/shared/utils'
@@ -44,6 +45,76 @@ async function press(tree: GeometryTree, label: string) {
   await act(() => { (button.props.onPress as () => void)() })
 }
 beforeEach(() => { state.isError = false; vi.mocked(apiClient).mockReset(); state.locale = 'en'; state.actualCopy = false; state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
+
+describe('gamification reads', () => {
+  it.each(gamificationCardCases.flatMap(testCase => ['en', 'pt-BR'].map(locale => ({ ...testCase, locale }))))(
+    'renders only requested sections for $name in $locale', async ({ block, locale }) => {
+      state.locale = locale
+      state.actualCopy = true
+      const tree = await mount({ kind: 'gamification', block })
+      const text = renderedText(tree.toJSON())
+      const messages = locale === 'en' ? en : pt
+      expect(tree.root.findAll(node => node.props.testID === 'progress-xp-summary').length > 0).toBe(block.state.profile !== null)
+      expect(text.includes(locale === 'en' ? 'First Orbit' : 'Primeira órbita')).toBe(Boolean(block.state.achievements?.achievements.length))
+      if (block.state.achievements?.achievements.length === 0) expect(text).toContain(messages.progressScreen.achievements.empty)
+      expect(text).not.toContain(messages.chat.streakCard.current)
+      await act(() => tree.unmount())
+    })
+
+  it.each(gamificationCardCases)('refreshes $name using its signed query and dedicated route', async ({ block }) => {
+    const next = { ...block, read: { ...block.read, revision: 'two' } }
+    vi.mocked(apiClient).mockResolvedValue({ kind: 'gamification', block: next, read: next.read })
+    const tree = await mount({ kind: 'gamification', block })
+    await press(tree, 'blockFrame.refresh')
+    expect(apiClient).toHaveBeenCalledExactlyOnceWith(API.chat.refreshGamification, expect.objectContaining({ method: 'POST', body: expect.any(String), isCurrent: expect.any(Function) }), expect.anything())
+    const request = JSON.parse(vi.mocked(apiClient).mock.calls[0]![1]!.body as string)
+    expect(request).toEqual({ token: 'signed-query', clientContext: expect.objectContaining({ partKinds: expect.arrayContaining(['gamification']) }) })
+    await act(() => tree.unmount())
+  })
+
+  it('keeps a failed stale refresh actionable and replaces the snapshot on retry', async () => {
+    state.actualCopy = true
+    const stale = { ...gamificationCardFixture, read: { ...gamificationCardFixture.read, completeness: 'stale' as const } }
+    const next = { ...gamificationCardFixture, state: { ...gamificationCardFixture.state, profile: { ...gamificationCardFixture.state.profile, totalXp: 600 } }, read: { ...gamificationCardFixture.read, revision: 'two' } }
+    vi.mocked(apiClient).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ kind: 'gamification', block: next, read: next.read })
+    const tree = await mount({ kind: 'gamification', block: stale })
+    await press(tree, en.blockFrame.refresh)
+    expect(renderedText(tree.toJSON())).toContain(en.chat.readBlock.error)
+    await press(tree, en.blockFrame.refresh)
+    const summary = tree.root.findAll(node => node.props.testID === 'progress-xp-summary')[0]!
+    expect(renderedText(summary)).toContain('600')
+    expect(renderedText(tree.toJSON())).not.toContain(en.chat.readBlock.error)
+    await act(() => tree.unmount())
+  })
+
+  it('keeps the full catalogue with earned, unearned and supplied progress states', async () => {
+    const achievements = Object.keys(en.gamification.achievements).slice(0, 8).map((id, index) => ({
+      ...gamificationCardFixture.state.achievements.achievements[0]!, id,
+      isEarned: index === 0, progressCurrent: index === 1 ? 2 : null, progressTarget: index === 1 ? 7 : null,
+    }))
+    const tree = await mount({ kind: 'gamification', block: { ...gamificationCardFixture, state: { profile: null, achievements: { achievements }, streak: null } } })
+    for (const achievement of achievements) expect(tree.root.findAll(node => node.props.testID === `achievement-tile-${achievement.id}`).length).toBeGreaterThan(0)
+    expect(renderedText(tree.toJSON())).toContain('progressScreen.achievements.progress')
+    await act(() => tree.unmount())
+  })
+
+  it('guards duplicate refreshes and discards a response after an account change', async () => {
+    state.actualCopy = true
+    let resolve!: (response: unknown) => void
+    vi.mocked(apiClient).mockImplementation(() => new Promise(done => { resolve = done }))
+    const tree = await mount({ kind: 'gamification', block: gamificationCardFixture })
+    await press(tree, en.blockFrame.refresh)
+    await press(tree, en.blockFrame.refresh)
+    expect(apiClient).toHaveBeenCalledTimes(1)
+    await act(() => advanceAccountGeneration())
+    const next = { ...gamificationCardFixture, state: { ...gamificationCardFixture.state, profile: { ...gamificationCardFixture.state.profile, totalXp: 999 } } }
+    await act(() => { resolve({ kind: 'gamification', block: next, read: next.read }) })
+    const summary = tree.root.findAll(node => node.props.testID === 'progress-xp-summary')[0]!
+    expect(renderedText(summary)).toContain('500')
+    expect(renderedText(tree.toJSON())).not.toContain('999')
+    await act(() => tree.unmount())
+  })
+})
 
 describe('focused Android read compositions', () => {
   it.each(['en', 'pt-BR'])('keeps figures, dates and zero baseline honest in %s', async locale => {

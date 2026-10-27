@@ -11,6 +11,7 @@ import { PeriodComparisonCard } from './period-comparison-card'
 import { ReadBlockBoundary } from './read-block-frame'
 import { PeriodInsightCard } from './period-insight-card'
 import { DaySummaryCard } from './day-summary-card'
+import { GamificationCard } from './gamification-card'
 import { StreakCard } from './streak-card'
 import { HabitMonthCard } from './habit-month-card'
 import { CalendarCard } from './calendar-card'
@@ -33,6 +34,7 @@ const blockRegistry: { [Kind in ChatBlockKind]: (block: BlockContent[Kind], onOp
   periodComparison: block => <PeriodComparisonCard card={block} />,
   periodInsight: block => <PeriodInsightCard periodInsight={block} />,
   daySummary: block => <DaySummaryCard daySummary={block} />,
+  gamification: block => <GamificationCard card={block} />,
   streak: block => <StreakCard streakCard={block} />,
   calendar: block => <CalendarCard calendarCard={block} />,
   habitMonth: block => <HabitMonthCard card={block} />,
