@@ -54,7 +54,7 @@ it('the documented clean install loads the harness and runs promptfoo past befor
     writeFileSync(join(evaluation, 'install-smoke.yaml'), stringify({
       ...configuration,
       providers: [{ id: 'file://__tests__/fixtures/target.mjs', config: {
-        tools: parse(readFileSync(join(evaluation, 'catalog.yaml'), 'utf8')),
+        tools: parse(readFileSync(join(evaluation, 'catalog.yaml'), 'utf8')).tools,
       } }],
       defaultTest: { ...configuration.defaultTest, options: { provider: 'file://__tests__/fixtures/grader.mjs' } },
       tests: [{ metadata: { id: 'install-smoke', fixture: 'pro', locale: 'en' }, vars: {

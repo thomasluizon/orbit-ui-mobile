@@ -1,3 +1,4 @@
+import en from '@orbit/shared/i18n/en.json'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React, { useState } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
@@ -48,12 +49,12 @@ vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
 vi.mock('@/components/shell/destination-shell', () => ({
   useShellComposerSlot: () => {},
-  DestinationShell: ({ children, onCreate, notice, createRefusal, conversation, conversationOpen }: { children: React.ReactNode; onCreate: () => void; notice?: React.ReactNode; createRefusal?: React.ReactNode; conversation?: React.ReactNode; conversationOpen?: boolean }) => (
+  DestinationShell: ({ children, onCreate, notice, createRefusal, conversation, conversationOpen, composer }: { composer?: React.ReactNode; children: React.ReactNode; onCreate: () => void; notice?: React.ReactNode; createRefusal?: React.ReactNode; conversation?: React.ReactNode; conversationOpen?: boolean }) => (
     <>
       {state.pathname === '/wrapped' ? children : (
         <>
           <div data-shell-background="" inert={conversationOpen || undefined} aria-hidden={conversationOpen || undefined}>
-            <button type="button" onClick={onCreate}>Create</button>{createRefusal}<div data-shell-notice="" data-testid="notice-slot">{notice}</div>{children}
+            <button type="button" onClick={onCreate}>Create</button>{createRefusal}<div data-shell-notice="" data-testid="notice-slot">{notice}</div>{composer}{children}
           </div>
           {conversationOpen && !state.wide ? <div role="dialog" aria-label="Astra conversation">{conversation}</div> : null}
           {conversationOpen && state.wide ? <aside aria-label="Astra conversation">{conversation}</aside> : null}
@@ -63,12 +64,14 @@ vi.mock('@/components/shell/destination-shell', () => ({
   ),
 }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPaletteBackground: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
-vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
-vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => ({
-  fileInputRef: { current: null }, textFileInputRef: { current: null },
-  handleFileSelect: vi.fn(), handleTextFileSelect: vi.fn(),
-  composerProps: { onSend: vi.fn() },
-}) }))
+vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => {
+  const [value, onChangeValue] = useState('Keep this draft')
+  return {
+    fileInputRef: { current: null }, textFileInputRef: { current: null },
+    handleFileSelect: vi.fn(), handleTextFileSelect: vi.fn(),
+    composerProps: { state: 'idle', value, onChangeValue, onSend: vi.fn(), words: en.shell.composer, suggestions: [] },
+  }
+} }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: state.isOnline }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentError: vi.fn() }) }))
 vi.mock('@/components/navigation/web-nav', () => ({ WebNav: () => null }))
@@ -157,6 +160,30 @@ describe('Today create during first load', () => {
     vi.useRealTimers()
     if (originalTimeZone === undefined) delete process.env.TZ
     else process.env.TZ = originalTimeZone
+  })
+
+  it('collapses Hoje with its own persisted preference and retains its mounted draft', async () => {
+    const view = render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'Changed Hoje draft' } })
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.collapse' }))
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(input).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'shell.composer.expand' })).toHaveFocus()
+    expect(useUIStore.getState()).toMatchObject({ todayComposerCollapsed: true, habitComposerCollapsed: false })
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.expand' }))
+    expect(screen.getByRole('textbox')).toBe(input)
+    expect(input).toHaveValue('Changed Hoje draft')
+    expect(screen.getByRole('button', { name: 'shell.composer.collapse' })).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.collapse' }))
+    view.unmount()
+    const saved = localStorage.getItem('orbit-ui-store')!
+    useUIStore.setState(useUIStore.getInitialState())
+    localStorage.setItem('orbit-ui-store', saved)
+    await useUIStore.persist.rehydrate()
+    render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
+    expect(screen.getByRole('button', { name: 'shell.composer.expand' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('textbox')).toBeNull()
   })
 
   it('keeps reload guidance in the main app layout', async () => {

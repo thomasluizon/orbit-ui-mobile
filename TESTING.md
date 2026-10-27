@@ -164,7 +164,20 @@ Workers compile these specs and run the repository's Vitest suites, including th
 It pins promptfoo, uses its maintained HTTP provider, and sends multipart `message`, `clientContext` and
 `history` fields to `POST /api/chat`. The server selects Astra's model. The superseded model
 comparison is absent; this harness cannot override that selection. D147 selects `gpt-6-luna`
-at low effort. Before a staging run, use `/flag` to turn on the plain `astra_eval_unmetered`
+at low effort.
+
+Before a live run, regenerate the tool catalogs from a clean checkout of the evaluated API
+commit with `node evals/astra/generate-catalog.mjs <api-checkout>` from the repository root.
+The exporter uses the API's tool registrations, request builder and strict schema normalizer for both
+composition and legacy clients, with `AstraBlockFirst` enabled for the gate;
+`catalog.yaml` records the full source SHA as `apiCommit`. Generation refuses a dirty API tree.
+Structural validation selects the schema matching the case's `clientContext.supportsParts` and removes
+only properties the API's trace sensitivity collector marks for omission, retaining all observable constraints.
+The live gate checks `/health` before its first case and before refreshing credentials. It refuses to
+start unless the reported `commit` matches `apiCommit`, naming both commits and the regeneration command.
+Offline unit tests validate against the committed catalog without contacting the API.
+
+Before a staging run, use `/flag` to turn on the plain `astra_eval_unmetered`
 flag for `ORBIT_EVAL_TOKEN`, the main account, keeping global enablement off. Keep it off for
 `ORBIT_EVAL_FREE_TOKEN` (`free-at-limit`) and `ORBIT_EVAL_BUDGET_TOKEN` (`budget-exhausted`)
 so those accounts still prove the limits refuse. This flag resolves on only in staging.

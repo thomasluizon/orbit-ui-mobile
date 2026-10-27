@@ -14,7 +14,7 @@ import { chatResponse, toolCall } from './fixtures/producer.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const configuration = parse(readFileSync(resolve(root, 'promptfooconfig.yaml'), 'utf8'))
-const catalog = parse(readFileSync(resolve(root, 'catalog.yaml'), 'utf8'))
+const { apiCommit, tools: catalog } = parse(readFileSync(resolve(root, 'catalog.yaml'), 'utf8'))
 const scenarios = parse(readFileSync(resolve(root, 'scenarios.yaml'), 'utf8'))
 const cli = resolve(root, 'node_modules/promptfoo/dist/src/entrypoint.js')
 const scratch = []
@@ -223,7 +223,7 @@ describe('corpus and execution constraints', () => {
     }
     let configReads = 0
     vi.stubGlobal('fetch', async (url) => {
-      if (new URL(url).pathname === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
+      if (new URL(url).pathname === '/health') return Response.json({ status: 'Healthy', commit: apiCommit, checks: [] })
       if (new URL(url).pathname === '/api/auth/refresh') return refreshResponse()
       expect(new URL(url).pathname).toBe('/api/config')
       return Response.json({ features: { astra_eval_unmetered: { enabled: configReads++ === 0, planRequirement: null } } })

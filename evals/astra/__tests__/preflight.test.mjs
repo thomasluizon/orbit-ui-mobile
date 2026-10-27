@@ -1,7 +1,11 @@
 import { afterEach, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { parse } from 'yaml'
 import { beforeAll } from '../hooks.mjs'
 import { credentialKeys } from '../credentials.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
+
+const { apiCommit } = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
@@ -17,13 +21,13 @@ function preflightResponse(flag = { enabled: true, planRequirement: null }) {
   })
 }
 
-function requestsFor(configForAccount = (index) => preflightResponse({ enabled: index === 0, planRequirement: null })) {
+function requestsFor(configForAccount = (index) => preflightResponse({ enabled: index === 0, planRequirement: null }), servedCommit = apiCommit) {
   offlineCredentials()
   vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
   let accountIndex = -1
   const requests = vi.fn(async (url, options) => {
     const path = new URL(url).pathname
-    if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
+    if (path === '/health') return Response.json({ status: 'Healthy', commit: servedCommit, checks: [] })
     if (path === '/api/auth/refresh') {
       accountIndex++
       return Response.json({ token: `offline-token-${accountIndex}`, refreshToken: 'offline-refresh' })
@@ -38,6 +42,12 @@ function requestsFor(configForAccount = (index) => preflightResponse({ enabled: 
   vi.stubGlobal('fetch', requests)
   return requests
 }
+
+it.each([null, 'a'.repeat(40)])('rejects catalog mismatch before refreshing or checking selected accounts: %s', async (servedCommit) => {
+  const requests = requestsFor(undefined, servedCommit)
+  await expect(beforeAll(suiteFor(credentialKeys))).rejects.toThrow(`differs from API ${servedCommit}`)
+  expect(requests.mock.calls.map(([url]) => new URL(url).pathname)).toEqual(['/health'])
+})
 
 it.each(credentialKeys)('refuses the whole run before a case when %s violates its allowance policy', async (key) => {
   const index = credentialKeys.indexOf(key)

@@ -32,7 +32,7 @@ leading the visible action label inside the ordinary full-width menu row.
 | Surface | Web owner | Android owner |
 |---|---|---|
 | Suggestion strip, conversation entry, submit and retry | `components/shell/composer.tsx` | `components/shell/composer.tsx` |
-| Habit-detail disclosure registration | `app/(app)/layout.tsx` | `app/_layout.tsx` |
+| Hoje and habit-detail disclosure registration | `app/(app)/layout.tsx` | `app/_layout.tsx` |
 | Complete ideas and live requests | `components/chat/prompt-idea.tsx` | `components/chat/prompt-idea.tsx` |
 | Deferred complete idea above the composer | `components/chat/conversation.tsx` | `components/chat/conversation.tsx` |
 | Follow-up requests | `components/chat/follow-up-chips.tsx` | `components/chat/follow-up-chips.tsx` |
@@ -66,15 +66,16 @@ names and settings that name the assistant retain their meaning. The summary act
 entry is the proactive line. The Perfil settings entry retains its assistant name through `PROFILE_SUBMENUS` and draws
 `AstraGlyph` as its leading icon (#1780: Astra always carries the Astra mark).
 
-Habit detail adds one disclosure control. Collapsed, it occupies one compact row with the mark.
+Hoje and habit detail each add one disclosure control (#1796). Collapsed, it occupies one compact row with the mark.
 Expanded, the collapse icon shares the suggestion row, leaving the scroll strip room beside it.
 Without suggestions it occupies the input row's reserved text-action slot, with Clear and Paste in
 the existing actions menu. Neither placement adds a row. The compact row remains 48px at enlarged
 text. Web uses the global focus indicator; Android retains InsetFocusPressable.
 The input, attachments and requests remain
-mounted. The local UI preference persists through the existing device storage adapter. Other
-composer surfaces stay expanded. The shell continues to allocate the pinned content outside the
-habit scroller, preserving the final content row in narrow and short viewports.
+mounted. Each surface's local UI preference persists independently through the existing device storage
+adapter. Other composer surfaces stay expanded. The shell continues to allocate the pinned content
+outside the habit scroller, following the actual composer height and preserving the final content row
+in narrow and short viewports. Wide web Hoje retains its existing sidebar entry without a pinned composer.
 
 The leading mark and input reflow as one group, with the trailing controls on a separate line when
 needed. Enlarged text keeps the mark aligned with the input's bottom edge. The static web
