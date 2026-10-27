@@ -7,6 +7,13 @@ import * as Menu from './dropdown-menu'
 import { ChevronDown } from './icons'
 import { getSegmentedControlLayout } from '@orbit/shared/utils'
 
+const segmentPadding = 'px-2'
+const trackSpacing = 'gap-[4px] p-1'
+
+function inlinePadding(style: CSSStyleDeclaration) {
+  return Number(style.paddingLeft.replace('px', '')) + Number(style.paddingRight.replace('px', ''))
+}
+
 function SegmentOption<TValue extends string>({
   controlDisabled,
   onChange,
@@ -34,7 +41,7 @@ function SegmentOption<TValue extends string>({
       data-selected={selected || undefined}
       onClick={(event) => { if (event.detail === 0) select() }}
       data-disabled={disabled || undefined}
-      className="orbit-selection-ring habit-control-motion min-h-[var(--touch-min)] min-w-[var(--touch-min)] max-w-full grow shrink basis-auto px-2 py-1 rounded-[8px] text-[0.875rem] font-medium text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] data-[selected]:bg-[var(--bg-hover)] data-[selected]:text-[var(--fg-1)] disabled:opacity-40"
+      className={`${segmentPadding} orbit-selection-ring habit-control-motion min-h-[var(--touch-min)] min-w-[var(--touch-min)] max-w-full grow shrink basis-auto py-1 rounded-[8px] text-[0.875rem] font-medium text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] data-[selected]:bg-[var(--bg-hover)] data-[selected]:text-[var(--fg-1)] disabled:opacity-40`}
     >
       <span className="block whitespace-normal [overflow-wrap:normal]">{option.label}</span>
     </Primitive.Item>
@@ -49,12 +56,17 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
   useLayoutEffect(() => {
     const frame = frameRef.current!
     const measure = () => {
-      const wordWidths = [...frame.querySelectorAll<HTMLElement>('[data-segment-measure]')].map((label) => {
+      const measuredLabels = [...frame.querySelectorAll<HTMLElement>('[data-segment-measure]')]
+      const trackStyle = getComputedStyle(measuredLabels[0]!.parentElement!)
+      const segmentStyle = getComputedStyle(measuredLabels[0]!)
+      const wordWidths = measuredLabels.map((label) => {
         const largeText = Number.parseFloat(getComputedStyle(label).fontSize) > 14 * 1.3
         const words = label.querySelectorAll<HTMLElement>(largeText ? '[data-segment-word]' : '[data-segment-full]')
         return [...words].map((word) => word.getBoundingClientRect().width)
       })
-      const next = getSegmentedControlLayout(wordWidths, frame.getBoundingClientRect().width, 16)
+      const next = getSegmentedControlLayout(wordWidths, frame.getBoundingClientRect().width, {
+        label: inlinePadding(segmentStyle), track: inlinePadding(trackStyle), gap: trackStyle.columnGap === 'normal' ? 0 : Number(trackStyle.columnGap.replace('px', '')),
+      })
       setLayout((previous) => JSON.stringify(previous) === JSON.stringify(next) ? previous : next)
     }
     const observer = new ResizeObserver(measure)
@@ -74,9 +86,9 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
   const { folded, minimumWidths } = layout
   const selected = props.options.find((option) => option.value === props.value)!
   return (
-    <div ref={frameRef} data-segmented-control="" className={`${props.fullWidth ? 'w-full' : 'w-fit'} relative min-w-0 max-w-full`}>
-      <div aria-hidden="true" className="pointer-events-none invisible absolute inset-x-0 top-0 flex h-0 overflow-hidden text-[0.875rem] font-medium">
-        {props.options.map((option) => <span key={option.value} data-segment-measure="" className="flex shrink-0">
+    <div ref={frameRef} data-segmented-control="" className={`${props.fullWidth || folded ? 'w-full' : 'w-fit'} relative min-w-0 max-w-full`}>
+      <div aria-hidden="true" className={`${trackSpacing} pointer-events-none invisible absolute inset-x-0 top-0 flex h-0 overflow-hidden text-[0.875rem] font-medium`}>
+        {props.options.map((option) => <span key={option.value} data-segment-measure="" className={`${segmentPadding} flex shrink-0`}>
           <span data-segment-full="" className="whitespace-nowrap">{option.label}</span>
           {option.label.split(/\s+/).map((word, index) => <span key={index} data-segment-word="" className="whitespace-nowrap">{word}</span>)}
         </span>)}
@@ -109,7 +121,7 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
       aria-label={props.label}
       aria-disabled={props.disabled || undefined}
       data-disabled={props.disabled || undefined}
-      className={`${props.fullWidth ? 'flex w-full' : 'inline-flex'} flex-nowrap gap-[4px] p-1 max-w-full rounded-[12px] bg-[var(--bg-well)]`}
+      className={`${props.fullWidth ? 'flex w-full' : 'inline-flex'} ${trackSpacing} flex-nowrap max-w-full rounded-[12px] bg-[var(--bg-well)]`}
     >
       {props.options.map((option, index) => (
         <SegmentOption

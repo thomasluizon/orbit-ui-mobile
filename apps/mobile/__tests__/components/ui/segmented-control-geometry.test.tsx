@@ -318,6 +318,25 @@ it('keeps every calendar word whole at double text size', async () => {
   } finally { measured.layout.freeRecursive(); await TestRenderer.act(() => tree.unmount()) }
 })
 
+it.each(['en', 'pt-BR'].flatMap((locale) => [false, true].map((fullWidth) => ({ locale, fullWidth }))))('restores segments when the folded allocation grows in $locale, fullWidth $fullWidth', async ({ locale, fullWidth }) => {
+  __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+  const messages = locale === 'en' ? en : ptBR
+  const keys = segmentSites.find((site) => site.path === 'app/(tabs)/calendar.tsx')!.optionKeys
+  const option = (index: number) => ({ value: String(index), label: segmentTranslation(messages, keys[index]!) })
+  let tree!: SegmentTree
+  await TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ width: '100%' }}><SegmentedControl fullWidth={fullWidth} label="Views" value="0" onChange={vi.fn()} options={[option(0), option(1), option(2), option(3)]} /></View>) as SegmentTree })
+  try {
+    const compact = await measureSegments(tree, 200, 2)
+    compact.layout.freeRecursive()
+    expect(tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.testID === 'segmented-trigger')).toHaveLength(1)
+    const expanded = await measureSegments(tree, 740, 2)
+    try {
+      expect(tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'radio')).toHaveLength(4)
+      for (const label of expanded.labels) expect(label.node.getComputedWidth()).toBeGreaterThanOrEqual(label.intrinsic)
+    } finally { expanded.layout.freeRecursive() }
+  } finally { await TestRenderer.act(() => tree.unmount()) }
+})
+
 it('keeps multiword labels in taller segments without breaking a word', async () => {
   __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
   let tree!: SegmentTree

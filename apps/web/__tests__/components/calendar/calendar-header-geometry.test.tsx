@@ -735,6 +735,59 @@ describe('Calendar header geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it.each([false, true])('folds rem-scaled segments before whole words overflow, fullWidth %s', async (fullWidth) => {
+    const keys = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'web')
+      .find((site) => site.optionKeys.includes('onboarding.flow.when.fixedMode'))!.optionKeys
+    const choices = inventoryOptions(keys, ptBR)
+    const { container } = render(<div style={{ width: 740 }}><SegmentedControl fullWidth={fullWidth} label="Schedule" value="0" onChange={vi.fn()} options={choices} /></div>)
+    const page = await browser.newPage({ viewport: { width: 840, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet} :root { font-size:32px; --orbit-space-4:0.25rem; --orbit-space-8:0.5rem; }</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      const required = await page.getByRole('radiogroup').evaluate((track) => {
+        const trackStyle = getComputedStyle(track)
+        const trackInset = Number.parseFloat(trackStyle.paddingLeft) + Number.parseFloat(trackStyle.paddingRight)
+        const gap = Number.parseFloat(trackStyle.columnGap)
+        const segments = [...track.querySelectorAll('[role="radio"]')].map((segment) => {
+          const style = getComputedStyle(segment)
+          const range = document.createRange(); range.selectNodeContents(segment.querySelector('span')!)
+          return { wordWidth: range.getBoundingClientRect().width, inset: Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight) }
+        })
+        return {
+          labelInsets: segments.map((segment) => segment.inset), trackInset, gap,
+          fixed: segments.reduce((sum, segment) => sum + Math.max(48, segment.wordWidth + 16), 8 + 4 * (segments.length - 1)),
+          measured: segments.reduce((sum, segment) => sum + Math.max(48, segment.wordWidth + segment.inset), trackInset + gap * (segments.length - 1)),
+        }
+      })
+      expect(required).toMatchObject({ labelInsets: [32, 32, 32, 32], trackInset: 16, gap: 4 })
+      const availableWidth = Math.floor((required.fixed + required.measured) / 2)
+      expect(required.fixed).toBeLessThanOrEqual(availableWidth)
+      expect(required.measured).toBeGreaterThan(availableWidth)
+      await page.locator('[data-segmented-control]').evaluate((frame, width) => { frame.parentElement!.style.width = `${width}px` }, availableWidth)
+      await settleSegmentMeasurements(page)
+      const overflowingWords = await page.getByRole('radio').evaluateAll((segments) => segments.flatMap((segment) => {
+        const label = segment.querySelector('span')!
+        const range = document.createRange(); range.selectNodeContents(label)
+        return range.getBoundingClientRect().width > label.getBoundingClientRect().width ? [label.textContent] : []
+      }))
+      expect(overflowingWords, JSON.stringify({ ...required, availableWidth })).toEqual([])
+      expect(await page.locator('[data-segmented-control] [data-menu-trigger]').count(), JSON.stringify({ ...required, availableWidth })).toBe(1)
+      expect(await page.getByRole('radio').count()).toBe(0)
+      expect(await page.locator('[data-menu-trigger]').textContent()).toBe(choices[0].label)
+      expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+      await page.locator('[data-segmented-control]').evaluate((frame, width) => { frame.parentElement!.style.width = `${width}px` }, Math.ceil(required.measured))
+      await settleSegmentMeasurements(page)
+      expect(await page.getByRole('radio').count()).toBe(choices.length)
+      const labelsFit = await page.getByRole('radio').evaluateAll((segments) => segments.every((segment) => {
+        const label = segment.querySelector('span')!
+        const range = document.createRange(); range.selectNodeContents(label)
+        return range.getBoundingClientRect().width <= label.getBoundingClientRect().width
+      }))
+      expect(labelsFit).toBe(true)
+    } finally { await page.close() }
+  })
+
   it.each([320, 360, 384, 412].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))('measures every selector at $width in $locale through 200% text', async ({ width, locale }) => {
     const messages = locale === 'en' ? en : ptBR
     const sites = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'web')
