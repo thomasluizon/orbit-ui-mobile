@@ -41,6 +41,12 @@ it('binds the reported parent and medical cases to strict scope and genuine setu
     expect(parent.expectations.forbidden).toContain('create_habit')
     expect(parent.expectations.required[0].arguments.habits.map((habit) => habit.parent_habit_id)).toEqual(['{habitId}', '{secondHabitId}'])
     const medical = find('medical-batch')
+    const commitments = medical.expectations.required[0].arguments.habits.slice(2, 4)
+    for (const commitment of commitments) {
+      expect(commitment.is_bad_habit).toBe(false)
+      expect(medical.rubric).toContain(commitment.title.textContains)
+    }
+    expect(medical.rubric).toContain('is_bad_habit=false')
     expect(medical.expectations.required[0].arguments.habits.slice(0, 2).every((habit) => habit.frequency_unit === 'OneTime')).toBe(true)
     const correction = find('medical-correction')
     expect(correction.setup.input).toBe(medical.input)
@@ -51,6 +57,11 @@ it('binds the reported parent and medical cases to strict scope and genuine setu
     expect(find('plan').composition.actionSurfaces).toEqual(['subscriptions'])
     expect(find('feature-help').composition.actionSurfaces).toEqual(['today'])
   }
+})
+it.each(['en', 'pt-BR'])('keeps disconnected calendar recovery separate from cached stale reads in %s', (locale) => {
+  const entry = corpus.find((scenario) => scenario.metadata.id === `composition-error-${locale}`)
+  expect(entry.vars.composition.blocks).toEqual([{ kind: 'calendar', completeness: 'partial', recovery: 'reconnect' }])
+  expect(entry.metadata.fixture).not.toBe('composition-stale')
 })
 it('reports pass^3 for each family and locale and carries a failure into its group', () => {
   const descriptors = [{ id: 'en', family: 'habits', locale: 'en' }, { id: 'pt', family: 'habits', locale: 'pt-BR' }]

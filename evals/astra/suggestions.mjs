@@ -89,9 +89,8 @@ export function suggestionAnswer(parts, locale) {
     if (part.type === 'text') return { type: 'text', text: part.text }
     if (part.kind !== 'habitSuggestions' || !Array.isArray(part.block?.drafts)
       || !part.block.drafts.every((draft) => validDraft(draft))) throw new Error('Malformed suggestion block.')
-    return { type: 'block', kind: part.kind, block: { drafts: part.block.drafts.map(({ id, existingHabitId, dueDate, ...draft }) => ({
+    return { type: 'block', kind: part.kind, block: { drafts: part.block.drafts.map(({ dueDate, ...draft }) => ({
       ...draft, dueDate: new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${dueDate}T12:00:00Z`)),
-      existingHabit: Boolean(existingHabitId),
     })) } }
   }) })
 }

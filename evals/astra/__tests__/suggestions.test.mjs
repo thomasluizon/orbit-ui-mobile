@@ -31,8 +31,7 @@ it.each(['en', 'pt-BR'])('grades the producer suggestion block and its projected
   expect(draft).toMatchObject({ title: locale === 'en' ? 'Read' : 'Ler', dueTime: '21:00:00', dueEndTime: '21:10:00',
     reminderMinutesBefore: 5, checklistItems: [locale === 'en' ? 'Read one page' : 'Ler uma página'] })
   expect(draft.dueDate).toBe(locale === 'en' ? 'October 26, 2026' : '26 de outubro de 2026')
-  expect(draft).not.toHaveProperty('id')
-  expect(draft).not.toHaveProperty('existingHabitId')
+  expect(draft.id).toBe(response.parts[1].block.drafts[0].id)
 })
 it.each([
   (response) => { response.parts = null },
@@ -72,6 +71,8 @@ it.each(['en', 'pt-BR'])('requires one existing target without a new duplicate i
   expect(composition(output(response), { vars: test.vars }).pass).toBe(false)
   draft.existingHabitId = existing.id
   expect(composition(output(response), { vars: test.vars }).pass).toBe(true)
+  const answer = JSON.parse(visibleAnswer(response, test.vars.clientContext))
+  expect(answer.parts[1].block.drafts[0].existingHabitId).toBe(existing.id)
   response.parts[1].block.drafts[1].title = existing.title
   expect(composition(output(response), { vars: test.vars }).pass).toBe(false)
 })

@@ -90,6 +90,18 @@ async function seedComposition(api, account, today, fixture, names) {
   await api('PUT', 'calendar/auto-sync', { enabled: false })
   if (fixture === 'composition-logged') await api('POST', `habits/${account.habitId}/log`, { date: today })
 }
+async function seedStaleRetrospective(api, today, locale) {
+  const path = `habits/retrospective?period=month&language=${encodeURIComponent(locale)}`
+  await api('GET', path)
+  const { payload } = await api('GET', path)
+  const narrative = payload?.narrative
+  if (payload?.fromCache !== true || payload.period !== 'month'
+    || payload.dateFrom !== dateOffset(today, -29) || payload.dateTo !== today
+    || !narrative || !['highlights', 'missed', 'trends', 'suggestion'].every((field) => typeof narrative[field] === 'string')
+    || !Object.values(narrative).some((section) => typeof section === 'string' && section.trim())) {
+    throw new Error('Stale fixture could not verify a cached month retrospective narrative for the account dates.')
+  }
+}
 async function fillCapacity(api, today) {
   let batchSize = 100
   let count = 0
@@ -178,6 +190,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   }
   if (fixture === 'free-at-limit') await fillCapacity(api, today)
   await verifyFixture(api, account, fixture, today, names)
+  if (fixture === 'composition-stale') await seedStaleRetrospective(api, today, test.metadata.locale ?? 'en')
 }
 
 export async function runReset(caseId) {
