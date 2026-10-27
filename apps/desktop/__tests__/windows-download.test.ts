@@ -4,7 +4,10 @@ import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
+
+// WHY: A cold PowerShell start on hosted Windows runners can exceed the default test timeout.
+vi.setConfig({ testTimeout: 30000 })
 
 const native = fileURLToPath(new URL('../src-tauri/native/windows', import.meta.url))
 const shell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh'
