@@ -61,7 +61,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps & { senderLabel
 
         {!isUser && outcomes.length > 0 && (
           <div className="flex w-full flex-col gap-4">
-            <ConversationReveal animate={animateEntry} index={operationOffset + operationCount - 1}><OperationOutcomes outcomes={outcomes} /></ConversationReveal>
+            <ConversationReveal animate={animateEntry} index={operationOffset + operationCount - 1} className="flex w-full flex-col gap-4"><OperationOutcomes outcomes={outcomes} /></ConversationReveal>
           </div>
         )}
   </>

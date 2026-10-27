@@ -105,7 +105,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
 
         {!isUser && outcomes.length > 0 ? (
           <View style={styles.operationStack}>
-            <ConversationReveal animate={animateEntry} index={operationOffset + operationCount - 1}><OperationOutcomes outcomes={outcomes} /></ConversationReveal>
+            <ConversationReveal animate={animateEntry} index={operationOffset + operationCount - 1} style={styles.operationStack}><OperationOutcomes outcomes={outcomes} /></ConversationReveal>
           </View>
         ) : null}
   </>
