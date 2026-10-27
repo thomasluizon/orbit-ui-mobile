@@ -273,9 +273,9 @@ function useSheetDrag({ onClose, requestClose, onAttemptDismiss }: Pick<WebSheet
     if (reducedMotion) { controls.cancel(); y.stop(); y.set(0) }
     return () => y.stop()
   }, [reducedMotion, controls, y])
-  const onEnd = (_event: MouseEvent | TouchEvent | PointerEvent, gesture: PanInfo) => {
-    if (dismiss && shouldDismissSheet(gesture.offset.y, gesture.velocity.y)) dismiss()
-    else void animate(y, 0, { type: 'spring', stiffness: motionSprings.sheet.stiffness, damping: motionSprings.sheet.damping, mass: motionSprings.sheet.mass, velocity: Math.max(0, gesture.velocity.y) })
+  const onEnd = (event: MouseEvent | TouchEvent | PointerEvent, gesture: PanInfo) => {
+    if (event.type !== 'pointercancel' && dismiss && shouldDismissSheet(gesture.offset.y, gesture.velocity.y)) dismiss()
+    else void animate(y, 0, { type: 'spring', stiffness: motionSprings.sheet.stiffness, damping: motionSprings.sheet.damping, mass: motionSprings.sheet.mass, velocity: event.type === 'pointercancel' ? 0 : Math.max(0, gesture.velocity.y) })
   }
   const enabled = Boolean(dismiss) && !reducedMotion
   return {

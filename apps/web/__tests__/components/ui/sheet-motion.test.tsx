@@ -26,9 +26,9 @@ vi.mock('motion/react', async (original) => {
   }
 })
 
-function release(offset: number, velocity: number) {
+function release(offset: number, velocity: number, eventType = 'pointerup') {
   const position: PanInfo = { point: { x: 0, y: offset }, delta: { x: 0, y: 0 }, offset: { x: 0, y: offset }, velocity: { x: 0, y: velocity } }
-  act(() => gesture.end?.(new MouseEvent('pointerup'), position))
+  act(() => gesture.end?.(new MouseEvent(eventType), position))
 }
 
 beforeEach(() => { gesture.reduced = false; gesture.settle.mockClear(); gesture.cancel.mockClear(); gesture.start.mockClear() })
@@ -60,4 +60,12 @@ it('cancels travel immediately when reduced motion changes while a sheet is open
   view.rerender(<Sheet title="Options" onClose={vi.fn()}><button>Action</button></Sheet>)
   expect(gesture.cancel).toHaveBeenCalled()
   expect(gesture.y?.get()).toBe(0)
+})
+
+it('settles a cancelled gesture without dismissing the sheet', () => {
+  const closed = vi.fn()
+  render(<Sheet title="Options" onClose={closed}><button>Action</button></Sheet>)
+  release(120, 800, 'pointercancel')
+  expect(gesture.settle).toHaveBeenCalled()
+  expect(closed).not.toHaveBeenCalled()
 })
