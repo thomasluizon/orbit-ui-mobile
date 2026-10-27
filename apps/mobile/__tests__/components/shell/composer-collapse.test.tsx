@@ -41,6 +41,8 @@ it.each([en, ptBR].flatMap(messages => (['habit', 'today'] as const).map(scope =
     try {
       const input = tree.root.findAll(node => node.type === TextInput)[0]!
       await act(() => (input.props.onChangeText as (value: string) => void)('Keep this draft'))
+      const slot = tree.root.findAll(node => node.props.testID === 'composer-text-action-slot')[0]!
+      expect(slot.findAll(node => node.props.testID === 'composer-collapse-control').length).toBeGreaterThan(0)
       await press(messages.shell.composer.collapse)
       expect(expanded(messages.shell.composer.expand)).toBe(false)
       expect(tree.root.findAll(node => node.type === TextInput)[0]!).toBe(input)
@@ -67,6 +69,22 @@ it.each([en, ptBR].flatMap(messages => (['habit', 'today'] as const).map(scope =
       await act(() => { tree = create(<Draft />) as GeometryTree })
       expect(expanded(messages.shell.composer.expand)).toBe(false)
     } finally { await act(() => tree.unmount()) }
+})
+
+it.each(['habit', 'today'] as const)('places the $scope disclosure beside suggestions outside the pill', async scope => {
+  let tree!: GeometryTree
+  await act(() => { tree = create(<Composer collapsible collapseScope={scope} state="idle" value=""
+    onChangeValue={vi.fn()} onSend={vi.fn()} words={en.shell.composer}
+    suggestions={[
+      { id: 'review', label: 'Review routine', onSelect: vi.fn() },
+      { id: 'plan', label: 'Plan routine', onSelect: vi.fn() },
+    ]} />) as GeometryTree })
+  try {
+    const suggestions = tree.root.findAll(node => node.props.testID === 'composer-suggestion-row')[0]!
+    expect(suggestions.findAll(node => node.props.testID === 'composer-collapse-control').length).toBeGreaterThan(0)
+    const slot = tree.root.findAll(node => node.props.testID === 'composer-text-action-slot')[0]!
+    expect(slot.findAll(node => node.props.testID === 'composer-collapse-control')).toHaveLength(0)
+  } finally { await act(() => tree.unmount()) }
 })
 
 it.each([{ width: 480, height: 640 }, { width: 800, height: 360 }].flatMap(viewport => [false, true].map(collapsed => ({ ...viewport, collapsed }))))(

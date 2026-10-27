@@ -30,6 +30,7 @@ it.each([en, ptBR].flatMap(messages => (['habit', 'today'] as const).map(scope =
     const attachment = screen.getByText('notes.txt')
     const queued = screen.getByRole('button', { name: 'Next request' })
     const toggle = screen.getByRole('button', { name: messages.shell.composer.collapse })
+    expect(toggle.closest('[data-composer-text-action-slot]')).not.toBeNull()
     fireEvent.click(toggle)
     const expand = screen.getByRole('button', { name: messages.shell.composer.expand })
     expect(expand).toHaveAttribute('aria-expanded', 'false')
@@ -61,6 +62,19 @@ it.each([en, ptBR].flatMap(messages => (['habit', 'today'] as const).map(scope =
     render(<Draft />)
     expect(screen.getByRole('button', { name: messages.shell.composer.expand })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('textbox')).toBeNull()
+})
+
+it.each(['habit', 'today'] as const)('places the $scope disclosure beside suggestions outside the pill', scope => {
+  render(<NextIntlClientProvider locale="en" messages={en}>
+    <Composer collapsible collapseScope={scope} state="idle" value="" onChangeValue={vi.fn()} onSend={vi.fn()}
+      words={en.shell.composer} suggestions={[
+        { id: 'review', label: 'Review routine', onSelect: vi.fn() },
+        { id: 'plan', label: 'Plan routine', onSelect: vi.fn() },
+      ]} />
+  </NextIntlClientProvider>)
+  const toggle = screen.getByRole('button', { name: en.shell.composer.collapse })
+  expect(toggle.closest('[data-composer-suggestion-row]')).not.toBeNull()
+  expect(toggle.closest('[data-composer-input-row]')).toBeNull()
 })
 
 it('keeps the ordinary composer expanded when the habit preference is collapsed', () => {
