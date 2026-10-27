@@ -2318,7 +2318,8 @@
         suggest_habits: 1
     rubric: Answer in English. Show two complete editable habit drafts for reading and stretching in a
       habitSuggestions block, allowing only the short server introduction. Drafts include a concrete
-      schedule, emoji, checklist and a short reason. No saved claim, approval preview or prose list
+      schedule, emoji and a short reason. Checklists are optional and accepted when present.
+      No saved claim, approval preview or prose list
       replacing the block.
 - description: suggestions-duplicate in en
   metadata:
@@ -2449,7 +2450,8 @@
         suggest_habits: 1
     rubric: Answer in Brazilian Portuguese. Show two complete editable habit drafts for reading and
       stretching in a habitSuggestions block, allowing only the short server introduction. Drafts
-      include a concrete schedule, emoji, checklist and a short reason. No saved claim, approval
+      include a concrete schedule, emoji and a short reason. Checklists are optional and accepted
+      when present. No saved claim, approval
       preview or prose list replacing the block.
 - description: suggestions-duplicate in pt-BR
   metadata:
