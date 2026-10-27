@@ -20,8 +20,8 @@ const context = { vars: { evalRequestId: 'request', expectations: { allowed: ['q
   clientContext: { supportsParts: true, partKinds: ['habitList'], supportsHabitListCard: true },
   composition: { mode: 'data', kinds: ['habitList'] },
 }, test: { vars: {} } }
-function response(parts, aiMessage = 'Ready.', extra = {}) {
-  return { ...chatResponse('request', [toolCall('query_habits', {})]), parts, aiMessage, ...extra }
+function response(parts, aiMessage = 'Ready.', extra = {}, clientContext = context.vars.clientContext) {
+  return { ...chatResponse('request', [toolCall('query_habits', {}, 'Succeeded', 'call-1', clientContext)]), parts, aiMessage, ...extra }
 }
 async function gate(produced, vars = {}) {
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
@@ -95,8 +95,9 @@ describe('production composition gate', () => {
   it('requires readable fallback and rejects blocks for legacy or missing-kind clients', async () => {
     for (const clientContext of [{ supportsParts: false }, { supportsParts: true, partKinds: [] }]) {
       const vars = { clientContext, composition: { mode: 'fallback' } }
-      expect((await gate(response(clientContext.supportsParts ? [{ type: 'text', text: 'Water is pending.' }] : undefined, 'Water is pending.'), vars)).pass).toBe(true)
-      expect((await gate(response([block]), vars)).pass).toBe(false)
+      expect((await gate(response(clientContext.supportsParts ? [{ type: 'text', text: 'Water is pending.' }] : undefined,
+        'Water is pending.', {}, clientContext), vars)).pass).toBe(true)
+      expect((await gate(response([block], 'Ready.', {}, clientContext), vars)).pass).toBe(false)
     }
   })
 })
@@ -112,7 +113,8 @@ describe.each(['ambiguity-pt', 'ambiguity-en'])('%s clarification alternatives',
   } }
   function clarification(parts = [choice], aiMessage = '') {
     const produced = response(parts, aiMessage)
-    const call = toolCall('ask', { form: 'choice', question, options: choice.block.options, multiSelect: false, allowFreeText: true })
+    const call = toolCall('ask', { form: 'choice', question, options: choice.block.options, multiSelect: false, allowFreeText: true },
+      'Succeeded', 'call-1', vars.clientContext)
     call.result.entityId = choice.block.blockId
     produced.evalTrace.toolCalls = [call]
     return produced
