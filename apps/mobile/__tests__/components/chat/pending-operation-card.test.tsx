@@ -1,4 +1,4 @@
-import { makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -78,6 +78,24 @@ beforeEach(() => { vi.clearAllMocks(); __resetTestHostConfig(); visibleLocale.ac
 afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
+  it.each((['none', 'habit_id', 'oldValue'] as const).flatMap(update => ['en', 'pt-BR'].map(locale => ({ update, locale }))))('describes suggestion batch creates and preserves $update updates in $locale', ({ update, locale }) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const operation = makeSuggestionBatchPreview(update)
+    const expected = locale === 'en' ? 'Every day · Oct 27, 2026 · at 8:15 AM · Until 8:30 AM' : 'Todo dia · 27 de out. de 2026 · às 8:15 AM · Até 8:30 AM'
+    const { tree } = renderCard(operation)
+    const first = tree.root.findByProps({ testID: 'block-frame-item-0-pending-proposed' })
+    expect(first.findAllByType(Text).map((node: ReactTestInstance) => renderedText(node))).toContain(expected)
+    const second = tree.root.findByProps({ testID: 'block-frame-item-1-pending-proposed' })
+    if (update === 'none') expect(second.findAllByType(Text).map((node: ReactTestInstance) => renderedText(node))).toContain(expected)
+    for (const outcome of [messages.chat.preview.summary.clearChecklist, messages.chat.preview.summary.stopReminders, messages.chat.preview.summary.clearReminders]) {
+      expect(renderedText(first)).not.toContain(outcome)
+      if (update === 'none') expect(renderedText(second)).not.toContain(outcome)
+      else expect(renderedText(second)).toContain(outcome)
+    }
+  })
+
   it.each(['en', 'pt-BR'])('keeps a neutral heading for nested reuse in %s', (locale) => {
     visibleLocale.actual = true
     visibleLocale.language = locale

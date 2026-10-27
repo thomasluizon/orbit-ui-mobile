@@ -382,7 +382,8 @@ function previewRows<Node>(
 
 function placementSummary(item: PreviewItem, labels: PendingOperationCardLabels, parentChoice: boolean): string {
   const placement = item.placement
-  const summary = labels.summarize(item.fields.filter((field) => !(parentChoice || placement) || field.field !== 'parent_habit_id'))
+  const creating = !item.fields.some((field) => field.field === 'habit_id' || field.oldValue != null)
+  const summary = labels.summarize(item.fields.filter((field) => !(parentChoice || placement) || field.field !== 'parent_habit_id'), creating ? 'createHabit' : undefined)
   if (!placement) return summary || labels.pending
   const selected = labels.placementOption(placement.selected, placement.destinationName)
   return placement.selected === 'checklist_item' || !summary ? selected : `${selected} · ${summary}`
