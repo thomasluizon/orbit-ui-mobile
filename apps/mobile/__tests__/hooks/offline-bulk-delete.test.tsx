@@ -10,9 +10,10 @@ import { habitDetailSchema, type HabitScheduleItem } from '@orbit/shared/types/h
 import { OfflineNotice } from '@/components/offline-notice'
 import { Toast } from '@/components/ui/app-toast'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
-import { useBulkDeleteHabits } from '@/hooks/use-habits'
+import { useBulkDeleteHabits, useDeleteHabit } from '@/hooks/use-habits'
+import { useHabitDetail, useHabitFullDetail, useHabitLogs, useHabitMetrics } from '@/hooks/use-habit-queries'
 import { cancelScheduledFlush, flushQueuedMutations, getReplayState } from '@/lib/offline-mutations'
-import { clear, getAll } from '@/lib/offline-queue'
+import { clear, getAll, update } from '@/lib/offline-queue'
 import { clearOfflineState } from '@/lib/offline-state'
 import { queryClient } from '@/lib/query-client'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
@@ -145,6 +146,112 @@ afterEach(async () => {
 })
 
 describe('offline bulk delete through the native queue', () => {
+  it.each(['detail', 'row menu', 'selection'] as const)('does not request a deleted habit after online %s delete', async (entry) => {
+    mocks.online = true
+    const habit = createMockHabitScheduleItem({ id: 'habit-1' })
+    const keys = [habitKeys.detail(habit.id), habitKeys.fullDetail(habit.id), habitKeys.logs(habit.id), habitKeys.metrics(habit.id)]
+    const detail = habitDetailSchema.parse(habit)
+    const metrics = { currentStreak: 0, longestStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 0, totalCompletions: 0, lastCompletedDate: null }
+    for (const key of keys) queryClient.setQueryData(key, key[1] === 'logs' ? [] : key[1] === 'metrics' ? metrics : key[1] === 'fullDetail' ? { habit: detail, metrics, logs: [] } : detail)
+    queryClient.setQueryData(habitKeys.list({}), [habit])
+    serveDeletes(new Set([habit.id]))
+    let single!: ReturnType<typeof useDeleteHabit>
+    function DeleteOwner() {
+      single = useDeleteHabit()
+      mutation = useBulkDeleteHabits()
+      useHabitDetail(habit.id)
+      useHabitFullDetail(habit.id)
+      useHabitLogs(habit.id)
+      useHabitMetrics(habit.id)
+      return null
+    }
+    await act(() => { renderer = create(<QueryClientProvider client={queryClient}><DeleteOwner /></QueryClientProvider>) })
+    await act(async () => {
+      if (entry === 'selection') await mutation.mutateAsync([habit.id])
+      else await single.mutateAsync(habit.id)
+    })
+    await act(async () => {
+      renderer.update(<QueryClientProvider client={queryClient}><DeleteOwner /></QueryClientProvider>)
+      await queryClient.invalidateQueries({ queryKey: habitKeys.all })
+    })
+    expect(mocks.fetch.mock.calls.map(([, options]) => options?.method)).toEqual(['DELETE'])
+    expect(mocks.showError).not.toHaveBeenCalled()
+    expect(mocks.showUndoToast).toHaveBeenCalled()
+    for (const key of keys) expect(queryClient.getQueryData(key)).toBeUndefined()
+    expect(cachedIds()).toEqual([])
+  })
+
+  it('cancels the full-detail request before waiting for the delete acknowledgement', async () => {
+    mocks.online = true
+    let single!: ReturnType<typeof useDeleteHabit>
+    let finishRead!: (response: Response) => void
+    let acknowledge!: (response: Response) => void
+    let readSignal: AbortSignal | null | undefined
+    mocks.fetch.mockImplementation((_input, options) => {
+      if (options?.method === 'DELETE') return new Promise<Response>((resolve) => { acknowledge = resolve })
+      readSignal = options?.signal
+      return new Promise<Response>((resolve) => { finishRead = resolve })
+    })
+    function DeleteOwner() {
+      single = useDeleteHabit()
+      useHabitFullDetail('habit-1')
+      return null
+    }
+    await act(() => { renderer = create(<QueryClientProvider client={queryClient}><DeleteOwner /></QueryClientProvider>) })
+    await act(async () => { single.mutate('habit-1'); await Promise.resolve() })
+    await vi.waitFor(() => expect(acknowledge).toBeTypeOf('function'))
+    try {
+      expect(readSignal?.aborted).toBe(true)
+      await act(async () => {
+        finishRead(Response.json({ error: 'Habit not found.', errorCode: 'HABIT_NOT_FOUND' }, { status: 404 }))
+        await Promise.resolve()
+      })
+      expect(mocks.showError).not.toHaveBeenCalled()
+    } finally {
+      await act(async () => { acknowledge(new Response(null, { status: 204 })); await Promise.resolve() })
+    }
+  })
+
+  it('keeps the error from another device deletion available to the caller', async () => {
+    mocks.online = true
+    const habit = createMockHabitScheduleItem({ id: 'remote' })
+    queryClient.setQueryData(habitKeys.list({}), [habit])
+    let single!: ReturnType<typeof useDeleteHabit>
+    function DeleteOwner() { single = useDeleteHabit(); return null }
+    await act(() => { renderer = create(<QueryClientProvider client={queryClient}><DeleteOwner /></QueryClientProvider>) })
+    serveDeletes(new Set())
+    await act(async () => {
+      await expect(single.mutateAsync('remote')).rejects.toMatchObject({ status: 404, code: 'HABIT_NOT_FOUND' })
+    })
+    expect(mocks.showUndoToast).not.toHaveBeenCalled()
+    expect(cachedIds()).toEqual(['remote'])
+    const { isCachedHabitDeleted } = await import('@orbit/shared/query')
+    expect(isCachedHabitDeleted(queryClient, 'remote')).toBe(false)
+  })
+
+  it.each([
+    { alreadyMissing: false, withoutEntityType: false },
+    { alreadyMissing: true, withoutEntityType: false },
+    { alreadyMissing: false, withoutEntityType: true },
+    { alreadyMissing: true, withoutEntityType: true },
+  ])('retires active habit queries when replay settles missing=$alreadyMissing legacy=$withoutEntityType', async ({ alreadyMissing, withoutEntityType }) => {
+    await mount([createMockHabitScheduleItem({ id: 'habit-1' })])
+    await deleteSelected(['habit-1'])
+    if (withoutEntityType) update(getAll()[0]!.id, { entityType: undefined })
+    const queryKey = habitKeys.detail('habit-1')
+    queryClient.setQueryData(queryKey, habitDetailSchema.parse(createMockHabitScheduleItem({ id: 'habit-1' })))
+    const request = vi.fn(() => Promise.reject(new Error('Deleted habit was refetched')))
+    const observer = new QueryObserver(queryClient, { queryKey, queryFn: request, staleTime: Infinity, retry: false })
+    const unsubscribe = observer.subscribe(() => {})
+    serveDeletes(new Set(alreadyMissing ? [] : ['habit-1']))
+    mocks.online = true
+    try {
+      await act(async () => { expect(await flushQueuedMutations()).toMatchObject({ succeeded: 1, failed: 0, remaining: 0 }) })
+      expect(request).not.toHaveBeenCalled()
+      expect(queryClient.getQueryData(queryKey)).toBeUndefined()
+    } finally { unsubscribe() }
+  })
+
   it('refuses replay of a General parent with a retained completed one-time child and restores its row', async () => {
     const generalParent = createMockHabitScheduleItem({
       id: habitIds[0], schedule: 'General', isGeneral: true, frequencyUnit: null,

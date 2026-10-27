@@ -1,6 +1,7 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { habitKeys } from '@orbit/shared/query'
 import TodayScreen from '@/app/(tabs)/index'
 vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => ({ requestFirstUsePermission: vi.fn(async () => {}) }) }))
 
@@ -32,6 +33,7 @@ const mocks = vi.hoisted(() => ({
   bulkBarProps: null as ComponentProps | null,
   modalProps: null as ComponentProps | null,
   execute: vi.fn(),
+  queryClient: null as import('@tanstack/react-query').QueryClient | null,
   invalidateQueries: vi.fn(async () => {}),
   OfflineMutationPreflightError: class OfflineMutationPreflightError extends Error {},
   clearSelection: vi.fn(),
@@ -56,14 +58,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>()
-  const queryClient = {
-    cancelQueries: vi.fn(async () => {}),
-    getQueriesData: vi.fn(() => []),
-    getQueryData: vi.fn(),
-    setQueriesData: vi.fn(),
-    setQueryData: vi.fn(),
-    invalidateQueries: mocks.invalidateQueries,
-  }
+  const queryClient = new actual.QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+  mocks.queryClient = queryClient
+  vi.spyOn(queryClient, 'invalidateQueries').mockImplementation(mocks.invalidateQueries)
 
   return {
     ...actual,
@@ -283,6 +280,7 @@ afterEach(() => {
   while (mountedTrees.length > 0) {
     void TestRenderer.act(() => mountedTrees.pop()?.unmount())
   }
+  mocks.queryClient?.clear()
 })
 
 describe('Hoje production bulk action path', () => {
@@ -448,5 +446,6 @@ describe('Hoje production bulk action path', () => {
     expect(mocks.clearSelection).toHaveBeenCalledTimes(3)
     expect(mocks.modalProps?.showBulkDeleteConfirm).toBe(false)
     expect(mocks.showToast).not.toHaveBeenCalled()
+    expect(mocks.queryClient?.getQueryData(habitKeys.deleted('habit-1'))).toEqual(['habit-1'])
   })
 })

@@ -196,8 +196,10 @@ export async function apiFetch<T>(
     headers,
   })
 
+  options?.signal?.throwIfAborted()
   if (!res.ok) {
     const body: unknown = await res.json().catch(() => null)
+    options?.signal?.throwIfAborted()
     const status = res.status
 
     const statusError = await getStatusError(status, body, behavior)
@@ -227,6 +229,7 @@ export function fetchJson<T>(
   url: string,
   schema?: ZodType<T>,
   behavior?: ApiFetchBehavior,
+  signal?: AbortSignal,
 ): Promise<T> {
-  return apiFetch<T>(url, undefined, schema, behavior)
+  return apiFetch<T>(url, { signal }, schema, behavior)
 }
