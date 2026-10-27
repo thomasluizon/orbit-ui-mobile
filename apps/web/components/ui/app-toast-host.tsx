@@ -31,7 +31,7 @@ export function AppToastHost({ placement = 'slot', modalId }: Readonly<{ placeme
 
   if (placement !== 'page') return <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} outlined={placement === 'modal'} />
   return (
-    <div className="pointer-events-none fixed left-[var(--safe-left)] right-[var(--safe-right)] bottom-0 z-toast mx-auto max-w-[440px] px-4 pb-[var(--safe-bottom)] [&>*]:pointer-events-auto" data-toast-page-host="">
+    <div className="pointer-events-none fixed left-[var(--safe-left)] right-[var(--safe-right)] bottom-0 z-toast px-4 pb-[var(--safe-bottom)] [&>*]:pointer-events-auto" data-toast-page-host="">
       <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} />
     </div>
   )
