@@ -1,6 +1,7 @@
 
 type InputBase = {
   label: string
+  labelIcon?: React.ReactNode
   proposed?: boolean
   hideLabel?: boolean
   value: string

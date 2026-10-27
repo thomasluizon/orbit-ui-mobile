@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useSyncExternalStore, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Text } from 'react-native'
+import { Text, TextInput } from 'react-native'
 import { Portal, PortalHost } from '@rn-primitives/portal'
 import { createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { normalizeHabitQueryData } from '@orbit/shared/utils/habit-normalization'
@@ -17,6 +17,13 @@ import {
   resetPendingNotificationDeletesForTests,
   subscribePendingNotificationDeleteIds,
 } from '@/lib/pending-notification-deletes'
+
+const preferenceStorage = vi.hoisted(() => new Map<string, string>())
+vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
+  getItem: (key: string) => Promise.resolve(preferenceStorage.get(key) ?? null),
+  setItem: (key: string, value: string) => { preferenceStorage.set(key, value); return Promise.resolve() },
+  removeItem: (key: string) => { preferenceStorage.delete(key); return Promise.resolve() },
+} }))
 
 const RootPortalContext = createContext('outside-providers')
 
@@ -234,18 +241,21 @@ vi.mock('@/components/upgrade-required-screen', () => ({
 }))
 
 vi.mock('@/hooks/use-chat-composer', () => ({
-  useChatComposer: () => ({ composerProps: {
-    words: en.shell.composer,
-    value: '',
-    state: 'idle',
-    suggestions: [
-      { id: 'first', label: 'First suggestion', onSelect: vi.fn() },
-      { id: 'second', label: 'Second suggestion', onSelect: vi.fn() },
-      { id: 'third', label: 'Third suggestion', onSelect: vi.fn() },
-    ],
-    onChangeValue: vi.fn(),
-    onSend: vi.fn(),
-  } }),
+  useChatComposer: () => {
+    const [value, onChangeValue] = React.useState('Keep this draft')
+    return { composerProps: {
+      words: en.shell.composer,
+      value,
+      state: 'idle',
+      suggestions: [
+        { id: 'first', label: 'First suggestion', onSelect: vi.fn() },
+        { id: 'second', label: 'Second suggestion', onSelect: vi.fn() },
+        { id: 'third', label: 'Third suggestion', onSelect: vi.fn() },
+      ],
+      onChangeValue,
+      onSend: vi.fn(),
+    } }
+  },
 }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-push-notifications', () => ({
@@ -286,6 +296,35 @@ async function renderRoot() {
 }
 
 describe('Wrapped root shell', () => {
+  it('collapses Hoje with its own persisted preference and retains its mounted draft', async () => {
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    const tree = await renderRoot()
+    const control = (label: string) => tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.accessibilityLabel === label)[0]!
+    const input = tree.root.findAll(node => node.type === TextInput)[0]!
+    await TestRenderer.act(() => (input.props.onChangeText as (value: string) => void)('Changed Hoje draft'))
+    expect(control('shell.composer.collapse')).toBeDefined()
+    await TestRenderer.act(() => (control('shell.composer.collapse').props.onPress as () => void)())
+    expect((control('shell.composer.expand').props.accessibilityState as { expanded: boolean }).expanded).toBe(false)
+    expect(tree.root.findAll(node => node.type === TextInput)[0]!).toBe(input)
+    expect(input.props.value).toBe('Changed Hoje draft')
+    expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.importantForAccessibility === 'no-hide-descendants' && node.props.accessibilityElementsHidden === true)).toHaveLength(1)
+    expect(useUIStore.getState()).toMatchObject({ todayComposerCollapsed: true, habitComposerCollapsed: false })
+    await TestRenderer.act(() => (control('shell.composer.expand').props.onPress as () => void)())
+    expect(tree.root.findAll(node => node.type === TextInput)[0]!).toBe(input)
+    expect(input.props.value).toBe('Changed Hoje draft')
+    expect(tree.root.findAll(node => typeof node.type === 'string' && typeof node.props.nativeID === 'string' && node.props.accessibilityElementsHidden === false && node.props.importantForAccessibility === 'auto')).toHaveLength(1)
+    await TestRenderer.act(() => (control('shell.composer.collapse').props.onPress as () => void)())
+    await TestRenderer.act(() => tree.update(<></>))
+    const saved = preferenceStorage.get('orbit-ui-store')!
+    preferenceStorage.clear()
+    useUIStore.setState(useUIStore.getInitialState())
+    preferenceStorage.set('orbit-ui-store', saved)
+    await useUIStore.persist.rehydrate()
+    const reloaded = await renderRoot()
+    expect(reloaded.root.findAll(node => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.expand')).toHaveLength(1)
+  })
+
   it.each([true, false])('hosts portals once inside app and navigation providers when authenticated is %s', async (authenticated) => {
     authState.isAuthenticated = authenticated
     const tree = await renderRoot()
@@ -309,6 +348,7 @@ describe('Wrapped root shell', () => {
   })
 
   beforeEach(() => {
+    preferenceStorage.clear()
     useUIStore.setState(useUIStore.getInitialState())
     routeState.mountToday = false
     routeState.hasData = false

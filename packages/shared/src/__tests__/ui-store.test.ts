@@ -236,6 +236,7 @@ describe("shared ui store", () => {
       activeView: "all",
       calendarShowRecurring: true,
       habitComposerCollapsed: false,
+      todayComposerCollapsed: false,
       dailyStreakMomentDate: "",
       setupChecklistDismissed: false,
     });
@@ -248,6 +249,25 @@ describe("shared ui store", () => {
     expect(migratePersistedUIState(getPersistedUIState(store.getState())).habitComposerCollapsed).toBe(true);
     for (const value of [undefined, null, "true", 1, false]) {
       expect(migratePersistedUIState({ habitComposerCollapsed: value }).habitComposerCollapsed).toBe(false);
+    }
+  });
+
+  it("persists the Hoje disclosure independently and expands missing or invalid preferences", () => {
+    const store = createStoreHarness();
+    expect(store.getState().todayComposerCollapsed).toBe(false);
+    store.getState().setTodayComposerCollapsed(true);
+    expect(migratePersistedUIState(getPersistedUIState(store.getState()))).toMatchObject({
+      todayComposerCollapsed: true, habitComposerCollapsed: false,
+    });
+    store.getState().setHabitComposerCollapsed(true);
+    store.getState().setTodayComposerCollapsed(false);
+    expect(migratePersistedUIState(getPersistedUIState(store.getState()))).toMatchObject({
+      todayComposerCollapsed: false, habitComposerCollapsed: true,
+    });
+    for (const value of [undefined, null, "true", 1, false]) {
+      expect(migratePersistedUIState({ todayComposerCollapsed: value, habitComposerCollapsed: true })).toMatchObject({
+        todayComposerCollapsed: false, habitComposerCollapsed: true,
+      });
     }
   });
 

@@ -2989,7 +2989,7 @@
       "createFailed": "The habit was not created. Check the connection and try again.",
       "what": {
         "title": "What do you want to keep doing?",
-        "label": "Write it in your own words",
+        "label": "Tell Astra in your own words",
         "placeholder": "Walk every Monday and Thursday at 18:00",
         "marksLabel": "Words Orbit understood",
         "startersTitle": "If you want a start",
@@ -3106,6 +3106,7 @@
         "continue": "Continue"
       },
       "done": {
+        "tellAstra": "Next time, tell Astra what you want to do from Today.",
         "title": "Done. It is in your day.",
         "body": "When you do it, mark its ring on Today to log it.",
         "remindersOffBody": "When you do it, mark its ring on Today to log it. You can turn reminders on from the habit.",

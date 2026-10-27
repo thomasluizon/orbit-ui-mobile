@@ -37,6 +37,7 @@ module.exports = () => {
     updates: { ...baseConfig.updates, enabled: false },
     ios: {
       ...baseConfig.ios,
+      entitlements: { ...baseConfig.ios?.entitlements, "com.apple.developer.devicecheck.appattest-environment": "production" },
       ...(appleTeamId ? { appleTeamId } : {}),
       ...(appStoreId ? { appStoreUrl: `https://apps.apple.com/app/id${appStoreId}` } : {}),
     },

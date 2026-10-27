@@ -5,6 +5,11 @@ import { OnboardingComplete } from '@/components/onboarding/onboarding-complete'
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 describe('OnboardingComplete', () => {
+  it.each([true, false])('hands the next habit to Astra when signedOut=%s', (signedOut) => {
+    render(<OnboardingComplete createdHabit="Read" emoji="📖" remindersOff={false} skipped={false} signedOut={signedOut} dueToday general={false} onFinish={vi.fn()} />)
+    expect(screen.getByText('tellAstra')).toBeVisible()
+  })
+
   it('hides the decorative emoji beside the created habit name', () => {
     render(<OnboardingComplete createdHabit="Exercise" emoji="🏃" remindersOff={false} skipped={false} signedOut={false} dueToday general={false} onFinish={vi.fn()} />)
     expect(screen.getByText('Exercise')).toBeVisible()

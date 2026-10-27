@@ -269,6 +269,7 @@
       "route-terms"
     ],
     "Orbit Sobreposicoes": [
+      "m-overlay-components-offline-notice",
       "m-overlay-ui-confirm-sheet",
       "m-overlay-ui-date-field",
       "m-overlay-ui-discard-changes-sheet",

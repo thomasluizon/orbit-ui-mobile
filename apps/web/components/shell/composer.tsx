@@ -495,14 +495,16 @@ function ComposerContent({ props, disclosure }: Readonly<{ props: WebComposerPro
 }
 
 export function Composer(props: Readonly<WebComposerProps>) {
-  const savedCollapsed = useUIStore(state => state.habitComposerCollapsed)
+  const savedCollapsed = useUIStore(state => props.collapseScope === 'today' ? state.todayComposerCollapsed : state.habitComposerCollapsed)
   const collapsed = Boolean(props.collapsible && savedCollapsed)
   const contentId = useId()
   const composerRef = useRef<HTMLDivElement>(null)
   const disclosureFocusPending = useRef(false)
   function toggleCollapsed() {
     disclosureFocusPending.current = true
-    useUIStore.getState().setHabitComposerCollapsed(!collapsed)
+    const preferences = useUIStore.getState()
+    if (props.collapseScope === 'today') preferences.setTodayComposerCollapsed(!collapsed)
+    else preferences.setHabitComposerCollapsed(!collapsed)
   }
   useEffect(() => {
     if (!disclosureFocusPending.current) return

@@ -60,6 +60,7 @@ export function TurnstileWidget({
   onStateChange,
   theme,
   language,
+  quiet = false,
 }: Readonly<{
   siteKey: string
   resetKey: number
@@ -67,6 +68,7 @@ export function TurnstileWidget({
   onStateChange?: (state: WidgetState) => void
   theme?: 'light' | 'dark'
   language?: string
+  quiet?: boolean
 }>) {
   const t = useTranslations()
   const appLocale = useLocale()
@@ -145,6 +147,8 @@ export function TurnstileWidget({
       setAttempt((value) => value + 1)
     }
   }
+
+  if (quiet) return <div ref={containerRef} />
 
   return (
     <div className="flex flex-col items-center text-sm text-[var(--fg-2)]" style={{ gap: 8 }}>

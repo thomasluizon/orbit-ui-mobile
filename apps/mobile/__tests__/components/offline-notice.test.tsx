@@ -46,6 +46,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
   removeItem: (key: string) => { mocks.storage.delete(key); return Promise.resolve() },
 } }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => mocks.queue }))
+vi.mock('@/hooks/use-habits', () => ({ useDeleteHabit: vi.fn() }))
 vi.mock('@/lib/offline-queue', () => ({
   enqueue: mocks.enqueue,
   enqueueWithCompaction: (mutation: PersistedQueuedMutation) => ({ id: mutation.id, compactedCreate: null }),
