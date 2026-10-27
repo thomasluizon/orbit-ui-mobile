@@ -625,7 +625,7 @@ select[aria-hidden="true"] {
   border-radius: 20px;
   background: var(--bg-sheet);
   box-shadow: var(--shadow-2), inset 0 0 0 1px var(--hairline);
-  transform-origin: var(--radix-dropdown-menu-content-transform-origin, var(--transform-origin));
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
   animation: orbit-menu-enter var(--motion-menu-enter) var(--motion-ease-enter);
 }
 

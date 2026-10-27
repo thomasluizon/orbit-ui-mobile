@@ -295,7 +295,7 @@ describe('OnboardingFlow state model', () => {
     const tree = await mount(true)
     function expectHosted() {
       const window = oneByType(tree.root, 'Modal')
-      expect(window.props).toMatchObject({ visible: true, transparent: true, statusBarTranslucent: true, navigationBarTranslucent: true, animationType: 'none' })
+      expect(window.props).toMatchObject({ visible: true, transparent: true, statusBarTranslucent: true, navigationBarTranslucent: true, animationType: 'fade' })
       const host = window.findAll((node) => node.type === PortalHost).find((node) => typeof node.props.name === 'string')!
       expect(host).toBeDefined()
       expect(host.findAll((node) => typeof node.type === 'string' && node.props.role === 'dialog')).toHaveLength(1)

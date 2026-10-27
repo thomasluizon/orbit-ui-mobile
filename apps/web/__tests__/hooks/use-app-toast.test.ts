@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, renderHook, screen } from '@testing-library/react'
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { createElement } from 'react'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -20,6 +20,15 @@ afterEach(() => {
 })
 
 describe('useAppToast', () => {
+  it('removes a closed host toast after its visual exit', async () => {
+    const shell = renderNotice()
+    act(() => { useAppToastStore.getState().showQueued('Deleted', 'Undo', vi.fn()) })
+    await act(async () => { await vi.dynamicImportSettled() })
+    fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+    expect(screen.queryByRole('group')).toBeNull()
+    await waitFor(() => expect(shell.container.querySelector('[data-kind]')).toBeNull())
+  })
+
   it('renders a neutral error in the shell notice slot', async () => {
     vi.useFakeTimers()
     const { result } = renderHook(() => useAppToast())
@@ -41,7 +50,8 @@ describe('useAppToast', () => {
     act(() => { vi.advanceTimersByTime(4000) })
     expect(shell.container.querySelector('[data-kind="done"]')).toBeInTheDocument()
     act(() => { vi.advanceTimersByTime(1000) })
-    expect(shell.container.querySelector('[data-kind="done"]')).toBeNull()
+    expect(screen.queryByRole('group')).toBeNull()
+    expect(shell.container.querySelector('[data-toast-motion]')).toHaveAttribute('inert')
   })
 
   it('runs the queued action before its timeout', async () => {
@@ -55,7 +65,10 @@ describe('useAppToast', () => {
     expect(shell.container.querySelector('[data-kind="neutral"]')).toBeInTheDocument()
     act(() => { fireEvent.click(screen.getByRole('button', { name: 'Desfazer' })) })
     expect(onAction).toHaveBeenCalledOnce()
-    expect(shell.container.querySelector('[data-kind="neutral"]')).toBeNull()
+    expect(screen.queryByRole('group')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Desfazer' })).toBeNull()
+    expect(shell.container.querySelector('[data-toast-motion]')).toHaveAttribute('inert')
+    for (const button of shell.container.querySelectorAll('button')) expect(button).toBeDisabled()
   })
 
   it('keeps error and info feedback without a timer or glyph', async () => {

@@ -1,4 +1,5 @@
-import { useOverlayMotion } from '@/lib/overlay-motion'
+import { useResolvedMotionPreset } from '@/lib/motion'
+import Reanimated, { Easing, Keyframe, ReduceMotion } from 'react-native-reanimated'
 import * as Primitive from '@rn-primitives/toast'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -7,7 +8,6 @@ import type { ToastProps } from '@orbit/shared/contracts/feedback'
 import { SPACING, TOUCH_TARGET_MIN, zLayers } from '@orbit/shared/theme'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
-  Animated,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -78,9 +78,22 @@ function ToastClose({ visible, dismiss, onFocus, onBlur, color }: Readonly<{
   )
 }
 
-const AnimatedToast = Animated.createAnimatedComponent(Primitive.Root)
+const AnimatedToast = Reanimated.createAnimatedComponent(Primitive.Root)
 
-export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void; persistent?: boolean; visible?: boolean }>) {
+function useToastMotion() {
+  const preset = useResolvedMotionPreset('toast')
+  const entering = useMemo(() => new Keyframe({
+    0: { opacity: 0, transform: [{ translateY: preset.shift }, { scale: preset.scaleFrom }] },
+    100: { opacity: 1, transform: [{ translateY: 0 }, { scale: 1 }], easing: Easing.bezier(...preset.enterEasing) },
+  }).duration(preset.reducedMotionEnabled ? 0 : preset.enterDuration).reduceMotion(ReduceMotion.System), [preset])
+  const exiting = useMemo(() => new Keyframe({
+    0: { opacity: 1, transform: [{ translateY: 0 }, { scale: 1 }] },
+    100: { opacity: 0, transform: [{ translateY: preset.shift }, { scale: preset.scaleFrom }], easing: Easing.bezier(...preset.exitEasing) },
+  }).duration(preset.reducedMotionEnabled ? 0 : preset.exitDuration).reduceMotion(ReduceMotion.System), [preset])
+  return { entering, exiting }
+}
+
+export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void; persistent?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -90,28 +103,31 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
   const actionClosing = useRef(false)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
+  const presentationRef = useRef<View | null>(null)
+  const setPresentation = useCallback((element: View | null) => {
+    if (!element) presentationRef.current?.setNativeProps({ pointerEvents: 'none', accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' })
+    presentationRef.current = element
+  }, [])
   const lossColors = { background: tokens.bg, action: tokens.primarySoft }
   const neutralColors = { background: tokens.bgSheet, action: tokens.fg1 }
   const colors = { neutral: neutralColors, working: neutralColors, done: neutralColors, lost: lossColors }[props.kind]
 
-  const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused || props.visible === false, props.onDismiss, props.persistent)
+  const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused, props.onDismiss, props.persistent)
   const { swipe, canDismiss } = useToastSwipe(props, dismiss)
-  const visible = !dismissed && props.visible !== false
-  const motion = useOverlayMotion(visible, 'toast')
+  const motion = useToastMotion()
 
   useEffect(() => {
     const timer = setTimeout(() => setAnnouncedMessage(props.message), 0)
     return () => clearTimeout(timer)
   }, [props.message])
 
-  if (!motion.present) return null
+  if (dismissed) return null
 
   return (
-    <AnimatedToast type="background" open onOpenChange={(open) => {
+    <AnimatedToast ref={setPresentation} entering={motion.entering} exiting={motion.exiting} type="background" open onOpenChange={(open) => {
       if (actionClosing.current) { actionClosing.current = false; return }
       if (!open) dismiss()
     }}
-      {...toastVisibility(visible)}
       aria-live={props.kind === 'lost' ? 'assertive' : 'polite'}
       {...swipe.panHandlers}
       accessible={!props.actionLabel}
@@ -129,7 +145,6 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
       onBlur={() => setFocused(false)}
       style={[
         styles.toast,
-        motion.style,
         {
           backgroundColor: colors.background,
           borderColor: props.outlined ? tokens.fg3 : tokens.hairline,
@@ -156,10 +171,6 @@ export function AppToast({ placement = 'overlay', sheetId }: Readonly<{ placemen
   const { width: screenWidth } = useWindowDimensions()
   const overlayFrame = resolveCenteredOverlayFrame(screenWidth - insets.left - insets.right, 420)
   const currentToast = useAppToastStore((state) => state.currentToast)
-  const retained = useOverlayMotion(currentToast !== null, 'toast')
-  const [snapshot, setSnapshot] = useState(currentToast)
-  if (currentToast && currentToast !== snapshot) setSnapshot(currentToast)
-  const shownToast = currentToast ?? (retained.present ? snapshot : null)
   const triggerAction = useAppToastStore((state) => state.triggerAction)
   const dismissToast = useAppToastStore((state) => state.dismissToast)
   const toastId = currentToast?.id
@@ -169,19 +180,19 @@ export function AppToast({ placement = 'overlay', sheetId }: Readonly<{ placemen
   if (placement === 'sheet') {
     if (!sheetId || topOverlayId !== sheetId) return null
   } else if (topOverlayId?.startsWith('sheet:')) return null
-  if (!shownToast) return null
+  if (!currentToast) return null
 
-  const toast = shownToast.toast
+  const toast = currentToast.toast
   const hostedToast =
     (toast.kind === 'neutral' || toast.kind === 'lost') && toast.actionLabel
       ? { ...toast, onAction: triggerAction }
       : toast
 
-  if (placement !== 'overlay') return <Toast visible={currentToast !== null} key={shownToast.id} {...hostedToast} onDismiss={dismiss} outlined={placement === 'sheet'} />
+  if (placement !== 'overlay') return <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} outlined={placement === 'sheet'} />
 
   return (
     <View pointerEvents="box-none" style={[styles.host, styles.overlay, { bottom: insets.bottom + 16, left: 0, width: screenWidth }]}>
-      <View testID="toast-content-frame" style={[overlayFrame, { left: insets.left + overlayFrame.left }]}><Toast visible={currentToast !== null} key={shownToast.id} {...hostedToast} onDismiss={dismiss} /></View>
+      <View testID="toast-content-frame" style={[overlayFrame, { left: insets.left + overlayFrame.left }]}><Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} /></View>
     </View>
   )
 }
@@ -259,12 +270,6 @@ function ToastControls({ props, actionClosing, dismiss, canDismiss, tokens, acti
           </Pressable></Primitive.Action></>}
           <ToastClose visible={canDismiss} dismiss={dismiss} color={tokens.fg2} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
         </View>
-}
-
-function toastVisibility(visible: boolean) {
-  return visible
-    ? { pointerEvents: 'auto' as const, accessibilityElementsHidden: false, importantForAccessibility: 'auto' as const }
-    : { pointerEvents: 'none' as const, accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' as const }
 }
 
 function ToastLeadingMark({ props, tokens }: Readonly<{ props: ToastProps; tokens: AppTokensV2 }>) {

@@ -1576,7 +1576,7 @@ list and conversation motion. No component owns a parallel timing scale.
 | `motionDurations.route`, `routeExit`, `overlay`, `toast`, `conversation` | 220, 165, 220, 220, 220; semantic consumer names |
 | `motionDurations.listStagger` | 36; bounded list sequencing |
 | `motionEasings.standard`, `enter`, `exit`, `linear` | cubic-bezier(0.2,0,0,1), (0.16,1,0.3,1), (0.4,0,1,1), (0,0,1,1) |
-| `motionSprings.soft` | stiffness 220, damping 30, mass 1; quiet settlement |
+| `motionSprings.soft` | stiffness 260, damping 30 × √(260/220), mass 1; 0.390s response with the same damping ratio |
 | `motionSprings.snappy` | stiffness 320, damping 34, mass 0.9; compact controls |
 | `motionSprings.sheet` | stiffness 360, damping 38, mass 1; finger release settlement |
 | `motionSprings.completion` | stiffness 380, damping 37, mass 0.9; earned state feedback |

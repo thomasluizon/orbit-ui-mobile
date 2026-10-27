@@ -1,5 +1,5 @@
 import React from 'react'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 const network = vi.hoisted(() => ({ available: true, pending: [] as (() => void)[] }))
@@ -40,7 +40,7 @@ it.each(['loading', 'complete'] as const)('renders the first offline failure and
   await act(async () => {
     useAppToastStore.getState().showToast({ kind: 'neutral', message: 'Connection failed', actionLabel: 'Retry', onAction: retry })
   })
-  expect(await screen.findByText('Connection failed')).toBeVisible()
+  await waitFor(() => expect(screen.getByText('Connection failed')).toBeVisible())
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
   expect(retry).toHaveBeenCalledOnce()
 })

@@ -46,6 +46,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'chromium',
+          setupFiles: ['./__tests__/setup.ts', './__tests__/support/reduced-motion-setup.ts'],
           include: chromiumTests,
           maxWorkers: 1,
           fileParallelism: false,
