@@ -309,6 +309,7 @@ const composerInputMetrics = 'px-2 py-3 text-base'
 function ComposerPrimaryControl({ props, inputRef }: Readonly<{ props: ComposerProps; inputRef: React.RefObject<HTMLTextAreaElement | null> }>) {
   const action = buildComposerPrimaryControl(props)
   const isSend = action.kind === 'send'
+  const color = action.accented ? 'var(--fg-on-primary)' : 'var(--fg-3)'
   return <button type="button" aria-label={action.label} title={isSend ? undefined : action.label}
     data-accent={isSend && action.accented ? '' : undefined}
     data-composer-microphone={action.kind === 'microphone' ? '' : undefined}
@@ -317,9 +318,9 @@ function ComposerPrimaryControl({ props, inputRef }: Readonly<{ props: ComposerP
       if (isSend && !action.disabled) inputRef.current?.focus()
       action.onSelect()
     }}
-    className={`relative flex w-[48px] min-h-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-0 ease-[var(--ease-standard)] duration-[var(--dur-hover-control)] disabled:cursor-not-allowed ${isSend ? 'transition-[background-color,opacity]' : 'transition-[background-color]'} ${!isSend || props.state !== 'sending' ? 'disabled:opacity-40' : ''} ${action.accented ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : isSend ? 'bg-[var(--bg-well)] text-[var(--fg-3)]' : 'bg-transparent text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)]'}`}>
-    {isSend ? <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />
-      : action.kind === 'stop' ? <Square size={16} fill="currentColor" aria-hidden="true" /> : <Mic size={20} strokeWidth={2} aria-hidden="true" />}
+    className={`relative flex w-[48px] min-h-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-0 ease-[var(--ease-standard)] duration-[var(--dur-hover-control)] disabled:cursor-not-allowed ${isSend ? 'transition-[background-color,opacity]' : 'transition-[background-color]'} ${!isSend || props.state !== 'sending' ? 'disabled:opacity-40' : ''} ${action.accented ? 'bg-[var(--primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : isSend ? 'bg-[var(--bg-well)]' : 'bg-transparent enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)]'}`}>
+    {isSend ? <ArrowUp size={20} strokeWidth={2} color={color} aria-hidden="true" />
+      : action.kind === 'stop' ? <Square size={16} fill={color} color={color} aria-hidden="true" /> : <Mic size={20} strokeWidth={2} color={color} aria-hidden="true" />}
   </button>
 }
 

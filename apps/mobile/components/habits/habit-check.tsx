@@ -26,9 +26,9 @@ export function HabitCheck({ status, label, unavailable = false, feedback = fals
   const ratio = habitCheckProgress(progress)
   const done = status !== 'bad' && (progress ? ratio === 1 : status === 'done')
   const emptyFill = feedback ? tokens.bgHover : 'transparent'
-  const color = progress ? tokens.trackEmpty : {
+  const { graphic: color } = progress ? { graphic: tokens.trackEmpty } : {
     empty: { graphic: tokens.statusEmpty }, done: { graphic: tokens.fg1 }, overdue: { graphic: tokens.statusOverdue }, bad: { graphic: tokens.statusBad },
-  }[status].graphic
+  }[status]
   return (
     <View testID="habit-check"
       accessibilityRole={label ? 'image' : undefined} accessibilityLabel={label}

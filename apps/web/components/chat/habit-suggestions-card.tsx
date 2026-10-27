@@ -53,7 +53,7 @@ function SuggestionRow({ draft, view, isOnline }: Readonly<{ draft: HabitSuggest
       {!view.available(draft.id) ? <span className="text-xs text-[var(--fg-3)]">{t('chat.habitSuggestions.review')}</span> : null}
     </div>
     {view.state.tweaking === draft.id ? <Input autoFocus hideLabel label={t('chat.habitSuggestions.prompt')} placeholder={t('chat.habitSuggestions.prompt')} value={view.state.instruction} onChange={view.controller.setInstruction} disabled={disabled} onCancel={() => view.controller.tweak(draft.id)} onSubmit={() => void view.refine(draft.id, view.state.instruction)} trailing={<IconButton label={t('chat.habitSuggestions.apply')} loading={view.state.busy === draft.id && view.state.phase === 'refine'} disabled={disabled || !view.state.instruction.trim()} onClick={() => void view.refine(draft.id, view.state.instruction)}><ArrowUp size={20} /></IconButton>} /> : null}
-    <div role="status" aria-live="polite" className="text-sm text-[var(--status-bad-text)]">{error ? <>{t(error)}<IconButton label={t('common.retry')} disabled={view.disabled} onClick={() => void view.retry(draft.id)}><RefreshCw size={20} /></IconButton></> : null}</div>
+    <div role="status" aria-live="polite" className="text-sm text-[var(--status-bad-text)]">{error ? <>{t(error)}<IconButton label={t('common.retry')} disabled={view.disabled} onClick={() => void view.retry(draft.id)}><RefreshCw size={20} color="var(--fg-2)" /></IconButton></> : null}</div>
   </div>
 }
 
@@ -66,7 +66,7 @@ export function HabitSuggestionsCard({ card, message, isOnline = true }: Readonl
   return <>
     <BlockFrame title={t('chat.habitSuggestions.title')} count={null} state={view.state.busy ? 'acting' : 'resting'} items={[]} body={<div className="flex min-w-0 flex-col gap-4">{view.drafts.map(draft => <SuggestionRow key={draft.id} draft={draft} view={view} isOnline={isOnline} />)}{!view.drafts.length ? <p className="text-sm text-[var(--fg-3)]">{t('chat.habitSuggestions.added')}</p> : null}</div>} actions={<div className="flex flex-col items-start gap-2">
       {view.drafts.some(draft => view.available(draft.id)) ? <PillButton disabled={view.disabled} loading={view.state.busy === 'all'} onClick={() => void view.addAll()}>{t('chat.habitSuggestions.addAll')}</PillButton> : null}
-      <div role="status" aria-live="polite" className="text-sm text-[var(--status-bad-text)]">{error ? <>{t(error)}<IconButton label={t('common.retry')} disabled={view.disabled} onClick={() => void view.retry('all')}><RefreshCw size={20} /></IconButton></> : null}</div>
+      <div role="status" aria-live="polite" className="text-sm text-[var(--status-bad-text)]">{error ? <>{t(error)}<IconButton label={t('common.retry')} disabled={view.disabled} onClick={() => void view.retry('all')}><RefreshCw size={20} color="var(--fg-2)" /></IconButton></> : null}</div>
       {!isOnline ? <p className="text-sm text-[var(--fg-3)]">{t('chat.habitSuggestions.offline')}</p> : null}
     </div>} />
     {view.editing ? <Suspense fallback={null}><HabitSuggestionEditor key={view.editing.id} draft={view.editing} onClose={() => view.edit(null)} onSaved={() => view.applied(view.editing!.id)} /></Suspense> : null}

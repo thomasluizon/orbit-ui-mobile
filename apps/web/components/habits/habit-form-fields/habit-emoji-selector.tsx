@@ -46,7 +46,7 @@ function emojiWellStyle(wellSize: number | string, proposed: boolean) {
   return {
     width: wellSize,
     height: wellSize,
-    color: proposed ? 'var(--fg-3)' : undefined,
+    color: proposed ? 'var(--fg-2)' : undefined,
     outline: proposed ? '1px dashed var(--hairline-strong)' : undefined,
     outlineOffset: -1,
   }
