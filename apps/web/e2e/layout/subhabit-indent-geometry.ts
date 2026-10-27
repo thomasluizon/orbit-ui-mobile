@@ -46,7 +46,7 @@ export async function setHabitTextScale(page: Page, scale: number, supportingTit
     })
     await settleHabitRows(page.getByTestId('habit-row'), scale, undefined, normalSupportingTitles)
   } catch (cause) {
-    throw new Error(`Habit text scale ${scale} did not settle: ${JSON.stringify(receipt)}`, { cause })
+    throw new Error(`Habit text scale ${scale} did not settle: ${JSON.stringify(receipt)}\n${cause instanceof Error ? cause.message : String(cause)}`, { cause })
   } finally { await identities.dispose() }
 }
 
@@ -55,7 +55,10 @@ function readHabitRowPhase(rows: Element[], { scale, selecting, normalSupporting
     .filter((animation) => animation.pending || animation.playState === 'running' || animation.playState === 'paused')
     .map((animation) => {
       if (animation.effect?.getComputedTiming().endTime === Infinity) throw new Error('Habit rows have a nonterminating layout animation')
-      return { property: animation instanceof CSSTransition ? animation.transitionProperty : null,
+      const target = animation.effect instanceof KeyframeEffect ? animation.effect.target : null
+      const attributes = target ? Array.from(target.attributes).filter(({ name }) => name.startsWith('data-')) : []
+      const selector = target ? target.tagName.toLowerCase() + attributes.map(({ name, value }) => `[${name}=${JSON.stringify(value)}]`).join('') : null
+      return { property: animation instanceof CSSTransition ? animation.transitionProperty : null, target: selector,
         playState: animation.playState, pending: animation.pending }
     })
   return {
@@ -71,14 +74,20 @@ function readHabitRowPhase(rows: Element[], { scale, selecting, normalSupporting
 }
 
 export async function settleHabitRows(rows: Locator, scale: number, selecting?: boolean, normalSupportingTitles: readonly string[] = []) {
-  await expect.poll(async () => {
-    const before = await rows.evaluateAll(readHabitRowPhase, { scale, selecting, normalSupportingTitles })
-    if (!before.matching) return before
-    if (before.animations.length > 0) await Promise.all((await rows.all()).map((row) => row.evaluate(settleAnimations)))
-    await rows.page().evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
-    return rows.evaluateAll(readHabitRowPhase, { scale, selecting, normalSupportingTitles })
-  }, { message: 'Habit row topology and owned layout animations must settle before geometry' })
-    .toEqual({ matching: true, animations: [] })
+  let phase: Awaited<ReturnType<typeof readHabitRowPhase>> | undefined
+  try {
+    await expect.poll(async () => {
+      phase = await rows.evaluateAll(readHabitRowPhase, { scale, selecting, normalSupportingTitles })
+      if (!phase.matching) return phase
+      if (phase.animations.length > 0) await Promise.all((await rows.all()).map((row) => row.evaluate(settleAnimations)))
+      await rows.page().evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
+      phase = await rows.evaluateAll(readHabitRowPhase, { scale, selecting, normalSupportingTitles })
+      return phase
+    }, { message: 'Habit row topology and owned layout animations must settle before geometry' })
+      .toEqual({ matching: true, animations: [] })
+  } catch (cause) {
+    throw new Error(`Habit row phase did not settle: ${JSON.stringify(phase)}`, { cause })
+  }
 }
 
 function readHabitGeometry(row: HTMLElement) {

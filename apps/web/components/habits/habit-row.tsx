@@ -273,7 +273,7 @@ export function HabitRow({
         onReorder={actions.onReorder} reorderInstructionsId={reorderInstructionsId}>
         {primaryContent}
       </HabitRowPrimaryButton>
-      {supportingMeta ? <div className="pointer-events-none *:pointer-events-auto relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8 }}>{controls}</div> : <div className="flex shrink-0 items-center gap-[4px]">{controls}</div>}
+      {supportingMeta ? <div data-habit-row-controls="" className="pointer-events-none *:pointer-events-auto relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8 }}>{controls}</div> : <div data-habit-row-controls="" className="flex shrink-0 items-center gap-[4px]">{controls}</div>}
     </>
   )
 

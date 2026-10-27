@@ -1709,6 +1709,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transition: color var(--dur-hover) var(--ease-standard);
 }
 
+.habit-row > [data-personal-text-action],
+.habit-row > [data-habit-row-controls] {
+  transition-property: none;
+}
+
 @media (hover: none), (pointer: coarse), (pointer: none) {
   .habit-row:has([data-habit-row-body]:not(:disabled):not([aria-disabled="true"]):active):not(:has([data-habit-row-control]:active)) {
     background: var(--bg-hover);
