@@ -199,17 +199,24 @@ function matchWeekdays(text: string, patterns: LocalePatterns) {
   }).sort((left, right) => left.match.index - right.match.index)
 }
 
+function hasWeekdayNegation(text: string, locale: SupportedLocale): boolean {
+  return /\b(?:menos|exceto|sem|nao|nunca|salvo|tirando|except|excluding|not|never|without|don't|cannot)\b/u.test(text)
+    || (locale === 'en' && /\bno\b/u.test(text))
+}
+
 function readWeekdayExclusion(
   remaining: string,
   phrase: NormalizedPhrase,
   patterns: LocalePatterns,
+  locale: SupportedLocale,
 ): { days: string[]; consumed: HabitPhraseToken[] } | 'unresolved' | null {
   const weekdays = matchWeekdays(remaining, patterns)
-  if (weekdays.length === 0 || !/\b(?:menos|exceto|sem|nao|nunca|salvo|tirando|except|excluding|not|never|without|don't|cannot)\b/u.test(remaining)) return null
+  if (weekdays.length === 0 || !hasWeekdayNegation(remaining, locale)) return null
   const exclusions = [...remaining.matchAll(/\b(?:menos|exceto|sem ser|except|but not)\b/gu)]
   if (exclusions.length !== 1) return 'unresolved'
   const exclusion = exclusions[0]!
   const prefix = remaining.slice(0, exclusion.index)
+  if (hasWeekdayNegation(prefix, locale)) return 'unresolved'
   const daily = firstMatch([patterns.daily], prefix)
   if (prefix.trim() && (!daily || prefix.slice(daily.index + daily[0].length).replace(/[\s,;]+/gu, ''))) return 'unresolved'
   if (firstMatch([patterns.count, patterns.interval], prefix) || /\b(?:weekdays?|weekends?|uteis|fim|fins)\b/u.test(prefix)) return 'unresolved'
@@ -258,7 +265,7 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
   if (time.token) consumed.push(time.token)
   remaining = time.remaining
 
-  const exclusion = readWeekdayExclusion(remaining, phrase, patterns)
+  const exclusion = readWeekdayExclusion(remaining, phrase, patterns, locale)
   if (exclusion) return buildWeekdayExclusionRead(exclusion, text, dueTime, consumed)
 
   const interval = extractInterval(remaining, phrase, patterns)

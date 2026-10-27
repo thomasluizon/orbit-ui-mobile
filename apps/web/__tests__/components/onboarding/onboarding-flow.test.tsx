@@ -397,17 +397,21 @@ describe('OnboardingFlow state model', () => {
     expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ days: ['Monday'] }))
   })
 
-  it('reads the signed-out sentence through Astra without adding a tour step', async () => {
+  it.each([
+    { locale: 'en', sentence: 'Read every Monday at 18:00', title: 'Read' },
+    { locale: 'pt-BR', sentence: 'Meditar dez minutos depois do café, menos aos domingos', title: 'Meditar dez minutos depois do café, menos aos domingos' },
+  ])('reads the signed-out sentence through Astra in $locale without adding a tour step', async ({ locale, sentence, title }) => {
+    mocks.locale = locale
     mocks.realProposal = true
     mocks.anonymousAvailable = true
     mocks.anonymous.mockResolvedValue({ emoji: '📖', frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, dueTime: '18:00', subHabits: [], checklistItems: [] })
     mount(false)
-    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Read every Monday at 18:00' } })
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: sentence } })
     fireEvent.click(screen.getByRole('button', { name: 'continue' }))
     expect(await screen.findByRole('img', { name: 'Astra' })).toBeVisible()
-    expect(screen.getByText('Read')).toBeVisible()
+    expect(screen.getByText(title)).toBeVisible()
     expect(screen.getByText('when.astraRead')).toBeVisible()
-    expect(mocks.anonymous).toHaveBeenCalledWith({ title: 'Read every Monday at 18:00', language: 'en' })
+    expect(mocks.anonymous).toHaveBeenCalledWith({ title: sentence, language: locale })
     expect(mocks.suggest).not.toHaveBeenCalled()
     expect(headerCounter()).toBe('Orbit · 02 / 03')
     expect(screen.queryByText(/meetAstra/)).toBeNull()

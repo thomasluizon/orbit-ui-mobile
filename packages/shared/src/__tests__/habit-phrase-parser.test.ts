@@ -3,7 +3,7 @@ import { buildOnboardingScheduleFromPhrase } from '../utils/onboarding'
 import { getHabitPhraseTitle } from '../utils/habit-phrase-title'
 import { readHabitRecurrencePhrase } from '../utils/habit-recurrence-phrase'
 import { readDateWeekday } from '../utils/date-phrase-parser'
-import { isWeeklyRecurrencePhrase, readHabitPhrase, segmentHabitPhrase } from '../utils/habit-phrase-parser'
+import { isWeeklyRecurrencePhrase, readHabitPhrase, readTypedHabitPhrase, segmentHabitPhrase } from '../utils/habit-phrase-parser'
 
 interface PhraseCase {
   input: string
@@ -26,6 +26,7 @@ const cases: PhraseCase[] = [
   { input: 'Ler terca e quinta as 8h30', locale: 'pt-BR', cadence: 'fixed', days: ['Tuesday', 'Thursday'], time: '08:30' },
   { input: 'Correr térça e quínta', locale: 'pt-BR', cadence: 'fixed', days: ['Tuesday', 'Thursday'] },
   { input: 'LER SEGUNDA-FEIRA', locale: 'pt-BR', cadence: 'fixed', days: ['Monday'] },
+  { input: 'Meditar no domingo', locale: 'pt-BR', cadence: 'fixed', days: ['Sunday'] },
   { input: 'Correr sabado e domingo', locale: 'pt-BR', cadence: 'fixed', days: ['Saturday', 'Sunday'] },
   { input: 'Meditar todos os dias às 7', locale: 'pt-BR', cadence: 'daily', time: '07:00' },
   { input: 'alongar diariamente 21:15', locale: 'pt-BR', cadence: 'daily', time: '21:15' },
@@ -236,6 +237,7 @@ describe('weekday negation', () => {
     for (const input of [phrase, phrase.toUpperCase(), phrase.normalize('NFD'), phrase.replaceAll(' ', '\t  ')]) {
       const read = readHabitPhrase(input, locale)
       expect(read).toMatchObject({ cadence: 'fixed', days })
+      expect(readTypedHabitPhrase(input, locale, 'habit', false)).toMatchObject({ cadence: 'fixed', days })
       expect(segmentHabitPhrase(input, read.consumed).filter((segment) => !segment.consumed).map((segment) => segment.text).join('').trim()).toBe('')
       expect(buildOnboardingScheduleFromPhrase(input, locale)).toMatchObject({ days, isGeneral: false })
       expect(readHabitRecurrencePhrase(input)).toMatchObject({ schedule: { days, unit: 'Day' } })
@@ -253,12 +255,16 @@ describe('weekday negation', () => {
     ['en', 'Run every day except Sunday when it rains'],
     ['en', 'Monday but not on Saturday'],
     ['en', 'not on Sundays'],
+    ['en', 'no Sundays'],
+    ['en', 'Do not run every day except Sunday'],
+    ['pt-BR', 'Não meditar todo dia menos domingo'],
     ['en', 'weekends except Sundays'],
     ['en', 'every day except Sunday or Monday'],
     ['en', 'every day except Monday, Tuesday, Wednesday, Thursday, Friday, Saturday and Sunday'],
   ] as const)('leaves uncertain scope intact: %s %s', (locale, input) => {
     expect(readHabitPhrase(input, locale)).toMatchObject({ cadence: null, days: [], intervalWeeks: null, consumed: [] })
     expect(buildOnboardingScheduleFromPhrase(input, locale)).toMatchObject({ days: [], isGeneral: true })
+    expect(readTypedHabitPhrase(input, locale, 'habit', false)).toMatchObject({ cadence: null, days: [], consumed: [] })
     expect(getHabitPhraseTitle(input, locale)).toBe(input)
     expect(readHabitRecurrencePhrase(input)).toBeNull()
     expect(readDateWeekday(input)).toBeNull()
