@@ -86,7 +86,7 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
   const { folded, minimumWidths } = layout
   const selected = props.options.find((option) => option.value === props.value)!
   return (
-    <div ref={frameRef} data-segmented-control="" className={`${props.fullWidth || folded ? 'w-full' : 'w-fit'} relative min-w-0 max-w-full`}>
+    <div ref={frameRef} data-segmented-control="" className="relative w-full min-w-0 max-w-full">
       <div aria-hidden="true" className={`${trackSpacing} pointer-events-none invisible absolute inset-x-0 top-0 flex h-0 overflow-hidden text-[0.875rem] font-medium`}>
         {props.options.map((option) => <span key={option.value} data-segment-measure="" className={`${segmentPadding} flex shrink-0`}>
           <span data-segment-full="" className="whitespace-nowrap">{option.label}</span>

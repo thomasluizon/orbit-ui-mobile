@@ -2,7 +2,7 @@ import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
 import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
-import Yoga, { type Node as YogaNode } from 'yoga-layout'
+import Yoga, { type Config as YogaConfig, type Node as YogaNode } from 'yoga-layout'
 import { Resvg } from '@resvg/resvg-js'
 import { afterEach, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
@@ -72,8 +72,8 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   if (typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
 }
 
-function buildLayout(host: Host, fontScale: number, labels: { node: YogaNode; intrinsic: number; host: Host }[], radios: YogaNode[], groups: { node: YogaNode; radios: YogaNode[] }[] = [], inRadio = false): YogaNode {
-  const node = Yoga.Node.create()
+function buildLayout(host: Host, fontScale: number, labels: { node: YogaNode; intrinsic: number; host: Host }[], radios: YogaNode[], groups: { node: YogaNode; radios: YogaNode[] }[] = [], inRadio = false, config?: YogaConfig): YogaNode {
+  const node = Yoga.Node.create(config)
   const declared = host.props.style
   const style = StyleSheet.flatten([{}, typeof declared === 'function' ? declared({ pressed: false }) : declared])
   const radioStart = radios.length
@@ -93,11 +93,11 @@ function buildLayout(host: Host, fontScale: number, labels: { node: YogaNode; in
   } else {
     let owner = node
     if (host.props.contentContainerStyle) {
-      owner = Yoga.Node.create()
+      owner = Yoga.Node.create(config)
       applyStyle(owner, StyleSheet.flatten(host.props.contentContainerStyle))
       node.insertChild(owner, 0)
     }
-    (host.children ?? []).filter((child): child is Host => typeof child !== 'string').forEach((child, index) => owner.insertChild(buildLayout(child, fontScale, labels, radios, groups, inRadio), index))
+    (host.children ?? []).filter((child): child is Host => typeof child !== 'string').forEach((child, index) => owner.insertChild(buildLayout(child, fontScale, labels, radios, groups, inRadio, config), index))
   }
   if (host.props.testID === 'segment-frame') groups.push({ node, radios: radios.slice(radioStart) })
   return node
@@ -112,11 +112,11 @@ function expectLabelLines(label: Host, optionCount: number, fontScale: number) {
   if (optionCount > 1) expect(label.props.numberOfLines).toBe(fontScale > 1.3 ? undefined : 1)
 }
 
-async function measureSegments(tree: SegmentTree, width: number, fontScale: number) {
+async function measureSegments(tree: SegmentTree, width: number, fontScale: number, config?: YogaConfig) {
   const labels: { node: YogaNode; intrinsic: number; host: Host }[] = []
   const radios: YogaNode[] = []
   const groups: { node: YogaNode; radios: YogaNode[] }[] = []
-  const initial = buildLayout(tree.toJSON(), fontScale, [], [], groups)
+  const initial = buildLayout(tree.toJSON(), fontScale, [], [], groups, false, config)
   initial.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
   await TestRenderer.act(() => {
     for (const frame of tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'segment-frame')) {
@@ -132,7 +132,7 @@ async function measureSegments(tree: SegmentTree, width: number, fontScale: numb
   })
   initial.freeRecursive()
   groups.length = 0
-  const layout = buildLayout(tree.toJSON(), fontScale, labels, radios, groups)
+  const layout = buildLayout(tree.toJSON(), fontScale, labels, radios, groups, false, config)
   layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
   return { layout, labels, radios, groups }
 }
@@ -352,4 +352,29 @@ it('keeps multiword labels in taller segments without breaking a word', async ()
     }
     expect(measured.labels.some((label) => label.node.getComputedHeight() > 40)).toBe(true)
   } finally { measured.layout.freeRecursive(); await TestRenderer.act(() => tree.unmount()) }
+})
+
+it.each(['en', 'pt-BR'])('settles the label-hugging selector at fractional pixel density in %s', async (locale) => {
+  __setWindowDimensions({ width: 320, height: 915, scale: 2.625, fontScale: 1 })
+  const messages = locale === 'en' ? en : ptBR
+  const options = [
+    { value: 'standard', label: messages.goals.form.typeStandard },
+    { value: 'streak', label: messages.goals.form.typeStreak },
+  ] as const
+  const config = Yoga.Config.create()
+  config.setPointScaleFactor(2.625)
+  let tree!: SegmentTree
+  await TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ paddingHorizontal: 16 }}><SegmentedControl label="Goal type" value="standard" options={options} onChange={vi.fn()} /></View>) as SegmentTree })
+  try {
+    const samples: { folded: boolean; width: number }[] = []
+    for (let frame = 0; frame < 10; frame++) {
+      const measured = await measureSegments(tree, 320, 1, config)
+      samples.push({ folded: measured.radios.length === 1, width: measured.groups[0]!.node.getComputedWidth() })
+      measured.layout.freeRecursive()
+    }
+    const transitions = samples.filter((sample, index) => index > 0 && sample.folded !== samples[index - 1]!.folded)
+    expect(transitions, JSON.stringify(samples)).toHaveLength(0)
+    expect(samples.at(-1)!.folded).toBe(false)
+    for (const sample of samples) expect(sample.width).toBe(288)
+  } finally { config.free(); await TestRenderer.act(() => tree.unmount()) }
 })

@@ -83,7 +83,7 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
   }
 
   return (
-    <View testID="segment-frame" onLayout={(event) => setAvailableWidth(event.nativeEvent.layout.width)} style={[styles.frame, props.fullWidth || folded ? styles.fullWidth : null]}>
+    <View testID="segment-frame" onLayout={(event) => setAvailableWidth(event.nativeEvent.layout.width)} style={styles.frame}>
       <View testID="segment-measurements" key={signature} pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.measure}>
         {[...new Set(words.flat())].map((word) => <Text key={word} testID="segment-measure" style={[styles.label, styles.measureWord]}
           onTextLayout={(event) => {
@@ -126,7 +126,7 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
 }
 
 const styles = StyleSheet.create({
-  frame: { alignSelf: 'flex-start', maxWidth: '100%' },
+  frame: { alignSelf: 'stretch', width: '100%', maxWidth: '100%' },
   measure: { position: 'absolute', left: 0, top: 0, flexDirection: 'row', opacity: 0, height: 0, overflow: 'hidden' },
   measureWord: { flexShrink: 0, maxWidth: undefined },
   trigger: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.s8, minHeight: TOUCH_TARGET_MIN, paddingHorizontal: SPACING.s12, paddingVertical: SPACING.s8, borderRadius: 12 },
