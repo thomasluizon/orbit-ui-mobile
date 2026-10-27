@@ -3,9 +3,6 @@
   "productName": "Orbit Staging",
   "version": "0.1.0",
   "identifier": "org.useorbit.desktop.staging",
-  "build": {
-    "frontendDist": "https://app-staging.useorbit.org"
-  },
   "app": {
     "withGlobalTauri": false,
     "windows": [
