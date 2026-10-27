@@ -83,7 +83,7 @@ describe('automatic date field', () => {
     await debounce()
     const pending = screen.getByRole('status', { name: 'habits.form.dateInterpreting' })
     expect(pending.closest('[data-input-root]')).toContainElement(screen.getByRole('textbox', { name: 'habits.form.datePhrase' }))
-    expect(pending.querySelector('[data-asset="astra-mark-16"]')).toHaveAttribute('color', 'var(--fg-3)')
+    expect(pending.querySelector('[data-asset="astra-mark"]')).toHaveAttribute('color', 'var(--fg-3)')
     await act(async () => finish({ date: '2026-10-26', referenceDate: '2026-10-20' }))
     expect(calendar()).toHaveTextContent(formatLocaleDate('2026-10-26', locale))
     expect(screen.getByRole('status', { name: 'habits.form.dateInterpreted' })).toBeVisible()

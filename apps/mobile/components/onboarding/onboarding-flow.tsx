@@ -42,7 +42,7 @@ import { ActionRow } from '@/components/ui/action-row'
 import { ArrowLeft, RefreshCw } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { NativeDialog } from '@/components/ui/native-dialog'
-import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
+import { useOnboardingSuggestion } from '@/hooks/use-onboarding-suggestion'
 import { useProfile } from '@/hooks/use-profile'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
@@ -156,7 +156,7 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
   const deferredHabit = useOnboardingDraftStore((state) => deferredPushFailure ? state.habits[0] : undefined)
   const [resolvingDeferredPush] = useState(deferredPushFailure)
   const { profile, refetch: refetchProfile } = useProfile({ enabled: isLive })
-  const suggestion = useHabitSuggestion()
+  const suggestion = useOnboardingSuggestion(isLive)
   const push = usePushNotifications()
   const [step, setStep] = useState(finalStepOnly ? ONBOARDING_PRO_STEP : resolvingDeferredPush ? ONBOARDING_REMIND_STEP : ONBOARDING_WHAT_STEP)
   const [sentence, setSentence] = useState('')
@@ -187,14 +187,14 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
   async function continueFromWhat() {
     if (!sentence.trim() || suggestionPending) return
     setEmoji(read.emoji ?? '◎'); setSchedule(clampOnboardingRepeatWeeks(buildOnboardingScheduleFromPhrase(sentence, locale), isLive)); setProposed(false); setCorrecting(false)
-    if (!shouldRequestOnboardingSuggestion({ isLive, atLimit })) { setStep(ONBOARDING_WHEN_STEP); return }
+    if (!shouldRequestOnboardingSuggestion({ isLive, atLimit, available: suggestion.available })) { setStep(ONBOARDING_WHEN_STEP); return }
     const revision = suggestionRevision.current + 1
     suggestionRevision.current = revision
     setSuggestionPending(true)
     try {
       const result = await suggestion.mutateAsync({ title: sentence, language: locale })
       if (suggestionRevision.current !== revision) return
-      setEmoji(result.emoji ?? read.emoji ?? '◎'); setSchedule(buildOnboardingScheduleFromSuggestion(result)); setProposed(true)
+      setEmoji(result.emoji ?? read.emoji ?? '◎'); setSchedule(clampOnboardingRepeatWeeks(buildOnboardingScheduleFromSuggestion(result), isLive)); setProposed(true)
     } catch {
       if (suggestionRevision.current !== revision) return
       setCorrecting(true)
@@ -292,7 +292,7 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
       setReminderDecision('idle')
     }
   }
-  function skip() { suggestionRevision.current += 1; setSuggestionPending(false); setSkipped(true); setCreatedTitle(''); setStep(ONBOARDING_DONE_STEP) }
+  function skip() { suggestion.cancel(); suggestionRevision.current += 1; setSuggestionPending(false); setSkipped(true); setCreatedTitle(''); setStep(ONBOARDING_DONE_STEP) }
 
   /**
    * The one exit for the done button, the done tab bar and the Android back gesture: the modal has to
@@ -330,7 +330,7 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
   if (step === ONBOARDING_DONE_STEP) return <NativeDialog open={overlayOpen} title={t(`onboarding.flow.done.${getOnboardingCompleteCopy({ skipped, signedOut: !isLive, remindersOff, dueToday: createdDueToday, general: createdGeneral }).titleKey}`)} onOpenChange={(open) => { if (!open) completeAndLeave() }}><Shell412 tabBar={<DoneTabBar onSelect={(id) => void completeAndLeave(isLive ? DONE_TAB_ROUTES[id as keyof typeof DONE_TAB_ROUTES] : undefined)} />}><DoneScroll><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} continuesToPro={isLive && getCurrentPlan(profile) !== 'Pro'} dueToday={createdDueToday} general={createdGeneral} onFinish={() => void completeAndLeave()} /></DoneScroll></Shell412></NativeDialog>
 
   const decisionProps: DecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji, schedule, dueTime, proposed, correcting, atLimit, allowance, createFailed, creating, suggestionPending, reminderDecision, reminderState, createdTitle, onAccount: () => { useOnboardingDraftStore.getState().markOnboardingLocallyDone(); router.replace('/login') }, onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(), onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => toggleOnboardingScheduleDay(current, day)), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onEditSchedule: () => runStepTransition(() => setStep(ONBOARDING_WHEN_STEP)) }
-  return <NativeDialog open title={t('onboarding.flow.step', { current: getOnboardingDisplayStep(step), total: getOnboardingDisplayTotal() })} onOpenChange={(open) => { if (!open) runStepTransition(() => { if (resolvingDeferredPush) void finishDeferredPushRecovery(); else if (step > 0) setStep(step - 1) }) }}><FlowShell nav={false} header={<FlowHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('onboarding.flow.createFailed')} /> : undefined}><View style={styles.content}><DecisionContent {...decisionProps} /></View></FlowShell></NativeDialog>
+  return <NativeDialog open title={t('onboarding.flow.step', { current: getOnboardingDisplayStep(step), total: getOnboardingDisplayTotal() })} onOpenChange={(open) => { if (!open) runStepTransition(() => { if (resolvingDeferredPush) void finishDeferredPushRecovery(); else if (step > 0) setStep(step - 1) }) }}><FlowShell nav={false} header={<FlowHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('onboarding.flow.createFailed')} /> : undefined}><View style={styles.content}><DecisionContent {...decisionProps} />{suggestion.verification}</View></FlowShell></NativeDialog>
 }
 
 const styles = StyleSheet.create({ header: { alignItems: 'center', flexDirection: 'row', gap: 16, justifyContent: 'space-between', minHeight: 56, paddingHorizontal: SPACING.s12 }, headerStart: { alignItems: 'center', flexDirection: 'row', flexShrink: 0, gap: 8 }, back: { alignItems: 'center', borderRadius: 999, justifyContent: 'center', minHeight: 48, overflow: 'hidden', width: 48 }, counter: { fontFamily: 'GeistMono_500Medium', fontSize: 12, fontVariant: ['tabular-nums'], letterSpacing: 0.48 }, srOnly: { height: 1, opacity: 0, position: 'absolute', width: 1 }, content: { alignSelf: 'center', flexGrow: 1, justifyContent: 'center', maxWidth: 440, width: '100%' }, actions: { gap: 8 }, reason: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' }, doneScroll: { flex: 1 }, done: { alignSelf: 'center', flexGrow: 1, justifyContent: 'center', maxWidth: 440, paddingHorizontal: SPACING.s16, width: '100%' } })

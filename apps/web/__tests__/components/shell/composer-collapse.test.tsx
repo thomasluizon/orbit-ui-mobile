@@ -7,43 +7,74 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { Composer } from '@/components/shell/composer'
 import { useUIStore } from '@/stores/ui-store'
 
-beforeEach(() => useUIStore.setState({ habitComposerCollapsed: false }))
+beforeEach(() => useUIStore.setState({ habitComposerCollapsed: false, todayComposerCollapsed: false }))
 
-it.each([en, ptBR])('collapses and expands the mounted draft, remembers the choice and sends once', messages => {
-  const onSend = vi.fn()
-  function Draft() {
-    const [value, setValue] = useState('')
-    return <NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}>
-      <Composer collapsible state="idle" value={value} onChangeValue={setValue} onSend={onSend} words={messages.shell.composer} suggestions={[]} />
-    </NextIntlClientProvider>
-  }
-  const view = render(<Draft />)
-  const input = screen.getByRole('textbox')
-  fireEvent.change(input, { target: { value: 'Keep this draft' } })
-  const toggle = screen.getByRole('button', { name: messages.shell.composer.collapse })
-  fireEvent.click(toggle)
-  const expand = screen.getByRole('button', { name: messages.shell.composer.expand })
-  expect(expand).toHaveAttribute('aria-expanded', 'false')
-  expect(expand).toHaveFocus()
-  expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-  expect(input).toHaveValue('Keep this draft')
-  expect(input).toBeInTheDocument()
-  expect(expand).toHaveTextContent('')
-  expect(expand.querySelector('[data-asset="astra-mark"]')).not.toBeNull()
-  expect(useUIStore.getState().habitComposerCollapsed).toBe(true)
-  fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.expand }))
-  expect(screen.getByRole('button', { name: messages.shell.composer.collapse })).toHaveFocus()
-  expect(screen.getByRole('textbox')).toBe(input)
-  expect(input).toHaveValue('Keep this draft')
-  const send = screen.getByRole('button', { name: messages.shell.composer.send })
-  expect(within(send).queryByText(/Astra/)).toBeNull()
-  fireEvent.click(send)
-  expect(onSend).toHaveBeenCalledOnce()
-  fireEvent.click(toggle)
-  view.unmount()
-  render(<Draft />)
-  expect(screen.getByRole('button', { name: messages.shell.composer.expand })).toHaveAttribute('aria-expanded', 'false')
-  expect(screen.queryByRole('textbox')).toBeNull()
+it.each([en, ptBR].flatMap(messages => (['habit', 'today'] as const).map(scope => ({ messages, scope }))))(
+  'collapses $scope with its mounted draft, attachment and queue, and sends once', ({ messages, scope }) => {
+    const onSend = vi.fn()
+    const onRemove = vi.fn()
+    const onQueueSend = vi.fn()
+    function Draft() {
+      const [value, setValue] = useState('')
+      return <NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}>
+        <Composer collapsible collapseScope={scope} state="idle" value={value} onChangeValue={setValue} onSend={onSend} words={messages.shell.composer} suggestions={[]}
+          onAttachFile={vi.fn()} attachWords={{ ...messages.shell.composer.attach, remove: name => name }}
+          attachments={[{ id: 'file', kind: 'file', name: 'notes.txt' }]} onAttachRemove={onRemove}
+          queue={{ label: 'Queued messages', items: [{ id: 'queued', content: 'Next request' }], canSend: true,
+            removeLabel: message => `Remove ${message}`, sendLabel: message => `Send ${message}`, onRemove, onSend: onQueueSend }} />
+      </NextIntlClientProvider>
+    }
+    const view = render(<Draft />)
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'Keep this draft' } })
+    const attachment = screen.getByText('notes.txt')
+    const queued = screen.getByRole('button', { name: 'Next request' })
+    const toggle = screen.getByRole('button', { name: messages.shell.composer.collapse })
+    expect(toggle.closest('[data-composer-text-action-slot]')).not.toBeNull()
+    fireEvent.click(toggle)
+    const expand = screen.getByRole('button', { name: messages.shell.composer.expand })
+    expect(expand).toHaveAttribute('aria-expanded', 'false')
+    expect(expand).toHaveFocus()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(input).toHaveValue('Keep this draft')
+    expect(input).toBeInTheDocument()
+    expect(attachment).not.toBeVisible()
+    expect(queued).not.toBeVisible()
+    expect(expand).toHaveTextContent('')
+    expect(expand.querySelector('[data-asset="astra-mark"]')).not.toBeNull()
+    expect(useUIStore.getState()).toMatchObject({
+      habitComposerCollapsed: scope === 'habit', todayComposerCollapsed: scope === 'today',
+    })
+    fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.expand }))
+    expect(screen.getByRole('button', { name: messages.shell.composer.collapse })).toHaveFocus()
+    expect(screen.getByRole('textbox')).toBe(input)
+    expect(input).toHaveValue('Keep this draft')
+    expect(attachment).toBeVisible()
+    expect(queued).toBeVisible()
+    expect(onRemove).not.toHaveBeenCalled()
+    expect(onQueueSend).not.toHaveBeenCalled()
+    const send = screen.getByRole('button', { name: messages.shell.composer.send })
+    expect(within(send).queryByText(/Astra/)).toBeNull()
+    fireEvent.click(send)
+    expect(onSend).toHaveBeenCalledOnce()
+    fireEvent.click(toggle)
+    view.unmount()
+    render(<Draft />)
+    expect(screen.getByRole('button', { name: messages.shell.composer.expand })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('textbox')).toBeNull()
+})
+
+it.each(['habit', 'today'] as const)('places the $scope disclosure beside suggestions outside the pill', scope => {
+  render(<NextIntlClientProvider locale="en" messages={en}>
+    <Composer collapsible collapseScope={scope} state="idle" value="" onChangeValue={vi.fn()} onSend={vi.fn()}
+      words={en.shell.composer} suggestions={[
+        { id: 'review', label: 'Review routine', onSelect: vi.fn() },
+        { id: 'plan', label: 'Plan routine', onSelect: vi.fn() },
+      ]} />
+  </NextIntlClientProvider>)
+  const toggle = screen.getByRole('button', { name: en.shell.composer.collapse })
+  expect(toggle.closest('[data-composer-suggestion-row]')).not.toBeNull()
+  expect(toggle.closest('[data-composer-input-row]')).toBeNull()
 })
 
 it('keeps the ordinary composer expanded when the habit preference is collapsed', () => {

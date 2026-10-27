@@ -81,7 +81,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps & { senderLabel
         {showOperationUpdate ? <p className="text-sm text-[var(--fg-2)]">{t('chat.operationUpdated')}</p> : null}
         {showUnreadableReply ? <p className="text-sm text-[var(--fg-2)]">{t('chat.unreadableReply')}</p> : null}
         {parts.map(part => {
-          if (part.type === 'block') return <ChatBlock key={part.key} part={part.part} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={part.expired} onActionChipClick={onActionChipClick} />
+          if (part.type === 'block') return <ChatBlock key={part.key} part={part.part} message={message} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={part.expired} onActionChipClick={onActionChipClick} />
           return <div
             key={part.key}
             data-bubble-role={isUser ? 'user' : 'ai'}

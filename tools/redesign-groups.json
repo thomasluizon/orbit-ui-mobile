@@ -23,6 +23,8 @@
       "block-chat-habit-list-card",
       "block-chat-habit-month-card",
       "block-chat-habit-ranking-card",
+      "block-chat-habit-suggestion-editor",
+      "block-chat-habit-suggestions-card",
       "block-chat-message-bubble",
       "block-chat-metrics-card",
       "block-chat-operation-outcomes",
@@ -58,6 +60,8 @@
       "m-block-chat-habit-list-card",
       "m-block-chat-habit-month-card",
       "m-block-chat-habit-ranking-card",
+      "m-block-chat-habit-suggestion-editor",
+      "m-block-chat-habit-suggestions-card",
       "m-block-chat-message-bubble",
       "m-block-chat-metrics-card",
       "m-block-chat-operation-outcomes",
@@ -265,6 +269,7 @@
       "route-terms"
     ],
     "Orbit Sobreposicoes": [
+      "m-overlay-components-offline-notice",
       "m-overlay-ui-confirm-sheet",
       "m-overlay-ui-date-field",
       "m-overlay-ui-discard-changes-sheet",

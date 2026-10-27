@@ -53,3 +53,9 @@ export function resolveShellChrome(pathname: string, lastDestination: ShellDesti
     flow: pathname === '/wrapped' || pathname === '/upgrade' || pathname === '/habits/new',
   }
 }
+
+export function resolveShellComposerScope(pathname: string): 'today' | 'habit' | undefined {
+  if (pathname === '/') return 'today'
+  if (/^\/habits\/[^/]+$/.test(pathname) && pathname !== '/habits/new') return 'habit'
+  return undefined
+}

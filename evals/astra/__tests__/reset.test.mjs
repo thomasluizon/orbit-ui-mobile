@@ -2,12 +2,13 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { fixtureFetch } from './fixtures/public-api.mjs'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
-import { beforeEach as prepareAttempt } from '../hooks.mjs'
+import { beforeAll as preflight, beforeEach as prepareAttempt } from '../hooks.mjs'
 import { resetFixture, runReset } from '../fixtures/reset.mjs'
+import AstraHttpProvider from '../http-provider.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 
 const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((file) => parse(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')))
-let habits, goals, tags, templates, requests, pro, exhausted, capacity, email
+let habits, goals, tags, templates, requests, pro, exhausted, capacity, email, unmetered
 beforeEach(() => {
   offlineCredentials()
   vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
@@ -17,7 +18,8 @@ beforeEach(() => {
   vi.stubEnv('ORBIT_EVAL_FREE_TOKEN', 'free-access')
   vi.stubEnv('ORBIT_EVAL_BUDGET_TOKEN', 'budget-access')
   habits = []; goals = []; tags = []; templates = []; requests = []; pro = true; exhausted = false; capacity = 100; email = 'thomaslrgregorio+orbit-eval-pro@gmail.com'
-  vi.stubGlobal('fetch', fixtureFetch(() => ({ habits, goals, tags, templates, requests, pro, exhausted, capacity, email })))
+  unmetered = true
+  vi.stubGlobal('fetch', fixtureFetch(() => ({ habits, goals, tags, templates, requests, pro, exhausted, capacity, email, unmetered })))
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const scenario = (fixture) => structuredClone(corpus.find((entry) => entry.metadata.fixture === fixture))
@@ -107,6 +109,72 @@ it('drives refresh, default reset, independent readback and ID substitution thro
   expect(test.vars.expectations.required[0].arguments.habit_id).toBe(account.habitId)
   expect(test.vars.evalRequestId).toMatch(/^[0-9a-f-]{36}$/)
   expect(process.env.ORBIT_EVAL_TOKEN).toBe('pro-access')
+})
+
+it('lets an exhausted exempt ordinary fixture reach chat after one preflight config read', async () => {
+  exhausted = true
+  vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
+  const source = scenario('pro')
+  const intercepted = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => {
+    if (new URL(url).pathname !== '/api/chat') return intercepted(url, options)
+    requests.push({ path: 'chat', method: options.method })
+    return Response.json({ aiMessage: 'Hello.' })
+  })
+  await preflight({ suite: { tests: [source] } })
+  const provider = new AstraHttpProvider({ config: {
+    url: `${process.env.ORBIT_EVAL_BASE_URL}/api/chat`, method: 'POST', body: { message: '{{prompt}}' },
+  } })
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { test } = await prepareAttempt({ test: structuredClone(source) })
+    expect(test.vars).not.toHaveProperty('preconditionFailure')
+    const response = await provider.callApi(`Hello ${attempt}.`, { vars: test.vars })
+    expect(response.error).toBeUndefined()
+  }
+  expect(requests.filter(({ path }) => path === 'config')).toHaveLength(1)
+  expect(requests.filter(({ path }) => path === 'chat')).toHaveLength(2)
+})
+
+it('keeps the exhausted-allowance refusal for a metered ordinary fixture', async () => {
+  exhausted = true
+  await expect(resetFixture(scenario('pro'), undefined, false)).rejects.toThrow('Fixture daily allowance is exhausted')
+  expect(requests.some(({ path }) => path === 'chat')).toBe(false)
+})
+
+it('still requires profile and usage evidence for an exempt account', async () => {
+  const intercepted = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => new URL(url).pathname === '/api/profile'
+    ? Response.json({ email, hasProAccess: true, aiMessagesUsed: null, aiMessagesLimit: 50 })
+    : intercepted(url, options))
+  await expect(resetFixture(scenario('pro'), undefined, true)).rejects.toThrow('lacks access or allowance evidence')
+  expect(requests).toEqual([])
+})
+
+it('the standalone reset also reads the exemption before resetting an exhausted ordinary fixture', async () => {
+  exhausted = true
+  await runReset('single-read-en')
+  expect(requests.slice(0, 3).map(({ path }) => path)).toEqual(['health', 'auth/refresh', 'config'])
+  expect(requests.at(-1).path).toBe('profile/export')
+})
+
+it.each(['free-at-limit', 'budget-exhausted'])('keeps the metered %s fixture path after preflight', async (fixture) => {
+  unmetered = false
+  pro = fixture !== 'free-at-limit'
+  exhausted = fixture === 'budget-exhausted'
+  capacity = 7
+  vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
+  const source = scenario(fixture)
+  await preflight({ suite: { tests: [source] } })
+  const { test } = await prepareAttempt({ test: source })
+  expect(test.vars).not.toHaveProperty('preconditionFailure')
+  expect(requests.filter(({ path }) => path === 'config')).toHaveLength(1)
+  if (fixture === 'free-at-limit') {
+    expect(habits.filter((habit) => !habit.deleted)).toHaveLength(capacity)
+    expect(requests.some(({ path, body }) => path === 'habits/bulk' && body.habits.length > capacity)).toBe(true)
+  } else {
+    expect(requests.filter(({ path }) => path === 'profile')).toHaveLength(1)
+    expect(requests.some(({ path }) => path === 'chat')).toBe(false)
+  }
 })
 
 it.each(['skipped', 'composition', 'composition-logged'])('restores occurrence cursors for repeated %s attempts', async (fixture) => {

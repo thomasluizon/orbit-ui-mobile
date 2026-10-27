@@ -89,6 +89,15 @@ describe('OnboardingCreateHabit', () => {
     }
   })
 
+  it.each([true, false])('attributes the reply only when Astra answered: %s', (proposed) => {
+    const { container } = render(<OnboardingCreateHabit {...base} proposed={proposed} correcting={false} />)
+    const mark = container.querySelector('[data-asset="astra-mark"]')
+    if (proposed) {
+      expect(mark).toHaveAttribute('width', '24')
+      expect(screen.getByRole('img', { name: 'Astra' })).toContainElement(mark as HTMLElement)
+    } else expect(mark).toBeNull()
+  })
+
   it('shows direct controls without Astra framing', () => {
     render(<OnboardingCreateHabit {...base} />)
     expect(screen.getByText('Pick the days and the time.')).toBeInTheDocument()

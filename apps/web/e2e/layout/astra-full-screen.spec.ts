@@ -54,7 +54,7 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
           const header = conversation.locator('header')
           const heading = header.getByRole('heading', { name: words.chat.title, exact: true })
           await expect(heading).toHaveText('')
-          const mark = heading.locator('[data-asset="astra-mark-16"]')
+          const mark = heading.locator('[data-asset="astra-mark"]')
           await expect(mark).toHaveAttribute('aria-hidden', 'true')
           const markBox = (await mark.boundingBox())!
           const closeBox = (await header.getByRole('button', { name: words.common.closeConversation }).boundingBox())!

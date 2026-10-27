@@ -61,6 +61,7 @@ if (basename(process.argv[1]) === "worktree" && process.argv[2] === "create") {
   if (process.platform !== "win32") shellArguments(repository)
   await killedHolder(fixtureRoot, repository)
   await killedHolder(fixtureRoot, repository, true)
+  await exitingHolder(fixtureRoot, repository)
   await survivingChild(fixtureRoot, repository)
   if (process.platform === "win32") await survivingChild(fixtureRoot, repository, true)
   await concurrentCreation(fixtureRoot, source, repository)
@@ -242,6 +243,61 @@ require("node:module").syncBuiltinESMExports()
     result.status === 0 && elapsed < LOCK_RECLAIM_BUDGET_MS,
     JSON.stringify({ status: result.status, elapsedMs: elapsed, budgetMs: LOCK_RECLAIM_BUDGET_MS,
       lockTimedOut: result.stderr.includes("timed out waiting for repository lock"), stdout: result.stdout, stderr: result.stderr }))
+}
+
+const exitingHolder = async (fixtureRoot, repository) => {
+  const held = join(fixtureRoot, "exiting-holder.json")
+  const probed = join(fixtureRoot, "exiting-holder-probed")
+  const shim = stage("create-worktree/bin/exiting-holder.cjs", `
+const { basename } = require("node:path")
+const fs = require("node:fs")
+const childProcess = require("node:child_process")
+if (basename(process.argv[1]) === "worktree") process.exit(0)
+const realSpawn = childProcess.spawn
+childProcess.spawn = (command, args, options) => {
+  if (args.includes("fetch") && process.argv.includes("exiting-holder")) {
+    fs.writeFileSync(${JSON.stringify(held)}, JSON.stringify({ pid: process.pid }))
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
+  }
+  return realSpawn(command, args, options)
+}
+if (process.argv.includes("after-exit")) {
+  const { pid } = JSON.parse(fs.readFileSync(${JSON.stringify(held)}, "utf8"))
+  const realKill = process.kill.bind(process)
+  const realRead = fs.readFileSync
+  const platform = process.platform
+  let checked = false
+  process.kill = (target, signal) => {
+    const result = realKill(target, signal)
+    if (target === pid && signal === 0) {
+      realKill(target, "SIGKILL")
+      checked = true
+      Object.defineProperty(process, "platform", { value: "linux" })
+    }
+    return result
+  }
+  fs.readFileSync = (path, ...args) => {
+    if (checked && path === "/proc/" + pid + "/stat") {
+      Object.defineProperty(process, "platform", { value: platform })
+      fs.writeFileSync(${JSON.stringify(probed)}, "probed after successful kill(pid, 0)")
+      throw Object.assign(new Error("ESRCH: no such process, read"), { code: "ESRCH" })
+    }
+    return realRead(path, ...args)
+  }
+}
+require("node:module").syncBuiltinESMExports()
+`)
+  const holder = launch(repository, "exiting-holder", shim)
+  try {
+    await waitFor([held])
+    const result = await launch(repository, "after-exit", shim).result
+    T(`${TOOL}: reclaims a holder that exits between the liveness check and identity read`,
+      existsSync(probed) && result.status === 0,
+      JSON.stringify({ identityProbedAfterLiveness: existsSync(probed), ...result }))
+  } finally {
+    holder.child.kill("SIGKILL")
+    await holder.result
+  }
 }
 
 const concurrentCreation = async (fixtureRoot, source, repository) => {

@@ -1296,6 +1296,27 @@
     }
   },
   "chat": {
+    "habitSuggestions": {
+      "title": "Ideias de hábitos",
+      "add": "Adicionar",
+      "edit": "Editar",
+      "tweak": "Ajustar",
+      "swap": "Trocar",
+      "addAll": "Adicionar todos",
+      "prompt": "Ajustar este hábito...",
+      "apply": "Aplicar",
+      "existing": "Já existe",
+      "current": "Atual",
+      "proposed": "Proposto",
+      "review": "Na prévia",
+      "added": "Adicionado",
+      "refineError": "Não consegui ajustar a ideia. Tente de novo.",
+      "previewError": "Não consegui preparar a prévia. Tente de novo.",
+      "conflictError": "Sua rotina mudou. Ajuste esta ideia ou tente de novo.",
+      "swapInstruction": "Sugira outra ideia para este lugar na rotina.",
+      "scheduleError": "Não consegui carregar os horários atuais. Tente de novo.",
+      "offline": "Conecte-se para continuar."
+    },
     "placement": {
       "group": "Onde colocar {name}",
       "option": {
@@ -2968,7 +2989,7 @@
       "createFailed": "O hábito não foi criado. Verifique a conexão e tente de novo.",
       "what": {
         "title": "O que você quer transformar em hábito?",
-        "label": "Escreva com as suas palavras",
+        "label": "Conte à Astra do seu jeito",
         "placeholder": "Caminhar toda segunda e quinta às 18:00",
         "marksLabel": "Palavras que o Orbit entendeu",
         "startersTitle": "Ideias para começar",
@@ -3085,6 +3106,7 @@
         "continue": "Continuar"
       },
       "done": {
+        "tellAstra": "Da próxima vez, conte à Astra no Hoje o que você quer fazer.",
         "title": "Pronto. Ele já está no Hoje.",
         "body": "Quando fizer, marque o anel dele no Hoje para registrar.",
         "remindersOffBody": "Quando fizer, marque o anel dele no Hoje para registrar. Você pode ligar os lembretes no hábito.",
