@@ -204,7 +204,7 @@ describe('useProfile', () => {
     expect(boundaryMocks.toastError).not.toHaveBeenCalled()
   })
 
-  it('surfaces a 404 as an ApiError and raises a categorized error toast', async () => {
+  it('surfaces a 404 as an ApiError and shows only the backend sentence', async () => {
     mockErrorResponse(404, { error: 'Profile not found' })
 
     const { result } = renderHook(() => useProfile(), {
@@ -219,12 +219,12 @@ describe('useProfile', () => {
     expect(result.current.profile).toBeUndefined()
     expect(apiErrorFrom(result.current.error).status).toBe(404)
     expect(boundaryMocks.toastError).toHaveBeenCalledWith(
-      'Not found: Profile not found',
+      'Profile not found',
     )
     expect(boundaryMocks.logout).not.toHaveBeenCalled()
   })
 
-  it('surfaces a 500 as an ApiError with a server-error toast, not a silent success', async () => {
+  it('surfaces a 500 as an ApiError and shows only the backend sentence', async () => {
     mockErrorResponse(500, { error: 'Internal error' })
 
     const { result } = renderHook(() => useProfile(), {
@@ -239,7 +239,7 @@ describe('useProfile', () => {
     expect(result.current.profile).toBeUndefined()
     expect(apiErrorFrom(result.current.error).status).toBe(500)
     expect(boundaryMocks.toastError).toHaveBeenCalledWith(
-      'Server error: Internal error',
+      'Internal error',
     )
   })
 

@@ -195,8 +195,6 @@ const styles = StyleSheet.create({
   },
   toast: {
     width: '100%',
-    maxWidth: 420,
-    alignSelf: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',

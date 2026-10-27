@@ -52,9 +52,22 @@ describe('mobile Toast', () => {
   it.each(variants)('shares geometry and an accessible close target for $kind', (props) => {
     const tree = render(<Toast {...props} />)
     const surface = tree.root.findByProps({ testID: `toast-${props.kind}` })
-    expect(StyleSheet.flatten(surface.props.style)).toMatchObject({
-      width: '100%', maxWidth: 420, alignSelf: 'center', padding: 16, borderRadius: 20, gap: 12,
+    const style = StyleSheet.flatten(surface.props.style)
+    expect(style).toMatchObject({
+      width: '100%', padding: 16, borderRadius: 20, gap: 12,
     })
+    for (const width of [288, 380, 704]) {
+      const column = Yoga.Node.create()
+      const toast = Yoga.Node.create()
+      column.setWidth(width)
+      toast.setWidth(style.width)
+      toast.setMaxWidth(style.maxWidth)
+      column.insertChild(toast, 0)
+      try {
+        column.calculateLayout(undefined, undefined)
+        expect(toast.getComputedWidth()).toBe(width)
+      } finally { column.freeRecursive() }
+    }
     advance(0)
     const message = surface.findAllByType('Text').find((node: { props: { children: unknown } }) => node.props.children === 'Feedback')
     expect(StyleSheet.flatten(message.props.style)).toMatchObject({ fontSize: 14, lineHeight: 20, fontFamily: 'Geist_500Medium' })

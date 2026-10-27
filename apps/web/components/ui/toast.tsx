@@ -65,7 +65,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
       aria-label={props.message}
       data-kind={props.kind}
       tabIndex={-1}
-      className={`mx-auto flex w-full max-w-[420px] flex-wrap items-center gap-x-3 gap-y-0 rounded-[var(--r-card)] ${colors.background} p-4 text-[var(--fg-1)] shadow-[var(--sh-2)] ${props.outlined ? 'ring-1 ring-inset ring-[var(--fg-3)]' : ''}`}
+      className={`flex w-full flex-wrap items-center gap-x-3 gap-y-0 rounded-[var(--r-card)] ${colors.background} p-4 text-[var(--fg-1)] shadow-[var(--sh-2)] ${props.outlined ? 'ring-1 ring-inset ring-[var(--fg-3)]' : ''}`}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
       onFocusCapture={() => setFocused(true)}
