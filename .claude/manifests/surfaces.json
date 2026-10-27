@@ -4879,7 +4879,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4907,7 +4906,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4935,7 +4933,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4963,7 +4960,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4991,7 +4987,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -5019,7 +5014,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -5047,7 +5041,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -5075,7 +5068,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",

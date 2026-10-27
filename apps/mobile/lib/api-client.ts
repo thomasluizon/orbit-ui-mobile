@@ -16,6 +16,7 @@ type ApiRequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
   skipAuthRecovery?: boolean
   silent?: boolean
   isCurrent?: () => boolean
+  onResponseHeaders?: (headers: Headers) => void
 }
 
 interface ApiErrorPayload {
@@ -121,10 +122,12 @@ async function executeRequest(
   const requestOptions = { ...options }
   delete requestOptions.skipAuthRecovery
   delete requestOptions.isCurrent
+  delete requestOptions.onResponseHeaders
   const response = await fetch(`${API_BASE}${path}`, {
     ...requestOptions,
     headers: buildRequestHeaders(token, options),
   })
+  if (response.ok) options.onResponseHeaders?.(response.headers)
 
   return {
     response,
