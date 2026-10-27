@@ -6,6 +6,7 @@ import type { ComponentProps } from 'react'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { questionBlockFixture as block, questionAnswersFixture } from '@orbit/shared/test-support/chat-fixtures'
 import type { BlockAnswerInteraction, QuestionBlockProps } from '@orbit/shared/chat'
+import { questionBlockSchema } from '@orbit/shared/types/question-block'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { QuestionBlock } from '@/components/chat/question-block'
@@ -89,6 +90,50 @@ it('uses primitive accessibility adjustments, native keyboard input and touch dr
   await renderer.act(() => roles('slider')[0]!.props.onLayout({ nativeEvent: { layout: { width: 248 } } }))
   await renderer.act(() => roles('slider')[0]!.props.onResponderMove({ nativeEvent: { locationX: 224 } }))
   expect(roles('slider')[0]!.props.accessibilityValue.now).toBeCloseTo(0.3)
+})
+it.each(['keyboard', 'accessibility'])('steps an offset decimal slider in both directions using %s', async mode => {
+  const supplied = questionBlockSchema.parse({ ...block, questions: [{ ...block.questions[3], min: 0.05, max: 0.25, step: 0.1 }] })
+  await mount({ block: supplied })
+  const expectValue = (value: number) => {
+    expect(roles('slider')[0]!.props).toMatchObject({
+      accessibilityValue: { min: 0.05, max: 0.25, now: value, text: `${value} hours` },
+      'aria-valuenow': value, 'aria-valuemin': 0.05, 'aria-valuemax': 0.25,
+    })
+  }
+  expectValue(0.05)
+  for (const [increment, value] of [[true, 0.15], [true, 0.25], [true, 0.25], [false, 0.15], [false, 0.05], [false, 0.05]] as const) {
+    await renderer.act(() => {
+      const slider = roles('slider')[0]!
+      if (mode === 'keyboard') slider.props.onKeyDown({ nativeEvent: { key: increment ? 'ArrowRight' : 'ArrowLeft' } })
+      else slider.props.onAccessibilityAction({ nativeEvent: { actionName: increment ? 'increment' : 'decrement' } })
+    })
+    expectValue(value)
+  }
+})
+it('formats Android slider limits, selection, announcements and submitted summary in pt-BR', async () => {
+  await i18n.changeLanguage('pt-BR')
+  const context = interaction()
+  const supplied = questionBlockSchema.parse({ ...block, questions: [{ ...block.questions[3], min: 0.05, max: 0.25, step: 0.1 }] })
+  await mount({ block: supplied, interaction: context })
+  const labels = () => tree.root.findAll(node => node.type === Text).map(node => node.props.children)
+  expect(labels()).toContain('0,05 hours / 0,25 hours')
+  expect(roles('slider')[0]!.props.accessibilityValue.text).toBe('0,05 hours')
+  await renderer.act(() => roles('slider')[0]!.props.onAccessibilityAction({ nativeEvent: { actionName: 'increment' } }))
+  expect(labels()).toContain('0,15 hours')
+  expect(roles('slider')[0]!.props.accessibilityValue).toMatchObject({ now: 0.15, text: '0,15 hours' })
+  await submit()
+  expect(context.send).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ labels: ['How long?: 0,15 hours'], answer: { blockId: block.blockId, selectedIds: [], answers: [{ questionId: 'duration', number: 0.15 }] } }))
+  expect(roles('slider')).toHaveLength(0)
+  expect(text()).toContain('How long?: 0,15 hours')
+})
+it('clips the scale press fill to its full target with the control radius', async () => {
+  await mount()
+  const scale = roles('radio').find(node => node.props.accessibilityLabel === '3')!
+  const style = scale.props.style as (state: { pressed: boolean }) => Parameters<typeof StyleSheet.flatten>[0]
+  const resting = StyleSheet.flatten(style({ pressed: false })) as TextStyle
+  const pressed = StyleSheet.flatten(style({ pressed: true })) as TextStyle
+  expect(pressed).toMatchObject({ minHeight: 48, borderRadius: 12, overflow: 'hidden' })
+  expect(pressed.backgroundColor).not.toBe(resting.backgroundColor)
 })
 it('keeps custom text, replaces single and yes/no answers and combines multiple choice and text', async () => {
   await mount()

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { questionBlockSchema, questionSliderValue } from '../types/question-block'
+import { questionBlockSchema, questionSliderTick, questionSliderValue, questionSliderValueAtTick } from '../types/question-block'
 import { blockAnswerSchema, chatPartSchema } from '../types/chat'
 import type { BlockAnswerInteraction } from '../chat/block-answer'
 import { isSameBlockAnswer } from '../chat/block-answer'
-import { QuestionBlockController, isQuestionAnswered, questionBlockStatus, type QuestionWords } from '../chat/question-block-core'
+import { QuestionBlockController, formatQuestionNumber, isQuestionAnswered, questionAnswerLabels, questionBlockStatus, type QuestionWords } from '../chat/question-block-core'
 import { questionBlockFixture as block, questionAnswersFixture as answers } from '../test-support/question-fixtures'
 
 const words: QuestionWords = { yes: 'Yes', no: 'No', answered: options => `You chose ${options}`, closed: 'Closed', alreadyAnswered: 'Answered', invalid: 'Invalid', error: 'Error', offline: 'Offline', limit: 'Limit', acting: 'Sending' }
@@ -58,6 +58,25 @@ describe('question block contract and state', () => {
   })
   it('snaps fractional slider positions to decimal steps from a negative minimum', () => {
     expect(Array.from({ length: 7 }, (_, index) => questionSliderValue(-0.3, 0.3, 0.1, index / 6))).toEqual([-0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3])
+  })
+  it.each([
+    { min: 0.05, max: 0.25, step: 0.1, values: [0.05, 0.15, 0.25] },
+    { min: -0.15, max: 0.05, step: 0.1, values: [-0.15, -0.05, 0.05] },
+    { min: 1e-8, max: 3e-8, step: 1e-8, values: [1e-8, 2e-8, 3e-8] },
+  ])('round trips exact tick indices for a slider starting at $min', ({ min, max, step, values }) => {
+    const ticks = questionSliderTick(max, min, step)
+    expect(ticks).toBe(values.length - 1)
+    values.forEach((value, tick) => {
+      expect(questionSliderTick(value, min, step)).toBe(tick)
+      expect(questionSliderValueAtTick(min, step, tick)).toBe(value)
+      expect(questionSliderValue(min, max, step, tick / ticks)).toBe(value)
+    })
+  })
+  it('shares localized decimal formatting with answer labels', () => {
+    const supplied = questionBlockSchema.parse({ ...block, questions: [{ ...block.questions[3], min: 0.05, max: 0.25, step: 0.1 }] })
+    expect(formatQuestionNumber(0.15, 'pt-BR')).toBe('0,15')
+    expect(formatQuestionNumber(0.00000001, 'pt-BR')).toBe('0,00000001')
+    expect(questionAnswerLabels(supplied, { duration: { questionId: 'duration', number: 0.15 } }, words, 'pt-BR')).toEqual(['How long?: 0,15 hours'])
   })
   it('retains typed answers through failures and enables only identical recovery at the limit', async () => {
     const controller = new QuestionBlockController()

@@ -29,13 +29,17 @@ export function isQuestionAnswered(question: Question, answer: QuestionAnswer | 
   return answer.number >= question.min && answer.number <= question.max && isOnQuestionStep(answer.number, question.min, question.step)
 }
 
+export function formatQuestionNumber(value: number, locale: string): string {
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 20 }).format(value)
+}
+
 export function questionAnswerLabels(block: QuestionBlock, answers: Record<string, QuestionAnswer>, words: Pick<QuestionWords, 'yes' | 'no'>, locale: string): string[] {
   return block.questions.map(question => {
     const answer = answers[question.id]
     if (!answer) return question.prompt
     const labels = question.type === 'singleChoice' || question.type === 'multipleChoice'
       ? question.options.filter(option => answer.selectedIds?.includes(option.id)).map(option => option.label) : []
-    if (answer.number !== undefined) labels.push(`${new Intl.NumberFormat(locale, { maximumFractionDigits: 20 }).format(answer.number)}${question.type === 'slider' ? ` ${question.unit}` : ''}`)
+    if (answer.number !== undefined) labels.push(`${formatQuestionNumber(answer.number, locale)}${question.type === 'slider' ? ` ${question.unit}` : ''}`)
     if (answer.boolean !== undefined) labels.push(answer.boolean ? words.yes : words.no)
     return `${question.prompt}: ${formatBlockAnswer(labels, answer.freeText, locale)}`
   })

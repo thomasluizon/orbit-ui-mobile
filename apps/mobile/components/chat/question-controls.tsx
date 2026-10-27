@@ -1,5 +1,6 @@
-import { Text, View } from 'react-native'
-import type { QuestionControlProps } from '@orbit/shared/chat'
+import { StyleSheet, Text, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
+import { formatQuestionNumber, type QuestionControlProps } from '@orbit/shared/chat'
 import { RadioGroup, RadioItem } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
@@ -17,7 +18,7 @@ function QuestionScale({ question, answer, disabled, controller, words }: Questi
     <RadioGroup accessibilityLabel={question.prompt} accessibilityHint={words.required} style={{ flexDirection: 'row' }}>
       {[1, 2, 3, 4, 5].map(number => <RadioItem key={number} selected={answer?.number === number} disabled={disabled} onSelect={() => controller.setAnswer(question, { number })}>
         <InsetFocusPressable accessibilityRole="radio" accessibilityLabel={String(number)} accessibilityState={{ checked: answer?.number === number, disabled }} disabled={disabled} focusable={!disabled}
-          style={({ pressed }) => ({ flex: 1, minWidth: 0, minHeight: 48, alignItems: 'center', justifyContent: 'center', padding: 8, borderRadius: 12, opacity: disabled ? 0.6 : 1, backgroundColor: pressed ? tokens.bgHover : answer?.number === number ? tokens.bgWell : 'transparent' })}>
+          style={({ pressed }) => [styles.scaleOption, { opacity: disabled ? 0.6 : 1, backgroundColor: pressed ? tokens.bgHover : answer?.number === number ? tokens.bgWell : 'transparent' }]}>
           <Text style={{ color: tokens.fg1, fontSize: 16, lineHeight: 24, fontFamily: 'Geist_400Regular' }}>{number}</Text>
         </InsetFocusPressable>
       </RadioItem>)}
@@ -28,12 +29,14 @@ function QuestionScale({ question, answer, disabled, controller, words }: Questi
 
 export function QuestionControls(props: QuestionControlProps) {
   const { question, answer, disabled, controller, words } = props
+  const { i18n } = useTranslation()
+  const numberLabel = (value: number) => formatQuestionNumber(value, i18n.language)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   if (question.type === 'scale') return <QuestionScale {...props} />
   if (question.type === 'slider') return <View style={{ minWidth: 0, gap: 8 }}>
-    <Text style={{ fontSize: 14, lineHeight: 20, color: tokens.fg2 }}>{answer?.number === undefined ? `${question.min} ${question.unit} / ${question.max} ${question.unit}` : `${answer.number} ${question.unit}`}</Text>
-    <Slider label={question.prompt} min={question.min} max={question.max} step={question.step} value={answer?.number} valueText={`${answer?.number ?? question.min} ${question.unit}`} disabled={disabled} onChange={number => controller.setAnswer(question, { number })} />
+    <Text style={{ fontSize: 14, lineHeight: 20, color: tokens.fg2 }}>{answer?.number === undefined ? `${numberLabel(question.min)} ${question.unit} / ${numberLabel(question.max)} ${question.unit}` : `${numberLabel(answer.number)} ${question.unit}`}</Text>
+    <Slider label={question.prompt} min={question.min} max={question.max} step={question.step} value={answer?.number} valueText={`${numberLabel(answer?.number ?? question.min)} ${question.unit}`} disabled={disabled} onChange={number => controller.setAnswer(question, { number })} />
   </View>
   const choices = question.type === 'yesNo' ? [true, false].map(boolean => ({ id: String(boolean), label: boolean ? words.yes : words.no, recommended: false })) : question.options
   const rows = choices.map(option => question.type === 'multipleChoice'
@@ -47,3 +50,7 @@ export function QuestionControls(props: QuestionControlProps) {
     {question.allowFreeText ? <Input label={words.freeText} value={answer?.freeText ?? ''} onChange={value => controller.setFreeText(question, value)} disabled={disabled} maxLength={500} /> : null}
   </View>
 }
+
+const styles = StyleSheet.create({
+  scaleOption: { flex: 1, minWidth: 0, minHeight: 48, alignItems: 'center', justifyContent: 'center', padding: 8, borderRadius: 12, overflow: 'hidden' },
+})

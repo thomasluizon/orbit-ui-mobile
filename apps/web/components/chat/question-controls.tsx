@@ -1,6 +1,7 @@
 'use client'
 
-import type { QuestionControlProps } from '@orbit/shared/chat'
+import { useLocale } from 'next-intl'
+import { formatQuestionNumber, type QuestionControlProps } from '@orbit/shared/chat'
 import { RadioGroup, RadioItem } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 import { CheckRow } from '@/components/ui/check-row'
@@ -22,10 +23,12 @@ function QuestionScale({ question, answer, disabled, controller }: QuestionContr
 
 export function QuestionControls(props: QuestionControlProps) {
   const { question, answer, disabled, controller, words } = props
+  const locale = useLocale()
+  const numberLabel = (value: number) => formatQuestionNumber(value, locale)
   if (question.type === 'scale') return <QuestionScale {...props} />
   if (question.type === 'slider') return <div className="flex min-w-0 flex-col gap-2">
-    <p className="break-words text-sm text-[var(--fg-2)]">{answer?.number === undefined ? `${question.min} ${question.unit} / ${question.max} ${question.unit}` : `${answer.number} ${question.unit}`}</p>
-    <Slider label={question.prompt} min={question.min} max={question.max} step={question.step} value={answer?.number} valueText={`${answer?.number ?? question.min} ${question.unit}`} disabled={disabled} onChange={number => controller.setAnswer(question, { number })} />
+    <p className="break-words text-sm text-[var(--fg-2)]">{answer?.number === undefined ? `${numberLabel(question.min)} ${question.unit} / ${numberLabel(question.max)} ${question.unit}` : `${numberLabel(answer.number)} ${question.unit}`}</p>
+    <Slider label={question.prompt} min={question.min} max={question.max} step={question.step} value={answer?.number} valueText={`${numberLabel(answer?.number ?? question.min)} ${question.unit}`} disabled={disabled} onChange={number => controller.setAnswer(question, { number })} />
   </div>
   const choices = question.type === 'yesNo' ? [true, false].map(boolean => ({ id: String(boolean), label: boolean ? words.yes : words.no, recommended: false })) : question.options
   const rows = choices.map(option => question.type === 'multipleChoice'

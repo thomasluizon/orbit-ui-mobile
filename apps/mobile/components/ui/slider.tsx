@@ -2,7 +2,7 @@ import * as Primitive from '@rn-primitives/slider'
 import { useCallback, useState } from 'react'
 import { findNodeHandle, View, type GestureResponderEvent, type NativeSyntheticEvent } from 'react-native'
 import type { SliderProps } from '@orbit/shared/contracts/forms'
-import { questionSliderValue } from '@orbit/shared/types/question-block'
+import { questionSliderTick, questionSliderValue, questionSliderValueAtTick } from '@orbit/shared/types/question-block'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -16,20 +16,22 @@ export function Slider({ label, value, valueText, min, max, step, disabled, onCh
   const trackRef = useCallback((element: View | null) => {
     if (element) { const handle = findNodeHandle(element); if (handle !== null) setNativeHandle(handle) }
   }, [])
-  const fraction = ((value ?? min) - min) / (max - min)
-  const select = (next: number) => { if (!disabled) onChange(questionSliderValue(min, max, step, (next - min) / (max - min))) }
+  const tickCount = questionSliderTick(max, min, step)
+  const tick = questionSliderTick(value ?? min, min, step)
+  const fraction = tick / tickCount
+  const select = (next: number) => { if (!disabled) onChange(questionSliderValueAtTick(min, step, next)) }
   const touch = (event: GestureResponderEvent) => {
     if (width > TOUCH_TARGET_MIN && !disabled) onChange(questionSliderValue(min, max, step, (event.nativeEvent.locationX - TOUCH_TARGET_MIN / 2) / (width - TOUCH_TARGET_MIN)))
   }
   const focusTargets = { nextFocusLeft: nativeHandle, nextFocusRight: nativeHandle, nextFocusUp: nativeHandle, nextFocusDown: nativeHandle }
   const keys = { onKeyDown: (event: NativeSyntheticEvent<{ key: string }>) => {
     const key = event.nativeEvent.key
-    if (key === 'ArrowRight' || key === 'ArrowUp') select(Math.min(max, (value ?? min) + step))
-    else if (key === 'ArrowLeft' || key === 'ArrowDown') select(Math.max(min, (value ?? min) - step))
-    else if (key === 'Enter' || key === ' ') select(value ?? min)
+    if (key === 'ArrowRight' || key === 'ArrowUp') select(Math.min(tickCount, tick + 1))
+    else if (key === 'ArrowLeft' || key === 'ArrowDown') select(Math.max(0, tick - 1))
+    else if (key === 'Enter' || key === ' ') select(tick)
   } }
-  return <Primitive.Root value={value ?? min} min={min} max={max} step={step} disabled={disabled} onValueChange={values => select(values[0]!)}>
-    <Primitive.Track {...keys} ref={trackRef} {...focusTargets} accessibilityLabel={label} accessibilityValue={{ min, max, now: value ?? min, text: valueText }} focusable={!disabled}
+  return <Primitive.Root value={tick} min={0} max={tickCount} step={1} disabled={disabled} onValueChange={values => select(values[0]!)}>
+    <Primitive.Track {...keys} ref={trackRef} {...focusTargets} accessibilityLabel={label} aria-valuemin={min} aria-valuemax={max} aria-valuenow={value ?? min} aria-valuetext={valueText} accessibilityValue={{ min, max, now: value ?? min, text: valueText }} focusable={!disabled}
       onLayout={event => setWidth(event.nativeEvent.layout.width)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
       onStartShouldSetResponder={() => !disabled} onMoveShouldSetResponder={() => !disabled} onResponderGrant={touch} onResponderMove={touch}
       style={{ minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', paddingHorizontal: 24, borderRadius: radius.full, opacity: disabled ? 0.6 : 1, outlineWidth: focused && !disabled ? 2 : 0, outlineOffset: -2, outlineColor: tokens.primary, outlineStyle: 'solid' }}>

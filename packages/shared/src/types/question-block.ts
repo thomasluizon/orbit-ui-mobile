@@ -20,10 +20,19 @@ export function isOnQuestionStep(value: number, minimum: number, step: number): 
   return increment! > 0n && (integer! - start!) % increment! === 0n
 }
 
+export function questionSliderTick(value: number, minimum: number, step: number): number {
+  const [integer, start, increment] = decimalIntegers([value, minimum, step])
+  return Number((integer! - start!) / increment!)
+}
+
+export function questionSliderValueAtTick(minimum: number, step: number, tick: number): number {
+  const [start, increment, denominator] = decimalIntegers([minimum, step, 1])
+  return Number(`${start! + BigInt(tick) * increment!}e-${denominator!.toString().length - 1}`)
+}
+
 export function questionSliderValue(minimum: number, maximum: number, step: number, fraction: number): number {
-  const [start, end, increment, denominator] = decimalIntegers([minimum, maximum, step, 1])
-  const ticks = Math.round(Math.max(0, Math.min(1, fraction)) * Number((end! - start!) / increment!))
-  return Number(`${start! + BigInt(ticks) * increment!}e-${denominator!.toString().length - 1}`)
+  const tick = Math.round(Math.max(0, Math.min(1, fraction)) * questionSliderTick(maximum, minimum, step))
+  return questionSliderValueAtTick(minimum, step, tick)
 }
 
 const optionSchema = z.object({ id: text(80), label: text(120), recommended: z.boolean().optional() })
