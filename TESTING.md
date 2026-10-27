@@ -177,10 +177,13 @@ npm ci --prefix evals/astra --workspaces=false
 The harness imports shared TypeScript source, whose dependencies resolve from the root install.
 The shared workspace install skips lifecycle scripts and does not install the app workspaces.
 From `evals/astra`, run `npx promptfoo eval` after preparing the environment below.
-Before a live run, regenerate the composition tool catalog from a clean checkout of the evaluated API
+Before a live run, regenerate the tool catalogs from a clean checkout of the evaluated API
 commit with `node evals/astra/generate-catalog.mjs <api-checkout>` from the repository root.
-The exporter uses the API's tool registrations, composition request builder and strict schema normalizer;
+The exporter uses the API's tool registrations, request builder and strict schema normalizer for both
+composition and legacy clients, with `AstraBlockFirst` enabled for the gate;
 `catalog.yaml` records the full source SHA as `apiCommit`. Generation refuses a dirty API tree.
+Structural validation selects the schema matching the case's `clientContext.supportsParts` and removes
+only properties the API's trace sensitivity collector marks for omission, retaining all observable constraints.
 The live gate checks `/health` before its first case and before refreshing credentials. It refuses to
 start unless the reported `commit` matches `apiCommit`, naming both commits and the regeneration command.
 Offline unit tests validate against the committed catalog without contacting the API.

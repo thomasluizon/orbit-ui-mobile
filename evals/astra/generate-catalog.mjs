@@ -31,12 +31,12 @@ try {
   })
   if (run.error) throw run.error
   if (run.status !== 0) throw new Error('API tool catalog export failed.')
-  const tools = JSON.parse(readFileSync(output, 'utf8'))
+  const catalogs = JSON.parse(readFileSync(output, 'utf8'))
   if (cleanApiCommit() !== apiCommit) throw new Error('API commit changed during catalog generation.')
   writeFileSync(new URL('./catalog.yaml', import.meta.url),
-    '# Generated through the API composition request builder and StrictToolSchema.\n'
+    '# Generated through the API request builder, StrictToolSchema and eval trace sensitivity collector.\n'
     + '# Regenerate with node evals/astra/generate-catalog.mjs <api-checkout>.\n'
-    + stringify({ apiCommit, tools }, { lineWidth: 120 }))
+    + stringify({ apiCommit, ...catalogs }, { lineWidth: 120 }))
 } finally {
   rmSync(directory, { recursive: true, force: true })
 }

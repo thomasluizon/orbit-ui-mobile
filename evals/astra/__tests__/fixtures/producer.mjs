@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 
-const { tools } = parse(readFileSync(new URL('../../catalog.yaml', import.meta.url), 'utf8'))
+const { tools, legacyTools } = parse(readFileSync(new URL('../../catalog.yaml', import.meta.url), 'utf8'))
+const normalizeField = (name) => name.replaceAll('_', '').replaceAll('-', '').toLowerCase()
 
-// StrictToolSchema requires nullable properties; TerminalReadDirective requires the completion boolean.
+// StrictToolSchema requires nullable properties; composition reads require completion; traces omit marked fields.
 function strictArguments(schema, supplied) {
   if (Array.isArray(supplied)) return supplied.map((entry) => strictArguments(schema?.items, entry))
   if (!supplied || typeof supplied !== 'object') return supplied
@@ -15,11 +16,23 @@ function strictArguments(schema, supplied) {
     .map(([name, value]) => [name, strictArguments(schema?.properties?.[name], value)])) }
 }
 
+// Producer: ProcessUserChatCommand.EvalTrace.cs applies schema marks to arguments and result envelopes.
+function omitSensitiveFields(value, sensitiveFields) {
+  if (Array.isArray(value)) return value.map((entry) => omitSensitiveFields(entry, sensitiveFields))
+  if (!value || typeof value !== 'object') return value
+  return Object.fromEntries(Object.entries(value)
+    .filter(([name]) => !sensitiveFields.has(normalizeField(name)))
+    .map(([name, entry]) => [name, omitSensitiveFields(entry, sensitiveFields)]))
+}
+
 // Contract: orbit-api 5e376417, ChatResponse, ChatEvalTrace and AiToolCallResult.
-export function toolCall(name, arguments_, status = 'Succeeded', id = 'call-1') {
+export function toolCall(name, arguments_, status = 'Succeeded', id = 'call-1', clientContext = {}) {
+  const catalog = clientContext.supportsParts === true ? tools : legacyTools
+  const tool = catalog.find((entry) => entry.function.name === name)
+  const sensitiveFields = new Set(tool?.sensitiveFields)
   return {
-    id, name, arguments: strictArguments(tools.find((tool) => tool.function.name === name)?.function.parameters, arguments_), status,
-    result: {
+    id, name, arguments: omitSensitiveFields(strictArguments(tool?.function.parameters, arguments_), sensitiveFields), status,
+    result: omitSensitiveFields({
       name, id, success: status === 'Succeeded' || status === 'PendingConfirmation',
       entityId: null,
       entityName: status === 'Succeeded' && name === 'query_habits'
@@ -30,7 +43,7 @@ export function toolCall(name, arguments_, status = 'Succeeded', id = 'call-1') 
         proposed_titles: null, preview_items: null, dates: null,
         instruction: 'The preview is the entire answer. Emit no prose before or after it. All preview facts come exclusively from preview_items.',
       } : null,
-    },
+    }, sensitiveFields),
   }
 }
 
@@ -76,7 +89,8 @@ export function suggestionResponse(requestId, locale = 'en') {
       title: portuguese ? 'Alongamento' : 'Stretch', dueTime: '21:15:00', dueEndTime: '21:20:00',
       checklistItems: [portuguese ? 'Alongar as pernas' : 'Stretch your legs'],
       reason: portuguese ? 'Soltar o corpo no fim do dia.' : 'Relax at the end of the day.' })]
-  const call = toolCall('suggest_habits', { instruction: portuguese ? 'hábitos para a noite' : 'evening habits', language: locale, count: 2 })
+  const call = toolCall('suggest_habits', { instruction: portuguese ? 'hábitos para a noite' : 'evening habits', language: locale, count: 2 },
+    'Succeeded', 'call-1', { supportsParts: true })
   call.result.payload = { language: locale, drafts }
   return { ...chatResponse(requestId, [call]),
     operations: [{ operationId: 'suggest_habits', sourceName: 'suggest_habits', riskClass: 'Low',

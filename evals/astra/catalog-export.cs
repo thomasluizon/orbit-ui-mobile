@@ -22,7 +22,7 @@ var registry = new AiToolRegistry(builder.Services.Where(service => service.Serv
     .Select(service => (IAiTool)(service.ImplementationType is { } type
         ? construction.GetService(type) : service.ImplementationFactory!(construction))!));
 
-// Capture the real composition request before any provider, account or persistence call.
+// Capture each real request context before any provider, account or persistence call.
 AiToolRequest? captured = null;
 var intent = Boundary<IAiIntentService>.Create((method, arguments) =>
 {
@@ -51,24 +51,37 @@ var context = Activator.CreateInstance(contextType, new object?[] {
     Array.Empty<Habit>(), new List<Habit>(), new List<Habit>(), new List<Habit>(), false, null, true,
     Array.Empty<Goal>(), Array.Empty<Tag>(), Array.Empty<string>(), new[] { FeatureFlagKeys.AstraBlockFirst },
     DateOnly.MinValue, facts, 0L });
-var state = Activator.CreateInstance(handlerType.GetNestedType("ChatTurnState", BindingFlags.NonPublic)!, nonPublic: true);
-var request = new ProcessUserChatCommand(Guid.Empty, "", ClientContext: new AgentClientContext(SupportsParts: true));
 var method = handlerType.GetMethod("RequestInitialAiResponseAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
-await (Task<Result<AiResponse>>)method.Invoke(handler, [request, context, null, new AiTurnTelemetry(), state, CancellationToken.None])!;
-if (captured is null) throw new InvalidOperationException("The API did not build a tool request.");
-// Export the SDK tools built by AiIntentService, including its StrictToolSchema normalization.
-var sdkCatalog = (System.Collections.IDictionary)typeof(AiIntentService)
-    .GetMethod("BuildToolCatalog", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, [captured.ToolDeclarations])!;
-var tools = sdkCatalog.Keys.Cast<string>().Select(key =>
+var collectSensitiveFields = handlerType.GetNestedType("ChatEvalTraceCollector", BindingFlags.NonPublic)!
+    .GetMethod("CollectSensitiveFields", BindingFlags.NonPublic | BindingFlags.Static)!;
+File.WriteAllText(args[0], JsonSerializer.Serialize(new { tools = await ExportTools(true), legacyTools = await ExportTools(false) }));
+
+async Task<object[]> ExportTools(bool supportsParts)
 {
-    var sdk = sdkCatalog[key]!;
-    var name = (string)Property(sdk, "FunctionName")!;
-    using var parameters = JsonDocument.Parse(((BinaryData)Property(sdk, "FunctionParameters")!).ToString());
-    return new { type = "function", writes = !registry.GetTool(name)!.IsReadOnly,
-        function = new { name, description = (string?)Property(sdk, "FunctionDescription"),
-            strict = (bool?)Property(sdk, "StrictModeEnabled"), parameters = parameters.RootElement.Clone() } };
-}).ToArray();
-File.WriteAllText(args[0], JsonSerializer.Serialize(tools));
+    captured = null;
+    var state = Activator.CreateInstance(handlerType.GetNestedType("ChatTurnState", BindingFlags.NonPublic)!, nonPublic: true);
+    var request = new ProcessUserChatCommand(Guid.Empty, "", ClientContext: new AgentClientContext(SupportsParts: supportsParts));
+    await (Task<Result<AiResponse>>)method.Invoke(handler, [request, context, null, new AiTurnTelemetry(), state, CancellationToken.None])!;
+    if (captured is null) throw new InvalidOperationException("The API did not build a tool request.");
+    // Export SDK normalization and the trace collector's sensitivity contract from the same producer.
+    var sdkCatalog = (System.Collections.IDictionary)typeof(AiIntentService)
+        .GetMethod("BuildToolCatalog", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, [captured.ToolDeclarations])!;
+    return sdkCatalog.Keys.Cast<string>().Select(key =>
+    {
+        var sdk = sdkCatalog[key]!;
+        var name = (string)Property(sdk, "FunctionName")!;
+        var tool = registry.GetTool(name)!;
+        var sensitiveFields = new HashSet<string>(StringComparer.Ordinal);
+        collectSensitiveFields.Invoke(null, [JsonSerializer.SerializeToElement(tool.GetParameterSchema()), sensitiveFields]);
+        if (tool.GetResultSchema() is { } resultSchema)
+            collectSensitiveFields.Invoke(null, [JsonSerializer.SerializeToElement(resultSchema), sensitiveFields]);
+        using var parameters = JsonDocument.Parse(((BinaryData)Property(sdk, "FunctionParameters")!).ToString());
+        return (object)new { type = "function", writes = !tool.IsReadOnly,
+            sensitiveFields = sensitiveFields.Order(StringComparer.Ordinal).ToArray(),
+            function = new { name, description = (string?)Property(sdk, "FunctionDescription"),
+                strict = (bool?)Property(sdk, "StrictModeEnabled"), parameters = parameters.RootElement.Clone() } };
+    }).ToArray();
+}
 
 static object? Property(object instance, string name) => instance.GetType().GetProperty(name)!.GetValue(instance);
 
