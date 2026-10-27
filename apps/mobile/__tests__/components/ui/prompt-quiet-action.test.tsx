@@ -26,12 +26,12 @@ interface RenderedTree {
   unmount: () => void
 }
 
-it.each(['dark', 'light'] as const)('keeps a 44px quiet target, legible text and reversible press feedback in %s', (mode) => {
+it.each(['dark', 'light'] as const)('keeps a 44px quiet target, legible text and reversible press feedback in %s', async (mode) => {
   theme.mode = mode
   const tokens = createTokensV2('orange', mode)
   const onClick = vi.fn()
   let tree!: RenderedTree
-  TestRenderer.act(() => { tree = TestRenderer.create(<PromptQuietAction onClick={onClick}>Later</PromptQuietAction>) })
+  await TestRenderer.act(() => { tree = TestRenderer.create(<PromptQuietAction onClick={onClick}>Later</PromptQuietAction>) })
   try {
     const button = tree.root.findByType('Pressable')
     const style = button.props.style as (state: { pressed: boolean }) => ViewStyle[]

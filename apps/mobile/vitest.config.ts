@@ -9,7 +9,7 @@ export default defineConfig({
     name: 'rn-primitives-jsx',
     enforce: 'pre',
     transform(source, id) {
-      if (!/\/node_modules\/@rn-primitives\/(portal|slot|dropdown-menu|dialog|select|toast|tabs|checkbox|switch|radio-group|toggle)\/dist\/(index|dropdown-menu|dialog|select|toast|tabs|checkbox|switch|radio-group|toggle)\.m?js$/.test(id)) return
+      if (!/\/node_modules\/@rn-primitives\/(portal|slot|dropdown-menu|dialog|select|toast|tabs|checkbox|switch|radio-group|slider|toggle)\/dist\/(index|slider|dropdown-menu|dialog|select|toast|tabs|checkbox|switch|radio-group|slider|toggle)\.m?js$/.test(id)) return
       return transformWithOxc(source, id, { lang: 'jsx' })
     },
   }],

@@ -52,7 +52,7 @@ describe('Foldable shell geometry', () => {
       tabBar={<BottomTabBar label="Navigation" activeId="hoje" onSelect={vi.fn()} items={[]} />}>
       <div data-content-probe="" className="px-4"><p>Habits</p></div>
     </ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
@@ -79,7 +79,7 @@ describe('Foldable shell geometry', () => {
   it.each([412, 844])('keeps the page toast gutter inside asymmetric side insets at %ipx', async (width) => {
     useAppToastStore.getState().showInfo('Saved')
     const { container } = render(<AppToastHost placement="page" />)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
       const session = await page.context().newCDPSession(page)
       await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 24, bottom: 16, left: 28, right: 64 } })
@@ -100,7 +100,7 @@ describe('Foldable shell geometry', () => {
 
   it.each([412, 1200, 1600])('centres the global failure block at %ipx', async (width) => {
     const markup = renderToStaticMarkup(<GlobalError error={new Error('failed')} reset={vi.fn()} />)
-    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 900 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${markup}`)
       const geometry = await page.evaluate(() => {
@@ -119,7 +119,7 @@ describe('Foldable shell geometry', () => {
 
   it.each([412, 480, 840, 1100, 1200, 1352, 1600])('centres the shared destination frame with its drawn cap at %ipx', async (width) => {
     const { container } = render(<ShellWide nav={false}><ProfileSettingsFrame isLoading={false} loadingLabel="Loading" labels={{}} rows={{}} /></ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 900 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
@@ -153,7 +153,7 @@ describe('Foldable shell geometry', () => {
         <div style={{ height: 1600 }}>Habits</div>
       </ShellWide>)
       await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
-      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
       try {
         const session = await page.context().newCDPSession(page)
         await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom, left, right } })
@@ -201,7 +201,7 @@ describe('Foldable shell geometry', () => {
         </div>} conversationLabel="Astra" tabBar={<nav style={{ height: 80 }}>Tabs</nav>}>
         <h1>Today</h1>
       </ShellWide>)
-      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
       try {
         const session = await page.context().newCDPSession(page)
         await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom: 34, left, right } })
@@ -246,7 +246,7 @@ describe('Foldable shell geometry', () => {
         header={destination === 'calendar' ? <div style={{ height: 48 }}>Calendar header</div> : undefined}>
         <div data-first-content="" style={{ paddingTop: destination === 'progress' ? 16 : 0 }}>Content</div>
       </ShellWide>)
-      const page = await browser.newPage({ viewport: { width: 1352, height: 915 } })
+      const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width: 1352, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const geometry = await page.evaluate(() => {
@@ -269,7 +269,7 @@ describe('Foldable shell geometry', () => {
       const name = 'W'.repeat(60)
       const email = `${'W'.repeat(48)}@example.com`
       const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[{ id: 'perfil', href: '/profile', icon: 'perfil', label: words.nav.profile }]} activeId="hoje" navLabel={words.nav.mainNavigation} account={name} accountEmail={email} />)
-      const page = await browser.newPage({ viewport: { width, height: 900 } })
+      const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 900 } })
       try {
         const largeText = textScale === 2 ? '[data-shell-account-name] { font-size: 28px; } [data-shell-account-email] { font-size: 24px; }' : ''
         await page.setContent(`<style>${stylesheet}\n${largeText}</style>${container.innerHTML}`)
@@ -317,7 +317,7 @@ describe('Foldable shell geometry', () => {
     >
       <div style={{ height: 1600 }}>Habit form</div>
     </ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height: 120 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 120 } })
     try {
       await page.setContent(`<style>${stylesheet}\n[data-shell-column] { padding-top: 24px; } :root { --safe-bottom: 0px; }</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
@@ -345,7 +345,7 @@ describe('Foldable shell geometry', () => {
     const { container } = render(<FlowShell mode={mode} action={<button type="button" className="h-[50px]">Continue</button>}>
       <div style={{ height: 100 }}>Flow content</div>
     </FlowShell>)
-    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 900 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
@@ -373,7 +373,7 @@ describe('Foldable shell geometry', () => {
       action={<button type="button" className="h-[50px]">Continue</button>}>
       <div data-onboarding-content="" style={{ height: contentHeight }}>Onboarding content</div>
     </FlowShell>)
-    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 900 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
@@ -401,7 +401,7 @@ describe('Foldable shell geometry', () => {
       tabBar={<nav style={{ height: 64 }}>Tabs</nav>}>
       <NotFoundContent inShell />
     </ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const bounds = await page.evaluate(() => {
@@ -451,7 +451,7 @@ describe('Foldable shell geometry', () => {
         items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }[id], label: en.nav[DESTINATION_ICONS[id].commandId], icon: ({ active }) => <DestinationIcon destination={id} active={active} /> }))} />}>
       <div style={{ height: 1600 }}>Long habit detail</div>
     </ShellWide>)
-    const page = await browser.newPage({ viewport: { width: 740, height } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width: 740, height } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
@@ -483,7 +483,7 @@ describe('Foldable shell geometry', () => {
       tabBar={<nav>Tabs</nav>} fab={<button type="button">Create</button>}>
       <div style={{ height: 1600 }}>Long screen</div>
     </ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const bounds = await page.evaluate(() => {
@@ -527,7 +527,7 @@ describe('Foldable shell geometry', () => {
       tabBar={<nav style={{ height: 64 }}>Tabs</nav>}>
       <div style={{ height: 1600 }}>Long destination</div>
     </ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
@@ -566,7 +566,7 @@ describe('Foldable shell geometry', () => {
       </div>} conversationLabel="Conversation" tabBar={<nav style={{ height: 80 }}>Tabs</nav>}>
       <h1>Today</h1>
     </ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {

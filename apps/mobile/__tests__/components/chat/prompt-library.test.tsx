@@ -9,7 +9,6 @@ import { buildComposerChips } from '@orbit/shared/chat'
 import { toComposerSuggestions, type ComposerProps } from '@orbit/shared/contracts/composer'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { PROMPT_TEMPLATES, PROMPT_PRESENTATION } from '@orbit/shared/chat/prompt-library'
-import { findPromptSlot } from '@orbit/shared/chat/composer-controls'
 import { CatalogIdea, PromptIdea } from '@/components/chat/prompt-idea'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
@@ -480,7 +479,7 @@ it.each(['en', 'pt-BR'] as const)('keeps all approved native examples, single ta
     expect(target.props.accessibilityHint).toBe(description || undefined)
     expect(target.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(1)
     expect(target.props.accessibilityState.disabled).toBe(false)
-    expect(target.findAll(node => typeof node.type === 'string' && node.props.testID === 'prompt-attribution').length).toBe(findPromptSlot(prompt) ? 0 : 1)
+    expect(target.findAll(node => typeof node.type === 'string' && node.props.testID === 'prompt-attribution')).toHaveLength(0)
     press(label)
     expect(onSelect).toHaveBeenLastCalledWith(template.id, label, prompt)
   }
@@ -494,23 +493,21 @@ it.each(['en', 'pt-BR'] as const)('describes native request and preparation acti
   const prompt = i18n.t('chat.templates.items.goalHabits.prompt')
   const onSelect = vi.fn()
   act(() => { tree = create(<View />) })
-  for (const invokesAstra of [true, false]) {
-    for (const example of [prompt, undefined]) {
-      const view = (disabled: boolean) => <PromptIdea label={label} example={example} invokesAstra={invokesAstra} disabled={disabled} onSelect={onSelect} />
-      act(() => tree.update(view(false)))
-      const target = button(label)
-      expect(hosts().filter(node => node.props.accessibilityRole === 'button')).toHaveLength(1)
-      expect(target.props.accessibilityLabel).toBe(label)
-      expect(target.props.accessibilityHint).toBe(example)
-      expect(target.props.accessibilityState.disabled).toBe(false)
-      onSelect.mockClear()
-      press(label)
-      expect(onSelect).toHaveBeenCalledExactlyOnceWith()
-      act(() => tree.update(view(true)))
-      expect(button(label).props.accessibilityState.disabled).toBe(true)
-      press(label)
-      expect(onSelect).toHaveBeenCalledOnce()
-    }
+  for (const example of [prompt, undefined]) {
+    const view = (disabled: boolean) => <PromptIdea label={label} example={example} disabled={disabled} onSelect={onSelect} />
+    act(() => tree.update(view(false)))
+    const target = button(label)
+    expect(hosts().filter(node => node.props.accessibilityRole === 'button')).toHaveLength(1)
+    expect(target.props.accessibilityLabel).toBe(label)
+    expect(target.props.accessibilityHint).toBe(example)
+    expect(target.props.accessibilityState.disabled).toBe(false)
+    onSelect.mockClear()
+    press(label)
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith()
+    act(() => tree.update(view(true)))
+    expect(button(label).props.accessibilityState.disabled).toBe(true)
+    press(label)
+    expect(onSelect).toHaveBeenCalledOnce()
   }
 })
 
@@ -590,3 +587,24 @@ function expectNativeCardGeometry() {
     }
   }
 }
+
+it('uses the app heading type, shared search field and a persistent category scroll cue', () => {
+  library()
+  const heading = hosts().find(node => node.props.accessibilityRole === 'header' && text(node) === 'Ideias')!
+  expect(actionStyle(heading)).toMatchObject({ fontFamily: 'Geist_500Medium', fontSize: 22 })
+  const search = hosts().find(node => node.props.accessibilityLabel === 'Buscar ideias')!
+  expect(search.props).toMatchObject({ placeholder: 'Buscar ideias' })
+  expect(actionStyle(search)).toMatchObject({ minHeight: 54, paddingHorizontal: 16 })
+  expect(hosts().filter(node => typeof node.type === 'string' && text(node) === 'Buscar ideias')).toHaveLength(0)
+  const categories = hosts().find(node => node.props.testID === 'prompt-categories')!
+  expect(categories.props).toMatchObject({ horizontal: true, persistentScrollbar: true, showsHorizontalScrollIndicator: true })
+})
+
+it('gives live and catalog ideas the same neutral row without fallback icons or attribution', () => {
+  const tokens = createTokensV2('orange', 'dark')
+  library({ suggestions: liveSuggestions(vi.fn()) })
+  expect(hosts().filter(node => node.props.testID === 'prompt-attribution')).toHaveLength(0)
+  for (const row of ideaActions()) expect(actionStyle(row).backgroundColor).toBe(tokens.bgCard)
+  const live = ideaActions().filter(node => node.props.testID === 'prompt-live-idea')
+  for (const row of live) expect(row.findAll(node => typeof node.type === 'string' && node.props.testID === 'prompt-intent')).toHaveLength(0)
+})

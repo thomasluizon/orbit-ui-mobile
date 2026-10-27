@@ -169,6 +169,19 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it('keeps keyboard submission focus in the composer while send becomes a disabled microphone', async () => {
+    const page = await mount('composer', 'en', 412, 915)
+    const input = page.getByRole('textbox')
+    await input.fill('Next message')
+    const send = page.getByRole('button', { name: en.shell.composer.send, exact: true })
+    await send.focus()
+    await page.keyboard.press('Enter')
+    await expect.poll(() => input.inputValue()).toBe('')
+    await expect.poll(() => page.locator('[data-composer-root]').evaluate(root => root.contains(document.activeElement))).toBe(true)
+    await expect.poll(() => input.evaluate(element => element === document.activeElement)).toBe(true)
+    expect(await page.getByRole('button', { name: en.shell.composer.voice.start, exact: true }).isDisabled()).toBe(true)
+  })
+
   it('keeps the opening release from selecting a sheet item beneath its trigger', async () => {
     const page = await mount('composer', 'en', 412, 915)
     const trigger = page.getByRole('button', { name: en.shell.composer.actions, exact: true, includeHidden: true })

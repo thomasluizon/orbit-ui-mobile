@@ -12,7 +12,7 @@ type InputBase = {
   error?: string
   hint?: string
   maxLength?: number
-  kind?: 'text' | 'email' | 'number'
+  kind?: 'text' | 'email' | 'number' | 'search'
   inputMode?: 'text' | 'email' | 'numeric' | 'decimal' | 'tel' | 'url'
   autoComplete?: 'email' | 'name' | 'off'
   mono?: boolean

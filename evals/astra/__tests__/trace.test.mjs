@@ -45,6 +45,7 @@ describe('source-derived trace through the installed HTTP provider', () => {
   it('uses the real trace for structure and behavior', async () => {
     const output = await request(chatResponse(requestId, [toolCall('query_habits', { date: 'today' })]))
     expect(output.trace.state).toBe('available')
+    expect(output.trace.timing).toEqual(chatResponse(requestId).evalTrace.timing)
     expect(await structural(output, assertionContext)).toMatchObject({ pass: true })
     expect(behavior(output, assertionContext)).toMatchObject({ pass: true })
   })

@@ -9,8 +9,9 @@ import { loadApiProvider } from 'promptfoo'
 import { beforeAll, beforeEach } from '../hooks.mjs'
 import { resetFixture } from '../fixtures/reset.mjs'
 import { behavior } from '../assertions.mjs'
+import { READ_LATENCY_BUDGET_MILLISECONDS } from '../latency.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
-import { chatResponse, toolCall, traceTiming } from './fixtures/producer.mjs'
+import { chatResponse, toolCall, traceTiming, turnTiming } from './fixtures/producer.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const configuration = parse(readFileSync(resolve(root, 'promptfooconfig.yaml'), 'utf8'))
@@ -24,6 +25,7 @@ describe('real promptfoo CLI with an offline provider', () => {
   it.each([
     [false, false, 'pass', undefined], [true, false, 'fail', undefined], [false, true, 'incomplete', undefined],
     [false, false, 'fail', 'prose-first'], [false, false, 'pass', 'block-only'], [false, false, 'fail', 'repeated-figure'],
+    [false, false, 'fail', 'slow-latency'], [false, false, 'fail', 'missing-timing'],
     [false, false, 'incomplete', 'missing-composition'], [false, false, 'incomplete', 'skipped-composition'],
     [false, false, 'fail', 'unrenderable'],
   ])('runs the production assertions and pass^3 reporter; broken=%s, noTrace=%s, status=%s, mode=%s', (broken, noTrace, status, responseMode) => {
@@ -43,7 +45,7 @@ describe('real promptfoo CLI with an offline provider', () => {
       tests: [{ description: 'Offline Water case', metadata: { id: 'offline-water', fixture: 'pro', locale: 'en' }, vars: {
         input: 'Mark Water done', credentialKey: 'ORBIT_EVAL_TOKEN', broken, noTrace, responseMode,
         clientContext: {}, composition: { mode: 'fallback' },
-        ...(responseMode && ['prose-first', 'block-only', 'repeated-figure', 'unrenderable'].includes(responseMode) ? {
+        ...(responseMode && ['prose-first', 'block-only', 'repeated-figure', 'slow-latency', 'missing-timing', 'unrenderable'].includes(responseMode) ? {
           clientContext: { supportsParts: true, partKinds: ['habitList'], supportsHabitListCard: true }, composition: { mode: 'data', kinds: ['habitList'] },
         } : {}), rubric: 'Describe Water only.',
         expectations: { required: [{ name: 'log_habit', arguments: { habit_id: 'water' } }] },
@@ -62,6 +64,9 @@ describe('real promptfoo CLI with an offline provider', () => {
     if (status !== 'pass') expect(run.status, run.stdout + run.stderr).not.toBe(0)
     else expect(run.status, run.stdout + run.stderr).toBe(0)
     expect(summary.status).toBe(status)
+    if (['slow-latency', 'missing-timing'].includes(responseMode)) {
+      expect(summary.cases[0]).toMatchObject({ passed: 3, latency: { status: 'fail' } })
+    }
     if (status === 'pass') expect(summary.gateStatus).toBe('incomplete')
     expect(summary.cases[0]).toMatchObject({ attempts: 3, passed: broken || noTrace || ['prose-first', 'repeated-figure', 'unrenderable'].includes(responseMode) ? 0 : 3, skipped: responseMode === 'skipped-composition' ? 3 : 0, unavailable: noTrace ? 3 : 0 })
     expect(readFileSync(summaryPath, 'utf8')).not.toContain('TOOL_TRACE_SECRET')
@@ -82,7 +87,12 @@ describe('real promptfoo CLI with an offline provider', () => {
       expect(evidence).toMatchObject(attempt)
       if (!noTrace) {
         expect(evidence.toolCalls).toMatchObject([{ name: 'log_habit', resultStatus: 'PendingConfirmation' }])
-        expect(evidence.timing).toEqual(traceTiming)
+        if (responseMode === 'missing-timing') expect(evidence.timing).toBeNull()
+        else if (responseMode === 'slow-latency') {
+          expect(evidence.timing.totalMilliseconds).toBe(READ_LATENCY_BUDGET_MILLISECONDS + 2000)
+          expect(evidence.timing.phases.reduce((total, phase) => total + phase.milliseconds, 0)).toBe(READ_LATENCY_BUDGET_MILLISECONDS + 2000)
+        } else expect(evidence.timing).toEqual(responseMode && ['prose-first', 'block-only', 'repeated-figure', 'unrenderable'].includes(responseMode)
+          ? turnTiming() : traceTiming)
       }
       if (status === 'fail') expect(readFileSync(resolve(directory, 'reports/summary.md'), 'utf8'))
         .toContain(`(attempts/offline-water-r${attempt.repeat}.json)`)

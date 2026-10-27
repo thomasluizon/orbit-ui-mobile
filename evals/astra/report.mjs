@@ -1,4 +1,5 @@
 import { chmodSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
+import { summarizeLatency } from './latency.mjs'
 import { attemptEvidence } from './evidence.mjs'
 
 const evidencePath = (caseId, repeat) => `attempts/${encodeURIComponent(caseId)}-r${repeat}.json`
@@ -36,7 +37,7 @@ export function writeResults(results, directory = 'reports') {
 
 export function summarize(results, expectedCases) {
   const descriptors = expectedCases.map((entry) => typeof entry === 'string' ? { id: entry } : entry)
-  const cases = descriptors.map(({ id, family = 'legacy', locale = 'unspecified' }) => {
+  const cases = descriptors.map(({ id, family = 'legacy', locale = 'unspecified', readLatency = false }) => {
     const attempts = results.filter((entry) => entry.testCase.metadata.id === id)
     const passed = attempts.filter((entry) => entry.success === true).length
     const skipped = attempts.filter((entry) => entry.gradingResult?.componentResults
@@ -52,8 +53,10 @@ export function summarize(results, expectedCases) {
       entry.response?.metadata?.astraPreconditionFailure === true
         && typeof entry.response.metadata.astraPreconditionReason === 'string'
         ? [entry.response.metadata.astraPreconditionReason] : []))]
-    const status = failed ? 'fail' : attempts.length !== 3 || skipped || unavailable || missingComposition ? 'incomplete' : 'pass'
-    return { id, family, locale, unavailableReasons, missingComposition, attempts: attempts.length, passed, skipped, unavailable, pass3: status }
+    const latency = readLatency ? summarizeLatency(attempts) : undefined
+    const status = failed || latency?.status === 'fail' ? 'fail'
+      : attempts.length !== 3 || skipped || unavailable || missingComposition || latency?.status === 'incomplete' ? 'incomplete' : 'pass'
+    return { id, family, locale, ...(latency ? { latency } : {}), unavailableReasons, missingComposition, attempts: attempts.length, passed, skipped, unavailable, pass3: status }
   })
   const unexpected = results.some((entry) => !descriptors.some((expected) => expected.id === entry.testCase.metadata.id))
   return aggregate(cases, unexpected)
@@ -89,6 +92,18 @@ export function writeReport(summary, directory = 'reports') {
     '| Family | Locale | Cases passing pass^3 | pass^3 |',
     '|---|---|---|---|',
     ...summary.groups.map((entry) => `| ${entry.family} | ${entry.locale} | ${entry.passed}/${entry.cases} | ${entry.pass3} |`),
+    '',
+    '| Read case | Median turn ms | Budget ms (exclusive) | Latency |',
+    '|---|---|---|---|',
+    ...summary.cases.filter((entry) => entry.latency).map((entry) =>
+      `| ${entry.id} | ${entry.latency.totalMedianMilliseconds ?? 'missing'} | ${entry.latency.budgetMilliseconds} | ${entry.latency.status} |`),
+    '',
+    '| Read case | Phase | Median exclusive ms |',
+    '|---|---|---|',
+    ...summary.cases.flatMap((entry) => Object.entries(entry.latency?.phaseMediansMilliseconds ?? {}).map(([phase, milliseconds]) =>
+      `| ${entry.id} | ${phase} | ${milliseconds} |`)),
+    '',
+    ...summary.cases.filter((entry) => entry.latency?.reason).map((entry) => `${entry.id}: ${entry.latency.reason}`),
     '',
     ...summary.cases.flatMap((entry) => (entry.unavailableReasons ?? []).map((reason) =>
       `${entry.id}: incomplete precondition: ${reason.replace(/[\r\n|]/g, ' ')}`)),

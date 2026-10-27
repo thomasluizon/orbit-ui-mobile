@@ -62,3 +62,5 @@ export type { ConfigCache, ConfigSnapshot } from './config-cache'
 export * from './goal-cache'
 
 export type { HabitDetailSnapshots, HabitDetailUpdates } from './habit-cache'
+
+export { cachedHabitDeletionIds, isCachedHabitDeleted, removeDeletedHabitQueries, restoreDeletedHabitQueries } from './habit-deletion'

@@ -6,7 +6,7 @@ import { createApiClientError, extractBackendErrorCode } from '@orbit/shared/uti
 
 interface CapturedQuery {
   queryKey: readonly unknown[]
-  queryFn: () => Promise<RescheduleSuggestion>
+  queryFn: (context: { signal: AbortSignal }) => Promise<RescheduleSuggestion>
   enabled?: boolean
   staleTime?: number
   retry?: (failureCount: number, error: unknown) => boolean
@@ -17,7 +17,10 @@ const mocks = vi.hoisted(() => ({
   useQuery: vi.fn(),
 }))
 
-vi.mock('@tanstack/react-query', () => ({ useQuery: mocks.useQuery }))
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-query')>()
+  return { ...actual, useQuery: mocks.useQuery, useQueryClient: () => ({ getQueryData: () => undefined }) }
+})
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
 
 function lastQuery(): CapturedQuery {
@@ -59,9 +62,9 @@ describe('mobile useRescheduleSuggestion', () => {
     mocks.apiClient.mockResolvedValue({ suggestion })
 
     useRescheduleSuggestion({ habitId: 'h-9', locale: 'pt-BR', enabled: true })
-    const result = await lastQuery().queryFn()
+    const result = await lastQuery().queryFn({ signal: new AbortController().signal })
 
-    expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits/h-9/reschedule-suggestion?language=pt-BR')
+    expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits/h-9/reschedule-suggestion?language=pt-BR', { signal: expect.any(AbortSignal) })
     expect(result).toEqual(suggestion)
   })
 
@@ -111,7 +114,7 @@ describe('mobile useRescheduleSuggestion', () => {
     mocks.apiClient.mockRejectedValue(error)
     mocks.useQuery.mockReturnValue({ data: undefined, isLoading: false, error, refetch: vi.fn() })
     const result = useRescheduleSuggestion({ habitId: 'h-1', locale: 'en', enabled: true })
-    await expect(lastQuery().queryFn()).rejects.toBe(error)
+    await expect(lastQuery().queryFn({ signal: new AbortController().signal })).rejects.toBe(error)
     expect(mocks.apiClient).toHaveBeenCalledOnce()
     expect(extractBackendErrorCode(result.error)).toBe('HABIT_NOT_OVERDUE')
     expect(lastQuery().retry?.(0, error)).toBe(false)

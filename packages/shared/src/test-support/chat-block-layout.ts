@@ -43,6 +43,7 @@ export const chatBlockLayoutCases = [
     recordLists: apiStatusCardsFinalFixture.response.recordLists,
     accountRows: { kind: 'profile', rows: [{ key: 'name', value: 'Orbit', valueType: 'text' }], surfaceId: 'profile' },
   } },
+  { kind: 'single preview', count: 1, fields: { pendingOperations: [preview] } },
 ] satisfies { kind: string; count: number; fields: Partial<ChatMessage> }[]
 
 export function makeChatBlockLayoutMessage(scenario: typeof chatBlockLayoutCases[number], prose: boolean, messageId = 'blocks'): ChatMessage {

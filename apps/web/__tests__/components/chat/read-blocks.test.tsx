@@ -5,18 +5,19 @@ import { NextIntlClientProvider } from 'next-intl'
 import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
+import { gamificationCardCases, gamificationCardFixture } from '@orbit/shared/test-support/gamification-card-fixtures'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { getAccountDay } from '@orbit/shared/utils'
 import { inPlaceDayFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
 import { ChatBlock } from '@/components/chat/block-registry'
 import { habitMonthFixture } from '@orbit/shared/test-support/habit-month-fixture'
-import { refreshHabitMonth, refreshReadBlock } from '@/app/actions/chat'
+import { refreshGamification, refreshHabitMonth, refreshReadBlock } from '@/app/actions/chat'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { chatPartSchema, habitMonthCardSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
 const state = vi.hoisted(() => ({ isError: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
-vi.mock('@/app/actions/chat', () => ({ refreshReadBlock: vi.fn(), refreshHabitMonth: vi.fn() }))
+vi.mock('@/app/actions/chat', () => ({ refreshReadBlock: vi.fn(), refreshHabitMonth: vi.fn(), refreshGamification: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: state.isError ? undefined : { habitsById: state.habits }, isError: state.isError, isPending: false }), useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }), useHabitMetrics: () => ({}) }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false }) }))
@@ -30,7 +31,77 @@ const total = { type: 'block' as const, kind: 'periodTotal' as const, block: foc
 function mount(part: Parameters<typeof ChatBlock>[0]['part'] = total, locale: 'en' | 'pt-BR' = 'en') {
   return render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><ChatBlock part={part} onActionChipClick={vi.fn()} /></NextIntlClientProvider>)
 }
-beforeEach(() => { state.isError = false; vi.mocked(refreshReadBlock).mockReset(); vi.mocked(refreshHabitMonth).mockReset(); state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
+beforeEach(() => { state.isError = false; vi.mocked(refreshReadBlock).mockReset(); vi.mocked(refreshGamification).mockReset(); vi.mocked(refreshHabitMonth).mockReset(); state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
+
+describe('gamification reads', () => {
+  it.each(gamificationCardCases.flatMap(testCase => (['en', 'pt-BR'] as const).map(locale => ({ ...testCase, locale }))))(
+    'renders only requested sections for $name in $locale', ({ block, locale }) => {
+      const messages = locale === 'en' ? en : pt
+      mount({ kind: 'gamification', block }, locale)
+      expect(screen.queryByTestId('progress-xp-summary') !== null).toBe(block.state.profile !== null)
+      expect(screen.queryByRole('img', { name: /First Orbit|Primeira órbita/ }) !== null).toBe(Boolean(block.state.achievements?.achievements.length))
+      if (block.state.achievements?.achievements.length === 0) expect(screen.getByText(messages.progressScreen.achievements.empty)).toBeVisible()
+      expect(screen.queryByText(messages.chat.streakCard.current)).not.toBeInTheDocument()
+      expect(screen.queryByText(messages.progressScreen.streak.longest) !== null).toBe(block.state.streak !== null)
+      if (block.state.streak) {
+        expect(screen.getByRole('heading', { name: messages.progressScreen.sections.streak })).toBeVisible()
+        expect(screen.getByTestId('progress-streak-figure')).toHaveTextContent('5')
+        expect(screen.getByText(messages.progressScreen.streak.longest).parentElement).toHaveTextContent('9')
+        if (!block.state.achievements) expect(screen.queryByRole('heading', { name: messages.progressScreen.sections.achievements })).not.toBeInTheDocument()
+      }
+      expect(screen.getByRole('button', { name: messages.blockFrame.refresh })).toBeEnabled()
+    })
+
+  it.each(gamificationCardCases)('refreshes $name using its signed query and dedicated route', async ({ block }) => {
+    const next = { ...block, state: { ...block.state, streak: block.state.streak ? { ...block.state.streak, currentStreak: 6 } : null }, read: { ...block.read, revision: 'two' } }
+    vi.mocked(refreshGamification).mockResolvedValue({ ok: true, data: { kind: 'gamification', block: next, read: next.read } })
+    mount({ kind: 'gamification', block })
+    fireEvent.click(screen.getByRole('button', { name: en.blockFrame.refresh }))
+    await waitFor(() => expect(screen.getByRole('button', { name: en.blockFrame.refresh })).toBeEnabled())
+    expect(refreshGamification).toHaveBeenCalledExactlyOnceWith('signed-query', expect.objectContaining({ partKinds: expect.arrayContaining(['gamification']) }), null)
+    expect(refreshReadBlock).not.toHaveBeenCalled()
+    if (block.state.streak) expect(screen.getByTestId('progress-streak-figure')).toHaveTextContent('6')
+  })
+
+  it('keeps a failed stale refresh actionable and replaces the snapshot on retry', async () => {
+    const stale = { ...gamificationCardFixture, read: { ...gamificationCardFixture.read, completeness: 'stale' as const } }
+    const next = { ...gamificationCardFixture, state: { ...gamificationCardFixture.state, profile: { ...gamificationCardFixture.state.profile, totalXp: 600 } }, read: { ...gamificationCardFixture.read, revision: 'two' } }
+    vi.mocked(refreshGamification).mockResolvedValueOnce({ ok: false, error: 'offline', code: 'offline', status: 0, sessionRefreshFailed: false })
+      .mockResolvedValueOnce({ ok: true, data: { kind: 'gamification', block: next, read: next.read } })
+    mount({ kind: 'gamification', block: stale })
+    fireEvent.click(screen.getByRole('button', { name: en.blockFrame.refresh }))
+    await screen.findByText(en.chat.readBlock.error)
+    expect(screen.getByTestId('progress-xp-summary')).toHaveTextContent('500')
+    fireEvent.click(screen.getByRole('button', { name: en.blockFrame.refresh }))
+    await waitFor(() => expect(screen.getByTestId('progress-xp-summary')).toHaveTextContent('600'))
+    expect(screen.queryByText(en.chat.readBlock.error)).not.toBeInTheDocument()
+  })
+
+  it('keeps the full catalogue with earned, unearned and supplied progress states', () => {
+    const achievements = Object.keys(en.gamification.achievements).slice(0, 8).map((id, index) => ({
+      ...gamificationCardFixture.state.achievements.achievements[0]!, id,
+      isEarned: index === 0, progressCurrent: index === 1 ? 2 : null, progressTarget: index === 1 ? 7 : null,
+    }))
+    mount({ kind: 'gamification', block: { ...gamificationCardFixture, state: { profile: null, achievements: { achievements }, streak: null } } })
+    expect(screen.getAllByRole('img')).toHaveLength(8)
+    expect(screen.getAllByRole('progressbar')).toHaveLength(1)
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '2')
+  })
+
+  it('guards duplicate refreshes and discards a response after an account change', async () => {
+    let resolve!: (result: Awaited<ReturnType<typeof refreshGamification>>) => void
+    vi.mocked(refreshGamification).mockImplementation(() => new Promise(done => { resolve = done }))
+    mount({ kind: 'gamification', block: gamificationCardFixture })
+    const button = screen.getByRole('button', { name: en.blockFrame.refresh })
+    fireEvent.click(button)
+    fireEvent.click(button)
+    expect(refreshGamification).toHaveBeenCalledTimes(1)
+    act(() => advanceAccountGeneration())
+    const next = { ...gamificationCardFixture, state: { ...gamificationCardFixture.state, profile: { ...gamificationCardFixture.state.profile, totalXp: 999 } } }
+    await act(async () => { resolve({ ok: true, data: { kind: 'gamification', block: next, read: next.read } }); await Promise.resolve() })
+    expect(screen.getByTestId('progress-xp-summary')).not.toHaveTextContent('999')
+  })
+})
 
 describe('focused read compositions', () => {
   it.each(['en', 'pt-BR'] as const)('renders compact totals and scaled comparison bars in %s', locale => {

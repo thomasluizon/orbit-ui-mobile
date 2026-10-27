@@ -1371,6 +1371,10 @@
         "days": "{count, plural, one {day} other {days}}"
       }
     },
+    "question": {
+      "progress": "{total, plural, one {{answered} of # question answered} other {{answered} of # questions answered}}",
+      "required": "Answer this question."
+    },
     "choice": {
       "submit": "Send",
       "review": "Review",
@@ -1783,6 +1787,10 @@
       "ring": "{done, plural, one {# of {due} done today} other {# of {due} done today}}",
       "open": "Open Today",
       "rowCount": "{total, plural, one {{shown} of # habit shown} other {{shown} of # habits shown}}"
+    },
+    "gamificationCard": {
+      "title": "Level and achievements",
+      "levelTitle": "Level"
     },
     "streakCard": {
       "title": "Your streak and XP",

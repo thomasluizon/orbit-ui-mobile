@@ -76,3 +76,28 @@ execution remains with the layout workflow. Metas is a separate route with no st
 | Loaded bank count | Ordinary, empty, full, one or many protected days, frozen today, manual and automatic coverage |
 | Repair count and details entry | Available, empty, partial, capped and unavailable repair; repair confirmation remains in the sheet |
 | Capacity sheet | Full bank, no earning row and no upgrade action |
+
+## Focused Astra level and achievements
+
+The paired `components/gamification/level-summary.tsx` and `achievement-tile.tsx` own both
+Conquistas and the negotiated `components/chat/gamification-card.tsx` composition. Extraction
+preserves the existing level row, XP bar, achievement card, earned disc and progress geometry.
+The chat block shows only present source sections and the complete returned catalogue. It keeps
+an empty catalogue distinct from an unrequested one, and never reads live profile hooks to replace
+a saved answer. The related Conquistas action uses the established shared surface mapping.
+
+The shared read session owns signed refresh, account replacement, duplicate-press protection,
+unmount and late-response rejection. The dedicated endpoint retains the original include flags
+and absolute scope; it has no paging request. A failed refresh retains the snapshot and its retry.
+Web and Android read-block tests cover the three source selections, empty catalogues, both
+locales, signed refresh and stale recovery. Existing Progresso and achievement geometry tests
+continue to own the extracted components. The eval projects the same visible headings, level,
+XP, achievement copy, earned state and progress instead of hidden source metadata.
+
+The paired `components/gamification/streak-figure.tsx` owns the unchanged current-streak figure
+on Sequência and in focused Astra reads. `gamification-streak.tsx` composes that figure with
+DayStrip and the existing read-only FreezeBank only when the streak source is present. The saved
+query date anchors the strip and protected dates; live hooks cannot replace the snapshot.
+Streak-only answers use the frame heading; combined answers add a separate streak heading.
+The eval projects the same figures, days and freeze facts. Paired read-block tests cover both
+streak selections, absence for level and achievements, and replacement through signed refresh.

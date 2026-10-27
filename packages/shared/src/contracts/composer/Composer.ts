@@ -1,7 +1,7 @@
 /** Hoje and habit detail use a minimum-height 56 one-line pill with an inside leading Astra glyph,
- * input, + menu and trailing send. The conversation uses the same pill without the glyph.
+ * input, + menu and one trailing voice or send action. The conversation uses the same pill without the glyph.
  * Hoje chips live in the conversation; habit detail chips stay in one scroll row without ellipsis.
- * Photo, document and voice use the + menu. Input grows to five lines, then scrolls inside.
+ * Photo and document use the + menu. Voice gives way to send when content can be sent. Input grows to five lines, then scrolls inside.
  * Recording keeps a visible stop; transcribing and attachments stay inside. Reasons and recovery sit
  * above the pill; retry replaces send. Disclosure keeps drafts. */
 export type ComposerWords = {

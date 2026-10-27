@@ -102,7 +102,8 @@ function MenuSheet({ id, children, onSelect, onClose, title, shortTitle, titleMo
 }
 
 export function Item({ item, onActivate, buttonRef, children }: Readonly<{ children: ReactNode; buttonRef?: RefObject<HTMLButtonElement | null>; item: MenuItem; onActivate: (id: string) => void }>) {
-  const disabled = Boolean(item.disabled && !item.badge)
+  const { open } = useMenu()
+  const disabled = !open || Boolean(item.disabled && !item.badge)
   const props = { disabled, textValue: item.label, onSelect: (event: Event) => { event.preventDefault(); onActivate(item.id) }, 'data-destructive': item.destructive || undefined, className: 'orbit-menu-item' }
   const content = <span className="orbit-menu-content">
     {item.icon ? <Icon name={item.icon} size={20} strokeWidth={2} /> : null}

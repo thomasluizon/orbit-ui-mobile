@@ -46,7 +46,7 @@ export class BlockAnswerSubmission {
     const chat = context.getChat()
     const recovery = isSameBlockAnswer(request.answer, this.uncertainAnswer)
     if (context.dailyBudgetReached || this.inFlight || chat.isTyping || chat.streamingMessageId !== null || !context.isOnline ||
-      (request.kind === 'choice' && context.atMessageLimit && !recovery)) return { ok: false, status: null }
+      (request.kind !== 'pickList' && context.atMessageLimit && !recovery)) return { ok: false, status: null }
     this.inFlight = true
     this.uncertainAnswer = { ...request.answer, selectedIds: [...request.answer.selectedIds] }
     const content = formatBlockAnswer(request.labels, request.answer.freeText, context.locale)

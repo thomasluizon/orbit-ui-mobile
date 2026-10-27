@@ -10,7 +10,6 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { PROMPT_CATEGORIES, PROMPT_TEMPLATES, PROMPT_PRESENTATION } from '@orbit/shared/chat/prompt-library'
-import { findPromptSlot } from '@orbit/shared/chat/composer-controls'
 import { CatalogIdea } from '@/components/chat/prompt-idea'
 import { PromptLibrary } from '@/components/chat/prompt-library'
 import { AstraConversation } from '@/components/chat/conversation'
@@ -259,7 +258,7 @@ it.each(['en', 'pt-BR'] as const)('renders every approved intent and useful exam
     expect(icon).toHaveAttribute('width', '24')
     expect(icon).toHaveAttribute('stroke-width', '1.5')
     expect(action.querySelector('[data-prompt-example]')?.textContent).toBe(PROMPT_PRESENTATION[template.id].example ? prompt : undefined)
-    expect(!!action.querySelector('[data-prompt-attribution]')).toBe(!findPromptSlot(prompt))
+    expect(action.querySelector('[data-prompt-attribution]')).toBeNull()
     fireEvent.click(action)
     expect(onSelect).toHaveBeenLastCalledWith(template.id, label, prompt)
   }
@@ -274,7 +273,7 @@ it('keeps live supplied icons, hides live actions during search and restores the
   const { container } = render(<NextIntlClientProvider locale="en" messages={en}><PromptLibrary onBack={vi.fn()} onSelect={onSelect} suggestions={suggestions} hasProAccess hasGoogleConnection /></NextIntlClientProvider>)
   const live = screen.getByRole('region', { name: 'For you now' })
   expect(live.querySelector('[data-supplied-icon]')).not.toBeNull()
-  expect(live.querySelectorAll('[data-prompt-intent] svg')).toHaveLength(2)
+  expect(live.querySelectorAll('[data-prompt-intent] svg')).toHaveLength(1)
   expect(screen.queryByRole('heading', { name: 'Start' })).toBeNull()
   for (const category of PROMPT_CATEGORIES) fireEvent.click(screen.getByRole('button', { name: en.chat.templates.categories[category] }))
   const search = screen.getByRole('searchbox')
@@ -289,6 +288,16 @@ it('keeps live supplied icons, hides live actions during search and restores the
   expect(screen.getByRole('region', { name: 'Calendar' })).toBeVisible()
   expect(onSelect).not.toHaveBeenCalled()
   expect(liveSelect).not.toHaveBeenCalled()
+})
+
+it('uses the shared search field and keeps live rows free of repeated decoration', () => {
+  const suggestions = toComposerSuggestions([{ id: 'live', label: 'Live suggestion', onSelect: vi.fn() }, { id: 'another', label: 'Another suggestion', onSelect: vi.fn() }])
+  const { container } = render(<NextIntlClientProvider locale="en" messages={en}><PromptLibrary onBack={vi.fn()} onSelect={vi.fn()} suggestions={suggestions} hasProAccess hasGoogleConnection /></NextIntlClientProvider>)
+  const search = screen.getByRole('searchbox', { name: 'Search ideas' })
+  expect(search).toHaveAttribute('placeholder', 'Search ideas')
+  expect(search.closest('[data-input-root]')).not.toBeNull()
+  expect(container.querySelector('[data-prompt-attribution]')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Live suggestion' }).querySelector('svg')).toBeNull()
 })
 
 it('ignores repeated activations and stale exiting actions, then rearms on reopen', () => {

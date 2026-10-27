@@ -6,6 +6,7 @@ import { apiOrigin, healthyApi, readCredentials, refreshCredential, safeFailureM
 import { dateOffset, resetFixture } from './fixtures/reset.mjs'
 import { requireEvalAccess } from './fixtures/api.mjs'
 import { prepareCorrection } from './setup.mjs'
+import { describeCase } from './latency.mjs'
 import { descriptors } from './merge-reports.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
 
@@ -25,7 +26,7 @@ function persistResults(results, expectedCases) {
 
 export async function beforeAll({ suite }) {
   completedResults = []
-  selectedCases = suite.tests.map((test) => test.metadata)
+  selectedCases = suite.tests.map(describeCase)
   accountAccess.clear()
   persistResults(completedResults, selectedCases)
   const required = ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_CREDENTIALS_FILE']
@@ -68,6 +69,7 @@ async function prepareAttempt(test) {
   const account = readCredentials()[test.vars.credentialKey]
   const substitutions = {
     accountDate: today,
+    retrospectiveFrom: dateOffset(today, -29),
     habitId: account.habitId ?? process.env.ORBIT_EVAL_HABIT_ID,
     secondHabitId: account.secondHabitId ?? process.env.ORBIT_EVAL_SECOND_HABIT_ID,
     overdueDate: process.env.ORBIT_EVAL_OVERDUE_DATE,
@@ -77,7 +79,7 @@ async function prepareAttempt(test) {
     substitutions[`${key}Localized`] = new Intl.DateTimeFormat(test.metadata.locale ?? 'en', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${substitutions[key]}T12:00:00Z`))
   }
   const substitute = (value) => {
-    if (typeof value === 'string') return value.replace(/\{(accountDate|habitId|secondHabitId|overdueDate|historyFrom|historyTo|comparisonFrom|comparisonTo|historyFromLocalized|historyToLocalized|comparisonFromLocalized|comparisonToLocalized)\}/g, (_, key) => {
+    if (typeof value === 'string') return value.replace(/\{(accountDate|retrospectiveFrom|habitId|secondHabitId|overdueDate|historyFrom|historyTo|comparisonFrom|comparisonTo|historyFromLocalized|historyToLocalized|comparisonFromLocalized|comparisonToLocalized)\}/g, (_, key) => {
       if (!substitutions[key]) throw new Error(`Missing fixture substitution: ${key}`)
       return substitutions[key]
     })
@@ -87,6 +89,9 @@ async function prepareAttempt(test) {
   }
   test.vars = substitute(test.vars)
   test.vars.clientContext ??= buildChatClientContext({ platform: test.metadata.platform ?? 'web', locale: test.metadata.locale ?? 'en' })
+  if (test.vars.clientContext.supportsParts === true && test.vars.clientContext.partKinds === undefined) {
+    test.vars.clientContext.partKinds = buildChatClientContext(test.vars.clientContext).partKinds
+  }
   test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
   test.vars.historyJson = JSON.stringify(test.vars.history ?? [])
   test.vars.evalRequestId = randomUUID()
@@ -99,7 +104,7 @@ export function afterEach({ result }) {
 }
 
 export function afterAll({ results, suite }) {
-  const { summary, markdown } = persistResults(results, suite.tests.map((test) => test.metadata))
+  const { summary, markdown } = persistResults(results, suite.tests.map(describeCase))
   process.stdout.write(`${markdown}\n`)
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`)
   if (summary.status !== 'pass') throw new Error(`Astra launch gate ${summary.status}; see reports/summary.md and reports/results.json.`)

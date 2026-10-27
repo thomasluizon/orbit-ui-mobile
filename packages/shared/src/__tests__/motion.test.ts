@@ -98,6 +98,14 @@ describe('motion theme contract', () => {
     }
   })
 
+  it('keeps spring responses within the design range', () => {
+    for (const spring of Object.values(motionSprings)) {
+      const response = 2 * Math.PI * Math.sqrt(spring.mass / spring.stiffness)
+      expect(response).toBeGreaterThanOrEqual(0.3)
+      expect(response).toBeLessThanOrEqual(0.4)
+    }
+  })
+
   it('keeps celebratory feedback longer than core micro-interactions', () => {
     expect(motionDurations.completePop).toBeGreaterThan(motionDurations.fast)
     expect(motionDurations.completeSpark).toBeGreaterThan(motionDurations.micro)

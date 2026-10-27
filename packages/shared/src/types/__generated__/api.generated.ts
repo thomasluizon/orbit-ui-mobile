@@ -111,7 +111,8 @@ export const PostApiAiPendingOperationsIdPreviewRefreshResponse = zod.object({
   "newValue": zod.string().nullable(),
   "valueType": zod.string(),
   "proposedValue": zod.unknown().optional(),
-  "isEditable": zod.boolean().default(postApiAiPendingOperationsIdPreviewRefreshResponsePreviewTwoChangesItemIsEditableDefault)
+  "isEditable": zod.boolean().default(postApiAiPendingOperationsIdPreviewRefreshResponsePreviewTwoChangesItemIsEditableDefault),
+  "entityEmoji": zod.string().nullish()
 })),
   "changeTargetCount": zod.union([zod.int(),zod.stringFormat('int32', postApiAiPendingOperationsIdPreviewRefreshResponsePreviewTwoChangeTargetCountRegExpTwo)]),
   "items": zod.array(zod.object({
@@ -126,7 +127,8 @@ export const PostApiAiPendingOperationsIdPreviewRefreshResponse = zod.object({
   "newValue": zod.string().nullable(),
   "valueType": zod.string(),
   "proposedValue": zod.unknown().optional(),
-  "isEditable": zod.boolean().default(postApiAiPendingOperationsIdPreviewRefreshResponsePreviewTwoItemsItemFieldsItemIsEditableDefault)
+  "isEditable": zod.boolean().default(postApiAiPendingOperationsIdPreviewRefreshResponsePreviewTwoItemsItemFieldsItemIsEditableDefault),
+  "entityEmoji": zod.string().nullish()
 })),
   "stateFingerprint": zod.string(),
   "removesData": zod.boolean().nullish(),
@@ -151,7 +153,8 @@ export const PostApiAiPendingOperationsIdPreviewRefreshResponse = zod.object({
   "alternatives": zod.array(zod.string()),
   "destinationId": zod.uuid(),
   "destinationName": zod.string()
-})]).optional()
+})]).optional(),
+  "entityEmoji": zod.string().nullish()
 })).nullish(),
   "previewFingerprint": zod.string().nullish()
 })]),
@@ -1780,7 +1783,8 @@ export const PostApiChatResponse = zod.object({
   "newValue": zod.string().nullable(),
   "valueType": zod.string(),
   "proposedValue": zod.unknown().optional(),
-  "isEditable": zod.boolean().default(postApiChatResponsePendingOperationsItemChangesItemIsEditableDefault)
+  "isEditable": zod.boolean().default(postApiChatResponsePendingOperationsItemChangesItemIsEditableDefault),
+  "entityEmoji": zod.string().nullish()
 })).nullish(),
   "changeTargetCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePendingOperationsItemChangeTargetCountRegExpTwo)]).nullish(),
   "items": zod.array(zod.object({
@@ -1795,7 +1799,8 @@ export const PostApiChatResponse = zod.object({
   "newValue": zod.string().nullable(),
   "valueType": zod.string(),
   "proposedValue": zod.unknown().optional(),
-  "isEditable": zod.boolean().default(postApiChatResponsePendingOperationsItemItemsItemFieldsItemIsEditableDefault)
+  "isEditable": zod.boolean().default(postApiChatResponsePendingOperationsItemItemsItemFieldsItemIsEditableDefault),
+  "entityEmoji": zod.string().nullish()
 })),
   "stateFingerprint": zod.string(),
   "removesData": zod.boolean().nullish(),
@@ -1820,7 +1825,8 @@ export const PostApiChatResponse = zod.object({
   "alternatives": zod.array(zod.string()),
   "destinationId": zod.uuid(),
   "destinationName": zod.string()
-})]).optional()
+})]).optional(),
+  "entityEmoji": zod.string().nullish()
 })).nullish(),
   "previewFingerprint": zod.string().nullish(),
   "actionKey": zod.string().nullish()
@@ -3069,7 +3075,8 @@ export const PostApiChatHabitSuggestionsPreviewResponse = zod.object({
   "newValue": zod.string().nullable(),
   "valueType": zod.string(),
   "proposedValue": zod.unknown().optional(),
-  "isEditable": zod.boolean().default(postApiChatHabitSuggestionsPreviewResponsePendingOperationTwoChangesItemIsEditableDefault)
+  "isEditable": zod.boolean().default(postApiChatHabitSuggestionsPreviewResponsePendingOperationTwoChangesItemIsEditableDefault),
+  "entityEmoji": zod.string().nullish()
 })).nullish(),
   "changeTargetCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsPreviewResponsePendingOperationTwoChangeTargetCountRegExpTwo)]).nullish(),
   "items": zod.array(zod.object({
@@ -3084,7 +3091,8 @@ export const PostApiChatHabitSuggestionsPreviewResponse = zod.object({
   "newValue": zod.string().nullable(),
   "valueType": zod.string(),
   "proposedValue": zod.unknown().optional(),
-  "isEditable": zod.boolean().default(postApiChatHabitSuggestionsPreviewResponsePendingOperationTwoItemsItemFieldsItemIsEditableDefault)
+  "isEditable": zod.boolean().default(postApiChatHabitSuggestionsPreviewResponsePendingOperationTwoItemsItemFieldsItemIsEditableDefault),
+  "entityEmoji": zod.string().nullish()
 })),
   "stateFingerprint": zod.string(),
   "removesData": zod.boolean().nullish(),
@@ -3109,7 +3117,8 @@ export const PostApiChatHabitSuggestionsPreviewResponse = zod.object({
   "alternatives": zod.array(zod.string()),
   "destinationId": zod.uuid(),
   "destinationName": zod.string()
-})]).optional()
+})]).optional(),
+  "entityEmoji": zod.string().nullish()
 })).nullish(),
   "previewFingerprint": zod.string().nullish(),
   "actionKey": zod.string().nullish()
@@ -3211,7 +3220,8 @@ export const PostApiChatHabitSuggestionsPreviewAllResponse = zod.object({
   "newValue": zod.string().nullable(),
   "valueType": zod.string(),
   "proposedValue": zod.unknown().optional(),
-  "isEditable": zod.boolean().default(postApiChatHabitSuggestionsPreviewAllResponsePendingOperationTwoChangesItemIsEditableDefault)
+  "isEditable": zod.boolean().default(postApiChatHabitSuggestionsPreviewAllResponsePendingOperationTwoChangesItemIsEditableDefault),
+  "entityEmoji": zod.string().nullish()
 })).nullish(),
   "changeTargetCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsPreviewAllResponsePendingOperationTwoChangeTargetCountRegExpTwo)]).nullish(),
   "items": zod.array(zod.object({
@@ -3226,7 +3236,8 @@ export const PostApiChatHabitSuggestionsPreviewAllResponse = zod.object({
   "newValue": zod.string().nullable(),
   "valueType": zod.string(),
   "proposedValue": zod.unknown().optional(),
-  "isEditable": zod.boolean().default(postApiChatHabitSuggestionsPreviewAllResponsePendingOperationTwoItemsItemFieldsItemIsEditableDefault)
+  "isEditable": zod.boolean().default(postApiChatHabitSuggestionsPreviewAllResponsePendingOperationTwoItemsItemFieldsItemIsEditableDefault),
+  "entityEmoji": zod.string().nullish()
 })),
   "stateFingerprint": zod.string(),
   "removesData": zod.boolean().nullish(),
@@ -3251,7 +3262,8 @@ export const PostApiChatHabitSuggestionsPreviewAllResponse = zod.object({
   "alternatives": zod.array(zod.string()),
   "destinationId": zod.uuid(),
   "destinationName": zod.string()
-})]).optional()
+})]).optional(),
+  "entityEmoji": zod.string().nullish()
 })).nullish(),
   "previewFingerprint": zod.string().nullish(),
   "actionKey": zod.string().nullish()
