@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { buildOnboardingScheduleFromPhrase } from '../utils/onboarding'
+import { getHabitPhraseTitle } from '../utils/habit-phrase-title'
+import { readHabitRecurrencePhrase } from '../utils/habit-recurrence-phrase'
+import { readDateWeekday } from '../utils/date-phrase-parser'
 import { isWeeklyRecurrencePhrase, readHabitPhrase, segmentHabitPhrase } from '../utils/habit-phrase-parser'
 
 interface PhraseCase {
@@ -206,5 +210,65 @@ describe('readHabitPhrase', () => {
     const read = readHabitPhrase(input, 'en')
     expect(read).toMatchObject({ cadence: 'fixed', intervalWeeks: null })
     expect(segmentHabitPhrase(input, read.consumed).filter((segment) => !segment.consumed).map((segment) => segment.text).join('')).toContain('every 53 weeks')
+  })
+})
+
+const everyDay = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+describe('weekday negation', () => {
+  it.each([
+    ['en', 'every day except Sunday', ['Sunday']],
+    ['en', 'every day except Sundays', ['Sunday']],
+    ['en', 'every day but not on Saturday', ['Saturday']],
+    ['en', 'every day except Saturdays and Sundays', ['Saturday', 'Sunday']],
+    ['en', 'except Sundays', ['Sunday']],
+    ['en', 'but not on Saturday', ['Saturday']],
+    ['pt-BR', 'todo dia menos domingo', ['Sunday']],
+    ['pt-BR', 'todos os dias menos aos domingos', ['Sunday']],
+    ['pt-BR', 'todo dia exceto sábado', ['Saturday']],
+    ['pt-BR', 'todo dia sem ser domingo', ['Sunday']],
+    ['pt-BR', 'todos os dias exceto sábados e domingos', ['Saturday', 'Sunday']],
+    ['pt-BR', 'exceto sábado', ['Saturday']],
+    ['pt-BR', 'sem ser domingo', ['Sunday']],
+    ['pt-BR', 'menos às terças-feiras', ['Tuesday']],
+  ] as const)('excludes weekdays across schedule readers: %s %s', (locale, phrase, excluded) => {
+    const days = everyDay.filter((day) => !excluded.some((excludedDay) => excludedDay === day))
+    for (const input of [phrase, phrase.toUpperCase(), phrase.normalize('NFD'), phrase.replaceAll(' ', '\t  ')]) {
+      const read = readHabitPhrase(input, locale)
+      expect(read).toMatchObject({ cadence: 'fixed', days })
+      expect(segmentHabitPhrase(input, read.consumed).filter((segment) => !segment.consumed).map((segment) => segment.text).join('').trim()).toBe('')
+      expect(buildOnboardingScheduleFromPhrase(input, locale)).toMatchObject({ days, isGeneral: false })
+      expect(readHabitRecurrencePhrase(input)).toMatchObject({ schedule: { days, unit: 'Day' } })
+      expect(readDateWeekday(input)).toBeNull()
+    }
+  })
+
+  it.each([
+    ['pt-BR', 'Meditar dez minutos depois do café, menos aos domingos'],
+    ['pt-BR', 'Meditar todo dia menos domingo quando chover'],
+    ['pt-BR', 'Correr três vezes por semana, exceto sábado'],
+    ['pt-BR', 'segunda mas não domingo'],
+    ['pt-BR', 'não aos domingos'],
+    ['en', 'Run every other day except Sunday'],
+    ['en', 'Run every day except Sunday when it rains'],
+    ['en', 'Monday but not on Saturday'],
+    ['en', 'not on Sundays'],
+    ['en', 'weekends except Sundays'],
+    ['en', 'every day except Sunday or Monday'],
+    ['en', 'every day except Monday, Tuesday, Wednesday, Thursday, Friday, Saturday and Sunday'],
+  ] as const)('leaves uncertain scope intact: %s %s', (locale, input) => {
+    expect(readHabitPhrase(input, locale)).toMatchObject({ cadence: null, days: [], intervalWeeks: null, consumed: [] })
+    expect(buildOnboardingScheduleFromPhrase(input, locale)).toMatchObject({ days: [], isGeneral: true })
+    expect(getHabitPhraseTitle(input, locale)).toBe(input)
+    expect(readHabitRecurrencePhrase(input)).toBeNull()
+    expect(readDateWeekday(input)).toBeNull()
+  })
+
+  it.each([
+    ['pt-BR', 'Meditar todo dia menos aos domingos às 8h', 'Meditar'],
+    ['en', 'Meditate every day except Sundays at 8', 'Meditate'],
+  ] as const)('consumes the complete exclusion without leaving negation in the title: %s', (locale, input, title) => {
+    expect(readHabitPhrase(input, locale)).toMatchObject({ cadence: 'fixed', days: everyDay.slice(0, 6), dueTime: '08:00' })
+    expect(getHabitPhraseTitle(input, locale)).toBe(title)
   })
 })

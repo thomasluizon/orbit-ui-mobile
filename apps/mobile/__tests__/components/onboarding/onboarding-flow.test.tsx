@@ -39,6 +39,7 @@ const mocks = vi.hoisted(() => {
     suggest: vi.fn(),
     anonymous: vi.fn(),
     anonymousAvailable: false,
+    locale: 'en',
     realProposal: false,
     requestPermission: vi.fn(),
     requestPermissionOutcome: vi.fn(),
@@ -66,7 +67,7 @@ vi.mock('react-native-svg', async () => {
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => undefined },
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
+  useTranslation: () => ({ t: (key: string) => key, i18n: { language: mocks.locale } }),
 }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ navigate: mocks.navigate, replace: vi.fn() }) }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
@@ -215,6 +216,7 @@ describe('OnboardingFlow state model', () => {
     Object.assign(mocks.profile, createMockProfile({ hasProAccess: true, isTrialActive: false, plan: 'pro' }))
     mocks.profile.aiMessagesUsed = 0
     mocks.profile.timeZone = 'UTC'
+    mocks.locale = 'en'
     mocks.realProposal = false
     mocks.anonymousAvailable = false
     mocks.anonymous.mockReset()
@@ -240,6 +242,20 @@ describe('OnboardingFlow state model', () => {
     expect(prop<boolean>(oneByType(tree.root, 'Schedule'), 'proposed')).toBe(false)
     expect(mocks.suggest).not.toHaveBeenCalled()
     expect(headerCounter(tree)).toBe('Orbit · 02 / 03')
+  })
+
+  it('keeps menos aos domingos unresolved and permits a manual Monday schedule', async () => {
+    mocks.locale = 'pt-BR'
+    mocks.realProposal = true
+    const tree = await mount(false)
+    await enterSentence(tree, 'Meditar dez minutos depois do café, menos aos domingos')
+    await click(tree, 'onboarding.flow.continue')
+    const sunday = byType(tree.root, 'Pressable').find((node) => node.props.accessibilityLabel === 'onboarding.flow.when.daysLong.sunday')!
+    expect(sunday.props.accessibilityState.selected).toBe(false)
+    const monday = byType(tree.root, 'Pressable').find((node) => node.props.accessibilityLabel === 'onboarding.flow.when.daysLong.monday')!
+    await TestRenderer.act(() => prop<() => void>(monday, 'onPress')())
+    await click(tree, 'onboarding.flow.create')
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ days: ['Monday'] }))
   })
 
   it('reads the signed-out sentence through Astra without adding a tour step', async () => {

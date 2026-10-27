@@ -48,6 +48,7 @@ const mocks = vi.hoisted(() => {
     suggest: vi.fn(),
     anonymous: vi.fn(),
     anonymousAvailable: false,
+    locale: 'en',
     realProposal: false,
     subscribe: vi.fn(),
     requestPermissionOnly: vi.fn(),
@@ -81,7 +82,7 @@ vi.mock('@base-ui/react/dialog', async (importOriginal) => {
 })
 
 vi.mock('next-intl', () => ({
-  useLocale: () => 'en',
+  useLocale: () => mocks.locale,
   useTranslations: () => (key: string) => key,
 }))
 vi.mock('next/navigation', async (importOriginal) => ({ ...(await importOriginal<typeof import('next/navigation')>()), useRouter: () => { const { navigate } = React.useContext(NavigationContext); return { push: navigate, replace: navigate } }, usePathname: () => new URL(React.useContext(NavigationContext).url, 'https://orbit.test').pathname, useSearchParams: () => new URL(React.useContext(NavigationContext).url, 'https://orbit.test').searchParams }))
@@ -220,6 +221,7 @@ describe('OnboardingFlow state model', () => {
     Object.assign(mocks.profile, createMockProfile({ hasProAccess: true, isTrialActive: false, plan: 'pro' }))
     mocks.profile.aiMessagesUsed = 0
     mocks.profile.timeZone = 'UTC'
+    mocks.locale = 'en'
     mocks.realProposal = false
     mocks.anonymousAvailable = false
     mocks.anonymous.mockReset()
@@ -378,6 +380,21 @@ describe('OnboardingFlow state model', () => {
     expect(await screen.findByTestId('schedule')).toHaveAttribute('data-proposed', 'false')
     expect(mocks.suggest).not.toHaveBeenCalled()
     expect(headerCounter()).toBe('Orbit · 02 / 03')
+  })
+
+  it('keeps menos aos domingos unresolved and permits a manual Monday schedule', async () => {
+    mocks.locale = 'pt-BR'
+    mocks.realProposal = true
+    mount(false)
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Meditar dez minutos depois do café, menos aos domingos' } })
+    fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+    const sunday = await screen.findByRole('button', { name: 'when.daysLong.sunday' })
+    expect(sunday).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'when.daysLong.monday' })).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(screen.getByRole('button', { name: 'when.daysLong.monday' }))
+    fireEvent.click(screen.getByRole('button', { name: 'create' }))
+    await screen.findByTestId('reminder-state')
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ days: ['Monday'] }))
   })
 
   it('reads the signed-out sentence through Astra without adding a tour step', async () => {

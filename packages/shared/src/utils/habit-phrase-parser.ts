@@ -153,6 +153,16 @@ function parseTime(match: RegExpExecArray): string | null {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
+function extractTime(remaining: string, phrase: NormalizedPhrase, patterns: LocalePatterns) {
+  const match = firstMatch(patterns.times, remaining)
+  const dueTime = match ? parseTime(match) : null
+  if (!match || !dueTime) return { dueTime: null, token: null, remaining }
+  return {
+    dueTime, token: toToken(phrase, match, 'time'),
+    remaining: maskRange(remaining, match.index, match.index + match[0].length),
+  }
+}
+
 function extractInterval(
   remaining: string,
   phrase: NormalizedPhrase,
@@ -182,28 +192,81 @@ function extractCount(text: string, patterns: LocalePatterns): { match: RegExpEx
   return quantity > 0 ? { match, quantity } : null
 }
 
+function matchWeekdays(text: string, patterns: LocalePatterns) {
+  return patterns.weekdays.flatMap(({ day, pattern }) => {
+    pattern.lastIndex = 0
+    return Array.from(text.matchAll(pattern), (match) => ({ day, match }))
+  }).sort((left, right) => left.match.index - right.match.index)
+}
+
+function readWeekdayExclusion(
+  remaining: string,
+  phrase: NormalizedPhrase,
+  patterns: LocalePatterns,
+): { days: string[]; consumed: HabitPhraseToken[] } | 'unresolved' | null {
+  const weekdays = matchWeekdays(remaining, patterns)
+  if (weekdays.length === 0 || !/\b(?:menos|exceto|sem|nao|nunca|salvo|tirando|except|excluding|not|never|without|don't|cannot)\b/u.test(remaining)) return null
+  const exclusions = [...remaining.matchAll(/\b(?:menos|exceto|sem ser|except|but not)\b/gu)]
+  if (exclusions.length !== 1) return 'unresolved'
+  const exclusion = exclusions[0]!
+  const prefix = remaining.slice(0, exclusion.index)
+  const daily = firstMatch([patterns.daily], prefix)
+  if (prefix.trim() && (!daily || prefix.slice(daily.index + daily[0].length).replace(/[\s,;]+/gu, ''))) return 'unresolved'
+  if (firstMatch([patterns.count, patterns.interval], prefix) || /\b(?:weekdays?|weekends?|uteis|fim|fins)\b/u.test(prefix)) return 'unresolved'
+  let cursor = exclusion.index + exclusion[0].length
+  for (const [index, { match }] of weekdays.entries()) {
+    const glue = remaining.slice(cursor, match.index)
+    const allowed = index === 0
+      ? /^\s+(?:(?:on|aos|as|no|nos|nas|a|o)\s+)?$/u
+      : /^\s*(?:,\s*(?:(?:and|e)\s+)?|(?:and|e)\s+)(?:(?:on|aos|as|no|nos|nas)\s+)?$/u
+    if (match.index < cursor || !allowed.test(glue)) return 'unresolved'
+    cursor = match.index + match[0].length
+  }
+  if (remaining.slice(cursor).replace(/[\s,.!?;:]+/gu, '')) return 'unresolved'
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    .filter((day) => !weekdays.some((weekday) => weekday.day === day))
+  if (days.length === 0) return 'unresolved'
+  const consumed: HabitPhraseToken[] = [{
+    start: phrase.originalStarts[exclusion.index]!, end: phrase.originalEnds[cursor - 1]!, kind: 'weekday',
+  }]
+  if (daily) consumed.unshift(toToken(phrase, daily, 'daily'))
+  return { days, consumed }
+}
+
+function buildWeekdayExclusionRead(
+  exclusion: { days: string[]; consumed: HabitPhraseToken[] } | 'unresolved',
+  text: string,
+  dueTime: string | null,
+  consumed: HabitPhraseToken[],
+): HabitPhraseRead {
+  const resolved = exclusion !== 'unresolved'
+  return {
+    cadence: resolved ? 'fixed' : null, days: resolved ? exclusion.days : [],
+    frequencyQuantity: null, intervalWeeks: null, dueTime: resolved ? dueTime : null,
+    emoji: EMOJI_HINTS.find(({ pattern }) => pattern.test(text))?.emoji ?? null,
+    consumed: resolved ? [...consumed, ...exclusion.consumed].sort((left, right) => left.start - right.start) : [],
+  }
+}
+
 export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhraseRead {
   const phrase = normalizePhrase(text)
   const patterns = LOCALE_PATTERNS[locale]
   let remaining = phrase.text
   const consumed: HabitPhraseToken[] = []
-  const timeMatch = firstMatch(patterns.times, remaining)
-  let dueTime: string | null = null
-  if (timeMatch) dueTime = parseTime(timeMatch)
-  if (timeMatch && dueTime) {
-    consumed.push(toToken(phrase, timeMatch, 'time'))
-    remaining = maskRange(remaining, timeMatch.index, timeMatch.index + timeMatch[0].length)
-  }
+  const time = extractTime(remaining, phrase, patterns)
+  const dueTime = time.dueTime
+  if (time.token) consumed.push(time.token)
+  remaining = time.remaining
+
+  const exclusion = readWeekdayExclusion(remaining, phrase, patterns)
+  if (exclusion) return buildWeekdayExclusionRead(exclusion, text, dueTime, consumed)
 
   const interval = extractInterval(remaining, phrase, patterns)
   const intervalWeeks = interval.intervalWeeks
   if (interval.token) consumed.push(interval.token)
   remaining = interval.remaining
 
-  const weekdayMatches = patterns.weekdays.flatMap(({ day, pattern }) => {
-    pattern.lastIndex = 0
-    return Array.from(remaining.matchAll(pattern), (match) => ({ day, match }))
-  }).sort((left, right) => left.match.index - right.match.index)
+  const weekdayMatches = matchWeekdays(remaining, patterns)
 
   let cadence: HabitPhraseCadence | null = null
   let days: string[] = []
