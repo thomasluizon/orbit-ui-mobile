@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { SHELL_SCROLLER_CLEARANCE, useShellScrollerClearance } from './shell-scroller-clearance'
+import { ShellSideInsetsContext, useShellContentStyle } from './shell-side-insets'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface FlowShellProps {
@@ -16,27 +17,31 @@ interface FlowShellProps {
 
 export function FlowShell({ children, action, header, notice, mode = 'centered' }: Readonly<FlowShellProps>) {
   const { surfaces } = useAppTheme()
+  const contentStyle = useShellContentStyle(SPACING.s16)
+  const headerStyle = useShellContentStyle()
   const shellClearance = useShellScrollerClearance()
   const clearance = action || notice ? Math.max(shellClearance, SHELL_SCROLLER_CLEARANCE) : shellClearance
 
   return (
+    <ShellSideInsetsContext.Provider value={true}>
     <SafeAreaView
       style={[styles.root, { backgroundColor: surfaces.screen.backgroundColor }]}
       edges={['top', 'bottom']}
       testID="flow-shell"
     >
-      {header ? <View style={styles.column}>{header}</View> : null}
+      {header ? <View style={[styles.column, headerStyle]}>{header}</View> : null}
       <ScrollView
         style={[styles.scroller, styles.column]}
-        contentContainerStyle={[styles.content, mode === 'centered' && styles.centered, { paddingBottom: clearance }]}
+        contentContainerStyle={[styles.content, mode === 'centered' && styles.centered, contentStyle, { paddingBottom: clearance }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         {children}
       </ScrollView>
-      {notice ? <View style={styles.notice}>{notice}</View> : null}
-      {action ? <View style={styles.action}>{action}</View> : null}
+      {notice ? <View style={[styles.notice, contentStyle]}>{notice}</View> : null}
+      {action ? <View style={[styles.action, contentStyle]}>{action}</View> : null}
     </SafeAreaView>
+    </ShellSideInsetsContext.Provider>
   )
 }
 

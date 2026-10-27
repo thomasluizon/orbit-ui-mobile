@@ -16,6 +16,7 @@ mod push_state;
 mod push_windows;
 mod settings;
 mod update_manifest;
+mod update_resume;
 mod update_state;
 mod updates;
 mod web_release;
@@ -26,7 +27,8 @@ fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             desktop_login::commit_desktop_login,
-            push::desktop_push
+            push::desktop_push,
+            updates::desktop_update
         ])
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Err(error) = lifecycle::show_main(app) {
@@ -64,7 +66,11 @@ fn main() {
             let handle = app.handle().clone();
             menus::install(app.handle())?;
             push::start(app.handle())?;
-            tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
+            let mut window_config = app.config().app.windows[0].clone();
+            if let Some(destination) = update_resume::take(app.handle(), origin)? {
+                window_config.url = tauri::utils::config::WebviewUrl::External(destination);
+            }
+            tauri::WebviewWindowBuilder::from_config(app, &window_config)?
                 .initialization_script(web_release::initialization_script(
                     origin,
                     &app.package_info().version.to_string(),
@@ -122,7 +128,8 @@ mod tests {
     fn native_context_loads_the_deployed_app_without_bundled_assets() {
         let context = super::context();
         let config = context.config();
-        let Some(FrontendDist::Url(origin)) = &config.build.frontend_dist else {
+        assert!(config.build.frontend_dist.is_none());
+        let WebviewUrl::External(origin) = &config.app.windows[0].url else {
             panic!("desktop must load the deployed web app");
         };
         assert_eq!(origin.scheme(), "https");
@@ -145,6 +152,61 @@ mod tests {
         assert!(!config.app.windows[0].incognito);
         assert!(!config.app.with_global_tauri);
         assert_eq!(config.app.security.capabilities.len(), 1);
+    }
+
+    #[test]
+    fn deployed_webview_can_invoke_its_commands_without_granting_other_origins() {
+        let mut context = super::context();
+        let config = context.config().clone();
+        let WebviewUrl::External(origin) = &config.app.windows[0].url else {
+            panic!("desktop must load the deployed web app");
+        };
+        let authority = context.runtime_authority_mut();
+        for command in ["commit_desktop_login", "desktop_push", "desktop_update"] {
+            for path in ["/", "/auth-callback?desktop=ready", "/profile/preferences"] {
+                let url = origin.join(path).unwrap();
+                // Match Tauri's release frontendDist classification before resolving the generated ACL.
+                let execution_origin = match &config.build.frontend_dist {
+                    Some(FrontendDist::Url(app_url)) if app_url.make_relative(&url).is_some() => {
+                        tauri::ipc::Origin::Local
+                    }
+                    _ => tauri::ipc::Origin::Remote { url },
+                };
+                assert!(
+                    authority
+                        .resolve_access(command, "main", "main", &execution_origin)
+                        .is_some(),
+                    "{command} must be allowed at {path}"
+                );
+            }
+            for destination in [
+                "https://app-staging.useorbit.org/",
+                "https://app.useorbit.org/",
+                "https://app.useorbit.org.attacker.example/",
+                "http://app.useorbit.org/",
+            ] {
+                let url: tauri::Url = destination.parse().unwrap();
+                if url.origin() == origin.origin() {
+                    continue;
+                }
+                assert!(authority
+                    .resolve_access(command, "main", "main", &tauri::ipc::Origin::Remote { url })
+                    .is_none());
+            }
+            assert!(authority
+                .resolve_access(command, "main", "main", &tauri::ipc::Origin::Local)
+                .is_none());
+            assert!(authority
+                .resolve_access(
+                    command,
+                    "other",
+                    "other",
+                    &tauri::ipc::Origin::Remote {
+                        url: origin.clone()
+                    }
+                )
+                .is_none());
+        }
     }
 
     #[test]

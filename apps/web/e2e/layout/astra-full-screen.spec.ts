@@ -17,7 +17,7 @@ const viewports = [
   { width: 1352, height: 706, left: 422 },
   { width: 1440, height: 900, left: 466 },
   { width: 1100, height: 706, left: 296 },
-  { width: 840, height: 915, left: 50 },
+  { width: 840, height: 915, left: 0 },
   { width: 412, height: 915, left: 0 },
 ]
 
@@ -54,7 +54,7 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
           const header = conversation.locator('header')
           const heading = header.getByRole('heading', { name: words.chat.title, exact: true })
           await expect(heading).toHaveText('')
-          const mark = heading.locator('[data-asset="astra-mark-16"]')
+          const mark = heading.locator('[data-asset="astra-mark"]')
           await expect(mark).toHaveAttribute('aria-hidden', 'true')
           const markBox = (await mark.boundingBox())!
           const closeBox = (await header.getByRole('button', { name: words.common.closeConversation }).boundingBox())!
@@ -75,7 +75,8 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
             await expect(feed.getByRole('button', { name: words.chat.templates.browse })).toHaveCount(1)
           }
           const box = (await conversation.boundingBox())!
-          for (const edge of ['x', 'width'] as const) expect(Math.abs(box[edge] - column![edge])).toBeLessThanOrEqual(0.5)
+          const allocation = viewport.width < 1024 ? { x: 0, width: viewport.width } : column!
+          for (const edge of ['x', 'width'] as const) expect(Math.abs(box[edge] - allocation[edge])).toBeLessThanOrEqual(0.5)
           expect(Math.abs(box.x - viewport.left)).toBeLessThanOrEqual(0.5)
           expect(Math.abs(box.y - (viewport.width >= 1024 ? column!.y + topInset : 0))).toBeLessThanOrEqual(0.5)
           expect(Math.abs(box.y + box.height - viewport.height)).toBeLessThanOrEqual(0.5)

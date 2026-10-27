@@ -11,6 +11,7 @@ import { HabitListCard } from '@/components/chat/habit-list-card'
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   mutate: vi.fn(),
+  pending: false,
   locale: 'en-US',
   occurrencesById: new Map<string, { isCompleted: boolean; isLoggedInRange: boolean }>(),
 }))
@@ -24,7 +25,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('@/hooks/use-habits', () => ({
   useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }),
   useHabits: () => ({ data: { habitsById: mocks.occurrencesById } }),
-  useLogHabit: () => ({ mutate: mocks.mutate }),
+  useLogHabit: () => ({ mutate: mocks.mutate, mutateAsync: mocks.mutate, isPending: mocks.pending }),
 }))
 vi.mock('@/components/ui/status-ring', () => ({ StatusRing: ({ status, label }: { status: string; label: string }) => <span data-ring-status={status}>{label}</span> }))
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: () => <span /> }))
@@ -41,6 +42,8 @@ vi.mock('@/components/ui/block-frame', () => ({
 describe('Astra list cards on web', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.pending = false
+    mocks.mutate.mockReset().mockImplementation(() => new Promise(() => {}))
     mocks.locale = 'en-US'
     mocks.occurrencesById.clear()
     for (const item of habits.items) {
@@ -48,17 +51,24 @@ describe('Astra list cards on web', () => {
     }
   })
 
+  it('uses the habit letter fallback and keeps completion status out of the meta line', () => {
+    render(<HabitListCard habitList={{ ...habits, read: { queryId: 'query', queryFamily: 'habits', scope: {}, revision: '1', completeness: 'complete', refreshToken: 'token' }, items: [{ ...habits.items[0]!, emoji: null, status: 'done' }] }} />)
+    expect(screen.getByText('W')).toBeInTheDocument()
+    expect(screen.queryByText('chat.habitList.logged')).not.toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'chat.habitList.pending' })).toHaveAttribute('data-status', 'empty')
+  })
+
   it('logs from authoritative occurrence state, opens the habit, and pages the count', () => {
     render(<HabitListCard habitList={habits} />)
 
-    expect(screen.getByText('chat.habitList.count:{"shown":3,"total":4}')).toBeInTheDocument()
+    expect(screen.getByText('chat.habitList.count:{"shown":4,"total":4}')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /chat\.habitList\.open.*Water/ }))
     expect(mocks.push).toHaveBeenCalledWith('/habits/habit-1')
 
     fireEvent.click(screen.getByRole('button', { name: /chat\.habitList\.log.*Water/ }))
     expect(mocks.mutate).toHaveBeenNthCalledWith(1, { habitId: 'habit-1', date: expect.any(String), intent: 'log' })
 
-    fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.more' }))
+    expect(screen.queryByRole('button', { name: 'chat.habitList.more' })).not.toBeInTheDocument()
     expect(screen.getByText('chat.habitList.count:{"shown":4,"total":4}')).toBeInTheDocument()
   })
 
@@ -66,7 +76,7 @@ describe('Astra list cards on web', () => {
     mocks.occurrencesById.set('habit-1', { isCompleted: false, isLoggedInRange: true })
     render(<HabitListCard habitList={habits} />)
 
-    expect(screen.getByText('chat.habitList.logged')).toHaveAttribute('data-ring-status', 'done')
+    expect(screen.getByRole('img', { name: 'chat.habitList.logged' })).toHaveAttribute('data-status', 'done')
     fireEvent.click(screen.getByRole('button', { name: /chat\.habitList\.unlog.*Water/ }))
     expect(mocks.mutate).toHaveBeenCalledWith({ habitId: 'habit-1', date: expect.any(String), intent: 'unlog' })
   })
@@ -94,8 +104,7 @@ describe('Astra list cards on web', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Run 10 km' }))
     expect(onOpenGoal).toHaveBeenCalledWith('goal-1')
-    fireEvent.click(screen.getByRole('button', { name: 'chat.goalList.progressLink' }))
-    expect(mocks.push).toHaveBeenCalledWith('/progress/goals')
+    expect(screen.queryByRole('button', { name: 'chat.goalList.progressLink' })).not.toBeInTheDocument()
   })
 
   it('shows API goal tracking and a localized projection without changing older rows', () => {
@@ -115,6 +124,17 @@ describe('Astra list cards on web', () => {
   it.each([['on_track', 'onTrack'], ['at_risk', 'atRisk'], ['behind', 'behind'], ['no_deadline', 'noDeadline']] as const)('localizes %s tracking', (status, key) => {
     render(<GoalListCard goalList={{ items: [{ id: 'goal-1', title: 'Run 10 km', current: 4, target: 10, unit: 'km', trackingStatus: status }] }} />)
     expect(screen.getByText(`goals.metrics.${key}`)).toBeInTheDocument()
+  })
+  it('locks only the pending habit while allowing another habit to log', () => {
+    const view = render(<HabitListCard habitList={habits} />)
+    fireEvent.click(screen.getByRole('button', { name: /chat.habitList.log.*Water/ }))
+    mocks.pending = true
+    view.rerender(<HabitListCard habitList={habits} />)
+    expect(screen.getByRole('button', { name: /chat.habitList.log.*Water/ })).toBeDisabled()
+    const second = screen.getAllByRole('button', { name: /chat.habitList.log/ })[1]!
+    expect(second).toBeEnabled()
+    fireEvent.click(second)
+    expect(mocks.mutate).toHaveBeenCalledTimes(2)
   })
 })
 

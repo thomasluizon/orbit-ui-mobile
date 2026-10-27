@@ -22,3 +22,15 @@ export function publicApi(credentialKey) {
     return { status: response.status, payload }
   }
 }
+
+export async function requireEvalAccess(credentialKey) {
+  const expected = credentialKey === 'ORBIT_EVAL_TOKEN'
+  try {
+    const { payload } = await publicApi(credentialKey)('GET', 'config')
+    const enabled = payload?.features?.astra_eval_unmetered?.enabled
+    if (enabled !== expected) throw new Error('Eval allowance policy is unavailable.')
+    return enabled
+  } catch {
+    throw new Error(`Eval preflight failed: turn ${expected ? 'on' : 'off'} astra_eval_unmetered for ${credentialKey} through /flag on staging, then verify /api/config and retry.`)
+  }
+}

@@ -11,6 +11,7 @@ import type { PendingOperationCardLabels } from './pending-operation-card'
 import { getActionChipNavigation } from './action-chips'
 
 export interface PreviewItemTitleProps {
+  meta?: string
   title: string
   icon?: string
   proposed?: boolean
@@ -261,6 +262,7 @@ function pendingActions<Node>(
   })
   const approve = render.button({
     label: labels.approve(count),
+    accessibleName: labels.approveName?.(count),
     focusRequest: card.hasRequiredChoices ? undefined : card.parentChoiceFocus?.request,
     shouldFocus: card.parentChoiceFocus?.shouldFocus,
     hint: card.hasRequiredChoices ? labels.parentChoiceRequired : undefined,
@@ -337,7 +339,7 @@ function previewRows<Node>(
       : results || card.status === 'failed' ? undefined : card.status
     const edited = revision?.editedItemIds.includes(item.itemId) === true
     const parentChoice = item.fieldOptions?.find((field) => field.field === 'parent_habit_id')
-    const summary = placementSummary(item, labels, Boolean(parentChoice))
+    const summary = placementSummary(item, pendingOperation, labels, Boolean(parentChoice))
     const parent: PendingOperationFrame<Node>['items'][number] = {
       id: item.itemId,
       label: item.fields.find((field) => ['title', 'name'].includes(field.field))?.newValue || item.entityName || labels.name,
@@ -378,9 +380,17 @@ function previewRows<Node>(
   return rows
 }
 
-function placementSummary(item: PreviewItem, labels: PendingOperationCardLabels, parentChoice: boolean): string {
+const HABIT_ONLY_PREVIEW_FIELDS = new Set([
+  'frequency_unit', 'frequency_quantity', 'is_bad_habit', 'is_general', 'is_flexible', 'parent_habit_id', 'checklist_items', 'sub_habits',
+  'days', 'due_date', 'due_time', 'due_end_time', 'end_date', 'reminder_enabled', 'reminder_times', 'scheduled_reminders', 'slip_alert_enabled',
+])
+
+function placementSummary(item: PreviewItem, operation: PendingAgentOperation, labels: PendingOperationCardLabels, parentChoice: boolean): string {
   const placement = item.placement
-  const summary = labels.summarize(item.fields.filter((field) => !(parentChoice || placement) || field.field !== 'parent_habit_id'))
+  const creating = operation.actionKey === 'applyAccountChanges' && operation.capabilityId === 'chat.changes'
+    && item.fields.some((field) => HABIT_ONLY_PREVIEW_FIELDS.has(field.field))
+    && !item.fields.some((field) => field.field === 'habit_id' || field.oldValue != null)
+  const summary = labels.summarize(item.fields.filter((field) => !(parentChoice || placement) || field.field !== 'parent_habit_id'), creating ? 'createHabit' : undefined)
   if (!placement) return summary || labels.pending
   const selected = labels.placementOption(placement.selected, placement.destinationName)
   return placement.selected === 'checklist_item' || !summary ? selected : `${selected} · ${summary}`

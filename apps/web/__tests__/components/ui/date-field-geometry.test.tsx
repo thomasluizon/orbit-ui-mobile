@@ -62,6 +62,39 @@ describe('DateField sheet geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it.each([{ left: 28, right: 64 }, { left: 64, right: 28 }])('keeps seven 44px date targets after $left/$right side insets', async ({ left, right }) => {
+    render(<DateField value="2025-06-15" onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button'))
+    const dialog = await screen.findByRole('dialog')
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      const session = await page.context().newCDPSession(page)
+      await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 0, bottom: 0, left, right } })
+      await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const body = document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
+        const style = getComputedStyle(body)
+        const bounds = body.getBoundingClientRect()
+        const panel = body.closest('[role="dialog"]')!.getBoundingClientRect()
+        return { paddingLeft: bounds.left - panel.left + parseFloat(style.paddingLeft), paddingRight: panel.right - bounds.right + parseFloat(style.paddingRight),
+          targets: [...body.querySelectorAll('button[data-day]')].map(button => {
+            const bounds = button.getBoundingClientRect()
+            return { left: bounds.left, right: bounds.right, width: bounds.width,
+              hit: button.contains(document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)) }
+          }) }
+      })
+      expect(geometry.paddingLeft).toBe(left + 4)
+      expect(geometry.paddingRight).toBe(right + 4)
+      expect(geometry.targets).toHaveLength(42)
+      for (const target of geometry.targets) {
+        expect(target.width).toBeGreaterThanOrEqual(44)
+        expect(target.left).toBeGreaterThanOrEqual(left + 4)
+        expect(target.right).toBeLessThanOrEqual(412 - right - 4)
+        expect(target.hit).toBe(true)
+      }
+    } finally { await page.close() }
+  })
+
   it.each([...BODY_INSETS_BY_WIDTH.keys()])('keeps all seven 44px columns inside the body at %ipx', async (width) => {
     render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('button'))

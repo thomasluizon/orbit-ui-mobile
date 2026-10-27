@@ -4,7 +4,6 @@ import { RootNotificationHeader } from '@/components/navigation/root-notificatio
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ScrollView, Text, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { ScreenReaderHeading } from '@/components/ui/screen-reader-heading'
@@ -34,8 +33,7 @@ export default function ProfileScreen() {
   const styles = useMemo(() => createProfileStyles(), [])
 
   return (
-    <SafeAreaView
-      edges={['left', 'right']}
+    <View
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
     >
       <ScreenReaderHeading title={t('nav.profile')} />
@@ -64,6 +62,6 @@ export default function ProfileScreen() {
           />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   )
 }

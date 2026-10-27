@@ -115,7 +115,7 @@ describe('ShellWide', () => {
     const slot = container.querySelector<HTMLElement>('[data-shell-scroll-to-top]')!
     const scroller = container.querySelector<HTMLElement>('[data-shell-scroller]')!
     expect(slot.parentElement).toBe(scroller.parentElement)
-    expect(slot.parentElement?.previousElementSibling).toBe(container.querySelector<HTMLElement>('[data-shell-header]'))
+    expect(slot.parentElement?.previousElementSibling).toBe(container.querySelector<HTMLElement>('[data-shell-header-surface]'))
     expect(scroller).not.toContainElement(slot)
     expect(container.querySelector<HTMLElement>('[data-shell-bottom]')).not.toContainElement(slot)
     rerender(shell(<button type="button">Reply</button>))
@@ -146,7 +146,7 @@ describe('ShellWide', () => {
     const bottom = container.querySelector<HTMLElement>('[data-shell-bottom]')
     const pinnedSlot = container.querySelector('[data-shell-pinned-slot]')
     const column = pinnedSlot?.closest<HTMLElement>('[data-shell-bottom] > div') ?? null
-    expect(column).toHaveStyle({ maxWidth: '740px' })
+    expect(column).not.toHaveStyle({ maxWidth: '740px' })
     expect(column).toContainElement(container.querySelector('[data-shell-notice]'))
     expect(container.querySelector('[data-shell-page]')).toContainElement(container.querySelector('[data-shell-fab]'))
     expect(bottom).toContainElement(column)
@@ -203,7 +203,7 @@ describe('ShellWide', () => {
     media.width = 1440
     const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation" composer={<div>Composer</div>} />)
     const column = container.querySelector('[data-shell-scroller]')?.closest('[data-shell-column]')
-    expect(column).toHaveStyle({ maxWidth: '740px' })
+    expect(column).toHaveClass('lg:max-w-[740px]')
     expect(column).toContainElement(container.querySelector('[data-shell-pinned-slot]'))
   })
 
@@ -327,7 +327,7 @@ describe('ShellWide', () => {
     )
 
     expect(container.querySelector('[data-shell-sidebar]')).toHaveClass('w-[232px]')
-    expect(container.querySelector('[data-shell-scroller]')?.closest('[data-shell-column]')).toHaveStyle({ maxWidth: '740px' })
+    expect(container.querySelector('[data-shell-scroller]')?.closest('[data-shell-column]')).toHaveClass('lg:max-w-[740px]')
     expect(container.querySelector('[data-shell-notice]')).toHaveTextContent('Notice')
     expect(container.querySelector('[data-shell-pinned-slot]')).toHaveTextContent('Composer')
     expect(screen.getAllByRole('heading')).toHaveLength(1)
@@ -495,7 +495,7 @@ describe('ShellWide', () => {
     const conversation = screen.getByRole('dialog', { name: 'Astra conversation' })
     expect(within(conversation).getByRole('main')).toBeVisible()
     expect(screen.getAllByRole('main')).toHaveLength(1)
-    expect(conversation.closest('[data-shell-column]')).toHaveStyle({ maxWidth: '740px' })
+    expect(conversation.closest('[data-shell-column]')).toHaveClass('lg:max-w-[740px]')
     expect(container.querySelector('[data-shell-background]')).toHaveAttribute('inert')
     expect(container.querySelector('[data-shell-sidebar]')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Today' })).toBeNull()

@@ -1,4 +1,4 @@
-import { makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { personalText } from '@/__tests__/support/personal-text'
 import en from '@orbit/shared/i18n/en.json'
@@ -73,6 +73,20 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
+  it.each((['none', 'habit_id', 'oldValue'] as const).flatMap(update => ['en', 'pt-BR'].map(locale => ({ update, locale }))))('describes suggestion batch creates and preserves $update updates in $locale', ({ update, locale }) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const operation = makeSuggestionBatchPreview(update)
+    const expected = locale === 'en' ? 'Every day · Oct 27, 2026 · at 8:15 AM · Until 8:30 AM' : 'Todo dia · 27 de out. de 2026 · às 8:15 AM · Até 8:30 AM'
+    render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getAllByText(expected)).toHaveLength(update === 'none' ? 2 : 1)
+    for (const outcome of [messages.chat.preview.summary.clearChecklist, messages.chat.preview.summary.stopReminders, messages.chat.preview.summary.clearReminders]) {
+      if (update === 'none') expect(screen.queryByText(outcome, { exact: false })).not.toBeInTheDocument()
+      else expect(screen.getByText(outcome, { exact: false })).toBeInTheDocument()
+    }
+  })
+
   it.each(['en', 'pt-BR'])('keeps a neutral heading for nested reuse in %s', (locale) => {
     visibleLocale.actual = true
     visibleLocale.language = locale
@@ -88,7 +102,7 @@ describe('PendingOperationCard', () => {
     const { container } = render(<PendingOperationCard pendingOperation={makeChildSchedulePreview(scenario.child)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     const row = container.querySelector('[data-indented]')!
     expect(row.textContent).toContain(scenario.child.title)
-    expect(within(row as HTMLElement).getByText((locale === 'en' ? scenario.english : scenario.portuguese).replace('21:30', '9:30 PM').replace('23:00', '11:00 PM'))).toBeInTheDocument()
+    expect(within(row as HTMLElement).getByText((locale === 'en' ? scenario.english.replace(/ · (\d{2}:\d{2})/g, ' · at $1') : scenario.portuguese.replace(/ · (\d{2}:\d{2})/g, ' · às $1')).replace('21:30', '9:30 PM').replace('23:00', '11:00 PM'))).toBeInTheDocument()
   })
 
   it.each(['en', 'pt-BR'])('shows every evening routine child and revises child removal in %s', async (locale) => {
@@ -100,8 +114,8 @@ describe('PendingOperationCard', () => {
     revise.mockResolvedValue({ ok: true, result: { cancelled: false, preview: revised } })
     const { container } = render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     expect(container.querySelectorAll('[data-indented]')).toHaveLength(3)
-    expect(screen.getAllByText(`${(locale === 'en' ? en : ptBR).habits.frequency.everyDay} · 9:30 PM`)).toHaveLength(3)
-    expect(screen.getByText(`${(locale === 'en' ? en : ptBR).habits.frequency.everyDay} · 11:00 PM`)).toBeInTheDocument()
+    expect(screen.getAllByText(`${(locale === 'en' ? en : ptBR).habits.frequency.everyDay} · ${locale === 'en' ? 'at' : 'às'} 9:30 PM`)).toHaveLength(3)
+    expect(screen.getByText(`${(locale === 'en' ? en : ptBR).habits.frequency.everyDay} · ${locale === 'en' ? 'at' : 'às'} 11:00 PM`)).toBeInTheDocument()
     for (const child of children) expect(screen.getByText(personalText(child.title))).toBeInTheDocument()
     const messages = locale === 'en' ? en : ptBR
     expect(container.textContent).not.toContain(messages.chat.preview.summary.buildHabit)
@@ -135,7 +149,7 @@ describe('PendingOperationCard', () => {
     visibleLocale.actual = true
     visibleLocale.language = locale
     render(<PendingOperationCard pendingOperation={makeCreateHabitsPreview(count)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
-    expect(screen.getByRole('heading', { name: locale === 'en' ? count === 1 ? 'New habit' : 'New habits' : count === 1 ? 'Novo hábito' : 'Novos hábitos' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: locale === 'en' ? count === 1 ? 'New habit' : `${count} new habits` : count === 1 ? 'Novo hábito' : `${count} novos hábitos` })).toBeInTheDocument()
     expect(screen.queryByText((locale === 'en' ? en : ptBR).chat.pendingOp.capability['habits-bulk-write'])).not.toBeInTheDocument()
   })
 
@@ -316,7 +330,7 @@ describe('PendingOperationCard', () => {
       visibleLocale.actual = true
       visibleLocale.language = locale
       const operation = makePendingWriteSummaryOperation(scenario)
-      const expected = locale === 'en' ? scenario.english : scenario.portuguese
+      const expected = locale === 'en' ? scenario.english.replace(/ · (\d{2}:\d{2})/g, ' · at $1') : scenario.portuguese.replace(/ · (\d{2}:\d{2})/g, ' · às $1')
       render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
       expect(screen.getByText(expected)).toBeInTheDocument()
       expect(screen.getAllByText('Read')).toHaveLength(1)
@@ -327,7 +341,7 @@ describe('PendingOperationCard', () => {
       visibleLocale.actual = true
       visibleLocale.language = locale
       const operation = makePartialScheduleSummaryOperation(scenario)
-      const expected = locale === 'en' ? scenario.english : scenario.portuguese
+      const expected = locale === 'en' ? scenario.english.replace(/ · (\d{2}:\d{2})/g, ' · at $1') : scenario.portuguese.replace(/ · (\d{2}:\d{2})/g, ' · às $1')
       render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
       expect(screen.getByText(expected)).toBeInTheDocument()
     })
@@ -1064,7 +1078,7 @@ it.each(['en', 'pt-BR'])('shows icons beside readable titles without chevrons or
   const item = operation.items![0]!
   item.fields.push({ ...item.fields[0]!, field: 'emoji', newValue: '🩺', proposedValue: '🩺' })
   const { container } = render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
-  expect(screen.getByText('🩺').parentElement).toHaveTextContent('Habit 1')
+  expect(screen.getByText('🩺').closest('[data-personal-text-action]')).toHaveTextContent('Habit 1')
   expect(screen.getByRole('button', { name: 'Habit 1' })).toHaveAttribute('aria-expanded', 'false')
   expect(screen.getByText('🩺').parentElement?.querySelector('svg')).toBeNull()
   expect(container.textContent).not.toMatch(/Usar 🩺|Use 🩺/)

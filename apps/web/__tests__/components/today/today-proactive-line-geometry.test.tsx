@@ -69,14 +69,15 @@ describe('Hoje proactive line perimeter', () => {
         await Promise.all(document.getAnimations().map((animation) => animation.finished))
         const scroller = element.closest<HTMLElement>('[data-shell-scroller]')!
         const scrollBounds = scroller.getBoundingClientRect()
+        const content = element.closest('[data-shell-page-content]')!.getBoundingClientRect()
         const bounds = element.getBoundingClientRect()
         const style = getComputedStyle(element)
         const outlineWidth = Number.parseFloat(style.outlineWidth)
         const extent = outlineWidth + Number.parseFloat(style.outlineOffset)
         const sentence = element.querySelector<HTMLElement>('.today-astra-sentence')!
         return {
-          leftInset: bounds.left - scrollBounds.left - scroller.clientLeft,
-          rightInset: scrollBounds.left + scroller.clientLeft + scroller.clientWidth - bounds.right,
+          leftInset: bounds.left - content.left,
+          rightInset: content.right - bounds.right,
           ringLeft: bounds.left - extent, ringRight: bounds.right + extent,
           ringTop: bounds.top - extent, ringBottom: bounds.bottom + extent,
           clientLeft: scrollBounds.left + scroller.clientLeft,

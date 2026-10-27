@@ -29,7 +29,7 @@ function roles(role: string): ReactTestInstance[] {
 }
 function rowTexts(control: ReactTestInstance): ReactTestInstance[] {
   const row = tree.root.findAll(node => typeof node.type === 'string' && node.props['data-slot'] === 'list-row-body' && node.findAll(child => child === control).length > 0)[0]!
-  return row.findAll(node => String(node.type) === 'Text' && (StyleSheet.flatten(node.props.style as StyleProp<TextStyle>) as TextStyle | undefined)?.opacity !== 0)
+  return row.findAll(node => String(node.type) === 'Text' && (StyleSheet.flatten(node.props.style as StyleProp<TextStyle>) as TextStyle | undefined)?.opacity !== 0 && (node.props.children === 'Completed habit' || pickListBlockFixture.items.some(item => item.label === node.props.children || item.detail === node.props.children)))
 }
 async function mount(element: React.ReactElement) { await renderer.act(() => { tree = renderer.create(element) as typeof tree }) }
 async function press(node: ReactTestInstance) { await renderer.act(async () => { (node.props.onPress as () => void)(); await Promise.resolve() }) }
@@ -140,7 +140,7 @@ describe('Android choice and pick list answers', () => {
 
 it('keeps proposed label and detail legible while pressed', async () => {
   await mount(<PickListBlock block={pickListBlockFixture} interaction={interaction()} />)
-  await renderer.act(() => { (roles('checkbox')[0]!.props.onPressIn as () => void)() })
+  await renderer.act(() => { (roles('button').find(node => node.props.accessibilityLabel === pickListBlockFixture.items[0]!.label)!.props.onPressIn as () => void)() })
   const tokens = createTokensV2()
   const texts = rowTexts(roles('checkbox')[0]!)
   expect(texts).toHaveLength(2)
@@ -171,7 +171,7 @@ it('keeps checked selection text distinct from completed habit text', async () =
   await mount(<><PickListBlock block={pickListBlockFixture} interaction={interaction()} /><CheckRow label="Completed habit" checked onChange={vi.fn()} /></>)
   const color = (row: ReactTestInstance) => (StyleSheet.flatten(rowTexts(row)[0]!.props.style) as TextStyle).color
   const tokens = createTokensV2()
-  expect(color(roles('checkbox')[0]!)).toBe(tokens.fg2)
+  expect(color(roles('checkbox')[0]!)).toBe(tokens.fg3)
   await press(roles('checkbox')[0]!)
   expect(color(roles('checkbox')[0]!)).toBe(tokens.fg1)
   expect(color(roles('checkbox').at(-1)!)).toBe(tokens.fg3)

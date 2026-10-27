@@ -38,7 +38,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           const chip = suggestions.getByRole('button', { name: label, exact: true })
           await expect(chip).toHaveCount(1)
           await expect(chip).toHaveText(label)
-          await expect(chip.locator('[data-asset="astra-mark-16"]')).toHaveCount(1)
+          await expect(chip.locator('[data-asset="astra-mark"]')).toHaveCount(1)
         }
         await expect(suggestions.getByRole('button', { name: messages.habits.detail.askAstra, exact: true })).toHaveCount(0)
         const reviewHabit = page.getByRole('button', { name: messages.habits.detail.askAstra, exact: true })

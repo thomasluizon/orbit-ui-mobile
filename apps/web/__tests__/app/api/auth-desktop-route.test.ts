@@ -5,6 +5,7 @@ import { GET as start } from '@/app/api/auth/google/start/route'
 import { GET as callback } from '@/app/api/auth/desktop/callback/route'
 import { POST as exchange } from '@/app/api/auth/desktop/exchange/route'
 import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
+import { proxy } from '@/proxy'
 import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
 
 const api = vi.fn()
@@ -53,8 +54,20 @@ describe('desktop Google BFF handoff', () => {
     const googleSession = JSON.parse(pending.cookie.value)
     expect(googleSession.desktop).toEqual({ state, codeChallenge, redirectUri })
     expect(pending.cookie.httpOnly).toBe(true)
+    const browserHeaders = { cookie: `${GOOGLE_OAUTH_COOKIE}=${encodeURIComponent(pending.cookie.value)}` }
+    const redirect = await proxy(new NextRequest(`${origin}/auth-callback?code=google-code&state=${pending.googleState}&ignored=value`, {
+      headers: browserHeaders,
+    }))
+    expect(redirect.status).toBe(307)
+    expect(redirect.headers.get('location')).toBe(`${origin}/api/auth/desktop/callback?code=google-code&state=${pending.googleState}`)
+    expect(await redirect.text()).toBe('')
+    expect(redirect.headers.get('cache-control')).toBe('no-store')
+    expect(redirect.headers.get('referrer-policy')).toBe('no-referrer')
+    expect(redirect.headers.get('set-cookie')).toBeNull()
+    expect(api).not.toHaveBeenCalled()
     api.mockResolvedValueOnce(Response.json(account)).mockResolvedValueOnce(Response.json({ code: handoffCode, expiresIn: 60 }))
-    const returned = await callback(pending.request(`code=google-code&state=${pending.googleState}`))
+    const returned = await callback(new NextRequest(redirect.headers.get('location')!, { headers: browserHeaders }))
+    expect(returned.status).toBe(303)
     const destination = new URL(returned.headers.get('location')!)
     expect(destination.toString()).toBe(`${redirectUri}?state=${state}&code=${handoffCode}`)
     expect(api.mock.calls[0]?.[0]).toBe('http://localhost:5000/api/auth/google/code')
@@ -68,6 +81,12 @@ describe('desktop Google BFF handoff', () => {
     expect(returned.headers.get('referrer-policy')).toBe('no-referrer')
     expect(destination.toString()).not.toContain(account.token)
     expect(destination.toString()).not.toContain(account.refreshToken)
+
+    const completedCalls = api.mock.calls.length
+    const replay = await callback(new NextRequest(redirect.headers.get('location')!))
+    expect(replay.status).toBe(400)
+    expect(await replay.json()).toEqual({ error: 'Invalid OAuth state' })
+    expect(api).toHaveBeenCalledTimes(completedCalls)
 
     api.mockResolvedValueOnce(Response.json(account))
     const session = await exchange(redemption())

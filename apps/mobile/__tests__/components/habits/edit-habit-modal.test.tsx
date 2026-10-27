@@ -1,3 +1,4 @@
+import { habitSuggestionDraftFixture } from '@orbit/shared/test-support/chat-fixtures'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -218,6 +219,14 @@ describe('EditHabitModal (mobile)', () => {
   const findFormFields = (tree: {
     root: { findAll: (predicate: (node: any) => boolean) => any[] }
   }) => tree.root.findAll((node: any) => node.type === 'HabitFormFields')[0]
+
+  it('prefills an existing habit with the suggestion while retaining its identity', async () => {
+    const habit = createMockHabit({ id: 'h-1', title: 'Exercise', intervalWeeks: 2 })
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<TestEditor open onClose={vi.fn()} habit={habit} initialSuggestion={{ ...habitSuggestionDraftFixture, days: ['Monday'], existingHabitId: habit.id }} />) })
+    expect(mockFormReset).toHaveBeenCalledWith(expect.objectContaining({ intervalWeeks: 1, days: ['Monday'], title: 'Read', itemType: 'habit', dueTime: '22:00', dueEndTime: '22:15' }))
+    await TestRenderer.act(() => tree.unmount())
+  })
 
   it('routes to upgrade only after the sheet dismisses', async () => {
     const onClose = vi.fn()

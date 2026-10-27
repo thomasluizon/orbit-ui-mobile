@@ -11,6 +11,7 @@ export interface PendingOperationMessageState {
   stale?: boolean
   refreshUnavailable?: boolean
   editedItemIds?: string[]
+  originalItemIds?: string[]
   operation?: PendingAgentOperation
 }
 

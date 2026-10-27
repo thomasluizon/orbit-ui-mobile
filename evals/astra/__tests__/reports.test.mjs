@@ -1,7 +1,31 @@
 import { expect, it } from 'vitest'
 import { mergeReports } from '../merge-reports.mjs'
+import { writeResults } from '../report.mjs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import parseResponse from '../response.mjs'
+import { chatResponse, toolCall } from './fixtures/producer.mjs'
 const descriptors = [{ id: 'english', family: 'habits', locale: 'en' }, { id: 'portuguese', family: 'habits', locale: 'pt-BR' }]
 const window = (index, overrides = {}) => ({ k: 3, cases: [{ ...descriptors[index], attempts: 3, passed: 3, skipped: 0, unavailable: 0, missingComposition: 0, pass3: 'pass', ...overrides }] })
+it('writes private evidence without catalog-marked secrets or injected credential fields', () => {
+  const call = toolCall('manage_account', { action: 'confirm_deletion' })
+  Object.assign(call.arguments, { code: 'private-code-value', token: 'private-token-value', cookie: 'private-cookie-value',
+    refreshToken: 'private-refresh-value', accountId: 'private-account-value', email: 'private@example.invalid' })
+  const output = parseResponse(chatResponse('request', [call]), '', { response: {
+    status: 200, headers: { 'x-orbit-request-id': 'request' },
+  } })
+  output.answer = 'Water is ready.'
+  const directory = mkdtempSync(join(tmpdir(), 'astra-private-evidence-'))
+  try {
+    writeResults([{ testCase: { metadata: { id: 'private-evidence' } }, response: { output }, success: true }], directory)
+    const contents = readFileSync(join(directory, 'attempts/private-evidence-r1.json'), 'utf8')
+    expect(JSON.parse(contents)).toMatchObject({ answer: 'Water is ready.', toolCalls: [{
+      name: 'manage_account', arguments: { action: 'confirm_deletion' }, resultStatus: 'Succeeded',
+    }] })
+    expect(contents).not.toMatch(/private-(?:code|token|cookie|refresh|account)-value|private@example\.invalid/)
+  } finally { rmSync(directory, { recursive: true, force: true }) }
+})
 it('merges disjoint windows against the entire corpus without hiding missing families', () => {
   expect(mergeReports([window(0)], descriptors).status).toBe('incomplete')
   const merged = mergeReports([window(0), window(1)], descriptors)

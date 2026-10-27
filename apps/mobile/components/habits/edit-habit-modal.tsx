@@ -48,7 +48,11 @@ import { buildUpdateHabitRequest } from '@/lib/habit-request-builders'
 import { MAX_GOALS_PER_HABIT, habitFormSchema } from '@orbit/shared/validation'
 import { useHabitGoalSelection, createSuggestionRequestCoordinator } from '@orbit/shared/hooks'
 
+import { habitSuggestionFormState } from '@orbit/shared/chat'
+import type { HabitSuggestionDraft } from '@orbit/shared/types'
+
 interface EditHabitModalProps {
+  initialSuggestion?: HabitSuggestionDraft
   open: boolean
   onClose: () => void
   habit: NormalizedHabit | null
@@ -101,6 +105,7 @@ function EditHabitDraft({
   onClose,
   habit,
   onSaved,
+  initialSuggestion,
   relationshipFieldsLoaded = true,
   parentIsGeneral = null,
 }: Readonly<EditHabitModalProps>) {
@@ -295,7 +300,7 @@ function EditHabitDraft({
       })
     }
     relationshipFieldsHydratedRef.current = true
-  }, [formHelpers.form, habit, habitDetail, open, relationshipFieldsLoaded, sessionHabitId, tags])
+  }, [formHelpers.form, habit, habitDetail, open, relationshipFieldsLoaded, sessionHabitId, tags, initialSuggestion])
 
   useEffect(() => {
     const previousSession = previousSessionRef.current
@@ -309,7 +314,7 @@ function EditHabitDraft({
     if (!open || !habit) return
     if (!habitChanged && formHelpers.form.formState.isDirty) return
 
-    const prefill = buildEditHabitFormState(habit, habitDetail)
+    const prefill = habitSuggestionFormState(buildEditHabitFormState(habit, habitDetail), initialSuggestion)
     const touched = relationshipFieldsTouchedRef.current
     const formValues = touched.slipAlertEnabled
       ? {
@@ -335,7 +340,7 @@ function EditHabitDraft({
     setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
     relationshipFieldsHydratedRef.current = relationshipFieldsLoaded
     applyHabitFormMode(prefill.mode, formHelpers)
-  }, [formHelpers, habit, habitDetail, open, relationshipFieldsLoaded, sessionDetailId, sessionHabitId, tags])
+  }, [formHelpers, habit, habitDetail, open, relationshipFieldsLoaded, sessionDetailId, sessionHabitId, tags, initialSuggestion])
 
   async function prepareSave(parentBaseline: HabitDetail['parentId']) {
     if (!formHelpers.form.getValues('itemType')) { formHelpers.validateAll(); return null }

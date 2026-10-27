@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 
 export const credentialKeys = ['ORBIT_EVAL_TOKEN', 'ORBIT_EVAL_FREE_TOKEN', 'ORBIT_EVAL_BUDGET_TOKEN']
 const readiness = new Map()
+const credentialHistory = new Set()
 
 async function waitForHealthyApi(origin) {
   const deadline = Date.now() + 180000
@@ -11,7 +12,10 @@ async function waitForHealthyApi(origin) {
       const response = await fetch(`${origin}/health`, {
         method: 'GET', redirect: 'error', signal: AbortSignal.timeout(Math.min(60000, deadline - Date.now())),
       })
-      if (response.ok && (await response.json()).status === 'Healthy') return
+      if (response.ok) {
+        const health = await response.json()
+        if (health.status === 'Healthy') return health
+      }
     } catch {
       // Health probes are safe to retry before submitting a rotating refresh.
     }
@@ -21,11 +25,11 @@ async function waitForHealthyApi(origin) {
   throw new Error('API did not become Healthy within the bounded startup wait; no refresh was sent.')
 }
 
-async function wakeApi() {
+export async function healthyApi({ fresh = false } = {}) {
   const origin = apiOrigin()
   const key = `${origin}:${process.env.ORBIT_EVAL_CREDENTIALS_FILE}`
-  if (!readiness.has(key)) readiness.set(key, waitForHealthyApi(origin))
-  try { await readiness.get(key) } catch (error) { readiness.delete(key); throw error }
+  if (fresh || !readiness.has(key)) readiness.set(key, waitForHealthyApi(origin))
+  try { return await readiness.get(key) } catch (error) { readiness.delete(key); throw error }
 }
 
 export function apiOrigin() {
@@ -55,17 +59,23 @@ export function readCredentials() {
   }
 }
 
-export function safeFailureMessage(error) {
+export function redactCredentials(text) {
   const secrets = credentialKeys.map((key) => process.env[key])
+  secrets.push(process.env.OPENAI_API_KEY)
   secrets.push(process.env.ORBIT_EVAL_CREDENTIALS_FILE)
-  try { secrets.push(...Object.values(readCredentials()).map((account) => account?.refreshToken)) } catch {
+  try { secrets.push(...Object.values(readCredentials()).flatMap((account) => Object.values(account))) } catch {
     // An unreadable credential file already produces a message without its contents.
   }
-  let message = error instanceof Error ? error.message : 'Unknown precondition failure.'
-  for (const secret of secrets.filter((value) => typeof value === 'string' && value.length).sort((a, b) => b.length - a.length)) {
+  for (const secret of secrets.filter((value) => typeof value === 'string' && value.length)) credentialHistory.add(secret)
+  let message = text
+  for (const secret of [...credentialHistory].sort((a, b) => b.length - a.length)) {
     message = message.replaceAll(secret, '[redacted]')
   }
-  return message.replace(/[\r\n]/g, ' ')
+  return message
+}
+
+export function safeFailureMessage(error) {
+  return redactCredentials(error instanceof Error ? error.message : 'Unknown precondition failure.').replace(/[\r\n]/g, ' ')
 }
 
 export async function updateCredentials(update) {
@@ -100,7 +110,7 @@ export async function refreshCredential(key) {
     const token = await updateCredentials(async (credentials) => {
       const account = credentials[key]
       if (typeof account?.refreshToken !== 'string' || !account.refreshToken.trim()) throw new Error('Missing refresh token.')
-      await wakeApi()
+      await healthyApi()
       const refreshUrl = `${apiOrigin()}/api/auth/refresh`
       const refreshOptions = {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'api-version': '2.0' },

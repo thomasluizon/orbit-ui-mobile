@@ -1,17 +1,19 @@
 export function extractTrace(response, responseRequestId) {
   const trace = response?.evalTrace
-  if (!trace || typeof trace.traceId !== 'string' || !trace.traceId.trim() || !Array.isArray(trace.toolCalls)) {
-    return { state: 'unavailable', reason: 'Missing or malformed opt-in eval trace.' }
-  }
-  if (trace.traceId !== responseRequestId) {
-    return { state: 'mismatched', reason: 'Trace and HTTP response identities differ.' }
-  }
-  return {
-    state: 'available', requestId: trace.traceId, responseRequestId, timing: trace.timing,
-    calls: trace.toolCalls.map((call) => ({
+  const evidence = { timing: trace?.timing ?? null,
+    calls: Array.isArray(trace?.toolCalls) ? trace.toolCalls.map((call) => ({
       id: call?.id, name: call?.name, arguments: call?.arguments,
       resultStatus: call?.status, result: call?.result,
-    })),
+    })) : [],
+  }
+  if (!trace || typeof trace.traceId !== 'string' || !trace.traceId.trim() || !Array.isArray(trace.toolCalls)) {
+    return { ...evidence, state: 'unavailable', reason: 'Missing or malformed opt-in eval trace.' }
+  }
+  if (trace.traceId !== responseRequestId) {
+    return { ...evidence, state: 'mismatched', reason: 'Trace and HTTP response identities differ.' }
+  }
+  return {
+    ...evidence, state: 'available', requestId: trace.traceId, responseRequestId,
   }
 }
 

@@ -13,6 +13,7 @@ import { ProPitch } from '@/components/upgrade/pro-pitch'
 import { OnboardingProStep } from '@/components/onboarding/onboarding-pro-step'
 import { measureOnboardingProStep } from '../../../e2e/layout/onboarding-pro-step-geometry'
 import { subscriptionPlansFixtures } from '@/test-support/hermetic/mock-api/fixtures/subscription-plans'
+import { measureSplitSegmentWords, mountMeasuredSegmentedControls, settleSegmentMeasurements } from '@/__tests__/support/segmented-control-geometry'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -63,7 +64,7 @@ describe('Pro tier geometry in Chromium', () => {
   const compactCases = [320, 360, 384, 412].flatMap((width) => (['en', 'pt-BR'] as const)
     .map((locale) => ({ width, locale })))
 
-  it.each([...compactCases, { width: 1440, locale: 'en' }, { width: 1440, locale: 'pt-BR' }])('shares remaining width between label-based period segments at $width in $locale', async ({ width, locale }) => {
+  it.each([...compactCases, { width: 1440, locale: 'en' }, { width: 1440, locale: 'pt-BR' }].flatMap((entry) => [1, 2].map((scale) => ({ ...entry, scale }))))('shares remaining width between label-based period segments at $width in $locale and scale $scale', async ({ width, locale, scale }) => {
     const messages = locale === 'en' ? en : ptBR
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}><Pricing coupon={false} /></NextIntlClientProvider>)
     await waitForLoadedTiers(container)
@@ -71,24 +72,29 @@ describe('Pro tier geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
-      const geometry = await page.locator('[role="radiogroup"]').evaluate((group) => {
+      await mountMeasuredSegmentedControls(page)
+      await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+      await settleSegmentMeasurements(page)
+        expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+      const geometry = await page.locator('[data-segmented-control]').evaluate((group) => {
         const bounds = group.getBoundingClientRect()
         const column = group.parentElement!.getBoundingClientRect()
-        const segments = [...group.querySelectorAll('[role="radio"]')].map((segment) => {
+        const segments = [...group.querySelectorAll('[role="radio"], [data-menu-trigger]')].map((segment) => {
           const box = segment.getBoundingClientRect()
           const range = document.createRange()
           range.selectNodeContents(segment.querySelector('span')!)
           const label = segment.querySelector('span')!
           const labelBox = label.getBoundingClientRect()
-          return { width: box.width, labelWidth: range.getBoundingClientRect().width, top: box.top, height: box.height,
+          return { folded: segment.hasAttribute('data-menu-trigger'), width: box.width, labelWidth: range.getBoundingClientRect().width, top: box.top, height: box.height,
             lines: new Set([...range.getClientRects()].map((fragment) => Math.round(fragment.top))).size, fits: range.getBoundingClientRect().width <= labelBox.width + 1, overflow: label.scrollWidth > label.clientWidth, ellipsis: getComputedStyle(label).textOverflow === 'ellipsis', contained: box.left >= bounds.left && box.right <= bounds.right }
         })
-        return { width: bounds.width, columnWidth: column.width, segments }
+        return { folded: group.querySelector('[data-menu-trigger]') !== null, width: bounds.width, columnWidth: column.width, segments }
       })
-      expect(geometry.segments).toHaveLength(2)
+      expect(geometry.segments).toHaveLength(geometry.folded ? 1 : 2)
+      if (scale === 1) expect(geometry.folded).toBe(false)
       expect(geometry.width).toBeCloseTo(width >= 1024 ? 320 : width - 32, 0)
       expect(geometry.width).toBeCloseTo(geometry.columnWidth, 0)
-      expect(geometry.segments[0]!.top).toBeCloseTo(geometry.segments[1]!.top, 0)
+      expect(new Set(geometry.segments.map((segment) => segment.top)).size).toBe(1)
       const remaining = geometry.segments.map((segment) => segment.width - segment.labelWidth)
       expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
       for (const segment of geometry.segments) {
@@ -110,6 +116,7 @@ describe('Pro tier geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
       const captions = page.getByText(messages.upgrade.convert.perDay, { exact: true })
       expect(await captions.count()).toBe(2)
       const geometry = await captions.evaluateAll((elements) => elements.map((element) => {
@@ -139,6 +146,7 @@ describe('Pro tier geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
       const step = page.locator('[data-onboarding-step="paywall"]')
       expect(await step.evaluate(measureTextOverflow)).toEqual([])
       const geometry = await step.evaluate(measureOnboardingProStep)
@@ -163,6 +171,7 @@ describe('Pro tier geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
       const geometry = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('[data-tier-content]'))
         .filter((card) => card.querySelector('button') && !card.closest('[inert]'))
         .map((card) => {

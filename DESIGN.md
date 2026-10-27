@@ -89,6 +89,14 @@ Owners above are under each app's `components/` directory. Both languages and bo
 
 **Conversation copying:** message text stays selectable on web and Android. A copyable block in an Astra reply carries one copy control; every fenced or indented code block qualifies. No message carries a per-message copy control. The small control sits in its own row above the block, never over its text; this rule supersedes the per-message copy pill in `design/canvas/Orbit Astra Conversation.dc.html` (#1388).
 
+**Compact Astra answers (#1743).** Astra read blocks omit manual refresh and footer links to shell destinations.
+Account, calendar, day summary, goal list, recap and streak answers keep their useful rows,
+figures and in-place actions; Perfil, Calendário, Hoje and Progresso remain shell destinations.
+The streak figure and plural day unit replace the separate current-streak label.
+Comparison verdicts and bars replace the separate variation row; percentages are optional.
+Signed paging and useful disclosure remain named icon controls. Write previews retain edit,
+reject and one filled primary approval. Frame inset is 16px with a 12px content rhythm.
+
 **Conversation participants:** the first message in each consecutive run of Astra messages starts
 with a 24px `AstraGlyph` in `--fg-1` on its own row at the thread's 16px inset. An 8px gap
 separates the mark from the first content below it. Following messages have no mark or reserved
@@ -135,8 +143,8 @@ client asks for them deliberately.
 
 | platform | navigation | Astra |
 |---|---|---|
-| **mobile** | bottom tab bar, **four** destinations: Hoje, Calendário, Progresso, Perfil | composer above the tab bar, on Hoje only |
-| **web** | sidebar, the same four at 1024 and above; compact tab bar below 1024 | sidebar Astra row on wide web; Hoje composer in the compact shell |
+| **mobile** | bottom tab bar, **four** destinations: Hoje, Calendário, Progresso, Perfil; one row with capped labels and a full-size long-press viewer as specified below | composer above the tab bar, on Hoje only |
+| **web** | sidebar, the same four at 1024 and above; compact tab bar below 1024 with the same label cap and long-press viewer | sidebar Astra row on wide web; Hoje composer in the compact shell |
 
 **No navigation drawer and no hamburger on either platform.** Navigation has four destinations.
 The wide web Astra row is a button opening a layer with no route. A bottom sheet, menu or dialog
@@ -207,10 +215,12 @@ conversation. Habit detail's own composer glyph remains an entry at every width.
 Astra outcome and the lapsed-plan Astra messages line use `AstraGlyph` in place of a generic chat
 icon, keeping the shared row anatomy, icon size and colour.
 
-Habit detail's composer has one named disclosure control. Collapsing leaves one compact row with
-its mark, retains the mounted draft and attachments, and persists the choice in device preferences.
-The same control expands it again. Both states remain in the shell's pinned allocation outside the
-habit scroller. Other composer surfaces stay expanded. The owner inventory lives in
+Hoje and habit detail composers each have one named disclosure control (#1796). The owner's
+report is: "missing the arrow to minimize the astra composer". Collapsing leaves one compact row with
+its mark, retains the mounted draft, attachments and queued messages, and persists each surface's
+choice independently in device preferences. The same control expands it again. Both states remain
+in the shell's pinned allocation outside the habit scroller, with clearance following the actual
+composer height. Other composer surfaces stay expanded. The owner inventory lives in
 `design/astra-mark-only-surfaces.md`.
 
 The composer's text composition reserves one inert text-action slot across inline and Add-menu
@@ -675,7 +685,9 @@ Identity comes from three things and nothing else:
 
 **The two are told apart by silhouette, not by a detail.** Orbit is a hollow ring. Astra is a solid letterform, a letter A carrying the same orbital band and the same solid dot. The rule is that short: **a solid letterform is Astra, a hollow ring is Orbit.** Silhouette survives at 16px, which the draft geometry's "circle with a core" did not, and that is why the earlier core rule was retired.
 
-**Asset sizes are enumerated: 16, 48, 128, 512.** The mark is neither type nor an icon, so it answers to neither the type scale nor the 24 icon grid. **At 16 the mark is redrawn natively rather than scaled**, because a stroke scaled down from the 24 grid renders soft, and at 16 it is monochrome `--fg-1` with no accent.
+**Asset sizes are enumerated: 16, 48, 128, 512.** The mark is neither type nor an icon, so it answers to neither the type scale nor the 24 icon grid. **At 16 the Orbit mark is redrawn natively rather than scaled**, because a stroke scaled down from the 24 grid renders soft, and at 16 it is monochrome `--fg-1` with no accent. Astra uses its normal drawing at every size.
+
+**One Astra drawing (#1797).** The owner's order is: "i dont understand this mini astra logo that is not even centralized vertically, on the top left and on the prompt suggestions, change to the normal logo and centralize it". `AstraGlyph` uses the normal `ASTRA_GLYPH_PATHS` at every size on web and Android. The shared viewBox fits the drawn bounds, with equal vertical space after aspect-ratio fitting. Consumers centre that drawing within their row, chip, button or header, without local offsets. This applies to the conversation header, suggestion and follow-up chips, Hoje composer entry and Astra line, idea cards, proactive actions and form fill controls. The normal mark remains legible at 16px with its cropped viewBox; existing sizes and colour tokens stay. This owner order amends any small Astra variant in the granted canvas under D42.
 
 **The wordmark** is Space Grotesk 600 in natural case, `-0.02em`, `--fg-1`, carrying `translate="no"`. The horizontal lockup is a 28px mark, a 12px gap and a 22px wordmark. **The 28 measures the mark and the 12 separates ink from ink, never bounding boxes.** The 1024 art carries wide empty margin, so a literal 28 box draws ink about 8px tall beside a 15.4px cap height and the word swamps the mark; sized on the ink the mark stands 15.04px and the two read as one lockup. The lockup asset's viewBox is its ink, so clear space is the consumer's to add.
 
@@ -1202,7 +1214,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | NavHeader | Object views: minimum height 56px, start-aligned sentence-case Geist Mono 12/500 title with no tracking, back chevron 24/2.0, right slot help / close / share | `ui/app-bar.tsx` | `ui/app-bar.tsx` |
 | PageHeader | Pushed pages: 8px row gap, 8px top and bottom padding, 8px start and 16px end padding, hairline below; ghost back button 48px with arrow-left 20; start-aligned sentence-case title at `--fs-lg`/500 on one line, never truncated. Avisos adds an options button (`dots-vertical`) at the trailing end of the first row; its menu holds 'mark all read' and 'clear all' (with a confirmation). Avisos shows no bell, because it is the destination. Drawn in Orbit Busca, Sobre, Pro, Assinatura and Avisos. | `ui/page-header.tsx` | `ui/page-header.tsx` |
 | Pager | caller-controlled segments and back/forward controls, unavailable handlers disable controls, closing action replaces forward | `ui/pager.tsx` | `ui/pager.tsx` |
-| SegmentedControl | 2 to 4 views of one subject, selected neutral surface with current-position ring, caller words, whole-control and option disabled states. In the compact shell it is the last line of its screen header group (never above the header), spans the content column, centred; segments grow from their own label width and share the remaining width equally, with 8px inline padding and 14px labels at the default text size. Each label is one word on one line at 320; above font scale 1.3 or web text zoom 130%, labels may wrap inside taller segments without clipping or truncation. Enforced by `segmented-control-labels.test.ts` (every call site and both locales) and the container tests in mobile `segmented-control-geometry.test.tsx`, web `calendar-header-geometry.test.tsx` and web `plan-selection-geometry.test.tsx` | `ui/segmented-control.tsx` | `ui/segmented-control.tsx` |
+| SegmentedControl | 2 to 4 views of one subject, selected neutral surface with current-position ring, caller words, whole-control and option disabled states. In the compact shell it is the last line of its screen header group (never above the header), spans the content column, centred; segments grow from their own label width and share the remaining width equally, with 8px inline padding and 14px labels at the default text size. The Bans rule applies: a set of options never wraps onto a second line. Labels stay whole on one line at default text size; above font scale 1.3 or web text zoom 130%, words may move to another line inside taller segments, without clipping or truncation. Measure the real labels at the current width and text size. If any segment cannot contain its longest word, fold the entire selector into one selected-label trigger with the existing chevron and Menu. The menu lists every option vertically at full width, marks the selected option and retains the same selection callback and disabled states. Resizing, text size and locale changes remeasure and restore the segments when they fit. This preserves the last header line and disclosure pattern in `design/canvas/Orbit Calendario.dc.html`, under the Bans authority over the shared drawing primitive. Enforced by `segmented-control-labels.test.ts` (every call site and both locales) and mobile `segmented-control-geometry.test.tsx`, web `calendar-header-geometry.test.tsx` and web `plan-selection-geometry.test.tsx` | `ui/segmented-control.tsx` | `ui/segmented-control.tsx` |
 | SectionTitle | Geist Sans 20/500 -0.01em, optional mono uppercase eyebrow, fixed scale spacing, no action slot | `ui/section-label.tsx` | `ui/section-label.tsx` |
 | ListRow | minimum height `--row-h-compact` (52) for one line or `--row-h` (68) for two lines; rows grow at larger text sizes; icon 24/1.5 in a 28px slot, title Geist Sans 17/400 on one line, desc 14 fg-3 on one line or absent, value fg-3 + trailing chevron 24 fg-3; when title and value do not fit one line at 320, the value moves to the supporting line; in one group every row has an icon or none does; **draws no rule of its own**; 16 inline inset and one trailing edge for every body part, 12 block padding; in a padded column the content shares the column edge and the transparent hit area reaches 16 beyond it, while paint stops 4 inside that reach; danger icon = status-bad and danger title = status-bad-text | `ui/list-row.tsx` | `ui/list-row.tsx` |
 | SettingsGroup | the only owner of row separation: a hairline *between* adjacent rows, never after the last | `ui/settings-group.tsx` | `ui/settings-group.tsx` |
@@ -1220,11 +1232,11 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | CheckRow | whole-row checkbox hit target, required label, error replaces description, trailing mono value | `ui/check-row.tsx` | `ui/check-row.tsx` |
 | TimeField | min-height 54, radius 12, 24-hour wire value with `h23` or `h12` presentation | `ui/time-field.tsx` | `ui/time-field.tsx` |
 | DateRow | formatted immutable date and optional reason, with no control role, focus or chevron | `ui/date-row.tsx` | `ui/date-row.tsx` |
-| Composer | a growing pill, minimum height 56 (`--touch-comfy`): a mark-only Astra entry button at the leading edge inside (Hoje in the compact shell and habit detail at every width), one input, an attach `+` icon button, and one filled upward send arrow at the trailing edge, available for queuing while a reply runs. Trailing controls have adjacent 48px targets with one equal gap of the shared fill clearance (`INTERACTION_FILL_CLEARANCE`). The field retains usable input width and the row wraps when its named controls need more room (#1607). Photo, document and voice open from the `+` Menu, which follows the Menu width rule. The input grows to 5 lines, then scrolls inside. Recording shows the timer and a visible stop; transcribing shows a one-line status; attachments show as a tray inside the container; at limit and offline show the reason and recovery above the pill; retry takes the send position. The top rule stays. State exposed without class hooks | `shell/composer.tsx` | `shell/composer.tsx` |
+| Composer | Hoje and habit detail reuse one named disclosure arrow and compact collapsed row, with independent device preferences, retained drafts, attachments and queued messages, and shell clearance following actual height (#1796; owner: "missing the arrow to minimize the astra composer"). Expanded: a growing pill, minimum height 56 (`--touch-comfy`): a mark-only Astra entry button at the leading edge inside (Hoje in the compact shell and habit detail at every width), one input, an attach `+` icon button, and one filled upward send arrow at the trailing edge, available for queuing while a reply runs. Trailing controls have adjacent 48px targets with one equal gap of the shared fill clearance (`INTERACTION_FILL_CLEARANCE`). The field retains usable input width and the row wraps when its named controls need more room (#1607). Photo, document and voice open from the `+` Menu, which follows the Menu width rule. The input grows to 5 lines, then scrolls inside. Recording shows the timer and a visible stop; transcribing shows a one-line status; attachments show as a tray inside the container; at limit and offline show the reason and recovery above the pill; retry takes the send position. The top rule stays. State exposed without class hooks | `shell/composer.tsx` | `shell/composer.tsx` |
 | Overlay | see **Overlay** | `ui/sheet.tsx` | `ui/sheet.tsx` |
 | Toast | brief confirmation and undo only; stable live region; timed confirmation uses a 5000ms minimum; action toasts dismiss after the standard duration, manually, or on destination change; done uses `--status-done`; actionable errors and sync failures stay in a persistent surface | `ui/toast.tsx` | `ui/app-toast.tsx` |
 | Skeleton | one accessible busy unit shaped as habit row / settings row / stat tile / grid; opacity pulse only | `ui/skeleton.tsx` | same |
-| TabBar | caller-owned items and words, one current position, top hairline on opaque canvas, 80 tall above the gesture inset: a 56x32 indicator that carries the press and hover fill around icon 24 (active filled primary / inactive outline fg-3 1.5), 4 of space, label 12/500 on a 16 line, one line (active primary-soft / inactive fg-3), the block centred with 14 above and below; navigation only; a tap on the active item scrolls it to the top; create belongs to the shell | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |
+| TabBar | caller-owned items and words, one current position, top hairline on opaque canvas, 80 tall above the gesture inset: a 56x32 indicator that carries the press and hover fill around icon 24 (active filled primary / inactive outline fg-3 1.5), 4 of space, label 12/500 on a 16 line, one line (active primary-soft / inactive fg-3), growing to the shared measured 1.25 font-scale cap; four destinations stay on one row from width 320; above the cap a long press shows the icon and full-size label centred on screen until release, without navigating, following [Apple’s large content viewer guidance](https://developer.apple.com/documentation/uikit/uilargecontentviewerinteraction); keyboard focus above the cap shows the same viewer until blur or Escape on web, keeping focus on the tab; accessible names always keep the full label, the block centred with 14 above and below; navigation only; a tap on the active item scrolls it to the top; create belongs to the shell | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |
 | EmptyState | required title, one action; 96px real `OrbitMark`, `--fg-1`, no arc and no accent. An Astra-owned region takes `AstraGlyph` instead | `ui/empty-state.tsx` | same |
 | ErrorState | one caller-owned message and one optional text action; no code, severity or detail slot | `ui/error-state.tsx` | same |
 | CapacityNotice | neutral limit message, optional explanatory body and one action; never `--status-bad` | `ui/capacity-notice.tsx` | same |
@@ -1439,7 +1451,7 @@ pt-BR is written as a Brazilian would say it. A word-for-word translation of the
 
 - **Strings stay short:** 1 to 2 words on buttons, chips, tabs and labels. Sentences live only in body, description and empty-state copy.
 - **Labels at compact width.** A tab or segment label is one word. A tile caption fits its measured column (about 90 at 320 for three columns). Write pt-BR first. Every app-authored label holds one line with no ellipsis at 320, 360, 384 and 412, in both locales, at font scale 1.0.
-- **Large accessibility text.** Above Android font scale 1.3 or web text zoom 130%, up to 200%, an app-authored label may wrap to more lines inside a taller row. It never ends in an ellipsis and is never clipped, and its icon and trailing control align to the first line. Keeping one line there would mean clipping or shrinking text the person asked to be large.
+- **Large accessibility text.** Above Android font scale 1.3 or web text zoom 130%, up to 200%, an app-authored label may wrap to more lines inside a taller row. It never ends in an ellipsis and is never clipped, and its icon and trailing control align to the first line. Keeping one line there would mean clipping or shrinking text the person asked to be large. **Tab bar exception:** its four labels grow only to the largest shared scale, measured to three decimal places with the shipped Geist fonts and Android’s whole-pixel font-size rounding, at which every label in both locales fits whole on one line in an 80px tab at width 320 (1.25). Above that cap, long press displays a centred icon and the label at the person’s full text size until release; keyboard focus above the cap shows the same viewer until blur or Escape on web, keeping focus on the tab; a normal tap still navigates. The full accessible label is retained. This follows [Apple’s large content viewer guidance](https://developer.apple.com/documentation/uikit/uilargecontentviewerinteraction) for tab buttons that must remain small to preserve room for app content. Other labels keep the rule above.
 - **Say it once.** No header restating the intro beneath it. Each element does exactly one job.
 - **Ban supporting copy by default.** Do not add a subtitle, a helper line, or a descriptive sentence beneath a heading, a label, a card, or a settings row. Prefer one concise, self-explanatory heading. Add supporting copy only when the owner asks for it, or when it genuinely prevents a misunderstanding or an error, and **never** to restate the heading above it. **The form-field carve-out is explicit and survives unchanged:** an input still carries a visible, persistent label, and its helper text still lives in the markup, per "a placeholder is never a field's only label" in **Accessibility**. The two rules are not in conflict, because a field label is not supporting copy.
 - **Name every control by what the person controls**, never by how the system is built.
@@ -1773,6 +1785,14 @@ Work down this list and stop at the first match: focus already moves there, so n
 
 ## Special surfaces
 
+**Desktop updates.** macOS and Windows use the existing neutral update banner in the shell notice
+slot. The stable polite region starts empty, then offers Restart now and Later after typing,
+Astra replies, edits and mutations settle. The notice preserves the existing radius, spacing and
+actions. Later hides the exact offer until the next launch or a newer version. Downloading and
+installation replace its message in place; failure keeps Retry and Later in that surface. Native
+App or File and tray restart actions use the same settle and checkpoint owner. This is the desktop
+runtime adapter; browser and mobile update paths keep their existing platform actions.
+
 **Email sign-in links.** The login code step captures the incoming address and code together,
 removes the secret from navigable history and completes through the same guarded owner as manual
 entry. Waiting for connectivity or fresh bot protection retains the existing code step. Verification
@@ -1830,6 +1850,7 @@ The same test governs any future external component, from any source. Nothing en
 - No fabricated numbers in a shipped UI.
 - No numeric design score.
 
+- **A set of options never wraps onto a second line.** If measured whole words cannot fit in one segmented row, move the selector into the existing Menu, preserving its selected view.
 - **No app-authored label, title, caption, chip, tab, segment or button text that wraps or ends in an ellipsis**, in either locale, at 320, 360, 384 or 412, at the default text size; at large accessibility text a label may wrap but never ellipsizes or clips. Person-typed and Google-provided text follows the full-width, two-line rule in Type roles.
 - **No hover, press or focus fill that touches its content.**
 - **No screen-level setting, sync status or legend inline on a destination root in the compact shell.** It lives in a sheet or menu with one visible entry. The one primary view switch of a view is exempt.

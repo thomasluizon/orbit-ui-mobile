@@ -4,13 +4,22 @@ import { parse } from 'yaml'
 import { summarize } from '../report.mjs'
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
+it.each(corpus.filter((entry) => entry.metadata.family.startsWith('suggestions')))(
+  'keeps checklists optional in $metadata.id', ({ vars }) => {
+    const checklistClauses = vars.rubric.split(/[.;]/).filter((clause) => /checklist/i.test(clause))
+    for (const clause of checklistClauses) {
+      expect(clause).toMatch(/\boptional\b|\bwhen present\b/i)
+      expect(clause).not.toMatch(/\brequired\b|\bmust\b|\bmandatory\b/i)
+    }
+  },
+)
 it('runs every composition family in both languages with three attempts', () => {
   const families = ['habits-schedules', 'logs-history', 'metrics', 'streaks', 'rankings', 'totals', 'comparisons',
     'goals', 'calendar-sync', 'notifications', 'tags', 'checklist-templates', 'profile-settings', 'subscription-plan',
     'referrals', 'api-keys', 'achievements-level', 'retrospectives-recaps', 'writes-outcomes', 'choice', 'pickList',
     'proactive', 'empty', 'error', 'partial', 'stale', 'quota', 'plan', 'offline', 'refusal', 'feature-help',
     'coaching-advice', 'small-talk', 'compound', 'compound-legacy', 'compound-missing-kind', 'medical-batch',
-    'medical-correction', 'avoid-form', 'existing-parents']
+    'medical-correction', 'avoid-form', 'existing-parents', 'suggestions', 'suggestions-duplicate', 'suggestions-refine']
   expect(configuration.tests).toContain('file://composition-scenarios.yaml')
   expect(configuration.evaluateOptions.repeat).toBe(3)
   expect(new Set(corpus.map((entry) => entry.metadata.id)).size).toBe(corpus.length)

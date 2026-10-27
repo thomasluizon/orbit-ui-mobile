@@ -1296,6 +1296,27 @@
     }
   },
   "chat": {
+    "habitSuggestions": {
+      "title": "Ideias de hábitos",
+      "add": "Adicionar",
+      "edit": "Editar",
+      "tweak": "Ajustar",
+      "swap": "Trocar",
+      "addAll": "Adicionar todos",
+      "prompt": "Ajustar este hábito...",
+      "apply": "Aplicar",
+      "existing": "Já existe",
+      "current": "Atual",
+      "proposed": "Proposto",
+      "review": "Na prévia",
+      "added": "Adicionado",
+      "refineError": "Não consegui ajustar a ideia. Tente de novo.",
+      "previewError": "Não consegui preparar a prévia. Tente de novo.",
+      "conflictError": "Sua rotina mudou. Ajuste esta ideia ou tente de novo.",
+      "swapInstruction": "Sugira outra ideia para este lugar na rotina.",
+      "scheduleError": "Não consegui carregar os horários atuais. Tente de novo.",
+      "offline": "Conecte-se para continuar."
+    },
     "placement": {
       "group": "Onde colocar {name}",
       "option": {
@@ -1367,6 +1388,7 @@
       "position": "{position} de {total}"
     },
     "liveBlock": {
+      "unavailable": "Alguns dados podem estar desatualizados.",
       "stale": "Não foi possível atualizar este bloco. Recarregue para ver como está agora.",
       "error": "Não foi possível atualizar este bloco. Tente de novo."
     },
@@ -1555,8 +1577,8 @@
         "referrals-write": "Dados de indicação",
         "support-write": "Mensagem para suporte",
         "habits-delete": "Apagar hábitos",
-        "habits-bulk-write": "Alterações de hábitos em lote",
-        "habits-bulk-delete": "Apagar hábitos em lote",
+        "habits-bulk-write": "Alterar hábitos",
+        "habits-bulk-delete": "Apagar hábitos",
         "goals-delete": "Apagar metas",
         "tags-delete": "Apagar tags",
         "notifications-delete": "Apagar notificações",
@@ -1799,8 +1821,7 @@
       "more": "Mostrar mais",
       "filter": "Filtrar lista",
       "noMatches": "Nenhum registro carregado corresponde a “{query}”.",
-      "clearFilter": "Limpar filtro",
-      "open": { "notifications": "Abrir Avisos", "tags": "Abrir Tags", "templates": "Abrir Modelos", "keys": "Abrir Perfil" }
+      "clearFilter": "Limpar filtro"
     },
     "account": {
       "title": { "profile": "Seu perfil", "plan": "Seu plano", "referral": "Sua indicação" },
@@ -1816,7 +1837,7 @@
         "language": { "en": "Inglês", "pt-BR": "Português (Brasil)" },
         "weekStartDay": { "0": "Domingo", "1": "Segunda-feira" },
         "themePreference": { "dark": "Escuro", "light": "Claro" },
-        "plan": { "Free": "Grátis", "Pro": "Pro" },
+        "plan": { "Free": "Gratuito", "Pro": "Orbit Pro" },
         "interval": { "monthly": "Mensal", "yearly": "Anual" },
         "source": { "stripe": "Stripe", "play": "Google Play" },
         "rewardType": { "discount": "Desconto", "pro_days": "Dias de Pro" }
@@ -1995,7 +2016,14 @@
       "approve": "Aprovar",
       "edit": "Editar",
       "reject": "Rejeitar",
-      "rejected": "{name} foi rejeitado. Nada foi salvo."
+      "rejected": "{name} foi rejeitado. Nada foi salvo.",
+      "interval": {
+        "Day": "{count, plural, =0 {# dias} one {# dia} other {# dias}}",
+        "Week": "{count, plural, =0 {# semanas} one {# semana} other {# semanas}}",
+        "Month": "{count, plural, =0 {# meses} one {# mês} other {# meses}}",
+        "Year": "{count, plural, =0 {# anos} one {# ano} other {# anos}}"
+      },
+      "beforeAfter": "{before} → {after}"
     },
     "breakdown": {
       "unnamedHabit": "Hábito sem nome",
@@ -2018,7 +2046,8 @@
       "batchFailed": "Alguns itens não foram salvos. Peça à Astra para tentar só os que falharam.",
       "unavailableRecovery": "Não funcionou. Peça uma nova prévia à Astra.",
       "unknown": "Operação da Astra",
-      "newHabits": "{count, plural, =0 {Novos hábitos} one {Novo hábito} other {Novos hábitos}}",
+      "changeHabits": "{count, plural, =0 {Alterar # hábitos} one {Alterar # hábito} other {Alterar # hábitos}}",
+      "newHabits": "{count, plural, =0 {# novos hábitos} one {Novo hábito} other {# novos hábitos}}",
       "pendingTitle": "Aguardando confirmação",
       "pending": "Nada mudou ainda",
       "irreversible": "Definitivo",
@@ -2224,7 +2253,9 @@
         "completeOnboarding": "Concluir configuração",
         "completeTour": "Concluir tutorial",
         "resetTour": "Reiniciar tutorial"
-      }
+      },
+      "editHabit": "Alterar {name}",
+      "create": "Criar"
     },
     "toolResult": {
       "accountDeletionConfirmed": "Exclusão da conta confirmada",
@@ -2394,6 +2425,33 @@
       "updatedHabitsPartial": "Atualizei {count, number} de {totalCount, plural, =0 {# hábitos} one {# hábito} other {# hábitos}}. {skippedCount, plural, =0 {Nenhum ficou de fora.} one {# ficou de fora.} other {# ficaram de fora.}}",
       "updatedTag": "{hasEntityName, select, yes {Tag atualizada: {entityName}} other {Tag atualizada}}",
       "weekStartDaySet": "A semana começa {weekStartDay, select, 0 {no domingo} 1 {na segunda-feira} other {no dia escolhido}}."
+    },
+    "figure": {
+      "totalUnit": {
+        "positiveLogRecords": "{count, plural, =0 {conclusões} one {conclusão} other {conclusões}}",
+        "completedHabits": "{count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}",
+        "distinctLoggedDates": "{count, plural, =0 {dias com registros} one {dia com registros} other {dias com registros}}",
+        "metScheduledDates": "{count, plural, =0 {dias cumpridos} one {dia cumprido} other {dias cumpridos}}",
+        "scheduledDates": "{count, plural, =0 {dias agendados} one {dia agendado} other {dias agendados}}"
+      },
+      "soFar": "{period} (até agora)",
+      "comparison": {
+        "habits": {
+          "ahead": "{current} supera {baseline}: {value} {count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}, contra {previous}.",
+          "behind": "{current} fica abaixo de {baseline}: {value} {count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}, contra {previous}.",
+          "equal": "{current} e {baseline} têm o mesmo total: {value} {count, plural, =0 {hábitos concluídos} one {hábito concluído} other {hábitos concluídos}}."
+        },
+        "records": {
+          "ahead": "{current} supera {baseline}: {value} {count, plural, =0 {conclusões} one {conclusão} other {conclusões}}, contra {previous}.",
+          "behind": "{current} fica abaixo de {baseline}: {value} {count, plural, =0 {conclusões} one {conclusão} other {conclusões}}, contra {previous}.",
+          "equal": "{current} e {baseline} têm o mesmo total: {value} {count, plural, =0 {conclusões} one {conclusão} other {conclusões}}."
+        },
+        "days": {
+          "ahead": "{current} supera {baseline}: {value} {count, plural, =0 {dias} one {dia} other {dias}}, contra {previous}.",
+          "behind": "{current} fica abaixo de {baseline}: {value} {count, plural, =0 {dias} one {dia} other {dias}}, contra {previous}.",
+          "equal": "{current} e {baseline} têm o mesmo total: {value} {count, plural, =0 {dias} one {dia} other {dias}}."
+        }
+      }
     }
   },
   "profile": {
@@ -2931,7 +2989,7 @@
       "createFailed": "O hábito não foi criado. Verifique a conexão e tente de novo.",
       "what": {
         "title": "O que você quer transformar em hábito?",
-        "label": "Escreva com as suas palavras",
+        "label": "Conte à Astra do seu jeito",
         "placeholder": "Caminhar toda segunda e quinta às 18:00",
         "marksLabel": "Palavras que o Orbit entendeu",
         "startersTitle": "Ideias para começar",
@@ -3048,6 +3106,7 @@
         "continue": "Continuar"
       },
       "done": {
+        "tellAstra": "Da próxima vez, conte à Astra no Hoje o que você quer fazer.",
         "title": "Pronto. Ele já está no Hoje.",
         "body": "Quando fizer, marque o anel dele no Hoje para registrar.",
         "remindersOffBody": "Quando fizer, marque o anel dele no Hoje para registrar. Você pode ligar os lembretes no hábito.",
@@ -4036,6 +4095,9 @@
     "restartCta": "Reiniciar agora"
   },
   "desktopUpdate": {
+    "downloading": "Baixando a atualização...",
+    "installing": "Instalando a atualização...",
+    "failed": "Não foi possível concluir a atualização. Tente de novo.",
     "required": "Esta versão do Orbit precisa ser atualizada. No menu do app, escolha Buscar atualizações e depois Reiniciar para atualizar."
   },
   "forceUpdate": {

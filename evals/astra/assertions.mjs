@@ -1,11 +1,16 @@
+import { refineResult } from './suggestions.mjs'
 export { composition } from './composition.mjs'
 import { assertions } from 'promptfoo'
-import { readFileSync } from 'node:fs'
-import { parse } from 'yaml'
 import { isDeepStrictEqual } from 'node:util'
+import { tools, legacyTools, toolSensitiveFields, observableSchema } from './trace-policy.mjs'
 
-const catalog = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
-const toolWrites = new Map(catalog.map((tool) => [tool.function.name, tool.writes]))
+const toolWrites = new Map(tools.map((tool) => [tool.function.name, tool.writes]))
+
+const traceCatalog = (catalog) => catalog.map((tool) => ({ ...tool, function: { ...tool.function,
+  parameters: observableSchema(tool.function.parameters, new Set(tool.sensitiveFields)),
+} }))
+const compositionCatalog = traceCatalog(tools)
+const legacyCatalog = traceCatalog(legacyTools)
 
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
 const decode = (output) => typeof output === 'string' ? JSON.parse(output) : output
@@ -43,7 +48,9 @@ function traceBoundary(output, context) {
     ids.add(call.id)
     if (call.resultStatus === 'NotExecuted' && call.result === null) continue
     const payload = call.result
-    if (!isObject(payload) || payload.id !== call.id || payload.name !== call.name
+    const omitsName = toolSensitiveFields.get(call.name)?.has('name') === true
+    if (!isObject(payload) || payload.id !== call.id
+      || (omitsName ? Object.hasOwn(payload, 'name') : payload.name !== call.name)
       || typeof payload.success !== 'boolean' || !Object.hasOwn(payload, 'payload')
       || !['entityId', 'entityName', 'error'].every((key) => Object.hasOwn(payload, key)
         && (payload[key] === null || typeof payload[key] === 'string'))) {
@@ -54,12 +61,13 @@ function traceBoundary(output, context) {
 }
 
 export async function structural(output, context) {
+  if (context.vars.refine) return refineResult(decode(output), context.vars)
   const trace = traceBoundary(output, context)
   if ('pass' in trace) return trace
   if (trace.calls.length === 0) return result(true, 'No tool calls to validate.')
   return assertions.runAssertion({
     assertion: { type: 'is-valid-openai-tools-call' },
-    provider: { config: { tools: catalog } },
+    provider: { config: { tools: context.vars.clientContext?.supportsParts === true ? compositionCatalog : legacyCatalog } },
     test: context.test,
     providerResponse: { output: trace.calls.map((call) => ({
       type: 'function', function: { name: call.name, arguments: JSON.stringify(call.arguments) },
@@ -114,14 +122,15 @@ function checkMutationScope(calls, expectations) {
 export function behavior(output, context) {
   const { httpStatus = 200 } = decode(output)
   if (httpStatus !== (context.vars.expectedHttpStatus ?? 200)) return result(false, 'Unexpected HTTP outcome for this scenario.')
+  if (context.vars.refine) return refineResult(decode(output), context.vars)
   const trace = traceBoundary(output, context)
   if ('pass' in trace) return trace
   const expectations = context.vars.expectations
-  for (const forbidden of expectations.forbidden ?? []) {
-    if (trace.calls.some((call) => call.name === forbidden)) return result(false, `Forbidden tool: ${forbidden}`)
-  }
-  if (expectations.allowed && trace.calls.some((call) => !expectations.allowed.includes(call.name))) {
-    return result(false, 'A tool acted outside the allowed set.')
+  const forbidden = [...new Set(trace.calls.filter((call) => expectations.forbidden?.includes(call.name)).map((call) => call.name))]
+  if (forbidden.length) return result(false, `Forbidden tool: ${forbidden.join(', ')}`)
+  const outside = [...new Set(trace.calls.filter((call) => expectations.allowed && !expectations.allowed.includes(call.name)).map((call) => call.name))]
+  if (outside.length) {
+    return result(false, `A tool acted outside the allowed set: ${outside.join(', ')}.`)
   }
   const scopeFailure = checkMutationScope(trace.calls, expectations)
   if (scopeFailure) return scopeFailure

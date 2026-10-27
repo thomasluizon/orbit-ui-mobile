@@ -43,6 +43,7 @@ type BlockFrameItemEditArm =
 
 type BlockFrameCommon = {
   readonly title: string
+  readonly titleContent?: React.ReactNode
   readonly wrapTitle?: boolean
   readonly titleMode?: 'label' | 'typed'
   readonly focusTitleOnMount?: boolean

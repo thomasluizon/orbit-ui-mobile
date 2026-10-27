@@ -1,27 +1,38 @@
 import { chmodSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { summarizeLatency } from './latency.mjs'
+import { attemptEvidence } from './evidence.mjs'
+
+const evidencePath = (caseId, repeat) => `attempts/${encodeURIComponent(caseId)}-r${repeat}.json`
+
+function writePrivateJson(path, value) {
+  const next = `${path}.next`
+  writeFileSync(next, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 })
+  chmodSync(next, 0o600)
+  renameSync(next, path)
+}
 
 export function writeResults(results, directory = 'reports') {
+  mkdirSync(`${directory}/attempts`, { recursive: true, mode: 0o700 })
+  chmodSync(directory, 0o700)
+  chmodSync(`${directory}/attempts`, 0o700)
   const repeats = new Map()
   const attempts = results.map((entry) => {
     const caseId = entry.testCase.metadata.id
     const repeat = (repeats.get(caseId) ?? 0) + 1
     repeats.set(caseId, repeat)
-    return { caseId, repeat, pass: entry.success === true,
+    const attempt = { caseId, repeat, pass: entry.success === true,
       httpStatus: entry.response?.output?.httpStatus ?? entry.response?.metadata?.astraHttpStatus ?? entry.response?.metadata?.http?.status ?? null,
-      reason: entry.error ?? entry.gradingResult?.reason ?? null,
+      reason: entry.error ?? entry.response?.error ?? entry.response?.output?.error ?? entry.gradingResult?.reason ?? null,
       assertions: (entry.gradingResult?.componentResults ?? []).map((assertion, index) => ({
         metric: assertion.assertion?.metric ?? entry.testCase.assert?.[index]?.metric ?? null,
         pass: assertion.pass === true, reason: assertion.reason ?? null,
       })),
     }
+    const evidence = attemptEvidence(entry, attempt)
+    writePrivateJson(`${directory}/${evidencePath(caseId, repeat)}`, evidence)
+    return Object.fromEntries(Object.keys(attempt).map((key) => [key, evidence[key]]))
   })
-  mkdirSync(directory, { recursive: true })
-  const path = `${directory}/results.json`
-  const next = `${path}.next`
-  writeFileSync(next, `${JSON.stringify(attempts, null, 2)}\n`, { mode: 0o600 })
-  chmodSync(next, 0o600)
-  renameSync(next, path)
+  writePrivateJson(`${directory}/results.json`, attempts)
 }
 
 export function summarize(results, expectedCases) {
@@ -70,9 +81,13 @@ export function writeReport(summary, directory = 'reports') {
     `Astra launch gate: ${summary.gateStatus ?? summary.status}`,
     `Selected cases: ${summary.status}`,
     '',
-    '| Case | Family | Locale | Attempts passed | Evidence skipped | Evidence unavailable | Composition missing | pass^3 |',
-    '|---|---|---|---|---|---|---|---|',
-    ...summary.cases.map((entry) => `| ${entry.id} | ${entry.family} | ${entry.locale} | ${entry.passed}/${entry.attempts} | ${entry.skipped} | ${entry.unavailable} | ${entry.missingComposition} | ${entry.pass3} |`),
+    '| Case | Family | Locale | Attempts passed | Evidence skipped | Evidence unavailable | Composition missing | pass^3 | Attempts |',
+    '|---|---|---|---|---|---|---|---|---|',
+    ...summary.cases.map((entry) => {
+      const evidence = entry.pass3 === 'fail' ? Array.from({ length: entry.attempts }, (_, index) =>
+        `[r${index + 1}](${evidencePath(entry.id, index + 1)})`).join(', ') : ''
+      return `| ${entry.id} | ${entry.family} | ${entry.locale} | ${entry.passed}/${entry.attempts} | ${entry.skipped} | ${entry.unavailable} | ${entry.missingComposition} | ${entry.pass3} | ${evidence} |`
+    }),
     '',
     '| Family | Locale | Cases passing pass^3 | pass^3 |',
     '|---|---|---|---|',

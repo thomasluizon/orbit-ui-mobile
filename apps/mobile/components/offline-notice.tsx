@@ -5,18 +5,51 @@ import { useTranslation } from 'react-i18next'
 import { SPACING, zLayers } from '@orbit/shared/theme'
 import { mutationTypeSchema } from '@orbit/shared/types/sync'
 import { useOffline } from '@/hooks/use-offline'
+import { useDeleteHabit } from '@/hooks/use-habits'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { AppToast, Toast } from '@/components/ui/app-toast'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { AlertTriangle, RefreshCw, WifiOff } from '@/components/ui/icons'
 import { buildHabitCreateHref } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { enqueue, getAll } from '@/lib/offline-queue'
-import { accountTimezoneDependency, buildQueuedMutation, getMutationScope, type DroppedMutation } from '@/lib/offline-mutations'
+import { accountTimezoneDependency, buildQueuedMutation, getMutationScope, wasHabitDeleteQueuedAsChildless, type DroppedMutation } from '@/lib/offline-mutations'
 import { canRetryDroppedMutation, getDroppedItemName, getRecoveryDate, getRecoveryMessage, needsHabitCreation } from '@/lib/offline-recovery'
 
-function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; remaining: number }>) {
+function RefusedHabitDeleteNotice({ drop }: Readonly<{ drop: DroppedMutation }>) {
+  const { t } = useTranslation()
+  const [confirming, setConfirming] = useState(false)
+  const deleteHabit = useDeleteHabit({ requiresConnection: true })
+  const dismissDrop = useOfflineSyncStore((state) => state.dismissDrop)
+
+  function retry() {
+    if (!useOfflineSyncStore.getState().drops.some((entry) => entry.id === drop.id)) return
+    const habitId = drop.mutation.targetEntityId
+    if (!habitId) return
+    deleteHabit.mutate(habitId, {
+      onSuccess: () => dismissDrop(drop.id),
+      onSettled: () => setConfirming(false),
+    })
+  }
+
+  return <>
+    <Toast persistent kind="lost" message={t('habits.detail.deleteError')} detail={t('common.syncChangeDroppedDetail')}
+      actionLabel={t('common.syncRetryAction')} onAction={() => setConfirming(true)} onDismiss={() => dismissDrop(drop.id)} />
+    <ConfirmSheet open={confirming} title={t('habits.deleteConfirmTitle')}
+      message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')}
+      destructive loading={deleteHabit.isPending} onCancel={() => setConfirming(false)} onConfirm={retry} />
+  </>
+}
+
+function DroppedNotice(props: Readonly<{ drop: DroppedMutation; remaining: number }>) {
+  return wasHabitDeleteQueuedAsChildless(props.drop.mutation)
+    ? <RefusedHabitDeleteNotice drop={props.drop} />
+    : <RetryableMutationNotice {...props} />
+}
+
+function RetryableMutationNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; remaining: number }>) {
   const { t } = useTranslation()
   const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()

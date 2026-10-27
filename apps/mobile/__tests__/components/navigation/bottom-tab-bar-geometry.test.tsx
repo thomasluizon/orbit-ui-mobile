@@ -8,8 +8,11 @@ import { HabitCreateActions } from '@/components/habits/habit-create-actions'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { Platform, ScrollView, StyleSheet, TextInput, View, type ViewStyle, type TextStyle, type StyleProp } from 'react-native'
+import { PortalHost } from '@rn-primitives/portal'
+import { Resvg } from '@resvg/resvg-js'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
+import { TAB_BAR_LABEL_MAX_FONT_SCALE } from '@orbit/shared/contracts/navigation'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
@@ -26,9 +29,11 @@ vi.mock('@/lib/use-app-theme', async () => {
 })
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
+const layoutConfig = Yoga.Config.create()
+layoutConfig.setPointScaleFactor(0)
 interface Host {
   type: string
-  props: { style?: StyleProp<ViewStyle & TextStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle & TextStyle>); testID?: string; children?: ReactNode; numberOfLines?: number; horizontal?: boolean; contentContainerStyle?: ViewStyle }
+  props: { style?: StyleProp<ViewStyle & TextStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle & TextStyle>); testID?: string; children?: ReactNode; numberOfLines?: number; maxFontSizeMultiplier?: number; horizontal?: boolean; contentContainerStyle?: ViewStyle }
   children: (Host | string)[] | null
 }
 
@@ -44,6 +49,7 @@ function applyDimensions(node: YogaNode, style: ViewStyle) {
   if (style.position === 'absolute') node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
   if (typeof style.flex === 'number') node.setFlex(style.flex)
   if (style.width === '100%') node.setWidthPercent(100)
+  if (style.maxWidth === '100%') node.setMaxWidthPercent(100)
 }
 
 function applyAlignment(node: YogaNode, style: ViewStyle) {
@@ -61,8 +67,24 @@ function applyPadding(node: YogaNode, style: ViewStyle) {
   if (typeof style.borderTopWidth === 'number') node.setBorder(Yoga.EDGE_TOP, style.borderTopWidth)
 }
 
+function measureText(node: YogaNode, host: Host, style: TextStyle, fontScale: number) {
+  if (style.fontSize === 12 && style.lineHeight === 16) expect(host.props.numberOfLines).toBeUndefined()
+  if (host.props.maxFontSizeMultiplier) fontScale = Math.min(fontScale, host.props.maxFontSizeMultiplier)
+  const label = (host.children ?? []).filter((child): child is string => typeof child === 'string').join('')
+  const tabLabel = style.fontSize === 12 && style.lineHeight === 16
+  const font = require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf')
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="100"><text y="50" font-family="Geist" font-size="${Math.ceil(12 * fontScale)}">${tabLabel ? label : ''}</text></svg>`
+  const ink = tabLabel ? new Resvg(svg, { font: { fontFiles: [font], loadSystemFonts: false } }).getBBox() : undefined
+  const intrinsic = ink ? Math.ceil(ink.x + ink.width) : 0
+  node.setMeasureFunc((width, mode) => {
+    const measuredWidth = mode === Yoga.MEASURE_MODE_UNDEFINED ? intrinsic : Math.min(width, intrinsic)
+    const lines = tabLabel ? Math.max(1, Math.ceil(intrinsic / Math.max(1, measuredWidth))) : 1
+    return { width: tabLabel ? measuredWidth : width, height: (style.lineHeight ?? style.fontSize ?? 0) * fontScale * lines }
+  })
+}
+
 function layoutHost(host: Host, nodes: Map<string, YogaNode>, fontScale: number): YogaNode {
-  const node = Yoga.Node.create()
+  const node = Yoga.Node.create(layoutConfig)
   if (host.type === 'ScrollView') { node.setFlexGrow(1); node.setFlexShrink(1); node.setOverflow(Yoga.OVERFLOW_SCROLL) }
   const declared = host.props.style
   const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
@@ -71,8 +93,7 @@ function layoutHost(host: Host, nodes: Map<string, YogaNode>, fontScale: number)
   applyPadding(node, style)
   if (host.props.testID) nodes.set(host.props.testID, node)
   if (host.type === 'Text') {
-    if (style.fontSize === 12 && style.lineHeight === 16) expect(host.props.numberOfLines).toBeUndefined()
-    node.setMeasureFunc((width) => ({ width, height: (style.lineHeight ?? style.fontSize ?? 0) * fontScale }))
+    measureText(node, host, style, fontScale)
   } else if (host.type === 'ScrollView') {
     if (host.props.horizontal) node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
     node.insertChild(layoutHost({ type: 'View', props: { style: host.props.contentContainerStyle }, children: host.children }, nodes, fontScale), 0)
@@ -119,6 +140,7 @@ function layoutCreateFrame(tree: ReturnType<typeof renderer.create> & { toJSON: 
 }
 
 afterEach(() => { __resetTestHostConfig() })
+afterAll(() => layoutConfig.free())
 
 describe('Native bottom tab layout', () => {
   it.each([412, 1280].flatMap((width) => [100, 1600].map((contentHeight) => ({ width, contentHeight }))))(
@@ -178,7 +200,7 @@ describe('Native bottom tab layout', () => {
       const pinned = nodes.get('shell-pinned-slot')!
       const button = nodes.get('button-primary-md')!
       const header = nodes.get('shell-header')!
-      const backTarget = nodes.get('nav-header-back')!.getChild(0).getChild(0)
+      const backTarget = nodes.get('nav-header-back-control')!
       const backBounds = bounds(backTarget)
       const headerBounds = bounds(header)
       expect(backTarget.getComputedHeight()).toBe(48)
@@ -255,8 +277,46 @@ describe('Native bottom tab layout', () => {
     } finally { root.freeRecursive(); void renderer.act(() => tree.unmount()) }
   })
 
-  it.each([en, ptBR].flatMap((messages) => [1, 2].flatMap((fontScale) => [
-    { messages, fontScale, width: 320, platform: 'android' as const },
+  it.each([en, ptBR].flatMap((messages) => [320, 360, 412].flatMap((width) => [true, false].map((withComposer) => ({ messages, width, withComposer })))))(
+    'clears the gesture inset at $width with 200% text and composer=$withComposer in $messages.nav.calendar',
+    ({ messages, width, withComposer }) => {
+      __setWindowDimensions({ width, height: 740, scale: 1, fontScale: 2 })
+      const onSelect = vi.fn()
+      let tree!: ReturnType<typeof renderer.create> & { toJSON: () => Host; unmount: () => void }
+      void renderer.act(() => { tree = renderer.create(<Shell412
+        header={<AppBar title={messages.nav.today} />}
+        composer={withComposer ? <Composer state="idle" value="" words={messages.shell.composer} suggestions={[]}
+          onChangeValue={vi.fn()} onSend={vi.fn()} /> : undefined}
+        tabBar={<BottomTabBar label={messages.nav.mainNavigation} activeId="today" onSelect={onSelect}
+          items={destinations.map((id) => ({ id, label: messages.nav[id], icon: () => <View style={{ width: 24, height: 24 }} /> }))} />}>
+        <View style={{ height: 1600 }} />
+      </Shell412>) as typeof tree })
+      const nodes = new Map<string, YogaNode>()
+      const root = layoutHost(tree.toJSON(), nodes, 2)
+      try {
+        root.calculateLayout(width, 740, Yoga.DIRECTION_LTR)
+        const tabs = bounds(nodes.get('shell-tab-bar')!)
+        expect(tabs.bottom).toBeCloseTo(740 - 24, 4)
+        expect(bounds(nodes.get('shell-scroller')!).bottom).toBeLessThanOrEqual(tabs.top)
+        if (withComposer) expect(bounds(nodes.get('shell-pinned-slot')!).bottom).toBeLessThanOrEqual(tabs.top)
+        expect(nodes.get('bottom-tab-destinations')!.getComputedHeight()).toBeGreaterThan(80)
+        for (const id of destinations) {
+          const testID = `tab-${id}-${id === 'today' ? 'current' : 'inactive'}`
+          const target = bounds(nodes.get(testID)!)
+          expect(target.top).toBe(tabs.top + 1)
+          expect(target.bottom).toBeLessThanOrEqual(tabs.bottom)
+          expect(target.left).toBeGreaterThanOrEqual(0)
+          expect(target.right).toBeLessThanOrEqual(width)
+          const tab = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === testID)[0]!
+          void renderer.act(() => (tab.props.onPress as () => void)())
+        }
+        expect(onSelect.mock.calls).toEqual(destinations.map((id) => [id]))
+      } finally { root.freeRecursive(); void renderer.act(() => tree.unmount()) }
+    },
+  )
+
+  it.each([en, ptBR].flatMap((messages) => [1, 1.3, 1.6, 2].flatMap((fontScale) => [
+    ...[320, 360, 384, 412].map((width) => ({ messages, fontScale, width, platform: 'android' as const })),
     ...[320, 375, 440, 744, 820, 1032, 1366].map((width) => ({ messages, fontScale, width, platform: 'ios' as const })),
   ])))(
     'keeps compact tabs and disjoint targets on $platform at $width with $fontScale text in $messages.nav.calendar',
@@ -273,24 +333,33 @@ describe('Native bottom tab layout', () => {
         root.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
         if (fontScale === 1) expect(root.getComputedHeight()).toBe(80)
         const targets = destinations.map((id) => nodes.get(`tab-${id}-${id === 'today' ? 'current' : 'inactive'}`)!)
+        for (let index = 1; index < targets.length; index++) {
+          const current = bounds(targets[index]!)
+          const previous = bounds(targets[index - 1]!)
+          expect(current.top).toBe(previous.top)
+          expect(current.bottom).toBe(previous.bottom)
+          expect(current.left).toBeGreaterThanOrEqual(previous.right)
+        }
         for (const [index, id] of destinations.entries()) {
           const indicator = nodes.get(`tab-indicator-${id}`)!
           const target = targets[index]!
           expect(indicator.getComputedWidth()).toBe(56)
           expect(indicator.getComputedHeight()).toBe(32)
+          expect(bounds(indicator).top).toBe(bounds(nodes.get('tab-indicator-today')!).top)
           expect(bounds(indicator.getChild(0)).top).toBeGreaterThanOrEqual(16)
           expect(target.getComputedWidth()).toBeGreaterThanOrEqual(48)
           expect(target.getComputedHeight()).toBeGreaterThanOrEqual(48)
           expect(bounds(target).right).toBeLessThanOrEqual(Math.min(width, 740))
           const label = target.getChild(1)
-          expect(label.getComputedHeight()).toBe(16 * fontScale)
+          const text = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === messages.nav[id])[0]!.findAll((node) => String(node.type) === 'Text')[0]!
+          expect(text.props.maxFontSizeMultiplier).toBe(TAB_BAR_LABEL_MAX_FONT_SCALE)
+          expect(text.props.numberOfLines).toBeUndefined()
+          if (fontScale === 1) expect(label.getComputedHeight()).toBe(16)
+          else expect(label.getComputedHeight()).toBeCloseTo(16 * Math.min(fontScale, TAB_BAR_LABEL_MAX_FONT_SCALE), 4)
+          expect(bounds(label).left).toBeGreaterThanOrEqual(bounds(target).left)
+          expect(bounds(label).right).toBeLessThanOrEqual(bounds(target).right)
           expect(bounds(label).top - bounds(indicator).bottom).toBe(4)
           expect(bounds(label).bottom).toBeLessThanOrEqual(bounds(target).bottom)
-          if (index > 0) {
-            const current = bounds(target)
-            const previous = bounds(targets[index - 1]!)
-            expect(current.left >= previous.right || current.top >= previous.bottom).toBe(true)
-          }
         }
       } finally {
         root.freeRecursive()
@@ -300,3 +369,35 @@ describe('Native bottom tab layout', () => {
     },
   )
 })
+
+it.each([en, ptBR].flatMap((messages) => [320, 360, 384, 412].flatMap((width) => [1.3, 1.6, 2].map((fontScale) => ({ messages, width, fontScale })))))(
+  'centres the full-size native viewer at $width and $fontScale in $messages.nav.calendar',
+  ({ messages, width, fontScale }) => {
+    __setWindowDimensions({ width, height: 740, scale: 1, fontScale })
+    let tree!: ReturnType<typeof renderer.create> & { toJSON: () => Host[] }
+    void renderer.act(() => { tree = renderer.create(<><BottomTabBar label={messages.nav.mainNavigation} activeId="today" onSelect={vi.fn()}
+      items={destinations.map((id) => ({ id, label: messages.nav[id], icon: () => <View style={{ width: 24, height: 24 }} /> }))} /><PortalHost /></>) as typeof tree })
+    try {
+      for (const id of destinations) {
+        const tab = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === messages.nav[id])[0]!
+        void renderer.act(() => (tab.props.onLongPress as () => void)())
+        const snapshot = tree.toJSON()
+        const nodes = new Map<string, YogaNode>()
+        const root = layoutHost(snapshot[1]!, nodes, fontScale)
+        try {
+          root.calculateLayout(width, 740, Yoga.DIRECTION_LTR)
+          const viewer = bounds(nodes.get('tab-large-content-viewer')!)
+          expect((viewer.left + viewer.right) / 2).toBeCloseTo(width / 2, 4)
+          expect((viewer.top + viewer.bottom) / 2).toBeCloseTo(370, 4)
+          expect(viewer.left).toBeGreaterThanOrEqual(16)
+          expect(viewer.right).toBeLessThanOrEqual(width - 16)
+          const label = nodes.get('tab-viewer-label')!
+          expect(label.getComputedHeight()).toBeCloseTo(16 * fontScale, 4)
+          expect(nodes.get('tab-viewer-icon')!.getComputedWidth()).toBeCloseTo(24 * fontScale, 4)
+          expect(bounds(label).bottom).toBeLessThanOrEqual(viewer.bottom)
+        } finally { root.freeRecursive() }
+        void renderer.act(() => (tab.props.onPressOut as () => void)())
+      }
+    } finally { void renderer.act(() => tree.update(<></>)) }
+  },
+)

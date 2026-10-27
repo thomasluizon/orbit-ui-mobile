@@ -566,11 +566,13 @@ describe('subscription dashboards (mobile)', () => {
         (node) => node.props.children === 'upgrade.convert.freeHeading',
       )[0]?.props.accessibilityRole,
     ).toBe('header')
-    expect(tree.root.findAll(
+    const hiddenViews = tree.root.findAll(
       (node) => node.type === 'View'
         && node.props.accessibilityElementsHidden === true
         && node.props.importantForAccessibility === 'no-hide-descendants',
-    )).toHaveLength(9)
+    )
+    expect(hiddenViews.filter((node) => node.props.testID === 'segment-measurements')).toHaveLength(1)
+    expect(hiddenViews.filter((node) => node.props.testID !== 'segment-measurements')).toHaveLength(9)
     expect(tree.root.findAll(
       (node) => node.type === 'Text'
         && node.props.accessibilityRole === 'header'

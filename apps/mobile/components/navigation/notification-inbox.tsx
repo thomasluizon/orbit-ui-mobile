@@ -1,3 +1,4 @@
+import { ShellContent } from '@/components/shell/shell-content'
 import { useState } from 'react'
 import { Pressable, ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -56,11 +57,11 @@ export function NotificationInbox() {
           if (id === 'read') markAllAsRead.mutate()
           else if (id === 'clear') setConfirmOpen(true)
         }} />
-      <ScrollView style={styles.scroller} contentContainerStyle={{ paddingBottom: clearance }}>
+      <ShellContent style={{ flex: 1, maxWidth: undefined }}><ScrollView style={styles.scroller} contentContainerStyle={{ paddingBottom: clearance }}>
         <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}
           onRetry={() => void inbox.refetch()} onDelete={requestDeleteNotification}
           onOpen={(item) => { setSelected(item); setDetailOpen(true) }} />
-      </ScrollView>
+      </ScrollView></ShellContent>
       {selected ? <NotificationDetailModal open={detailOpen} onClose={() => setDetailOpen(false)}
         notification={inbox.notifications.find((item) => item.id === selected.id) ?? selected}
         onMarkAsRead={(id) => markAsRead.mutate(id)}

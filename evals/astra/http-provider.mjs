@@ -1,3 +1,4 @@
+import { suggestionAnswer } from './suggestions.mjs'
 import { loadApiProvider } from 'promptfoo'
 import { visibleAnswer } from './visible-answer.mjs'
 
@@ -9,6 +10,24 @@ export default class AstraHttpProvider {
 
   id() { return 'astra-http' }
 
+  async refine(prompt, context, options) {
+    const { multipart, transformResponse, ...config } = this.config
+    const provider = await loadApiProvider('http', { options: { config: {
+      ...config, url: `${config.url}/habit-suggestions/refine`,
+      headers: { ...config.headers, 'Content-Type': 'application/json' },
+      body: { draft: '{{refineDraftJson}}', instruction: '{{prompt}}', language: '{{clientContext.locale}}' },
+      transformResponse: (draft, _text, { response }) => ({ refinedDraft: draft, httpStatus: response.status }),
+    } } })
+    const response = await provider.callApi(prompt, { ...context, vars: { ...context.vars,
+      refineDraftJson: JSON.stringify(context.vars.refineDraft),
+    } }, options)
+    if (response.output?.httpStatus !== 200) return { ...response, output: { ...response.output, answer: '' } }
+    const drafts = structuredClone(context.vars.baselineDrafts).map((draft) => draft.id === context.vars.refineDraft.id ? response.output.refinedDraft : draft)
+    return { ...response, output: { ...response.output, drafts,
+      answer: suggestionAnswer([{ type: 'block', kind: 'habitSuggestions', block: { drafts } }], context.vars.clientContext.locale),
+    } }
+  }
+
   async callApi(prompt, context, options) {
     if (context.vars.preconditionFailure) return {
       error: `Precondition unavailable: ${context.vars.preconditionFailure}`,
@@ -16,6 +35,7 @@ export default class AstraHttpProvider {
     }
     let response
     try {
+      if (context.vars.refine) return await this.refine(prompt, context, options)
       this.provider ??= loadApiProvider('http', { options: { config: this.config } })
       response = await (await this.provider).callApi(prompt, context, options)
     } catch (error) {
@@ -30,8 +50,12 @@ export default class AstraHttpProvider {
     if (response.output?.composition && !response.output.error) {
       try {
         response.output.answer = visibleAnswer(response.output.composition, context.vars.clientContext, context.vars.accountDate)
-      } catch {
-        return { error: 'Astra returned an unrenderable visible answer.' }
+      } catch (error) {
+        const renderError = { message: error.message, blockKind: error.blockKind ?? null }
+        return { ...response,
+          error: `Astra returned an unrenderable visible answer (${renderError.blockKind ?? 'composition'}): ${renderError.message}`,
+          output: { ...response.output, answer: null, renderError },
+        }
       }
     }
     return response

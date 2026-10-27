@@ -46,6 +46,14 @@ describe('createHabit action error boundary', () => {
     resolveServerSessionMock.mockResolvedValue({ token: 'test-token', refreshFailed: false })
   })
 
+  it('exposes the rotated onboarding credential from the public response headers', async () => {
+    mockFetch.mockResolvedValue(Response.json({ emoji: '📖' }, { headers: { 'X-Orbit-Install-Id': 'rotated-install' } }))
+    const observe = vi.fn()
+    await serverPublicFetch(API.onboarding.suggestSetup, { method: 'POST' }, undefined, observe)
+    expect(observe).toHaveBeenCalledOnce()
+    expect((observe.mock.calls[0]![0] as Headers).get('X-Orbit-Install-Id')).toBe('rotated-install')
+  })
+
   it.each([
     [400, 'VALIDATION_ERROR', en.habits.form.titleTooLong],
     [403, 'PAY_GATE', 'Calendar integration is a Pro feature. Upgrade to unlock!'],

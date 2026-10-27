@@ -49,11 +49,13 @@ function Captions({ error, hint, tokens }: Readonly<{ error?: string; hint?: str
 export function Input(props: Readonly<InputProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
-  return <View style={styles.root} data-multiline={props.multiline ? '' : undefined} data-error={props.error ? '' : undefined}>{props.hideLabel ? null : <Text style={[styles.label, { color: tokens.fg2 }]}>{props.label}</Text>}<Control props={props} tokens={tokens} /><Captions error={props.error} hint={props.hint} tokens={tokens} /></View>
+  return <View style={styles.root} data-multiline={props.multiline ? '' : undefined} data-error={props.error ? '' : undefined}>{props.hideLabel ? null : <View style={styles.labelRow}>{props.labelIcon}<Text style={[styles.label, styles.labelWithIcon, { color: tokens.fg2 }]}>{props.label}</Text></View>}<Control props={props} tokens={tokens} /><Captions error={props.error} hint={props.hint} tokens={tokens} /></View>
 }
 
 const styles = StyleSheet.create({
   root: { width: '100%', gap: 8 },
+  labelWithIcon: { flexShrink: 1 },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   label: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   control: { borderRadius: 12, overflow: 'hidden', position: 'relative' },
   input: { width: '100%', minHeight: 54, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12, fontSize: 16, lineHeight: 24 },

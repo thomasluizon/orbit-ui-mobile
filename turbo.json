@@ -45,7 +45,10 @@
       "outputs": ["coverage/**"],
       "inputs": [
         "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/.github/workflows/desktop-release.yml"
+        "$TURBO_ROOT$/.github/workflows/desktop-release.yml",
+        "$TURBO_ROOT$/apps/web/components/auth/desktop-auth-bridge.tsx",
+        "$TURBO_ROOT$/apps/web/lib/desktop-push.ts",
+        "$TURBO_ROOT$/apps/web/lib/desktop-updates.ts"
       ]
     },
     "@orbit/mobile#test": {

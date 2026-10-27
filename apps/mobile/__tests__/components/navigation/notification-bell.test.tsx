@@ -39,9 +39,9 @@ const state = vi.hoisted(() => ({
 }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: state.push, replace: state.replace }), usePathname: () => state.pathname }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => state.back }))
-vi.mock('react-native-safe-area-context', async () => {
+vi.mock('react-native-safe-area-context', async (original) => {
   const { View } = await import('react-native')
-  return { SafeAreaView: View }
+  return { ...await original<typeof import('react-native-safe-area-context')>(), SafeAreaView: View }
 })
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: state.mode }),

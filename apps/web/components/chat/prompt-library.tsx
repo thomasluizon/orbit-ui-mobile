@@ -47,7 +47,9 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
   return <motion.div data-prompt-library="" inert={!isPresent} aria-hidden={!isPresent} style={{ pointerEvents: isPresent ? undefined : 'none' }} className="absolute inset-0 z-[1] flex min-h-0 flex-col bg-[var(--bg)]"
     initial={{ opacity: 0, x: reducedMotion ? 0 : motionLayerTiming.routeShift }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: reducedMotion ? 0 : motionLayerTiming.routeShift, transition: { duration: (reducedMotion ? motionDurations.micro : motionDurations.routeExit) / 1000 } }}
     transition={{ duration: (reducedMotion ? motionDurations.fast : motionDurations.base) / 1000, ease: motionEasings.standard }}>
-    <AppBar title={t('chat.templates.title')} titleRef={headingRef} onBack={props.onBack} backLabel={t('chat.templates.back')} />
+    <div data-conversation-header="" className="shrink-0">
+      <AppBar title={t('chat.templates.title')} titleRef={headingRef} onBack={props.onBack} backLabel={t('chat.templates.back')} />
+    </div>
     <div className="flex shrink-0 flex-col gap-3 px-4">
       {props.disabledReason ? <CapacityNotice message={props.disabledReason} /> : null}
       <label className="flex flex-col gap-1 text-sm text-[var(--fg-2)]">{t('chat.templates.search')}

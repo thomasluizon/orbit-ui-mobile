@@ -1,3 +1,4 @@
+import { ShellContent } from '@/components/shell/shell-content'
 import { useState, type ReactNode } from 'react'
 import { SPACING, TOUCH_TARGET_MIN, typeRoles } from '@orbit/shared/theme'
 import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
@@ -105,7 +106,7 @@ export function SelectionTray({
   const moveDisabled = disabled || Boolean(moveLimitReason)
 
   return (
-    <View
+    <ShellContent><View
       style={[
         styles.bar,
         {
@@ -202,7 +203,7 @@ export function SelectionTray({
         </Pressable>
       </View>
       {moveLimitReason ? <Text style={[styles.moveLimit, { color: tokens.fg2 }]}>{moveLimitReason}</Text> : null}
-    </View>
+    </View></ShellContent>
   )
 }
 

@@ -3,9 +3,6 @@
   "productName": "Orbit Staging",
   "version": "0.1.0",
   "identifier": "org.useorbit.desktop.staging",
-  "build": {
-    "frontendDist": "https://app-staging.useorbit.org"
-  },
   "app": {
     "withGlobalTauri": false,
     "windows": [
@@ -23,7 +20,7 @@
         "local": false,
         "remote": { "urls": ["https://app-staging.useorbit.org/*"] },
         "windows": ["main"],
-        "permissions": ["allow-commit-desktop-login", "allow-desktop-push"]
+        "permissions": ["allow-commit-desktop-login", "allow-desktop-push", "allow-desktop-update"]
       }]
     }
   },

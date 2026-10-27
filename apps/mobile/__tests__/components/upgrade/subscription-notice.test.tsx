@@ -36,8 +36,8 @@ describe('lapsed subscription notice (mobile)', () => {
       tree = TestRenderer.create(<SubscriptionNotice status={status} locale="en" t={t} tokens={tokens} />)
     })
     try {
-      for (const [testID, size] of [['astra-mark-16', 16], ['astra-mark', 20]] as const) {
-        const marks = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => node.type === 'Svg' && node.props.testID === testID)
+      for (const [testID, size] of [['astra-mark', 16], ['astra-mark', 20]] as const) {
+        const marks = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => node.type === 'Svg' && node.props.testID === testID && 'width' in node.props && node.props.width === size)
         expect(marks).toHaveLength(1)
         expect(marks[0].props).toMatchObject({ width: size, height: size, color: tokens.fg3, accessible: false })
       }

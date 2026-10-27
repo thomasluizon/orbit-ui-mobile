@@ -70,12 +70,18 @@ describe('PostHog streaming proxy', () => {
     expect(fetchUpstream).not.toHaveBeenCalled()
   })
 
-  it('builds the upstream URL from the fixed origin and preserves the original query encoding', async () => {
+  it.each([
+    ['/e/', 'https://us.i.posthog.com'],
+    ['/static/array.js', 'https://us-assets.i.posthog.com'],
+    ['/static/a%20b%23%3f.js', 'https://us-assets.i.posthog.com'],
+    ['/array/project-token/config', 'https://us-assets.i.posthog.com'],
+  ])('preserves query encoding and the fixed origin for %s', async (path, origin) => {
     fetchUpstream.mockResolvedValue(new Response('ok'))
+    const search = '?token=a%2Fb&value=one+two&value=%20&next=https://other.example.test/%25'
 
-    await GET(new Request('http://app.example.test:8080/ingest/e/?token=a%2Fb&value=one+two&value=%20'))
+    await GET(new Request(`http://app.example.test:8080/ingest${path}${search}`))
 
-    expect(fetchUpstream.mock.calls[0]![0]).toEqual(new URL('https://us.i.posthog.com/e/?token=a%2Fb&value=one+two&value=%20'))
+    expect(fetchUpstream.mock.calls[0]![0]).toEqual(new URL(`${origin}${path}${search}`))
   })
 
   it.each([

@@ -124,10 +124,10 @@ function SuggestionStrip({ suggestions, label, disclosure }: Readonly<Pick<Compo
                 if (root instanceof HTMLElement) root.focus()
                 suggestion.onSelect()
               }}
-              className="flex min-h-[48px] shrink-0 items-start gap-[8px] rounded-full border-0 bg-[var(--bg-well)] px-3 py-3 text-start text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
+              className="flex min-h-[48px] shrink-0 items-center gap-[8px] rounded-full border-0 bg-[var(--bg-well)] px-3 py-3 text-start text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
             >
               <span data-suggestion-content className="flex min-w-0 items-start gap-[8px]">
-                <span aria-hidden="true" className="flex h-[1lh] shrink-0 items-start"><AstraGlyph size={16} /></span>
+                <span aria-hidden="true" className="flex h-[1lh] shrink-0 items-center"><AstraGlyph size={16} /></span>
                 <span className="min-w-0"><span data-suggestion-label className={disclosure ? 'whitespace-nowrap' : undefined}>{suggestion.label}</span></span>
               </span>
             </button>
@@ -495,14 +495,16 @@ function ComposerContent({ props, disclosure }: Readonly<{ props: WebComposerPro
 }
 
 export function Composer(props: Readonly<WebComposerProps>) {
-  const savedCollapsed = useUIStore(state => state.habitComposerCollapsed)
+  const savedCollapsed = useUIStore(state => props.collapseScope === 'today' ? state.todayComposerCollapsed : state.habitComposerCollapsed)
   const collapsed = Boolean(props.collapsible && savedCollapsed)
   const contentId = useId()
   const composerRef = useRef<HTMLDivElement>(null)
   const disclosureFocusPending = useRef(false)
   function toggleCollapsed() {
     disclosureFocusPending.current = true
-    useUIStore.getState().setHabitComposerCollapsed(!collapsed)
+    const preferences = useUIStore.getState()
+    if (props.collapseScope === 'today') preferences.setTodayComposerCollapsed(!collapsed)
+    else preferences.setHabitComposerCollapsed(!collapsed)
   }
   useEffect(() => {
     if (!disclosureFocusPending.current) return
@@ -542,10 +544,12 @@ export function Composer(props: Readonly<WebComposerProps>) {
       data-has-attachments={hasAttachments ? '' : undefined}
       data-can-retry={canRetry ? '' : undefined}
       data-collapsed={props.collapsible ? collapsed : undefined}
-      className={`@container flex shrink-0 flex-col border-t border-[var(--hairline)] bg-[var(--bg)] ${collapsed ? 'gap-0 px-4 py-1' : 'gap-3 p-4'}`}
+      className={`@container flex shrink-0 flex-col border-t border-[var(--hairline)] bg-[var(--bg)] ${collapsed ? 'py-1' : 'py-4'}`}
     >
+      <div data-composer-content="" className={`mx-auto w-full max-w-[740px] px-4 ${collapsed ? 'gap-0' : 'flex flex-col gap-3'}`}>
       {collapsed ? <ComposerDisclosure collapsed contentId={contentId} onToggle={toggleCollapsed} /> : null}
       {props.collapsible ? <div id={contentId} hidden={collapsed} className={collapsed ? 'hidden' : 'flex min-w-0 flex-col gap-3'}>{content}</div> : content}
+      </div>
     </div>
   )
 }

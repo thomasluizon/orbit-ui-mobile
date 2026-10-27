@@ -1,6 +1,6 @@
 import { useCallback, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, findNodeHandle, Text, View } from 'react-native'
+import { AccessibilityInfo, findNodeHandle, Text, View, Pressable } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AnswerBlockController, getAnswerBlockView, type AnswerBlockProps, type AnswerBlockView, type AnswerBlockState } from '@orbit/shared/chat'
@@ -8,9 +8,11 @@ import { BlockFrame } from '@/components/ui/block-frame'
 import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 import { CheckRow } from '@/components/ui/check-row'
+import { HabitCheck } from '@/components/habits/habit-check'
+import { HabitBlockRow } from './habit-block-row'
+import { IconButton } from '@/components/ui/icon-button'
 import { Proposed } from '@/components/ui/proposed'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/pill-button'
 import { Check, Lock, ArrowUp } from '@/components/ui/icons'
 
 type AnswerContentProps = Readonly<{
@@ -25,10 +27,10 @@ function AnswerOptions({ view, controller }: Pick<AnswerContentProps, 'view' | '
     ? <RadioRow selection hideMeta wrapLabel key={option.id} label={option.label} description={option.description}
         meta={option.position} selected={option.selected} onSelect={() => controller.select(option.id)}
         {...(view.disabled ? { disabled: true as const, reasonScope: 'group' as const } : { disabled: false as const })} />
-    : <Proposed key={option.id} proposed={option.proposed} scope="row" label={view.proposedLabel} inset keepMounted>
-        <CheckRow selection wrapLabel textMode={option.personal ? 'personal' : undefined} label={option.label} description={option.description}
-          onOpenLabel={option.personal ? () => controller.toggleExpanded(option.id) : undefined} labelExpanded={option.personal ? option.expanded : undefined}
-          proposed={option.proposed} checked={option.selected} disabled={view.disabled} onChange={checked => controller.check(option.id, checked)} />
+    : <Proposed appearance="plain" key={option.id} proposed={option.proposed} scope="row" label={view.proposedLabel} inset keepMounted>
+        {option.personal ? <HabitBlockRow proposed={option.proposed} title={option.label} meta={option.description} expanded={option.expanded}
+          onOpen={() => controller.toggleExpanded(option.id)} control={<Pressable data-slot="check-row-control" accessibilityRole="checkbox" accessibilityLabel={option.label} accessibilityState={{ checked: option.selected, disabled: view.disabled }} disabled={view.disabled} onPress={() => controller.check(option.id, !option.selected)} style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}><HabitCheck status={option.selected ? 'done' : 'empty'} /></Pressable>} />
+          : <CheckRow selection wrapLabel label={option.label} description={option.description} checked={option.selected} disabled={view.disabled} onChange={checked => controller.check(option.id, checked)} />}
       </Proposed>)
 }
 
@@ -43,8 +45,7 @@ function AnswerSubmit({ view, submit }: Pick<AnswerContentProps, 'view' | 'submi
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return <View style={{ minWidth: 0, alignItems: 'flex-end', width: '100%', gap: 8 }}>
-    <Button variant="ghost" size="sm" loading={view.acting} disabled={view.submitDisabled}
-      leadingIcon={<ArrowUp size={20} accessible={false} />} onClick={() => void submit()}>{view.submitLabel}</Button>
+    <View style={{ alignSelf: 'flex-end' }}><IconButton label={view.submitLabel} loading={view.acting} disabled={view.submitDisabled} onClick={() => void submit()}><ArrowUp size={20} accessible={false} /></IconButton></View>
     <Text accessibilityLiveRegion="polite" accessibilityRole={view.statusError ? 'alert' : undefined} style={{ color: view.statusError ? tokens.statusBadText : tokens.fg3, fontSize: 14, lineHeight: 20 }}>{view.status}</Text>
   </View>
 }

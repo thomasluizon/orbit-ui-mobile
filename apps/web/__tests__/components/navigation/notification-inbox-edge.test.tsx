@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { useRef } from 'react'
 import { cleanup, render } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { readFileSync } from 'node:fs'
@@ -9,6 +10,8 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { NotificationInbox } from '@/components/navigation/notification-inbox'
+import { ShellWide } from '@/components/shell/shell-wide'
+import { ShellHeaderHostContext } from '@/components/shell/shell-header'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const inbox = vi.hoisted(() => ({ items: [] as import('@orbit/shared/types/notification').NotificationItem[], state: 'empty' }))
@@ -31,6 +34,13 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), usePat
 const cases = [412, 600, 840, 1100, 1352].flatMap((width) => (['en', 'pt-BR'] as const)
   .flatMap((locale) => states.map((state) => ({ width, locale, state }))))
 
+function InboxInShell() {
+  const host = useRef<HTMLDivElement>(null)
+  return <ShellHeaderHostContext.Provider value={host}>
+    <ShellWide nav={false} registerHeaderHost={element => { host.current = element }}><NotificationInbox /></ShellWide>
+  </ShellHeaderHostContext.Provider>
+}
+
 describe('Avisos content edge in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
@@ -42,6 +52,35 @@ describe('Avisos content edge in Chromium', () => {
   })
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([28, 44, 64].flatMap(left => (['en', 'pt-BR'] as const).map(locale => ({ left, right: 88 - left, locale }))))(
+    'insets the hosted inbox header with $left/$right side insets in $locale', async ({ left, right, locale }) => {
+      inbox.state = 'populated'
+      inbox.items = [createMockNotification()]
+      const words = locale === 'en' ? en : ptBr
+      const view = render(<NextIntlClientProvider locale={locale} messages={words}><InboxInShell /></NextIntlClientProvider>)
+      const page = await browser.newPage({ viewport: { width: 844, height: 390 } })
+      try {
+        const session = await page.context().newCDPSession(page)
+        await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 0, bottom: 21, left, right } })
+        await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+        const geometry = await page.evaluate(() => {
+          const header = document.querySelector('[data-shell-header]')!
+          const bounds = (element: Element) => {
+            const box = element.getBoundingClientRect()
+            return { left: box.left, right: box.right }
+          }
+          return { surface: bounds(header.parentElement!), header: bounds(header),
+            controls: [...header.querySelectorAll('header, h1, button')].map(bounds) }
+        })
+        expect(geometry.surface).toEqual({ left: 0, right: 844 })
+        for (const box of [geometry.header, ...geometry.controls]) {
+          expect.soft(box.left).toBeGreaterThanOrEqual(left)
+          expect.soft(box.right).toBeLessThanOrEqual(844 - right)
+        }
+      } finally { await page.close() }
+    },
+  )
 
   it.each(cases)('aligns the capped $state list at $width in $locale', async ({ width, locale, state }) => {
     const words = locale === 'en' ? en : ptBr

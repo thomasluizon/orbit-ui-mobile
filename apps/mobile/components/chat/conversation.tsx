@@ -1,3 +1,5 @@
+import { ShellContent } from '@/components/shell/shell-content';
+import { useShellContentStyle } from '@/components/shell/shell-side-insets';
 import { ProactiveAction } from './proactive-action'
 import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -114,6 +116,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen);
   const insets = useSafeAreaInsets();
+  const messageStyle = useShellContentStyle(SPACING.s16);
   const chatAreaRef = useRef<View>(null);
   const chatInputRef = useRef<View>(null);
   const titleRef = useRef<View>(null);
@@ -344,7 +347,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         <Text testID="astra-working-announcement" accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{announcingWork ? t('chat.trace.working') : ''}</Text>
 
         {showSuggestions ? (
-          <ChatEmptyState ref={chatAreaRef} styles={styles} browseAction={<Button buttonRef={browseEmptyRef} variant="ghost" onClick={() => openLibrary(browseEmptyRef)}>{t('chat.templates.browse')}</Button>} />
+          <ShellContent style={{ flex: 1 }}><ChatEmptyState ref={chatAreaRef} styles={styles} browseAction={<Button buttonRef={browseEmptyRef} variant="ghost" onClick={() => openLibrary(browseEmptyRef)}>{t('chat.templates.browse')}</Button>} /></ShellContent>
         ) : (
           <View ref={chatAreaRef} style={{ flex: 1 }}>
             <FlatList
@@ -352,7 +355,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               data={messages}
               renderItem={renderMessage}
               keyExtractor={keyExtractor}
-              contentContainerStyle={styles.messageList}
+              contentContainerStyle={[styles.messageList, messageStyle]}
               showsVerticalScrollIndicator={false}
               onContentSizeChange={onContentSizeChange}
               onScroll={(event) => {
@@ -389,7 +392,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
             paddingBottom: insets.bottom,
           }}
         >
-          <PendingPromptIdea hasDraft={!!composerProps.value} disabledReason={disabledReason} onSelect={selectIdea} />
+          <ShellContent><PendingPromptIdea hasDraft={!!composerProps.value} disabledReason={disabledReason} onSelect={selectIdea} /></ShellContent>
           <Composer
             inputSelection={inputSelection}
             {...composerProps}

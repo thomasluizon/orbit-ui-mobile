@@ -10,7 +10,7 @@ import {
   type RefCallback,
   type CSSProperties,
 } from 'react'
-import { BUTTON_SIZES, SHELL_CONTENT_MAX_WIDTH, SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { BUTTON_SIZES, SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
@@ -260,7 +260,7 @@ function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{ f
     return () => observer.disconnect()
   }, [floating])
   return <div ref={viewportRef} data-shell-bottom-viewport="" data-floating={floating}
-    className={floating ? 'min-h-[max(var(--orbit-space-64),calc(1.5rem+var(--orbit-space-32)))] overflow-y-auto overscroll-contain [scrollbar-gutter:stable] lg:contents lg:overflow-visible' : 'contents'}
+    className={floating ? 'min-h-[max(var(--orbit-space-64),calc(1.5rem+var(--orbit-space-32)))] overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] lg:contents lg:overflow-visible' : 'contents'}
     style={{ minHeight: minimumHeight }}>
     <div className={floating ? 'lg:contents' : 'contents'}><div className="relative flex min-h-0 flex-col">{children}</div></div>
   </div>
@@ -268,8 +268,8 @@ function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{ f
 
 function getBottomViewportClasses(floating: boolean) {
   return floating
-    ? { scrollOwner: 'lg:overflow-y-auto lg:[scrollbar-gutter:stable]', columnMinimum: 'min-h-16 lg:min-h-0', safeAreaPadding: 'pb-0', safeBottom: '0px' }
-    : { scrollOwner: 'overflow-y-auto [scrollbar-gutter:stable]', columnMinimum: 'min-h-0', safeAreaPadding: 'pb-[var(--safe-bottom)] lg:pb-0', safeBottom: 'var(--safe-bottom)' }
+    ? { scrollOwner: 'lg:overflow-y-auto lg:overflow-x-hidden lg:[scrollbar-gutter:stable]', columnMinimum: 'min-h-16 lg:min-h-0', safeAreaPadding: 'pb-0', safeBottom: '0px' }
+    : { scrollOwner: 'overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]', columnMinimum: 'min-h-0', safeAreaPadding: 'pb-[var(--safe-bottom)] lg:pb-0', safeBottom: 'var(--safe-bottom)' }
 }
 
 function ShellBottomChrome({ props, conversationOpen, visible, wide }: Readonly<{
@@ -296,23 +296,23 @@ function ShellBottomChrome({ props, conversationOpen, visible, wide }: Readonly<
       className={`z-sticky relative flex min-h-0 flex-col bg-[var(--bg)] ${safeAreaPadding}`}
       style={actionMinimum === undefined ? undefined : { minHeight: `calc(${actionMinimum}px + ${safeBottom})` }}
     >
-      <div className={`relative mx-auto flex w-full flex-col ${columnMinimum}`} style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH, minHeight: actionMinimum }}>
+      <div className={`relative mx-auto flex w-full flex-col ${columnMinimum}`} style={{ minHeight: actionMinimum }}>
         <ShellBottomViewport floating={floating} minimumHeight={actionMinimum}>
           {props.notice !== undefined ? (
             <div data-shell-notice="" className={`pointer-events-none ${scrollOwner} px-4 has-[>div>:not(:empty)]:pt-[calc(var(--sh-2-blur)-var(--sh-2-offset-y))] has-[>div>:not(:empty)]:pb-[calc(var(--sh-2-blur)+var(--sh-2-offset-y))]`}>
-              <div className="pointer-events-auto">{props.notice}</div>
+              <div data-shell-notice-content="" className="pointer-events-auto mx-auto w-full max-w-[740px]">{props.notice}</div>
             </div>
           ) : null}
           {pinnedSlot !== undefined ? (
             <div data-shell-pinned-slot="" hidden={conversationOpen} className={`pointer-events-none min-h-0 overscroll-contain ${scrollOwner} ${actionMinimum === undefined ? '' : 'py-1'} ${compactOnly ? 'lg:hidden' : 'lg:pb-4'}`} style={{ minHeight: actionMinimum }}>
               <CompactComposerMenuContext.Provider value={menuContext}>
-                <div className="pointer-events-auto">{pinnedSlot}</div>
+                <div data-shell-pinned-content="" className="pointer-events-auto">{pinnedSlot}</div>
               </CompactComposerMenuContext.Provider>
             </div>
           ) : null}
         </ShellBottomViewport>
         {navigationEnabled && props.tabBar !== undefined ? (
-          <div data-shell-tab-bar="" className="shrink-0 lg:hidden">{props.tabBar}</div>
+          <div data-shell-tab-bar="" className="shrink-0 lg:hidden"><div data-shell-tab-content="">{props.tabBar}</div></div>
         ) : null}
       </div>
     </div>
@@ -359,7 +359,7 @@ function ShellDestinationViewport({ floating, hasHeader, hasTabBar, children }: 
     if (bottom) observer.observe(bottom)
     return () => observer.disconnect()
   }, [floating, hasHeader, hasTabBar, minimumPageHeight])
-  return <div className={floating ? 'min-h-0 flex-1 pb-[var(--safe-bottom)] lg:contents' : 'contents'}>
+  return <div className={floating ? 'min-h-0 w-screen flex-1 self-center pb-[var(--safe-bottom)] lg:contents' : 'contents'}>
     <div ref={viewportRef} data-shell-destination-viewport="" data-floating={floating}
       className={floating ? 'flex h-full flex-col-reverse overflow-y-auto overflow-x-hidden overscroll-contain [&>[data-shell-background]]:min-h-[var(--shell-destination-min-height)] lg:contents lg:overflow-visible lg:[&>[data-shell-background]]:min-h-0' : 'contents'}
       style={{ '--shell-destination-min-height': `${minimumHeight}px` } as CSSProperties}>
@@ -404,7 +404,7 @@ function ShellWideBackground({
         data-shell-scroll-origin=""
         className="pointer-events-none absolute left-0 top-0 h-px w-px"
       />
-      {props.children}
+      <div data-shell-page-content="" className="mx-auto min-h-full w-full max-w-[740px] has-[[data-page-viewport]]:h-full">{props.children}</div>
     </main>
   )
   return (
@@ -413,17 +413,21 @@ function ShellWideBackground({
     >
       {navigationEnabled ? <ShellSidebar {...props} layerOpen={conversationOpen} wide={wide} conversationId={conversationId} collapsed={collapsed} /> : null}
 
-      <div className="relative flex h-dvh min-w-0 flex-1 justify-center lg:px-8">
-        <div data-shell-column="" className="orbit-centred-column relative flex h-full w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(var(--orbit-space-32),var(--safe-top))]" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
+      <div className="relative flex h-dvh min-w-0 flex-1 justify-center lg:pl-[max(var(--orbit-space-32),var(--safe-left))] lg:pr-[max(var(--orbit-space-32),var(--safe-right))]">
+        <div data-shell-column="" className="orbit-centred-column lg:max-w-[740px] relative flex h-full w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(var(--orbit-space-32),var(--safe-top))]">
           <ShellDestinationViewport floating={floating} hasHeader={registerHeaderHost !== undefined || props.header !== undefined} hasTabBar={navigationEnabled && props.tabBar !== undefined}>
           <div data-shell-background="" data-shell-destination="" inert={conversationOpen || undefined} aria-hidden={conversationOpen || undefined}
-            className="flex h-full min-h-0 flex-col" style={conversationOpen ? { visibility: 'hidden' } : undefined}>
-          {registerHeaderHost !== undefined || props.header !== undefined ? <div ref={registerHeaderHost} data-shell-header="" data-focus-inset="" className={`empty:hidden overflow-y-auto [scrollbar-gutter:stable] ${hasFlowAction ? 'min-h-[var(--touch-min)] overscroll-contain' : 'shrink-0'}`}>{props.header}</div> : null}
-          <div data-shell-page="" className={`relative flex flex-1 flex-col ${scrollerSpacing.minimum}`}>
+            className="flex h-full w-screen min-h-0 self-center flex-col lg:w-full" style={conversationOpen ? { visibility: 'hidden' } : undefined}>
+          {registerHeaderHost !== undefined || props.header !== undefined ? <div data-shell-header-surface="" data-focus-inset="" className={`flex min-h-0 flex-col has-[[data-shell-header-content]:empty]:hidden ${hasFlowAction ? 'min-h-[var(--touch-min)]' : 'shrink-0'}`}>
+            <div data-shell-header="" data-shell-header-viewport="" className="mx-auto min-h-0 w-full overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+              <div ref={registerHeaderHost} data-shell-header-content="" className="w-full">{props.header}</div>
+            </div>
+          </div> : null}
+          <div data-shell-page="" className={`relative mx-auto flex w-full flex-1 flex-col ${scrollerSpacing.minimum}`}>
             {hasFlowAction ? <div className="min-h-0 flex-1 overflow-hidden">{scroller}</div> : scroller}
             {props.fab !== undefined ? (
-              <div data-shell-fab-clip="" className="pointer-events-none absolute inset-x-0 bottom-2 z-sticky flex justify-end overflow-y-auto [scrollbar-gutter:stable] px-4 py-2 lg:hidden">
-                <div data-shell-fab="" className="pointer-events-none [&_button]:pointer-events-auto">{props.fab}</div>
+              <div data-shell-fab-clip="" className="pointer-events-none absolute inset-x-0 bottom-2 z-sticky flex justify-end overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] px-4 py-2 lg:hidden">
+                <div data-shell-fab-content="" className="pointer-events-none mx-auto flex w-full max-w-[740px] justify-end"><div data-shell-fab="" className="pointer-events-none [&_button]:pointer-events-auto">{props.fab}</div></div>
               </div>
             ) : null}
             {props.scrollToTop !== undefined && !conversationOpen ? (
@@ -443,8 +447,8 @@ function ShellWideBackground({
             aria-label={props.conversationLabel}
             tabIndex={-1}
             data-shell-conversation="overlay"
-            className="z-modal fixed inset-y-0 left-[var(--safe-left)] right-[var(--safe-right)] mx-auto overflow-hidden bg-[var(--bg)] pt-[var(--safe-top)] pb-[var(--safe-bottom)] lg:absolute lg:inset-x-0 lg:bottom-0 lg:top-[max(32px,var(--safe-top))] lg:pt-0 lg:pb-0"
-            style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}
+            className="z-modal fixed inset-y-0 inset-x-0 lg:max-w-[740px] mx-auto overflow-hidden bg-[var(--bg)] pt-[var(--safe-top)] pb-[var(--safe-bottom)] lg:absolute lg:inset-x-0 lg:bottom-0 lg:top-[max(32px,var(--safe-top))] lg:pt-0 lg:pb-0"
+
           ><main className="h-full">{props.conversation}</main></div> : null}
         </div>
       </div>
@@ -477,7 +481,7 @@ export function ShellWide(props: Readonly<ResponsiveShellProps>) {
     <div
       ref={shellRef}
       data-shell="wide"
-      className="flex h-dvh min-h-dvh overflow-hidden bg-[var(--bg)] pl-[var(--safe-left)] pr-[var(--safe-right)] text-[var(--fg-1)]"
+      className="flex h-dvh min-h-dvh overflow-hidden bg-[var(--bg)] text-[var(--fg-1)]"
       onFocusCapture={(event) => {
         if (!conversationOpen && event.target instanceof HTMLElement) {
           returnFocusTriggerRef.current = getConversationReturnTarget(event.target)

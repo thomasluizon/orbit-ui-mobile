@@ -6,6 +6,14 @@ export interface AppliedHabitPhraseFields {
   dueTime: boolean
 }
 
+function trimTitleSeparators(title: string): string {
+  let start = 0
+  let end = title.length
+  while (start < end && /[,;\s]/u.test(title[start]!)) start += 1
+  while (end > start && /[,;\s]/u.test(title[end - 1]!)) end -= 1
+  return title.slice(start, end)
+}
+
 function removeOrphanedGlue(
   sentence: string,
   locale: SupportedLocale,
@@ -14,8 +22,8 @@ function removeOrphanedGlue(
   protectedCharacters: boolean[],
 ): void {
   const glue = locale === 'pt-BR'
-    ? /\b(?:toda|todo|todas|todos|as|os|e|por|na|no|nas|nos|a|em|cada)\b/giu
-    : /\b(?:every|each|and|a|per|at|on|times?|week)\b/giu
+    ? /(?<![\p{L}\p{M}\p{N}_])(?:toda|todo|todas|todos|as|os|e|por|na|no|nas|nos|a|em|cada)(?![\p{L}\p{M}\p{N}_])/giu
+    : /(?<![\p{L}\p{M}\p{N}_])(?:every|each|and|a|per|at|on|times?|week)(?![\p{L}\p{M}\p{N}_])/giu
   const removable = [...sentence.matchAll(glue)]
   const touchesRemoved = (start: number, direction: -1 | 1): boolean => {
     for (let index = start; index >= 0 && index < characters.length; index += direction) {
@@ -32,7 +40,8 @@ function removeOrphanedGlue(
       const end = start + match[0].length
       if (protectedCharacters.slice(start, end).some(Boolean)) continue
       if (removed.slice(start, end).every(Boolean)) continue
-      if (touchesRemoved(start - 1, -1) || touchesRemoved(end, 1)) {
+      const trailing = characters.slice(end).every((character) => /[\s,;]/u.test(character))
+      if (touchesRemoved(end, 1) || (trailing && touchesRemoved(start - 1, -1))) {
         characters.fill(' ', start, end)
         removed.fill(true, start, end)
         changed = true
@@ -63,7 +72,9 @@ export function getHabitPhraseTitle(
     characters.fill(' ', token.start, token.end)
     removed.fill(true, token.start, token.end)
   }
-  removeOrphanedGlue(sentence, locale, characters, removed, protectedCharacters)
-  const title = characters.join('').replaceAll(/[\s,;]+/gu, ' ').trim()
+  if (consumed.some((token) => token.kind !== 'time')) {
+    removeOrphanedGlue(sentence, locale, characters, removed, protectedCharacters)
+  }
+  const title = trimTitleSeparators(characters.join('').replaceAll(/\s+/gu, ' '))
   return title || sentence.trim()
 }

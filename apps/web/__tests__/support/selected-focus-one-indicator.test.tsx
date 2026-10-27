@@ -15,6 +15,7 @@ import { RadioRow } from '@/components/ui/select-check'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { inspectControlAccentRings, inspectFocusedControlRings } from '@/e2e/layout/focus-indicators'
 import { loadAppFonts } from './app-fonts'
+import { measureSplitSegmentWords, mountMeasuredSegmentedControls } from './segmented-control-geometry'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -187,17 +188,29 @@ describe('selection yields to keyboard focus', () => {
     try {
       await page.setContent(`<style>${stylesheet} html { font-size:32px; } body { margin:0; padding:16px; }</style>${render(<SegmentedControl label="Schedule" options={choices} value="fixed" onChange={() => {}} fullWidth={fullWidth} />).container.innerHTML}`)
       await loadAppFonts(page)
-      const geometry = await segmentGeometry(page)
-      expect(geometry.trackWidth).toBeLessThanOrEqual(288)
+      await mountMeasuredSegmentedControls(page)
+      // WHY: DESIGN.md:1213 requires a Menu when whole words do not fit. https://github.com/thomasluizon/orbit-tickets/issues/1792
+      expect(await page.getByRole('radiogroup').count()).toBe(0)
+      const trigger = page.getByRole('button', { name: `Schedule: ${words.fixedMode}` })
+      expect(await trigger.textContent()).toBe(words.fixedMode)
+      const geometry = await trigger.evaluate((button) => {
+        const label = button.querySelector('span')!
+        const range = document.createRange(); range.selectNodeContents(label)
+        const bounds = range.getBoundingClientRect()
+        const style = getComputedStyle(label)
+        return { width: button.getBoundingClientRect().width, scrollWidth: button.scrollWidth, fontSize: style.fontSize,
+          labelWidth: label.getBoundingClientRect().width, textWidth: bounds.width, textHeight: bounds.height, labelHeight: label.getBoundingClientRect().height,
+          lines: new Set([...range.getClientRects()].map((fragment) => fragment.top)).size, overflow: style.overflow, textOverflow: style.textOverflow }
+      })
+      expect(geometry.width).toBeLessThanOrEqual(288)
       expect(geometry.scrollWidth).toBeLessThanOrEqual(288)
-      for (const label of geometry.labels) {
-        expect(label.fontSize).toBe('28px')
-        expect(label.width).toBeLessThanOrEqual(label.available)
-        expect(label.textHeight).toBeLessThanOrEqual(label.height)
-        expect(label.whiteSpace).toBe('normal')
-        expect(label.overflow).toBe('visible')
-        expect(label.textOverflow).not.toBe('ellipsis')
-      }
+      expect(geometry.fontSize).toBe('28px')
+      expect(geometry.textWidth).toBeLessThanOrEqual(geometry.labelWidth)
+      expect(geometry.textHeight).toBeLessThanOrEqual(geometry.labelHeight)
+      expect(geometry.lines).toBe(1)
+      expect(geometry.overflow).toBe('visible')
+      expect(geometry.textOverflow).not.toBe('ellipsis')
+      expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
     } finally { cleanup(); await page.close() }
   })
 })

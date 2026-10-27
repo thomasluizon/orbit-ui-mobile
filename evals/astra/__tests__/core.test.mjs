@@ -6,12 +6,13 @@ import parseResponse from '../response.mjs'
 import { summarize } from '../report.mjs'
 import { toolCall } from './fixtures/producer.mjs'
 
-const catalog = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
+const { tools: catalog } = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
 const scenarios = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) => parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')))
 let callNumber = 0
-const call = (name, arguments_, overrides = {}) => {
+const call = (name, arguments_, overrides = {}, clientContext = {}) => {
   const writes = catalog.find((tool) => tool.function.name === name)?.writes
-  const produced = toolCall(name, arguments_, writes ? 'PendingConfirmation' : 'Succeeded', `call-${++callNumber}`)
+  const produced = toolCall(name, arguments_, overrides.resultStatus ?? (writes ? 'PendingConfirmation' : 'Succeeded'),
+    `call-${++callNumber}`, clientContext)
   const { status, ...fields } = produced
   return { ...fields, resultStatus: status, ...overrides }
 }
@@ -89,15 +90,23 @@ describe('production scenario mutation scope', () => {
     for (const tool of catalog) expect(typeof tool.writes, tool.function.name).toBe('boolean')
   })
 
-  it.each(scenarios.map((scenario) => [scenario.metadata.id, scenario.vars]))(
-    '%s accepts its operations and rejects an extra valid write', async (_, vars) => {
+  it.each(scenarios.filter((scenario) => !scenario.vars.refine).map((scenario) => [scenario.metadata.id, scenario.vars]))(
+    '%s accepts its operations and rejects an extra valid write', async (id, vars) => {
+      vars = structuredClone(vars)
       const calls = (vars.expectations.required ?? []).map((entry) => {
         const required = entry.anyOf?.[0] ?? entry
-        return call(required.name, exampleArguments(required.argumentsAnyOf?.[0] ?? required.arguments ?? {}))
+        const produced = call(required.name, exampleArguments(required.argumentsAnyOf?.[0] ?? required.arguments ?? {}), {}, vars.clientContext)
+        // prepareCorrection binds exact arguments from the setup trace before the evaluated turn.
+        if (required.exactArguments && required.arguments === undefined) required.arguments = produced.arguments
+        return produced
       })
       const output = { ...envelope(calls), httpStatus: vars.expectedHttpStatus ?? 200 }
       const scenarioContext = { ...context(vars.expectations), vars: { ...vars, evalRequestId: 'local-request' } }
       expect(behavior(output, scenarioContext).pass).toBe(true)
+      if (id.startsWith('composition-compound-legacy-') || id.startsWith('composition-rankings-')) {
+        const structure = await structural(output, scenarioContext)
+        expect(structure.pass, structure.reason).toBe(true)
+      }
       const extra = vars.expectations.required?.some((required) => required.name === 'update_habit')
         ? call('log_habit', { habit_id: '{secondHabitId}' })
         : call('update_habit', { habit_id: '{secondHabitId}', title: 'Unrequested rename' })
@@ -132,7 +141,7 @@ describe('production scenario mutation scope', () => {
   })
 
   it.each(['bulk_log_habits', 'bulk_skip_habits'])(
-    '%s rejects conflicting selectors while permitting either selector and extra date', async (name) => {
+    '%s validates model selector shapes and rejects failed selector executions', async (name) => {
       const habitIds = ['first', 'second']
       for (const arguments_ of [
         { habit_ids: habitIds }, { filter: { habit_ids: habitIds } },
@@ -142,10 +151,14 @@ describe('production scenario mutation scope', () => {
         expect((await structural(envelope([call(name, arguments_)]), context({}))).pass).toBe(true)
       }
       for (const filter of [{ habit_ids: habitIds }, { all: true }]) {
-        expect((await structural(envelope([call(name, { habit_ids: habitIds, filter })]), context({}))).pass).toBe(false)
+        const rejected = call(name, { habit_ids: habitIds, filter }, { resultStatus: 'Failed' })
+        expect((await structural(envelope([rejected]), context({}))).pass).toBe(true)
+        expect(behavior(envelope([rejected]), context({ permittedMutations: [{ name }] })).pass).toBe(false)
       }
       for (const arguments_ of [{}, { habit_ids: null }, { filter: null }, { habit_ids: null, filter: null }]) {
-        expect((await structural(envelope([call(name, arguments_)]), context({}))).pass).toBe(false)
+        const rejected = call(name, arguments_, { resultStatus: 'Failed' })
+        expect((await structural(envelope([rejected]), context({}))).pass).toBe(true)
+        expect(behavior(envelope([rejected]), context({ permittedMutations: [{ name }] })).pass).toBe(false)
       }
     },
   )

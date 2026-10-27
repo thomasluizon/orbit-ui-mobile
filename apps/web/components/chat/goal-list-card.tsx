@@ -3,14 +3,12 @@
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { PersonalText } from '@/components/ui/personal-text'
 import { useLocale, useTranslations } from 'next-intl'
-import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { formatGoalMetricsDate, getGoalMetricsStatusPresentation } from '@orbit/shared/utils'
 import type { GoalListCard as GoalListCardData, GoalListCardItem } from '@orbit/shared/types/chat'
 import { BlockFrame } from './read-block-frame'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { useGoals } from '@/hooks/use-goals'
 import { liveBlockState } from '@orbit/shared/chat/live-block-state'
-import { Button } from '@/components/ui/pill-button'
 import { Badge } from '@/components/ui/badge'
 
 function percentage(item: Pick<GoalListCardItem, 'current' | 'target'>): number {
@@ -20,7 +18,6 @@ function percentage(item: Pick<GoalListCardItem, 'current' | 'target'>): number 
 export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: GoalListCardData; onOpenGoal?: (id: string) => void }>) {
   const t = useTranslations()
   const locale = useLocale()
-  const navigate = useChatNavigation()
   const goals = useGoals()
   const missing = goals.data != null && goalList.items.some((item) => !goals.data.goalsById.has(item.id))
   const frameState = liveBlockState(goals, { stale: missing, staleMessage: t('chat.liveBlock.stale'), onRefresh: () => { void goals.refetch() } })
@@ -47,8 +44,6 @@ export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: Goal
       <BlockFrame {...frameState} title={t('chat.goalList.title')} items={items} body={items.length === 0 ? <p className="text-sm text-[var(--fg-3)]">{t('chat.goalList.empty')}</p> : undefined} actions={(
         <>
           {goals.isError ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('chat.liveBlock.error')}</p> : null}
-          {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
-          <Button variant="ghost" size="sm" onClick={() => navigate('/progress/goals')}>{t('chat.goalList.progressLink')}</Button>
         </>
       )} />
     </div>

@@ -1,3 +1,4 @@
+import { ShellContent } from '@/components/shell/shell-content'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useEffect, useMemo } from 'react'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
@@ -81,7 +82,7 @@ export function WrappedPlayer({
 
   return (
     <GestureDetector gesture={swipeDown}>
-      <View style={[styles.player, { backgroundColor: tokens.bg }]}>
+      <View style={[styles.player, { backgroundColor: tokens.bg }]}><ShellContent style={{ flex: 1 }}>
         <View testID="wrapped-header" style={[styles.headerRow, { paddingTop: Math.max(SPACING.s8, insets.top) }]}>
           <View style={styles.headerCopy}>
             <Text style={[styles.coverEyebrow, { color: tokens.fg3 }]}>{t(`wrapped.player.eyebrow.${period}`)}</Text>
@@ -139,7 +140,7 @@ export function WrappedPlayer({
           onDownload={() => void download()}
           onPage={page}
         />
-      </View>
+      </ShellContent></View>
     </GestureDetector>
   )
 }

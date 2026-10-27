@@ -224,7 +224,7 @@ const insight: PeriodInsightData = {
   narrative: { highlights: 'Walked', trends: '', suggestion: '', missed: '' },
 }
 
-it.each([[false, '/'], [true, '/'], [false, '/progress'], [true, '/progress']] as const)('leaves full-screen Astra for Progresso from the period insight with wide=%s at %s', (wide, pathname) => {
+it.each([[false, '/'], [true, '/'], [false, '/progress'], [true, '/progress']] as const)('keeps insight disclosure in Astra and navigates to Progresso from the shell with wide=%s at %s', (wide, pathname) => {
   navigation.wide = wide
   navigation.pathname = pathname
   const block = <PeriodInsightCard periodInsight={insight} />
@@ -235,8 +235,9 @@ it.each([[false, '/'], [true, '/'], [false, '/progress'], [true, '/progress']] a
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
   fireEvent.click(within(conversation).getByRole('button', { name: 'chat.readBlock.less' }))
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
-  fireEvent.click(within(conversation).getByRole('link', { name: 'Ver no Progresso' }))
-  expect(navigation.push).toHaveBeenCalledWith('/progress')
+  expect(within(conversation).queryByRole('link', { name: 'Ver no Progresso' })).toBeNull()
+  fireEvent.click(screen.getByRole('link', { name: 'nav.progress' }))
+  if (pathname !== '/progress') expect(navigation.push).toHaveBeenCalledWith('/progress')
   view.rerender(<App block={block} />)
   expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
@@ -244,10 +245,10 @@ it.each([[false, '/'], [true, '/'], [false, '/progress'], [true, '/progress']] a
   expect(document.querySelector('[data-shell-destination]')).not.toHaveAttribute('inert')
 })
 
-it('keeps Astra open when its destination link opens in another tab', () => {
+it('keeps Astra open when a shell destination link opens in another tab', () => {
   render(<App block={<PeriodInsightCard periodInsight={insight} />} />)
   act(() => useUIStore.getState().setAstraConversationOpen(true))
-  fireEvent.click(screen.getByRole('link', { name: 'Ver no Progresso' }), { ctrlKey: true })
+  fireEvent.click(screen.getByRole('link', { name: 'nav.progress' }), { ctrlKey: true })
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
   expect(navigation.push).not.toHaveBeenCalled()
 })

@@ -1,3 +1,4 @@
+import { ShellSideInsetsContext } from '@/components/shell/shell-side-insets'
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { AccessibilityInfo, StyleSheet, findNodeHandle, View } from 'react-native'
 import * as Dialog from '@rn-primitives/dialog'
@@ -51,7 +52,7 @@ function WindowPortal({ title, children }: Readonly<Pick<NativeDialogProps, 'tit
       <Dialog.Content ref={contentRef} style={styles.content} accessibilityLabel={title} accessibilityViewIsModal
         onAccessibilityEscape={() => { if (topmost) close() }}>
         <Dialog.Title style={styles.hiddenTitle} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{title}</Dialog.Title>
-        {children}
+        <ShellSideInsetsContext.Provider value={false}>{children}</ShellSideInsetsContext.Provider>
       </Dialog.Content>
     </Dialog.Overlay>
   </Dialog.Portal>

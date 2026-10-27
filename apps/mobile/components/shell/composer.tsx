@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
+import { ShellSideInsetsContext, useShellContentStyle } from './shell-side-insets'
 import { PersonalText } from '@/components/ui/personal-text'
 import {
   hasComposerContent,
@@ -128,7 +129,7 @@ function SuggestionStrip({
                 style={[styles.suggestionContent, disclosure ? { flexShrink: 0 } : null]}
               >
                 {suggestion.icon ? <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}>{suggestion.icon}</View> : null}
-                <AstraGlyph size={16} color={tokens.fg2} /><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
+                <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}><AstraGlyph size={16} color={tokens.fg2} /></View><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
               </View>
             </InsetFocusPressable>
           ))}
@@ -610,8 +611,9 @@ function ComposerContent({ props, tokens, focusTarget, disclosure }: Readonly<{ 
 }
 
 export function Composer(props: Readonly<MobileComposerProps>) {
+  const contentStyle = useShellContentStyle(SPACING.s16)
   const contentId = useId()
-  const savedCollapsed = useUIStore(state => state.habitComposerCollapsed)
+  const savedCollapsed = useUIStore(state => props.collapseScope === 'today' ? state.todayComposerCollapsed : state.habitComposerCollapsed)
   const collapsed = Boolean(props.collapsible && savedCollapsed)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -627,7 +629,9 @@ export function Composer(props: Readonly<MobileComposerProps>) {
   const disclosureFocusPending = useRef(false)
   function toggleCollapsed() {
     disclosureFocusPending.current = true
-    useUIStore.getState().setHabitComposerCollapsed(!collapsed)
+    const preferences = useUIStore.getState()
+    if (props.collapseScope === 'today') preferences.setTodayComposerCollapsed(!collapsed)
+    else preferences.setHabitComposerCollapsed(!collapsed)
   }
   useEffect(() => {
     if (!disclosureFocusPending.current) return
@@ -679,11 +683,13 @@ export function Composer(props: Readonly<MobileComposerProps>) {
       onBlur={() => { focusedTarget.current = null }}
       testID={testID}
       accessibilityState={{ busy: props.state === 'sending' }}
-      style={[styles.root, collapsed ? styles.collapsed : null, { backgroundColor: tokens.bg, borderTopColor: tokens.hairline }]}
+      style={[styles.root, { backgroundColor: tokens.bg, borderTopColor: tokens.hairline }]}
     >
+      <ShellSideInsetsContext.Provider value={true}><View testID="composer-content" style={[styles.content, collapsed ? styles.collapsed : null, contentStyle]}>
       {collapsed ? <ComposerDisclosure collapsed tokens={tokens} onToggle={toggleCollapsed} ref={collapsedDisclosureRef} /> : null}
       {props.collapsible ? <View nativeID={contentId} accessibilityElementsHidden={collapsed} importantForAccessibility={collapsed ? 'no-hide-descendants' : 'auto'}
         style={{ display: collapsed ? 'none' : 'flex', gap: 12 }}>{content}</View> : content}
+      </View></ShellSideInsetsContext.Provider>
     </View>
   )
 }
@@ -692,9 +698,8 @@ const styles = StyleSheet.create({
   root: {
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'column',
-    gap: 12,
-    padding: SPACING.s16,
   },
+  content: { gap: 12, padding: SPACING.s16 },
   collapsed: { paddingVertical: SPACING.s4, gap: 0 },
   collapseControl: { width: 48, height: 48, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden' },
   suggestionRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.s12 },
@@ -740,7 +745,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
     flexShrink: 0,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: COMPOSER_CHIP_GAP,
     paddingHorizontal: SPACING.s12,
     paddingVertical: SPACING.s12,

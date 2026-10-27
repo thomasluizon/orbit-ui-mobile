@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 import AstraHttpProvider from '../http-provider.mjs'
+import { visibleBlock } from '../visible-blocks.mjs'
 import { chatResponse, habitBlock } from './fixtures/producer.mjs'
 
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8')).providers[0].config
@@ -29,10 +30,17 @@ it('excludes a succeeded read summary and hidden habit fields from the actual gr
   expect(output.answer).not.toContain('INVISIBLE_')
   expect(JSON.parse(output.answer)).not.toHaveProperty('operations')
 })
-it('projects a failed operation as the localized outcome both clients show', async () => {
+it('omits an unlabelled failed read outcome as both clients do', async () => {
   const { output } = await receive({ operations: [operation('Failed')], parts: [] })
   const visible = JSON.parse(output.answer)
-  expect(visible.outcomes).toEqual([{ title: 'Alguns itens não foram salvos', label: 'Operação da Astra', meta: 'Não foi salvo' }])
+  expect(visible).not.toHaveProperty('outcomes')
+  expect(output.answer).not.toContain('INVISIBLE_')
+})
+it('projects a failed write as the localized outcome both clients show', async () => {
+  const failed = { ...operation('Failed'), operationId: 'create_habit', sourceName: 'create_habit', targetName: 'Water' }
+  const { output } = await receive({ operations: [failed], parts: [] })
+  const visible = JSON.parse(output.answer)
+  expect(visible.outcomes).toEqual([{ title: 'Alguns itens não foram salvos', label: 'Water', meta: 'Não foi salvo' }])
   expect(output.answer).not.toContain('INVISIBLE_')
 })
 it.each([
@@ -121,7 +129,21 @@ it('coalesces duplicate failures and hides actions owned by a pending preview', 
   expect(output.answer).not.toContain('INVISIBLE_')
 })
 it.each(['unsupported-kind', 'malformed-block'])('fails closed on an unrenderable %s without sending raw text to a grader', async (mode) => {
-  const { error } = await receive({ parts: [{ type: 'block', kind: mode === 'unsupported-kind' ? 'invented' : 'habitList',
-    block: { toolPayload: 'INVISIBLE_PAYLOAD' } }] })
-  expect(error).toBe('Astra returned an unrenderable visible answer.')
+  const part = { type: 'block', kind: mode === 'unsupported-kind' ? 'invented' : 'habitList',
+    block: { toolPayload: 'INVISIBLE_PAYLOAD' } }
+  let message
+  try { visibleBlock(part, {}) } catch (error) { message = error.message }
+  expect(message).toBeTruthy()
+  const { error, output } = await receive({ parts: [habitBlock, part] })
+  expect(error).toContain(message)
+  expect(error).toContain(part.kind)
+  expect(output).toMatchObject({ answer: null, httpStatus: 200, renderError: { message, blockKind: part.kind },
+    trace: { state: 'available' } })
+})
+
+it('preserves suggestion projection failures with their block kind', async () => {
+  const { error, output } = await receive({ parts: [{ type: 'block', kind: 'habitSuggestions', block: { drafts: [{}] } }] })
+  expect(error).toContain('Malformed suggestion block.')
+  expect(error).toContain('habitSuggestions')
+  expect(output).toMatchObject({ answer: null, renderError: { blockKind: 'habitSuggestions', message: 'Malformed suggestion block.' } })
 })

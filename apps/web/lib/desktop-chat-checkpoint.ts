@@ -30,7 +30,7 @@ async function durableImageUrl(url: string | null | undefined) {
   })
 }
 
-export async function writeDesktopChatCheckpoint(accountId: string, chat: ChatStoreState, conversationOpen: boolean) {
+export async function writeDesktopChatCheckpoint(accountId: string, chat: ChatStoreState, conversationOpen: boolean, persistent = false) {
   const messages = await Promise.all(chat.messages.map(async message => ({
     ...message, imageUrl: await durableImageUrl(message.imageUrl),
   })))
@@ -38,11 +38,12 @@ export async function writeDesktopChatCheckpoint(accountId: string, chat: ChatSt
     chat: { messages, draft: chat.draft, proactiveEntryId: chat.proactiveEntryId,
       proactiveOutcomes: chat.proactiveOutcomes, contextualSuggestion: chat.contextualSuggestion } }
   checkpointSchema.parse(checkpoint)
-  sessionStorage.setItem(desktopChatCheckpointKey, JSON.stringify(checkpoint))
+  const storage = persistent ? localStorage : sessionStorage
+  storage.setItem(desktopChatCheckpointKey, JSON.stringify(checkpoint))
 }
 
 export function takeDesktopChatCheckpoint(accountId: string) {
-  const stored = sessionStorage.getItem(desktopChatCheckpointKey)
+  const stored = sessionStorage.getItem(desktopChatCheckpointKey) ?? localStorage.getItem(desktopChatCheckpointKey)
   forgetDesktopChatCheckpoint()
   if (!stored) return null
   let parsed: unknown

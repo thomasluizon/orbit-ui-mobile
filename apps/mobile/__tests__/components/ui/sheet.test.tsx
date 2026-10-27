@@ -37,9 +37,9 @@ vi.unmock('@/components/ui/sheet')
 vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(true) }))
 vi.mock('@/components/ui/markdown', () => ({ Markdown: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }))
 
-const safeArea = vi.hoisted(() => ({ bottom: 24 }))
+const safeArea = vi.hoisted(() => ({ bottom: 24, left: 0, right: 0 }))
 vi.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: safeArea.bottom, left: 0 }),
+  useSafeAreaInsets: () => ({ top: 0, ...safeArea }),
 }))
 
 const habitMocks = vi.hoisted(() => ({ validateAll: vi.fn(), createHabit: vi.fn() }))
@@ -932,4 +932,50 @@ it('keeps the sheet dismiss target at least 48 dp', async () => {
   expect(bounds.width).toBeGreaterThanOrEqual(48)
   expect(bounds.minHeight ?? bounds.height).toBeGreaterThanOrEqual(48)
   TestRenderer.act(() => { headerTree.unmount(); tree.unmount() })
+})
+
+it.each([false, true])('adds side insets to every sheet slot with virtualizedBody=%s', async (virtualizedBody) => {
+  safeArea.left = 28
+  safeArea.right = 64
+  __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { tree = TestRenderer.create(<Sheet title="Settings" actions={<Text>Save</Text>} onClose={vi.fn()} virtualizedBody={virtualizedBody}><Text>Content</Text></Sheet>) })
+  try {
+    const sheet = tree.root.findByType(TrueSheet)
+    expect(sheet.props.insetAdjustment).toBe('automatic')
+    const body = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => node.props.testID === (virtualizedBody ? 'sheet-virtualized-body' : 'sheet-body-scroll'))[0]!
+    const footer = StyleSheet.flatten(sheet.props.footer.props.style)
+    expect(footer.paddingLeft ?? 0).toBe(0)
+    expect(footer.paddingRight ?? 0).toBe(0)
+    const styles = [sheet.props.header.props.style, sheet.props.footer.props.children[1].props.style, virtualizedBody ? body.props.style : body.props.contentContainerStyle]
+    for (const declared of styles) {
+      const style = StyleSheet.flatten(declared)
+      expect(style.paddingLeft).toBe((style.paddingHorizontal ?? 0) + 28)
+      expect(style.paddingRight).toBe((style.paddingHorizontal ?? 0) + 64)
+    }
+  } finally {
+    safeArea.left = 0
+    safeArea.right = 0
+    await TestRenderer.act(() => tree.unmount())
+  }
+})
+
+it.each([false, true])('sizes date-grid gutters inside both safe insets with virtualizedBody=%s', async (virtualizedBody) => {
+  safeArea.left = 28
+  safeArea.right = 64
+  __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { tree = TestRenderer.create(<Sheet title="Date" minimumBodyWidth={308} virtualizedBody={virtualizedBody}><Text>Calendar</Text></Sheet>) })
+  try {
+    const body = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => node.props.testID === (virtualizedBody ? 'sheet-virtualized-body' : 'sheet-body-scroll'))[0]!
+    const style = StyleSheet.flatten(virtualizedBody ? body.props.style : body.props.contentContainerStyle)
+    expect(style.paddingHorizontal).toBe(4)
+    expect(style.paddingLeft).toBe(32)
+    expect(style.paddingRight).toBe(68)
+    expect(412 - style.paddingLeft - style.paddingRight).toBeGreaterThanOrEqual(308)
+  } finally {
+    safeArea.left = 0
+    safeArea.right = 0
+    await TestRenderer.act(() => tree.unmount())
+  }
 })

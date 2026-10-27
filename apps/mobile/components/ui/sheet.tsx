@@ -81,15 +81,16 @@ export function Sheet({
     [currentScheme, currentTheme],
   )
   useOverlayFocus(true)
-  const styles = useMemo(() => createStyles(tokens), [tokens])
+  const insets = useSafeAreaInsets()
+  const styles = useMemo(() => createStyles(tokens, insets.left, insets.right), [tokens, insets.left, insets.right])
   const { height, width } = useWindowDimensions()
   const bodyPaddingHorizontal = minimumBodyWidth == null
     ? PADDING.sheetInline
     : SHEET_BODY_INSETS.reduce<number>((inset, step) => (
-      minimumBodyWidth + step * 2 <= Math.min(width, SHELL_CONTENT_MAX_WIDTH) ? step : inset
+      minimumBodyWidth + step * 2 <= Math.min(width, SHELL_CONTENT_MAX_WIDTH) - insets.left - insets.right ? step : inset
     ), SHEET_BODY_INSETS[0])
-  const bodyStyle = [styles.body, { paddingHorizontal: bodyPaddingHorizontal }]
-  const { bottom: bottomInset } = useSafeAreaInsets()
+  const bodyStyle = [styles.body, { paddingHorizontal: bodyPaddingHorizontal, paddingLeft: bodyPaddingHorizontal + insets.left, paddingRight: bodyPaddingHorizontal + insets.right }]
+  const bottomInset = insets.bottom
   const { titleExpanded, bodyRef, handleBodyScroll, toggleTitle } = useSheetTitleDisclosure()
   const [headerHeight, setHeaderHeight] = useState(0)
   const [footerHeight, setFooterHeight] = useState(0)
@@ -288,7 +289,7 @@ function virtualizedBodyStyle(maxHeight: number, hasFooter: boolean) {
   return [{ maxHeight }, hasFooter ? { paddingBottom: SPACING.s0 } : null]
 }
 
-function createStyles(tokens: Tokens) {
+function createStyles(tokens: Tokens, leftInset: number, rightInset: number) {
   return StyleSheet.create({
     header: {
       alignItems: 'flex-start',
@@ -296,6 +297,8 @@ function createStyles(tokens: Tokens) {
       gap: 16,
       minHeight: 56,
       paddingHorizontal: PADDING.sheetInline,
+      paddingLeft: PADDING.sheetInline + leftInset,
+      paddingRight: PADDING.sheetInline + rightInset,
       paddingTop: PADDING.sheetHeaderTop,
       paddingBottom: PADDING.sheetHeaderBottom,
     },
@@ -361,11 +364,13 @@ function createStyles(tokens: Tokens) {
       gap: 8,
       justifyContent: 'flex-end',
       paddingHorizontal: PADDING.sheetInline,
+      paddingLeft: PADDING.sheetInline + leftInset,
+      paddingRight: PADDING.sheetInline + rightInset,
       paddingTop: PADDING.sheetFooterTop,
       paddingBottom: PADDING.sheetBottom,
     },
     footer: { backgroundColor: tokens.bgSheet },
-    notice: { paddingHorizontal: PADDING.sheetInline, paddingVertical: SPACING.s16 },
+    notice: { paddingHorizontal: PADDING.sheetInline, paddingLeft: PADDING.sheetInline + leftInset, paddingRight: PADDING.sheetInline + rightInset, paddingVertical: SPACING.s16 },
   })
 }
 

@@ -225,6 +225,29 @@ it('rejects a correct root font with persistently stale supporting phases', asyn
   } finally { await page.close() }
 })
 
+it('includes the last animation phase and owner in text scale failures', async () => {
+  const page = await habitPage(habitScript)
+  try {
+    await setHabitTextScale(page, 1, supportingHabitTitles)
+    await page.getByTestId('habit-row').first().evaluate(async (row) => {
+      const target = row.querySelector<HTMLElement>('[data-habit-row-controls]')!
+      target.style.transition = 'padding-top 60s linear'
+      target.style.paddingTop = '0px'
+      void getComputedStyle(target).paddingTop
+      target.style.paddingTop = '8px'
+      const transition = target.getAnimations().find((animation) => animation instanceof CSSTransition)
+      if (!transition) throw new Error('The receipt scenario requires a CSS transition')
+      transition.pause()
+      await transition.ready
+    })
+    const scaling = setHabitTextScale(page, 1, supportingHabitTitles)
+    await expect(scaling).rejects.toThrow('"computedFont":"16px"')
+    await expect(scaling).rejects.toThrow('"property":"padding-top"')
+    await expect(scaling).rejects.toThrow('"target":"div[data-habit-row-controls=\\"\\"]"')
+    await expect(scaling).rejects.toThrow('"playState":"paused","pending":false')
+  } finally { await page.close() }
+})
+
 it('rejects habit geometry when the requested root font is lost before measurement', async () => {
   const page = await habitPage(habitScript)
   try {

@@ -12,6 +12,22 @@ import type {
 } from '../types/chat'
 import type { BulkCreateResponse } from '../types/habit'
 
+export const failedReadOperationFixture = {
+  operationId: 'get_retrospective',
+  sourceName: 'get_retrospective',
+  riskClass: 'Low',
+  confirmationRequirement: 'None',
+  status: 'Failed',
+  summary: null,
+  targetId: null,
+  targetName: null,
+  policyReason: null,
+  pendingOperationId: null,
+  payload: null,
+  errorCode: 'NO_HABITS_FOR_PERIOD',
+  access: 'read',
+} as const
+
 export const breakdownSubHabits: SuggestedSubHabit[] = [
   { title: 'Dishes', description: '', frequencyUnit: 'Day' },
   { title: 'Laundry', description: '', frequencyUnit: 'Week' },
@@ -42,7 +58,7 @@ export const goalListCardFixture: GoalListCard = {
 
 export const agentPolicyDenialFixture: AgentPolicyDenial = {
   operationId: 'policy-1',
-  sourceName: 'DeleteAccount',
+  sourceName: 'account.manage',
   riskClass: 'High',
   confirmationRequirement: 'StepUp',
   reason: 'Profile only',
@@ -190,14 +206,28 @@ export function makePendingWriteSummaryOperation(scenario: typeof pendingWriteSu
 }
 
 export const partialScheduleSummaryCases = [
+  { name: 'change habit polarity', fields: [
+    { field: 'is_bad_habit', oldValue: 'false', newValue: 'True', proposedValue: true },
+  ], english: 'Build this habit → Reduce this habit', portuguese: 'Fortalecer este hábito → Reduzir este hábito' },
+  { name: 'change flexible tracking without a schedule', fields: [
+    { field: 'is_flexible', oldValue: 'true', newValue: 'False', proposedValue: false },
+  ], english: 'Choose any day → Keep fixed days', portuguese: 'Escolher qualquer dia → Manter dias fixos' },
+  { name: 'change general tracking without a schedule', fields: [
+    { field: 'is_general', oldValue: 'true', newValue: 'False', proposedValue: false },
+  ], english: 'Do it anytime → Follow a schedule', portuguese: 'Fazer a qualquer hora → Seguir um horário' },
+  { name: 'change cadence and habit polarity together', fields: [
+    { field: 'frequency_unit', oldValue: 'Week', newValue: 'Day', proposedValue: 'Day' },
+    { field: 'frequency_quantity', oldValue: '1', newValue: '1', proposedValue: 1 },
+    { field: 'is_bad_habit', oldValue: 'true', newValue: 'False', proposedValue: false },
+  ], english: '1 week · Reduce this habit → 1 day · Build this habit', portuguese: '1 semana · Reduzir este hábito → 1 dia · Fortalecer este hábito' },
   { name: 'retain flexible tracking', fields: [
     { field: 'frequency_unit', oldValue: 'Week', newValue: 'Week', proposedValue: 'Week' },
     { field: 'frequency_quantity', oldValue: '2', newValue: '3', proposedValue: 3 },
-  ], english: 'Repetition in weeks · Frequency: 3', portuguese: 'Repetição em semanas · Frequência: 3' },
+  ], english: '2 weeks → 3 weeks', portuguese: '2 semanas → 3 semanas' },
   { name: 'retain selected weekdays', fields: [
     { field: 'frequency_unit', oldValue: 'Week', newValue: 'Day', proposedValue: 'Day' },
     { field: 'frequency_quantity', oldValue: '1', newValue: '1', proposedValue: 1 },
-  ], english: 'Repetition in days · Frequency: 1', portuguese: 'Repetição em dias · Frequência: 1' },
+  ], english: '1 week → 1 day', portuguese: '1 semana → 1 dia' },
 ] as const
 
 export function makePartialScheduleSummaryOperation(scenario: typeof partialScheduleSummaryCases[number]): PendingAgentOperation {
@@ -309,3 +339,5 @@ export const focusedStaleRecapFixture = {
     completeness: 'stale' as const, recovery: 'refresh',
   },
 }
+
+export { habitSuggestionDraftFixture, habitSuggestionsFixture, makeHabitSuggestionMessage, makeHabitSuggestionPreview, makeHabitSuggestionBatchPreview } from './habit-suggestion-fixtures'

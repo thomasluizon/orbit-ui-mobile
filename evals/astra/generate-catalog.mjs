@@ -1,11 +1,18 @@
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { stringify } from 'yaml'
 
-const apiRoot = resolve(process.argv[2])
+if (!process.argv[2]) throw new Error('Usage: node evals/astra/generate-catalog.mjs <api-checkout>')
+const apiRoot = realpathSync(resolve(process.argv[2]))
+function cleanApiCommit() {
+  const git = (arguments_) => execFileSync('git', ['-C', apiRoot, ...arguments_], { encoding: 'utf8' }).trim()
+  if (git(['status', '--porcelain']).length) throw new Error('Catalog generation requires a clean API checkout.')
+  return git(['rev-parse', 'HEAD'])
+}
+const apiCommit = cleanApiCommit()
 const directory = realpathSync(mkdtempSync(join(tmpdir(), 'astra-catalog-')))
 const xml = (value) => value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;')
 try {
@@ -13,28 +20,24 @@ try {
   writeFileSync(project, `<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="${xml(join(apiRoot, 'src/Orbit.Infrastructure/Orbit.Infrastructure.csproj'))}" />
-    <Compile Include="${xml(join(apiRoot, 'src/Orbit.Infrastructure/AI/StrictToolSchema.cs'))}" Link="StrictToolSchema.cs" />
+    <ProjectReference Include="${xml(join(apiRoot, 'src/Orbit.Api/Orbit.Api.csproj'))}" />
     <Compile Include="${xml(fileURLToPath(new URL('./catalog-export.cs', import.meta.url)))}" Link="Program.cs" />
+    <Compile Include="${xml(fileURLToPath(new URL('./catalog-constructor.cs', import.meta.url)))}" Link="CatalogConstructor.cs" />
   </ItemGroup>
 </Project>`)
   const output = join(directory, 'catalog.json')
-  const run = spawnSync('dotnet', ['run', '--project', project, '--artifacts-path', join(directory, 'artifacts'), '--', output], {
+  const run = spawnSync('dotnet', ['run', '--project', project, '--artifacts-path', join(directory, 'artifacts'),
+    '-p:OpenApiGenerateDocuments=false', '--', output], {
     cwd: apiRoot, stdio: 'inherit',
   })
   if (run.error) throw run.error
   if (run.status !== 0) throw new Error('API tool catalog export failed.')
-  const catalog = JSON.parse(readFileSync(output, 'utf8'))
-  for (const tool of catalog.filter(({ function: { name } }) => ['bulk_log_habits', 'bulk_skip_habits', 'bulk_delete_habits'].includes(name))) {
-    tool.function.parameters.oneOf = [
-      { required: ['habit_ids'], properties: { habit_ids: { type: 'array' }, filter: { type: 'null' } } },
-      { required: ['filter'], properties: { filter: { type: 'object' }, habit_ids: { type: 'null' } } },
-    ]
-  }
+  const catalogs = JSON.parse(readFileSync(output, 'utf8'))
+  if (cleanApiCommit() !== apiCommit) throw new Error('API commit changed during catalog generation.')
   writeFileSync(new URL('./catalog.yaml', import.meta.url),
-    '# Generated from API tool schemas and StrictToolSchema; regenerate with generate-catalog.mjs.\n'
-    + '# Optional arguments permit omission or null; all supplied values retain their producer constraints.\n'
-    + stringify(catalog, { lineWidth: 120 }))
+    '# Generated through the API request builder, StrictToolSchema and eval trace sensitivity collector.\n'
+    + '# Regenerate with node evals/astra/generate-catalog.mjs <api-checkout>.\n'
+    + stringify({ apiCommit, ...catalogs }, { lineWidth: 120 }))
 } finally {
   rmSync(directory, { recursive: true, force: true })
 }

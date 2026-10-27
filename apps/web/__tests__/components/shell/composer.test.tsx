@@ -335,7 +335,7 @@ describe('Composer', () => {
         expect(control).toHaveAccessibleName(chips[index]!.label)
         expect(within(control).queryByText(messages.nav.astra, { exact: true })).not.toBeInTheDocument()
         expect(control.querySelectorAll('svg')).toHaveLength(1)
-        expect(control.querySelector('svg')).toHaveAttribute('data-asset', 'astra-mark-16')
+        expect(control.querySelector('svg')).toHaveAttribute('data-asset', 'astra-mark')
         expect(control.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
       }
       fireEvent.click(controls[1]!)

@@ -1,3 +1,4 @@
+import { ShellContent } from '@/components/shell/shell-content'
 import { IconButton } from '@/components/ui/icon-button'
 import { X, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
@@ -68,6 +69,7 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
 
   return <Animated.View testID="prompt-library" pointerEvents={visibleLayer ? 'auto' : 'none'} accessibilityElementsHidden={!visibleLayer} importantForAccessibility={visibleLayer ? 'auto' : 'no-hide-descendants'} style={[styles.layer, { backgroundColor: tokens.bg, paddingBottom: insets.bottom, opacity: progress, transform: [{ translateX: reducedMotion ? 0 : progress.interpolate({ inputRange: [0, 1], outputRange: [motionLayerTiming.routeShift, 0] }) }] }]}>
     <AppBar title={t('chat.templates.title')} titleRef={headingRef} onBack={props.onBack} backLabel={t('chat.templates.back')} />
+    <ShellContent style={{ flex: 1 }}>
     <View style={styles.controls}>
       {props.disabledReason ? <CapacityNotice message={props.disabledReason} /> : null}
       <View style={{ gap: 4 }}>
@@ -94,6 +96,7 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
         <IconButton label={t('chat.templates.more')} disabled={currentPage === lastPage} onClick={() => dispatch({ type: 'page', page: currentPage + 1 })}><ChevronRight size={20} strokeWidth={1.5} accessible={false} /></IconButton>
       </ActionRow></View> : null}
     </ScrollView>
+    </ShellContent>
   </Animated.View>
 }
 

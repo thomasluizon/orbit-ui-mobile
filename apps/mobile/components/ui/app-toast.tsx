@@ -160,7 +160,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
 export function AppToast({ placement = 'overlay', sheetId }: Readonly<{ placement?: 'overlay' | 'slot' | 'sheet'; sheetId?: string }>) {
   const insets = useSafeAreaInsets()
   const { width: screenWidth } = useWindowDimensions()
-  const overlayFrame = resolveCenteredOverlayFrame(screenWidth, 420)
+  const overlayFrame = resolveCenteredOverlayFrame(screenWidth - insets.left - insets.right, 420)
   const currentToast = useAppToastStore((state) => state.currentToast)
   const triggerAction = useAppToastStore((state) => state.triggerAction)
   const dismissToast = useAppToastStore((state) => state.dismissToast)
@@ -182,8 +182,8 @@ export function AppToast({ placement = 'overlay', sheetId }: Readonly<{ placemen
   if (placement !== 'overlay') return <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} outlined={placement === 'sheet'} />
 
   return (
-    <View pointerEvents="box-none" style={[styles.host, styles.overlay, overlayFrame, { bottom: insets.bottom + 16 }]}>
-      <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} />
+    <View pointerEvents="box-none" style={[styles.host, styles.overlay, { bottom: insets.bottom + 16, left: 0, width: screenWidth }]}>
+      <View testID="toast-content-frame" style={[overlayFrame, { left: insets.left + overlayFrame.left }]}><Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} /></View>
     </View>
   )
 }

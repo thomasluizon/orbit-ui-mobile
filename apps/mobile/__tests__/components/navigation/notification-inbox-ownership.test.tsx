@@ -26,9 +26,9 @@ vi.mock('expo-router', () => ({
   useRouter: () => ({ push: vi.fn() }), usePathname: () => '/notifications',
 }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
-vi.mock('react-native-safe-area-context', async () => {
+vi.mock('react-native-safe-area-context', async (original) => {
   const { View } = await import('react-native')
-  return { SafeAreaView: View }
+  return { ...await original<typeof import('react-native-safe-area-context')>(), SafeAreaView: View }
 })
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
 const offlineMocks = vi.hoisted(() => ({

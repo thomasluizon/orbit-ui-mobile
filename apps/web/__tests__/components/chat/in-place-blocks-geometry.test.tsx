@@ -59,7 +59,12 @@ describe('in-place Astra block geometry', () => {
         })
         const event = main.querySelector('[role="group"][aria-label*="Walk with the team"]')!
         const title = event.querySelector('[data-personal-text]')!
-        return { scroll: main.scrollWidth, width: main.clientWidth, buttons, event: event.getBoundingClientRect().width, title: title.getBoundingClientRect().width }
+        const habitRows = [...main.querySelectorAll('[data-habit-block-row]')].map(row => {
+          const title = row.querySelector('[data-personal-text]')!.getBoundingClientRect()
+          const check = row.querySelector('[data-habit-check]')!.getBoundingClientRect()
+          return { titleCenter: title.top + title.height / 2, checkCenter: check.top + check.height / 2 }
+        })
+        return { habitRows, scroll: main.scrollWidth, width: main.clientWidth, buttons, event: event.getBoundingClientRect().width, title: title.getBoundingClientRect().width }
       })
       expect(geometry.buttons.length).toBeGreaterThan(40)
       expect(geometry.scroll).toBeLessThanOrEqual(geometry.width + 1)
@@ -69,6 +74,7 @@ describe('in-place Astra block geometry', () => {
         expect(target.left).toBeGreaterThanOrEqual(0)
         expect(target.right).toBeLessThanOrEqual(width)
       }
+      for (const row of geometry.habitRows) expect(row.checkCenter).toBeCloseTo(row.titleCenter, 0)
       expect(geometry.title).toBeCloseTo(geometry.event, 1)
     } finally { await page.close(); view.unmount() }
   })
