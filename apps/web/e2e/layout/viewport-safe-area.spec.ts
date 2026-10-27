@@ -170,9 +170,10 @@ for (const inset of [0, 44]) {
           await expectSafeBounds(control)
         }
       }
+      const content = (await page.locator('[data-shell-page-content]').boundingBox())!
+      expect(content.x).toBeGreaterThanOrEqual(insets.left)
+      expect(content.x + content.width).toBeLessThanOrEqual(844 - insets.right)
       const column = (await page.locator('[data-shell-column]').boundingBox())!
-      expect(column.x).toBeGreaterThanOrEqual(insets.left)
-      expect(column.x + column.width).toBeLessThanOrEqual(844 - insets.right)
       if (inset === 0) { expect(column.x).toBe(52); expect(column.width).toBe(740) }
       const skip = page.getByRole('link', { name: messages.common.skipToContent })
       await skip.focus()
