@@ -25,7 +25,7 @@ export function QuestionBlock(props: QuestionBlockProps) {
   useEffect(() => {
     const first = root.current?.querySelector<HTMLElement>('[data-question-invalid="true"]')
     first?.querySelector<HTMLElement>('button, input, [role="slider"]')?.focus()
-  }, [state.invalidIds])
+  }, [state.validationAttempt])
   const focusClosed = useCallback((element: HTMLParagraphElement | null) => {
     if (element && focusWhenClosed) element.focus({ preventScroll: true })
   }, [focusWhenClosed])

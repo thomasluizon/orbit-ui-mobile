@@ -66,7 +66,9 @@ it('shows each required hint, focuses the first missing question and makes no re
   await submit()
   expect(tree.root.findAll(node => node.type === Text).filter(node => node.props.children === en.chat.question.required)).toHaveLength(5)
   expect(context.send).not.toHaveBeenCalled()
-  expect(focus).toHaveBeenCalled()
+  expect(focus).toHaveBeenCalledTimes(1)
+  await submit()
+  expect(focus).toHaveBeenCalledTimes(2)
 })
 it('submits every typed value once, including false and zero, and locks with chosen answers', async () => {
   const context = interaction()

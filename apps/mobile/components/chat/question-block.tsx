@@ -9,17 +9,20 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { QuestionControls } from './question-controls'
 
-function QuestionPanel({ invalid, firstInvalid, showPrompt, ...props }: QuestionControlProps & { invalid: boolean; firstInvalid: boolean; showPrompt: boolean }) {
+function QuestionPanel({ invalid, firstInvalid, validationAttempt, showPrompt, ...props }: QuestionControlProps & { invalid: boolean; firstInvalid: boolean; validationAttempt: number; showPrompt: boolean }) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const prompt = useRef<Text>(null)
+  const lastValidation = useRef(0)
   useEffect(() => {
+    if (lastValidation.current === validationAttempt) return
+    lastValidation.current = validationAttempt
     if (firstInvalid && prompt.current) {
       const handle = findNodeHandle(prompt.current)
       if (handle !== null) AccessibilityInfo.setAccessibilityFocus(handle)
     }
-  }, [firstInvalid])
+  }, [firstInvalid, validationAttempt])
   return <View style={{ minWidth: 0, gap: 12 }}>
     {showPrompt || invalid ? <Text ref={prompt} accessibilityRole="header" accessibilityHint={invalid ? t('chat.question.required') : undefined} style={{ fontSize: 16, lineHeight: 24, fontFamily: 'Geist_500Medium', color: tokens.fg1 }}>{props.question.prompt}</Text> : null}
     <QuestionControls {...props} />
@@ -57,7 +60,7 @@ export function QuestionBlock(props: QuestionBlockProps) {
           <Text style={{ fontSize: 14, lineHeight: 20, color: tokens.fg3 }}>{t('chat.question.progress', { answered: view.completed, total: props.block.questions.length })}</Text>
         </View>
         {props.block.questions.map((question, index) => <QuestionPanel key={question.id} question={question} answer={state.answers[question.id]} disabled={view.disabled} controller={controller} words={controlWords}
-          invalid={state.invalidIds.includes(question.id)} firstInvalid={state.invalidIds[0] === question.id} showPrompt={Boolean(props.block.title) || index > 0} />)}
+          invalid={state.invalidIds.includes(question.id)} firstInvalid={state.invalidIds[0] === question.id} validationAttempt={state.validationAttempt} showPrompt={Boolean(props.block.title) || index > 0} />)}
       </View>}
       actions={<View style={{ minWidth: 0, width: '100%', alignItems: 'flex-end', gap: 8 }}>
         <IconButton label={t('chat.choice.submit')} loading={state.acting} disabled={view.submitDisabled} onClick={() => void controller.submit(props, words, i18n.language)}><ArrowUp size={20} accessible={false} /></IconButton>

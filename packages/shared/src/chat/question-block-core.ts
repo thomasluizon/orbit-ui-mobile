@@ -44,6 +44,7 @@ export function questionAnswerLabels(block: QuestionBlock, answers: Record<strin
 export interface QuestionBlockState {
   answers: Record<string, QuestionAnswer>
   invalidIds: string[]
+  validationAttempt: number
   acting: boolean
   settled: { text: string; answered: boolean } | null
   error: string | null
@@ -71,7 +72,7 @@ export function questionBlockStatus(props: QuestionBlockProps, state: QuestionBl
 }
 
 export class QuestionBlockController {
-  private state: QuestionBlockState = { answers: {}, invalidIds: [], acting: false, settled: null, error: null, uncertainAnswer: null }
+  private state: QuestionBlockState = { answers: {}, invalidIds: [], validationAttempt: 0, acting: false, settled: null, error: null, uncertainAnswer: null }
   private readonly listeners = new Set<() => void>()
   getSnapshot = (): QuestionBlockState => this.state
   subscribe = (listener: () => void): (() => void) => {
@@ -100,7 +101,7 @@ export class QuestionBlockController {
   async submit(props: QuestionBlockProps, words: QuestionWords, locale: string): Promise<void> {
     if (questionBlockStatus(props, this.state, words).submitDisabled) return
     const invalidIds = props.block.questions.filter(question => !isQuestionAnswered(question, this.state.answers[question.id])).map(question => question.id)
-    if (invalidIds.length) { this.update({ invalidIds }); return }
+    if (invalidIds.length) { this.update({ invalidIds, validationAttempt: this.state.validationAttempt + 1 }); return }
     const answer = payload(props.block, this.state.answers)
     this.update({ acting: true, error: null, uncertainAnswer: answer })
     const labels = questionAnswerLabels(props.block, this.state.answers, words, locale)
