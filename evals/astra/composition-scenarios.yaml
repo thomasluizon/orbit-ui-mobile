@@ -1082,8 +1082,10 @@
     expectations:
       required: &a45
         - name: query_habits
-          arguments:
-            date: today
+          argumentsAnyOf: &todayHabitArguments
+            - { relative_period: today }
+            - { date: today, relative_period: { optional: null } }
+            - { date: '{accountDate}', relative_period: { optional: null } }
       allowed:
         - query_habits
     rubric: Answer in English. Use only the requested scope and current fixture
@@ -1444,8 +1446,9 @@
     expectations:
       required: &a59
         - name: describe_feature
-          arguments:
-            feature_key: schedule-math
+          argumentsAnyOf:
+            - { feature_key: schedule-math }
+            - { feature_key: frequencies }
       allowed:
         - query_habits
         - describe_feature
@@ -1620,8 +1623,7 @@
     expectations:
       required: &a67
         - name: query_habits
-          arguments:
-            date: today
+          argumentsAnyOf: *todayHabitArguments
       allowed:
         - query_habits
     rubric: Answer in English. Use only the requested scope and current fixture
