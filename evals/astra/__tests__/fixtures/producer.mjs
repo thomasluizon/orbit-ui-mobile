@@ -78,6 +78,16 @@ export function preview(name = 'Cholesterol exam') {
     }] }
 }
 
+// Producer fixture: #1754 ProcessUserChatCommandHandlerTests.Timing read turn.
+export function turnTiming() {
+  const names = ['moderation', 'context_load', 'context_load', 'prompt_build', 'budget', 'budget',
+    'model_call', 'budget', 'tool_call', 'budget', 'budget', 'model_call', 'budget', 'save', 'composition', 'other']
+  const durations = [1, 2, 0, 3, 11, 0, 13, 0, 7, 11, 0, 13, 0, 5, 0, 0]
+  return { totalMilliseconds: 66, phases: names.map((name, index) => ({
+    name, milliseconds: durations[index], elapsedMilliseconds: durations[index],
+  })) }
+}
+
 // Contract: orbit-api HabitSuggestionDraft and HabitSuggestionsCard.
 export function suggestionDraft(overrides = {}) {
   return { id: '11111111-1111-4111-8111-111111111111', emoji: '📖', title: 'Read', type: 'Habit',

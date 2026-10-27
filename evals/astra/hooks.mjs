@@ -6,6 +6,7 @@ import { apiOrigin, healthyApi, readCredentials, refreshCredential, safeFailureM
 import { dateOffset, resetFixture } from './fixtures/reset.mjs'
 import { requireEvalAccess } from './fixtures/api.mjs'
 import { prepareCorrection } from './setup.mjs'
+import { describeCase } from './latency.mjs'
 import { descriptors } from './merge-reports.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
 
@@ -25,7 +26,7 @@ function persistResults(results, expectedCases) {
 
 export async function beforeAll({ suite }) {
   completedResults = []
-  selectedCases = suite.tests.map((test) => test.metadata)
+  selectedCases = suite.tests.map(describeCase)
   accountAccess.clear()
   persistResults(completedResults, selectedCases)
   const required = ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_CREDENTIALS_FILE']
@@ -99,7 +100,7 @@ export function afterEach({ result }) {
 }
 
 export function afterAll({ results, suite }) {
-  const { summary, markdown } = persistResults(results, suite.tests.map((test) => test.metadata))
+  const { summary, markdown } = persistResults(results, suite.tests.map(describeCase))
   process.stdout.write(`${markdown}\n`)
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`)
   if (summary.status !== 'pass') throw new Error(`Astra launch gate ${summary.status}; see reports/summary.md and reports/results.json.`)

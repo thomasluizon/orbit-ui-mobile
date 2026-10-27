@@ -1,5 +1,6 @@
 import React from 'react'
 import { act, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { NextIntlClientProvider } from 'next-intl'
 import { hydrateRoot } from 'react-dom/client'
@@ -248,6 +249,8 @@ describe('Today server preload', () => {
   })
 
   it('keeps the first habit row tap after the rendered account is confirmed', async () => {
+    const documentFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+    const user = userEvent.setup()
     await retireHeldAccount()
     const queryClient = getQueryClient()
     queryClient.clear()
@@ -268,10 +271,10 @@ describe('Today server preload', () => {
       })
       const row = container.querySelector<HTMLButtonElement>('[data-habit-row-body]')
       expect(row).not.toBeNull()
-      fireEvent.pointerDown(row!)
+      await user.pointer({ target: row!, keys: '[MouseLeft>]' })
       respondWithAccount('user-1')
       await act(async () => { await useAuthStore.getState().checkSession() })
-      fireEvent.click(row!)
+      await user.pointer({ target: row!, keys: '[/MouseLeft]' })
 
       expect(routerPush).toHaveBeenCalledWith(`/habits/habit-a?date=${date}&from=today`)
     } finally {
@@ -279,6 +282,7 @@ describe('Today server preload', () => {
       container.remove()
       queryClient.clear()
       serverClient.clear()
+      documentFocus.mockRestore()
     }
   })
 })
