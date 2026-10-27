@@ -88,9 +88,8 @@ export function reportApiError(error: unknown): void {
   }
 
   reportedApiErrors.add(error)
-  const title = getToastTitle(error.status)
-  const detail = extractBackendError({ data: error.data })
-  useAppToastStore.getState().showError(detail ? `${title}: ${detail}` : title)
+  const message = extractBackendError({ data: error.data })?.trim()
+  useAppToastStore.getState().showError(message || getToastTitle(error.status))
 }
 
 export async function applySessionRefreshFailure(response: Response): Promise<void> {
@@ -197,8 +196,10 @@ export async function apiFetch<T>(
     headers,
   })
 
+  options?.signal?.throwIfAborted()
   if (!res.ok) {
     const body: unknown = await res.json().catch(() => null)
+    options?.signal?.throwIfAborted()
     const status = res.status
 
     const statusError = await getStatusError(status, body, behavior)
@@ -228,6 +229,7 @@ export function fetchJson<T>(
   url: string,
   schema?: ZodType<T>,
   behavior?: ApiFetchBehavior,
+  signal?: AbortSignal,
 ): Promise<T> {
-  return apiFetch<T>(url, undefined, schema, behavior)
+  return apiFetch<T>(url, { signal }, schema, behavior)
 }

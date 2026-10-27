@@ -432,11 +432,49 @@ A block-only answer may omit `aiMessage` or return it empty.
 Authentication errors, unrelated refusals, throttling, and transport failures cannot pass as a
 budget refusal. The corpus does not infer a successful mutation from a plausible answer.
 
+### Read latency budget
+
+Read cases also require the median API turn time across their three attempts to be strictly below
+`READ_LATENCY_BUDGET_MILLISECONDS` in `evals/astra/latency.mjs`, set to 10000 ms. The #26 gate 6
+failing-case rerun on staging API `43886600` measured 31 read cases with three attempts each:
+the median of case medians was 5533 ms and the `model_call` median was 4701 ms, putting an added
+second call near 10234 ms. The slowest case median with one model call was 9003 ms (`single-read-en`);
+cases with two or three model calls reached 11938 ms (`composition-partial-pt-BR`) and 13771 ms
+(`grounding-missing-pt`). The budget sits above every measured case median with one model call and
+below the estimated median with a second call. Exactly 10000 ms fails. The coordinator records the
+current-build and forced-second-call live runs on the pull request. Fixture timings do not calibrate
+the budget. Live runs consume model allowance and belong to the coordinator.
+
+The corpus classifies `composition.mode: data` as read cases, together with legacy `fallback` cases
+that declare nonempty read-only `expectations.allowed` tools. Preview, clarification and refusal
+cases retain their existing assertions. Each read case must still pass every capability assertion;
+a slow outlier alone does not fail latency when the three-run median is below the budget.
+Fewer than three completed requests or a fixture-precondition failure leaves latency incomplete,
+with no median or budget verdict. Precondition failures send no chat request and contribute no
+timing sample. Invalid timing from a request that ran remains a failure, even alongside an unrun
+attempt or a blocked precondition. Real capability failures also retain their failure verdict.
+
+The input is request-bound `evalTrace.timing` from the API timing producer in #1754:
+`totalMilliseconds` and `phases`, whose entries contain `name`, exclusive `milliseconds`, and
+`elapsedMilliseconds`. All values must be finite nonnegative numbers. Successful read traces require
+`moderation`, `context_load`, `prompt_build`, `model_call`, `tool_call`, `save`, `composition`, `budget`
+and `other`. Missing, malformed or mismatched timing fails the budget. Exclusive phase times must
+sum to the turn total within 1 ms for floating point rounding. Repeated scopes, including a second
+model call, are summed by name within each turn before taking the three-run phase medians.
+The reports show total and per-phase medians in milliseconds; phase medians need not sum to the
+total median. Merged windows preserve and validate these results against the current budget;
+older read summaries without latency evidence must be rerun. No fixture setup or grader time enters
+the API turn measurement.
+
+Run the offline budget and report checks with
+`npm test --prefix evals/astra -- __tests__/latency.test.mjs __tests__/reports.test.mjs __tests__/trace.test.mjs`.
+
 ### Assertions, trace evidence, and the launch decision
 
 Every case runs three times with caching and HTTP retries disabled. A case passes `pass^3`
 only when all three attempts pass all assertions with complete required evidence.
-`reports/summary.json` and `reports/summary.md` contain only case IDs, family and locale labels, and counts.
+`reports/summary.json` and `reports/summary.md` contain case IDs, family and locale labels, counts,
+and sanitized read latency medians and verdicts.
 After each graded attempt, the harness atomically replaces private `reports/results.json` with each attempt's
 case ID, one-based repeat ordinal within that case, pass state, HTTP status, failure reason, and every
 assertion's metric, pass state and reason. Unknown status, metric or reason is null.

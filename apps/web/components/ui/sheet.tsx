@@ -8,7 +8,8 @@ import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, us
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { motionSprings, shouldDismissSheet, SHEET_BODY_INSETS } from '@orbit/shared/theme'
 import { Dialog } from '@base-ui/react/dialog'
-import { animate, motion, useDragControls, useMotionValue, useReducedMotion, type PanInfo, type HTMLMotionProps } from 'motion/react'
+import { animate, motion, useDragControls, useMotionValue, type PanInfo, type HTMLMotionProps } from 'motion/react'
+import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { useTranslations } from 'next-intl'
 import { X } from '@/components/ui/icons'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
@@ -266,7 +267,7 @@ function useSheetBodyFocusVisibility(virtualizedBody: boolean | undefined) {
 
 function useSheetDrag({ onClose, requestClose, onAttemptDismiss }: Pick<WebSheetProps, 'onClose' | 'onAttemptDismiss'> & { requestClose: () => void }) {
   const dismiss = onClose ? requestClose : onAttemptDismiss
-  const reducedMotion = useReducedMotion()
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const y = useMotionValue(0)
   const controls = useDragControls()
   useEffect(() => {
@@ -274,8 +275,11 @@ function useSheetDrag({ onClose, requestClose, onAttemptDismiss }: Pick<WebSheet
     return () => y.stop()
   }, [reducedMotion, controls, y])
   const onEnd = (event: MouseEvent | TouchEvent | PointerEvent, gesture: PanInfo) => {
-    if (event.type !== 'pointercancel' && dismiss && shouldDismissSheet(gesture.offset.y, gesture.velocity.y)) dismiss()
-    else void animate(y, 0, { type: 'spring', stiffness: motionSprings.sheet.stiffness, damping: motionSprings.sheet.damping, mass: motionSprings.sheet.mass, velocity: event.type === 'pointercancel' ? 0 : Math.max(0, gesture.velocity.y) })
+    if (event.type !== 'pointercancel' && dismiss && shouldDismissSheet(gesture.offset.y, gesture.velocity.y)) {
+      dismiss()
+      if (onClose) return
+    }
+    void animate(y, 0, { type: 'spring', stiffness: motionSprings.sheet.stiffness, damping: motionSprings.sheet.damping, mass: motionSprings.sheet.mass, velocity: event.type === 'pointercancel' ? 0 : Math.max(0, gesture.velocity.y) })
   }
   const enabled = Boolean(dismiss) && !reducedMotion
   return {

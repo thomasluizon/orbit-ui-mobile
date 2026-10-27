@@ -102,8 +102,8 @@ export const orbitalMotion = {
 
 export const motionSprings = {
   soft: {
-    stiffness: 220,
-    damping: 30,
+    stiffness: 260,
+    damping: 30 * Math.sqrt(260 / 220),
     mass: 1,
     restSpeedThreshold: 0.4,
     restDisplacementThreshold: 0.4,

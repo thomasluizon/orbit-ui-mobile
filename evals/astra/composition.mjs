@@ -1,6 +1,9 @@
 import { suggestionComposition, refineResult } from './suggestions.mjs'
 import { isDeepStrictEqual } from 'node:util'
 import { getRelatedSurfaces } from '../../packages/shared/src/chat/related-surfaces.ts'
+import { tsImport } from 'tsx/esm/api'
+
+const { questionBlockSchema } = await tsImport('../../packages/shared/src/types/question-block.ts', import.meta.url)
 
 const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 const text = (value) => typeof value === 'string' && value.trim().length > 0
@@ -20,6 +23,7 @@ const shapes = {
   habitRanking: { ranking: 'object', surfaceId: 'string' },
   choice: { blockId: 'string', question: 'string', options: 'array', multiSelect: 'boolean', allowFreeText: 'boolean', expiresAtUtc: 'string' },
   pickList: { blockId: 'string', title: 'string', items: 'array', action: 'string', expiresAtUtc: 'string' },
+  question: { blockId: 'string', questions: 'array', expiresAtUtc: 'string' },
 }
 const capability = { habitList: 'supportsHabitListCard', goalList: 'supportsGoalListCard', metrics: 'supportsMetricsCard',
   periodInsight: 'supportsPeriodInsightCard', daySummary: 'supportsDaySummaryCard', streak: 'supportsStreakCard',
@@ -32,6 +36,7 @@ function validBlock(part, client) {
   if (!Object.entries(shape).every(([key, type]) => type === 'array' ? Array.isArray(part.block[key])
     : type === 'object' ? object(part.block[key]) : typeof part.block[key] === type)) return false
   const block = part.block
+  if (part.kind === 'question' && !questionBlockSchema.safeParse(block).success) return false
   if (part.kind === 'recordList' && !['notifications', 'tags', 'templates', 'keys', 'habitHistory'].includes(block.kind)) return false
   if (part.kind === 'accountRows' && !['profile', 'plan', 'referral'].includes(block.kind)) return false
   if (part.kind === 'recordList' && block.kind === 'habitHistory' && client.supportsHabitHistoryCard !== true) return false
@@ -150,8 +155,9 @@ export function composition(output, context) {
     if (external && !shortLines(external, 1, false)) return result(false, 'Data answer has excessive external text.')
     for (const required of expected.blocks ?? (expected.kinds ?? []).map((kind) => ({ kind }))) {
       if (!blocks.some((part) => part.kind === required.kind && (!required.subtype || part.block.kind === required.subtype)
-        && (!required.completeness || part.block.read?.completeness === required.completeness))) {
-        return result(false, 'Missing required block family, subtype or completeness.')
+        && (!required.completeness || part.block.read?.completeness === required.completeness)
+        && (!required.recovery || part.block.read?.recovery === required.recovery))) {
+        return result(false, 'Missing required block family, subtype, completeness or recovery.')
       }
     }
   }

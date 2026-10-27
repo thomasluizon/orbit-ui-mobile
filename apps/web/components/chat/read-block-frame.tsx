@@ -3,9 +3,9 @@
 import { ConversationCrossfade } from './conversation-motion'
 
 import { IconButton } from '@/components/ui/icon-button'
-import { ChevronDown } from '@/components/ui/icons'
+import { ChevronDown, RefreshCw } from '@/components/ui/icons'
 import { useLocale, useTranslations } from 'next-intl'
-import { refreshHabitMonth, refreshReadBlock } from '@/app/actions/chat'
+import { refreshGamification, refreshHabitMonth, refreshReadBlock } from '@/app/actions/chat'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
@@ -18,7 +18,9 @@ import { BlockFrame as Frame } from '@/components/ui/block-frame'
 const useReadBlockSession = createUseReadBlockSession({
   useState, useRef, useEffect, getAccountGeneration, platform: 'web',
   refresh: async (token, clientContext, page, _isCurrent, kind) => {
-    const result = kind === 'habitMonth'
+    const result = kind === 'gamification'
+      ? await refreshGamification(token, clientContext, getHeldAccountId())
+      : kind === 'habitMonth'
       ? await refreshHabitMonth(token, clientContext, getHeldAccountId())
       : await refreshReadBlock(token, clientContext, page, getHeldAccountId())
     if (!result.ok) throw new Error(result.code)
@@ -53,11 +55,13 @@ function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; 
   const { snapshot, pending, failure, run } = context
   const { state, message, window, canPage } = readBlockPresentation(snapshot, props.state, pending, failure)
   const actions = <>
-    {canPage ? <IconButton label={t('chat.recordList.more')} disabled={pending} onClick={() => { void run(true) }}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
+    {snapshot.kind === 'gamification' ? <IconButton label={t('blockFrame.refresh')} disabled={pending} onClick={() => { void run(false) }}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
+    {canPage && snapshot.kind !== 'gamification' ? <IconButton label={t('chat.recordList.more')} disabled={pending} onClick={() => { void run(true) }}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
     {props.actions}
   </>
   const body = <>{window ? <p className="text-sm text-[var(--fg-3)]">{formatReadWindow(window, locale)}</p> : null}{message && state !== 'stale' ? <p role="status" className="text-sm text-[var(--fg-2)]">{t(message)}</p> : null}{props.body}</>
   const frameProps = readBlockFrameProps(props, state, message, () => { void run(false) }, t, actions)
+  if (snapshot.kind === 'gamification' && frameProps.state === 'stale') return <Frame {...frameProps} body={body} />
   return <Frame {...frameProps} onRefresh={undefined} body={body} />
 }
 

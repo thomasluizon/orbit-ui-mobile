@@ -62,7 +62,7 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
 
 ### Astra is a layer with a front door, never a destination
 
-**Ideas library:** a second full view inside the conversation layer, with no route, URL or sheet. A 48 icon control labelled `Browse ideas` (`Ver ideias`) in the conversation header and one ghost action with that label in the empty thread open it. Its `AppBar` back control is labelled `Back to conversation` (`Voltar à conversa`). Escape on web and Android back return to the thread before closing the layer; opening focuses the library heading and returning focuses the entry control. The thread and composer draft stay mounted. A quiet 12px push at the standard duration shows the hierarchy; reduced motion keeps only the opacity fade. A persistent search searches the current language across permitted categories, while one horizontally scrolling, non-wrapping chip row selects one category at a time, starting with Start. Template results paginate at eight ideas. The active [Ideas composition](design/canvas/Orbit%20Astra%20Ideas.md) (#1611) uses one column of neutral radius-20 actionable cards, inline 24px intent icons and only the twelve approved translated prompt examples. Compact records use `PADDING.recordInset` (16), with 12 between cards, 24 between groups and 4 between title and example. Live suggestions are unframed actions under `For you now`, using their supplied icon or a neutral Lightbulb, and disappear during a nonblank search. A selected category chip replaces its repeated visual heading; the region keeps its accessible category name, and search retains category headings. Complete requests and current live request callbacks carry plain 20px Astra attribution within the single target; slotted ideas carry no request attribution. Both platforms retain one column at wide widths inside the centred 740px conversation allocation, and grow naturally at 200% text. Calendar ideas require Pro access and a Google Calendar connection. Offline and daily-limit reasons appear above disabled rows. A complete idea sends once; an idea with slots returns to the composer with the first slot selected. An existing draft uses `prepareChatRequest` to keep the draft and retain the idea above the composer until the draft is cleared. A search miss names the query and offers `Clear search` (`Limpar busca`).
+**Ideas library:** a second full view inside the conversation layer, with no route, URL or sheet. A 48 icon control labelled `Browse ideas` (`Ver ideias`) in the conversation header and one ghost action with that label in the empty thread open it. Its `AppBar` back control is labelled `Back to conversation` (`Voltar à conversa`). Escape on web and Android back return to the thread before closing the layer; opening focuses the library heading and returning focuses the entry control. The thread and composer draft stay mounted. A quiet 12px push at the standard duration shows the hierarchy; reduced motion keeps only the opacity fade. A persistent search searches the current language across permitted categories, while one horizontally scrolling, non-wrapping chip row selects one category at a time, starting with Start. Template results paginate at eight ideas. The active [Ideas composition](design/canvas/Orbit%20Astra%20Ideas.md) (#1611) uses one column of neutral radius-20 actionable cards, inline 24px intent icons and only the twelve approved translated prompt examples. Compact records use `PADDING.recordInset` (16), with 12 between cards, 24 between groups and 4 between title and example. Live suggestions use the same neutral cards under `For you now`, keep a supplied intent icon without a fallback, and disappear during a nonblank search. The library heading uses the sans h2 type role. Search uses the shared Input with its action placeholder and accessible name, without a separate visible label. The category strip retains a visible horizontal scrollbar as its overflow cue. A selected category chip replaces its repeated visual heading; the region keeps its accessible category name, and search retains category headings. Idea rows carry no repeated Astra attribution; their existing complete-request and slot-preparation behavior stays with the conversation owner. Both platforms retain one column at wide widths inside the centred 740px conversation allocation, and grow naturally at 200% text. Calendar ideas require Pro access and a Google Calendar connection. Offline and daily-limit reasons appear above disabled rows. A complete idea sends once; an idea with slots returns to the composer with the first slot selected. An existing draft uses `prepareChatRequest` to keep the draft and retain the idea above the composer until the draft is cleared. A search miss names the query and offers `Clear search` (`Limpar busca`).
 
 #### Ideas library surface inventory
 
@@ -96,6 +96,13 @@ The streak figure and plural day unit replace the separate current-streak label.
 Comparison verdicts and bars replace the separate variation row; percentages are optional.
 Signed paging and useful disclosure remain named icon controls. Write previews retain edit,
 reject and one filled primary approval. Frame inset is 16px with a 12px content rhythm.
+
+The negotiated **gamification** read (#1619) retains its signed refresh control and the existing
+Conquistas related action. Its nullable source sections keep level-only, achievement-only and
+combined answers focused. A requested streak reuses the Progresso streak figure, DayStrip and
+read-only FreezeBank from the saved snapshot and resolved date. A streak-only answer uses its
+own heading; a combined answer labels the streak section separately. No absent source adds figures.
+This is the explicit refresh exception to the compact read rule.
 
 **Conversation participants:** the first message in each consecutive run of Astra messages starts
 with a 24px `AstraGlyph` in `--fg-1` on its own row at the thread's 16px inset. An 8px gap
@@ -425,7 +432,29 @@ the same block id, selected ids in the same order and free text, and refreshes p
 the server instead of adding a local charge. A changed answer keeps the limit gate. Pick list
 Review stays available because it spends no message.
 
+The **question** block composes one to ten required questions inside BlockFrame. It reuses
+RadioRow for single choice and yes or no, CheckRow for multiple choice, and the labelled Input
+for an allowed custom answer. A single choice or yes or no uses either its typed value or custom
+text; multiple choice may combine both. The recommendation uses the existing neutral Recommended
+copy. Supplied prompts, option labels and scale end labels wrap naturally inside growing rows.
+The header uses the supplied title or the first prompt. The supplied progress count remains
+separate from the local answered count because their totals can differ. Send validates every
+question, displays an inline hint at each omission and focuses the first. No initial scale or
+slider value counts as answered. Acting disables all controls; success locks to the existing
+selection summary. Failure retains answers and identical recovery; expiry, later turns, offline
+and allowance follow the existing choice lifecycle. Asking and answering never authorize a write.
+
 The **day summary** combines its ring with today's habit rows and the habit list's in-place log control; it shows at most 20 rows, then a count and the Hoje link. The **calendar** block uses EventRow with time or all-day copy and a source when more than one calendar is connected; its trailing action opens the Calendários import sheet with that event selected for review. The **streak** block keeps DayStrip and a read-only FreezeBank, with its action opening Sequência. The **goal list** uses ProgressBar and the tracking badge, names linked habits as the source of derived progress, and opens the goal or Metas. The **metrics** block keeps BarChart, adds at most three StatTile figures with the Progresso vocabulary, and opens Progresso or the habit. Habit, goal and event rows subscribe to live query state; a reply snapshot never decides whether a habit is done. Each block uses BlockFrame for loading, resting, acting, partial failure and stale state, with errors in its actions area.
+
+The **gamification** block reuses Progresso's `LevelSummary` and `AchievementTile` components
+inside BlockFrame. A present profile supplies only the level, title, XP and next-level bar.
+A present achievement catalogue supplies its complete collection with the existing localized
+name, description, earned disc and individual progress; an empty catalogue uses the existing
+empty line. Absent sections add no figure or placeholder. Profile streak totals and nested
+achievement metadata never broaden a focused answer. Refresh sends the original signed token
+to the dedicated gamification route and preserves the resolved scope. One compact status keeps
+failed refresh actionable without replacing the saved figures. The existing related action opens
+Conquistas in Progresso, including on saved replies and during recovery.
 
 A reply is an ordered sequence of text and block parts. A client skips an unknown block kind and keeps the rest of the reply. At most one write preview appears per reply.
 
@@ -1240,6 +1269,8 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | EmptyState | required title, one action; 96px real `OrbitMark`, `--fg-1`, no arc and no accent. An Astra-owned region takes `AstraGlyph` instead | `ui/empty-state.tsx` | same |
 | ErrorState | one caller-owned message and one optional text action; no code, severity or detail slot | `ui/error-state.tsx` | same |
 | CapacityNotice | neutral limit message, optional explanatory body and one action; never `--status-bad` | `ui/capacity-notice.tsx` | same |
+| Slider | Radix and rn-primitives single thumb; 4px `--fg-3` track, `--primary` fill and 24px thumb inside a 48px target; radius 999, one 2px focus ring, standard hover duration; arrows, web Home and End, touch drag and native accessibility adjustments share decimal steps measured from min | `ui/slider.tsx` | `ui/slider.tsx` |
+| QuestionScale | radio group of five equal options from 1 to 5, minimum height 48, radius 12, `--bg-well` selection and `--bg-hover` interaction, `--fg-1` numerals and `--fg-3` end labels beneath; no initial selection, one focus ring, growing text rows | `chat/question-controls.tsx` | `chat/question-controls.tsx` |
 | ProgressBar | 8px pill track `--track-empty`, primary fill | `ui/progress-bar.tsx` | same |
 | ProgressRing | thin band, primary sweep on a `--track-empty` track | right rail / Today | same |
 | BarChart | 96px neutral bars; each full column is its target, as DayCell uses its full column, with height at least shared `TOUCH_TARGET_MIN`, adjacent edges and no overlap or horizontal scroll; one radio group with a roving web tab stop, tap/click, arrows and Home/End; today selected on open, selected bar `--fg-1` and all others `--fg-2`; short weekday/date, percentage and done count directly above the selection, clamped inside the chart; zero and unscheduled days retain a 4px stub, unscheduled readout names that state; first/last dates below and figure rows retained | `ui/bar-chart.tsx` | `ui/bar-chart.tsx` |
@@ -1576,7 +1607,7 @@ list and conversation motion. No component owns a parallel timing scale.
 | `motionDurations.route`, `routeExit`, `overlay`, `toast`, `conversation` | 220, 165, 220, 220, 220; semantic consumer names |
 | `motionDurations.listStagger` | 36; bounded list sequencing |
 | `motionEasings.standard`, `enter`, `exit`, `linear` | cubic-bezier(0.2,0,0,1), (0.16,1,0.3,1), (0.4,0,1,1), (0,0,1,1) |
-| `motionSprings.soft` | stiffness 220, damping 30, mass 1; quiet settlement |
+| `motionSprings.soft` | stiffness 260, damping 30 × √(260/220), mass 1; 0.390s response with the same damping ratio |
 | `motionSprings.snappy` | stiffness 320, damping 34, mass 0.9; compact controls |
 | `motionSprings.sheet` | stiffness 360, damping 38, mass 1; finger release settlement |
 | `motionSprings.completion` | stiffness 380, damping 37, mass 0.9; earned state feedback |

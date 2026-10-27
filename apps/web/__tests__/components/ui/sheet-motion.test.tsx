@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
 import type { HTMLMotionProps, MotionValue, PanInfo } from 'motion/react'
 import { Sheet } from '@/components/ui/sheet'
@@ -13,11 +13,11 @@ const gesture = vi.hoisted(() => ({
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('motion/react', async (original) => {
   const actual = await original<typeof import('motion/react')>()
+  const controls = { cancel: gesture.cancel, start: gesture.start }
   return {
     ...actual,
-    animate: gesture.settle,
-    useReducedMotion: () => gesture.reduced,
-    useDragControls: () => ({ cancel: gesture.cancel, start: gesture.start }),
+    animate: gesture.settle.mockImplementation(actual.animate),
+    useDragControls: () => controls,
     motion: { ...actual.motion, div: ({ children, className, onDragEnd, style }: Omit<HTMLMotionProps<'div'>, 'children'> & { children?: ReactNode }) => {
       gesture.end = onDragEnd
       gesture.y = style?.y as MotionValue<number>
@@ -31,7 +31,21 @@ function release(offset: number, velocity: number, eventType = 'pointerup') {
   act(() => gesture.end?.(new MouseEvent(eventType), position))
 }
 
-beforeEach(() => { gesture.reduced = false; gesture.settle.mockClear(); gesture.cancel.mockClear(); gesture.start.mockClear() })
+let preference: EventTarget
+beforeEach(() => {
+  gesture.reduced = false
+  gesture.settle.mockClear(); gesture.cancel.mockClear(); gesture.start.mockClear()
+  preference = new EventTarget()
+  const query = Object.assign(preference, {
+    get matches() { return gesture.reduced },
+    media: '(prefers-reduced-motion: reduce)',
+    onchange: null,
+    addListener: vi.fn(), removeListener: vi.fn(),
+  })
+  Object.defineProperty(query, 'matches', { get: () => gesture.reduced })
+  vi.spyOn(window, 'matchMedia').mockReturnValue(query)
+})
+afterEach(() => vi.restoreAllMocks())
 
 it('allows the grabber to follow a pointer and dismisses a downward fling through the existing close path', async () => {
   const closed = vi.fn()
@@ -54,12 +68,22 @@ it('settles a short or upward release with the shared spring and retains working
 })
 
 it('cancels travel immediately when reduced motion changes while a sheet is open', () => {
-  const view = render(<Sheet title="Options" onClose={vi.fn()}><button>Action</button></Sheet>)
+  render(<Sheet title="Options" onClose={vi.fn()}><button>Action</button></Sheet>)
   gesture.y?.set(40)
-  gesture.reduced = true
-  view.rerender(<Sheet title="Options" onClose={vi.fn()}><button>Action</button></Sheet>)
+  act(() => { gesture.reduced = true; preference.dispatchEvent(new Event('change')) })
   expect(gesture.cancel).toHaveBeenCalled()
   expect(gesture.y?.get()).toBe(0)
+})
+
+it('returns a dragged sheet to rest when its dismiss guard refuses', async () => {
+  const refused = vi.fn()
+  render(<Sheet title="Options" onAttemptDismiss={refused}><button>Action</button></Sheet>)
+  gesture.y?.set(120)
+  release(120, 800)
+  expect(refused).toHaveBeenCalledOnce()
+  expect(gesture.settle).toHaveBeenLastCalledWith(gesture.y, 0, expect.objectContaining({ type: 'spring' }))
+  await waitFor(() => expect(gesture.y?.get()).toBe(0))
+  expect(screen.getByRole('dialog')).toBeVisible()
 })
 
 it('settles a cancelled gesture without dismissing the sheet', () => {

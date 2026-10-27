@@ -32,13 +32,15 @@ function assertPillActions(measured: PillGeometry, { withOpener, scenario, messa
   const voiceActive = scenario === 'recording' || scenario === 'transcribing'
   const expected = [
     ...(withOpener ? [messages.todayAstra.openConversation] : []),
-    voiceActive ? messages.shell.composer.voice.stop : messages.shell.composer.actions,
-    messages.shell.composer.send,
+    messages.shell.composer.actions,
+    voiceActive ? messages.shell.composer.voice.stop : ['oneLine', 'typing', 'longText', 'tray2', 'tray3'].includes(scenario)
+      ? messages.shell.composer.send : messages.shell.composer.voice.start,
   ]
   const textAction = ['oneLine', 'typing', 'longText'].includes(scenario) ? messages.shell.composer.clear : messages.shell.composer.paste
   const possibleNames = [...expected, ...names.includes(textAction) ? [textAction] : []]
   expect([...names].sort((left, right) => left.localeCompare(right)), evidence).toEqual(possibleNames.sort((left, right) => left.localeCompare(right)))
   if (['sending', 'atLimit', 'offline', 'recording', 'transcribing'].includes(scenario)) expect(names, evidence).not.toContain(textAction)
+  expect(measured.menuItems.map(item => item.id), evidence).not.toContain('voice')
   const actionId = ['oneLine', 'typing', 'longText'].includes(scenario) ? 'clear' : 'paste'
   const textActionName = actionId === 'clear' ? messages.shell.composer.clear : messages.shell.composer.paste
   const available = !['sending', 'atLimit', 'offline', 'recording', 'transcribing'].includes(scenario)
@@ -170,7 +172,7 @@ describe('Composer compact geometry in Chromium', () => {
         await page.setContent(`<style>${stylesheet}</style>${markup}`)
         await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.keyboard.press('Tab')
-        for (const name of [en.shell.composer.attach.image, en.shell.composer.attach.file, en.shell.composer.voice.start]) {
+        for (const name of [en.shell.composer.attach.image, en.shell.composer.attach.file]) {
           const control = page.getByRole('menuitem', { name, exact: true })
           await control.focus()
           expect(await control.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
@@ -369,23 +371,25 @@ describe('Composer compact geometry in Chromium', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
-        await page.setContent(`<style>${stylesheet}:root{${theme}}[data-composer-controls] button{--test-hover:0}[data-composer-controls] button:hover{--test-hover:1}</style>${container.innerHTML}`)
+        await page.setContent(`<style>${stylesheet}:root{${theme}}[data-composer-input-row] button{--test-hover:0}[data-composer-input-row] button:hover{--test-hover:1}</style>${container.innerHTML}`)
         await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
-        const control = page.locator('[data-composer-controls] button')
-        expect(await control.count()).toBe(1)
-        const restingFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
-        const bounds = (await control.boundingBox())!
-        await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + 4)
-        await page.waitForTimeout(300)
-        expect(await control.evaluate((element) => getComputedStyle(element).getPropertyValue('--test-hover').trim())).toBe('1')
-        const hoveredFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
-        if (await control.isDisabled()) expect(hoveredFill).toBe(restingFill)
-        else expect(hoveredFill).not.toBe(restingFill)
-        if (state === 'recording') {
-          await page.keyboard.press('Shift')
-          await control.focus()
-          expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
-          expect(await control.evaluate((element) => getComputedStyle(element).outlineColor)).toBe('rgb(196, 83, 15)')
+        for (const selector of ['[data-composer-controls] button', '[data-composer-trailing-controls] > button']) {
+          const control = page.locator(selector)
+          expect(await control.count()).toBe(1)
+          const restingFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
+          const bounds = (await control.boundingBox())!
+          await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + 4)
+          await page.waitForTimeout(300)
+          expect(await control.evaluate((element) => getComputedStyle(element).getPropertyValue('--test-hover').trim())).toBe('1')
+          const hoveredFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
+          if (await control.isDisabled()) expect(hoveredFill).toBe(restingFill)
+          else expect(hoveredFill).not.toBe(restingFill)
+          if (state === 'recording' && selector.includes('trailing')) {
+            await page.keyboard.press('Shift')
+            await control.focus()
+            expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
+            expect(await control.evaluate((element) => getComputedStyle(element).outlineColor)).toBe('rgb(196, 83, 15)')
+          }
         }
       } finally { await page.close() }
     },

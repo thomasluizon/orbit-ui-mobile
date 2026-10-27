@@ -1,8 +1,9 @@
 import type { InvalidateQueryFilters } from '@tanstack/react-query'
-import { choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { questionBlockFixture, questionAnswersFixture, choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { describe, expect, it, vi, beforeEach, afterEach, onTestFinished } from 'vitest'
 import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
+import userEvent from '@testing-library/user-event'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { createMockHabit, createMockProfile, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { buildComposerChips } from '@orbit/shared/chat'
@@ -691,6 +692,58 @@ describe('web useChatComposer streaming send', () => {
     expect(screen.getAllByRole('textbox')).toHaveLength(1)
   })
 
+  it.each([false, true])('retains composer focus after a keyboard submission with queued=%s', async (queued) => {
+    const user = userEvent.setup()
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValue(stream.response)
+    useUIStore.getState().setAstraConversationOpen(true)
+    render(<ComposerConversationHarness />)
+    onTestFinished(() => stream.close())
+    const input = screen.getByRole('textbox')
+    if (queued) {
+      fireEvent.change(input, { target: { value: 'Running message' } })
+      fireEvent.keyDown(input, { key: 'Enter' })
+    }
+    fireEvent.change(input, { target: { value: 'Next message' } })
+    const send = screen.getByRole('button', { name: queued ? 'shell.composer.queue.add' : 'shell.composer.send' })
+    act(() => send.focus())
+    expect(send).toHaveFocus()
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(input).toHaveValue(''))
+    const primary = screen.getByRole('button', { name: 'shell.composer.voice.start' })
+    expect(input).toHaveFocus()
+    expect(primary).toBe(send)
+    expect(mocks.fetch).toHaveBeenCalledOnce()
+    expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(queued ? ['Next message'] : [])
+  })
+
+  it.each(['', 'Existing draft'])('keeps voice reachable at the limit through transcription with draft=%j', async (draft) => {
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
+    useChatStore.setState({ draft, draftHydrated: true })
+    useUIStore.getState().setAstraConversationOpen(true)
+    const view = render(<ComposerConversationHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.voice.start' }))
+    expect(mocks.toggleRecording).toHaveBeenCalledOnce()
+    mocks.state.isRecording = true
+    view.rerender(<ComposerConversationHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.voice.stop' }))
+    mocks.state.isRecording = false
+    mocks.state.isTranscribing = true
+    view.rerender(<ComposerConversationHarness />)
+    expect(screen.getByRole('button', { name: 'shell.composer.voice.stop' })).toBeDisabled()
+    mocks.state.isTranscribing = false
+    mocks.state.transcript = 'Recorded message'
+    view.rerender(<ComposerConversationHarness />)
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue(draft ? `${draft} Recorded message` : 'Recorded message'))
+    expect(screen.getByRole('textbox')).toBeDisabled()
+    const microphone = screen.getByRole('button', { name: 'shell.composer.voice.start' })
+    expect(microphone).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'shell.composer.send' })).not.toBeInTheDocument()
+    fireEvent.click(microphone)
+    expect(mocks.toggleRecording).toHaveBeenCalledTimes(3)
+    expect(mocks.fetch).not.toHaveBeenCalled()
+  })
+
   it.each([412, 1440])('preserves close button focus when a streamed send finishes at %s', async (width) => {
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
     const stream = controlledSseResponse()
@@ -1129,6 +1182,19 @@ describe('web useChatComposer streaming send', () => {
     expect(cache.getQueryData<Profile>(profileKeys.detail())?.aiMessagesUsed).toBe(5)
   })
 
+
+  it('sends typed question answers through multipart and persists the terminal summary', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage({ id: 'questions', content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'question', block: questionBlockFixture }] })] })
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+    const answer = { blockId: questionBlockFixture.blockId, selectedIds: [], answers: questionAnswersFixture }
+    await act(async () => { expect(await result.current.blockAnswerInteraction.send({ kind: 'question', answer, labels: ['Energy: 3', 'Reminder: No'] })).toEqual({ ok: true }) })
+    const body = mocks.fetch.mock.calls[0]![1].body as FormData
+    expect(JSON.parse(body.get('blockAnswer') as string)).toEqual(answer)
+    expect(JSON.parse(body.get('clientContext') as string).partKinds).toContain('question')
+    expect(useChatStore.getState().messages[0]?.blockAnswers?.[answer.blockId]).toMatchObject({ answered: true })
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
+  })
   it('sends a localized block answer once and retains the preview in the existing message path', async () => {
     mocks.locale = 'pt-BR'
     mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })

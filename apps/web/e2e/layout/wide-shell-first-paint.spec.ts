@@ -111,7 +111,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
         await trigger.click()
         const menu = page.getByRole('menu', { name: words.shell.composer.actions, exact: true })
         await expect(menu).toBeVisible()
-        for (const label of [words.shell.composer.attach.image, words.shell.composer.attach.file, words.shell.composer.voice.start]) {
+        for (const label of [words.shell.composer.attach.image, words.shell.composer.attach.file]) {
           await expect(menu.getByRole('menuitem', { name: label, exact: true })).toBeVisible()
         }
         await page.setViewportSize({ width: 1100, height: 915 })

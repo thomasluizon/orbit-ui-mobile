@@ -8,9 +8,21 @@ const exportedHabit = (body) => ({ id: randomUUID(), title: body.title, descript
   isBadHabit: false, isGeneral: false, dueDate: body.startDate ? new Date().toISOString().slice(0, 10) : body.dueDate, startDate: body.startDate ?? body.dueDate, endDate: null, frequencyUnit: 'Day', frequencyQuantity: 1,
   days: [], checklistItems: [], createdAtUtc: '2026-10-01T00:00:00Z', logs: [], intervalWeeks: null })
 
+// Producer: GetRetrospectiveQueryHandler and RetrospectivePeriodRange.Resolve.
+export function retrospectiveResponse(fromCache) {
+  const today = new Date().toISOString().slice(0, 10)
+  return { period: 'month', metrics: { completionRate: 50, totalCompletions: 7, totalScheduled: 14,
+    activeDays: 6, periodDays: 30, currentStreak: 0, bestStreak: 2, badHabitSlips: 0,
+    weeklyConsistency: [0, 0, 0, 0, 0, 0, 0], topHabits: [], needsAttention: [], completionSeries: null },
+  narrative: { highlights: 'Saved retrospective narrative.', missed: '', trends: '', suggestion: '' },
+  fromCache, dateFrom: new Date(Date.parse(`${today}T12:00:00Z`) - 29 * 86400000).toISOString().slice(0, 10),
+  dateTo: today, sourceRevision: 'fixture-revision' }
+}
+
 // Daily recurrence behavior follows Habit, LogHabitCommand and SkipHabitArgumentChecks.
 export function fixtureFetch(getState) {
   const undone = new Set()
+  let retrospectiveCached = false
   return async (url, options) => {
     const { habits, goals, tags, templates, requests, pro, exhausted, capacity, email, unmetered = true } = getState()
     if (new URL(url).pathname === '/health') {
@@ -33,6 +45,13 @@ export function fixtureFetch(getState) {
     if (path === 'profile/export') return Response.json({ exportedAtUtc: '2026-10-24T12:00:00Z', account: {}, settings: {}, subscription: {},
       habits: habits.filter((habit) => !habit.deleted).map(({ deleted, startDate, ...habit }) => habit), goals, tags, checklistTemplates: templates,
       notifications: [], achievements: [], streakFreezes: [], referrals: [], apiKeys: [], friendships: [], cheers: [], blockedUsers: [], reports: [], friendFeedEvents: [], proactiveItems: [], notionConnection: null, notionTasks: [], conversations: [] })
+    if (path === 'habits/retrospective' && method === 'GET') {
+      const query = new URL(url).searchParams
+      if (query.get('period') !== 'month' || !['en', 'pt-BR'].includes(query.get('language'))) throw new Error('Expected localized rolling month retrospective.')
+      const response = retrospectiveResponse(retrospectiveCached)
+      retrospectiveCached = true
+      return Response.json(response)
+    }
     if (['profile/timezone', 'profile/language', 'calendar/selected-calendars', 'calendar/auto-sync'].includes(path)) return new Response(null, { status: 204 })
     if (path === 'notifications' && method === 'GET') return Response.json({ items: [], unreadCount: 0, totalCount: 0, sourceRevision: 'empty' })
     if (path === 'notifications/all' && method === 'DELETE') return new Response(null, { status: 204 })

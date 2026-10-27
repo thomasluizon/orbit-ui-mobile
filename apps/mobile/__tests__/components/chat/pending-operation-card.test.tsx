@@ -1,4 +1,4 @@
-import { makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -78,6 +78,17 @@ beforeEach(() => { vi.clearAllMocks(); __resetTestHostConfig(); visibleLocale.ac
 afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
+  it.each(['updateHabit', 'skipHabit', 'rescheduleHabits', 'deleteHabit', 'logHabit'].flatMap(actionKey => [false, true].map(changesOnly => ({ actionKey, changesOnly }))))('shows the stored emoji for $actionKey with changesOnly=$changesOnly', ({ actionKey, changesOnly }) => {
+    const { tree } = renderCard(makeExistingHabitPreview('🦷', actionKey, changesOnly))
+    expect(renderedText(tree.toJSON())).toContain('🦷')
+    expect(tree.root.findAllByType(Text).some((node: ReactTestInstance) => node.props.children === 'D')).toBe(false)
+  })
+
+  it.each([undefined, null, ''])('keeps the initial when the stored emoji is %s', (emoji) => {
+    const { tree } = renderCard(makeExistingHabitPreview(emoji))
+    expect(tree.root.findAllByType(Text).some((node: ReactTestInstance) => node.props.children === 'D')).toBe(true)
+  })
+
   it.each((['none', 'habit_id', 'oldValue'] as const).flatMap(update => ['en', 'pt-BR'].map(locale => ({ update, locale }))))('describes suggestion batch creates and preserves $update updates in $locale', ({ update, locale }) => {
     visibleLocale.actual = true
     visibleLocale.language = locale

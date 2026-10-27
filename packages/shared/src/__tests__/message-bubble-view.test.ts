@@ -1,3 +1,4 @@
+import { gamificationCardFixture } from '../test-support/gamification-card-fixtures'
 import { expect, it, vi } from 'vitest'
 import { getMessageBubbleOperations, getMessageBubbleView, type MessageBubbleProps } from '../chat/message-bubble'
 import { makeActionResult, makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldHabitMessage } from '../test-support/chat-fixtures'
@@ -91,4 +92,16 @@ it('replays a repeated terminal result in its original preview instead of adding
   expect(getMessageBubbleOperations({ message: original, laterMessages: [later], ...callbacks }, vi.fn()).pendingOperations[0]!.savedState).toMatchObject({ status: 'failed', completedOperation: operation })
   expect(getMessageBubbleView({ message: later, earlierMessages: [original], ...callbacks }, new Set()).outcomes).toEqual([])
   expect(getMessageBubbleView({ message: later, earlierMessages: [original] }, new Set()).outcomes).toHaveLength(1)
+})
+
+it('retains one existing Conquistas related action for a gamification read', () => {
+  const view = getMessageBubbleView({ message: {
+    id: 'gamification', role: 'ai', content: '', timestamp: new Date(),
+    parts: [{ type: 'block', kind: 'gamification', block: gamificationCardFixture }],
+    relatedSurfaces: ['gamification'],
+  } }, new Set())
+  expect(view.relatedSurfaces).toEqual([{
+    id: 'gamification', labelKey: 'chat.related.surface.gamification',
+    webRoute: '/progress/achievements', mobileRoute: '/progress/achievements',
+  }])
 })

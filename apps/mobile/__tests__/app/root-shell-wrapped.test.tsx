@@ -1,3 +1,4 @@
+import { Stack } from 'expo-router'
 import React, { createContext, useContext, useSyncExternalStore, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Text, TextInput } from 'react-native'
@@ -383,7 +384,10 @@ describe('Wrapped root shell', () => {
     routeState.segments = ['habits', 'new']
     const tree = await renderRoot()
     const screen = tree.root.findAll((node) => node.props.name === 'habits/new')[0]
-    expect(screen?.props.options).toMatchObject({ animation: reducedMotion ? 'none' : 'slide_from_right' })
+    const stack = tree.root.findAll((node) => node.type === Stack)[0]
+    expect(screen).toBeDefined()
+    expect(screen?.props.options).toBeUndefined()
+    expect(stack?.props.screenOptions).toMatchObject({ animation: reducedMotion ? 'none' : 'slide_from_right' })
     expect(findByTestId(tree, 'shell-tab-bar')).toHaveLength(0)
     expect(findByTestId(tree, 'composer-idle')).toHaveLength(0)
   })

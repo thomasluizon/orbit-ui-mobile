@@ -208,7 +208,7 @@ describe('DestinationShell', () => {
     fireEvent.keyDown(document, { key: 'g' })
     fireEvent.keyDown(document, { key: 'i' })
     expect(mocks.push).toHaveBeenCalledExactlyOnceWith('/progress')
-    expect(getCurrentRouteTransitionIntent()).toBe('tab')
+    expect(getCurrentRouteTransitionIntent()).toBe('instant')
   })
 
   it.each(['/upgrade', '/wrapped'])('keeps g then i disabled on %s', (pathname) => {

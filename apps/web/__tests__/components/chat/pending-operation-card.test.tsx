@@ -1,4 +1,4 @@
-import { makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { personalText } from '@/__tests__/support/personal-text'
 import en from '@orbit/shared/i18n/en.json'
@@ -73,6 +73,17 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
+  it.each(['updateHabit', 'skipHabit', 'rescheduleHabits', 'deleteHabit', 'logHabit'].flatMap(actionKey => [false, true].map(changesOnly => ({ actionKey, changesOnly }))))('shows the stored emoji for $actionKey with changesOnly=$changesOnly', ({ actionKey, changesOnly }) => {
+    render(<PendingOperationCard pendingOperation={makeExistingHabitPreview('🦷', actionKey, changesOnly)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(within(screen.getByRole('button', { name: 'Dentista' }).closest('[data-personal-text-action]') as HTMLElement).getByText('🦷')).toBeInTheDocument()
+    expect(within(screen.getByRole('button', { name: 'Dentista' }).closest('[data-personal-text-action]') as HTMLElement).queryByText('D')).not.toBeInTheDocument()
+  })
+
+  it.each([undefined, null, ''])('keeps the initial when the stored emoji is %s', (emoji) => {
+    render(<PendingOperationCard pendingOperation={makeExistingHabitPreview(emoji)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(within(screen.getByRole('button', { name: 'Dentista' }).closest('[data-personal-text-action]') as HTMLElement).getByText('D')).toBeInTheDocument()
+  })
+
   it.each((['none', 'habit_id', 'oldValue'] as const).flatMap(update => ['en', 'pt-BR'].map(locale => ({ update, locale }))))('describes suggestion batch creates and preserves $update updates in $locale', ({ update, locale }) => {
     visibleLocale.actual = true
     visibleLocale.language = locale

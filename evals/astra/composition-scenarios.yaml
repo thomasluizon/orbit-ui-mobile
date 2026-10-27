@@ -15,22 +15,6 @@
       timeFormat: 24h
       currentAppArea: habits
       supportsParts: true
-      partKinds: &a1
-        - habitList
-        - goalList
-        - metrics
-        - periodTotal
-        - periodComparison
-        - periodInsight
-        - daySummary
-        - streak
-        - calendar
-        - recordList
-        - accountRows
-        - habitRanking
-        - gamification
-        - choice
-        - pickList
       supportsHabitListCard: true
       supportsHabitListDoneStatus: true
       supportsDatedHabitListCard: true
@@ -76,7 +60,6 @@
       timeFormat: 24h
       currentAppArea: habits
       supportsParts: true
-      partKinds: *a1
       supportsHabitListCard: true
       supportsHabitListDoneStatus: true
       supportsDatedHabitListCard: true
@@ -1059,7 +1042,6 @@
       timeFormat: 24h
       currentAppArea: today
       supportsParts: true
-      partKinds: *a1
       supportsHabitListCard: true
       supportsHabitListDoneStatus: true
       supportsDatedHabitListCard: true
@@ -1082,8 +1064,10 @@
     expectations:
       required: &a45
         - name: query_habits
-          arguments:
-            date: today
+          argumentsAnyOf: &todayHabitArguments
+            - { relative_period: today }
+            - { date: today, relative_period: { optional: null } }
+            - { date: '{accountDate}', relative_period: { optional: null } }
       allowed:
         - query_habits
     rubric: Answer in English. Use only the requested scope and current fixture
@@ -1106,7 +1090,6 @@
       timeFormat: 24h
       currentAppArea: today
       supportsParts: true
-      partKinds: *a1
       supportsHabitListCard: true
       supportsHabitListDoneStatus: true
       supportsDatedHabitListCard: true
@@ -1236,20 +1219,26 @@
     fixture: composition-stale
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Show my calendar and say whether it needs refreshing.
+    input: Show my retrospective for the rolling month with its saved narrative and indicate whether it needs refreshing.
     clientContext: *a4
     composition: &a50
       mode: data
       blocks:
-        - kind: calendar
+        - kind: periodInsight
           completeness: stale
+          recovery: refresh
     expectations:
       required: &a51
-        - name: get_calendar_overview
-          arguments: {}
+        - name: get_retrospective
+          arguments:
+            period: month
+            language: en
+            generate_narrative: { optional: true }
+            date_from: { optional: '{retrospectiveFrom}' }
+            date_to: { optional: '{accountDate}' }
       allowed:
         - query_habits
-        - get_calendar_overview
+        - get_retrospective
     rubric: Answer in English. Use only the requested scope and current fixture
       facts. Preserve typed empty, partial, stale and failure states honestly.
       Canonical dates inside typed fields are transport values; visible prose
@@ -1263,14 +1252,21 @@
     fixture: composition-stale
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Mostre meu calendário e indique se precisa atualizar.
+    input: Mostre minha retrospectiva do mês móvel com a narrativa salva e indique se precisa atualizar.
     clientContext: *a5
     composition: *a50
     expectations:
-      required: *a51
+      required:
+        - name: get_retrospective
+          arguments:
+            period: month
+            language: pt-BR
+            generate_narrative: { optional: true }
+            date_from: { optional: '{retrospectiveFrom}' }
+            date_to: { optional: '{accountDate}' }
       allowed:
         - query_habits
-        - get_calendar_overview
+        - get_retrospective
     rubric: Answer in Brazilian Portuguese. Use only the requested scope and current
       fixture facts. Preserve typed empty, partial, stale and failure states
       honestly. Canonical dates inside typed fields are transport values;
@@ -1289,8 +1285,10 @@
     clientContext: *a4
     composition: &a52
       mode: data
-      kinds:
-        - calendar
+      blocks:
+        - kind: calendar
+          completeness: partial
+          recovery: reconnect
       actionSurfaces:
         - calendar
     expectations:
@@ -1444,8 +1442,9 @@
     expectations:
       required: &a59
         - name: describe_feature
-          arguments:
-            feature_key: schedule-math
+          argumentsAnyOf:
+            - { feature_key: schedule-math }
+            - { feature_key: frequencies }
       allowed:
         - query_habits
         - describe_feature
@@ -1620,8 +1619,7 @@
     expectations:
       required: &a67
         - name: query_habits
-          arguments:
-            date: today
+          argumentsAnyOf: *todayHabitArguments
       allowed:
         - query_habits
     rubric: Answer in English. Use only the requested scope and current fixture
@@ -1989,7 +1987,9 @@
         - create_habit
     rubric: Answer in English. One batch preview contains both one-time tasks at
       15:50 and 13:30 and all preparation commitments bounded to their dates.
-      Temporary abstinence has positive commitment names, never avoid types or
+      Temporary abstinence is a positive commitment with is_bad_habit=false, named
+      Don't take multivitamins and Don't go to Muay Thai. These negated titles name
+      the commitment, not an avoid habit. Never use is_bad_habit=true or
       open-ended daily habits. No question or prose may repeat the preview. Home
       visits stay attached to their exams. No saved change is claimed. Canonical
       dates inside typed fields are transport values; visible prose must use
@@ -2165,8 +2165,10 @@
         - create_habit
     rubric: Answer in Brazilian Portuguese. One batch preview contains both one-time
       tasks at 15:50 and 13:30 and all preparation commitments bounded to their
-      dates. Temporary abstinence has positive commitment names, never avoid
-      types or open-ended daily habits. No question or prose may repeat the
+      dates. Temporary abstinence is a positive commitment with is_bad_habit=false, named
+      Não tomar multivitamínico and Não ir ao Muay Thai. These negated titles name
+      the commitment, not an avoid habit. Never use is_bad_habit=true or
+      open-ended daily habits. No question or prose may repeat the
       preview. Home visits stay attached to their exams. No saved change is
       claimed. Canonical dates inside typed fields are transport values; visible
       prose must use locale dates. Rendered date formatting is checked

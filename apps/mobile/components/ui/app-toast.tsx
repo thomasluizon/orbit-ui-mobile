@@ -1,4 +1,5 @@
-import { useOverlayMotion } from '@/lib/overlay-motion'
+import { useResolvedMotionPreset } from '@/lib/motion'
+import Reanimated, { Easing, Keyframe, ReduceMotion } from 'react-native-reanimated'
 import * as Primitive from '@rn-primitives/toast'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -7,7 +8,6 @@ import type { ToastProps } from '@orbit/shared/contracts/feedback'
 import { SPACING, TOUCH_TARGET_MIN, zLayers } from '@orbit/shared/theme'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
-  Animated,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -21,7 +21,6 @@ import { createTokensV2, radius, shadowsV2, type AppTokensV2 } from '@/lib/theme
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
-import { PillButton } from './pill-button'
 import { resolveCenteredOverlayFrame } from './centered-overlay-frame'
 
 function resolveActionColor(
@@ -53,34 +52,43 @@ function WorkingMark({ color }: Readonly<{ color: string }>) {
   )
 }
 
-function useToastSwipe(props: { actionLabel?: string; persistent?: boolean; onDismiss?: () => void }, dismiss: () => void) {
-  const canDismiss = !props.persistent || Boolean(props.onDismiss)
-  const swipeEnabled = Boolean(props.actionLabel) && canDismiss
+function useToastSwipe(dismiss: () => void) {
   const swipe = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_event, gesture) => swipeEnabled
-      && Math.abs(gesture.dx) > 12 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+    onMoveShouldSetPanResponder: (_event, gesture) => Math.abs(gesture.dx) > 12 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
     onPanResponderRelease: (_event, gesture) => {
-      if (swipeEnabled && Math.abs(gesture.dx) >= 48 && Math.abs(gesture.dx) > Math.abs(gesture.dy)) dismiss()
+      if (Math.abs(gesture.dx) >= 48 && Math.abs(gesture.dx) > Math.abs(gesture.dy)) dismiss()
     },
-  }), [swipeEnabled, dismiss])
-  return { swipe, canDismiss }
+  }), [dismiss])
+  return swipe
 }
 
-function ToastClose({ visible, dismiss, onFocus, onBlur, color }: Readonly<{
-  visible: boolean; dismiss: () => void; onFocus: () => void; onBlur: () => void; color: string
+function ToastClose({ dismiss, onFocus, onBlur, color }: Readonly<{
+  dismiss: () => void; onFocus: () => void; onBlur: () => void; color: string
 }>) {
   const { t } = useTranslation()
-  if (!visible) return null
   return (
-    <Primitive.Close asChild><PillButton variant="ghost" size="sm" iconOnly label={t('common.close')} minimumHeight={TOUCH_TARGET_MIN} onClick={dismiss} onFocus={onFocus} onBlur={onBlur}>
+    <Primitive.Close asChild><IconButton label={t('common.close')} onClick={dismiss} onFocus={onFocus} onBlur={onBlur}>
       <X size={20} color={color} />
-    </PillButton></Primitive.Close>
+    </IconButton></Primitive.Close>
   )
 }
 
-const AnimatedToast = Animated.createAnimatedComponent(Primitive.Root)
+const AnimatedToast = Reanimated.createAnimatedComponent(Primitive.Root)
 
-export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void; persistent?: boolean; visible?: boolean }>) {
+function useToastMotion() {
+  const preset = useResolvedMotionPreset('toast')
+  const entering = useMemo(() => new Keyframe({
+    0: { opacity: 0, transform: [{ translateY: preset.shift }, { scale: preset.scaleFrom }] },
+    100: { opacity: 1, transform: [{ translateY: 0 }, { scale: 1 }], easing: Easing.bezier(...preset.enterEasing) },
+  }).duration(preset.reducedMotionEnabled ? 0 : preset.enterDuration).reduceMotion(ReduceMotion.System), [preset])
+  const exiting = useMemo(() => new Keyframe({
+    0: { opacity: 1, transform: [{ translateY: 0 }, { scale: 1 }] },
+    100: { opacity: 0, transform: [{ translateY: preset.shift }, { scale: preset.scaleFrom }], easing: Easing.bezier(...preset.exitEasing) },
+  }).duration(preset.reducedMotionEnabled ? 0 : preset.exitDuration).reduceMotion(ReduceMotion.System), [preset])
+  return { entering, exiting }
+}
+
+export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void; persistent?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -90,31 +98,34 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
   const actionClosing = useRef(false)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
+  const presentationRef = useRef<View | null>(null)
+  const setPresentation = useCallback((element: View | null) => {
+    if (!element) presentationRef.current?.setNativeProps({ pointerEvents: 'none', accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' })
+    presentationRef.current = element
+  }, [])
   const lossColors = { background: tokens.bg, action: tokens.primarySoft }
   const neutralColors = { background: tokens.bgSheet, action: tokens.fg1 }
   const colors = { neutral: neutralColors, working: neutralColors, done: neutralColors, lost: lossColors }[props.kind]
 
-  const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused || props.visible === false, props.onDismiss, props.persistent)
-  const { swipe, canDismiss } = useToastSwipe(props, dismiss)
-  const visible = !dismissed && props.visible !== false
-  const motion = useOverlayMotion(visible, 'toast')
+  const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused, props.onDismiss, props.persistent)
+  const swipe = useToastSwipe(dismiss)
+  const motion = useToastMotion()
 
   useEffect(() => {
     const timer = setTimeout(() => setAnnouncedMessage(props.message), 0)
     return () => clearTimeout(timer)
   }, [props.message])
 
-  if (!motion.present) return null
+  if (dismissed) return null
 
   return (
-    <AnimatedToast type="background" open onOpenChange={(open) => {
+    <AnimatedToast ref={setPresentation} entering={motion.entering} exiting={motion.exiting} type="background" open onOpenChange={(open) => {
       if (actionClosing.current) { actionClosing.current = false; return }
       if (!open) dismiss()
     }}
-      {...toastVisibility(visible)}
       aria-live={props.kind === 'lost' ? 'assertive' : 'polite'}
       {...swipe.panHandlers}
-      accessible={!props.actionLabel}
+      accessible={false}
       accessibilityLiveRegion={props.kind === 'lost' ? 'assertive' : 'polite'}
       accessibilityRole={props.kind === 'lost' ? 'alert' : undefined}
       accessibilityLabel={
@@ -129,7 +140,6 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
       onBlur={() => setFocused(false)}
       style={[
         styles.toast,
-        motion.style,
         {
           backgroundColor: colors.background,
           borderColor: props.outlined ? tokens.fg3 : tokens.hairline,
@@ -146,7 +156,10 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
         ) : null}
       </View>
 
-      {props.actionLabel ? <ToastControls props={props} actionClosing={actionClosing} dismiss={dismiss} canDismiss={canDismiss} tokens={tokens} actionColor={colors.action} setFocused={setFocused} /> : null}
+      <View style={styles.controls}>
+        {props.actionLabel ? <ToastAction props={props} actionClosing={actionClosing} tokens={tokens} actionColor={colors.action} setFocused={setFocused} /> : null}
+        <ToastClose dismiss={dismiss} color={tokens.fg2} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
+      </View>
     </AnimatedToast>
   )
 }
@@ -156,10 +169,6 @@ export function AppToast({ placement = 'overlay', sheetId }: Readonly<{ placemen
   const { width: screenWidth } = useWindowDimensions()
   const overlayFrame = resolveCenteredOverlayFrame(screenWidth - insets.left - insets.right, 420)
   const currentToast = useAppToastStore((state) => state.currentToast)
-  const retained = useOverlayMotion(currentToast !== null, 'toast')
-  const [snapshot, setSnapshot] = useState(currentToast)
-  if (currentToast && currentToast !== snapshot) setSnapshot(currentToast)
-  const shownToast = currentToast ?? (retained.present ? snapshot : null)
   const triggerAction = useAppToastStore((state) => state.triggerAction)
   const dismissToast = useAppToastStore((state) => state.dismissToast)
   const toastId = currentToast?.id
@@ -169,19 +178,19 @@ export function AppToast({ placement = 'overlay', sheetId }: Readonly<{ placemen
   if (placement === 'sheet') {
     if (!sheetId || topOverlayId !== sheetId) return null
   } else if (topOverlayId?.startsWith('sheet:')) return null
-  if (!shownToast) return null
+  if (!currentToast) return null
 
-  const toast = shownToast.toast
+  const toast = currentToast.toast
   const hostedToast =
     (toast.kind === 'neutral' || toast.kind === 'lost') && toast.actionLabel
       ? { ...toast, onAction: triggerAction }
       : toast
 
-  if (placement !== 'overlay') return <Toast visible={currentToast !== null} key={shownToast.id} {...hostedToast} onDismiss={dismiss} outlined={placement === 'sheet'} />
+  if (placement !== 'overlay') return <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} outlined={placement === 'sheet'} />
 
   return (
     <View pointerEvents="box-none" style={[styles.host, styles.overlay, { bottom: insets.bottom + 16, left: 0, width: screenWidth }]}>
-      <View testID="toast-content-frame" style={[overlayFrame, { left: insets.left + overlayFrame.left }]}><Toast visible={currentToast !== null} key={shownToast.id} {...hostedToast} onDismiss={dismiss} /></View>
+      <View testID="toast-content-frame" style={[overlayFrame, { left: insets.left + overlayFrame.left }]}><Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} /></View>
     </View>
   )
 }
@@ -218,7 +227,7 @@ const styles = StyleSheet.create({
   copy: { flex: 1, gap: 4 },
   actionCopy: { flexBasis: '50%' },
   controls: { flexDirection: 'row', alignItems: 'center', gap: 12, marginStart: 'auto', flexShrink: 0 },
-  message: { fontFamily: 'Geist_500Medium', fontSize: 14 },
+  message: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20 },
   detail: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   action: { padding: SPACING.s8, minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN },
   actionText: {
@@ -228,19 +237,16 @@ const styles = StyleSheet.create({
   },
 })
 
-function ToastControls({ props, actionClosing, dismiss, canDismiss, tokens, actionColor, setFocused }: Readonly<{
+function ToastAction({ props, actionClosing, tokens, actionColor, setFocused }: Readonly<{
   props: Extract<ToastProps, { actionLabel: string }>
   actionClosing: RefObject<boolean>
-  dismiss: () => void
-  canDismiss: boolean
   tokens: AppTokensV2
   actionColor: string
   setFocused: (focused: boolean) => void
 }>) {
   const [actionPressed, setActionPressed] = useState(false)
   const [actionFocused, setActionFocused] = useState(false)
-  return <View style={styles.controls}>
-          {props.actionIcon ? <Primitive.Action asChild><IconButton label={props.actionLabel} onPress={() => { actionClosing.current = true; props.onAction() }} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}><RefreshCw size={20} accessible={false} /></IconButton></Primitive.Action> : <>          <Primitive.Action asChild><Pressable
+  return props.actionIcon ? <Primitive.Action asChild><IconButton label={props.actionLabel} onPress={() => { actionClosing.current = true; props.onAction() }} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}><RefreshCw size={20} accessible={false} /></IconButton></Primitive.Action> : <Primitive.Action asChild><Pressable
             onPress={() => { actionClosing.current = true; props.onAction() }}
             onPressIn={() => setActionPressed(true)}
             onPressOut={() => setActionPressed(false)}
@@ -256,15 +262,7 @@ function ToastControls({ props, actionClosing, dismiss, canDismiss, tokens, acti
             }]}>
               {props.actionLabel}
             </Text>
-          </Pressable></Primitive.Action></>}
-          <ToastClose visible={canDismiss} dismiss={dismiss} color={tokens.fg2} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
-        </View>
-}
-
-function toastVisibility(visible: boolean) {
-  return visible
-    ? { pointerEvents: 'auto' as const, accessibilityElementsHidden: false, importantForAccessibility: 'auto' as const }
-    : { pointerEvents: 'none' as const, accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' as const }
+          </Pressable></Primitive.Action>
 }
 
 function ToastLeadingMark({ props, tokens }: Readonly<{ props: ToastProps; tokens: AppTokensV2 }>) {

@@ -5,7 +5,7 @@ import type { BlockAnswer, ChatMessage, ChoiceBlock, PickListBlock } from '../ty
 export type BlockAnswerResult = { ok: true } | { ok: false; status: number | null; dailyBudgetReached?: true }
 
 export interface BlockAnswerRequest {
-  kind: 'choice' | 'pickList'
+  kind: 'choice' | 'pickList' | 'question'
   answer: BlockAnswer
   labels: string[]
 }
@@ -28,7 +28,19 @@ export type AnswerBlockProps = Readonly<{
 
 export function isSameBlockAnswer(answer: BlockAnswer, uncertain: BlockAnswer | null): boolean {
   return uncertain !== null && answer.blockId === uncertain.blockId && answer.freeText === uncertain.freeText &&
-    answer.selectedIds.length === uncertain.selectedIds.length && answer.selectedIds.every((id, index) => id === uncertain.selectedIds[index])
+    answer.selectedIds.length === uncertain.selectedIds.length && answer.selectedIds.every((id, index) => id === uncertain.selectedIds[index]) &&
+    sameQuestionAnswers(answer.answers, uncertain.answers)
+}
+
+function sameSelection(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every(id => right.includes(id))
+}
+
+function sameQuestionAnswers(left: BlockAnswer['answers'], right: BlockAnswer['answers']): boolean {
+  if (!left || !right) return left === right
+  return left.length === right.length && left.every(first => right.some(second =>
+    first.questionId === second.questionId && first.number === second.number && first.boolean === second.boolean &&
+    first.freeText === second.freeText && sameSelection(first.selectedIds ?? [], second.selectedIds ?? [])))
 }
 
 export function formatBlockAnswer(labels: readonly string[], freeText: string | undefined, locale: string): string {
@@ -58,7 +70,7 @@ export function recordBlockAnswer(chat: Pick<ChatStoreState, 'messages' | 'trans
   const key = result.ok ? 'answered' : blockAnswerErrorKey(result.status)
   if (key === 'invalid' || key === 'error') return
   const owner = chat.messages.find(message => message.parts?.some(part =>
-    part?.type === 'block' && (part.kind === 'choice' || part.kind === 'pickList') && part.block.blockId === blockId))
+    part?.type === 'block' && (part.kind === 'choice' || part.kind === 'pickList' || part.kind === 'question') && part.block.blockId === blockId))
   if (!owner) return
   const answer: NonNullable<ChatMessage['blockAnswers']>[string] = {
     text: key === 'answered' ? answeredText : key === 'closed' ? closedText : alreadyAnsweredText,

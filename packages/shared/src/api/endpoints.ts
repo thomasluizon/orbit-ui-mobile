@@ -157,6 +157,7 @@ export const API = {
     records: '/api/chat/records',
     habitRanking: '/api/chat/habit-ranking',
     refreshRead: '/api/chat/reads/refresh',
+    refreshGamification: '/api/chat/gamification/refresh',
     refreshHabitMonth: '/api/chat/habit-month/refresh',
   },
 

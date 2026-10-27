@@ -1,5 +1,5 @@
 import type { InvalidateQueryFilters } from '@tanstack/react-query'
-import { choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { questionBlockFixture, questionAnswersFixture, choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import React from 'react'
 import Animated from 'react-native-reanimated'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -901,12 +901,67 @@ describe('mobile useChatComposer', () => {
     expect(inputHosts(tree)).toHaveLength(1)
   })
 
+  it.each([false, true])('retains composer focus after a native submission with queued=%s', async (queued) => {
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    useUIStore.getState().setAstraConversationOpen(true)
+    const tree = await renderConversationHarness()
+    onTestFinished(() => stream.close())
+    if (queued) {
+      TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Running message'))
+      await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
+    }
+    TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Next message'))
+    const send = visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
+      node.type === 'Pressable' && node.props.accessibilityLabel === (queued ? 'shell.composer.queue.add' : 'shell.composer.send'))[0]
+    const tag = send.props.__nativeTag
+    TestRenderer.act(() => { __setTouchMode(false); __focusHost(tag) })
+    expect(__getFocusedNativeTag()).toBe(tag)
+    await TestRenderer.act(async () => { send.props.onPress(); await Promise.resolve() })
+    expect(inputHosts(tree)[0].props.value).toBe('')
+    const primary = visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
+      node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.voice.start')[0]
+    expect(__getFocusedNativeTag()).toBe(inputHosts(tree)[0].props.__nativeTag)
+    expect(primary.props.__nativeTag).toBe(tag)
+    expect(mocks.openChatStream).toHaveBeenCalledOnce()
+    expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(queued ? ['Next message'] : [])
+  })
+
+  it.each(['', 'Existing draft'])('keeps voice reachable at the limit through transcription with draft=%j', async (draft) => {
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
+    useChatStore.setState({ draft, draftHydrated: true })
+    useUIStore.getState().setAstraConversationOpen(true)
+    const tree = await renderConversationHarness()
+    const voiceControl = (label: string) => visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
+      node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]
+    expect(voiceControl('shell.composer.voice.start')?.props.disabled).toBe(false)
+    TestRenderer.act(() => voiceControl('shell.composer.voice.start').props.onPress())
+    expect(mocks.toggleRecording).toHaveBeenCalledOnce()
+    mocks.state.isRecording = true
+    await TestRenderer.act(() => tree.update(<ComposerConversationHarness />))
+    TestRenderer.act(() => voiceControl('shell.composer.voice.stop').props.onPress())
+    mocks.state.isRecording = false
+    mocks.state.isTranscribing = true
+    await TestRenderer.act(() => tree.update(<ComposerConversationHarness />))
+    expect(voiceControl('shell.composer.voice.stop').props.disabled).toBe(true)
+    mocks.state.isTranscribing = false
+    mocks.state.transcript = 'Recorded message'
+    await TestRenderer.act(() => tree.update(<ComposerConversationHarness />))
+    expect(inputHosts(tree)[0].props.value).toBe(draft ? `${draft} Recorded message` : 'Recorded message')
+    expect(inputHosts(tree)[0].props.editable).toBe(false)
+    expect(voiceControl('shell.composer.voice.start')?.props.disabled).toBe(false)
+    expect(voiceControl('shell.composer.send')).toBeUndefined()
+    TestRenderer.act(() => voiceControl('shell.composer.voice.start').props.onPress())
+    expect(mocks.toggleRecording).toHaveBeenCalledTimes(3)
+    expect(mocks.openChatStream).not.toHaveBeenCalled()
+  })
+
   it('does not move native focus off the voice stop control when recording starts', async () => {
     const focus = vi.fn()
     __setFocusImpl(focus)
     const tree = await renderConversationHarness()
     TestRenderer.act(() => inputHosts(tree)[0].props.onFocus())
-    const voiceButton = visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.actions')[0]
+    const voiceButton = visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.voice.start')[0]
     const voiceTag = voiceButton.props.__nativeTag
     TestRenderer.act(() => { __setTouchMode(false); __focusHost(voiceTag) })
     expect(__getFocusedNativeTag()).toBe(voiceTag)
@@ -1325,6 +1380,21 @@ describe('mobile useChatComposer', () => {
     expect(cache.getQueryData<Profile>(profileKeys.detail())?.aiMessagesUsed).toBe(5)
   })
 
+
+  it('sends typed question answers through native multipart and persists the terminal summary', async () => {
+    const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    onTestFinished(() => appendFormPart.mockRestore())
+    useChatStore.setState({ messages: [makeHeldHabitMessage({ id: 'questions', content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'question', block: questionBlockFixture }] })] })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    const answer = { blockId: questionBlockFixture.blockId, selectedIds: [], answers: questionAnswersFixture }
+    await TestRenderer.act(async () => { expect(await composer.current.blockAnswerInteraction.send({ kind: 'question', answer, labels: ['Energy: 3', 'Reminder: No'] })).toEqual({ ok: true }) })
+    expect(appendFormPart).toHaveBeenCalledWith('blockAnswer', JSON.stringify(answer))
+    const contextCall = appendFormPart.mock.calls.find(([key]) => key === 'clientContext')!
+    expect(JSON.parse(contextCall[1] as string).partKinds).toContain('question')
+    expect(useChatStore.getState().messages[0]?.blockAnswers?.[answer.blockId]).toMatchObject({ answered: true })
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
+  })
   it('sends a localized block answer once at quota and keeps the existing preview path', async () => {
     const appendFormPart = vi.spyOn(FormData.prototype, 'append')
     onTestFinished(() => appendFormPart.mockRestore())
