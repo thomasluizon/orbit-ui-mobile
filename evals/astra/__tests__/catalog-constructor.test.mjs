@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -9,6 +9,8 @@ it('constructs by parameter name and reports every unknown parameter before invo
   const directory = mkdtempSync(join(tmpdir(), 'astra-constructor-'))
   const source = fileURLToPath(new URL('../catalog-constructor.cs', import.meta.url))
     .replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;')
+  const exporter = readFileSync(new URL('../catalog-export.cs', import.meta.url), 'utf8')
+  const contextValues = exporter.match(/CatalogConstructor\.Create\(contextType, ([\s\S]*?)\);/)[1]
   try {
     writeFileSync(join(directory, 'Constructor.csproj'), `<Project Sdk="Microsoft.NET.Sdk">
       <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
@@ -27,8 +29,16 @@ var current = (CurrentContext)CatalogConstructor.Create(typeof(CurrentContext), 
 if (current.Text != "known" || !current.Enabled) throw new Exception("Constructor values did not follow parameter names.");
 var previous = (PreviousContext)CatalogConstructor.Create(typeof(PreviousContext), values);
 if (previous.Removed != 42 || previous.Text != "known" || !previous.Enabled) throw new Exception("Known parameters changed.");
+var facts = new object();
+var exported = (LanguageContext)CatalogConstructor.Create(typeof(LanguageContext), ${contextValues});
+if (exported.Language is not null) throw new Exception("The export context must match an absent client locale and profile.");
 public sealed record CurrentContext(string Text, bool Enabled);
 public sealed record PreviousContext(int Removed, string Text, bool Enabled);
+public sealed record LanguageContext(string? Language);
+public sealed class Habit { }
+public sealed class Goal { }
+public sealed class Tag { }
+public static class FeatureFlagKeys { public const string AstraBlockFirst = "astra_block_first"; }
 public sealed class UnknownContext
 {
     public UnknownContext(string Text, string NewValue, bool OtherValue) =>
