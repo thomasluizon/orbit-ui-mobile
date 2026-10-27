@@ -61,9 +61,10 @@ describe('interaction clearance inspector in Chromium', () => {
     try {
       const script = execFileSync(process.execPath, ['--input-type=module', '-e', `
         import { build } from 'esbuild';
+        import { readFileSync } from 'node:fs';
         import { readFile } from 'node:fs/promises';
         const result = await build({
-          stdin: { contents: JSON.parse(process.argv[1]), resolveDir: process.cwd(), loader: 'tsx' },
+          stdin: { contents: readFileSync(0, 'utf8'), resolveDir: process.cwd(), loader: 'tsx' },
           bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
           alias: { '@sentry/nextjs': '@sentry/browser' },
           define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' },
@@ -79,13 +80,16 @@ describe('interaction clearance inspector in Chromium', () => {
           } }],
         });
         process.stdout.write(result.outputFiles[0].text);
-      `, JSON.stringify(`import React from 'react'; import { createRoot } from 'react-dom/client';
+      `], {
+        input: `import React from 'react'; import { createRoot } from 'react-dom/client';
         import { NextIntlClientProvider } from 'next-intl'; import { SidebarAccount } from './components/shell/sidebar-account';
         window.accountMenuReady = new Promise(resolve => { window.releaseAccountMenu = resolve });
         document.addEventListener('keydown', event => { if (event.key === 'Shift' && ${JSON.stringify(loading)} === 'keyboard') window.releaseAccountMenu() });
         createRoot(document.getElementById('root')).render(<NextIntlClientProvider locale="pt-BR" messages={${JSON.stringify(ptBR)}}>
           <SidebarAccount account="Orbit Preview" accountEmail="preview@example.test" collapsed={false} />
-        </NextIntlClientProvider>);`)], { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 })
+        </NextIntlClientProvider>);`,
+        encoding: 'utf8', maxBuffer: 10 * 1024 * 1024,
+      })
       await page.setContent(`<style>
         #root { margin:32px;width:184px }
         button { padding:16px;border:0;background:gray;outline:none }
