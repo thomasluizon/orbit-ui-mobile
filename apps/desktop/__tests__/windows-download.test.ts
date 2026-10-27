@@ -14,7 +14,7 @@ const downloadTest = it.skipIf(!available && process.platform !== 'win32')
 const directories: string[] = []
 afterEach(() => directories.splice(0).forEach(directory => rmSync(directory, { recursive: true, force: true })))
 
-function prepare(mode: string, cached?: string) {
+function prepare(mode: string, cached?: string, architecture = 'x64', artifact = 'sdk', complete = false) {
   const directory = mkdtempSync(join(tmpdir(), 'orbit-windows-download-'))
   directories.push(directory)
   for (const filename of readdirSync(native).filter(filename => filename.endsWith('.ps1') || filename.endsWith('.json'))) {
@@ -35,9 +35,11 @@ $ErrorActionPreference = 'Stop'
 $script:attempts = 0
 function Invoke-WebRequest {
     param($Uri, $OutFile, [switch]$UseBasicParsing, $TimeoutSec)
-    $script:attempts++
-    Add-Content (Join-Path $env:TEST_ROOT 'attempts') $script:attempts
-    if ($env:TEST_MODE -eq 'always' -or ($env:TEST_MODE -eq 'transient' -and $script:attempts -lt 3)) {
+    if ($OutFile -like "*$($env:TEST_ARTIFACT)*") {
+        $script:attempts++
+        Add-Content (Join-Path $env:TEST_ROOT 'attempts') $script:attempts
+    }
+    if ($OutFile -like "*$($env:TEST_ARTIFACT)*" -and ($env:TEST_MODE -eq 'always' -or ($env:TEST_MODE -eq 'transient' -and $script:attempts -lt 3))) {
         [System.IO.File]::WriteAllText($OutFile, 'partial')
         throw 'simulated network failure'
     }
@@ -52,13 +54,30 @@ function Expand-Archive {
     param($Path, $DestinationPath)
     if ([System.IO.File]::ReadAllText($Path) -ne 'verified package bytes') { throw 'Unverified archive reached extraction' }
     Write-Output 'verified archive reached extraction'
+    if ($env:TEST_COMPLETE -ne 'true') { exit 0 }
+    New-Item -ItemType Directory $DestinationPath -Force | Out-Null
+}
+function Invoke-Projection {
+    $headers = Join-Path $env:TEST_ROOT 'projection/winrt'
+    New-Item -ItemType Directory $headers -Force | Out-Null
+    foreach ($header in @('base.h', 'Windows.Foundation.h', 'Windows.Foundation.Collections.h', 'Microsoft.Windows.PushNotifications.h')) {
+        New-Item -ItemType File (Join-Path $headers $header) -Force | Out-Null
+    }
+    $global:LASTEXITCODE = 0
+}
+Set-Alias -Name (Join-Path $env:TEST_ROOT 'cppwinrt/bin/cppwinrt.exe') -Value Invoke-Projection
+function Copy-Item {
+    param($Path, $Destination, [switch]$Force)
+    if ([System.IO.File]::ReadAllText($Path) -ne 'verified package bytes') { throw 'Unverified installer reached output' }
+    Write-Output 'verified installer reached output'
     exit 0
 }
-& (Join-Path $env:TEST_ROOT 'prepare.ps1') -Architecture x64 -Output $env:TEST_ROOT
+& (Join-Path $env:TEST_ROOT 'prepare.ps1') -Architecture $env:TEST_ARCHITECTURE -Output $env:TEST_ROOT
 `)
   const result = spawnSync(shell, ['-NoProfile', '-File', harness], {
     encoding: 'utf8', timeout: 20000,
-    env: { ...process.env, TEST_ROOT: directory, TEST_MODE: mode, ORBIT_WINDOWS_DOWNLOAD_CACHE: directory },
+    env: { ...process.env, TEST_ROOT: directory, TEST_MODE: mode, TEST_ARCHITECTURE: architecture, TEST_ARTIFACT: artifact,
+      TEST_COMPLETE: String(complete), ORBIT_WINDOWS_DOWNLOAD_CACHE: directory },
   })
   const lines = (name: string) => existsSync(join(directory, name)) ? readFileSync(join(directory, name), 'utf8').trim().split(/\r?\n/).map(Number) : []
   return { result, directory, attempts: lines('attempts'), delays: lines('delays') }
@@ -104,4 +123,15 @@ downloadTest('replaces a corrupt cache entry before extraction', () => {
   expect(result.status, result.stderr).toBe(0)
   expect(result.stdout).toContain('verified archive reached extraction')
   expect(attempts).toHaveLength(1)
+})
+
+
+downloadTest.each([
+  ['x64', 'sdk'], ['x64', 'cppwinrt'], ['x64', 'runtime-x64'], ['arm64', 'runtime-arm64'],
+])('retries %s %s on the preparation path through installer output', (architecture, artifact) => {
+  const { result, attempts, delays } = prepare('transient', undefined, architecture, artifact, true)
+  expect(result.status, result.stderr).toBe(0)
+  expect(result.stdout).toContain('verified installer reached output')
+  expect(attempts).toHaveLength(3)
+  expect(delays).toEqual([2, 4])
 })
