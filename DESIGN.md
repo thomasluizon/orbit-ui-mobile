@@ -1579,6 +1579,7 @@ list and conversation motion. No component owns a parallel timing scale.
 | `motionSprings.soft` | stiffness 220, damping 30, mass 1; quiet settlement |
 | `motionSprings.snappy` | stiffness 320, damping 34, mass 0.9; compact controls |
 | `motionSprings.sheet` | stiffness 360, damping 38, mass 1; finger release settlement |
+| `motionSprings.completion` | stiffness 380, damping 37, mass 0.9; earned state feedback |
 | `motionLayerTiming.routeShift`, `tabShift`, `toastLift`, `conversationShift` | 12, 10, 14, 12px; direction and hierarchy |
 | `motionLayerTiming.backdropEnterDelay`, `panelEnterDelay`, `panelExitLead` | 0; no staged wait before an action becomes available |
 | `sheetDrag.dismissDistance`, `dismissVelocity`, `projectionSeconds` | 96px, 700px/s, 0.15s; dismiss on distance or projected momentum |
@@ -1722,7 +1723,7 @@ to `--bg-hover`, and light uses the stronger opaque-control hover value.
 - **Linear easing is reserved for honest time representation** (progress bars, loading, scrub).
 - **Springs are critically damped, damping ratio 1.0, response 0.3 to 0.4s, no overshoot.** There is no bounce and no elastic curve in Orbit. This is a deliberate hardening of the source rule, which permits a bounce on momentum-carrying gestures; Orbit does not.
 - **Trigger-anchored overlays** scale from their trigger via `transform-origin`, never from centre. Modals stay centred.
-- **Directional slides are reserved for hierarchical navigation** and ordered sequences. Lateral navigation cross-fades or does not animate.
+- **Directional slides preserve hierarchical navigation** and ordered sequences. Tabs combine a 10px directional shift with a short cross-fade.
 - **Press feedback** is `scale(0.96)` on pointer-down, never on release, and stays continuous for the whole duration of a drag or sheet gesture.
 - **Respond on pointer-down, not on release.** Audit every debounce, artificial timer and transition wait on the input path.
 - **Gate hover-triggered motion behind `@media (hover: hover) and (pointer: fine)`.** Web only.

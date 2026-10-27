@@ -30,10 +30,10 @@ export async function getPrefersReducedMotion(): Promise<boolean> {
   }
 
   reducedMotionRequest ??= readReducedMotionPreference().then((nextValue) => {
-    cachedReducedMotionPreference = nextValue
+    if (!hasLoadedReducedMotionPreference) cachedReducedMotionPreference = nextValue
     hasLoadedReducedMotionPreference = true
     reducedMotionRequest = null
-    return nextValue
+    return cachedReducedMotionPreference
   })
 
   return reducedMotionRequest
@@ -41,7 +41,7 @@ export async function getPrefersReducedMotion(): Promise<boolean> {
 
 export function usePrefersReducedMotion(): boolean {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(
-    hasLoadedReducedMotionPreference ? cachedReducedMotionPreference : false,
+    hasLoadedReducedMotionPreference ? cachedReducedMotionPreference : true,
   )
 
   useEffect(() => {

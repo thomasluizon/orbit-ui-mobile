@@ -92,7 +92,7 @@ describe('motion theme contract', () => {
   })
 
   it('keeps overlay settlement springs at or above critical damping', () => {
-    for (const name of ['soft', 'snappy', 'sheet'] as const) {
+    for (const name of ['soft', 'snappy', 'sheet', 'completion'] as const) {
       const spring = motionSprings[name]
       expect(spring.damping).toBeGreaterThanOrEqual(2 * Math.sqrt(spring.stiffness * spring.mass))
     }

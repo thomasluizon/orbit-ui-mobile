@@ -30,6 +30,7 @@ const PRIMARY_DESTINATIONS = ['/', '/calendar', '/progress', '/profile']
 type RouteTransitionMotion = Readonly<{
   direction: -1 | 0 | 1
   isPrimaryTabSwitch: boolean
+  vertical: boolean
   motionPreset: ReturnType<typeof resolveMotionPreset>
 }>
 
@@ -41,16 +42,19 @@ interface RoutePathState {
 }
 
 const routeVariants: Variants = {
-  initial: ({ direction, motionPreset }: RouteTransitionMotion) => ({
+  initial: ({ direction, motionPreset, vertical }: RouteTransitionMotion) => ({
     opacity: motionPreset.enterDuration === 0 ? 1 : 0,
-    x: direction * motionPreset.shift,
+    x: vertical ? 0 : direction * motionPreset.shift,
+    y: vertical ? direction * motionPreset.shift : 0,
   }),
   animate: ({ motionPreset }: RouteTransitionMotion) => ({
     opacity: 1,
     x: 0,
+    y: 0,
     transition: {
       duration: motionPreset.enterDuration / 1000,
       ease: motionPreset.enterEasing,
+      ...(motionPreset.reducedMotionEnabled ? { x: { duration: 0 }, y: { duration: 0 } } : {}),
     },
   }),
 }
@@ -105,6 +109,7 @@ export function RouteTransitionShell({
           ? PRIMARY_DESTINATIONS.indexOf(pathname) > PRIMARY_DESTINATIONS.indexOf(routePaths.previous) ? 1 : -1
           : getRouteDirectionForIntent(transitionIntent),
         isPrimaryTabSwitch,
+        vertical: ['/upgrade', '/step-up'].includes(pathname) || ['/upgrade', '/step-up'].includes(routePaths.previous),
         motionPreset: {
           ...resolveMotionPreset(getRouteScenarioForIntent(transitionIntent), Boolean(prefersReducedMotion)),
           ...(transitionIntent === 'instant' ? { enterDuration: 0, exitDuration: 0, shift: 0 } : {}),

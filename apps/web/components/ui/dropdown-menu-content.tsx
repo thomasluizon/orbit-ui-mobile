@@ -58,12 +58,13 @@ export function Content({ id, items = [], onSelect, title, shortTitle, titleMode
       target.focus()
     }
   }
-  if (!open || items.length === 0) return null
+  if (items.length === 0) return null
   if (presentation === 'sheet' || (presentation === 'auto' && !wide)) {
+    if (!open) return null
     return <MenuSheet id={id} onSelect={activate} onClose={onClose} title={title} shortTitle={shortTitle} titleMode={titleMode} firstItemRef={firstItemRef} onSelectStart={onSelectStart} finalFocus={focusDestination} contentRef={contentRef} onContentFocus={focusInitialItem}>{children}</MenuSheet>
   }
   return <MenuItemsContext.Provider value={activate}><Portal>
-    <Primitive.Content ref={contentRef} {...(id ? { id } : {})} aria-label={title} aria-labelledby={undefined} align={align} sideOffset={8} collisionPadding={8} loop className="orbit-menu-panel" data-positioned="" onFocus={focusInitialItem} onEscapeKeyDown={restoreAnchoredFocus} onPointerDownOutside={(event) => {
+    <Primitive.Content ref={contentRef} {...(id ? { id } : {})} aria-label={title} aria-labelledby={undefined} align={align} sideOffset={8} collisionPadding={8} loop className="orbit-menu-panel" data-positioned="" inert={!open} aria-hidden={!open || undefined} onFocus={focusInitialItem} onEscapeKeyDown={restoreAnchoredFocus} onPointerDownOutside={(event) => {
       event.detail.originalEvent.preventDefault()
       restoreAnchoredFocus()
     }} onKeyDown={(event) => {

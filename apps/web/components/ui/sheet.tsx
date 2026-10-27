@@ -6,8 +6,9 @@ import { ActionRow } from './action-row'
 
 import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type Ref, type RefObject } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
-import { SHEET_BODY_INSETS } from '@orbit/shared/theme'
+import { motionSprings, shouldDismissSheet, SHEET_BODY_INSETS } from '@orbit/shared/theme'
 import { Dialog } from '@base-ui/react/dialog'
+import { animate, motion, useDragControls, useMotionValue, useReducedMotion, type PanInfo, type HTMLMotionProps } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { X } from '@/components/ui/icons'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
@@ -76,6 +77,8 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
     setPresented(false)
   }, [])
 
+  const drag = useSheetDrag({ onClose, requestClose, onAttemptDismiss })
+
   const handle = useMemo<SheetHandle>(() => ({ requestClose }), [requestClose])
 
   useImperativeHandle(ref, () => handle, [handle])
@@ -135,8 +138,9 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
       }}>
         <Dialog.Backdrop className="orbit-sheet-backdrop" />
         <Dialog.Viewport className="orbit-sheet-viewport">
+          <motion.div className="orbit-sheet-drag-frame" {...drag.frameProps}>
           <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus} finalFocus={finalFocus}>
-            <div className="orbit-sheet-grabber" aria-hidden="true" />
+            <div className="orbit-sheet-grabber-target" aria-hidden="true" onPointerDown={drag.start}><div className="orbit-sheet-grabber" /></div>
             <header className="orbit-sheet-header">
               <Dialog.Title aria-label={accessibleTitle} translate={titleTranslate} className={title ? 'orbit-sheet-title' : 'sr-only'} data-title-mode={titleMode}>
                 <SheetTitleContent title={title} titleMode={titleMode} accessibleTitle={accessibleTitle}
@@ -179,6 +183,7 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
               </footer>
             )}
           </Dialog.Popup>
+          </motion.div>
         </Dialog.Viewport>
       </Dialog.Portal>
     </Dialog.Root>
@@ -256,5 +261,28 @@ function useSheetBodyFocusVisibility(virtualizedBody: boolean | undefined) {
     observerRef.current = observer
     observer.observe(body)
     observer.observe(event.target)
+  }
+}
+
+function useSheetDrag({ onClose, requestClose, onAttemptDismiss }: Pick<WebSheetProps, 'onClose' | 'onAttemptDismiss'> & { requestClose: () => void }) {
+  const dismiss = onClose ? requestClose : onAttemptDismiss
+  const reducedMotion = useReducedMotion()
+  const y = useMotionValue(0)
+  const controls = useDragControls()
+  useEffect(() => {
+    if (reducedMotion) { controls.cancel(); y.stop(); y.set(0) }
+    return () => y.stop()
+  }, [reducedMotion, controls, y])
+  const onEnd = (_event: MouseEvent | TouchEvent | PointerEvent, gesture: PanInfo) => {
+    if (dismiss && shouldDismissSheet(gesture.offset.y, gesture.velocity.y)) dismiss()
+    else void animate(y, 0, { type: 'spring', stiffness: motionSprings.sheet.stiffness, damping: motionSprings.sheet.damping, mass: motionSprings.sheet.mass, velocity: Math.max(0, gesture.velocity.y) })
+  }
+  const enabled = Boolean(dismiss) && !reducedMotion
+  return {
+    start: (event: React.PointerEvent<HTMLDivElement>) => { if (enabled) controls.start(event) },
+    frameProps: {
+      style: { y }, drag: enabled ? 'y' : false, dragListener: false, dragControls: controls,
+      dragMomentum: false, dragConstraints: { top: 0 }, dragElastic: 0, onDragEnd: onEnd,
+    } satisfies HTMLMotionProps<'div'>,
   }
 }

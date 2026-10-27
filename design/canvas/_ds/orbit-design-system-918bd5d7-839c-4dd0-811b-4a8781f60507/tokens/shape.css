@@ -1,5 +1,5 @@
 /* Orbit shape, shadow, motion. Radius 999 means interactive: a static element never wears it.
-   Animate transform and opacity only. No bounce, no spring. On the dark canvas a 1px inset
+   Animate transform and opacity only. No bounce or spring overshoot. On the dark canvas a 1px inset
    hairline does the work of depth, not a layered shadow. */
 :root{
   --r-chip:8px; --r-well:12px; --r-md:16px; --r-card:20px; --r-sheet:28px; --r-pill:999px;

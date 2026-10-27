@@ -124,7 +124,7 @@ export const motionSprings = {
   },
   completion: {
     stiffness: 380,
-    damping: 24,
+    damping: 37,
     mass: 0.9,
     restSpeedThreshold: 0.7,
     restDisplacementThreshold: 0.7,

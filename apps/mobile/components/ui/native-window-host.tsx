@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useId, useMemo, useState, type ReactNode } from 'react'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { Modal, View } from 'react-native'
 import { PortalHost } from '@rn-primitives/portal'
 
@@ -23,6 +24,7 @@ export function useNativeWindow() {
 }
 
 export function NativeWindowHost({ children }: Readonly<{ children: ReactNode }>) {
+  const reducedMotion = usePrefersReducedMotion()
   const hostName = `native-window:${useId()}`
   const [dialogs, setDialogs] = useState<WindowDialog[]>([])
   const register = useCallback((dialog: WindowDialog) => {
@@ -36,7 +38,7 @@ export function NativeWindowHost({ children }: Readonly<{ children: ReactNode }>
     <View style={{ flex: 1 }} pointerEvents={open ? 'none' : 'auto'} importantForAccessibility={open ? 'no-hide-descendants' : 'auto'} accessibilityElementsHidden={open}>
       {children}
     </View>
-    <Modal visible={open} transparent statusBarTranslucent navigationBarTranslucent animationType="none"
+    <Modal visible={open} transparent statusBarTranslucent navigationBarTranslucent animationType={reducedMotion ? 'none' : 'fade'}
       onRequestClose={() => topDialog?.close()} onShow={() => topDialog?.focus()}>
       <View style={{ flex: 1 }}>
         <PortalHost name={hostName} />

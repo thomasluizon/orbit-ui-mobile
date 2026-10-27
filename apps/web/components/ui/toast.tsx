@@ -1,8 +1,9 @@
 'use client'
 
 import * as Primitive from '@radix-ui/react-toast'
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { resolveMotionPreset, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
+import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/react'
 import { useCallback, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useToastLifecycle } from '@/hooks/use-toast-lifecycle'
@@ -33,28 +34,44 @@ function DoneMark() {
   )
 }
 
-export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void }>) {
-  const t = useTranslations()
-  const outsideEscape = useRef(false)
-  const [viewport, setViewport] = useState<HTMLOListElement | null>(null)
+type ToastSurfaceProps = Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void }>
+
+export function Toast(props: ToastSurfaceProps) {
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused, props.onDismiss)
+  return <AnimatePresence propagate>{!dismissed ? <ToastSurface key={`${props.kind}:${props.message}`} props={props} dismiss={dismiss} setHovered={setHovered} setFocused={setFocused} /> : null}</AnimatePresence>
+}
 
+function ToastSurface({ props, dismiss, setHovered, setFocused }: Readonly<{
+  props: ToastSurfaceProps
+  dismiss: () => void
+  setHovered: (value: boolean) => void
+  setFocused: (value: boolean) => void
+}>) {
+  const t = useTranslations()
+  const outsideEscape = useRef(false)
+  const [viewport, setViewport] = useState<HTMLOListElement | null>(null)
+  const present = useIsPresent()
+  const reducedMotion = useReducedMotion()
+  const preset = resolveMotionPreset('toast', Boolean(reducedMotion))
+  const spatialTransition = reducedMotion ? { y: { duration: 0 }, scale: { duration: 0 } } : {}
   const handleBlur = useCallback((event: React.FocusEvent<HTMLLIElement>) => {
     if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false)
-  }, [])
+  }, [setFocused])
 
   const neutralColors = { background: 'bg-[var(--bg-elev)]', action: 'text-[var(--fg-1)]' }
   const lossColors = { background: 'bg-[var(--bg)]', action: 'text-[var(--primary-soft)]' }
   const colors = { neutral: neutralColors, working: neutralColors, done: neutralColors, lost: lossColors }[props.kind]
 
-  if (dismissed) return null
-
   return (
+    <motion.div inert={!present} aria-hidden={!present || undefined}
+      initial={{ opacity: 0, y: preset.shift, scale: preset.scaleFrom }}
+      animate={{ opacity: 1, y: 0, scale: 1, transition: { duration: preset.enterDuration / 1000, ease: preset.enterEasing, ...spatialTransition } }}
+      exit={{ opacity: 0, y: preset.shift, scale: preset.scaleFrom, transition: { duration: preset.exitDuration / 1000, ease: preset.exitEasing, ...spatialTransition } }}>
     <Primitive.Provider announcerContainer={viewport?.parentElement ?? undefined} label={t('notifications.title')}><Primitive.Root
       key={`${props.kind}:${props.message}`}
-      open={!dismissed}
+      open
       onOpenChange={(open) => { if (!open && !outsideEscape.current) dismiss() }}
       onEscapeKeyDown={(event) => {
         outsideEscape.current = !viewport?.contains(event.target as Node)
@@ -106,6 +123,6 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
           </PillButton></Primitive.Close>
         </div>
       ) : null}
-    </Primitive.Root><Primitive.Viewport ref={setViewport} hotkey={[]} label={t('notifications.title')} className="m-0 list-none p-0" /></Primitive.Provider>
+    </Primitive.Root><Primitive.Viewport ref={setViewport} hotkey={[]} label={t('notifications.title')} className="m-0 list-none p-0" /></Primitive.Provider></motion.div>
   )
 }

@@ -2,6 +2,8 @@ import React from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { resolveMotionPreset } from '@orbit/shared/theme'
+import { RootStackScreens } from '@/components/navigation/root-stack-screens'
+import TabLayout from '@/app/(tabs)/_layout'
 
 const state = vi.hoisted((): { reducedMotion: boolean; options: Record<string, unknown>; screens: Map<string, Record<string, unknown>> } => ({ reducedMotion: false, options: {}, screens: new Map() }))
 vi.mock('@/lib/motion', async (original) => ({ ...await original<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => state.reducedMotion }))
@@ -17,8 +19,6 @@ vi.mock('expo-router', () => {
   return { Stack: Object.assign(Navigator, { Screen, Protected }), Tabs: Object.assign(Navigator, { Screen }) }
 })
 
-import { RootStackScreens } from '@/components/navigation/root-stack-screens'
-import TabLayout from '@/app/(tabs)/_layout'
 
 beforeEach(() => { state.reducedMotion = false; state.screens.clear() })
 
