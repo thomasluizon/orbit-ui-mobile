@@ -1,7 +1,24 @@
+import { readFileSync } from 'node:fs'
+import { parse } from 'yaml'
+
+const { tools } = parse(readFileSync(new URL('../../catalog.yaml', import.meta.url), 'utf8'))
+
+// StrictToolSchema requires nullable properties; TerminalReadDirective requires the completion boolean.
+function strictArguments(schema, supplied) {
+  if (Array.isArray(supplied)) return supplied.map((entry) => strictArguments(schema?.items, entry))
+  if (!supplied || typeof supplied !== 'object') return supplied
+  const defaults = Object.fromEntries(Object.entries(schema?.properties ?? {})
+    .filter(([, property]) => Array.isArray(property.type) && property.type.includes('null'))
+    .map(([name]) => [name, null]))
+  if (schema?.properties?.orbit_read_complete) defaults.orbit_read_complete = false
+  return { ...defaults, ...Object.fromEntries(Object.entries(supplied)
+    .map(([name, value]) => [name, strictArguments(schema?.properties?.[name], value)])) }
+}
+
 // Contract: orbit-api 5e376417, ChatResponse, ChatEvalTrace and AiToolCallResult.
 export function toolCall(name, arguments_, status = 'Succeeded', id = 'call-1') {
   return {
-    id, name, arguments: arguments_, status,
+    id, name, arguments: strictArguments(tools.find((tool) => tool.function.name === name)?.function.parameters, arguments_), status,
     result: {
       name, id, success: status === 'Succeeded' || status === 'PendingConfirmation',
       entityId: null,

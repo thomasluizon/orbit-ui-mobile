@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { isDeepStrictEqual } from 'node:util'
 
-const catalog = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
+const catalog = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8')).tools
 const toolWrites = new Map(catalog.map((tool) => [tool.function.name, tool.writes]))
 
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
