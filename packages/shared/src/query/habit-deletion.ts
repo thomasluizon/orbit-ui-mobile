@@ -48,7 +48,7 @@ export async function removeDeletedHabitQueries(queryClient: QueryClient, habitI
     ...month, habits: optimisticRemoveHabits(month.habits, deleted),
     logs: Object.fromEntries(Object.entries(month.logs).filter(([id]) => !deleted.has(id))),
   } : month)
-  const removeChildren = (detail: HabitDetail) => deletedIds.reduce(removeHabitDetailChild, detail)
+  const removeChildren = (detail: HabitDetail) => deletedIds.reduce((current, id) => removeHabitDetailChild(current, id), detail)
   queryClient.setQueriesData<HabitDetail>({ queryKey: habitKeys.details() }, (detail) => detail ? removeChildren(detail) : detail)
   queryClient.setQueriesData<HabitFullDetail>({ queryKey: habitKeys.fullDetails() }, (detail) => detail ? { ...detail, habit: removeChildren(detail.habit) } : detail)
 }
