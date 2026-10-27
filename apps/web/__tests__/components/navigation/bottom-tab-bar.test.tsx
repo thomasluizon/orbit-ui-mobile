@@ -1,5 +1,9 @@
-import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { TAB_BAR_LABEL_MAX_FONT_SCALE } from '@orbit/shared/contracts/navigation'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 
 const routes: Record<string, string> = { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }
@@ -123,4 +127,124 @@ it('keeps one current position when another or the current item is pressed', () 
   fireEvent.click(buttons[1]!)
   expect(onSelect).toHaveBeenCalledExactlyOnceWith('calendario')
   expect(buttons.filter((button) => button.hasAttribute('aria-current'))).toEqual([buttons[1]])
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.useRealTimers()
+  document.documentElement.style.removeProperty('font-size')
+})
+
+it.each([en, ptBR].flatMap((messages) => [320, 360, 384, 412].flatMap((width) => [1, 1.3, 1.6, 2].map((textScale) => ({ messages, width, textScale })))))(
+  'reveals full-size destination content only above the cap at $width and $textScale in $messages.nav.calendar',
+  ({ messages, width, textScale }) => {
+    vi.useFakeTimers()
+    document.documentElement.style.fontSize = `${16 * textScale}px`
+    const onSelect = vi.fn()
+    const destinations = ['today', 'calendar', 'progress', 'profile'] as const
+    const view = render(<div style={{ width }}><BottomTabBar activeId="today" label={messages.nav.mainNavigation} onSelect={onSelect}
+      items={destinations.map((id) => ({ id, href: `/${id}`, label: messages.nav[id], icon: () => <svg data-testid={`viewer-icon-${id}`} /> }))} /></div>)
+    for (const id of destinations) {
+      const tab = screen.getByRole('link', { name: messages.nav[id] })
+      fireEvent.pointerDown(tab, { button: 0, pointerId: 1 })
+      act(() => { vi.advanceTimersByTime(499) })
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+      act(() => { vi.advanceTimersByTime(1) })
+      const viewer = screen.queryByRole('tooltip', { name: messages.nav[id] })
+      if (textScale > TAB_BAR_LABEL_MAX_FONT_SCALE) {
+        expect(viewer).toBeInTheDocument()
+        expect(viewer).toHaveTextContent(messages.nav[id])
+        expect(viewer!.querySelector('svg')).toBeInTheDocument()
+        expect(view.container.contains(viewer)).toBe(false)
+      } else expect(viewer).not.toBeInTheDocument()
+      expect(onSelect).not.toHaveBeenCalled()
+      fireEvent.pointerUp(tab, { pointerId: 1 })
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+      fireEvent.click(tab, { detail: 1 })
+      if (textScale > TAB_BAR_LABEL_MAX_FONT_SCALE) expect(onSelect).not.toHaveBeenCalled()
+      else expect(onSelect).toHaveBeenCalledExactlyOnceWith(id)
+      onSelect.mockClear()
+      fireEvent.pointerDown(tab, { button: 0, pointerId: 1 })
+      act(() => { vi.advanceTimersByTime(100) })
+      fireEvent.pointerUp(tab, { pointerId: 1 })
+      fireEvent.click(tab, { detail: 1 })
+      expect(onSelect).toHaveBeenCalledExactlyOnceWith(id)
+      onSelect.mockClear()
+    }
+  },
+)
+
+it.each(['pointerCancel', 'pointerLeave', 'blur'] as const)('cancels pending and visible previews on %s', (eventName) => {
+  vi.useFakeTimers()
+  document.documentElement.style.fontSize = '32px'
+  render(<BottomTabBar activeId="today" label="Navigation" onSelect={vi.fn()} items={[{ id: 'today', href: '/', label: 'Today' }]} />)
+  const tab = screen.getByRole('link', { name: 'Today' })
+  for (const duration of [100, 500]) {
+    fireEvent.pointerDown(tab, { button: 0, pointerId: 1 })
+    act(() => { vi.advanceTimersByTime(duration) })
+    fireEvent[eventName](tab)
+    act(() => { vi.advanceTimersByTime(500) })
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  }
+})
+
+it.each([en, ptBR].flatMap((messages) => [1, TAB_BAR_LABEL_MAX_FONT_SCALE, 1.3, 2].map((textScale) => ({ messages, textScale }))))(
+  'shows the same viewer on keyboard focus only above the cap at $textScale in $messages.nav.calendar',
+  async ({ messages, textScale }) => {
+    document.documentElement.style.fontSize = `${16 * textScale}px`
+    const user = userEvent.setup()
+    const onSelect = vi.fn()
+    const destinations = ['today', 'calendar', 'progress', 'profile'] as const
+    render(<><BottomTabBar activeId="today" label={messages.nav.mainNavigation} onSelect={onSelect}
+      items={destinations.map((id) => ({ id, href: `/${id}`, label: messages.nav[id], icon: () => <svg /> }))} /><button>Outside</button></>)
+    for (const tab of screen.getAllByRole('link')) {
+      const matches = tab.matches.bind(tab)
+      vi.spyOn(tab, 'matches').mockImplementation((selector) => selector === ':focus-visible' ? tab === document.activeElement : matches(selector))
+    }
+    for (const id of destinations) {
+      const tab = screen.getByRole('link', { name: messages.nav[id] })
+      await user.tab()
+      expect(tab).toHaveFocus()
+      expect(tab.matches(':focus-visible')).toBe(true)
+      const viewers = screen.queryAllByRole('tooltip')
+      expect(viewers).toHaveLength(textScale > TAB_BAR_LABEL_MAX_FONT_SCALE ? 1 : 0)
+      if (viewers[0]) {
+        expect(viewers[0]).toHaveAccessibleName(messages.nav[id])
+        expect(viewers[0].querySelector('[data-tab-viewer-label]')).toHaveTextContent(messages.nav[id])
+        expect(viewers[0].querySelector('svg')).toBeInTheDocument()
+        expect(viewers[0].querySelector('a, button, [tabindex]')).toBeNull()
+      }
+      expect(onSelect).not.toHaveBeenCalled()
+      await user.keyboard('{Enter}')
+      expect(onSelect).toHaveBeenCalledExactlyOnceWith(id)
+      onSelect.mockClear()
+      await user.keyboard(' ')
+      expect(onSelect).not.toHaveBeenCalled()
+      expect(tab).toHaveFocus()
+      expect(screen.queryAllByRole('tooltip')).toEqual(viewers)
+      fireEvent.pointerLeave(tab)
+      fireEvent.pointerUp(tab)
+      expect(screen.queryAllByRole('tooltip')).toEqual(viewers)
+    }
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Outside' })).toHaveFocus()
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    await user.tab({ shift: true })
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: messages.nav.profile })).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith('profile')
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  },
+)
+
+it('keeps pointer focus from opening the viewer before a long press', async () => {
+  document.documentElement.style.fontSize = '32px'
+  const onSelect = vi.fn()
+  const user = userEvent.setup()
+  render(<BottomTabBar activeId="today" label="Navigation" onSelect={onSelect} items={[{ id: 'today', href: '/', label: 'Today' }]} />)
+  await user.click(screen.getByRole('link', { name: 'Today' }))
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith('today')
 })

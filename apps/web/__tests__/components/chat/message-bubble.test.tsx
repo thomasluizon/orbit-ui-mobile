@@ -269,8 +269,8 @@ describe('MessageBubble', () => {
           role: 'ai',
           policyDenials: [
             {
-              operationId: 'habit.delete',
-              sourceName: 'Delete habit',
+              operationId: 'delete_habit',
+              sourceName: 'delete_habit',
               riskClass: 'Destructive',
               confirmationRequirement: 'FreshConfirmation',
               reason: 'Fresh confirmation required',

@@ -8,6 +8,7 @@ export interface AgentOperationOutcome {
   status: AgentOperationResult['status']
   policyReason?: string
   pendingOperationId?: string
+  access?: AgentOperationResult['access']
 }
 
 /** Coalesces the API's operation and denial records into one visible outcome per operation. */
@@ -21,9 +22,10 @@ export function coalesceAgentOperationOutcomes(
     const denial = [...remainingDenials].find(entry => operation.pendingOperationId
       ? entry.pendingOperationId === operation.pendingOperationId
       : isDenied && !entry.pendingOperationId && entry.operationId === operation.operationId)
-    const identity = operation.pendingOperationId
+    const pendingIdentity = operation.pendingOperationId
       ? { id: operation.pendingOperationId, pendingOperationId: operation.pendingOperationId }
       : { id: `${operation.operationId}:${index}` }
+    const identity = { ...pendingIdentity, ...(operation.access ? { access: operation.access } : {}) }
     if (denial) remainingDenials.delete(denial)
     if (denial && isDenied) {
       return {

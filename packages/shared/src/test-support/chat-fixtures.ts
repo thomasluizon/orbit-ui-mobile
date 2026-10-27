@@ -12,6 +12,22 @@ import type {
 } from '../types/chat'
 import type { BulkCreateResponse } from '../types/habit'
 
+export const failedReadOperationFixture = {
+  operationId: 'get_retrospective',
+  sourceName: 'get_retrospective',
+  riskClass: 'Low',
+  confirmationRequirement: 'None',
+  status: 'Failed',
+  summary: null,
+  targetId: null,
+  targetName: null,
+  policyReason: null,
+  pendingOperationId: null,
+  payload: null,
+  errorCode: 'NO_HABITS_FOR_PERIOD',
+  access: 'read',
+} as const
+
 export const breakdownSubHabits: SuggestedSubHabit[] = [
   { title: 'Dishes', description: '', frequencyUnit: 'Day' },
   { title: 'Laundry', description: '', frequencyUnit: 'Week' },
@@ -42,7 +58,7 @@ export const goalListCardFixture: GoalListCard = {
 
 export const agentPolicyDenialFixture: AgentPolicyDenial = {
   operationId: 'policy-1',
-  sourceName: 'DeleteAccount',
+  sourceName: 'account.manage',
   riskClass: 'High',
   confirmationRequirement: 'StepUp',
   reason: 'Profile only',
