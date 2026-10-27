@@ -1988,6 +1988,42 @@ describe('offline mutations', () => {
     },
   )
 
+  it('settles a repeated single delete when the habit is already gone', async () => {
+    const mutation = buildQueuedMutation({
+      type: 'deleteHabit', scope: 'habits', endpoint: API.habits.delete('habit-1'),
+      method: 'DELETE', payload: null, entityType: 'habit', targetEntityId: 'habit-1',
+    })
+    mocks.queued.push(mutation)
+    mocks.setOnline(true)
+    mocks.apiClient.mockRejectedValueOnce(createApiClientError(404, {
+      error: 'Habit not found.', errorCode: 'HABIT_NOT_FOUND',
+    }, 'Request failed: 404'))
+
+    expect(await flushQueuedMutations()).toMatchObject({
+      succeeded: 1, failed: 0, remaining: 0, droppedMutations: [],
+    })
+    expect(mocks.clearOfflineEntity).toHaveBeenCalledWith('habit', 'habit-1')
+    expect(mocks.captureError).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { type: 'updateHabit', method: 'PUT', status: 404, errorCode: 'HABIT_NOT_FOUND' },
+    { type: 'restoreHabit', method: 'POST', status: 404, errorCode: 'HABIT_NOT_FOUND' },
+    { type: 'deleteHabit', method: 'DELETE', status: 404, errorCode: 'ROUTE_NOT_FOUND' },
+    { type: 'deleteHabit', method: 'DELETE', status: 403, errorCode: 'NO_PERMISSION' },
+  ] as const)('keeps $type failures visible for $status $errorCode', async ({ type, method, status, errorCode }) => {
+    mocks.queued.push(buildQueuedMutation({
+      type, scope: 'habits', endpoint: API.habits.delete('habit-1'),
+      method, payload: null, entityType: 'habit', targetEntityId: 'habit-1',
+    }))
+    mocks.setOnline(true)
+    mocks.apiClient.mockRejectedValueOnce(createApiClientError(status, {
+      error: 'Request failed.', errorCode,
+    }, `Request failed: ${status}`))
+
+    expect(await flushQueuedMutations()).toMatchObject({ succeeded: 0, failed: 1 })
+  })
+
   it('keeps released-format single deletes replayable', async () => {
     const mutation = {
       ...buildQueuedMutation({
