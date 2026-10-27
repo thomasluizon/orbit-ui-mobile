@@ -69,7 +69,9 @@ export function getAgentCapabilityActionLabelKey(capabilityId: string): string |
 
 /** Returns local copy for a typed operation source without exposing a server symbol. */
 export function getAgentOperationLabelKey(sourceName: string): string | null {
-  return OPERATION_LABEL_KEYS[sourceName] ?? getAgentCapabilityLabelKey(sourceName)
+  const normalizedSource = sourceName.replaceAll('_', '').toLowerCase()
+  return Object.entries(OPERATION_LABEL_KEYS).find(([source]) => source.toLowerCase() === normalizedSource)?.[1]
+    ?? getAgentCapabilityLabelKey(sourceName)
 }
 
 /**
