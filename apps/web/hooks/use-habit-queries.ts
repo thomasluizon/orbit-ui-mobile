@@ -29,7 +29,7 @@ import {
   habitScheduleItemSchema,
 } from '@orbit/shared/types/habit'
 import { habitLogSchema } from '@orbit/shared/types/calendar'
-import { apiFetch, fetchJson } from '@/lib/api-fetch'
+import { fetchJson } from '@/lib/api-fetch'
 
 export interface NormalizedHabitsData {
   habitsById: Map<string, NormalizedHabit>
@@ -121,7 +121,7 @@ export function useHabitDetail(id: string | null) {
     queryKey: habitKeys.detail(id ?? ''),
     queryFn: async ({ signal }) => {
       if (id && isCachedHabitDeleted(queryClient, id)) throw new CancelledError({ silent: true })
-      return habitDetailSchema.parse(await apiFetch<unknown>(API.habits.get(id ?? ''), { signal }))
+      return habitDetailSchema.parse(await fetchJson<unknown>(API.habits.get(id ?? ''), undefined, undefined, signal))
     },
     enabled: !!id && !isCachedHabitDeleted(queryClient, id),
     staleTime: QUERY_STALE_TIMES.habits,
@@ -134,7 +134,7 @@ export function useHabitMetrics(id: string | null) {
     queryKey: habitKeys.metrics(id ?? ''),
     queryFn: async ({ signal }) => {
       if (id && isCachedHabitDeleted(queryClient, id)) throw new CancelledError({ silent: true })
-      return habitMetricsSchema.parse(await apiFetch<unknown>(API.habits.metrics(id ?? ''), { signal }))
+      return habitMetricsSchema.parse(await fetchJson<unknown>(API.habits.metrics(id ?? ''), undefined, undefined, signal))
     },
     enabled: !!id && !isCachedHabitDeleted(queryClient, id),
     staleTime: QUERY_STALE_TIMES.habits,
@@ -153,7 +153,7 @@ export function useHabitLogs(id: string | null) {
     queryKey: habitKeys.logs(id ?? ''),
     queryFn: async ({ signal }) => {
       if (id && isCachedHabitDeleted(queryClient, id)) throw new CancelledError({ silent: true })
-      return habitLogSchema.array().parse(await apiFetch<unknown>(`${API.habits.get(id ?? '')}/logs`, { signal }))
+      return habitLogSchema.array().parse(await fetchJson<unknown>(`${API.habits.get(id ?? '')}/logs`, undefined, undefined, signal))
     },
     enabled: !!id && !isCachedHabitDeleted(queryClient, id),
     staleTime: QUERY_STALE_TIMES.habits,
@@ -166,7 +166,7 @@ export function useHabitFullDetail(id: string | null) {
     queryKey: habitKeys.fullDetail(id ?? ''),
     queryFn: async ({ signal }) => {
       if (id && isCachedHabitDeleted(queryClient, id)) throw new CancelledError({ silent: true })
-      return habitFullDetailSchema.parse(await apiFetch<unknown>(API.habits.detail(id ?? ''), { signal }))
+      return habitFullDetailSchema.parse(await fetchJson<unknown>(API.habits.detail(id ?? ''), undefined, undefined, signal))
     },
     enabled: !!id && !isCachedHabitDeleted(queryClient, id),
     staleTime: QUERY_STALE_TIMES.habits,

@@ -498,6 +498,20 @@ describe('apiFetch', () => {
 describe('fetchJson', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    toastError.mockReset()
+    useAppToastStore.setState({ showError: toastError, currentToast: null, queue: [] })
+  })
+
+  it('forwards query cancellation without reporting a late not-found response', async () => {
+    const controller = new AbortController()
+    let finish!: (response: Response) => void
+    mockFetch.mockImplementation(() => new Promise<Response>((resolve) => { finish = resolve }))
+    const request = fetchJson('/api/habits/h-1', undefined, undefined, controller.signal)
+    expect(mockFetch.mock.calls[0]?.[1]?.signal).toBe(controller.signal)
+    controller.abort()
+    finish(Response.json({ error: 'Habit not found.', errorCode: 'HABIT_NOT_FOUND' }, { status: 404 }))
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' })
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('delegates to apiFetch for GET requests', async () => {

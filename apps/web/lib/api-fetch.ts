@@ -230,6 +230,7 @@ export function fetchJson<T>(
   url: string,
   schema?: ZodType<T>,
   behavior?: ApiFetchBehavior,
+  signal?: AbortSignal,
 ): Promise<T> {
-  return apiFetch<T>(url, undefined, schema, behavior)
+  return apiFetch<T>(url, { signal }, schema, behavior)
 }
