@@ -597,12 +597,14 @@ function createRenderers() {
 }
 
 describe('pending operation card view', () => {
-  it('keeps the stored icon while an emoji edit proposes a different icon', () => {
+  it('shows the proposed icon while an emoji edit is pending and the stored icon otherwise', () => {
     const operation = makeExistingHabitPreview('🦷')
-    operation.items![0]!.fields.push({ ...operation.items![0]!.fields[0]!, field: 'emoji', oldValue: '🦷', newValue: '🪥', proposedValue: '🪥' })
     const { record, render } = createRenderers()
     renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
     expect(record.frame?.items[0]?.icon).toBe('🦷')
+    operation.items![0]!.fields.push({ ...operation.items![0]!.fields[0]!, field: 'emoji', oldValue: '🦷', newValue: '🪥', proposedValue: '🪥' })
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items[0]?.icon).toBe('🪥')
   })
 
   it.each([{ locale: 'en', messages: en, expected: '10/28 → 11/4/26' }, { locale: 'pt-BR', messages: ptBR, expected: '28/10 → 04/11/26' }])('retains both dates in the compact $locale change', ({ locale, messages, expected }) => {

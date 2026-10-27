@@ -343,7 +343,7 @@ function previewRows<Node>(
     const parent: PendingOperationFrame<Node>['items'][number] = {
       id: item.itemId,
       label: item.fields.find((field) => ['title', 'name'].includes(field.field))?.newValue || item.entityName || labels.name,
-      icon: item.entityEmoji || item.fields.find((field) => field.field === 'emoji')?.newValue || undefined,
+      icon: item.fields.find((field) => field.field === 'emoji')?.newValue || item.entityEmoji || undefined,
       rename: revision?.canRevise && revision.renameItem && card.status == null && !revision.stale
         && item.fields.some((field) => field.field === 'title' && isPendingOperationEditableField(field))
         ? { label: labels.fieldLabels.title!, disabled: card.busy || revision.busy,
