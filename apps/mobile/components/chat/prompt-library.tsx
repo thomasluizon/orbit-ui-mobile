@@ -8,8 +8,8 @@ import { useTranslation } from 'react-i18next'
 import { buildPromptPage } from '@orbit/shared/chat/prompt-library'
 import { createUsePromptLibrary, groupPromptIdeas, type PromptIdeaGroup } from '@orbit/shared/chat/prompt-library-core'
 import type { ComposerSuggestions } from '@orbit/shared/contracts/composer'
-import { motionDurations, motionEasings, motionLayerTiming, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
-import { TypedTextInput } from '@/components/ui/typed-text-input'
+import { motionDurations, motionEasings, motionLayerTiming, SPACING } from '@orbit/shared/theme'
+import { Input } from '@/components/ui/input'
 import { ActionRow } from '@/components/ui/action-row'
 import { AppBar } from '@/components/ui/app-bar'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
@@ -49,7 +49,6 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
   const tokens = createTokensV2(currentScheme, currentTheme)
   const insets = useSafeAreaInsets()
   const reducedMotion = usePrefersReducedMotion()
-  const [searchFocused, setSearchFocused] = useState(false)
   const { onExitComplete } = props
   const progress = useMemo(() => new Animated.Value(0), [])
   const { filters, dispatch, select } = usePromptLibrary(visibleLayer, props.disabledReason)
@@ -68,23 +67,19 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
   }, [progress, reducedMotion, visibleLayer, onExitComplete])
 
   return <Animated.View testID="prompt-library" pointerEvents={visibleLayer ? 'auto' : 'none'} accessibilityElementsHidden={!visibleLayer} importantForAccessibility={visibleLayer ? 'auto' : 'no-hide-descendants'} style={[styles.layer, { backgroundColor: tokens.bg, paddingBottom: insets.bottom, opacity: progress, transform: [{ translateX: reducedMotion ? 0 : progress.interpolate({ inputRange: [0, 1], outputRange: [motionLayerTiming.routeShift, 0] }) }] }]}>
-    <AppBar title={t('chat.templates.title')} titleRef={headingRef} onBack={props.onBack} backLabel={t('chat.templates.back')} />
+    <AppBar title={t('chat.templates.title')} titleVariant="screen" titleRef={headingRef} onBack={props.onBack} backLabel={t('chat.templates.back')} />
     <ShellContent style={{ flex: 1 }}>
     <View style={styles.controls}>
       {props.disabledReason ? <CapacityNotice message={props.disabledReason} /> : null}
-      <View style={{ gap: 4 }}>
-        <Text nativeID="prompt-search-label" style={{ fontFamily: 'Geist_500Medium', fontSize: 14, color: tokens.fg2 }}>{t('chat.templates.search')}</Text>
-        <TypedTextInput onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)} autoComplete="off" accessibilityLabel={t('chat.templates.search')} accessibilityLabelledBy="prompt-search-label" value={query} onChangeText={value => { dispatch({ type: 'query', query: value }) }}
-          style={[styles.search, { color: tokens.fg1, backgroundColor: tokens.bgField, borderColor: searchFocused ? tokens.primary : tokens.borderControl, borderWidth: searchFocused ? 2 : 1 }]} />
-      </View>
-      <ScrollView horizontal style={{ flexGrow: 0 }} testID="prompt-categories" contentContainerStyle={styles.categories} keyboardShouldPersistTaps="handled">
+      <Input kind="search" autoComplete="off" hideLabel label={t('chat.templates.search')} placeholder={t('chat.templates.search')} value={query} onChange={value => dispatch({ type: 'query', query: value })} />
+      <ScrollView horizontal persistentScrollbar showsHorizontalScrollIndicator style={{ flexGrow: 0 }} testID="prompt-categories" contentContainerStyle={styles.categories} keyboardShouldPersistTaps="handled">
         {categories.map(item => <Chip key={item} active={item === activeCategory && !query.trim()} onPress={() => { dispatch({ type: 'category', category: item }) }}>{t(`chat.templates.categories.${item}`)}</Chip>)}
       </ScrollView>
     </View>
     <ScrollView style={{ flex: 1 }} testID="prompt-results" contentContainerStyle={{ paddingVertical: SPACING.s16, gap: SPACING.s24 }} keyboardShouldPersistTaps="handled">
       {props.suggestions.length > 0 && !query.trim() ? <View role="group" accessibilityLabel={t('chat.templates.forYou')}>
         <Text accessibilityRole="header" style={[styles.groupTitle, { color: tokens.fg1 }]}>{t('chat.templates.forYou')}</Text>
-        <View style={{ paddingHorizontal: SPACING.s16 }}>{props.suggestions.map(suggestion => <PromptIdea key={suggestion.id} label={suggestion.label} icon={suggestion.icon} disabled={!!props.disabledReason} onSelect={() => select(() => { suggestion.onSelect(); props.onBack() })} />)}</View>
+        <View style={{ paddingHorizontal: SPACING.s16, gap: SPACING.s12 }}>{props.suggestions.map(suggestion => <PromptIdea key={suggestion.id} label={suggestion.label} icon={suggestion.icon} disabled={!!props.disabledReason} onSelect={() => select(() => { suggestion.onSelect(); props.onBack() })} />)}</View>
       </View> : null}
       {groupPromptIdeas(visible, t).map(group => <CatalogGroup key={group.category} group={group} searching={!!query.trim()} disabled={!!props.disabledReason} onSelect={(...selection) => select(() => props.onSelect(...selection))} />)}
       <View style={matches.length === 0 ? styles.empty : styles.silentStatus}>
@@ -104,8 +99,7 @@ const styles = StyleSheet.create({
   layer: { ...StyleSheet.absoluteFill, zIndex: 1 },
   groupTitle: { fontFamily: 'Geist_500Medium', fontSize: 20, paddingHorizontal: SPACING.s16, paddingBottom: SPACING.s12 },
   controls: { paddingHorizontal: SPACING.s16, gap: 12 },
-  search: { minHeight: TOUCH_TARGET_MIN, borderRadius: 8, borderWidth: 1, paddingHorizontal: SPACING.s12, fontFamily: 'Geist_400Regular', fontSize: 16 },
-  categories: { flexDirection: 'row', flexWrap: 'nowrap', gap: 12, paddingBottom: SPACING.s4 },
+  categories: { flexDirection: 'row', flexWrap: 'nowrap', gap: 12, paddingBottom: SPACING.s8 },
   silentStatus: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
   empty: { alignItems: 'flex-start', gap: 12, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s24 },
   pages: { paddingHorizontal: SPACING.s16, paddingTop: SPACING.s16 },

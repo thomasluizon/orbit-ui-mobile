@@ -14,12 +14,14 @@ type BackVariant = Extract<NavHeaderProps, { onBack: () => void }>
 type PlainVariant = Extract<NavHeaderProps, { onBack?: never }>
 type ExpectedBackVariant = {
   title: string
+  titleVariant?: 'screen'
   onBack: () => void
   backLabel: string
   action?: React.ReactNode
 }
 type ExpectedPlainVariant = {
   title: string
+  titleVariant?: 'screen'
   onBack?: never
   backLabel?: never
   action?: React.ReactNode
@@ -29,6 +31,7 @@ export type NavHeaderTypeContract = [
   Assert<IsExactWidth<BackVariant, ExpectedBackVariant>>,
   Assert<IsExactWidth<PlainVariant, ExpectedPlainVariant>>,
   Assert<IsExactWidth<NavHeaderProps['title'], string>>,
+  Assert<IsExactWidth<NavHeaderProps['titleVariant'], 'screen' | undefined>>,
   Assert<IsExactWidth<NavHeaderProps['onBack'], (() => void) | undefined>>,
   Assert<IsExactWidth<NavHeaderProps['backLabel'], string | undefined>>,
   Assert<IsExactWidth<NavHeaderProps['action'], React.ReactNode>>,
@@ -36,8 +39,8 @@ export type NavHeaderTypeContract = [
   Assert<IsExact<{ title: 'Habit'; action: 'Help' }, NavHeaderProps>>,
   Assert<IsExact<{ title: 'Habit'; onBack: () => void; backLabel: 'Today' }, NavHeaderProps>>,
   Assert<IsExact<{ title: 'Habit'; onBack: () => void; backLabel: 'Today'; action: 'Help' }, NavHeaderProps>>,
-  Assert<Exclude<Keys<NavHeaderProps>, 'title' | 'onBack' | 'backLabel' | 'action'> extends never ? true : false>,
-  Assert<Exclude<'title' | 'onBack' | 'backLabel' | 'action', Keys<NavHeaderProps>> extends never ? true : false>,
+  Assert<Exclude<Keys<NavHeaderProps>, 'title' | 'titleVariant' | 'onBack' | 'backLabel' | 'action'> extends never ? true : false>,
+  Assert<Exclude<'title' | 'titleVariant' | 'onBack' | 'backLabel' | 'action', Keys<NavHeaderProps>> extends never ? true : false>,
   // @ts-expect-error back controls require the caller's words
   Assert<IsExact<{ title: 'Habit'; onBack: () => void }, NavHeaderProps>>,
   // @ts-expect-error back words require a back control

@@ -3287,15 +3287,6 @@
       ],
       "reason": "#1668 retains tag-generation context in the mark-only action accessible name and its pending hint."
     },
-    "web:display:habits.form.tags": {
-      "targets": [
-        "web:control:habits.form.tags"
-      ],
-      "owners": [
-        "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx"
-      ],
-      "reason": "#1668 retains the Tags field name on its picker row; the separate tag-suggestion status region uses its contextual suggestion name."
-    },
     "web:display:habits.form.timesPerUnit": {
       "targets": [
         "web:control:habits.form.timesPerUnit"
@@ -3665,11 +3656,6 @@
       "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
       "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
     },
-    "mobile:control:habits.form.suggestDate": {
-      "citation": "DESIGN.md",
-      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
-      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
-    },
     "mobile:control:onboarding.featureGuide.astra": {
       "citation": "DESIGN.md",
       "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
@@ -3847,11 +3833,6 @@
       "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
       "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
-    },
-    "mobile:control:shell.composer.offline.reason": {
-      "citation": "DESIGN.md",
-      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
-      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
     },
     "mobile:control:streakDisplay.freeze.celebrationSubtitle": {
       "citation": "DESIGN.md",
@@ -4067,11 +4048,6 @@
       "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
     },
     "web:control:habits.form.askDate": {
-      "citation": "DESIGN.md",
-      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
-      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
-    },
-    "web:control:habits.form.suggestDate": {
       "citation": "DESIGN.md",
       "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
       "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
@@ -4363,11 +4339,6 @@
       "reason": "The desktop stats rail and its open and close controls are deleted.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
-    "web:control:shell.composer.offline.reason": {
-      "citation": "DESIGN.md",
-      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
-      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
-    },
     "web:control:shell.openRail": {
       "citation": "DESIGN.md",
       "rule": "**The desktop stats rail.** Progresso owns the question it was answering.",
@@ -4560,11 +4531,6 @@
       "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
       "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
     },
-    "web:control:chat.readBlock.delta": {
-      "citation": "DESIGN.md",
-      "rule": "Comparison verdicts and bars replace the separate variation row; percentages are optional.",
-      "reason": "The supplied values share one visual scale and a localized verdict instead of a separate variation row."
-    },
     "mobile:control:chat.account.open": {
       "citation": "DESIGN.md",
       "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
@@ -4599,11 +4565,6 @@
       "citation": "DESIGN.md",
       "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
       "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
-    },
-    "mobile:control:chat.readBlock.delta": {
-      "citation": "DESIGN.md",
-      "rule": "Comparison verdicts and bars replace the separate variation row; percentages are optional.",
-      "reason": "The supplied values share one visual scale and a localized verdict instead of a separate variation row."
     },
     "web:control:chat.streakCard.current": {
       "citation": "DESIGN.md",

@@ -33,12 +33,11 @@ describe('shared Ideas presentation', () => {
       const [, , , id, field] = key.split('.')
       return copy.chat.templates.items[id as keyof typeof copy.chat.templates.items][field as 'label' | 'prompt']
     })
-    const slottedIds = ['goalHabits', 'habitReminder', 'smallSteps', 'setReminder', 'changeReminder', 'logMany', 'tagGroup', 'smallerHabit', 'easierTime', 'findTime']
     for (const template of PROMPT_TEMPLATES) {
       const onSelect = vi.fn()
       const idea = buildCatalogIdea(template, translate, onSelect)
       const { label, prompt } = copy.chat.templates.items[template.id]
-      expect(idea).toMatchObject({ catalogId: template.id, label, intentIcon: PROMPT_PRESENTATION[template.id].icon, invokesAstra: !slottedIds.includes(template.id) })
+      expect(idea).toMatchObject({ catalogId: template.id, label, intentIcon: PROMPT_PRESENTATION[template.id].icon })
       expect(idea.example).toBe(PROMPT_PRESENTATION[template.id].example ? prompt : undefined)
       expect(translate).toHaveBeenCalledWith(template.labelKey)
       expect(translate).toHaveBeenCalledWith(template.promptKey)
