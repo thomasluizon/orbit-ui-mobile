@@ -39,6 +39,18 @@ async function gate(produced, vars = {}) {
 }
 
 describe('production composition gate', () => {
+  it.each([
+    ['periodInsight', 'stale', 'refresh', { period: 'month', narrative: {}, totalCompletions: 7, topHabits: [], needsAttention: [] }],
+    ['calendar', 'partial', 'reconnect', { events: [], surfaceId: 'calendar' }],
+  ])('requires the declared %s state and recovery together', (kind, completeness, recovery, fields) => {
+    const clientContext = buildChatClientContext({ platform: 'web', locale: 'en' })
+    const vars = { clientContext, composition: { mode: 'data', blocks: [{ kind, completeness, recovery }] } }
+    for (const read of [{ completeness, recovery }, { completeness }, { completeness, recovery: 'retry' },
+      { completeness: 'complete', recovery }]) {
+      const produced = { composition: { parts: [{ type: 'block', kind, block: { ...fields, read } }] } }
+      expect(assertions.composition(produced, { vars }).pass).toBe(read.completeness === completeness && read.recovery === recovery)
+    }
+  })
   it('rejects prose-first ordering through the configured assertions', async () => {
     expect((await gate(response([{ type: 'text', text: 'Ready.' }, block]))).pass).toBe(false)
   })

@@ -53,10 +53,12 @@ defaultTest:
         this original and fail if its meaning changes beyond the instruction, even when its id is preserved.
         {% endif %}
         Grade only the final rendered answer projection.
+        Locale checks apply only to Astra-generated text, including composed titles and prose.
+        Stored habit titles must remain verbatim, including their original language; never demand their translation.
         {% if clientContext.supportsParts %}
         Include visible typed blocks and preview fields.
-        Preview field identifiers and typed enum/date values are structural encodings, not literal client copy.
-        Judge item text and prose for language; do not treat those encodings as visible labels.
+        Preview field identifiers, draft ids, existingHabitId and typed enum/date values are structural encodings, not literal client copy.
+        Judge generated item text and prose for language; do not treat those encodings as visible labels.
         Missing prose is valid for a block-only answer. aiMessage mirrors text parts; count that text once.
         Operation surfaces render before ordered read parts. Fail any external text that repeats a figure or fact
         already displayed in a block, including spelled-out numbers, ratios and semantic paraphrases.
