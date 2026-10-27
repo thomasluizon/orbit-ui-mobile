@@ -17,7 +17,7 @@ function preflightResponse(flag = { enabled: true, planRequirement: null }) {
   })
 }
 
-function requestsFor(configForAccount = () => preflightResponse()) {
+function requestsFor(configForAccount = (index) => preflightResponse({ enabled: index === 0, planRequirement: null })) {
   offlineCredentials()
   vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
   let accountIndex = -1
@@ -39,19 +39,28 @@ function requestsFor(configForAccount = () => preflightResponse()) {
   return requests
 }
 
-it.each(credentialKeys)('refuses the whole run before a case when %s lacks unmetered access', async (key) => {
+it.each(credentialKeys)('refuses the whole run before a case when %s violates its allowance policy', async (key) => {
   const index = credentialKeys.indexOf(key)
-  const requests = requestsFor((accountIndex) => preflightResponse({ enabled: accountIndex !== index, planRequirement: null }))
+  const expected = key === 'ORBIT_EVAL_TOKEN'
+  const requests = requestsFor((accountIndex) => preflightResponse({ enabled: accountIndex === index ? !expected : accountIndex === 0, planRequirement: null }))
   await expect(Promise.resolve().then(() => beforeAll(suiteFor(credentialKeys))))
-    .rejects.toThrow(`turn on astra_eval_unmetered for ${key} through /flag`)
+    .rejects.toThrow(`turn ${expected ? 'on' : 'off'} astra_eval_unmetered for ${key} through /flag`)
   expect(requests.mock.calls.filter(([url]) => new URL(url).pathname === '/api/config')).toHaveLength(index + 1)
 })
 
-it('starts only after all selected accounts resolve the flag, checking each account once', async () => {
+it('starts with the main account unmetered and both refusal accounts metered, checking each once', async () => {
   const requests = requestsFor()
   await beforeAll(suiteFor([...credentialKeys, credentialKeys[0]]))
   expect(requests.mock.calls.map(([url]) => new URL(url).pathname)).toEqual([
     '/health', ...credentialKeys.flatMap(() => ['/api/auth/refresh', '/api/config']),
+  ])
+})
+
+it.each(credentialKeys.slice(1))('starts a metered-only selection for %s', async (key) => {
+  const requests = requestsFor(() => preflightResponse({ enabled: false, planRequirement: null }))
+  await beforeAll(suiteFor([key, key]))
+  expect(requests.mock.calls.map(([url]) => new URL(url).pathname)).toEqual([
+    '/health', '/api/auth/refresh', '/api/config',
   ])
 })
 
@@ -66,6 +75,6 @@ it.each([
 ])('stops without exposing response contents for %s', async (_name, response) => {
   requestsFor(response)
   const pending = Promise.resolve().then(() => beforeAll(suiteFor([credentialKeys[1]])))
-  await expect(pending).rejects.toThrow(`turn on astra_eval_unmetered for ${credentialKeys[1]} through /flag`)
+  await expect(pending).rejects.toThrow(`turn off astra_eval_unmetered for ${credentialKeys[1]} through /flag`)
   await expect(pending).rejects.not.toThrow('PRIVATE')
 })

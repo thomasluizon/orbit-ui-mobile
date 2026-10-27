@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { tsImport } from 'tsx/esm/api'
 import { apiOrigin, readCredentials, refreshCredential, safeFailureMessage } from './credentials.mjs'
 import { dateOffset, resetFixture } from './fixtures/reset.mjs'
+import { requireEvalAccess } from './fixtures/api.mjs'
 import { prepareCorrection } from './setup.mjs'
 import { descriptors } from './merge-reports.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
@@ -11,6 +12,7 @@ const { buildChatClientContext } = await tsImport('../../packages/shared/src/cha
 
 let completedResults = []
 let selectedCases = []
+const accountAccess = new Map()
 
 function persistResults(results, expectedCases) {
   writeResults(results)
@@ -23,6 +25,7 @@ function persistResults(results, expectedCases) {
 export async function beforeAll({ suite }) {
   completedResults = []
   selectedCases = suite.tests.map((test) => test.metadata)
+  accountAccess.clear()
   persistResults(completedResults, selectedCases)
   const required = ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_CREDENTIALS_FILE']
   for (const key of new Set(required)) {
@@ -31,23 +34,13 @@ export async function beforeAll({ suite }) {
   apiOrigin()
   readCredentials()
   if (process.env.ORBIT_EVAL_OVERDUE_DATE && !/^\d{4}-\d{2}-\d{2}$/.test(process.env.ORBIT_EVAL_OVERDUE_DATE)) throw new Error('ORBIT_EVAL_OVERDUE_DATE must be an ISO calendar date.')
-  await requireUnmeteredAccounts(suite.tests)
+  await requireAccountPolicies(suite.tests)
 }
 
-async function requireUnmeteredAccounts(tests) {
+async function requireAccountPolicies(tests) {
   for (const key of new Set(tests.map((test) => test.vars.credentialKey))) {
     await refreshCredential(key)
-    try {
-      const response = await fetch(`${apiOrigin()}/api/config`, {
-        method: 'GET', headers: { Authorization: `Bearer ${process.env[key]}`, 'api-version': '2.0' },
-        redirect: 'error', signal: AbortSignal.timeout(120000),
-      })
-      if (!response.ok || (await response.json())?.features?.astra_eval_unmetered?.enabled !== true) {
-        throw new Error('Unmetered eval access is unavailable.')
-      }
-    } catch {
-      throw new Error(`Eval preflight failed: turn on astra_eval_unmetered for ${key} through /flag on staging, then verify /api/config and retry.`)
-    }
+    accountAccess.set(key, await requireEvalAccess(key))
   }
 }
 
@@ -65,7 +58,7 @@ async function prepareAttempt(test) {
   const today = new Date().toISOString().slice(0, 10)
   test.vars.accountDate = today
   process.env.ORBIT_EVAL_OVERDUE_DATE ??= dateOffset(today, -1)
-  await resetFixture(test, today)
+  await resetFixture(test, today, accountAccess.get(test.vars.credentialKey) === true)
   const account = readCredentials()[test.vars.credentialKey]
   const substitutions = {
     accountDate: today,

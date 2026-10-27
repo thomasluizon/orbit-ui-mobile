@@ -8,7 +8,7 @@ const exportedHabit = (body) => ({ id: randomUUID(), title: body.title, descript
 export function fixtureFetch(getState) {
   const undone = new Set()
   return async (url, options) => {
-    const { habits, goals, tags, templates, requests, pro, exhausted, capacity, email } = getState()
+    const { habits, goals, tags, templates, requests, pro, exhausted, capacity, email, unmetered = true } = getState()
     if (new URL(url).pathname === '/health') {
       requests.push({ path: 'health', method: options.method })
       return Response.json({ status: 'Healthy', commit: null, checks: [] })
@@ -22,7 +22,7 @@ export function fixtureFetch(getState) {
     if (!/^Bearer (pro|free|budget)-access$/.test(options.headers.Authorization)) throw new Error('Expected refreshed fixture access.')
     if (path === 'config' && method === 'GET') return Response.json({
       limits: { MaxHabitDepth: '5', MaxTagsPerHabit: '5', MaxReferrals: '10', ReferralRewardDays: '10' },
-      features: { astra_eval_unmetered: { enabled: true, planRequirement: null } },
+      features: { astra_eval_unmetered: { enabled: unmetered, planRequirement: null } },
       settings: { syncIntervalSeconds: 300, syncMaxBatchSize: 100 }, minVersion: '0.0.0',
     })
     if (path === 'profile' && method === 'GET') return Response.json({ email, hasProAccess: pro, hasGoogleConnection: false, aiMessagesUsed: exhausted ? 50 : 0, aiMessagesLimit: 50 })
