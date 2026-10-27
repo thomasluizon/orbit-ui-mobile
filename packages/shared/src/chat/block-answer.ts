@@ -28,7 +28,8 @@ export type AnswerBlockProps = Readonly<{
 
 export function isSameBlockAnswer(answer: BlockAnswer, uncertain: BlockAnswer | null): boolean {
   return uncertain !== null && answer.blockId === uncertain.blockId && answer.freeText === uncertain.freeText &&
-    sameSelection(answer.selectedIds, uncertain.selectedIds) && sameQuestionAnswers(answer.answers, uncertain.answers)
+    answer.selectedIds.length === uncertain.selectedIds.length && answer.selectedIds.every((id, index) => id === uncertain.selectedIds[index]) &&
+    sameQuestionAnswers(answer.answers, uncertain.answers)
 }
 
 function sameSelection(left: readonly string[], right: readonly string[]): boolean {

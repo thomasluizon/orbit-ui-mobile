@@ -3,6 +3,7 @@ import type { z } from 'zod'
 import { actionResultSchema, chatMessageSchema, chatResponseSchema, chatStreamEventSchema } from '../types/chat'
 import { habitMonthFixture } from '../test-support/habit-month-fixture'
 import { habitSuggestionsFixture } from '../test-support/habit-suggestion-fixtures'
+import { questionBlockFixture } from '../test-support/question-fixtures'
 import { CHAT_BLOCK_KINDS } from '../chat/block-kinds'
 import { buildChatFinalMessageFields, getChatMessageParts } from '../chat/final-message'
 import { createChatSseParser } from '../chat/sse-stream'
@@ -52,6 +53,7 @@ describe('ordered chat parts', () => {
       { type: 'block', kind: 'periodTotal', block: focusedPeriodTotalFixture },
       { type: 'block', kind: 'periodComparison', block: focusedPeriodComparisonFixture },
       ...partsFixture.blocks.slice(3),
+      { type: 'block', kind: 'question', block: questionBlockFixture },
       { type: 'block', kind: 'habitRanking', block: habitRankingCardFixture },
       { type: 'block', kind: 'habitMonth', block: habitMonthFixture },
       { type: 'block', kind: 'habitSuggestions', block: habitSuggestionsFixture },

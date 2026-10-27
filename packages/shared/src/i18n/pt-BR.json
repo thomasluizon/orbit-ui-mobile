@@ -1372,7 +1372,7 @@
       }
     },
     "question": {
-      "progress": "{answered} de {total} respondidas",
+      "progress": "{total, plural, =0 {{answered} de # perguntas respondidas} one {{answered} de # pergunta respondida} other {{answered} de # perguntas respondidas}}",
       "required": "Responda a esta pergunta."
     },
     "choice": {

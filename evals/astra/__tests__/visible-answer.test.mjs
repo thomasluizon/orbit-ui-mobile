@@ -27,7 +27,7 @@ it.each(['en', 'pt-BR'])('grades the question text, choices, scale, slider bound
   expect(output.answer).toContain('High')
   expect(output.answer).toContain('hours')
   expect(output.answer).toContain(locale === 'en' ? 'Recommended' : 'Recomendado')
-  expect(output.answer).toContain(locale === 'en' ? '0 of 5 answered' : '0 de 5 respondidas')
+  expect(output.answer).toContain(locale === 'en' ? '0 of 5 questions answered' : '0 de 5 perguntas respondidas')
   expect(output.answer).not.toContain(questionBlockFixture.blockId)
   expect(output.answer).not.toContain('expiresAtUtc')
 })
