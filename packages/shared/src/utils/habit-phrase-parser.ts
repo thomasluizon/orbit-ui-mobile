@@ -22,6 +22,7 @@ interface LocalePatterns {
   daily: RegExp
   count: RegExp
   interval: RegExp
+  weeklySuffix: RegExp
   times: RegExp[]
   numberWords: Readonly<Record<string, number>>
 }
@@ -50,6 +51,26 @@ const WEEKDAY_QUALIFIERS = new Set([
   'este', 'estes', 'esta', 'estas', 'esse', 'esses', 'essa', 'essas', 'toda', 'todas', 'todo', 'todos',
 ])
 
+const UNMODELED_WEEKDAY_QUALIFIERS = new Set([
+  'first', 'second', 'third', 'fourth', 'fifth', 'last', 'next', 'coming', 'upcoming', 'following',
+  'other', 'alternate', 'alternating', 'odd', 'even', 'monthly', 'fortnightly', 'biweekly',
+  'month', 'months', 'year', 'years', 'this', 'that', 'these', 'those',
+  'primeiro', 'primeira', 'segundo', 'terceiro', 'terceira', 'quarto',
+  'quinto', 'ultimo', 'ultima', 'proximo', 'proxima', 'proximos', 'proximas',
+  'alternado', 'alternada', 'alternados', 'alternadas', 'quinzenal', 'quinzenalmente',
+  'mensal', 'mensalmente', 'mes', 'meses', 'ano', 'anos', 'pares', 'impares', 'sim', 'nao',
+  'neste', 'nesta', 'nesse', 'nessa', 'este', 'esta', 'esse', 'essa',
+])
+const WEEKDAY_PREFIX_GLUE = new Set(['o', 'a', 'the', 'de', 'do', 'da'])
+const WEEKDAY_PERIOD_WORDS = new Set(['month', 'months', 'year', 'years', 'mes', 'meses', 'ano', 'anos'])
+
+interface WeekdayAlternation {
+  start: number
+  end: number
+  weekdayIndexes: number[]
+  scope: 'weekday' | 'following' | 'list'
+}
+
 const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
   'pt-BR': {
     weekdays: [
@@ -64,6 +85,7 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
     daily: /(?<![a-z])(todo dia|todos os dias|diariamente|toda manha|toda noite)(?![a-z])/gu,
     count: new RegExp(`\\b(${PT_NUMBER})\\s*(?:vez|vezes|x)\\s*(?:(?:por|na|a|em)\\s*)?semana\\b`, 'gu'),
     interval: new RegExp(`\\ba\\s+cada\\s+(${PT_NUMBER})\\s+semanas?\\b`, 'gu'),
+    weeklySuffix: /^\s+((?:a cada|de cada|cada|toda|por) semana|todas as semanas)\b/u,
     times: [
       /\b(?:as|a)\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?\b(?![:\dh]|[.,]\d)/gu,
       /(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)\b(?![:\d]|[.,]\d)/gu,
@@ -84,6 +106,7 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
     daily: /\b(every day|daily|each day|every morning|every evening)\b/gu,
     count: new RegExp(`\\b(?:(once|twice)|(${EN_NUMBER})\\s*(?:time|times|x))\\s*(?:(?:a|per|each)\\s*)?week\\b`, 'gu'),
     interval: new RegExp(`\\bevery\\s+(${EN_NUMBER})\\s+weeks?\\b`, 'gu'),
+    weeklySuffix: /^\s+((?:every|each|per|a) week)\b/u,
     times: [
       /\bat\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?\s*(am|pm)?\b(?![:\dh]|[.,]\d)/gu,
       /(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)\s*(am|pm)?\b(?![:\d]|[.,]\d)/gu,
@@ -212,6 +235,95 @@ function matchWeekdays(text: string, patterns: LocalePatterns) {
   }).sort((left, right) => left.match.index - right.match.index)
 }
 
+function hasUnmodeledWeekdayPrefix(text: string): boolean {
+  for (const value of text.trim().split(/\s+/u).reverse().slice(0, 2)) {
+    const word = value.replace(/[,.!?;:]+$/u, '')
+    if (UNMODELED_WEEKDAY_QUALIFIERS.has(word) || /^\d+(?:st|nd|rd|th|º|ª)$/u.test(word)) return true
+    if (!WEEKDAY_PREFIX_GLUE.has(word)) return false
+  }
+  return false
+}
+
+function hasUnmodeledWeekdaySuffix(text: string): boolean {
+  const word = /^\s+(\S+)/u.exec(text)?.[1]?.replace(/[,.!?;:]+$/u, '')
+  if (word && UNMODELED_WEEKDAY_QUALIFIERS.has(word) && !WEEKDAY_PERIOD_WORDS.has(word)) return true
+  return /^\s+(?:of|in|on|every|each|this|next|last)\s+(?:(?:the|every|each|this|next|last|odd|even)\s+)*(?:months?|years?)\b/u.test(text)
+    || /^\s+(?:de cada|a cada|do|da|de|cada|em|nas|nos)\s+(?:mes(?:es)?|anos?)\b/u.test(text)
+    || /^\s+(?:of|in|on|every|each)\s+(?:the\s+)?(?:this|next|last|odd|even|alternate|alternating)\s+weeks?\b/u.test(text)
+    || /^\s+(?:(?:de cada|a cada|do|da|de|cada|em|nas|nos)\s+)?semanas?\s+(?:pares|impares|alternadas)\b/u.test(text)
+}
+
+function hasUnmodeledWeekday(text: string, patterns: LocalePatterns): boolean {
+  return matchWeekdays(text, patterns).some(({ match }) => {
+    const prefix = text.slice(0, match.index)
+    const suffix = text.slice(match.index + match[0].length)
+    return hasUnmodeledWeekdayPrefix(prefix) || hasUnmodeledWeekdaySuffix(suffix)
+  })
+}
+
+function matchPortugueseAlternation(text: string, patterns: LocalePatterns): WeekdayAlternation[] {
+  const ranges: WeekdayAlternation[] = []
+  const weekdays = matchWeekdays(text, patterns)
+  for (const [index, { day, match }] of weekdays.entries()) {
+    const end = match.index + match[0].length
+    const next = weekdays[index + 1]
+    if (!next || next.day !== day || !/^ sim,? $/u.test(text.slice(end, next.match.index))) continue
+    const nextEnd = next.match.index + next.match[0].length
+    const qualifier = /^ nao\b/u.exec(text.slice(nextEnd))
+    if (qualifier) ranges.push({
+      start: end, end: nextEnd + qualifier[0].length,
+      weekdayIndexes: [index, index + 1], scope: 'weekday',
+    })
+  }
+  if (weekdays.length > 0) {
+    for (const match of text.matchAll(/\bsemana sim,? semana nao\b/gu)) {
+      const end = match.index + match[0].length
+      const weekdayIndexes = weekdays.flatMap(({ match: weekday }, index) => {
+        const before = weekday.index + weekday[0].length <= match.index
+          && /^\s*$/u.test(text.slice(weekday.index + weekday[0].length, match.index))
+        const after = weekday.index >= end
+          && /^\s+(?:(?:na|no|nas|nos|as|aos|em)\s+)?$/u.test(text.slice(end, weekday.index))
+        return before || after ? [index] : []
+      })
+      ranges.push({ start: match.index, end, weekdayIndexes, scope: 'list' })
+    }
+  }
+  return ranges
+}
+
+function getAlternatingWeekdayIndexes(text: string, weekdays: ReturnType<typeof matchWeekdays>, range: WeekdayAlternation): Set<number> {
+  const indexes = new Set(range.weekdayIndexes)
+  if (range.scope === 'weekday') return indexes
+  for (const direction of range.scope === 'list' ? [-1, 1] : [1]) {
+    for (const index of indexes) {
+      const adjacent = index + direction
+      if (!weekdays[adjacent]) continue
+      const left = weekdays[Math.min(index, adjacent)]!.match
+      const right = weekdays[Math.max(index, adjacent)]!.match
+      if (/^\s*,?\s*(?:(?:and|e)\s+)?$/u.test(text.slice(left.index + left[0].length, right.index))) indexes.add(adjacent)
+    }
+  }
+  return indexes
+}
+
+function extractAlternatingWeekdays(text: string, phrase: NormalizedPhrase, patterns: LocalePatterns, locale: SupportedLocale) {
+  const weekdays = matchWeekdays(text, patterns)
+  const ranges: WeekdayAlternation[] = locale === 'pt-BR'
+    ? matchPortugueseAlternation(text, patterns)
+    : weekdays.flatMap(({ match }, index) => {
+      const qualifier = /\bevery other $/u.exec(text.slice(0, match.index))
+      return qualifier ? [{ start: qualifier.index, end: match.index, weekdayIndexes: [index], scope: 'following' }] : []
+    })
+  const governed = new Set(ranges.flatMap((range) => [...getAlternatingWeekdayIndexes(text, weekdays, range)]))
+  const consumed: HabitPhraseToken[] = []
+  let remaining = text
+  for (const { start, end } of ranges) {
+    consumed.push({ start: phrase.originalStarts[start]!, end: phrase.originalEnds[end - 1]!, kind: 'interval' })
+    remaining = maskRange(remaining, start, end)
+  }
+  return { consumed, remaining, mixed: ranges.length > 0 && governed.size !== weekdays.length }
+}
+
 function hasWeekdayNegation(text: string, locale: SupportedLocale): boolean {
   const words = Array.from(text.matchAll(/\b(don't|[a-z]+)\s+/gu))
   let cursor = text.length
@@ -300,24 +412,8 @@ function buildWeekdayExclusionRead(
   }
 }
 
-export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhraseRead {
-  const phrase = normalizePhrase(text)
-  const patterns = LOCALE_PATTERNS[locale]
-  let remaining = phrase.text
+function extractCadence(remaining: string, phrase: NormalizedPhrase, patterns: LocalePatterns) {
   const consumed: HabitPhraseToken[] = []
-  const time = extractTime(remaining, phrase, patterns)
-  const dueTime = time.dueTime
-  if (time.token) consumed.push(time.token)
-  remaining = time.remaining
-
-  const exclusion = readWeekdayExclusion(remaining, phrase, patterns, locale)
-  if (exclusion) return buildWeekdayExclusionRead(exclusion, text, dueTime, consumed)
-
-  const interval = extractInterval(remaining, phrase, patterns)
-  const intervalWeeks = interval.intervalWeeks
-  if (interval.token) consumed.push(interval.token)
-  remaining = interval.remaining
-
   const weekdayMatches = matchWeekdays(remaining, patterns)
 
   let cadence: HabitPhraseCadence | null = null
@@ -326,7 +422,15 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
   if (weekdayMatches.length > 0) {
     cadence = 'fixed'
     days = [...new Set(weekdayMatches.map(({ day }) => day))]
-    for (const { match } of weekdayMatches) consumed.push(toToken(phrase, match, 'weekday'))
+    for (const { match } of weekdayMatches) {
+      consumed.push(toToken(phrase, match, 'weekday'))
+      const weekdayEnd = match.index + match[0].length
+      const suffix = patterns.weeklySuffix.exec(remaining.slice(weekdayEnd))
+      if (suffix) {
+        const end = weekdayEnd + suffix[0].length
+        consumed.push({ start: phrase.originalStarts[end - suffix[1]!.length]!, end: phrase.originalEnds[end - 1]!, kind: 'interval' })
+      }
+    }
   } else {
     const count = extractCount(remaining, patterns)
     if (count) {
@@ -345,11 +449,44 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
     }
   }
 
+  return { cadence, days, frequencyQuantity, consumed }
+}
+
+export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhraseRead {
+  const phrase = normalizePhrase(text)
+  const patterns = LOCALE_PATTERNS[locale]
+  let remaining = phrase.text
+  const consumed: HabitPhraseToken[] = []
+  const time = extractTime(remaining, phrase, patterns)
+  const dueTime = time.dueTime
+  if (time.token) consumed.push(time.token)
+  remaining = time.remaining
+
+  const alternating = extractAlternatingWeekdays(remaining, phrase, patterns, locale)
+  if (alternating.mixed) return buildWeekdayExclusionRead('unresolved', text, dueTime, consumed)
+  remaining = alternating.remaining
+  if (hasUnmodeledWeekday(remaining, patterns)) return buildWeekdayExclusionRead('unresolved', text, dueTime, consumed)
+  const exclusion = readWeekdayExclusion(remaining, phrase, patterns, locale)
+  if (exclusion) return buildWeekdayExclusionRead(alternating.consumed.length > 0 ? 'unresolved' : exclusion, text, dueTime, consumed)
+
+  const interval = extractInterval(remaining, phrase, patterns)
+  const hasAlternation = alternating.consumed.length > 0
+  if (hasAlternation && interval.intervalWeeks !== null && interval.intervalWeeks !== 2) {
+    return buildWeekdayExclusionRead('unresolved', text, dueTime, consumed)
+  }
+  const intervalWeeks = hasAlternation ? 2 : interval.intervalWeeks
+  consumed.push(...alternating.consumed)
+  if (interval.token) consumed.push(interval.token)
+  remaining = interval.remaining
+
+  const cadenceRead = extractCadence(remaining, phrase, patterns)
+  consumed.push(...cadenceRead.consumed)
+
   consumed.sort((left, right) => left.start - right.start)
   return {
-    cadence,
-    days,
-    frequencyQuantity,
+    cadence: cadenceRead.cadence,
+    days: cadenceRead.days,
+    frequencyQuantity: cadenceRead.frequencyQuantity,
     intervalWeeks,
     dueTime,
     emoji: EMOJI_HINTS.find(({ pattern }) => pattern.test(text))?.emoji ?? null,

@@ -11,6 +11,31 @@ describe('getHabitPhraseTitle', () => {
     expect(getHabitPhraseTitle(phrase, locale)).toBe(title)
   })
 
+  it.each([
+    ['tabs', '\t'.repeat(50_000), ' '],
+    ['mixed separators', ';\t'.repeat(25_000), '; '.repeat(25_000)],
+  ])('bounds title cleanup with a long internal run of %s', (_label, separators, normalized) => {
+    const sentence = `Read ${separators}a at 8`
+    const started = performance.now()
+    const title = getHabitPhraseTitle(sentence, 'en')
+    const elapsed = performance.now() - started
+
+    expect(title).toBe(`Read ${normalized}a`.replaceAll(/\s+/gu, ' '))
+    expect(elapsed).toBeLessThan(500)
+  })
+
+  it.each([
+    [', ; Read ; , at 8', 'Read'],
+    ['Read, ; middle ; , at 8', 'Read, ; middle'],
+    [',; at 8 ;,', ',; at 8 ;,'],
+  ])('preserves separator trimming and the empty-title fallback: %s', (sentence, title) => {
+    expect(getHabitPhraseTitle(sentence, 'en')).toBe(title)
+  })
+
+  it.each(['Revisar as finanças sexta sim, sexta não', 'Revisar as finanças sexta'].flatMap((phrase) => [phrase, phrase.normalize('NFD')]))('preserves accented activity words beside a consumed schedule: %s', (phrase) => {
+    expect(getHabitPhraseTitle(phrase, 'pt-BR').normalize('NFC')).toBe('Revisar as finanças')
+  })
+
   it('keeps a cadence that the person released', () => {
     expect(getHabitPhraseTitle('Read every day at 8am', 'en', {
       cadence: false,
