@@ -1075,6 +1075,13 @@ async function processQueuedMutationFlush(
     await finalizeSuccessfulFlush(mutation, response, touchedScopes)
     return { failedDelta: 0, stopReason: null, succeededDelta: 1, dropped: null }
   } catch (error: unknown) {
+    if (
+      mutation.type === 'deleteHabit' && mutation.method === 'DELETE' &&
+      error instanceof ApiClientError && error.status === 404 && error.code === 'HABIT_NOT_FOUND'
+    ) {
+      await finalizeSuccessfulFlush(mutation, undefined, touchedScopes)
+      return { failedDelta: 0, stopReason: null, succeededDelta: 1, dropped: null }
+    }
     const failure = await handleFlushFailure(mutation, error, touchedScopes)
     return {
       failedDelta: failure.incrementFailed ? 1 : 0,

@@ -2710,7 +2710,7 @@ describe('mobile habit hooks', () => {
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-3'])
     expect(getCount()).toBe(3)
 
-    mocks.runQueuedMutation.mockResolvedValueOnce({ results: [] })
+    mocks.runQueuedMutation.mockResolvedValueOnce(undefined).mockResolvedValueOnce(undefined)
     const result = await mutation.mutationFn(['habit-1', 'habit-2'])
     mutation.onSettled?.(result, null, ['habit-1', 'habit-2'], context)
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
@@ -2721,7 +2721,8 @@ describe('mobile habit hooks', () => {
     expect(getCount()).toBe(3)
   })
 
-  it('feeds every non-idempotent bulk mutation through a blocked mutation type', async () => {
+  it('keeps cascade deletes blocked while bulk log and skip remain replayable', async () => {
+    seedHabitState([makeHabit({ hasSubHabits: true })], 1)
     const bulkDelete = useBulkDeleteHabits() as unknown as MutationConfig<
       unknown,
       string[],
@@ -2738,7 +2739,9 @@ describe('mobile habit hooks', () => {
       HabitSnapshotContext
     >
 
-    await bulkDelete.mutationFn(['habit-1'])
+    const selected = ['habit-1']
+    await bulkDelete.onMutate?.(selected)
+    await bulkDelete.mutationFn(selected)
     await bulkLog.mutationFn([{ habitId: 'habit-1' }])
     await bulkSkip.mutationFn([{ habitId: 'habit-1' }])
 
@@ -2991,7 +2994,7 @@ describe('mobile habit hooks', () => {
       queuedDeletes: [{ habitId: 'habit-1', mutationId: 'mutation-1' }],
     }, ['habit-1'], context)
 
-    expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1'])
+    expect(getHabitList()).toEqual([])
 
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
     performUndo()

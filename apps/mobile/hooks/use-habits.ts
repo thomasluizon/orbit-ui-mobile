@@ -68,6 +68,7 @@ import type { HabitLog } from '@orbit/shared/types/calendar'
 import {
   cancelQueuedDeleteForUndo,
   cancelQueuedSkipForUndo,
+  createQueuedAck,
   executeSkipUndo,
   createTempEntityId,
   isQueuedResult,
@@ -157,6 +158,7 @@ type BulkSkipMutationOutcome = OfflineBulkMutationOutcome<BulkSkipResult> & {
 type BulkDeleteMutationOutcome = OfflineBulkMutationOutcome<BulkDeleteResponse> & {
   queuedDeletes: { habitId: string; mutationId: string }[]
 }
+const bulkDeleteConnectionRequirements = new WeakMap<string[], boolean>()
 
 function refreshProfileAfterLog(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -182,6 +184,16 @@ function selectedDescendantsInSnapshots(
     for (const habit of habits ?? []) visit(habit, false)
   }
   return descendants
+}
+
+function selectionRequiresCascadeDelete(snapshots: HabitListSnapshots, habitIds: string[]): boolean {
+  return habitIds.some((habitId) => {
+    const matches = snapshots.flatMap(([, habits]) => {
+      const habit = habits && findHabitInList(habits, habitId)
+      return habit ? [habit] : []
+    })
+    return matches.length === 0 || matches.some((habit) => habit.hasSubHabits || habit.children.length > 0)
+  })
 }
 
 export {
@@ -1248,6 +1260,8 @@ export function useBulkDeleteHabits() {
     { previousLists: HabitListSnapshots }
   >({
     mutationFn: async (habitIds) => {
+      const requiresConnection = bulkDeleteConnectionRequirements.get(habitIds) ?? true
+      bulkDeleteConnectionRequirements.delete(habitIds)
       const results: BulkDeleteResponse['results'] = []
       const ambiguousIds: string[] = []
       const offlineFailureIds: string[] = []
@@ -1256,7 +1270,7 @@ export function useBulkDeleteHabits() {
         const chunk = habitIds.slice(index, index + 4)
         const outcomes = await Promise.allSettled(chunk.map((habitId) =>
           performQueuedApiMutation<void>({
-            type: 'bulkCascadeDeleteHabits',
+            type: requiresConnection ? 'bulkCascadeDeleteHabits' : 'deleteHabit',
             scope: 'habits',
             endpoint: API.habits.delete(habitId),
             method: 'DELETE',
@@ -1287,13 +1301,18 @@ export function useBulkDeleteHabits() {
           })
         })
       }
-      return { results, ambiguousIds, offlineFailureIds, queuedDeletes }
+      const queuedDelete = queuedDeletes[0]
+      return {
+        results, ambiguousIds, offlineFailureIds, queuedDeletes,
+        ...(queuedDelete ? createQueuedAck(queuedDelete.mutationId) : {}),
+      }
     },
 
     onMutate: async (habitIds) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = snapshotHabitLists(queryClient)
+      bulkDeleteConnectionRequirements.set(habitIds, selectionRequiresCascadeDelete(previousLists, habitIds))
       updateHabitLists(queryClient, (items) => optimisticRemoveHabits(items, habitIds))
 
       return { previousLists }
@@ -1309,7 +1328,6 @@ export function useBulkDeleteHabits() {
         result.results.flatMap((item) => item.status === 'Failed' ? [item.habitId] : []),
       )
       for (const habitId of result.offlineFailureIds) failedIds.add(habitId)
-      for (const queued of result.queuedDeletes) failedIds.add(queued.habitId)
       if (failedIds.size > 0) {
         for (const [key, snapshot] of context.previousLists) {
           if (!snapshot) continue
