@@ -11,6 +11,10 @@ describe('getHabitPhraseTitle', () => {
     expect(getHabitPhraseTitle(phrase, locale)).toBe(title)
   })
 
+  it.each(['Revisar as finanças sexta sim, sexta não', 'Revisar as finanças sexta'].flatMap((phrase) => [phrase, phrase.normalize('NFD')]))('preserves accented activity words beside a consumed schedule: %s', (phrase) => {
+    expect(getHabitPhraseTitle(phrase, 'pt-BR').normalize('NFC')).toBe('Revisar as finanças')
+  })
+
   it('keeps a cadence that the person released', () => {
     expect(getHabitPhraseTitle('Read every day at 8am', 'en', {
       cadence: false,

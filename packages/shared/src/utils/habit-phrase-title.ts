@@ -14,8 +14,8 @@ function removeOrphanedGlue(
   protectedCharacters: boolean[],
 ): void {
   const glue = locale === 'pt-BR'
-    ? /\b(?:toda|todo|todas|todos|as|os|e|por|na|no|nas|nos|a|em|cada)\b/giu
-    : /\b(?:every|each|and|a|per|at|on|times?|week)\b/giu
+    ? /(?<![\p{L}\p{M}\p{N}_])(?:toda|todo|todas|todos|as|os|e|por|na|no|nas|nos|a|em|cada)(?![\p{L}\p{M}\p{N}_])/giu
+    : /(?<![\p{L}\p{M}\p{N}_])(?:every|each|and|a|per|at|on|times?|week)(?![\p{L}\p{M}\p{N}_])/giu
   const removable = [...sentence.matchAll(glue)]
   const touchesRemoved = (start: number, direction: -1 | 1): boolean => {
     for (let index = start; index >= 0 && index < characters.length; index += direction) {
