@@ -13,6 +13,7 @@ export interface PendingOperationCardLabels {
   placementChecklistNote: string
   formatTime: (value: string) => string
   approve: (count: number) => string
+  approveName?: (count: number) => string
   parentChoiceRequired: string
   noParent: string
   acting: string
@@ -99,13 +100,26 @@ const DELETION_SUBJECTS: Readonly<Record<string, string>> = {
   'checklist-templates.write': 'templates',
 }
 
+function pendingOperationTitle(
+  operation: PendingAgentOperation,
+  createsHabits: boolean,
+  translate: (key: string, values?: Record<string, string | number>) => string,
+): string {
+  const count = operation.changeTargetCount ?? operation.items?.length ?? 1
+  if (createsHabits) return translate('chat.operation.newHabits', { count })
+  if (['updateHabit', 'updateHabits'].includes(operation.actionKey ?? '') && operation.items?.length === 1) {
+    return translate('chat.operation.editHabit', { name: operation.items[0]!.entityName })
+  }
+  if (operation.capabilityId === 'habits.bulk.write') return translate('chat.operation.changeHabits', { count })
+  return translate(getAgentCapabilityLabelKey(operation.capabilityId) ?? 'chat.operation.unknown')
+}
+
 export function buildPendingOperationCardLabels(
   pendingOperation: PendingAgentOperation,
   translate: (key: string, values?: Record<string, string | number>) => string,
   formatTime: (value: string) => string,
   locale = 'en',
 ): PendingOperationCardLabels {
-  const capabilityKey = getAgentCapabilityLabelKey(pendingOperation.capabilityId)
   const hasMixedDeletion = pendingOperation.items?.some((item) => item.removesData === true)
     && pendingOperation.items.some((item) => item.removesData !== true)
   const actionKey = pendingOperation.actionKey
@@ -132,9 +146,12 @@ export function buildPendingOperationCardLabels(
     })} ${placement.reason[locale.startsWith('pt') ? 'pt-BR' : 'en']}`,
     placementChecklistNote: translate('chat.placement.checklistNote'),
     formatTime,
-    approve: (count) => hasMixedDeletion ? translate('chat.pendingOp.action.applyChanges')
+    approve: (count) => createsHabits ? translate('chat.operation.create')
+      : ['updateHabit', 'updateHabits'].includes(actionKey ?? '') ? translate('common.save')
+      : hasMixedDeletion ? translate('chat.pendingOp.action.applyChanges')
       : actionKey && COUNTED_ACTIONS.includes(actionKey)
         ? translate(`chat.operation.approveCount.${actionKey}`, { count }) : actionLabel,
+    approveName: (count) => hasMixedDeletion ? translate('chat.pendingOp.action.applyChanges') : actionKey && COUNTED_ACTIONS.includes(actionKey) ? translate(`chat.operation.approveCount.${actionKey}`, { count }) : actionLabel,
     parentChoiceRequired: translate('chat.operation.parentChoiceRequired'),
     noParent: translate('habits.moveParent.toRoot'),
     acting: translate('blockFrame.status.acting'),
@@ -184,8 +201,7 @@ export function buildPendingOperationCardLabels(
       ? translate(`chat.operation.deleteTitle.${deletionSubject}`, { count })
       : translate('chat.operation.confirmActionTitle', { action: confirm }),
     irreversible: translate('chat.operation.irreversible'),
-    name: createsHabits ? translate('chat.operation.newHabits', { count: pendingOperation.changeTargetCount ?? pendingOperation.items?.length ?? 1 })
-      : translate(capabilityKey ?? 'chat.operation.unknown'),
+    name: pendingOperationTitle(pendingOperation, createsHabits, translate),
     pending: translate('chat.operation.pending'),
     pendingTitle: translate('chat.operation.pendingTitle'),
     proposed: translate('chat.preview.proposed'),

@@ -14,7 +14,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'Pacific/Honolulu', uses24HourClock: mocks.uses24HourClock } }) }))
 vi.mock('next-intl', () => ({ useLocale: () => mocks.language, useTranslations: () => (key: string, values?: Record<string, unknown>) => values ? `${key}:${JSON.stringify(values)}` : key }))
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: ({ label }: { label: string }) => <div role="progressbar" aria-label={label} /> }))
-vi.mock('@/components/ui/progress-bar', () => ({ ProgressBar: ({ value, max }: { value: number; max: number }) => <div role="progressbar" data-value={value} data-max={max} /> }))
+vi.mock('@/components/ui/progress-bar', () => ({ ProgressBar: ({ value, max, label }: { value: number; max: number; label: string }) => <div role="progressbar" aria-label={label} data-value={value} data-max={max} /> }))
 vi.mock('@/components/ui/block-frame', () => ({ BlockFrame: ({ items, body, actions }: BlockFrameProps) => <section>{body}{items.map((item) => <div data-testid="card-row" data-status={item.status} key={item.id}>{item.label}{item.meta}{item.control}</div>)}{actions}</section> }))
 
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
@@ -27,8 +27,7 @@ describe('Astra status cards on web', () => {
   it('labels the day ring and opens Today', () => {
     render(<DaySummaryCard daySummary={{ date: '2026-09-26', due: 3, done: 1, completionRate: 33, overdueCount: 2, currentStreak: 4, surfaceId: 'today' }} />)
     expect(screen.getByRole('progressbar', { name: /done.*1.*due.*3/ })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'chat.daySummary.open' }))
-    expect(mocks.push).toHaveBeenCalledWith('/')
+    expect(screen.queryByRole('button', { name: 'chat.daySummary.open' })).not.toBeInTheDocument()
   })
 
   it('keeps overdue visible when nothing is due today', () => {
@@ -40,12 +39,11 @@ describe('Astra status cards on web', () => {
 
   it('shows at most six earned and unearned achievement discs', () => {
     render(<StreakCard streakCard={{ currentStreak: 0, longestStreak: 4, level: 11, totalXp: 12200, xpForNextLevel: 14400, lastActiveDate: null, isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], achievementDiscs: Array.from({ length: 8 }, (_, index) => ({ id: `achievement-${index}`, iconKey: 'satellite', earnedAt: index % 2 ? null : '2026-09-26T10:00:00Z' })), surfaceId: 'progress' }} />)
-    expect(screen.getByRole('progressbar')).toHaveAttribute('data-value', '100')
-    expect(screen.getByRole('progressbar')).toHaveAttribute('data-max', '2300')
+    expect(screen.getByRole('progressbar', { name: 'progressScreen.achievements.xpProgress' })).toHaveAttribute('data-value', '100')
+    expect(screen.getByRole('progressbar', { name: 'progressScreen.achievements.xpProgress' })).toHaveAttribute('data-max', '2300')
     expect(document.querySelectorAll('[data-state="earned"]')).toHaveLength(3)
     expect(document.querySelectorAll('[data-state="unearned"]')).toHaveLength(3)
-    fireEvent.click(screen.getByRole('button', { name: 'chat.streakCard.open' }))
-    expect(mocks.push).toHaveBeenCalledWith('/progress/streak')
+    expect(screen.queryByRole('button', { name: 'chat.streakCard.open' })).not.toBeInTheDocument()
   })
 
   it('ends the streak strip on the account date across device midnight', () => {
@@ -69,8 +67,7 @@ describe('Astra status cards on web', () => {
     expect(screen.getByRole('img', { name: /Event 0/ })).toBeInTheDocument()
     expect(screen.getAllByRole('img')[0]).toHaveTextContent('chat.calendarCard.allDay')
     expect(screen.queryByText('chat.calendarCard.sync')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'chat.calendarCard.open' }))
-    expect(mocks.push).toHaveBeenCalledWith('/calendar')
+    expect(screen.queryByRole('button', { name: 'chat.calendarCard.open' })).not.toBeInTheDocument()
   })
 
   it.each([
@@ -96,7 +93,7 @@ it('renders API streak, calendar and both record list blocks in the final messag
   if (event.type !== 'final') throw new Error('Expected a final event')
   const message = { id: 'status', role: 'ai' as const, timestamp: new Date(), ...buildChatFinalMessageFields(event.response, []) }
   const { container, rerender } = render(<MessageBubble message={message} />)
-  expect(screen.getByRole('button', { name: 'chat.streakCard.open' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'chat.streakCard.open' })).not.toBeInTheDocument()
   expect(screen.getByRole('img', { name: /Dentist/ })).toBeInTheDocument()
   expect(screen.getByText('Morning')).toBeInTheDocument()
   expect(screen.getByText('Evening')).toBeInTheDocument()

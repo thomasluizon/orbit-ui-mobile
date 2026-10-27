@@ -2,22 +2,23 @@ import { personalText } from '@/__tests__/support/personal-text'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
-import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { getAccountDay } from '@orbit/shared/utils'
+import { inPlaceDayFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
 import { ChatBlock } from '@/components/chat/block-registry'
 import { habitMonthFixture } from '@orbit/shared/test-support/habit-month-fixture'
 import { refreshHabitMonth, refreshReadBlock } from '@/app/actions/chat'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { chatPartSchema, habitMonthCardSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
-const state = vi.hoisted(() => ({ habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
+const state = vi.hoisted(() => ({ isError: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
 vi.mock('@/app/actions/chat', () => ({ refreshReadBlock: vi.fn(), refreshHabitMonth: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push }) }))
-vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: state.habits }, isPending: false }), useLogHabit: () => ({ mutate: state.mutate }), useHabitMetrics: () => ({}) }))
+vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: state.isError ? undefined : { habitsById: state.habits }, isError: state.isError, isPending: false }), useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }), useHabitMetrics: () => ({}) }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false }) }))
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'UTC' } }) }))
@@ -29,28 +30,22 @@ const total = { type: 'block' as const, kind: 'periodTotal' as const, block: foc
 function mount(part: Parameters<typeof ChatBlock>[0]['part'] = total, locale: 'en' | 'pt-BR' = 'en') {
   return render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><ChatBlock part={part} onActionChipClick={vi.fn()} /></NextIntlClientProvider>)
 }
-beforeEach(() => { vi.mocked(refreshReadBlock).mockReset(); vi.mocked(refreshHabitMonth).mockReset(); state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
+beforeEach(() => { state.isError = false; vi.mocked(refreshReadBlock).mockReset(); vi.mocked(refreshHabitMonth).mockReset(); state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
 
 describe('focused read compositions', () => {
-  it.each(['en', 'pt-BR'] as const)('renders the exact total and zero-baseline comparison in %s', locale => {
+  it.each(['en', 'pt-BR'] as const)('renders compact totals and scaled comparison bars in %s', locale => {
     const view = mount(total, locale)
     expect(screen.getByText('12')).toBeInTheDocument()
-    expect(view.container.textContent).toContain('2026')
-    expect(view.container.textContent).not.toContain('%')
+    expect(screen.queryByRole('button', { name: 'Refresh' })).not.toBeInTheDocument()
+    expect(view.container.querySelector('[data-compact-figure]')).toHaveTextContent(locale === 'en' ? '12completions' : '12conclusões')
+    expect(screen.getByRole('heading')).toContainElement(view.container.querySelector('[data-compact-figure]'))
+    expect(screen.queryByText((locale === 'en' ? en : pt).chat.readBlock.metric.positiveLogRecords)).not.toBeInTheDocument()
     view.unmount()
     const comparison = mount({ kind: 'periodComparison', block: focusedPeriodComparisonFixture }, locale)
     expect(screen.getByText('0')).toBeInTheDocument()
-    expect(screen.getByText('+12')).toBeInTheDocument()
+    expect(comparison.container.querySelector('[data-comparison-bar="current"]')).toHaveStyle({ width: '100%' })
+    expect(comparison.container.querySelector('[data-comparison-bar="baseline"]')).toHaveStyle({ width: '0%' })
     expect(comparison.container.textContent).not.toContain('%')
-  })
-
-  it('refreshes only the signed query and replaces its snapshot', async () => {
-    vi.mocked(refreshReadBlock).mockResolvedValue({ ok: true, data: { kind: 'periodTotal', block: { ...focusedPeriodTotalFixture, value: 18 }, read: { ...focusedReadMetadataFixture, revision: 'two' } } })
-    mount()
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
-    await screen.findByText('18')
-    expect(refreshReadBlock).toHaveBeenCalledWith('signed-query', expect.objectContaining({ platform: 'web', partKinds: expect.arrayContaining(['periodTotal', 'periodComparison']) }), false, null)
-    expect(screen.queryByText('12')).not.toBeInTheDocument()
   })
 
   it('pages history with the signed cursor and preserves dated zero-valued logs', async () => {
@@ -65,26 +60,29 @@ describe('focused read compositions', () => {
     expect(refreshReadBlock).toHaveBeenCalledWith('signed-page', expect.anything(), true, null)
   })
 
-  it.each(['READ_QUERY_STALE', 'READ_QUERY_EXPIRED', 'offline'])('retains figures and offers compact recovery for %s', async code => {
+  it.each(['READ_QUERY_STALE', 'READ_QUERY_EXPIRED', 'offline'])('retains history and reports a failed page for %s', async code => {
     vi.mocked(refreshReadBlock).mockResolvedValue({ ok: false, error: 'failure', code, status: 409, sessionRefreshFailed: false })
-    const view = mount()
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    const view = mount({ kind: 'recordList', block: focusedHistoryFixture })
+    fireEvent.click(screen.getByRole('button', { name: 'Show more' }))
     await waitFor(() => expect(view.container.querySelector('section')).toHaveAttribute('data-state', code === 'READ_QUERY_STALE' ? 'stale' : 'partiallyFailed'))
-    expect(screen.getByText('12')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled()
-    expect(view.container.querySelectorAll('[role="status"]:not(.sr-only)')).toHaveLength(1)
+    expect(screen.getByText(personalText('Sep 1, 2026'))).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Refresh' })).not.toBeInTheDocument()
   })
 
-  it('discards a late response after the account changes', async () => {
+  it('discards a late page after the account changes', async () => {
     let resolve!: (result: { ok: true; data: ReadBlockResponse }) => void
     vi.mocked(refreshReadBlock).mockImplementation(() => new Promise(done => { resolve = done }))
-    mount()
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    mount({ kind: 'recordList', block: focusedHistoryFixture })
+    fireEvent.click(screen.getByRole('button', { name: 'Show more' }))
     act(() => advanceAccountGeneration())
-    await act(async () => { resolve({ ok: true, data: { kind: 'periodTotal', block: { ...focusedPeriodTotalFixture, value: 99 }, read: focusedReadMetadataFixture } }) })
-    expect(screen.getByText('12')).toBeInTheDocument()
-    expect(screen.queryByText('99')).not.toBeInTheDocument()
+    await act(async () => { resolve({ ok: true, data: { kind: 'recordList', block: { ...focusedHistoryFixture, items: [{ id: 'late', title: 'Other account' }] }, read: focusedHistoryFixture.read } }) })
+    expect(screen.queryByText('Other account')).not.toBeInTheDocument()
   })
+})
+
+it('shows a saved metric window only once through the owning read composition', () => {
+  mount({ kind: 'metrics', block: { surfaceId: 'progress', period: 'month', hasData: true, completionRate: 80, totalCompletions: 12, totalScheduled: 10, activeDays: 9, currentStreak: 2, bestStreak: 4, periodMetrics: focusedPeriodMetricsFixture, read: focusedReadMetadataFixture } })
+  expect(screen.getAllByText('Sep 1, 2026 - Sep 30, 2026')).toHaveLength(1)
 })
 
 it.each(['chat', 'refresh'] as const)('keeps a parsed %s historical schedule read-only and navigates with its original date', source => {
@@ -95,7 +93,7 @@ it.each(['chat', 'refresh'] as const)('keeps a parsed %s historical schedule rea
   expect(parsed).not.toBeNull()
   if (!parsed || !('kind' in parsed) || parsed.kind !== 'habitList') throw new Error('Dated habit block did not parse')
   mount(parsed)
-  expect(screen.getByText('Done')).toBeInTheDocument()
+  expect(screen.queryByText('Done')).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Log Walk' }))
   expect(state.mutate).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: 'Open Walk' }))
@@ -115,12 +113,12 @@ it('keeps stale recap disclosure and Progress available without refreshing', () 
   expect(view.container.querySelector('section')).toHaveAttribute('data-state', 'stale')
   expect(screen.getByRole('status')).toHaveTextContent(en.chat.readBlock.stale)
   expect(screen.queryByText('Walked')).not.toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled()
-  expect(screen.getByRole('link', { name: en.chat.insight.progressLink })).toHaveAttribute('href', '/progress')
+  expect(screen.queryByRole('button', { name: 'Refresh' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: en.chat.insight.progressLink })).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Show more' }))
   for (const text of ['Walked', 'Mornings', 'Start small', 'Reading']) expect(screen.getByText(text)).toBeInTheDocument()
-  expect(screen.getByText(personalText(`${en.chat.insight.topHabit}: Walk`))).toBeInTheDocument()
-  expect(screen.getByText(personalText(`${en.chat.insight.needsAttention}: Read`))).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: `${en.chat.insight.topHabit}: Walk` })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: `${en.chat.insight.needsAttention}: Read` })).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: en.chat.readBlock.less }))
   expect(screen.queryByText('Walked')).not.toBeInTheDocument()
   expect(refreshReadBlock).not.toHaveBeenCalled()
@@ -129,7 +127,7 @@ it('keeps stale recap disclosure and Progress available without refreshing', () 
 it('withholds signed paging for a stale query', () => {
   mount({ kind: 'recordList', block: { ...focusedHistoryFixture, read: { ...focusedHistoryFixture.read, completeness: 'stale' } } })
   expect(screen.queryByRole('button', { name: 'Show more' })).not.toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled()
+  expect(screen.queryByRole('button', { name: 'Refresh' })).not.toBeInTheDocument()
   expect(refreshReadBlock).not.toHaveBeenCalled()
 })
 
@@ -145,50 +143,87 @@ it.each(['en', 'pt-BR'] as const)('renders the calendar month with done, missed,
   expect(screen.getByTestId('month-grid-days').children.length % 7).toBe(0)
   fireEvent.click(screen.getByTestId('calendar-day-select-2026-09-03'))
   expect(state.push).toHaveBeenCalledWith('/calendar?date=2026-09-03')
-  expect(screen.getByRole('button', { name: locale === 'en' ? 'Refresh' : 'Atualizar' }).textContent).toBe('')
+  expect(screen.queryByRole('button', { name: locale === 'en' ? 'Refresh' : 'Atualizar' })).not.toBeInTheDocument()
 })
 
-it('refreshes a habit month through its dedicated action and replaces the full snapshot', async () => {
+it('replaces the month snapshot when a new reply revision arrives without a refresh action', () => {
   const card = habitMonthCardSchema.parse(habitMonthFixture)
-  vi.mocked(refreshHabitMonth).mockResolvedValue({ ok: true, data: {
-    kind: 'habitMonth', block: { ...card, today: '2026-09-12', calendar: { ...card.calendar, logs: {} } },
-    read: { ...card.read!, revision: 'two', refreshToken: 'month-two' },
-  } })
-  mount({ kind: 'habitMonth', block: card })
-  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
-  await waitFor(() => expect(screen.getByTestId('calendar-day-select-2026-09-12')).toHaveAttribute('aria-current', 'date'))
+  const view = mount({ kind: 'habitMonth', block: card })
+  const next = { ...card, today: '2026-09-12', calendar: { ...card.calendar, logs: {} }, read: { ...card.read!, revision: 'two', refreshToken: 'month-two' } }
+  view.rerender(<NextIntlClientProvider locale="en" messages={en}><ChatBlock part={{ kind: 'habitMonth', block: next }} onActionChipClick={vi.fn()} /></NextIntlClientProvider>)
+  expect(screen.getByTestId('calendar-day-select-2026-09-12')).toHaveAttribute('aria-current', 'date')
   expect(screen.getByTestId('calendar-day-select-2026-09-01').querySelector('[data-outcome]')).toHaveAttribute('data-outcome', 'none')
+  expect(screen.queryByRole('button', { name: 'Refresh' })).not.toBeInTheDocument()
   expect(refreshReadBlock).not.toHaveBeenCalled()
-  expect(refreshHabitMonth).toHaveBeenCalledWith('signed-month', expect.objectContaining({ platform: 'web', partKinds: expect.arrayContaining(['habitMonth']) }), null)
-  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
-  await waitFor(() => expect(refreshHabitMonth).toHaveBeenLastCalledWith('month-two', expect.anything(), null))
+  expect(refreshHabitMonth).not.toHaveBeenCalled()
 })
 
-it.each([['en', 'chat'], ['en', 'refresh'], ['pt-BR', 'chat'], ['pt-BR', 'refresh']] as const)('distinguishes habit counts from completions in %s through %s', async (locale, source) => {
-  const labels = locale === 'en'
-    ? { habits: 'Habits completed', unit: 'habits', completions: 'Completions', completionUnit: 'completions' }
-    : { habits: 'Hábitos concluídos', unit: 'hábitos', completions: 'Conclusões', completionUnit: 'conclusões' }
-  const cases = [
-    { kind: 'periodTotal', block: completedHabitTotalFixture, figures: ['3'], habits: true },
-    { kind: 'periodComparison', block: completedHabitComparisonFixture, figures: ['3', '1', '+2 (+200%)'], habits: true },
-    { kind: 'periodTotal', block: focusedPeriodTotalFixture, figures: ['12'], habits: false },
-    { kind: 'periodComparison', block: focusedPeriodComparisonFixture, figures: ['12', '0', '+12'], habits: false },
-    { kind: 'periodTotal', block: { ...focusedPeriodTotalFixture, metrics: completedHabitTotalFixture.metrics }, figures: ['12'], habits: false },
-    { kind: 'periodComparison', block: { ...focusedPeriodComparisonFixture, current: completedHabitComparisonFixture.current, baseline: completedHabitComparisonFixture.baseline }, figures: ['12', '0', '+12'], habits: false },
-  ]
-  for (const { kind, block, figures, habits } of cases) {
-    const expected = habits
-      ? { title: labels.habits, unit: labels.unit, other: labels.completions }
-      : { title: labels.completions, unit: labels.completionUnit, other: labels.habits }
+it.each((['habitList', 'daySummary'] as const).flatMap(kind => [true, false].flatMap(isError => ([
+  ['done', false, 'done'], ['done', true, 'bad'], ['overdue', false, 'overdue'],
+  ['overdue', true, 'overdue'], ['today', false, 'empty'], ['today', true, 'empty'],
+] as const).map(([status, isBadHabit, expected]) => ({ kind, isError, status, isBadHabit, expected })))))(
+  'keeps $kind snapshot $status with bad=$isBadHabit read-only and query error=$isError', ({ kind, isError, status, isBadHabit, expected }) => {
+    state.isError = isError
+    const items = focusedDatedHabitListFixture.items.map(item => ({ ...item, status, isBadHabit }))
+    const part = kind === 'habitList'
+      ? { kind, block: { ...focusedDatedHabitListFixture, items } }
+      : { kind, block: { ...inPlaceDayFixture, rows: items, totalRows: 1 } }
+    const view = mount(part)
+    const row = view.container.querySelector('[data-habit-block-row]')!
+    const check = row.querySelector('[data-habit-check]')!
+    expect(check).toHaveAttribute('data-status', expected)
+    expect(check.closest('button')).toBeNull()
+    expect(row.querySelector('[data-habit-block-meta]')).toBeNull()
+    expect(state.mutate).not.toHaveBeenCalled()
+    view.unmount()
+})
+
+it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as const).flatMap(source => (['periodTotal', 'periodComparison'] as const).map(kind => ({ locale, source, kind })))))(
+  'distinguishes habit counts from completions in $locale through $source for $kind', async ({ locale, source, kind: blockKind }) => {
+    const labels = locale === 'en'
+      ? { habits: 'Habits completed', unit: 'habits', completions: 'Completions', completionUnit: 'completions' }
+      : { habits: 'Hábitos concluídos', unit: 'hábitos', completions: 'Conclusões', completionUnit: 'conclusões' }
+    const cases = [
+      { kind: 'periodTotal', block: completedHabitTotalFixture, figures: ['3'], habits: true },
+      { kind: 'periodComparison', block: completedHabitComparisonFixture, figures: ['3', '1'], habits: true },
+      { kind: 'periodTotal', block: focusedPeriodTotalFixture, figures: ['12'], habits: false },
+      { kind: 'periodComparison', block: focusedPeriodComparisonFixture, figures: ['12', '0'], habits: false },
+      { kind: 'periodTotal', block: { ...focusedPeriodTotalFixture, metrics: completedHabitTotalFixture.metrics }, figures: ['12'], habits: false },
+      { kind: 'periodComparison', block: { ...focusedPeriodComparisonFixture, current: completedHabitComparisonFixture.current, baseline: completedHabitComparisonFixture.baseline }, figures: ['12', '0'], habits: false },
+    ]
+    for (const { kind, block, figures, habits } of cases.filter(candidate => candidate.kind === blockKind)) {
+      const expected = habits
+        ? { title: labels.habits, unit: labels.unit }
+        : { title: labels.completions, unit: labels.completionUnit }
+      const parsed = source === 'chat'
+        ? chatPartSchema.parse({ type: 'block', kind, block })
+        : readBlockResponseSchema.parse({ kind, block, read: block.read })
+      if (!parsed || !('kind' in parsed)) throw new Error(`${kind} ${source} did not parse`)
+      const view = mount(parsed, locale)
+      expect(screen.getByRole('heading')).toHaveTextContent(new RegExp(expected.title, 'i'))
+      const compactFigures = [...view.container.querySelectorAll('[data-compact-figure]')]
+      expect(compactFigures.map(figure => figure.firstElementChild?.textContent)).toEqual(figures)
+      expect(compactFigures[0]).toHaveTextContent(expected.unit)
+      expect(view.container.textContent).not.toMatch(habits ? /completions?|conclus(?:ão|ões)/i : /habits?|hábitos?/i)
+      expect(view.container.textContent).not.toContain('chat.figure.comparison.')
+      view.unmount()
+    }
+})
+
+it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as const).flatMap(source =>
+  (['periodTotal', 'periodComparison'] as const).flatMap(kind =>
+    (['distinctLoggedDates', 'metScheduledDates', 'scheduledDates'] as const).map(metric => ({ locale, source, kind, metric }))))))(
+  'names $metric in $kind through $source in $locale', async ({ locale, source, kind, metric }) => {
+    const block = { ...(kind === 'periodTotal' ? focusedPeriodTotalFixture : focusedPeriodComparisonFixture), metric, unit: 'days' }
     const parsed = source === 'chat'
       ? chatPartSchema.parse({ type: 'block', kind, block })
       : readBlockResponseSchema.parse({ kind, block, read: block.read })
     if (!parsed || !('kind' in parsed)) throw new Error(`${kind} ${source} did not parse`)
+    const messages = locale === 'en' ? en : pt
     const view = mount(parsed, locale)
-    expect(screen.getByRole('heading', { name: expected.title })).toBeInTheDocument()
-    expect(screen.getByText(expected.unit)).toBeInTheDocument()
-    for (const figure of figures) expect(screen.getByText(figure)).toBeInTheDocument()
-    expect(view.container.textContent).not.toContain(expected.other)
+    if (kind === 'periodTotal') expect(screen.getByRole('heading')).toHaveTextContent(new RegExp(messages.chat.readBlock.metric[metric], 'i'))
+    else expect(screen.getByText(messages.chat.readBlock.metric[metric])).toBeVisible()
+    expect(view.container.querySelectorAll('[data-compact-figure]')).toHaveLength(kind === 'periodTotal' ? 1 : 2)
+    for (const figure of view.container.querySelectorAll('[data-compact-figure]')) expect(figure).toHaveTextContent(locale === 'en' ? 'days' : 'dias')
     view.unmount()
-  }
 })

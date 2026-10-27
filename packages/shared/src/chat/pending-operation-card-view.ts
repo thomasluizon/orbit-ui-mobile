@@ -11,6 +11,7 @@ import type { PendingOperationCardLabels } from './pending-operation-card'
 import { getActionChipNavigation } from './action-chips'
 
 export interface PreviewItemTitleProps {
+  meta?: string
   title: string
   icon?: string
   proposed?: boolean
@@ -261,6 +262,7 @@ function pendingActions<Node>(
   })
   const approve = render.button({
     label: labels.approve(count),
+    accessibleName: labels.approveName?.(count),
     focusRequest: card.hasRequiredChoices ? undefined : card.parentChoiceFocus?.request,
     shouldFocus: card.parentChoiceFocus?.shouldFocus,
     hint: card.hasRequiredChoices ? labels.parentChoiceRequired : undefined,

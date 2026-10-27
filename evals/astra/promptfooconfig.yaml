@@ -46,6 +46,12 @@ defaultTest:
         Account date: {{accountDate}} (UTC). This is the account and fixture date for this attempt.
         Never infer today from the grader host clock. Resolve today, yesterday and past dates against the account date.
         {{rubric}}
+        {% if refine %}
+        Original selected draft: {{refineDraft | dump}}
+        Refine instruction: {{input | dump}}
+        These are baseline context, not additional answer content. Compare the revised draft against
+        this original and fail if its meaning changes beyond the instruction, even when its id is preserved.
+        {% endif %}
         Grade only the final rendered answer projection.
         {% if clientContext.supportsParts %}
         Include visible typed blocks and preview fields.

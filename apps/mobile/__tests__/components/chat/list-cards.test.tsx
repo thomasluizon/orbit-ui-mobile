@@ -14,6 +14,7 @@ const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   mutate: vi.fn(),
+  pending: false,
   locale: 'en',
   occurrencesById: new Map<string, { isCompleted: boolean; isLoggedInRange: boolean }>(),
 }))
@@ -23,7 +24,7 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, para
 vi.mock('@/hooks/use-habits', () => ({
   useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }),
   useHabits: () => ({ data: { habitsById: mocks.occurrencesById } }),
-  useLogHabit: () => ({ mutate: mocks.mutate }),
+  useLogHabit: () => ({ mutate: mocks.mutate, mutateAsync: mocks.mutate, isPending: mocks.pending }),
 }))
 vi.mock('@/components/ui/status-ring', () => ({ StatusRing: ({ status, label }: { status: string; label: string }) => <Text testID={`ring-${status}`}>{label}</Text> }))
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: () => <Text>Progress</Text> }))
@@ -50,6 +51,8 @@ function render(element: React.ReactElement) {
 describe('Astra list cards on mobile', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.pending = false
+    mocks.mutate.mockReset().mockImplementation(() => new Promise(() => {}))
     mocks.locale = 'en'
     mocks.occurrencesById.clear()
     for (const item of habits.items) {
@@ -57,10 +60,16 @@ describe('Astra list cards on mobile', () => {
     }
   })
 
+  it('uses the letter fallback without a repeated completion line', () => {
+    const tree = render(<HabitListCard habitList={{ ...habits, items: [{ ...habits.items[0]!, emoji: null, status: 'done' }] }} />)
+    expect(renderedText(tree.toJSON())).toContain('W')
+    expect(renderedText(tree.toJSON())).not.toContain('chat.habitList.logged')
+  })
+
   it('logs from authoritative occurrence state, opens the habit, and pages the count', () => {
     const tree = render(<HabitListCard habitList={habits} />)
     expect(renderedText(tree.toJSON())).toContain('chat.habitList.count')
-    expect(renderedText(tree.toJSON())).toContain('3')
+    expect(renderedText(tree.toJSON())).toContain('4')
 
     const open = tree.root.findByProps({ accessibilityLabel: 'chat.habitList.open:{"name":"Water"}' })
     TestRenderer.act(() => open.props.onPress())
@@ -70,8 +79,7 @@ describe('Astra list cards on mobile', () => {
     TestRenderer.act(() => log.props.onPress())
     expect(mocks.mutate).toHaveBeenCalledWith(expect.objectContaining({ habitId: 'habit-1', intent: 'log' }))
 
-    const more = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && node.props.accessibilityLabel === 'chat.habitList.more')[0]
-    TestRenderer.act(() => more.props.onPress())
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'chat.habitList.more' })).toHaveLength(0)
     expect(renderedText(tree.toJSON())).toContain('4')
   })
 
@@ -79,7 +87,7 @@ describe('Astra list cards on mobile', () => {
     mocks.occurrencesById.set('habit-1', { isCompleted: false, isLoggedInRange: true })
     const tree = render(<HabitListCard habitList={habits} />)
 
-    expect(tree.root.findByProps({ testID: 'ring-done' }).props.children).toBe('chat.habitList.logged')
+    expect(tree.root.findAllByProps({ testID: 'habit-check' })[0].props.accessibilityLabel).toBe('chat.habitList.logged')
     const unlog = tree.root.findByProps({ accessibilityLabel: 'chat.habitList.unlog:{"name":"Water"}' })
     TestRenderer.act(() => unlog.props.onPress())
     expect(mocks.mutate).toHaveBeenCalledWith(expect.objectContaining({ habitId: 'habit-1', intent: 'unlog' }))
@@ -112,9 +120,7 @@ describe('Astra list cards on mobile', () => {
     TestRenderer.act(() => goal.props.onPress())
     expect(onOpenGoal).toHaveBeenCalledWith('goal-1')
 
-    const progress = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.goalList.progressLink'))[0]
-    TestRenderer.act(() => progress.props.onPress())
-    expect(mocks.push).toHaveBeenCalledWith('/progress/goals')
+    expect(renderedText(tree.toJSON())).not.toContain('chat.goalList.progressLink')
   })
 
   it('shows API goal tracking and projection', () => {
@@ -133,6 +139,18 @@ describe('Astra list cards on mobile', () => {
     const tree = render(<GoalListCard goalList={goals} />)
     expect(renderedText(tree.toJSON())).not.toContain('chat.goalList.projected')
     expect(renderedText(tree.toJSON())).not.toContain('goals.metrics.')
+  })
+  it('locks only the pending habit while allowing another habit to log', () => {
+    const tree = render(<HabitListCard habitList={habits} />)
+    const first = tree.root.findByProps({ accessibilityLabel: 'chat.habitList.log:{"name":"Water"}' })
+    TestRenderer.act(() => first.props.onPress())
+    mocks.pending = true
+    TestRenderer.act(() => tree.update(<HabitListCard habitList={habits} />))
+    expect(first.props.disabled).toBe(true)
+    const second = tree.root.findAllByType(Pressable).filter((node: import('react-test-renderer').ReactTestInstance) => String(node.props.accessibilityLabel).startsWith('chat.habitList.log'))[1]!
+    expect(second.props.disabled).toBe(false)
+    TestRenderer.act(() => second.props.onPress())
+    expect(mocks.mutate).toHaveBeenCalledTimes(2)
   })
 })
 

@@ -1,3 +1,4 @@
+import { suggestionComposition, refineResult } from './suggestions.mjs'
 import { isDeepStrictEqual } from 'node:util'
 import { getRelatedSurfaces } from '../../packages/shared/src/chat/related-surfaces.ts'
 
@@ -94,11 +95,13 @@ function unchangedPreview(pending, baseline, correction) {
 
 export function composition(output, context) {
   const parsed = typeof output === 'string' ? JSON.parse(output) : output
+  if (context.vars.refine) return refineResult(parsed, context.vars)
   const response = parsed?.composition
   const expected = context.vars.composition
   if (!expected || !response) return result(false, 'Missing composition evidence or scenario policy.', { unavailable: true })
-  if (!['data', 'text', 'clarification', 'fallback', 'preview', 'outcome'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
+  if (!['suggestions', 'data', 'text', 'clarification', 'fallback', 'preview', 'outcome'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
   if (!validOperations(response)) return result(false, 'Malformed operation or action surfaces.')
+  if (expected.mode === 'suggestions') return suggestionComposition(response, context.vars)
   if ((response.followUps?.length ?? 0) > 2 || (response.followUpContext?.length ?? 0) > 2
     || !(response.followUps ?? []).every(text)) return result(false, 'Malformed or excessive follow-ups.')
   if (parsed.httpStatus === 403) {

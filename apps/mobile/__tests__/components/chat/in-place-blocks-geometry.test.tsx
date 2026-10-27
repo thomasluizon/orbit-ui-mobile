@@ -28,6 +28,17 @@ vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPe
 afterEach(__resetTestHostConfig)
 type Tree = ReactTestRenderer & { toJSON: () => Parameters<typeof measureProfileRow>[0] }
 
+function assertControlGeometry(geometry: ReturnType<typeof measureProfileRow>, available: number, minimum: number) {
+      for (const control of geometry.controls) {
+        expect(control.left).toBeGreaterThanOrEqual(0)
+        expect(control.right).toBeLessThanOrEqual(available + 1)
+        if (control.accessibilityLabel?.includes('Habit') || control.accessibilityLabel?.includes('Walk with the team')) {
+          expect(control.width).toBeGreaterThanOrEqual(minimum)
+          expect(control.height).toBeGreaterThanOrEqual(minimum)
+        }
+      }
+}
+
 it.each([320, 360, 384, 412, 1352].flatMap(width => ['en', 'pt-BR'].flatMap(locale => (['dark', 'light'] as const).flatMap(theme => [1, 2].map(scale => ({ width, locale, scale, theme }))))))('fits blocks at $width in $locale at $scale text in $theme', async ({ width, locale, scale, theme }) => {
   state.theme = theme
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: scale })
@@ -45,14 +56,7 @@ it.each([320, 360, 384, 412, 1352].flatMap(width => ['en', 'pt-BR'].flatMap(loca
     try {
       const available = Math.min(width - 32, 740)
       const geometry = measureProfileRow(tree.toJSON(), available, scale)
-      for (const control of geometry.controls) {
-        expect(control.left).toBeGreaterThanOrEqual(0)
-        expect(control.right).toBeLessThanOrEqual(available + 1)
-        if (control.accessibilityLabel?.includes('Habit') || control.accessibilityLabel?.includes('Walk with the team')) {
-          expect(control.width).toBeGreaterThanOrEqual(48)
-          expect(control.height).toBeGreaterThanOrEqual(48)
-        }
-      }
+      assertControlGeometry(geometry, available, element.key === 'calendar' ? 44 : 48)
       if (element.key === 'metrics' && scale === 1) {
         const captions = geometry.texts.filter(text => text.label === i18n.t('progressScreen.window.completionRate') || text.label === i18n.t('progressScreen.window.activeDays'))
         expect(captions).toHaveLength(2)

@@ -39,7 +39,7 @@ describe('Astra metrics card on web', () => {
     expect(screen.getByText('progressScreen.window.activeDays')).toBeInTheDocument()
     expect(screen.getByText('chat.metrics.topHabit')).toBeInTheDocument()
     expect(container.querySelectorAll('[data-testid="bar-chart"] svg path')).toHaveLength(7)
-    expect(screen.getByRole('link', { name: 'chat.metrics.progressLink' })).toHaveAttribute('href', '/progress')
+    expect(screen.queryByRole('link', { name: 'chat.metrics.progressLink' })).not.toBeInTheDocument()
   })
 
   it('renders one habit with thirty bars and a habit chip', () => {
@@ -49,7 +49,7 @@ describe('Astra metrics card on web', () => {
     expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
     expect(screen.getByText('chat.metrics.monthlyRate')).toBeInTheDocument()
     expect(container.querySelectorAll('[data-testid="bar-chart"] svg path')).toHaveLength(30)
-    expect(screen.getByRole('link', { name: 'chat.metrics.habitLink' })).toHaveAttribute('href', `/habits/${habitId}`)
+    expect(screen.queryByRole('link', { name: 'chat.metrics.habitLink' })).not.toBeInTheDocument()
   })
 
   it('shows one empty line and no chart when the series is unavailable', () => {

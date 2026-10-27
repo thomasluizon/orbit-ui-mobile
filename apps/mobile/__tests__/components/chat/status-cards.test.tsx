@@ -21,7 +21,7 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({
   i18n: { language: mocks.language },
 }) }))
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: ({ label }: { label: string }) => <View accessibilityRole="progressbar" accessibilityLabel={label} /> }))
-vi.mock('@/components/ui/progress-bar', () => ({ ProgressBar: ({ value, max }: { value: number; max: number }) => <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max, now: value }} /> }))
+vi.mock('@/components/ui/progress-bar', () => ({ ProgressBar: ({ value, max, label }: { value: number; max: number; label: string }) => <View accessibilityRole="progressbar" accessibilityLabel={label} accessibilityValue={{ min: 0, max, now: value }} /> }))
 vi.mock('@/components/ui/pill-button', () => ({ Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => <Pressable accessibilityRole="button" onPress={onClick}><Text>{children}</Text></Pressable> }))
 vi.mock('@/components/ui/block-frame', () => ({ BlockFrame: ({ items, body, actions }: BlockFrameProps) => <View>{body}{items.map((item) => <View testID="card-row" nativeID={item.status ?? 'normal'} key={item.id}>{item.label}{item.meta ? <Text>{item.meta}</Text> : null}{item.control}</View>)}{actions}</View> }))
 vi.mock('@/lib/theme', async (importOriginal) => {
@@ -51,9 +51,7 @@ describe('Astra status cards on mobile', () => {
   it('labels the day ring and opens Today', () => {
     const tree = render(<DaySummaryCard daySummary={{ date: '2026-09-26', due: 3, done: 1, completionRate: 33, overdueCount: 2, currentStreak: 4, surfaceId: 'today' }} />)
     expect(tree.root.findByProps({ accessibilityRole: 'progressbar' }).props.accessibilityLabel).toContain('"done":1,"due":3')
-    const button = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.daySummary.open'))[0]
-    TestRenderer.act(() => button.props.onPress())
-    expect(mocks.push).toHaveBeenCalledWith('/')
+    expect(tree.root.findAll((node: any) => node.props.accessibilityLabel === 'chat.daySummary.open')).toHaveLength(0)
   })
 
   it('keeps overdue visible when nothing is due today', () => {
@@ -64,11 +62,9 @@ describe('Astra status cards on mobile', () => {
 
   it('shows at most six earned and unearned discs', () => {
     const tree = render(<StreakCard streakCard={{ currentStreak: 0, longestStreak: 4, level: 11, totalXp: 12200, xpForNextLevel: 14400, lastActiveDate: null, isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], achievementDiscs: Array.from({ length: 8 }, (_, index) => ({ id: `achievement-${index}`, iconKey: 'satellite', earnedAt: index % 2 ? null : '2026-09-26T10:00:00Z' })), surfaceId: 'progress' }} />)
-    expect(tree.root.findByProps({ accessibilityRole: 'progressbar' }).props.accessibilityValue).toEqual({ min: 0, max: 2300, now: 100 })
+    expect(tree.root.findByProps({ accessibilityRole: 'progressbar', accessibilityLabel: 'progressScreen.achievements.xpProgress' }).props.accessibilityValue).toEqual({ min: 0, max: 2300, now: 100 })
     expect(tree.root.findAll((node: any) => node.type === View && String(node.props?.testID).startsWith('achievement-mark-'))).toHaveLength(6)
-    const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.streakCard.open'))[0]
-    TestRenderer.act(() => open.props.onPress())
-    expect(mocks.push).toHaveBeenCalledWith('/progress/streak')
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
   it('ends the streak strip on the account date across device midnight', () => {
@@ -91,9 +87,7 @@ describe('Astra status cards on mobile', () => {
     expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'event-row-all-day')).toHaveLength(10)
     expect(renderedText(tree.toJSON())).toContain('chat.calendarCard.allDay')
     expect(renderedText(tree.toJSON())).not.toContain('chat.calendarCard.sync')
-    const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.calendarCard.open'))[0]
-    TestRenderer.act(() => open.props.onPress())
-    expect(mocks.push).toHaveBeenCalledWith('/calendar')
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
   it.each([
