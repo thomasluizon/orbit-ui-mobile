@@ -24,9 +24,11 @@ import * as Menu from '@/components/ui/dropdown-menu'
 import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
 import { FlowShell } from '@/components/shell/flow-shell'
+import type { SegmentedControlProps } from '@orbit/shared/contracts/navigation'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { revealFocusedControl } from '@/lib/focus-scroll'
+import { measureSplitSegmentWords, mountMeasuredSegmentedControls, settleSegmentMeasurements } from '@/__tests__/support/segmented-control-geometry'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { expectDayCircle, expectDayCircleHover } from '@/e2e/layout/calendar-day-circle-helpers'
@@ -59,6 +61,13 @@ const options = [
   { value: 'agenda', label: segmentTranslation(ptBR, calendarKeys[3]!) },
 ] as const
 
+function inventoryOptions(keys: string[], messages: typeof en | typeof ptBR): SegmentedControlProps<string>['options'] {
+  const option = (index: number) => ({ value: String(index), label: segmentTranslation(messages, keys[index]!) })
+  if (keys.length === 2) return [option(0), option(1)]
+  if (keys.length === 3) return [option(0), option(1), option(2)]
+  return [option(0), option(1), option(2), option(3)]
+}
+
 function renderOnboardingSegments(locale: string, messages: typeof en | typeof ptBR, mode: string) {
   return render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><FlowShell nav={false} mode="onboarding"><OnboardingCreateHabit
       title="Walk" emoji="" proposed={false} correcting canSaveRepeatWeeks atLimit={false} allowance={5}
@@ -80,15 +89,15 @@ function expectOnboardingRows(geometry: { group: number; top: number; groupWidth
 }
 
 function measureCalendarSegments() {
-  const group = document.querySelector('[data-testid="calendar-header-group"] [role="radiogroup"]')!
+  const group = document.querySelector('[data-testid="calendar-header-group"] [data-segmented-control]')!
   const bounds = group.getBoundingClientRect()
-  return [...group.querySelectorAll('[role="radio"]')].map((button) => {
+  return [...group.querySelectorAll('[role="radio"], [data-menu-trigger]')].map((button) => {
     const box = button.getBoundingClientRect()
     const label = button.firstElementChild!
     const content = label.getBoundingClientRect()
     const range = document.createRange(); range.selectNodeContents(label)
     const fragments = [...range.getClientRects()]
-    return { top: box.top, width: box.width, height: box.height, lines: new Set(fragments.map((fragment) => Math.round(fragment.top))).size,
+    return { folded: button.hasAttribute('data-menu-trigger'), top: box.top, width: box.width, height: box.height, lines: new Set(fragments.map((fragment) => Math.round(fragment.top))).size,
       contained: box.left >= bounds.left && box.right <= bounds.right,
       fits: fragments.every((fragment) => fragment.left >= content.left - 1 && fragment.right <= content.right + 1),
       overflow: label.scrollWidth > label.clientWidth, ellipsis: getComputedStyle(label).textOverflow === 'ellipsis' }
@@ -96,7 +105,8 @@ function measureCalendarSegments() {
 }
 
 function expectCalendarSegments(segments: ReturnType<typeof measureCalendarSegments>, scale: number) {
-  expect(segments).toHaveLength(calendarKeys.length)
+  expect(segments).toHaveLength(segments[0]?.folded ? 1 : calendarKeys.length)
+  if (scale === 1) expect(segments[0]?.folded).toBe(false)
   expect(new Set(segments.map((segment) => segment.top)).size).toBe(1)
   for (const segment of segments) {
     expect(segment.width).toBeGreaterThanOrEqual(48)
@@ -244,6 +254,7 @@ describe('Calendar header geometry in Chromium', () => {
         </NextIntlClientProvider>)
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
         snapshots.push(await page.evaluate((loading) => [...document.querySelectorAll(loading ? '[data-variant="grid"] span' : '[data-day-circle]')].map((element) => {
           const box = element.getBoundingClientRect()
           return { x: box.left + box.width / 2, y: box.top + box.height / 2, width: box.width, height: box.height }
@@ -271,6 +282,7 @@ describe('Calendar header geometry in Chromium', () => {
         for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
       }, { mode, variables: resolveWebThemeVariables('orange', mode) })
       await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
       await page.bringToFront()
       for (const label of ['Previous', 'Next']) {
         const control = page.getByRole('button', { name: label, exact: true })
@@ -308,6 +320,7 @@ describe('Calendar header geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
       await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
       await page.evaluate(`document.querySelector('[data-focus-inset]').addEventListener('focusin', (${revealFocusedControl.toString()}))`)
       const containment = await page.evaluate(() => {
         const body = document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
@@ -362,8 +375,11 @@ describe('Calendar header geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
       await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        await settleSegmentMeasurements(page)
+        expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
         const header = await page.evaluate(() => {
           const buttons = [...document.querySelectorAll<HTMLButtonElement>('.orbit-sheet-header button')]
           return buttons.map((button) => {
@@ -395,8 +411,11 @@ describe('Calendar header geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        await settleSegmentMeasurements(page)
+        expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
         const geometry = await page.evaluate(() => [...document.querySelectorAll<HTMLButtonElement>('[role="radio"]')].map((button) => {
           const label = button.querySelector('span')!
           const range = document.createRange()
@@ -431,23 +450,27 @@ describe('Calendar header geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
       await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
-        const geometry = await page.locator('[role="radiogroup"]').evaluate((group) => {
+        await settleSegmentMeasurements(page)
+        expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+        const geometry = await page.locator('[data-segmented-control]').evaluate((group) => {
           const bounds = group.getBoundingClientRect()
           const body = group.closest('[data-slot="sheet-body"]')!
-          return { width: bounds.width, bodyWidth: body.clientWidth - parseFloat(getComputedStyle(body).paddingLeft) - parseFloat(getComputedStyle(body).paddingRight),
-            segments: [...group.querySelectorAll('[role="radio"]')].map((button) => {
+          return { folded: group.querySelector('[data-menu-trigger]') !== null, width: bounds.width, bodyWidth: body.clientWidth - parseFloat(getComputedStyle(body).paddingLeft) - parseFloat(getComputedStyle(body).paddingRight),
+            segments: [...group.querySelectorAll('[role="radio"], [data-menu-trigger]')].map((button) => {
               const box = button.getBoundingClientRect()
               const label = button.firstElementChild!
               const text = document.createRange(); text.selectNodeContents(label)
               const fragments = [...text.getClientRects()]
               const content = label.getBoundingClientRect()
-              return { top: box.top, height: box.height, contained: box.left >= bounds.left && box.right <= bounds.right, lines: new Set(fragments.map((fragment) => Math.round(fragment.top))).size,
+              return { folded: button.hasAttribute('data-menu-trigger'), top: box.top, height: box.height, contained: box.left >= bounds.left && box.right <= bounds.right, lines: new Set(fragments.map((fragment) => Math.round(fragment.top))).size,
                 fits: fragments.every((fragment) => fragment.left >= content.left - 1 && fragment.right <= content.right + 1), ellipsis: getComputedStyle(label).textOverflow === 'ellipsis', overflow: label.scrollWidth > label.clientWidth }
             }) }
         })
-        expect(geometry.segments).toHaveLength(2)
+        expect(geometry.segments).toHaveLength(geometry.folded ? 1 : 2)
+      if (scale === 1) expect(geometry.folded).toBe(false)
         expect(geometry.width).toBeLessThanOrEqual(geometry.bodyWidth)
         expect(new Set(geometry.segments.map((segment) => segment.top)).size).toBe(1)
         for (const segment of geometry.segments) {
@@ -470,6 +493,7 @@ describe('Calendar header geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
       await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
       if (width === 1280) await page.evaluate(() => { const rows = document.querySelector('.orbit-menu-items')!; document.body.append(rows); document.querySelector('.orbit-sheet-portal')!.remove() })
       const row = page.getByRole('menuitem')
       expect(await row.evaluate((element) => element.getBoundingClientRect().height)).toBe(height)
@@ -489,8 +513,10 @@ describe('Calendar header geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
       await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
       for (const textScale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, textScale)
+        await settleSegmentMeasurements(page)
         const geometry = await page.evaluate(() => {
           const row = document.querySelector<HTMLElement>('[role="menuitemcheckbox"]')!
           const label = row.querySelector<HTMLElement>('.orbit-menu-label')!
@@ -536,6 +562,7 @@ describe('Calendar header geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
       const geometry = await page.evaluate(() => ({
         page: document.documentElement.clientWidth,
         scroll: document.documentElement.scrollWidth,
@@ -581,10 +608,11 @@ describe('Calendar header geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
       const geometry = await page.evaluate(() => {
         const frame = document.querySelector<HTMLElement>('.orbit-calendar-grid-card')!
         const grid = frame.querySelector<HTMLElement>('[data-testid="month-grid-days"], [data-cols="7"]')!
-        const selector = document.querySelector('[role="radiogroup"]')!.getBoundingClientRect()
+        const selector = document.querySelector('[data-segmented-control]')!.getBoundingClientRect()
         const bounds = grid.getBoundingClientRect()
         const gap = Number.parseFloat(getComputedStyle(grid).columnGap)
         const slots = [...grid.children].map((slot) => {
@@ -638,10 +666,13 @@ describe('Calendar header geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        await settleSegmentMeasurements(page)
+        expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
         const geometry = await page.evaluate(() => {
-          const selector = document.querySelector('[role="radiogroup"]')!.getBoundingClientRect()
+          const selector = document.querySelector('[data-segmented-control]')!.getBoundingClientRect()
           const controls = [...document.querySelectorAll('[data-testid="calendar-header-group"] [data-testid$="-navigation"] button')].map((button) => {
             const box = button.getBoundingClientRect()
             const content = document.createRange(); content.selectNodeContents(button)
@@ -671,6 +702,155 @@ describe('Calendar header geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it('wraps multiword labels between words while retaining one segmented row', async () => {
+    const { container } = render(<div className="p-4"><SegmentedControl fullWidth label="Views" value="all" onChange={vi.fn()} options={[{ value: 'all', label: 'All habits' }, { value: 'general', label: 'General habits' }]} /></div>)
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      await page.evaluate(() => { document.documentElement.style.fontSize = '32px' })
+      await settleSegmentMeasurements(page)
+      expect(await page.locator('[data-menu-trigger]').count()).toBe(0)
+      expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+      const geometry = await page.getByRole('radio').evaluateAll((options) => options.map((option) => {
+        const range = document.createRange(); range.selectNodeContents(option.querySelector('span')!)
+        return { top: option.getBoundingClientRect().top, lines: new Set([...range.getClientRects()].map((fragment) => fragment.top)).size }
+      }))
+      expect(new Set(geometry.map((option) => option.top)).size).toBe(1)
+      expect(geometry.some((option) => option.lines > 1)).toBe(true)
+    } finally { await page.close() }
+  })
+
+  it('keeps every calendar word whole at double text size', async () => {
+    const { container } = render(<div className="p-4"><SegmentedControl fullWidth label="Views" value="0" onChange={vi.fn()} options={inventoryOptions(calendarKeys, en)} /></div>)
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      await page.evaluate(() => { document.documentElement.style.fontSize = '32px' })
+      await settleSegmentMeasurements(page)
+      expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+    } finally { await page.close() }
+  })
+
+  it.each([false, true])('folds rem-scaled segments before whole words overflow, fullWidth %s', async (fullWidth) => {
+    const keys = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'web')
+      .find((site) => site.optionKeys.includes('onboarding.flow.when.fixedMode'))!.optionKeys
+    const choices = inventoryOptions(keys, ptBR)
+    const { container } = render(<div style={{ width: 740 }}><SegmentedControl fullWidth={fullWidth} label="Schedule" value="0" onChange={vi.fn()} options={choices} /></div>)
+    const page = await browser.newPage({ viewport: { width: 840, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet} :root { font-size:32px; --orbit-space-4:0.25rem; --orbit-space-8:0.5rem; }</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      const required = await page.getByRole('radiogroup').evaluate((track) => {
+        const trackStyle = getComputedStyle(track)
+        const trackInset = Number.parseFloat(trackStyle.paddingLeft) + Number.parseFloat(trackStyle.paddingRight)
+        const gap = Number.parseFloat(trackStyle.columnGap)
+        const segments = [...track.querySelectorAll('[role="radio"]')].map((segment) => {
+          const style = getComputedStyle(segment)
+          const range = document.createRange(); range.selectNodeContents(segment.querySelector('span')!)
+          return { wordWidth: range.getBoundingClientRect().width, inset: Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight) }
+        })
+        return {
+          labelInsets: segments.map((segment) => segment.inset), trackInset, gap,
+          fixed: segments.reduce((sum, segment) => sum + Math.max(48, segment.wordWidth + 16), 8 + 4 * (segments.length - 1)),
+          measured: segments.reduce((sum, segment) => sum + Math.max(48, segment.wordWidth + segment.inset), trackInset + gap * (segments.length - 1)),
+        }
+      })
+      expect(required).toMatchObject({ labelInsets: [32, 32, 32, 32], trackInset: 16, gap: 4 })
+      const availableWidth = Math.floor((required.fixed + required.measured) / 2)
+      expect(required.fixed).toBeLessThanOrEqual(availableWidth)
+      expect(required.measured).toBeGreaterThan(availableWidth)
+      await page.locator('[data-segmented-control]').evaluate((frame, width) => { frame.parentElement!.style.width = `${width}px` }, availableWidth)
+      await settleSegmentMeasurements(page)
+      const overflowingWords = await page.getByRole('radio').evaluateAll((segments) => segments.flatMap((segment) => {
+        const label = segment.querySelector('span')!
+        const range = document.createRange(); range.selectNodeContents(label)
+        return range.getBoundingClientRect().width > label.getBoundingClientRect().width ? [label.textContent] : []
+      }))
+      expect(overflowingWords, JSON.stringify({ ...required, availableWidth })).toEqual([])
+      expect(await page.locator('[data-segmented-control] [data-menu-trigger]').count(), JSON.stringify({ ...required, availableWidth })).toBe(1)
+      expect(await page.getByRole('radio').count()).toBe(0)
+      expect(await page.locator('[data-menu-trigger]').textContent()).toBe(choices[0].label)
+      expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+      await page.locator('[data-segmented-control]').evaluate((frame, width) => { frame.parentElement!.style.width = `${width}px` }, Math.ceil(required.measured))
+      await settleSegmentMeasurements(page)
+      expect(await page.getByRole('radio').count()).toBe(choices.length)
+      const labelsFit = await page.getByRole('radio').evaluateAll((segments) => segments.every((segment) => {
+        const label = segment.querySelector('span')!
+        const range = document.createRange(); range.selectNodeContents(label)
+        return range.getBoundingClientRect().width <= label.getBoundingClientRect().width
+      }))
+      expect(labelsFit).toBe(true)
+    } finally { await page.close() }
+  })
+
+  it.each([320, 360, 384, 412].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))('measures every selector at $width in $locale through 200% text', async ({ width, locale }) => {
+    const messages = locale === 'en' ? en : ptBR
+    const sites = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'web')
+    const { container } = render(<main className="p-6"><div className="flex flex-col gap-4">
+      {sites.map((site, index) => <SegmentedControl key={index} fullWidth label={messages.calendar.view.switchLabel} value="0" onChange={vi.fn()}
+        options={inventoryOptions(site.optionKeys, messages)} />)}
+    </div></main>)
+    const page = await browser.newPage({ viewport: { width, height: 1800 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.evaluate((locale) => { document.documentElement.lang = locale }, locale)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      for (const scale of [1, 1.3, 1.6, 2]) {
+        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        await settleSegmentMeasurements(page)
+        expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+        const selectors = await page.locator('[data-segmented-control]').evaluateAll((frames) => frames.map((frame) => {
+          const options = [...frame.querySelectorAll<HTMLElement>('[role="radio"], [data-menu-trigger]')]
+          return { folded: frame.querySelector('[data-menu-trigger]') !== null, options: options.map((option) => {
+            const box = option.getBoundingClientRect()
+            const range = document.createRange(); range.selectNodeContents(option.querySelector('span')!)
+            const bounds = range.getBoundingClientRect()
+            return { top: box.top, left: box.left, right: box.right, fits: bounds.left >= box.left && bounds.right <= box.right, ellipsis: getComputedStyle(option).textOverflow === 'ellipsis', height: box.height }
+          }) }
+        }))
+        expect(selectors).toHaveLength(sites.length)
+        for (const [index, selector] of selectors.entries()) {
+          if (scale === 1) expect(selector.folded, sites[index]!.path).toBe(false)
+          expect(selector.options).toHaveLength(selector.folded ? 1 : sites[index]!.optionKeys.length)
+          expect(new Set(selector.options.map((option) => option.top)).size).toBe(1)
+          for (const option of selector.options) {
+            expect(option.fits).toBe(true); expect(option.ellipsis).toBe(false)
+            expect(option.left).toBeGreaterThanOrEqual(24); expect(option.right).toBeLessThanOrEqual(width - 24)
+            expect(option.height).toBeGreaterThanOrEqual(48)
+          }
+        }
+      }
+      const trigger = page.locator('[data-segmented-control] [data-menu-trigger]').first()
+      await trigger.click()
+      const menu = page.getByRole('menu')
+      await menu.waitFor({ state: 'visible' })
+      expect(await menu.getByRole('menuitemcheckbox', { checked: true }).count()).toBe(1)
+      expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+      const last = menu.getByRole('menuitemcheckbox').last()
+      const destination = await last.textContent()
+      await last.focus()
+      await page.keyboard.press('Enter')
+      await menu.waitFor({ state: 'hidden' })
+      expect(await trigger.textContent()).toBe(destination)
+      await trigger.focus()
+      await page.keyboard.press('ArrowDown')
+      await menu.waitFor({ state: 'visible' })
+      expect(await menu.getByRole('menuitemcheckbox', { checked: true }).textContent()).toBe(destination)
+      await page.keyboard.press('Escape')
+      await menu.waitFor({ state: 'hidden' })
+      expect(await trigger.evaluate((element) => element === document.activeElement)).toBe(true)
+      await page.evaluate(() => { document.documentElement.style.fontSize = '16px' })
+      await settleSegmentMeasurements(page)
+      expect(await page.locator('[data-segmented-control] [data-menu-trigger]').count()).toBe(0)
+    } finally { await page.close() }
+  })
+
   it('reflows a cross-month Portuguese week label at 200% without clipping', async () => {
     const ends = formatCalendarSpanEnds(new Date(2026, 8, 30), new Date(2026, 9, 6), 'pt-BR')
     const weekLabel = ptBR.calendar.range.label.replace('{start}', ends.start).replace('{end}', ends.end)
@@ -679,6 +859,7 @@ describe('Calendar header geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
       await page.evaluate(() => { document.documentElement.style.fontSize = '32px' })
       const geometry = await page.evaluate(() => ({ page: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, buttons: [...document.querySelectorAll('button')].map((button) => {
         const box = button.getBoundingClientRect()
@@ -703,6 +884,7 @@ describe('Calendar header geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => {
           document.documentElement.style.fontSize = `${16 * scale}px`
@@ -716,6 +898,8 @@ describe('Calendar header geometry in Chromium', () => {
             }
           }
         }, scale)
+        await settleSegmentMeasurements(page)
+        expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
         const geometry = await page.evaluate(() => {
           const frame = document.querySelector<HTMLElement>('.orbit-calendar-grid-frame')!
           const stats = document.querySelector<HTMLElement>('[data-testid="calendar-stats"]')!
@@ -774,8 +958,10 @@ describe('Calendar header geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
       for (const textScale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, textScale)
+        await settleSegmentMeasurements(page)
         const geometry = await page.evaluate(() => {
           const title = document.querySelector<HTMLButtonElement>('[data-calendar-month-title]')!
           const titleText = title.querySelector('span')!
@@ -802,7 +988,7 @@ describe('Calendar header geometry in Chromium', () => {
             }),
           }
         })
-        expect(geometry.scrollWidth).toBe(geometry.pageWidth)
+        expect(geometry.scrollWidth, JSON.stringify(geometry)).toBe(geometry.pageWidth)
         expect(geometry.title).toBe(year === 2026 ? 'Fevereiro' : 'fev. 2027')
         expect(geometry.titleLines, JSON.stringify(geometry)).toBe(1)
         for (const target of geometry.targets) {

@@ -74,13 +74,14 @@ function tierNamed(name: string) {
 }
 
 describe('PlanSelection', () => {
-  const observers: { measure: () => void; disconnect: ReturnType<typeof vi.fn> }[] = []
+  const observers: { measure: () => void; disconnect: ReturnType<typeof vi.fn>; targets: Element[] }[] = []
   beforeEach(() => {
     observers.length = 0
     vi.stubGlobal('ResizeObserver', class {
       disconnect = vi.fn()
-      constructor(measure: () => void) { observers.push({ measure, disconnect: this.disconnect }) }
-      observe() {}
+      targets: Element[] = []
+      constructor(measure: () => void) { observers.push({ measure, disconnect: this.disconnect, targets: this.targets }) }
+      observe(target: Element) { this.targets.push(target) }
     })
     motionMocks.reduced = false
     motionMocks.renderedProps.length = 0
@@ -305,9 +306,13 @@ describe('PlanSelection', () => {
     expect(screen.queryAllByRole('button', { name: /checkoutLabel/ })).toHaveLength(0)
     view.rerender(<PlanSelection {...view} plans={plans} isLoading={false} />)
     expect(reservation()).toBeNull()
-    expect(observers.every(({ disconnect }) => disconnect.mock.calls.length > 0)).toBe(true)
+    const tierObservers = observers.filter(({ targets }) => targets.some((target) => target.hasAttribute('data-tier-measurement')))
+    expect(tierObservers).toHaveLength(2)
+    expect(tierObservers.every(({ disconnect }) => disconnect.mock.calls.length > 0)).toBe(true)
     view.rerender(<PlanSelection {...view} plans={null} isLoading />)
     expect(reservation()).toHaveStyle({ minHeight: '317px' })
+    view.unmount()
+    expect(observers.every(({ disconnect }) => disconnect.mock.calls.length > 0)).toBe(true)
   })
 
   it('checks out from either tier with the same CTA verb', () => {

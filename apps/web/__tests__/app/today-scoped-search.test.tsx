@@ -173,7 +173,7 @@ it('keeps the date pager mounted while inspecting every habit view with focus', 
   try {
     const previous = screen.getByRole('button', { name: en.dates.previousDay })
     for (const name of [en.habits.viewToday, en.habits.viewAll, en.habits.viewGeneral]) {
-      const option = within(rendered.container.querySelector('[data-habit-view-switch]') as HTMLElement).getByText(name, { exact: true }).closest('button')!
+      const option = within(rendered.container.querySelector('[data-habit-view-switch]') as HTMLElement).getByRole('radio', { name })
       await act(async () => { option.focus() })
       expect(option).toHaveFocus()
       expect(screen.getByRole('button', { name: en.dates.previousDay })).toBe(previous)

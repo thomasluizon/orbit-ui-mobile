@@ -8803,6 +8803,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-ui-segmented-control",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/segmented-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/segmented-control.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-segmented-control",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/segmented-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/segmented-control.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-ui-segmented-control",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/segmented-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/segmented-control.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-segmented-control",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/segmented-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/segmented-control.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-ui-sheet",
       "platform": "web",
       "kind": "overlay",
@@ -17857,6 +17909,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/ui/personal-text-details.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-segmented-control",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/segmented-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/segmented-control.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-segmented-control",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/segmented-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/segmented-control.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-segmented-control",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/segmented-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/segmented-control.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-segmented-control",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/segmented-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/segmented-control.tsx"
       ],
       "state": "default",
       "theme": "dark",
