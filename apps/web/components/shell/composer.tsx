@@ -365,11 +365,13 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
   function clearMessage() { props.onChangeValue(''); inputRef.current?.focus() }
 
   return (
-    <motion.div layout={configuration.changeDuration > 0 ? "size" : false}
+    <motion.div layout={configuration.changeDuration > 0}
       layoutId={configuration.changeDuration > 0 && (props.onOpenConversation || props.autoFocus) ? "astra-composer" : undefined}
       transition={{ duration: configuration.changeDuration / 1000, ease: configuration.easing }}
       data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex flex-wrap justify-end min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] [&_button:focus-visible]:outline-2 [&_button:focus-visible]:-outline-offset-2 [&_button:focus-visible]:outline-[var(--primary)] [&_button[data-focus-on-primary]:focus-visible]:shadow-[inset_0_0_0_4px_var(--bg)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
-      <div data-composer-leading-controls className="flex w-max min-w-0 max-w-full grow shrink-0 items-end">
+      <motion.div layout={configuration.changeDuration > 0 ? "position" : false}
+        transition={{ duration: configuration.changeDuration / 1000, ease: configuration.easing }}
+        data-composer-leading-controls className="flex w-max min-w-0 max-w-full grow shrink-0 items-end">
       {props.onOpenConversation && props.conversationLabel ? (
         <button
           type="button"
@@ -399,9 +401,11 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
           onFocus={props.onOpenConversation}
           className={`col-start-1 row-start-1 w-0 min-w-full max-h-[calc(5lh+24px)] min-h-[48px] resize-none appearance-none border-0 bg-transparent ${composerInputMetrics} text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] placeholder:whitespace-normal disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]`}
         /></div>}
-      </div>
+      </motion.div>
 
-      <div data-composer-trailing-controls style={{ gap: INTERACTION_FILL_CLEARANCE }} className="flex max-w-full flex-wrap justify-end shrink-0 items-end">
+      <motion.div layout={configuration.changeDuration > 0 ? "position" : false}
+        transition={{ duration: configuration.changeDuration / 1000, ease: configuration.easing }}
+        data-composer-trailing-controls style={{ gap: INTERACTION_FILL_CLEARANCE }} className="flex max-w-full flex-wrap justify-end shrink-0 items-end">
         <ComposerTextControls props={props} inMenu={Boolean(disclosure) || textActionInMenu} disclosure={disclosure} onClear={clearMessage} onPasteText={text => {
           pasteFocus.current = text
           props.onChangeValue(text)
@@ -420,7 +424,7 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
       >
         <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />
       </button>
-      </div>
+      </motion.div>
     </motion.div>
   )
 }

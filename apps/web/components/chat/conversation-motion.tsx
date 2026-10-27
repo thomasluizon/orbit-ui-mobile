@@ -63,7 +63,7 @@ export function ConversationCrossfade({ children, changeKey }: Readonly<{ childr
   }, [snapshot.key, snapshot.previous, configuration.changeDuration])
   return <div className="relative min-w-0">
     <ConversationChange changeKey={changeKey}>{children}</ConversationChange>
-    {snapshot.previous && configuration.changeDuration > 0 ? <motion.div key={snapshot.key} inert aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0"
+    {snapshot.previous && configuration.changeDuration > 0 ? <motion.div key={snapshot.key} inert aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden"
       initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ duration: configuration.changeDuration / 1000, ease: configuration.easing }}>{snapshot.previous}</motion.div> : null}
   </div>
 }

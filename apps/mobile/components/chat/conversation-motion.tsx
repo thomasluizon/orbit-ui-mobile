@@ -63,7 +63,7 @@ function DepartingSnapshot({ children }: Readonly<{ children: ReactNode }>) {
     return () => cancelAnimation(opacity)
   }, [configuration.changeDuration, configuration.easing, opacity])
   return <Animated.View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
-    style={[{ position: 'absolute', top: 0, left: 0, right: 0 }, presentation]}>{children}</Animated.View>
+    style={[{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, overflow: 'hidden' }, presentation]}>{children}</Animated.View>
 }
 
 export function ConversationCrossfade({ children, changeKey }: Readonly<{ children: ReactNode; changeKey: string }>) {

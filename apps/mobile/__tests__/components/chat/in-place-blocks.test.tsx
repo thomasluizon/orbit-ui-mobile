@@ -114,7 +114,7 @@ it.each([
     <StreakCard streakCard={{ currentStreak: 3, longestStreak: 9, level: 1, totalXp: 20, xpForNextLevel: 100, lastActiveDate: null, isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], surfaceId: 'progress' }} />
     <MetricsCard metricsCard={{ period: 'week', completionRate: 50, activeDays: 3, totalCompletions: 3, totalScheduled: 6, currentStreak: 3, bestStreak: 9, hasData: true, surfaceId: 'progress' }} />
   </>)
-  expect(tree.root.findAll(node => node.type === View && node.props.testID === `block-frame-${expected}`)).toHaveLength(4)
+  expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === `block-frame-${expected}`)).toHaveLength(4)
   void act(() => tree.unmount())
 })
 
@@ -140,7 +140,7 @@ it('keeps cached habits loggable after an offline refetch error', () => {
 it('offers calendar reconnection and disables import after disconnection', () => {
   state.disconnected = true
   const tree = render(<CalendarCard calendarCard={inPlaceCalendarFixture} />)
-  expect(tree.root.findAll(node => node.type === View && node.props.testID === 'block-frame-partiallyFailed')).toHaveLength(1)
+  expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'block-frame-partiallyFailed')).toHaveLength(1)
   expect(renderedText(tree.toJSON())).toContain('chat.calendarCard.syncState.ReconnectRequired')
   const importButton = tree.root.findAll(node => node.type === Pressable && String(node.props.accessibilityLabel).startsWith('chat.calendarCard.makeHabit'))[0]!
   expect(importButton.props.disabled).toBe(true)
