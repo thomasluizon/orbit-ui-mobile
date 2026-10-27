@@ -42,3 +42,29 @@ export function preview(name = 'Cholesterol exam') {
       ],
     }] }
 }
+
+// Contract: orbit-api HabitSuggestionDraft and HabitSuggestionsCard.
+export function suggestionDraft(overrides = {}) {
+  return { id: '11111111-1111-4111-8111-111111111111', emoji: '📖', title: 'Read', type: 'Habit',
+    frequencyUnit: 'Day', frequencyQuantity: 1, days: [], dueDate: '2026-10-26',
+    dueTime: '21:00:00', dueEndTime: '21:10:00', reminderMinutesBefore: 5,
+    checklistItems: ['Read one page'], reason: 'A small evening routine.', ...overrides }
+}
+
+export function suggestionResponse(requestId, locale = 'en') {
+  const portuguese = locale === 'pt-BR'
+  const introduction = portuguese ? 'Aqui estão sugestões para sua rotina.' : 'Here are suggestions for your routine.'
+  const drafts = [suggestionDraft(portuguese ? { title: 'Ler', checklistItems: ['Ler uma página'], reason: 'Um momento de leitura antes de dormir.' } : {}),
+    suggestionDraft({ id: '22222222-2222-4222-8222-222222222222', emoji: '🧘',
+      title: portuguese ? 'Alongamento' : 'Stretch', dueTime: '21:15:00', dueEndTime: '21:20:00',
+      checklistItems: [portuguese ? 'Alongar as pernas' : 'Stretch your legs'],
+      reason: portuguese ? 'Soltar o corpo no fim do dia.' : 'Relax at the end of the day.' })]
+  const call = toolCall('suggest_habits', { instruction: portuguese ? 'hábitos para a noite' : 'evening habits', language: locale, count: 2 })
+  call.result.payload = { language: locale, drafts }
+  return { ...chatResponse(requestId, [call]),
+    operations: [{ operationId: 'suggest_habits', sourceName: 'suggest_habits', riskClass: 'Low',
+      confirmationRequirement: 'None', status: 'Succeeded', summary: null, targetId: null, targetName: null,
+      policyReason: null, pendingOperationId: null, payload: { language: locale, drafts } }],
+    aiMessage: introduction, parts: [{ type: 'text', text: introduction },
+      { type: 'block', kind: 'habitSuggestions', block: { language: locale, drafts } }] }
+}

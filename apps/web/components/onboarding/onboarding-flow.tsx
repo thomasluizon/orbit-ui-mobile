@@ -43,7 +43,7 @@ import { Toast } from '@/components/ui/toast'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
+import { useOnboardingSuggestion } from '@/hooks/use-onboarding-suggestion'
 import { useProfile } from '@/hooks/use-profile'
 import { updateTimezone } from '@/lib/actions/profile'
 import { requestWebPushPermission, subscribeToPushNotifications, usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
@@ -179,7 +179,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit }: Readonly<{ fin
   const deferredHabit = useOnboardingDraftStore((state) => deferredPushFailure ? state.habits[0] : undefined)
   const [resolvingDeferredPush] = useState(deferredPushFailure)
   const { profile, refetch: refetchProfile } = useProfile({ enabled: isLive })
-  const suggestion = useHabitSuggestion()
+  const suggestion = useOnboardingSuggestion(isLive)
   const push = usePushNotificationPreferences()
   const [step, setStep] = useState(initialOnboardingStep(finalStepOnly, resolvingDeferredPush))
   const [sentence, setSentence] = useState('')
@@ -224,7 +224,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit }: Readonly<{ fin
     setSchedule(localSchedule)
     setProposed(false)
     setCorrecting(false)
-    if (!shouldRequestOnboardingSuggestion({ isLive, atLimit })) {
+    if (!shouldRequestOnboardingSuggestion({ isLive, atLimit, available: suggestion.available })) {
       setStep(ONBOARDING_WHEN_STEP)
       return
     }
@@ -234,7 +234,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit }: Readonly<{ fin
     try {
       const result = await suggestion.mutateAsync({ title: sentence, language: locale })
       if (suggestionRevision.current !== revision) return
-      const nextSchedule = buildOnboardingScheduleFromSuggestion(result)
+      const nextSchedule = clampOnboardingRepeatWeeks(buildOnboardingScheduleFromSuggestion(result), isLive)
       setEmoji(result.emoji ?? read.emoji ?? '◎')
       setSchedule(nextSchedule)
       setProposed(true)
@@ -396,7 +396,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit }: Readonly<{ fin
 
   async function skip() {
     if (completionInFlight.current) return
-    suggestionRevision.current += 1
+    suggestion.cancel(); suggestionRevision.current += 1
     setSuggestionPending(false)
     setSkipped(true)
     setCreatedTitle('')
@@ -447,7 +447,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit }: Readonly<{ fin
   const overlay = step >= ONBOARDING_DONE_STEP ? (
     <DoneShell modalId={modalId} loginHref={isLive ? undefined : getOnboardingLoginUrl(searchQuery, true)} onSelect={(id) => completeAndLeave(isLive ? DONE_TAB_ROUTES[id] : undefined)}><DoneContent step={step} proContent={<OnboardingProStep ref={proStepRef} onFinish={finishAndLeave} />} doneContent={<OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} continuesToPro={isLive && getCurrentPlan(profile) !== 'Pro'} dueToday={createdDueToday} general={createdGeneral} onFinish={() => completeAndLeave()} />} /></DoneShell>
   ) : (
-    <FlowShell nav={false} mode="onboarding" header={<OnboardingHeader completionPending={completionPending} step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : () => void skip()} />} action={<div className="contents" inert={completionPending || undefined}><DecisionAction {...decisionProps} /></div>} notice={<><UpdateAvailableBanner modalId={modalId} inset={false} />{createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : null}<AppToastHost placement="modal" modalId={modalId} /></>}><div className="contents" inert={completionPending || undefined}><DecisionContent {...decisionProps} /></div></FlowShell>
+    <FlowShell nav={false} mode="onboarding" header={<OnboardingHeader completionPending={completionPending} step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : () => void skip()} />} action={<div className="contents" inert={completionPending || undefined}><DecisionAction {...decisionProps} /></div>} notice={<><UpdateAvailableBanner modalId={modalId} inset={false} />{createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : null}<AppToastHost placement="modal" modalId={modalId} /></>}><div className="contents" inert={completionPending || undefined}><DecisionContent {...decisionProps} />{suggestion.verification}</div></FlowShell>
   )
   return <Dialog.Root open={overlayOpen} modal disablePointerDismissal onOpenChange={(open) => { if (!open) closeOverlay() }}><Dialog.Portal><Dialog.Viewport className="z-modal fixed inset-0"><Dialog.Popup aria-labelledby="onboarding-title" className="fixed inset-0 overflow-hidden bg-[var(--bg)]">{overlay}</Dialog.Popup></Dialog.Viewport></Dialog.Portal></Dialog.Root>
 }

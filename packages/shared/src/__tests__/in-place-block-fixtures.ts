@@ -22,6 +22,16 @@ export const inPlaceDayFixture = daySummaryCardSchema.parse(PostApiChatResponse.
   rows: Array.from({ length: 25 }, (_, index) => ({ id: `habit-${index + 1}`, title: `Habit ${index + 1}`, emoji: null, depth: 0, isBadHabit: false, status: 'today' })),
 }))
 
+export const rangeDaySummaryFixture = daySummaryCardSchema.parse(PostApiChatResponse.shape.daySummary.parse({
+  ...inPlaceDayFixture, dateTo: '2026-10-23', due: 7, done: 3, completionRate: 43, totalRows: 1,
+  rows: [{ ...inPlaceDayFixture.rows![0]!, status: 'done' }],
+}))
+
+export const nestedDaySummaryFixture = daySummaryCardSchema.parse(PostApiChatResponse.shape.daySummary.parse({
+  ...inPlaceDayFixture, dateTo: inPlaceDayFixture.date, due: 2, done: 1, completionRate: 50, totalRows: 2,
+  rows: [inPlaceDayFixture.rows![0]!, { id: 'child-1', title: 'Stretch', emoji: null, depth: 1, isBadHabit: false, status: 'done' }],
+}))
+
 export const inPlaceCalendarFixture = calendarCardSchema.parse(PostApiChatResponse.shape.calendar.parse({
   events: [{ id: 'event /one', title: 'Walk with the team', start: '2026-10-17T13:00:00Z', end: null, isAllDay: false, calendarName: 'Work' }],
   sync: null, surfaceId: 'calendar',

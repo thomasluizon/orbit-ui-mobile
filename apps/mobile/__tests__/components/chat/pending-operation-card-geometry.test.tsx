@@ -105,8 +105,8 @@ describe('Pending preview geometry on Android', () => {
     const row = tree.root.find((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'action-row')
     const buttons = row.findAllByType(Button)
     const labels = buttons.map((button: { props: { label?: string; children: string } }) => button.props.label ?? button.props.children)
-    expect(labels).toEqual([i18n.t('chat.operation.reject'), i18n.t('chat.operation.edit'), counted ? i18n.t(['createHabits', 'rescheduleHabits', 'updateHabitEmojis'].includes(counted) ? `chat.operation.approveCount.${counted}` : `chat.operation.approveAction.${counted}`, { count: 12 }) : i18n.t('chat.operation.approve')])
-    expect(buttons[2].props.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
+    expect(labels).toEqual([i18n.t('chat.operation.reject'), i18n.t('chat.operation.edit'), counted === 'createHabits' ? i18n.t('chat.operation.create') : counted ? i18n.t(['createHabits', 'rescheduleHabits', 'updateHabitEmojis'].includes(counted) ? `chat.operation.approveCount.${counted}` : `chat.operation.approveAction.${counted}`, { count: 12 }) : i18n.t('chat.operation.approve')])
+    expect(buttons[2].props.variant).toBe('primary')
     if (!counted) expect(renderedText(tree.toJSON())).toContain(i18n.t('habits.frequency.everyDay'))
     expect(renderedText(tree.toJSON())).not.toContain('frequency_unit')
     expect(tree.root.findAllByType(Text).filter((node: { props: { label?: string; children?: unknown; importantForAccessibility?: string } }) => node.props.children === (counted ? 'Habit 1' : 'Beber água') && node.props.importantForAccessibility !== 'no-hide-descendants')).toHaveLength(1)
@@ -181,15 +181,9 @@ describe('Pending preview geometry on Android', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it.each(locales)('keeps load more intrinsic and pages in place in %s', async (locale) => {
+  it.each(locales)('shows a fitting habit list without a more footer in %s', async locale => {
     await i18n.changeLanguage(locale)
     const tree = render(<HabitListCard habitList={habitListCardFixture} />)
-    const more = tree.root.findByType(Button)
-    expect(more.props.label).toBe(i18n.t('chat.habitList.more'))
-    const actionRow = tree.root.find((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'action-row')
-    expect(actionRow.findAllByType(Button)).toHaveLength(1)
-    expect(renderedText(tree.toJSON())).not.toContain(habitListCardFixture.items[3]!.title)
-    TestRenderer.act(() => more.props.onClick())
     expect(renderedText(tree.toJSON())).toContain(habitListCardFixture.items[3]!.title)
     expect(tree.root.findAllByType(Button)).toHaveLength(0)
     TestRenderer.act(() => tree.unmount())

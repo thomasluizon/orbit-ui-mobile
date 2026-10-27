@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildChatFinalMessageFields } from '../chat/final-message'
 import { chatResponseSchema } from '../types/chat'
-import { habitListCardFixture, makeHeldHabitMessage } from '../test-support/chat-fixtures'
+import { focusedPeriodTotalFixture, habitListCardFixture, makeHeldHabitMessage } from '../test-support/chat-fixtures'
 import { getChatCompletionText, getMessageBubbleView } from '../chat/message-bubble'
 
 describe('chat final message fields', () => {
@@ -44,4 +44,17 @@ it('announces the rendered answer without legacy prose and deduplicates by query
   const message = makeHeldHabitMessage({ pendingOperations: [], ...buildChatFinalMessageFields(response, []) })
   expect(message.parts).toHaveLength(1)
   expect(getChatCompletionText(message, { ready: 'Ready', unreadable: 'Retry' })).toBe('Ready')
+})
+
+it.each([
+  "I couldn't complete that. Please try again.",
+  'This response was cut off before completion, so the result is partial.',
+])('keeps producer recovery text beside a successful total: %s', text => {
+  const parts = [{ type: 'block', kind: 'periodTotal', block: focusedPeriodTotalFixture }, { type: 'text', text }]
+  const response = chatResponseSchema.parse({ actions: [], parts, aiMessage: text })
+  const fields = buildChatFinalMessageFields(response, [])
+  expect(fields.parts).toEqual(parts)
+  const message = makeHeldHabitMessage({ ...fields, pendingOperations: [] })
+  expect(getMessageBubbleView({ message }, new Set()).parts).toMatchObject([{ type: 'block', part: parts[0] }, { type: 'text', text }])
+  expect(getChatCompletionText(message, { ready: 'Ready', unreadable: 'Retry' })).toContain(text)
 })

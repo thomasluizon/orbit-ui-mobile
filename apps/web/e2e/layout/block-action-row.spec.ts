@@ -24,7 +24,7 @@ for (const width of [412, 1280]) {
     test.describe(`Block action row at ${width} in ${locale}`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 915 }, layoutProfile: profileSchema.parse({ ...profileFixture, language: locale, aiMessagesUsed: 0 }) })
 
-      test('hugs lone pills and keeps the preview pair at the trailing content edge', async ({ page, context }) => {
+      test('hugs recovery actions and keeps icon rejection beside primary approval', async ({ page, context }) => {
         await context.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, route => route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(finalEvent)}\n\n` }))
         await page.goto('/')
         await getShellConversationEntry(page, width, messages).click()
@@ -33,14 +33,14 @@ for (const width of [412, 1280]) {
         await conversation.getByRole('button', { name: messages.shell.composer.send, exact: true }).click()
         const profile = conversation.getByRole('button', { name: messages.chat.operation.openProfile, exact: true })
         await expect(profile).toBeVisible()
-        await expect(conversation.getByRole('button', { name: messages.chat.daySummary.open, exact: true })).toBeVisible()
+        await expect(conversation.getByRole('button', { name: messages.chat.daySummary.open, exact: true })).toHaveCount(0)
         const preview = conversation.locator('section').filter({ has: page.getByRole('button', { name: messages.chat.operation.reject, exact: true }) })
         await expect(preview.locator('.orbit-pill-action')).toHaveCount(2)
         await page.evaluate(() => document.fonts.ready)
         const lone = await profile.evaluate(pill => {
           const style = getComputedStyle(pill)
           const children = [...pill.children].map(child => child.getBoundingClientRect().width)
-          const intrinsicWidth = children.reduce((sum, child) => sum + child, 0) + Math.max(0, children.length - 1) * parseFloat(style.columnGap) + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
+          const intrinsicWidth = !pill.textContent.trim() ? 44 : children.reduce((sum, child) => sum + child, 0) + Math.max(0, children.length - 1) * parseFloat(style.columnGap) + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
           const frame = pill.closest('section')!
           const frameStyle = getComputedStyle(frame)
           return { intrinsicWidth, contentEnd: frame.getBoundingClientRect().right - parseFloat(frameStyle.paddingRight) - parseFloat(frameStyle.borderRightWidth) }

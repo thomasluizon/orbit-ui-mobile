@@ -1,3 +1,4 @@
+import { refineResult } from './suggestions.mjs'
 export { composition } from './composition.mjs'
 import { assertions } from 'promptfoo'
 import { readFileSync } from 'node:fs'
@@ -54,6 +55,7 @@ function traceBoundary(output, context) {
 }
 
 export async function structural(output, context) {
+  if (context.vars.refine) return refineResult(decode(output), context.vars)
   const trace = traceBoundary(output, context)
   if ('pass' in trace) return trace
   if (trace.calls.length === 0) return result(true, 'No tool calls to validate.')
@@ -114,6 +116,7 @@ function checkMutationScope(calls, expectations) {
 export function behavior(output, context) {
   const { httpStatus = 200 } = decode(output)
   if (httpStatus !== (context.vars.expectedHttpStatus ?? 200)) return result(false, 'Unexpected HTTP outcome for this scenario.')
+  if (context.vars.refine) return refineResult(decode(output), context.vars)
   const trace = traceBoundary(output, context)
   if ('pass' in trace) return trace
   const expectations = context.vars.expectations

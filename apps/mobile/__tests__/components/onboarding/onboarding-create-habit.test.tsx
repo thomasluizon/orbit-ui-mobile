@@ -92,6 +92,15 @@ describe('OnboardingCreateHabit data', () => {
     }
   })
 
+  it.each([true, false])('attributes the reply only when Astra answered: %s', async (proposed) => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<OnboardingCreateHabit {...base} proposed={proposed} />) })
+    const marks = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'astra-mark')
+    expect(marks).toHaveLength(proposed ? 1 : 0)
+    if (proposed) expect(marks[0]!.props.width).toBe(24)
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
   it('exposes the four sentence starters', () => {
     expect(ONBOARDING_STARTERS).toEqual(['water', 'walk', 'read', 'tidy'])
   })

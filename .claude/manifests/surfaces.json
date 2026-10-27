@@ -3143,62 +3143,6 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "block-chat-chat-link",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/chat-link.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/chat-link.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-chat-link",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/chat-link.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/chat-link.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-chat-link",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/chat-link.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/chat-link.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-chat-link",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/chat-link.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/chat-link.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
       "surfaceId": "block-chat-choice-block",
       "platform": "web",
       "kind": "block",
@@ -3305,6 +3249,62 @@
       "parentSurfaceId": "route-chat",
       "ownedFiles": [
         "apps/web/components/chat/clarification-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-compact-figure",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/compact-figure.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/compact-figure.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-compact-figure",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/compact-figure.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/compact-figure.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-compact-figure",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/compact-figure.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/compact-figure.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-compact-figure",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/compact-figure.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/compact-figure.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -3641,6 +3641,62 @@
       "parentSurfaceId": "route-chat",
       "ownedFiles": [
         "apps/web/components/chat/goal-list-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-block-row",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-block-row.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-block-row.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-block-row",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-block-row.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-block-row.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-block-row",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-block-row.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-block-row.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-block-row",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-block-row.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-block-row.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -4823,7 +4879,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4851,7 +4906,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4879,7 +4933,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4907,7 +4960,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4935,7 +4987,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4963,7 +5014,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4991,7 +5041,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -5019,7 +5068,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -11583,6 +11631,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-block-chat-compact-figure",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/compact-figure.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/compact-figure.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-compact-figure",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/compact-figure.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/compact-figure.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-compact-figure",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/compact-figure.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/compact-figure.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-compact-figure",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/compact-figure.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/compact-figure.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-block-chat-conflict-warning",
       "platform": "mobile",
       "kind": "block",
@@ -11953,6 +12057,62 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/goal-list-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-block-row",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-block-row.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-block-row.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-block-row",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-block-row.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-block-row.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-block-row",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-block-row.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-block-row.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-block-row",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-block-row.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-block-row.tsx"
       ],
       "state": "default",
       "theme": "dark",

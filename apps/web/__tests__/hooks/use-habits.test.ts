@@ -1,6 +1,8 @@
+import { HabitListCard } from '@/components/chat/habit-list-card'
+import { habitListQueryFilters } from '@orbit/shared/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor, act, render } from '@testing-library/react'
+import { renderHook, waitFor, act, render, fireEvent, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider, QueryObserver, useQuery } from '@tanstack/react-query'
 import React from 'react'
 import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useRestoreHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits, useBulkMoveHabitParent } from '@/hooks/use-habits'
@@ -71,6 +73,8 @@ vi.mock('@/lib/posthog', () => ({
   identifyPostHogUser: vi.fn(),
   resetPostHogUser: vi.fn(),
 }))
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
@@ -972,6 +976,24 @@ describe('useLogHabit', () => {
     await waitFor(() => expect(getCalendarStatus(queryClient, key, date, 'h-1')).toBe('missed'))
     expect(getCalendarStatus(queryClient, key, date, 'h-2')).toBe('completed')
     resolveMutationB?.()
+  })
+
+  it('flips the Astra check before the request resolves and rolls back a rejected log', async () => {
+    const { logHabit } = await import('@/lib/actions/habits')
+    let rejectLog!: (error: Error) => void
+    vi.mocked(logHabit).mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectLog = reject }))
+    const date = formatAPIDate(new Date())
+    const filters = { dateFrom: date, dateTo: date, includeGeneral: true, includeOverdue: true }
+    const client = createQueryClient()
+    client.setQueryData(habitKeys.list(habitListQueryFilters(filters, false)), [makeScheduleItem({ dueDate: date, scheduledDates: [date] })])
+    const view = render(React.createElement(HabitListCard, { habitList: { scope: 'date', date, items: [{ id: 'h-1', title: 'Exercise', emoji: null, depth: 0, status: 'today', isBadHabit: false }] } }), { wrapper: createWrapper(client) })
+    fireEvent.click(screen.getByRole('button', { name: /chat.habitList.log:/ }))
+    await waitFor(() => expect(screen.getByRole('img', { name: 'chat.habitList.logged' })).toHaveAttribute('data-status', 'done'))
+    await waitFor(() => expect(rejectLog).toBeTypeOf('function'))
+    await act(async () => rejectLog(new Error('Request failed')))
+    await waitFor(() => expect(screen.getByRole('img', { name: 'chat.habitList.pending' })).toHaveAttribute('data-status', 'empty'))
+    view.unmount()
+    client.clear()
   })
 
   it('optimistically completes before query cancellation resolves', async () => {

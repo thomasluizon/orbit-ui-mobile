@@ -181,6 +181,15 @@ describe('mobile apiClient', () => {
     expect(parsed.habits.updated[0]?.relativeReminders?.map((reminder) => reminder.when)).toEqual(scheduledOnly ? [] : ['same_day', 'day_before'])
   })
 
+  it('exposes onboarding response headers without passing its callback to fetch', async () => {
+    fetchMock.mockResolvedValue(Response.json({ challenge: 'challenge', expiresAtUtc: '2099-01-01T00:00:00Z' }, { headers: { 'X-Orbit-Install-Id': 'rotated-install' } }))
+    const observe = vi.fn()
+    await apiClient('/api/onboarding/challenge', { method: 'POST', silent: true, onResponseHeaders: observe })
+    expect(observe).toHaveBeenCalledOnce()
+    expect((observe.mock.calls[0]![0] as Headers).get('X-Orbit-Install-Id')).toBe('rotated-install')
+    expect(fetchMock.mock.calls[0]![1]).not.toHaveProperty('onResponseHeaders')
+  })
+
   it('adds auth and JSON headers for standard requests', async () => {
     getTokenMock.mockResolvedValue('token-123')
     fetchMock.mockResolvedValue({
