@@ -432,6 +432,18 @@ the same block id, selected ids in the same order and free text, and refreshes p
 the server instead of adding a local charge. A changed answer keeps the limit gate. Pick list
 Review stays available because it spends no message.
 
+The **question** block composes one to ten required questions inside BlockFrame. It reuses
+RadioRow for single choice and yes or no, CheckRow for multiple choice, and the labelled Input
+for an allowed custom answer. A single choice or yes or no uses either its typed value or custom
+text; multiple choice may combine both. The recommendation uses the existing neutral Recommended
+copy. Supplied prompts, option labels and scale end labels wrap naturally inside growing rows.
+The header uses the supplied title or the first prompt. The supplied progress count remains
+separate from the local answered count because their totals can differ. Send validates every
+question, displays an inline hint at each omission and focuses the first. No initial scale or
+slider value counts as answered. Acting disables all controls; success locks to the existing
+selection summary. Failure retains answers and identical recovery; expiry, later turns, offline
+and allowance follow the existing choice lifecycle. Asking and answering never authorize a write.
+
 The **day summary** combines its ring with today's habit rows and the habit list's in-place log control; it shows at most 20 rows, then a count and the Hoje link. The **calendar** block uses EventRow with time or all-day copy and a source when more than one calendar is connected; its trailing action opens the Calendários import sheet with that event selected for review. The **streak** block keeps DayStrip and a read-only FreezeBank, with its action opening Sequência. The **goal list** uses ProgressBar and the tracking badge, names linked habits as the source of derived progress, and opens the goal or Metas. The **metrics** block keeps BarChart, adds at most three StatTile figures with the Progresso vocabulary, and opens Progresso or the habit. Habit, goal and event rows subscribe to live query state; a reply snapshot never decides whether a habit is done. Each block uses BlockFrame for loading, resting, acting, partial failure and stale state, with errors in its actions area.
 
 The **gamification** block reuses Progresso's `LevelSummary` and `AchievementTile` components
@@ -1257,6 +1269,8 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | EmptyState | required title, one action; 96px real `OrbitMark`, `--fg-1`, no arc and no accent. An Astra-owned region takes `AstraGlyph` instead | `ui/empty-state.tsx` | same |
 | ErrorState | one caller-owned message and one optional text action; no code, severity or detail slot | `ui/error-state.tsx` | same |
 | CapacityNotice | neutral limit message, optional explanatory body and one action; never `--status-bad` | `ui/capacity-notice.tsx` | same |
+| Slider | Radix and rn-primitives single thumb; 4px `--fg-3` track, `--primary` fill and 24px thumb inside a 48px target; radius 999, one 2px focus ring, standard hover duration; arrows, web Home and End, touch drag and native accessibility adjustments share decimal steps measured from min | `ui/slider.tsx` | `ui/slider.tsx` |
+| QuestionScale | radio group of five equal options from 1 to 5, minimum height 48, radius 12, `--bg-well` selection and `--bg-hover` interaction, `--fg-1` numerals and `--fg-3` end labels beneath; no initial selection, one focus ring, growing text rows | `chat/question-controls.tsx` | `chat/question-controls.tsx` |
 | ProgressBar | 8px pill track `--track-empty`, primary fill | `ui/progress-bar.tsx` | same |
 | ProgressRing | thin band, primary sweep on a `--track-empty` track | right rail / Today | same |
 | BarChart | 96px neutral bars; each full column is its target, as DayCell uses its full column, with height at least shared `TOUCH_TARGET_MIN`, adjacent edges and no overlap or horizontal scroll; one radio group with a roving web tab stop, tap/click, arrows and Home/End; today selected on open, selected bar `--fg-1` and all others `--fg-2`; short weekday/date, percentage and done count directly above the selection, clamped inside the chart; zero and unscheduled days retain a 4px stub, unscheduled readout names that state; first/last dates below and figure rows retained | `ui/bar-chart.tsx` | `ui/bar-chart.tsx` |

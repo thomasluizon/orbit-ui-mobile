@@ -1371,6 +1371,10 @@
         "days": "{count, plural, one {day} other {days}}"
       }
     },
+    "question": {
+      "progress": "{total, plural, one {{answered} of # question answered} other {{answered} of # questions answered}}",
+      "required": "Answer this question."
+    },
     "choice": {
       "submit": "Send",
       "review": "Review",

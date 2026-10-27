@@ -13,6 +13,7 @@ export const CHAT_BLOCK_KINDS = [
   'accountRows',
   'choice',
   'pickList',
+  'question',
   'habitRanking',
   'habitMonth',
   'habitSuggestions',

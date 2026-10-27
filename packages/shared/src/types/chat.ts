@@ -1,3 +1,4 @@
+import { questionAnswerSchema, questionBlockSchema } from './question-block'
 import { z } from 'zod'
 import { habitSuggestionsCardSchema } from './habit-suggestions'
 import { utf16Length } from '../validation/utf16-length'
@@ -509,6 +510,7 @@ export const blockAnswerSchema = z.object({
   blockId: z.uuid(),
   selectedIds: z.array(z.string().check(utf16Length('min', 1))),
   freeText: z.string().check(utf16Length('max', 500)).optional(),
+  answers: z.array(questionAnswerSchema).min(1).max(10).refine(values => new Set(values.map(value => value.questionId)).size === values.length).optional(),
 })
 
 export type ChoiceBlock = z.infer<typeof choiceBlockSchema>
@@ -533,6 +535,7 @@ const chatBlockSchemas = {
   accountRows: accountRowsCardSchema,
   choice: choiceBlockSchema,
   pickList: pickListBlockSchema,
+  question: questionBlockSchema,
 } satisfies Record<ChatBlockKind, z.ZodType>
 
 function blockPartSchema<Kind extends ChatBlockKind>(kind: Kind) {
@@ -559,6 +562,7 @@ export const chatPartSchema = z.union([
     blockPartSchema('accountRows'),
     blockPartSchema('choice'),
     blockPartSchema('pickList'),
+    blockPartSchema('question'),
   ]),
 ]).nullable().catch(null)
 
@@ -581,7 +585,7 @@ export const readBlockResponseSchema = z.discriminatedUnion('kind', [
 
 export type ReadBlockResponse = z.infer<typeof readBlockResponseSchema>
 export type ReadBlockSnapshot = ReadBlockResponse | HabitMonthReadBlockResponse | GamificationReadBlockResponse
-export type ReadBlockPart = Exclude<ChatBlockPart, { kind: 'choice' | 'pickList' | 'habitSuggestions' }>
+export type ReadBlockPart = Exclude<ChatBlockPart, { kind: 'choice' | 'pickList' | 'question' | 'habitSuggestions' }>
 
 export const chatFollowUpSchema = z.object({
   label: z.string().trim().check(utf16Length('min', 1)).check(utf16Length('max', 40)).regex(/^[^\r\n]+$/),

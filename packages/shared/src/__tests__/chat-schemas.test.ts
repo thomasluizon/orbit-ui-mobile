@@ -3,6 +3,7 @@ import type { z } from 'zod'
 import { actionResultSchema, chatMessageSchema, chatResponseSchema, chatStreamEventSchema, gamificationReadBlockResponseSchema, readBlockResponseSchema } from '../types/chat'
 import { habitMonthFixture } from '../test-support/habit-month-fixture'
 import { habitSuggestionsFixture } from '../test-support/habit-suggestion-fixtures'
+import { questionBlockFixture } from '../test-support/question-fixtures'
 import { gamificationCardTitleKey, gamificationStreakPresentation } from '../chat/gamification-card-core'
 import { gamificationCardCases } from '../test-support/gamification-card-fixtures'
 import { CHAT_BLOCK_KINDS } from '../chat/block-kinds'
@@ -77,6 +78,7 @@ describe('ordered chat parts', () => {
       ...partsFixture.blocks.slice(3, 6),
       { type: 'block', kind: 'gamification', block: gamificationCardCases[2]!.block },
       ...partsFixture.blocks.slice(6),
+      { type: 'block', kind: 'question', block: questionBlockFixture },
       { type: 'block', kind: 'habitRanking', block: habitRankingCardFixture },
       { type: 'block', kind: 'habitMonth', block: habitMonthFixture },
       { type: 'block', kind: 'habitSuggestions', block: habitSuggestionsFixture },

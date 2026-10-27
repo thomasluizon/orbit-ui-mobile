@@ -46,6 +46,7 @@
     "@rn-primitives/portal": "1.5.3",
     "@rn-primitives/radio-group": "1.5.2",
     "@rn-primitives/select": "1.5.2",
+    "@rn-primitives/slider": "1.5.2",
     "@rn-primitives/slot": "1.5.2",
     "@rn-primitives/switch": "1.5.2",
     "@rn-primitives/toast": "1.5.2",

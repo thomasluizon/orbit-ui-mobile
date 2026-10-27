@@ -5,6 +5,7 @@ import { parse } from 'yaml'
 import AstraHttpProvider from '../http-provider.mjs'
 import { visibleBlock } from '../visible-blocks.mjs'
 import { chatResponse, habitBlock } from './fixtures/producer.mjs'
+import { questionBlockFixture } from '../../../packages/shared/src/test-support/question-fixtures.ts'
 
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8')).providers[0].config
 async function receive(extra, locale = 'pt-BR', supportsParts = true) {
@@ -17,6 +18,19 @@ async function receive(extra, locale = 'pt-BR', supportsParts = true) {
     clientContext: { supportsParts, locale }, clientContextJson: JSON.stringify({ supportsParts, locale }), historyJson: '[]' } })
 }
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
+
+it.each(['en', 'pt-BR'])('grades the question text, choices, scale, slider bounds and localized actions in %s', async locale => {
+  const { output } = await receive({ parts: [{ type: 'block', kind: 'question', block: questionBlockFixture }] }, locale)
+  expect(output.answer).toContain('Morning')
+  expect(output.answer).toContain('How much energy?')
+  expect(output.answer).toContain('Low')
+  expect(output.answer).toContain('High')
+  expect(output.answer).toContain('hours')
+  expect(output.answer).toContain(locale === 'en' ? 'Recommended' : 'Recomendado')
+  expect(output.answer).toContain(locale === 'en' ? '0 of 5 questions answered' : '0 de 5 perguntas respondidas')
+  expect(output.answer).not.toContain(questionBlockFixture.blockId)
+  expect(output.answer).not.toContain('expiresAtUtc')
+})
 const operation = (status) => ({ operationId: 'query_habits', sourceName: 'query_habits', riskClass: 'Low',
   confirmationRequirement: 'None', status, summary: 'INVISIBLE_AUDIT_SUMMARY', targetId: null, targetName: null,
   policyReason: 'INVISIBLE_POLICY_REASON', pendingOperationId: null, payload: { text: 'INVISIBLE_TOOL_PAYLOAD' } })

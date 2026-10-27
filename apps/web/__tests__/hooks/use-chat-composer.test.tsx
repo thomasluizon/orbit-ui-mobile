@@ -1,5 +1,5 @@
 import type { InvalidateQueryFilters } from '@tanstack/react-query'
-import { choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { questionBlockFixture, questionAnswersFixture, choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { describe, expect, it, vi, beforeEach, afterEach, onTestFinished } from 'vitest'
 import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
@@ -1182,6 +1182,19 @@ describe('web useChatComposer streaming send', () => {
     expect(cache.getQueryData<Profile>(profileKeys.detail())?.aiMessagesUsed).toBe(5)
   })
 
+
+  it('sends typed question answers through multipart and persists the terminal summary', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage({ id: 'questions', content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'question', block: questionBlockFixture }] })] })
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+    const answer = { blockId: questionBlockFixture.blockId, selectedIds: [], answers: questionAnswersFixture }
+    await act(async () => { expect(await result.current.blockAnswerInteraction.send({ kind: 'question', answer, labels: ['Energy: 3', 'Reminder: No'] })).toEqual({ ok: true }) })
+    const body = mocks.fetch.mock.calls[0]![1].body as FormData
+    expect(JSON.parse(body.get('blockAnswer') as string)).toEqual(answer)
+    expect(JSON.parse(body.get('clientContext') as string).partKinds).toContain('question')
+    expect(useChatStore.getState().messages[0]?.blockAnswers?.[answer.blockId]).toMatchObject({ answered: true })
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
+  })
   it('sends a localized block answer once and retains the preview in the existing message path', async () => {
     mocks.locale = 'pt-BR'
     mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
