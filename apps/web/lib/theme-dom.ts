@@ -134,6 +134,7 @@ export function resolveWebMotionVariables(): Record<`--${string}`, string> {
     variables[`--motion-${scenario}-shift`] = `${preset.shift}px`
     variables[`--motion-${scenario}-scale`] = String(preset.scaleFrom)
   }
+  variables['--dur-press'] = `${motionDurations.press}ms`
   variables['--motion-ease-enter'] = `cubic-bezier(${motionEasings.enter.join(',')})`
   variables['--motion-ease-exit'] = `cubic-bezier(${motionEasings.exit.join(',')})`
   return variables

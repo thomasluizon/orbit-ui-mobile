@@ -865,6 +865,7 @@ select[aria-hidden="true"] {
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --dur-3: 280ms;
   --dur-fast: 160ms;
+  --dur-press: 150ms;
   --dur-base: var(--dur-2);
   --dur-slow: var(--dur-3);
   --dur-hover-control: 240ms;
@@ -2909,4 +2910,16 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 @media (prefers-reduced-motion: reduce) {
   [data-route-motion],
   [data-toast-motion] { transform: none !important; }
+}
+
+@layer components {
+  .habit-check-motion {
+    transition: background-color var(--dur-press) var(--ease-standard);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(button, a, [role="button"], [role="radio"], [role="tab"]):active {
+    scale: 1 !important;
+  }
 }

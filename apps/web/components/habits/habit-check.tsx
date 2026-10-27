@@ -13,7 +13,7 @@ export function HabitCheck({ status, label, unavailable = false, progress }: Rea
   if (unavailable) return (
     <span data-habit-check="" data-focus-ring-owner="" data-status="unavailable"
       role={label ? 'img' : undefined} aria-label={label}
-      className="relative inline-flex shrink-0 items-center justify-center rounded-[12px]"
+      className="habit-check-motion relative inline-flex shrink-0 items-center justify-center rounded-[12px]"
       style={{ width: 28, height: 28, background: 'var(--bg-well)', boxShadow: 'none' }} />
   )
   const ratio = habitCheckProgress(progress)
@@ -24,7 +24,7 @@ export function HabitCheck({ status, label, unavailable = false, progress }: Rea
   return (
     <span data-habit-check="" data-focus-ring-owner="" data-status={status}
       role={label ? 'img' : undefined} aria-label={label}
-      className="relative inline-flex shrink-0 items-center justify-center rounded-[12px]"
+      className="habit-check-motion relative inline-flex shrink-0 items-center justify-center rounded-[12px]"
       style={{ width: 28, height: 28, background: done ? 'var(--fg-1)' : 'var(--habit-check-feedback, transparent)', boxShadow: done ? 'none' : `inset 0 0 0 1px ${color}` }}>
       {done ? <span data-habit-check-feedback="" aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[inherit]" /> : null}
       {done ? <Check aria-hidden="true" className="relative" size={16} strokeWidth={3} color="var(--bg)" /> : null}
