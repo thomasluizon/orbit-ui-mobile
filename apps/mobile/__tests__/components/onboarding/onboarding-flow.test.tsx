@@ -37,6 +37,9 @@ const mocks = vi.hoisted(() => {
     updateHabit: vi.fn(),
     finishOnboarding: vi.fn(),
     suggest: vi.fn(),
+    anonymous: vi.fn(),
+    anonymousAvailable: false,
+    realProposal: false,
     requestPermission: vi.fn(),
     requestPermissionOutcome: vi.fn(),
     navigate: vi.fn(),
@@ -70,6 +73,7 @@ vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'pu
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profileAvailable ? mocks.profile : undefined, refetch: mocks.refetchProfile }) }))
 vi.mock('@/lib/queued-api-mutation', () => ({ performQueuedApiMutation: mocks.queueTimezone }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: mocks.suggest, isPending: false }) }))
+vi.mock('@/hooks/use-onboarding-suggestion', () => ({ useOnboardingSuggestion: (isLive: boolean) => ({ available: isLive || mocks.anonymousAvailable, mutateAsync: isLive ? mocks.suggest : mocks.anonymous, verification: null, cancel: vi.fn() }) }))
 vi.mock('@/hooks/use-push-notifications', () => ({
   usePushNotifications: () => ({
     ...mocks.push,
@@ -101,9 +105,15 @@ vi.mock('@/components/ui/app-toast', () => ({ Toast: ({ message }: { message: st
 vi.mock('@/components/onboarding/onboarding-welcome', () => ({
   OnboardingWelcome: ({ sentence, onChange }: { sentence: string; onChange: (value: string) => void }) => React.createElement('SentenceInput', { value: sentence, onChangeText: onChange }),
 }))
-vi.mock('@/components/onboarding/onboarding-create-habit', () => ({
-  OnboardingCreateHabit: ({ proposed, schedule, canSaveRepeatWeeks, onToggleDay, onTimeChange }: { proposed: boolean; schedule: { intervalWeeks: number }; canSaveRepeatWeeks: boolean; onToggleDay: (day: string) => void; onTimeChange: (value: string) => void }) => React.createElement('Schedule', { proposed, intervalWeeks: schedule.intervalWeeks, canSaveRepeatWeeks, onToggleDay, onTimeChange }),
-}))
+vi.mock('@/components/onboarding/onboarding-create-habit', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/components/onboarding/onboarding-create-habit')>()
+  return {
+  OnboardingCreateHabit: (props: React.ComponentProps<typeof original.OnboardingCreateHabit>) => {
+    if (mocks.realProposal) return <original.OnboardingCreateHabit {...props} />
+    const { proposed, schedule, canSaveRepeatWeeks, onToggleDay, onTimeChange } = props
+    return React.createElement('Schedule', { proposed, intervalWeeks: schedule.intervalWeeks, canSaveRepeatWeeks, onToggleDay, onTimeChange })
+  }
+} })
 vi.mock('@/components/onboarding/onboarding-remind', () => ({ OnboardingRemind: ({ state }: { state: string }) => React.createElement('ReminderState', { state }) }))
 vi.mock('@/components/onboarding/onboarding-pro-step', () => ({ OnboardingProStep: ({ onFinish, ref }: { onFinish: (destination?: string) => Promise<void>; ref?: React.Ref<{ exit: (destination?: string) => void }> }) => {
   React.useImperativeHandle(ref, () => ({ exit: (destination?: string) => { void onFinish(destination) } }))
@@ -205,6 +215,9 @@ describe('OnboardingFlow state model', () => {
     Object.assign(mocks.profile, createMockProfile({ hasProAccess: true, isTrialActive: false, plan: 'pro' }))
     mocks.profile.aiMessagesUsed = 0
     mocks.profile.timeZone = 'UTC'
+    mocks.realProposal = false
+    mocks.anonymousAvailable = false
+    mocks.anonymous.mockReset()
     mocks.profileAvailable = true
     mocks.refetchProfile.mockResolvedValue({ data: mocks.profile })
     mocks.queueTimezone.mockResolvedValue(undefined)
@@ -216,6 +229,33 @@ describe('OnboardingFlow state model', () => {
     mocks.requestPermission.mockResolvedValue(true)
     mocks.requestPermissionOutcome.mockResolvedValue('granted')
     useOnboardingDraftStore.getState().reset()
+  })
+
+  it.each(['offline', 'ONBOARDING_LIMIT', 'ONBOARDING_UNAVAILABLE', 'proof unavailable', 'daily ceiling', 'error'])('keeps the manual drawing after %s', async (reason) => {
+    mocks.anonymousAvailable = reason !== 'offline'
+    mocks.anonymous.mockRejectedValue(new Error(reason))
+    const tree = await mount(false)
+    await enterSentence(tree, 'Walk every Monday at 18:00')
+    await click(tree, 'onboarding.flow.continue')
+    expect(prop<boolean>(oneByType(tree.root, 'Schedule'), 'proposed')).toBe(false)
+    expect(mocks.suggest).not.toHaveBeenCalled()
+    expect(headerCounter(tree)).toBe('Orbit · 02 / 03')
+  })
+
+  it('reads the signed-out sentence through Astra without adding a tour step', async () => {
+    mocks.realProposal = true
+    mocks.anonymousAvailable = true
+    mocks.anonymous.mockResolvedValue({ emoji: '📖', frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, dueTime: '18:00', subHabits: [], checklistItems: [] })
+    const tree = await mount(false)
+    await enterSentence(tree, 'Read every Monday at 18:00')
+    await click(tree, 'onboarding.flow.continue')
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'astra-mark')).toHaveLength(1)
+    expect(renderedText(tree)).toContain('Read')
+    expect(renderedText(tree)).toContain('onboarding.flow.when.astraRead')
+    expect(mocks.anonymous).toHaveBeenCalledWith({ title: 'Read every Monday at 18:00', language: 'en' })
+    expect(mocks.suggest).not.toHaveBeenCalled()
+    expect(headerCounter(tree)).toBe('Orbit · 02 / 03')
+    expect(renderedText(tree).join('')).not.toContain('meetAstra')
   })
 
   it('presents decisions, completion and the plan through the shared native window', async () => {

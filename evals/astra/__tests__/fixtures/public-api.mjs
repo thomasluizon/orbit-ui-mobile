@@ -1,4 +1,8 @@
 import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { parse } from 'yaml'
+
+const { apiCommit } = parse(readFileSync(new URL('../../catalog.yaml', import.meta.url), 'utf8'))
 
 const exportedHabit = (body) => ({ id: randomUUID(), title: body.title, description: body.description, emoji: null,
   isBadHabit: false, isGeneral: false, dueDate: body.startDate ? new Date().toISOString().slice(0, 10) : body.dueDate, startDate: body.startDate ?? body.dueDate, endDate: null, frequencyUnit: 'Day', frequencyQuantity: 1,
@@ -11,7 +15,7 @@ export function fixtureFetch(getState) {
     const { habits, goals, tags, templates, requests, pro, exhausted, capacity, email } = getState()
     if (new URL(url).pathname === '/health') {
       requests.push({ path: 'health', method: options.method })
-      return Response.json({ status: 'Healthy', commit: null, checks: [] })
+      return Response.json({ status: 'Healthy', commit: apiCommit, checks: [] })
     }
     const path = new URL(url).pathname.slice(5)
     const body = options.body ? JSON.parse(options.body) : undefined

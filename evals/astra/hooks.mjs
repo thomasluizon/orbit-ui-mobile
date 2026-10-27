@@ -1,7 +1,8 @@
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, readFileSync } from 'node:fs'
+import { parse } from 'yaml'
 import { randomUUID } from 'node:crypto'
 import { tsImport } from 'tsx/esm/api'
-import { apiOrigin, readCredentials, refreshCredential, safeFailureMessage } from './credentials.mjs'
+import { apiOrigin, healthyApi, readCredentials, refreshCredential, safeFailureMessage } from './credentials.mjs'
 import { dateOffset, resetFixture } from './fixtures/reset.mjs'
 import { prepareCorrection } from './setup.mjs'
 import { descriptors } from './merge-reports.mjs'
@@ -20,7 +21,7 @@ function persistResults(results, expectedCases) {
   return { summary, markdown: writeReport(summary) }
 }
 
-export function beforeAll({ suite }) {
+export async function beforeAll({ suite }) {
   completedResults = []
   selectedCases = suite.tests.map((test) => test.metadata)
   persistResults(completedResults, selectedCases)
@@ -31,6 +32,11 @@ export function beforeAll({ suite }) {
   apiOrigin()
   readCredentials()
   if (process.env.ORBIT_EVAL_OVERDUE_DATE && !/^\d{4}-\d{2}-\d{2}$/.test(process.env.ORBIT_EVAL_OVERDUE_DATE)) throw new Error('ORBIT_EVAL_OVERDUE_DATE must be an ISO calendar date.')
+  const { apiCommit } = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
+  const health = await healthyApi({ fresh: true })
+  if (!/^[a-f0-9]{40}$/.test(apiCommit) || apiCommit !== health.commit) {
+    throw new Error(`Astra catalog ${apiCommit} differs from API ${health.commit}. Regenerate from a clean API checkout at that commit with node evals/astra/generate-catalog.mjs <api-checkout>.`)
+  }
 }
 
 export async function beforeEach({ test }) {

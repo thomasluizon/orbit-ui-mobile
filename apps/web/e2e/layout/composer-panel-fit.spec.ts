@@ -154,6 +154,12 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         await setLayoutProfileSession(context, profile)
         await page.goto('/')
         await page.evaluate(() => document.fonts.ready)
+        const composer = page.locator('[data-shell-pinned-slot] [data-composer-root]')
+        const disclosure = composer.getByRole('button', { name: messages.shell.composer.collapse, exact: true })
+        await expect(disclosure).toHaveCount(1)
+        await expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+        const hasSuggestions = await composer.locator('[data-composer-suggestion-row]').count() > 0
+        await expect(composer.locator('[data-composer-input-row] [data-composer-disclosure]')).toHaveCount(hasSuggestions ? 0 : 1)
         const field = page.locator('[data-shell-pinned-slot] [data-composer-input]')
         await expect(field).toHaveAttribute('placeholder', messages.shell.composer.placeholder)
         const empty = await field.evaluate((element) => {
@@ -165,6 +171,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           return {
             placeholderWidth: context.measureText(input.placeholder).width,
             pasteInSlot: input.closest('[data-composer-input-row]')!.querySelector('[data-composer-paste]') !== null,
+            disclosureInSlot: input.closest('[data-composer-input-row]')!.querySelector('[data-composer-disclosure]') !== null,
             pillHeight: input.closest('[data-composer-input-row]')!.getBoundingClientRect().height,
             controls: [...input.closest('[data-composer-input-row]')!.querySelectorAll('button')].map((button) => ({ top: button.getBoundingClientRect().top, width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height })),
             contentWidth: input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
@@ -174,7 +181,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           }
         })
         expect(empty.pillHeight).toBeGreaterThanOrEqual(56)
-        expect(empty.controls).toHaveLength(empty.pasteInSlot ? 4 : 3)
+        expect(empty.controls).toHaveLength(3 + Number(empty.pasteInSlot) + Number(empty.disclosureInSlot))
         expect(await field.evaluate(composerPlaceholderFits, 1)).toBe(true)
         for (const control of empty.controls) { expect(control.width).toBeGreaterThanOrEqual(48); expect(control.height).toBeGreaterThanOrEqual(48) }
         expect(empty.contentWidth).toBeGreaterThanOrEqual(empty.placeholderWidth)

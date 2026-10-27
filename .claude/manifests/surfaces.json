@@ -4879,7 +4879,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4907,7 +4906,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4935,7 +4933,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4963,7 +4960,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4991,7 +4987,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -5019,7 +5014,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -5047,7 +5041,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -5075,7 +5068,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -9813,8 +9805,7 @@
       "sourceFile": "apps/mobile/app/habits/new.tsx",
       "href": "/habits/new",
       "ownedFiles": [
-        "apps/mobile/app/habits/new.tsx",
-        "apps/mobile/lib/offline-recovery.ts"
+        "apps/mobile/app/habits/new.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -9827,8 +9818,7 @@
       "sourceFile": "apps/mobile/app/habits/new.tsx",
       "href": "/habits/new",
       "ownedFiles": [
-        "apps/mobile/app/habits/new.tsx",
-        "apps/mobile/lib/offline-recovery.ts"
+        "apps/mobile/app/habits/new.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -9841,8 +9831,7 @@
       "sourceFile": "apps/mobile/app/habits/new.tsx",
       "href": "/habits/new",
       "ownedFiles": [
-        "apps/mobile/app/habits/new.tsx",
-        "apps/mobile/lib/offline-recovery.ts"
+        "apps/mobile/app/habits/new.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -9855,8 +9844,7 @@
       "sourceFile": "apps/mobile/app/habits/new.tsx",
       "href": "/habits/new",
       "ownedFiles": [
-        "apps/mobile/app/habits/new.tsx",
-        "apps/mobile/lib/offline-recovery.ts"
+        "apps/mobile/app/habits/new.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -9869,8 +9857,7 @@
       "sourceFile": "apps/mobile/app/habits/new.tsx",
       "href": "/habits/new",
       "ownedFiles": [
-        "apps/mobile/app/habits/new.tsx",
-        "apps/mobile/lib/offline-recovery.ts"
+        "apps/mobile/app/habits/new.tsx"
       ],
       "state": "empty",
       "theme": "light",
@@ -9883,8 +9870,7 @@
       "sourceFile": "apps/mobile/app/habits/new.tsx",
       "href": "/habits/new",
       "ownedFiles": [
-        "apps/mobile/app/habits/new.tsx",
-        "apps/mobile/lib/offline-recovery.ts"
+        "apps/mobile/app/habits/new.tsx"
       ],
       "state": "empty",
       "theme": "light",
@@ -9897,8 +9883,7 @@
       "sourceFile": "apps/mobile/app/habits/new.tsx",
       "href": "/habits/new",
       "ownedFiles": [
-        "apps/mobile/app/habits/new.tsx",
-        "apps/mobile/lib/offline-recovery.ts"
+        "apps/mobile/app/habits/new.tsx"
       ],
       "state": "empty",
       "theme": "dark",
@@ -9911,8 +9896,7 @@
       "sourceFile": "apps/mobile/app/habits/new.tsx",
       "href": "/habits/new",
       "ownedFiles": [
-        "apps/mobile/app/habits/new.tsx",
-        "apps/mobile/lib/offline-recovery.ts"
+        "apps/mobile/app/habits/new.tsx"
       ],
       "state": "empty",
       "theme": "dark",
@@ -15689,6 +15673,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/navigation/notification-inbox.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-components-offline-notice",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/offline-notice.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/offline-notice.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-components-offline-notice",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/offline-notice.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/offline-notice.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-components-offline-notice",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/offline-notice.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/offline-notice.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-components-offline-notice",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/offline-notice.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/offline-notice.tsx"
       ],
       "state": "default",
       "theme": "dark",

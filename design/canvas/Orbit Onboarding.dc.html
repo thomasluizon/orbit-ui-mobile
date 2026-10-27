@@ -73,10 +73,10 @@ a:hover{color:var(--fg-1)}
               <sc-if value="{{ atLimit }}" hint-placeholder-val="{{ false }}">
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ limitNode }}" hint-size="100%,60px"></x-import>
               </sc-if>
-              <div style="display:flex;align-items:flex-start;gap:12px">
+              <div style="display:flex;flex-direction:column;align-items:flex-start;gap:8px">
                 <sc-if value="{{ hasProposal }}" hint-placeholder-val="{{ true }}">
-                  <span style="flex:0 0 auto;display:grid;place-items:center;width:20px;height:26px;color:var(--fg-3)">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n18 }}" hint-size="18px,18px"></x-import>
+                  <span style="flex:0 0 auto;display:grid;place-items:center;width:24px;height:24px;color:var(--fg-1)">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n24 }}" hint-size="24px,24px"></x-import>
                   </span>
                 </sc-if>
                 <p style="flex:1;min-width:0;font-size:17px;line-height:1.5;text-wrap:pretty">{{ astraRead }}</p>
@@ -143,6 +143,7 @@ a:hover{color:var(--fg-1)}
                 </div>
               </sc-if>
               <div>
+                <p style="font-size:17px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ tellAstra }}</p>
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="primary" on-click="{{ doneGo }}" hint-size="auto,48px">{{ doneAction }}</x-import>
               </div>
             </div>
@@ -191,10 +192,10 @@ a:hover{color:var(--fg-1)}
                 <sc-if value="{{ atLimit }}" hint-placeholder-val="{{ false }}">
                   <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ limitNode }}" hint-size="100%,60px"></x-import>
                 </sc-if>
-                <div style="display:flex;align-items:flex-start;gap:12px">
+                <div style="display:flex;flex-direction:column;align-items:flex-start;gap:8px">
                   <sc-if value="{{ hasProposal }}" hint-placeholder-val="{{ true }}">
-                    <span style="flex:0 0 auto;display:grid;place-items:center;width:20px;height:26px;color:var(--fg-3)">
-                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n18 }}" hint-size="18px,18px"></x-import>
+                    <span style="flex:0 0 auto;display:grid;place-items:center;width:24px;height:24px;color:var(--fg-1)">
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n24 }}" hint-size="24px,24px"></x-import>
                     </span>
                   </sc-if>
                   <p style="flex:1;min-width:0;font-size:17px;line-height:1.5;text-wrap:pretty">{{ astraRead }}</p>
@@ -263,7 +264,8 @@ a:hover{color:var(--fg-1)}
                   </div>
                 </sc-if>
                 <div>
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="primary" on-click="{{ doneGo }}" hint-size="auto,48px">{{ doneAction }}</x-import>
+                  <p style="font-size:17px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ tellAstra }}</p>
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="primary" on-click="{{ doneGo }}" hint-size="auto,48px">{{ doneAction }}</x-import>
                 </div>
               </div>
             </sc-if>
@@ -278,23 +280,23 @@ a:hover{color:var(--fg-1)}
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
       <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Onboarding produces one real habit that the person typed, and ends with them looking at it. It is not a tour, not a quiz and not a preference survey: the tour and the push prompt system are deleted, so nothing here explains a feature the person has not asked about. The feature guide is not this screen's to claim: it lives on the About screen (about/page.tsx:84) and Sobre draws it.</p>
-      <p><span style="color:var(--fg-3)">entrances&nbsp;&nbsp;</span>the same flow mounts in two places. Signed in, layout.tsx:380 mounts it as an overlay over the app for an account that never finished, and it ends on Hoje. Signed out, onboarding/page.tsx:13 mounts it with isLive false: every answer is buffered on the device (onboarding-actions-context.tsx:96 and :133), nothing is sent to a server, the last step's words become the save your plan words with the action changed to match (onboarding-complete.tsx:102-109 and :159), the route goes to sign in (onboarding-actions-context.tsx:134), and the buffered habit is written to the account after sign in (use-onboarding-flush.ts:38). The first step carries the I already have an account link on that path only (onboarding-welcome.tsx:141-145).</p>
-      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>what, what typed, what signed out, when, when corrected, at limit, create failed, remind, remind already refused, remind enable failed, remind no time, done, done no reminders, done signed out. Remind no time is also reached by clearing the time on the when step and continuing. Hover, focus-visible and press are live, and the flow walks: back returns step by step (onboarding-flow.tsx:83-95), skip leaves from any step except the last (:130-134), and the signed out first step carries the whole path forward. NO plan axis: D69 item 17 puts no paywall anywhere in onboarding, so this screen has no gate and the absent switch is a decision, not an oversight.</p>
+      <p><span style="color:var(--fg-3)">entrances&nbsp;&nbsp;</span>The same flow mounts signed in and signed out. Signed-in setup uses the authorized endpoint. Signed-out setup enrolls an attested install with #1782 and reads the sentence anonymously. Install credentials live only in session memory and rotate after every successful read. Habit creation remains buffered locally until sign-in on that path.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>what, what typed, what signed out, when, when signed out, when corrected, at limit, offline, anonymous limit, unavailable, create failed, remind, remind already refused, remind enable failed, remind no time, done, done no reminders, done signed out. Remind no time is also reached by clearing the time on the when step and continuing. Hover, focus-visible and press are live, and the flow walks: back returns step by step (onboarding-flow.tsx:83-95), skip leaves from any step except the last (:130-134), and the signed out first step carries the whole path forward. The final trial or Pro step follows completion under the current onboarding amendment.</p>
       <p><span style="color:var(--fg-3)">position&nbsp;&nbsp;</span>one indicator: the mono counter the app draws (onboarding-flow.tsx:248-264), Orbit · 01 / 03, zero padded and tabular, the current number at fg-1 and the rest at fg-3, over THREE steps rather than the app's eight because three is what this flow has. An sr-only progress element travels with it (:290-296) so a screen reader gets the same position. The app also draws dots (:289); one indicator is enough, so the counter wins and the dots are not drawn. The counter sits in the top row with back (:299-301) on the two steps that have something behind them, and skip (:265-267) on every step except the last. Skip goes straight to the end, so a person who does not want to type a habit right now is never trapped on the first screen.</p>
       <p><span style="color:var(--fg-3)">decisions&nbsp;&nbsp;</span>three, and no more: what you want to keep doing, when it happens, and whether we may remind you. The first is typed, the second is proposed from what was typed and corrected by tapping, and the third is a yes or a no. Nothing else is collected, because everything else can be changed later from the habit itself.</p>
       <p><span style="color:var(--fg-3)">input&nbsp;&nbsp;</span>the system field, not a composed pair: Input with multiline, three rows, and the words the parser consumed as marks with their required marksLabel, so mirror and textarea are one box from one declaration (the D71 drift defect) and the marked words carry an accessible name. maxLength rides the field because the app caps the title (MAX_HABIT_TITLE_LENGTH, onboarding-create-habit.tsx:182), drawn here at 100 with no counter: the limit stops the typing, it does not annotate the field. The quick start chips fill that field rather than skipping it, so the habit is still the person's own sentence.</p>
-      <p><span style="color:var(--fg-3)">astra&nbsp;&nbsp;</span>signed in, the person meets Astra by watching it do the work: it reads the sentence back as a schedule, in the proposed state, and the correction is two taps. It never introduces itself. Signed out there is no Astra at all: ChatController.cs:18 marks the whole controller [Authorize], so no anonymous call exists and the pre auth flow buffers instead of calling. The when step then drops the glyph and the proposal and carries the second decision as the day pills and the time field, which is the same drawing the daily ceiling reaches: two different reasons, at limit and signed out, arrive at one no-model drawing rather than two inventions.</p>
+      <p><span style="color:var(--fg-3)">astra&nbsp;&nbsp;</span>The approved #1783 decision overrides the former rule that Astra never introduces itself. The first field names Astra beside its 16px mark and asks for the person’s own words. Signed in or signed out, Astra replies with its 24px participant mark on its own row, an 8px gap, one short line and the proposed habit card. The person approves or corrects the existing preview. The done step points to Astra on Hoje for the next request. No tour or extra decision is added; the three decisions and final Pro step remain.</p>
       <p><span style="color:var(--fg-3)">failure&nbsp;&nbsp;</span>creating the habit can fail (onboarding-create-habit.tsx:95-99 catches it; :74-85 validates before the call). The create failed state keeps the typed sentence and the chosen days exactly as they were, raises a neutral Toast in the shell's notice slot stating the failure and the fix, and makes the pinned action the retry. The form is still correct, so nothing replaces it.</p>
       <p><span style="color:var(--fg-3)">permission&nbsp;&nbsp;</span>the ask comes after the habit exists, never before, and it shows the notification as it will actually arrive rather than describing one: the title is the habit's own title and the body is the relative time, Em 15 minutos and Due in 15 minutes, Agora and Due now at zero (ReminderSchedulerService.cs:142, :149, :322-338), timestamped at the moment it fires, the due time minus the default ReminderTimes of [15] (Habit.cs:77 and :159), so a habit due at 18:00 previews at 17:45 and never at 18:00, which is what the old bell row falsely showed. One quiet line under it states the two scheduling facts: it arrives 15 minutes before the habit, and it is not sent if the habit is already logged (:129-130). A habit left with NO time gets no ask at all: ProcessRelativeReminders walks ReminderTimes against habit.DueTime and does nothing without one, and onboarding never sets a fixed clock time (ScheduledReminderWhen exists but is not collected here), so the step says plainly that reminders need a time, offers to go back and set one, and its forward action continues without asking, because a permission the flow cannot use is never requested. For the ask itself, four outcomes, matching use-push-notifications.ts:418-440 and push-prompt.tsx: granted; refused, a plain second action that costs nothing; already refused, where the system will not show its prompt again (canAskAgain false; push-prompt.tsx:46 does not ask at all once the browser has denied), so the step states that reminders are off in the system settings and how to turn them on, with continue as its only forward action; and enable failed, where permission was given and the registration failed (push-prompt.tsx:101-103 sets the retry hint), so the retry is the pinned action, continue sits under it, and the habit is already saved either way. In the two failure shapes and the no time shape the allow control is absent rather than dead.</p>
       <p><span style="color:var(--fg-3)">order&nbsp;&nbsp;</span>no choice is made before the interface has been seen. The shell is present from the first step and its navigation is not: both shells take nav as their own behaviour, so the three decisions pass nav false, which renders no tab bar and no sidebar at all, and the last step returns to the plain nav shape. With nav off the shells reject items, activeId, navLabel, account and onPalette outright, so nothing is passed as null and no stylesheet reaches into shell internals. Each step's one forward action rides the shells' action slot, which exists exactly for a flow that owns the screen; the composer slot takes the composer and nothing else, and the composer is not in this flow, arriving on Hoje.</p>
       <p><span style="color:var(--fg-3)">delight&nbsp;&nbsp;</span>once, at the end: a single ring sweep as the habit lands, 280ms, a stroke offset only, with no fill mode, so the finished ring is also its resting state. Nothing else animates its own entrance anywhere in the flow.</p>
-      <p><span style="color:var(--fg-3)">limit&nbsp;&nbsp;</span>reading the sentence spends an Astra message, so a person who arrives at the ceiling still gets through: the notice states the allowance, the schedule is not proposed, and the day pills and the time field carry the second decision with no model call, the same drawing the signed out path uses for its own reason.</p>
+      <p><span style="color:var(--fg-3)">limit&nbsp;&nbsp;</span>reading the sentence spends an Astra message, so a person who arrives at the ceiling still gets through: the notice states the allowance, the schedule is not proposed, and the day pills and the time field carry the second decision with no model call, the same manual drawing used when anonymous access or platform proof is unavailable.</p>
       <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32, gap only. 44 for the pills and the top row controls, 46 for the emoji well; the field's height is rows, not pixels. Each step centres in the scroller's leftover space with auto block margins, which collapse to nothing when a step overflows, so a short step never pins to the top of a tall column and a tall one never clips.</p>
       <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>8 on the marked words and the chips, 12 on the field and the wells, 20 on the proposed panel and the habit panel, 28 on the shell, 999 on interactive.</p>
       <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>one filled action per step, always the step's forward action, in the shells' pinned action slot for the three decisions and in the content column at the last step. Back and skip are plain ghost controls, so neither competes. A selected day pill takes the selected tint and ring rather than a fill. The final ring sweeps the accent while travelling and lands neutral, because the habit is not complete on the day it is created. Wide: the returning sidebar carries no create button here, so the last step's action keeps the accent alone.</p>
       <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. primary-soft appears only on the canvas. fg-3 on the well sits at 4.69:1 on these non-interactive rows.</p>
       <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>four numbers carry data-mock on the element that renders them: the time inside the proposed sentence, the time on the notification preview, the time on the final habit row, and the allowance number inside the at limit notice. The preview's time is the due time minus the shipped default; the 15 inside its body is that default itself (Habit.cs:77), the notification's verbatim wording and not fixture data, so it carries none. The step counter is position, not data, so it carries none either. Base date Monday 17 August 2026.</p>
-      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 a person can leave from every step except the last and return from every step after the first. 2 at most three decisions, and the permission ask is not one of the first two. 3 nothing explains a feature and nothing mentions a price, because no paywall exists in onboarding (D69 item 17). 4 signed out, no model is called and nothing reaches a server: the plan is buffered on the device and flushed after sign in.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>Both clients cover signed-in and signed-out Astra reads, proof binding and rotation, offline, anonymous limits, the daily ceiling, unavailable proofs and transport failure. Every fallback keeps the existing manual day and time drawing with no Astra mark or new error copy. Completion names Astra on Hoje. The step count and final Pro step are unchanged.</p>
       <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>Input owns multiline text, rows, marks with their marksLabel, and maxLength. Both shells own navigation visibility and the pinned flow action; sidebar props, including the Astra row, exist only with navigation on. The closing ring is an SVG arc with one keyframe because ProgressRing holds no entrance. Starter chips are composed pills and the step counter is composed type. Both shell frames paint above every child, including the header, bottom chrome and wide conversation. The notification preview composes a well, the mark and three lines to draw the system notification surface.</p>
       <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether the quick start chips should also seed the composer on Hoje for the first session. Whether a person who refuses notifications should be asked again later, and by what, since no surface currently owns that. Whether the skipped ending should offer creation directly rather than pointing at Hoje.</p>
     </div>
@@ -392,7 +394,7 @@ const T = {
     back: 'Voltar', skip: 'Pular',
     stepOf: (n) => 'Passo ' + n + ' de 3',
     whatTitle: 'O que você quer continuar fazendo?',
-    whatLabel: 'Escreva com as suas palavras',
+    whatLabel: 'Conte à Astra do seu jeito',
     placeholder: 'Caminhar toda segunda e quinta às 18:00',
     marksLabel: 'Palavras que o Orbit entendeu',
     startersTitle: 'Se quiser um começo',
@@ -424,6 +426,7 @@ const T = {
     enableFailTitle: 'Os lembretes não ligaram',
     enableFailBody: 'A permissão foi dada e o registro deste aparelho falhou. O hábito já está salvo.',
     allow: 'Permitir lembretes', deny: 'Agora não',
+    tellAstra: 'Da próxima vez, conte à Astra no Hoje o que você quer fazer.',
     doneTitle: 'Pronto. Ele está no seu dia.',
     doneBody: 'Toque no anel para registrar quando acontecer.',
     doneBodyDenied: 'Toque no anel para registrar quando acontecer. Você pode ligar os lembretes no hábito.',
@@ -443,7 +446,7 @@ const T = {
     back: 'Back', skip: 'Skip',
     stepOf: (n) => 'Step ' + n + ' of 3',
     whatTitle: 'What do you want to keep doing?',
-    whatLabel: 'Write it in your own words',
+    whatLabel: 'Tell Astra in your own words',
     placeholder: 'Walk every Monday and Thursday at 18:00',
     marksLabel: 'Words Orbit understood',
     startersTitle: 'If you want a start',
@@ -475,6 +478,7 @@ const T = {
     enableFailTitle: 'Reminders did not turn on',
     enableFailBody: 'Permission was given and registering this device failed. The habit is already saved.',
     allow: 'Allow reminders', deny: 'Not now',
+    tellAstra: 'Next time, tell Astra what you want to do from Today.',
     doneTitle: 'Done. It is in your day.',
     doneBody: 'Tap the ring to log it when it happens.',
     doneBodyDenied: 'Tap the ring to log it when it happens. You can turn reminders on from the habit.',
@@ -490,7 +494,7 @@ const T = {
 };
 
 const SEED = { 'pt-BR': 'Caminhar toda segunda e quinta às 18:00', en: 'Walk every Monday and Thursday at 18:00' };
-const STEP = { what: 0, 'what typed': 0, 'what signed out': 0, when: 1, 'when corrected': 1, 'at limit': 1,
+const STEP = { what: 0, 'what typed': 0, 'what signed out': 0, when: 1, 'when signed out': 1, offline: 1, 'anonymous limit': 1, unavailable: 1, 'when corrected': 1, 'at limit': 1,
   'create failed': 1, remind: 2, 'remind already refused': 2, 'remind enable failed': 2, 'remind no time': 2,
   done: 3, 'done no reminders': 3, 'done signed out': 3 };
 
@@ -535,11 +539,11 @@ class Component extends DCLogic {
     const base = {
       mode: s.mode, lang: t.lang, onCC: this.onCC,
       cc: { mode: s.mode, width: s.width, state: st, locale: s.loc },
-      stateAxis: ['what', 'what typed', 'what signed out', 'when', 'when corrected', 'at limit',
+      stateAxis: ['what', 'what typed', 'what signed out', 'when', 'when signed out', 'offline', 'anonymous limit', 'unavailable', 'when corrected', 'at limit',
         'create failed', 'remind', 'remind already refused', 'remind enable failed', 'remind no time',
         'done', 'done no reminders', 'done signed out'],
       is412: s.width === '412', isWide: s.width === 'wide',
-      n16: 16, n18: 18, n20: 20, n40: 40, noop: () => {},
+      n16: 16, n24: 24, n20: 20, n40: 40, noop: () => {},
       showReport: this.props.showReport !== false,
       whatTitle: t.whatTitle, startersTitle: t.startersTitle, proposedBy: t.proposedBy,
       emojiLabel: t.emojiLabel, daysLabel: t.daysLabel, timeLabel: t.timeLabel, timeHint: t.timeHint,
@@ -561,9 +565,7 @@ class Component extends DCLogic {
     const text = s.text != null ? s.text : seedText;
     const isEmpty = text.length === 0;
     const parsed = parseHabit(text, t.lang);
-    /* No proposal at the ceiling (the read spends a message) and none signed out (ChatController.cs:18
-       is [Authorize], so no anonymous call exists): two reasons, one drawing. */
-    const hasProposal = !atLimit && !signedOut;
+    const hasProposal = !atLimit && !['offline', 'anonymous limit', 'unavailable'].includes(st);
 
     const days = s.days != null ? s.days : parsed.days;
     const time = s.time != null ? s.time : (parsed.time || '');
@@ -649,7 +651,7 @@ class Component extends DCLogic {
     /* Input owns the mirror now: marks with their required marksLabel, maxLength for the app's title
        cap (MAX_HABIT_TITLE_LENGTH), rows not pixels. */
     const fieldProps = Object.assign({
-      label: t.whatLabel, placeholder: t.placeholder, value: text,
+      label: H('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 8 } }, H(D.AstraGlyph, { size: 16 }), t.whatLabel), placeholder: t.placeholder, value: text,
       onChange: (e) => this.setState({ text: e.target.value }),
       multiline: true, rows: 3, maxLength: 100,
     }, parsed.tokens.length ? { marks: parsed.tokens, marksLabel: t.marksLabel } : {});
@@ -692,6 +694,7 @@ class Component extends DCLogic {
 
       hasHabit: created,
       doneTitle: doneOut ? t.doneTitleOut : created ? t.doneTitle : t.doneTitleSkip,
+      tellAstra: t.tellAstra,
       doneBody: doneOut ? t.doneBodyOut : created ? (denied ? t.doneBodyDenied : t.doneBody) : t.doneBodySkip,
       doneAction: doneOut ? t.toEntrar : t.toHoje,
       doneGo: doneOut ? this.goEntrar : this.goHoje,

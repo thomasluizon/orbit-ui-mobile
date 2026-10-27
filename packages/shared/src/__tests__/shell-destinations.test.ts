@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { resolveShellChrome, resolveShellDestination } from '../utils/shell-destinations'
+import { resolveShellComposerScope, resolveShellChrome, resolveShellDestination } from '../utils/shell-destinations'
 
 describe('resolveShellDestination', () => {
   it.each([
@@ -64,4 +64,16 @@ it('keeps Hoje composer compact and habit detail composer at every width', () =>
   expect(resolveShellChrome('/', 'hoje', true).composer).toBe(true)
   expect(resolveShellChrome('/habits/h1', 'hoje', false).composer).toBe(true)
   expect(resolveShellChrome('/habits/h1', 'hoje', true).composer).toBe(true)
+})
+
+it.each([
+  ['/', 'today'],
+  ['/habits/habit-1', 'habit'],
+  ['/habits/new', undefined],
+  ['/habits/habit-1/edit', undefined],
+  ['/calendar', undefined],
+  ['/progress', undefined],
+  ['/profile', undefined],
+])('uses independent composer disclosure scope for %s', (pathname, scope) => {
+  expect(resolveShellComposerScope(pathname!)).toBe(scope)
 })
