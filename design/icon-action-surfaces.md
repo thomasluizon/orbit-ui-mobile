@@ -240,3 +240,9 @@ The common `ui/block-frame` stale footer and `chat/read-block-frame` query foote
 The ESLint rule resolves literal text, both locale catalogs, local label bindings, translated conditional keys and pill import aliases. It ignores accessible labels on icon-only controls and preserves mixed contextual flow labels. Primitive tests cover bilingual names, target dimensions, hover, disabled and busy behavior. Stale-frame regression tests prove refresh has no visible label and invokes its existing callback. Consumer tests query accessible names rather than removed visible strings. Native target styles are unit evidence; device rendering remains a platform boundary.
 
 API-key creation uses one plus entry opening distinct scoped and unscoped menu choices on both platforms, using the existing localized labels. A plus glyph alone cannot distinguish the two choices.
+
+Habit suggestions use the paired `components/chat/habit-suggestions-card.tsx` owners.
+Add uses Plus, Edit uses Pencil, Tweak uses AdjustmentsHorizontal and Swap uses RefreshCw.
+The inline instruction submits through ArrowUp, and failed requests keep a named RefreshCw
+retry. Every action retains a localized accessible name, a distinct shared icon target and
+its disabled or busy state. Add all retains its explicitly requested primary text pill.

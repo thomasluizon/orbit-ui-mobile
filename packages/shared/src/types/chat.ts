@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { habitSuggestionsCardSchema } from './habit-suggestions'
 import { utf16Length } from '../validation/utf16-length'
 import { habitRankingCardSchema } from './habit-ranking'
 export { habitRankingCardSchema, habitRankingResponseSchema, type HabitRankingCard, type HabitRankingResponse } from './habit-ranking'
@@ -495,6 +496,7 @@ export type PickListBlock = z.infer<typeof pickListBlockSchema>
 export type BlockAnswer = z.infer<typeof blockAnswerSchema>
 
 const chatBlockSchemas = {
+  habitSuggestions: habitSuggestionsCardSchema,
   habitRanking: habitRankingCardSchema,
   habitList: habitListCardSchema,
   goalList: goalListCardSchema,
@@ -519,6 +521,7 @@ function blockPartSchema<Kind extends ChatBlockKind>(kind: Kind) {
 export const chatPartSchema = z.union([
   z.object({ type: z.literal('text'), text: z.string() }),
   z.discriminatedUnion('kind', [
+    blockPartSchema('habitSuggestions'),
     blockPartSchema('habitRanking'),
     blockPartSchema('habitList'),
     blockPartSchema('goalList'),
@@ -556,7 +559,7 @@ export const readBlockResponseSchema = z.discriminatedUnion('kind', [
 
 export type ReadBlockResponse = z.infer<typeof readBlockResponseSchema>
 export type ReadBlockSnapshot = ReadBlockResponse | HabitMonthReadBlockResponse
-export type ReadBlockPart = Exclude<ChatBlockPart, { kind: 'choice' | 'pickList' }>
+export type ReadBlockPart = Exclude<ChatBlockPart, { kind: 'choice' | 'pickList' | 'habitSuggestions' }>
 
 export const chatFollowUpSchema = z.object({
   label: z.string().trim().check(utf16Length('min', 1)).check(utf16Length('max', 40)).regex(/^[^\r\n]+$/),
@@ -604,10 +607,14 @@ export const chatMessageSchema = z.object({
     stale: z.boolean().optional(),
     refreshUnavailable: z.boolean().optional(),
     editedItemIds: z.array(z.string()).optional(),
+    originalItemIds: z.array(z.string()).optional(),
     operation: pendingAgentOperationSchema.optional(),
   })).optional(),
   answerToBlockId: z.string().optional(),
   blockAnswers: z.record(z.string(), z.object({ text: z.string(), answered: z.boolean() })).optional(),
+  habitSuggestionOperations: z.record(z.string(), z.string()).optional(),
+  habitSuggestionItems: z.record(z.string(), z.string()).optional(),
+  appliedHabitSuggestions: z.array(z.string()).optional(),
   clarificationPreviews: z.record(z.string(), pendingAgentOperationSchema).optional(),
   policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
   imageUrl: z.string().nullable().optional(),

@@ -158,6 +158,7 @@ export function getMessageBubbleOperations(props: MessageBubbleProps, transition
       ? owned.pendingOperations.map(pendingOperation => ({
         key: pendingOperation.id,
         pendingOperation,
+        focusTitleOnMount: Object.values(message.habitSuggestionOperations ?? {}).includes(pendingOperation.id) && !message.pendingOperationStates?.[pendingOperation.id],
         savedState: currentOperationState(props, pendingOperation.id),
         onStateChange: (patch: PendingOperationMessageState) => onStateChange(pendingOperation.id, patch),
         onRevise: props.onPendingOperationRevise,
