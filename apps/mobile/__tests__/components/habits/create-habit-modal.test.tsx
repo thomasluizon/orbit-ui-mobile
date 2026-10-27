@@ -1,3 +1,4 @@
+import { habitSuggestionDraftFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { appConfigSchema } from '@orbit/shared/types/config'
 import type { ActiveView } from '@orbit/shared/stores'
 import en from '@orbit/shared/i18n/en.json'
@@ -24,6 +25,7 @@ const TestRenderer = require('react-test-renderer')
 
 const useWatchMock = vi.fn()
 const mockSuggestMutateAsync = vi.fn()
+const mockFormReset = vi.fn()
 const mockSetValue = vi.fn()
 const mockGetValues = vi.fn((..._args: unknown[]): unknown => ({}))
 const mockSetFlexible = vi.fn()
@@ -122,7 +124,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
     reportBackendErrors: vi.fn(() => false),
     form: {
       control: { values: {} },
-      reset: vi.fn(),
+      reset: mockFormReset,
       setValue: mockSetValue,
       getValues: (field?: string) => {
         if (field === 'itemType') return 'habit'
@@ -256,6 +258,13 @@ describe('CreateHabitModal (mobile)', () => {
     const tree = renderModal(<CreateHabitModal open presentation="screen" onClose={vi.fn()} />)
     await TestRenderer.act(async () => { await Promise.resolve() })
     expect(mockSetGeneral).toHaveBeenCalledTimes(view === 'general' ? 1 : 0)
+    tree.unmount()
+  })
+
+  it('opens a suggestion with its complete type, schedule and checklist prefilled', async () => {
+    const tree = renderModal(<CreateHabitModal open initialSuggestion={habitSuggestionDraftFixture} onClose={vi.fn()} />)
+    await TestRenderer.act(async () => { await Promise.resolve() })
+    expect(mockFormReset).toHaveBeenCalledWith(expect.objectContaining({ title: 'Read', itemType: 'habit', emoji: '📖', dueTime: '22:00', dueEndTime: '22:15', checklistItems: [{ text: 'Choose a book', isChecked: false }, { text: 'Read a page', isChecked: false }] }))
     tree.unmount()
   })
 

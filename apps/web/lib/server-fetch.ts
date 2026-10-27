@@ -172,7 +172,7 @@ export async function serverAuthMutate<T = unknown>(
   schema?: ZodType<T>,
 ): Promise<T> {
   const { skipAuthRecovery, ...requestInit } = init
-  const astraAction = /^\/api\/ai\/pending-operations\/[^/]+\/(confirm|execute)$/.exec(path)
+  const astraAction = /^\/api\/ai\/pending-operations\/[^/]+\/(confirm|execute)$/.exec(path.replace(/\?.*$/, ''))
   if (astraAction) {
     return observeProxyFailure(`/api/ai/pending-operations/:id/${astraAction[1]}`, (recordUpstream) =>
       fetchWithSession(path, requestInit, schema, intendedAccountId, recordUpstream, undefined, skipAuthRecovery),
@@ -190,6 +190,7 @@ export async function serverPublicFetch<T = unknown>(
   path: string,
   init: RequestInit = {},
   schema?: ZodType<T>,
+  onResponseHeaders?: (headers: Headers) => void,
 ): Promise<T | null> {
   const language = await getServerRequestLanguage()
   const appVersion = process.env.APP_VERSION
@@ -210,6 +211,7 @@ export async function serverPublicFetch<T = unknown>(
     const error = await res.json().catch(() => null) as Record<string, unknown> | null
     throw createApiClientError(res.status, error, `Failed with status ${res.status}`, res.headers.get('retry-after'))
   }
+  onResponseHeaders?.(res.headers)
   const text = await res.text()
   if (!text) return null
   return parseResponseBody(text, schema, path)

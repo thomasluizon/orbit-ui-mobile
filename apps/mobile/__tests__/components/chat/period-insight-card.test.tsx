@@ -8,7 +8,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { PeriodInsightCard } from '@/components/chat/period-insight-card'
 
 let pathname = '/'
-const push = vi.fn((destination: string) => { pathname = destination })
+const push = vi.fn((destination: string | { pathname: string; params: { id: string } }) => { pathname = typeof destination === 'string' ? destination : destination.pathname })
 vi.mock('expo-router', () => ({ useRouter: () => ({ push }) }))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
@@ -51,20 +51,15 @@ describe('period insight card on mobile', () => {
     useUIStore.getState().setAstraConversationOpen(true)
     pathname = '/'
     const root = render(<App />)
-    const progress = root.findByProps({ accessibilityLabel: 'chat.insight.progressLink' })
-    void act(() => { (progress.props.onPress as () => void)() })
-    expect(push).toHaveBeenCalledWith('/progress')
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
-    expect(root.findAllByType('View').filter(node => node.props.testID === 'shell-conversation')).toHaveLength(0)
-    expect(root.findByProps({ testID: 'shell-background' }).props.importantForAccessibility).toBe('auto')
-    expect(root.findAllByType('Text').some(node => node.props.children === '/progress')).toBe(true)
+    expect(root.findAllByType('Text').some(node => node.props.children === 'chat.insight.progressLink')).toBe(false)
+    expect(push).not.toHaveBeenCalled()
   })
 
   it('starts with scoped figures and reveals every supplied narrative section', () => {
     const root = render(<PeriodInsightCard periodInsight={insight} />)
     const chart = root.findByProps({ testID: 'bar-chart-control' })
     void act(() => { (chart.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { width: 320 } } }) })
-    expect(root.findAllByType('Path')).toHaveLength(7)
+    expect(chart.findAllByType('Path')).toHaveLength(7)
     expect(root.findAllByType('Text').some(node => node.props.children === 'chat.insight.title')).toBe(true)
     expect(root.findAllByType('Text').some(node => node.props.children === 'chat.insight.currentStreak')).toBe(false)
     expect(root.findAllByType('Text').some(node => node.props.children === 'chat.insight.bestStreak')).toBe(false)
@@ -79,7 +74,8 @@ describe('period insight card on mobile', () => {
     const announcement = root.findByProps({ testID: 'insight-detail-announcement' })
     expect(announcement.props.accessibilityLiveRegion).toBe('polite')
     expect(announcement.findAllByType('Text').some(node => node.props.children === 'Reading')).toBe(true)
-    expect(root.findByProps({ testID: 'block-frame-item-attention-0-pending' })).toBeDefined()
+    const attentionRow = root.findAllByType('View').find(node => node.props.testID === 'habit-block-row' && node.findAllByType('Text').some(text => text.props.children === 'Read'))!
+    expect(attentionRow.findAllByType('Text').some(node => JSON.stringify(node.props.children) === '[20,"%"]')).toBe(true)
     const less = root.findByProps({ accessibilityLabel: 'chat.readBlock.less' })
     expect(less.props.accessibilityState).toMatchObject({ expanded: true })
     void act(() => { (less.props.onPress as () => void)() })
@@ -91,7 +87,7 @@ describe('period insight card on mobile', () => {
 
   it('omits a missing chart with empty narrative defaults', () => {
     const root = render(<PeriodInsightCard periodInsight={{ ...insight, series: null, narrative: { highlights: '', trends: '', suggestion: '', missed: '' } }} />)
-    expect(root.findAllByType('Path')).toHaveLength(0)
+    expect(root.findAllByType('Path')).toHaveLength(2)
     const more = root.findByProps({ accessibilityLabel: 'chat.habitList.more' })
     void act(() => { (more.props.onPress as () => void)() })
     expect(root.findAllByType('Text').some(node => node.props.children === 'chat.insight.highlights')).toBe(false)
@@ -103,6 +99,15 @@ describe('period insight card on mobile', () => {
     void act(() => { (more.props.onPress as () => void)() })
     const label = root.findAllByType('Text').find(node => node.props.children === `chat.insight.needsAttention: ${name}`)
     expect(label?.props.numberOfLines).toBeUndefined()
+  })
+
+  it('opens the supplied habit from a recap row', () => {
+    push.mockClear()
+    const habitId = '92ca0543-c3e1-4f41-9370-c55e1bfa8157'
+    const root = render(<PeriodInsightCard periodInsight={{ ...insight, topHabits: [{ ...insight.topHabits[0]!, habitId }] }} />)
+    void act(() => { (root.findByProps({ accessibilityLabel: 'chat.habitList.more' }).props.onPress as () => void)() })
+    void act(() => { (root.findByProps({ accessibilityLabel: 'chat.insight.topHabit: Walk' }).props.onPress as () => void)() })
+    expect(push).toHaveBeenCalledWith({ pathname: '/habits/[id]', params: { id: habitId } })
   })
 
 })

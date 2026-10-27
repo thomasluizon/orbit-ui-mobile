@@ -11,7 +11,10 @@ async function waitForHealthyApi(origin) {
       const response = await fetch(`${origin}/health`, {
         method: 'GET', redirect: 'error', signal: AbortSignal.timeout(Math.min(60000, deadline - Date.now())),
       })
-      if (response.ok && (await response.json()).status === 'Healthy') return
+      if (response.ok) {
+        const health = await response.json()
+        if (health.status === 'Healthy') return health
+      }
     } catch {
       // Health probes are safe to retry before submitting a rotating refresh.
     }
@@ -21,11 +24,11 @@ async function waitForHealthyApi(origin) {
   throw new Error('API did not become Healthy within the bounded startup wait; no refresh was sent.')
 }
 
-async function wakeApi() {
+export async function healthyApi({ fresh = false } = {}) {
   const origin = apiOrigin()
   const key = `${origin}:${process.env.ORBIT_EVAL_CREDENTIALS_FILE}`
-  if (!readiness.has(key)) readiness.set(key, waitForHealthyApi(origin))
-  try { await readiness.get(key) } catch (error) { readiness.delete(key); throw error }
+  if (fresh || !readiness.has(key)) readiness.set(key, waitForHealthyApi(origin))
+  try { return await readiness.get(key) } catch (error) { readiness.delete(key); throw error }
 }
 
 export function apiOrigin() {
@@ -100,7 +103,7 @@ export async function refreshCredential(key) {
     const token = await updateCredentials(async (credentials) => {
       const account = credentials[key]
       if (typeof account?.refreshToken !== 'string' || !account.refreshToken.trim()) throw new Error('Missing refresh token.')
-      await wakeApi()
+      await healthyApi()
       const refreshUrl = `${apiOrigin()}/api/auth/refresh`
       const refreshOptions = {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'api-version': '2.0' },

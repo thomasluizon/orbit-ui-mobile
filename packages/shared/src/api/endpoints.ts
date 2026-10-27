@@ -1,4 +1,9 @@
 export const API = {
+  onboarding: {
+    challenge: '/api/onboarding/challenge',
+    install: '/api/onboarding/install',
+    suggestSetup: '/api/onboarding/suggest-setup',
+  },
   proactive: {
     current: '/api/ai/proactive/current',
     status: (id: string) => `/api/ai/proactive/${id}` as const,
@@ -143,6 +148,9 @@ export const API = {
   },
 
   chat: {
+    refineHabitSuggestion: '/api/chat/habit-suggestions/refine',
+    previewHabitSuggestion: '/api/chat/habit-suggestions/preview',
+    previewAllHabitSuggestions: '/api/chat/habit-suggestions/preview-all',
     send: '/api/chat',
     stream: '/api/chat/stream',
     transcribe: '/api/chat/transcribe',

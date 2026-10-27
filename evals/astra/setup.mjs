@@ -12,13 +12,19 @@ export async function prepareCorrection(test) {
   const provider = new AstraHttpProvider({ config: {
     ...configuration.providers[0].config, transformResponse: `file://${fileURLToPath(new URL('./response.mjs', import.meta.url))}`,
   } })
-  const vars = { ...test.vars, ...setup, evalRequestId: requestId, historyJson: '[]' }
+  const vars = { ...test.vars, refine: undefined, ...setup, evalRequestId: requestId, historyJson: '[]' }
   const response = await provider.callApi(setup.input, { vars })
   if (response.error || !response.output) throw new Error('Correction setup returned no verifiable answer.')
   const context = { vars, test }
   const checks = await Promise.all([structural(response.output, context), behavior(response.output, context), composition(response.output, context)])
   if (checks.some((check) => check.pass !== true || check.metadata?.skipped || check.metadata?.unavailable)) {
     throw new Error('Correction setup failed its tool or composition gate.')
+  }
+  if (test.vars.refine) {
+    const drafts = response.output.composition.parts.find((part) => part.kind === 'habitSuggestions').block.drafts
+    test.vars.baselineDrafts = structuredClone(drafts)
+    test.vars.refineDraft = structuredClone(drafts[0])
+    return { test }
   }
   test.vars.baselinePreview = response.output.composition.pendingOperations
   const correction = test.vars.composition?.correction

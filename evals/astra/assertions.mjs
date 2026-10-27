@@ -1,11 +1,32 @@
+import { refineResult } from './suggestions.mjs'
 export { composition } from './composition.mjs'
 import { assertions } from 'promptfoo'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { isDeepStrictEqual } from 'node:util'
 
-const catalog = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
-const toolWrites = new Map(catalog.map((tool) => [tool.function.name, tool.writes]))
+const { tools, legacyTools } = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
+const toolWrites = new Map(tools.map((tool) => [tool.function.name, tool.writes]))
+const toolSensitiveFields = new Map(tools.map((tool) => [tool.function.name, new Set(tool.sensitiveFields)]))
+const normalizeField = (name) => name.replaceAll('_', '').replaceAll('-', '').toLowerCase()
+
+function observableSchema(schema, sensitiveFields) {
+  if (Array.isArray(schema)) return schema.map((entry) => observableSchema(entry, sensitiveFields))
+  if (!schema || typeof schema !== 'object') return schema
+  return Object.fromEntries(Object.entries(schema).map(([key, value]) => {
+    if (key === 'properties') return [key, Object.fromEntries(Object.entries(value)
+      .filter(([name]) => !sensitiveFields.has(normalizeField(name)))
+      .map(([name, property]) => [name, observableSchema(property, sensitiveFields)]))]
+    if (key === 'required') return [key, value.filter((name) => !sensitiveFields.has(normalizeField(name)))]
+    return [key, observableSchema(value, sensitiveFields)]
+  }))
+}
+
+const traceCatalog = (catalog) => catalog.map((tool) => ({ ...tool, function: { ...tool.function,
+  parameters: observableSchema(tool.function.parameters, new Set(tool.sensitiveFields)),
+} }))
+const compositionCatalog = traceCatalog(tools)
+const legacyCatalog = traceCatalog(legacyTools)
 
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
 const decode = (output) => typeof output === 'string' ? JSON.parse(output) : output
@@ -43,7 +64,9 @@ function traceBoundary(output, context) {
     ids.add(call.id)
     if (call.resultStatus === 'NotExecuted' && call.result === null) continue
     const payload = call.result
-    if (!isObject(payload) || payload.id !== call.id || payload.name !== call.name
+    const omitsName = toolSensitiveFields.get(call.name)?.has('name') === true
+    if (!isObject(payload) || payload.id !== call.id
+      || (omitsName ? Object.hasOwn(payload, 'name') : payload.name !== call.name)
       || typeof payload.success !== 'boolean' || !Object.hasOwn(payload, 'payload')
       || !['entityId', 'entityName', 'error'].every((key) => Object.hasOwn(payload, key)
         && (payload[key] === null || typeof payload[key] === 'string'))) {
@@ -54,12 +77,13 @@ function traceBoundary(output, context) {
 }
 
 export async function structural(output, context) {
+  if (context.vars.refine) return refineResult(decode(output), context.vars)
   const trace = traceBoundary(output, context)
   if ('pass' in trace) return trace
   if (trace.calls.length === 0) return result(true, 'No tool calls to validate.')
   return assertions.runAssertion({
     assertion: { type: 'is-valid-openai-tools-call' },
-    provider: { config: { tools: catalog } },
+    provider: { config: { tools: context.vars.clientContext?.supportsParts === true ? compositionCatalog : legacyCatalog } },
     test: context.test,
     providerResponse: { output: trace.calls.map((call) => ({
       type: 'function', function: { name: call.name, arguments: JSON.stringify(call.arguments) },
@@ -114,6 +138,7 @@ function checkMutationScope(calls, expectations) {
 export function behavior(output, context) {
   const { httpStatus = 200 } = decode(output)
   if (httpStatus !== (context.vars.expectedHttpStatus ?? 200)) return result(false, 'Unexpected HTTP outcome for this scenario.')
+  if (context.vars.refine) return refineResult(decode(output), context.vars)
   const trace = traceBoundary(output, context)
   if ('pass' in trace) return trace
   const expectations = context.vars.expectations

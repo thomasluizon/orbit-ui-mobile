@@ -578,7 +578,7 @@ function findButtonByName(
 const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
 
 function expectProfileRowIcons(row: ReactTestInstance, index: number, isLifetimePro: boolean) {
-  const leadingIcons = ['User', 'Crown', 'Settings', 'MessageCircle', 'Bell']
+  const leadingIcons = ['User', 'Crown', 'Settings', 'Svg', 'Bell']
   const contents = row.findAll((node: { type: unknown }) =>
     typeof node.type === 'string' && [...leadingIcons, 'Text', 'ChevronRight'].includes(node.type))
   const icons = contents.filter((node: { type: unknown }) => node.type !== 'Text')
@@ -587,6 +587,7 @@ function expectProfileRowIcons(row: ReactTestInstance, index: number, isLifetime
   expect(contents[0]!.type).toBe(leadingIcons[index])
   expect(contents[1]!.type).toBe('Text')
   expect(icons[0]!.props.size ?? icons[0]!.props.width).toBe(24)
+  if (index === 3) expect(icons[0]!.props).toMatchObject({ testID: 'astra-mark', color: createTokensV2('orange', 'dark').fg1, accessible: false })
   if (navigates) {
     expect(contents.at(-1)!.type).toBe('ChevronRight')
   }

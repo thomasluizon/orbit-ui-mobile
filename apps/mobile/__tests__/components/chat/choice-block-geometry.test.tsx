@@ -30,8 +30,8 @@ it.each([320, 412, 1352].flatMap(width => (['en', 'pt-BR'] as const).map(locale 
     const rows = layout.boxes.filter(box => box.testID === 'action-row')
     expect(rows).toHaveLength(3)
     for (const row of rows) {
-      const action = layout.controls.find(control => control.labels.includes(locale === 'en' ? 'Send' : 'Enviar') && control.top >= row.top && control.bottom <= row.bottom)
-        ?? layout.controls.find(control => control.labels.includes(locale === 'en' ? 'Review' : 'Revisar') && control.top >= row.top && control.bottom <= row.bottom)
+      const action = layout.controls.find(control => control.accessibilityLabel === (locale === 'en' ? 'Send' : 'Enviar') && control.top >= row.top && control.bottom <= row.bottom)
+        ?? layout.controls.find(control => control.accessibilityLabel === (locale === 'en' ? 'Review' : 'Revisar') && control.top >= row.top && control.bottom <= row.bottom)
       expect(action).toBeDefined()
       expect(action!.right).toBeCloseTo(row.right, 1)
     }

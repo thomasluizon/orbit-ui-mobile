@@ -33,7 +33,7 @@ function pendingOperationError(
 }
 
 function isStalePreviewFailure(failure: { status?: number; error: string; code?: string }): boolean {
-  return failure.status === 409 && !reportsAccountChanged(failure)
+  return (failure.status === 409 || failure.status === 404) && !reportsAccountChanged(failure)
 }
 
 function accountChanged(id: string | null, generation: number): boolean {

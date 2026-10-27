@@ -10,5 +10,8 @@ export function blockDesktopWebReload() {
 export function hasWebReloadBlockers(): boolean { return reloadBlockers.size > 0 }
 
 export function forgetDesktopChatCheckpoint(): void {
-  globalThis.sessionStorage.removeItem(desktopChatCheckpointKey)
+  try { globalThis.sessionStorage.removeItem(desktopChatCheckpointKey) }
+  finally {
+    if (globalThis.localStorage.getItem(desktopChatCheckpointKey) !== null) globalThis.localStorage.removeItem(desktopChatCheckpointKey)
+  }
 }

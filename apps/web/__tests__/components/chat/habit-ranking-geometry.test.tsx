@@ -48,7 +48,7 @@ describe('habit ranking text and targets in Chromium', () => {
             const inset = pseudo.content === 'none' ? 0 : Math.min(0, Number.parseFloat(pseudo.top) || 0)
             return { label: button.getAttribute('aria-label') ?? button.textContent, width: rect.width - inset * 2, height: rect.height - inset * 2, left: rect.left, right: rect.right }
           }),
-          counts: [...main.querySelectorAll('[data-slot="list-row-value"]')].map(element => ({ text: element.textContent, scroll: element.scrollWidth, width: element.clientWidth, overflow: getComputedStyle(element).textOverflow })),
+          counts: [...main.querySelectorAll('[data-habit-block-meta]')].map(element => ({ text: element.textContent, scroll: element.scrollWidth, width: element.clientWidth, overflow: getComputedStyle(element).textOverflow })),
         }
       })
       expect(measured.scroll).toBeLessThanOrEqual(measured.width + 1)

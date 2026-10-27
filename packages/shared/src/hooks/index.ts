@@ -30,3 +30,4 @@ export * from './goal-habit-picker-core'
 
 export { createMenuOwnership, createUseMenuState, type MenuOwnership, type MenuState, type MenuStateHook } from './menu-state-core'
 export * from './preview-title-core'
+export { createUsePendingOperationPlacement, type PendingOperationPlacementEdit } from './pending-operation-placement-core'

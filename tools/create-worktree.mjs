@@ -165,7 +165,7 @@ const holderIsAlive = (holder) => {
     // A denied metadata probe cannot prove that a live holder has been replaced.
     return identity === null || identity === holder.processStartIdentity
   } catch (error) {
-    if (error.code === "ENOENT") return false
+    if (error.code === "ENOENT" || error.code === "ESRCH") return false
     if (error.code === "EACCES" || error.code === "EPERM") return true
     throw error
   }

@@ -12,9 +12,3 @@ export function filterRecordListItems(items: RecordItem[], query: string, locale
 export function isUnreadRecord(kind: RecordListCard['kind'], item: RecordItem, readIds: ReadonlySet<string>): boolean {
   return kind === 'notifications' && item.isRead === false && !readIds.has(item.id)
 }
-
-export function recordListDestination(card: RecordListCard): '/profile' | '/notifications' | null {
-  if (card.kind === 'habitHistory') return null
-  if (card.surfaceId === 'profile') return '/profile'
-  return card.surfaceId === 'notifications' ? '/notifications' : null
-}

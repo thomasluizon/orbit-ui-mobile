@@ -1,4 +1,4 @@
-import { makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { personalText } from '@/__tests__/support/personal-text'
 import en from '@orbit/shared/i18n/en.json'
@@ -88,7 +88,7 @@ describe('PendingOperationCard', () => {
     const { container } = render(<PendingOperationCard pendingOperation={makeChildSchedulePreview(scenario.child)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     const row = container.querySelector('[data-indented]')!
     expect(row.textContent).toContain(scenario.child.title)
-    expect(within(row as HTMLElement).getByText((locale === 'en' ? scenario.english : scenario.portuguese).replace('21:30', '9:30 PM').replace('23:00', '11:00 PM'))).toBeInTheDocument()
+    expect(within(row as HTMLElement).getByText((locale === 'en' ? scenario.english.replace(/ · (\d{2}:\d{2})/g, ' · at $1') : scenario.portuguese.replace(/ · (\d{2}:\d{2})/g, ' · às $1')).replace('21:30', '9:30 PM').replace('23:00', '11:00 PM'))).toBeInTheDocument()
   })
 
   it.each(['en', 'pt-BR'])('shows every evening routine child and revises child removal in %s', async (locale) => {
@@ -100,8 +100,8 @@ describe('PendingOperationCard', () => {
     revise.mockResolvedValue({ ok: true, result: { cancelled: false, preview: revised } })
     const { container } = render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     expect(container.querySelectorAll('[data-indented]')).toHaveLength(3)
-    expect(screen.getAllByText(`${(locale === 'en' ? en : ptBR).habits.frequency.everyDay} · 9:30 PM`)).toHaveLength(3)
-    expect(screen.getByText(`${(locale === 'en' ? en : ptBR).habits.frequency.everyDay} · 11:00 PM`)).toBeInTheDocument()
+    expect(screen.getAllByText(`${(locale === 'en' ? en : ptBR).habits.frequency.everyDay} · ${locale === 'en' ? 'at' : 'às'} 9:30 PM`)).toHaveLength(3)
+    expect(screen.getByText(`${(locale === 'en' ? en : ptBR).habits.frequency.everyDay} · ${locale === 'en' ? 'at' : 'às'} 11:00 PM`)).toBeInTheDocument()
     for (const child of children) expect(screen.getByText(personalText(child.title))).toBeInTheDocument()
     const messages = locale === 'en' ? en : ptBR
     expect(container.textContent).not.toContain(messages.chat.preview.summary.buildHabit)
@@ -135,7 +135,7 @@ describe('PendingOperationCard', () => {
     visibleLocale.actual = true
     visibleLocale.language = locale
     render(<PendingOperationCard pendingOperation={makeCreateHabitsPreview(count)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
-    expect(screen.getByRole('heading', { name: locale === 'en' ? count === 1 ? 'New habit' : 'New habits' : count === 1 ? 'Novo hábito' : 'Novos hábitos' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: locale === 'en' ? count === 1 ? 'New habit' : `${count} new habits` : count === 1 ? 'Novo hábito' : `${count} novos hábitos` })).toBeInTheDocument()
     expect(screen.queryByText((locale === 'en' ? en : ptBR).chat.pendingOp.capability['habits-bulk-write'])).not.toBeInTheDocument()
   })
 
@@ -316,7 +316,7 @@ describe('PendingOperationCard', () => {
       visibleLocale.actual = true
       visibleLocale.language = locale
       const operation = makePendingWriteSummaryOperation(scenario)
-      const expected = locale === 'en' ? scenario.english : scenario.portuguese
+      const expected = locale === 'en' ? scenario.english.replace(/ · (\d{2}:\d{2})/g, ' · at $1') : scenario.portuguese.replace(/ · (\d{2}:\d{2})/g, ' · às $1')
       render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
       expect(screen.getByText(expected)).toBeInTheDocument()
       expect(screen.getAllByText('Read')).toHaveLength(1)
@@ -327,7 +327,7 @@ describe('PendingOperationCard', () => {
       visibleLocale.actual = true
       visibleLocale.language = locale
       const operation = makePartialScheduleSummaryOperation(scenario)
-      const expected = locale === 'en' ? scenario.english : scenario.portuguese
+      const expected = locale === 'en' ? scenario.english.replace(/ · (\d{2}:\d{2})/g, ' · at $1') : scenario.portuguese.replace(/ · (\d{2}:\d{2})/g, ' · às $1')
       render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
       expect(screen.getByText(expected)).toBeInTheDocument()
     })
@@ -1064,7 +1064,7 @@ it.each(['en', 'pt-BR'])('shows icons beside readable titles without chevrons or
   const item = operation.items![0]!
   item.fields.push({ ...item.fields[0]!, field: 'emoji', newValue: '🩺', proposedValue: '🩺' })
   const { container } = render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
-  expect(screen.getByText('🩺').parentElement).toHaveTextContent('Habit 1')
+  expect(screen.getByText('🩺').closest('[data-personal-text-action]')).toHaveTextContent('Habit 1')
   expect(screen.getByRole('button', { name: 'Habit 1' })).toHaveAttribute('aria-expanded', 'false')
   expect(screen.getByText('🩺').parentElement?.querySelector('svg')).toBeNull()
   expect(container.textContent).not.toMatch(/Usar 🩺|Use 🩺/)
@@ -1296,4 +1296,112 @@ it('edits an offered parent in Full Edit before saving the preview', async () =>
   expect(onRevise).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
   await waitFor(() => expect(onRevise).toHaveBeenCalledWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [{ itemId: '0', edits: { parent_habit_id: null } }] }))
+})
+
+
+describe('placement preview', () => {
+  beforeEach(() => { visibleLocale.actual = true; visibleLocale.language = 'en'; revise.mockReset() })
+
+  it('shows the placement recommendation and switches the retained batch in place', async () => {
+    const operation = makePlacementPreview()
+    const next = { ...makePlacementPreview('new_parent'), previewFingerprint: 'placement-next' }
+    revise.mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, cancelled: false, preview: next } })
+    render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    const group = screen.getByRole('radiogroup', { name: 'Placement for Habit 1' })
+    expect(within(group).getAllByRole('radio')).toHaveLength(3)
+    expect(screen.getByText(/You already keep 4 checklist items here/)).toBeInTheDocument()
+    fireEvent.click(within(group).getByRole('radio', { name: 'New parent habit' }))
+    await waitFor(() => expect(revise).toHaveBeenCalledExactlyOnceWith(operation.id, {
+      previewFingerprint: operation.previewFingerprint, items: [{ itemId: '0', placement: 'new_parent' }, { itemId: '1' }],
+    }))
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'New parent habit' })).toHaveAttribute('aria-checked', 'true'))
+  })
+})
+
+
+describe('placement states', () => {
+  beforeEach(() => { visibleLocale.actual = true; visibleLocale.language = 'en'; revise.mockReset(); confirm.mockReset() })
+
+  it.each(['en', 'pt-BR'])('switches through every placement and preserves the draft in %s', async (locale) => {
+    visibleLocale.language = locale
+    const operation = makePlacementPreview()
+    const settled = vi.fn()
+    render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onStateChange={settled} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    for (const value of ['sub_habit', 'new_parent', 'checklist_item'] as const) {
+      const next = { ...makePlacementPreview(value), previewFingerprint: `placement-${value}` }
+      revise.mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, cancelled: false, preview: next } })
+      const label = translateVisible(`chat.placement.option.${value}`, { name: 'Morning routine' })
+      fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${label}`) }))
+      await waitFor(() => expect(screen.getByRole('radio', { name: new RegExp(`^${label}`) })).toHaveAttribute('aria-checked', 'true'))
+      const patch = settled.mock.lastCall![0]
+      expect(patch.operation.items[0].fields).toEqual(operation.items![0]!.fields)
+      expect(patch.operation.items[1]).toEqual(operation.items![1])
+      expect(patch.operation.items[0].placement.recommended).toBe('checklist_item')
+    }
+    expect(revise.mock.calls.map((call) => call[1])).toEqual([
+      { previewFingerprint: 'create-preview', items: [{ itemId: '0', placement: 'sub_habit' }, { itemId: '1' }] },
+      { previewFingerprint: 'placement-sub_habit', items: [{ itemId: '0', placement: 'new_parent' }, { itemId: '1' }] },
+      { previewFingerprint: 'placement-new_parent', items: [{ itemId: '0', placement: 'checklist_item' }, { itemId: '1' }] },
+    ])
+    const row = screen.getByRole('radiogroup', { name: translateVisible('chat.placement.group', { name: 'Habit 1' }) }).closest('[data-proposed]')!
+    expect(row.textContent).not.toContain('7:30 AM')
+    expect(screen.getByText((locale === 'en' ? en : ptBR).chat.placement.checklistNote)).toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('blocks parallel actions while switching and retries after an offline failure', async () => {
+    let resolveSwitch!: (response: PendingOperationRevisionResponse) => void
+    revise.mockImplementationOnce(() => new Promise<PendingOperationRevisionResponse>((resolve) => { resolveSwitch = resolve }))
+    const operation = makePlacementPreview()
+    render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('radio', { name: 'New parent habit' }))
+    expect(screen.getByRole('button', { name: 'Create 2 habits' })).toBeDisabled()
+    for (const radio of screen.getAllByRole('radio')) expect(radio).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(screen.getByRole('radio', { name: /Sub-habit in Morning routine/ }))
+    expect(revise).toHaveBeenCalledTimes(1)
+    await act(async () => { resolveSwitch({ ok: false, error: 'Offline' }); await Promise.resolve() })
+    expect(screen.getByText(en.chat.operation.invalid)).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /Checklist item in Morning routine/ })).toHaveAttribute('aria-checked', 'true')
+    const next = { ...makePlacementPreview('new_parent'), previewFingerprint: 'retried' }
+    revise.mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, cancelled: false, preview: next } })
+    fireEvent.click(screen.getByRole('radio', { name: 'New parent habit' }))
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'New parent habit' })).toHaveAttribute('aria-checked', 'true'))
+    expect(screen.queryByText(en.chat.operation.invalid)).not.toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('withholds approval when the preview expired and refresh cannot recover it', async () => {
+    revise.mockResolvedValue({ ok: false, error: 'pending_operation_not_found', stale: true })
+    const refresh = vi.fn().mockResolvedValue({ ok: false, error: 'pending_operation_not_found', stale: true })
+    render(<PendingOperationCard pendingOperation={makePlacementPreview()} onRevise={revise} onRefresh={refresh} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('radio', { name: 'New parent habit' }))
+    await waitFor(() => expect(screen.getByText(en.chat.operation.stale)).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Create 2 habits' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: en.chat.operation.refresh }))
+    await waitFor(() => expect(screen.getByText(en.chat.operation.staleUnavailable)).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: en.chat.operation.refresh })).not.toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('keeps the selected placement when the person revises a field after switching', async () => {
+    const operation = makePlacementPreview()
+    const switched = { ...makePlacementPreview('new_parent'), previewFingerprint: 'switched' }
+    revise.mockResolvedValueOnce({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, cancelled: false, preview: switched } })
+    render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('radio', { name: 'New parent habit' }))
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'New parent habit' })).toHaveAttribute('aria-checked', 'true'))
+    const renamed = structuredClone(switched)
+    renamed.previewFingerprint = 'renamed'
+    renamed.items![0]!.fields[0]!.newValue = 'Read books'
+    renamed.items![0]!.fields[0]!.proposedValue = 'Read books'
+    revise.mockResolvedValueOnce({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, cancelled: false, preview: renamed } })
+    fireEvent.click(screen.getByRole('button', { name: en.chat.operation.edit }))
+    fireEvent.change(screen.getByRole('textbox', { name: en.chat.operation.field.title }), { target: { value: 'Read books' } })
+    fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    await waitFor(() => expect(revise).toHaveBeenLastCalledWith(operation.id, {
+      previewFingerprint: 'switched', items: [{ itemId: '0', edits: { title: 'Read books' } }, { itemId: '1' }],
+    }))
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: en.chat.operation.field.title })).not.toBeInTheDocument())
+    expect(screen.getByRole('radio', { name: 'New parent habit' })).toHaveAttribute('aria-checked', 'true')
+  })
 })

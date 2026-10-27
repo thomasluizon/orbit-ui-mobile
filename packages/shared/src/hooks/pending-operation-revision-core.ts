@@ -5,6 +5,7 @@ import type {
   PendingOperationRevisionResult,
   RevisePendingOperationRequest,
 } from '../types/ai'
+import type { PendingOperationPlacementEdit } from './pending-operation-placement-core'
 
 export interface PendingOperationRevisionState {
   sourceId: string
@@ -13,13 +14,15 @@ export interface PendingOperationRevisionState {
   editingItemId: string | undefined
   drafts: Readonly<Record<string, Readonly<Record<string, string>>>>
   editedItemIds: readonly string[]
+  originalItemIds: readonly string[]
   authorizationVersion: number
 }
 
 export function createPendingOperationRevisionState(operation: PendingAgentOperation): PendingOperationRevisionState {
   return {
     sourceId: operation.id, sourceFingerprint: operation.previewFingerprint,
-    operation, editingItemId: undefined, drafts: {}, editedItemIds: [], authorizationVersion: 0,
+    operation, editingItemId: undefined, drafts: {}, editedItemIds: [],
+    originalItemIds: operation.items?.map(item => item.itemId) ?? [], authorizationVersion: 0,
   }
 }
 
@@ -64,13 +67,16 @@ export function applyPendingOperationRevisionPreview(
   current: PendingOperationRevisionState,
   preview: PendingOperationChangePreview,
   editedItemId?: string,
+  selected: readonly PendingOperationItem[] = current.operation.items ?? [],
 ): PendingOperationRevisionState {
   const items = preview.items ?? []
   const itemIds = new Set(items.map((item) => item.itemId))
+  const selectedIds = new Set(selected.map(item => item.itemId))
   return {
     ...current,
     operation: { ...current.operation, ...preview },
     authorizationVersion: current.authorizationVersion + 1,
+    originalItemIds: (current.operation.items ?? []).flatMap((item, index) => selectedIds.has(item.itemId) ? [current.originalItemIds[index]!] : []),
     drafts: Object.fromEntries(Object.entries(current.drafts).filter(([id]) => id !== editedItemId && itemIds.has(id))),
     editedItemIds: [...new Set([...current.editedItemIds, ...(editedItemId ? [editedItemId] : [])])]
       .filter((id) => itemIds.has(id)),
@@ -172,12 +178,14 @@ export function pendingOperationRevisionRequest(
   previewFingerprint: string,
   selected: readonly PendingOperationItem[],
   edits?: { itemId: string; values: Record<string, unknown> },
+  placement?: PendingOperationPlacementEdit,
 ): RevisePendingOperationRequest {
   return {
     previewFingerprint,
     items: selected.map((item) => ({
       itemId: item.itemId,
       ...(edits?.itemId === item.itemId ? { edits: edits.values } : {}),
+      ...(placement?.itemId === item.itemId ? { placement: placement.value } : {}),
     })),
   }
 }

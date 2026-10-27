@@ -5,7 +5,7 @@ import { expect, it, vi } from 'vitest'
 import { habitKeys } from '@orbit/shared/query'
 import { habitListQueryFilters } from '@orbit/shared/utils'
 import { createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
-import { inPlaceDayFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
+import { inPlaceDayFixture, rangeDaySummaryFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
 import { DaySummaryCard } from '@/components/chat/day-summary-card'
 
 vi.mock('@/hooks/use-habits', async () => {
@@ -30,6 +30,12 @@ it('subscribes to a log on Hoje through the real habit query cache', async () =>
     await new Promise(resolve => setTimeout(resolve, 10))
   })
   expect(tree.root.findAll(node => node.props.accessibilityLabel === 'chat.habitList.unlog:Habit 1').length).toBeGreaterThan(0)
+  expect(tree.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]?.props.accessibilityValue).toMatchObject({ now: 4 })
+  await act(async () => {
+    client.setQueryData(key, occurrences)
+    await new Promise(resolve => setTimeout(resolve, 10))
+  })
+  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'chat.habitList.log:Habit 1').length).toBeGreaterThan(0)
   expect(tree.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]?.props.accessibilityValue).toMatchObject({ now: 0 })
   await act(() => tree.unmount())
   client.clear()
@@ -43,9 +49,34 @@ it('retains the nothing-due state without a completion ring', async () => {
   await act(() => { tree = create(<QueryClientProvider client={client}><DaySummaryCard daySummary={{ ...inPlaceDayFixture, due: 0, done: 0, completionRate: null, rows: [], totalRows: 0 }} /></QueryClientProvider>) as GeometryTree })
   expect(tree.root.findAll(node => node.props.children === 'chat.daySummary.nothingDue').length).toBeGreaterThan(0)
   expect(tree.root.findAll(node => node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
-  expect(tree.root.findAll(node => node.props.children === 'chat.daySummary.open' && typeof node.props.onClick === 'function').length).toBeGreaterThan(0)
+  expect(tree.root.findAll(node => node.props.children === 'chat.daySummary.open' && typeof node.props.onClick === 'function')).toHaveLength(0)
   await act(() => tree.unmount())
   client.clear()
 })
 
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
+
+it('keeps a seven-day summary and its saved check when the first-day cache changes', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })
+  const filters = { dateFrom: rangeDaySummaryFixture.date, dateTo: rangeDaySummaryFixture.date, includeGeneral: true, includeOverdue: true }
+  const key = habitKeys.list(habitListQueryFilters(filters, true))
+  const habit = createMockHabitScheduleItem({ id: 'habit-1', dueDate: rangeDaySummaryFixture.date })
+  client.setQueryData(key, [habit])
+  let tree!: GeometryTree
+  await act(() => { tree = create(<QueryClientProvider client={client}><DaySummaryCard daySummary={rangeDaySummaryFixture} /></QueryClientProvider>) as GeometryTree })
+  const assertSnapshot = () => {
+    expect(tree.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]?.props.accessibilityValue).toMatchObject({ now: 43 })
+    expect(tree.root.findAll(node => node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'chat.habitList.logged').length).toBeGreaterThan(0)
+    expect(tree.root.findAll(node => /chat.habitList\.(log|unlog):/.test(String(node.props.accessibilityLabel)))).toHaveLength(0)
+  }
+  assertSnapshot()
+  for (const isLoggedInRange of [true, false]) {
+    await act(async () => {
+      client.setQueryData(key, [{ ...habit, isLoggedInRange }])
+      await new Promise(resolve => setTimeout(resolve, 10))
+    })
+    assertSnapshot()
+  }
+  await act(() => tree.unmount())
+  client.clear()
+})

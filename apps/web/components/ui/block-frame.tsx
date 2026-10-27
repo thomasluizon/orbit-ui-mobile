@@ -1,6 +1,7 @@
 'use client'
 
 import { IconButton } from '@/components/ui/icon-button'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 
 import { SPACING } from '@orbit/shared/theme'
 
@@ -99,7 +100,7 @@ function FrameRowContent(props: ResolvedBlockFrameRow) {
 }
 
 function FrameRow(props: ResolvedBlockFrameRow) {
-  return <Proposed proposed={props.item.proposed === true} scope="row" label={props.proposedLabel ?? ''} keepMounted>
+  return <Proposed appearance="plain" proposed={props.item.proposed === true} scope="row" label={props.proposedLabel ?? ''} keepMounted>
     <FrameRowContent {...props} />
     {props.item.body ? <div className="px-3 pb-3">{props.item.body}</div> : null}
   </Proposed>
@@ -142,6 +143,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem }: Read
   const t = useTranslations('blockFrame')
 
   if (frameProps.state === 'stale') {
+    if (!frameProps.onRefresh && !frameProps.staleActions) return null
     return (
       <ActionRow>
         {frameProps.onRefresh ? <IconButton label={frameProps.refreshLabel ?? t('refresh')} onClick={frameProps.onRefresh}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
@@ -180,17 +182,18 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
 
   return (
     <section
-      className="flex max-h-full min-h-0 flex-col gap-6 bg-[var(--bg-card)] text-[var(--fg-1)]"
+      className="flex max-h-full min-h-0 flex-col gap-3 bg-[var(--bg-card)] text-[var(--fg-1)]"
       data-state={props.state}
       aria-busy={props.state === 'acting' || undefined}
       style={{
         borderRadius: PROPOSED_RADIUS.block,
-        padding: SPACING.s24,
+        padding: SPACING.s16,
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
       }}
     >
       <header className={`flex shrink-0 gap-3 ${props.titleMode === 'typed' ? 'min-w-0 flex-col' : 'items-center'}`}>
-        <h3 ref={titleRef} tabIndex={props.focusTitleOnMount ? -1 : undefined} className={props.titleMode === 'typed' ? 'min-w-0 text-base font-medium' : props.wrapTitle ? 'min-w-0 flex-1 break-words text-base font-medium' : 'min-w-0 flex-1 truncate text-base font-medium'}>{props.titleMode === 'typed' ? <PersonalText onClampedChange={setClamped}>{props.title}</PersonalText> : props.title}</h3>
+        <OrbitMark size={20} />
+        <h3 ref={titleRef} tabIndex={props.focusTitleOnMount ? -1 : undefined} className={props.titleMode === 'typed' ? 'min-w-0 text-base font-medium' : props.wrapTitle ? 'min-w-0 flex-1 break-words text-base font-medium' : 'min-w-0 flex-1 truncate text-base font-medium'}>{props.titleContent ?? (props.titleMode === 'typed' ? <PersonalText onClampedChange={setClamped}>{props.title}</PersonalText> : props.title)}</h3>
         <div className="flex shrink-0 items-center justify-end gap-3">
           {props.count !== null && (props.count !== undefined || props.items.length > 0) ? (
             <span className="font-sans text-xs tabular-nums text-[var(--fg-3)]">{props.count ?? props.items.length}</span>

@@ -38,25 +38,26 @@ export function canReloadDesktopWeb() {
     && ui.selectedHabitIds.size === 0 && !editing && !document.querySelector('form')
 }
 
-export async function reloadDesktopWeb(reload: () => void) {
+export async function reloadDesktopWeb(reload: () => void | Promise<void>, persistent = false) {
   const accountId = getHeldAccountId()
-  if (!accountId || !canReloadDesktopWeb()) return false
+  if (!canReloadDesktopWeb()) return false
+  if (!accountId) { await reload(); return true }
   const chat = useChatStore.getState()
   const ui = useUIStore.getState()
-  await writeDesktopChatCheckpoint(accountId, chat, ui.astraConversationOpen)
+  await writeDesktopChatCheckpoint(accountId, chat, ui.astraConversationOpen, persistent)
   if (getHeldAccountId() !== accountId || chat !== useChatStore.getState()
     || ui !== useUIStore.getState() || !canReloadDesktopWeb()) {
     forgetDesktopChatCheckpoint()
     return false
   }
-  reload()
+  await reload()
   return true
 }
 
-export function watchDesktopWebRelease(version: string, commit: string | null, requireUpgrade: (minimum: string) => void) {
+export function watchDesktopWebRelease(version: string, commit: string | null, onAvailable: (release: z.infer<typeof desktopWebReleaseSchema>) => void) {
   let stopped = false
   let checking = false
-  let reloading = false
+  let announced: string | null = null
   let pending: z.infer<typeof desktopWebReleaseSchema> | null = null
   const controller = new AbortController()
 
@@ -75,34 +76,29 @@ export function watchDesktopWebRelease(version: string, commit: string | null, r
     } finally { checking = false }
   }
 
-  async function apply() {
+  function offer() {
     const release = pending
-    if (!release || reloading || stopped) return
+    if (!release || stopped) return
     const incompatible = !shellSupportsWeb(version, release.minimumShellVersion)
     if (!incompatible && (!release.commit || release.commit === commit)) return
     if (!canReloadDesktopWeb()) return
-    reloading = true
-    try {
-      const applied = await reloadDesktopWeb(() => {
-        if (stopped) { forgetDesktopChatCheckpoint(); return }
-        if (incompatible) requireUpgrade(release.minimumShellVersion)
-        else globalThis.location.reload()
-      })
-      if (!applied) reloading = false
-    } catch (error) { reloading = false; captureException(error) }
+    const key = JSON.stringify(release)
+    if (key === announced) return
+    announced = key
+    onAvailable(release)
   }
 
   void check()
   const scheduleCheck = () => { void check() }
   const poll = setInterval(scheduleCheck, 60_000)
-  const reload = setInterval(() => { void apply() }, 1000)
+  const notice = setInterval(offer, 1000)
   window.addEventListener('focus', scheduleCheck)
   window.addEventListener('online', scheduleCheck)
   return () => {
     stopped = true
     controller.abort()
     clearInterval(poll)
-    clearInterval(reload)
+    clearInterval(notice)
     window.removeEventListener('focus', scheduleCheck)
     window.removeEventListener('online', scheduleCheck)
   }

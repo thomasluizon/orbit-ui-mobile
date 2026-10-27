@@ -2919,6 +2919,351 @@ export const GetApiChatHabitRankingResponse = zod.object({
 })
 
 
+export const PostApiChatHabitSuggestionsRefineHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const postApiChatHabitSuggestionsRefineBodyDraftFrequencyUnitTwoTwoMin = -2147483648;
+export const postApiChatHabitSuggestionsRefineBodyDraftFrequencyUnitTwoTwoMax = 2147483647;
+
+export const postApiChatHabitSuggestionsRefineBodyDraftFrequencyQuantityRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatHabitSuggestionsRefineBodyDraftDaysItemTwoMin = -2147483648;
+export const postApiChatHabitSuggestionsRefineBodyDraftDaysItemTwoMax = 2147483647;
+
+export const postApiChatHabitSuggestionsRefineBodyDraftReminderMinutesBeforeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatHabitSuggestionsRefineBodyLanguageDefault = `en`;
+
+export const PostApiChatHabitSuggestionsRefineBody = zod.object({
+  "draft": zod.object({
+  "id": zod.uuid(),
+  "emoji": zod.string(),
+  "title": zod.string(),
+  "type": zod.string(),
+  "frequencyUnit": zod.union([zod.null(),zod.union([zod.enum(['Day', 'Week', 'Month', 'Year']),zod.int().min(postApiChatHabitSuggestionsRefineBodyDraftFrequencyUnitTwoTwoMin).max(postApiChatHabitSuggestionsRefineBodyDraftFrequencyUnitTwoTwoMax)])]),
+  "frequencyQuantity": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsRefineBodyDraftFrequencyQuantityRegExpTwo)]).nullable(),
+  "days": zod.array(zod.union([zod.enum(['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']),zod.int().min(postApiChatHabitSuggestionsRefineBodyDraftDaysItemTwoMin).max(postApiChatHabitSuggestionsRefineBodyDraftDaysItemTwoMax)])),
+  "dueDate": zod.iso.date(),
+  "dueTime": zod.iso.time({}),
+  "dueEndTime": zod.iso.time({}),
+  "reminderMinutesBefore": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsRefineBodyDraftReminderMinutesBeforeRegExpTwo)]).nullable(),
+  "checklistItems": zod.array(zod.string()),
+  "reason": zod.string(),
+  "existingHabitId": zod.uuid().nullish()
+}),
+  "instruction": zod.string(),
+  "language": zod.string().default(postApiChatHabitSuggestionsRefineBodyLanguageDefault)
+})
+
+export const postApiChatHabitSuggestionsRefineResponseFrequencyUnitTwoTwoMin = -2147483648;
+export const postApiChatHabitSuggestionsRefineResponseFrequencyUnitTwoTwoMax = 2147483647;
+
+export const postApiChatHabitSuggestionsRefineResponseFrequencyQuantityRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatHabitSuggestionsRefineResponseDaysItemTwoMin = -2147483648;
+export const postApiChatHabitSuggestionsRefineResponseDaysItemTwoMax = 2147483647;
+
+export const postApiChatHabitSuggestionsRefineResponseReminderMinutesBeforeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const PostApiChatHabitSuggestionsRefineResponse = zod.object({
+  "id": zod.uuid(),
+  "emoji": zod.string(),
+  "title": zod.string(),
+  "type": zod.string(),
+  "frequencyUnit": zod.union([zod.null(),zod.union([zod.enum(['Day', 'Week', 'Month', 'Year']),zod.int().min(postApiChatHabitSuggestionsRefineResponseFrequencyUnitTwoTwoMin).max(postApiChatHabitSuggestionsRefineResponseFrequencyUnitTwoTwoMax)])]),
+  "frequencyQuantity": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsRefineResponseFrequencyQuantityRegExpTwo)]).nullable(),
+  "days": zod.array(zod.union([zod.enum(['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']),zod.int().min(postApiChatHabitSuggestionsRefineResponseDaysItemTwoMin).max(postApiChatHabitSuggestionsRefineResponseDaysItemTwoMax)])),
+  "dueDate": zod.iso.date(),
+  "dueTime": zod.iso.time({}),
+  "dueEndTime": zod.iso.time({}),
+  "reminderMinutesBefore": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsRefineResponseReminderMinutesBeforeRegExpTwo)]).nullable(),
+  "checklistItems": zod.array(zod.string()),
+  "reason": zod.string(),
+  "existingHabitId": zod.uuid().nullish()
+})
+
+
+export const PostApiChatHabitSuggestionsPreviewHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const postApiChatHabitSuggestionsPreviewBodyDraftFrequencyUnitTwoTwoMin = -2147483648;
+export const postApiChatHabitSuggestionsPreviewBodyDraftFrequencyUnitTwoTwoMax = 2147483647;
+
+export const postApiChatHabitSuggestionsPreviewBodyDraftFrequencyQuantityRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatHabitSuggestionsPreviewBodyDraftDaysItemTwoMin = -2147483648;
+export const postApiChatHabitSuggestionsPreviewBodyDraftDaysItemTwoMax = 2147483647;
+
+export const postApiChatHabitSuggestionsPreviewBodyDraftReminderMinutesBeforeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatHabitSuggestionsPreviewBodyLanguageDefault = `en`;
+
+export const PostApiChatHabitSuggestionsPreviewBody = zod.object({
+  "draft": zod.object({
+  "id": zod.uuid(),
+  "emoji": zod.string(),
+  "title": zod.string(),
+  "type": zod.string(),
+  "frequencyUnit": zod.union([zod.null(),zod.union([zod.enum(['Day', 'Week', 'Month', 'Year']),zod.int().min(postApiChatHabitSuggestionsPreviewBodyDraftFrequencyUnitTwoTwoMin).max(postApiChatHabitSuggestionsPreviewBodyDraftFrequencyUnitTwoTwoMax)])]),
+  "frequencyQuantity": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsPreviewBodyDraftFrequencyQuantityRegExpTwo)]).nullable(),
+  "days": zod.array(zod.union([zod.enum(['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']),zod.int().min(postApiChatHabitSuggestionsPreviewBodyDraftDaysItemTwoMin).max(postApiChatHabitSuggestionsPreviewBodyDraftDaysItemTwoMax)])),
+  "dueDate": zod.iso.date(),
+  "dueTime": zod.iso.time({}),
+  "dueEndTime": zod.iso.time({}),
+  "reminderMinutesBefore": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsPreviewBodyDraftReminderMinutesBeforeRegExpTwo)]).nullable(),
+  "checklistItems": zod.array(zod.string()),
+  "reason": zod.string(),
+  "existingHabitId": zod.uuid().nullish()
+}),
+  "language": zod.string().default(postApiChatHabitSuggestionsPreviewBodyLanguageDefault)
+})
+
+export const postApiChatHabitSuggestionsPreviewResponseOperationReadBlockTwoReadTotalCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatHabitSuggestionsPreviewResponsePendingOperationTwoChangesItemIsEditableDefault = false;
+export const postApiChatHabitSuggestionsPreviewResponsePendingOperationTwoChangeTargetCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatHabitSuggestionsPreviewResponsePendingOperationTwoItemsItemFieldsItemIsEditableDefault = false;
+
+export const PostApiChatHabitSuggestionsPreviewResponse = zod.object({
+  "operation": zod.object({
+  "operationId": zod.string(),
+  "sourceName": zod.string(),
+  "riskClass": zod.int(),
+  "confirmationRequirement": zod.int(),
+  "status": zod.int(),
+  "summary": zod.string().nullish(),
+  "targetId": zod.string().nullish(),
+  "targetName": zod.string().nullish(),
+  "policyReason": zod.string().nullish(),
+  "pendingOperationId": zod.uuid().nullish(),
+  "payload": zod.unknown().optional(),
+  "readBlock": zod.union([zod.null(),zod.object({
+  "kind": zod.string(),
+  "block": zod.unknown(),
+  "read": zod.object({
+  "queryId": zod.uuid(),
+  "queryFamily": zod.string(),
+  "scope": zod.unknown(),
+  "revision": zod.string(),
+  "completeness": zod.string(),
+  "refreshToken": zod.string(),
+  "nextCursor": zod.string().nullish(),
+  "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsPreviewResponseOperationReadBlockTwoReadTotalCountRegExpTwo)]).nullish(),
+  "recovery": zod.string().nullish()
+})
+})]).optional(),
+  "errorCode": zod.string().nullish()
+}),
+  "pendingOperation": zod.union([zod.null(),zod.object({
+  "id": zod.uuid(),
+  "capabilityId": zod.string(),
+  "displayName": zod.string(),
+  "summary": zod.string(),
+  "riskClass": zod.int(),
+  "confirmationRequirement": zod.int(),
+  "expiresAtUtc": zod.iso.datetime({"offset":true}),
+  "changes": zod.array(zod.object({
+  "entityId": zod.uuid(),
+  "entityName": zod.string(),
+  "field": zod.string(),
+  "oldValue": zod.string().nullable(),
+  "newValue": zod.string().nullable(),
+  "valueType": zod.string(),
+  "proposedValue": zod.unknown().optional(),
+  "isEditable": zod.boolean().default(postApiChatHabitSuggestionsPreviewResponsePendingOperationTwoChangesItemIsEditableDefault)
+})).nullish(),
+  "changeTargetCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsPreviewResponsePendingOperationTwoChangeTargetCountRegExpTwo)]).nullish(),
+  "items": zod.array(zod.object({
+  "itemId": zod.string(),
+  "entityId": zod.uuid().nullable(),
+  "entityName": zod.string(),
+  "fields": zod.array(zod.object({
+  "entityId": zod.uuid(),
+  "entityName": zod.string(),
+  "field": zod.string(),
+  "oldValue": zod.string().nullable(),
+  "newValue": zod.string().nullable(),
+  "valueType": zod.string(),
+  "proposedValue": zod.unknown().optional(),
+  "isEditable": zod.boolean().default(postApiChatHabitSuggestionsPreviewResponsePendingOperationTwoItemsItemFieldsItemIsEditableDefault)
+})),
+  "stateFingerprint": zod.string(),
+  "removesData": zod.boolean().nullish(),
+  "validationErrors": zod.array(zod.object({
+  "field": zod.string(),
+  "errorCode": zod.string(),
+  "error": zod.string()
+})).nullish(),
+  "fieldOptions": zod.array(zod.object({
+  "field": zod.string(),
+  "required": zod.boolean(),
+  "options": zod.array(zod.object({
+  "value": zod.unknown(),
+  "label": zod.string()
+}))
+})).nullish().describe('Only present for a required unresolved parent choice. Options contain exactly the matching parent habits and No parent; resolved or root items omit this field.'),
+  "placement": zod.union([zod.null(),zod.object({
+  "selected": zod.string(),
+  "recommended": zod.string(),
+  "reasonKey": zod.string(),
+  "reason": zod.record(zod.string(), zod.string()),
+  "alternatives": zod.array(zod.string()),
+  "destinationId": zod.uuid(),
+  "destinationName": zod.string()
+})]).optional()
+})).nullish(),
+  "previewFingerprint": zod.string().nullish(),
+  "actionKey": zod.string().nullish()
+})]).optional(),
+  "policyDenial": zod.union([zod.null(),zod.object({
+  "operationId": zod.string(),
+  "sourceName": zod.string(),
+  "riskClass": zod.int(),
+  "confirmationRequirement": zod.int(),
+  "reason": zod.string(),
+  "pendingOperationId": zod.uuid().nullish()
+})]).optional()
+})
+
+
+export const PostApiChatHabitSuggestionsPreviewAllHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const postApiChatHabitSuggestionsPreviewAllBodyDraftsItemFrequencyUnitTwoTwoMin = -2147483648;
+export const postApiChatHabitSuggestionsPreviewAllBodyDraftsItemFrequencyUnitTwoTwoMax = 2147483647;
+
+export const postApiChatHabitSuggestionsPreviewAllBodyDraftsItemFrequencyQuantityRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatHabitSuggestionsPreviewAllBodyDraftsItemDaysItemTwoMin = -2147483648;
+export const postApiChatHabitSuggestionsPreviewAllBodyDraftsItemDaysItemTwoMax = 2147483647;
+
+export const postApiChatHabitSuggestionsPreviewAllBodyDraftsItemReminderMinutesBeforeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatHabitSuggestionsPreviewAllBodyLanguageDefault = `en`;
+
+export const PostApiChatHabitSuggestionsPreviewAllBody = zod.object({
+  "drafts": zod.array(zod.object({
+  "id": zod.uuid(),
+  "emoji": zod.string(),
+  "title": zod.string(),
+  "type": zod.string(),
+  "frequencyUnit": zod.union([zod.null(),zod.union([zod.enum(['Day', 'Week', 'Month', 'Year']),zod.int().min(postApiChatHabitSuggestionsPreviewAllBodyDraftsItemFrequencyUnitTwoTwoMin).max(postApiChatHabitSuggestionsPreviewAllBodyDraftsItemFrequencyUnitTwoTwoMax)])]),
+  "frequencyQuantity": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsPreviewAllBodyDraftsItemFrequencyQuantityRegExpTwo)]).nullable(),
+  "days": zod.array(zod.union([zod.enum(['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']),zod.int().min(postApiChatHabitSuggestionsPreviewAllBodyDraftsItemDaysItemTwoMin).max(postApiChatHabitSuggestionsPreviewAllBodyDraftsItemDaysItemTwoMax)])),
+  "dueDate": zod.iso.date(),
+  "dueTime": zod.iso.time({}),
+  "dueEndTime": zod.iso.time({}),
+  "reminderMinutesBefore": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsPreviewAllBodyDraftsItemReminderMinutesBeforeRegExpTwo)]).nullable(),
+  "checklistItems": zod.array(zod.string()),
+  "reason": zod.string(),
+  "existingHabitId": zod.uuid().nullish()
+})),
+  "language": zod.string().default(postApiChatHabitSuggestionsPreviewAllBodyLanguageDefault)
+})
+
+export const postApiChatHabitSuggestionsPreviewAllResponseOperationReadBlockTwoReadTotalCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatHabitSuggestionsPreviewAllResponsePendingOperationTwoChangesItemIsEditableDefault = false;
+export const postApiChatHabitSuggestionsPreviewAllResponsePendingOperationTwoChangeTargetCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatHabitSuggestionsPreviewAllResponsePendingOperationTwoItemsItemFieldsItemIsEditableDefault = false;
+
+export const PostApiChatHabitSuggestionsPreviewAllResponse = zod.object({
+  "operation": zod.object({
+  "operationId": zod.string(),
+  "sourceName": zod.string(),
+  "riskClass": zod.int(),
+  "confirmationRequirement": zod.int(),
+  "status": zod.int(),
+  "summary": zod.string().nullish(),
+  "targetId": zod.string().nullish(),
+  "targetName": zod.string().nullish(),
+  "policyReason": zod.string().nullish(),
+  "pendingOperationId": zod.uuid().nullish(),
+  "payload": zod.unknown().optional(),
+  "readBlock": zod.union([zod.null(),zod.object({
+  "kind": zod.string(),
+  "block": zod.unknown(),
+  "read": zod.object({
+  "queryId": zod.uuid(),
+  "queryFamily": zod.string(),
+  "scope": zod.unknown(),
+  "revision": zod.string(),
+  "completeness": zod.string(),
+  "refreshToken": zod.string(),
+  "nextCursor": zod.string().nullish(),
+  "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsPreviewAllResponseOperationReadBlockTwoReadTotalCountRegExpTwo)]).nullish(),
+  "recovery": zod.string().nullish()
+})
+})]).optional(),
+  "errorCode": zod.string().nullish()
+}),
+  "pendingOperation": zod.union([zod.null(),zod.object({
+  "id": zod.uuid(),
+  "capabilityId": zod.string(),
+  "displayName": zod.string(),
+  "summary": zod.string(),
+  "riskClass": zod.int(),
+  "confirmationRequirement": zod.int(),
+  "expiresAtUtc": zod.iso.datetime({"offset":true}),
+  "changes": zod.array(zod.object({
+  "entityId": zod.uuid(),
+  "entityName": zod.string(),
+  "field": zod.string(),
+  "oldValue": zod.string().nullable(),
+  "newValue": zod.string().nullable(),
+  "valueType": zod.string(),
+  "proposedValue": zod.unknown().optional(),
+  "isEditable": zod.boolean().default(postApiChatHabitSuggestionsPreviewAllResponsePendingOperationTwoChangesItemIsEditableDefault)
+})).nullish(),
+  "changeTargetCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsPreviewAllResponsePendingOperationTwoChangeTargetCountRegExpTwo)]).nullish(),
+  "items": zod.array(zod.object({
+  "itemId": zod.string(),
+  "entityId": zod.uuid().nullable(),
+  "entityName": zod.string(),
+  "fields": zod.array(zod.object({
+  "entityId": zod.uuid(),
+  "entityName": zod.string(),
+  "field": zod.string(),
+  "oldValue": zod.string().nullable(),
+  "newValue": zod.string().nullable(),
+  "valueType": zod.string(),
+  "proposedValue": zod.unknown().optional(),
+  "isEditable": zod.boolean().default(postApiChatHabitSuggestionsPreviewAllResponsePendingOperationTwoItemsItemFieldsItemIsEditableDefault)
+})),
+  "stateFingerprint": zod.string(),
+  "removesData": zod.boolean().nullish(),
+  "validationErrors": zod.array(zod.object({
+  "field": zod.string(),
+  "errorCode": zod.string(),
+  "error": zod.string()
+})).nullish(),
+  "fieldOptions": zod.array(zod.object({
+  "field": zod.string(),
+  "required": zod.boolean(),
+  "options": zod.array(zod.object({
+  "value": zod.unknown(),
+  "label": zod.string()
+}))
+})).nullish().describe('Only present for a required unresolved parent choice. Options contain exactly the matching parent habits and No parent; resolved or root items omit this field.'),
+  "placement": zod.union([zod.null(),zod.object({
+  "selected": zod.string(),
+  "recommended": zod.string(),
+  "reasonKey": zod.string(),
+  "reason": zod.record(zod.string(), zod.string()),
+  "alternatives": zod.array(zod.string()),
+  "destinationId": zod.uuid(),
+  "destinationName": zod.string()
+})]).optional()
+})).nullish(),
+  "previewFingerprint": zod.string().nullish(),
+  "actionKey": zod.string().nullish()
+})]).optional(),
+  "policyDenial": zod.union([zod.null(),zod.object({
+  "operationId": zod.string(),
+  "sourceName": zod.string(),
+  "riskClass": zod.int(),
+  "confirmationRequirement": zod.int(),
+  "reason": zod.string(),
+  "pendingOperationId": zod.uuid().nullish()
+})]).optional()
+})
+
+
 export const GetApiChecklistTemplatesHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -5083,6 +5428,79 @@ export const PostOauthConsentCancelBody = zod.object({
 })
 
 export const PostOauthConsentCancelResponse = zod.unknown()
+
+
+export const PostApiOnboardingChallengeHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const PostApiOnboardingChallengeBody = zod.object({
+  "platform": zod.string()
+})
+
+export const PostApiOnboardingChallengeResponse = zod.object({
+  "challenge": zod.string(),
+  "expiresAtUtc": zod.iso.datetime({"offset":true})
+})
+
+
+export const PostApiOnboardingInstallHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const PostApiOnboardingInstallBody = zod.object({
+  "challenge": zod.string(),
+  "attestation": zod.object({
+  "platform": zod.string(),
+  "token": zod.string(),
+  "keyId": zod.string().nullish()
+})
+})
+
+export const PostApiOnboardingInstallResponse = zod.object({
+  "installId": zod.string(),
+  "expiresAtUtc": zod.iso.datetime({"offset":true})
+})
+
+
+export const PostApiOnboardingSuggestSetupHeader = zod.object({
+  "X-Orbit-Install-Id": zod.string().optional(),
+  "api-version": zod.string().optional()
+})
+
+export const postApiOnboardingSuggestSetupBodyLanguageDefault = `en`;
+
+export const PostApiOnboardingSuggestSetupBody = zod.object({
+  "title": zod.string().nullable(),
+  "language": zod.string().nullish().default(postApiOnboardingSuggestSetupBodyLanguageDefault),
+  "attestation": zod.union([zod.null(),zod.object({
+  "platform": zod.string(),
+  "token": zod.string(),
+  "keyId": zod.string().nullish()
+})]).optional()
+})
+
+export const postApiOnboardingSuggestSetupResponseFrequencyUnitTwoTwoMin = -2147483648;
+export const postApiOnboardingSuggestSetupResponseFrequencyUnitTwoTwoMax = 2147483647;
+
+export const postApiOnboardingSuggestSetupResponseFrequencyQuantityRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiOnboardingSuggestSetupResponseDaysItemTwoMin = -2147483648;
+export const postApiOnboardingSuggestSetupResponseDaysItemTwoMax = 2147483647;
+
+export const postApiOnboardingSuggestSetupResponseFlexibleTargetRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const PostApiOnboardingSuggestSetupResponse = zod.object({
+  "emoji": zod.string().nullable(),
+  "frequencyUnit": zod.union([zod.null(),zod.union([zod.enum(['Day', 'Week', 'Month', 'Year']),zod.int().min(postApiOnboardingSuggestSetupResponseFrequencyUnitTwoTwoMin).max(postApiOnboardingSuggestSetupResponseFrequencyUnitTwoTwoMax)])]),
+  "frequencyQuantity": zod.union([zod.int(),zod.stringFormat('int32', postApiOnboardingSuggestSetupResponseFrequencyQuantityRegExpTwo)]).nullable(),
+  "days": zod.array(zod.union([zod.enum(['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']),zod.int().min(postApiOnboardingSuggestSetupResponseDaysItemTwoMin).max(postApiOnboardingSuggestSetupResponseDaysItemTwoMax)])),
+  "isFlexible": zod.boolean(),
+  "flexibleTarget": zod.union([zod.int(),zod.stringFormat('int32', postApiOnboardingSuggestSetupResponseFlexibleTargetRegExpTwo)]).nullable(),
+  "dueTime": zod.string().nullable(),
+  "subHabits": zod.array(zod.string()),
+  "checklistItems": zod.array(zod.string())
+})
 
 
 export const GetApiAiProactiveCurrentQueryParams = zod.object({

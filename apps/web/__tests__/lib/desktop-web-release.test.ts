@@ -55,17 +55,21 @@ it('publishes uncached build identity through the real route and admits legacy s
   expect(shellSupportsWeb('0.1.2', '0.1.3')).toBe(false)
 })
 
-it('waits for streaming to settle and reloads once with the completed conversation and draft', async () => {
+it('waits for streaming to settle and offers the update without reloading the conversation', async () => {
   useChatStore.getState().addMessage({ id: 'question', role: 'user', content: 'Help me plan', timestamp: new Date() })
   useChatStore.setState({ isTyping: true, streamingMessageId: 'reply', draft: 'A follow-up' })
   useUIStore.getState().setAstraConversationOpen(true)
-  cleanups.push(watchDesktopWebRelease('0.1.2', currentCommit, vi.fn()))
+  const available = vi.fn()
+  cleanups.push(watchDesktopWebRelease('0.1.2', currentCommit, available))
   await vi.advanceTimersByTimeAsync(5000)
+  expect(available).not.toHaveBeenCalled()
   expect(reload).not.toHaveBeenCalled()
   useChatStore.getState().addMessage({ id: 'reply', role: 'ai', content: 'Start with water', timestamp: new Date() })
   useChatStore.setState({ isTyping: false, streamingMessageId: null })
   await vi.advanceTimersByTimeAsync(5000)
-  expect(reload).toHaveBeenCalledOnce()
+  expect(reload).not.toHaveBeenCalled()
+  expect(available).toHaveBeenCalledExactlyOnceWith({ commit: nextCommit, ...compatibility })
+  expect(await reloadDesktopWeb(reload)).toBe(true)
   const checkpoint = takeDesktopChatCheckpoint('desktop-account')
   expect(checkpoint?.conversationOpen).toBe(true)
   expect(checkpoint?.chat.messages.map(message => message.content)).toEqual(['Help me plan', 'Start with water'])
@@ -76,7 +80,8 @@ it('waits for streaming to settle and reloads once with the completed conversati
 
 it('does not reload for the same build, and retries an offline or malformed metadata read', async () => {
   vi.stubEnv('WEB_COMMIT_SHA', currentCommit)
-  cleanups.push(watchDesktopWebRelease('0.1.2', currentCommit, vi.fn()))
+  const available = vi.fn()
+  cleanups.push(watchDesktopWebRelease('0.1.2', currentCommit, available))
   await vi.advanceTimersByTimeAsync(2000)
   expect(reload).not.toHaveBeenCalled()
   vi.mocked(fetch).mockRejectedValueOnce(new Error('offline'))
@@ -88,16 +93,18 @@ it('does not reload for the same build, and retries an offline or malformed meta
   vi.stubEnv('WEB_COMMIT_SHA', nextCommit)
   window.dispatchEvent(new Event('online'))
   await vi.advanceTimersByTimeAsync(2000)
-  expect(reload).toHaveBeenCalledOnce()
+  expect(available).toHaveBeenCalledOnce()
+  expect(reload).not.toHaveBeenCalled()
 })
 
 it('preserves the current window if storage is unavailable, then retries the reload', async () => {
   const storage = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('full', 'QuotaExceededError') })
   cleanups.push(watchDesktopWebRelease('0.1.2', currentCommit, vi.fn()))
   await vi.advanceTimersByTimeAsync(2000)
+  await expect(reloadDesktopWeb(reload)).rejects.toThrow('full')
   expect(reload).not.toHaveBeenCalled()
   storage.mockRestore()
-  await vi.advanceTimersByTimeAsync(2000)
+  expect(await reloadDesktopWeb(reload)).toBe(true)
   expect(reload).toHaveBeenCalledOnce()
 })
 

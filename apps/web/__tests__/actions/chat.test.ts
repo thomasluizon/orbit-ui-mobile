@@ -1,6 +1,10 @@
 import { buildChatClientContext } from '@orbit/shared/chat'
 import { habitMonthReadBlockResponseSchema } from '@orbit/shared/types/chat'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { pendingOperationRevisionResultSchema } from '@orbit/shared/types'
+
+const clientContext = buildChatClientContext({ platform: 'web', locale: 'pt-BR' })
+const query = new URLSearchParams({ clientContext: JSON.stringify(clientContext) }).toString()
 
 const mockServerAuthMutate = vi.fn()
 const mockServerAuthFetch = vi.fn()
@@ -14,6 +18,8 @@ const {
   getCurrentProactiveItem,
   refreshHabitMonth,
   confirmPendingOperation,
+  revisePendingOperation,
+  refreshPendingOperation,
   issuePendingOperationStepUp,
   verifyPendingOperationStepUp,
   executePendingOperation,
@@ -55,10 +61,20 @@ describe('chat server actions', () => {
         },
       })
       expect(mockServerAuthMutate).toHaveBeenCalledWith(
-        '/api/ai/pending-operations/pending-1/confirm',
+        `/api/ai/pending-operations/pending-1/confirm?${query}`,
         { method: 'POST' },
         null,
       )
+    })
+
+    it('carries placement support when revising and refreshing a held preview', async () => {
+      const request = { previewFingerprint: 'current', items: [{ itemId: '0', placement: 'checklist_item' as const }, { itemId: '1' }] }
+      await revisePendingOperation('pending-1', request, null)
+      expect(mockServerAuthMutate).toHaveBeenLastCalledWith('/api/ai/pending-operations/pending-1/revise',
+        { method: 'POST', body: JSON.stringify({ ...request, clientContext }) }, null, pendingOperationRevisionResultSchema)
+      await refreshPendingOperation('pending-1', null)
+      expect(mockServerAuthMutate).toHaveBeenLastCalledWith(`/api/ai/pending-operations/pending-1/preview/refresh?${query}`,
+        { method: 'POST' }, null, pendingOperationRevisionResultSchema)
     })
 
     it('requests a step-up challenge', async () => {
@@ -139,7 +155,7 @@ describe('chat server actions', () => {
       expect(result.ok).toBe(true)
       expect(mockServerAuthMutate).toHaveBeenCalledWith(
         '/api/ai/pending-operations/pending-1/execute',
-        { method: 'POST', body: JSON.stringify({ confirmationToken: 'confirm-token' }) },
+        { method: 'POST', body: JSON.stringify({ confirmationToken: 'confirm-token', clientContext }) },
         null,
       )
     })

@@ -129,7 +129,7 @@ function SuggestionStrip({
                 style={[styles.suggestionContent, disclosure ? { flexShrink: 0 } : null]}
               >
                 {suggestion.icon ? <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}>{suggestion.icon}</View> : null}
-                <AstraGlyph size={16} color={tokens.fg2} /><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
+                <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}><AstraGlyph size={16} color={tokens.fg2} /></View><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
               </View>
             </InsetFocusPressable>
           ))}
@@ -613,7 +613,7 @@ function ComposerContent({ props, tokens, focusTarget, disclosure }: Readonly<{ 
 export function Composer(props: Readonly<MobileComposerProps>) {
   const contentStyle = useShellContentStyle(SPACING.s16)
   const contentId = useId()
-  const savedCollapsed = useUIStore(state => state.habitComposerCollapsed)
+  const savedCollapsed = useUIStore(state => props.collapseScope === 'today' ? state.todayComposerCollapsed : state.habitComposerCollapsed)
   const collapsed = Boolean(props.collapsible && savedCollapsed)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -629,7 +629,9 @@ export function Composer(props: Readonly<MobileComposerProps>) {
   const disclosureFocusPending = useRef(false)
   function toggleCollapsed() {
     disclosureFocusPending.current = true
-    useUIStore.getState().setHabitComposerCollapsed(!collapsed)
+    const preferences = useUIStore.getState()
+    if (props.collapseScope === 'today') preferences.setTodayComposerCollapsed(!collapsed)
+    else preferences.setHabitComposerCollapsed(!collapsed)
   }
   useEffect(() => {
     if (!disclosureFocusPending.current) return
@@ -743,7 +745,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
     flexShrink: 0,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: COMPOSER_CHIP_GAP,
     paddingHorizontal: SPACING.s12,
     paddingVertical: SPACING.s12,

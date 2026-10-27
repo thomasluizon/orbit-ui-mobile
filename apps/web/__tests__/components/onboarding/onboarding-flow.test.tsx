@@ -46,6 +46,9 @@ const mocks = vi.hoisted(() => {
     recordCompletion: vi.fn(),
     finishOnboarding: vi.fn(),
     suggest: vi.fn(),
+    anonymous: vi.fn(),
+    anonymousAvailable: false,
+    realProposal: false,
     subscribe: vi.fn(),
     requestPermissionOnly: vi.fn(),
     navigate: vi.fn(),
@@ -90,6 +93,7 @@ vi.mock('@/lib/actions/profile', () => ({ updateTimezone: mocks.updateTimezone }
 vi.mock('@/hooks/use-habit-suggestion', () => ({
   useHabitSuggestion: () => ({ mutateAsync: mocks.suggest, isPending: false }),
 }))
+vi.mock('@/hooks/use-onboarding-suggestion', () => ({ useOnboardingSuggestion: (isLive: boolean) => ({ available: isLive || mocks.anonymousAvailable, mutateAsync: isLive ? mocks.suggest : mocks.anonymous, verification: null, cancel: vi.fn() }) }))
 vi.mock('@/hooks/use-push-notification-preferences', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/hooks/use-push-notification-preferences')>()
   return {
@@ -120,9 +124,15 @@ vi.mock('@/components/ui/toast', () => ({ Toast: ({ message, actionLabel, onActi
 vi.mock('@/components/onboarding/onboarding-welcome', () => ({
   OnboardingWelcome: ({ sentence, onChange }: { sentence: string; onChange: (value: string) => void }) => <input aria-label="sentence" value={sentence} onChange={(event) => onChange(event.target.value)} />,
 }))
-vi.mock('@/components/onboarding/onboarding-create-habit', () => ({
-  OnboardingCreateHabit: ({ proposed, schedule, canSaveRepeatWeeks, onToggleDay, onTimeChange }: { proposed: boolean; schedule: { intervalWeeks: number }; canSaveRepeatWeeks: boolean; onToggleDay: (day: string) => void; onTimeChange: (value: string) => void }) => <div data-testid="schedule" data-proposed={proposed} data-can-save-repeat-weeks={String(canSaveRepeatWeeks)} data-interval-weeks={String(schedule.intervalWeeks)}><button type="button" onClick={() => onToggleDay('Monday')}>Monday</button><input aria-label="time" onChange={(event) => onTimeChange(event.target.value)} /></div>,
-}))
+vi.mock('@/components/onboarding/onboarding-create-habit', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/components/onboarding/onboarding-create-habit')>()
+  return {
+  OnboardingCreateHabit: (props: React.ComponentProps<typeof original.OnboardingCreateHabit>) => {
+    if (mocks.realProposal) return <original.OnboardingCreateHabit {...props} />
+    const { proposed, schedule, canSaveRepeatWeeks, onToggleDay, onTimeChange } = props
+    return <div data-testid="schedule" data-proposed={proposed} data-can-save-repeat-weeks={String(canSaveRepeatWeeks)} data-interval-weeks={String(schedule.intervalWeeks)}><button type="button" onClick={() => onToggleDay('Monday')}>Monday</button><input aria-label="time" onChange={(event) => onTimeChange(event.target.value)} /></div>
+  }
+} })
 vi.mock('@/components/onboarding/onboarding-remind', () => ({ OnboardingRemind: ({ state }: { state: string }) => <div data-testid="reminder-state">{state}</div> }))
 vi.mock('@/components/onboarding/onboarding-pro-step', () => ({ OnboardingProStep: ({ onFinish, ref }: { onFinish: (destination?: string) => Promise<void>; ref?: React.Ref<{ exit: (destination?: string) => void }> }) => {
   mocks.finalFinish = onFinish
@@ -210,6 +220,9 @@ describe('OnboardingFlow state model', () => {
     Object.assign(mocks.profile, createMockProfile({ hasProAccess: true, isTrialActive: false, plan: 'pro' }))
     mocks.profile.aiMessagesUsed = 0
     mocks.profile.timeZone = 'UTC'
+    mocks.realProposal = false
+    mocks.anonymousAvailable = false
+    mocks.anonymous.mockReset()
     mocks.profileAvailable = true
     mocks.refetchProfile.mockResolvedValue({ data: mocks.profile })
     mocks.updateTimezone.mockResolvedValue(undefined)
@@ -354,6 +367,33 @@ describe('OnboardingFlow state model', () => {
     expect(region).toHaveTextContent('errors.api.appUpdated')
     expect(screen.getAllByText('errors.api.appUpdated')).toHaveLength(1)
     expect(dialog).toContainElement(screen.getByRole('button', { name: 'errors.api.reload' }))
+  })
+
+  it.each(['offline', 'ONBOARDING_LIMIT', 'ONBOARDING_UNAVAILABLE', 'proof unavailable', 'daily ceiling', 'error'])('keeps the manual drawing after %s', async (reason) => {
+    mocks.anonymousAvailable = reason !== 'offline'
+    mocks.anonymous.mockRejectedValue(new Error(reason))
+    mount(false)
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Walk every Monday at 18:00' } })
+    fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+    expect(await screen.findByTestId('schedule')).toHaveAttribute('data-proposed', 'false')
+    expect(mocks.suggest).not.toHaveBeenCalled()
+    expect(headerCounter()).toBe('Orbit · 02 / 03')
+  })
+
+  it('reads the signed-out sentence through Astra without adding a tour step', async () => {
+    mocks.realProposal = true
+    mocks.anonymousAvailable = true
+    mocks.anonymous.mockResolvedValue({ emoji: '📖', frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, dueTime: '18:00', subHabits: [], checklistItems: [] })
+    mount(false)
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Read every Monday at 18:00' } })
+    fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+    expect(await screen.findByRole('img', { name: 'Astra' })).toBeVisible()
+    expect(screen.getByText('Read')).toBeVisible()
+    expect(screen.getByText('when.astraRead')).toBeVisible()
+    expect(mocks.anonymous).toHaveBeenCalledWith({ title: 'Read every Monday at 18:00', language: 'en' })
+    expect(mocks.suggest).not.toHaveBeenCalled()
+    expect(headerCounter()).toBe('Orbit · 02 / 03')
+    expect(screen.queryByText(/meetAstra/)).toBeNull()
   })
 
   it('ignores a dialog open request after onboarding has completed', async () => {

@@ -5,10 +5,11 @@ import { act, create } from 'react-test-renderer'
 import type { GeometryTree } from '../../support/safe-area-geometry'
 import { renderedText } from '../../support/react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { getAccountDay } from '@orbit/shared/utils'
+import { inPlaceDayFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
 import { ChatBlock } from '@/components/chat/block-registry'
 import { habitMonthFixture } from '@orbit/shared/test-support/habit-month-fixture'
 import { apiClient } from '@/lib/api-client'
@@ -16,7 +17,7 @@ import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { API } from '@orbit/shared/api'
 import { chatPartSchema, habitMonthCardSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
-const state = vi.hoisted(() => ({ locale: 'en', actualCopy: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
+const state = vi.hoisted(() => ({ isError: false, locale: 'en', actualCopy: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
 vi.mock('react-i18next', async importOriginal => ({ ...await importOriginal<typeof import('react-i18next')>(), useTranslation: () => ({ i18n: { language: state.locale }, t: (key: string, values?: Record<string, string | number>) => {
   if (!state.actualCopy) return key
   const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, state.locale === 'en' ? en : pt)
@@ -24,7 +25,7 @@ vi.mock('react-i18next', async importOriginal => ({ ...await importOriginal<type
 } }) }))
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: state.push }) }))
-vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: state.habits }, isPending: false }), useLogHabit: () => ({ mutate: state.mutate }), useHabitMetrics: () => ({}) }))
+vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: state.isError ? undefined : { habitsById: state.habits }, isError: state.isError, isPending: false }), useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }), useHabitMetrics: () => ({}) }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false }) }))
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'UTC' } }) }))
@@ -42,7 +43,7 @@ async function press(tree: GeometryTree, label: string) {
   const button = tree.root.findAll(node => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0]!
   await act(() => { (button.props.onPress as () => void)() })
 }
-beforeEach(() => { vi.mocked(apiClient).mockReset(); state.locale = 'en'; state.actualCopy = false; state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
+beforeEach(() => { state.isError = false; vi.mocked(apiClient).mockReset(); state.locale = 'en'; state.actualCopy = false; state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
 
 describe('focused Android read compositions', () => {
   it.each(['en', 'pt-BR'])('keeps figures, dates and zero baseline honest in %s', async locale => {
@@ -50,20 +51,20 @@ describe('focused Android read compositions', () => {
     const tree = await mount()
     expect(renderedText(tree.toJSON())).toContain('12')
     expect(renderedText(tree.toJSON())).toContain('2026')
+    const header = tree.root.findAll(node => String(node.type) === 'View' && node.props.accessibilityRole === 'header')[0]!
+    expect(renderedText(header)).toContain('12')
+    expect(renderedText(tree.toJSON())).not.toContain('chat.readBlock.metric.positiveLogRecords')
     await act(() => tree.unmount())
     const comparison = await mount({ kind: 'periodComparison', block: focusedPeriodComparisonFixture })
     const text = renderedText(comparison.toJSON())
-    expect(text).toContain('+12')
+    expect(text).toContain('12')
     expect(text).not.toContain('%')
     await act(() => comparison.unmount())
   })
 
-  it('uses the exact refresh token and validates the resulting period card', async () => {
-    vi.mocked(apiClient).mockResolvedValue({ kind: 'periodTotal', block: { ...focusedPeriodTotalFixture, value: 18 }, read: { ...focusedReadMetadataFixture, revision: 'two' } })
+  it('omits manual refresh controls from a total', async () => {
     const tree = await mount()
-    await press(tree, 'blockFrame.refresh')
-    expect(renderedText(tree.toJSON())).toContain('18')
-    expect(apiClient).toHaveBeenCalledWith(API.chat.refreshRead, expect.objectContaining({ method: 'POST', body: expect.stringContaining('signed-query') }), expect.anything())
+    expect(tree.root.findAll(node => node.props.accessibilityLabel === 'blockFrame.refresh')).toHaveLength(0)
     await act(() => tree.unmount())
   })
 
@@ -81,9 +82,9 @@ describe('focused Android read compositions', () => {
 
   it.each(['READ_QUERY_STALE', 'READ_QUERY_EXPIRED', 'offline'])('keeps useful figures after %s', async code => {
     vi.mocked(apiClient).mockRejectedValue(Object.assign(new Error(code), { code }))
-    const tree = await mount()
-    await press(tree, 'blockFrame.refresh')
-    expect(renderedText(tree.toJSON())).toContain('12')
+    const tree = await mount({ kind: 'recordList', block: focusedHistoryFixture })
+    await press(tree, 'chat.recordList.more')
+    expect(renderedText(tree.toJSON())).toContain('Sep 1, 2026')
     expect(renderedText(tree.toJSON())).toContain(code === 'READ_QUERY_STALE' ? 'chat.readBlock.stale' : code === 'READ_QUERY_EXPIRED' ? 'chat.readBlock.expired' : 'chat.readBlock.error')
     await act(() => tree.unmount())
   })
@@ -91,13 +92,19 @@ describe('focused Android read compositions', () => {
   it('discards the old account response', async () => {
     let resolve!: (result: ReadBlockResponse) => void
     vi.mocked(apiClient).mockImplementation(() => new Promise(done => { resolve = done }))
-    const tree = await mount()
-    await press(tree, 'blockFrame.refresh')
+    const tree = await mount({ kind: 'recordList', block: focusedHistoryFixture })
+    await press(tree, 'chat.recordList.more')
     await act(() => advanceAccountGeneration())
     await act(() => { resolve({ kind: 'periodTotal', block: { ...focusedPeriodTotalFixture, value: 99 }, read: focusedReadMetadataFixture }) })
     expect(renderedText(tree.toJSON())).not.toContain('99')
     await act(() => tree.unmount())
   })
+})
+
+it('shows a saved metric window only once through the owning read composition', async () => {
+  const tree = await mount({ kind: 'metrics', block: { surfaceId: 'progress', period: 'month', hasData: true, completionRate: 80, totalCompletions: 12, totalScheduled: 10, activeDays: 9, currentStreak: 2, bestStreak: 4, periodMetrics: focusedPeriodMetricsFixture, read: focusedReadMetadataFixture } })
+  expect(renderedText(tree.toJSON()).split('Sep 1, 2026 - Sep 30, 2026')).toHaveLength(2)
+  await act(() => tree.unmount())
 })
 
 it.each(['chat', 'refresh'] as const)('retains a parsed %s historical schedule and rejects a direct press on an ineligible action', async source => {
@@ -108,7 +115,7 @@ it.each(['chat', 'refresh'] as const)('retains a parsed %s historical schedule a
   expect(parsed).not.toBeNull()
   if (!parsed || !('kind' in parsed) || parsed.kind !== 'habitList') throw new Error('Dated habit block did not parse')
   const tree = await mount(parsed)
-  expect(renderedText(tree.toJSON())).toContain('chat.habitList.logged')
+  expect(renderedText(tree.toJSON())).not.toContain('chat.habitList.logged')
   await press(tree, 'chat.habitList.log')
   expect(state.mutate).not.toHaveBeenCalled()
   await press(tree, 'chat.habitList.open')
@@ -134,9 +141,7 @@ it('keeps stale recap disclosure and Progress available without refreshing', asy
   for (const text of ['Walked', 'Mornings', 'Start small', 'Reading', 'Walk', 'Read']) expect(renderedText(tree.toJSON())).toContain(text)
   await press(tree, 'chat.readBlock.less')
   expect(renderedText(tree.toJSON())).not.toContain('Walked')
-  const progress = tree.root.findAll(node => node.props.accessibilityRole === 'link' && node.props.accessibilityLabel === 'chat.insight.progressLink' && typeof node.props.onPress === 'function')[0]!
-  await act(() => { (progress.props.onPress as () => void)() })
-  expect(state.push).toHaveBeenCalledWith('/progress')
+  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'chat.insight.progressLink')).toHaveLength(0)
   expect(apiClient).not.toHaveBeenCalled()
   await act(() => tree.unmount())
 })
@@ -144,7 +149,7 @@ it('keeps stale recap disclosure and Progress available without refreshing', asy
 it('withholds signed paging for a stale query', async () => {
   const tree = await mount({ kind: 'recordList', block: { ...focusedHistoryFixture, read: { ...focusedHistoryFixture.read, completeness: 'stale' } } })
   expect(tree.root.findAll(node => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'chat.recordList.more')).toHaveLength(0)
-  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'blockFrame.refresh' && String(node.type) === 'Pressable')).toHaveLength(1)
+  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'blockFrame.refresh' && String(node.type) === 'Pressable')).toHaveLength(0)
   expect(apiClient).not.toHaveBeenCalled()
   await act(() => tree.unmount())
 })
@@ -166,50 +171,91 @@ it.each(['en', 'pt-BR'])('renders the shared month grid and exact day navigation
   await act(() => tree.unmount())
 })
 
-it('refreshes the month through its dedicated route without sending a page parameter', async () => {
+it('replaces the month snapshot when a new reply revision arrives without a refresh action', async () => {
   const card = habitMonthCardSchema.parse(habitMonthFixture)
-  const refreshed = { kind: 'habitMonth', block: { ...card, today: '2026-09-12' }, read: { ...card.read!, revision: 'two', refreshToken: 'month-two' } }
-  vi.mocked(apiClient).mockResolvedValue(refreshed)
   const tree = await mount({ kind: 'habitMonth', block: card })
-  await press(tree, 'blockFrame.refresh')
-  expect(apiClient).toHaveBeenCalledWith(API.chat.refreshHabitMonth, expect.objectContaining({ method: 'POST',
-    body: expect.stringContaining('signed-month'),
-  }), expect.anything())
-  expect(JSON.parse(vi.mocked(apiClient).mock.calls[0]![1]!.body as string)).toMatchObject({ token: 'signed-month', clientContext: { platform: 'mobile', partKinds: expect.arrayContaining(['habitMonth']) } })
-  expect(JSON.parse(vi.mocked(apiClient).mock.calls[0]![1]!.body as string)).not.toHaveProperty('page')
-  await press(tree, 'blockFrame.refresh')
-  expect(JSON.parse(vi.mocked(apiClient).mock.calls[1]![1]!.body as string).token).toBe('month-two')
+  const next = { ...card, today: '2026-09-12', calendar: { ...card.calendar, logs: {} }, read: { ...card.read!, revision: 'two', refreshToken: 'month-two' } }
+  await act(() => tree.update(<ChatBlock part={{ kind: 'habitMonth', block: next }} onActionChipClick={vi.fn()} />))
+  const today = tree.root.findAll(node => String(node.type) === 'View' && node.props.testID === 'calendar-day-slot-2026-09-12')[0]!
+  expect(today.findAll(node => String(node.type) === 'View' && node.props.testID === 'day-today-ring')).toHaveLength(1)
+  const first = tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.testID === 'calendar-day-select-2026-09-01')[0]!
+  expect(first.findAll(node => String(node.type) === 'View' && node.props.testID === 'day-cell-none')).toHaveLength(1)
+  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'blockFrame.refresh')).toHaveLength(0)
+  expect(apiClient).not.toHaveBeenCalled()
   await act(() => tree.unmount())
 })
 
-it.each([['en', 'chat'], ['en', 'refresh'], ['pt-BR', 'chat'], ['pt-BR', 'refresh']] as const)('distinguishes habit counts from completions in %s through %s', async (locale, source) => {
-  state.locale = locale
-  state.actualCopy = true
-  const labels = locale === 'en'
-    ? { habits: 'Habits completed', unit: 'habits', completions: 'Completions', completionUnit: 'completions' }
-    : { habits: 'Hábitos concluídos', unit: 'hábitos', completions: 'Conclusões', completionUnit: 'conclusões' }
-  const cases = [
-    { kind: 'periodTotal', block: completedHabitTotalFixture, figures: ['3'], habits: true },
-    { kind: 'periodComparison', block: completedHabitComparisonFixture, figures: ['3', '1', '+2 (+200%)'], habits: true },
-    { kind: 'periodTotal', block: focusedPeriodTotalFixture, figures: ['12'], habits: false },
-    { kind: 'periodComparison', block: focusedPeriodComparisonFixture, figures: ['12', '0', '+12'], habits: false },
-    { kind: 'periodTotal', block: { ...focusedPeriodTotalFixture, metrics: completedHabitTotalFixture.metrics }, figures: ['12'], habits: false },
-    { kind: 'periodComparison', block: { ...focusedPeriodComparisonFixture, current: completedHabitComparisonFixture.current, baseline: completedHabitComparisonFixture.baseline }, figures: ['12', '0', '+12'], habits: false },
-  ]
-  for (const { kind, block, figures, habits } of cases) {
-    const expected = habits
-      ? { title: labels.habits, unit: labels.unit, other: labels.completions }
-      : { title: labels.completions, unit: labels.completionUnit, other: labels.habits }
+it.each((['habitList', 'daySummary'] as const).flatMap(kind => [true, false].flatMap(isError => ([
+  ['done', false, 'done'], ['done', true, 'bad'], ['overdue', false, 'overdue'],
+  ['overdue', true, 'overdue'], ['today', false, 'empty'], ['today', true, 'empty'],
+] as const).map(([status, isBadHabit, expected]) => ({ kind, isError, status, isBadHabit, expected })))))(
+  'keeps $kind snapshot $status with bad=$isBadHabit read-only and query error=$isError', async ({ kind, isError, status, isBadHabit, expected }) => {
+    state.isError = isError
+    const items = focusedDatedHabitListFixture.items.map(item => ({ ...item, status, isBadHabit }))
+    const part = kind === 'habitList'
+      ? { kind, block: { ...focusedDatedHabitListFixture, items } }
+      : { kind, block: { ...inPlaceDayFixture, rows: items, totalRows: 1 } }
+    const tree = await mount(part)
+    const row = tree.root.findAll(node => node.props.testID === 'habit-block-row')[0]!
+    const check = row.findAll(node => node.props.testID === 'habit-check')[0]!
+    expect(check.props.accessibilityLabel).toBe(status === 'done' ? isBadHabit ? 'habits.statusDot.bad' : 'chat.habitList.logged' : status === 'overdue' ? 'chat.habitList.overdue' : 'chat.habitList.pending')
+    expect(row.findAll(node => node.props.accessibilityRole === 'button' && typeof node.props.onPress === 'function').every(node => node.props.accessibilityLabel === 'chat.habitList.open')).toBe(true)
+    expect(renderedText(tree.toJSON())).not.toContain('Done')
+    expect(state.mutate).not.toHaveBeenCalled()
+    await act(() => tree.unmount())
+})
+
+it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as const).flatMap(source => (['periodTotal', 'periodComparison'] as const).map(kind => ({ locale, source, kind })))))(
+  'distinguishes habit counts from completions in $locale through $source for $kind', async ({ locale, source, kind: blockKind }) => {
+    state.locale = locale
+    state.actualCopy = true
+    const labels = locale === 'en'
+      ? { habits: 'Habits completed', unit: 'habits', completions: 'Completions', completionUnit: 'completions' }
+      : { habits: 'Hábitos concluídos', unit: 'hábitos', completions: 'Conclusões', completionUnit: 'conclusões' }
+    const cases = [
+      { kind: 'periodTotal', block: completedHabitTotalFixture, figures: ['3'], habits: true },
+      { kind: 'periodComparison', block: completedHabitComparisonFixture, figures: ['3', '1'], habits: true },
+      { kind: 'periodTotal', block: focusedPeriodTotalFixture, figures: ['12'], habits: false },
+      { kind: 'periodComparison', block: focusedPeriodComparisonFixture, figures: ['12', '0'], habits: false },
+      { kind: 'periodTotal', block: { ...focusedPeriodTotalFixture, metrics: completedHabitTotalFixture.metrics }, figures: ['12'], habits: false },
+      { kind: 'periodComparison', block: { ...focusedPeriodComparisonFixture, current: completedHabitComparisonFixture.current, baseline: completedHabitComparisonFixture.baseline }, figures: ['12', '0'], habits: false },
+    ]
+    for (const { kind, block, figures, habits } of cases.filter(candidate => candidate.kind === blockKind)) {
+      const expected = habits
+        ? { title: labels.habits, unit: labels.unit }
+        : { title: labels.completions, unit: labels.completionUnit }
+      const parsed = source === 'chat'
+        ? chatPartSchema.parse({ type: 'block', kind, block })
+        : readBlockResponseSchema.parse({ kind, block, read: block.read })
+      if (!parsed || !('kind' in parsed)) throw new Error(`${kind} ${source} did not parse`)
+      const tree = await mount(parsed)
+      const text = renderedText(tree.toJSON())
+      expect(text.toLocaleLowerCase(locale)).toContain(expected.title.toLocaleLowerCase(locale))
+      expect(text).toContain(expected.unit)
+      const compactFigures = tree.root.findAll(node => String(node.type) === 'View' && node.props.testID === 'compact-figure')
+      expect(compactFigures.map(figure => renderedText(figure).trim().split(/\s+/)[0])).toEqual(figures)
+      expect(text).not.toMatch(habits ? /completions?|conclus(?:ão|ões)/i : /habits?|hábitos?/i)
+      expect(text).not.toContain('chat.figure.comparison.')
+      await act(() => tree.unmount())
+    }
+})
+
+it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as const).flatMap(source =>
+  (['periodTotal', 'periodComparison'] as const).flatMap(kind =>
+    (['distinctLoggedDates', 'metScheduledDates', 'scheduledDates'] as const).map(metric => ({ locale, source, kind, metric }))))))(
+  'names $metric in $kind through $source in $locale', async ({ locale, source, kind, metric }) => {
+    state.locale = locale
+    state.actualCopy = true
+    const block = { ...(kind === 'periodTotal' ? focusedPeriodTotalFixture : focusedPeriodComparisonFixture), metric, unit: 'days' }
     const parsed = source === 'chat'
       ? chatPartSchema.parse({ type: 'block', kind, block })
       : readBlockResponseSchema.parse({ kind, block, read: block.read })
     if (!parsed || !('kind' in parsed)) throw new Error(`${kind} ${source} did not parse`)
+    const messages = locale === 'en' ? en : pt
     const tree = await mount(parsed)
-    const text = renderedText(tree.toJSON())
-    expect(text).toContain(expected.title)
-    expect(text).toContain(expected.unit)
-    for (const figure of figures) expect(text).toContain(figure)
-    expect(text).not.toContain(expected.other)
+    expect(renderedText(tree.toJSON()).toLocaleLowerCase(locale)).toContain(messages.chat.readBlock.metric[metric].toLocaleLowerCase(locale))
+    const figures = tree.root.findAll(node => String(node.type) === 'View' && node.props.testID === 'compact-figure')
+    expect(figures).toHaveLength(kind === 'periodTotal' ? 1 : 2)
+    for (const figure of figures) expect(renderedText(figure)).toContain(locale === 'en' ? 'days' : 'dias')
     await act(() => tree.unmount())
-  }
 })

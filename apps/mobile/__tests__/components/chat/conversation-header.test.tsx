@@ -131,7 +131,7 @@ describe('AstraConversation header (mobile)', () => {
       expect(headings).toHaveLength(1)
       expect(headings[0]!.props.accessibilityLabel).toBe('Astra')
       expect(header.findAll((node) => typeof node.type === 'string' && node.props.children === 'Astra')).toHaveLength(0)
-      expect(header.findAll((node) => node.props.testID === 'astra-mark-16')[0]!.props.accessible).toBe(false)
+      expect(header.findAll((node) => node.props.testID === 'astra-mark')[0]!.props.accessible).toBe(false)
       expect(focus).toHaveBeenCalledWith(expect.objectContaining({ __nativeTag: headings[0]!.props.__nativeTag }), 'focus')
     } finally { focus.mockRestore(); void TestRenderer.act(() => tree.update(<></>)) }
   })

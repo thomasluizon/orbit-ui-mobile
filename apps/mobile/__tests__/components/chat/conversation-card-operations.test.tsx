@@ -15,7 +15,7 @@ vi.mock('react-i18next', () => ({ initReactI18next: { type: '3rdParty', init: ()
 vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(true) }))
 vi.mock('@/components/ui/markdown', () => ({ Markdown: ({ children }: { children: string }) => React.createElement('Markdown', null, children) }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
-vi.mock('@/lib/api-client', () => ({ apiClient: (path: string) => path === API.ai.pendingOperationRefresh('refresh') ? mutations.refresh() : mutations.revise() }))
+vi.mock('@/lib/api-client', () => ({ apiClient: (path: string) => path.split('?')[0] === API.ai.pendingOperationRefresh('refresh') ? mutations.refresh() : mutations.revise() }))
 vi.mock('@/components/ui/confirm-sheet', () => ({ ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) => open ? React.createElement('ConfirmBreakdown', { onConfirm }) : null }))
 vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
 vi.mock('react-native', async (importOriginal) => {

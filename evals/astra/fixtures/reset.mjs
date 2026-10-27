@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
 import { readCredentials, refreshCredential, safeFailureMessage, updateCredentials } from '../credentials.mjs'
-import { publicApi } from './api.mjs'
+import { publicApi, requireEvalAccess } from './api.mjs'
 import { fixtureNames } from './names.mjs'
 import { exhaustAllowance } from './allowance.mjs'
 
@@ -129,7 +129,7 @@ async function verifyFixture(api, account, fixture, today, labels) {
   }
 }
 
-export async function resetFixture(test, today = new Date().toISOString().slice(0, 10)) {
+export async function resetFixture(test, today = new Date().toISOString().slice(0, 10), unmetered = false) {
   const fixture = test.metadata.fixture
   const names = fixtureNames(test.metadata.locale)
   if (!fixtures.has(fixture)) throw new Error('Unknown fixture.')
@@ -148,7 +148,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
     return
   }
   if ((fixture === 'free-at-limit') === profile.hasProAccess) throw new Error('Fixture account has the wrong plan access.')
-  if (profile.aiMessagesUsed >= profile.aiMessagesLimit) throw new Error('Fixture daily allowance is exhausted; resume in another daily window.')
+  if (!unmetered && profile.aiMessagesUsed >= profile.aiMessagesLimit) throw new Error('Fixture daily allowance is exhausted; resume in another daily window.')
   if (fixture.startsWith('composition') && profile.hasGoogleConnection !== false) throw new Error('Composition fixtures require a disconnected disposable calendar account.')
   if (fixture === 'overdue') {
     const overdue = process.env.ORBIT_EVAL_OVERDUE_DATE ?? dateOffset(today, -1)
@@ -184,7 +184,8 @@ export async function runReset(caseId) {
   const test = corpus.find((entry) => entry.metadata.id === caseId)
   if (!test) throw new Error('Unknown corpus case ID.')
   await refreshCredential(test.vars.credentialKey)
-  await resetFixture(test)
+  const unmetered = await requireEvalAccess(test.vars.credentialKey)
+  await resetFixture(test, undefined, unmetered)
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try { await runReset(process.argv[2]) } catch (error) {

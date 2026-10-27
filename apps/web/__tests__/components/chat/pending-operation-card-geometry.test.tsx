@@ -1,6 +1,6 @@
 import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import type { Page } from '@playwright/test'
-import { makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makePlacementPreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -69,7 +69,7 @@ function ConversationPreview({ locale, counted }: Readonly<{ locale: typeof loca
   </NextIntlClientProvider>
 }
 
-async function expectInteractionGeometry(page: Page, name: string, metaLeft: number) {
+async function expectInteractionGeometry(page: Page, name: string, metaLeft: number, inset = 8) {
   const disclosure = page.getByRole('button', { name, exact: true })
   for (const interaction of ['hover', 'press', 'focus'] as const) {
     if (interaction === 'hover') await disclosure.hover()
@@ -84,7 +84,7 @@ async function expectInteractionGeometry(page: Page, name: string, metaLeft: num
     })
     expect(fill.background, interaction).not.toMatch(/^(transparent|rgba\([^)]*,\s*0\))$/)
     expect(fill.nameLeft).toBeCloseTo(metaLeft, 1)
-    expect(fill.padding).toBeCloseTo(8, 1)
+    expect(fill.padding).toBeCloseTo(inset, 1)
     if (interaction === 'focus') expect(fill.outline).toBeGreaterThanOrEqual(2)
   }
 }
@@ -109,6 +109,24 @@ describe('Pending preview geometry in Chromium', () => {
   afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([320, 412].flatMap(width => locales.flatMap(locale => [1, 2].map(textScale => ({ width, locale, textScale })))))('keeps long placement destinations within the preview at $width in $locale at text scale $textScale', async ({ width, locale, textScale }) => {
+    const operation = makePlacementPreview()
+    operation.items![0]!.placement!.destinationName = 'MorningRoutineWithoutSpaces'.repeat(8)
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt} timeZone="UTC"><div style={{ width, padding: 16 }}>
+      <PendingOperationCard pendingOperation={operation} onRevise={vi.fn()} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
+    </div></NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 1200 } })
+    try {
+      await page.setContent(`<style>${stylesheet} html { font-size: ${16 * textScale}px; }</style>${container.innerHTML}`)
+      await page.evaluate(() => document.fonts.ready)
+      const overflow = await page.evaluate(() => {
+        const frame = document.querySelector<HTMLElement>('section[data-state]')!
+        return frame.scrollWidth - frame.clientWidth
+      })
+      expect(overflow).toBeLessThanOrEqual(1)
+    } finally { await page.close() }
+  })
+
   it.each([390, 840, 1352].flatMap(width => locales.flatMap(locale => ['dark', 'light'].flatMap(mode => ['pending', 'done', 'failed', 'stale'].map(state => ({ width, locale, mode, state }))))))('keeps drawn block spacing and sans count at $width in $locale $mode while $state', async ({ width, locale, mode, state }) => {
     const messages = locale === 'en' ? en : pt
     const operation = makeCreateHabitsPreview(2)
@@ -132,8 +150,8 @@ describe('Pending preview geometry in Chromium', () => {
           rowInset: parseFloat(getComputedStyle(row).paddingLeft), countFont: getComputedStyle(header.querySelector('span')!).fontFamily,
           overflow: frame.scrollWidth - frame.clientWidth }
       })
-      expect(geometry.inset).toBe(24)
-      expect(geometry.gap).toBeCloseTo(24, 1)
+      expect(geometry.inset).toBe(16)
+      expect(geometry.gap).toBeCloseTo(12, 1)
       expect(geometry.rowInset).toBe(12)
       expect(geometry.countFont).toContain('TestGeist')
       expect(geometry.countFont).not.toMatch(/mono/i)
@@ -173,7 +191,7 @@ describe('Pending preview geometry in Chromium', () => {
         const disclosureBounds = (titleControl ?? label.parentElement!).getBoundingClientRect()
         const actionBounds = action.getBoundingClientRect()
         const rowBounds = row.getBoundingClientRect()
-        const metaBounds = row.firstElementChild!.children[1]!.getBoundingClientRect()
+        const metaBounds = row.querySelector('[data-preview-item-meta]')!.getBoundingClientRect()
         const trailing = row.lastElementChild as HTMLElement
         const trailingBounds = trailing.getBoundingClientRect()
         const status = trailing.querySelector(':scope > span') as HTMLElement | null
@@ -197,7 +215,7 @@ describe('Pending preview geometry in Chromium', () => {
       expect(geometry.trailingBottom).toBeLessThanOrEqual(geometry.rowBottom)
       expect(geometry.statusOverflow).toBeLessThanOrEqual(1)
       expect(geometry.statusRight).toBeLessThanOrEqual(geometry.trailingRight + 0.5)
-      if (state === 'pending') await expectInteractionGeometry(page, name, geometry.metaLeft)
+      if (state === 'pending') await expectInteractionGeometry(page, name, geometry.metaLeft, 64)
     } finally { await page.close() }
   })
 
@@ -284,17 +302,17 @@ describe('Pending preview geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style><div class="dark">${container.innerHTML}</div>`)
       await page.evaluate(() => document.fonts.ready)
       const geometry = await page.evaluate((moreLabel) => {
-        const row = [...document.querySelectorAll<HTMLElement>('[data-action-row]')].find(row => row.querySelectorAll('.orbit-pill-action').length === 3)!
+        const row = [...document.querySelectorAll<HTMLElement>('[data-action-row]')].find(row => row.querySelectorAll('button').length === 3)!
         const rowBounds = row.getBoundingClientRect()
         const buttons = Array.from(row.querySelectorAll('button')).map((button) => {
           const bounds = button.getBoundingClientRect()
           const label = button.querySelector('span, svg')!
           return { label: button.getAttribute('aria-label') ?? button.textContent, top: bounds.top, left: bounds.left, right: bounds.right, labelHeight: label.getBoundingClientRect().height, lineHeight: label.tagName.toLowerCase() === 'svg' ? 20 : parseFloat(getComputedStyle(label).lineHeight), width: bounds.width, height: bounds.height, icon: label.tagName.toLowerCase() === 'svg', variant: button.dataset.variant }
         })
-        const more = Array.from(document.querySelectorAll('button')).find((button) => button.getAttribute('aria-label') === moreLabel)!
-        const moreWidth = more.getBoundingClientRect().width
-        const moreRowWidth = more.closest('[data-action-row]')!.getBoundingClientRect().width
-        const visiblePrimary = Array.from(document.querySelectorAll('[data-variant="primary"]')).filter((button) => button.getBoundingClientRect().width > 0).length
+        const more = Array.from(document.querySelectorAll('button')).find((button) => button.getAttribute('aria-label') === moreLabel)
+        const moreWidth = more?.getBoundingClientRect().width ?? 0
+        const moreRowWidth = more?.closest('[data-action-row]')?.getBoundingClientRect().width ?? 1
+        const visiblePrimary = Array.from(row.querySelectorAll('[data-variant="primary"]')).filter((button) => button.getBoundingClientRect().width > 0).length
         return { buttons, rowLeft: rowBounds.left, rowRight: rowBounds.right, moreWidth, moreRowWidth, visiblePrimary }
       }, messages.chat.habitList.more)
       expect(geometry.buttons.map((button) => button.label)).toEqual([messages.chat.operation.reject, messages.chat.operation.edit, counted ? new IntlMessageFormat((messages.chat.operation.approveCount as Record<string, string>)[counted] ?? (messages.chat.operation.approveAction as Record<string, string>)[counted]!, locale).format({ count: 12 }) : messages.chat.operation.approve])
@@ -312,7 +330,7 @@ describe('Pending preview geometry in Chromium', () => {
         expect(hit.height).toBeGreaterThanOrEqual(48)
         expect(hit.checks).toEqual([true, true, true, true])
       }
-      expect(geometry.buttons[2]?.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
+      expect(geometry.buttons[2]?.variant).toBe('primary')
       expect(geometry.visiblePrimary).toBe(1)
       expect(geometry.moreWidth).toBeLessThan(geometry.moreRowWidth)
     } finally { await page.close() }

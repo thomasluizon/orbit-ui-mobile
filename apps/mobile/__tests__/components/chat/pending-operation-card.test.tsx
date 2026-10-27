@@ -1,4 +1,4 @@
-import { makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -93,7 +93,7 @@ describe('PendingOperationCard (mobile)', () => {
     const { tree } = renderCard(makeChildSchedulePreview(scenario.child))
     const row = tree.root.findByProps({ testID: 'block-frame-item-0-child-0-pending-proposed' })
     expect(renderedText(row)).toContain(scenario.child.title)
-    expect(row.findAllByType(Text).map((node: ReactTestInstance) => renderedText(node))).toContain((locale === 'en' ? scenario.english : scenario.portuguese).replace('21:30', '9:30 PM').replace('23:00', '11:00 PM'))
+    expect(row.findAllByType(Text).map((node: ReactTestInstance) => renderedText(node))).toContain((locale === 'en' ? scenario.english.replace(/ · (\d{2}:\d{2})/g, ' · at $1') : scenario.portuguese.replace(/ · (\d{2}:\d{2})/g, ' · às $1')).replace('21:30', '9:30 PM').replace('23:00', '11:00 PM'))
   })
 
   it.each(['en', 'pt-BR'])('shows every evening routine child and revises child removal in %s', async (locale) => {
@@ -108,7 +108,7 @@ describe('PendingOperationCard (mobile)', () => {
       const row = tree.root.findByProps({ testID: `block-frame-item-0-child-${index}-pending-proposed` })
       expect(StyleSheet.flatten(row.props.style).paddingStart).toBe(24)
       expect(renderedText(row)).toContain(child.title)
-      expect(renderedText(row)).toContain(`${(locale === 'en' ? en : ptBR).habits.frequency.everyDay} · ${index === 2 ? '11:00 PM' : '9:30 PM'}`)
+      expect(renderedText(row)).toContain(`${(locale === 'en' ? en : ptBR).habits.frequency.everyDay} · ${locale === 'en' ? 'at' : 'às'} ${index === 2 ? '11:00 PM' : '9:30 PM'}`)
     }
     const messages = locale === 'en' ? en : ptBR
     expect(renderedText(tree.toJSON())).not.toContain(messages.chat.preview.summary.buildHabit)
@@ -143,7 +143,7 @@ describe('PendingOperationCard (mobile)', () => {
     visibleLocale.actual = true
     visibleLocale.language = locale
     const { tree } = renderCard(makeCreateHabitsPreview(count))
-    expect(renderedText(tree.toJSON())).toContain(locale === 'en' ? count === 1 ? 'New habit' : 'New habits' : count === 1 ? 'Novo hábito' : 'Novos hábitos')
+    expect(renderedText(tree.toJSON())).toContain(locale === 'en' ? count === 1 ? 'New habit' : `${count} new habits` : count === 1 ? 'Novo hábito' : `${count} novos hábitos`)
     expect(renderedText(tree.toJSON())).not.toContain((locale === 'en' ? en : ptBR).chat.pendingOp.capability['habits-bulk-write'])
   })
 
@@ -325,7 +325,7 @@ describe('PendingOperationCard (mobile)', () => {
       visibleLocale.actual = true
       visibleLocale.language = locale
       const operation = makePendingWriteSummaryOperation(scenario)
-      const expected = locale === 'en' ? scenario.english : scenario.portuguese
+      const expected = locale === 'en' ? scenario.english.replace(/ · (\d{2}:\d{2})/g, ' · at $1') : scenario.portuguese.replace(/ · (\d{2}:\d{2})/g, ' · às $1')
       const { tree } = renderCard(operation)
       expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => node.props.children === expected)).toHaveLength(1)
       expect(renderedText(tree.toJSON())).not.toContain(operation.items![0]!.entityId!)
@@ -335,7 +335,7 @@ describe('PendingOperationCard (mobile)', () => {
       visibleLocale.actual = true
       visibleLocale.language = locale
       const operation = makePartialScheduleSummaryOperation(scenario)
-      const expected = locale === 'en' ? scenario.english : scenario.portuguese
+      const expected = locale === 'en' ? scenario.english.replace(/ · (\d{2}:\d{2})/g, ' · at $1') : scenario.portuguese.replace(/ · (\d{2}:\d{2})/g, ' · às $1')
       const { tree } = renderCard(operation)
       expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => node.props.children === expected)).toHaveLength(1)
     })
@@ -1348,4 +1348,112 @@ it('edits an offered parent in Full Edit before saving the preview', async () =>
   expect(onRevise).not.toHaveBeenCalled()
   await TestRenderer.act(async () => { press(tree, 'common.save').props.onPress(); await Promise.resolve() })
   expect(onRevise).toHaveBeenCalledWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [{ itemId: '0', edits: { parent_habit_id: null } }] })
+})
+
+
+describe('placement preview (mobile)', () => {
+  it('shows the placement recommendation and switches the retained batch in place', async () => {
+    visibleLocale.actual = true
+    const operation = makePlacementPreview()
+    const next = { ...makePlacementPreview('new_parent'), previewFingerprint: 'placement-next' }
+    const revisePlacement = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, cancelled: false, preview: next } })
+    const { tree } = renderCard(operation, revisePlacement)
+    expect(renderedText(tree.toJSON())).toContain('You already keep 4 checklist items here.')
+    const option = tree.root.findAll((node: ReactTestInstance) => node.type === Pressable && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'New parent habit')[0]!
+    await TestRenderer.act(async () => { option.props.onPress(); await Promise.resolve() })
+    expect(revisePlacement).toHaveBeenCalledExactlyOnceWith(operation.id, {
+      previewFingerprint: operation.previewFingerprint, items: [{ itemId: '0', placement: 'new_parent' }, { itemId: '1' }],
+    })
+    expect(tree.root.findAll((node: ReactTestInstance) => node.type === Pressable && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'New parent habit')[0]!.props.accessibilityState.checked).toBe(true)
+  })
+})
+
+
+describe('placement states (mobile)', () => {
+  type PlacementRadio = ReactTestInstance & { props: { onPress: () => void; accessibilityState: { checked: boolean; disabled?: boolean } } }
+  function radio(tree: ReactTestRenderer, label: string): PlacementRadio {
+    return tree.root.findAll((node: ReactTestInstance) => node.type === Pressable
+      && node.props.accessibilityRole === 'radio' && String(node.props.accessibilityLabel).startsWith(label))[0]! as PlacementRadio
+  }
+
+  beforeEach(() => { visibleLocale.actual = true })
+
+  it.each(['en', 'pt-BR'])('switches through every placement and preserves the draft in %s', async (locale) => {
+    visibleLocale.language = locale
+    const operation = makePlacementPreview()
+    const revisePlacement = vi.fn()
+    const { tree, handlers } = renderCard(operation, revisePlacement)
+    for (const value of ['sub_habit', 'new_parent', 'checklist_item'] as const) {
+      const next = { ...makePlacementPreview(value), previewFingerprint: `placement-${value}` }
+      revisePlacement.mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, cancelled: false, preview: next } })
+      const label = translateVisible(`chat.placement.option.${value}`, { name: 'Morning routine' })
+      await TestRenderer.act(async () => { radio(tree, label).props.onPress(); await Promise.resolve() })
+      expect(radio(tree, label).props.accessibilityState.checked).toBe(true)
+    }
+    expect(revisePlacement.mock.calls.map((call) => call[1])).toEqual([
+      { previewFingerprint: 'create-preview', items: [{ itemId: '0', placement: 'sub_habit' }, { itemId: '1' }] },
+      { previewFingerprint: 'placement-sub_habit', items: [{ itemId: '0', placement: 'new_parent' }, { itemId: '1' }] },
+      { previewFingerprint: 'placement-new_parent', items: [{ itemId: '0', placement: 'checklist_item' }, { itemId: '1' }] },
+    ])
+    const row = tree.root.findByProps({ testID: 'block-frame-item-0-pending-proposed' })
+    expect(renderedText(row)).not.toContain('7:30 AM')
+    expect(renderedText(tree.toJSON())).toContain((locale === 'en' ? en : ptBR).chat.placement.checklistNote)
+    expect(renderedText(tree.toJSON())).toContain(locale === 'en' ? 'You already keep 4 checklist items here.' : 'Você já tem 4 itens no checklist aqui.')
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+  })
+
+  it('blocks parallel actions while switching and retries after an offline failure', async () => {
+    let resolveSwitch!: (response: PendingOperationRevisionResponse) => void
+    const revisePlacement = vi.fn().mockImplementationOnce(() => new Promise<PendingOperationRevisionResponse>((resolve) => { resolveSwitch = resolve }))
+    const operation = makePlacementPreview()
+    const { tree, handlers } = renderCard(operation, revisePlacement)
+    TestRenderer.act(() => radio(tree, 'New parent habit').props.onPress())
+    expect(press(tree, 'Create 2 habits').props.disabled).toBe(true)
+    for (const label of ['New parent habit', 'Sub-habit in Morning routine', 'Checklist item in Morning routine']) expect(radio(tree, label).props.accessibilityState.disabled).toBe(true)
+    TestRenderer.act(() => radio(tree, 'Sub-habit in Morning routine').props.onPress())
+    expect(revisePlacement).toHaveBeenCalledTimes(1)
+    await TestRenderer.act(async () => { resolveSwitch({ ok: false, error: 'Offline' }); await Promise.resolve() })
+    expect(renderedText(tree.toJSON())).toContain(en.chat.operation.invalid)
+    expect(radio(tree, 'Checklist item in Morning routine').props.accessibilityState.checked).toBe(true)
+    const next = { ...makePlacementPreview('new_parent'), previewFingerprint: 'retried' }
+    revisePlacement.mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, cancelled: false, preview: next } })
+    await TestRenderer.act(async () => { radio(tree, 'New parent habit').props.onPress(); await Promise.resolve() })
+    expect(radio(tree, 'New parent habit').props.accessibilityState.checked).toBe(true)
+    expect(renderedText(tree.toJSON())).not.toContain(en.chat.operation.invalid)
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+  })
+
+  it('withholds approval when the preview expired and refresh cannot recover it', async () => {
+    const revisePlacement = vi.fn().mockResolvedValue({ ok: false, error: 'pending_operation_not_found', stale: true })
+    const refresh = vi.fn().mockResolvedValue({ ok: false, error: 'pending_operation_not_found', stale: true })
+    const { tree, handlers } = renderCard(makePlacementPreview(), revisePlacement, refresh)
+    await TestRenderer.act(async () => { radio(tree, 'New parent habit').props.onPress(); await Promise.resolve() })
+    expect(renderedText(tree.toJSON())).toContain(en.chat.operation.stale)
+    expect(press(tree, 'Create 2 habits')).toBeUndefined()
+    await TestRenderer.act(async () => { press(tree, en.chat.operation.refresh).props.onPress(); await Promise.resolve() })
+    expect(renderedText(tree.toJSON())).toContain(en.chat.operation.staleUnavailable)
+    expect(press(tree, en.chat.operation.refresh)).toBeUndefined()
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+  })
+
+  it('keeps the selected placement when the person revises a field after switching', async () => {
+    const operation = makePlacementPreview()
+    const switched = { ...makePlacementPreview('new_parent'), previewFingerprint: 'switched' }
+    const revisePlacement = vi.fn().mockResolvedValueOnce({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, cancelled: false, preview: switched } })
+    const { tree } = renderCard(operation, revisePlacement)
+    await TestRenderer.act(async () => { radio(tree, 'New parent habit').props.onPress(); await Promise.resolve() })
+    const renamed = structuredClone(switched)
+    renamed.previewFingerprint = 'renamed'
+    renamed.items![0]!.fields[0]!.newValue = 'Read books'
+    renamed.items![0]!.fields[0]!.proposedValue = 'Read books'
+    revisePlacement.mockResolvedValueOnce({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, cancelled: false, preview: renamed } })
+    TestRenderer.act(() => press(tree, en.chat.operation.edit).props.onPress())
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: en.chat.operation.field.title }).props.onChangeText('Read books'))
+    await TestRenderer.act(async () => { press(tree, en.common.save).props.onPress(); await Promise.resolve() })
+    expect(revisePlacement).toHaveBeenLastCalledWith(operation.id, {
+      previewFingerprint: 'switched', items: [{ itemId: '0', edits: { title: 'Read books' } }, { itemId: '1' }],
+    })
+    expect(radio(tree, 'New parent habit').props.accessibilityState.checked).toBe(true)
+    expect(tree.root.findAllByProps({ accessibilityLabel: en.chat.operation.field.title })).toHaveLength(0)
+  })
 })

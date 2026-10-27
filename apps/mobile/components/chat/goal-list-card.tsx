@@ -4,7 +4,6 @@ import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { useState } from 'react'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useTranslation } from 'react-i18next'
-import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { Text, View } from 'react-native'
 import { formatGoalMetricsDate, getGoalMetricsStatusPresentation } from '@orbit/shared/utils'
 import type { GoalListCard as GoalListCardData, GoalListCardItem } from '@orbit/shared/types/chat'
@@ -12,7 +11,6 @@ import { BlockFrame } from './read-block-frame'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { useGoals } from '@/hooks/use-goals'
 import { liveBlockState } from '@orbit/shared/chat/live-block-state'
-import { Button } from '@/components/ui/pill-button'
 import { Badge } from '@/components/ui/badge'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -37,7 +35,6 @@ function GoalName({ name, onOpen }: Readonly<{ name: string; onOpen: () => void 
 
 export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: GoalListCardData; onOpenGoal?: (id: string) => void }>) {
   const { t, i18n } = useTranslation()
-  const navigate = useChatNavigation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const goals = useGoals()
@@ -66,8 +63,6 @@ export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: Goal
       <BlockFrame {...frameState} title={t('chat.goalList.title')} items={items} body={items.length === 0 ? <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{t('chat.goalList.empty')}</Text> : undefined} actions={(
         <>
           {goals.isError ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText, fontSize: 14 }}>{t('chat.liveBlock.error')}</Text> : null}
-          {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
-          <Button variant="ghost" size="sm" onClick={() => navigate('/progress/goals')}>{t('chat.goalList.progressLink')}</Button>
         </>
       )} />
     </View>

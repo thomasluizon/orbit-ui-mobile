@@ -2,6 +2,15 @@ import { Duplex } from 'node:stream'
 import { createBrotliCompress, createDeflate, createGzip } from 'node:zlib'
 
 const CLIENT_CLOSED_REQUEST = 499
+const POSTHOG_PATH_PREFIXES = [
+  '/e/', '/s/', '/i/', '/flags/', '/static/', '/array/',
+  '/api/surveys/', '/api/early_access_features/', '/api/product_tours/',
+  '/api/web_experiments/', '/api/conversations/v1/widget/',
+]
+const POSTHOG_ORIGINS = {
+  api: 'https://us.i.posthog.com',
+  assets: 'https://us-assets.i.posthog.com',
+}
 
 const CONTENT_ENCODERS: Record<string, (() => Duplex) | undefined> = {
   gzip: createGzip,
@@ -34,14 +43,23 @@ function restoreFetchContentEncoding(upstream: Response): ReadableStream<Uint8Ar
   return body
 }
 
+function postHogDestination(requestUrl: string): URL | null {
+  const { pathname, search } = new URL(requestUrl)
+  if (!pathname.startsWith('/ingest/')) return null
+  const path = pathname.slice('/ingest'.length)
+  if (!POSTHOG_PATH_PREFIXES.some(prefix => path.startsWith(prefix)) || /%(?:2f|5c|25)/i.test(path)) return null
+  const origin = path.startsWith('/static/') || path.startsWith('/array/')
+    ? POSTHOG_ORIGINS.assets
+    : POSTHOG_ORIGINS.api
+  const destination = new URL(origin)
+  destination.pathname = path
+  destination.search = search
+  return destination
+}
+
 async function forwardPostHog(request: Request): Promise<Response> {
-  const url = new URL(request.url)
-  url.pathname = url.pathname.replace(/^\/ingest/, '') || '/'
-  url.protocol = 'https:'
-  url.hostname = url.pathname.startsWith('/static/') || url.pathname.startsWith('/array/')
-    ? 'us-assets.i.posthog.com'
-    : 'us.i.posthog.com'
-  url.port = ''
+  const url = postHogDestination(request.url)
+  if (!url) return new Response(null, { status: 404 })
   const headers = endToEndHeaders(request.headers)
   headers.set('host', url.hostname)
   headers.set('accept-encoding', 'gzip, deflate, br')

@@ -60,7 +60,7 @@ describe('Follow-up conversation geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       const header = page.locator('header')
-      const mark = header.locator('[data-asset="astra-mark-16"]')
+      const mark = header.locator('[data-asset="astra-mark"]')
       await expect(mark.count()).resolves.toBe(1)
       const markBox = (await mark.boundingBox())!
       const closeBox = (await header.getByRole('button', { name: pt.common.closeConversation }).boundingBox())!
@@ -83,7 +83,7 @@ describe('Follow-up conversation geometry in Chromium', () => {
     </NextIntlClientProvider>)
     const chips = screen.getByRole('group', { name: pt.chat.followUps.label })
     expect(chips.textContent).not.toContain(pt.nav.astra)
-    expect(chips.querySelectorAll('[data-asset="astra-mark-16"]')).toHaveLength(2)
+    expect(chips.querySelectorAll('[data-asset="astra-mark"]')).toHaveLength(2)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style><div class="dark">${container.innerHTML}</div>`)

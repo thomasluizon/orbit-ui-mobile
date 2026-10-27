@@ -2284,3 +2284,265 @@
       parent or saved claim. Canonical dates inside typed fields are transport
       values; visible prose must use locale dates. Rendered date formatting is
       checked separately.
+- description: suggestions in en
+  metadata:
+    id: composition-suggestions-en
+    category: composition
+    family: suggestions
+    locale: en
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - habitSuggestions
+    input: "Suggest two simple evening habits: reading and stretching. Do not create anything yet."
+    composition:
+      mode: suggestions
+      count: 2
+    expectations:
+      required:
+        - name: suggest_habits
+          arguments:
+            language: en
+            count: 2
+      allowed:
+        - query_habits
+        - query_goals
+        - suggest_habits
+      counts:
+        suggest_habits: 1
+    rubric: Answer in English. Show two complete editable habit drafts for reading and stretching in a
+      habitSuggestions block, allowing only the short server introduction. Drafts include a concrete
+      schedule, emoji, checklist and a short reason. No saved claim, approval preview or prose list
+      replacing the block.
+- description: suggestions-duplicate in en
+  metadata:
+    id: composition-suggestions-duplicate-en
+    category: composition
+    family: suggestions-duplicate
+    locale: en
+    fixture: pro
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - habitSuggestions
+    input: "Suggest two habits: Water and reading before bed. If I already have either, suggest
+      adjusting it rather than creating a duplicate."
+    composition:
+      mode: suggestions
+      count: 2
+      existing:
+        - id: "{habitId}"
+          title: Water
+    expectations:
+      required:
+        - name: suggest_habits
+          arguments:
+            language: en
+            count: 2
+      allowed:
+        - query_habits
+        - query_goals
+        - suggest_habits
+      counts:
+        suggest_habits: 1
+    rubric: Answer in English. Two editable drafts. The existing Water habit appears exactly once as an
+      adjustment with existingHabitId, never a new duplicate. Reading is a new habit. No saved claim
+      or approval preview.
+- description: suggestions-refine in en
+  metadata:
+    id: composition-suggestions-refine-en
+    category: composition
+    family: suggestions-refine
+    locale: en
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - habitSuggestions
+    input: weekdays at 22:30
+    composition:
+      mode: refine
+    refine:
+      preserve:
+        - title
+        - type
+        - checklistItems
+      expected:
+        days:
+          - Monday
+          - Tuesday
+          - Wednesday
+          - Thursday
+          - Friday
+        dueTime: 22:30:00
+        frequencyUnit: Day
+        frequencyQuantity: 1
+    setup:
+      input: "Suggest two simple evening habits: reading and stretching. Do not create anything yet."
+      composition:
+        mode: suggestions
+        count: 2
+      expectations:
+        required:
+          - name: suggest_habits
+            arguments:
+              language: en
+              count: 2
+        allowed:
+          - query_habits
+          - query_goals
+          - suggest_habits
+        counts:
+          suggest_habits: 1
+    expectations:
+      allowed: []
+    rubric: Answer in English. Only the first draft changes to weekdays at 22:30. Keep its meaning,
+      identity and language. The other draft remains exactly as supplied. No saved claim.
+- description: suggestions in pt-BR
+  metadata:
+    id: composition-suggestions-pt-BR
+    category: composition
+    family: suggestions
+    locale: pt-BR
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - habitSuggestions
+    input: "Me sugira dois hábitos simples para a noite: ler e fazer alongamento. Ainda não quero criar
+      nada."
+    composition:
+      mode: suggestions
+      count: 2
+    expectations:
+      required:
+        - name: suggest_habits
+          arguments:
+            language: pt-BR
+            count: 2
+      allowed:
+        - query_habits
+        - query_goals
+        - suggest_habits
+      counts:
+        suggest_habits: 1
+    rubric: Answer in Brazilian Portuguese. Show two complete editable habit drafts for reading and
+      stretching in a habitSuggestions block, allowing only the short server introduction. Drafts
+      include a concrete schedule, emoji, checklist and a short reason. No saved claim, approval
+      preview or prose list replacing the block.
+- description: suggestions-duplicate in pt-BR
+  metadata:
+    id: composition-suggestions-duplicate-pt-BR
+    category: composition
+    family: suggestions-duplicate
+    locale: pt-BR
+    fixture: pro
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - habitSuggestions
+    input: "Me sugira dois hábitos: Beber água e ler antes de dormir. Se eu já tiver algum deles, sugira
+      um ajuste nele em vez de criar outro."
+    composition:
+      mode: suggestions
+      count: 2
+      existing:
+        - id: "{habitId}"
+          title: Beber água
+    expectations:
+      required:
+        - name: suggest_habits
+          arguments:
+            language: pt-BR
+            count: 2
+      allowed:
+        - query_habits
+        - query_goals
+        - suggest_habits
+      counts:
+        suggest_habits: 1
+    rubric: Answer in Brazilian Portuguese. Two editable drafts. The existing Beber água habit appears
+      exactly once as an adjustment with existingHabitId, never a new duplicate. Reading is a new
+      habit. No saved claim or approval preview.
+- description: suggestions-refine in pt-BR
+  metadata:
+    id: composition-suggestions-refine-pt-BR
+    category: composition
+    family: suggestions-refine
+    locale: pt-BR
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - habitSuggestions
+    input: só nos dias de semana, às 22h30
+    composition:
+      mode: refine
+    refine:
+      preserve:
+        - title
+        - type
+        - checklistItems
+      expected:
+        days:
+          - Monday
+          - Tuesday
+          - Wednesday
+          - Thursday
+          - Friday
+        dueTime: 22:30:00
+        frequencyUnit: Day
+        frequencyQuantity: 1
+    setup:
+      input: "Me sugira dois hábitos simples para a noite: ler e fazer alongamento. Ainda não quero criar
+        nada."
+      composition:
+        mode: suggestions
+        count: 2
+      expectations:
+        required:
+          - name: suggest_habits
+            arguments:
+              language: pt-BR
+              count: 2
+        allowed:
+          - query_habits
+          - query_goals
+          - suggest_habits
+        counts:
+          suggest_habits: 1
+    expectations:
+      allowed: []
+    rubric: Answer in Brazilian Portuguese. Only the first draft changes to weekdays at 22:30. Keep its
+      meaning, identity and language. The other draft remains exactly as supplied. No saved claim.

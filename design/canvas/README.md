@@ -3,6 +3,17 @@
 > **At a glance** - the granted canvas export and design tokens for every redesign surface.
 > Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
 
+### One Astra drawing amendment (#1797)
+
+Under D42, the owner's order amends every small Astra variant in the granted drawings:
+"i dont understand this mini astra logo that is not even centralized vertically, on the top left and on the prompt suggestions, change to the normal logo and centralize it".
+Every `AstraGlyph` uses the normal drawing at every size on web and Android. Its shared viewBox
+fits the drawn bounds, and the drawn centre aligns with its row, chip, button or header centre.
+Conversation headers, suggestion and follow-up chips, Hoje composer entries and Astra lines,
+idea cards, proactive actions and form fill controls retain their existing size and colour tokens.
+The normal mark remains legible at 16px without a second drawing or local positioning offsets.
+This amendment supersedes any native 16px Astra drawing in the export.
+
 ### Form presentation and Astra affordance amendment (#1607)
 
 Type stays first. Short RadioRow content centres within the existing 52px minimum; wrapped
@@ -539,7 +550,7 @@ The glyph primitives provide the asset; their consumers below own its placement.
 | `today/today-ai-summary` | Removed the heading glyph and both loading and loaded round-button glyphs. Uses the single slot instead. |
 | `shell/shell-wide` (web) | Retained the sidebar conversation entry. Android uses its composer entry instead. |
 | `shell/composer` | Retained the compact Hoje and habit-detail conversation entry. Wide Hoje uses the sidebar. |
-| `profile/profile-nav-icon` | Removed the Astra settings glyph. The labelled settings row remains aligned with its neighbours. |
+| `profile/profile-nav-icon` | Draws `AstraGlyph` as the Astra settings row's leading icon (#1780). The labelled settings row remains aligned with its neighbours. |
 | `onboarding/onboarding-create-habit` | Removed the proposal-heading glyph; the attribution text and proposed treatment remain. |
 | `habits/habit-create-frame` | Removed the origin glyph; the conversation-origin text remains. |
 | `habits/habit-form-fields/tag-suggestions` | Removed the suggestion-action glyph; its localized label, loading, proposals, acceptance and retry remain. |
@@ -548,7 +559,7 @@ The glyph primitives provide the asset; their consumers below own its placement.
 | `habits/reschedule-sheet` | Removed the heading glyph; Astra attribution, disclosure and proposal actions remain. |
 | `goals/goal-detail-drawer` | Removed the ask row's glyph; the text action and contextual request remain. |
 | `upgrade/page` (web), `app/upgrade` (Android) | Removed the pitch glyph; plans and purchase states remain. |
-| `upgrade/subscription-notice` | Removed the lapsed-plan glyph; notices and recovery actions remain. |
+| `upgrade/subscription-notice` | Removed the lapsed-plan heading glyph; the lapsed Astra messages line uses `AstraGlyph` in place of a chat icon (#1780). Notices and recovery actions remain. |
 | `upgrade/billing-dashboard`, `upgrade/play-billing-dashboard` (web), `upgrade/plan-summary-card` (Android) | Removed plan-summary glyphs; provider-specific management, facts and actions remain. |
 | `review-moment/review-moment-sheet` (Android) | Removed the sheet glyph; rating copy, request and dismissal remain. The web review moment already uses text. |
 | `ui/empty-state` | Retained Astra rendering for its only Astra-mark callers, `chat/chat-empty-state` on each platform, inside the conversation. Other callers use the Orbit mark. |

@@ -20,7 +20,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { accountEventApiBase } from '@/lib/account-event-api-base'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
-import { ChevronRight, MessageCircle, Trash2 } from '@/components/ui/icons'
+import { ChevronRight, Trash2 } from '@/components/ui/icons'
 
 import type { PushPreferenceSnapshot } from '@/hooks/use-push-notification-preferences'
 
@@ -593,7 +593,6 @@ describe('ProfilePage', () => {
       const group = screen.getByTestId('profile-settings-group-you')
       const rows = group.querySelectorAll('.orbit-list-row-shell')
       expect(rows).toHaveLength(5)
-      const messageIcon = render(<MessageCircle size={24} />).container.querySelector('svg')!
       for (const [index, row] of rows.entries()) {
         const title = row.querySelector('[data-slot="list-row-title"]')!
         const icons = row.querySelectorAll('svg')
@@ -603,8 +602,8 @@ describe('ProfilePage', () => {
         expect(icons[0]!.getAttribute('width')).toBe('24')
         expect(icons[0]!.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
         if (index === 3) {
-          expect(icons[0]!.innerHTML).toBe(messageIcon.innerHTML)
-          expect(row.querySelector('[data-asset^="astra-mark"]')).toBeNull()
+          expect(icons[0]).toHaveAttribute('data-asset', 'astra-mark')
+          expect(row.querySelector('a')).toHaveAttribute('href', '/profile/astra')
         }
         if (navigates) {
           const chevron = icons[1]!

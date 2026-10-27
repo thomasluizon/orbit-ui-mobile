@@ -3,12 +3,15 @@ import type { PendingAgentOperation, PendingOperationItem } from '@orbit/shared/
 import type { PendingOperationMessageState } from '@orbit/shared/chat'
 import {
   pendingOperationEdits, pendingOperationRevisionRequest,
+  createUsePendingOperationPlacement, type PendingOperationPlacementEdit,
   createPendingOperationRevisionState, reconcilePendingOperationRevisionState,
   selectPendingOperationRevisionItem, changePendingOperationRevisionDraft,
   applyPendingOperationRevisionPreview,
   type RevisePendingOperation,
   type RefreshPendingOperation,
 } from '@orbit/shared/hooks'
+
+const usePendingOperationPlacement = createUsePendingOperationPlacement(useCallback)
 
 export function usePendingOperationRevision(
   initialOperation: PendingAgentOperation,
@@ -20,6 +23,7 @@ export function usePendingOperationRevision(
   const [revision, setRevision] = useState<ReturnType<typeof createPendingOperationRevisionState>>(() => ({
     ...createPendingOperationRevisionState(initialOperation),
     editedItemIds: savedState?.editedItemIds ?? [],
+    originalItemIds: savedState?.originalItemIds ?? initialOperation.items?.map(item => item.itemId) ?? [],
   }))
   const synchronized = reconcilePendingOperationRevisionState(revision, initialOperation)
   if (synchronized !== revision) setRevision(synchronized)
@@ -43,13 +47,13 @@ export function usePendingOperationRevision(
   const operationRef = useRef(operation)
   useLayoutEffect(() => { operationRef.current = operation }, [operation])
 
-  const revise = useCallback(async (selected: readonly PendingOperationItem[], edits?: { itemId: string; values: Record<string, unknown> }): Promise<boolean> => {
+  const revise = useCallback(async (selected: readonly PendingOperationItem[], edits?: { itemId: string; values: Record<string, unknown> }, placement?: PendingOperationPlacementEdit): Promise<boolean> => {
     if (!onRevise || !operation.previewFingerprint || busy) return false
     const requestFingerprint = operation.previewFingerprint
     setBusy(true)
     setRevisionError(undefined)
     try {
-      const response = await onRevise(operation.id, pendingOperationRevisionRequest(requestFingerprint, selected, edits))
+      const response = await onRevise(operation.id, pendingOperationRevisionRequest(requestFingerprint, selected, edits, placement))
       if (operationRef.current.id !== operation.id || operationRef.current.previewFingerprint !== requestFingerprint) return false
       if (!response.ok) {
         setStaleFingerprint(response.stale ? requestFingerprint : undefined)
@@ -62,12 +66,12 @@ export function usePendingOperationRevision(
         return true
       } else if (response.result.preview) {
         const preview = response.result.preview
-        const next = applyPendingOperationRevisionPreview(synchronized, preview, edits?.itemId)
+        const next = applyPendingOperationRevisionPreview(synchronized, preview, edits?.itemId, selected)
         setRevision((current) => current.operation.previewFingerprint === requestFingerprint
-          ? applyPendingOperationRevisionPreview(current, preview, edits?.itemId) : current)
+          ? applyPendingOperationRevisionPreview(current, preview, edits?.itemId, selected) : current)
         setStaleFingerprint(undefined)
         setRefreshUnavailableFingerprint(undefined)
-        onSettled?.({ operation: next.operation, editedItemIds: [...next.editedItemIds], stale: false, refreshUnavailable: false, status: undefined, completedOperation: undefined, canRetry: false })
+        onSettled?.({ operation: next.operation, editedItemIds: [...next.editedItemIds], originalItemIds: [...next.originalItemIds], stale: false, refreshUnavailable: false, status: undefined, completedOperation: undefined, canRetry: false })
         return true
       }
       setRevisionError({ fingerprint: requestFingerprint, message: 'invalid', source: 'revision' })
@@ -96,18 +100,19 @@ export function usePendingOperationRevision(
         setRevision((current) => current.operation.previewFingerprint === requestFingerprint
           ? { ...createPendingOperationRevisionState({ ...current.operation, ...preview }),
               sourceFingerprint: current.sourceFingerprint,
+              originalItemIds: current.originalItemIds,
               authorizationVersion: current.authorizationVersion + 1 } : current)
         setTitleDrafts({})
         setStaleFingerprint(undefined)
         setRefreshUnavailableFingerprint(undefined)
-        onSettled?.({ operation: { ...operation, ...preview }, editedItemIds: [], stale: false, refreshUnavailable: false, status: undefined, completedOperation: undefined, canRetry: false })
+        onSettled?.({ operation: { ...operation, ...preview }, editedItemIds: [], originalItemIds: [...synchronized.originalItemIds], stale: false, refreshUnavailable: false, status: undefined, completedOperation: undefined, canRetry: false })
       }
     } catch {
       setRevisionError({ fingerprint: requestFingerprint, message: 'invalid', source: 'refresh' })
     } finally {
       setBusy(false)
     }
-  }, [busy, onRefresh, onSettled, operation, refreshUnavailable])
+  }, [busy, onRefresh, onSettled, operation, refreshUnavailable, synchronized.originalItemIds])
 
   const startEdit = useCallback((itemId: string) => {
     setRevision((current) => selectPendingOperationRevisionItem(current, itemId))
@@ -128,11 +133,15 @@ export function usePendingOperationRevision(
     }
   }, [draft, editingItem, items, operation.previewFingerprint, revise])
 
+  const hasTitleDrafts = items.some((item) => titleDrafts[item.itemId] !== undefined
+    && titleDrafts[item.itemId] !== item.fields.find((field) => field.field === 'title')?.newValue)
+  const switchPlacement = usePendingOperationPlacement(items, revise, busy || stale || rejected || hasTitleDrafts || Boolean(editingItem))
+
   return {
+    switchPlacement,
     operation, items, canRevise, editingItem, draft, editedItemIds, authorizationVersion: synchronized.authorizationVersion,
     busy, stale, rejected, error, errorSource: currentError?.source,
-    hasTitleDrafts: items.some((item) => titleDrafts[item.itemId] !== undefined
-      && titleDrafts[item.itemId] !== item.fields.find((field) => field.field === 'title')?.newValue),
+    hasTitleDrafts,
     setTitleDraft: (itemId: string, title: string | undefined) => setTitleDrafts((current) => ({ ...current, [itemId]: title })),
     canRefresh: Boolean(onRefresh && !refreshUnavailable), refresh,
     markStale: () => {

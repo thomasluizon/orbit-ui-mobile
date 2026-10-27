@@ -47,7 +47,11 @@ it.each([320, 412, 1352].flatMap(width => (['en', 'pt-BR'] as const).flatMap(loc
         const control = rowControls[index]!
         const text = layout.texts.filter(text => text.label === label).sort((left, right) => Math.abs(left.top - control.top) - Math.abs(right.top - control.top))[0]
         expect(text, label).toBeDefined()
-        expect(Math.abs(control.top + control.height / 2 - text!.top - text!.height / text!.lines / 2)).toBeLessThanOrEqual(1)
+        if (index < 4) expect(Math.abs(control.top + control.height / 2 - text!.top - text!.height / text!.lines / 2)).toBeLessThanOrEqual(1)
+        else {
+          const row = layout.parts.find(part => part.slot === 'list-row-body' && part.top <= control.top && part.bottom >= control.bottom)!
+          expect(control.top + control.height / 2).toBeCloseTo(row.top + row.height / 2, 1)
+        }
         if (scale === 1 && index < 4) expect(text!.lines).toBe(1)
         if (index < 4) expect(text!.clipped).toBe(false)
         expect(text!.lineHeightRatio).toBeGreaterThanOrEqual(1.4)
