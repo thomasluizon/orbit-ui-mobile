@@ -123,6 +123,21 @@ describe('habit suggestion contract and card state', () => {
     expect(habitSuggestionStatus(persisted(), card.drafts[removedIndex]!.id)).toBe('available')
     expect(habitSuggestionStatus(persisted(), card.drafts[1 - removedIndex]!.id)).toBe('applied')
   })
+  it('restores an older batch after a previous single-preview rejection without relying on binding insertion order', async () => {
+    const { controller, actions, message } = setup()
+    vi.mocked(actions.preview).mockResolvedValueOnce({ response: makeHabitSuggestionPreview('previous-preview') })
+    await controller.preview([card.drafts[1]!], false, message(), actions)
+    actions.transition(current => updatePendingOperationMessage(current, 'previous-preview', { rejected: true }))
+    const operation = makeHabitSuggestionBatchPreview().pendingOperation!
+    vi.mocked(actions.preview).mockResolvedValueOnce({ response: makeHabitSuggestionBatchPreview() })
+    await controller.preview(card.drafts, true, message(), actions)
+    actions.transition(current => ({ ...current, habitSuggestionItems: undefined }))
+    actions.transition(current => updatePendingOperationMessage(current, operation.id, {
+      status: 'done', originalItemIds: [operation.items![1]!.itemId],
+    }))
+    expect(habitSuggestionStatus(message(), draft.id)).toBe('available')
+    expect(habitSuggestionStatus(message(), card.drafts[1]!.id)).toBe('applied')
+  })
   it('prevents concurrent previews and ignores an account replacement', async () => {
     const { controller, actions, message } = setup()
     let deliver: (response: Awaited<ReturnType<HabitSuggestionActions['preview']>>) => void = () => {}
