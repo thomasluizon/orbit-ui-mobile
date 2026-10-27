@@ -158,7 +158,8 @@ for (const inset of [0, 44]) {
       await installLongToday(context)
       await page.goto('/')
       await expect(page.locator('[data-shell-fab] button')).toBeVisible()
-      await expectSafeBounds(page.locator('[data-shell-tab-bar]'))
+      const tabSurface = (await page.locator('[data-tab-bar-surface]').boundingBox())!
+      expect(tabSurface).toMatchObject({ x: 0, width: 844 })
       await revealTodayControls(page)
       const needsRecovery = await page.locator('[data-shell-destination-viewport]').evaluate(element => element.scrollHeight > element.clientHeight)
       for (const selector of ['[data-shell-header] button', '[data-shell-pinned-slot] button', '[data-shell-pinned-slot] textarea', '[data-shell-tab-bar] :is(a[href], button)', '[data-shell-fab] button', '[data-shell-scroll-to-top] button']) {

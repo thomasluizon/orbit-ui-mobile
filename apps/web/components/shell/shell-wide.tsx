@@ -260,7 +260,7 @@ function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{ f
     return () => observer.disconnect()
   }, [floating])
   return <div ref={viewportRef} data-shell-bottom-viewport="" data-floating={floating}
-    className={floating ? 'min-h-[max(var(--orbit-space-64),calc(1.5rem+var(--orbit-space-32)))] overflow-y-auto overscroll-contain [scrollbar-gutter:stable] lg:contents lg:overflow-visible' : 'contents'}
+    className={floating ? 'min-h-[max(var(--orbit-space-64),calc(1.5rem+var(--orbit-space-32)))] overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] lg:contents lg:overflow-visible' : 'contents'}
     style={{ minHeight: minimumHeight }}>
     <div className={floating ? 'lg:contents' : 'contents'}><div className="relative flex min-h-0 flex-col">{children}</div></div>
   </div>
@@ -268,8 +268,8 @@ function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{ f
 
 function getBottomViewportClasses(floating: boolean) {
   return floating
-    ? { scrollOwner: 'lg:overflow-y-auto lg:[scrollbar-gutter:stable]', columnMinimum: 'min-h-16 lg:min-h-0', safeAreaPadding: 'pb-0', safeBottom: '0px' }
-    : { scrollOwner: 'overflow-y-auto [scrollbar-gutter:stable]', columnMinimum: 'min-h-0', safeAreaPadding: 'pb-[var(--safe-bottom)] lg:pb-0', safeBottom: 'var(--safe-bottom)' }
+    ? { scrollOwner: 'lg:overflow-y-auto lg:overflow-x-hidden lg:[scrollbar-gutter:stable]', columnMinimum: 'min-h-16 lg:min-h-0', safeAreaPadding: 'pb-0', safeBottom: '0px' }
+    : { scrollOwner: 'overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]', columnMinimum: 'min-h-0', safeAreaPadding: 'pb-[var(--safe-bottom)] lg:pb-0', safeBottom: 'var(--safe-bottom)' }
 }
 
 function ShellBottomChrome({ props, conversationOpen, visible, wide }: Readonly<{
@@ -426,7 +426,7 @@ function ShellWideBackground({
           <div data-shell-page="" className={`relative mx-auto flex w-full flex-1 flex-col ${scrollerSpacing.minimum}`}>
             {hasFlowAction ? <div className="min-h-0 flex-1 overflow-hidden">{scroller}</div> : scroller}
             {props.fab !== undefined ? (
-              <div data-shell-fab-clip="" className="pointer-events-none absolute inset-x-0 bottom-2 z-sticky flex justify-end overflow-y-auto [scrollbar-gutter:stable] px-4 py-2 lg:hidden">
+              <div data-shell-fab-clip="" className="pointer-events-none absolute inset-x-0 bottom-2 z-sticky flex justify-end overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] px-4 py-2 lg:hidden">
                 <div data-shell-fab-content="" className="pointer-events-none mx-auto flex w-full max-w-[740px] justify-end"><div data-shell-fab="" className="pointer-events-none [&_button]:pointer-events-auto">{props.fab}</div></div>
               </div>
             ) : null}
