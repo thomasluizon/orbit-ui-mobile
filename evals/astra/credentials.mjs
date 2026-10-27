@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 
 export const credentialKeys = ['ORBIT_EVAL_TOKEN', 'ORBIT_EVAL_FREE_TOKEN', 'ORBIT_EVAL_BUDGET_TOKEN']
 const readiness = new Map()
+const credentialHistory = new Set()
 
 async function waitForHealthyApi(origin) {
   const deadline = Date.now() + 180000
@@ -58,17 +59,23 @@ export function readCredentials() {
   }
 }
 
-export function safeFailureMessage(error) {
+export function redactCredentials(text) {
   const secrets = credentialKeys.map((key) => process.env[key])
+  secrets.push(process.env.OPENAI_API_KEY)
   secrets.push(process.env.ORBIT_EVAL_CREDENTIALS_FILE)
-  try { secrets.push(...Object.values(readCredentials()).map((account) => account?.refreshToken)) } catch {
+  try { secrets.push(...Object.values(readCredentials()).flatMap((account) => Object.values(account))) } catch {
     // An unreadable credential file already produces a message without its contents.
   }
-  let message = error instanceof Error ? error.message : 'Unknown precondition failure.'
-  for (const secret of secrets.filter((value) => typeof value === 'string' && value.length).sort((a, b) => b.length - a.length)) {
+  for (const secret of secrets.filter((value) => typeof value === 'string' && value.length)) credentialHistory.add(secret)
+  let message = text
+  for (const secret of [...credentialHistory].sort((a, b) => b.length - a.length)) {
     message = message.replaceAll(secret, '[redacted]')
   }
-  return message.replace(/[\r\n]/g, ' ')
+  return message
+}
+
+export function safeFailureMessage(error) {
+  return redactCredentials(error instanceof Error ? error.message : 'Unknown precondition failure.').replace(/[\r\n]/g, ' ')
 }
 
 export async function updateCredentials(update) {

@@ -225,6 +225,19 @@ initially displayed fields; hidden audit summaries, payloads, collapsed content 
 transport labels never enter the rubric. Raw
 composition and tool evidence remain available to the structural assertions.
 
+Each attempt writes `reports/attempts/<caseId>-r<repeat>.json`, including successful attempts.
+These mode-600 records in the private mode-700 reports directory contain the graded visible answer,
+composition block kinds and subtypes, tool names, observable arguments and outcome statuses,
+optional eval trace timing phases, every assertion verdict and reason, and the final-answer grader rationale.
+Renderer failures retain the exception message and failing block kind in the evidence and attempt reason;
+their answer is null because no projection reached the grader. Failed cases in `reports/summary.md`
+link to every attempt's evidence. The compact `reports/results.json` remains the verdict index.
+Evidence omits raw HTTP headers, tool result payloads and request or call identities. Arguments reuse
+the graded trace catalog's API sensitivity marks and retain only declared schema fields. Credential
+values, email addresses and UUIDs are redacted from persisted text, including reasons and grader rationale;
+otherwise the visible answer is preserved exactly, including whitespace. Unknown tools retain their
+name and status with null arguments. Reports remain local private artifacts and must not be committed.
+
 Suggestion cases negotiate the API's `habitSuggestions` kind explicitly. The eval projects the
 producer's draft fields directly, including the localized date, checklist, schedule and reason;
 this covers the API capability independently of the shared client block schema. The composition

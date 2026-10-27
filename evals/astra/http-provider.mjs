@@ -50,8 +50,12 @@ export default class AstraHttpProvider {
     if (response.output?.composition && !response.output.error) {
       try {
         response.output.answer = visibleAnswer(response.output.composition, context.vars.clientContext, context.vars.accountDate)
-      } catch {
-        return { error: 'Astra returned an unrenderable visible answer.' }
+      } catch (error) {
+        const renderError = { message: error.message, blockKind: error.blockKind ?? null }
+        return { ...response,
+          error: `Astra returned an unrenderable visible answer (${renderError.blockKind ?? 'composition'}): ${renderError.message}`,
+          output: { ...response.output, answer: null, renderError },
+        }
       }
     }
     return response
