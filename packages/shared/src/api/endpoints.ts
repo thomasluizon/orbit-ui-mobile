@@ -143,6 +143,9 @@ export const API = {
   },
 
   chat: {
+    refineHabitSuggestion: '/api/chat/habit-suggestions/refine',
+    previewHabitSuggestion: '/api/chat/habit-suggestions/preview',
+    previewAllHabitSuggestions: '/api/chat/habit-suggestions/preview-all',
     send: '/api/chat',
     stream: '/api/chat/stream',
     transcribe: '/api/chat/transcribe',

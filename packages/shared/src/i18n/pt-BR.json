@@ -1296,6 +1296,27 @@
     }
   },
   "chat": {
+    "habitSuggestions": {
+      "title": "Ideias de hábitos",
+      "add": "Adicionar",
+      "edit": "Editar",
+      "tweak": "Ajustar",
+      "swap": "Trocar",
+      "addAll": "Adicionar todos",
+      "prompt": "Ajustar este hábito...",
+      "apply": "Aplicar",
+      "existing": "Já existe",
+      "current": "Atual",
+      "proposed": "Proposta",
+      "review": "Em revisão",
+      "added": "Adicionado",
+      "refineError": "Não consegui ajustar a ideia. Tente de novo.",
+      "previewError": "Não consegui preparar a revisão. Tente de novo.",
+      "conflictError": "Sua rotina mudou. Ajuste esta ideia ou tente de novo.",
+      "swapInstruction": "Sugira outra ideia para este lugar na rotina.",
+      "scheduleError": "Não consegui carregar os horários atuais. Tente de novo.",
+      "offline": "Conecte-se para continuar."
+    },
     "placement": {
       "group": "Onde colocar {name}",
       "option": {

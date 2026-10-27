@@ -1,3 +1,4 @@
+import { habitSuggestionDraftFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -245,6 +246,11 @@ describe('EditHabitModal', () => {
       slipAlertEnabled: false,
       checklistItems: [],
     })
+  })
+
+  it('prefills an existing habit with the suggestion while retaining its identity', async () => {
+    renderWithProviders(<EditHabitModal open habit={defaultHabit} initialSuggestion={{ ...habitSuggestionDraftFixture, existingHabitId: defaultHabit.id }} onOpenChange={vi.fn()} />)
+    await waitFor(() => expect(mockFormReset).toHaveBeenCalledWith(expect.objectContaining({ title: 'Read', itemType: 'habit', dueTime: '22:00', dueEndTime: '22:15' })))
   })
 
   it('renders nothing when closed', () => {
