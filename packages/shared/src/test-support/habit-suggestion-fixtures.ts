@@ -15,9 +15,13 @@ export const habitSuggestionsFixture: HabitSuggestionsCard = { language: 'en', d
   { ...habitSuggestionDraftFixture, id: '22222222-2222-4222-8222-222222222222', title: 'Stretch', dueTime: '21:00:00', dueEndTime: '21:15:00' },
 ] }
 
-export function makeHabitSuggestionMessage(): ChatMessage {
+export const untimedHabitSuggestionDraftFixture = {
+  ...habitSuggestionDraftFixture, dueTime: null, dueEndTime: null, reminderMinutesBefore: null,
+}
+
+export function makeHabitSuggestionMessage(drafts = habitSuggestionsFixture.drafts): ChatMessage {
   return { id: 'suggestions', role: 'ai', content: '', timestamp: new Date('2026-10-26T12:00:00Z'),
-    parts: [{ type: 'block', kind: 'habitSuggestions', block: habitSuggestionsFixture }] }
+    parts: [{ type: 'block', kind: 'habitSuggestions', block: { ...habitSuggestionsFixture, drafts } }] }
 }
 
 export function makeHabitSuggestionPreview(id = 'suggestion-preview'): AgentExecuteOperationResponse {

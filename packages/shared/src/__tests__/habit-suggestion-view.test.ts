@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createUseHabitSuggestionView, habitSuggestionSchedule } from '../chat/habit-suggestion-view'
 import type { HabitSuggestionActions } from '../chat/habit-suggestion-controller'
 import { createHookStateHarness } from '../test-support/hook-state'
-import { habitSuggestionDraftFixture as draft, makeHabitSuggestionMessage, makeHabitSuggestionPreview } from '../test-support/habit-suggestion-fixtures'
+import { habitSuggestionDraftFixture as draft, untimedHabitSuggestionDraftFixture as untimedDraft, makeHabitSuggestionMessage, makeHabitSuggestionPreview } from '../test-support/habit-suggestion-fixtures'
 
 function setup() {
   const harness = createHookStateHarness()
@@ -85,6 +85,12 @@ describe('habit suggestion view behavior', () => {
     const displayTime = vi.fn((time: string) => time)
     expect(habitSuggestionSchedule({ ...draft, isGeneral: true }, 'en', key => key, displayTime)).toBe('habits.form.noSchedule')
     expect(habitSuggestionSchedule({ ...draft, dueDate: '', dueTime: '', dueEndTime: '' }, 'en', key => key, displayTime)).not.toContain('22:00')
+    expect(displayTime).not.toHaveBeenCalled()
+  })
+  it('keeps the cadence and start date without empty clock separators for null times', () => {
+    const displayTime = vi.fn((time: string) => time)
+    expect(habitSuggestionSchedule(untimedDraft, 'en', key => key, displayTime))
+      .toBe('habits.frequency.everyDay · 10/26/2026')
     expect(displayTime).not.toHaveBeenCalled()
   })
 })

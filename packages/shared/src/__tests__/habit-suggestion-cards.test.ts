@@ -4,14 +4,14 @@ import { chatMessageSchema, chatResponseSchema } from '../types/chat'
 import { HabitSuggestionController, type HabitSuggestionActions } from '../chat/habit-suggestion-controller'
 import { habitSuggestionCreateValues, habitSuggestionFormState, habitSuggestionStatus } from '../chat/habit-suggestions'
 import { buildEditHabitFormState } from '../utils/habit-form-state'
-import { buildUpdateHabitRequest } from '../utils/habit-request-builders'
+import { buildCreateHabitRequest, buildUpdateHabitRequest } from '../utils/habit-request-builders'
 import { createMockHabit } from './factories'
 import { updatePendingOperationMessage } from '../chat/pending-operation-message-state'
 import { applyPendingOperationRevisionPreview, createPendingOperationRevisionState } from '../hooks/pending-operation-revision-core'
 import { habitSuggestionSchedule } from '../chat/habit-suggestion-view'
 import { createTimeDisplay } from '../utils/locale-format'
 import { buildChatClientContext } from '../chat/client-context'
-import { habitSuggestionDraftFixture as draft, habitSuggestionsFixture as card, makeHabitSuggestionMessage, makeHabitSuggestionPreview, makeHabitSuggestionBatchPreview } from '../test-support/habit-suggestion-fixtures'
+import { habitSuggestionDraftFixture as draft, untimedHabitSuggestionDraftFixture as untimedDraft, habitSuggestionsFixture as card, makeHabitSuggestionMessage, makeHabitSuggestionPreview, makeHabitSuggestionBatchPreview } from '../test-support/habit-suggestion-fixtures'
 
 function setup() {
   let message = makeHabitSuggestionMessage()
@@ -25,6 +25,33 @@ function setup() {
 }
 
 describe('habit suggestion contract and card state', () => {
+  it('parses untimed and timed drafts together in a chat response', () => {
+    const message = makeHabitSuggestionMessage([untimedDraft, draft])
+    expect(habitSuggestionDraftSchema.parse(untimedDraft)).toEqual(untimedDraft)
+    expect(habitSuggestionDraftSchema.parse(draft)).toEqual(draft)
+    expect(chatResponseSchema.parse({ actions: [], parts: message.parts }).parts).toEqual(message.parts)
+  })
+  it.each(['dueTime', 'dueEndTime'] as const)('rejects a draft with only %s missing', field => {
+    expect(habitSuggestionDraftSchema.safeParse({ ...draft, [field]: null }).success).toBe(false)
+  })
+  it('creates an untimed habit through the existing form and request builder', () => {
+    const values = habitSuggestionCreateValues(untimedDraft)
+    expect(values).toMatchObject({ dueTime: '', dueEndTime: '', dueDate: draft.dueDate, reminderEnabled: false })
+    const request = buildCreateHabitRequest(values, [], [], [], [])
+    expect(request).toMatchObject({ title: draft.title, startDate: draft.dueDate, frequencyUnit: 'Day', frequencyQuantity: 1 })
+    expect(request).not.toHaveProperty('dueTime')
+    expect(request).not.toHaveProperty('dueEndTime')
+    expect(request.relativeReminders).toEqual([])
+  })
+  it('clears both clocks when an untimed suggestion prefills a timed edit form', () => {
+    const snapshot = buildEditHabitFormState(createMockHabit({ dueTime: '22:00:00', dueEndTime: '22:15:00' }))
+    const state = habitSuggestionFormState(snapshot, untimedDraft)
+    expect(state.formValues).toMatchObject({ dueTime: '', dueEndTime: '', reminderEnabled: false })
+    expect(state.reminderTimes).toEqual([])
+    const request = buildUpdateHabitRequest(state.formValues, false, state.originalEndDate, state.reminderTimes, state.selectedGoalIds)
+    expect(request).not.toHaveProperty('dueTime')
+    expect(request).not.toHaveProperty('dueEndTime')
+  })
   it('negotiates on both platforms and parses a block-only response', () => {
     for (const platform of ['web', 'mobile'] as const) expect(buildChatClientContext({ platform, locale: 'en' }).partKinds).toContain('habitSuggestions')
     expect(chatResponseSchema.parse({ actions: [], parts: makeHabitSuggestionMessage().parts }).parts?.[0]).toEqual(makeHabitSuggestionMessage().parts?.[0])

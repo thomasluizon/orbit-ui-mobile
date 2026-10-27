@@ -11,13 +11,13 @@ export const habitSuggestionDraftSchema = z.object({
   frequencyQuantity: z.number().int().nullable(),
   days: z.array(z.enum(['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'])),
   dueDate: z.iso.date(),
-  dueTime: z.string().regex(/^\d{2}:\d{2}:\d{2}$/),
-  dueEndTime: z.string().regex(/^\d{2}:\d{2}:\d{2}$/),
+  dueTime: z.string().regex(/^\d{2}:\d{2}:\d{2}$/).nullable(),
+  dueEndTime: z.string().regex(/^\d{2}:\d{2}:\d{2}$/).nullable(),
   reminderMinutesBefore: z.number().int().nullable(),
   checklistItems: z.array(z.string()),
   reason: z.string(),
   existingHabitId: z.uuid().nullish(),
-})
+}).refine(draft => (draft.dueTime === null) === (draft.dueEndTime === null), { path: ['dueEndTime'] })
 
 export const habitSuggestionsCardSchema = z.object({
   language: z.string(),

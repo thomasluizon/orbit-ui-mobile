@@ -8,8 +8,8 @@ export function habitSuggestionFormValues(draft: HabitSuggestionDraft): Partial<
   return {
     title: draft.title, emoji: draft.emoji, itemType: draft.type === 'Task' ? 'task' : 'habit',
     frequencyUnit: draft.frequencyUnit, frequencyQuantity: draft.frequencyQuantity, intervalWeeks: 1,
-    days: draft.days, dueDate: draft.dueDate, dueTime: draft.dueTime.slice(0, 5),
-    dueEndTime: draft.dueEndTime.slice(0, 5), isGeneral: false, isFlexible: false,
+    days: draft.days, dueDate: draft.dueDate, dueTime: draft.dueTime?.slice(0, 5) ?? '',
+    dueEndTime: draft.dueEndTime?.slice(0, 5) ?? '', isGeneral: false, isFlexible: false,
     reminderEnabled: draft.reminderMinutesBefore !== null,
     scheduledReminders: [], checklistItems: draft.checklistItems.map(text => ({ text, isChecked: false })),
   }

@@ -324,4 +324,4 @@ export const focusedStaleRecapFixture = {
   },
 }
 
-export { habitSuggestionDraftFixture, habitSuggestionsFixture, makeHabitSuggestionMessage, makeHabitSuggestionPreview, makeHabitSuggestionBatchPreview } from './habit-suggestion-fixtures'
+export { habitSuggestionDraftFixture, untimedHabitSuggestionDraftFixture, habitSuggestionsFixture, makeHabitSuggestionMessage, makeHabitSuggestionPreview, makeHabitSuggestionBatchPreview } from './habit-suggestion-fixtures'

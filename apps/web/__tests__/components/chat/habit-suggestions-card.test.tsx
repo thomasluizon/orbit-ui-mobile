@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
-import { habitSuggestionDraftFixture as draft, makeHabitSuggestionMessage, makeHabitSuggestionPreview, makeHabitSuggestionBatchPreview } from '@orbit/shared/test-support/chat-fixtures'
+import { habitSuggestionDraftFixture as draft, untimedHabitSuggestionDraftFixture as untimedDraft, habitSuggestionsFixture as card, makeHabitSuggestionMessage, makeHabitSuggestionPreview, makeHabitSuggestionBatchPreview } from '@orbit/shared/test-support/chat-fixtures'
 import { useChatStore } from '@/stores/chat-store'
 import { chatMessageSchema } from '@orbit/shared/types/chat'
 import { getMessageBubbleOperations } from '@orbit/shared/chat'
@@ -38,6 +38,32 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('habit suggestion actions on web', () => {
+  it.each(['Add', 'Add all'])('renders an untimed card and preserves null times through %s', async action => {
+    useChatStore.setState({ messages: [chatMessageSchema.parse(makeHabitSuggestionMessage([untimedDraft, card.drafts[1]!]))] })
+    mount()
+    expect(screen.getByText('Every day · 10/26/2026')).toBeInTheDocument()
+    await click(action)
+    expect(mocks.preview).toHaveBeenCalledExactlyOnceWith(action === 'Add' ? [untimedDraft] : [untimedDraft, card.drafts[1]!], action === 'Add all')
+    expect(useChatStore.getState().messages[0]?.pendingOperations).toHaveLength(1)
+  })
+  it('opens the create form with an untimed draft', async () => {
+    useChatStore.setState({ messages: [chatMessageSchema.parse(makeHabitSuggestionMessage([untimedDraft]))] })
+    mount(); await click('Edit'); await screen.findByRole('dialog')
+    expect(mocks.create.mock.lastCall?.[0]).toMatchObject({ initialSuggestion: untimedDraft })
+  })
+  it.each(['Tweak', 'Swap'])('keeps an untimed replacement actionable after %s', async action => {
+    const refined = { ...untimedDraft, title: 'Read one page' }
+    mocks.refine.mockResolvedValueOnce(refined)
+    mount(); await click(action)
+    if (action === 'Tweak') {
+      fireEvent.change(screen.getByRole('textbox', { name: 'Tweak this habit...' }), { target: { value: 'without a time' } })
+      await click('Apply')
+    }
+    expect(screen.getByRole('button', { name: refined.title })).toBeInTheDocument()
+    expect(screen.getByText('Every day · 10/26/2026')).toBeInTheDocument()
+    await click('Add')
+    expect(mocks.preview).toHaveBeenCalledExactlyOnceWith([refined], false)
+  })
   it.each(['en', 'pt-BR'])('renders the app habit rows with bilingual actions in %s', locale => {
     mount(locale)
     expect(screen.getByRole('button', { name: 'Read' })).toBeInTheDocument()

@@ -2,7 +2,7 @@ import React from 'react'
 import { View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactTestRenderer } from 'react-test-renderer'
-import { habitSuggestionDraftFixture as draft, makeHabitSuggestionMessage, makeHabitSuggestionPreview, makeHabitSuggestionBatchPreview } from '@orbit/shared/test-support/chat-fixtures'
+import { habitSuggestionDraftFixture as draft, untimedHabitSuggestionDraftFixture as untimedDraft, habitSuggestionsFixture as card, makeHabitSuggestionMessage, makeHabitSuggestionPreview, makeHabitSuggestionBatchPreview } from '@orbit/shared/test-support/chat-fixtures'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { useChatStore } from '@/stores/chat-store'
 import { chatMessageSchema } from '@orbit/shared/types/chat'
@@ -47,6 +47,34 @@ beforeEach(async () => {
 afterEach(async () => { await renderer.act(() => tree.unmount()); await i18n.changeLanguage('en') })
 
 describe('habit suggestion actions on Android', () => {
+  it.each(['Add', 'Add all'])('renders an untimed card and preserves null times through %s', async action => {
+    useChatStore.setState({ messages: [chatMessageSchema.parse(makeHabitSuggestionMessage([untimedDraft, card.drafts[1]!]))] })
+    await mount()
+    expect(content()).toContain('Every day · 10/26/2026')
+    await press(action)
+    expect(mocks.preview).toHaveBeenCalledExactlyOnceWith(action === 'Add' ? [untimedDraft] : [untimedDraft, card.drafts[1]!], action === 'Add all')
+    expect(useChatStore.getState().messages[0]?.pendingOperations).toHaveLength(1)
+  })
+  it('opens the create form with an untimed draft', async () => {
+    useChatStore.setState({ messages: [chatMessageSchema.parse(makeHabitSuggestionMessage([untimedDraft]))] })
+    await mount(); await press('Edit')
+    await renderer.act(async () => { await import('@/components/chat/habit-suggestion-editor') })
+    expect(mocks.create.mock.lastCall?.[0]).toMatchObject({ initialSuggestion: untimedDraft })
+  })
+  it.each(['Tweak', 'Swap'])('keeps an untimed replacement actionable after %s', async action => {
+    const refined = { ...untimedDraft, title: 'Read one page' }
+    mocks.refine.mockResolvedValueOnce(refined)
+    await mount(); await press(action)
+    if (action === 'Tweak') {
+      const field = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === en.chat.habitSuggestions.prompt && typeof node.props.onChangeText === 'function')[0]!
+      await renderer.act(() => { (field.props.onChangeText as (value: string) => void)('without a time') })
+      await press('Apply')
+    }
+    expect(buttons(refined.title)).toHaveLength(1)
+    expect(content()).toContain('Every day · 10/26/2026')
+    await press('Add')
+    expect(mocks.preview).toHaveBeenCalledExactlyOnceWith([refined], false)
+  })
   it.each(['en', 'pt-BR'])('renders habit rows and localized actions in %s', async locale => {
     await i18n.changeLanguage(locale); await mount()
     expect(buttons('Read')).toHaveLength(1)
