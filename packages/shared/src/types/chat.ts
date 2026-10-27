@@ -1,3 +1,4 @@
+import { questionAnswerSchema } from './question-block'
 import { z } from 'zod'
 import { habitSuggestionsCardSchema } from './habit-suggestions'
 import { utf16Length } from '../validation/utf16-length'
@@ -489,6 +490,7 @@ export const blockAnswerSchema = z.object({
   blockId: z.uuid(),
   selectedIds: z.array(z.string().check(utf16Length('min', 1))),
   freeText: z.string().check(utf16Length('max', 500)).optional(),
+  answers: z.array(questionAnswerSchema).min(1).max(10).refine(values => new Set(values.map(value => value.questionId)).size === values.length).optional(),
 })
 
 export type ChoiceBlock = z.infer<typeof choiceBlockSchema>
