@@ -3,7 +3,20 @@ import { buildOnboardingScheduleFromPhrase } from '../utils/onboarding'
 import { getHabitPhraseTitle } from '../utils/habit-phrase-title'
 import { readHabitRecurrencePhrase } from '../utils/habit-recurrence-phrase'
 import { readDateWeekday } from '../utils/date-phrase-parser'
-import { isWeeklyRecurrencePhrase, readHabitPhrase, readTypedHabitPhrase, segmentHabitPhrase } from '../utils/habit-phrase-parser'
+import { isWeeklyRecurrencePhrase, readHabitPhrase as parseHabitPhrase, readTypedHabitPhrase, segmentHabitPhrase } from '../utils/habit-phrase-parser'
+
+function readHabitPhrase(...[input, locale]: Parameters<typeof parseHabitPhrase>) {
+  const read = parseHabitPhrase(input, locale)
+  let cursor = 0
+  for (const token of read.consumed) {
+    expect(token.start).toBeGreaterThanOrEqual(cursor)
+    expect(token.end).toBeGreaterThan(token.start)
+    expect(token.end).toBeLessThanOrEqual(input.length)
+    cursor = token.end
+  }
+  expect(segmentHabitPhrase(input, read.consumed).map((segment) => segment.text).join('')).toBe(input)
+  return read
+}
 
 interface PhraseCase {
   input: string
@@ -43,6 +56,10 @@ const cases: PhraseCase[] = [
   { input: 'tuesday wednesday thursday every 2 weeks', locale: 'en', cadence: 'fixed', days: ['Tuesday', 'Wednesday', 'Thursday'], interval: 2 },
   { input: '3 times a week every 3 weeks', locale: 'en', cadence: 'flexible', quantity: 3, interval: 3 },
   { input: 'Beber água quando der', locale: 'pt-BR', cadence: null },
+  { input: 'Drink coffee without sugar every Monday at 8', locale: 'en', cadence: 'fixed', days: ['Monday'], time: '08:00' },
+  { input: 'Ler sem celular na segunda às 8', locale: 'pt-BR', cadence: 'fixed', days: ['Monday'], time: '08:00' },
+  { input: 'Do not smoke on Monday at 8', locale: 'en', cadence: 'fixed', days: ['Monday'], time: '08:00' },
+  { input: 'Não fumar na segunda às 8', locale: 'pt-BR', cadence: 'fixed', days: ['Monday'], time: '08:00' },
 ]
 
 describe('recurrence-only wording', () => {
@@ -217,6 +234,52 @@ describe('readHabitPhrase', () => {
 const everyDay = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 describe('weekday negation', () => {
+  it.each([
+    ['en', 'Meditate every day except Sunday at 8 and Saturday'],
+    ['pt-BR', 'Meditar todo dia menos domingo às 8 e sábado'],
+  ] as const)('keeps clock and exclusion spans disjoint: %s %s', (locale, input) => {
+    expect(readHabitPhrase(input, locale)).toMatchObject({ cadence: 'fixed', days: everyDay.slice(0, 5), dueTime: '08:00' })
+  })
+
+  it.each([
+    ['en', 'Read not on Monday at 8'],
+    ['pt-BR', 'Ler não na segunda às 8'],
+  ] as const)('preserves an independent clock when the weekday is unresolved: %s %s', (locale, input) => {
+    const read = readHabitPhrase(input, locale)
+    expect(read).toMatchObject({ cadence: null, days: [], dueTime: '08:00' })
+    expect(read.consumed.map((token) => token.kind)).toEqual(['time'])
+    expect(buildOnboardingScheduleFromPhrase(input, locale)).toMatchObject({ days: [], isGeneral: true, dueTime: '08:00' })
+    expect(readTypedHabitPhrase(input, locale, 'task', false)).toMatchObject({ cadence: null, days: [], dueTime: '08:00', consumed: read.consumed })
+    expect(getHabitPhraseTitle(input, locale, { cadence: false, dueTime: false })).toBe(input)
+  })
+
+  it.each([
+    ['en', 'Meditate without a phone every day except Sunday at 8'],
+    ['pt-BR', 'Meditar sem celular todo dia menos domingo às 8'],
+  ] as const)('keeps activity negation separate from an exclusion: %s %s', (locale, input) => {
+    expect(readHabitPhrase(input, locale)).toMatchObject({ cadence: 'fixed', days: everyDay.slice(0, 6), dueTime: '08:00' })
+  })
+
+  it('keeps token spans sorted and disjoint and round-trips clock placements and normalized variants', () => {
+    for (const [locale, activity, schedule, clocks, separator, lastDay] of [
+      ['en', '🧘 Meditate', 'every day except Sunday', ['at 8', '08:30', '7pm'], 'and', 'Saturday'],
+      ['pt-BR', '🧘 Meditar', 'todo dia menos domingo', ['às 8', '08:30', '21h'], 'e', 'sábado'],
+    ] as const) {
+      for (const clock of clocks) {
+        for (const input of [
+          `${activity} ${clock} ${schedule} ${separator} ${lastDay}`,
+          `${activity} ${schedule} ${clock} ${separator} ${lastDay}`,
+          `${activity} ${schedule} ${separator} ${clock} ${lastDay}`,
+          `${activity} ${schedule} ${separator} ${lastDay} ${clock}`,
+        ]) {
+          for (const variant of [input, input.toUpperCase(), input.normalize('NFD'), input.replaceAll(' ', '\t  ')]) {
+            expect(readHabitPhrase(variant, locale).cadence).toBe('fixed')
+          }
+        }
+      }
+    }
+  })
+
   it.each([
     ['en', 'every day except Sunday', ['Sunday']],
     ['en', 'every day except Sundays', ['Sunday']],

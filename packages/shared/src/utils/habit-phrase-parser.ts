@@ -200,8 +200,8 @@ function matchWeekdays(text: string, patterns: LocalePatterns) {
 }
 
 function hasWeekdayNegation(text: string, locale: SupportedLocale): boolean {
-  return /\b(?:menos|exceto|sem|nao|nunca|salvo|tirando|except|excluding|not|never|without|don't|cannot)\b/u.test(text)
-    || (locale === 'en' && /\bno\b/u.test(text))
+  return /\b(?:menos|exceto|sem(?: ser)?|nao|nunca|salvo|tirando|except|excluding|not|never|without|don't|cannot)\s+(?:(?:on|aos|as|no|nos|nas|na|a|o|every|each|toda|todas)\s+)*$/u.test(text)
+    || (locale === 'en' && /\bno\s+$/u.test(text))
 }
 
 function readWeekdayExclusion(
@@ -211,12 +211,13 @@ function readWeekdayExclusion(
   locale: SupportedLocale,
 ): { days: string[]; consumed: HabitPhraseToken[] } | 'unresolved' | null {
   const weekdays = matchWeekdays(remaining, patterns)
-  if (weekdays.length === 0 || !hasWeekdayNegation(remaining, locale)) return null
+  if (!weekdays.some(({ match }) => hasWeekdayNegation(remaining.slice(0, match.index), locale))) return null
   const exclusions = [...remaining.matchAll(/\b(?:menos|exceto|sem ser|except|but not)\b/gu)]
+    .filter((exclusion) => weekdays.some(({ match }) => /^\s+(?:(?:on|aos|as|no|nos|nas|a|o)\s+)?$/u.test(remaining.slice(exclusion.index + exclusion[0].length, match.index))))
   if (exclusions.length !== 1) return 'unresolved'
   const exclusion = exclusions[0]!
   const prefix = remaining.slice(0, exclusion.index)
-  if (hasWeekdayNegation(prefix, locale)) return 'unresolved'
+  if (/^\s*(?:do not|don't|cannot|nao|nunca|never)\b/u.test(prefix)) return 'unresolved'
   const daily = firstMatch([patterns.daily], prefix)
   if (prefix.trim() && (!daily || prefix.slice(daily.index + daily[0].length).replace(/[\s,;]+/gu, ''))) return 'unresolved'
   if (firstMatch([patterns.count, patterns.interval], prefix) || /\b(?:weekdays?|weekends?|uteis|fim|fins)\b/u.test(prefix)) return 'unresolved'
@@ -240,6 +241,18 @@ function readWeekdayExclusion(
   return { days, consumed }
 }
 
+function subtractConsumedTokens(token: HabitPhraseToken, consumed: HabitPhraseToken[]): HabitPhraseToken[] {
+  const fragments: HabitPhraseToken[] = []
+  let start = token.start
+  for (const existing of consumed) {
+    if (existing.end <= start || existing.start >= token.end) continue
+    if (existing.start > start) fragments.push({ ...token, start, end: existing.start })
+    start = existing.end
+  }
+  if (start < token.end) fragments.push({ ...token, start })
+  return fragments
+}
+
 function buildWeekdayExclusionRead(
   exclusion: { days: string[]; consumed: HabitPhraseToken[] } | 'unresolved',
   text: string,
@@ -249,9 +262,11 @@ function buildWeekdayExclusionRead(
   const resolved = exclusion !== 'unresolved'
   return {
     cadence: resolved ? 'fixed' : null, days: resolved ? exclusion.days : [],
-    frequencyQuantity: null, intervalWeeks: null, dueTime: resolved ? dueTime : null,
+    frequencyQuantity: null, intervalWeeks: null, dueTime,
     emoji: EMOJI_HINTS.find(({ pattern }) => pattern.test(text))?.emoji ?? null,
-    consumed: resolved ? [...consumed, ...exclusion.consumed].sort((left, right) => left.start - right.start) : [],
+    consumed: resolved
+      ? [...consumed, ...exclusion.consumed.flatMap((token) => subtractConsumedTokens(token, consumed))].sort((left, right) => left.start - right.start)
+      : consumed,
   }
 }
 
