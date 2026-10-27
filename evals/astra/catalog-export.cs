@@ -47,10 +47,21 @@ var handlerType = typeof(ProcessUserChatCommandHandler);
 var factsType = handlerType.Assembly.GetType("Orbit.Application.Chat.HabitTodaySnapshot", true)!;
 var facts = Activator.CreateInstance(factsType, new object?[] { new HashSet<Guid>(), new HashSet<Guid>(), new HashSet<Guid>(), null });
 var contextType = handlerType.GetNestedType("ChatContext", BindingFlags.NonPublic)!;
-var context = Activator.CreateInstance(contextType, new object?[] {
-    Array.Empty<Habit>(), new List<Habit>(), new List<Habit>(), new List<Habit>(), false, null, true,
-    Array.Empty<Goal>(), Array.Empty<Tag>(), Array.Empty<string>(), new[] { FeatureFlagKeys.AstraBlockFirst },
-    DateOnly.MinValue, facts, 0L });
+var context = CatalogConstructor.Create(contextType, new Dictionary<string, object?>(StringComparer.Ordinal) {
+    ["UserHabits"] = Array.Empty<Habit>(),
+    ["ActiveHabits"] = new List<Habit>(),
+    ["TodayHabits"] = new List<Habit>(),
+    ["PromptHabits"] = new List<Habit>(),
+    ["IsPromptHabitIndexPartial"] = false,
+    ["User"] = null,
+    ["HasProAccess"] = true,
+    ["ActiveGoals"] = Array.Empty<Goal>(),
+    ["UserTags"] = Array.Empty<Tag>(),
+    ["ChecklistTemplateNames"] = Array.Empty<string>(),
+    ["EnabledFeatureFlags"] = new[] { FeatureFlagKeys.AstraBlockFirst },
+    ["UserToday"] = DateOnly.MinValue,
+    ["TodayFacts"] = facts,
+    ["ContextLoadMilliseconds"] = 0L });
 var method = handlerType.GetMethod("RequestInitialAiResponseAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
 var collectSensitiveFields = handlerType.GetNestedType("ChatEvalTraceCollector", BindingFlags.NonPublic)!
     .GetMethod("CollectSensitiveFields", BindingFlags.NonPublic | BindingFlags.Static)!;

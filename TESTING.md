@@ -171,6 +171,8 @@ commit with `node evals/astra/generate-catalog.mjs <api-checkout>` from the repo
 The exporter uses the API's tool registrations, request builder and strict schema normalizer for both
 composition and legacy clients, with `AstraBlockFirst` enabled for the gate;
 `catalog.yaml` records the full source SHA as `apiCommit`. Generation refuses a dirty API tree.
+The exporter supplies chat context values by constructor parameter name and refuses unknown parameters,
+listing their names before invoking the constructor. Its offline regression test requires the .NET SDK.
 Structural validation selects the schema matching the case's `clientContext.supportsParts` and removes
 only properties the API's trace sensitivity collector marks for omission, retaining all observable constraints.
 The live gate checks `/health` before its first case and before refreshing credentials. It refuses to
