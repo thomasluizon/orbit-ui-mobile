@@ -1,26 +1,10 @@
 import { refineResult } from './suggestions.mjs'
 export { composition } from './composition.mjs'
 import { assertions } from 'promptfoo'
-import { readFileSync } from 'node:fs'
-import { parse } from 'yaml'
 import { isDeepStrictEqual } from 'node:util'
+import { tools, legacyTools, toolSensitiveFields, observableSchema } from './trace-policy.mjs'
 
-const { tools, legacyTools } = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
 const toolWrites = new Map(tools.map((tool) => [tool.function.name, tool.writes]))
-const toolSensitiveFields = new Map(tools.map((tool) => [tool.function.name, new Set(tool.sensitiveFields)]))
-const normalizeField = (name) => name.replaceAll('_', '').replaceAll('-', '').toLowerCase()
-
-function observableSchema(schema, sensitiveFields) {
-  if (Array.isArray(schema)) return schema.map((entry) => observableSchema(entry, sensitiveFields))
-  if (!schema || typeof schema !== 'object') return schema
-  return Object.fromEntries(Object.entries(schema).map(([key, value]) => {
-    if (key === 'properties') return [key, Object.fromEntries(Object.entries(value)
-      .filter(([name]) => !sensitiveFields.has(normalizeField(name)))
-      .map(([name, property]) => [name, observableSchema(property, sensitiveFields)]))]
-    if (key === 'required') return [key, value.filter((name) => !sensitiveFields.has(normalizeField(name)))]
-    return [key, observableSchema(value, sensitiveFields)]
-  }))
-}
 
 const traceCatalog = (catalog) => catalog.map((tool) => ({ ...tool, function: { ...tool.function,
   parameters: observableSchema(tool.function.parameters, new Set(tool.sensitiveFields)),

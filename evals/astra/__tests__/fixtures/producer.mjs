@@ -47,13 +47,18 @@ export function toolCall(name, arguments_, status = 'Succeeded', id = 'call-1', 
   }
 }
 
+export const traceTiming = { totalMilliseconds: 125.5, phases: [
+  { name: 'model', milliseconds: 100, elapsedMilliseconds: 100 },
+  { name: 'tools', milliseconds: '25.5', elapsedMilliseconds: 125.5 },
+] }
+
 export function chatResponse(requestId, toolCalls = []) {
   return {
     aiMessage: 'Water is ready.', actions: [], operations: null, pendingOperations: null,
     policyDenials: null, correlationId: requestId, relatedSurfaces: null, habitList: null,
     goalList: null, metricsCard: null, periodInsight: null, daySummary: null, streak: null,
     calendar: null, recordLists: null, accountRows: null, followUps: null,
-    evalTrace: { traceId: requestId, toolCalls },
+    evalTrace: { traceId: requestId, toolCalls, timing: traceTiming },
   }
 }
 

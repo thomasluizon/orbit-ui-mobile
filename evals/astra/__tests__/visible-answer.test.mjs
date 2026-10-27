@@ -133,3 +133,10 @@ it.each(['unsupported-kind', 'malformed-block'])('fails closed on an unrenderabl
   expect(output).toMatchObject({ answer: null, httpStatus: 200, renderError: { message, blockKind: part.kind },
     trace: { state: 'available' } })
 })
+
+it('preserves suggestion projection failures with their block kind', async () => {
+  const { error, output } = await receive({ parts: [{ type: 'block', kind: 'habitSuggestions', block: { drafts: [{}] } }] })
+  expect(error).toContain('Malformed suggestion block.')
+  expect(error).toContain('habitSuggestions')
+  expect(output).toMatchObject({ answer: null, renderError: { blockKind: 'habitSuggestions', message: 'Malformed suggestion block.' } })
+})

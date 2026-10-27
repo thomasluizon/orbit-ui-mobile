@@ -10,7 +10,7 @@ import { beforeAll, beforeEach } from '../hooks.mjs'
 import { resetFixture } from '../fixtures/reset.mjs'
 import { behavior } from '../assertions.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
-import { chatResponse, toolCall } from './fixtures/producer.mjs'
+import { chatResponse, toolCall, traceTiming } from './fixtures/producer.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const configuration = parse(readFileSync(resolve(root, 'promptfooconfig.yaml'), 'utf8'))
@@ -25,6 +25,7 @@ describe('real promptfoo CLI with an offline provider', () => {
     [false, false, 'pass', undefined], [true, false, 'fail', undefined], [false, true, 'incomplete', undefined],
     [false, false, 'fail', 'prose-first'], [false, false, 'pass', 'block-only'], [false, false, 'fail', 'repeated-figure'],
     [false, false, 'incomplete', 'missing-composition'], [false, false, 'incomplete', 'skipped-composition'],
+    [false, false, 'fail', 'unrenderable'],
   ])('runs the production assertions and pass^3 reporter; broken=%s, noTrace=%s, status=%s, mode=%s', (broken, noTrace, status, responseMode) => {
     offlineCredentials()
     const directory = mkdtempSync(resolve(tmpdir(), 'astra-eval-'))
@@ -42,7 +43,7 @@ describe('real promptfoo CLI with an offline provider', () => {
       tests: [{ description: 'Offline Water case', metadata: { id: 'offline-water', fixture: 'pro', locale: 'en' }, vars: {
         input: 'Mark Water done', credentialKey: 'ORBIT_EVAL_TOKEN', broken, noTrace, responseMode,
         clientContext: {}, composition: { mode: 'fallback' },
-        ...(responseMode && ['prose-first', 'block-only', 'repeated-figure'].includes(responseMode) ? {
+        ...(responseMode && ['prose-first', 'block-only', 'repeated-figure', 'unrenderable'].includes(responseMode) ? {
           clientContext: { supportsParts: true, partKinds: ['habitList'], supportsHabitListCard: true }, composition: { mode: 'data', kinds: ['habitList'] },
         } : {}), rubric: 'Describe Water only.',
         expectations: { required: [{ name: 'log_habit', arguments: { habit_id: 'water' } }] },
@@ -62,7 +63,7 @@ describe('real promptfoo CLI with an offline provider', () => {
     else expect(run.status, run.stdout + run.stderr).toBe(0)
     expect(summary.status).toBe(status)
     if (status === 'pass') expect(summary.gateStatus).toBe('incomplete')
-    expect(summary.cases[0]).toMatchObject({ attempts: 3, passed: broken || noTrace || ['prose-first', 'repeated-figure'].includes(responseMode) ? 0 : 3, skipped: responseMode === 'skipped-composition' ? 3 : 0, unavailable: noTrace ? 3 : 0 })
+    expect(summary.cases[0]).toMatchObject({ attempts: 3, passed: broken || noTrace || ['prose-first', 'repeated-figure', 'unrenderable'].includes(responseMode) ? 0 : 3, skipped: responseMode === 'skipped-composition' ? 3 : 0, unavailable: noTrace ? 3 : 0 })
     expect(readFileSync(summaryPath, 'utf8')).not.toContain('TOOL_TRACE_SECRET')
     const resultsPath = resolve(directory, 'reports/results.json')
     expect(existsSync(resultsPath)).toBe(true)
@@ -70,9 +71,30 @@ describe('real promptfoo CLI with an offline provider', () => {
     const attempts = JSON.parse(readFileSync(resultsPath, 'utf8'))
     expect(attempts.map(({ caseId, repeat, pass, httpStatus }) => ({ caseId, repeat, pass, httpStatus }))).toEqual(
       [1, 2, 3].map((repeat) => ({ caseId: 'offline-water', repeat,
-        pass: !broken && !noTrace && !['prose-first', 'repeated-figure'].includes(responseMode), httpStatus: 200 })),
+        pass: !broken && !noTrace && !['prose-first', 'repeated-figure', 'unrenderable'].includes(responseMode), httpStatus: 200 })),
     )
     for (const attempt of attempts) {
+      const evidencePath = resolve(directory, `reports/attempts/offline-water-r${attempt.repeat}.json`)
+      expect(statSync(evidencePath).mode & 0o777).toBe(0o600)
+      const contents = readFileSync(evidencePath, 'utf8')
+      expect(contents).not.toMatch(/TOOL_TRACE_SECRET|PRIVATE_(?:TOKEN|COOKIE|REFRESH|ACCOUNT)_VALUE|private@example\.invalid|offline-token|offline-refresh|independently-owned-request/)
+      const evidence = JSON.parse(contents)
+      expect(evidence).toMatchObject(attempt)
+      if (!noTrace) {
+        expect(evidence.toolCalls).toMatchObject([{ name: 'log_habit', resultStatus: 'PendingConfirmation' }])
+        expect(evidence.timing).toEqual(traceTiming)
+      }
+      if (status === 'fail') expect(readFileSync(resolve(directory, 'reports/summary.md'), 'utf8'))
+        .toContain(`(attempts/offline-water-r${attempt.repeat}.json)`)
+      if (responseMode === 'unrenderable') {
+        expect(evidence.answer).toBeNull()
+        expect(evidence.renderError.blockKind).toBe('habitList')
+        expect(evidence.reason).toContain(evidence.renderError.message)
+        expect(evidence.reason).toContain('habitList')
+        continue
+      }
+      expect(evidence.answer).toBeTruthy()
+      expect(evidence.graderRationale).toBe('Offline final-answer boundary check.')
       expect(attempt.assertions.length).toBe(responseMode === 'missing-composition' ? 3 : 4)
       expect(attempt.assertions.map(({ metric }) => metric)).toEqual(assertions.map(({ metric }) => metric))
       for (const assertion of attempt.assertions) {
@@ -81,6 +103,8 @@ describe('real promptfoo CLI with an offline provider', () => {
         expect(typeof assertion.reason).toBe('string')
       }
     }
+    expect(statSync(resolve(directory, 'reports')).mode & 0o777).toBe(0o700)
+    expect(statSync(resolve(directory, 'reports/attempts')).mode & 0o777).toBe(0o700)
     expect(readFileSync(resultsPath, 'utf8')).not.toContain('TOOL_TRACE_SECRET')
     if (broken) expect(attempts.every(({ assertions }) => assertions.some(({ metric, pass, reason }) =>
       metric === 'toolBehavior' && !pass && reason.includes('log_habit')))).toBe(true)
