@@ -48,10 +48,11 @@ export function useHabitRowActivation(onActivate: () => void) {
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
-    cancel()
-    if (event.key !== 'Enter' && event.key !== ' ') return
+    if (event.key !== 'Enter' && event.key !== ' ') { cancel(); return }
     event.preventDefault()
-    if (!available() || modified(event) || event.repeat || event.currentTarget !== document.activeElement) return
+    if (!available() || modified(event) || event.currentTarget !== document.activeElement) { cancel(); return }
+    if (event.repeat) return
+    cancel()
     if (event.key === 'Enter') onActivate()
     else gesture.current.space = true
   }

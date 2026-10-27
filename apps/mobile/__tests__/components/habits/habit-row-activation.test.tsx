@@ -43,18 +43,21 @@ function renderRow(isSelectMode: boolean) {
 }
 
 describe.each([false, true])('native habit row activation, selecting=%s', (selectMode) => {
-  it.each(['background', 'blur'] as const)('discards a press interrupted by %s', (interruption) => {
+  it.each((['background', 'blur'] as const).flatMap((interruption) => [false, true].map((hold) => ({ interruption, hold }))))('discards a press interrupted by $interruption, held=$hold', ({ interruption, hold }) => {
     const { body, actions, primary, tap } = renderRow(selectMode)
-    TestRenderer.act(() => body().props.onPressIn())
+    TestRenderer.act(() => {
+      body().props.onPressIn()
+      if (hold) setTimeout(() => body().props.onLongPress?.(), body().props.delayLongPress)
+    })
     if (interruption === 'background') emit('change', 'background')
     else emit('blur')
     TestRenderer.act(() => {
       vi.advanceTimersByTime(500)
-      body().props.onLongPress?.()
     })
     expect(actions.onLongPressCard).not.toHaveBeenCalled()
     emit('change', 'active')
     emit('focus')
+    if (hold) TestRenderer.act(() => body().props.onLongPress?.())
     TestRenderer.act(() => { body().props.onPressOut(); body().props.onPress() })
     expect(actions.onDetail).not.toHaveBeenCalled()
     expect(actions.onToggleSelection).not.toHaveBeenCalled()
@@ -68,4 +71,20 @@ describe.each([false, true])('native habit row activation, selecting=%s', (selec
     TestRenderer.act(() => body().props.onPress())
     expect(primary).toHaveBeenCalledOnce()
   })
+})
+
+it('keeps a completed long press from opening detail or toggling selection on release', () => {
+  const { body, actions } = renderRow(false)
+  actions.onLongPressCard.mockImplementation(() => {
+    renderer.update(<HabitRow habit={createMockHabit({ title: 'Read' })} isSelectMode actions={actions} />)
+  })
+  TestRenderer.act(() => {
+    body().props.onPressIn()
+    setTimeout(() => body().props.onLongPress(), body().props.delayLongPress)
+    vi.advanceTimersByTime(500)
+  })
+  expect(actions.onLongPressCard).toHaveBeenCalledOnce()
+  TestRenderer.act(() => { body().props.onPressOut(); body().props.onPress() })
+  expect(actions.onDetail).not.toHaveBeenCalled()
+  expect(actions.onToggleSelection).not.toHaveBeenCalled()
 })
