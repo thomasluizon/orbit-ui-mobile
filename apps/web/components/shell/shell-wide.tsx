@@ -418,8 +418,8 @@ function ShellWideBackground({
           <ShellDestinationViewport floating={floating} hasHeader={registerHeaderHost !== undefined || props.header !== undefined} hasTabBar={navigationEnabled && props.tabBar !== undefined}>
           <div data-shell-background="" data-shell-destination="" inert={conversationOpen || undefined} aria-hidden={conversationOpen || undefined}
             className="flex h-full w-screen min-h-0 self-center flex-col lg:w-full" style={conversationOpen ? { visibility: 'hidden' } : undefined}>
-          {registerHeaderHost !== undefined || props.header !== undefined ? <div data-shell-header="" data-focus-inset="" className={`flex min-h-0 flex-col has-[[data-shell-header-content]:empty]:hidden ${hasFlowAction ? 'min-h-[var(--touch-min)]' : 'shrink-0'}`}>
-            <div data-shell-header-viewport="" className="mx-auto min-h-0 w-full overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+          {registerHeaderHost !== undefined || props.header !== undefined ? <div data-shell-header-surface="" data-focus-inset="" className={`flex min-h-0 flex-col has-[[data-shell-header-content]:empty]:hidden ${hasFlowAction ? 'min-h-[var(--touch-min)]' : 'shrink-0'}`}>
+            <div data-shell-header="" data-shell-header-viewport="" className="mx-auto min-h-0 w-full overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
               <div ref={registerHeaderHost} data-shell-header-content="" className="w-full">{props.header}</div>
             </div>
           </div> : null}

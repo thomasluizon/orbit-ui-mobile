@@ -190,12 +190,12 @@ describe('Foldable shell geometry', () => {
     },
   )
 
-  it.each([320, 412, 600, 1024, 1100].flatMap((width) => [24, 48].map((top) => ({ width, top, left: 28, right: 64 }))))(
+  it.each([320, 412, 600, 844, 1024, 1100].flatMap((width) => [24, 48].map((top) => ({ width, top, left: 28, right: 64 }))))(
     'applies one safe top inset to the full-screen conversation at $width with top $top', async ({ width, top, left, right }) => {
       const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"
         astraRow={{ label: en.chat.title, onOpen: vi.fn() }} conversationOpen
         conversation={<div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <AppBar title="Astra" action={<button type="button">Close</button>} />
+          <div data-conversation-header=""><AppBar title="Astra" action={<button type="button">Close</button>} /></div>
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>Thread</div>
           <Composer state="idle" value="" words={en.shell.composer} suggestions={[]} onChangeValue={vi.fn()} onSend={vi.fn()} />
         </div>} conversationLabel="Astra" tabBar={<nav style={{ height: 80 }}>Tabs</nav>}>
@@ -218,6 +218,8 @@ describe('Foldable shell geometry', () => {
             layerLeft: layer.left, layerRight: layer.right, headerLeft: header.left, headerRight: header.right, composerLeft: composer.left, composerRight: composer.right, controls }
         })
         for (const edge of [geometry.titleLeft, geometry.fieldLeft]) expect(edge).toBeGreaterThanOrEqual(left + 16)
+        expect(geometry.headerLeft).toBeGreaterThanOrEqual(left)
+        expect(geometry.headerRight).toBeLessThanOrEqual(width - right)
         expect(geometry.fieldRight).toBeLessThanOrEqual(width - right - 16)
         for (const control of geometry.controls) {
           expect(control.left).toBeGreaterThanOrEqual(left)

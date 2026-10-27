@@ -64,11 +64,15 @@ describe('sub-screen header first paint', () => {
         const back = header.querySelector('button')!.getBoundingClientRect()
         const content = document.querySelector('[data-shell-header-content]')!
         const style = getComputedStyle(content)
-        const surface = header.getBoundingClientRect()
+        const surface = header.parentElement!.getBoundingClientRect()
+        const headerBounds = header.getBoundingClientRect()
         return { left: back.left, right: back.right, paddingLeft: Number.parseFloat(style.paddingLeft), paddingRight: Number.parseFloat(style.paddingRight),
-          hosted: content.contains(header.querySelector('button')), surfaceLeft: surface.left, surfaceRight: surface.right }
+          hosted: content.contains(header.querySelector('button')), surfaceLeft: surface.left, surfaceRight: surface.right,
+          headerLeft: headerBounds.left, headerRight: headerBounds.right }
       })
-      expect.soft(geometry).toMatchObject({ hosted: true, paddingLeft: insets.left, paddingRight: insets.right, surfaceLeft: 0, surfaceRight: width })
+      expect.soft(geometry).toMatchObject({ hosted: true, paddingLeft: 0, paddingRight: 0, surfaceLeft: 0, surfaceRight: width })
+      expect.soft(geometry.headerLeft).toBeGreaterThanOrEqual(insets.left)
+      expect.soft(geometry.headerRight).toBeLessThanOrEqual(width - insets.right)
       expect.soft(geometry.left).toBeGreaterThanOrEqual(insets.left + 8)
       expect(geometry.right).toBeLessThanOrEqual(width - insets.right)
     } finally { await page.close(); view.unmount() }

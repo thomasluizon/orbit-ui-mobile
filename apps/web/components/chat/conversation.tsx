@@ -35,7 +35,9 @@ function PromptLibraryLoadFailure({ onBack, onRetry }: Readonly<{ onBack: () => 
   const headingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => { headingRef.current?.focus() }, [])
   return <div data-prompt-library="" className="absolute inset-0 z-[1] flex min-h-0 flex-col bg-[var(--bg)]">
-    <AppBar title={t('chat.templates.title')} titleRef={headingRef} onBack={onBack} backLabel={t('chat.templates.back')} />
+    <div data-conversation-header="" className="shrink-0">
+      <AppBar title={t('chat.templates.title')} titleRef={headingRef} onBack={onBack} backLabel={t('chat.templates.back')} />
+    </div>
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
       <ErrorState message={t('common.error')} action={<IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />
     </div>
@@ -293,7 +295,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     <ChatCardOperationContext.Provider value={trackCardOperation}>
     <div className="relative flex h-full flex-col">
       <div className="isolate flex min-h-0 flex-1 flex-col" inert={libraryOpen} aria-hidden={libraryOpen}>
-      <div className="relative z-10 shrink-0">
+      <div data-conversation-header="" className="relative z-10 shrink-0">
         <AppBar
           title={t('chat.title')}
           titleVisual={<AstraGlyph size={16} />}

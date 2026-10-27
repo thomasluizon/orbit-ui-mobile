@@ -115,7 +115,7 @@ describe('ShellWide', () => {
     const slot = container.querySelector<HTMLElement>('[data-shell-scroll-to-top]')!
     const scroller = container.querySelector<HTMLElement>('[data-shell-scroller]')!
     expect(slot.parentElement).toBe(scroller.parentElement)
-    expect(slot.parentElement?.previousElementSibling).toBe(container.querySelector<HTMLElement>('[data-shell-header]'))
+    expect(slot.parentElement?.previousElementSibling).toBe(container.querySelector<HTMLElement>('[data-shell-header-surface]'))
     expect(scroller).not.toContainElement(slot)
     expect(container.querySelector<HTMLElement>('[data-shell-bottom]')).not.toContainElement(slot)
     rerender(shell(<button type="button">Reply</button>))

@@ -2741,7 +2741,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 [data-shell-column],
-[data-shell-header-viewport],
 [data-shell-page] {
   max-width: calc(740px + var(--shell-safe-left, 0px) + var(--shell-safe-right, 0px));
 }
@@ -2775,12 +2774,17 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   padding-right: var(--shell-safe-right, 0px);
 }
 
-[data-shell-conversation] header {
-  padding-left: calc(var(--orbit-space-16) + var(--shell-safe-left, 0px));
-  padding-right: calc(var(--orbit-space-16) + var(--shell-safe-right, 0px));
+[data-shell-header-surface],
+[data-conversation-header] {
+  padding-left: var(--shell-safe-left, 0px);
+  padding-right: var(--shell-safe-right, 0px);
 }
 
-.orbit-sheet-header,
+.orbit-sheet-header {
+  margin-left: var(--safe-left);
+  margin-right: var(--safe-right);
+}
+
 .orbit-sheet-actions,
 [role="dialog"].orbit-sheet-panel > [data-update-banner],
 [data-sheet-notice] {
@@ -2798,14 +2802,13 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 }
 
-[data-shell-header-content],
 [data-shell-pinned-content]:not(:has([data-composer-root])),
 [data-shell-tab-content]:not(:has([data-tab-items])) {
   padding-left: var(--shell-safe-left, 0px);
   padding-right: var(--shell-safe-right, 0px);
 }
 
-[data-shell-header]:has([data-page-header]) {
+[data-shell-header-surface]:has([data-page-header]) {
   box-shadow: inset 0 -1px 0 var(--hairline);
 }
 
@@ -2828,20 +2831,20 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 [data-composer-content],
 [data-pending-prompt],
 [data-tab-items],
-[data-shell-header-content],
 [data-shell-notice-content],
 [data-shell-fab-content],
 [data-shell-pinned-content]:not(:has([data-composer-root])) {
   max-width: calc(740px + var(--shell-safe-left, 0px) + var(--shell-safe-right, 0px));
 }
 
+[data-shell-header-viewport],
 [data-shell-conversation] header {
   width: 100%;
-  max-width: calc(740px + var(--shell-safe-left, 0px) + var(--shell-safe-right, 0px));
+  max-width: 740px;
   margin-inline: auto;
 }
 
-[data-prompt-library] > div {
+[data-prompt-library] > div:where(:not([data-conversation-header])) {
   width: 100%;
   max-width: calc(740px + var(--shell-safe-left, 0px) + var(--shell-safe-right, 0px));
   margin-inline: auto;
