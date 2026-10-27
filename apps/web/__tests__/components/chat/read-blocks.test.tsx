@@ -42,17 +42,25 @@ describe('gamification reads', () => {
       expect(screen.queryByRole('img', { name: /First Orbit|Primeira órbita/ }) !== null).toBe(Boolean(block.state.achievements?.achievements.length))
       if (block.state.achievements?.achievements.length === 0) expect(screen.getByText(messages.progressScreen.achievements.empty)).toBeVisible()
       expect(screen.queryByText(messages.chat.streakCard.current)).not.toBeInTheDocument()
+      expect(screen.queryByText(messages.progressScreen.streak.longest) !== null).toBe(block.state.streak !== null)
+      if (block.state.streak) {
+        expect(screen.getByRole('heading', { name: messages.progressScreen.sections.streak })).toBeVisible()
+        expect(screen.getByTestId('progress-streak-figure')).toHaveTextContent('5')
+        expect(screen.getByText(messages.progressScreen.streak.longest).parentElement).toHaveTextContent('9')
+        if (!block.state.achievements) expect(screen.queryByRole('heading', { name: messages.progressScreen.sections.achievements })).not.toBeInTheDocument()
+      }
       expect(screen.getByRole('button', { name: messages.blockFrame.refresh })).toBeEnabled()
     })
 
   it.each(gamificationCardCases)('refreshes $name using its signed query and dedicated route', async ({ block }) => {
-    const next = { ...block, read: { ...block.read, revision: 'two' } }
+    const next = { ...block, state: { ...block.state, streak: block.state.streak ? { ...block.state.streak, currentStreak: 6 } : null }, read: { ...block.read, revision: 'two' } }
     vi.mocked(refreshGamification).mockResolvedValue({ ok: true, data: { kind: 'gamification', block: next, read: next.read } })
     mount({ kind: 'gamification', block })
     fireEvent.click(screen.getByRole('button', { name: en.blockFrame.refresh }))
     await waitFor(() => expect(screen.getByRole('button', { name: en.blockFrame.refresh })).toBeEnabled())
     expect(refreshGamification).toHaveBeenCalledExactlyOnceWith('signed-query', expect.objectContaining({ partKinds: expect.arrayContaining(['gamification']) }), null)
     expect(refreshReadBlock).not.toHaveBeenCalled()
+    if (block.state.streak) expect(screen.getByTestId('progress-streak-figure')).toHaveTextContent('6')
   })
 
   it('keeps a failed stale refresh actionable and replaces the snapshot on retry', async () => {

@@ -89,7 +89,11 @@ it.each(gamificationCardCases.flatMap(testCase => ['en', 'pt-BR'].map(locale => 
     if (block.state.achievements?.achievements.length === 0) expect(visible.empty).toBeTruthy()
     expect(answer.relatedActions).toEqual([locale === 'en' ? 'Achievements' : 'Conquistas'])
     expect(output.answer).not.toContain('signed-query')
-    expect(visible).not.toHaveProperty('streak')
+    expect(visible.streak !== undefined).toBe(block.state.streak !== null)
+    if (block.state.streak) {
+      expect(visible.streak).toMatchObject({ title: locale === 'en' ? 'Streak' : 'Sequência', current: '5', longest: { value: 9 } })
+      if (!block.state.achievements) expect(visible.title).toBe(visible.streak.title)
+    }
   })
 const typedBlocks = [...fixtures.blocks, ...[
   ['periodTotal', focused.focusedPeriodTotalFixture], ['periodComparison', focused.focusedPeriodComparisonFixture],

@@ -93,3 +93,11 @@ Web and Android read-block tests cover the three source selections, empty catalo
 locales, signed refresh and stale recovery. Existing Progresso and achievement geometry tests
 continue to own the extracted components. The eval projects the same visible headings, level,
 XP, achievement copy, earned state and progress instead of hidden source metadata.
+
+The paired `components/gamification/streak-figure.tsx` owns the unchanged current-streak figure
+on Sequência and in focused Astra reads. `gamification-streak.tsx` composes that figure with
+DayStrip and the existing read-only FreezeBank only when the streak source is present. The saved
+query date anchors the strip and protected dates; live hooks cannot replace the snapshot.
+Streak-only answers use the frame heading; combined answers add a separate streak heading.
+The eval projects the same figures, days and freeze facts. Paired read-block tests cover both
+streak selections, absence for level and achievements, and replacement through signed refresh.

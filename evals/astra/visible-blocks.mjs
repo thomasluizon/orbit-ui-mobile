@@ -91,9 +91,20 @@ function streak(card, { t, locale, accountDate }) {
       .map((disc) => ({ name: t(`gamification.achievements.${disc.id}.name`), earned: disc.earnedAt != null })),
   }
 }
-function gamification(card, { t }) {
-  const { profile, achievements } = card.state
+function gamification(card, { t, locale }) {
+  const { profile, achievements, streak } = card.state
+  const presentation = streak ? shared.gamificationStreakPresentation(streak, card.read, locale, t) : null
   return { title: t(shared.gamificationCardTitleKey(card)),
+    streak: presentation ? { title: t('progressScreen.sections.streak'), current: new Intl.NumberFormat(locale).format(streak.currentStreak), unit: t('progressScreen.streak.currentLabel', { count: streak.currentStreak }),
+      longest: { label: presentation.freeze.longestLabel, value: presentation.freeze.longestValue },
+      tier: { label: presentation.freeze.tierLabel, value: presentation.freeze.tierValue },
+      days: presentation.days.map((day, index) => ({ date: presentation.labels[index], status: presentation.dayWords[day.status] })),
+      banked: { label: presentation.freeze.words.bankedLabel, value: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated },
+      used: { label: presentation.freeze.words.usedLabel, value: streak.freezesUsedThisMonth },
+      next: streak.streakFreezesAccumulated < streak.maxStreakFreezesAccumulated ? presentation.freeze.words.nextFreezeProgress : undefined,
+      protected: { label: presentation.freeze.words.protectedLabel, days: presentation.freeze.protectedDays.map(day => ({ date: day.dateLabel, state: day.isToday ? presentation.freeze.words.protectedToday : presentation.freeze.words.protectedDay })),
+        empty: presentation.freeze.protectedDays.length === 0 ? presentation.freeze.words.protectedEmpty : undefined },
+    } : undefined,
     level: profile ? t('progressScreen.achievements.level', { level: profile.level, title: t(shared.getGamificationLevelTitleKey(profile.level)) }) : undefined,
     xp: profile ? t('progressScreen.achievements.xp', { current: profile.totalXp, next: profile.xpForNextLevel }) : undefined,
     achievements: achievements?.achievements.map(achievement => {

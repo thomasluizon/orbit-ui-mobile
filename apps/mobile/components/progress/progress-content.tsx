@@ -1,3 +1,4 @@
+import { StreakFigure } from '@/components/gamification/streak-figure'
 import { IconButton } from '@/components/ui/icon-button'
 import { PADDING, SPACING, SHELL_CONTENT_MAX_WIDTH, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
@@ -300,7 +301,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens }:
   const loading = canView && !freeze.streakInfo
   return (
     <View accessibilityState={{ busy: loading }} testID="progress-streak-section" style={styles.streakSection}><Text accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text>
-      <View style={styles.streakFigure}><Text style={[styles.streak, { color: tokens.fg1 }]}>{new Intl.NumberFormat(i18n.language).format(currentStreak)}</Text><Text style={[styles.streakLabel, { color: tokens.fg2 }]}>{t('progressScreen.streak.currentLabel', { count: currentStreak })}</Text></View>
+      <StreakFigure currentStreak={currentStreak} tokens={tokens} />
       <View accessible={loading} accessibilityState={{ busy: loading }} accessibilityLabel={loading ? t('progressScreen.loading') : undefined}>
         <View accessibilityElementsHidden={loading} importantForAccessibility={loading ? 'no-hide-descendants' : 'auto'} style={loading && styles.hidden}>
           <DayStrip size={width >= 768 ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
@@ -626,11 +627,8 @@ const styles = StyleSheet.create({
   section: { gap: SPACING.s16 }, sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24 },
   streakSection: { width: '100%', gap: 16 },
   hidden: { opacity: 0 },
-  streakFigure: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
-  streakLabel: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },
   frozenBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, padding: SPACING.s12 },
   frozenCopy: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
-  streak: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 60, fontVariant: ['tabular-nums'], lineHeight: 60, letterSpacing: -1.8 },
   copy: { gap: 4 }, body: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 }, meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },
   notice: { borderRadius: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 },
   card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: PADDING.recordInset }, cardTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 }, actionStart: { alignSelf: 'flex-start' }, lockHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },

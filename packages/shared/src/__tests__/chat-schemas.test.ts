@@ -3,7 +3,7 @@ import type { z } from 'zod'
 import { actionResultSchema, chatMessageSchema, chatResponseSchema, chatStreamEventSchema, gamificationReadBlockResponseSchema, readBlockResponseSchema } from '../types/chat'
 import { habitMonthFixture } from '../test-support/habit-month-fixture'
 import { habitSuggestionsFixture } from '../test-support/habit-suggestion-fixtures'
-import { gamificationCardTitleKey } from '../chat/gamification-card-core'
+import { gamificationCardTitleKey, gamificationStreakPresentation } from '../chat/gamification-card-core'
 import { gamificationCardCases } from '../test-support/gamification-card-fixtures'
 import { CHAT_BLOCK_KINDS } from '../chat/block-kinds'
 import { buildChatFinalMessageFields, getChatMessageParts } from '../chat/final-message'
@@ -40,7 +40,15 @@ describe('ordered chat parts', () => {
   it.each(gamificationCardCases)('retains a generated gamification $name response through SSE and history', async ({ block }) => {
     const { PostApiChatGamificationRefreshResponse } = await vi.importActual<{ PostApiChatGamificationRefreshResponse: z.ZodObject }>('../types/__generated__/api.generated')
     const response = { kind: 'gamification', block, read: block.read }
-    expect(gamificationCardTitleKey(block)).toBe(block.state.profile ? block.state.achievements ? 'chat.gamificationCard.title' : 'chat.gamificationCard.levelTitle' : 'progressScreen.sections.achievements')
+    expect(gamificationCardTitleKey(block)).toBe(block.state.profile ? block.state.achievements ? 'chat.gamificationCard.title' : 'chat.gamificationCard.levelTitle' : block.state.achievements ? 'progressScreen.sections.achievements' : 'progressScreen.sections.streak')
+    if (block.state.streak) {
+      const presentation = gamificationStreakPresentation(block.state.streak, block.read, 'en', key => key)
+      expect(presentation.days[0]?.dateStr).toBe('2026-08-19')
+      expect(presentation.days[13]?.dateStr).toBe('2026-09-01')
+      expect(presentation.days[13]?.status).toBe('frozen')
+      expect(presentation.freeze).toMatchObject({ banked: 2, ceiling: 3, usedThisMonth: 1, daysTowardNext: 5, longestValue: 9 })
+      expect(presentation.freeze.protectedDays[0]).toMatchObject({ id: '2026-09-01', isToday: true })
+    }
     expect(PostApiChatGamificationRefreshResponse.parse(response)).toEqual(response)
     expect(gamificationReadBlockResponseSchema.parse(response)).toEqual(response)
     expect(readBlockResponseSchema.safeParse(response).success).toBe(false)

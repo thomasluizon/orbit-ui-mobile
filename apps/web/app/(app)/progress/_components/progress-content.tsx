@@ -1,5 +1,7 @@
 'use client'
 
+import { StreakFigure } from '@/components/gamification/streak-figure'
+
 import { IconButton } from '@/components/ui/icon-button'
 import { SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 
@@ -363,10 +365,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
 
   return (
     <section aria-labelledby={headingId} aria-busy={loading} data-progress-streak-summary="" className="flex w-full flex-col gap-4"><h2 id={headingId} className="sr-only">{t('progressScreen.sections.streak')}</h2>
-      <div className="flex items-baseline gap-3">
-        <p className="font-display text-[60px] font-semibold leading-none tracking-[-0.03em] tabular-nums text-[var(--fg-1)]">{new Intl.NumberFormat(locale).format(currentStreak)}</p>
-        <p className="text-[17px] text-[var(--fg-2)]">{t('progressScreen.streak.currentLabel', { count: currentStreak })}</p>
-      </div>
+      <StreakFigure currentStreak={currentStreak} />
       <div role="group" aria-busy={loading} aria-label={loading ? t('progressScreen.loading') : undefined} className="relative min-w-0 w-full py-1">
         <div inert={loading || undefined} aria-hidden={loading || undefined} className={loading ? 'invisible' : undefined}>
           <DayStrip size={isDesktop ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />

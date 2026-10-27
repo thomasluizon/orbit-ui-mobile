@@ -58,17 +58,25 @@ describe('gamification reads', () => {
       expect(text.includes(locale === 'en' ? 'First Orbit' : 'Primeira órbita')).toBe(Boolean(block.state.achievements?.achievements.length))
       if (block.state.achievements?.achievements.length === 0) expect(text).toContain(messages.progressScreen.achievements.empty)
       expect(text).not.toContain(messages.chat.streakCard.current)
+      expect(text.includes(messages.progressScreen.streak.longest)).toBe(block.state.streak !== null)
+      if (block.state.streak) {
+        expect(tree.root.findAll(node => node.props.accessibilityRole === 'header' && renderedText(node).includes(messages.progressScreen.sections.streak)).length).toBeGreaterThan(0)
+        expect(renderedText(tree.root.findAll(node => node.props.testID === 'progress-streak-figure')[0]!)).toContain('5')
+        expect(text).toContain('9')
+        if (!block.state.achievements) expect(text).not.toContain(messages.progressScreen.sections.achievements)
+      }
       await act(() => tree.unmount())
     })
 
   it.each(gamificationCardCases)('refreshes $name using its signed query and dedicated route', async ({ block }) => {
-    const next = { ...block, read: { ...block.read, revision: 'two' } }
+    const next = { ...block, state: { ...block.state, streak: block.state.streak ? { ...block.state.streak, currentStreak: 6 } : null }, read: { ...block.read, revision: 'two' } }
     vi.mocked(apiClient).mockResolvedValue({ kind: 'gamification', block: next, read: next.read })
     const tree = await mount({ kind: 'gamification', block })
     await press(tree, 'blockFrame.refresh')
     expect(apiClient).toHaveBeenCalledExactlyOnceWith(API.chat.refreshGamification, expect.objectContaining({ method: 'POST', body: expect.any(String), isCurrent: expect.any(Function) }), expect.anything())
     const request = JSON.parse(vi.mocked(apiClient).mock.calls[0]![1]!.body as string)
     expect(request).toEqual({ token: 'signed-query', clientContext: expect.objectContaining({ partKinds: expect.arrayContaining(['gamification']) }) })
+    if (block.state.streak) expect(renderedText(tree.root.findAll(node => node.props.testID === 'progress-streak-figure')[0]!)).toContain('6')
     await act(() => tree.unmount())
   })
 

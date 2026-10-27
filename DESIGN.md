@@ -99,7 +99,10 @@ reject and one filled primary approval. Frame inset is 16px with a 12px content 
 
 The negotiated **gamification** read (#1619) retains its signed refresh control and the existing
 Conquistas related action. Its nullable source sections keep level-only, achievement-only and
-combined answers focused. This is the explicit refresh exception to the compact read rule.
+combined answers focused. A requested streak reuses the Progresso streak figure, DayStrip and
+read-only FreezeBank from the saved snapshot and resolved date. A streak-only answer uses its
+own heading; a combined answer labels the streak section separately. No absent source adds figures.
+This is the explicit refresh exception to the compact read rule.
 
 **Conversation participants:** the first message in each consecutive run of Astra messages starts
 with a 24px `AstraGlyph` in `--fg-1` on its own row at the thread's 16px inset. An 8px gap
