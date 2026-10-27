@@ -1158,8 +1158,6 @@ describe('Composer (mobile)', () => {
     ['sending', { state: 'sending', value: 'oi' }, true, false],
     ['atLimit', { state: 'atLimit', value: 'oi', limitReason: 'limit sentinel' }, false, true],
     ['offline', { state: 'offline', value: 'oi', limitReason: 'offline sentinel' }, false, true],
-    ['recording', { state: 'recording', value: 'oi', onVoice: vi.fn(), voiceWords }, false, true],
-    ['transcribing', { state: 'transcribing', value: 'oi', onVoice: vi.fn(), voiceWords }, false, true],
   ] as const)('styles the send control for %s', async (_case, overrides, accented, disabled) => {
     const tree = await renderComposer(props(overrides))
     const send = byLabel(tree.root, words.send)[0]
@@ -1235,14 +1233,64 @@ describe('Composer (mobile)', () => {
     expect(textValues(tree.root)).toContain('recovery sentinel')
   })
 
-  it('renders and invokes voice only when the capability is present', async () => {
+  it.each([en, ptBR])('places supported voice in the primary slot and swaps it for send as text changes', messages => {
     const onVoice = vi.fn()
-    const tree = await renderComposer(props({ onVoice, voiceWords }))
-    pressControl(byLabel(tree.root, words.actions)[0])
-    pressControl(menuItem(tree, voiceWords.start))
+    const onSend = vi.fn()
+    function ControlledComposer() {
+      const [value, setValue] = React.useState('')
+      return <Composer {...props({ value, onChangeValue: setValue, words: messages.shell.composer,
+        onVoice, voiceWords: messages.shell.composer.voice, onSend })} />
+    }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<ControlledComposer />) })
+    const microphone = byLabel(tree.root, messages.shell.composer.voice.start)[0]
+    expect(microphone).toBeDefined()
+    expect(tree.root.findByProps({ testID: 'composer-trailing-controls' }).findAllByType('Pressable').at(-1)).toBe(microphone)
+    expect(StyleSheet.flatten(microphone.props.style)).toMatchObject({ width: 48, minHeight: 48, borderRadius: 999 })
+    expect(byLabel(tree.root, messages.shell.composer.send)).toHaveLength(0)
+    pressControl(microphone)
     expect(onVoice).toHaveBeenCalledOnce()
-    TestRenderer.act(() => tree.update(<Composer {...props()} />))
+    TestRenderer.act(() => tree.root.findByType('TextInput').props.onChangeText('A new message'))
+    expect(byLabel(tree.root, messages.shell.composer.voice.start)).toHaveLength(0)
+    pressControl(byLabel(tree.root, messages.shell.composer.send)[0])
+    expect(onSend).toHaveBeenCalledOnce()
+    TestRenderer.act(() => tree.root.findByType('TextInput').props.onChangeText(''))
+    expect(byLabel(tree.root, messages.shell.composer.voice.start)[0].props.disabled).toBe(false)
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('keeps photo and document in the attachment sheet without a voice row', () => {
+    const tree = renderComposer(props({ onVoice: vi.fn(), voiceWords, onAttachFile: vi.fn(), onAttachImage: vi.fn(), attachWords }))
+    pressControl(byLabel(tree.root, words.actions)[0])
+    expect(menuItem(tree, attachWords.image)).toBeDefined()
+    expect(menuItem(tree, attachWords.file)).toBeDefined()
+    expect(menuItem(tree, voiceWords.start)).toBeUndefined()
+  })
+
+  it('keeps send when recording is unsupported or a text file is ready to send', () => {
+    const tree = renderComposer(props())
     expect(byLabel(tree.root, voiceWords.start)).toHaveLength(0)
+    expect(byLabel(tree.root, words.send)[0].props.disabled).toBe(true)
+    const onSend = vi.fn()
+    TestRenderer.act(() => tree.update(<Composer {...props({ onVoice: vi.fn(), voiceWords, onSend, onAttachFile: vi.fn(), attachWords,
+      attachments: [{ id: 'file', kind: 'file', name: 'notes.txt' }], onAttachRemove: vi.fn() })} />))
+    expect(byLabel(tree.root, voiceWords.start)).toHaveLength(0)
+    pressControl(byLabel(tree.root, words.send)[0])
+    expect(onSend).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    ['idle', true], ['atLimit', true], ['offline', false], ['sending', false],
+  ] as const)('preserves voice availability while %s', (state, enabled) => {
+    const onVoice = vi.fn()
+    const tree = renderComposer(props({ state, limitReason: 'reason', value: '  ', onVoice, voiceWords,
+      errorMessage: 'Recording failed', onAttachImage: vi.fn(), attachWords,
+      attachments: [{ id: 'image', kind: 'image', name: 'walk.png' }], onAttachRemove: vi.fn() }))
+    const microphone = byLabel(tree.root, voiceWords.start)[0]
+    expect(microphone.props.disabled).toBe(!enabled)
+    expect(textValues(tree.root)).toContain('Recording failed')
+    pressControl(microphone)
+    expect(onVoice).toHaveBeenCalledTimes(enabled ? 1 : 0)
   })
 
   it('replaces suggestions with recording status and a stop control', async () => {

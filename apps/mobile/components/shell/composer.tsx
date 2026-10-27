@@ -11,7 +11,7 @@ import {
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
-import { isComposerEditable, buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
+import { isComposerEditable, isComposerVoiceVisible, buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, type TextInput, type LayoutChangeEvent, View, useWindowDimensions } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
@@ -21,7 +21,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
-import { ArrowUp, ChevronDown, Clipboard as ClipboardIcon, FileText, Image, Plus, Square, X } from '@/components/ui/icons'
+import { ArrowUp, ChevronDown, Clipboard as ClipboardIcon, FileText, Image, Mic, Plus, Square, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -232,31 +232,21 @@ function composerActionStyle(tokens: AppTokensV2, recording: boolean, disabled: 
   ]
 }
 
-function ComposerActionIcon({ state, tokens }: Readonly<{ state: ComposerProps['state']; tokens: AppTokensV2 }>) {
-  if (state === 'recording' || state === 'transcribing') {
-    const color = state === 'recording' ? tokens.fgOnPrimary : tokens.fg3
-    return <Square size={16} fill={color} color={color} />
-  }
-  return <Plus size={20} strokeWidth={2} color={tokens.fg3} />
-}
-
 function ComposerControls({ props, tokens, onPaste, onClear }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; onPaste?: () => void; onClear?: () => void }>) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const { voiceActive, disabled, label, items: defaultItems } = buildComposerControls(props)
+  const { disabled, label, items: defaultItems } = buildComposerControls(props)
   const textAction = onClear ? { id: 'clear', label: props.words.clear, icon: 'x' }
     : onPaste ? { id: 'paste', label: props.words.paste, icon: 'clipboard' } : null
   const items = textAction ? [textAction, ...defaultItems] : defaultItems
-  const isRecording = props.state === 'recording'
-  const showMenu = menuOpen && !disabled && !voiceActive
-  if (!voiceActive && items.length === 0) return null
+  const showMenu = menuOpen && !disabled
+  if (items.length === 0) return null
   return <Menu.Root open={showMenu} onOpenChange={setMenuOpen}><View testID="composer-controls" style={styles.controls}>
-    <Menu.Trigger asChild disabled={disabled || voiceActive}>
+    <Menu.Trigger asChild disabled={disabled}>
       <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label}
         focusColor={tokens.primary}
-        focusContrastColor={isRecording ? tokens.bg : undefined}
-        accessibilityState={{ disabled, ...(!voiceActive ? { expanded: showMenu } : {}) }} aria-disabled={disabled} aria-expanded={voiceActive ? undefined : showMenu} disabled={disabled} onPress={voiceActive ? props.onVoice : undefined}
-        style={({ pressed }) => composerActionStyle(tokens, isRecording, disabled, pressed)}>
-        <ComposerActionIcon state={props.state} tokens={tokens} />
+        accessibilityState={{ disabled, expanded: showMenu }} aria-disabled={disabled} aria-expanded={showMenu} disabled={disabled}
+        style={({ pressed }) => composerActionStyle(tokens, false, disabled, pressed)}>
+        <Plus size={20} strokeWidth={2} color={tokens.fg3} />
       </InsetFocusPressable>
     </Menu.Trigger>
     <Menu.Content title={props.words.actions} items={items} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
@@ -450,6 +440,60 @@ function ComposerTextControls({ props, tokens, inMenu, onPasteText, onClear, onL
   </View>
 }
 
+function ComposerVoiceControl({ props, tokens, onLayout }: Readonly<{
+  props: ComposerProps & { onVoice: () => void; voiceWords: ComposerVoiceWords }; tokens: AppTokensV2; onLayout: (event: LayoutChangeEvent) => void
+}>) {
+  const isRecording = props.state === 'recording'
+  const voiceActive = isRecording || props.state === 'transcribing'
+  const voiceDisabled = props.state !== 'idle' && props.state !== 'atLimit' && !isRecording
+  return <InsetFocusPressable
+    testID={voiceActive ? 'composer-stop-recording' : 'composer-microphone'}
+    onLayout={onLayout}
+    focusColor={tokens.primary}
+    accessibilityRole="button"
+    accessibilityLabel={voiceActive ? props.voiceWords.stop : props.voiceWords.start}
+    accessibilityState={{ disabled: voiceDisabled }}
+    disabled={voiceDisabled}
+    onPress={() => { if (!voiceDisabled) props.onVoice() }}
+    focusContrastColor={isRecording ? tokens.bg : undefined}
+    style={({ pressed }) => composerActionStyle(tokens, isRecording, voiceDisabled, pressed)}>
+    {voiceActive ? <Square size={16} fill={isRecording ? tokens.fgOnPrimary : tokens.fg3} color={isRecording ? tokens.fgOnPrimary : tokens.fg3} /> : <Mic size={20} strokeWidth={2} color={tokens.fg3} />}
+  </InsetFocusPressable>
+}
+
+function ComposerSendControl({ props, tokens, onLayout }: Readonly<{
+  props: ComposerProps; tokens: AppTokensV2; onLayout: (event: LayoutChangeEvent) => void
+}>) {
+  const canSend = isComposerEditable(props.state) && hasComposerContent(props.value, props.attachments)
+  const sendIsAccent = canSend || props.state === 'sending'
+  return <InsetFocusPressable
+    testID={sendIsAccent ? 'composer-send-accent' : 'composer-send-neutral'}
+    onLayout={onLayout}
+    focusColor={tokens.primary}
+    focusContrastColor={sendIsAccent ? tokens.bg : undefined}
+    accessibilityRole="button"
+    accessibilityLabel={props.words.send}
+    accessibilityState={{ disabled: !canSend }}
+    disabled={!canSend}
+    onPress={() => {
+      if (canSend) props.onSend()
+    }}
+    style={({ pressed }) => [
+      styles.sendButton,
+      {
+        backgroundColor: sendIsAccent
+          ? pressed
+            ? tokens.primaryPressed
+            : tokens.primary
+          : tokens.bgWell,
+      },
+      !canSend && props.state !== 'sending' ? styles.disabled : null,
+    ]}
+  >
+    <ArrowUp size={20} strokeWidth={2} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} />
+  </InsetFocusPressable>
+}
+
 function ComposerInputRow({ props, tokens, inputRef, disclosure }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null>; disclosure?: React.ReactNode }>) {
   const [focused, setFocused] = useState(false)
   const [pasteInMenu, setPasteInMenu] = useState(false)
@@ -473,10 +517,9 @@ function ComposerInputRow({ props, tokens, inputRef, disclosure }: Readonly<{ pr
     inputRef.current?.setSelection(end, end)
   }, [props.value, props.state, inputRef])
   const inputDisabled = !isComposerEditable(props.state)
-  const canSend = !inputDisabled && hasComposerContent(props.value, props.attachments)
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
-  const sendIsAccent = canSend || props.state === 'sending'
+  const showVoice = isComposerVoiceVisible(props)
   function clearMessage() { props.onChangeValue(''); inputRef.current?.focus() }
 
   return (
@@ -489,38 +532,14 @@ function ComposerInputRow({ props, tokens, inputRef, disclosure }: Readonly<{ pr
         {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} tokens={tokens} /> : <ComposerTextInput props={props} tokens={tokens} inputRef={inputRef} onFocusChange={setFocused} availableWidth={availableWidth} onPasteFit={fits => setPasteInMenu(!fits)} />}
       </View>
 
-      <View style={styles.trailingControls}>
+      <View testID="composer-trailing-controls" style={styles.trailingControls}>
         <ComposerTextControls props={props} tokens={tokens} inMenu={Boolean(disclosure) || pasteInMenu} disclosure={disclosure} onLayout={event => measureWidth('actions', event)} onClear={clearMessage} onPasteText={text => {
           pasteFocus.current = text
           props.onChangeValue(text)
         }} />
 
-      <InsetFocusPressable
-        testID={sendIsAccent ? 'composer-send-accent' : 'composer-send-neutral'}
-        onLayout={event => measureWidth('send', event)}
-        focusColor={tokens.primary}
-        focusContrastColor={sendIsAccent ? tokens.bg : undefined}
-        accessibilityRole="button"
-        accessibilityLabel={props.words.send}
-        accessibilityState={{ disabled: !canSend }}
-        disabled={!canSend}
-        onPress={() => {
-          if (canSend) props.onSend()
-        }}
-        style={({ pressed }) => [
-          styles.sendButton,
-          {
-            backgroundColor: sendIsAccent
-              ? pressed
-                ? tokens.primaryPressed
-                : tokens.primary
-              : tokens.bgWell,
-          },
-          !canSend && props.state !== 'sending' ? styles.disabled : null,
-        ]}
-      >
-        <ArrowUp size={20} strokeWidth={2} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} />
-      </InsetFocusPressable>
+      {showVoice && props.onVoice ? <ComposerVoiceControl props={props} tokens={tokens} onLayout={event => measureWidth('send', event)} />
+        : <ComposerSendControl props={props} tokens={tokens} onLayout={event => measureWidth('send', event)} />}
       </View>
     </View>
   )

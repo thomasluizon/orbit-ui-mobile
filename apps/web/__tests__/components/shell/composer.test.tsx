@@ -345,8 +345,8 @@ describe('Composer', () => {
     } finally { astraCopy.name = 'nav.astra'; view.unmount() }
   })
 
-  it.each(['idle', 'sending', 'offline', 'atLimit', 'recording', 'transcribing'] as const)(
-    'keeps the upward send arrow in every composer state: %s', state => {
+  it.each(['idle', 'sending', 'offline', 'atLimit'] as const)(
+    'keeps the upward send arrow while composing: %s', state => {
       const view = render(<Composer {...props({ state, value: 'Draft', limitReason: 'reason', onVoice: vi.fn(), voiceWords })} />)
       const send = screen.getByRole('button', { name: words.send })
       expect(send.querySelector('[data-asset="astra-mark"]')).toBeNull()
@@ -424,7 +424,7 @@ describe('Composer', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'true')
     expect(input).toHaveValue('Keep this draft')
     const rows = within(menu).getAllByRole('menuitem')
-    expect(rows.map(row => row.textContent)).toEqual([attachWords.image, attachWords.file, voiceWords.start])
+    expect(rows.map(row => row.textContent)).toEqual([attachWords.image, attachWords.file])
     await waitFor(() => expect(rows[0]).toHaveFocus())
     for (const row of rows.slice(1)) {
       await user.keyboard('{ArrowDown}')
@@ -492,14 +492,14 @@ describe('Composer', () => {
     expect(screen.getByRole('button', { name: voiceWords.stop })).toHaveFocus()
   })
 
-  it.each(['', 'Draft'])('keeps the focused Add control mounted as recording starts with %j', async value => {
-    const capability = { onVoice: vi.fn(), voiceWords, value }
+  it('keeps the focused microphone mounted as recording starts', async () => {
+    const capability = { onVoice: vi.fn(), voiceWords }
     const view = render(<Composer {...props(capability)} />)
-    const add = screen.getByRole('button', { name: words.actions })
-    act(() => add.focus())
+    const primary = screen.getByRole('button', { name: voiceWords.start })
+    act(() => primary.focus())
     view.rerender(<Composer {...props({ ...capability, state: 'recording' })} />)
     const stop = screen.getByRole('button', { name: voiceWords.stop })
-    expect(stop).toBe(add)
+    expect(stop).toBe(primary)
     expect(stop).toHaveFocus()
     expect(stop).toBeEnabled()
     expect(stop).not.toHaveAttribute('aria-haspopup')
@@ -655,8 +655,6 @@ describe('Composer', () => {
     ['sending', { state: 'sending', value: 'oi' }, true, false],
     ['atLimit', { state: 'atLimit', value: 'oi', limitReason: 'limit sentinel' }, false, true],
     ['offline', { state: 'offline', value: 'oi', limitReason: 'offline sentinel' }, false, true],
-    ['recording', { state: 'recording', value: 'oi', onVoice: vi.fn(), voiceWords }, false, true],
-    ['transcribing', { state: 'transcribing', value: 'oi', onVoice: vi.fn(), voiceWords }, false, true],
   ] as const)('styles the send control for %s', (_case, overrides, accented, disabled) => {
     render(<Composer {...props(overrides)} />)
     const send = screen.getByRole('button', { name: words.send })
@@ -746,14 +744,62 @@ describe('Composer', () => {
     expect(screen.getByRole('button', { name: 'recovery sentinel' })).toBeInTheDocument()
   })
 
-  it('opens the voice handler from the menu only when supported', async () => {
+  it.each([en, ptBR])('places supported voice in the primary slot and swaps it for send as text changes', messages => {
     const onVoice = vi.fn()
-    const { rerender } = render(<Composer {...props({ onVoice, voiceWords })} />)
+    const onSend = vi.fn()
+    function ControlledComposer() {
+      const [value, setValue] = useState('')
+      return <Composer {...props({ value, onChangeValue: setValue, words: messages.shell.composer,
+        onVoice, voiceWords: messages.shell.composer.voice, onSend })} />
+    }
+    render(<ControlledComposer />)
+    const microphone = screen.getByRole('button', { name: messages.shell.composer.voice.start })
+    expect(microphone.closest('[data-composer-trailing-controls]')?.lastElementChild).toBe(microphone)
+    expect(screen.queryByRole('button', { name: messages.shell.composer.send })).not.toBeInTheDocument()
+    fireEvent.click(microphone)
+    expect(onVoice).toHaveBeenCalledOnce()
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'A new message' } })
+    expect(screen.queryByRole('button', { name: messages.shell.composer.voice.start })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.send }))
+    expect(onSend).toHaveBeenCalledOnce()
+    fireEvent.change(input, { target: { value: '' } })
+    expect(screen.getByRole('button', { name: messages.shell.composer.voice.start })).toBeEnabled()
+  })
+
+  it('keeps photo and document in the attachment sheet without a voice row', async () => {
+    render(<Composer {...props({ onVoice: vi.fn(), voiceWords, onAttachFile: vi.fn(), onAttachImage: vi.fn(), attachWords })} />)
     fireEvent.pointerDown(screen.getByRole('button', { name: words.actions }), { button: 0, ctrlKey: false })
-    fireEvent.click(await screen.findByRole('menuitem', { name: voiceWords.start }))
-    await waitFor(() => expect(onVoice).toHaveBeenCalledOnce())
-    rerender(<Composer {...props()} />)
-    expect(screen.queryByRole('button', { name: words.actions })).not.toBeInTheDocument()
+    await screen.findByRole('menu')
+    expect(screen.getByRole('menuitem', { name: attachWords.image })).toBeEnabled()
+    expect(screen.getByRole('menuitem', { name: attachWords.file })).toBeEnabled()
+    expect(screen.queryByRole('menuitem', { name: voiceWords.start })).not.toBeInTheDocument()
+  })
+
+  it('keeps send when recording is unsupported or a text file is ready to send', () => {
+    const { rerender } = render(<Composer {...props()} />)
+    expect(screen.queryByRole('button', { name: voiceWords.start })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: words.send })).toBeDisabled()
+    const onSend = vi.fn()
+    rerender(<Composer {...props({ onVoice: vi.fn(), voiceWords, onSend, onAttachFile: vi.fn(), attachWords,
+      attachments: [{ id: 'file', kind: 'file', name: 'notes.txt' }], onAttachRemove: vi.fn() })} />)
+    expect(screen.queryByRole('button', { name: voiceWords.start })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: words.send }))
+    expect(onSend).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    ['idle', true], ['atLimit', true], ['offline', false], ['sending', false],
+  ] as const)('preserves voice availability while %s', (state, enabled) => {
+    const onVoice = vi.fn()
+    render(<Composer {...props({ state, limitReason: 'reason', value: '  ', onVoice, voiceWords,
+      errorMessage: 'Recording failed', onAttachImage: vi.fn(), attachWords,
+      attachments: [{ id: 'image', kind: 'image', name: 'walk.png' }], onAttachRemove: vi.fn() })} />)
+    const microphone = screen.getByRole('button', { name: voiceWords.start })
+    expect(microphone).toHaveProperty('disabled', !enabled)
+    expect(screen.getByRole('alert')).toHaveTextContent('Recording failed')
+    fireEvent.click(microphone)
+    expect(onVoice).toHaveBeenCalledTimes(enabled ? 1 : 0)
   })
 
   it('replaces suggestions with recording status and a stop control', () => {
@@ -762,6 +808,7 @@ describe('Composer', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     expect(screen.queryByRole('group', { name: words.suggestionsLabel })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: voiceWords.stop })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: words.send })).not.toBeInTheDocument()
   })
 
   it('keeps the stop control and shows the connection reason during an offline recording', () => {
@@ -903,15 +950,17 @@ describe('Composer', () => {
     render(<Composer {...props({ state: 'atLimit', limitReason: 'limit sentinel', onVoice, voiceWords, onAttachFile, attachWords })} />)
     fireEvent.pointerDown(screen.getByRole('button', { name: words.actions }), { button: 0, ctrlKey: false })
     expect(await screen.findByRole('menuitem', { name: attachWords.file })).toBeDisabled()
-    fireEvent.click(screen.getByRole('menuitem', { name: voiceWords.start }))
-    await waitFor(() => expect(onVoice).toHaveBeenCalledOnce())
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: voiceWords.start }))
+    expect(onVoice).toHaveBeenCalledOnce()
     expect(onAttachFile).not.toHaveBeenCalled()
   })
 
   it('dismisses the menu without changing text or sending', async () => {
     const onSend = vi.fn()
     const onChangeValue = vi.fn()
-    render(<Composer {...props({ value: 'Keep this draft', onSend, onChangeValue, onVoice: vi.fn(), voiceWords })} />)
+    render(<Composer {...props({ value: 'Keep this draft', onSend, onChangeValue, onAttachFile: vi.fn(), attachWords })} />)
     fireEvent.pointerDown(screen.getByRole('button', { name: words.actions }), { button: 0, ctrlKey: false })
     await screen.findByRole('dialog')
     fireEvent.keyDown(document, { key: 'Escape' })
