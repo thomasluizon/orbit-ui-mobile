@@ -88,9 +88,8 @@ export function reportApiError(error: unknown): void {
   }
 
   reportedApiErrors.add(error)
-  const title = getToastTitle(error.status)
-  const detail = extractBackendError({ data: error.data })
-  useAppToastStore.getState().showError(detail ? `${title}: ${detail}` : title)
+  const message = extractBackendError({ data: error.data })?.trim()
+  useAppToastStore.getState().showError(message || getToastTitle(error.status))
 }
 
 export async function applySessionRefreshFailure(response: Response): Promise<void> {
