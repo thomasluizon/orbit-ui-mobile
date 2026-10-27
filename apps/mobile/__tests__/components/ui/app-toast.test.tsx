@@ -3,6 +3,7 @@ import { StyleSheet, Text } from 'react-native'
 import Yoga from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppToast, Toast } from '@/components/ui/app-toast'
+import type { ToastProps } from '@orbit/shared/contracts/feedback'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { createTokensV2 } from '@/lib/theme'
 import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
@@ -44,6 +45,49 @@ describe('mobile Toast', () => {
     const close = tree.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'common.close')
     TestRenderer.act(() => close.props.onPress())
     expect(tree.root.findAllByType('Pressable')).toHaveLength(0)
+  })
+
+  const variants: ToastProps[] = [
+    { kind: 'neutral', message: 'Feedback' },
+    { kind: 'neutral', message: 'Feedback', actionLabel: 'Undo', onAction: vi.fn() },
+    { kind: 'neutral', message: 'Feedback', actionLabel: 'Retry', actionIcon: 'refresh', onAction: vi.fn() },
+    { kind: 'working', message: 'Feedback' },
+    { kind: 'done', message: 'Feedback', onDone: vi.fn() },
+    { kind: 'lost', message: 'Feedback', detail: 'Try again', actionLabel: 'Retry', onAction: vi.fn() },
+  ]
+
+  it.each(variants)('shares geometry and an accessible close target for $kind', (props) => {
+    const tree = render(<Toast {...props} />)
+    const surface = tree.root.findByProps({ testID: `toast-${props.kind}` })
+    const style = StyleSheet.flatten(surface.props.style)
+    expect(style).toMatchObject({
+      width: '100%', padding: 16, borderRadius: 20, gap: 12,
+    })
+    for (const width of [288, 380, 704]) {
+      const column = Yoga.Node.create()
+      const toast = Yoga.Node.create()
+      column.setWidth(width)
+      toast.setWidth(style.width)
+      toast.setMaxWidth(style.maxWidth)
+      column.insertChild(toast, 0)
+      try {
+        column.calculateLayout(undefined, undefined)
+        expect(toast.getComputedWidth()).toBe(width)
+      } finally { column.freeRecursive() }
+    }
+    advance(0)
+    const message = surface.findAllByType('Text').find((node: { props: { children: unknown } }) => node.props.children === 'Feedback')
+    expect(StyleSheet.flatten(message.props.style)).toMatchObject({ fontSize: 14, lineHeight: 20, fontFamily: 'Geist_500Medium' })
+    const close = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+      node.type === 'Pressable' && node.props.accessibilityLabel === 'common.close')[0]
+    expect(close).toBeDefined()
+    expect(close.props.accessibilityRole).toBe('button')
+    const target = StyleSheet.flatten(close.props.style({ pressed: false }))
+    expect(target.minHeight + close.props.hitSlop * 2).toBe(48)
+    expect(target.width + close.props.hitSlop * 2).toBe(48)
+    TestRenderer.act(() => close.props.onPress())
+    expect(tree.root.findAllByProps({ testID: `toast-${props.kind}` })).toHaveLength(0)
+    TestRenderer.act(() => tree.unmount())
   })
 
   it.each(['dark', 'light'] as const)('keeps the lost action readable at rest and press in %s', (mode) => {

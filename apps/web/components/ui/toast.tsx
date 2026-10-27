@@ -11,7 +11,6 @@ import { useToastLifecycle } from '@/hooks/use-toast-lifecycle'
 import type { ToastProps } from '@orbit/shared/contracts/feedback'
 import { IconButton } from '@/components/ui/icon-button'
 import { Check, X, RefreshCw } from '@/components/ui/icons'
-import { PillButton } from '@/components/ui/pill-button'
 
 export function WorkingMark() {
   return (
@@ -84,7 +83,7 @@ function ToastSurface({ props, dismiss, setHovered, setFocused }: Readonly<{
       aria-label={props.message}
       data-kind={props.kind}
       tabIndex={-1}
-      className={`flex flex-wrap items-center gap-x-3 gap-y-0 rounded-[var(--r-card)] ${colors.background} p-4 text-[var(--fg-1)] shadow-[var(--sh-2)] ${props.outlined ? 'ring-1 ring-inset ring-[var(--fg-3)]' : ''}`}
+      className={`flex w-full flex-wrap items-center gap-x-3 gap-y-0 rounded-[var(--r-card)] ${colors.background} p-4 text-[var(--fg-1)] shadow-[var(--sh-2)] ${props.outlined ? 'ring-1 ring-inset ring-[var(--fg-3)]' : ''}`}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
       onFocusCapture={() => setFocused(true)}
@@ -99,7 +98,7 @@ function ToastSurface({ props, dismiss, setHovered, setFocused }: Readonly<{
       ) : null}
 
       <span className="flex min-w-0 flex-1 flex-col gap-1" style={props.actionLabel ? { flexBasis: '50%' } : undefined}>
-        <span className="text-sm font-medium" style={{ fontFamily: 'var(--font-sans)' }}>
+        <span data-toast-message className="text-sm font-medium" style={{ fontFamily: 'var(--font-sans)' }}>
           {props.message}
         </span>
         {props.kind === 'lost' ? (
@@ -109,13 +108,13 @@ function ToastSurface({ props, dismiss, setHovered, setFocused }: Readonly<{
         ) : null}
       </span>
 
-      {props.actionLabel ? <ToastControls props={props} present={present} dismiss={dismiss} setFocused={setFocused} actionColor={colors.action} /> : null}
+      <ToastControls props={props} present={present} dismiss={dismiss} setFocused={setFocused} actionColor={colors.action} />
     </Primitive.Root><Primitive.Viewport ref={setViewport} hotkey={[]} label={t('notifications.title')} className="m-0 list-none p-0" /></Primitive.Provider></motion.div>
   )
 }
 
 function ToastControls({ props, present, dismiss, setFocused, actionColor }: Readonly<{
-  props: Extract<ToastProps, { actionLabel: string }>
+  props: ToastProps
   present: boolean
   dismiss: () => void
   setFocused: (value: boolean) => void
@@ -123,8 +122,15 @@ function ToastControls({ props, present, dismiss, setFocused, actionColor }: Rea
 }>) {
   const t = useTranslations()
   return (
-        <div className="ms-auto flex shrink-0 items-center gap-3">
-          {props.actionIcon ? <Primitive.Action altText={props.actionLabel} asChild><IconButton disabled={!present} label={props.actionLabel} onFocus={() => setFocused(true)} onClickCapture={(event) => event.preventDefault()} onClick={() => props.onAction()}><RefreshCw size={20} aria-hidden="true" /></IconButton></Primitive.Action> : <>          <Primitive.Action altText={props.actionLabel}
+      <div className="ms-auto flex shrink-0 items-center gap-3">
+        {props.actionLabel ? props.actionIcon ? (
+          <Primitive.Action altText={props.actionLabel} asChild>
+            <IconButton disabled={!present} label={props.actionLabel} onFocus={() => setFocused(true)} onClickCapture={(event) => event.preventDefault()} onClick={() => props.onAction()}>
+              <RefreshCw size={20} aria-hidden="true" />
+            </IconButton>
+          </Primitive.Action>
+        ) : (
+          <Primitive.Action altText={props.actionLabel}
             disabled={!present}
             className={`cursor-pointer whitespace-nowrap border-0 bg-transparent p-3 text-sm font-medium ${actionColor} underline underline-offset-4 hover:text-[var(--fg-2)] ${props.kind === 'lost' ? 'active:text-[var(--fg-1)]' : 'active:text-[var(--fg-2)]'} active:underline-offset-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]`}
             style={{ fontFamily: 'var(--font-sans)', minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, margin: -SPACING.s4 }}
@@ -132,10 +138,13 @@ function ToastControls({ props, present, dismiss, setFocused, actionColor }: Rea
             onClick={(event) => { event.preventDefault(); props.onAction() }}
           >
             {props.actionLabel}
-          </Primitive.Action></>}
-          <Primitive.Close asChild><PillButton disabled={!present} variant="ghost" size="sm" iconOnly label={t('common.close')} minimumHeight={TOUCH_TARGET_MIN} onClick={dismiss}>
+          </Primitive.Action>
+        ) : null}
+        <Primitive.Close asChild>
+          <IconButton disabled={!present} label={t('common.close')} onClick={dismiss}>
             <X size={20} aria-hidden="true" />
-          </PillButton></Primitive.Close>
-        </div>
+          </IconButton>
+        </Primitive.Close>
+      </div>
   )
 }

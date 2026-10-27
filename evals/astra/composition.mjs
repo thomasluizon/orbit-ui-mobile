@@ -150,8 +150,9 @@ export function composition(output, context) {
     if (external && !shortLines(external, 1, false)) return result(false, 'Data answer has excessive external text.')
     for (const required of expected.blocks ?? (expected.kinds ?? []).map((kind) => ({ kind }))) {
       if (!blocks.some((part) => part.kind === required.kind && (!required.subtype || part.block.kind === required.subtype)
-        && (!required.completeness || part.block.read?.completeness === required.completeness))) {
-        return result(false, 'Missing required block family, subtype or completeness.')
+        && (!required.completeness || part.block.read?.completeness === required.completeness)
+        && (!required.recovery || part.block.read?.recovery === required.recovery))) {
+        return result(false, 'Missing required block family, subtype, completeness or recovery.')
       }
     }
   }

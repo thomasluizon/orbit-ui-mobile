@@ -78,7 +78,8 @@ export function getMessageBubbleView(props: MessageBubbleProps, dismissedBreakdo
       && !message.pendingOperations?.length && !message.policyDenials?.length
       && !Object.keys(message.clarificationPreviews ?? {}).length,
     parts,
-    relatedSurfaces: getRelatedSurfaces(message.relatedSurfaces),
+    relatedSurfaces: getRelatedSurfaces([...(message.relatedSurfaces ?? []),
+      ...(parts.some(part => part.type === 'block' && part.part.kind === 'gamification') ? ['gamification'] : [])]),
     nonSuggestionActions: actions.nonSuggestionActions,
     suggestions: actions.suggestionActions.flatMap(action => {
       const key = action.entityId ?? action.entityName ?? 'suggestion'

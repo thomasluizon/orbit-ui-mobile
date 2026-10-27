@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { fixtureFetch } from './fixtures/public-api.mjs'
+import { fixtureFetch, retrospectiveResponse } from './fixtures/public-api.mjs'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { beforeAll as preflight, beforeEach as prepareAttempt } from '../hooks.mjs'
 import { resetFixture, runReset } from '../fixtures/reset.mjs'
 import AstraHttpProvider from '../http-provider.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
+import { CHAT_BLOCK_KINDS } from '../../../packages/shared/src/chat/block-kinds.ts'
+import { summarize } from '../report.mjs'
 
 const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((file) => parse(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')))
 let habits, goals, tags, templates, requests, pro, exhausted, capacity, email, unmetered
@@ -23,6 +25,63 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const scenario = (fixture) => structuredClone(corpus.find((entry) => entry.metadata.fixture === fixture))
+it.each(['en', 'pt-BR'])('seeds and independently verifies a cached retrospective before the stale %s attempt', async (locale) => {
+  const source = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-stale-${locale}`))
+  const { test } = await prepareAttempt({ test: source })
+  expect(test.vars).not.toHaveProperty('preconditionFailure')
+  expect(requests.slice(-2).map(({ method, path }) => ({ method, path }))).toEqual([
+    { method: 'GET', path: 'habits/retrospective' }, { method: 'GET', path: 'habits/retrospective' },
+  ])
+  expect(test.vars.composition.blocks).toEqual([{ kind: 'periodInsight', completeness: 'stale', recovery: 'refresh' }])
+  expect(test.vars.expectations.required[0]).toMatchObject({ name: 'get_retrospective', arguments: { period: 'month', language: locale } })
+})
+it.each(['uncached', 'missing-flag', 'empty-narrative', 'wrong-period', 'wrong-from', 'wrong-to', 'http-failure'])(
+  'makes unverifiable stale setup incomplete and skips the case chat: %s', async (mode) => {
+    const intercepted = globalThis.fetch
+    let reads = 0
+    vi.stubGlobal('fetch', async (url, options) => {
+      if (new URL(url).pathname !== '/api/habits/retrospective') return intercepted(url, options)
+      reads++
+      const payload = retrospectiveResponse(true)
+      if (mode === 'uncached') payload.fromCache = false
+      if (mode === 'missing-flag') delete payload.fromCache
+      if (mode === 'empty-narrative') payload.narrative.highlights = ''
+      if (mode === 'wrong-period') payload.period = 'week'
+      if (mode === 'wrong-from') payload.dateFrom = '2026-01-01'
+      if (mode === 'wrong-to') payload.dateTo = '2026-01-31'
+      return Response.json(payload, { status: mode === 'http-failure' ? 503 : 200 })
+    })
+    const { test } = await prepareAttempt({ test: scenario('composition-stale') })
+    expect(reads).toBeGreaterThan(0)
+    expect(test.vars.preconditionFailure).toMatch(/retrospective|HTTP 503/)
+    const provider = new AstraHttpProvider({ config: { url: `${process.env.ORBIT_EVAL_BASE_URL}/api/chat` } })
+    const response = await provider.callApi(test.vars.input, { vars: test.vars })
+    expect(response.metadata.astraPreconditionFailure).toBe(true)
+    const attempts = Array.from({ length: 3 }, () => ({ testCase: test, response, error: response.error, success: false }))
+    expect(summarize(attempts, [test.metadata]).cases[0]).toMatchObject({ pass3: 'incomplete', unavailable: 3 })
+    expect(requests.some(({ path }) => path === 'chat')).toBe(false)
+  },
+)
+it('negotiates every composition context from client-supported block kinds', async () => {
+  const contexts = [...new Map(corpus.filter((entry) => entry.metadata.category === 'composition')
+    .map((entry) => [JSON.stringify(entry.vars.clientContext), entry])).values()]
+  for (const entry of contexts) {
+    const source = scenario('composition')
+    source.vars.clientContext = structuredClone(entry.vars.clientContext)
+    source.metadata.locale = entry.vars.clientContext.locale
+    const { test } = await prepareAttempt({ test: source })
+    expect(test.vars).not.toHaveProperty('preconditionFailure')
+    const client = JSON.parse(test.vars.clientContextJson)
+    expect(client.partKinds.filter((kind) => !CHAT_BLOCK_KINDS.includes(kind))).toEqual([])
+    if (entry.vars.clientContext.supportsParts && !entry.vars.clientContext.partKinds) {
+      expect(client.partKinds).toEqual([...CHAT_BLOCK_KINDS])
+    } else {
+      expect(client.partKinds).toEqual(entry.vars.clientContext.partKinds)
+    }
+    expect(client.locale).toBe(entry.vars.clientContext.locale)
+    expect(client.currentAppArea).toBe(entry.vars.clientContext.currentAppArea)
+  }
+})
 it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))])('establishes %s exclusively through intercepted public routes', async (fixture) => {
   const test = scenario(fixture)
   pro = fixture !== 'free-at-limit'
