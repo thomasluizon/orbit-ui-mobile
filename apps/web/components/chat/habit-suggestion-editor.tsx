@@ -2,7 +2,7 @@
 
 import type { HabitSuggestionDraft } from '@orbit/shared/types'
 import { hasAuthoritativeHabitRelationshipState, normalizeHabitDetailForDrill } from '@orbit/shared/utils'
-import { useHabitDetail } from '@/hooks/use-habits'
+import { useHabitDetail } from '@/hooks/use-habit-queries'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 

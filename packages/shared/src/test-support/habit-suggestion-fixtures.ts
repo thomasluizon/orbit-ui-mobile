@@ -1,6 +1,7 @@
 import { habitSuggestionDraftSchema, type HabitSuggestionsCard } from '../types/habit-suggestions'
 import type { ChatMessage } from '../types/chat'
 import type { AgentExecuteOperationResponse } from '../types/ai'
+import { makeCreateHabitsPreview } from './pending-operation-preview-fixtures'
 
 export const habitSuggestionDraftFixture = habitSuggestionDraftSchema.parse({
   id: '11111111-1111-4111-8111-111111111111', emoji: '📖', title: 'Read', type: 'Habit',
@@ -24,4 +25,18 @@ export function makeHabitSuggestionPreview(id = 'suggestion-preview'): AgentExec
     confirmationRequirement: 'FreshConfirmation', status: 'PendingConfirmation', pendingOperationId: id },
     pendingOperation: { id, capabilityId: 'habits.write', displayName: 'Create habit', summary: 'Read', actionKey: 'createHabit', previewFingerprint: 'suggestion-fingerprint', riskClass: 'Low',
       confirmationRequirement: 'FreshConfirmation', expiresAtUtc: '2026-10-27T12:00:00Z' } }
+}
+
+export function makeHabitSuggestionBatchPreview(): AgentExecuteOperationResponse {
+  const response = makeHabitSuggestionPreview()
+  const preview = makeCreateHabitsPreview(2)
+  return { ...response,
+    operation: { ...response.operation, operationId: 'apply_account_changes', sourceName: 'apply_account_changes' },
+    pendingOperation: { ...preview, id: response.pendingOperation!.id, capabilityId: 'chat.changes', actionKey: null,
+      displayName: 'Review account changes', items: preview.items!.map((item, index) => ({ ...item,
+        itemId: `${index}/0`, entityName: habitSuggestionsFixture.drafts[index]!.title,
+        fields: item.fields.map(field => ({ ...field, entityName: habitSuggestionsFixture.drafts[index]!.title,
+          newValue: habitSuggestionsFixture.drafts[index]!.title, proposedValue: habitSuggestionsFixture.drafts[index]!.title })),
+      })) },
+  }
 }

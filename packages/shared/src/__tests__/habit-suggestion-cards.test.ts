@@ -1,12 +1,17 @@
 import { describe, expect, it, vi } from 'vitest'
 import { habitSuggestionDraftSchema } from '../types/habit-suggestions'
-import { chatResponseSchema } from '../types/chat'
+import { chatMessageSchema, chatResponseSchema } from '../types/chat'
 import { HabitSuggestionController, type HabitSuggestionActions } from '../chat/habit-suggestion-controller'
-import { habitSuggestionCreateValues, habitSuggestionStatus } from '../chat/habit-suggestions'
+import { habitSuggestionCreateValues, habitSuggestionFormState, habitSuggestionStatus } from '../chat/habit-suggestions'
+import { buildEditHabitFormState } from '../utils/habit-form-state'
+import { buildUpdateHabitRequest } from '../utils/habit-request-builders'
+import { createMockHabit } from './factories'
+import { updatePendingOperationMessage } from '../chat/pending-operation-message-state'
+import { applyPendingOperationRevisionPreview, createPendingOperationRevisionState } from '../hooks/pending-operation-revision-core'
 import { habitSuggestionSchedule } from '../chat/habit-suggestion-view'
 import { createTimeDisplay } from '../utils/locale-format'
 import { buildChatClientContext } from '../chat/client-context'
-import { habitSuggestionDraftFixture as draft, habitSuggestionsFixture as card, makeHabitSuggestionMessage, makeHabitSuggestionPreview } from '../test-support/habit-suggestion-fixtures'
+import { habitSuggestionDraftFixture as draft, habitSuggestionsFixture as card, makeHabitSuggestionMessage, makeHabitSuggestionPreview, makeHabitSuggestionBatchPreview } from '../test-support/habit-suggestion-fixtures'
 
 function setup() {
   let message = makeHabitSuggestionMessage()
@@ -33,6 +38,15 @@ describe('habit suggestion contract and card state', () => {
   it('uses the account clock preference for suggested and current times', () => {
     const display = createTimeDisplay('pt-BR', false)
     expect(habitSuggestionSchedule(draft, 'pt-BR', key => key, display.displayTime)).toContain('10:00 PM')
+  })
+  it('replaces the existing recurrence interval through form state and the update request', () => {
+    const habit = createMockHabit({ intervalWeeks: 2, frequencyUnit: 'Week', days: ['Friday'] })
+    const snapshot = buildEditHabitFormState(habit)
+    const state = habitSuggestionFormState(snapshot, { ...draft, existingHabitId: habit.id, days: ['Monday'] })
+    expect(state.formValues).toMatchObject({ intervalWeeks: 1, days: ['Monday'] })
+    expect(buildUpdateHabitRequest(state.formValues, false, state.originalEndDate, state.reminderTimes, state.selectedGoalIds))
+      .toMatchObject({ intervalWeeks: 1, days: ['Monday'] })
+    expect(habitSuggestionFormState(snapshot)).toBe(snapshot)
   })
   it('refines only one slot and retains the other draft identity', async () => {
     const { controller, actions, message } = setup()
@@ -82,6 +96,32 @@ describe('habit suggestion contract and card state', () => {
     expect(controller.getSnapshot().errors).toEqual({ [card.drafts[1]!.id]: 'chat.habitSuggestions.conflictError' })
     await controller.retry(card.drafts[1]!.id, message(), actions)
     expect(message().pendingOperations).toHaveLength(1)
+  })
+  it('retries a failed batch with the current refined draft', async () => {
+    const { controller, actions, message } = setup()
+    vi.mocked(actions.preview).mockRejectedValueOnce(new Error('Unavailable'))
+    await controller.preview(card.drafts, true, message(), actions)
+    await controller.refine(draft, 'one page', actions)
+    await controller.retry('all', message(), actions)
+    expect(vi.mocked(actions.preview).mock.lastCall?.[0]).toEqual([{ ...draft, title: 'Read one page' }, card.drafts[1]])
+  })
+  it.each([0, 1])('releases removed batch slot %s after revision and persisted approval', async removedIndex => {
+    const { controller, actions, message } = setup()
+    const operation = makeHabitSuggestionBatchPreview().pendingOperation!
+    vi.mocked(actions.preview).mockResolvedValueOnce({ response: makeHabitSuggestionBatchPreview() })
+    await controller.preview(card.drafts, true, message(), actions)
+    const selected = operation.items!.filter((_, index) => index !== removedIndex)
+    const preview = { changes: [], changeTargetCount: 1, previewFingerprint: 'revised',
+      items: selected.map(item => ({ ...item, itemId: '0/0', entityName: 'Edited title' })) }
+    const revised = applyPendingOperationRevisionPreview(createPendingOperationRevisionState(operation), preview, undefined, selected)
+    actions.transition(current => updatePendingOperationMessage(current, operation.id, {
+      operation: revised.operation, originalItemIds: [...revised.originalItemIds],
+    }))
+    const persisted = () => chatMessageSchema.parse({ ...JSON.parse(JSON.stringify(message())), timestamp: message().timestamp })
+    expect(habitSuggestionStatus(persisted(), card.drafts[removedIndex]!.id)).toBe('available')
+    actions.transition(current => updatePendingOperationMessage(current, operation.id, { status: 'done' }))
+    expect(habitSuggestionStatus(persisted(), card.drafts[removedIndex]!.id)).toBe('available')
+    expect(habitSuggestionStatus(persisted(), card.drafts[1 - removedIndex]!.id)).toBe('applied')
   })
   it('prevents concurrent previews and ignores an account replacement', async () => {
     const { controller, actions, message } = setup()

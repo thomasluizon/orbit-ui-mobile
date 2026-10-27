@@ -3,27 +3,28 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
-import { habitSuggestionDraftFixture as draft, makeHabitSuggestionMessage, makeHabitSuggestionPreview } from '@orbit/shared/test-support/chat-fixtures'
+import { habitSuggestionDraftFixture as draft, makeHabitSuggestionMessage, makeHabitSuggestionPreview, makeHabitSuggestionBatchPreview } from '@orbit/shared/test-support/chat-fixtures'
 import { useChatStore } from '@/stores/chat-store'
+import { chatMessageSchema } from '@orbit/shared/types/chat'
 import { getMessageBubbleOperations } from '@orbit/shared/chat'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { HabitSuggestionsCard } from '@/components/chat/habit-suggestions-card'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 
-const mocks = vi.hoisted(() => ({ refine: vi.fn(), preview: vi.fn(), confirm: vi.fn(), relationshipsLoaded: true, create: vi.fn(), edit: vi.fn() }))
+const mocks = vi.hoisted(() => ({ refine: vi.fn(), preview: vi.fn(), confirm: vi.fn(), revise: vi.fn(), relationshipsLoaded: true, create: vi.fn(), edit: vi.fn() }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (time: string) => time }) }))
 vi.mock('@/hooks/use-habit-suggestion-actions', () => ({ useHabitSuggestionActions: (id: string) => ({
   refine: mocks.refine, preview: mocks.preview, isCurrent: () => true,
   transition: (update: Parameters<ReturnType<typeof useChatStore.getState>['transitionMessage']>[1]) => useChatStore.getState().transitionMessage(id, update),
 }) }))
-vi.mock('@/hooks/use-habits', () => ({ useHabitDetail: () => ({ data: { ...createMockHabit({ id: 'existing', dueTime: '06:00:00', dueEndTime: '06:15:00' }), children: [], ...(!mocks.relationshipsLoaded ? { linkedGoals: undefined, slipAlertEnabled: undefined } : {}) }, isError: false }) }))
+vi.mock('@/hooks/use-habit-queries', () => ({ useHabitDetail: () => ({ data: { ...createMockHabit({ id: 'existing', dueTime: '06:00:00', dueEndTime: '06:15:00' }), children: [], ...(!mocks.relationshipsLoaded ? { linkedGoals: undefined, slipAlertEnabled: undefined } : {}) }, isError: false }) }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: (props: unknown) => { mocks.create(props); return <div role="dialog">Create form</div> } }))
 vi.mock('@/components/habits/edit-habit-modal', () => ({ EditHabitModal: (props: unknown) => { mocks.edit(props); return <div role="dialog">Edit form</div> } }))
 
 function Harness() {
   const message = useChatStore(state => state.messages[0]!)
   const part = message.parts?.[0]
-  const operations = getMessageBubbleOperations({ message, onPendingOperationConfirmExecute: mocks.confirm, onPendingOperationPrepareStepUp: () => Promise.resolve({ ok: false as const }), onPendingOperationVerifyStepUp: () => Promise.resolve({ ok: false as const }) }, useChatStore.getState().transitionMessage)
+  const operations = getMessageBubbleOperations({ message, onPendingOperationConfirmExecute: mocks.confirm, onPendingOperationRevise: mocks.revise, onPendingOperationPrepareStepUp: () => Promise.resolve({ ok: false as const }), onPendingOperationVerifyStepUp: () => Promise.resolve({ ok: false as const }) }, useChatStore.getState().transitionMessage)
   return part?.type === 'block' && part.kind === 'habitSuggestions' ? <>{operations.pendingOperations.map(({ key, ...operation }) => <PendingOperationCard key={key} {...operation} />)}<HabitSuggestionsCard card={part.block} message={message} /></> : null
 }
 function mount(locale = 'en') { return render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><Harness /></NextIntlClientProvider>) }
@@ -62,9 +63,38 @@ describe('habit suggestion actions on web', () => {
     expect(screen.queryByRole('button', { name: 'Read' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Stretch' })).toBeInTheDocument()
   })
+  it('keeps a removed batch draft available after persisted revision and approval', async () => {
+    const response = makeHabitSuggestionBatchPreview()
+    mocks.preview.mockResolvedValueOnce({ response })
+    mocks.revise.mockResolvedValueOnce({ ok: true, result: { success: true, preview: {
+      changes: [], changeTargetCount: 1, previewFingerprint: 'revised',
+      items: [{ ...response.pendingOperation!.items![1]!, itemId: '0/0' }],
+    } } })
+    const mounted = mount(); await click('Add all'); await click('Remove Read')
+    expect(screen.getAllByRole('button', { name: 'Add' })[0]).toBeEnabled()
+    expect(screen.getAllByRole('button', { name: 'Add' })[1]).toBeDisabled()
+    const saved = JSON.stringify(useChatStore.getState().messages[0])
+    mounted.unmount()
+    useChatStore.setState({ messages: [chatMessageSchema.parse({ ...JSON.parse(saved), timestamp: new Date(JSON.parse(saved).timestamp) })] })
+    mount(); await click('Approve')
+    expect(mocks.confirm).toHaveBeenCalledExactlyOnceWith(response.pendingOperation!.id)
+    expect(screen.getByRole('button', { name: 'Read' })).toBeInTheDocument()
+    expect(document.querySelectorAll('[data-suggestion-id]')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled()
+  })
+  it.each(['Tweak', 'Swap'])('retries Add all with the current card after %s', async action => {
+    mocks.preview.mockRejectedValueOnce(new Error('Unavailable'))
+    mount(); await click('Add all'); await click(action)
+    if (action === 'Tweak') {
+      fireEvent.change(screen.getByRole('textbox', { name: 'Tweak this habit...' }), { target: { value: 'one page' } })
+      await click('Apply')
+    }
+    await click('Retry')
+    expect(mocks.preview.mock.lastCall?.[0][0]).toEqual({ ...draft, title: 'Read one page' })
+  })
   it('Edit opens the existing habit form carrying the complete draft', async () => {
     mount(); await click('Edit')
-    expect(screen.getByRole('dialog')).toHaveTextContent('Create form')
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Create form')
     expect(mocks.create.mock.lastCall?.[0]).toMatchObject({ open: true, initialSuggestion: draft })
   })
   it('Tweak sends the draft and inline instruction and replaces only that card', async () => {

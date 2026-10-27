@@ -51,7 +51,12 @@ export class HabitSuggestionController {
     const remaining = drafts.filter(draft => habitSuggestionStatus(message, draft.id) === 'available')
     if (!actions.isCurrent() || this.state.busy || !remaining.length) return
     const id = all ? 'all' : remaining[0]!.id
-    const retry = (currentMessage: ChatMessage, currentActions: HabitSuggestionActions) => this.preview(drafts, all, currentMessage, currentActions)
+    const draftIds = new Set(drafts.map(draft => draft.id))
+    const retry = (currentMessage: ChatMessage, currentActions: HabitSuggestionActions) => {
+      const currentDrafts = currentMessage.parts?.flatMap(part => part?.type === 'block' && part.kind === 'habitSuggestions'
+        ? part.block.drafts.filter(draft => draftIds.has(draft.id)) : []) ?? []
+      return this.preview(currentDrafts, all, currentMessage, currentActions)
+    }
     this.retries.set(id, retry)
     this.update({ phase: 'preview', busy: id, errors: { ...this.state.errors, all: '', ...Object.fromEntries(remaining.map(draft => [draft.id, ''])) } })
     try {

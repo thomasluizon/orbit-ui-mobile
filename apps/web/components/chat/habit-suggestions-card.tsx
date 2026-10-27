@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useSyncExternalStore } from 'react'
+import { lazy, Suspense, useState, useSyncExternalStore } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import type { ChatMessage, HabitSuggestionDraft, HabitSuggestionsCard as Suggestions } from '@orbit/shared/types'
 import { habitSuggestionSchedule, createUseHabitSuggestionView, type HabitSuggestionView } from '@orbit/shared/chat'
 import { useHabitSuggestionActions } from '@/hooks/use-habit-suggestion-actions'
 import { useChatCardOperation } from '@/hooks/use-chat-card-operation'
 import { useTimeFormat } from '@/hooks/use-time-format'
-import { useHabitDetail } from '@/hooks/use-habits'
+import { useHabitDetail } from '@/hooks/use-habit-queries'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { IconButton } from '@/components/ui/icon-button'
 import { PillButton } from '@/components/ui/pill-button'
@@ -15,7 +15,8 @@ import { Input } from '@/components/ui/input'
 import { Proposed } from '@/components/ui/proposed'
 import { Plus, Pencil, AdjustmentsHorizontal, RefreshCw, ArrowUp } from '@/components/ui/icons'
 import { HabitBlockRow } from './habit-block-row'
-import { HabitSuggestionEditor } from './habit-suggestion-editor'
+
+const HabitSuggestionEditor = lazy(async () => ({ default: (await import('./habit-suggestion-editor')).HabitSuggestionEditor }))
 
 const useHabitSuggestionView = createUseHabitSuggestionView({ useState, useSyncExternalStore })
 
@@ -65,6 +66,6 @@ export function HabitSuggestionsCard({ card, message, isOnline = true }: Readonl
       <div role="status" aria-live="polite" className="text-sm text-[var(--status-bad-text)]">{error ? <>{t(error)}<IconButton label={t('common.retry')} disabled={view.disabled} onClick={() => void view.retry('all')}><RefreshCw size={20} /></IconButton></> : null}</div>
       {!isOnline ? <p className="text-sm text-[var(--fg-3)]">{t('chat.habitSuggestions.offline')}</p> : null}
     </div>} />
-    {view.editing ? <HabitSuggestionEditor key={view.editing.id} draft={view.editing} onClose={() => view.edit(null)} onSaved={() => view.applied(view.editing!.id)} /> : null}
+    {view.editing ? <Suspense fallback={null}><HabitSuggestionEditor key={view.editing.id} draft={view.editing} onClose={() => view.edit(null)} onSaved={() => view.applied(view.editing!.id)} /></Suspense> : null}
   </>
 }

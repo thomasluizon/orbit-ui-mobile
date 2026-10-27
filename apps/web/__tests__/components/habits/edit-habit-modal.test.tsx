@@ -249,8 +249,8 @@ describe('EditHabitModal', () => {
   })
 
   it('prefills an existing habit with the suggestion while retaining its identity', async () => {
-    renderWithProviders(<EditHabitModal open habit={defaultHabit} initialSuggestion={{ ...habitSuggestionDraftFixture, existingHabitId: defaultHabit.id }} onOpenChange={vi.fn()} />)
-    await waitFor(() => expect(mockFormReset).toHaveBeenCalledWith(expect.objectContaining({ title: 'Read', itemType: 'habit', dueTime: '22:00', dueEndTime: '22:15' })))
+    renderWithProviders(<EditHabitModal open habit={{ ...defaultHabit, intervalWeeks: 2 }} initialSuggestion={{ ...habitSuggestionDraftFixture, days: ['Monday'], existingHabitId: defaultHabit.id }} onOpenChange={vi.fn()} />)
+    await waitFor(() => expect(mockFormReset).toHaveBeenCalledWith(expect.objectContaining({ intervalWeeks: 1, days: ['Monday'], title: 'Read', itemType: 'habit', dueTime: '22:00', dueEndTime: '22:15' })))
   })
 
   it('renders nothing when closed', () => {

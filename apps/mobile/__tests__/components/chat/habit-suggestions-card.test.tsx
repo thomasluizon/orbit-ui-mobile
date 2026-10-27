@@ -1,9 +1,10 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactTestRenderer } from 'react-test-renderer'
-import { habitSuggestionDraftFixture as draft, makeHabitSuggestionMessage, makeHabitSuggestionPreview } from '@orbit/shared/test-support/chat-fixtures'
+import { habitSuggestionDraftFixture as draft, makeHabitSuggestionMessage, makeHabitSuggestionPreview, makeHabitSuggestionBatchPreview } from '@orbit/shared/test-support/chat-fixtures'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { useChatStore } from '@/stores/chat-store'
+import { chatMessageSchema } from '@orbit/shared/types/chat'
 import { getMessageBubbleOperations } from '@orbit/shared/chat'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { HabitSuggestionsCard } from '@/components/chat/habit-suggestions-card'
@@ -13,20 +14,20 @@ import en from '@orbit/shared/i18n/en.json'
 
 vi.unmock('react-i18next')
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
-const mocks = vi.hoisted(() => ({ refine: vi.fn(), preview: vi.fn(), confirm: vi.fn(), relationshipsLoaded: true, create: vi.fn(), edit: vi.fn() }))
+const mocks = vi.hoisted(() => ({ refine: vi.fn(), preview: vi.fn(), confirm: vi.fn(), revise: vi.fn(), relationshipsLoaded: true, create: vi.fn(), edit: vi.fn() }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (time: string) => time }) }))
 vi.mock('@/hooks/use-habit-suggestion-actions', () => ({ useHabitSuggestionActions: (id: string) => ({
   refine: mocks.refine, preview: mocks.preview, isCurrent: () => true,
   transition: (update: Parameters<ReturnType<typeof useChatStore.getState>['transitionMessage']>[1]) => useChatStore.getState().transitionMessage(id, update),
 }) }))
-vi.mock('@/hooks/use-habits', () => ({ useHabitDetail: () => ({ data: { ...createMockHabit({ id: 'existing', dueTime: '06:00:00', dueEndTime: '06:15:00' }), children: [], ...(!mocks.relationshipsLoaded ? { linkedGoals: undefined, slipAlertEnabled: undefined } : {}) }, isError: false }) }))
+vi.mock('@/hooks/use-habit-queries', () => ({ useHabitDetail: () => ({ data: { ...createMockHabit({ id: 'existing', dueTime: '06:00:00', dueEndTime: '06:15:00' }), children: [], ...(!mocks.relationshipsLoaded ? { linkedGoals: undefined, slipAlertEnabled: undefined } : {}) }, isError: false }) }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: (props: unknown) => { mocks.create(props); return null } }))
 vi.mock('@/components/habits/edit-habit-modal', () => ({ EditHabitModal: (props: unknown) => { mocks.edit(props); return null } }))
 let tree: ReactTestRenderer & { toJSON: () => unknown; unmount: () => void }
 function Harness() {
   const message = useChatStore(state => state.messages[0]!)
   const part = message.parts?.[0]
-  const operations = getMessageBubbleOperations({ message, onPendingOperationConfirmExecute: mocks.confirm, onPendingOperationPrepareStepUp: () => Promise.resolve({ ok: false as const }), onPendingOperationVerifyStepUp: () => Promise.resolve({ ok: false as const }) }, useChatStore.getState().transitionMessage)
+  const operations = getMessageBubbleOperations({ message, onPendingOperationConfirmExecute: mocks.confirm, onPendingOperationRevise: mocks.revise, onPendingOperationPrepareStepUp: () => Promise.resolve({ ok: false as const }), onPendingOperationVerifyStepUp: () => Promise.resolve({ ok: false as const }) }, useChatStore.getState().transitionMessage)
   return part?.type === 'block' && part.kind === 'habitSuggestions' ? <>{operations.pendingOperations.map(({ key, ...operation }) => <PendingOperationCard key={key} {...operation} />)}<HabitSuggestionsCard card={part.block} message={message} /></> : null
 }
 async function mount() { await renderer.act(() => { tree = renderer.create(<Harness />) as typeof tree }) }
@@ -68,8 +69,39 @@ describe('habit suggestion actions on Android', () => {
     expect(buttons('Read')).toHaveLength(0)
     expect(buttons('Stretch')).toHaveLength(1)
   })
+  it('keeps a removed batch draft available after persisted revision and approval', async () => {
+    const response = makeHabitSuggestionBatchPreview()
+    mocks.preview.mockResolvedValueOnce({ response })
+    mocks.revise.mockResolvedValueOnce({ ok: true, result: { success: true, preview: {
+      changes: [], changeTargetCount: 1, previewFingerprint: 'revised',
+      items: [{ ...response.pendingOperation!.items![1]!, itemId: '0/0' }],
+    } } })
+    await mount(); await press('Add all'); await press('Remove Read')
+    expect(buttons('Add')[0]?.props.accessibilityState).toMatchObject({ disabled: false })
+    expect(buttons('Add')[1]?.props.accessibilityState).toMatchObject({ disabled: true })
+    const saved = JSON.stringify(useChatStore.getState().messages[0])
+    await renderer.act(() => tree.unmount())
+    useChatStore.setState({ messages: [chatMessageSchema.parse({ ...JSON.parse(saved), timestamp: new Date(JSON.parse(saved).timestamp) })] })
+    await mount(); await press('Approve')
+    expect(mocks.confirm).toHaveBeenCalledExactlyOnceWith(response.pendingOperation!.id)
+    expect(buttons('Read')).toHaveLength(1)
+    expect(tree.root.findAll(node => typeof node.type === 'string' && typeof node.props.testID === 'string' && node.props.testID.startsWith('suggestion-'))).toHaveLength(1)
+    expect(buttons('Add')[0]?.props.accessibilityState).toMatchObject({ disabled: false })
+  })
+  it.each(['Tweak', 'Swap'])('retries Add all with the current card after %s', async action => {
+    mocks.preview.mockRejectedValueOnce(new Error('Unavailable'))
+    await mount(); await press('Add all'); await press(action)
+    if (action === 'Tweak') {
+      const field = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === en.chat.habitSuggestions.prompt && typeof node.props.onChangeText === 'function')[0]!
+      await renderer.act(() => { (field.props.onChangeText as (value: string) => void)('one page') })
+      await press('Apply')
+    }
+    await press('Retry')
+    expect(mocks.preview.mock.lastCall?.[0][0]).toEqual({ ...draft, title: 'Read one page' })
+  })
   it('Edit opens the existing form with the full draft', async () => {
     await mount(); await press('Edit')
+    await renderer.act(async () => { await import('@/components/chat/habit-suggestion-editor') })
     expect(mocks.create.mock.lastCall?.[0]).toMatchObject({ open: true, initialSuggestion: draft })
   })
   it('Tweak sends the inline instruction and replaces only that card', async () => {
@@ -111,6 +143,7 @@ describe('habit suggestion actions on Android', () => {
     useChatStore.setState({ messages: [message] }); await i18n.changeLanguage('pt-BR'); await mount()
     expect(content()).toContain('Já existe'); expect(content()).toContain('Atual'); expect(content()).toContain('6:00')
     await press('Editar')
+    await renderer.act(async () => { await import('@/components/chat/habit-suggestion-editor') })
     expect(mocks.edit.mock.lastCall?.[0]).toMatchObject({ initialSuggestion: adjustment, relationshipFieldsLoaded: false })
   })
 })

@@ -221,10 +221,10 @@ describe('EditHabitModal (mobile)', () => {
   }) => tree.root.findAll((node: any) => node.type === 'HabitFormFields')[0]
 
   it('prefills an existing habit with the suggestion while retaining its identity', async () => {
-    const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
+    const habit = createMockHabit({ id: 'h-1', title: 'Exercise', intervalWeeks: 2 })
     let tree: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(() => { tree = TestRenderer.create(<TestEditor open onClose={vi.fn()} habit={habit} initialSuggestion={{ ...habitSuggestionDraftFixture, existingHabitId: habit.id }} />) })
-    expect(mockFormReset).toHaveBeenCalledWith(expect.objectContaining({ title: 'Read', itemType: 'habit', dueTime: '22:00', dueEndTime: '22:15' }))
+    await TestRenderer.act(() => { tree = TestRenderer.create(<TestEditor open onClose={vi.fn()} habit={habit} initialSuggestion={{ ...habitSuggestionDraftFixture, days: ['Monday'], existingHabitId: habit.id }} />) })
+    expect(mockFormReset).toHaveBeenCalledWith(expect.objectContaining({ intervalWeeks: 1, days: ['Monday'], title: 'Read', itemType: 'habit', dueTime: '22:00', dueEndTime: '22:15' }))
     await TestRenderer.act(() => tree.unmount())
   })
 
