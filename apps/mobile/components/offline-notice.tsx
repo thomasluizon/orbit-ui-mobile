@@ -36,7 +36,7 @@ function RefusedHabitDeleteNotice({ drop }: Readonly<{ drop: DroppedMutation }>)
 
   return <>
     <Toast persistent kind="lost" message={t('habits.detail.deleteError')} detail={t('common.syncChangeDroppedDetail')}
-      actionLabel={t('common.syncRetryAction')} onAction={() => setConfirming(true)} />
+      actionLabel={t('common.syncRetryAction')} onAction={() => setConfirming(true)} onDismiss={() => dismissDrop(drop.id)} />
     <ConfirmSheet open={confirming} title={t('habits.deleteConfirmTitle')}
       message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')}
       destructive loading={deleteHabit.isPending} onCancel={() => setConfirming(false)} onConfirm={retry} />

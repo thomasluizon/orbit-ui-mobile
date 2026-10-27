@@ -188,6 +188,35 @@ describe('offline bulk delete through the native queue', () => {
     }
   })
 
+  it('lets the person keep a refused habit by dismissing the notice, with no delete sent', async () => {
+    const generalParent = createMockHabitScheduleItem({
+      id: habitIds[0], schedule: 'General', isGeneral: true, frequencyUnit: null,
+      frequencyQuantity: null, children: [], hasSubHabits: false,
+    })
+    await mount([generalParent])
+    await deleteSelected([generalParent.id])
+    const child = createMockHabitScheduleChild({
+      schedule: 'OneTime', isCompleted: true, frequencyUnit: null, frequencyQuantity: null,
+    })
+    mocks.fetch.mockResolvedValue(Response.json(habitDetailSchema.parse({ ...generalParent, children: [child] })))
+    mocks.online = true
+    await act(async () => { await flushQueuedMutations() })
+    const [refusal] = useOfflineSyncStore.getState().drops
+    const laterDrop = { ...refusal!, id: 'later-drop', mutation: { ...refusal!.mutation, id: 'later-mutation', payload: null } }
+    await act(() => { useOfflineSyncStore.getState().addDrop(laterDrop) })
+    const notice = renderer.root.findAll((node) => node.type === Toast)[0]!
+    expect(notice.props.message).toBe('habits.detail.deleteError')
+    await act(() => { (notice.props.onAction as () => void)() })
+    const confirmation = renderer.root.findAll((node) => node.type === ConfirmSheet)[0]!
+    await act(() => { (confirmation.props.onCancel as () => void)() })
+    const dismissible = renderer.root.findAll((node) => node.type === Toast)[0]!
+    expect(dismissible.props.onDismiss).toEqual(expect.any(Function))
+    await act(() => { (dismissible.props.onDismiss as () => void)() })
+    expect(mocks.fetch.mock.calls.map(([, options]) => options?.method)).toEqual(['GET'])
+    expect(useOfflineSyncStore.getState().drops.map((drop) => drop.id)).toEqual(['later-drop'])
+    expect(renderer.root.findAll((node) => node.type === Toast)[0]!.props.message).not.toBe('habits.detail.deleteError')
+  })
+
   it('settles a replay hierarchy read answered HABIT_NOT_FOUND without sending a delete', async () => {
     await mount()
     await deleteSelected([habitIds[0]!])
