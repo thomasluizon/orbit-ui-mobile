@@ -172,6 +172,17 @@ describe('Bottom tab geometry in Chromium', () => {
         if (textScale === 1) expect(bar!.height).toBe(80)
         const buttons = page.getByRole('link')
         expect(await buttons.count()).toBe(4)
+        const bounds = await buttons.evaluateAll((elements) => elements.map((element) => {
+          const { left, right, top, bottom } = element.getBoundingClientRect()
+          return { left, right, top, bottom }
+        }))
+        for (let index = 1; index < bounds.length; index++) {
+          const current = bounds[index]!
+          const previous = bounds[index - 1]!
+          expect(current.top).toBe(previous.top)
+          expect(current.bottom).toBe(previous.bottom)
+          expect(current.left).toBeGreaterThanOrEqual(previous.right)
+        }
         let indicatorTop: number | undefined
         for (const button of await buttons.all()) {
           const measured = await button.evaluate((element) => {
@@ -205,10 +216,10 @@ describe('Bottom tab geometry in Chromium', () => {
           indicatorTop ??= measured.indicatorTop
           expect(measured.indicatorTop).toBe(indicatorTop)
           expect(measured.gap).toBe(4)
+          expect(measured.textLines).toBe(1)
           expect(measured.fontSize).toBeCloseTo(12 * Math.min(textScale, TAB_BAR_LABEL_MAX_FONT_SCALE), 3)
           expect(measured.lineHeight).toBeCloseTo(16 * Math.min(textScale, TAB_BAR_LABEL_MAX_FONT_SCALE), 3)
-          expect(measured.textLines).toBe(1)
-          expect(measured.labelHeight).toBeCloseTo(measured.lineHeight, 1)
+          expect(measured.labelHeight).toBe(measured.lineHeight)
           expect(measured.textWidth).toBeLessThanOrEqual(measured.labelWidth)
           expect(measured.left).toBeGreaterThanOrEqual(0)
           expect(measured.right).toBeLessThanOrEqual(width)
@@ -255,17 +266,6 @@ describe('Bottom tab geometry in Chromium', () => {
           await button.focus()
           expect(await button.evaluate((element) => getComputedStyle(element, '::after').outlineStyle)).not.toBe('none')
           expect(await button.evaluate((element) => getComputedStyle(element).outlineStyle)).toBe('none')
-        }
-        const bounds = await buttons.evaluateAll((elements) => elements.map((element) => {
-          const { left, right, top, bottom } = element.getBoundingClientRect()
-          return { left, right, top, bottom }
-        }))
-        for (let index = 1; index < bounds.length; index++) {
-          const current = bounds[index]!
-          const previous = bounds[index - 1]!
-          expect(current.top).toBe(previous.top)
-          expect(current.bottom).toBe(previous.bottom)
-          expect(current.left).toBeGreaterThanOrEqual(previous.right)
         }
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
       } finally { await page.close() }

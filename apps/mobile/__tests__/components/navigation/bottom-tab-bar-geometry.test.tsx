@@ -333,6 +333,13 @@ describe('Native bottom tab layout', () => {
         root.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
         if (fontScale === 1) expect(root.getComputedHeight()).toBe(80)
         const targets = destinations.map((id) => nodes.get(`tab-${id}-${id === 'today' ? 'current' : 'inactive'}`)!)
+        for (let index = 1; index < targets.length; index++) {
+          const current = bounds(targets[index]!)
+          const previous = bounds(targets[index - 1]!)
+          expect(current.top).toBe(previous.top)
+          expect(current.bottom).toBe(previous.bottom)
+          expect(current.left).toBeGreaterThanOrEqual(previous.right)
+        }
         for (const [index, id] of destinations.entries()) {
           const indicator = nodes.get(`tab-indicator-${id}`)!
           const target = targets[index]!
@@ -353,13 +360,6 @@ describe('Native bottom tab layout', () => {
           expect(bounds(label).right).toBeLessThanOrEqual(bounds(target).right)
           expect(bounds(label).top - bounds(indicator).bottom).toBe(4)
           expect(bounds(label).bottom).toBeLessThanOrEqual(bounds(target).bottom)
-          if (index > 0) {
-            const current = bounds(target)
-            const previous = bounds(targets[index - 1]!)
-            expect(current.top).toBe(previous.top)
-            expect(current.bottom).toBe(previous.bottom)
-            expect(current.left).toBeGreaterThanOrEqual(previous.right)
-          }
         }
       } finally {
         root.freeRecursive()

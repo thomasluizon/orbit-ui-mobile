@@ -38,7 +38,7 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<Omit
           }} aria-current={active ? 'page' : undefined}
             data-active={active || undefined} className="orbit-tab relative group rounded-full touch-manipulation flex min-h-[48px] min-w-0 basis-0 grow flex-col items-center justify-start gap-[4px] py-3 text-xs">
             {item.icon ? <span data-tab-indicator="" className="flex h-[32px] w-[56px] shrink-0 items-center justify-center overflow-hidden rounded-full transition-none group-hover:bg-[var(--bg-hover)] group-active:bg-[var(--bg-hover)]">{item.icon({ active })}</span> : null}
-            <span style={{ '--tab-label-cap': `${12 * TAB_BAR_LABEL_MAX_FONT_SCALE}px` } as CSSProperties} className={`max-w-full whitespace-nowrap text-[length:min(0.75rem,var(--tab-label-cap))] text-center font-medium leading-[calc(4/3)] ${active ? 'text-[var(--primary-soft)]' : 'text-[var(--fg-3)]'}`}>{item.label}</span>
+            <span style={{ '--tab-label-cap': `${12 * TAB_BAR_LABEL_MAX_FONT_SCALE}px`, '--tab-label-line-cap': `${16 * TAB_BAR_LABEL_MAX_FONT_SCALE}px` } as CSSProperties} className={`max-w-full whitespace-nowrap text-[length:min(0.75rem,var(--tab-label-cap))] text-center font-medium leading-[min(1rem,var(--tab-label-line-cap))] ${active ? 'text-[var(--primary-soft)]' : 'text-[var(--fg-3)]'}`}>{item.label}</span>
           </a>
         )
       })}
