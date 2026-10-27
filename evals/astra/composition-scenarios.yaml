@@ -15,22 +15,6 @@
       timeFormat: 24h
       currentAppArea: habits
       supportsParts: true
-      partKinds: &a1
-        - habitList
-        - goalList
-        - metrics
-        - periodTotal
-        - periodComparison
-        - periodInsight
-        - daySummary
-        - streak
-        - calendar
-        - recordList
-        - accountRows
-        - habitRanking
-        - gamification
-        - choice
-        - pickList
       supportsHabitListCard: true
       supportsHabitListDoneStatus: true
       supportsDatedHabitListCard: true
@@ -76,7 +60,6 @@
       timeFormat: 24h
       currentAppArea: habits
       supportsParts: true
-      partKinds: *a1
       supportsHabitListCard: true
       supportsHabitListDoneStatus: true
       supportsDatedHabitListCard: true
@@ -1059,7 +1042,6 @@
       timeFormat: 24h
       currentAppArea: today
       supportsParts: true
-      partKinds: *a1
       supportsHabitListCard: true
       supportsHabitListDoneStatus: true
       supportsDatedHabitListCard: true
@@ -1108,7 +1090,6 @@
       timeFormat: 24h
       currentAppArea: today
       supportsParts: true
-      partKinds: *a1
       supportsHabitListCard: true
       supportsHabitListDoneStatus: true
       supportsDatedHabitListCard: true

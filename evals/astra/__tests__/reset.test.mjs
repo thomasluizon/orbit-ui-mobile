@@ -6,6 +6,7 @@ import { beforeAll as preflight, beforeEach as prepareAttempt } from '../hooks.m
 import { resetFixture, runReset } from '../fixtures/reset.mjs'
 import AstraHttpProvider from '../http-provider.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
+import { CHAT_BLOCK_KINDS } from '../../../packages/shared/src/chat/block-kinds.ts'
 
 const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((file) => parse(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')))
 let habits, goals, tags, templates, requests, pro, exhausted, capacity, email, unmetered
@@ -23,6 +24,26 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const scenario = (fixture) => structuredClone(corpus.find((entry) => entry.metadata.fixture === fixture))
+it('negotiates every composition context from client-supported block kinds', async () => {
+  const contexts = [...new Map(corpus.filter((entry) => entry.metadata.category === 'composition')
+    .map((entry) => [JSON.stringify(entry.vars.clientContext), entry])).values()]
+  for (const entry of contexts) {
+    const source = scenario('composition')
+    source.vars.clientContext = structuredClone(entry.vars.clientContext)
+    source.metadata.locale = entry.vars.clientContext.locale
+    const { test } = await prepareAttempt({ test: source })
+    expect(test.vars).not.toHaveProperty('preconditionFailure')
+    const client = JSON.parse(test.vars.clientContextJson)
+    expect(client.partKinds.filter((kind) => !CHAT_BLOCK_KINDS.includes(kind))).toEqual([])
+    if (entry.vars.clientContext.supportsParts && !entry.vars.clientContext.partKinds) {
+      expect(client.partKinds).toEqual([...CHAT_BLOCK_KINDS])
+    } else {
+      expect(client.partKinds).toEqual(entry.vars.clientContext.partKinds)
+    }
+    expect(client.locale).toBe(entry.vars.clientContext.locale)
+    expect(client.currentAppArea).toBe(entry.vars.clientContext.currentAppArea)
+  }
+})
 it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))])('establishes %s exclusively through intercepted public routes', async (fixture) => {
   const test = scenario(fixture)
   pro = fixture !== 'free-at-limit'

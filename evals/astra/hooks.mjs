@@ -87,6 +87,9 @@ async function prepareAttempt(test) {
   }
   test.vars = substitute(test.vars)
   test.vars.clientContext ??= buildChatClientContext({ platform: test.metadata.platform ?? 'web', locale: test.metadata.locale ?? 'en' })
+  if (test.vars.clientContext.supportsParts === true && test.vars.clientContext.partKinds === undefined) {
+    test.vars.clientContext.partKinds = buildChatClientContext(test.vars.clientContext).partKinds
+  }
   test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
   test.vars.historyJson = JSON.stringify(test.vars.history ?? [])
   test.vars.evalRequestId = randomUUID()
