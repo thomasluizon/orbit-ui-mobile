@@ -1344,17 +1344,19 @@ describe('useDeleteHabit', () => {
     }
   })
 
-  it('does not report a canceled in-flight read when its response arrives after delete', async () => {
+  it('does not report a canceled in-flight read while the delete acknowledgement is pending', async () => {
     const { deleteHabit } = await import('@/lib/actions/habits')
-    vi.mocked(deleteHabit).mockResolvedValue(undefined)
+    let acknowledge!: () => void
+    vi.mocked(deleteHabit).mockImplementation(() => new Promise<void>((resolve) => { acknowledge = resolve }))
     const queryClient = createQueryClient()
     let finish!: (response: Response) => void
     mockFetch.mockImplementation(() => new Promise<Response>((resolve) => { finish = resolve }))
     const toast = vi.spyOn((await import('@/stores/app-toast-store')).useAppToastStore.getState(), 'showError')
-    const { result, unmount } = renderHook(() => ({ detail: useHabitDetail('h-1'), remove: useDeleteHabit() }), { wrapper: createWrapper(queryClient) })
+    const { result, unmount } = renderHook(() => ({ detail: useHabitFullDetail('h-1'), remove: useDeleteHabit() }), { wrapper: createWrapper(queryClient) })
     try {
       await waitFor(() => expect(finish).toBeTypeOf('function'))
-      await act(async () => { await result.current.remove.mutateAsync('h-1') })
+      act(() => { result.current.remove.mutate('h-1') })
+      await waitFor(() => expect(acknowledge).toBeTypeOf('function'))
       await act(async () => {
         finish(Response.json({ error: 'Habit not found.', errorCode: 'HABIT_NOT_FOUND' }, { status: 404 }))
         await Promise.resolve()
@@ -1362,6 +1364,7 @@ describe('useDeleteHabit', () => {
       expect(toast).not.toHaveBeenCalled()
       expect(mockFetch).toHaveBeenCalledTimes(1)
     } finally {
+      await act(async () => { acknowledge(); await Promise.resolve() })
       unmount()
       queryClient.clear()
       toast.mockRestore()

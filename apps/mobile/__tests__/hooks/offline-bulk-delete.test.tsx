@@ -181,6 +181,37 @@ describe('offline bulk delete through the native queue', () => {
     expect(cachedIds()).toEqual([])
   })
 
+  it('cancels the full-detail request before waiting for the delete acknowledgement', async () => {
+    mocks.online = true
+    let single!: ReturnType<typeof useDeleteHabit>
+    let finishRead!: (response: Response) => void
+    let acknowledge!: (response: Response) => void
+    let readSignal: AbortSignal | null | undefined
+    mocks.fetch.mockImplementation((_input, options) => {
+      if (options?.method === 'DELETE') return new Promise<Response>((resolve) => { acknowledge = resolve })
+      readSignal = options?.signal
+      return new Promise<Response>((resolve) => { finishRead = resolve })
+    })
+    function DeleteOwner() {
+      single = useDeleteHabit()
+      useHabitFullDetail('habit-1')
+      return null
+    }
+    await act(() => { renderer = create(<QueryClientProvider client={queryClient}><DeleteOwner /></QueryClientProvider>) })
+    await act(async () => { single.mutate('habit-1'); await Promise.resolve() })
+    await vi.waitFor(() => expect(acknowledge).toBeTypeOf('function'))
+    try {
+      expect(readSignal?.aborted).toBe(true)
+      await act(async () => {
+        finishRead(Response.json({ error: 'Habit not found.', errorCode: 'HABIT_NOT_FOUND' }, { status: 404 }))
+        await Promise.resolve()
+      })
+      expect(mocks.showError).not.toHaveBeenCalled()
+    } finally {
+      await act(async () => { acknowledge(new Response(null, { status: 204 })); await Promise.resolve() })
+    }
+  })
+
   it('keeps the error from another device deletion available to the caller', async () => {
     mocks.online = true
     const habit = createMockHabitScheduleItem({ id: 'remote' })

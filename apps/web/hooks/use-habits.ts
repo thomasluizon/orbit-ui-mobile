@@ -530,10 +530,7 @@ export function useDeleteHabit() {
       isCachedHabitDeleted(queryClient, habitId) ? Promise.resolve() : deleteHabitAction(habitId, intendedAccountId),
 
     onMutate: async (habitId) => {
-      await Promise.all([
-        queryClient.cancelQueries({ queryKey: habitKeys.details() }),
-        queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
-      ])
+      await queryClient.cancelQueries({ queryKey: habitKeys.all })
       const deletedIds = cachedHabitDeletionIds(queryClient, [habitId])
       const previousLists = snapshotHabitLists(queryClient)
       const previousDetails = queryClient.getQueriesData<HabitDetail>({

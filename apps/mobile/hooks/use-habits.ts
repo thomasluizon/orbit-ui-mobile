@@ -845,10 +845,7 @@ export function useDeleteHabit({ requiresConnection = false }: { requiresConnect
       }),
 
     onMutate: async (habitId) => {
-      await Promise.all([
-        queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
-        queryClient.cancelQueries({ queryKey: habitKeys.details() }),
-      ])
+      await queryClient.cancelQueries({ queryKey: habitKeys.all })
 
       const deletedIds = cachedHabitDeletionIds(queryClient, [habitId])
       const previousLists = snapshotHabitLists(queryClient)
@@ -1321,7 +1318,7 @@ export function useBulkDeleteHabits() {
     },
 
     onMutate: async (habitIds) => {
-      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      await queryClient.cancelQueries({ queryKey: habitKeys.all })
 
       const previousLists = snapshotHabitLists(queryClient)
       bulkDeleteConnectionRequirements.set(habitIds, selectionRequiresCascadeDelete(previousLists, habitIds))
