@@ -1807,7 +1807,7 @@ describe('mobile ProgressContent', () => {
     expect(mocks.reorder.mutate).toHaveBeenCalledWith([
       { id: 'goal-2', position: 0 },
       { id: 'goal-1', position: 1 },
-    ])
+    ], { onSettled: expect.any(Function) })
   })
 
   it('announces accessibility moves, boundaries and preserves errors and filtered state', async () => {

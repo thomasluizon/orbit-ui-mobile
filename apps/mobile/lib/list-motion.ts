@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react'
+import { useLayoutEffect } from 'react'
 import { LayoutAnimation, type LayoutAnimationConfig } from 'react-native'
 import { Easing, Keyframe, ReduceMotion } from 'react-native-reanimated'
 import { motionDurations, motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
@@ -13,15 +13,22 @@ export function createListLayoutConfig(reduced: boolean): LayoutAnimationConfig 
   }
 }
 
-export function useListLayoutMotion(signature: string, dragging = false) {
+type ListSource = 'habits' | 'goals'
+const mountedLists = new Set<{ source: ListSource; reduced: boolean; dragging: boolean }>()
+
+export function prepareListLayoutMotion(source: ListSource) {
+  const lists = [...mountedLists].filter((list) => list.source === source)
+  if (lists.length === 0 || lists.some((list) => list.dragging)) return
+  LayoutAnimation.configureNext(createListLayoutConfig(lists.some((list) => list.reduced)))
+}
+
+export function useListLayoutMotion(source: ListSource, dragging = false) {
   const reduced = usePrefersReducedMotion()
-  const previous = useRef(signature)
   useLayoutEffect(() => {
-    if (previous.current !== signature || reduced) {
-      previous.current = signature
-      if (!dragging) LayoutAnimation.configureNext(createListLayoutConfig(reduced))
-    }
-  }, [dragging, reduced, signature])
+    const list = { source, reduced, dragging }
+    mountedLists.add(list)
+    return () => { mountedLists.delete(list) }
+  }, [dragging, reduced, source])
   return reduced
 }
 

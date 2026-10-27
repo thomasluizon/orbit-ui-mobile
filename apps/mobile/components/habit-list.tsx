@@ -1,5 +1,5 @@
 import { ContentFade } from '@/components/motion/content-fade'
-import { createListCellMotion, useListLayoutMotion } from '@/lib/list-motion'
+import { createListCellMotion, prepareListLayoutMotion, useListLayoutMotion } from '@/lib/list-motion'
 import { TodayLaunchContent } from '@/components/today/today-launch-content'
 import { getFriendlyErrorMessage, isTodayLaunchCache } from '@orbit/shared/utils'
 import { getMoveParentInventory } from '@orbit/shared/utils/move-parent'
@@ -524,6 +524,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
     const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
 
+    const [isDraggingList, setIsDraggingList] = useState(false)
+    const reducedListMotion = useListLayoutMotion('habits', isDraggingList)
     const [collapsedIds, setCollapsedIds] = useState(new Set<string>())
     const [recentlyCompletedDates, setRecentlyCompletedDates] = useState(
       new Map<string, Set<string>>(),
@@ -628,6 +630,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }, [])
 
     const markRecentlyCompleted = useCallback((habitId: string, date = selectedDateStr) => {
+      prepareListLayoutMotion('habits')
       setRecentlyCompletedDates((previous) => addRecentCompletion(previous, habitId, date))
       const timers = recentlyCompletedTimersRef.current
       const timerKey = `${habitId}:${date}`
@@ -637,6 +640,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         timerKey,
         setTimeout(() => {
           timers.delete(timerKey)
+          prepareListLayoutMotion('habits')
           setRecentlyCompletedDates((previous) => removeRecentCompletion(previous, habitId, date))
         }, 1400),
       )
@@ -650,6 +654,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         clearTimeout(existing)
         timers.delete(timerKey)
       }
+      prepareListLayoutMotion('habits')
       setRecentlyCompletedDates((previous) => removeRecentCompletion(previous, habitId, date))
     }, [selectedDateStr])
 
@@ -717,14 +722,17 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }, [allLoadedIds, onAllLoadedIdsChange])
 
     const collapseAll = useCallback(() => {
+      prepareListLayoutMotion('habits')
       setCollapsedIds(new Set(expandableIds))
     }, [expandableIds, setCollapsedIds])
 
     const expandAll = useCallback(() => {
+      prepareListLayoutMotion('habits')
       setCollapsedIds(new Set())
     }, [setCollapsedIds])
 
     const toggleExpand = useCallback((habitId: string) => {
+      prepareListLayoutMotion('habits')
       setCollapsedIds((prev) => {
         const next = new Set(prev)
         if (next.has(habitId)) {
@@ -736,7 +744,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       })
     }, [setCollapsedIds])
 
-    const [isDraggingList, setIsDraggingList] = useState(false)
     const [dragOverrideItems, setDragOverrideItems] = useState<
       DragItem[] | null
     >(null)
@@ -771,7 +778,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const activeDragItems = dragOverrideItems ?? flatItems
-    const reducedListMotion = useListLayoutMotion(JSON.stringify([isLoading, activeDragItems.map((item) => item.id), drill.drillChildren.map((item) => item.id)]), isDraggingList)
     const cellMotion = useMemo(() => createListCellMotion(reducedListMotion), [reducedListMotion])
     const activeDragItemsRef = useRef(activeDragItems)
     useEffect(() => {

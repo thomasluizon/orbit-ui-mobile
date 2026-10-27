@@ -7,7 +7,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { expectPressFill } from '../../support/press-feedback'
 import React from 'react'
 import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geometry'
-import { FlatList, StyleSheet, View, type ViewStyle, type HostInstance } from 'react-native'
+import { FlatList, LayoutAnimation, StyleSheet, View, type ViewStyle, type HostInstance } from 'react-native'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Fab } from '@/components/ui/fab'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -1359,11 +1359,19 @@ describe('HabitList', () => {
     )
     expect(disclosure().props.accessibilityState).toEqual({ expanded: true })
     expect(visibleIds()).toEqual([parent.id, child.id, secondParent.id, secondChild.id])
-    TestRenderer.act(() => disclosure().props.onPress())
-    expect(disclosure().props.accessibilityLabel).toBe('common.expand')
-    expect(disclosure().props.accessibilityState).toEqual({ expanded: false })
-    expect(visibleIds()).toEqual([parent.id, secondParent.id, secondChild.id])
-    TestRenderer.act(() => disclosure().props.onPress())
+    const configuredRows: string[][] = []
+    const configure = vi.spyOn(LayoutAnimation, 'configureNext').mockImplementation(() => { configuredRows.push(visibleIds()) })
+    try {
+      TestRenderer.act(() => disclosure().props.onPress())
+      expect(configuredRows).toEqual([[parent.id, child.id, secondParent.id, secondChild.id]])
+      expect(disclosure().props.accessibilityLabel).toBe('common.expand')
+      expect(disclosure().props.accessibilityState).toEqual({ expanded: false })
+      expect(visibleIds()).toEqual([parent.id, secondParent.id, secondChild.id])
+      TestRenderer.act(() => disclosure().props.onPress())
+      expect(configuredRows.at(-1)).toEqual([parent.id, secondParent.id, secondChild.id])
+    } finally {
+      configure.mockRestore()
+    }
     expect(disclosure().props.accessibilityLabel).toBe('common.collapse')
     expect(disclosure().props.accessibilityState).toEqual({ expanded: true })
     expect(visibleIds()).toEqual([parent.id, child.id, secondParent.id, secondChild.id])
