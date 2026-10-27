@@ -217,9 +217,10 @@ icon, keeping the shared row anatomy, icon size and colour.
 
 Hoje and habit detail composers each have one named disclosure control (#1796). The owner's
 report is: "missing the arrow to minimize the astra composer". Collapsing leaves one compact row with
-its mark, retains the mounted draft and attachments, and persists each surface's choice independently in device preferences.
-The same control expands it again. Both states remain in the shell's pinned allocation outside the
-habit scroller, with clearance following the actual composer height. Other composer surfaces stay expanded. The owner inventory lives in
+its mark, retains the mounted draft, attachments and queued messages, and persists each surface's
+choice independently in device preferences. The same control expands it again. Both states remain
+in the shell's pinned allocation outside the habit scroller, with clearance following the actual
+composer height. Other composer surfaces stay expanded. The owner inventory lives in
 `design/astra-mark-only-surfaces.md`.
 
 The composer's text composition reserves one inert text-action slot across inline and Add-menu
