@@ -1,4 +1,4 @@
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN, typeRoles } from '@orbit/shared/theme'
 import type { ReactElement, Ref } from 'react'
 import type { NavHeaderProps } from '@orbit/shared/contracts/navigation'
 import { StyleSheet, Text, View } from 'react-native'
@@ -12,7 +12,7 @@ type AppBarTitleProps =
   | { titleVisual: ReactElement; titleRef?: Ref<View> }
   | { titleVisual?: undefined; titleRef?: Ref<Text> }
 
-export function AppBar({ title, onBack, backLabel, action, titleRef, titleVisual, titleIsHeading = true }: Readonly<NavHeaderProps & AppBarTitleProps & { titleIsHeading?: boolean }>) {
+export function AppBar({ title, titleVariant, onBack, backLabel, action, titleRef, titleVisual, titleIsHeading = true }: Readonly<NavHeaderProps & AppBarTitleProps & { titleIsHeading?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
@@ -24,7 +24,7 @@ export function AppBar({ title, onBack, backLabel, action, titleRef, titleVisual
         </MotionPressable>
       </View>}
       {titleVisual !== undefined ? <View ref={titleRef} accessible accessibilityRole={titleIsHeading ? 'header' : 'image'} accessibilityLabel={title} style={styles.visualTitle}>{titleVisual}</View>
-        : <Text ref={titleRef} accessibilityRole={titleIsHeading ? 'header' : undefined} style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>}
+        : <Text ref={titleRef} accessibilityRole={titleIsHeading ? 'header' : undefined} style={[styles.title, titleVariant === 'screen' ? styles.screenTitle : null, { color: tokens.fg1 }]}>{title}</Text>}
       <View style={styles.action}>{action}</View>
     </View></ShellContent></View>
   )
@@ -36,6 +36,7 @@ const styles = StyleSheet.create({
   leading: { minWidth: TOUCH_TARGET_MIN, alignItems: 'flex-start' },
   back: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, fontFamily: 'GeistMono_500Medium', fontSize: 12, textAlign: 'left' },
+  screenTitle: { fontFamily: 'Geist_500Medium', fontSize: typeRoles.h2.size, lineHeight: typeRoles.h2.size * typeRoles.h2.lineHeight, letterSpacing: typeRoles.h2.size * typeRoles.h2.letterSpacingEm },
   visualTitle: { flex: 1, alignItems: 'flex-start', justifyContent: 'center' },
   action: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 },
 })
