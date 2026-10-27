@@ -22,7 +22,7 @@ async function expectComposerKeyboardRings(page: Page, container: Locator, force
   const menu = page.getByRole('menu', { name: en.shell.composer.actions, exact: true })
   await expect(menu).toBeVisible()
   await page.keyboard.press('Home')
-  const names = [...(!clearInSlot ? [en.shell.composer.clear] : []), en.shell.composer.attach.image, en.shell.composer.attach.file, en.shell.composer.voice.start]
+  const names = [...(!clearInSlot ? [en.shell.composer.clear] : []), en.shell.composer.attach.image, en.shell.composer.attach.file]
   await expect(menu.getByRole('menuitem')).toHaveCount(names.length)
   for (const name of names) {
     const control = menu.getByRole('menuitem', { name, exact: true })

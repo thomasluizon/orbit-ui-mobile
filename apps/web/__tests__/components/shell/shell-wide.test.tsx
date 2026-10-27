@@ -81,7 +81,7 @@ describe('ShellWide', () => {
     act(() => trigger.focus())
     fireEvent.keyDown(trigger, { key: 'ArrowDown' })
     const menu = await screen.findByRole('menu', { name: 'Attach' })
-    expect(within(menu).getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Photo', 'Document', 'Voice'])
+    expect(within(menu).getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Photo', 'Document'])
     act(() => { media.width = 1100; listeners.forEach(listener => listener()) })
     await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
     await waitFor(() => expect(screen.getByRole('button', { name: 'Astra' })).toHaveFocus())

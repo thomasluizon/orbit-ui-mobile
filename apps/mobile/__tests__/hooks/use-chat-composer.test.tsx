@@ -901,12 +901,67 @@ describe('mobile useChatComposer', () => {
     expect(inputHosts(tree)).toHaveLength(1)
   })
 
+  it.each([false, true])('retains composer focus after a native submission with queued=%s', async (queued) => {
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    useUIStore.getState().setAstraConversationOpen(true)
+    const tree = await renderConversationHarness()
+    onTestFinished(() => stream.close())
+    if (queued) {
+      TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Running message'))
+      await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
+    }
+    TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Next message'))
+    const send = visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
+      node.type === 'Pressable' && node.props.accessibilityLabel === (queued ? 'shell.composer.queue.add' : 'shell.composer.send'))[0]
+    const tag = send.props.__nativeTag
+    TestRenderer.act(() => { __setTouchMode(false); __focusHost(tag) })
+    expect(__getFocusedNativeTag()).toBe(tag)
+    await TestRenderer.act(async () => { send.props.onPress(); await Promise.resolve() })
+    expect(inputHosts(tree)[0].props.value).toBe('')
+    const primary = visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
+      node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.voice.start')[0]
+    expect(__getFocusedNativeTag()).toBe(inputHosts(tree)[0].props.__nativeTag)
+    expect(primary.props.__nativeTag).toBe(tag)
+    expect(mocks.openChatStream).toHaveBeenCalledOnce()
+    expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(queued ? ['Next message'] : [])
+  })
+
+  it.each(['', 'Existing draft'])('keeps voice reachable at the limit through transcription with draft=%j', async (draft) => {
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
+    useChatStore.setState({ draft, draftHydrated: true })
+    useUIStore.getState().setAstraConversationOpen(true)
+    const tree = await renderConversationHarness()
+    const voiceControl = (label: string) => visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
+      node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]
+    expect(voiceControl('shell.composer.voice.start')?.props.disabled).toBe(false)
+    TestRenderer.act(() => voiceControl('shell.composer.voice.start').props.onPress())
+    expect(mocks.toggleRecording).toHaveBeenCalledOnce()
+    mocks.state.isRecording = true
+    await TestRenderer.act(() => tree.update(<ComposerConversationHarness />))
+    TestRenderer.act(() => voiceControl('shell.composer.voice.stop').props.onPress())
+    mocks.state.isRecording = false
+    mocks.state.isTranscribing = true
+    await TestRenderer.act(() => tree.update(<ComposerConversationHarness />))
+    expect(voiceControl('shell.composer.voice.stop').props.disabled).toBe(true)
+    mocks.state.isTranscribing = false
+    mocks.state.transcript = 'Recorded message'
+    await TestRenderer.act(() => tree.update(<ComposerConversationHarness />))
+    expect(inputHosts(tree)[0].props.value).toBe(draft ? `${draft} Recorded message` : 'Recorded message')
+    expect(inputHosts(tree)[0].props.editable).toBe(false)
+    expect(voiceControl('shell.composer.voice.start')?.props.disabled).toBe(false)
+    expect(voiceControl('shell.composer.send')).toBeUndefined()
+    TestRenderer.act(() => voiceControl('shell.composer.voice.start').props.onPress())
+    expect(mocks.toggleRecording).toHaveBeenCalledTimes(3)
+    expect(mocks.openChatStream).not.toHaveBeenCalled()
+  })
+
   it('does not move native focus off the voice stop control when recording starts', async () => {
     const focus = vi.fn()
     __setFocusImpl(focus)
     const tree = await renderConversationHarness()
     TestRenderer.act(() => inputHosts(tree)[0].props.onFocus())
-    const voiceButton = visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.actions')[0]
+    const voiceButton = visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.voice.start')[0]
     const voiceTag = voiceButton.props.__nativeTag
     TestRenderer.act(() => { __setTouchMode(false); __focusHost(voiceTag) })
     expect(__getFocusedNativeTag()).toBe(voiceTag)

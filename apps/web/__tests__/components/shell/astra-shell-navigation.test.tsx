@@ -78,7 +78,7 @@ it('keeps focus in each anchored attachment action and lets Escape close the men
   fireEvent.pointerDown(screen.getByRole('button', { name: words.actions }), { button: 0, ctrlKey: false })
   const menu = await screen.findByRole('menu', { name: words.actions })
   expect(document.querySelector('[data-shell]')).not.toContainElement(menu)
-  for (const label of [attachWords.image, attachWords.file, voiceWords.start]) {
+  for (const label of [attachWords.image, attachWords.file]) {
     const item = within(menu).getByRole('menuitem', { name: label })
     act(() => item.focus())
     expect(item).toHaveFocus()
@@ -198,7 +198,8 @@ it.each([false, true])('opens the conversation with disabled sending at the dail
   const conversation = screen.getByRole('dialog', { name: 'Astra' })
   expect(within(conversation).getByText('Daily allowance reached')).toBeVisible()
   expect(within(conversation).getByRole('textbox', { name: words.placeholder })).toBeDisabled()
-  expect(within(conversation).getByRole('button', { name: `${words.send}` })).toBeDisabled()
+  expect(within(conversation).queryByRole('button', { name: words.send })).not.toBeInTheDocument()
+  expect(within(conversation).getByRole('button', { name: voiceWords.start })).toBeEnabled()
   expect(conversation).toContainElement(document.activeElement as HTMLElement)
   fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
   expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
