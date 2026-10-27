@@ -1,3 +1,5 @@
+import { useResolvedMotionPreset } from '@/lib/motion'
+import Reanimated, { Easing, Keyframe, ReduceMotion } from 'react-native-reanimated'
 import * as Primitive from '@rn-primitives/toast'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -71,6 +73,21 @@ function ToastClose({ dismiss, onFocus, onBlur, color }: Readonly<{
   )
 }
 
+const AnimatedToast = Reanimated.createAnimatedComponent(Primitive.Root)
+
+function useToastMotion() {
+  const preset = useResolvedMotionPreset('toast')
+  const entering = useMemo(() => new Keyframe({
+    0: { opacity: 0, transform: [{ translateY: preset.shift }, { scale: preset.scaleFrom }] },
+    100: { opacity: 1, transform: [{ translateY: 0 }, { scale: 1 }], easing: Easing.bezier(...preset.enterEasing) },
+  }).duration(preset.reducedMotionEnabled ? 0 : preset.enterDuration).reduceMotion(ReduceMotion.System), [preset])
+  const exiting = useMemo(() => new Keyframe({
+    0: { opacity: 1, transform: [{ translateY: 0 }, { scale: 1 }] },
+    100: { opacity: 0, transform: [{ translateY: preset.shift }, { scale: preset.scaleFrom }], easing: Easing.bezier(...preset.exitEasing) },
+  }).duration(preset.reducedMotionEnabled ? 0 : preset.exitDuration).reduceMotion(ReduceMotion.System), [preset])
+  return { entering, exiting }
+}
+
 export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void; persistent?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -81,12 +98,18 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
   const actionClosing = useRef(false)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
+  const presentationRef = useRef<View | null>(null)
+  const setPresentation = useCallback((element: View | null) => {
+    if (!element) presentationRef.current?.setNativeProps({ pointerEvents: 'none', accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' })
+    presentationRef.current = element
+  }, [])
   const lossColors = { background: tokens.bg, action: tokens.primarySoft }
   const neutralColors = { background: tokens.bgSheet, action: tokens.fg1 }
   const colors = { neutral: neutralColors, working: neutralColors, done: neutralColors, lost: lossColors }[props.kind]
 
   const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused, props.onDismiss, props.persistent)
   const swipe = useToastSwipe(dismiss)
+  const motion = useToastMotion()
 
   useEffect(() => {
     const timer = setTimeout(() => setAnnouncedMessage(props.message), 0)
@@ -96,7 +119,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
   if (dismissed) return null
 
   return (
-    <Primitive.Root type="background" open={!dismissed} onOpenChange={(open) => {
+    <AnimatedToast ref={setPresentation} entering={motion.entering} exiting={motion.exiting} type="background" open onOpenChange={(open) => {
       if (actionClosing.current) { actionClosing.current = false; return }
       if (!open) dismiss()
     }}
@@ -124,21 +147,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
       ]}
       testID={`toast-${props.kind}`}
     >
-      {props.kind === 'working' ? <WorkingMark color={tokens.fg2} /> : null}
-      {props.kind === 'done' ? (
-        <View
-          style={[styles.doneMark, { backgroundColor: tokens.statusDone }]}
-          testID="toast-done-mark"
-          accessibilityElementsHidden
-        >
-          <Check size={16} strokeWidth={2.4} color={tokens.bg} />
-        </View>
-      ) : null}
-      {(props.kind === 'neutral' || props.kind === 'lost') && props.icon ? (
-        <View style={styles.icon} accessibilityElementsHidden>
-          {props.icon}
-        </View>
-      ) : null}
+      <ToastLeadingMark props={props} tokens={tokens} />
 
       <View style={[styles.copy, props.actionLabel ? styles.actionCopy : null]}>
         <Text style={[styles.message, { color: tokens.fg1 }]}>{announcedMessage}</Text>
@@ -151,7 +160,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
         {props.actionLabel ? <ToastAction props={props} actionClosing={actionClosing} tokens={tokens} actionColor={colors.action} setFocused={setFocused} /> : null}
         <ToastClose dismiss={dismiss} color={tokens.fg2} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
       </View>
-    </Primitive.Root>
+    </AnimatedToast>
   )
 }
 
@@ -254,4 +263,25 @@ function ToastAction({ props, actionClosing, tokens, actionColor, setFocused }: 
               {props.actionLabel}
             </Text>
           </Pressable></Primitive.Action>
+}
+
+function ToastLeadingMark({ props, tokens }: Readonly<{ props: ToastProps; tokens: AppTokensV2 }>) {
+  return <>
+      {props.kind === 'working' ? <WorkingMark color={tokens.fg2} /> : null}
+      {props.kind === 'done' ? (
+        <View
+          style={[styles.doneMark, { backgroundColor: tokens.statusDone }]}
+          testID="toast-done-mark"
+          accessibilityElementsHidden
+        >
+          <Check size={16} strokeWidth={2.4} color={tokens.bg} />
+        </View>
+      ) : null}
+      {(props.kind === 'neutral' || props.kind === 'lost') && props.icon ? (
+        <View style={styles.icon} accessibilityElementsHidden>
+          {props.icon}
+        </View>
+      ) : null}
+
+  </>
 }

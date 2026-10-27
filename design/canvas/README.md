@@ -3,6 +3,15 @@
 > **At a glance** - the granted canvas export and design tokens for every redesign surface.
 > Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
 
+### Navigation and overlay motion amendment (#1829)
+
+The owner requests transitions across the app, including spring settlement for sheets.
+In `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css`,
+the comment `Animate transform and opacity only. No bounce, no spring.` becomes
+`Animate transform and opacity only. No bounce or spring overshoot.`
+This permits the shared damped springs in `DESIGN.md` Motion while retaining the bans
+on bounce and overshoot. Token values and the remaining export stay unchanged.
+
 ### One Astra drawing amendment (#1797)
 
 Under D42, the owner's order amends every small Astra variant in the granted drawings:

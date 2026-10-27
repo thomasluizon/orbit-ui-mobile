@@ -25,11 +25,12 @@ interface RouteTransitionShellProps {
   className?: string
 }
 
-const PRIMARY_DESTINATIONS = new Set(['/', '/calendar', '/progress', '/profile'])
+const PRIMARY_DESTINATIONS = ['/', '/calendar', '/progress', '/profile']
 
 type RouteTransitionMotion = Readonly<{
   direction: -1 | 0 | 1
   isPrimaryTabSwitch: boolean
+  vertical: boolean
   motionPreset: ReturnType<typeof resolveMotionPreset>
 }>
 
@@ -41,16 +42,19 @@ interface RoutePathState {
 }
 
 const routeVariants: Variants = {
-  initial: ({ direction, isPrimaryTabSwitch, motionPreset }: RouteTransitionMotion) => ({
-    opacity: isPrimaryTabSwitch ? 1 : 0,
-    x: direction * motionPreset.shift,
+  initial: ({ direction, motionPreset, vertical }: RouteTransitionMotion) => ({
+    opacity: motionPreset.enterDuration === 0 ? 1 : 0,
+    x: vertical ? 0 : direction * motionPreset.shift,
+    y: vertical ? direction * motionPreset.shift : 0,
   }),
   animate: ({ motionPreset }: RouteTransitionMotion) => ({
     opacity: 1,
     x: 0,
+    y: 0,
     transition: {
       duration: motionPreset.enterDuration / 1000,
       ease: motionPreset.enterEasing,
+      ...(motionPreset.reducedMotionEnabled ? { x: { duration: 0 }, y: { duration: 0 } } : {}),
     },
   }),
 }
@@ -79,8 +83,8 @@ export function RouteTransitionShell({
   }
   const isPrimaryTabSwitch =
     routePaths.previous !== pathname &&
-    PRIMARY_DESTINATIONS.has(routePaths.previous) &&
-    PRIMARY_DESTINATIONS.has(pathname)
+    PRIMARY_DESTINATIONS.includes(routePaths.previous) &&
+    PRIMARY_DESTINATIONS.includes(pathname)
 
   useEffect(() => {
     if (committedPathnameRef.current === pathname) {
@@ -99,22 +103,26 @@ export function RouteTransitionShell({
 
   const transitionMotion = useMemo<RouteTransitionMotion>(
     () => {
-      const transitionIntent = isPrimaryTabSwitch ? 'tab' : routePaths.intent
+      const transitionIntent = routePaths.intent === 'instant' ? 'instant' : isPrimaryTabSwitch ? 'tab' : routePaths.intent
       return {
-        direction: getRouteDirectionForIntent(transitionIntent),
+        direction: transitionIntent === 'tab'
+          ? PRIMARY_DESTINATIONS.indexOf(pathname) > PRIMARY_DESTINATIONS.indexOf(routePaths.previous) ? 1 : -1
+          : getRouteDirectionForIntent(transitionIntent),
         isPrimaryTabSwitch,
-        motionPreset: resolveMotionPreset(
-          getRouteScenarioForIntent(transitionIntent),
-          Boolean(prefersReducedMotion),
-        ),
+        vertical: ['/upgrade', '/step-up'].includes(pathname) || ['/upgrade', '/step-up'].includes(routePaths.previous),
+        motionPreset: {
+          ...resolveMotionPreset(getRouteScenarioForIntent(transitionIntent), Boolean(prefersReducedMotion)),
+          ...(transitionIntent === 'instant' ? { enterDuration: 0, exitDuration: 0, shift: 0 } : {}),
+        },
       }
     },
-    [isPrimaryTabSwitch, prefersReducedMotion, routePaths.intent],
+    [isPrimaryTabSwitch, pathname, prefersReducedMotion, routePaths.intent, routePaths.previous],
   )
 
   return (
     <LazyMotion features={domMax}>
       <m.div
+        data-route-motion=""
         key={pathname}
         className={className}
         custom={transitionMotion}

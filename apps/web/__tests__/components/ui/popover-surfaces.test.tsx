@@ -37,11 +37,13 @@ describe('Today controls and habit menu ownership', () => {
     }
     const prepare = async (trigger: HTMLElement, label: string) => {
       press(trigger)
+      await act(async () => { await vi.dynamicImportSettled() })
       await screen.findByRole('menuitem', { name: label })
       if (phase === 'open') return
       fireEvent.keyDown(document, { key: 'Escape' })
       if (phase !== 'reopened') return
       press(trigger)
+      await act(async () => { await vi.dynamicImportSettled() })
       await screen.findByRole('menuitem', { name: label })
     }
     await prepare(controlsTrigger, 'Select')

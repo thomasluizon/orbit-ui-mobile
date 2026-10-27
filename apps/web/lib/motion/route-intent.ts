@@ -77,8 +77,10 @@ export function getRouteDirectionForIntent(intent: MotionNavigationIntent): -1 |
     case 'tab':
     case 'replace':
     case 'modal-close':
-    case 'neutral':
+    case 'instant':
       return 0
+    case 'neutral':
+      return 1
     default:
       return 1
   }

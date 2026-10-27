@@ -57,7 +57,7 @@ describe('Android action toast dismissal', () => {
     act(() => { tree = create(element) })
   }
   function visibleToasts() {
-    return tree.root.findAllByProps({ testID: 'toast-neutral' })
+    return tree.root.findAllByProps({ testID: 'toast-neutral' }).filter((node: { props: { accessibilityElementsHidden?: boolean } }) => !node.props.accessibilityElementsHidden)
   }
 
   it.each(['showError', 'showInfo', 'showSuccess'] as const)('closes a hosted %s without leaving stale store state', (method) => {

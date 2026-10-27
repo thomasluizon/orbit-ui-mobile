@@ -58,12 +58,13 @@ export function Content({ id, items = [], onSelect, title, shortTitle, titleMode
       target.focus()
     }
   }
-  if (!open || items.length === 0) return null
+  if (items.length === 0) return null
   if (presentation === 'sheet' || (presentation === 'auto' && !wide)) {
+    if (!open) return null
     return <MenuSheet id={id} onSelect={activate} onClose={onClose} title={title} shortTitle={shortTitle} titleMode={titleMode} firstItemRef={firstItemRef} onSelectStart={onSelectStart} finalFocus={focusDestination} contentRef={contentRef} onContentFocus={focusInitialItem}>{children}</MenuSheet>
   }
   return <MenuItemsContext.Provider value={activate}><Portal>
-    <Primitive.Content ref={contentRef} {...(id ? { id } : {})} aria-label={title} aria-labelledby={undefined} align={align} sideOffset={8} collisionPadding={8} loop className="orbit-menu-panel" data-positioned="" onFocus={focusInitialItem} onEscapeKeyDown={restoreAnchoredFocus} onPointerDownOutside={(event) => {
+    <Primitive.Content ref={contentRef} {...(id ? { id } : {})} aria-label={title} aria-labelledby={undefined} align={align} sideOffset={8} collisionPadding={8} loop className="orbit-menu-panel" data-positioned="" inert={!open} aria-hidden={!open || undefined} onFocus={focusInitialItem} onEscapeKeyDown={restoreAnchoredFocus} onPointerDownOutside={(event) => {
       event.detail.originalEvent.preventDefault()
       restoreAnchoredFocus()
     }} onKeyDown={(event) => {
@@ -101,7 +102,8 @@ function MenuSheet({ id, children, onSelect, onClose, title, shortTitle, titleMo
 }
 
 export function Item({ item, onActivate, buttonRef, children }: Readonly<{ children: ReactNode; buttonRef?: RefObject<HTMLButtonElement | null>; item: MenuItem; onActivate: (id: string) => void }>) {
-  const disabled = Boolean(item.disabled && !item.badge)
+  const { open } = useMenu()
+  const disabled = !open || Boolean(item.disabled && !item.badge)
   const props = { disabled, textValue: item.label, onSelect: (event: Event) => { event.preventDefault(); onActivate(item.id) }, 'data-destructive': item.destructive || undefined, className: 'orbit-menu-item' }
   const content = <span className="orbit-menu-content">
     {item.icon ? <Icon name={item.icon} size={20} strokeWidth={2} /> : null}

@@ -40,6 +40,13 @@ describe('mobile Toast', () => {
     theme.mode = 'dark'
   })
 
+  it('removes closed action handlers before the native exit completes', () => {
+    const tree = render(<Toast kind="neutral" message="Deleted" actionLabel="Undo" onAction={vi.fn()} />)
+    const close = tree.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'common.close')
+    TestRenderer.act(() => close.props.onPress())
+    expect(tree.root.findAllByType('Pressable')).toHaveLength(0)
+  })
+
   const variants: ToastProps[] = [
     { kind: 'neutral', message: 'Feedback' },
     { kind: 'neutral', message: 'Feedback', actionLabel: 'Undo', onAction: vi.fn() },

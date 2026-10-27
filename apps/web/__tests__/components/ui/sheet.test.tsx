@@ -275,7 +275,9 @@ describe('Sheet', () => {
     expect(document.querySelector('[data-shell-notice] > [role="status"]')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
     expect(undo).toHaveBeenCalledOnce()
-    expect(upper.querySelector('[data-kind]')).toBeNull()
+    expect(upper.querySelector('[data-kind]')?.closest('[aria-hidden="true"][inert]')).not.toBeNull()
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+    await waitFor(() => expect(upper.querySelector('[data-kind]')).toBeNull())
   })
   it('uses an accessible title without showing a visible heading', () => {
     render(<Sheet open accessibleTitle="Reschedule with AI"><p>Plan</p></Sheet>)

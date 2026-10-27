@@ -22,7 +22,7 @@ const mocks = vi.hoisted(() => ({
   childTransitions: [] as TransitionMotion[],
   initials: [] as (false | string)[],
   reducedMotion: false,
-  intent: 'neutral' as 'back' | 'forward' | 'neutral',
+  intent: 'neutral' as 'back' | 'forward' | 'neutral' | 'instant',
   pathname: '/',
   transitions: [] as TransitionMotion[],
   variants: null as null | {
@@ -136,15 +136,24 @@ describe('RouteTransitionShell', () => {
     })
   })
 
-  it('keeps a primary-tab switch instant', () => {
+  it('moves toward the selected primary tab without waiting for an exit', () => {
     const shell = render(<RouteTransitionShell><p>Hoje</p></RouteTransitionShell>)
     mocks.pathname = '/calendar'
 
     shell.rerender(<RouteTransitionShell><p>Calendar</p></RouteTransitionShell>)
 
     expect(resolvedVariants()).toMatchObject({
-      enter: { opacity: 1, x: 0 },
-      entering: { transition: { duration: 0 } },
+      enter: { opacity: 0, x: 10 },
+      entering: { transition: { duration: 0.16 } },
     })
   })
+})
+
+it('keeps shortcut navigation instant even between primary tabs', () => {
+  mocks.pathname = '/'
+  const shell = render(<RouteTransitionShell><p>Today</p></RouteTransitionShell>)
+  mocks.intent = 'instant'
+  mocks.pathname = '/profile'
+  shell.rerender(<RouteTransitionShell><p>Profile</p></RouteTransitionShell>)
+  expect(resolvedVariants()).toMatchObject({ enter: { opacity: 1, x: 0 }, entering: { transition: { duration: 0 } } })
 })

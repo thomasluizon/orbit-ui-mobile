@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext } from '@dnd-kit/sortable'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SortableHabitItem } from '@/components/habits/habit-list/sortable-habit-item'
@@ -44,6 +44,7 @@ describe('Menu inside a sortable habit', () => {
   it.each(['sheet', 'anchored'] as const)('keeps a %s menu press outside the row drag gesture', async (presentation) => {
     const user = userEvent.setup()
     render(<SortableMenu presentation={presentation} />)
+    await act(async () => { await vi.dynamicImportSettled() })
     const remove = await screen.findByRole('menuitem', { name: 'Delete' })
     const row = screen.getByText('Habit row').parentElement!
 
@@ -70,6 +71,7 @@ describe('Menu inside a sortable habit', () => {
 
   it.each(['sheet', 'anchored'] as const)('keeps %s menu keyboard activation outside the row drag gesture', async (presentation) => {
     render(<SortableMenu presentation={presentation} />)
+    await act(async () => { await vi.dynamicImportSettled() })
     const remove = await screen.findByRole('menuitem', { name: 'Delete' })
     const row = screen.getByText('Habit row').parentElement!
     remove.focus()
@@ -90,6 +92,7 @@ describe('Menu inside a sortable habit', () => {
 
   it.each(['sheet', 'anchored'] as const)('keeps a held %s menu touch outside the row drag gesture', async (presentation) => {
     render(<SortableMenu presentation={presentation} />)
+    await act(async () => { await vi.dynamicImportSettled() })
     const remove = await screen.findByRole('menuitem', { name: 'Delete' })
     const row = screen.getByText('Habit row').parentElement!
     const touch = { clientX: 100, clientY: 100 }

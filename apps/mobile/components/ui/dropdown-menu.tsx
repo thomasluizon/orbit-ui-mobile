@@ -4,13 +4,14 @@ import { createContext, useContext, useEffect, useId, useMemo, useRef, type Reac
 import type { MenuItem, MenuProps } from '@orbit/shared/contracts/overlay'
 import * as Primitive from '@rn-primitives/dropdown-menu'
 import { useComposedRefs } from '@rn-primitives/hooks'
-import { Animated, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { Check } from '@/components/ui/icons'
 import { Icon } from '@/components/ui/icon'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { createTokensV2, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { createAnimatedTimingConfig, useResolvedMotionPreset } from '@/lib/motion'
+import Reanimated, { Easing, Keyframe, ReduceMotion } from 'react-native-reanimated'
+import { useResolvedMotionPreset } from '@/lib/motion'
 import { useUIStore } from '@/stores/ui-store'
 
 const PANEL_WIDTH = 320
@@ -65,26 +66,30 @@ export function Content({ items = [], onSelect, title, shortTitle, titleMode, pr
   return <AnchoredContent items={orderedItems} title={title} align={align} onSelect={(id) => { onClose(); onSelect?.(id) }} />
 }
 
+const AnimatedMenuContent = Reanimated.createAnimatedComponent(Primitive.Content)
+
 function AnchoredContent({ items, title, align, onSelect }: Readonly<{ items: readonly MenuItem[]; title?: string; align: 'start' | 'end'; onSelect: (id: string) => void }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { width } = useWindowDimensions()
-  const opacity = useMemo(() => new Animated.Value(0), [])
-  const motion = useResolvedMotionPreset('menu')
-  useEffect(() => {
-    const animation = Animated.timing(opacity, createAnimatedTimingConfig(motion.enterDuration, motion.enterEasing))
-    animation.start()
-    return () => animation.stop()
-  }, [motion.enterDuration, motion.enterEasing, opacity])
+  const preset = useResolvedMotionPreset('menu')
+  const entering = useMemo(() => new Keyframe({
+    0: { opacity: 0, transform: [{ translateY: -preset.shift }, { scale: preset.scaleFrom }] },
+    100: { opacity: 1, transform: [{ translateY: 0 }, { scale: 1 }], easing: Easing.bezier(...preset.enterEasing) },
+  }).duration(preset.enterDuration).reduceMotion(ReduceMotion.System), [preset])
+  const exiting = useMemo(() => new Keyframe({
+    0: { opacity: 1, transform: [{ translateY: 0 }, { scale: 1 }] },
+    100: { opacity: 0, transform: [{ translateY: -preset.shift }, { scale: preset.scaleFrom }], easing: Easing.bezier(...preset.exitEasing) },
+  }).duration(preset.exitDuration).reduceMotion(ReduceMotion.System), [preset])
   const overlayId = `menu:${useId()}`
   const register = useUIStore((state) => state.registerOpenOverlay)
   const unregister = useUIStore((state) => state.unregisterOpenOverlay)
   useEffect(() => { register(overlayId); return () => unregister(overlayId) }, [overlayId, register, unregister])
-  return <Portal><View key={overlayId} style={StyleSheet.absoluteFill} pointerEvents="box-none" accessibilityViewIsModal>
+  return <Portal><View key={overlayId} collapsable={false} style={StyleSheet.absoluteFill} pointerEvents="box-none" accessibilityViewIsModal>
     <Primitive.Overlay accessibilityElementsHidden importantForAccessibility="no" style={[StyleSheet.absoluteFill, styles.catcher]} />
-    <Primitive.Content asChild accessibilityLabel={title} accessibilityRole="menu" align={align} sideOffset={8} insets={{ top: 8, bottom: 8, left: 8, right: 8 }} style={StyleSheet.flatten([styles.panel, { width: Math.min(PANEL_WIDTH, width - 16), backgroundColor: tokens.bgSheet }])}>
-      <Animated.View style={{ opacity }}><MenuItems items={items} sheetPresentation={false} onActivate={onSelect} /></Animated.View>
-    </Primitive.Content>
+    <AnimatedMenuContent entering={entering} exiting={exiting} accessibilityLabel={title} accessibilityRole="menu" align={align} sideOffset={8} insets={{ top: 8, bottom: 8, left: 8, right: 8 }} style={StyleSheet.flatten([styles.panel, { width: Math.min(PANEL_WIDTH, width - 16), backgroundColor: tokens.bgSheet }])}>
+      <MenuItems items={items} sheetPresentation={false} onActivate={onSelect} />
+    </AnimatedMenuContent>
   </View></Portal>
 }
 

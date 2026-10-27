@@ -1,8 +1,10 @@
 'use client'
 
 import * as Primitive from '@radix-ui/react-toast'
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { resolveMotionPreset, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
+import { AnimatePresence, motion, useIsPresent } from 'motion/react'
+import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { useCallback, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useToastLifecycle } from '@/hooks/use-toast-lifecycle'
@@ -32,28 +34,44 @@ function DoneMark() {
   )
 }
 
-export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void }>) {
-  const t = useTranslations()
-  const outsideEscape = useRef(false)
-  const [viewport, setViewport] = useState<HTMLOListElement | null>(null)
+type ToastSurfaceProps = Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void }>
+
+export function Toast(props: ToastSurfaceProps) {
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused, props.onDismiss)
+  return <AnimatePresence propagate>{!dismissed ? <ToastSurface key={`${props.kind}:${props.message}`} props={props} dismiss={dismiss} setHovered={setHovered} setFocused={setFocused} /> : null}</AnimatePresence>
+}
 
+function ToastSurface({ props, dismiss, setHovered, setFocused }: Readonly<{
+  props: ToastSurfaceProps
+  dismiss: () => void
+  setHovered: (value: boolean) => void
+  setFocused: (value: boolean) => void
+}>) {
+  const t = useTranslations()
+  const outsideEscape = useRef(false)
+  const [viewport, setViewport] = useState<HTMLOListElement | null>(null)
+  const present = useIsPresent()
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const preset = resolveMotionPreset('toast', Boolean(reducedMotion))
+  const spatialTransition = reducedMotion ? { y: { duration: 0 }, scale: { duration: 0 } } : {}
   const handleBlur = useCallback((event: React.FocusEvent<HTMLLIElement>) => {
     if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false)
-  }, [])
+  }, [setFocused])
 
   const neutralColors = { background: 'bg-[var(--bg-elev)]', action: 'text-[var(--fg-1)]' }
   const lossColors = { background: 'bg-[var(--bg)]', action: 'text-[var(--primary-soft)]' }
   const colors = { neutral: neutralColors, working: neutralColors, done: neutralColors, lost: lossColors }[props.kind]
 
-  if (dismissed) return null
-
   return (
+    <motion.div data-toast-motion="" inert={!present} aria-hidden={!present || undefined}
+      initial={reducedMotion ? false : { opacity: 0, y: preset.shift, scale: preset.scaleFrom }}
+      animate={{ opacity: 1, y: 0, scale: 1, transition: { duration: preset.enterDuration / 1000, ease: preset.enterEasing, ...spatialTransition } }}
+      exit={{ opacity: 0, y: preset.shift, scale: preset.scaleFrom, transition: { duration: preset.exitDuration / 1000, ease: preset.exitEasing, ...spatialTransition } }}>
     <Primitive.Provider announcerContainer={viewport?.parentElement ?? undefined} label={t('notifications.title')}><Primitive.Root
       key={`${props.kind}:${props.message}`}
-      open={!dismissed}
+      open
       onOpenChange={(open) => { if (!open && !outsideEscape.current) dismiss() }}
       onEscapeKeyDown={(event) => {
         outsideEscape.current = !viewport?.contains(event.target as Node)
@@ -90,16 +108,31 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
         ) : null}
       </span>
 
+      <ToastControls props={props} present={present} dismiss={dismiss} setFocused={setFocused} actionColor={colors.action} />
+    </Primitive.Root><Primitive.Viewport ref={setViewport} hotkey={[]} label={t('notifications.title')} className="m-0 list-none p-0" /></Primitive.Provider></motion.div>
+  )
+}
+
+function ToastControls({ props, present, dismiss, setFocused, actionColor }: Readonly<{
+  props: ToastProps
+  present: boolean
+  dismiss: () => void
+  setFocused: (value: boolean) => void
+  actionColor: string
+}>) {
+  const t = useTranslations()
+  return (
       <div className="ms-auto flex shrink-0 items-center gap-3">
         {props.actionLabel ? props.actionIcon ? (
           <Primitive.Action altText={props.actionLabel} asChild>
-            <IconButton label={props.actionLabel} onFocus={() => setFocused(true)} onClickCapture={(event) => event.preventDefault()} onClick={() => props.onAction()}>
+            <IconButton disabled={!present} label={props.actionLabel} onFocus={() => setFocused(true)} onClickCapture={(event) => event.preventDefault()} onClick={() => props.onAction()}>
               <RefreshCw size={20} aria-hidden="true" />
             </IconButton>
           </Primitive.Action>
         ) : (
           <Primitive.Action altText={props.actionLabel}
-            className={`cursor-pointer whitespace-nowrap border-0 bg-transparent p-3 text-sm font-medium ${colors.action} underline underline-offset-4 hover:text-[var(--fg-2)] ${props.kind === 'lost' ? 'active:text-[var(--fg-1)]' : 'active:text-[var(--fg-2)]'} active:underline-offset-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]`}
+            disabled={!present}
+            className={`cursor-pointer whitespace-nowrap border-0 bg-transparent p-3 text-sm font-medium ${actionColor} underline underline-offset-4 hover:text-[var(--fg-2)] ${props.kind === 'lost' ? 'active:text-[var(--fg-1)]' : 'active:text-[var(--fg-2)]'} active:underline-offset-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]`}
             style={{ fontFamily: 'var(--font-sans)', minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, margin: -SPACING.s4 }}
             onFocus={() => setFocused(true)}
             onClick={(event) => { event.preventDefault(); props.onAction() }}
@@ -108,11 +141,10 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
           </Primitive.Action>
         ) : null}
         <Primitive.Close asChild>
-          <IconButton label={t('common.close')} onClick={dismiss}>
+          <IconButton disabled={!present} label={t('common.close')} onClick={dismiss}>
             <X size={20} aria-hidden="true" />
           </IconButton>
         </Primitive.Close>
       </div>
-    </Primitive.Root><Primitive.Viewport ref={setViewport} hotkey={[]} label={t('notifications.title')} className="m-0 list-none p-0" /></Primitive.Provider>
   )
 }

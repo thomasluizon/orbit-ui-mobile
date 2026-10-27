@@ -2,6 +2,8 @@ import type { ThemeMode } from '@orbit/shared/types/profile'
 import { TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import {
   motionDurations,
+  motionEasings,
+  resolveMotionPreset,
   neutralColors,
   elevatedControlHoverFill,
   selectionAlpha,
@@ -35,6 +37,7 @@ export function resolveWebThemeVariables(
   const status = statusConstants[theme]
 
   return {
+    ...resolveWebMotionVariables(),
     '--touch-min': `${TOUCH_TARGET_MIN}px`,
     '--month-grid-touch-min': `${MONTH_GRID_TARGET_MIN}px`,
     '--pill-visible-min': `${SMALL_PILL_VISIBLE_MIN}px`,
@@ -120,4 +123,18 @@ export function applyThemeTokensToDOM(
   if (metaStatusBar) {
     metaStatusBar.setAttribute('content', theme === 'dark' ? 'black-translucent' : 'default')
   }
+}
+
+export function resolveWebMotionVariables(): Record<`--${string}`, string> {
+  const variables: Record<`--${string}`, string> = {}
+  for (const scenario of ['sheet', 'dialog', 'menu', 'toast'] as const) {
+    const preset = resolveMotionPreset(scenario)
+    variables[`--motion-${scenario}-enter`] = `${preset.enterDuration}ms`
+    variables[`--motion-${scenario}-exit`] = `${preset.exitDuration}ms`
+    variables[`--motion-${scenario}-shift`] = `${preset.shift}px`
+    variables[`--motion-${scenario}-scale`] = String(preset.scaleFrom)
+  }
+  variables['--motion-ease-enter'] = `cubic-bezier(${motionEasings.enter.join(',')})`
+  variables['--motion-ease-exit'] = `cubic-bezier(${motionEasings.exit.join(',')})`
+  return variables
 }

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   AccessibilityInfo: {
     isReduceMotionEnabled: vi.fn(() => Promise.resolve(false)),
-    addEventListener: vi.fn(() => ({
+    addEventListener: vi.fn((_event: string, _listener: (value: boolean) => void) => ({
       remove: vi.fn(),
     })),
   },
@@ -54,5 +54,24 @@ describe('mobile motion helpers', () => {
 
     expect(mobileMotion.orbital.press.scale).toBeLessThan(1)
     expect(mobileMotion.orbital.list.staggerMs).toBeGreaterThan(0)
+  })
+
+  it('keeps an arriving accessibility change ahead of an older preference query', async () => {
+    let finishQuery!: (value: boolean) => void
+    mocks.AccessibilityInfo.isReduceMotionEnabled.mockReturnValueOnce(new Promise<boolean>((resolve) => { finishQuery = resolve }))
+    const React = await import('react')
+    const { act, create } = await import('react-test-renderer')
+    const motion = await import('@/lib/motion')
+    let preference: boolean | undefined
+    function Probe() { preference = motion.usePrefersReducedMotion(); return null }
+    let tree!: ReturnType<typeof create>
+    await act(() => { tree = create(React.createElement(Probe)) })
+    expect(preference).toBeDefined()
+    const changed = mocks.AccessibilityInfo.addEventListener.mock.calls.at(-1)![1]
+    await act(() => changed(true))
+    await act(async () => { finishQuery(false); await Promise.resolve() })
+    expect(preference).toBe(true)
+    expect(await motion.getPrefersReducedMotion()).toBe(true)
+    await act(() => tree.update(React.createElement(React.Fragment)))
   })
 })

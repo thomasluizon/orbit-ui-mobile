@@ -49,7 +49,7 @@ describe('Shell bottom column geometry', () => {
       <div style={{ height: 1600 }}>Habits</div>
       <div data-last-habit-row="" style={{ minHeight: 56 }}>Last habit</div>
     </ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
       const heights: number[] = []
       for (const collapsed of [false, true, false]) {
@@ -93,7 +93,7 @@ describe('Shell bottom column geometry', () => {
       compactComposer={<Composer state="idle" value="" suggestions={[]} words={en.shell.composer} onChangeValue={() => {}} onSend={() => {}} />}
       notice={<div />} tabBar={<nav style={{ height: 80 }}>Tabs</nav>}
       fab={<Fab label="Create" onClick={() => {}}><span aria-hidden="true">+</span></Fab>} />)
-    const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width: 412, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
       const evaluate = page.evaluate.bind(page)
@@ -124,7 +124,7 @@ describe('Shell bottom column geometry', () => {
   it.each([1100, 1352])('matches one-line account loading height and keeps wrapped accounts grounded at %ipx', async (width) => {
     const props = { items: [{ id: 'hoje', href: '/', label: 'Hoje', icon: 'hoje' }], activeId: 'hoje', navLabel: 'Navigation',
       astraRow: { label: 'Astra', onOpen: vi.fn() } }
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     const shell = (account?: string) => renderToString(<ShellWide {...props} account={account} accountEmail={account ? 'account@example.com' : undefined} />)
     const measure = () => page.evaluate(() => ['[data-shell-account]', '[data-shell-sidebar] nav'].map((selector) => {
       const bounds = document.querySelector(selector)!.getBoundingClientRect()
@@ -151,7 +151,7 @@ describe('Shell bottom column geometry', () => {
       <div style={{ height: 1600 }}>Habits</div>
     </ShellWide>)
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
       const paint = await page.locator('[data-shell-notice] [data-kind]').evaluate(measureChromePaint)
@@ -166,9 +166,9 @@ describe('Shell bottom column geometry', () => {
         return clip.contains(document.elementFromPoint(bounds.left + 8, bounds.top + 1))
       })
       expect(paddingHit).toBe(false)
-      await page.locator('[data-shell-notice] [data-kind]').evaluate((toast) => toast.closest('[role="region"]')!.remove())
+      await page.locator('[data-shell-notice] [data-kind]').evaluate((toast) => toast.closest('[data-toast-motion]')!.remove())
       expect(await page.locator('[data-shell-notice] [data-update-live-region]').count()).toBe(1)
-      expect(await page.locator('[data-shell-notice]').evaluate((clip) => clip.getBoundingClientRect().height)).toBe(0)
+      await expect.poll(() => page.locator('[data-shell-notice]').evaluate((clip) => clip.getBoundingClientRect().height)).toBe(0)
     } finally { await page.close(); view.unmount() }
   })
 
@@ -176,7 +176,7 @@ describe('Shell bottom column geometry', () => {
     const view = render(<ShellWide nav={false} action={<div className="flex justify-end px-4">
       <Button size="md" onClick={vi.fn()}>Continue</Button>
     </div>}><div style={{ height: 1600 }}>Form</div></ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
       await page.keyboard.press('Tab')
@@ -206,7 +206,7 @@ describe('Shell bottom column geometry', () => {
       fab={<Fab label="Create" onClick={vi.fn()}><span aria-hidden="true">+</span></Fab>}>
       <div className="px-4"><div data-column-reference="" style={{ height: 1600 }}>Habits</div></div>
     </ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
       const gutter = await page.locator('[data-shell-scroller]').evaluate(measureScrollbarGutter)

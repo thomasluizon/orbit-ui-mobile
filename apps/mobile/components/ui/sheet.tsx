@@ -4,6 +4,7 @@ import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref, type RefObject } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { PADDING, SPACING, SHEET_BODY_INSETS, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { getPrefersReducedMotion, usePrefersReducedMotion } from '@/lib/motion'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { AccessibilityInfo, StyleSheet, Text, View, useWindowDimensions, type ScrollView, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
 import { useOverlayFocus } from './focus-provenance-view'
@@ -75,6 +76,7 @@ export function Sheet({
   children,
   ref,
 }: Readonly<MobileSheetProps>) {
+  const reducedMotion = usePrefersReducedMotion()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -126,20 +128,24 @@ export function Sheet({
   }, [sheetId, registerOpenOverlay, unregisterOpenOverlay])
 
   useEffect(() => {
-    void sheetRef.current?.present().catch(() => {
+    let active = true
+    void getPrefersReducedMotion().then((reduceMotion) => {
+      if (active) return sheetRef.current?.present(0, !reduceMotion)
+    }).catch(() => {
       // WHY: A rejected presentation leaves no native sheet to keep mounted. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/src/TrueSheet.tsx#L374-L394
       handleDidDismiss()
     })
+    return () => { active = false }
   }, [handleDidDismiss])
 
   const requestClose = useCallback((exitAction?: () => void, onRejected?: () => void) => {
     exitActionRef.current = exitAction ?? null
-    void sheetRef.current?.dismiss().catch(() => {
+    void sheetRef.current?.dismiss(!reducedMotion).catch(() => {
       // WHY: A rejected dismissal leaves the native sheet visible. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/src/TrueSheet.tsx#L404-L410
       exitActionRef.current = null
       onRejected?.()
     })
-  }, [])
+  }, [reducedMotion])
 
   const handle = useMemo<SheetHandle>(() => ({ requestClose }), [requestClose])
 
