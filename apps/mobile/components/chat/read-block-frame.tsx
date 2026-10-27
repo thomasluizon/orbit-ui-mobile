@@ -1,3 +1,4 @@
+import { ConversationChange } from './conversation-motion'
 import { IconButton } from '@/components/ui/icon-button'
 import { ChevronDown } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
@@ -41,7 +42,7 @@ function ReadBlockSession({ snapshot: initial, children }: ReadBlockBoundaryProp
   const { profile } = useProfile()
   const actionScope = { ready: profile != null, timeZone: profile?.timeZone ?? null }
   const context = useReadBlockSession(initial, locale, actionScope)
-  return <ReadContext.Provider value={context}>{children(context.snapshot)}</ReadContext.Provider>
+  return <ReadContext.Provider value={context}><ConversationChange changeKey={String(context.snapshot.read.revision)}>{children(context.snapshot)}</ConversationChange></ReadContext.Provider>
 }
 
 export function BlockFrame(props: Readonly<BlockFrameProps>) {

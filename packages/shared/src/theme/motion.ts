@@ -434,3 +434,14 @@ export function shouldDismissSheet(offset: number, velocity: number): boolean {
     || velocity >= sheetDrag.dismissVelocity
     || offset + velocity * sheetDrag.projectionSeconds >= sheetDrag.dismissDistance)
 }
+
+export function resolveConversationMotion(reducedMotion: boolean, index = 0) {
+  const preset = resolveMotionPreset('list-enter', reducedMotion)
+  return {
+    duration: reducedMotion ? motionDurations.instant : motionDurations.conversation,
+    changeDuration: reducedMotion ? motionDurations.instant : motionDurations.micro,
+    shift: reducedMotion ? 0 : motionLayerTiming.conversationShift,
+    delay: reducedMotion ? 0 : Math.min(Math.max(index, 0), orbitalMotion.list.maxStaggerItems - 1) * motionLayerTiming.contentStagger,
+    easing: preset.enterEasing,
+  }
+}

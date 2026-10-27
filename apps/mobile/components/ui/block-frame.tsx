@@ -1,3 +1,5 @@
+import Animated from 'react-native-reanimated'
+import { ConversationChange, useConversationLayout } from '@/components/chat/conversation-motion'
 import { IconButton } from '@/components/ui/icon-button'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { ActionRow } from './action-row'
@@ -246,6 +248,7 @@ function FrameHeaderDetails({ props, tokens, clamped }: Readonly<{ props: BlockF
 }
 
 export function BlockFrame(props: Readonly<BlockFrameProps>) {
+  const layout = useConversationLayout()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { missingLabels, hasIrreversibleItem, canRenderActions } = resolveBlockFrameState(props)
@@ -255,7 +258,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
 
 
   return (
-    <View
+    <Animated.View layout={layout}
       style={[
         styles.frame,
         { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
@@ -264,6 +267,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
       testID={`block-frame-${props.state}`}
     >
       <FrameHeader props={props} tokens={tokens} />
+      <ConversationChange changeKey={`${props.state}:${props.title}`} style={{ gap: 12, minHeight: 0, flexShrink: 1 }}>
       <Text accessibilityLiveRegion={props.items.length || props.state === 'stale' ? 'polite' : undefined} style={[styles.staleMessage, { color: tokens.fg2 }, props.state !== 'stale' && styles.hiddenMessage]}>
         {props.state === 'stale' ? props.staleMessage : ''}
       </Text>
@@ -293,7 +297,8 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
           />
         </>
       )}
-    </View>
+      </ConversationChange>
+    </Animated.View>
   )
 }
 

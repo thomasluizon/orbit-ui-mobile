@@ -7,6 +7,7 @@ import {
   motionScenarios,
   motionSprings,
   resolveMotionPreset,
+  resolveConversationMotion,
   shouldDismissSheet,
 } from '../theme/motion'
 
@@ -117,4 +118,9 @@ it.each([
   [20, 0, false], [0, 800, false], [-20, 800, false], [20, -800, false],
 ])('settles sheet release at offset %s and velocity %s', (offset, velocity, dismiss) => {
   expect(shouldDismissSheet(offset, velocity)).toBe(dismiss)
+})
+
+it('bounds conversation sequencing and removes every moving value under reduced motion', () => {
+  expect(resolveConversationMotion(false, 100)).toMatchObject({ duration: motionDurations.conversation, shift: 12, delay: 180 })
+  expect(resolveConversationMotion(true, 100)).toMatchObject({ duration: 0, shift: 0, delay: 0, changeDuration: 0 })
 })

@@ -1,7 +1,7 @@
+import { ConversationReveal, ConversationChange } from '@/components/chat/conversation-motion'
 import { useState, useMemo } from "react";
 // react-doctor-disable-next-line rn-prefer-expo-image -- expo-image is not a project dependency; the only <Image> is a transient chat-attachment preview (a per-message URI) where expo-image's disk cache brings no benefit, and adding a native image library is out of scope for a React Doctor burn-down (SDK 57 native-ABI/rebuild risk). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { View, Text, Image, StyleSheet, Pressable } from "react-native";
-import Animated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
 import { useChatNavigation } from "@/hooks/use-chat-navigation";
 import { ArrowUpRight } from "@/components/ui/icons";
 import { SPACING, TOUCH_TARGET_MIN } from "@orbit/shared/theme";
@@ -83,20 +83,20 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
 
         {!isUser && suggestions.length > 0 && (
           <View style={styles.breakdownContainer}>
-            {suggestions.map(({ key, ...suggestion }) => <BreakdownSuggestion key={key} {...suggestion}
-              onConfirmed={() => onBreakdownConfirmed?.()} onCancelled={() => dismissBreakdown(key)} />)}
+            {suggestions.map(({ key, ...suggestion }, index) => <ConversationReveal key={key} animate={animateEntry} index={index}><BreakdownSuggestion {...suggestion}
+              onConfirmed={() => onBreakdownConfirmed?.()} onCancelled={() => dismissBreakdown(key)} /></ConversationReveal>)}
           </View>
         )}
 
         {!isUser && operations.clarifications.length > 0 && (
           <View style={styles.breakdownContainer}>
-            {operations.clarifications.map(({ key, ...clarification }) => <ClarificationCard key={key} {...clarification} />)}
+            {operations.clarifications.map(({ key, ...clarification }, index) => <ConversationReveal key={key} animate={animateEntry} index={index}><ClarificationCard {...clarification} /></ConversationReveal>)}
           </View>
         )}
 
         {!isUser && operations.pendingOperations.length > 0 && (
           <View style={styles.operationStack}>
-            {operations.pendingOperations.map(({ key, ...operation }) => <PendingOperationCard key={key} {...operation} />)}
+            {operations.pendingOperations.map(({ key, ...operation }, index) => <ConversationReveal key={key} animate={animateEntry} index={index}><PendingOperationCard {...operation} /></ConversationReveal>)}
           </View>
         )}
 
@@ -116,10 +116,11 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
         {showOperationUpdate ? <Text style={{ fontSize: 14, color: tokens.fg2 }}>{t('chat.operationUpdated')}</Text> : null}
         {showUnreadableReply ? <Text style={{ fontSize: 14, color: tokens.fg2 }}>{t('chat.unreadableReply')}</Text> : null}
         {parts.map(part => {
-          if (part.type === 'block') return <ChatBlock key={part.key} part={part.part} message={message} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={part.expired} onActionChipClick={onActionChipClick} />
-          return <MessageProse key={part.key} message={message}
+          if (part.type === 'block') return <ConversationReveal key={part.key} animate={animateEntry} index={part.key}><ChatBlock part={part.part} message={message} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={part.expired} onActionChipClick={onActionChipClick} /></ConversationReveal>
+          const prose = <MessageProse key={part.key} message={message}
             sourceText={part.text}
             styles={styles} showImage={part.showImage} />;
+          return isUser ? prose : <ConversationReveal key={part.key} animate={animateEntry} index={part.key}><ConversationChange changeKey={props.isStreaming ? part.text : ''}>{prose}</ConversationChange></ConversationReveal>;
         })}
 
         {!isUser && relatedSurfaces.length > 0 ? (
@@ -155,22 +156,10 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
     </>
   );
 
-  if (!animateEntry) {
-    return (
-      <View style={containerStyle} accessibilityLabel={senderLabel}>
-        {bubbleContent}
-      </View>
-    );
-  }
-
   return (
-    <Animated.View
-      entering={FadeInUp.duration(220).reduceMotion(ReduceMotion.System)}
-      style={containerStyle}
-      accessibilityLabel={senderLabel}
-    >
+    <ConversationReveal animate={isUser && animateEntry} style={containerStyle} accessibilityLabel={senderLabel}>
       {bubbleContent}
-    </Animated.View>
+    </ConversationReveal>
   );
 }
 

@@ -1,5 +1,7 @@
 'use client'
 
+import { ConversationReveal } from './conversation-motion'
+
 import { IconButton } from '@/components/ui/icon-button'
 
 import { SPACING } from '@orbit/shared/theme'
@@ -351,7 +353,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             earlierMessages={messages.slice(0, index)}
             laterMessages={messages.slice(index + 1)}
             blockAnswerInteraction={blockAnswerInteraction}
-            animateEntry={msg.role === 'user' && !initialMessageIds.has(msg.id)}
+            animateEntry={!initialMessageIds.has(msg.id)}
             isStreaming={msg.id === streamingMessageId}
             onBreakdownConfirmed={handleBreakdownConfirmed}
             onActionChipClick={handleActionChipClick}
@@ -367,7 +369,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           </div>
           </article>
         ))}
-        {showPendingReply || activeSteps.length > 0 ? <div className="flex min-w-0 flex-col gap-2">
+        {showPendingReply || activeSteps.length > 0 ? <ConversationReveal animate className="flex min-w-0 flex-col gap-2">
           {messages.at(-1)?.role !== 'ai' ? <span aria-hidden="true" className="pointer-events-none block size-6 shrink-0 text-[var(--fg-1)]" data-astra-avatar="">
             <AstraGlyph size={24} />
           </span> : null}
@@ -376,7 +378,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
               <span className="astra-pending-pulse" style={{ animationPlayState: pendingVisible ? 'running' : 'paused' }}><WorkingMark /></span>
             </div> : <ThinkingTrace steps={activeSteps} running />}
           </div>
-        </div> : null}
+        </ConversationReveal> : null}
         </div>
         {!showSuggestions ? <p data-testid="astra-ai-disclosure" className="mx-auto max-w-[300px] py-4 text-center text-xs leading-[1.4] text-[var(--fg-3)]">{t('aiDisclosure.notMedicalAdvice')}</p> : null}
       </div>

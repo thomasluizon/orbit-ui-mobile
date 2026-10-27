@@ -1,3 +1,4 @@
+import { ConversationReveal } from './conversation-motion'
 import { ShellContent } from '@/components/shell/shell-content';
 import { useShellContentStyle } from '@/components/shell/shell-side-insets';
 import { ProactiveAction } from './proactive-action'
@@ -279,7 +280,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         earlierMessages={messages.slice(0, index)}
         laterMessages={messages.slice(index + 1)}
         blockAnswerInteraction={blockAnswerInteraction}
-        animateEntry={item.role === 'user' && !initialMessageIds.has(item.id)}
+        animateEntry={!initialMessageIds.has(item.id)}
         isStreaming={item.id === streamingMessageId}
         onBreakdownConfirmed={handleBreakdownConfirmed}
         onActionChipClick={handleActionChipClick}
@@ -372,14 +373,14 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
                 keyboardScroll.onLayout();
                 if (initialScrollPending.current && threadScroll.isFollowing()) flatListRef.current?.scrollToEnd({ animated: false });
               }}
-              ListFooterComponent={<>{showPendingReply || activeSteps.length > 0 ? <View style={styles.messageTurn}>
+              ListFooterComponent={<>{showPendingReply || activeSteps.length > 0 ? <ConversationReveal animate style={styles.messageTurn}>
                 {messages.at(-1)?.role !== 'ai' ? <View testID="astra-avatar" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatar}>
                   <AstraGlyph size={24} />
                 </View> : null}
                 <View style={styles.messageContent}>
                   {showPendingReply ? <PendingReply ref={attachPendingReply} /> : <ThinkingTrace steps={activeSteps} running />}
                 </View>
-              </View> : null}<Text testID="astra-ai-disclosure" style={[styles.aiDisclaimer, { alignSelf: 'center', paddingVertical: 16 }]}>{t('aiDisclosure.notMedicalAdvice')}</Text></>}
+              </ConversationReveal> : null}<Text testID="astra-ai-disclosure" style={[styles.aiDisclaimer, { alignSelf: 'center', paddingVertical: 16 }]}>{t('aiDisclosure.notMedicalAdvice')}</Text></>}
               accessibilityLabel={t("chat.title")}
               accessibilityState={{ busy: replyWorking || isPendingOperationBusy }}
             />
