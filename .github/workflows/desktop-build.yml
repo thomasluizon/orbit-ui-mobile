@@ -42,6 +42,8 @@ jobs:
     defaults:
       run:
         shell: bash
+    env:
+      ORBIT_WINDOWS_DOWNLOAD_CACHE: ${{ runner.temp }}/windows-app-sdk-downloads
     steps:
       - uses: actions/checkout@v7
         with:
@@ -54,6 +56,16 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --prefer-offline --no-audit --fund=false
+      - name: Report Windows PowerShell version
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: $PSVersionTable.PSVersion.ToString()
+      - name: Cache Windows App SDK downloads
+        if: runner.os == 'Windows'
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/windows-app-sdk-downloads
+          key: ${{ runner.os }}-windows-app-sdk-${{ matrix.target }}-${{ hashFiles('apps/desktop/src-tauri/native/windows/downloads.json') }}
       - name: Install Rust and compilation target
         env:
           DESKTOP_TARGET: ${{ matrix.target }}
