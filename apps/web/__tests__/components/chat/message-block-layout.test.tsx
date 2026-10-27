@@ -31,7 +31,7 @@ vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime:
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 
 type ChatController = Parameters<typeof AstraConversation>[0]['chat']
-const cases = [412, 600, 1352].flatMap(width => ['en', 'pt-BR'].flatMap(locale =>
+const cases = [390, 412, 480, 600, 840, 1100, 1280, 1352].flatMap(width => ['en', 'pt-BR'].flatMap(locale =>
   chatBlockLayoutCases.flatMap(scenario => [true, false].map(prose => ({ width, locale, scenario, prose, kind: scenario.kind })))))
 
 describe('Astra block layout in Chromium', () => {
@@ -103,7 +103,7 @@ describe('Astra block layout in Chromium', () => {
       const geometry = await page.getByRole('article').evaluateAll(turns => turns.map(turn => {
         const rect = (element: Element) => {
           const bounds = element.getBoundingClientRect()
-          return { left: bounds.left, right: bounds.right, top: bounds.top, width: bounds.width, height: bounds.height }
+          return { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom, width: bounds.width, height: bounds.height }
         }
         const avatar = turn.querySelector('[data-astra-avatar]')
         const content = turn.querySelector('[data-bubble-role], section[data-state]')!
@@ -129,6 +129,12 @@ describe('Astra block layout in Chromium', () => {
         }
       }
       expect(geometry[2]!.content.right).toBeCloseTo(geometry[2]!.turn.right, 1)
+      for (const [index, turn] of geometry.entries()) {
+        const next = geometry[index + 1]
+        if (!next) continue
+        expect(next.turn.top - turn.turn.bottom).toBeCloseTo(16, 1)
+        for (const block of turn.blocks) expect(next.content.top - block.bottom).toBeGreaterThanOrEqual(16)
+      }
     } finally { await page.close() }
   })
 
@@ -240,7 +246,8 @@ describe('Astra block layout in Chromium', () => {
     const messages = locale === 'en' ? en : pt
     const chat = {
       threadScroll: createChatThreadScroll(), chatContainerRef: createRef<HTMLDivElement>(),
-      messages: [makeHeldHabitMessage({ id: 'previous', content: 'Review the routine.', pendingOperations: [] }), makeChatBlockLayoutMessage(scenario, prose)],
+      messages: [makeHeldHabitMessage({ id: 'previous', content: 'Review the routine.', pendingOperations: [] }), makeChatBlockLayoutMessage(scenario, prose),
+        makeHeldHabitMessage({ id: 'person', role: 'user', content: 'no que posso melhorar minha rotina', pendingOperations: [] })],
       activeSteps: [], showSuggestions: false, isTyping: false, streamingMessageId: null, canShowFollowUps: false,
       sendMessage: vi.fn(), confirmAndExecutePendingOperation: vi.fn(), prepareStepUpForBubble: vi.fn(), verifyStepUpForBubble: vi.fn(),
       composerProps: { state: 'idle', value: '', onChangeValue: vi.fn(), onSend: vi.fn(),
@@ -257,30 +264,38 @@ describe('Astra block layout in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style><div class="dark">${container.innerHTML}</div>`)
       await loadAppFonts(page)
       await page.getByRole('article').last().evaluate(settleAnimations)
-      const geometry = await page.evaluate(() => {
-        const bounds = (element: Element) => {
-          const rect = element.getBoundingClientRect()
-          return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width }
+      for (const scale of [1, 2]) {
+        await page.evaluate(scale => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        const geometry = await page.evaluate(() => {
+          const bounds = (element: Element) => {
+            const rect = element.getBoundingClientRect()
+            return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width }
+          }
+          const turns = [...document.querySelectorAll('article')]
+          const prose = (turn: Element) => turn.querySelector('[data-bubble-role="ai"]')
+          return { previousProse: bounds(prose(turns[0]!)!), currentProse: prose(turns[1]!) ? bounds(prose(turns[1]!)!) : null,
+            turn: bounds(turns[1]!), blocks: [...turns[1]!.querySelectorAll('section[data-state]')].map(bounds),
+            composer: bounds(document.querySelector('[data-composer-input-row]')!),
+            chips: document.querySelector('[data-composer-root] [role="group"]') !== null,
+            prose: [...turns[1]!.querySelectorAll('[data-bubble-role="ai"]')].map(bounds),
+            next: bounds(turns[2]!.querySelector('[data-bubble-role="user"]')!),
+            contentBottom: Math.max(...[...turns[1]!.querySelectorAll('section[data-state], section[data-state] *')]
+              .map(element => element.getBoundingClientRect()).filter(rect => rect.width > 1 && rect.height > 1).map(rect => rect.bottom)),
+          }
+        })
+        expect(geometry.blocks).toHaveLength(scenario.count)
+        expect.soft(geometry.next.top - geometry.contentBottom).toBeGreaterThanOrEqual(16)
+        expect.soft(geometry.turn.top - geometry.previousProse.bottom).toBeCloseTo(16, 1)
+        expect.soft(geometry.blocks[0]!.top - (geometry.currentProse?.bottom ?? geometry.previousProse.bottom)).toBeCloseTo(16, 1)
+        for (const [index, block] of geometry.blocks.entries()) {
+          expect.soft(geometry.next.top - block.bottom).toBeGreaterThanOrEqual(16)
+          expect.soft(block.left).toBeCloseTo(geometry.composer.left, 1)
+          expect.soft(block.right).toBeCloseTo(geometry.composer.right, 1)
+          expect(geometry.chips).toBe(false)
+          if (index > 0) expect.soft(block.top - geometry.blocks[index - 1]!.bottom).toBeCloseTo(16, 1)
         }
-        const turns = [...document.querySelectorAll('article')]
-        const prose = (turn: Element) => turn.querySelector('[data-bubble-role="ai"]')
-        return { previousProse: bounds(prose(turns[0]!)!), currentProse: prose(turns[1]!) ? bounds(prose(turns[1]!)!) : null,
-          turn: bounds(turns[1]!), blocks: [...turns[1]!.querySelectorAll('section[data-state]')].map(bounds),
-          composer: bounds(document.querySelector('[data-composer-input-row]')!),
-          chips: document.querySelector('[data-composer-root] [role="group"]') !== null,
-          prose: [...turns[1]!.querySelectorAll('[data-bubble-role="ai"]')].map(bounds),
-        }
-      })
-      expect(geometry.blocks).toHaveLength(scenario.count)
-      expect.soft(geometry.turn.top - geometry.previousProse.bottom).toBeCloseTo(16, 1)
-      expect.soft(geometry.blocks[0]!.top - (geometry.currentProse?.bottom ?? geometry.previousProse.bottom)).toBeCloseTo(16, 1)
-      for (const [index, block] of geometry.blocks.entries()) {
-        expect.soft(block.left).toBeCloseTo(geometry.composer.left, 1)
-        expect.soft(block.right).toBeCloseTo(geometry.composer.right, 1)
-        expect(geometry.chips).toBe(false)
-        if (index > 0) expect.soft(block.top - geometry.blocks[index - 1]!.bottom).toBeCloseTo(16, 1)
+        if (prose && width === 1352) expect(geometry.prose[0]!.width).toBeLessThanOrEqual(geometry.blocks[0]!.width)
       }
-      if (prose && width === 1352) expect(geometry.prose[0]!.width).toBeLessThanOrEqual(geometry.blocks[0]!.width)
     } finally { await page.close() }
   })
 })

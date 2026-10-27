@@ -33,7 +33,7 @@ vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () =
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 type ChatController = Parameters<typeof AstraConversation>[0]['chat']
-const cases = [412, 600, 1352].flatMap(width => ['en', 'pt-BR'].flatMap(locale =>
+const cases = [390, 412, 480, 600, 840, 1100, 1280, 1352].flatMap(width => ['en', 'pt-BR'].flatMap(locale =>
   chatBlockLayoutCases.flatMap(scenario => [true, false].map(prose => ({ width, locale, scenario, prose, kind: scenario.kind })))))
 
 afterEach(async () => {
@@ -151,7 +151,8 @@ it.each(cases)('spaces Android $kind at $width in $locale with prose=$prose', as
   await i18n.changeLanguage(locale)
   const chat = {
     threadScroll: createChatThreadScroll(), flatListRef: { current: null },
-    messages: [makeHeldHabitMessage({ id: 'previous', content: 'Review the routine.', pendingOperations: [] }), makeChatBlockLayoutMessage(scenario, prose)],
+    messages: [makeHeldHabitMessage({ id: 'previous', content: 'Review the routine.', pendingOperations: [] }), makeChatBlockLayoutMessage(scenario, prose),
+      makeHeldHabitMessage({ id: 'person', role: 'user', content: 'no que posso melhorar minha rotina', pendingOperations: [] })],
     activeSteps: [], showSuggestions: false, isTyping: false, streamingMessageId: null, canShowFollowUps: false,
     scrollToBottom: vi.fn(), sendMessage: vi.fn(), composerProps: { suggestions: [] },
     confirmAndExecutePendingOperation: vi.fn(), prepareStepUpForBubble: vi.fn(), verifyStepUpForBubble: vi.fn(),
@@ -175,9 +176,11 @@ it.each(cases)('spaces Android $kind at $width in $locale with prose=$prose', as
     expect(frameIndex).toBe(scenario.count)
     const previousProse = geometry.get('prose-0')!
     const currentProse = prose ? geometry.get('prose-1')! : previousProse
+    const nextProse = geometry.get(`prose-${prose ? 2 : 1}`)!
     expect(geometry.get('block-0')!.top - currentProse.bottom).toBeCloseTo(16, 1)
     for (let index = 0; index < scenario.count; index++) {
       const block = geometry.get(`block-${index}`)!
+      expect(nextProse.top - block.bottom).toBeGreaterThanOrEqual(16)
       expect(block.left).toBeCloseTo(contentLeft, 1)
       expect(block.width).toBeCloseTo(contentWidth - 32, 1)
       if (index > 0) expect(block.top - geometry.get(`block-${index - 1}`)!.bottom).toBeCloseTo(16, 1)
