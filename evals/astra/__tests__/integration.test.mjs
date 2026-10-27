@@ -217,17 +217,23 @@ describe('corpus and execution constraints', () => {
   })
   it('requires credentials and an HTTPS origin before requests', async () => {
     offlineCredentials()
-    vi.stubGlobal('fetch', async () => Response.json({ status: 'Healthy', commit: apiCommit, checks: [] }))
     for (const key of ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_HABIT_ID',
       'ORBIT_EVAL_SECOND_HABIT_ID', 'ORBIT_EVAL_OVERDUE_DATE', 'ORBIT_EVAL_TOKEN', 'ORBIT_EVAL_FREE_TOKEN', 'ORBIT_EVAL_BUDGET_TOKEN']) {
       vi.stubEnv(key, key === 'ORBIT_EVAL_BASE_URL' ? 'https://astra.invalid' : key === 'ORBIT_EVAL_OVERDUE_DATE' ? '2026-01-01' : 'offline')
     }
+    let configReads = 0
+    vi.stubGlobal('fetch', async (url) => {
+      if (new URL(url).pathname === '/health') return Response.json({ status: 'Healthy', commit: apiCommit, checks: [] })
+      if (new URL(url).pathname === '/api/auth/refresh') return refreshResponse()
+      expect(new URL(url).pathname).toBe('/api/config')
+      return Response.json({ features: { astra_eval_unmetered: { enabled: configReads++ === 0, planRequirement: null } } })
+    })
     await expect(beforeAll({ suite: { tests: scenarios } })).resolves.toBeUndefined()
     vi.stubEnv('ORBIT_EVAL_BASE_URL', 'http://astra.invalid')
     await expect(beforeAll({ suite: { tests: scenarios } })).rejects.toThrow('HTTPS')
     vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
     writeFileSync(process.env.ORBIT_EVAL_CREDENTIALS_FILE, '{}')
-    await expect(beforeAll({ suite: { tests: scenarios } })).resolves.toBeUndefined()
+    await expect(beforeAll({ suite: { tests: scenarios } })).rejects.toThrow('Missing refresh token.')
   })
   it('resets before each attempt and resolves IDs in prompts and expectations', async () => {
     offlineCredentials()
