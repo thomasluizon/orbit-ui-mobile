@@ -1,7 +1,7 @@
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
-import { StyleSheet, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
+import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { Resvg } from '@resvg/resvg-js'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -19,6 +19,8 @@ import { createTokensV2, createSurfaces } from '@/lib/theme'
 import { i18n } from '@/lib/i18n'
 import { HabitViewSwitch } from '@/components/today/habit-view-switch'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { useUIStore } from '@/stores/ui-store'
+import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -26,10 +28,11 @@ import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mock
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isLoading: false, isError: false, refetch: vi.fn() }) }))
 
 const TestRenderer = require('react-test-renderer') as typeof import('react-test-renderer')
+type SegmentTree = ReturnType<typeof TestRenderer.create> & { toJSON: () => Host; unmount: () => void }
 
 interface Host {
   type: string
-  props: { style?: StyleProp<ViewStyle & TextStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle & TextStyle>); contentContainerStyle?: StyleProp<ViewStyle>; accessibilityRole?: string; numberOfLines?: number; testID?: string }
+  props: { style?: StyleProp<ViewStyle & TextStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle & TextStyle>); contentContainerStyle?: StyleProp<ViewStyle>; accessibilityRole?: string; numberOfLines?: number; testID?: string; onLayout?: (event: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => void }
   children: (Host | string)[] | null
 }
 
@@ -42,6 +45,8 @@ function textWidth(label: string, size: number) {
 }
 
 function applyFlexSizing(node: YogaNode, style: ViewStyle) {
+  if (style.position === 'absolute') node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
+  if (typeof style.height === 'number') node.setHeight(style.height)
   if (style.flex !== undefined) node.setFlex(style.flex)
   if (style.flexGrow !== undefined) node.setFlexGrow(style.flexGrow)
   if (style.flexShrink !== undefined) node.setFlexShrink(style.flexShrink)
@@ -72,7 +77,7 @@ function buildLayout(host: Host, fontScale: number, labels: { node: YogaNode; in
   const declared = host.props.style
   const style = StyleSheet.flatten([{}, typeof declared === 'function' ? declared({ pressed: false }) : declared])
   const radioStart = radios.length
-  const isRadio = Boolean(host.props.testID?.startsWith('segment-'))
+  const isRadio = host.props.accessibilityRole === 'radio' || host.props.testID === 'segmented-trigger'
   inRadio ||= isRadio
   applyStyle(node, style)
   if (isRadio) radios.push(node)
@@ -94,8 +99,42 @@ function buildLayout(host: Host, fontScale: number, labels: { node: YogaNode; in
     }
     (host.children ?? []).filter((child): child is Host => typeof child !== 'string').forEach((child, index) => owner.insertChild(buildLayout(child, fontScale, labels, radios, groups, inRadio), index))
   }
-  if (host.props.testID?.startsWith('segmented-control-')) groups.push({ node, radios: radios.slice(radioStart) })
+  if (host.props.testID === 'segment-frame') groups.push({ node, radios: radios.slice(radioStart) })
   return node
+}
+
+function expectOptionCount(options: YogaNode[], expected: number, fontScale: number) {
+  expect(options).toHaveLength(options.length === 1 ? 1 : expected)
+  if (fontScale === 1) expect(options).toHaveLength(expected)
+}
+
+function expectLabelLines(label: Host, optionCount: number, fontScale: number) {
+  if (optionCount > 1) expect(label.props.numberOfLines).toBe(fontScale > 1.3 ? undefined : 1)
+}
+
+async function measureSegments(tree: SegmentTree, width: number, fontScale: number) {
+  const labels: { node: YogaNode; intrinsic: number; host: Host }[] = []
+  const radios: YogaNode[] = []
+  const groups: { node: YogaNode; radios: YogaNode[] }[] = []
+  const initial = buildLayout(tree.toJSON(), fontScale, [], [], groups)
+  initial.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
+  await TestRenderer.act(() => {
+    for (const frame of tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'segment-frame')) {
+      const index = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'segment-frame').indexOf(frame)
+      const emitLayout = frame.props.onLayout as NonNullable<Host['props']['onLayout']>
+      emitLayout({ nativeEvent: { layout: { x: 0, y: 0, width: groups[index]!.node.getComputedWidth(), height: groups[index]!.node.getComputedHeight() } } })
+    }
+    for (const word of tree.root.findAll((node) => String(node.type) === 'Text' && node.props.testID === 'segment-measure')) {
+      const style = StyleSheet.flatten(word.props.style as StyleProp<TextStyle>)
+      const emitText = word.props.onTextLayout as (event: { nativeEvent: { lines: import('react-native').TextLayoutEvent['nativeEvent']['lines'] } }) => void
+      emitText({ nativeEvent: { lines: [{ text: String(word.props.children), width: textWidth(String(word.props.children), style.fontSize! * fontScale), height: style.lineHeight! * fontScale, x: 0, y: 0, ascender: 0, capHeight: 0, descender: 0, xHeight: 0 }] } })
+    }
+  })
+  initial.freeRecursive()
+  groups.length = 0
+  const layout = buildLayout(tree.toJSON(), fontScale, labels, radios, groups)
+  layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
+  return { layout, labels, radios, groups }
 }
 
 afterEach(__resetTestHostConfig)
@@ -122,24 +161,21 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: i18n.t.bind(i18n), i18n }),
 }))
 
-it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => ['fixed', 'flexible', 'interval', 'oneTime'].flatMap((mode) => [1, 2].map((fontScale) => ({ locale, width, mode, fontScale }))))))('fits the onboarding $mode containers in $locale at $width and scale $fontScale', async ({ locale, width, mode, fontScale }) => {
+it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => ['fixed', 'flexible', 'interval', 'oneTime'].flatMap((mode) => [1, 1.3, 1.6, 2].map((fontScale) => ({ locale, width, mode, fontScale }))))))('fits the onboarding $mode containers in $locale at $width and scale $fontScale', async ({ locale, width, mode, fontScale }) => {
   await i18n.changeLanguage(locale)
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
-  let tree!: ReturnType<typeof TestRenderer.create> & { toJSON: () => Host; unmount: () => void }
+  let tree!: SegmentTree
   await TestRenderer.act(() => { tree = TestRenderer.create(<FlowShell nav={false}><OnboardingCreateHabit
     title="Walk" emoji="" proposed={false} correcting canSaveRepeatWeeks atLimit={false} allowance={5}
     schedule={{ frequencyUnit: mode === 'oneTime' ? null : mode === 'fixed' ? 'Day' : 'Week', frequencyQuantity: 1, intervalWeeks: 1, days: mode === 'fixed' ? ['Monday'] : [], isGeneral: false, isFlexible: mode === 'flexible', dueTime: '' }}
     onCorrect={vi.fn()} onToggleDay={vi.fn()} onTimeChange={vi.fn()} onModeChange={vi.fn()} onFrequencyUnitChange={vi.fn()} onQuantityChange={vi.fn()} onIntervalWeeksChange={vi.fn()}
   /></FlowShell>) as typeof tree })
-  const labels: { node: YogaNode; intrinsic: number; host: Host }[] = []
-  const radios: YogaNode[] = []
-  const groups: { node: YogaNode; radios: YogaNode[] }[] = []
-  const layout = buildLayout(tree.toJSON(), fontScale, labels, radios, groups)
+  const { layout, labels, radios, groups } = await measureSegments(tree, width, fontScale)
   try {
     layout.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
     expect(groups).toHaveLength(mode === 'flexible' || mode === 'interval' ? 2 : 1)
     for (const { node: group, radios: options } of groups) {
-      if (fontScale === 1) expect(new Set(options.map((node) => node.getComputedTop())).size).toBe(1)
+      expect(new Set(options.map((node) => node.getComputedTop())).size).toBe(1)
       expect(group.getComputedWidth()).toBe(width - 32)
       for (const radio of options) {
         expect(radio.getComputedHeight()).toBeGreaterThanOrEqual(48)
@@ -158,7 +194,7 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
 
 const segmentSites = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'mobile')
 
-it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => ['calendar', 'goal', 'plans', 'share'].flatMap((surface) => [1, 2].map((fontScale) => ({ locale, width, surface, fontScale }))))))('fits the real $surface container in $locale at $width and scale $fontScale', async ({ locale, width, surface, fontScale }) => {
+it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => ['calendar', 'goal', 'plans', 'share'].flatMap((surface) => [1, 1.3, 1.6, 2].map((fontScale) => ({ locale, width, surface, fontScale }))))))('fits the real $surface container in $locale at $width and scale $fontScale', async ({ locale, width, surface, fontScale }) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   queryClient.setQueryData(habitKeys.list({}), [])
   await i18n.changeLanguage(locale)
@@ -176,50 +212,125 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
     : surface === 'share' ? <ShareCardSheet onClose={vi.fn()} />
     : <PlanSelection plans={null} isLoading isError={false} isOnline monthlyOffer={null} yearlyOffer={null} selectedInterval="yearly" checkoutLoading={null} checkoutError="" checkoutDisabled={false}
       onSelectInterval={vi.fn()} onCheckout={vi.fn()} onRetry={vi.fn()} t={i18n.t.bind(i18n)} tokens={tokens} />
-  let tree!: ReturnType<typeof TestRenderer.create> & { toJSON: () => Host; unmount: () => void }
+  let tree!: SegmentTree
   await TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={queryClient}>{element}</QueryClientProvider>) as typeof tree })
-  const labels: { node: YogaNode; intrinsic: number; host: Host }[] = []
-  const radios: YogaNode[] = []
-  const groups: { node: YogaNode; radios: YogaNode[] }[] = []
-  const layout = buildLayout(tree.toJSON(), fontScale, labels, radios, groups)
+  const { layout, labels, radios, groups } = await measureSegments(tree, width, fontScale)
   try {
     layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
     expect(groups).toHaveLength(1)
     const group = groups[0]!
-    expect(group.radios).toHaveLength(surface === 'calendar' ? choices.length : surface === 'share' ? 3 : 2)
-    if (fontScale === 1) expect(new Set(group.radios.map((node) => node.getComputedTop())).size).toBe(1)
+    expectOptionCount(group.radios, surface === 'calendar' ? choices.length : surface === 'share' ? 3 : 2, fontScale)
+    expect(new Set(group.radios.map((node) => node.getComputedTop())).size).toBe(1)
     expect(group.node.getComputedWidth()).toBeLessThanOrEqual(width - (surface === 'goal' || surface === 'share' ? 48 : 32))
     for (const [index, radio] of radios.entries()) {
       expect(radio.getComputedHeight()).toBeGreaterThanOrEqual(48)
         expect(radio.getComputedWidth()).toBeGreaterThanOrEqual(48)
       expect(radio.getComputedLeft() + radio.getComputedWidth()).toBeLessThanOrEqual(group.node.getComputedWidth())
       expect(labels[index]!.node.getComputedWidth()).toBeGreaterThanOrEqual(labels[index]!.intrinsic)
-      expect(labels[index]!.host.props.numberOfLines).toBe(fontScale > 1.3 ? undefined : 1)
+      expectLabelLines(labels[index]!.host, radios.length, fontScale)
     }
   } finally { layout.freeRecursive(); await TestRenderer.act(() => tree.unmount()); queryClient.clear() }
 })
 
 
-it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412, 600, 768, 840, 1352].flatMap((width) => [1, 2].map((fontScale) => ({ locale, width, fontScale })))))('keeps Hoje view words whole in $locale at $width and scale $fontScale', async ({ locale, width, fontScale }) => {
+it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412, 600, 768, 840, 1352].flatMap((width) => [1, 1.3, 1.6, 2].map((fontScale) => ({ locale, width, fontScale })))))('keeps Hoje view words whole in $locale at $width and scale $fontScale', async ({ locale, width, fontScale }) => {
   await i18n.changeLanguage(locale)
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
-  let tree!: ReturnType<typeof TestRenderer.create> & { toJSON: () => Host; unmount: () => void }
+  let tree!: SegmentTree
   await TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ width: '100%', maxWidth: 740, paddingHorizontal: 16 }}><HabitViewSwitch value="today" onChange={vi.fn()} /></View>) as typeof tree })
-  const labels: { node: YogaNode; intrinsic: number; host: Host }[] = []
-  const radios: YogaNode[] = []
-  const groups: { node: YogaNode; radios: YogaNode[] }[] = []
-  const layout = buildLayout(tree.toJSON(), fontScale, labels, radios, groups)
+  const { layout, labels, radios, groups } = await measureSegments(tree, width, fontScale)
   try {
     layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
     expect(groups).toHaveLength(1)
-    expect(radios).toHaveLength(3)
-    if (fontScale === 1) expect(new Set(radios.map((node) => node.getComputedTop())).size).toBe(1)
+    expect(radios).toHaveLength(radios.length === 1 ? 1 : 3)
+    if (fontScale === 1) expect(radios).toHaveLength(3)
+    expect(new Set(radios.map((node) => node.getComputedTop())).size).toBe(1)
     for (const [index, radio] of radios.entries()) {
       expect(radio.getComputedWidth()).toBeGreaterThanOrEqual(48)
       expect(radio.getComputedHeight()).toBeGreaterThanOrEqual(48)
       expect(radio.getComputedLeft() + radio.getComputedWidth()).toBeLessThanOrEqual(groups[0]!.node.getComputedWidth())
       expect(labels[index]!.node.getComputedWidth()).toBeGreaterThanOrEqual(labels[index]!.intrinsic)
-      expect(labels[index]!.host.props.numberOfLines).toBe(fontScale > 1.3 ? undefined : 1)
+      expectLabelLines(labels[index]!.host, radios.length, fontScale)
     }
   } finally { layout.freeRecursive(); await TestRenderer.act(() => tree.unmount()) }
+})
+
+function SelectedView({ surface, onChange }: Readonly<{ surface: 'today' | 'calendar'; onChange: (view: string) => void }>) {
+  const [view, setView] = React.useState('month')
+  const activeView = useUIStore((state) => state.activeView)
+  const setActiveView = useUIStore((state) => state.setActiveView)
+  const keys = segmentSites.find((site) => site.path === 'app/(tabs)/calendar.tsx')!.optionKeys
+  const option = (index: number) => ({ value: ['month', 'week', 'range', 'agenda'][index]!, label: i18n.t(keys[index]!) })
+  const options = [option(0), option(1), option(2), option(3)] as const
+  return <View style={{ width: '100%' }}>
+    {surface === 'today' ? <HabitViewSwitch value={activeView} onChange={(next) => { setActiveView(next); onChange(next) }} />
+      : <CalendarHeader tokens={createTokensV2('orange', 'dark')} currentMonth={new Date(2026, 8, 1)} todayKey="2026-09-30"
+        previousMonthLabel="Previous month" nextMonthLabel="Next month" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()}
+        viewSelector={<SegmentedControl fullWidth label={i18n.t('calendar.view.switchLabel')} value={view} options={options} onChange={(next) => { setView(next); onChange(next) }} />} />}
+    <Text testID="current-view">{surface === 'today' ? activeView : view}</Text>
+  </View>
+}
+
+it.each((['today', 'calendar'] as const).flatMap((surface) => ['en', 'pt-BR'].map((locale) => ({ surface, locale }))))('selects the same $surface view through the folded sheet in $locale and restores the row', async ({ surface, locale }) => {
+  await i18n.changeLanguage(locale)
+  __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+  useUIStore.setState({ activeView: 'today' })
+  const onChange = vi.fn()
+  let tree!: SegmentTree
+  await TestRenderer.act(() => { tree = TestRenderer.create(<SelectedView surface={surface} onChange={onChange} />) as SegmentTree })
+  try {
+    const measured = await measureSegments(tree, 200, 2)
+    measured.layout.freeRecursive()
+    const trigger = () => tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.testID === 'segmented-trigger')[0]!
+    expect(trigger().props.accessibilityLabel).toContain(i18n.t(surface === 'today' ? 'habits.viewToday' : 'calendar.view.month'))
+    await TestRenderer.act(() => (trigger().props.onPress as () => void)())
+    expect(trigger().props.accessibilityState).toMatchObject({ expanded: true })
+    const rows = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'checkbox')
+    expect(rows).toHaveLength(surface === 'today' ? 3 : 4)
+    expect(rows.filter((row) => (row.props.accessibilityState as { checked: boolean }).checked)).toHaveLength(1)
+    const last = rows.at(-1)!
+    const label = last.findAll((node) => String(node.type) === 'Text')[0]!.props.children
+    await TestRenderer.act(() => (last.props.onPress as () => void)())
+    expect(onChange).not.toHaveBeenCalled()
+    const sheet = tree.root.findAll((node) => node.type === TrueSheet)[0]!
+    await TestRenderer.act(() => (sheet.props.onDidDismiss as () => void)())
+    const destination = surface === 'today' ? 'general' : 'agenda'
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(destination)
+    expect(tree.root.findAll((node) => String(node.type) === 'Text' && node.props.testID === 'current-view')[0]!.props.children).toBe(destination)
+    expect(trigger().props.accessibilityLabel).toContain(label)
+    const restored = await measureSegments(tree, 740, 2)
+    restored.layout.freeRecursive()
+    expect(tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'radio')).toHaveLength(surface === 'today' ? 3 : 4)
+    expect(onChange).toHaveBeenCalledTimes(1)
+  } finally { await TestRenderer.act(() => tree.unmount()) }
+})
+
+it('keeps every calendar word whole at double text size', async () => {
+  __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+  const keys = segmentSites.find((site) => site.path === 'app/(tabs)/calendar.tsx')!.optionKeys
+  const option = (index: number) => ({ value: String(index), label: segmentTranslation(en, keys[index]!) })
+  let tree!: SegmentTree
+  await TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ paddingHorizontal: 16 }}><SegmentedControl fullWidth label="Views" value="0" onChange={vi.fn()} options={[option(0), option(1), option(2), option(3)]} /></View>) as SegmentTree })
+  const measured = await measureSegments(tree, 320, 2)
+  try {
+    expect(measured.labels.length).toBeGreaterThan(0)
+    for (const label of measured.labels) expect(label.node.getComputedWidth(), 'A word cannot split across lines').toBeGreaterThanOrEqual(label.intrinsic)
+  } finally { measured.layout.freeRecursive(); await TestRenderer.act(() => tree.unmount()) }
+})
+
+it('keeps multiword labels in taller segments without breaking a word', async () => {
+  __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+  let tree!: SegmentTree
+  await TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ paddingHorizontal: 16 }}><SegmentedControl fullWidth label="Views" value="all" onChange={vi.fn()} options={[{ value: 'all', label: 'All habits' }, { value: 'general', label: 'General habits' }]} /></View>) as SegmentTree })
+  const measured = await measureSegments(tree, 320, 2)
+  try {
+    expect(measured.radios).toHaveLength(2)
+    expect(new Set(measured.radios.map((radio) => radio.getComputedTop())).size).toBe(1)
+    for (const label of measured.labels) {
+      const words = label.host.children!.filter((child): child is string => typeof child === 'string').join('').split(/\s+/)
+      expect(label.node.getComputedWidth()).toBeGreaterThanOrEqual(Math.max(...words.map((word) => textWidth(word, 28))))
+      expect(label.host.props.numberOfLines).toBeUndefined()
+    }
+    expect(measured.labels.some((label) => label.node.getComputedHeight() > 40)).toBe(true)
+  } finally { measured.layout.freeRecursive(); await TestRenderer.act(() => tree.unmount()) }
 })

@@ -28,7 +28,7 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { useUIStore } from '@/stores/ui-store'
 import { useShellStore } from '@/stores/shell-store'
-import { measureSplitSegmentWords } from '@/__tests__/support/segmented-control-geometry'
+import { measureSplitSegmentWords, mountMeasuredSegmentedControls, settleSegmentMeasurements } from '@/__tests__/support/segmented-control-geometry'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -266,18 +266,21 @@ describe('Hoje header geometry', () => {
         await page.setContent(`<style>${stylesheet}</style>${renderToString(<NextIntlClientProvider locale={locale} messages={words}><div className="mx-auto w-full max-w-[740px]"><HabitViewSwitch value="today" onChange={noop} /></div></NextIntlClientProvider>)}`)
       await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        await settleSegmentMeasurements(page)
         expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
-        const geometry = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('[data-habit-view-switch] [role="radio"]')).map((radio) => {
+        const geometry = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('[data-habit-view-switch] [role="radio"], [data-habit-view-switch] [data-menu-trigger]')).map((radio) => {
           const span = radio.querySelector('span')!
           const range = document.createRange()
           range.selectNodeContents(span)
           const bounds = radio.getBoundingClientRect()
           const label = range.getBoundingClientRect()
-          return { top: bounds.top, width: bounds.width, height: bounds.height, left: bounds.left, right: bounds.right, labelLeft: label.left, labelRight: label.right, lines: new Set(Array.from(range.getClientRects()).map((rect) => rect.top)).size }
+          return { folded: radio.hasAttribute('data-menu-trigger'), top: bounds.top, width: bounds.width, height: bounds.height, left: bounds.left, right: bounds.right, labelLeft: label.left, labelRight: label.right, lines: new Set(Array.from(range.getClientRects()).map((rect) => rect.top)).size }
         }))
-        expect(geometry).toHaveLength(3)
-        if (scale === 1) expect(new Set(geometry.map((radio) => radio.top)).size).toBe(1)
+        expect(geometry).toHaveLength(geometry[0]?.folded ? 1 : 3)
+        if (scale === 1) expect(geometry[0]?.folded).toBe(false)
+        expect(new Set(geometry.map((radio) => radio.top)).size).toBe(1)
         for (const radio of geometry) {
           expect(radio.width).toBeGreaterThanOrEqual(48)
           expect(radio.height).toBeGreaterThanOrEqual(48)
