@@ -39,6 +39,7 @@ const mocks = vi.hoisted(() => {
     suggest: vi.fn(),
     anonymous: vi.fn(),
     anonymousAvailable: false,
+    locale: 'en',
     realProposal: false,
     requestPermission: vi.fn(),
     requestPermissionOutcome: vi.fn(),
@@ -66,7 +67,7 @@ vi.mock('react-native-svg', async () => {
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => undefined },
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
+  useTranslation: () => ({ t: (key: string) => key, i18n: { language: mocks.locale } }),
 }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ navigate: mocks.navigate, replace: vi.fn() }) }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
@@ -215,6 +216,7 @@ describe('OnboardingFlow state model', () => {
     Object.assign(mocks.profile, createMockProfile({ hasProAccess: true, isTrialActive: false, plan: 'pro' }))
     mocks.profile.aiMessagesUsed = 0
     mocks.profile.timeZone = 'UTC'
+    mocks.locale = 'en'
     mocks.realProposal = false
     mocks.anonymousAvailable = false
     mocks.anonymous.mockReset()
@@ -242,17 +244,47 @@ describe('OnboardingFlow state model', () => {
     expect(headerCounter(tree)).toBe('Orbit · 02 / 03')
   })
 
-  it('reads the signed-out sentence through Astra without adding a tour step', async () => {
+  it.each([
+    { locale: 'pt-BR', sentence: 'Meditar dez minutos depois do café, menos aos domingos' },
+    { locale: 'en', sentence: 'Read every day except for Sunday' },
+    { locale: 'en', sentence: 'Read not this Sunday' },
+    { locale: 'en', sentence: 'Read but not next Saturday' },
+    { locale: 'pt-BR', sentence: 'Ler todo dia exceto no próximo domingo' },
+    { locale: 'pt-BR', sentence: 'Ler não no próximo domingo' },
+    { locale: 'pt-BR', sentence: 'Ler menos neste sábado' },
+  ])('keeps $sentence unresolved and permits a manual Monday schedule', async ({ locale, sentence }) => {
+    mocks.locale = locale
+    mocks.realProposal = true
+    const tree = await mount(false)
+    await enterSentence(tree, sentence)
+    await click(tree, 'onboarding.flow.continue')
+    const sunday = byType(tree.root, 'Pressable').find((node) => node.props.accessibilityLabel === 'onboarding.flow.when.daysLong.sunday')!
+    expect(prop<{ selected: boolean }>(sunday, 'accessibilityState').selected).toBe(false)
+    for (const day of ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']) {
+      const button = byType(tree.root, 'Pressable').find((node) => node.props.accessibilityLabel === `onboarding.flow.when.daysLong.${day}`)!
+      expect(prop<{ selected: boolean }>(button, 'accessibilityState').selected).toBe(false)
+    }
+    const monday = byType(tree.root, 'Pressable').find((node) => node.props.accessibilityLabel === 'onboarding.flow.when.daysLong.monday')!
+    await TestRenderer.act(() => prop<() => void>(monday, 'onPress')())
+    await click(tree, 'onboarding.flow.create')
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ days: ['Monday'] }))
+  })
+
+  it.each([
+    { locale: 'en', sentence: 'Read every Monday at 18:00', title: 'Read' },
+    { locale: 'pt-BR', sentence: 'Meditar dez minutos depois do café, menos aos domingos', title: 'Meditar dez minutos depois do café, menos aos domingos' },
+  ])('reads the signed-out sentence through Astra in $locale without adding a tour step', async ({ locale, sentence, title }) => {
+    mocks.locale = locale
     mocks.realProposal = true
     mocks.anonymousAvailable = true
     mocks.anonymous.mockResolvedValue({ emoji: '📖', frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, dueTime: '18:00', subHabits: [], checklistItems: [] })
     const tree = await mount(false)
-    await enterSentence(tree, 'Read every Monday at 18:00')
+    await enterSentence(tree, sentence)
     await click(tree, 'onboarding.flow.continue')
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'astra-mark')).toHaveLength(1)
-    expect(renderedText(tree)).toContain('Read')
+    expect(renderedText(tree)).toContain(title)
     expect(renderedText(tree)).toContain('onboarding.flow.when.astraRead')
-    expect(mocks.anonymous).toHaveBeenCalledWith({ title: 'Read every Monday at 18:00', language: 'en' })
+    expect(mocks.anonymous).toHaveBeenCalledWith({ title: sentence, language: locale })
     expect(mocks.suggest).not.toHaveBeenCalled()
     expect(headerCounter(tree)).toBe('Orbit · 02 / 03')
     expect(renderedText(tree).join('')).not.toContain('meetAstra')

@@ -48,6 +48,7 @@ const mocks = vi.hoisted(() => {
     suggest: vi.fn(),
     anonymous: vi.fn(),
     anonymousAvailable: false,
+    locale: 'en',
     realProposal: false,
     subscribe: vi.fn(),
     requestPermissionOnly: vi.fn(),
@@ -81,7 +82,7 @@ vi.mock('@base-ui/react/dialog', async (importOriginal) => {
 })
 
 vi.mock('next-intl', () => ({
-  useLocale: () => 'en',
+  useLocale: () => mocks.locale,
   useTranslations: () => (key: string) => key,
 }))
 vi.mock('next/navigation', async (importOriginal) => ({ ...(await importOriginal<typeof import('next/navigation')>()), useRouter: () => { const { navigate } = React.useContext(NavigationContext); return { push: navigate, replace: navigate } }, usePathname: () => new URL(React.useContext(NavigationContext).url, 'https://orbit.test').pathname, useSearchParams: () => new URL(React.useContext(NavigationContext).url, 'https://orbit.test').searchParams }))
@@ -220,6 +221,7 @@ describe('OnboardingFlow state model', () => {
     Object.assign(mocks.profile, createMockProfile({ hasProAccess: true, isTrialActive: false, plan: 'pro' }))
     mocks.profile.aiMessagesUsed = 0
     mocks.profile.timeZone = 'UTC'
+    mocks.locale = 'en'
     mocks.realProposal = false
     mocks.anonymousAvailable = false
     mocks.anonymous.mockReset()
@@ -380,17 +382,46 @@ describe('OnboardingFlow state model', () => {
     expect(headerCounter()).toBe('Orbit · 02 / 03')
   })
 
-  it('reads the signed-out sentence through Astra without adding a tour step', async () => {
+  it.each([
+    { locale: 'pt-BR', sentence: 'Meditar dez minutos depois do café, menos aos domingos' },
+    { locale: 'en', sentence: 'Read every day except for Sunday' },
+    { locale: 'en', sentence: 'Read not this Sunday' },
+    { locale: 'en', sentence: 'Read but not next Saturday' },
+    { locale: 'pt-BR', sentence: 'Ler todo dia exceto no próximo domingo' },
+    { locale: 'pt-BR', sentence: 'Ler não no próximo domingo' },
+    { locale: 'pt-BR', sentence: 'Ler menos neste sábado' },
+  ])('keeps $sentence unresolved and permits a manual Monday schedule', async ({ locale, sentence }) => {
+    mocks.locale = locale
+    mocks.realProposal = true
+    mount(false)
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: sentence } })
+    fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+    const sunday = await screen.findByRole('button', { name: 'when.daysLong.sunday' })
+    expect(sunday).toHaveAttribute('aria-pressed', 'false')
+    for (const day of ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']) {
+      expect(screen.getByRole('button', { name: `when.daysLong.${day}` })).toHaveAttribute('aria-pressed', 'false')
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'when.daysLong.monday' }))
+    fireEvent.click(screen.getByRole('button', { name: 'create' }))
+    await screen.findByTestId('reminder-state')
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ days: ['Monday'] }))
+  })
+
+  it.each([
+    { locale: 'en', sentence: 'Read every Monday at 18:00', title: 'Read' },
+    { locale: 'pt-BR', sentence: 'Meditar dez minutos depois do café, menos aos domingos', title: 'Meditar dez minutos depois do café, menos aos domingos' },
+  ])('reads the signed-out sentence through Astra in $locale without adding a tour step', async ({ locale, sentence, title }) => {
+    mocks.locale = locale
     mocks.realProposal = true
     mocks.anonymousAvailable = true
     mocks.anonymous.mockResolvedValue({ emoji: '📖', frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, dueTime: '18:00', subHabits: [], checklistItems: [] })
     mount(false)
-    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Read every Monday at 18:00' } })
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: sentence } })
     fireEvent.click(screen.getByRole('button', { name: 'continue' }))
     expect(await screen.findByRole('img', { name: 'Astra' })).toBeVisible()
-    expect(screen.getByText('Read')).toBeVisible()
+    expect(screen.getByText(title)).toBeVisible()
     expect(screen.getByText('when.astraRead')).toBeVisible()
-    expect(mocks.anonymous).toHaveBeenCalledWith({ title: 'Read every Monday at 18:00', language: 'en' })
+    expect(mocks.anonymous).toHaveBeenCalledWith({ title: sentence, language: locale })
     expect(mocks.suggest).not.toHaveBeenCalled()
     expect(headerCounter()).toBe('Orbit · 02 / 03')
     expect(screen.queryByText(/meetAstra/)).toBeNull()
