@@ -128,7 +128,7 @@ function SuggestionStrip({
                 style={[styles.suggestionContent, disclosure ? { flexShrink: 0 } : null]}
               >
                 {suggestion.icon ? <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}>{suggestion.icon}</View> : null}
-                <AstraGlyph size={16} color={tokens.fg2} /><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
+                <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}><AstraGlyph size={16} color={tokens.fg2} /></View><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
               </View>
             </InsetFocusPressable>
           ))}
@@ -740,7 +740,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
     flexShrink: 0,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: COMPOSER_CHIP_GAP,
     paddingHorizontal: SPACING.s12,
     paddingVertical: SPACING.s12,

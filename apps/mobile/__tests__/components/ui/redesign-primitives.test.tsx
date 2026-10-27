@@ -1,3 +1,4 @@
+import { ASTRA_GLYPH_PATHS } from '@orbit/shared/contracts/brand'
 import type { ReactElement } from 'react'
 import { act, create } from 'react-test-renderer'
 import { Animated } from 'react-native'
@@ -187,13 +188,13 @@ describe('redesign primitives on mobile', () => {
     expect(prop(paths.at(-1)!, 'fill')).toBe(tokens.primary)
   })
 
-  it('uses the Astra native redraw and honours a color override', () => {
-    const tree = render(<AstraGlyph size={16} />)
-    expect(tree.root.findByProps({ testID: 'astra-mark-16' })).toBeDefined()
+  it.each([14, 16, 20, 24])('renders the normal Astra paths at %ipx and honours color', (size) => {
+    const tree = render(<AstraGlyph size={size} />)
+    const glyph = tree.root.findByProps({ testID: 'astra-mark' })
+    expect(glyph.props).toMatchObject({ width: size, height: size, accessible: false, color: tokens.fg1 })
+    expect(byType(tree.root, 'Path').map(path => prop(path, 'd'))).toEqual(ASTRA_GLYPH_PATHS.map(path => path.d))
 
-    void act(() => {
-      tree.update(<AstraGlyph size={24} color="#123456" />)
-    })
+    void act(() => { tree.update(<AstraGlyph size={size} color="#123456" />) })
     expect(prop(tree.root.findByProps({ testID: 'astra-mark' }), 'color')).toBe('#123456')
   })
 

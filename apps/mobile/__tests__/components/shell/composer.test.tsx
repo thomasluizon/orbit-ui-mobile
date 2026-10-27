@@ -140,7 +140,7 @@ it.each([en, ptBR])('shows each suggestion action with only the decorative mark'
       expect(control.props.accessibilityLabel).toBe(chips[index]!.label)
       expect(textValues(control)).toEqual([chips[index]!.label])
       const marks = control.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
-        typeof node.type === 'string' && node.props.testID === 'astra-mark-16')
+        typeof node.type === 'string' && node.props.testID === 'astra-mark')
       expect(marks).toHaveLength(1)
       expect(marks[0]!.props.accessible).toBe(false)
     }

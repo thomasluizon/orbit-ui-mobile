@@ -1,3 +1,4 @@
+import { ASTRA_GLYPH_PATHS } from '@orbit/shared/contracts/brand'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -102,13 +103,15 @@ describe('redesign primitives on web', () => {
     expect(paths[paths.length - 1]).toHaveAttribute('fill', 'var(--primary)')
   })
 
-  it('lets the Astra glyph inherit currentColor and selects its native redraw', () => {
-    const { container, rerender } = render(<AstraGlyph size={16} />)
-    expect(container.querySelector('svg')).toHaveAttribute('data-asset', 'astra-mark-16')
-    expect(container.querySelector('svg')).toHaveAttribute('color', 'currentColor')
-
-    rerender(<AstraGlyph size={24} color="#123456" />)
+  it.each([14, 16, 20, 24])('renders the normal Astra paths at %ipx and honours color', (size) => {
+    const { container, rerender } = render(<AstraGlyph size={size} />)
     expect(container.querySelector('svg')).toHaveAttribute('data-asset', 'astra-mark')
+    expect(container.querySelector('svg')).toHaveAttribute('width', String(size))
+    expect(container.querySelector('svg')).toHaveAttribute('height', String(size))
+    expect(container.querySelector('svg')).toHaveAttribute('color', 'currentColor')
+    expect([...container.querySelectorAll('path')].map(path => path.getAttribute('d'))).toEqual(ASTRA_GLYPH_PATHS.map(path => path.d))
+
+    rerender(<AstraGlyph size={size} color="#123456" />)
     expect(container.querySelector('svg')).toHaveAttribute('color', '#123456')
   })
 

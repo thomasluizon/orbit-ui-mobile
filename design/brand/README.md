@@ -39,16 +39,16 @@ The marks were generated privately under a paid Recraft plan with commercial rig
 
 | file | what it is |
 |---|---|
-| `orbit-mark-16.svg`, `astra-mark-16.svg` | the native 16 redraw. **Drawn at 16, not exported from 1024**, because a stroke scaled down from 1024 renders soft (`DESIGN.md:267`). Monochrome, no accent |
+| `orbit-mark-16.svg` | the native Orbit 16 redraw. **Drawn at 16, not exported from 1024**, because a stroke scaled down from 1024 renders soft (`DESIGN.md:267`). Monochrome, no accent |
 | `orbit-mark-accent.svg` | the accent treatment: the granted 1024 drawing with `var(--primary)` on the moon and `currentColor` everywhere else |
 | `orbit-lockup.svg` | the horizontal lockup, 28 mark, 12 gap, 22 wordmark, 89.3955 by 17.8827 (exact: 89.395502773 by 17.882739221) |
 
 **There is no 24 grid variant.** `DESIGN.md` enumerates 16, 48, 128, and 512 as asset sizes.
 The mark is neither type nor an icon, so it does not follow the type scale or the 24 icon grid.
 
-**Pick by size, not by taste.** Below roughly 20px use the 16 pair; above that use the 1024
-originals. The redraw is a simplification, so blowing a 16 up to 128 shows geometry that was chosen
-to survive at 16 and nothing else.
+**Orbit selects its asset by size.** Below roughly 20px use its native 16 drawing; above that use
+the original. Astra uses its normal drawing at every size, with a shared viewBox fitted to its
+drawn bounds and centred in its container (#1797).
 
 **The accent tints exactly one element.** `DESIGN.md:261` gives the accent four roles and this is the
 fourth: "The mark carries the accent on exactly one element, its moon." A second tinted element is a
