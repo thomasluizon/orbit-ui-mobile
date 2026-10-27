@@ -850,7 +850,7 @@ async function finalizeSuccessfulFlush(
   response: unknown,
   touchedScopes: Set<MutationScope>,
 ): Promise<void> {
-  if (mutation.targetEntityId && mutation.entityType === 'habit') {
+  if (mutation.targetEntityId) {
     if (mutation.type === 'deleteHabit' && mutation.method === 'DELETE') {
       await removeDeletedHabitQueries(queryClient, mutation.targetEntityId)
     } else if (mutation.type === 'restoreHabit') {

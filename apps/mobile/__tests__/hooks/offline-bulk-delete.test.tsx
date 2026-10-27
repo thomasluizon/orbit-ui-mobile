@@ -13,7 +13,7 @@ import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { useBulkDeleteHabits, useDeleteHabit } from '@/hooks/use-habits'
 import { useHabitDetail, useHabitFullDetail, useHabitLogs, useHabitMetrics } from '@/hooks/use-habit-queries'
 import { cancelScheduledFlush, flushQueuedMutations, getReplayState } from '@/lib/offline-mutations'
-import { clear, getAll } from '@/lib/offline-queue'
+import { clear, getAll, update } from '@/lib/offline-queue'
 import { clearOfflineState } from '@/lib/offline-state'
 import { queryClient } from '@/lib/query-client'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
@@ -198,9 +198,15 @@ describe('offline bulk delete through the native queue', () => {
     expect(isCachedHabitDeleted(queryClient, 'remote')).toBe(false)
   })
 
-  it.each([false, true])('retires active habit queries when replay settles missing=%s', async (alreadyMissing) => {
+  it.each([
+    { alreadyMissing: false, withoutEntityType: false },
+    { alreadyMissing: true, withoutEntityType: false },
+    { alreadyMissing: false, withoutEntityType: true },
+    { alreadyMissing: true, withoutEntityType: true },
+  ])('retires active habit queries when replay settles missing=$alreadyMissing legacy=$withoutEntityType', async ({ alreadyMissing, withoutEntityType }) => {
     await mount([createMockHabitScheduleItem({ id: 'habit-1' })])
     await deleteSelected(['habit-1'])
+    if (withoutEntityType) update(getAll()[0]!.id, { entityType: undefined })
     const queryKey = habitKeys.detail('habit-1')
     queryClient.setQueryData(queryKey, habitDetailSchema.parse(createMockHabitScheduleItem({ id: 'habit-1' })))
     const request = vi.fn(() => Promise.reject(new Error('Deleted habit was refetched')))

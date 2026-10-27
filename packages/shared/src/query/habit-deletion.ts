@@ -7,8 +7,6 @@ import { updateCachedHabitLists } from './habit-cache'
 
 type HabitBranch = { id: string; children: readonly HabitBranch[] }
 
-const habitResources = new Set(['detail', 'fullDetail', 'logs', 'metrics', 'reschedule-suggestion'])
-
 export function isCachedHabitDeleted(queryClient: QueryClient, habitId: string): boolean {
   return queryClient.getQueryData(habitKeys.deleted(habitId)) !== undefined
 }
@@ -35,8 +33,11 @@ export async function removeDeletedHabitQueries(queryClient: QueryClient, habitI
   for (const id of deletedIds) queryClient.setQueryData(habitKeys.deleted(id), deletedIds)
   await queryClient.cancelQueries({ queryKey: habitKeys.all })
   const deleted = new Set(deletedIds)
-  queryClient.removeQueries({ predicate: (query) => query.queryKey[0] === habitKeys.all[0]
-    && habitResources.has(String(query.queryKey[1])) && deleted.has(String(query.queryKey[2])) })
+  for (const id of deletedIds) {
+    for (const queryKey of [habitKeys.detail(id), habitKeys.fullDetail(id), habitKeys.logs(id), habitKeys.metrics(id), habitKeys.rescheduleSuggestion(id)]) {
+      queryClient.removeQueries({ queryKey })
+    }
+  }
   updateCachedHabitLists(queryClient, (items) => optimisticRemoveHabits(items, deleted))
   queryClient.setQueriesData<PaginatedResponse<HabitScheduleItem>>({ queryKey: habitKeys.searches() }, (page) => {
     if (!page) return page
