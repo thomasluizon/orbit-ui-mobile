@@ -1,4 +1,4 @@
-import { ConversationReveal, ConversationChange } from '@/components/chat/conversation-motion'
+import { ConversationReveal } from '@/components/chat/conversation-motion'
 import { useState, useMemo } from "react";
 // react-doctor-disable-next-line rn-prefer-expo-image -- expo-image is not a project dependency; the only <Image> is a transient chat-attachment preview (a per-message URI) where expo-image's disk cache brings no benefit, and adding a native image library is out of scope for a React Doctor burn-down (SDK 57 native-ABI/rebuild risk). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { View, Text, Image, StyleSheet, Pressable } from "react-native";
@@ -66,6 +66,9 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
 
   const { isUser, parts, showUnreadableReply, showOperationUpdate, relatedSurfaces, nonSuggestionActions, suggestions, outcomes } = getMessageBubbleView(props, dismissedBreakdowns)
   const operations = getMessageBubbleOperations(props, useChatStore.getState().transitionMessage)
+  const operationOffset = message.parts != null ? 0 : parts.length
+  const operationCount = suggestions.length + operations.clarifications.length + operations.pendingOperations.length + (outcomes.length > 0 ? 1 : 0)
+  const proseOffset = message.parts != null ? operationCount : 0
   function dismissBreakdown(key: string) {
     setDismissedBreakdowns(previous => new Set([...previous, key]))
   }
@@ -83,26 +86,26 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
 
         {!isUser && suggestions.length > 0 && (
           <View style={styles.breakdownContainer}>
-            {suggestions.map(({ key, ...suggestion }, index) => <ConversationReveal key={key} animate={animateEntry} index={index}><BreakdownSuggestion {...suggestion}
+            {suggestions.map(({ key, ...suggestion }, index) => <ConversationReveal key={key} animate={animateEntry} index={operationOffset + index}><BreakdownSuggestion {...suggestion}
               onConfirmed={() => onBreakdownConfirmed?.()} onCancelled={() => dismissBreakdown(key)} /></ConversationReveal>)}
           </View>
         )}
 
         {!isUser && operations.clarifications.length > 0 && (
           <View style={styles.breakdownContainer}>
-            {operations.clarifications.map(({ key, ...clarification }, index) => <ConversationReveal key={key} animate={animateEntry} index={index}><ClarificationCard {...clarification} /></ConversationReveal>)}
+            {operations.clarifications.map(({ key, ...clarification }, index) => <ConversationReveal key={key} animate={animateEntry} index={operationOffset + suggestions.length + index}><ClarificationCard {...clarification} /></ConversationReveal>)}
           </View>
         )}
 
         {!isUser && operations.pendingOperations.length > 0 && (
           <View style={styles.operationStack}>
-            {operations.pendingOperations.map(({ key, ...operation }, index) => <ConversationReveal key={key} animate={animateEntry} index={index}><PendingOperationCard {...operation} /></ConversationReveal>)}
+            {operations.pendingOperations.map(({ key, ...operation }, index) => <ConversationReveal key={key} animate={animateEntry} index={operationOffset + suggestions.length + operations.clarifications.length + index}><PendingOperationCard {...operation} /></ConversationReveal>)}
           </View>
         )}
 
         {!isUser && outcomes.length > 0 ? (
           <View style={styles.operationStack}>
-            <OperationOutcomes outcomes={outcomes} />
+            <ConversationReveal animate={animateEntry} index={operationOffset + operationCount - 1}><OperationOutcomes outcomes={outcomes} /></ConversationReveal>
           </View>
         ) : null}
   </>
@@ -116,11 +119,11 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
         {showOperationUpdate ? <Text style={{ fontSize: 14, color: tokens.fg2 }}>{t('chat.operationUpdated')}</Text> : null}
         {showUnreadableReply ? <Text style={{ fontSize: 14, color: tokens.fg2 }}>{t('chat.unreadableReply')}</Text> : null}
         {parts.map(part => {
-          if (part.type === 'block') return <ConversationReveal key={part.key} animate={animateEntry} index={part.key}><ChatBlock part={part.part} message={message} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={part.expired} onActionChipClick={onActionChipClick} /></ConversationReveal>
+          if (part.type === 'block') return <ConversationReveal key={part.key} animate={animateEntry} index={proseOffset + part.key}><ChatBlock part={part.part} message={message} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={part.expired} onActionChipClick={onActionChipClick} /></ConversationReveal>
           const prose = <MessageProse key={part.key} message={message}
             sourceText={part.text}
             styles={styles} showImage={part.showImage} />;
-          return isUser ? prose : <ConversationReveal key={part.key} animate={animateEntry} index={part.key}><ConversationChange changeKey={props.isStreaming ? part.text : ''}>{prose}</ConversationChange></ConversationReveal>;
+          return isUser ? prose : <ConversationReveal key={part.key} animate={animateEntry} index={proseOffset + part.key}>{prose}</ConversationReveal>;
         })}
 
         {!isUser && relatedSurfaces.length > 0 ? (

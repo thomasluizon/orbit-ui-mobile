@@ -1,5 +1,9 @@
 'use client'
 
+import { ConversationComposerMotionProvider } from './conversation-composer-motion'
+import { motion } from 'motion/react'
+import { useConversationMotion } from '@/components/chat/conversation-motion'
+
 import { SidebarAccount } from './sidebar-account'
 import { useTranslations } from 'next-intl'
 import {
@@ -368,6 +372,26 @@ function ShellDestinationViewport({ floating, hasHeader, hasTabBar, children }: 
   </div>
 }
 
+function ShellConversation({ conversationId, label, wide, children }: Readonly<{
+  conversationId: string
+  label?: string
+  wide: boolean
+  children: ReactNode
+}>) {
+  const configuration = useConversationMotion()
+  return <motion.div
+            initial={configuration.duration > 0 ? { opacity: 0.6 } : false} animate={{ opacity: 1 }} transition={{ duration: configuration.duration / 1000, ease: configuration.easing }}
+            id={conversationId}
+            role="dialog"
+            aria-modal={!wide || undefined}
+            aria-label={label}
+            tabIndex={-1}
+            data-shell-conversation="overlay"
+            className="z-modal fixed inset-y-0 inset-x-0 lg:max-w-[740px] mx-auto overflow-hidden bg-[var(--bg)] pt-[var(--safe-top)] pb-[var(--safe-bottom)] lg:absolute lg:inset-x-0 lg:bottom-0 lg:top-[max(32px,var(--safe-top))] lg:pt-0 lg:pb-0"
+
+          ><main className="h-full">{children}</main></motion.div>
+}
+
 function ShellWideBackground({
   props: { registerHeaderHost, ...props },
   conversationOpen,
@@ -408,7 +432,7 @@ function ShellWideBackground({
     </main>
   )
   return (
-    <div
+    <ConversationComposerMotionProvider><div
       className="flex min-w-0 flex-1"
     >
       {navigationEnabled ? <ShellSidebar {...props} layerOpen={conversationOpen} wide={wide} conversationId={conversationId} collapsed={collapsed} /> : null}
@@ -440,19 +464,10 @@ function ShellWideBackground({
           <div data-shell-create-refusal="" aria-live="polite" aria-atomic="true" className="min-h-0 overflow-y-auto px-4">{sidebarRefusal}</div>
           </div>
           </ShellDestinationViewport>
-          {conversationOpen ? <div
-            id={conversationId}
-            role="dialog"
-            aria-modal={!wide || undefined}
-            aria-label={props.conversationLabel}
-            tabIndex={-1}
-            data-shell-conversation="overlay"
-            className="z-modal fixed inset-y-0 inset-x-0 lg:max-w-[740px] mx-auto overflow-hidden bg-[var(--bg)] pt-[var(--safe-top)] pb-[var(--safe-bottom)] lg:absolute lg:inset-x-0 lg:bottom-0 lg:top-[max(32px,var(--safe-top))] lg:pt-0 lg:pb-0"
-
-          ><main className="h-full">{props.conversation}</main></div> : null}
+          {conversationOpen ? <ShellConversation conversationId={conversationId} label={props.conversationLabel} wide={wide}>{props.conversation}</ShellConversation> : null}
         </div>
       </div>
-    </div>
+    </div></ConversationComposerMotionProvider>
   )
 }
 

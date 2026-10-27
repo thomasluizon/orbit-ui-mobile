@@ -1,6 +1,6 @@
 'use client'
 
-import { ConversationChange } from './conversation-motion'
+import { ConversationCrossfade } from './conversation-motion'
 
 import { IconButton } from '@/components/ui/icon-button'
 import { ChevronDown } from '@/components/ui/icons'
@@ -38,7 +38,7 @@ function ReadBlockSession({ snapshot: initial, children }: ReadBlockBoundaryProp
   const { profile } = useProfile()
   const actionScope = { ready: profile != null, timeZone: profile?.timeZone ?? null }
   const context = useReadBlockSession(initial, locale, actionScope)
-  return <ReadContext.Provider value={context}><ConversationChange changeKey={String(context.snapshot.read.revision)}>{children(context.snapshot)}</ConversationChange></ReadContext.Provider>
+  return <ReadContext.Provider value={context}><ConversationCrossfade changeKey={String(context.snapshot.read.revision)}>{children(context.snapshot)}</ConversationCrossfade></ReadContext.Provider>
 }
 
 export function BlockFrame(props: Readonly<BlockFrameProps>) {

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { motionDurations, motionLayerTiming } from '@orbit/shared/theme'
-import { ConversationChange, ConversationReveal } from '@/components/chat/conversation-motion'
+import { ConversationChange, ConversationReveal, ConversationCrossfade } from '@/components/chat/conversation-motion'
 
 const state = vi.hoisted(() => ({ reduced: false, start: vi.fn(), stop: vi.fn(), set: vi.fn(), initial: undefined as unknown }))
 vi.mock('@/hooks/use-viewport-match', () => ({ useViewportMatch: () => state.reduced }))
@@ -10,7 +10,7 @@ vi.mock('motion/react', async () => {
   const controls = { start: state.start, stop: state.stop, set: state.set }
   return {
     useAnimationControls: () => controls,
-    motion: { div: ({ children, initial, animate: _animate, ...props }: { children: React.ReactNode; initial: unknown; animate: unknown }) => {
+    motion: { div: ({ children, initial, animate: _animate, transition: _transition, ...props }: { children: React.ReactNode; initial: unknown; animate: unknown; transition?: unknown }) => {
       state.initial = initial
       return React.createElement('div', props, children)
     } },
@@ -48,4 +48,17 @@ it('commits replacement content immediately and cancels its fade on preference c
   state.reduced = true
   rerender(<ConversationChange changeKey="done"><span>Saved</span></ConversationChange>)
   expect(state.set).toHaveBeenLastCalledWith({ opacity: 1 })
+})
+
+it('crossfades a refreshed block with an inert outgoing snapshot and removes it on reduced motion', () => {
+  const { container, rerender } = render(<ConversationCrossfade changeKey="first"><button>Old action</button></ConversationCrossfade>)
+  rerender(<ConversationCrossfade changeKey="second"><button>New action</button></ConversationCrossfade>)
+  expect(screen.getByRole('button', { name: 'New action' })).toBeVisible()
+  const departing = container.querySelector('[inert]')
+  expect(departing).toHaveAttribute('aria-hidden', 'true')
+  expect(departing).toHaveTextContent('Old action')
+  state.reduced = true
+  rerender(<ConversationCrossfade changeKey="second"><button>New action</button></ConversationCrossfade>)
+  expect(container.querySelector('[inert]')).toBeNull()
+  expect(screen.queryByText('Old action')).toBeNull()
 })

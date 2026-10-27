@@ -4,7 +4,7 @@ import * as Reanimated from 'react-native-reanimated'
 import { Text, Pressable } from 'react-native'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { motionDurations, motionLayerTiming } from '@orbit/shared/theme'
-import { ConversationChange, ConversationReveal } from '@/components/chat/conversation-motion'
+import { ConversationChange, ConversationReveal, ConversationCrossfade } from '@/components/chat/conversation-motion'
 
 const preference = vi.hoisted(() => ({ reduced: false }))
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => preference.reduced }))
@@ -49,4 +49,16 @@ it('starts reduced motion without translation or a delayed reveal', () => {
   const host = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'conversation-reveal')[0]!
   expect(host.props.style).toEqual(expect.arrayContaining([{ opacity: 1, transform: [{ translateY: 0 }] }]))
   void act(() => tree.unmount())
+})
+
+it('makes an outgoing refresh inaccessible and removes it immediately for reduced motion', () => {
+  let tree!: ReturnType<typeof create>
+  void act(() => { tree = create(<ConversationCrossfade changeKey="first"><Text>Old result</Text></ConversationCrossfade>) })
+  void act(() => tree.update(<ConversationCrossfade changeKey="second"><Text>New result</Text></ConversationCrossfade>))
+  expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.importantForAccessibility === 'no-hide-descendants' && node.props.pointerEvents === 'none')).toHaveLength(1)
+  preference.reduced = true
+  void act(() => tree.update(<ConversationCrossfade changeKey="second"><Text>New result</Text></ConversationCrossfade>))
+  expect(tree.root.findAll(node => node.type === Text && node.props.children === 'Old result')).toHaveLength(0)
+  expect(tree.root.findAll(node => node.type === Text && node.props.children === 'New result')).toHaveLength(1)
+  void act(() => tree.update(<></>))
 })

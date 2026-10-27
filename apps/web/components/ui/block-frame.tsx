@@ -184,7 +184,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
 
 
   return (
-    <motion.section layout={configuration.changeDuration > 0 ? "size" : false}
+    <motion.section data-conversation-block="" layout={configuration.changeDuration > 0 ? "size" : false}
       transition={{ duration: configuration.changeDuration / 1000, ease: configuration.easing }}
       className="flex max-h-full min-h-0 flex-col gap-3 bg-[var(--bg-card)] text-[var(--fg-1)]"
       data-state={props.state}

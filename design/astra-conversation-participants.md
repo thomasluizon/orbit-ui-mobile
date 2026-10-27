@@ -30,8 +30,9 @@ reply. It shows the mark after a user message or in an empty thread, and omits t
 The pending reply shares this geometry: mark row at the thread inset when starting an Astra
 run, then an 8px gap before the indicator at the same content edge as the first reply. Pending,
 running tool activity and completed content use the same run boundary. The pending indicator is
-replaced immediately without reply entrance motion; the stable polite working announcement
-remains outside the busy feed.
+replaced immediately. New replies and their blocks rise and fade with the shared conversation
+tokens while remaining visible and actionable. History stays still. The stable polite working
+announcement remains outside the busy feed.
 
 ## Verification owners
 
@@ -69,3 +70,23 @@ prose. Old entries can adopt their first valid block while retaining identity an
 existing typed snapshots keep their original read and refresh owner. Missing, malformed and
 unknown sole parts retain visible legacy content. Paired Vitest cases render every proactive
 trigger in both locales and verify one block without the legacy prose.
+
+## Conversation motion
+
+Both message renderers use `resolveConversationMotion` from the shared theme. New user messages
+rise from the composer edge; pending replies and newly delivered answer parts use bounded
+sequencing. Provisional stream deltas retain the final-answer boundary and never become visible
+through animation. Motion changes presentation without postponing delivery, mutations or taps.
+
+Read refreshes and preview revisions retain their operation identity and fade their changed
+content. Block frames use library layout transitions for preview outcomes and Show more height
+changes. Composer growth and shrinkage use the same library layout timing. The shell groups the
+web composer layout identity across Hoje and the conversation; Android measures the source
+composer and translates its destination from that position. Draft and focus owners stay intact.
+Reduced motion removes travel, layout animation and sequencing, and settles active fades.
+
+The web content resize observer and Android content-size and keyboard owners preserve following
+the newest item through layout changes. Reading earlier content still suspends following.
+Vitest covers the timing configuration, live preference changes, immediate controls, stream
+replacement, block actions, composer sizing and the existing participant geometry on both platforms.
+Native rasterization and device motion remain outside these hermetic checks.

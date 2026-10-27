@@ -1,3 +1,6 @@
+import { ConversationComposerMotion } from './conversation-composer-motion'
+import Reanimated from 'react-native-reanimated'
+import { useConversationLayout } from '@/components/chat/conversation-motion'
 import { useTranslation } from 'react-i18next'
 import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
@@ -295,6 +298,7 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange, availableWi
   availableWidth: number | undefined
   onPasteFit: (fits: boolean) => void
 }>) {
+  const layout = useConversationLayout()
   const { t } = useTranslation()
   const { fontScale } = useWindowDimensions()
   const [contentHeight, setContentHeight] = useState(48)
@@ -312,7 +316,7 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange, availableWi
   const inputDisabled = !isComposerEditable(props.state)
   const canSend = !inputDisabled && hasComposerContent(props.value, props.attachments)
   return (
-<View testID="composer-text-slot" style={[styles.textSlot, { minHeight: inputHeight }]}>
+<Reanimated.View layout={layout} testID="composer-text-slot" style={[styles.textSlot, { minHeight: inputHeight }]}>
         <Text testID="composer-input-minimum" pointerEvents="none" accessible={false}
           importantForAccessibility="no-hide-descendants" numberOfLines={1}
           style={[styles.inputMetrics, styles.inputMinimum]}>{props.words.inputLabel ?? props.words.placeholder}</Text>
@@ -366,7 +370,7 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange, availableWi
           onLayout={event => setPlaceholderHeight({ fontScale, height: event.nativeEvent.layout.height })}
           style={[styles.placeholder, { color: tokens.fg3 }, inputDisabled ? styles.disabled : null]}
         >{props.words.placeholder}</Text> : null}
-        </View>
+        </Reanimated.View>
   )
 }
 
@@ -480,7 +484,7 @@ function ComposerInputRow({ props, tokens, inputRef, disclosure }: Readonly<{ pr
   function clearMessage() { props.onChangeValue(''); inputRef.current?.focus() }
 
   return (
-    <View testID="composer-field" onLayout={event => measureWidth('field', event)} style={[styles.field, { backgroundColor: tokens.bgField }]}>
+    <ConversationComposerMotion source={!!props.onOpenConversation} destination={!!props.autoFocus} testID="composer-field" onLayout={event => measureWidth('field', event)} style={[styles.field, { backgroundColor: tokens.bgField }]}>
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.fieldOutline, composerFieldStyle(tokens, focused, inputDisabled)]} />
       <View testID="composer-leading-controls" style={styles.leadingControls}>
       {props.onOpenConversation && props.conversationLabel ? (
@@ -522,7 +526,7 @@ function ComposerInputRow({ props, tokens, inputRef, disclosure }: Readonly<{ pr
         <ArrowUp size={20} strokeWidth={2} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} />
       </InsetFocusPressable>
       </View>
-    </View>
+    </ConversationComposerMotion>
   )
 }
 

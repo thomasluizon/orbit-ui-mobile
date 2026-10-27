@@ -435,7 +435,15 @@ export function shouldDismissSheet(offset: number, velocity: number): boolean {
     || offset + velocity * sheetDrag.projectionSeconds >= sheetDrag.dismissDistance)
 }
 
-export function resolveConversationMotion(reducedMotion: boolean, index = 0) {
+export interface ConversationMotion {
+  readonly duration: number
+  readonly changeDuration: number
+  readonly shift: number
+  readonly delay: number
+  readonly easing: MotionBezier
+}
+
+export function resolveConversationMotion(reducedMotion: boolean, index = 0): ConversationMotion {
   const preset = resolveMotionPreset('list-enter', reducedMotion)
   return {
     duration: reducedMotion ? motionDurations.instant : motionDurations.conversation,

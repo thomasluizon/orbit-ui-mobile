@@ -1,5 +1,8 @@
 'use client'
 
+import { motion } from 'motion/react'
+import { useConversationMotion } from '@/components/chat/conversation-motion'
+
 import { useTranslations } from 'next-intl'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -314,6 +317,7 @@ function useTextActionMenu(inputRef: React.RefObject<HTMLTextAreaElement | null>
 const composerInputMetrics = 'px-2 py-3 text-base'
 
 function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerProps; disclosure?: React.ReactNode }>) {
+  const configuration = useConversationMotion()
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const inputLabel = props.words.inputLabel ?? props.words.placeholder
   const textActionInMenu = useTextActionMenu(inputRef, inputLabel, props.state)
@@ -361,7 +365,10 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
   function clearMessage() { props.onChangeValue(''); inputRef.current?.focus() }
 
   return (
-    <div data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex flex-wrap justify-end min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] [&_button:focus-visible]:outline-2 [&_button:focus-visible]:-outline-offset-2 [&_button:focus-visible]:outline-[var(--primary)] [&_button[data-focus-on-primary]:focus-visible]:shadow-[inset_0_0_0_4px_var(--bg)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
+    <motion.div layout={configuration.changeDuration > 0 ? "size" : false}
+      layoutId={configuration.changeDuration > 0 && (props.onOpenConversation || props.autoFocus) ? "astra-composer" : undefined}
+      transition={{ duration: configuration.changeDuration / 1000, ease: configuration.easing }}
+      data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex flex-wrap justify-end min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] [&_button:focus-visible]:outline-2 [&_button:focus-visible]:-outline-offset-2 [&_button:focus-visible]:outline-[var(--primary)] [&_button[data-focus-on-primary]:focus-visible]:shadow-[inset_0_0_0_4px_var(--bg)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
       <div data-composer-leading-controls className="flex w-max min-w-0 max-w-full grow shrink-0 items-end">
       {props.onOpenConversation && props.conversationLabel ? (
         <button
@@ -414,7 +421,7 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
         <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />
       </button>
       </div>
-    </div>
+    </motion.div>
   )
 }
 

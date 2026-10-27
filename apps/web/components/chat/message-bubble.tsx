@@ -1,6 +1,6 @@
 'use client'
 
-import { ConversationReveal, ConversationChange } from '@/components/chat/conversation-motion'
+import { ConversationReveal } from '@/components/chat/conversation-motion'
 
 import { SPACING } from '@orbit/shared/theme'
 import { useState } from 'react'
@@ -27,6 +27,9 @@ export function MessageBubble(props: Readonly<MessageBubbleProps & { senderLabel
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
   const { isUser, parts, showUnreadableReply, showOperationUpdate, relatedSurfaces, nonSuggestionActions, suggestions, outcomes } = getMessageBubbleView(props, dismissedBreakdowns)
   const operations = getMessageBubbleOperations(props, useChatStore.getState().transitionMessage)
+  const operationOffset = message.parts != null ? 0 : parts.length
+  const operationCount = suggestions.length + operations.clarifications.length + operations.pendingOperations.length + (outcomes.length > 0 ? 1 : 0)
+  const proseOffset = message.parts != null ? operationCount : 0
   function dismissBreakdown(key: string) {
     setDismissedBreakdowns(previous => new Set([...previous, key]))
   }
@@ -39,26 +42,26 @@ export function MessageBubble(props: Readonly<MessageBubbleProps & { senderLabel
 
         {!isUser && suggestions.length > 0 && (
           <div className="flex w-full flex-col gap-4">
-            {suggestions.map(({ key, ...suggestion }, index) => <ConversationReveal key={key} animate={animateEntry} index={index}><BreakdownSuggestion {...suggestion}
+            {suggestions.map(({ key, ...suggestion }, index) => <ConversationReveal key={key} animate={animateEntry} index={operationOffset + index}><BreakdownSuggestion {...suggestion}
               onConfirmed={() => onBreakdownConfirmed?.()} onCancelled={() => dismissBreakdown(key)} /></ConversationReveal>)}
           </div>
         )}
 
         {!isUser && operations.clarifications.length > 0 && (
           <div className="flex w-full flex-col gap-4">
-            {operations.clarifications.map(({ key, ...clarification }, index) => <ConversationReveal key={key} animate={animateEntry} index={index}><ClarificationCard {...clarification} /></ConversationReveal>)}
+            {operations.clarifications.map(({ key, ...clarification }, index) => <ConversationReveal key={key} animate={animateEntry} index={operationOffset + suggestions.length + index}><ClarificationCard {...clarification} /></ConversationReveal>)}
           </div>
         )}
 
         {!isUser && operations.pendingOperations.length > 0 && (
           <div className="flex w-full flex-col gap-4">
-            {operations.pendingOperations.map(({ key, ...operation }, index) => <ConversationReveal key={key} animate={animateEntry} index={index}><PendingOperationCard {...operation} /></ConversationReveal>)}
+            {operations.pendingOperations.map(({ key, ...operation }, index) => <ConversationReveal key={key} animate={animateEntry} index={operationOffset + suggestions.length + operations.clarifications.length + index}><PendingOperationCard {...operation} /></ConversationReveal>)}
           </div>
         )}
 
         {!isUser && outcomes.length > 0 && (
           <div className="flex w-full flex-col gap-4">
-            <OperationOutcomes outcomes={outcomes} />
+            <ConversationReveal animate={animateEntry} index={operationOffset + operationCount - 1}><OperationOutcomes outcomes={outcomes} /></ConversationReveal>
           </div>
         )}
   </>
@@ -82,7 +85,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps & { senderLabel
         {showOperationUpdate ? <p className="text-sm text-[var(--fg-2)]">{t('chat.operationUpdated')}</p> : null}
         {showUnreadableReply ? <p className="text-sm text-[var(--fg-2)]">{t('chat.unreadableReply')}</p> : null}
         {parts.map(part => {
-          if (part.type === 'block') return <ConversationReveal key={part.key} animate={animateEntry} index={part.key}><ChatBlock part={part.part} message={message} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={part.expired} onActionChipClick={onActionChipClick} /></ConversationReveal>
+          if (part.type === 'block') return <ConversationReveal key={part.key} animate={animateEntry} index={proseOffset + part.key}><ChatBlock part={part.part} message={message} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={part.expired} onActionChipClick={onActionChipClick} /></ConversationReveal>
           const prose = <div key={part.key}
             data-bubble-role={isUser ? 'user' : 'ai'}
             className={isUser
@@ -99,7 +102,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps & { senderLabel
             />}
             <Markdown copyableBlocks={!isUser} className="thread-prose" content={part.text} />
           </div>
-          return isUser ? prose : <ConversationReveal key={part.key} animate={animateEntry} index={part.key}><ConversationChange changeKey={props.isStreaming ? part.text : ''}>{prose}</ConversationChange></ConversationReveal>
+          return isUser ? prose : <ConversationReveal key={part.key} animate={animateEntry} index={proseOffset + part.key}>{prose}</ConversationReveal>
         })}
 
         {!isUser && relatedSurfaces.length > 0 && (
