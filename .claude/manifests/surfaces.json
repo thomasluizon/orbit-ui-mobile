@@ -7815,6 +7815,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-navigation-bottom-tab-bar",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/navigation/bottom-tab-bar.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/navigation/bottom-tab-bar.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-navigation-bottom-tab-bar",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/navigation/bottom-tab-bar.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/navigation/bottom-tab-bar.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-navigation-bottom-tab-bar",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/navigation/bottom-tab-bar.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/navigation/bottom-tab-bar.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-navigation-bottom-tab-bar",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/navigation/bottom-tab-bar.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/navigation/bottom-tab-bar.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-navigation-notification-detail-modal",
       "platform": "web",
       "kind": "overlay",
