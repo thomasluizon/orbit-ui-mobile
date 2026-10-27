@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { ListMotionItem, ListPresence, MotionDisclosure } from '@/components/motion/list-motion'
 
@@ -6,7 +6,7 @@ const preference = vi.hoisted(() => ({ reduced: false }))
 vi.mock('@/hooks/use-viewport-match', () => ({ useViewportMatch: () => preference.reduced }))
 
 describe('list motion', () => {
-  it('makes a departing row inert while the replacement accepts input immediately', () => {
+  it('makes a departing row inert while the replacement accepts input immediately', async () => {
     const onPress = vi.fn()
     const view = render(<ListPresence><ListMotionItem key="old"><button>Old</button></ListMotionItem></ListPresence>)
     view.rerender(<ListPresence><ListMotionItem key="new"><button onClick={onPress}>New</button></ListMotionItem></ListPresence>)
@@ -14,6 +14,7 @@ describe('list motion', () => {
     expect(departing).toHaveAttribute('aria-hidden', 'true')
     fireEvent.click(screen.getByRole('button', { name: 'New' }))
     expect(onPress).toHaveBeenCalledOnce()
+    await waitFor(() => expect(screen.queryByText('Old')).toBeNull())
   })
 
   it('removes collapsed children from interaction while their height settles', () => {

@@ -1599,6 +1599,7 @@ describe('HabitList', () => {
     try {
       const browser = await launch
       for (const mode of ['dark', 'light'] as const) {
+        await waitFor(() => expect(container.querySelector('[data-motion-disclosure]')).toHaveAttribute('hidden'))
         const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value};`).join('')
         const page = await browser.newPage()
         await page.setContent(`<html class="${mode}"><style>${stylesheet.css}:root{${variables}}</style><body style="background:var(--bg)">${container.innerHTML}</body></html>`)
