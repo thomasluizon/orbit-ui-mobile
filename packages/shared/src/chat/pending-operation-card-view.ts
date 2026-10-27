@@ -339,7 +339,7 @@ function previewRows<Node>(
       : results || card.status === 'failed' ? undefined : card.status
     const edited = revision?.editedItemIds.includes(item.itemId) === true
     const parentChoice = item.fieldOptions?.find((field) => field.field === 'parent_habit_id')
-    const summary = placementSummary(item, labels, Boolean(parentChoice))
+    const summary = placementSummary(item, pendingOperation, labels, Boolean(parentChoice))
     const parent: PendingOperationFrame<Node>['items'][number] = {
       id: item.itemId,
       label: item.fields.find((field) => ['title', 'name'].includes(field.field))?.newValue || item.entityName || labels.name,
@@ -380,9 +380,11 @@ function previewRows<Node>(
   return rows
 }
 
-function placementSummary(item: PreviewItem, labels: PendingOperationCardLabels, parentChoice: boolean): string {
+function placementSummary(item: PreviewItem, operation: PendingAgentOperation, labels: PendingOperationCardLabels, parentChoice: boolean): string {
   const placement = item.placement
-  const creating = !item.fields.some((field) => field.field === 'habit_id' || field.oldValue != null)
+  const creating = operation.actionKey === 'applyAccountChanges' && operation.capabilityId === 'chat.changes'
+    && item.fields.some((field) => ['frequency_unit', 'frequency_quantity', 'is_bad_habit', 'is_general', 'is_flexible', 'parent_habit_id', 'checklist_items', 'sub_habits'].includes(field.field))
+    && !item.fields.some((field) => field.field === 'habit_id' || field.oldValue != null)
   const summary = labels.summarize(item.fields.filter((field) => !(parentChoice || placement) || field.field !== 'parent_habit_id'), creating ? 'createHabit' : undefined)
   if (!placement) return summary || labels.pending
   const selected = labels.placementOption(placement.selected, placement.destinationName)

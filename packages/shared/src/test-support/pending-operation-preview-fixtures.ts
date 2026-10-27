@@ -39,7 +39,7 @@ export function makeCreateHabitsPreview(count = 12): PendingAgentOperation {
 
 export function makeSuggestionBatchPreview(update: 'none' | 'habit_id' | 'oldValue' = 'none'): PendingAgentOperation {
   const operation = makeCreateHabitsPreview(2)
-  return pendingAgentOperationSchema.parse({ ...operation, actionKey: 'applyAccountChanges',
+  return pendingAgentOperationSchema.parse({ ...operation, actionKey: 'applyAccountChanges', capabilityId: 'chat.changes',
     items: operation.items!.map((item, index) => {
       const fields = [
         ...item.fields,
