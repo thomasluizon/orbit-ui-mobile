@@ -103,7 +103,6 @@ jobs:
       run:
         shell: bash
     env:
-      ORBIT_WINDOWS_DOWNLOAD_CACHE: ${{ runner.temp }}/windows-app-sdk-downloads
       DESKTOP_VERSION: ${{ needs.validate.outputs.version }}
       DESKTOP_TARGET: ${{ matrix.target }}
       TAURI_SIGNING_PUBLIC_KEY: ${{ vars.TAURI_SIGNING_PUBLIC_KEY }}
@@ -125,11 +124,14 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: $PSVersionTable
+      - name: Point the Windows App SDK download cache
+        if: runner.os == 'Windows'
+        run: echo "ORBIT_WINDOWS_DOWNLOAD_CACHE=$RUNNER_TEMP/windows-app-sdk-downloads" >> "$GITHUB_ENV"
       - name: Cache Windows App SDK downloads
         if: runner.os == 'Windows'
         uses: actions/cache@v6
         with:
-          path: ${{ runner.temp }}/windows-app-sdk-downloads
+          path: ${{ env.ORBIT_WINDOWS_DOWNLOAD_CACHE }}
           key: ${{ runner.os }}-windows-app-sdk-${{ matrix.target }}-${{ hashFiles('apps/desktop/src-tauri/native/windows/downloads.json') }}
       - name: Install Rust and compilation target
         run: |

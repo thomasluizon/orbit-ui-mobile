@@ -3,7 +3,7 @@ import { createRequire } from 'node:module'
 import { expect, it } from 'vitest'
 
 interface Step { name?: string; uses?: string; if?: string; shell?: string; run?: string; with?: Record<string, string> }
-interface Workflow { jobs: Record<string, { uses?: string; env?: Record<string, string>; steps?: Step[] }> }
+interface Workflow { jobs: Record<string, { uses?: string; steps?: Step[] }> }
 const require = createRequire(import.meta.url)
 const { load } = require('js-yaml') as { load: (source: string) => Workflow }
 const workflow = (name: string) => load(readFileSync(new URL(`../../../.github/workflows/${name}.yml`, import.meta.url), 'utf8'))
@@ -14,7 +14,11 @@ it.each(['desktop-build', 'desktop-release'])('%s restores verified downloads be
   const cache = steps.find(step => step.name === 'Cache Windows App SDK downloads')!
   expect(cache.uses).toBe('actions/cache@v6')
   expect(cache.if).toBe("runner.os == 'Windows'")
-  expect(cache.with?.path).toBe(build.env?.ORBIT_WINDOWS_DOWNLOAD_CACHE)
+  const location = steps.find(step => step.name === 'Point the Windows App SDK download cache')!
+  expect(location.if).toBe("runner.os == 'Windows'")
+  expect(location.run).toBe('echo "ORBIT_WINDOWS_DOWNLOAD_CACHE=$RUNNER_TEMP/windows-app-sdk-downloads" >> "$GITHUB_ENV"')
+  expect(steps.indexOf(location)).toBeLessThan(steps.indexOf(cache))
+  expect(cache.with?.path).toBe('${{ env.ORBIT_WINDOWS_DOWNLOAD_CACHE }}')
   expect(cache.with?.key).toContain('matrix.target')
   expect(cache.with?.key).toContain("hashFiles('apps/desktop/src-tauri/native/windows/downloads.json')")
   expect(cache.with?.['restore-keys']).toBeUndefined()
