@@ -14,15 +14,15 @@ Check free disk first (`df -g /System/Volumes/Data`); the floor is 50 GiB (about
 
 ## Goal
 
-Finish the spec: every requested production fix, the owner's orders (`#1777` to `#1781` and `#1783`, `#1787`, `#1796`, `#1797`, `#1799`), the Astra overhaul (`#1740` and its children, `#1743`, `#1748`, `#1751`, `#1757`, `#1761`, `#1785`), the large-text defects `#1791` and `#1792`, `#1774`, `#1795`, `#1798`, `#1801`, `#1804`, the owner reports, verified releases and an empty board, in `## The order`. The owner wants to launch the app: drive everything to launch. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: 52 open, 52 placed, 0 unplaced, 0 twice. An external interruption is the only earlier ending.
+Finish the spec: every requested production fix, the owner's orders (`#1777` to `#1781` and `#1783`, `#1787`, `#1796`, `#1797`, `#1799`), the Astra overhaul (`#1740` and its children, `#1743`, `#1748`, `#1751`, `#1757`, `#1761`, `#1785`), the large-text defects `#1791` and `#1792`, `#1774`, `#1795`, `#1798`, `#1801`, `#1804`, the owner reports, verified releases and an empty board, in `## The order`. The owner wants to launch the app: drive everything to launch. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: 51 open, 51 placed, 0 unplaced, 0 twice. An external interruption is the only earlier ending.
 
 ## In flight
 
-UI `main` is `79e56f40f`, API `main` is `c11aeca7`, landing `main` is `14293563`. Staging web release of `be0aef2ff` (run 40464042942) was in progress at the relay (staging served `23185f761`); production web `ce85201ff`; staging and production API serve `c11aeca7` (production run 40464214754, verified). No worker is running. Start `tools/wait-ci.mjs` for every open pull request that has no live waiter.
+UI `main` is `79e56f40f`, API `main` is `c11aeca7`, landing `main` is `14293563`. Staging web serves `be0aef2ff` (run 40464042942, verified); production web `ce85201ff`; staging and production API serve `c11aeca7` (production run 40464214754, verified). No worker is running. Start `tools/wait-ci.mjs` for every open pull request that has no live waiter.
 
 | Item | Disposition |
 | --- | --- |
-| Staging web run 40464042942 | Read its result (`gh run view`); verify `https://app-staging.useorbit.org/api/health` serves `be0aef2ff`. On success, release staging web of the newest `main` (it adds `ui#2116`, `ui#2124` and `ui#2120`), then production web of the verified staging commit. Its four desktop jobs passing closes `#1803` (and `#1793`). |
+| Releases | Staging web serves `be0aef2ff` (run 40464042942, verified; `#1803` and `#1793` closed). Release staging web of the newest `main` (it adds `ui#2116`, `ui#2124` and `ui#2120`), then production web of the verified staging commit. |
 | `#1805` | Launch (harness, layout flake from `ui#2120`). |
 | `ui#2123` (`#1801`) | Round 1 `6ef3968e8` is pushed with both earlier threads resolved; CI is green but Pullfrog left one real P2, `PRRT_kwDOR5Siws6wk_af` (qualified negations such as "Read every day except for Sunday", "Read not this Sunday" and "Ler não no próximo domingo" become a Sunday schedule). Launch `launch-rb-ui.sh 1801 <worktree ticket-1801-negated-weekday-parser> fix/ticket-1801-negated-weekday-parser note-1801-rb2.md` with a recorded relaunch reason FIRST; answer and resolve the thread, body section, push once, CI, review, merge. Then launch `#1804`. |
 | `ui#2115` (`#1791`) | Round 1 plus main merge `5ba0fda7a` pushed; CI green but Pullfrog left one real P2, `PRRT_kwDOR5Siws6wlK81` (no keyboard path to the large content viewer). Launch `launch-rb-ui.sh 1791 <worktree ticket-1791-tab-bar-large-text> fix/ticket-1791-tab-bar-large-text note-1791-rb2.md` (deep, recorded relaunch reason); check its whole suites yourself, answer and resolve the thread, body section, push once, CI, review, merge, then the next Android Open. |
@@ -66,7 +66,7 @@ Unattended run. Never ask the owner; decide with the recommended option and log 
 - `#1798` in the recheck: not done (the account has no cap); carried with a free account.
 - `#1786` acceptance row: done (staging acceptance passed, production plan applied, production API `c11aeca7` verified, keys read back; `#1786` and `#1782` closed).
 - Gate 6 row: carried; its precondition `ui#2124` is done.
-- Releases row: advanced (production API `c11aeca7` verified; staging web `be0aef2ff` dispatched); production web and Android Open carried.
+- Releases row: advanced (production API `c11aeca7` and staging web `be0aef2ff` verified; `#1803` and `#1793` closed); production web and Android Open carried.
 - `ui#2108`, `orbit-api#903`, staging web checks, `#1760`, `#1794`, `#1779`, `#1739`, `#1778`, `#1793`, `#1796`: carried.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
