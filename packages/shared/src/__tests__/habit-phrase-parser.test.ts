@@ -235,6 +235,43 @@ const everyDay = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satur
 
 describe('weekday negation', () => {
   it.each([
+    ['en', 'Read every day except for Sunday'],
+    ['en', 'Read not this Sunday'],
+    ['en', 'Read but not next Saturday'],
+    ['pt-BR', 'Ler todo dia exceto no próximo domingo'],
+    ['pt-BR', 'Ler não no próximo domingo'],
+    ['pt-BR', 'Ler menos neste sábado'],
+  ] as const)('leaves qualified weekday negation unresolved across consumers: %s %s', (locale, input) => {
+    const read = readHabitPhrase(input, locale)
+    expect(read).toMatchObject({ cadence: null, days: [], intervalWeeks: null, consumed: [] })
+    expect(segmentHabitPhrase(input, read.consumed)).toEqual([{ text: input, consumed: false }])
+    expect(buildOnboardingScheduleFromPhrase(input, locale)).toMatchObject({ days: [], frequencyUnit: null, isGeneral: true })
+    expect(readTypedHabitPhrase(input, locale, 'habit', false)).toMatchObject({ cadence: null, days: [], consumed: [] })
+    expect(getHabitPhraseTitle(input, locale)).toBe(input)
+    expect(readHabitRecurrencePhrase(input)).toBeNull()
+    expect(readDateWeekday(input)).toBeNull()
+  })
+
+  it.each([
+    { locale: 'en', activity: 'Read', negations: ['except', 'except for', 'but not', 'not', 'never', 'excluding', 'without', "don't", 'cannot'], weekdays: ['for Sunday', 'this Sunday', 'next Sunday', 'on this Sunday', 'on the next Sunday', 'in the coming Sundays', 'on the following Tuesdays'], clock: 'at 8' },
+    { locale: 'pt-BR', activity: 'Ler', negations: ['menos', 'exceto', 'sem ser', 'não', 'nunca', 'tirando', 'salvo', 'sem'], weekdays: ['o próximo domingo', 'no próximo domingo', 'neste domingo', 'nesse domingo', 'em um próximo domingo', 'nas próximas terças-feiras'], clock: 'às 8' },
+  ] as const)('retains qualified negated weekdays and an independent clock in $locale', ({ locale, activity, negations, weekdays, clock }) => {
+    for (const negation of negations) {
+      for (const weekday of weekdays) {
+        const phrase = `${activity} ${negation} ${weekday} ${clock}`
+        for (const input of [phrase, phrase.toUpperCase(), phrase.normalize('NFD'), phrase.replaceAll(' ', '\t  ')]) {
+          const read = readHabitPhrase(input, locale)
+          expect(read, input).toMatchObject({ cadence: null, days: [], intervalWeeks: null, dueTime: '08:00' })
+          expect(read.consumed.map((token) => token.kind), input).toEqual(['time'])
+          const unread = segmentHabitPhrase(input, read.consumed).filter((segment) => !segment.consumed).map((segment) => segment.text).join('')
+          expect(unread.toLowerCase().normalize('NFD').replace(/\s+/gu, ' '), input).toContain(weekday.toLowerCase().normalize('NFD'))
+          expect(buildOnboardingScheduleFromPhrase(input, locale), input).toMatchObject({ days: [], frequencyUnit: null, isGeneral: true, dueTime: '08:00' })
+        }
+      }
+    }
+  })
+
+  it.each([
     ['en', 'Meditate every day except Sunday at 8 and Saturday'],
     ['pt-BR', 'Meditar todo dia menos domingo às 8 e sábado'],
   ] as const)('keeps clock and exclusion spans disjoint: %s %s', (locale, input) => {

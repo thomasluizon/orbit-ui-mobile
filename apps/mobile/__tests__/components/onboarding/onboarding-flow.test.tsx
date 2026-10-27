@@ -244,14 +244,26 @@ describe('OnboardingFlow state model', () => {
     expect(headerCounter(tree)).toBe('Orbit · 02 / 03')
   })
 
-  it('keeps menos aos domingos unresolved and permits a manual Monday schedule', async () => {
-    mocks.locale = 'pt-BR'
+  it.each([
+    { locale: 'pt-BR', sentence: 'Meditar dez minutos depois do café, menos aos domingos' },
+    { locale: 'en', sentence: 'Read every day except for Sunday' },
+    { locale: 'en', sentence: 'Read not this Sunday' },
+    { locale: 'en', sentence: 'Read but not next Saturday' },
+    { locale: 'pt-BR', sentence: 'Ler todo dia exceto no próximo domingo' },
+    { locale: 'pt-BR', sentence: 'Ler não no próximo domingo' },
+    { locale: 'pt-BR', sentence: 'Ler menos neste sábado' },
+  ])('keeps $sentence unresolved and permits a manual Monday schedule', async ({ locale, sentence }) => {
+    mocks.locale = locale
     mocks.realProposal = true
     const tree = await mount(false)
-    await enterSentence(tree, 'Meditar dez minutos depois do café, menos aos domingos')
+    await enterSentence(tree, sentence)
     await click(tree, 'onboarding.flow.continue')
     const sunday = byType(tree.root, 'Pressable').find((node) => node.props.accessibilityLabel === 'onboarding.flow.when.daysLong.sunday')!
     expect(prop<{ selected: boolean }>(sunday, 'accessibilityState').selected).toBe(false)
+    for (const day of ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']) {
+      const button = byType(tree.root, 'Pressable').find((node) => node.props.accessibilityLabel === `onboarding.flow.when.daysLong.${day}`)!
+      expect(prop<{ selected: boolean }>(button, 'accessibilityState').selected).toBe(false)
+    }
     const monday = byType(tree.root, 'Pressable').find((node) => node.props.accessibilityLabel === 'onboarding.flow.when.daysLong.monday')!
     await TestRenderer.act(() => prop<() => void>(monday, 'onPress')())
     await click(tree, 'onboarding.flow.create')

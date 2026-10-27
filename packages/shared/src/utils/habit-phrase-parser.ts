@@ -200,7 +200,7 @@ function matchWeekdays(text: string, patterns: LocalePatterns) {
 }
 
 function hasWeekdayNegation(text: string, locale: SupportedLocale): boolean {
-  return /\b(?:menos|exceto|sem(?: ser)?|nao|nunca|salvo|tirando|except|excluding|not|never|without|don't|cannot)\s+(?:(?:on|aos|as|no|nos|nas|na|a|o|every|each|toda|todas)\s+)*$/u.test(text)
+  return /\b(?:menos|exceto|sem(?: ser)?|nao|nunca|salvo|tirando|except|excluding|not|never|without|don't|cannot)\s+(?:(?:on|in|at|for|from|to|of|the|an|this|that|these|those|next|last|coming|upcoming|following|every|each|ao|aos|as|no|nos|nas|na|a|o|os|em|de|do|dos|da|das|para|um|uma|uns|umas|proxim[ao]s?|nest[ea]s?|ness[ea]s?|est[ea]s?|ess[ea]s?|tod[ao]s?)\s+)*$/u.test(text)
     || (locale === 'en' && /\bno\s+$/u.test(text))
 }
 

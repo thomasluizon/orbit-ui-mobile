@@ -382,15 +382,25 @@ describe('OnboardingFlow state model', () => {
     expect(headerCounter()).toBe('Orbit · 02 / 03')
   })
 
-  it('keeps menos aos domingos unresolved and permits a manual Monday schedule', async () => {
-    mocks.locale = 'pt-BR'
+  it.each([
+    { locale: 'pt-BR', sentence: 'Meditar dez minutos depois do café, menos aos domingos' },
+    { locale: 'en', sentence: 'Read every day except for Sunday' },
+    { locale: 'en', sentence: 'Read not this Sunday' },
+    { locale: 'en', sentence: 'Read but not next Saturday' },
+    { locale: 'pt-BR', sentence: 'Ler todo dia exceto no próximo domingo' },
+    { locale: 'pt-BR', sentence: 'Ler não no próximo domingo' },
+    { locale: 'pt-BR', sentence: 'Ler menos neste sábado' },
+  ])('keeps $sentence unresolved and permits a manual Monday schedule', async ({ locale, sentence }) => {
+    mocks.locale = locale
     mocks.realProposal = true
     mount(false)
-    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Meditar dez minutos depois do café, menos aos domingos' } })
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: sentence } })
     fireEvent.click(screen.getByRole('button', { name: 'continue' }))
     const sunday = await screen.findByRole('button', { name: 'when.daysLong.sunday' })
     expect(sunday).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('button', { name: 'when.daysLong.monday' })).toHaveAttribute('aria-pressed', 'false')
+    for (const day of ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']) {
+      expect(screen.getByRole('button', { name: `when.daysLong.${day}` })).toHaveAttribute('aria-pressed', 'false')
+    }
     fireEvent.click(screen.getByRole('button', { name: 'when.daysLong.monday' }))
     fireEvent.click(screen.getByRole('button', { name: 'create' }))
     await screen.findByTestId('reminder-state')
