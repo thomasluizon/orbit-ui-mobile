@@ -187,7 +187,7 @@ export function HabitRow({
   const wellSize = isChild ? 32 : 46
   const wellRadius = 12
 
-  const rowPadding = habitRowPadding(isChild, supportingMeta)
+  const rowPadding = habitRowPadding(isChild, supportingMeta, largeText)
   const rowPrimaryAction = selectMode ? onToggleSelection : onDetail
 
   function handleRowClick() {
@@ -308,10 +308,9 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
   const t = useTranslations()
   const contentId = useId()
   const activation = useHabitRowActivation(onClick)
-  const reorder = habitRowReorderProps(onReorder, reorderInstructionsId, t('dragAndDrop.roleDescription'))
+  const reorder = habitRowReorderProps(onReorder)
   const accessibleLabel = [label, meta.filter((token) => typeof token === 'string' || token.kind !== 'type').map((token) => typeof token === 'string' ? token : token.label).join('·')].filter(Boolean).join(' ')
   const layoutClass = supportingMeta ? 'grid grid-cols-subgrid grid-rows-subgrid' : 'flex'
-  const paddingStyle = { ...rowPadding, gap: supportingMeta ? undefined : 12, rowGap: supportingMeta ? 0 : undefined, alignItems: largeText ? 'flex-start' : undefined }
   const control = (
       <button
         type="button"
@@ -323,9 +322,10 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
         }}
         data-habit-row-body=""
         aria-label={accessibleLabel}
+        aria-roledescription={onReorder ? t('dragAndDrop.roleDescription') : undefined}
         aria-describedby={[descriptionId, reorderInstructionsId].filter(Boolean).join(' ')}
         className={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 flex-1 items-center self-stretch overflow-hidden rounded-[20px] appearance-none border-0 bg-transparent text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]`}
-        style={paddingStyle}
+        style={rowPadding}
       >
         {supportingMeta ? (
           <div data-habit-row-heading="" className="col-start-1 row-start-1 flex min-w-0 items-start" style={{ gap: 12, minHeight: isChild ? 52 : 68, paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8, paddingBlockEnd: descriptionId ? SPACING.s4 : undefined }}>
@@ -335,7 +335,7 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
         {supportingMeta ? <HabitRowSupportingFooter meta={meta} largeText={largeText} descriptionPresent={Boolean(descriptionId)} /> : null}
       </button>
   )
-  return independentText ? <PersonalTextAction label={accessibleLabel} contentId={contentId} className={supportingMeta ? 'col-start-1 col-span-full row-start-1 row-span-2 grid grid-cols-subgrid grid-rows-subgrid' : 'flex-1 self-stretch'} contentClassName={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 items-center self-stretch rounded-[20px] text-left`} contentStyle={paddingStyle} control={control} /> : control
+  return independentText ? <PersonalTextAction label={accessibleLabel} contentId={contentId} className={supportingMeta ? 'col-start-1 col-span-full row-start-1 row-span-2 grid grid-cols-subgrid grid-rows-subgrid' : 'flex-1 self-stretch'} contentClassName={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 items-center self-stretch rounded-[20px] text-left`} contentStyle={rowPadding} control={control} /> : control
 }
 
 function HabitRowSupportingFooter({ meta, largeText, descriptionPresent }: Readonly<{
@@ -376,7 +376,7 @@ function HabitRowLayout({ measureRef, habitId, habitTitle, depth, state, selecte
   )
 }
 
-function habitRowReorderProps(onReorder: ((direction: -1 | 1) => void) | undefined, reorderInstructionsId: string | undefined, roleDescription: string) {
+function habitRowReorderProps(onReorder: ((direction: -1 | 1) => void) | undefined) {
   if (!onReorder) return {}
   return {
     onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => {
@@ -384,17 +384,18 @@ function habitRowReorderProps(onReorder: ((direction: -1 | 1) => void) | undefin
       event.preventDefault()
       onReorder(event.key === 'ArrowUp' ? -1 : 1)
     },
-    'aria-roledescription': roleDescription,
     'aria-keyshortcuts': 'Alt+ArrowUp Alt+ArrowDown',
-    'aria-describedby': reorderInstructionsId,
   }
 }
 
-function habitRowPadding(isChild: boolean, supportingMeta: boolean): CSSProperties {
+function habitRowPadding(isChild: boolean, supportingMeta: boolean, largeText: boolean): CSSProperties {
   const defaultPaddingBlock = isChild ? SPACING.s4 : SPACING.s8
   return {
     paddingBlock: supportingMeta ? SPACING.s0 : defaultPaddingBlock,
     paddingInlineStart: SPACING.s8,
     paddingInlineEnd: supportingMeta ? SPACING.s0 : SPACING.s4,
+    gap: supportingMeta ? undefined : 12,
+    rowGap: supportingMeta ? 0 : undefined,
+    alignItems: largeText ? 'flex-start' : undefined,
   }
 }

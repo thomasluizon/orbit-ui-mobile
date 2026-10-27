@@ -28,6 +28,45 @@ function leaveAndReturn(hidden: boolean) {
 }
 
 describe.each([false, true])('habit row activation, selecting=%s', (selectMode) => {
+  it('accepts the first focused tap without waiting for a window focus event', async () => {
+    const { body, primary } = renderRow(selectMode)
+    await userEvent.setup().click(body)
+    expect(primary).toHaveBeenCalledOnce()
+  })
+
+  it('accepts a new focused press when the window focus event was missed', async () => {
+    const { body, actions, primary } = renderRow(selectMode)
+    fireEvent(window, new Event('blur'))
+    await userEvent.setup().click(body)
+    expect(primary).toHaveBeenCalledOnce()
+    expect(selectMode ? actions.onDetail : actions.onToggleSelection).not.toHaveBeenCalled()
+  })
+
+  it.each(['Enter', ' '])('rejects %s when mounted in an unfocused window', (key) => {
+    vi.mocked(document.hasFocus).mockReturnValue(false)
+    const { body, primary } = renderRow(selectMode)
+    body.focus()
+    fireEvent.keyDown(body, { key })
+    fireEvent.keyUp(body, { key })
+    expect(primary).not.toHaveBeenCalled()
+  })
+
+  it.each(['Enter', ' '])('accepts a fresh %s after focus returns without a window focus event', (key) => {
+    vi.mocked(document.hasFocus).mockReturnValue(false)
+    const { body, primary } = renderRow(selectMode)
+    body.focus()
+    vi.mocked(document.hasFocus).mockReturnValue(true)
+    fireEvent.keyDown(body, { key })
+    fireEvent.keyUp(body, { key })
+    expect(primary).toHaveBeenCalledOnce()
+  })
+
+  it('keeps accessibility activation available without pointer events', () => {
+    const { body, primary } = renderRow(selectMode)
+    fireEvent.click(body, { detail: 0 })
+    expect(primary).toHaveBeenCalledOnce()
+  })
+
   it.each([false, true])('discards a press across focus loss, hidden=%s', async (hidden) => {
     const user = userEvent.setup()
     const { body, actions, primary } = renderRow(selectMode)
@@ -111,4 +150,20 @@ describe.each([false, true])('habit row activation, selecting=%s', (selectMode) 
     fireEvent.keyUp(body, { key: ' ' })
     expect(primary).toHaveBeenCalledOnce()
   })
+})
+
+it('retains the drag description and reorder shortcuts without opening detail', () => {
+  const onDetail = vi.fn()
+  const onReorder = vi.fn()
+  const { container } = render(<HabitRow habit={createMockHabit({ title: 'Read' })}
+    actions={{ onDetail, onReorder }} reorderInstructionsId="reorder-instructions" />)
+  const body = container.querySelector<HTMLButtonElement>('[data-habit-row-body]')!
+  expect(body).toHaveAttribute('aria-roledescription', 'dragAndDrop.roleDescription')
+  expect(body).toHaveAttribute('aria-describedby', 'reorder-instructions')
+  expect(body).toHaveAttribute('aria-keyshortcuts', 'Alt+ArrowUp Alt+ArrowDown')
+  body.focus()
+  fireEvent.keyDown(body, { key: 'ArrowUp', altKey: true })
+  fireEvent.keyDown(body, { key: 'ArrowDown', altKey: true })
+  expect(onReorder.mock.calls).toEqual([[-1], [1]])
+  expect(onDetail).not.toHaveBeenCalled()
 })

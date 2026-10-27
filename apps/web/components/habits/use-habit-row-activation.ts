@@ -3,13 +3,14 @@
 import { useEffect, useRef, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react'
 
 export function useHabitRowActivation(onActivate: () => void) {
-  const gesture = useRef({ focused: true, cancelled: false, pointer: null as number | null, released: false, space: false })
+  const gesture = useRef({ focused: false, cancelled: false, pointer: null as number | null, released: false, space: false })
 
   function cancel() {
     Object.assign(gesture.current, { cancelled: true, pointer: null, released: false, space: false })
   }
 
   useEffect(() => {
+    gesture.current.focused = document.hasFocus()
     const blur = () => { gesture.current.focused = false; cancel() }
     const focus = () => { gesture.current.focused = true }
     const visibility = () => { if (document.visibilityState === 'hidden') cancel() }
@@ -29,7 +30,8 @@ export function useHabitRowActivation(onActivate: () => void) {
 
   function onPointerDown(event: PointerEvent<HTMLButtonElement>) {
     cancel()
-    if (available() && document.hasFocus() && event.button === 0 && !modified(event)) {
+    gesture.current.focused = document.hasFocus()
+    if (available() && event.button === 0 && !modified(event)) {
       gesture.current.pointer = event.pointerId
     }
   }
@@ -42,7 +44,8 @@ export function useHabitRowActivation(onActivate: () => void) {
   }
 
   function onClick(event: MouseEvent<HTMLButtonElement>) {
-    const accepted = available() && !gesture.current.cancelled && !modified(event) && (event.detail === 0 || gesture.current.released)
+    const accepted = document.visibilityState !== 'hidden' && !gesture.current.cancelled && !modified(event) &&
+      (event.detail === 0 || (available() && document.hasFocus() && gesture.current.released))
     gesture.current.released = false
     if (accepted) onActivate()
   }
@@ -50,6 +53,7 @@ export function useHabitRowActivation(onActivate: () => void) {
   function onKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
     if (event.key !== 'Enter' && event.key !== ' ') { cancel(); return }
     event.preventDefault()
+    gesture.current.focused = document.hasFocus()
     if (!available() || modified(event) || event.currentTarget !== document.activeElement) { cancel(); return }
     if (event.repeat) return
     cancel()
@@ -58,7 +62,7 @@ export function useHabitRowActivation(onActivate: () => void) {
   }
 
   function onKeyUp(event: KeyboardEvent<HTMLButtonElement>) {
-    const completed = gesture.current.space && event.key === ' ' && available() && !modified(event) && event.currentTarget === document.activeElement
+    const completed = gesture.current.space && event.key === ' ' && available() && document.hasFocus() && !modified(event) && event.currentTarget === document.activeElement
     cancel()
     if (event.key === ' ') event.preventDefault()
     if (completed) onActivate()
