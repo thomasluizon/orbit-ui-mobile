@@ -3,6 +3,17 @@
 > **At a glance** - the granted canvas export and design tokens for every redesign surface.
 > Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
 
+### One Astra drawing amendment (#1797)
+
+Under D42, the owner's order amends every small Astra variant in the granted drawings:
+"i dont understand this mini astra logo that is not even centralized vertically, on the top left and on the prompt suggestions, change to the normal logo and centralize it".
+Every `AstraGlyph` uses the normal drawing at every size on web and Android. Its shared viewBox
+fits the drawn bounds, and the drawn centre aligns with its row, chip, button or header centre.
+Conversation headers, suggestion and follow-up chips, Hoje composer entries and Astra lines,
+idea cards, proactive actions and form fill controls retain their existing size and colour tokens.
+The normal mark remains legible at 16px without a second drawing or local positioning offsets.
+This amendment supersedes any native 16px Astra drawing in the export.
+
 ### Form presentation and Astra affordance amendment (#1607)
 
 Type stays first. Short RadioRow content centres within the existing 52px minimum; wrapped

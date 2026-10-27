@@ -70,7 +70,7 @@ describe('PillButton', () => {
         await settleFocusAnimations(button, undefined, !loading)
         if (!loading) expect(await button.evaluate((element) => element.getAnimations({ subtree: true }).filter((animation) => animation.playState === 'running').length)).toBe(0)
         expect(await button.evaluate((element) => element.matches(':focus'))).toBe(true)
-        expect(await button.locator('[data-asset="astra-mark-16"]').count()).toBe(1)
+        expect(await button.locator('[data-asset="astra-mark"]').count()).toBe(1)
         expect(await button.getAttribute('aria-busy')).toBe(loading ? 'true' : null)
       } finally {
         await page.close()

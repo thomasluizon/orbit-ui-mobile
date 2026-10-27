@@ -41,7 +41,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBR]] as const) {
         await expect(strip.getByRole('button').first()).toHaveAccessibleName(messages.shell.composer.chips.today.logLastDays)
         await expect(logLastDays).toHaveText(messages.shell.composer.chips.today.logLastDays)
         for (const chip of await strip.getByRole('button').all()) {
-          await expect(chip.locator('[data-asset="astra-mark-16"]')).toHaveCount(1)
+          await expect(chip.locator('[data-asset="astra-mark"]')).toHaveCount(1)
           const label = await chip.locator('[data-suggestion-label]').innerText()
           await expect(chip).toHaveAccessibleName(label)
           await expect(chip).toHaveText(label)

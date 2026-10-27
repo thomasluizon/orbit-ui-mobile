@@ -182,8 +182,12 @@ describe('Composer compact geometry in Chromium', () => {
                 })
                 if (!sharesLine) combinedLines.push(fragment)
               }
+              const mark = button.querySelector<SVGSVGElement>('[data-asset="astra-mark"]')!
+              const ink = mark.getBBox()
+              const drawnCentre = new DOMPoint(ink.x + ink.width / 2, ink.y + ink.height / 2).matrixTransform(mark.getScreenCTM()!)
+              const firstLineCentre = button.querySelector('[data-suggestion-content]')!.getBoundingClientRect().top + parseFloat(style.lineHeight) / 2
               const attribution = [...button.querySelectorAll<HTMLElement>('[translate="no"]')]
-              const marks = [...button.querySelectorAll<SVGElement>('[data-asset="astra-mark-16"]')]
+              const marks = [...button.querySelectorAll<SVGElement>('[data-asset="astra-mark"]')]
               return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height,
                 label: text.textContent, accessibleName: button.getAttribute('aria-label'), lines: lines.length, textOverflow: style.textOverflow,
                 combinedText: text.parentElement!.textContent, combinedLines: combinedLines.length,
@@ -194,7 +198,7 @@ describe('Composer compact geometry in Chromium', () => {
                   return ink.left >= bounds.left && ink.right <= bounds.right && ink.top >= bounds.top && ink.bottom <= bounds.bottom
                 }),
                 marks: marks.length, decorative: marks.every(mark => mark.getAttribute('aria-hidden') === 'true'),
-                iconTop: button.querySelector('svg')!.getBoundingClientRect().top, firstLineTop: lines[0]!.top }
+                drawnCentre: drawnCentre.y, firstLineCentre }
             })
             const partial = controls.find(control => control.left < viewport.right && control.right > viewport.right)
             return { viewport: viewport.width, available: element.parentElement!.getBoundingClientRect().width,
@@ -224,7 +228,7 @@ describe('Composer compact geometry in Chromium', () => {
             expect(control.height, evidence).toBeGreaterThanOrEqual(48)
             expect(control.width, evidence).toBeLessThanOrEqual(measured.viewport)
             if (fontScale === 1) expect(control.lines, evidence).toBe(1)
-            if (control.lines > 1) expect(Math.abs(control.iconTop - control.firstLineTop), evidence).toBeLessThanOrEqual(8)
+            expect(Math.abs(control.drawnCentre - control.firstLineCentre), evidence).toBeLessThanOrEqual(1)
           }
           await strip.locator('button').last().evaluate(element => (element as HTMLElement).blur())
           await strip.locator('button').last().focus()
