@@ -18,14 +18,14 @@ Finish the spec: every requested production fix, the owner's orders (`#1777` to 
 
 ## In flight
 
-UI `main` is `a7cfcff18`, API `main` is `c11aeca7`, landing `main` is `14293563`. Staging web release of `be0aef2ff` (run 40464042942) was in progress at the relay (staging served `23185f761`); production web `ce85201ff`; staging and production API serve `c11aeca7` (production run 40464214754, verified). No worker is running. Start `tools/wait-ci.mjs` for every open pull request that has no live waiter.
+UI `main` is `79e56f40f`, API `main` is `c11aeca7`, landing `main` is `14293563`. Staging web release of `be0aef2ff` (run 40464042942) was in progress at the relay (staging served `23185f761`); production web `ce85201ff`; staging and production API serve `c11aeca7` (production run 40464214754, verified). No worker is running. Start `tools/wait-ci.mjs` for every open pull request that has no live waiter.
 
 | Item | Disposition |
 | --- | --- |
-| Staging web run 40464042942 | Read its result (`gh run view`); verify `https://app-staging.useorbit.org/api/health` serves `be0aef2ff`. On success, release staging web of the newest `main` (it adds `ui#2116` and `ui#2124`), then production web of the verified staging commit. Its four desktop jobs passing closes `#1803` (and `#1793`). |
-| `ui#2120` (`#1797`) | Approved `b90b3a71c`, 0 threads; one layout case failed (`interaction-fill-clearance.spec.ts:57`, `/r/invalid` 1024 pt-BR, sidebar account row) and the failed jobs were rerun. Merge on green; if it fails again, check that case on clean `main` (flake: merge and ticket), else a review round. |
+| Staging web run 40464042942 | Read its result (`gh run view`); verify `https://app-staging.useorbit.org/api/health` serves `be0aef2ff`. On success, release staging web of the newest `main` (it adds `ui#2116`, `ui#2124` and `ui#2120`), then production web of the verified staging commit. Its four desktop jobs passing closes `#1803` (and `#1793`). |
+| `#1805` | Launch (harness, layout flake from `ui#2120`). |
 | `ui#2123` (`#1801`) | Round 1 `6ef3968e8` is pushed with both earlier threads resolved; CI is green but Pullfrog left one real P2, `PRRT_kwDOR5Siws6wk_af` (qualified negations such as "Read every day except for Sunday", "Read not this Sunday" and "Ler não no próximo domingo" become a Sunday schedule). Launch `launch-rb-ui.sh 1801 <worktree ticket-1801-negated-weekday-parser> fix/ticket-1801-negated-weekday-parser note-1801-rb2.md` with a recorded relaunch reason FIRST; answer and resolve the thread, body section, push once, CI, review, merge. Then launch `#1804`. |
-| `ui#2115` (`#1791`) | Round 1 plus main merge `5ba0fda7a` pushed. CI, review, merge, then the next Android Open. |
+| `ui#2115` (`#1791`) | Round 1 plus main merge `5ba0fda7a` pushed; CI green but Pullfrog left one real P2, `PRRT_kwDOR5Siws6wlK81` (no keyboard path to the large content viewer). Launch `launch-rb-ui.sh 1791 <worktree ticket-1791-tab-bar-large-text> fix/ticket-1791-tab-bar-large-text note-1791-rb2.md` (deep, recorded relaunch reason); check its whole suites yourself, answer and resolve the thread, body section, push once, CI, review, merge, then the next Android Open. |
 | `ui#2114` (`#1792`) | `4df24ad71` NOT pushed; its whole web suite ran detached in the scratchpad of the session three relays back (prefix `34eab4fe`, `web-suites-summary.txt`; it was still running). On exit 0: `npm ci` if needed, a `main` merge check, body section, push once, CI, review, merge. |
 | `ui#2102` (`#1774`) | `0caf9579d` NOT pushed; its whole web suite runs after the serial suites (`web-suite-1774-after.sh`, same summary file). On exit 0: body section for rounds 1 to 3, push once, CI, review, merge. |
 | `#1757` | Launch an `orbit-api` round 3 (deep) on the `get_habit_ranking` query at scale (spec bullet), then the same recheck. |
@@ -37,7 +37,7 @@ UI `main` is `a7cfcff18`, API `main` is `c11aeca7`, landing `main` is `14293563`
 | `#1783` | Android acceptance (spec bullet). |
 | `#1760`, `#1794`, `#1779`, `#1739`, `#1778`, `#1793`, `#1796` | As in their spec bullets. |
 
-Inventory: open pull requests `ui#2123`, `#2120`, `#2115`, `#2114`, `#2108`, `#2102`, this relay's `ui#1989`, `orbit-api#903`; landing none. Unpushed: `4df24ad71`, `0caf9579d`, `969146d89`. No dirty tree, no stash. Owner questions open: none. The staging scale fixture is deleted (0 habits, 0 logs). The browser's `orbit-onboarding-draft` on staging web is restored.
+Inventory: open pull requests `ui#2123`, `#2115`, `#2114`, `#2108`, `#2102`, this relay's `ui#1989`, `orbit-api#903`; landing none. Unpushed: `4df24ad71`, `0caf9579d`, `969146d89`. No dirty tree, no stash. Owner questions open: none. The staging scale fixture is deleted (0 habits, 0 logs). The browser's `orbit-onboarding-draft` on staging web is restored.
 
 ## Then, in this order
 
@@ -59,8 +59,8 @@ Unattended run. Never ask the owner; decide with the recommended option and log 
 - `ui#2123` row: advanced (round 1 `6ef3968e8` pushed, both threads resolved; a new P2 needs round 2, `note-1801-rb2.md`); carried.
 - `ui#2124` row: done (merged `a7cfcff18`; `#1800` and `#1802` closed).
 - `ui#2116` row: done (merged `9f3ff8e5a`).
-- `ui#2120` row: advanced (approved; one layout shard rerun); carried.
-- `ui#2115` row: advanced (web suite exit 0, harnesses pass, main merged, pushed `5ba0fda7a`); carried.
+- `ui#2120` row: done (merged `79e56f40f` after the rerun passed; the flake is `#1805`).
+- `ui#2115` row: advanced (web suite exit 0, harnesses pass, main merged, pushed `5ba0fda7a`; a new keyboard-access P2 needs round 2, `note-1791-rb2.md`); carried.
 - `ui#2114`, `ui#2102` rows: carried (their detached web suites had not finished).
 - `#1757` scale recheck row: done as a check (context load fixed, ranking tool still slow); a round 3 is carried.
 - `#1798` in the recheck: not done (the account has no cap); carried with a free account.
