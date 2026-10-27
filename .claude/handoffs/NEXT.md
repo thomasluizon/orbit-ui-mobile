@@ -18,11 +18,11 @@ Finish the spec: every requested production fix, the owner's orders (`#1823` to 
 
 ## In flight
 
-UI `main` is `3c400a19c` (`ui#2142`, `#1820`, merged during the drain), API `main` is `82fc57f2`, landing `main` is `14293563`. Staging web serves `28a164715` until run 40586017753 (`7a7e82400`) lands; production web `28a164715`; staging API serves `82fc57f2` (verified), production API `3b3d9069`.
+UI `main` is `3c400a19c` (`ui#2142`, `#1820`, merged during the drain), API `main` is `82fc57f2`, landing `main` is `14293563`. Staging web serves `7a7e82400` (verified); production web `28a164715`; staging API serves `82fc57f2` (verified), production API `3b3d9069`.
 
 | Item | Disposition |
 | --- | --- |
-| Staging web `7a7e82400` | Run 40586017753 dispatched (its macOS desktop test jobs sat queued on runners). Read it with `node tools/wait-release.mjs --repo ui --run 40586017753 --sha 7a7e8240099a09a64f21d6e3070640a729968e9b --workflow-sha 7a7e8240099a09a64f21d6e3070640a729968e9b --service-url https://app-staging.useorbit.org`; then production web of that verified commit (carries `#1821` and `#1825`). |
+| Production web | Staging web serves `7a7e82400` (run 40586017753, wait-release SUCCESS, `/api/health` ok). Dispatch production web of `7a7e8240099a09a64f21d6e3070640a729968e9b` through `/release` (carries `#1821` and `#1825`; `#1820` follows with the next staging web of `main`), then the production proof. |
 | `#26` gate rerun | Staging API `82fc57f2` carries `#960`, `#961`, `#962`. Fast-forward the root `orbit-api` checkout to `82fc57f2` (it was behind 5; `run-26-g6rerun.sh` refuses a mismatch), turn `astra_block_first` and `astra_eval_trace` on for the three eval accounts (list, change, list), run `run-26-g6rerun.sh` detached with `g6rerun-ids.txt`, triage onto `#1617`, `#1716`, `#1674`, `#1822`, then flags off. Then production API of the verified staging commit. |
 | `ui#2158` (`#1828`) | Delivered by the deep relaunch (`163f66089`, five commits: typed answers and shared block state, both clients, legacy answer recovery, focus after a blocked submit, exact decimal slider spans; worker log `#1828-*.log` in the orbit-workers temp directory). NOT yet read: read the whole diff (the new slider dependencies against the lockfile and `node tools/check-dependency-edits.mjs`, every colour and size against `DESIGN.md`), run `/second-opinion` copy approval on every new key in both locales and the per-block review, then CI, review, merge. |
 | `ui#2156` (`#1823`) | Pullfrog P2 (a stored icon hid a proposed emoji change) fixed by coordinator round 1 `0eb14f594` (red then green, 455 of 455) and pushed with the thread resolved. CI, review, merge. |
@@ -37,7 +37,7 @@ UI `main` is `3c400a19c` (`ui#2142`, `#1820`, merged during the drain), API `mai
 | `#1794`, `#1783` | Device read on a Play install of an Open carrying them. |
 | `#1779` | No Orbit email has reached Gmail since production API `1dcfc7a9`; read the first one that does. |
 
-Inventory: open pull requests `ui#2158`, `#2157`, `#2156`, `#2154`, `#2152`, `#2151`, `#2150`, `#2148`, `#2144`, this relay's docs pull request; `orbit-api` none; landing none. Unpushed: none. Running at the drain: the staging web watcher. No stash. Owner questions open: the `#1827` tool pick and the Mac 0.1.5 sign-in (both in `## Open questions`).
+Inventory: open pull requests `ui#2158`, `#2157`, `#2156`, `#2154`, `#2152`, `#2151`, `#2150`, `#2148`, `#2144`, this relay's docs pull request; `orbit-api` none; landing none. Unpushed: none. Running at the drain: none (every launcher and release watcher finished). No stash. Owner questions open: the `#1827` tool pick and the Mac 0.1.5 sign-in (both in `## Open questions`).
 
 ## Then, in this order
 
