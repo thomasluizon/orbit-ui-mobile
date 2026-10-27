@@ -29,7 +29,7 @@ UI `main` is `79e56f40f`, API `main` is `c11aeca7`, landing `main` is `14293563`
 | `ui#2127` (`#1795`) | Catalog exporter fix `ff1db68d5` (diff read). CI, review, merge; then gate 6 at once. |
 | `ui#2126` (`#1805`) | `3bf809a16` (diff read). CI, review; run the hermetic case repeatedly before the merge (one hermetic run at a time); merge. |
 | `orbit-api#950` (`#1757` round 3) | `5aed1c3c`, NOT yet read. Read the diff, CI, review, merge, staging API, the scale recheck, close. |
-| `#1806` | Worker launched (worktree `ticket-1806-astra-revision-locale`); read its outcome and pull request; copy approval for any new pt-BR string. |
+| `orbit-api#951` (`#1806`) | `6e44b23d` (five commits: recovery language from the request, localized HTTP and stream failures, misrouted fresh creates recovered into their own preview; build 0, 15,842 tests, no OpenAPI drift), NOT yet read. Read the diff, run the copy approval on its new strings (body "Copy for approval"), CI, review, merge (combined local check if it shares files with `orbit-api#950`), staging API, the staging check, close. |
 | `#1807`, `#1808` | Worktrees created (`ticket-1807-retrospective-empty-week` in `orbit-api`, `ticket-1808-astra-read-failure-block` in `orbit-ui-mobile`), NOT launched: launch both with `launch-ticket-api.sh` and `launch-ticket-ui.sh` (the ticket body is the order). |
 | Gate 6 (`#26`) | Stopped at setup (exit 8, the exporter). After `ui#2127` merges: `perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' bash run-26-gate6.sh` in the scratchpad (the root `orbit-api` checkout must stay clean at the staging `/health` commit), a background poller on `run-26-gate6/DONE`. The free and budget eval accounts spent part of today's allowance in gate 5: rerun only their four cases in the next UTC day if they fail on allowance. Then file failures, set `#1761`'s budget, decide `#582`, close `#1795`, turn `astra_block_first` and `astra_eval_trace` off for the eval accounts. |
 | Staging web checks | On `qa@useorbit.org` with `sweep-1151/astra-blocks-wait.mjs` (waits for each reply): `#1751` Add and Add all (not yet exercised), `#1748` the month grid on a habit with logs, `#1743` blocks; then production web of `79e56f40f`. |
@@ -38,7 +38,7 @@ UI `main` is `79e56f40f`, API `main` is `c11aeca7`, landing `main` is `14293563`
 | `ui#2108` (`#1761`), `orbit-api#903` (`#582`) | Wait on gate 6. |
 | `#1779`, `#1739`, `#1778`, `#1794`, `#1796` | As in their spec bullets (no production email since the `1dcfc7a9` release yet). |
 
-Inventory: open pull requests `ui#2123`, `#2115`, `#2114`, `#2102`, `#2127`, `#2126`, `#2108`, this relay's `ui#1989`, `orbit-api#950`, `orbit-api#903`; landing none. Unpushed: `969146d89` (`#1761`). No dirty tree, no stash. Owner questions open: none (one deferred owner click in `## Open questions`).
+Inventory: open pull requests `ui#2123`, `#2115`, `#2114`, `#2102`, `#2127`, `#2126`, `#2108`, this relay's `ui#1989`, `orbit-api#950`, `orbit-api#951`, `orbit-api#903`; landing none. Unpushed: `969146d89` (`#1761`). No dirty tree, no stash. Owner questions open: none (one deferred owner click in `## Open questions`).
 
 ## Then, in this order
 
