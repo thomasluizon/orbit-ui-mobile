@@ -181,3 +181,19 @@ subscription status. Existing source enums retain their values. Provider present
 `billingProvider ?? source` (or `subscriptionSource` for profile), preserving older API responses.
 Apple requests follow the deployed native, start, handoff and subscription verification contracts.
 Apple configuration and TestFlight acceptance remain rollout prerequisites.
+
+## Negotiated gamification contract
+
+The handwritten `gamificationCardSchema` follows `PostApiChatGamificationRefreshResponse` in
+the pinned generated snapshot. Nullable profile, achievement catalogue and streak sections keep
+the producer's selected sources distinct. The carrying client advertises `gamification` only
+alongside paired renderers. Previous clients and persisted replies retain their existing behavior.
+The API must deploy first; removing the kind from advertisement disables new delivery without
+raising the supported-version floor.
+
+`gamificationReadBlockResponseSchema` validates the dedicated authenticated refresh response.
+The generic read-refresh union remains unchanged because that route rejects gamification tokens.
+Both adapters send only the original token and carrying client context, preserve query identity,
+and accept a new revision without substituting a live profile query. No paging request exists.
+Generated-schema tests verify the three selected-source shapes and empty catalogue against the
+pinned producer before exercising SSE assembly and stored-history parsing.

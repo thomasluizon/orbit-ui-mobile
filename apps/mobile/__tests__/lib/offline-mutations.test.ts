@@ -218,6 +218,10 @@ vi.mock('@/lib/offline-runtime', () => ({
 vi.mock('@/lib/query-client', () => ({
   persistQueryCache: mocks.persistQueryCache,
   queryClient: {
+    setQueryDefaults: vi.fn(),
+    removeQueries: vi.fn(),
+    getQueryData: vi.fn(),
+    setQueriesData: vi.fn(),
     cancelQueries: mocks.cancelQueries,
     invalidateQueries: mocks.invalidateQueries,
     setQueryData: mocks.setQueryData,

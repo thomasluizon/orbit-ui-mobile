@@ -176,6 +176,7 @@ that disagrees with production is a trap rather than an authority.
 | #1828 | Astra question blocks reuse the conversation BlockFrame and existing choice, checkbox and Input controls. A five-option radio scale and primitive slider use the existing tokens. Prompts, supplied option labels and end labels wrap in growing rows; required omissions show inline hints and focus the first question. Supplied progress and local answered count remain separate; acting, error, offline, limit, closed and answered states follow the existing answer lifecycle. | The issued question contract needs typed single and multiple choices, scale, slider and yes or no in one answer turn. No drawing covers the two numeric controls. |
 | #1613 | Habit Create's When field routes the five recurrence-only weekly equivalents to fixed Week 1 for a deliberate dated Habit, retaining its chosen date and source words. Task retains one inline recovery to the existing Habit choice; blocked Submit focuses that group. Choosing Habit overrides an older General draft using the current Task date; inherited General locks retain parent mismatch guidance and block Submit. Manual corrections and reopened drafts win | Local recurrence is separate from calendar interpretation. It adds no summary, proposal, model call or schedule capability. |
 | #1607 | Balanced type choices, compact growing name, description immediately after name, natural-date prompt and canonical Astra identification on real request/entry targets | Explicit form presentation and action attribution order; request, acceptance, draft and save owners remain unchanged. |
+| #1619 focused gamification | One BlockFrame holds the existing Progresso level and XP row when profile is present and the existing achievement cards when the catalogue is present. Empty catalogues keep the existing empty line. Signed refresh and one related Conquistas action remain available | Separate nullable sections answer level-only, achievement-only, streak-only and combined requests. Requested streaks reuse the Progresso figure, DayStrip and read-only FreezeBank anchored to the saved date, with their own heading. No unrequested figures or six-achievement cap. |
 | #1619 focused totals and comparisons | A supplied number, unit and resolved window; two comparison windows, their values and supplied delta, without relative percentages for a zero baseline | A read answers its requested metric and dates. |
 | #1619 history and recovery | Dated rows retain zero values, signed paging and exact-query refresh; stale and partial reads use one compact state | Snapshot display stays separate from current action eligibility. |
 | #1587 | Hoje rows carry actual visible depth with one 16px step per ancestor after the 8px root inset. Well, title and supporting metadata cascade together. Measured content width and scaled title space determine the narrow boundary, accounting for shell scrollbars and safe-area gutters. Boundary rows use the full-width supporting metadata footer with first-title-line controls, and the existing drill; drill resets local depth and detail children use depth 1 once | Expanded grandchildren must remain visibly subordinate to their parents without shrinking controls or flattening adjacent levels. |
@@ -616,3 +617,19 @@ multiple choice. The supplied progress count and local answered count are distin
 and names every prompt and selected answer. Supplied text grows without clamping at 200% text.
 Vitest covers controls, multipart transport, persistence, accessibility and geometry; device font
 rendering and assistive technology speech remain manual verification boundaries.
+
+## Focused gamification composition
+
+`Orbit Astra Conversation.dc.html` adds profile-only, achievement-only, streak-only, achievements with streak, combined and empty
+catalogue states for the negotiated gamification read. These compositions reuse BlockFrame,
+the Progresso level row and ProgressBar, the existing achievement card and earned disc, and
+the unchanged Progresso streak figure, DayStrip and read-only FreezeBank. A requested streak
+keeps its own heading and saved query date; absent sources contribute no figures.
+The frame retains its 16px inset and 12px content rhythm. All typography, surfaces, radii and
+colours come from the granted primitives and tokens. Both locales and appearances share the
+composition, with natural wrapping at enlarged text.
+
+Refresh uses the saved query token and leaves the answer visible while acting or recovering.
+The established Conquistas related action opens its Progresso detail. No unrequested streak,
+profile achievement count, teaser or plan control appears. This scoped refresh exception follows
+the carrying gamification work order; other compact read blocks keep their current actions.

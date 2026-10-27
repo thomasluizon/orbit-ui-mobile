@@ -97,6 +97,13 @@ Comparison verdicts and bars replace the separate variation row; percentages are
 Signed paging and useful disclosure remain named icon controls. Write previews retain edit,
 reject and one filled primary approval. Frame inset is 16px with a 12px content rhythm.
 
+The negotiated **gamification** read (#1619) retains its signed refresh control and the existing
+Conquistas related action. Its nullable source sections keep level-only, achievement-only and
+combined answers focused. A requested streak reuses the Progresso streak figure, DayStrip and
+read-only FreezeBank from the saved snapshot and resolved date. A streak-only answer uses its
+own heading; a combined answer labels the streak section separately. No absent source adds figures.
+This is the explicit refresh exception to the compact read rule.
+
 **Conversation participants:** the first message in each consecutive run of Astra messages starts
 with a 24px `AstraGlyph` in `--fg-1` on its own row at the thread's 16px inset. An 8px gap
 separates the mark from the first content below it. Following messages have no mark or reserved
@@ -438,6 +445,16 @@ selection summary. Failure retains answers and identical recovery; expiry, later
 and allowance follow the existing choice lifecycle. Asking and answering never authorize a write.
 
 The **day summary** combines its ring with today's habit rows and the habit list's in-place log control; it shows at most 20 rows, then a count and the Hoje link. The **calendar** block uses EventRow with time or all-day copy and a source when more than one calendar is connected; its trailing action opens the Calendários import sheet with that event selected for review. The **streak** block keeps DayStrip and a read-only FreezeBank, with its action opening Sequência. The **goal list** uses ProgressBar and the tracking badge, names linked habits as the source of derived progress, and opens the goal or Metas. The **metrics** block keeps BarChart, adds at most three StatTile figures with the Progresso vocabulary, and opens Progresso or the habit. Habit, goal and event rows subscribe to live query state; a reply snapshot never decides whether a habit is done. Each block uses BlockFrame for loading, resting, acting, partial failure and stale state, with errors in its actions area.
+
+The **gamification** block reuses Progresso's `LevelSummary` and `AchievementTile` components
+inside BlockFrame. A present profile supplies only the level, title, XP and next-level bar.
+A present achievement catalogue supplies its complete collection with the existing localized
+name, description, earned disc and individual progress; an empty catalogue uses the existing
+empty line. Absent sections add no figure or placeholder. Profile streak totals and nested
+achievement metadata never broaden a focused answer. Refresh sends the original signed token
+to the dedicated gamification route and preserves the resolved scope. One compact status keeps
+failed refresh actionable without replacing the saved figures. The existing related action opens
+Conquistas in Progresso, including on saved replies and during recovery.
 
 A reply is an ordered sequence of text and block parts. A client skips an unknown block kind and keeps the rest of the reply. At most one write preview appears per reply.
 

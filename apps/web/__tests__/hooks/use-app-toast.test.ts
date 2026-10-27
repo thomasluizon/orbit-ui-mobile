@@ -58,7 +58,7 @@ describe('useAppToast', () => {
     expect(shell.container.querySelector('[data-kind="neutral"]')).toBeNull()
   })
 
-  it('keeps error and info feedback without a timer or glyph', async () => {
+  it('keeps error and info feedback until its close control is used', async () => {
     vi.useFakeTimers()
     const { result } = renderHook(() => useAppToast())
     const shell = renderNotice()
@@ -66,10 +66,14 @@ describe('useAppToast', () => {
     await act(async () => { await vi.dynamicImportSettled() })
     act(() => { vi.advanceTimersByTime(10000) })
     expect(shell.container.querySelector('[data-kind="neutral"]')).toBeInTheDocument()
-    expect(shell.container.querySelector('[data-kind="neutral"] svg')).toBeNull()
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'common.close' })).toBeInTheDocument()
     act(() => { result.current.showInfo('Information') })
     act(() => { vi.advanceTimersByTime(40) })
     expect(screen.getByRole('status')).toHaveTextContent('Information')
+    fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+    expect(useAppToastStore.getState().currentToast).toBeNull()
+    expect(screen.queryByRole('status')).toBeNull()
   })
 
   it('offers one reload action for an account change', async () => {

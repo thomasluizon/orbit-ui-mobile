@@ -605,7 +605,7 @@ class Component extends DCLogic {
       mode: s.mode, lang: t.lang, onCC: this.onCC,
       cc: { mode: s.mode, width: s.width, state: st, locale: s.loc, plan: s.plan },
       stateAxis: ['empty', 'preview', 'preview acting', 'stale', 'habits', 'ranking', 'ranking empty', 'ranking stale', 'goals', 'goals empty',
-        'clarification', 'metrics', 'periodTotal', 'periodComparison', 'history', 'read stale', 'read partial', 'breakdown', 'conflict', 'batch failed', 'op pending', 'op step up',
+        'gamification', 'gamification profile', 'gamification achievements', 'gamification empty', 'gamification streak', 'gamification achievements streak', 'clarification', 'metrics', 'periodTotal', 'periodComparison', 'history', 'read stale', 'read partial', 'breakdown', 'conflict', 'batch failed', 'op pending', 'op step up',
         'op denied', 'op policy', 'op done', 'streaming', 'busy', 'recording', 'transcribing',
         'attachments', 'offline', 'at limit', 'model error', 'copy', 'loading'],
       planAxis: ['free', 'Pro'],
@@ -794,6 +794,42 @@ class Component extends DCLogic {
       actions: H(F, null, s.page === 1 ? H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ page: 2 }) }, readWords.more) : null, refreshRead),
     });
 
+    const gamificationRead = () => {
+      const pt = s.loc === 'pt-BR';
+      const hasStreak = st === 'gamification streak' || st === 'gamification achievements streak';
+      const profile = !hasStreak && st !== 'gamification achievements' && st !== 'gamification empty';
+      const catalogue = st !== 'gamification profile' && st !== 'gamification streak';
+      const items = [];
+      if (profile) items.push({ label: H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 } },
+        H('div', { style: { display: 'flex', alignItems: 'baseline', gap: 12 } },
+          H('p', { 'data-mock': '', style: { flex: 1, fontSize: 17, lineHeight: '22px', fontWeight: 500 } }, pt ? 'Nível 3 · Orbitador' : 'Level 3 · Orbiter'),
+          H('p', { 'data-mock': '', style: { fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)' } }, s.gamificationRefreshed ? '600 / 800 XP' : '500 / 800 XP')),
+        H(D.ProgressBar, { value: s.gamificationRefreshed ? 50 : 25, max: 100, label: pt ? 'Progresso até o próximo nível' : 'Progress to the next level' })) });
+      if (catalogue) items.push({ label: st === 'gamification empty'
+        ? H('p', { style: { fontSize: 14, color: 'var(--fg-2)' } }, pt ? 'Registre para conquistar' : 'Log habits to earn them')
+        : H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, padding: 16, background: 'var(--bg-card)', borderRadius: 'var(--r-card)', boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)' } },
+          H('div', { style: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 } },
+            H('span', { role: 'img', 'aria-label': pt ? 'Primeira órbita, conquistada' : 'First Orbit, earned', style: { width: 32, height: 32, flex: '0 0 auto', borderRadius: 'var(--r-pill)', background: 'var(--status-done)', color: 'var(--bg)', display: 'grid', placeItems: 'center' } }, H(D.Icon, { name: 'satellite', size: 20 })),
+            H('div', { style: { flex: '1 1 120px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 } },
+              H('p', { style: { fontSize: 14, fontWeight: 500 } }, pt ? 'Primeira órbita' : 'First Orbit'),
+              H('p', { style: { fontSize: 12, lineHeight: '17px', color: 'var(--fg-3)' } }, pt ? 'Crie seu primeiro hábito' : 'Create your first habit')),
+            H(window.OrbitNativeMobile.Badge, null, pt ? 'Conquistada' : 'Earned'))) });
+      if (hasStreak) items.push({ label: H('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
+        catalogue ? H('h3', { style: { fontSize: 16, fontWeight: 500 } }, pt ? 'Sequência' : 'Streak') : null,
+        H('div', { style: { display: 'flex', alignItems: 'baseline', gap: 12 } },
+          H('p', { 'data-mock': '', style: { fontFamily: 'var(--font-display)', fontSize: 60, fontWeight: 600, lineHeight: 1, letterSpacing: '-0.03em' } }, s.gamificationRefreshed ? '6' : '5'),
+          H('p', { style: { fontSize: 17, color: 'var(--fg-2)' } }, pt ? 'dias seguidos' : 'days in a row')),
+        H(D.DayStrip, { scope: 'account', days: Array.from({ length: 14 }, (_, index) => index === 13 ? 'frozen' : index >= 8 ? 'active' : 'missed'),
+          labels: Array.from({ length: 14 }, (_, index) => String(index + 1)), label: pt ? 'Atividade nos últimos 14 dias' : 'Activity over the last 14 days',
+          words: { active: pt ? 'dia ativo' : 'day active', frozen: pt ? 'dia congelado' : 'day frozen', missed: pt ? 'dia sem registro' : 'day missed', today: pt ? 'Hoje' : 'Today' } }),
+        H('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 16 } },
+          H(D.StatTile, { value: mock('9'), label: pt ? 'Maior sequência' : 'Longest streak' }),
+          H(D.StatTile, { value: mock(pt ? 'Bronze' : 'Bronze'), label: pt ? 'Nível da sequência' : 'Streak tier' })),
+        H('p', { 'data-mock': '', style: { fontSize: 14, color: 'var(--fg-2)' } }, pt ? 'Congelamentos: 2 / 3' : 'Freezes: 2 / 3')) });
+      return this.block({ title: profile ? (catalogue ? (pt ? 'Nível e conquistas' : 'Level and achievements') : (pt ? 'Nível' : 'Level')) : (catalogue ? (pt ? 'Conquistas' : 'Achievements') : (pt ? 'Sequência' : 'Streak')), items,
+        actions: H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ gamificationRefreshed: true }) }, readWords.refresh) });
+    };
+
     const turnsFor = () => {
       switch (COMPOSER_STATES.indexOf(st) >= 0 ? 'habits' : st) {
         case 'empty':
@@ -830,6 +866,13 @@ class Component extends DCLogic {
             actions: H(F, null, t.cl.answers.map((a, i) =>
               H(D.Button, { key: i, size: 'sm', variant: 'ghost', onClick: () => this.setState({ st: 'habits' }) }, a))),
           }))];
+        case 'gamification':
+        case 'gamification profile':
+        case 'gamification achievements':
+        case 'gamification empty':
+        case 'gamification streak':
+        case 'gamification achievements streak':
+          return [this.node(gamificationRead()), this.node(H('a', { href: '/progress/achievements' }, s.loc === 'pt-BR' ? 'Conquistas' : 'Achievements'))];
         case 'periodTotal':
           return [this.node(totalRead('resting'))];
         case 'periodComparison':

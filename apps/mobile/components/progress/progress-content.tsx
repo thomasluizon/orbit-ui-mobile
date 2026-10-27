@@ -1,3 +1,4 @@
+import { StreakFigure } from '@/components/gamification/streak-figure'
 import { IconButton } from '@/components/ui/icon-button'
 import { PADDING, SPACING, SHELL_CONTENT_MAX_WIDTH, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
@@ -20,7 +21,6 @@ import {
   type DragEndParams,
   type RenderItemParams,
 } from 'react-native-draggable-flatlist'
-import type { Achievement } from '@orbit/shared/types/gamification'
 import type { Goal, GoalPositionItem } from '@orbit/shared/types/goal'
 import {
   buildGoalMovePositions,
@@ -34,7 +34,6 @@ import {
   formatStreakRepairDates,
   getBestRetrospectiveWeekdayKey,
   getProgressGoalLabelKey,
-  getGamificationLevelTitleKey,
   getStreakRepairErrorMessageKey,
   getStreakTierLabelKey,
   isPayGateError,
@@ -57,9 +56,9 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { FreezeBank } from '@/components/ui/freeze-bank'
 import { ChevronDown, ChevronRight, Lock, Snowflake, RefreshCw, Plus } from '@/components/ui/icons'
-import { AchievementMark } from '@/components/gamification/achievement-mark'
+import { AchievementTile } from '@/components/gamification/achievement-tile'
+import { LevelSummary } from '@/components/gamification/level-summary'
 import { PillButton } from '@/components/ui/pill-button'
-import { ProgressBar } from '@/components/ui/progress-bar'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { ProBadge } from '@/components/ui/pro-badge'
 import * as Menu from '@/components/ui/dropdown-menu'
@@ -302,7 +301,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens }:
   const loading = canView && !freeze.streakInfo
   return (
     <View accessibilityState={{ busy: loading }} testID="progress-streak-section" style={styles.streakSection}><Text accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text>
-      <View style={styles.streakFigure}><Text style={[styles.streak, { color: tokens.fg1 }]}>{new Intl.NumberFormat(i18n.language).format(currentStreak)}</Text><Text style={[styles.streakLabel, { color: tokens.fg2 }]}>{t('progressScreen.streak.currentLabel', { count: currentStreak })}</Text></View>
+      <StreakFigure currentStreak={currentStreak} tokens={tokens} />
       <View accessible={loading} accessibilityState={{ busy: loading }} accessibilityLabel={loading ? t('progressScreen.loading') : undefined}>
         <View accessibilityElementsHidden={loading} importantForAccessibility={loading ? 'no-hide-descendants' : 'auto'} style={loading && styles.hidden}>
           <DayStrip size={width >= 768 ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
@@ -503,27 +502,6 @@ function WindowSection({ tokens }: Readonly<{ tokens: AppTokensV2 }>) {
   )
 }
 
-function AchievementTile({ achievement, tokens, width }: Readonly<{ achievement: Achievement; tokens: AppTokensV2; width: number }>) {
-  const { t } = useTranslation()
-  const current = achievement.progressCurrent
-  const target = achievement.progressTarget
-  const hasProgress = current != null && target != null
-  const name = t(`gamification.achievements.${achievement.id}.name`)
-  return (
-    <View style={[styles.achievement, { width, backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]} testID={`achievement-tile-${achievement.id}`}>
-      <View style={styles.achievementHeader}>
-        <AchievementMark achievement={achievement} name={name} tokens={tokens} />
-        <View style={styles.achievementCopy}>
-          <Text style={[styles.achievementName, { color: achievement.isEarned ? tokens.fg1 : tokens.fg2 }]}>{name}</Text>
-          <Text style={[styles.achievementBody, { color: tokens.fg3 }]}>{t(`gamification.achievements.${achievement.id}.description`)}</Text>
-        </View>
-        {achievement.isEarned ? <View style={styles.earnedBadge}><Badge>{t('progressScreen.achievements.earnedLabel')}</Badge></View> : null}
-      </View>
-      {hasProgress ? <View style={styles.achievementProgress}><ProgressBar value={current} max={target} label={t('progressScreen.achievements.progressLabel', { name, current, target })} /><Text style={[styles.meta, { color: tokens.fg3 }]}>{t('progressScreen.achievements.progress', { current, target })}</Text></View> : null}
-    </View>
-  )
-}
-
 function AchievementsSection({ gamificationAvailable, profile, xpProgress, tokens }: Readonly<{
   gamificationAvailable: boolean
   profile: ReturnType<typeof useGamificationProfile>['profile']
@@ -552,14 +530,10 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
   if (!profile) return null
   const achievements = visibleProgressAchievements(profile.achievements)
   const categories = Array.from(new Set(achievements.map((achievement) => achievement.category)))
-  const levelTitle = t(getGamificationLevelTitleKey(profile.level))
   const tileWidth = (contentWidth - styles.achievementGrid.gap * (columns - 1)) / columns
   return (
     <>
-      <View style={styles.xpSummary} testID="progress-xp-summary">
-        <View style={styles.xpRow}><Text style={[styles.progressTitle, { color: tokens.fg1 }]}>{t('progressScreen.achievements.level', { level: profile.level, title: levelTitle })}</Text><Text style={[styles.meta, { color: tokens.fg3 }]}>{t('progressScreen.achievements.xp', { current: profile.totalXp, next: profile.xpForNextLevel })}</Text></View>
-        <ProgressBar value={xpProgress} max={100} label={t('progressScreen.achievements.xpProgress')} />
-      </View>
+      <LevelSummary profile={profile} xpProgress={xpProgress} tokens={tokens} />
       <Section>
         {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} action={<PillButton variant="primary" size="sm" accessibilityRole="link" onClick={() => router.push('/')}>{t('progressScreen.achievements.emptyAction')}</PillButton>} /> : categories.map((category) => <View key={category} style={styles.achievementCategory}><Text accessibilityRole="header" style={[styles.achievementCategoryTitle, { color: tokens.fg2 }]} testID="achievement-category">{t(`gamification.categories.${category}`)}</Text><View style={styles.achievementGrid}>{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} tokens={tokens} width={tileWidth} />)}</View></View>)}
       </Section>
@@ -653,11 +627,8 @@ const styles = StyleSheet.create({
   section: { gap: SPACING.s16 }, sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24 },
   streakSection: { width: '100%', gap: 16 },
   hidden: { opacity: 0 },
-  streakFigure: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
-  streakLabel: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },
   frozenBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, padding: SPACING.s12 },
   frozenCopy: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
-  streak: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 60, fontVariant: ['tabular-nums'], lineHeight: 60, letterSpacing: -1.8 },
   copy: { gap: 4 }, body: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 }, meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },
   notice: { borderRadius: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 },
   card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: PADDING.recordInset }, cardTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 }, actionStart: { alignSelf: 'flex-start' }, lockHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
@@ -671,12 +642,7 @@ const styles = StyleSheet.create({
   goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 }, goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   goalCopy: { flex: 1, minWidth: 0, gap: 4 }, goalSeparator: { height: 12 },
   emptyLine: { alignItems: 'flex-start', borderRadius: 12, gap: 8, padding: PADDING.recordInset },
-  earnedBadge: { flexShrink: 0 },
-  achievement: { borderRadius: 20, borderWidth: 1, gap: 12, minWidth: 0, padding: PADDING.recordInset },
   achievementCategory: { gap: PADDING.sectionTitleGap }, achievementCategoryTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20, paddingTop: SPACING.s4 }, achievementGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  achievementHeader: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, achievementCopy: { flexGrow: 1, flexShrink: 1, flexBasis: 120, gap: 4, minWidth: 0 }, achievementMark: { alignItems: 'center', borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
-  achievementName: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20 }, achievementBody: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 17 }, achievementProgress: { gap: 4 },
-  xpSummary: { gap: 12, width: '100%' }, xpRow: { alignItems: 'baseline', flexDirection: 'row', gap: 12, justifyContent: 'space-between' }, progressTitle: { flex: 1, fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 22 },
 })
 
 function ProgressOverview() {
