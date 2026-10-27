@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { questionBlockSchema, questionSliderValue } from '../types/question-block'
-import { blockAnswerSchema } from '../types/chat'
+import { blockAnswerSchema, chatPartSchema } from '../types/chat'
 import type { BlockAnswerInteraction } from '../chat/block-answer'
 import { isSameBlockAnswer } from '../chat/block-answer'
 import { QuestionBlockController, isQuestionAnswered, questionBlockStatus, type QuestionWords } from '../chat/question-block-core'
@@ -11,6 +11,10 @@ const interaction = () => ({ isOnline: true, isSending: false, atMessageLimit: f
 function complete(controller: QuestionBlockController) { block.questions.forEach((question, index) => controller.setAnswer(question, answers[index]!)) }
 
 describe('question block contract and state', () => {
+  it('retains a question part at the chat boundary', () => {
+    const part = { type: 'block', kind: 'question', block }
+    expect(chatPartSchema.parse(part)).toEqual(part)
+  })
   it.each(block.questions.map((question, index) => ({ question, answer: answers[index]! })))('validates the $question.type answer and rejects a missing value', ({ question, answer }) => {
     expect(isQuestionAnswered(question, answer)).toBe(true)
     expect(isQuestionAnswered(question, { questionId: question.id })).toBe(false)

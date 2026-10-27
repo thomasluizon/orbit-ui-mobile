@@ -19,6 +19,7 @@ import { AccountRowsCard } from './account-rows-card'
 
 import { ChoiceBlock } from './choice-block'
 import { PickListBlock } from './pick-list-block'
+import { QuestionBlock } from './question-block'
 
 type BlockContent = { [Kind in ChatBlockKind]: Extract<ChatBlockPart, { kind: Kind }>['block'] }
 type OpenAction = MessageBubbleProps['onActionChipClick']
@@ -40,6 +41,7 @@ const blockRegistry: { [Kind in ChatBlockKind]: (block: BlockContent[Kind], onOp
   accountRows: block => <AccountRowsCard accountRows={block} />,
   choice: (block, _onOpen, props) => <ChoiceBlock key={block.blockId} block={block} {...props} />,
   pickList: (block, _onOpen, props) => <PickListBlock key={block.blockId} block={block} {...props} />,
+  question: (block, _onOpen, props) => <QuestionBlock key={block.blockId} block={block} {...props} />,
 }
 
 export function ChatBlock<Kind extends ChatBlockKind>({ part, onActionChipClick, interaction, expired, savedAnswers, message }: Readonly<{

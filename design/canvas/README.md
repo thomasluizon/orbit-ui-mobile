@@ -173,6 +173,7 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
+| #1828 | Astra question blocks reuse the conversation BlockFrame and existing choice, checkbox and Input controls. A five-option radio scale and primitive slider use the existing tokens. Prompts, supplied option labels and end labels wrap in growing rows; required omissions show inline hints and focus the first question. Supplied progress and local answered count remain separate; acting, error, offline, limit, closed and answered states follow the existing answer lifecycle. | The issued question contract needs typed single and multiple choices, scale, slider and yes or no in one answer turn. No drawing covers the two numeric controls. |
 | #1613 | Habit Create's When field routes the five recurrence-only weekly equivalents to fixed Week 1 for a deliberate dated Habit, retaining its chosen date and source words. Task retains one inline recovery to the existing Habit choice; blocked Submit focuses that group. Choosing Habit overrides an older General draft using the current Task date; inherited General locks retain parent mismatch guidance and block Submit. Manual corrections and reopened drafts win | Local recurrence is separate from calendar interpretation. It adds no summary, proposal, model call or schedule capability. |
 | #1607 | Balanced type choices, compact growing name, description immediately after name, natural-date prompt and canonical Astra identification on real request/entry targets | Explicit form presentation and action attribution order; request, acceptance, draft and save owners remain unchanged. |
 | #1619 focused totals and comparisons | A supplied number, unit and resolved window; two comparison windows, their values and supplied delta, without relative percentages for a zero baseline | A read answers its requested metric and dates. |
@@ -599,3 +600,19 @@ notification text remains the Hoje entry label and the legacy recovery when part
 unusable. Inside the conversation a valid block replaces that prose, while the existing proactive
 action and its opened, acted and status behavior retain their owners. Existing legacy entries can
 adopt their first valid block without duplicating the message or resetting the action.
+
+### Astra question block amendment surfaces
+
+The active Astra Conversation drawing adds the question block to its report. Both clients use
+BlockFrame, RadioRow, CheckRow and Input with the existing neutral recommendation copy. The scale
+is five equal radio options, not a view switcher, with no initial selection and two end labels.
+Slider wraps Radix on web and rn-primitives on Android: a 4px fg-3 track, primary fill, 24px thumb
+inside a 48px target, radius 999 and one 2px focus perimeter. Native touch dragging and keyboard
+input supplement the primitive's accessibility adjustments. The standard hover duration applies.
+
+Required, acting, invalid, retry, offline, allowance, expired and answered states retain the same
+shared controller on both platforms. Custom text replaces an exclusive choice and may accompany
+multiple choice. The supplied progress count and local answered count are distinct. Success locks
+and names every prompt and selected answer. Supplied text grows without clamping at 200% text.
+Vitest covers controls, multipart transport, persistence, accessibility and geometry; device font
+rendering and assistive technology speech remain manual verification boundaries.

@@ -4,8 +4,14 @@ import type { BlockAnswer } from '../types/chat'
 import { blockAnswerErrorKey, formatBlockAnswer, isSameBlockAnswer, type AnswerBlockProps } from './block-answer'
 
 export type QuestionBlockProps = Omit<AnswerBlockProps, 'definition'> & { block: QuestionBlock }
-export type QuestionTranslator = (key: 'required' | 'progress', values?: Record<string, string | number>) => string
 export type QuestionWords = { yes: string; no: string; answered: (options: string) => string; closed: string; alreadyAnswered: string; invalid: string; error: string; offline: string; limit: string; acting: string }
+export interface QuestionControlProps {
+  readonly question: Question
+  readonly answer?: QuestionAnswer
+  readonly disabled: boolean
+  readonly controller: QuestionBlockController
+  readonly words: { yes: string; no: string; recommended: string; freeText: string; required: string }
+}
 
 export function isQuestionAnswered(question: Question, answer: QuestionAnswer | undefined): boolean {
   if (!answer || answer.questionId !== question.id || !questionAnswerSchema.safeParse(answer).success) return false
@@ -51,14 +57,14 @@ function payload(block: QuestionBlock, answers: QuestionBlockState['answers']): 
   }) }
 }
 
-export function questionBlockStatus(props: QuestionBlockProps, state: QuestionBlockState, words: QuestionWords) {
+export function questionBlockStatus(props: QuestionBlockProps, state: QuestionBlockState, words: QuestionWords): { closed: string | null; answered: boolean; status: string; statusError: boolean; disabled: boolean; submitDisabled: boolean; completed: number } {
   const { interaction } = props
   const settled = props.savedAnswer ?? state.settled
-  const closed = settled?.text ?? (props.expired && !state.acting ? words.closed : null)
+  const closed = settled?.text ?? ((props.expired || Date.parse(props.block.expiresAtUtc) <= Date.now()) && !state.acting ? words.closed : null)
   const recovery = isSameBlockAnswer(payload(props.block, state.answers), state.uncertainAnswer)
   const status = state.acting ? words.acting : interaction && !interaction.isOnline ? words.offline
     : interaction?.atMessageLimit && !recovery ? words.limit : state.error ?? ''
-  return { closed, answered: settled?.answered === true, status,
+  return { closed, answered: settled?.answered === true, status, statusError: Boolean(state.error && status === state.error),
     disabled: Boolean(closed || state.acting || interaction?.isSending || interaction?.dailyBudgetReached),
     submitDisabled: Boolean(closed || !interaction || state.acting || interaction.isSending || interaction.dailyBudgetReached || !interaction.isOnline || (interaction.atMessageLimit && !recovery)),
     completed: props.block.questions.filter(question => isQuestionAnswered(question, state.answers[question.id])).length }

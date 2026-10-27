@@ -69,7 +69,7 @@ export function recordBlockAnswer(chat: Pick<ChatStoreState, 'messages' | 'trans
   const key = result.ok ? 'answered' : blockAnswerErrorKey(result.status)
   if (key === 'invalid' || key === 'error') return
   const owner = chat.messages.find(message => message.parts?.some(part =>
-    part?.type === 'block' && (part.kind === 'choice' || part.kind === 'pickList') && part.block.blockId === blockId))
+    part?.type === 'block' && (part.kind === 'choice' || part.kind === 'pickList' || part.kind === 'question') && part.block.blockId === blockId))
   if (!owner) return
   const answer: NonNullable<ChatMessage['blockAnswers']>[string] = {
     text: key === 'answered' ? answeredText : key === 'closed' ? closedText : alreadyAnsweredText,

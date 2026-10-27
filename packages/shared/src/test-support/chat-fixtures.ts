@@ -341,3 +341,4 @@ export const focusedStaleRecapFixture = {
 }
 
 export { habitSuggestionDraftFixture, habitSuggestionsFixture, makeHabitSuggestionMessage, makeHabitSuggestionPreview, makeHabitSuggestionBatchPreview } from './habit-suggestion-fixtures'
+export { questionBlockFixture, questionAnswersFixture } from './question-fixtures'

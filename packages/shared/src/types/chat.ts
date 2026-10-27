@@ -1,4 +1,4 @@
-import { questionAnswerSchema } from './question-block'
+import { questionAnswerSchema, questionBlockSchema } from './question-block'
 import { z } from 'zod'
 import { habitSuggestionsCardSchema } from './habit-suggestions'
 import { utf16Length } from '../validation/utf16-length'
@@ -514,6 +514,7 @@ const chatBlockSchemas = {
   accountRows: accountRowsCardSchema,
   choice: choiceBlockSchema,
   pickList: pickListBlockSchema,
+  question: questionBlockSchema,
 } satisfies Record<ChatBlockKind, z.ZodType>
 
 function blockPartSchema<Kind extends ChatBlockKind>(kind: Kind) {
@@ -539,6 +540,7 @@ export const chatPartSchema = z.union([
     blockPartSchema('accountRows'),
     blockPartSchema('choice'),
     blockPartSchema('pickList'),
+    blockPartSchema('question'),
   ]),
 ]).nullable().catch(null)
 
@@ -561,7 +563,7 @@ export const readBlockResponseSchema = z.discriminatedUnion('kind', [
 
 export type ReadBlockResponse = z.infer<typeof readBlockResponseSchema>
 export type ReadBlockSnapshot = ReadBlockResponse | HabitMonthReadBlockResponse
-export type ReadBlockPart = Exclude<ChatBlockPart, { kind: 'choice' | 'pickList' | 'habitSuggestions' }>
+export type ReadBlockPart = Exclude<ChatBlockPart, { kind: 'choice' | 'pickList' | 'question' | 'habitSuggestions' }>
 
 export const chatFollowUpSchema = z.object({
   label: z.string().trim().check(utf16Length('min', 1)).check(utf16Length('max', 40)).regex(/^[^\r\n]+$/),

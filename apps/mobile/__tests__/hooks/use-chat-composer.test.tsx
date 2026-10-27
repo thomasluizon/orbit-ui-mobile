@@ -1,5 +1,5 @@
 import type { InvalidateQueryFilters } from '@tanstack/react-query'
-import { choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { questionBlockFixture, questionAnswersFixture, choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import React from 'react'
 import Animated from 'react-native-reanimated'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -1325,6 +1325,21 @@ describe('mobile useChatComposer', () => {
     expect(cache.getQueryData<Profile>(profileKeys.detail())?.aiMessagesUsed).toBe(5)
   })
 
+
+  it('sends typed question answers through native multipart and persists the terminal summary', async () => {
+    const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    onTestFinished(() => appendFormPart.mockRestore())
+    useChatStore.setState({ messages: [makeHeldHabitMessage({ id: 'questions', content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'question', block: questionBlockFixture }] })] })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    const answer = { blockId: questionBlockFixture.blockId, selectedIds: [], answers: questionAnswersFixture }
+    await TestRenderer.act(async () => { expect(await composer.current.blockAnswerInteraction.send({ kind: 'question', answer, labels: ['Energy: 3', 'Reminder: No'] })).toEqual({ ok: true }) })
+    expect(appendFormPart).toHaveBeenCalledWith('blockAnswer', JSON.stringify(answer))
+    const contextCall = appendFormPart.mock.calls.find(([key]) => key === 'clientContext')!
+    expect(JSON.parse(contextCall[1] as string).partKinds).toContain('question')
+    expect(useChatStore.getState().messages[0]?.blockAnswers?.[answer.blockId]).toMatchObject({ answered: true })
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
+  })
   it('sends a localized block answer once at quota and keeps the existing preview path', async () => {
     const appendFormPart = vi.spyOn(FormData.prototype, 'append')
     onTestFinished(() => appendFormPart.mockRestore())

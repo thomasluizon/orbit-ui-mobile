@@ -138,9 +138,22 @@ function answerBlock(block, { t }, kind) {
   return { title: view.title, options: view.options.map(({ label, description }) => ({ label, description })),
     freeText: view.freeTextLabel, submit: view.submitLabel }
 }
+function questionBlock(block, { t }) {
+  return { title: block.title || block.questions[0].prompt, intro: block.intro,
+    position: block.progress ? t('chat.choice.position', { position: block.progress.current, total: block.progress.total }) : undefined,
+    progress: t('chat.question.progress', { answered: 0, total: block.questions.length }),
+    questions: block.questions.map((question, index) => ({
+      prompt: block.title || index > 0 ? question.prompt : undefined,
+      options: question.options?.map((option) => ({ label: option.label, description: option.recommended ? t('chat.placement.recommended') : undefined }))
+        ?? (question.type === 'yesNo' ? [{ label: t('common.yes') }, { label: t('common.no') }] : undefined),
+      scale: question.type === 'scale' ? { values: [1, 2, 3, 4, 5], lowLabel: question.lowLabel, highLabel: question.highLabel } : undefined,
+      slider: question.type === 'slider' ? { min: question.min, max: question.max, unit: question.unit } : undefined,
+      freeText: question.allowFreeText ? t('chat.choice.freeText') : undefined,
+    })), submit: t('chat.choice.submit') }
+}
 const renderers = { habitList, goalList, metrics, periodTotal, periodComparison, periodInsight, daySummary, streak,
   calendar, recordList, accountRows, habitRanking, choice: (card, options) => answerBlock(card, options, 'choice'),
-  pickList: (card, options) => answerBlock(card, options, 'pickList') }
+  pickList: (card, options) => answerBlock(card, options, 'pickList'), question: questionBlock }
 
 function projectBlock(part, options) {
   const parsed = shared.chatPartSchema.parse(part)
