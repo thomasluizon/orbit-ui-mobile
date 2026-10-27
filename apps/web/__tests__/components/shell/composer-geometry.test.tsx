@@ -4,7 +4,7 @@ import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { createRef } from 'react'
-import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, motionDurations } from '@orbit/shared/theme'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -332,6 +332,7 @@ describe('Composer compact geometry in Chromium', () => {
         }, JSON.parse(JSON.stringify({ ...props, attachmentRemoveTemplate: messages.shell.composer.attach.remove })))
         await page.locator('[data-composer-test-ready]').waitFor()
         await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.waitForTimeout(motionDurations.micro)
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
         const measured = await page.evaluate(() => {
           const pill = document.querySelector<HTMLElement>('[data-composer-input-row]')!

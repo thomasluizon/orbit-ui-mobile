@@ -1,5 +1,5 @@
 import { personalText } from '@/__tests__/support/personal-text'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
@@ -60,7 +60,11 @@ describe('gamification reads', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: en.blockFrame.refresh })).toBeEnabled())
     expect(refreshGamification).toHaveBeenCalledExactlyOnceWith('signed-query', expect.objectContaining({ partKinds: expect.arrayContaining(['gamification']) }), null)
     expect(refreshReadBlock).not.toHaveBeenCalled()
-    if (block.state.streak) expect(screen.getByTestId('progress-streak-figure')).toHaveTextContent('6')
+    if (block.state.streak) {
+      const currentFrame = screen.getByRole('button', { name: en.blockFrame.refresh }).closest('section')!
+      expect(within(currentFrame).getByTestId('progress-streak-figure')).toHaveTextContent('6')
+      await waitFor(() => expect(screen.getAllByTestId('progress-streak-figure')).toHaveLength(1))
+    }
   })
 
   it('keeps a failed stale refresh actionable and replaces the snapshot on retry', async () => {
