@@ -15,45 +15,58 @@ import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-are
 const clipboard = vi.hoisted(() => ({ getStringAsync: vi.fn().mockResolvedValue('Pasted draft'), hasStringAsync: vi.fn().mockResolvedValue(true) }))
 vi.mock('expo-clipboard', () => clipboard)
 vi.unmock('react-i18next')
-beforeEach(() => useUIStore.setState({ habitComposerCollapsed: false }))
+beforeEach(() => useUIStore.setState({ habitComposerCollapsed: false, todayComposerCollapsed: false }))
 afterEach(() => __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }))
 
-it.each([en, ptBR])('retains its mounted draft and reduces the Fold cover composer to one row', async messages => {
-  await i18n.changeLanguage(messages === en ? 'en' : 'pt-BR')
-  __setWindowDimensions({ width: 480, height: 640, scale: 1, fontScale: 1 })
-  const onSend = vi.fn()
-  function Draft() {
-    const [value, setValue] = useState('')
-    return <Composer collapsible state="idle" value={value} onChangeValue={setValue} onSend={onSend} words={messages.shell.composer} suggestions={[]} />
-  }
-  let tree!: GeometryTree
-  await act(() => { tree = create(<Draft />) as GeometryTree })
-  const control = (name: string) => tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.accessibilityLabel === name)[0]!
-  const press = (name: string) => act(() => (control(name).props.onPress as () => void)())
-  const expanded = (name: string) => (control(name).props.accessibilityState as { expanded: boolean }).expanded
-  try {
-    const input = tree.root.findAll(node => node.type === TextInput)[0]!
-    await act(() => (input.props.onChangeText as (value: string) => void)('Keep this draft'))
-    await press(messages.shell.composer.collapse)
-    expect(expanded(messages.shell.composer.expand)).toBe(false)
-    expect(tree.root.findAll(node => node.type === TextInput)[0]!).toBe(input)
-    expect(input.props.value).toBe('Keep this draft')
-    expect(useUIStore.getState().habitComposerCollapsed).toBe(true)
-    const host = { type: 'View', props: { style: { alignItems: 'stretch' as const } }, children: [tree.toJSON()] }
-    const geometry = measureSafeArea(host, host => host.props.testID === 'composer-collapse-row' ? 'row' : undefined, { width: 480, height: 640 })
-    expect(geometry.get('row')!.bottom - geometry.get('row')!.top).toBe(48)
-    const collapsed = measureSafeArea(host, host => host.props.testID?.startsWith('composer-idle') ? 'composer' : undefined, { width: 480, height: 640 })
-    expect(collapsed.get('composer')!.bottom - collapsed.get('composer')!.top).toBeLessThanOrEqual(64)
-    await press(messages.shell.composer.expand)
-    expect(tree.root.findAll(node => node.type === TextInput)[0]!).toBe(input)
-    expect(input.props.value).toBe('Keep this draft')
-    await press(messages.shell.composer.send)
-    expect(onSend).toHaveBeenCalledOnce()
-    await press(messages.shell.composer.collapse)
-    await act(() => tree.unmount())
+it.each([en, ptBR].flatMap(messages => (['habit', 'today'] as const).map(scope => ({ messages, scope }))))(
+  'retains the $scope draft, attachment and queue and collapses to one row', async ({ messages, scope }) => {
+    await i18n.changeLanguage(messages === en ? 'en' : 'pt-BR')
+    __setWindowDimensions({ width: 480, height: 640, scale: 1, fontScale: 1 })
+    const onSend = vi.fn()
+    const onRemove = vi.fn()
+    const onQueueSend = vi.fn()
+    function Draft() {
+      const [value, setValue] = useState('')
+      return <Composer collapsible collapseScope={scope} state="idle" value={value} onChangeValue={setValue} onSend={onSend} words={messages.shell.composer} suggestions={[]}
+          onAttachFile={vi.fn()} attachWords={{ ...messages.shell.composer.attach, remove: name => name }}
+          attachments={[{ id: 'file', kind: 'file', name: 'notes.txt' }]} onAttachRemove={onRemove}
+          queue={{ label: 'Queued messages', items: [{ id: 'queued', content: 'Next request' }], canSend: true,
+            removeLabel: message => `Remove ${message}`, sendLabel: message => `Send ${message}`, onRemove, onSend: onQueueSend }} />
+    }
+    let tree!: GeometryTree
     await act(() => { tree = create(<Draft />) as GeometryTree })
-    expect(expanded(messages.shell.composer.expand)).toBe(false)
-  } finally { await act(() => tree.unmount()) }
+    const control = (name: string) => tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.accessibilityLabel === name)[0]!
+    const press = (name: string) => act(() => (control(name).props.onPress as () => void)())
+    const expanded = (name: string) => (control(name).props.accessibilityState as { expanded: boolean }).expanded
+    try {
+      const input = tree.root.findAll(node => node.type === TextInput)[0]!
+      await act(() => (input.props.onChangeText as (value: string) => void)('Keep this draft'))
+      await press(messages.shell.composer.collapse)
+      expect(expanded(messages.shell.composer.expand)).toBe(false)
+      expect(tree.root.findAll(node => node.type === TextInput)[0]!).toBe(input)
+      expect(input.props.value).toBe('Keep this draft')
+      expect(useUIStore.getState()).toMatchObject({
+        habitComposerCollapsed: scope === 'habit', todayComposerCollapsed: scope === 'today',
+      })
+      const host = { type: 'View', props: { style: { alignItems: 'stretch' as const } }, children: [tree.toJSON()] }
+      const geometry = measureSafeArea(host, host => host.props.testID === 'composer-collapse-row' ? 'row' : undefined, { width: 480, height: 640 })
+      expect(geometry.get('row')!.bottom - geometry.get('row')!.top).toBe(48)
+      const collapsed = measureSafeArea(host, host => host.props.testID?.startsWith('composer-idle') ? 'composer' : undefined, { width: 480, height: 640 })
+      expect(collapsed.get('composer')!.bottom - collapsed.get('composer')!.top).toBeLessThanOrEqual(64)
+      await press(messages.shell.composer.expand)
+      expect(tree.root.findAll(node => node.type === TextInput)[0]!).toBe(input)
+      expect(input.props.value).toBe('Keep this draft')
+      expect(control('notes.txt')).toBeDefined()
+      expect(control('Next request')).toBeDefined()
+      expect(onRemove).not.toHaveBeenCalled()
+      expect(onQueueSend).not.toHaveBeenCalled()
+      await press(messages.shell.composer.send)
+      expect(onSend).toHaveBeenCalledOnce()
+      await press(messages.shell.composer.collapse)
+      await act(() => tree.unmount())
+      await act(() => { tree = create(<Draft />) as GeometryTree })
+      expect(expanded(messages.shell.composer.expand)).toBe(false)
+    } finally { await act(() => tree.unmount()) }
 })
 
 it.each([{ width: 480, height: 640 }, { width: 800, height: 360 }].flatMap(viewport => [false, true].map(collapsed => ({ ...viewport, collapsed }))))(
