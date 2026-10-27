@@ -38,13 +38,18 @@ export function summarizePendingOperationItem(
   if (action && ['delete', 'dismiss_import', 'run_sync'].includes(action.field)) return translate(`chat.operation.field.${action.field}`)
   const creating = isHabitCreate(fields, actionKey)
   const cadence = cadenceSummary(fields, translate, actionKey)
-  const interval = Number(value('interval_weeks'))
-  const intervalLabel = value('interval_weeks') != null && interval >= 1 ? computeHabitFrequencyLabel({ isGeneral: false, frequencyUnit: 'Week', frequencyQuantity: interval, days: [], isFlexible: false }, (key, values) => translate(key, values as Record<string, string | number>)) : null
+  const intervalLabel = weekIntervalSummary(value('interval_weeks'), translate, creating && cadence.label != null)
   const date = value('due_date') ?? value('date')
   const dateLabel = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? formatLocaleDate(parseAPIDate(date), locale, { dateStyle: 'medium' }) : null
   const time = value('due_time')
   const summary = [cadence.label, intervalLabel, dateLabel, time ? translate('chat.preview.atTime', { time: formatTime(time) }) : null, ...additionalChanges(fields, translate, formatTime, locale, cadence.complete, creating)].filter(Boolean).join(' · ')
   return summary || (actionKey && PREVIEW_ACTION_KEYS.includes(actionKey) ? translate(`chat.operation.source.${actionKey}`) : '')
+}
+
+function weekIntervalSummary(value: string | null | undefined, translate: PreviewTranslation, omitDefault: boolean): string | null {
+  const interval = Number(value)
+  return value != null && interval >= (omitDefault ? 2 : 1)
+    ? computeHabitFrequencyLabel({ isGeneral: false, frequencyUnit: 'Week', frequencyQuantity: interval, days: [], isFlexible: false }, (key, values) => translate(key, values as Record<string, string | number>)) : null
 }
 
 function isHabitCreate(fields: readonly PendingOperationChange[], actionKey?: string | null): boolean {
@@ -81,7 +86,7 @@ function createChange(field: PendingOperationChange, translate: PreviewTranslati
   if (field.field === 'is_bad_habit' && field.newValue?.toLowerCase() === 'true') return [translate('chat.preview.summary.habitToAvoid')]
   if (['is_bad_habit', 'is_general', 'is_flexible', 'reminder_enabled', 'parent_id', 'new_parent_id', 'frequency_quantity'].includes(field.field)) return []
   if (field.field === 'parent_habit_id' && !field.newValue) return []
-  if (field.field === 'sub_habits' || field.proposedValue === null || field.newValue === '' || field.newValue?.toLowerCase() === 'false') return []
+  if (field.field === 'sub_habits' || field.proposedValue === null || field.newValue == null || field.newValue === '' || field.newValue.toLowerCase() === 'false' || (Array.isArray(field.proposedValue) && field.proposedValue.length === 0)) return []
   if (field.field === 'tag_names' && Array.isArray(field.proposedValue)) return [field.proposedValue.filter((tag): tag is string => typeof tag === 'string').join(', ')]
   return undefined
 }

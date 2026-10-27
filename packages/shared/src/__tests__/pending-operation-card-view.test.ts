@@ -1,4 +1,4 @@
-import { makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
+import { makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -106,6 +106,86 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     const { record, render } = createRenderers()
     renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
     expect(record.frame?.title).toBe(locale === 'en' ? 'Change 5 habits' : 'Alterar 5 hábitos')
+  })
+})
+
+describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('suggestion batch summaries in $locale', ({ locale, messages }) => {
+  it.each([
+    ['createGoal', 'goals.write'], ['createTag', 'tags.write'], ['updateGoal', 'goals.write'],
+  ])('preserves the %s action for a title-only row', (actionKey, capabilityId) => {
+    const operation = { ...makeCreateHabitsPreview(1), actionKey, capabilityId }
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items[0]?.meta).toBe(translateMessages(messages, `chat.operation.source.${actionKey}`))
+  })
+
+  it('keeps explicit habit create actions', () => {
+    const operation = { ...makeSuggestionBatchPreview(), actionKey: 'createHabits' }
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items.map((row) => row.meta)).toEqual(Array(2).fill(locale === 'en'
+      ? 'Every day · Oct 27, 2026 · at 08:15 · Until 08:30' : 'Todo dia · 27 de out. de 2026 · às 08:15 · Até 08:30'))
+  })
+
+  it('does not infer a habit from a title-only account change', () => {
+    const operation = { ...makeCreateHabitsPreview(1), actionKey: 'applyAccountChanges', capabilityId: 'chat.changes' }
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items[0]?.meta).toBe(labels.pending)
+  })
+
+  it('recognizes a one-time task create without a schedule in an account-change batch', () => {
+    const batch = makeSuggestionBatchPreview()
+    const operation = { ...batch, items: batch.items!.map((item) => ({ ...item, fields: item.fields.filter((field) =>
+      ['title', 'due_date', 'reminder_enabled', 'reminder_times'].includes(field.field)) })) }
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items[0]?.meta).not.toContain(messages.chat.preview.summary.stopReminders)
+    expect(record.frame?.items[0]?.meta).toContain(locale === 'en' ? 'Oct 27, 2026' : '27 de out. de 2026')
+  })
+
+  it.each([
+    { actionKey: 'updateHabits', capabilityId: 'chat.changes' },
+    { actionKey: 'applyAccountChanges', capabilityId: 'goals.write' },
+  ])('retains update outcomes outside an account-change batch: $actionKey, $capabilityId', (scope) => {
+    const operation = { ...makeSuggestionBatchPreview(), ...scope }
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items[0]?.meta).toContain(messages.chat.preview.summary.stopReminders)
+  })
+
+  it('retains checklist content and a nondefault week interval on creates', () => {
+    const batch = makeSuggestionBatchPreview()
+    const operation = { ...batch, items: batch.items!.map((item) => ({ ...item, fields: item.fields.map((field) =>
+      field.field === 'checklist_items' ? { ...field, newValue: '["Prepare tea"]', proposedValue: ['Prepare tea'] }
+        : field.field === 'interval_weeks' ? { ...field, newValue: '2', proposedValue: 2 } : field) })) }
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    for (const row of record.frame!.items) {
+      expect(row.meta).toContain('Prepare tea')
+      expect(row.meta).toContain(locale === 'en' ? 'Every 2 weeks' : 'A cada 2 semanas')
+    }
+  })
+
+  it.each(['none', 'habit_id', 'oldValue'] as const)('describes creates and preserves updates identified by %s', (update) => {
+    const operation = makeSuggestionBatchPreview(update)
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    const expected = locale === 'en' ? 'Every day · Oct 27, 2026 · at 08:15 · Until 08:30' : 'Todo dia · 27 de out. de 2026 · às 08:15 · Até 08:30'
+    expect(record.frame?.items[0]?.meta).toBe(expected)
+    if (update === 'none') expect(record.frame?.items[1]?.meta).toBe(expected)
+    else {
+      expect(record.frame?.items[1]?.meta).toContain(messages.chat.preview.summary.clearChecklist)
+      expect(record.frame?.items[1]?.meta).toContain(messages.chat.preview.summary.stopReminders)
+      expect(record.frame?.items[1]?.meta).toContain(messages.chat.preview.summary.clearReminders)
+    }
   })
 })
 

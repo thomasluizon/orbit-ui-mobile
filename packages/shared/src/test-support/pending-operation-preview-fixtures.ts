@@ -37,6 +37,32 @@ export function makeCreateHabitsPreview(count = 12): PendingAgentOperation {
   })
 }
 
+export function makeSuggestionBatchPreview(update: 'none' | 'habit_id' | 'oldValue' = 'none'): PendingAgentOperation {
+  const operation = makeCreateHabitsPreview(2)
+  return pendingAgentOperationSchema.parse({ ...operation, actionKey: 'applyAccountChanges', capabilityId: 'chat.changes',
+    items: operation.items!.map((item, index) => {
+      const fields = [
+        ...item.fields,
+        ...[
+          { field: 'frequency_unit', newValue: 'Day', proposedValue: 'Day', valueType: 'text' },
+          { field: 'frequency_quantity', newValue: '1', proposedValue: 1, valueType: 'number' },
+          { field: 'interval_weeks', newValue: '1', proposedValue: 1, valueType: 'number' },
+          { field: 'due_date', newValue: '2026-10-27', proposedValue: '2026-10-27', valueType: 'date' },
+          { field: 'due_time', newValue: '08:15', proposedValue: '08:15', valueType: 'time' },
+          { field: 'checklist_items', newValue: '[]', proposedValue: [], valueType: 'text' },
+          { field: 'due_end_time', newValue: '08:30', proposedValue: '08:30', valueType: 'time' },
+          { field: 'reminder_enabled', newValue: 'False', proposedValue: false, valueType: 'boolean' },
+          { field: 'reminder_times', newValue: '[]', proposedValue: [], valueType: 'text' },
+          { field: 'parent_habit_id', newValue: 'No parent (top level)', proposedValue: null, valueType: 'text' },
+        ].map((field) => ({ entityId: emptyId, entityName: item.entityName, oldValue: null, isEditable: true, ...field })),
+      ]
+      if (index === 1 && update === 'habit_id') fields.push({ ...item.fields[0]!, field: 'habit_id', newValue: '00000000-0000-4000-8000-000000000002' })
+      return { ...item, fields: index === 1 && update === 'oldValue'
+        ? fields.map((field) => field.field === 'reminder_enabled' ? { ...field, oldValue: 'True' } : field) : fields }
+    }),
+  })
+}
+
 export function makeDeleteHabitsPreview(count = 3): PendingAgentOperation {
   const items = Array.from({ length: count }, (_, index) => {
     const entityId = `00000000-0000-4000-8000-${String(index + 2).padStart(12, '0')}`
