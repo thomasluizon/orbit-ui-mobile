@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { act } from '@testing-library/react'
+import { act, render } from '@testing-library/react'
 import { hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -52,6 +52,28 @@ describe('sub-screen header first paint', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([412, 844])('keeps a hosted page header inside asymmetric insets at %ipx', async (width) => {
+    mocks.locale = 'en'
+    const insets = { left: 28, right: 64 }
+    const view = render(<AboutInShell />)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}:root { --safe-left: ${insets.left}px; --safe-right: ${insets.right}px; }</style>${view.container.innerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const header = document.querySelector('[data-shell-header]')!
+        const back = header.querySelector('button')!.getBoundingClientRect()
+        const content = document.querySelector('[data-shell-header-content]')!
+        const style = getComputedStyle(content)
+        const surface = header.getBoundingClientRect()
+        return { left: back.left, right: back.right, paddingLeft: Number.parseFloat(style.paddingLeft), paddingRight: Number.parseFloat(style.paddingRight),
+          hosted: content.contains(header.querySelector('button')), surfaceLeft: surface.left, surfaceRight: surface.right }
+      })
+      expect.soft(geometry).toMatchObject({ hosted: true, paddingLeft: insets.left, paddingRight: insets.right, surfaceLeft: 0, surfaceRight: width })
+      expect.soft(geometry.left).toBeGreaterThanOrEqual(insets.left + 8)
+      expect(geometry.right).toBeLessThanOrEqual(width - insets.right)
+    } finally { await page.close(); view.unmount() }
+  })
+
   for (const locale of ['en', 'pt-BR'] as const) {
     it.each([412, 840, 1100, 1352])(`keeps About and its back control stationary through hydration at %ipx in ${locale}`, async (width) => {
       mocks.locale = locale
@@ -75,7 +97,7 @@ describe('sub-screen header first paint', () => {
               back: bounds(document.querySelector('header button')),
               column: bounds(document.querySelector('[data-shell-column]')),
               frame: bounds(document.querySelector('[data-testid="about-content"]')),
-              available: document.querySelector<HTMLElement>('[data-shell-scroller]')!.clientWidth,
+              available: document.querySelector<HTMLElement>('[data-shell-page-content]')!.clientWidth,
             }
           })
         }

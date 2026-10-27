@@ -413,12 +413,12 @@ function ShellWideBackground({
     >
       {navigationEnabled ? <ShellSidebar {...props} layerOpen={conversationOpen} wide={wide} conversationId={conversationId} collapsed={collapsed} /> : null}
 
-      <div className="relative flex h-dvh min-w-0 flex-1 justify-center lg:px-8">
+      <div className="relative flex h-dvh min-w-0 flex-1 justify-center lg:pl-[max(var(--orbit-space-32),var(--safe-left))] lg:pr-[max(var(--orbit-space-32),var(--safe-right))]">
         <div data-shell-column="" className="orbit-centred-column lg:max-w-[740px] relative flex h-full w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(var(--orbit-space-32),var(--safe-top))]">
           <ShellDestinationViewport floating={floating} hasHeader={registerHeaderHost !== undefined || props.header !== undefined} hasTabBar={navigationEnabled && props.tabBar !== undefined}>
           <div data-shell-background="" data-shell-destination="" inert={conversationOpen || undefined} aria-hidden={conversationOpen || undefined}
             className="flex h-full min-h-0 flex-col" style={conversationOpen ? { visibility: 'hidden' } : undefined}>
-          {registerHeaderHost !== undefined || props.header !== undefined ? <div ref={registerHeaderHost} data-shell-header="" data-focus-inset="" className={`empty:hidden overflow-y-auto [scrollbar-gutter:stable] ${hasFlowAction ? 'min-h-[var(--touch-min)] overscroll-contain' : 'shrink-0'}`}><div data-shell-header-content="" className="mx-auto w-full max-w-[740px]">{props.header}</div></div> : null}
+          {registerHeaderHost !== undefined || props.header !== undefined ? <div data-shell-header="" data-focus-inset="" className={`empty:hidden overflow-y-auto [scrollbar-gutter:stable] ${hasFlowAction ? 'min-h-[var(--touch-min)] overscroll-contain' : 'shrink-0'}`}><div ref={registerHeaderHost} data-shell-header-content="" className="mx-auto w-full max-w-[740px]">{props.header}</div></div> : null}
           <div data-shell-page="" className={`relative flex flex-1 flex-col ${scrollerSpacing.minimum}`}>
             {hasFlowAction ? <div className="min-h-0 flex-1 overflow-hidden">{scroller}</div> : scroller}
             {props.fab !== undefined ? (

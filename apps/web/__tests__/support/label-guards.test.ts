@@ -194,7 +194,7 @@ describe('label and interaction fill guards in Chromium', () => {
           document.documentElement.className = mode
           for (const [name, value] of Object.entries(variables)) document.documentElement.style.setProperty(name, value)
         }, { mode, variables: resolveWebThemeVariables('orange', mode) })
-        const indicators = page.locator('nav > a [data-tab-indicator]')
+        const indicators = page.locator('nav [data-tab-items] > a [data-tab-indicator]')
         expect(await indicators.count()).toBe(SHELL_DESTINATION_IDS.length)
         for (const indicator of await indicators.all()) {
           await expectInteractionFill(indicator)

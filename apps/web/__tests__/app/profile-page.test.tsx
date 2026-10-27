@@ -543,8 +543,9 @@ describe('ProfilePage', () => {
           const card = document.querySelector('[data-testid="profile-settings-group-you"] .orbit-row-list')!.getBoundingClientRect()
           const row = document.querySelector('[data-root-notification-header]')!.getBoundingClientRect()
           const bell = document.querySelector('[data-root-notification-header] button')!.getBoundingClientRect()
+          const content = document.querySelector('[data-shell-page-content]')!.getBoundingClientRect()
           return { columnTop: column.top, columnInset: card.top - column.top, scrollerInset: card.top - scroller.top,
-            headerHeight: row.height, trailingInset: scroller.left + scrollElement.clientWidth - bell.right }
+            headerHeight: row.height, trailingInset: content.right - bell.right }
         })
         expect(geometry.columnTop).toBe(0)
         expect(geometry.columnInset).toBe(width < 1024 ? 100 : 32)

@@ -565,6 +565,7 @@ select[aria-hidden="true"] {
 }
 
 .orbit-sheet-body {
+  --sheet-body-inline: var(--padding-sheet-inline);
   min-width: 0;
   min-height: 0;
   flex: 0 1 auto;
@@ -2762,8 +2763,8 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 .orbit-sheet-body {
-  padding-left: calc(var(--sheet-body-inline, var(--padding-sheet-inline)) + var(--safe-left));
-  padding-right: calc(var(--sheet-body-inline, var(--padding-sheet-inline)) + var(--safe-right));
+  padding-left: calc(var(--sheet-body-inline) + var(--safe-left));
+  padding-right: calc(var(--sheet-body-inline) + var(--safe-right));
 }
 
 @media (min-width: 1024px) {

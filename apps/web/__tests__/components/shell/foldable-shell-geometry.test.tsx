@@ -157,7 +157,7 @@ describe('Foldable shell geometry', () => {
     },
   )
 
-  it.each([320, 412, 600, 1100].flatMap((width) => [24, 48].map((top) => ({ width, top, left: 28, right: 64 }))))(
+  it.each([320, 412, 600, 1024, 1100].flatMap((width) => [24, 48].map((top) => ({ width, top, left: 28, right: 64 }))))(
     'applies one safe top inset to the full-screen conversation at $width with top $top', async ({ width, top, left, right }) => {
       const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"
         astraRow={{ label: en.chat.title, onOpen: vi.fn() }} conversationOpen
@@ -179,11 +179,17 @@ describe('Foldable shell geometry', () => {
           const composer = document.querySelector('[data-shell-conversation] [data-composer-root]')!.getBoundingClientRect()
           const title = document.querySelector('[data-shell-conversation] h1')!.getBoundingClientRect()
           const field = document.querySelector('[data-shell-conversation] textarea')!.getBoundingClientRect()
+          const controls = [...document.querySelectorAll('[data-shell-conversation] button, [data-shell-conversation] textarea')]
+            .map(element => ({ left: element.getBoundingClientRect().left, right: element.getBoundingClientRect().right }))
           return { titleLeft: title.left, fieldLeft: field.left, fieldRight: field.right, layerTop: layer.top, headerTop: header.top, bottom: layer.bottom, composerBottom: composer.bottom,
-            layerLeft: layer.left, layerRight: layer.right, headerLeft: header.left, headerRight: header.right, composerLeft: composer.left, composerRight: composer.right }
+            layerLeft: layer.left, layerRight: layer.right, headerLeft: header.left, headerRight: header.right, composerLeft: composer.left, composerRight: composer.right, controls }
         })
         for (const edge of [geometry.titleLeft, geometry.fieldLeft]) expect(edge).toBeGreaterThanOrEqual(left + 16)
         expect(geometry.fieldRight).toBeLessThanOrEqual(width - right - 16)
+        for (const control of geometry.controls) {
+          expect(control.left).toBeGreaterThanOrEqual(left)
+          expect(control.right).toBeLessThanOrEqual(width - right)
+        }
         if (width < 1024) {
           expect(geometry.layerLeft).toBe(0)
           expect(geometry.layerRight).toBe(width)

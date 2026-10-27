@@ -193,7 +193,7 @@ describe('interaction fill guard with the mounted conversation owners', () => {
         expect(inset.trailing).toBe(PADDING.screenGutter)
         expect(inset.columnLeading).toBeGreaterThanOrEqual(PADDING.screenGutter)
         expect(inset.columnTrailing).toBeGreaterThanOrEqual(PADDING.screenGutter)
-        expect(await page.locator('[data-shell-pinned-slot] [data-composer-root]').evaluate(element => getComputedStyle(element).gap)).toBe('12px')
+        expect(await page.locator('[data-shell-pinned-slot] [data-composer-content]').evaluate(element => getComputedStyle(element).gap)).toBe('12px')
         const counts = await inspectControls(page, page.locator('[data-shell-pinned-slot] textarea'), `/habits/habit-1, ${width}px, ${locale}`, INTERACTION_FILL_CLEARANCE)
         expect(counts).toEqual({ inspectedControls: 1, skippedSentinels: 0 })
       } finally { await page.close() }
