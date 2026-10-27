@@ -1,5 +1,5 @@
-// Starting budget from #1761; calibrate from #1740 gate 4 staging phase medians before merge.
-export const READ_LATENCY_BUDGET_MILLISECONDS = 5000
+// The budget sits above every read case median with one model call and below the median with a second model call.
+export const READ_LATENCY_BUDGET_MILLISECONDS = 10000
 
 const phaseNames = ['moderation', 'context_load', 'prompt_build', 'model_call', 'tool_call', 'save', 'composition', 'budget', 'other']
 const validMilliseconds = (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0

@@ -1,5 +1,6 @@
 import parseResponse from '../../response.mjs'
 import AstraHttpProvider from '../../http-provider.mjs'
+import { READ_LATENCY_BUDGET_MILLISECONDS } from '../../latency.mjs'
 import { chatResponse, habitBlock, toolCall, turnTiming } from './producer.mjs'
 
 export default class MockAstra {
@@ -22,9 +23,10 @@ export default class MockAstra {
     }
     if (context.vars.responseMode === 'slow-latency') {
       const timing = response.evalTrace.timing
-      timing.phases.find((phase) => phase.name === 'model_call').milliseconds += 7000 - timing.totalMilliseconds
-      timing.phases.find((phase) => phase.name === 'model_call').elapsedMilliseconds += 7000 - timing.totalMilliseconds
-      timing.totalMilliseconds = 7000
+      const slowMilliseconds = READ_LATENCY_BUDGET_MILLISECONDS + 2000
+      timing.phases.find((phase) => phase.name === 'model_call').milliseconds += slowMilliseconds - timing.totalMilliseconds
+      timing.phases.find((phase) => phase.name === 'model_call').elapsedMilliseconds += slowMilliseconds - timing.totalMilliseconds
+      timing.totalMilliseconds = slowMilliseconds
     }
     if (context.vars.responseMode === 'missing-timing') delete response.evalTrace.timing
     if (context.vars.noTrace) delete response.evalTrace

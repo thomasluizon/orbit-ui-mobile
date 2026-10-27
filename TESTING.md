@@ -435,11 +435,15 @@ budget refusal. The corpus does not infer a successful mutation from a plausible
 ### Read latency budget
 
 Read cases also require the median API turn time across their three attempts to be strictly below
-`READ_LATENCY_BUDGET_MILLISECONDS` in `evals/astra/latency.mjs`. The starting value is 5000 ms from
-#1761. Before merge, the coordinator replaces it with the measured budget from #1740 gate 4 staging
-per-phase medians, then records both live runs on the pull request: the current build must pass and
-the build with the second model call forced back on must fail. Fixture timings do not calibrate the
-budget. Live runs consume model allowance and belong to the coordinator.
+`READ_LATENCY_BUDGET_MILLISECONDS` in `evals/astra/latency.mjs`, set to 10000 ms. The #26 gate 6
+failing-case rerun on staging API `43886600` measured 31 read cases with three attempts each:
+the median of case medians was 5533 ms and the `model_call` median was 4701 ms, putting an added
+second call near 10234 ms. The slowest case median with one model call was 9003 ms (`single-read-en`);
+cases with two or three model calls reached 11938 ms (`composition-partial-pt-BR`) and 13771 ms
+(`grounding-missing-pt`). The budget sits above every measured case median with one model call and
+below the estimated median with a second call. Exactly 10000 ms fails. The coordinator records the
+current-build and forced-second-call live runs on the pull request. Fixture timings do not calibrate
+the budget. Live runs consume model allowance and belong to the coordinator.
 
 The corpus classifies `composition.mode: data` as read cases, together with legacy `fallback` cases
 that declare nonempty read-only `expectations.allowed` tools. Preview, clarification and refusal

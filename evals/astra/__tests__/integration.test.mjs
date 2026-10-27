@@ -9,6 +9,7 @@ import { loadApiProvider } from 'promptfoo'
 import { beforeAll, beforeEach } from '../hooks.mjs'
 import { resetFixture } from '../fixtures/reset.mjs'
 import { behavior } from '../assertions.mjs'
+import { READ_LATENCY_BUDGET_MILLISECONDS } from '../latency.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, toolCall, traceTiming, turnTiming } from './fixtures/producer.mjs'
 
@@ -88,8 +89,8 @@ describe('real promptfoo CLI with an offline provider', () => {
         expect(evidence.toolCalls).toMatchObject([{ name: 'log_habit', resultStatus: 'PendingConfirmation' }])
         if (responseMode === 'missing-timing') expect(evidence.timing).toBeNull()
         else if (responseMode === 'slow-latency') {
-          expect(evidence.timing.totalMilliseconds).toBe(7000)
-          expect(evidence.timing.phases.reduce((total, phase) => total + phase.milliseconds, 0)).toBe(7000)
+          expect(evidence.timing.totalMilliseconds).toBe(READ_LATENCY_BUDGET_MILLISECONDS + 2000)
+          expect(evidence.timing.phases.reduce((total, phase) => total + phase.milliseconds, 0)).toBe(READ_LATENCY_BUDGET_MILLISECONDS + 2000)
         } else expect(evidence.timing).toEqual(responseMode && ['prose-first', 'block-only', 'repeated-figure', 'unrenderable'].includes(responseMode)
           ? turnTiming() : traceTiming)
       }
