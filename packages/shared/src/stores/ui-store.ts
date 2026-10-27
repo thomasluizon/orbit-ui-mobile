@@ -54,6 +54,7 @@ export interface PersistedUIState {
   activeView: ActiveView;
   calendarShowRecurring: boolean;
   habitComposerCollapsed: boolean;
+  todayComposerCollapsed: boolean;
 }
 
 export function migratePersistedUIState(
@@ -68,6 +69,7 @@ export function migratePersistedUIState(
     dailyStreakMomentDate: typeof state.dailyStreakMomentDate === "string" ? state.dailyStreakMomentDate : "",
     setupChecklistDismissed: state.setupChecklistDismissed === true,
     habitComposerCollapsed: state.habitComposerCollapsed === true,
+    todayComposerCollapsed: state.todayComposerCollapsed === true,
     activeFilters,
     calendarShowRecurring: typeof state.calendarShowRecurring === "boolean" ? state.calendarShowRecurring : true,
     activeView: isActiveView(state.activeView) ? state.activeView : "today",
@@ -85,7 +87,9 @@ export interface UIStoreState {
   calendarShowRecurring: boolean;
   setCalendarShowRecurring: (show: boolean) => void;
   habitComposerCollapsed: boolean;
+  todayComposerCollapsed: boolean;
   setHabitComposerCollapsed: (collapsed: boolean) => void;
+  setTodayComposerCollapsed: (collapsed: boolean) => void;
   activeView: ActiveView;
   setActiveView: (view: ActiveView) => void;
 
@@ -169,6 +173,7 @@ export function getPersistedUIState(state: UIStoreState): PersistedUIState {
     activeView: state.activeView,
     calendarShowRecurring: state.calendarShowRecurring,
     habitComposerCollapsed: state.habitComposerCollapsed,
+    todayComposerCollapsed: state.todayComposerCollapsed,
     setupChecklistDismissed: state.setupChecklistDismissed,
   };
 }
@@ -237,6 +242,8 @@ export function createUIStoreState(
         activeFilters: { ...state.activeFilters, ...filters },
       })),
 
+    todayComposerCollapsed: false,
+    setTodayComposerCollapsed: (todayComposerCollapsed) => set({ todayComposerCollapsed }),
     habitComposerCollapsed: false,
     setHabitComposerCollapsed: (habitComposerCollapsed) => set({ habitComposerCollapsed }),
     calendarShowRecurring: true,
