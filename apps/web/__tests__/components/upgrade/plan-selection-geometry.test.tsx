@@ -13,6 +13,7 @@ import { ProPitch } from '@/components/upgrade/pro-pitch'
 import { OnboardingProStep } from '@/components/onboarding/onboarding-pro-step'
 import { measureOnboardingProStep } from '../../../e2e/layout/onboarding-pro-step-geometry'
 import { subscriptionPlansFixtures } from '@/test-support/hermetic/mock-api/fixtures/subscription-plans'
+import { measureSplitSegmentWords } from '@/__tests__/support/segmented-control-geometry'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -63,7 +64,7 @@ describe('Pro tier geometry in Chromium', () => {
   const compactCases = [320, 360, 384, 412].flatMap((width) => (['en', 'pt-BR'] as const)
     .map((locale) => ({ width, locale })))
 
-  it.each([...compactCases, { width: 1440, locale: 'en' }, { width: 1440, locale: 'pt-BR' }])('shares remaining width between label-based period segments at $width in $locale', async ({ width, locale }) => {
+  it.each([...compactCases, { width: 1440, locale: 'en' }, { width: 1440, locale: 'pt-BR' }].flatMap((entry) => [1, 2].map((scale) => ({ ...entry, scale }))))('shares remaining width between label-based period segments at $width in $locale and scale $scale', async ({ width, locale, scale }) => {
     const messages = locale === 'en' ? en : ptBR
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}><Pricing coupon={false} /></NextIntlClientProvider>)
     await waitForLoadedTiers(container)
@@ -71,6 +72,8 @@ describe('Pro tier geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
+      await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+      expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
       const geometry = await page.locator('[role="radiogroup"]').evaluate((group) => {
         const bounds = group.getBoundingClientRect()
         const column = group.parentElement!.getBoundingClientRect()
@@ -88,9 +91,9 @@ describe('Pro tier geometry in Chromium', () => {
       expect(geometry.segments).toHaveLength(2)
       expect(geometry.width).toBeCloseTo(width >= 1024 ? 320 : width - 32, 0)
       expect(geometry.width).toBeCloseTo(geometry.columnWidth, 0)
-      expect(geometry.segments[0]!.top).toBeCloseTo(geometry.segments[1]!.top, 0)
+      if (scale === 1) expect(geometry.segments[0]!.top).toBeCloseTo(geometry.segments[1]!.top, 0)
       const remaining = geometry.segments.map((segment) => segment.width - segment.labelWidth)
-      expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
+      if (scale === 1) expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
       for (const segment of geometry.segments) {
         expect(segment.height).toBeGreaterThanOrEqual(48)
         expect(segment.lines).toBe(1)

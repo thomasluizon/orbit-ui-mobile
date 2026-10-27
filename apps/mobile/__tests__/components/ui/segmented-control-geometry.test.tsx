@@ -139,15 +139,15 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
     layout.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
     expect(groups).toHaveLength(mode === 'flexible' || mode === 'interval' ? 2 : 1)
     for (const { node: group, radios: options } of groups) {
-      expect(new Set(options.map((node) => node.getComputedTop())).size).toBe(1)
+      if (fontScale === 1) expect(new Set(options.map((node) => node.getComputedTop())).size).toBe(1)
       expect(group.getComputedWidth()).toBe(width - 32)
       for (const radio of options) {
         expect(radio.getComputedHeight()).toBeGreaterThanOrEqual(48)
         expect(radio.getComputedWidth()).toBeGreaterThanOrEqual(48)
         expect(radio.getComputedLeft() + radio.getComputedWidth()).toBeLessThanOrEqual(group.getComputedWidth())
         const label = labels[radios.indexOf(radio)]!
-        if (fontScale === 1) expect(label.node.getComputedWidth()).toBeGreaterThanOrEqual(label.intrinsic)
-        else {
+        expect(label.node.getComputedWidth(), 'A segment must fit each whole word').toBeGreaterThanOrEqual(label.intrinsic)
+        if (fontScale > 1.3) {
           expect(label.host.props.numberOfLines).toBeUndefined()
           expect(label.node.getComputedHeight()).toBeLessThanOrEqual(radio.getComputedHeight())
         }
@@ -158,11 +158,11 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
 
 const segmentSites = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'mobile')
 
-it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => ['calendar', 'goal', 'plans', 'share'].map((surface) => ({ locale, width, surface })))))('fits the real $surface container in $locale at $width', async ({ locale, width, surface }) => {
+it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => ['calendar', 'goal', 'plans', 'share'].flatMap((surface) => [1, 2].map((fontScale) => ({ locale, width, surface, fontScale }))))))('fits the real $surface container in $locale at $width and scale $fontScale', async ({ locale, width, surface, fontScale }) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   queryClient.setQueryData(habitKeys.list({}), [])
   await i18n.changeLanguage(locale)
-  __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+  __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
   const tokens = createTokensV2('orange', 'dark')
   const messages = locale === 'en' ? en : ptBR
   const calendarKeys = segmentSites.find((site) => site.path === 'app/(tabs)/calendar.tsx')!.optionKeys
@@ -181,45 +181,45 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
   const labels: { node: YogaNode; intrinsic: number; host: Host }[] = []
   const radios: YogaNode[] = []
   const groups: { node: YogaNode; radios: YogaNode[] }[] = []
-  const layout = buildLayout(tree.toJSON(), 1, labels, radios, groups)
+  const layout = buildLayout(tree.toJSON(), fontScale, labels, radios, groups)
   try {
     layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
     expect(groups).toHaveLength(1)
     const group = groups[0]!
     expect(group.radios).toHaveLength(surface === 'calendar' ? choices.length : surface === 'share' ? 3 : 2)
-    expect(new Set(group.radios.map((node) => node.getComputedTop())).size).toBe(1)
+    if (fontScale === 1) expect(new Set(group.radios.map((node) => node.getComputedTop())).size).toBe(1)
     expect(group.node.getComputedWidth()).toBeLessThanOrEqual(width - (surface === 'goal' || surface === 'share' ? 48 : 32))
     for (const [index, radio] of radios.entries()) {
       expect(radio.getComputedHeight()).toBeGreaterThanOrEqual(48)
         expect(radio.getComputedWidth()).toBeGreaterThanOrEqual(48)
       expect(radio.getComputedLeft() + radio.getComputedWidth()).toBeLessThanOrEqual(group.node.getComputedWidth())
       expect(labels[index]!.node.getComputedWidth()).toBeGreaterThanOrEqual(labels[index]!.intrinsic)
-      expect(labels[index]!.host.props.numberOfLines).toBe(1)
+      expect(labels[index]!.host.props.numberOfLines).toBe(fontScale > 1.3 ? undefined : 1)
     }
   } finally { layout.freeRecursive(); await TestRenderer.act(() => tree.unmount()); queryClient.clear() }
 })
 
 
-it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412, 600, 768, 840, 1352].map((width) => ({ locale, width }))))('keeps the Hoje view switch on one line in $locale at $width', async ({ locale, width }) => {
+it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412, 600, 768, 840, 1352].flatMap((width) => [1, 2].map((fontScale) => ({ locale, width, fontScale })))))('keeps Hoje view words whole in $locale at $width and scale $fontScale', async ({ locale, width, fontScale }) => {
   await i18n.changeLanguage(locale)
-  __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+  __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
   let tree!: ReturnType<typeof TestRenderer.create> & { toJSON: () => Host; unmount: () => void }
   await TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ width: '100%', maxWidth: 740, paddingHorizontal: 16 }}><HabitViewSwitch value="today" onChange={vi.fn()} /></View>) as typeof tree })
   const labels: { node: YogaNode; intrinsic: number; host: Host }[] = []
   const radios: YogaNode[] = []
   const groups: { node: YogaNode; radios: YogaNode[] }[] = []
-  const layout = buildLayout(tree.toJSON(), 1, labels, radios, groups)
+  const layout = buildLayout(tree.toJSON(), fontScale, labels, radios, groups)
   try {
     layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
     expect(groups).toHaveLength(1)
     expect(radios).toHaveLength(3)
-    expect(new Set(radios.map((node) => node.getComputedTop())).size).toBe(1)
+    if (fontScale === 1) expect(new Set(radios.map((node) => node.getComputedTop())).size).toBe(1)
     for (const [index, radio] of radios.entries()) {
       expect(radio.getComputedWidth()).toBeGreaterThanOrEqual(48)
       expect(radio.getComputedHeight()).toBeGreaterThanOrEqual(48)
       expect(radio.getComputedLeft() + radio.getComputedWidth()).toBeLessThanOrEqual(groups[0]!.node.getComputedWidth())
       expect(labels[index]!.node.getComputedWidth()).toBeGreaterThanOrEqual(labels[index]!.intrinsic)
-      expect(labels[index]!.host.props.numberOfLines).toBe(1)
+      expect(labels[index]!.host.props.numberOfLines).toBe(fontScale > 1.3 ? undefined : 1)
     }
   } finally { layout.freeRecursive(); await TestRenderer.act(() => tree.unmount()) }
 })

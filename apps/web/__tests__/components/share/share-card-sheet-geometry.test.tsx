@@ -12,6 +12,7 @@ import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/_
 import { referralKeys } from '@orbit/shared/query'
 import { referralDashboardSchema } from '@orbit/shared/types/referral'
 import { ShareCardSheet } from '@/components/share/share-card-sheet'
+import { measureSplitSegmentWords } from '@/__tests__/support/segmented-control-geometry'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -48,7 +49,7 @@ describe('Share progress sheet geometry in Chromium', () => {
   afterEach(() => { cleanup(); queryClient.clear() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([320, 360, 384, 412, 840, 1352, 1440].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))('fits the real sheet period selector at $width in $locale', async ({ width, locale }) => {
+  it.each([320, 360, 384, 412, 840, 1352, 1440].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) => [1, 2].map((scale) => ({ width, locale, scale })))))('fits the real sheet period selector at $width in $locale and scale $scale', async ({ width, locale, scale }) => {
     render(<QueryClientProvider client={queryClient}><NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><ShareCardSheet onClose={vi.fn()} /></NextIntlClientProvider></QueryClientProvider>)
     const dialog = screen.getByRole('dialog')
     const page = await browser.newPage({ viewport: { width, height: 915 } })
@@ -62,6 +63,8 @@ describe('Share progress sheet geometry in Chromium', () => {
         return content.getBoundingClientRect().bottom - content.querySelector('[data-testid="share-card"]')!.getBoundingClientRect().bottom
       })
       expect(trailingSpace).toBeCloseTo(0)
+      await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+      expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
       const geometry = await page.locator('[role="radiogroup"]').evaluate((group) => {
         const bounds = group.getBoundingClientRect()
         const column = group.parentElement!.getBoundingClientRect()
@@ -83,7 +86,7 @@ describe('Share progress sheet geometry in Chromium', () => {
       expect(geometry.width).toBeGreaterThan(0)
       expect(geometry.width).toBeCloseTo(geometry.columnWidth, 0)
       expect(geometry.segments).toHaveLength(3)
-      expect(new Set(geometry.segments.map((segment) => segment.top)).size).toBe(1)
+      if (scale === 1) expect(new Set(geometry.segments.map((segment) => segment.top)).size).toBe(1)
       for (const segment of geometry.segments) {
         expect(segment.width).toBeGreaterThanOrEqual(48)
         expect(segment.height).toBeGreaterThanOrEqual(48)

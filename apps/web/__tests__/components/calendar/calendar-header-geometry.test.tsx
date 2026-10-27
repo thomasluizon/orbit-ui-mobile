@@ -27,6 +27,7 @@ import { FlowShell } from '@/components/shell/flow-shell'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { revealFocusedControl } from '@/lib/focus-scroll'
+import { measureSplitSegmentWords } from '@/__tests__/support/segmented-control-geometry'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { expectDayCircle, expectDayCircleHover } from '@/e2e/layout/calendar-day-circle-helpers'
@@ -97,7 +98,7 @@ function measureCalendarSegments() {
 
 function expectCalendarSegments(segments: ReturnType<typeof measureCalendarSegments>, scale: number) {
   expect(segments).toHaveLength(calendarKeys.length)
-  expect(new Set(segments.map((segment) => segment.top)).size).toBe(1)
+  if (scale === 1) expect(new Set(segments.map((segment) => segment.top)).size).toBe(1)
   for (const segment of segments) {
     expect(segment.width).toBeGreaterThanOrEqual(48)
     expect(segment.height).toBeGreaterThanOrEqual(48)
@@ -364,6 +365,7 @@ describe('Calendar header geometry in Chromium', () => {
       await loadAppFonts(page)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
         const header = await page.evaluate(() => {
           const buttons = [...document.querySelectorAll<HTMLButtonElement>('.orbit-sheet-header button')]
           return buttons.map((button) => {
@@ -397,6 +399,7 @@ describe('Calendar header geometry in Chromium', () => {
       await loadAppFonts(page)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
         const geometry = await page.evaluate(() => [...document.querySelectorAll<HTMLButtonElement>('[role="radio"]')].map((button) => {
           const label = button.querySelector('span')!
           const range = document.createRange()
@@ -433,6 +436,7 @@ describe('Calendar header geometry in Chromium', () => {
       await loadAppFonts(page)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
         const geometry = await page.locator('[role="radiogroup"]').evaluate((group) => {
           const bounds = group.getBoundingClientRect()
           const body = group.closest('[data-slot="sheet-body"]')!
@@ -449,7 +453,7 @@ describe('Calendar header geometry in Chromium', () => {
         })
         expect(geometry.segments).toHaveLength(2)
         expect(geometry.width).toBeLessThanOrEqual(geometry.bodyWidth)
-        expect(new Set(geometry.segments.map((segment) => segment.top)).size).toBe(1)
+        if (scale === 1) expect(new Set(geometry.segments.map((segment) => segment.top)).size).toBe(1)
         for (const segment of geometry.segments) {
           expect(segment.contained).toBe(true)
           expect(segment.height).toBeGreaterThanOrEqual(48)
@@ -640,6 +644,7 @@ describe('Calendar header geometry in Chromium', () => {
       await loadAppFonts(page)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
         const geometry = await page.evaluate(() => {
           const selector = document.querySelector('[role="radiogroup"]')!.getBoundingClientRect()
           const controls = [...document.querySelectorAll('[data-testid="calendar-header-group"] [data-testid$="-navigation"] button')].map((button) => {
@@ -716,6 +721,7 @@ describe('Calendar header geometry in Chromium', () => {
             }
           }
         }, scale)
+        expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
         const geometry = await page.evaluate(() => {
           const frame = document.querySelector<HTMLElement>('.orbit-calendar-grid-frame')!
           const stats = document.querySelector<HTMLElement>('[data-testid="calendar-stats"]')!
