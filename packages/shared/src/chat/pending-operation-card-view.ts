@@ -380,10 +380,15 @@ function previewRows<Node>(
   return rows
 }
 
+const HABIT_ONLY_PREVIEW_FIELDS = new Set([
+  'frequency_unit', 'frequency_quantity', 'is_bad_habit', 'is_general', 'is_flexible', 'parent_habit_id', 'checklist_items', 'sub_habits',
+  'days', 'due_date', 'due_time', 'due_end_time', 'end_date', 'reminder_enabled', 'reminder_times', 'scheduled_reminders', 'slip_alert_enabled',
+])
+
 function placementSummary(item: PreviewItem, operation: PendingAgentOperation, labels: PendingOperationCardLabels, parentChoice: boolean): string {
   const placement = item.placement
   const creating = operation.actionKey === 'applyAccountChanges' && operation.capabilityId === 'chat.changes'
-    && item.fields.some((field) => ['frequency_unit', 'frequency_quantity', 'is_bad_habit', 'is_general', 'is_flexible', 'parent_habit_id', 'checklist_items', 'sub_habits'].includes(field.field))
+    && item.fields.some((field) => HABIT_ONLY_PREVIEW_FIELDS.has(field.field))
     && !item.fields.some((field) => field.field === 'habit_id' || field.oldValue != null)
   const summary = labels.summarize(item.fields.filter((field) => !(parentChoice || placement) || field.field !== 'parent_habit_id'), creating ? 'createHabit' : undefined)
   if (!placement) return summary || labels.pending

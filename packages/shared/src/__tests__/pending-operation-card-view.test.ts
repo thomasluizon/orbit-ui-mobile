@@ -137,6 +137,17 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(record.frame?.items[0]?.meta).toBe(labels.pending)
   })
 
+  it('recognizes a one-time task create without a schedule in an account-change batch', () => {
+    const batch = makeSuggestionBatchPreview()
+    const operation = { ...batch, items: batch.items!.map((item) => ({ ...item, fields: item.fields.filter((field) =>
+      ['title', 'due_date', 'reminder_enabled', 'reminder_times'].includes(field.field)) })) }
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items[0]?.meta).not.toContain(messages.chat.preview.summary.stopReminders)
+    expect(record.frame?.items[0]?.meta).toContain(locale === 'en' ? 'Oct 27, 2026' : '27 de out. de 2026')
+  })
+
   it.each([
     { actionKey: 'updateHabits', capabilityId: 'chat.changes' },
     { actionKey: 'applyAccountChanges', capabilityId: 'goals.write' },
