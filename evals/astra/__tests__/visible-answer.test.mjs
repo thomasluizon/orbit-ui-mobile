@@ -29,10 +29,17 @@ it('excludes a succeeded read summary and hidden habit fields from the actual gr
   expect(output.answer).not.toContain('INVISIBLE_')
   expect(JSON.parse(output.answer)).not.toHaveProperty('operations')
 })
-it('projects a failed operation as the localized outcome both clients show', async () => {
+it('omits an unlabelled failed read outcome as both clients do', async () => {
   const { output } = await receive({ operations: [operation('Failed')], parts: [] })
   const visible = JSON.parse(output.answer)
-  expect(visible.outcomes).toEqual([{ title: 'Alguns itens não foram salvos', label: 'Operação da Astra', meta: 'Não foi salvo' }])
+  expect(visible).not.toHaveProperty('outcomes')
+  expect(output.answer).not.toContain('INVISIBLE_')
+})
+it('projects a failed write as the localized outcome both clients show', async () => {
+  const failed = { ...operation('Failed'), operationId: 'create_habit', sourceName: 'create_habit', targetName: 'Water' }
+  const { output } = await receive({ operations: [failed], parts: [] })
+  const visible = JSON.parse(output.answer)
+  expect(visible.outcomes).toEqual([{ title: 'Alguns itens não foram salvos', label: 'Water', meta: 'Não foi salvo' }])
   expect(output.answer).not.toContain('INVISIBLE_')
 })
 it.each([
