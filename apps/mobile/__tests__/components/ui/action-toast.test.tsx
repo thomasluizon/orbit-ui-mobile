@@ -60,6 +60,37 @@ describe('Android action toast dismissal', () => {
     return tree.root.findAllByProps({ testID: 'toast-neutral' })
   }
 
+  it.each(['showError', 'showInfo', 'showSuccess'] as const)('closes a hosted %s without leaving stale store state', (method) => {
+    useAppToastStore.getState()[method]('Feedback')
+    mount()
+    const close = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+      node.type === 'Pressable' && node.props.accessibilityLabel === 'common.close')[0]
+    expect(close).toBeDefined()
+    act(() => close.props.onPress())
+    expect(useAppToastStore.getState().currentToast).toBeNull()
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'common.close' })).toHaveLength(0)
+  })
+
+  it.each(['neutral', 'working', 'done', 'lost'] as const)('allows horizontal swipe on a %s toast', (kind) => {
+    const dismissed = vi.fn()
+    const variants = {
+      neutral: <Toast kind="neutral" message="Feedback" onDismiss={dismissed} />,
+      working: <Toast kind="working" message="Feedback" onDismiss={dismissed} />,
+      done: <Toast kind="done" message="Feedback" onDone={vi.fn()} onDismiss={dismissed} />,
+      lost: <Toast persistent kind="lost" message="Feedback" detail="Try again" actionLabel="Retry" onAction={vi.fn()} />,
+    }
+    mount(variants[kind])
+    const handlers = vi.mocked(PanResponder.create).mock.calls.at(-1)![0]
+    const event = {} as Parameters<NonNullable<typeof handlers.onMoveShouldSetPanResponder>>[0]
+    const gesture = { dx: 60, dy: 0 } as Parameters<NonNullable<typeof handlers.onMoveShouldSetPanResponder>>[1]
+    expect(handlers.onMoveShouldSetPanResponder?.(event, { ...gesture, dx: 0, dy: 60 })).toBe(false)
+    expect(handlers.onMoveShouldSetPanResponder?.(event, gesture)).toBe(true)
+    act(() => handlers.onPanResponderRelease?.(event, { ...gesture, dx: 24 }))
+    expect(tree.root.findAllByProps({ testID: `toast-${kind}` }).length).toBeGreaterThan(0)
+    act(() => handlers.onPanResponderRelease?.(event, gesture))
+    expect(tree.root.findAllByProps({ testID: `toast-${kind}` })).toHaveLength(0)
+  })
+
   it('runs an icon retry once without dismissing the failed notice', () => {
     const retry = vi.fn()
     const dismissed = vi.fn()

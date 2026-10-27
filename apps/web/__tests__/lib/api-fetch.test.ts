@@ -2,6 +2,8 @@ import { syncChangesV2ResponseSchema } from '@orbit/shared/types/sync'
 import reminderWire from '@orbit/shared/test-support/fixtures/habit-reminder-wire.json'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { verificationValidationResponses } from '@orbit/shared/test-support/validation-fixtures'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { z } from 'zod'
 
@@ -35,7 +37,6 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
     buildClientTimeZoneHeaders: vi.fn(() => ({
       'X-Orbit-Time-Zone': 'America/Sao_Paulo',
     })),
-    extractBackendError: vi.fn((err: { data?: { error?: string } }) => err.data?.error ?? undefined),
     extractBackendErrorCode: vi.fn(
       (err: { data?: { code?: string; errorCode?: string } }) =>
         err.data?.code ?? err.data?.errorCode ?? undefined,
@@ -48,7 +49,7 @@ vi.stubGlobal('fetch', mockFetch)
 
 const originalLocation = globalThis.location
 
-import { apiFetch, fetchJson, ApiError, fetchWithUpgradeGuidance } from '@/lib/api-fetch'
+import { apiFetch, fetchJson, ApiError, fetchWithUpgradeGuidance, setApiFetchTranslate } from '@/lib/api-fetch'
 import { useAppToastStore } from '@/stores/app-toast-store'
 const toastError = vi.fn()
 
@@ -309,7 +310,7 @@ describe('apiFetch', () => {
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
     expect(mockHref.href).toBe('')
-    expect(toastError).toHaveBeenCalledWith('Something went wrong: You do not own this habit')
+    expect(toastError).toHaveBeenCalledWith('You do not own this habit')
   })
 
   it('flags upgrade required on a 426 without toast', async () => {
@@ -352,7 +353,7 @@ describe('apiFetch', () => {
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toastError).toHaveBeenCalledWith(`Validation error: ${en.habits.form.titleRequired}`)
+    expect(toastError).toHaveBeenCalledWith(en.habits.form.titleRequired)
   })
 
   it('shows not found toast on 404', async () => {
@@ -364,7 +365,7 @@ describe('apiFetch', () => {
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toastError).toHaveBeenCalledWith('Not found: Habit not found')
+    expect(toastError).toHaveBeenCalledWith('Habit not found')
   })
 
   it('shows conflict toast on 409', async () => {
@@ -376,7 +377,7 @@ describe('apiFetch', () => {
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toastError).toHaveBeenCalledWith('Conflict: Already exists')
+    expect(toastError).toHaveBeenCalledWith('Already exists')
   })
 
   it('keeps a background read 429 quiet and preserves Retry-After', async () => {
@@ -394,7 +395,7 @@ describe('apiFetch', () => {
     })
 
     await expect(apiFetch('/api/test', { method: 'POST' })).rejects.toThrow(ApiError)
-    expect(toastError).toHaveBeenCalledWith('Too many requests: Slow down')
+    expect(toastError).toHaveBeenCalledWith('Slow down')
   })
 
   it('shows server error toast on 500', async () => {
@@ -406,7 +407,7 @@ describe('apiFetch', () => {
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toastError).toHaveBeenCalledWith('Server error: Internal server error')
+    expect(toastError).toHaveBeenCalledWith('Internal server error')
   })
 
   it('lets a caller handle a 503 without a global toast', async () => {
@@ -492,6 +493,28 @@ describe('apiFetch', () => {
       code: 'INVALID_RESPONSE_SCHEMA',
     })
     expect(toastError).not.toHaveBeenCalled()
+  })
+})
+
+describe('localized API toast sentences', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+    toastError.mockReset()
+    useAppToastStore.setState({ showError: toastError, currentToast: null, queue: [] })
+  })
+
+  it.each([{ locale: 'en', words: en }, { locale: 'pt-BR', words: ptBR }] as const)('uses only the backend sentence or the status sentence in $locale', async ({ locale, words }) => {
+    setApiFetchTranslate((key) => words.toast.errors[key.split('.').at(-1) as keyof typeof words.toast.errors])
+    const payload = verificationValidationResponses[locale]
+    mockFetch.mockResolvedValueOnce(Response.json(payload, { status: 400 }))
+    await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
+    expect(toastError).toHaveBeenLastCalledWith(payload.errors.Code[0])
+
+    for (const payload of [{}, { error: '' }, { error: '   ' }]) {
+      mockFetch.mockResolvedValueOnce(Response.json(payload, { status: 404 }))
+      await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
+      expect(toastError).toHaveBeenLastCalledWith(words.toast.errors.notFound)
+    }
   })
 })
 

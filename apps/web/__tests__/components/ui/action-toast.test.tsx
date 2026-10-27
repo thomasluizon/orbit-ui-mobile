@@ -38,6 +38,23 @@ describe('action toast dismissal', () => {
     expect(dismissed).not.toHaveBeenCalled()
   })
 
+  it.each(['showError', 'showInfo', 'showSuccess'] as const)('closes a hosted %s without leaving stale store state', async (method) => {
+    useAppToastStore.getState()[method]('Feedback')
+    render(<NavigationOwner />)
+    await act(async () => { await vi.dynamicImportSettled() })
+    fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+    expect(screen.queryByRole('group')).toBeNull()
+    expect(useAppToastStore.getState().currentToast).toBeNull()
+  })
+
+  it('closes a working toast without running an action', () => {
+    const dismissed = vi.fn()
+    render(<Toast kind="working" message="Syncing" onDismiss={dismissed} />)
+    fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+    expect(screen.queryByRole('group')).toBeNull()
+    expect(dismissed).toHaveBeenCalledOnce()
+  })
+
   it('retries the failed deletion from the notice host', async () => {
     const execute = vi.fn().mockRejectedValue(new Error('Unavailable'))
     queuePendingNotificationDelete('notification', execute)
