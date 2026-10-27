@@ -1761,7 +1761,8 @@ export const PostApiChatResponse = zod.object({
   "recovery": zod.string().nullish()
 })
 })]).optional(),
-  "errorCode": zod.string().nullish()
+  "errorCode": zod.string().nullish(),
+  "access": zod.string().nullish()
 })).nullish(),
   "pendingOperations": zod.array(zod.object({
   "id": zod.uuid(),
@@ -3049,7 +3050,8 @@ export const PostApiChatHabitSuggestionsPreviewResponse = zod.object({
   "recovery": zod.string().nullish()
 })
 })]).optional(),
-  "errorCode": zod.string().nullish()
+  "errorCode": zod.string().nullish(),
+  "access": zod.string().nullish()
 }),
   "pendingOperation": zod.union([zod.null(),zod.object({
   "id": zod.uuid(),
@@ -3190,7 +3192,8 @@ export const PostApiChatHabitSuggestionsPreviewAllResponse = zod.object({
   "recovery": zod.string().nullish()
 })
 })]).optional(),
-  "errorCode": zod.string().nullish()
+  "errorCode": zod.string().nullish(),
+  "access": zod.string().nullish()
 }),
   "pendingOperation": zod.union([zod.null(),zod.object({
   "id": zod.uuid(),
