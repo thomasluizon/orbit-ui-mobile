@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { TAB_BAR_LABEL_MAX_FONT_SCALE } from '@orbit/shared/contracts/navigation'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -128,6 +129,7 @@ it('keeps one current position when another or the current item is pressed', () 
 })
 
 afterEach(() => {
+  vi.restoreAllMocks()
   vi.useRealTimers()
   document.documentElement.style.removeProperty('font-size')
 })
@@ -183,4 +185,65 @@ it.each(['pointerCancel', 'pointerLeave', 'blur'] as const)('cancels pending and
     act(() => { vi.advanceTimersByTime(500) })
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
   }
+})
+
+it.each([en, ptBR].flatMap((messages) => [1, TAB_BAR_LABEL_MAX_FONT_SCALE, 1.3, 2].map((textScale) => ({ messages, textScale }))))(
+  'shows the same viewer on keyboard focus only above the cap at $textScale in $messages.nav.calendar',
+  async ({ messages, textScale }) => {
+    document.documentElement.style.fontSize = `${16 * textScale}px`
+    const user = userEvent.setup()
+    const onSelect = vi.fn()
+    const destinations = ['today', 'calendar', 'progress', 'profile'] as const
+    render(<><BottomTabBar activeId="today" label={messages.nav.mainNavigation} onSelect={onSelect}
+      items={destinations.map((id) => ({ id, href: `/${id}`, label: messages.nav[id], icon: () => <svg /> }))} /><button>Outside</button></>)
+    for (const tab of screen.getAllByRole('link')) {
+      const matches = tab.matches.bind(tab)
+      vi.spyOn(tab, 'matches').mockImplementation((selector) => selector === ':focus-visible' ? tab === document.activeElement : matches(selector))
+    }
+    for (const id of destinations) {
+      const tab = screen.getByRole('link', { name: messages.nav[id] })
+      await user.tab()
+      expect(tab).toHaveFocus()
+      expect(tab.matches(':focus-visible')).toBe(true)
+      const viewers = screen.queryAllByRole('tooltip')
+      expect(viewers).toHaveLength(textScale > TAB_BAR_LABEL_MAX_FONT_SCALE ? 1 : 0)
+      if (viewers[0]) {
+        expect(viewers[0]).toHaveAccessibleName(messages.nav[id])
+        expect(viewers[0].querySelector('[data-tab-viewer-label]')).toHaveTextContent(messages.nav[id])
+        expect(viewers[0].querySelector('svg')).toBeInTheDocument()
+        expect(viewers[0].querySelector('a, button, [tabindex]')).toBeNull()
+      }
+      expect(onSelect).not.toHaveBeenCalled()
+      await user.keyboard('{Enter}')
+      expect(onSelect).toHaveBeenCalledExactlyOnceWith(id)
+      onSelect.mockClear()
+      await user.keyboard(' ')
+      expect(onSelect).not.toHaveBeenCalled()
+      expect(tab).toHaveFocus()
+      expect(screen.queryAllByRole('tooltip')).toEqual(viewers)
+      fireEvent.pointerLeave(tab)
+      fireEvent.pointerUp(tab)
+      expect(screen.queryAllByRole('tooltip')).toEqual(viewers)
+    }
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Outside' })).toHaveFocus()
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    await user.tab({ shift: true })
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: messages.nav.profile })).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith('profile')
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  },
+)
+
+it('keeps pointer focus from opening the viewer before a long press', async () => {
+  document.documentElement.style.fontSize = '32px'
+  const onSelect = vi.fn()
+  const user = userEvent.setup()
+  render(<BottomTabBar activeId="today" label="Navigation" onSelect={onSelect} items={[{ id: 'today', href: '/', label: 'Today' }]} />)
+  await user.click(screen.getByRole('link', { name: 'Today' }))
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith('today')
 })

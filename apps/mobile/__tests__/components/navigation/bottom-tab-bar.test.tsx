@@ -4,7 +4,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react'
-import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
+import { Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -12,7 +12,7 @@ import { PortalHost } from '@rn-primitives/portal'
 import { TAB_BAR_LABEL_MAX_FONT_SCALE } from '@orbit/shared/contracts/navigation'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
+import { __focusHost, __getFocusedNativeTag, __resetTestHostConfig, __setTouchMode, __setWindowDimensions } from '../../../test-mocks/react-native'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { createTokensV2 } from '@/lib/theme'
 import { press, renderNavigation } from '../ui/navigation-render'
@@ -223,6 +223,53 @@ it.each([en, ptBR].flatMap((messages) => [320, 360, 384, 412].flatMap((width) =>
         expect(onSelect).toHaveBeenCalledExactlyOnceWith(id)
         onSelect.mockClear()
       }
+    } finally { await act(() => tree.update(<></>)) }
+  },
+)
+
+it.each([en, ptBR].flatMap((messages) => [1, TAB_BAR_LABEL_MAX_FONT_SCALE, 1.3, 2].map((fontScale) => ({ messages, fontScale }))))(
+  'shows the same viewer on keyboard focus only above the cap at $fontScale in $messages.nav.calendar',
+  async ({ messages, fontScale }) => {
+    __setWindowDimensions({ width: 320, height: 740, scale: 1, fontScale })
+    __setTouchMode(false)
+    const onSelect = vi.fn()
+    const destinations = ['today', 'calendar', 'progress', 'profile'] as const
+    let tree!: ReactTestRenderer
+    await act(() => { tree = create(<><BottomTabBar activeId="today" label={messages.nav.mainNavigation} onSelect={onSelect}
+      items={destinations.map((id) => ({ id, label: messages.nav[id], icon: () => <View /> }))} /><Pressable testID="outside" /><PortalHost /></>) })
+    const hosts = () => tree.root.findAll((node) => typeof node.type === 'string')
+    const viewers = () => hosts().filter((node) => node.props.testID === 'tab-large-content-viewer')
+    try {
+      for (const id of destinations) {
+        const tab = () => hosts().find((node) => node.props.accessibilityRole === 'tab' && node.props.accessibilityLabel === messages.nav[id])!
+        const nativeTag = tab().props.__nativeTag as number
+        await act(() => __focusHost(nativeTag))
+        expect(__getFocusedNativeTag()).toBe(nativeTag)
+        expect(viewers()).toHaveLength(fontScale > TAB_BAR_LABEL_MAX_FONT_SCALE ? 1 : 0)
+        if (viewers()[0]) {
+          const viewer = viewers()[0]!
+          expect(viewer.props.accessibilityLabel).toBe(messages.nav[id])
+          expect(viewer.props.accessible).toBe(false)
+          expect(hosts().some((node) => node.props.pointerEvents === 'none'
+            && node.findAll((child) => child.props.testID === 'tab-large-content-viewer').length > 0)).toBe(true)
+          const label = hosts().find((node) => node.props.testID === 'tab-viewer-label')!
+          expect(label.props.children).toBe(messages.nav[id])
+          expect(label.props.maxFontSizeMultiplier).toBe(0)
+          expect(StyleSheet.flatten(label.props.style as StyleProp<TextStyle>).fontSize).toBe(12)
+        }
+        const outlines = hosts().filter((node) => StyleSheet.flatten<ViewStyle>(node.props.style ?? {}).outlineWidth === 2)
+        expect(outlines).toHaveLength(1)
+        expect(onSelect).not.toHaveBeenCalled()
+        await act(() => { (tab().props.onPressIn as () => void)(); (tab().props.onPressOut as () => void)(); (tab().props.onPress as () => void)() })
+        expect(onSelect).toHaveBeenCalledExactlyOnceWith(id)
+        expect(viewers()).toHaveLength(fontScale > TAB_BAR_LABEL_MAX_FONT_SCALE ? 1 : 0)
+        expect(__getFocusedNativeTag()).toBe(nativeTag)
+        onSelect.mockClear()
+      }
+      const outside = hosts().find((node) => node.props.testID === 'outside')!
+      await act(() => __focusHost(outside.props.__nativeTag as number))
+      expect(viewers()).toHaveLength(0)
+      expect(hosts().filter((node) => StyleSheet.flatten<ViewStyle>(node.props.style ?? {}).outlineWidth === 2)).toHaveLength(0)
     } finally { await act(() => tree.update(<></>)) }
   },
 )

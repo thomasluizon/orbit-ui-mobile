@@ -14,7 +14,8 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<TabB
   const { fontScale } = useWindowDimensions()
   const viewerId = useId()
   const [previewId, setPreviewId] = useState<string | null>(null)
-  const preview = items.find((item) => item.id === previewId)
+  const visiblePreviewId = previewId ?? (fontScale > TAB_BAR_LABEL_MAX_FONT_SCALE ? focusedId : null)
+  const preview = items.find((item) => item.id === visiblePreviewId)
   const activeIndex = items.findIndex((item) => item.id === activeId)
   return (<>
     <View testID="bottom-tab-destinations" accessibilityRole="tablist" accessibilityLabel={label} style={[styles.container, { backgroundColor: tokens.bg, borderTopColor: tokens.hairline }]}>
@@ -26,7 +27,8 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<TabB
             onHoverIn={() => setHoveredId(item.id)} onHoverOut={() => setHoveredId(null)}
             onLongPress={fontScale > TAB_BAR_LABEL_MAX_FONT_SCALE ? () => setPreviewId(item.id) : undefined}
             onPressOut={() => setPreviewId(null)}
-            onPress={() => onSelect(item.id)} onFocus={() => setFocusedId(item.id)} onBlur={() => setFocusedId(null)}
+            onPress={() => onSelect(item.id)} onFocus={() => setFocusedId(item.id)}
+            onBlur={() => { setFocusedId(null); setPreviewId(null) }}
             style={styles.tab}>
             {({ pressed }) => <>
               {item.icon ? <View testID={`tab-indicator-${item.id}`} style={[styles.indicator, (pressed || hoveredId === item.id) && { backgroundColor: tokens.bgHover }]}>{item.icon({ active })}</View> : null}
@@ -39,7 +41,7 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<TabB
     </View>
     {preview ? <Portal name={viewerId}>
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.viewerFrame]}>
-        <View testID="tab-large-content-viewer" accessible accessibilityLabel={preview.label} accessibilityLiveRegion="polite"
+        <View testID="tab-large-content-viewer" accessible={false} accessibilityLabel={preview.label} accessibilityLiveRegion="polite"
           style={[styles.viewer, { backgroundColor: tokens.bg, borderColor: tokens.hairline }]}>
           {preview.icon ? <View testID="tab-viewer-icon" style={{ width: 24 * fontScale, height: 24 * fontScale, alignItems: 'center', justifyContent: 'center' }}>
             <View style={{ transform: [{ scale: fontScale }] }}>{preview.icon({ active: preview.id === activeId })}</View>

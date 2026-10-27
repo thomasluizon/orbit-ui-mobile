@@ -1,16 +1,25 @@
 'use client'
 
 import { TAB_BAR_LABEL_MAX_FONT_SCALE, type TabBarItem, type TabBarProps } from '@orbit/shared/contracts/navigation'
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type FocusEvent, type PointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { TAB_BAR_MIN_HEIGHT } from '@orbit/shared/theme'
 
 export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<Omit<TabBarProps, 'items'> & { items: readonly (TabBarItem & { href: string })[] }>) {
-  const [preview, setPreview] = useState<{ item: TabBarItem; container: HTMLElement } | null>(null)
+  const [heldPreview, setHeldPreview] = useState<{ item: TabBarItem; container: HTMLElement } | null>(null)
+  const [focusedPreview, setFocusedPreview] = useState<typeof heldPreview>(null)
+  const preview = heldPreview ?? focusedPreview
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const suppressClick = useRef(false)
   useEffect(() => () => clearTimeout(timer.current), [])
-  const cancelPreview = () => { clearTimeout(timer.current); setPreview(null) }
+  const cancelPreview = () => { clearTimeout(timer.current); setHeldPreview(null) }
+  const dismissPreview = () => { cancelPreview(); setFocusedPreview(null) }
+  const showFocusedPreview = (event: FocusEvent<HTMLAnchorElement>, item: TabBarItem) => {
+    if (!event.currentTarget.matches(':focus-visible')) return
+    const container = event.currentTarget.ownerDocument.body
+    const textScale = parseFloat(getComputedStyle(container.ownerDocument.documentElement).fontSize) / 16
+    if (textScale > TAB_BAR_LABEL_MAX_FONT_SCALE) setFocusedPreview({ item, container })
+  }
   const startPreview = (event: PointerEvent<HTMLAnchorElement>, item: TabBarItem) => {
     cancelPreview()
     suppressClick.current = false
@@ -18,7 +27,7 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<Omit
     const container = event.currentTarget.ownerDocument.body
     const textScale = parseFloat(getComputedStyle(container.ownerDocument.documentElement).fontSize) / 16
     if (textScale <= TAB_BAR_LABEL_MAX_FONT_SCALE) return
-    timer.current = setTimeout(() => { suppressClick.current = true; setPreview({ item, container }) }, 500)
+    timer.current = setTimeout(() => { suppressClick.current = true; setHeldPreview({ item, container }) }, 500)
   }
   const activeIndex = items.findIndex((item) => item.id === activeId)
   return (<>
@@ -28,7 +37,9 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<Omit
         return (
           <a key={item.id} href={item.href} data-habit-create-navigation="" aria-label={item.label}
             onPointerDown={(event) => startPreview(event, item)} onPointerUp={cancelPreview}
-            onPointerCancel={cancelPreview} onPointerLeave={cancelPreview} onBlur={cancelPreview}
+            onPointerCancel={cancelPreview} onPointerLeave={cancelPreview}
+            onFocus={(event) => showFocusedPreview(event, item)} onBlur={dismissPreview}
+            onKeyDown={(event) => { if (event.key === 'Escape') dismissPreview() }}
             onContextMenu={(event) => { if (suppressClick.current) event.preventDefault() }}
             onClick={(event) => {
             if (event.detail > 0 && suppressClick.current) { event.preventDefault(); suppressClick.current = false; return }
