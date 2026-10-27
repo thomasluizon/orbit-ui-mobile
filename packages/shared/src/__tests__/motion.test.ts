@@ -7,6 +7,7 @@ import {
   motionScenarios,
   motionSprings,
   resolveMotionPreset,
+  shouldDismissSheet,
 } from '../theme/motion'
 
 describe('motion theme contract', () => {
@@ -48,12 +49,12 @@ describe('motion theme contract', () => {
     }
   })
 
-  it('keeps destination switches completely still', () => {
+  it('gives destination switches a short spatial transition', () => {
     const tabSwitch = resolveMotionPreset('tab-switch')
 
-    expect(tabSwitch.enterDuration).toBe(0)
-    expect(tabSwitch.exitDuration).toBe(0)
-    expect(tabSwitch.shift).toBe(0)
+    expect(tabSwitch.enterDuration).toBe(160)
+    expect(tabSwitch.exitDuration).toBe(120)
+    expect(tabSwitch.shift).toBe(10)
     expect(tabSwitch.scaleFrom).toBe(1)
   })
 
@@ -80,6 +81,23 @@ describe('motion theme contract', () => {
     expect(reduced.enterDuration).toBeLessThan(motionDurations.route)
   })
 
+  it('removes travel and scale from every reduced motion scenario', () => {
+    for (const scenario of motionScenarios) {
+      const reduced = resolveMotionPreset(scenario, true)
+      expect(reduced.shift, scenario).toBe(0)
+      expect(reduced.scaleFrom, scenario).toBe(1)
+      expect(reduced.scaleTo, scenario).toBe(1)
+      expect(reduced.enterDuration, scenario).toBeLessThanOrEqual(120)
+    }
+  })
+
+  it('keeps overlay settlement springs at or above critical damping', () => {
+    for (const name of ['soft', 'snappy', 'sheet'] as const) {
+      const spring = motionSprings[name]
+      expect(spring.damping).toBeGreaterThanOrEqual(2 * Math.sqrt(spring.stiffness * spring.mass))
+    }
+  })
+
   it('keeps celebratory feedback longer than core micro-interactions', () => {
     expect(motionDurations.completePop).toBeGreaterThan(motionDurations.fast)
     expect(motionDurations.completeSpark).toBeGreaterThan(motionDurations.micro)
@@ -92,4 +110,11 @@ describe('motion theme contract', () => {
     expect(orbitalMotion.list.maxStaggerItems).toBeGreaterThan(0)
     expect(orbitalMotion.completion.peakScale).toBeGreaterThan(orbitalMotion.completion.reducedPeakScale)
   })
+})
+
+it.each([
+  [100, 0, true], [20, 800, true], [60, 300, true],
+  [20, 0, false], [0, 800, false], [-20, 800, false], [20, -800, false],
+])('settles sheet release at offset %s and velocity %s', (offset, velocity, dismiss) => {
+  expect(shouldDismissSheet(offset, velocity)).toBe(dismiss)
 })

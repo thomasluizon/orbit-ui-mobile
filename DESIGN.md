@@ -1550,7 +1550,7 @@ Every sub-screen shows a visible back affordance, on both platforms and at every
 
 ## Motion
 
-Motion is governed on two axes: **whether** to animate, then **how**. The first axis subtracts. **This section carries verbatim from the pre-D68 spec (D68 decision 11). Spacious argues for less motion, not different rules.**
+Motion preserves spatial consistency during navigation and prevents jarring overlay changes. Actions and data updates take effect immediately; movement never queues a tap or postpones a mutation.
 
 ### Whether (the gate)
 
@@ -1558,10 +1558,41 @@ Motion is governed on two axes: **whether** to animate, then **how**. The first 
 
 | frequency | budget |
 |---|---|
-| 100+/day (keyboard shortcuts, command palette, core nav, habit toggling) | **none, ever** |
-| tens/day | near-imperceptible or none |
-| occasional (modals, sheets, drawers, toasts, settings) | the standard scale below |
+| keyboard shortcuts and command palette | instant |
+| screen push and pop, sub-screens and tab changes | short directional transition or cross-fade |
+| sheets, menus, dialogs, drawers and toasts | eased entrance and shorter exit, with backdrop fade where present |
+| repeated presses and habit toggling | immediate state feedback; press tokens are shared with row motion |
 | rare / first-run (onboarding, milestone, celebration) | the only place the delight budget lives |
+
+### Shared motion tokens
+
+`packages/shared/src/theme/motion.ts` owns both platform adapters. Durations are milliseconds;
+web converts them to seconds only at the animation boundary. These tokens also serve row,
+list and conversation motion. No component owns a parallel timing scale.
+
+| Token | Value and purpose |
+|---|---|
+| `motionDurations.instant`, `micro`, `press`, `fast`, `base`, `slow` | 0, 120, 150, 160, 220, 280; instant, small fades, presses, menus and tabs, overlays, staged movement |
+| `motionDurations.route`, `routeExit`, `overlay`, `toast`, `conversation` | 220, 165, 220, 220, 220; semantic consumer names |
+| `motionDurations.listStagger` | 36; bounded list sequencing |
+| `motionEasings.standard`, `enter`, `exit`, `linear` | cubic-bezier(0.2,0,0,1), (0.16,1,0.3,1), (0.4,0,1,1), (0,0,1,1) |
+| `motionSprings.soft` | stiffness 220, damping 30, mass 1; quiet settlement |
+| `motionSprings.snappy` | stiffness 320, damping 34, mass 0.9; compact controls |
+| `motionSprings.sheet` | stiffness 360, damping 38, mass 1; finger release settlement |
+| `motionLayerTiming.routeShift`, `tabShift`, `toastLift`, `conversationShift` | 12, 10, 14, 12px; direction and hierarchy |
+| `motionLayerTiming.backdropEnterDelay`, `panelEnterDelay`, `panelExitLead` | 0; no staged wait before an action becomes available |
+| `sheetDrag.dismissDistance`, `dismissVelocity`, `projectionSeconds` | 96px, 700px/s, 0.15s; dismiss on distance or projected momentum |
+
+`resolveMotionPreset` names tab, route, sheet, dialog, menu, toast and list scenarios.
+Tabs enter in 160ms and exit in 120ms. Routes enter in 220ms and exit in 165ms.
+Sheets and dialogs enter in 220ms and exit in 160ms; menus use 160ms and 120ms;
+toasts use 220ms and 160ms. Reduced motion has zero travel and unit scale, using
+an instant change or a fade of at most 120ms. A live preference change settles motion.
+Springs must not overshoot. Keyboard navigation and the command palette remain instant.
+Native stack and TrueSheet use platform transitions, gesture velocity and dismissal completion;
+the operating system owns native timing where the library exposes no duration or spring.
+Web sheets follow the grabber and settle with the shared sheet spring; a failed or cancelled
+drag returns to rest. Sheet content remains scrollable and controls respond during entry.
 
 **Daily streak feedback is state indication, once per day.** One panel occupies the existing
 shell notice slot above the composer, leaving every underlying control interactive. Daily inset

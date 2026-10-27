@@ -16,6 +16,7 @@ export const motionScenarios = [
 export type MotionScenario = (typeof motionScenarios)[number]
 
 export type MotionNavigationIntent =
+  | 'instant'
   | 'neutral'
   | 'tab'
   | 'forward'
@@ -43,6 +44,8 @@ export const motionEasings = {
 export const motionDurations = {
   instant: 0,
   micro: 120,
+  press: 150,
+  conversation: 220,
   fast: 160,
   base: 220,
   slow: 280,
@@ -61,19 +64,20 @@ export const skeletonPulseIterations = 4
 
 export const motionLayerTiming = {
   backdropEnterDelay: 0,
-  panelEnterDelay: 32,
+  panelEnterDelay: 0,
   panelExitLead: 0,
   contentStagger: motionDurations.listStagger,
   routeShift: 12,
   toastLift: 14,
   tabShift: 10,
+  conversationShift: 12,
 } as const
 
 export const orbitalMotion = {
   press: {
     scale: 0.96,
     translateY: 0,
-    duration: 150,
+    duration: motionDurations.press,
   },
   elevatedPress: {
     scale: 0.98,
@@ -99,21 +103,21 @@ export const orbitalMotion = {
 export const motionSprings = {
   soft: {
     stiffness: 220,
-    damping: 26,
+    damping: 30,
     mass: 1,
     restSpeedThreshold: 0.4,
     restDisplacementThreshold: 0.4,
   },
   snappy: {
     stiffness: 320,
-    damping: 28,
+    damping: 34,
     mass: 0.9,
     restSpeedThreshold: 0.6,
     restDisplacementThreshold: 0.6,
   },
   sheet: {
     stiffness: 360,
-    damping: 34,
+    damping: 38,
     mass: 1,
     restSpeedThreshold: 0.6,
     restDisplacementThreshold: 0.6,
@@ -155,11 +159,11 @@ export interface MotionPreset {
 export const motionPresets: Record<MotionScenario, MotionPreset> = {
   'tab-switch': {
     scenario: 'tab-switch',
-    enterDuration: motionDurations.instant,
-    exitDuration: motionDurations.instant,
+    enterDuration: motionDurations.fast,
+    exitDuration: motionDurations.micro,
     enterEasing: motionEasings.enter,
     exitEasing: motionEasings.exit,
-    shift: 0,
+    shift: motionLayerTiming.tabShift,
     scaleFrom: 1,
     scaleTo: 1,
     spring: 'soft',
@@ -219,7 +223,7 @@ export const motionPresets: Record<MotionScenario, MotionPreset> = {
     exitDuration: motionDurations.fast,
     enterEasing: motionEasings.enter,
     exitEasing: motionEasings.exit,
-    shift: 28,
+    shift: 20,
     scaleFrom: 1,
     scaleTo: 1,
     spring: 'sheet',
@@ -228,7 +232,7 @@ export const motionPresets: Record<MotionScenario, MotionPreset> = {
       exitDuration: 90,
       enterEasing: motionEasings.linear,
       exitEasing: motionEasings.linear,
-      shift: 8,
+      shift: 0,
       scaleFrom: 1,
       scaleTo: 1,
     },
@@ -418,3 +422,15 @@ export function resolveMotionPreset(
   }
 }
 
+
+export const sheetDrag = {
+  dismissDistance: 96,
+  dismissVelocity: 700,
+  projectionSeconds: 0.15,
+} as const
+
+export function shouldDismissSheet(offset: number, velocity: number): boolean {
+  return offset > 0 && (offset >= sheetDrag.dismissDistance
+    || velocity >= sheetDrag.dismissVelocity
+    || offset + velocity * sheetDrag.projectionSeconds >= sheetDrag.dismissDistance)
+}

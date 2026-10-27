@@ -7,9 +7,7 @@ import { captureBuildEnabled, shouldExposeOnboardingRoute } from '@/lib/capture-
 
 const SLIDE_FROM_RIGHT_SCREENS = [
   'support',
-  'upgrade',
   'wrapped',
-  'step-up',
 ] as const
 
 export function RootStackScreens({
@@ -26,11 +24,12 @@ export function RootStackScreens({
     <Stack
       screenOptions={{
         headerShown: false,
-        animation: captureBuildEnabled ? 'none' : 'fade_from_bottom',
-        animationDuration: captureBuildEnabled
+        animation: captureBuildEnabled || reducedMotion ? 'none' : 'slide_from_right',
+        animationDuration: captureBuildEnabled || reducedMotion
           ? 0
           : mobileMotion.presets['route-push'].enterDuration,
         animationMatchesGesture: true,
+        gestureEnabled: !reducedMotion,
         animationTypeForReplace: 'push',
         contentStyle: { backgroundColor: screenBackgroundColor },
       }}
@@ -49,7 +48,7 @@ export function RootStackScreens({
         <Stack.Screen
           name="login"
           options={{
-            animation: captureBuildEnabled ? 'none' : 'fade',
+            animation: captureBuildEnabled || reducedMotion ? 'none' : 'fade',
             gestureEnabled: false,
           }}
         />
@@ -57,21 +56,23 @@ export function RootStackScreens({
 
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="progress/streak" options={{ animation: captureBuildEnabled || reducedMotion ? 'none' : 'slide_from_right' }} />
-        <Stack.Screen name="progress/goals" options={{ animation: captureBuildEnabled || reducedMotion ? 'none' : 'slide_from_right' }} />
-        <Stack.Screen name="progress/achievements" options={{ animation: captureBuildEnabled || reducedMotion ? 'none' : 'slide_from_right' }} />
+        <Stack.Screen name="progress/streak" />
+        <Stack.Screen name="progress/goals" />
+        <Stack.Screen name="progress/achievements" />
         <Stack.Screen name="profile/account" />
         <Stack.Screen name="profile/preferences" />
         <Stack.Screen name="profile/astra" />
         <Stack.Screen name="auth-callback/notion" options={{ animation: 'none', gestureEnabled: false }} />
         <Stack.Screen name="profile/notifications" />
-        <Stack.Screen name="habits/new" options={{ animation: captureBuildEnabled || reducedMotion ? 'none' : 'slide_from_right' }} />
+        <Stack.Screen name="habits/new" />
+        <Stack.Screen name="upgrade" options={{ animation: captureBuildEnabled || reducedMotion ? 'none' : 'slide_from_bottom' }} />
+        <Stack.Screen name="step-up" options={{ animation: captureBuildEnabled || reducedMotion ? 'none' : 'slide_from_bottom' }} />
         <Stack.Screen name="search" />
         <Stack.Screen name="notifications" />
         <Stack.Screen
           name="chat"
           options={{
-            animation: captureBuildEnabled ? 'none' : 'slide_from_right',
+            animation: captureBuildEnabled || reducedMotion ? 'none' : 'slide_from_right',
           }}
         />
         {SLIDE_FROM_RIGHT_SCREENS.map((name) => (
@@ -79,7 +80,7 @@ export function RootStackScreens({
             key={name}
             name={name}
             options={{
-              animation: captureBuildEnabled ? 'none' : 'slide_from_right',
+              animation: captureBuildEnabled || reducedMotion ? 'none' : 'slide_from_right',
             }}
           />
         ))}
@@ -91,18 +92,18 @@ export function RootStackScreens({
           https://docs.expo.dev/router/advanced/protected/ */}
       <Stack.Screen
         name="privacy"
-        options={{ animation: captureBuildEnabled ? 'none' : 'fade' }}
+        options={{ animation: captureBuildEnabled || reducedMotion ? 'none' : 'fade' }}
       />
       <Stack.Screen
         name="terms"
-        options={{ animation: captureBuildEnabled ? 'none' : 'fade' }}
+        options={{ animation: captureBuildEnabled || reducedMotion ? 'none' : 'fade' }}
       />
       <Stack.Screen name="r/[code]" />
       <Stack.Screen name="about" />
       <Stack.Screen
         name="auth-callback"
         options={{
-          animation: captureBuildEnabled ? 'none' : 'fade',
+          animation: captureBuildEnabled || reducedMotion ? 'none' : 'fade',
           gestureEnabled: false,
         }}
       />

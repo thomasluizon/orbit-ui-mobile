@@ -124,11 +124,11 @@ describe('useKeyboardShortcuts', () => {
     expect(mockPush).toHaveBeenCalledWith('/calendar')
   })
 
-  it('marks chord navigation with the tab transition intent', () => {
+  it('keeps chord navigation instant', () => {
     render(<Harness />)
     fireEvent.keyDown(document, { key: 'g' })
     fireEvent.keyDown(document, { key: 'c' })
-    expect(getCurrentRouteTransitionIntent()).toBe('tab')
+    expect(getCurrentRouteTransitionIntent()).toBe('instant')
   })
 
   it('sets the today view with the g then t chord', () => {
@@ -260,7 +260,7 @@ describe('progress destination shortcut', () => {
     expect(fireEvent.keyDown(document, { key: destination })).toBe(false)
     expect(mockPush).toHaveBeenCalledExactlyOnceWith('/progress')
     expect(mockSetActiveView).not.toHaveBeenCalled()
-    expect(getCurrentRouteTransitionIntent()).toBe('tab')
+    expect(getCurrentRouteTransitionIntent()).toBe('instant')
   })
 
   it.each([[1199, true], [1200, false]] as const)('honors the chord timeout after %s milliseconds', (elapsed, accepted) => {
@@ -351,7 +351,7 @@ describe('progress destination shortcut', () => {
     expect(onNavigate).toHaveBeenCalledTimes(2)
     act(() => onNavigate.mock.calls[1]![0]())
     expect(mockPush).toHaveBeenCalledExactlyOnceWith('/progress')
-    expect(getCurrentRouteTransitionIntent()).toBe('tab')
+    expect(getCurrentRouteTransitionIntent()).toBe('instant')
     guard.unmount()
   })
 })
