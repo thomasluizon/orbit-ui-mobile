@@ -959,3 +959,23 @@ it.each([false, true])('adds side insets to every sheet slot with virtualizedBod
     await TestRenderer.act(() => tree.unmount())
   }
 })
+
+it.each([false, true])('sizes date-grid gutters inside both safe insets with virtualizedBody=%s', async (virtualizedBody) => {
+  safeArea.left = 28
+  safeArea.right = 64
+  __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { tree = TestRenderer.create(<Sheet title="Date" minimumBodyWidth={308} virtualizedBody={virtualizedBody}><Text>Calendar</Text></Sheet>) })
+  try {
+    const body = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => node.props.testID === (virtualizedBody ? 'sheet-virtualized-body' : 'sheet-body-scroll'))[0]!
+    const style = StyleSheet.flatten(virtualizedBody ? body.props.style : body.props.contentContainerStyle)
+    expect(style.paddingHorizontal).toBe(4)
+    expect(style.paddingLeft).toBe(32)
+    expect(style.paddingRight).toBe(68)
+    expect(412 - style.paddingLeft - style.paddingRight).toBeGreaterThanOrEqual(308)
+  } finally {
+    safeArea.left = 0
+    safeArea.right = 0
+    await TestRenderer.act(() => tree.unmount())
+  }
+})

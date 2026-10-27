@@ -359,7 +359,7 @@ function ShellDestinationViewport({ floating, hasHeader, hasTabBar, children }: 
     if (bottom) observer.observe(bottom)
     return () => observer.disconnect()
   }, [floating, hasHeader, hasTabBar, minimumPageHeight])
-  return <div className={floating ? 'min-h-0 flex-1 pb-[var(--safe-bottom)] lg:contents' : 'contents'}>
+  return <div className={floating ? 'min-h-0 w-screen flex-1 self-center pb-[var(--safe-bottom)] lg:contents' : 'contents'}>
     <div ref={viewportRef} data-shell-destination-viewport="" data-floating={floating}
       className={floating ? 'flex h-full flex-col-reverse overflow-y-auto overflow-x-hidden overscroll-contain [&>[data-shell-background]]:min-h-[var(--shell-destination-min-height)] lg:contents lg:overflow-visible lg:[&>[data-shell-background]]:min-h-0' : 'contents'}
       style={{ '--shell-destination-min-height': `${minimumHeight}px` } as CSSProperties}>
@@ -417,9 +417,13 @@ function ShellWideBackground({
         <div data-shell-column="" className="orbit-centred-column lg:max-w-[740px] relative flex h-full w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(var(--orbit-space-32),var(--safe-top))]">
           <ShellDestinationViewport floating={floating} hasHeader={registerHeaderHost !== undefined || props.header !== undefined} hasTabBar={navigationEnabled && props.tabBar !== undefined}>
           <div data-shell-background="" data-shell-destination="" inert={conversationOpen || undefined} aria-hidden={conversationOpen || undefined}
-            className="flex h-full min-h-0 flex-col" style={conversationOpen ? { visibility: 'hidden' } : undefined}>
-          {registerHeaderHost !== undefined || props.header !== undefined ? <div data-shell-header="" data-focus-inset="" className={`empty:hidden overflow-y-auto [scrollbar-gutter:stable] ${hasFlowAction ? 'min-h-[var(--touch-min)] overscroll-contain' : 'shrink-0'}`}><div ref={registerHeaderHost} data-shell-header-content="" className="mx-auto w-full max-w-[740px]">{props.header}</div></div> : null}
-          <div data-shell-page="" className={`relative flex flex-1 flex-col ${scrollerSpacing.minimum}`}>
+            className="flex h-full w-screen min-h-0 self-center flex-col lg:w-full" style={conversationOpen ? { visibility: 'hidden' } : undefined}>
+          {registerHeaderHost !== undefined || props.header !== undefined ? <div data-shell-header="" data-focus-inset="" className={`flex min-h-0 flex-col has-[[data-shell-header-content]:empty]:hidden ${hasFlowAction ? 'min-h-[var(--touch-min)]' : 'shrink-0'}`}>
+            <div data-shell-header-viewport="" className="mx-auto min-h-0 w-full overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+              <div ref={registerHeaderHost} data-shell-header-content="" className="w-full">{props.header}</div>
+            </div>
+          </div> : null}
+          <div data-shell-page="" className={`relative mx-auto flex w-full flex-1 flex-col ${scrollerSpacing.minimum}`}>
             {hasFlowAction ? <div className="min-h-0 flex-1 overflow-hidden">{scroller}</div> : scroller}
             {props.fab !== undefined ? (
               <div data-shell-fab-clip="" className="pointer-events-none absolute inset-x-0 bottom-2 z-sticky flex justify-end overflow-y-auto [scrollbar-gutter:stable] px-4 py-2 lg:hidden">

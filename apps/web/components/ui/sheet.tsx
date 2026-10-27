@@ -135,7 +135,7 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
       }}>
         <Dialog.Backdrop className="orbit-sheet-backdrop" />
         <Dialog.Viewport className="orbit-sheet-viewport">
-          <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus} finalFocus={finalFocus} style={minimumBodyWidth == null ? undefined : { containerType: 'inline-size', containerName: 'sheet-panel' }}>
+          <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus} finalFocus={finalFocus}>
             <div className="orbit-sheet-grabber" aria-hidden="true" />
             <header className="orbit-sheet-header">
               <Dialog.Title aria-label={accessibleTitle} translate={titleTranslate} className={title ? 'orbit-sheet-title' : 'sr-only'} data-title-mode={titleMode}>
@@ -151,7 +151,7 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
               ) : null}
             </header>
             {children == null && !(title && titleMode === 'typed') ? null : (
-              <>
+              <div className="orbit-sheet-body-viewport" style={minimumBodyWidth == null ? undefined : { containerType: 'inline-size', containerName: 'sheet-panel' }}>
                 {minimumBodyWidth == null ? null : <style>{`
                   [data-sheet-body-id="${overlayId}"] { --sheet-body-inline: ${SHEET_BODY_INSETS[0]}px; }
                   ${SHEET_BODY_INSETS.map((inset) => `
@@ -167,7 +167,7 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
                   <ExpandedSheetTitle title={title} titleMode={titleMode} expanded={titleExpanded} id={`${overlayId}-full-title`} />
                   {children}
                 </div>
-              </>
+              </div>
             )}
             <UpdateAvailableBanner modalId={modalId} />
             <div className="empty:hidden shrink-0 px-6 pb-4" data-sheet-notice="">

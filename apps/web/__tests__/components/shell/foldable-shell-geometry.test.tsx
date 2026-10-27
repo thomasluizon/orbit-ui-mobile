@@ -14,6 +14,8 @@ import { useAppToastStore } from '@/stores/app-toast-store'
 import { Composer } from '@/components/shell/composer'
 import { AppBar } from '@/components/ui/app-bar'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
+import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
+import { NotificationBellDisplay } from '@/components/navigation/notification-bell'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { ShellWide } from '@/components/shell/shell-wide'
@@ -42,6 +44,37 @@ describe('Foldable shell geometry', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([800, 840, 915, 1023, 1024, 1100])('caps the destination column and preserves its 16px gutters at %ipx', async (width) => {
+    const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+      header={<DestinationHeaderRow><NotificationBellDisplay count={12} onClick={vi.fn()} /></DestinationHeaderRow>}
+      composer={<Composer state="idle" value="" words={en.shell.composer} suggestions={[]} onChangeValue={vi.fn()} onSend={vi.fn()} />}
+      tabBar={<BottomTabBar label="Navigation" activeId="hoje" onSelect={vi.fn()} items={[]} />}>
+      <div data-content-probe="" className="px-4"><p>Habits</p></div>
+    </ShellWide>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const column = document.querySelector('[data-shell-column]')!.getBoundingClientRect()
+        const content = document.querySelector('[data-content-probe] p')!.getBoundingClientRect()
+        const bell = document.querySelector('[data-shell-header] button')!.getBoundingClientRect()
+        const composer = document.querySelector('[data-composer-content]')!.getBoundingClientRect()
+        const pinned = document.querySelector<HTMLElement>('[data-shell-pinned-slot]')!
+        const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+        return { width: column.width, left: column.left, right: column.right, contentLeft: content.left,
+          bellRight: bell.right, composerLeft: composer.left, composerWidth: composer.width,
+          pinnedLeft: pinned.getBoundingClientRect().left, pinnedWidth: pinned.clientWidth,
+          gutter: scroller.offsetWidth - scroller.clientWidth }
+      })
+      expect(geometry.width).toBeLessThanOrEqual(740)
+      expect(geometry.contentLeft - geometry.left).toBe(16)
+      expect(geometry.right - geometry.bellRight - geometry.gutter).toBe(16)
+      expect(geometry.composerWidth).toBe(Math.min(geometry.pinnedWidth, width < 1024 ? 740 - geometry.gutter : 740))
+      expect(geometry.composerLeft).toBe(geometry.pinnedLeft + (geometry.pinnedWidth - geometry.composerWidth) / 2)
+      if (width < 1024) expect(geometry.left).toBe((width - 740) / 2)
+    } finally { await page.close() }
+  })
 
   it.each([412, 844])('keeps the page toast gutter inside asymmetric side insets at %ipx', async (width) => {
     useAppToastStore.getState().showInfo('Saved')
@@ -470,13 +503,18 @@ describe('Foldable shell geometry', () => {
           pinnedWidth: pinned.width, bottom: bottom.bottom,
         }
       })
-      if (width < 1024) expect(bounds.width).toBe(width)
+      if (width < 1024) expect(bounds.width).toBe(Math.min(width, 740))
       else expect(bounds.width).toBeLessThanOrEqual(740)
       expect(Math.abs(bounds.leftGap - bounds.rightGap)).toBeLessThanOrEqual(1)
       expect(bounds.documentWidth).toBe(width)
       expect(bounds.scrollerWidth).toBe(bounds.clientWidth)
-      expect(bounds.pinnedLeft).toBe(bounds.columnLeft)
-      expect(bounds.pinnedWidth).toBe(bounds.width)
+      if (width < 1024) {
+        expect(bounds.pinnedLeft).toBe(0)
+        expect(bounds.pinnedWidth).toBe(width)
+      } else {
+        expect(bounds.pinnedLeft).toBe(bounds.columnLeft)
+        expect(bounds.pinnedWidth).toBe(bounds.width)
+      }
       expect(bounds.clearance).toBeGreaterThanOrEqual(width < 1024 ? 95 : 31)
       expect(bounds.bottom).toBeLessThanOrEqual(height)
     } finally { await page.close() }
@@ -543,8 +581,8 @@ describe('Foldable shell geometry', () => {
       })
       expect(geometry.panelCount).toBe(0)
       expect(geometry.left).toBeCloseTo(left, 1)
-      expect(geometry.left).toBeCloseTo(geometry.columnLeft, 1)
-      expect(geometry.right).toBeCloseTo(geometry.columnRight, 1)
+      expect(geometry.left).toBeCloseTo(width < 1024 ? 0 : geometry.columnLeft, 1)
+      expect(geometry.right).toBeCloseTo(width < 1024 ? width : geometry.columnRight, 1)
       expect(geometry.top).toBe(width >= 1024 ? geometry.columnTop : 0)
       expect(geometry.bottom).toBe(height)
       expect(geometry.composerBottom).toBe(height)

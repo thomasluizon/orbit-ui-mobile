@@ -6,8 +6,8 @@ import { TAB_BAR_MIN_HEIGHT } from '@orbit/shared/theme'
 export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<Omit<TabBarProps, 'items'> & { items: readonly (TabBarItem & { href: string })[] }>) {
   const activeIndex = items.findIndex((item) => item.id === activeId)
   return (
-    <nav aria-label={label} style={{ minHeight: TAB_BAR_MIN_HEIGHT }} className="w-full border-t border-[var(--hairline)] bg-[var(--bg)]">
-      <div data-tab-items="" className="mx-auto flex w-full max-w-[740px] flex-wrap">
+    <div data-tab-bar-surface="" className="relative w-full bg-[var(--bg)]">
+    <nav data-tab-items="" aria-label={label} style={{ minHeight: TAB_BAR_MIN_HEIGHT }} className="mx-auto flex w-full max-w-[740px] flex-wrap border-t border-transparent bg-[var(--bg)]">
       {items.map((item, index) => {
         const active = index === activeIndex
         return (
@@ -22,7 +22,7 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<Omit
           </a>
         )
       })}
-      </div>
     </nav>
+    </div>
   )
 }

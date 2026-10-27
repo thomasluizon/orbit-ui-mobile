@@ -26,6 +26,12 @@ describe('Bottom tab geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it('keeps each indicator inside a direct navigation link', () => {
+    const { container } = render(<BottomTabBar label={en.nav.mainNavigation} activeId="hoje" onSelect={vi.fn()}
+      items={SHELL_DESTINATION_IDS.map(id => ({ id, href: '/', label: en.nav[DESTINATION_ICONS[id].commandId], icon: ({ active }) => <DestinationIcon destination={id} active={active} /> }))} />)
+    expect(container.querySelectorAll('nav > a > [data-tab-indicator]')).toHaveLength(4)
+  })
+
   it.each([en, ptBR].flatMap((messages) => [1, 2].flatMap((textScale) => (['dark', 'light'] as const).flatMap((mode) => [320, 412, 840].map((width) => ({ messages, textScale, mode, width }))))))(
     'keeps complete labels and separated targets at $width with $textScale text scale in $messages.nav.calendar and $mode mode',
     async ({ messages, textScale, mode, width }) => {
