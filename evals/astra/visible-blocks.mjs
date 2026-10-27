@@ -142,7 +142,7 @@ const renderers = { habitList, goalList, metrics, periodTotal, periodComparison,
   calendar, recordList, accountRows, habitRanking, choice: (card, options) => answerBlock(card, options, 'choice'),
   pickList: (card, options) => answerBlock(card, options, 'pickList') }
 
-export function visibleBlock(part, options) {
+function projectBlock(part, options) {
   const parsed = shared.chatPartSchema.parse(part)
   const projection = renderers[parsed.kind](parsed.block, options)
   if (!parsed.block.read) return projection
@@ -150,4 +150,11 @@ export function visibleBlock(part, options) {
   const { message, window } = shared.readBlockPresentation(snapshot, 'resting', false, null)
   return { ...projection, window: window ? shared.formatReadWindow(window, options.locale) : projection.window,
     recovery: message ? options.t(message) : undefined }
+}
+
+export function visibleBlock(part, options) {
+  try { return projectBlock(part, options) } catch (error) {
+    error.blockKind = part.kind
+    throw error
+  }
 }

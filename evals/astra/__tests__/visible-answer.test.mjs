@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 import AstraHttpProvider from '../http-provider.mjs'
+import { visibleBlock } from '../visible-blocks.mjs'
 import { chatResponse, habitBlock } from './fixtures/producer.mjs'
 
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8')).providers[0].config
@@ -30,9 +31,9 @@ it('excludes a succeeded read summary and hidden habit fields from the actual gr
   expect(JSON.parse(output.answer)).not.toHaveProperty('operations')
 })
 it('projects a failed operation as the localized outcome both clients show', async () => {
-  const { output } = await receive({ operations: [operation('Failed')], parts: [] })
+  const { output } = await receive({ operations: [{ ...operation('Failed'), sourceName: 'log_habit', targetName: 'Water' }], parts: [] })
   const visible = JSON.parse(output.answer)
-  expect(visible.outcomes).toEqual([{ title: 'Alguns itens não foram salvos', label: 'Operação da Astra', meta: 'Não foi salvo' }])
+  expect(visible.outcomes).toEqual([{ title: 'Alguns itens não foram salvos', label: 'Water', meta: 'Não foi salvo' }])
   expect(output.answer).not.toContain('INVISIBLE_')
 })
 it.each([
@@ -121,7 +122,14 @@ it('coalesces duplicate failures and hides actions owned by a pending preview', 
   expect(output.answer).not.toContain('INVISIBLE_')
 })
 it.each(['unsupported-kind', 'malformed-block'])('fails closed on an unrenderable %s without sending raw text to a grader', async (mode) => {
-  const { error } = await receive({ parts: [{ type: 'block', kind: mode === 'unsupported-kind' ? 'invented' : 'habitList',
-    block: { toolPayload: 'INVISIBLE_PAYLOAD' } }] })
-  expect(error).toBe('Astra returned an unrenderable visible answer.')
+  const part = { type: 'block', kind: mode === 'unsupported-kind' ? 'invented' : 'habitList',
+    block: { toolPayload: 'INVISIBLE_PAYLOAD' } }
+  let message
+  try { visibleBlock(part, {}) } catch (error) { message = error.message }
+  expect(message).toBeTruthy()
+  const { error, output } = await receive({ parts: [habitBlock, part] })
+  expect(error).toContain(message)
+  expect(error).toContain(part.kind)
+  expect(output).toMatchObject({ answer: null, httpStatus: 200, renderError: { message, blockKind: part.kind },
+    trace: { state: 'available' } })
 })
