@@ -171,7 +171,7 @@ export interface PendingOperationCardActions {
 }
 
 type CardRevision = NonNullable<PendingOperationCardActions['revision']>
-type PreviewItem = Pick<PendingOperationItem, 'itemId' | 'entityId' | 'entityName' | 'fields' | 'removesData' | 'fieldOptions' | 'placement'>
+type PreviewItem = Pick<PendingOperationItem, 'itemId' | 'entityId' | 'entityName' | 'entityEmoji' | 'fields' | 'removesData' | 'fieldOptions' | 'placement'>
 
 const NAVIGABLE_OPERATION_ACTIONS: Readonly<Record<string, string | null>> = {
   create_habit: 'CreateHabit', update_habit: 'UpdateHabit', create_sub_habit: 'CreateSubHabit',
@@ -343,7 +343,7 @@ function previewRows<Node>(
     const parent: PendingOperationFrame<Node>['items'][number] = {
       id: item.itemId,
       label: item.fields.find((field) => ['title', 'name'].includes(field.field))?.newValue || item.entityName || labels.name,
-      icon: item.fields.find((field) => field.field === 'emoji')?.newValue ?? undefined,
+      icon: item.entityEmoji || item.fields.find((field) => field.field === 'emoji')?.newValue || undefined,
       rename: revision?.canRevise && revision.renameItem && card.status == null && !revision.stale
         && item.fields.some((field) => field.field === 'title' && isPendingOperationEditableField(field))
         ? { label: labels.fieldLabels.title!, disabled: card.busy || revision.busy,
@@ -400,9 +400,12 @@ function groupedChanges(changes: readonly PendingOperationChange[]): PreviewItem
   const groups = new Map<string, PreviewItem>()
   for (const change of changes) {
     const item = groups.get(change.entityId)
-    if (item) item.fields.push(change)
+    if (item) {
+      item.fields.push(change)
+      item.entityEmoji ||= change.entityEmoji
+    }
     else groups.set(change.entityId, {
-      itemId: change.entityId, entityId: change.entityId, entityName: change.entityName,
+      itemId: change.entityId, entityId: change.entityId, entityName: change.entityName, entityEmoji: change.entityEmoji,
       fields: [change],
     })
   }

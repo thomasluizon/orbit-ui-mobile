@@ -1,4 +1,4 @@
-import { makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
+import { makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -597,6 +597,20 @@ function createRenderers() {
 }
 
 describe('pending operation card view', () => {
+  it('keeps the stored icon while an emoji edit proposes a different icon', () => {
+    const operation = makeExistingHabitPreview('🦷')
+    operation.items![0]!.fields.push({ ...operation.items![0]!.fields[0]!, field: 'emoji', oldValue: '🦷', newValue: '🪥', proposedValue: '🪥' })
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items[0]?.icon).toBe('🦷')
+  })
+
+  it.each([{ locale: 'en', messages: en, expected: '10/28 → 11/4/26' }, { locale: 'pt-BR', messages: ptBR, expected: '28/10 → 04/11/26' }])('retains both dates in the compact $locale change', ({ locale, messages, expected }) => {
+    const operation = makeExistingHabitPreview()
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), value => value, locale)
+    expect(localized.summarize(operation.items![0]!.fields)).toBe(expected)
+  })
+
   it.each(['done', 'failed'] as const)('retains a settled empty operation with status %s', status => {
     const card = { ...createCard(), status, canRetry: status === 'failed' }
     const { record, render } = createRenderers()
