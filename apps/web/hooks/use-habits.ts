@@ -5,6 +5,7 @@ import type { HabitListKey } from '@orbit/shared/query'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import {
+  cachedHabitDeletionIds, isCachedHabitDeleted, removeDeletedHabitQueries, restoreDeletedHabitQueries,
   restoreCachedHabitDetails,
   updateCachedHabitDetails,
   invalidateBulkMoveParentQueries,
@@ -505,7 +506,9 @@ export function useRestoreHabit() {
     mutationFn: (habitId: string, intendedAccountId) =>
       restoreHabitAction(habitId, intendedAccountId),
 
-    onSuccess: () => {
+    onSuccess: (_result, habitId) => {
+      restoreDeletedHabitQueries(queryClient, habitId)
+      void queryClient.invalidateQueries({ queryKey: habitKeys.all })
       invalidateHabitDeleteQueries(queryClient)
       showSuccess(t('undo.restored'))
     },
@@ -524,13 +527,14 @@ export function useDeleteHabit() {
 
   return useAccountScopedMutation({
     mutationFn: (habitId: string, intendedAccountId) =>
-      deleteHabitAction(habitId, intendedAccountId),
+      isCachedHabitDeleted(queryClient, habitId) ? Promise.resolve() : deleteHabitAction(habitId, intendedAccountId),
 
     onMutate: async (habitId) => {
       await Promise.all([
         queryClient.cancelQueries({ queryKey: habitKeys.details() }),
         queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
       ])
+      const deletedIds = cachedHabitDeletionIds(queryClient, [habitId])
       const previousLists = snapshotHabitLists(queryClient)
       const previousDetails = queryClient.getQueriesData<HabitDetail>({
         queryKey: habitKeys.details(),
@@ -540,7 +544,7 @@ export function useDeleteHabit() {
         { queryKey: habitKeys.details() },
         (detail) => detail ? removeHabitDetailChild(detail, habitId) : detail,
       )
-      return { previousLists, previousDetails }
+      return { previousLists, previousDetails, deletedIds }
     },
 
     onError: (_error, _habitId, context) => {
@@ -550,17 +554,14 @@ export function useDeleteHabit() {
       }
     },
 
-    onSuccess: (_data, habitId) => {
+    onSuccess: async (_data, habitId, context) => {
+      await removeDeletedHabitQueries(queryClient, habitId, context.deletedIds)
       showUndoToast(t('undo.habitDeleted'), () => restoreHabit.mutate(habitId))
     },
 
-    onSettled: (_response, error, habitId) => {
+    onSettled: (_response, error) => {
       if (error) return
-      invalidateHabitDependents(queryClient, habitId)
-      void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
-      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.details() })
+      invalidateHabitDeleteQueries(queryClient)
     },
   })
 }
@@ -769,12 +770,17 @@ export function useBulkDeleteHabits() {
       habitIds: string[],
       intendedAccountId,
     ): Promise<BulkMutationOutcome<BulkDeleteResponse>> => {
+      const account = captureAccountIntent()
       const results: BulkDeleteResponse['results'] = []
       const ambiguousIds: string[] = []
       for (let index = 0; index < habitIds.length; index += 4) {
         const chunk = habitIds.slice(index, index + 4)
         const outcomes = await Promise.allSettled(
-          chunk.map((habitId) => deleteHabitAction(habitId, intendedAccountId)),
+          chunk.map(async (habitId) => {
+            if (isCachedHabitDeleted(queryClient, habitId)) return
+            await deleteHabitAction(habitId, intendedAccountId)
+            if (account.stillCurrent()) await removeDeletedHabitQueries(queryClient, habitId)
+          }),
         )
         for (const outcome of outcomes) {
           if (outcome.status === 'rejected' && reportsAccountChanged(outcome.reason)) {
@@ -799,7 +805,10 @@ export function useBulkDeleteHabits() {
       return { results, ambiguousIds }
     },
 
-    onMutate: () => ({ previousLists: snapshotHabitLists(queryClient) }),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: habitKeys.all })
+      return { previousLists: snapshotHabitLists(queryClient) }
+    },
 
     onSuccess: (result, _habitIds, context) => {
       const deleted = result.results.filter((item) => item.status === 'Success')

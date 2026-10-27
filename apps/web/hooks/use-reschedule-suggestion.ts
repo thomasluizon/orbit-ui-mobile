@@ -1,8 +1,8 @@
 'use client'
 
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
-import { useQuery } from '@tanstack/react-query'
-import { habitKeys, shouldRetryQuery, isUpstreamStarting } from '@orbit/shared/query'
+import { CancelledError, useQuery, useQueryClient } from '@tanstack/react-query'
+import { habitKeys, isCachedHabitDeleted, shouldRetryQuery, isUpstreamStarting } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { createApiClientError, extractBackendStatus } from '@orbit/shared/utils'
 import type {
@@ -26,12 +26,15 @@ export function useRescheduleSuggestion({
   locale,
   enabled,
 }: UseRescheduleSuggestionOptions) {
+  const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: habitKeys.rescheduleSuggestion(habitId),
-    queryFn: async (): Promise<RescheduleSuggestion> => {
+    queryFn: async ({ signal }): Promise<RescheduleSuggestion> => {
+      if (isCachedHabitDeleted(queryClient, habitId)) throw new CancelledError({ silent: true })
       const params = new URLSearchParams({ language: locale })
       const res = await fetchWithThrottle(
         `${API.habits.rescheduleSuggestion(habitId)}?${params.toString()}`,
+        { signal },
       )
       if (!res.ok) {
         const body: unknown = await res.json().catch(() => null)
@@ -40,7 +43,7 @@ export function useRescheduleSuggestion({
       const data = (await res.json()) as RescheduleSuggestionResponse
       return data.suggestion
     },
-    enabled: enabled && !!habitId,
+    enabled: enabled && !!habitId && !isCachedHabitDeleted(queryClient, habitId),
     retry: (failureCount, error) => {
       const status = extractBackendStatus(error)
       return status === 429 || isUpstreamStarting(error) ? (typeof navigator === 'undefined' || navigator.onLine) && shouldRetryQuery(failureCount, error) : failureCount < 3 && (status === undefined || status < 400 || status >= 500)

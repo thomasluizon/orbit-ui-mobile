@@ -3,7 +3,7 @@
 import { useCallback } from 'react'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { CancelledError, useQuery, useQueryClient } from '@tanstack/react-query'
-import { deduplicateHabitList, habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { deduplicateHabitList, isCachedHabitDeleted, habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import {
   buildHabitQueryString,
@@ -29,7 +29,7 @@ import {
   habitScheduleItemSchema,
 } from '@orbit/shared/types/habit'
 import { habitLogSchema } from '@orbit/shared/types/calendar'
-import { fetchJson } from '@/lib/api-fetch'
+import { apiFetch, fetchJson } from '@/lib/api-fetch'
 
 export interface NormalizedHabitsData {
   habitsById: Map<string, NormalizedHabit>
@@ -116,19 +116,27 @@ export function useHabits(filters: HabitsFilter, initialItems?: HabitScheduleIte
 }
 
 export function useHabitDetail(id: string | null) {
+  const queryClient = useQueryClient()
   return useQuery({
     queryKey: habitKeys.detail(id ?? ''),
-    queryFn: async () => habitDetailSchema.parse(await fetchJson<unknown>(API.habits.get(id ?? ''))),
-    enabled: !!id,
+    queryFn: async ({ signal }) => {
+      if (id && isCachedHabitDeleted(queryClient, id)) throw new CancelledError({ silent: true })
+      return habitDetailSchema.parse(await apiFetch<unknown>(API.habits.get(id ?? ''), { signal }))
+    },
+    enabled: !!id && !isCachedHabitDeleted(queryClient, id),
     staleTime: QUERY_STALE_TIMES.habits,
   })
 }
 
 export function useHabitMetrics(id: string | null) {
+  const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: habitKeys.metrics(id ?? ''),
-    queryFn: async () => habitMetricsSchema.parse(await fetchJson<unknown>(API.habits.metrics(id ?? ''))),
-    enabled: !!id,
+    queryFn: async ({ signal }) => {
+      if (id && isCachedHabitDeleted(queryClient, id)) throw new CancelledError({ silent: true })
+      return habitMetricsSchema.parse(await apiFetch<unknown>(API.habits.metrics(id ?? ''), { signal }))
+    },
+    enabled: !!id && !isCachedHabitDeleted(queryClient, id),
     staleTime: QUERY_STALE_TIMES.habits,
   })
 
@@ -140,19 +148,27 @@ export function useHabitMetrics(id: string | null) {
 }
 
 export function useHabitLogs(id: string | null) {
+  const queryClient = useQueryClient()
   return useQuery({
     queryKey: habitKeys.logs(id ?? ''),
-    queryFn: async () => habitLogSchema.array().parse(await fetchJson<unknown>(`${API.habits.get(id ?? '')}/logs`)),
-    enabled: !!id,
+    queryFn: async ({ signal }) => {
+      if (id && isCachedHabitDeleted(queryClient, id)) throw new CancelledError({ silent: true })
+      return habitLogSchema.array().parse(await apiFetch<unknown>(`${API.habits.get(id ?? '')}/logs`, { signal }))
+    },
+    enabled: !!id && !isCachedHabitDeleted(queryClient, id),
     staleTime: QUERY_STALE_TIMES.habits,
   })
 }
 
 export function useHabitFullDetail(id: string | null) {
+  const queryClient = useQueryClient()
   return useQuery({
     queryKey: habitKeys.fullDetail(id ?? ''),
-    queryFn: async () => habitFullDetailSchema.parse(await fetchJson<unknown>(API.habits.detail(id ?? ''))),
-    enabled: !!id,
+    queryFn: async ({ signal }) => {
+      if (id && isCachedHabitDeleted(queryClient, id)) throw new CancelledError({ silent: true })
+      return habitFullDetailSchema.parse(await apiFetch<unknown>(API.habits.detail(id ?? ''), { signal }))
+    },
+    enabled: !!id && !isCachedHabitDeleted(queryClient, id),
     staleTime: QUERY_STALE_TIMES.habits,
   })
 }

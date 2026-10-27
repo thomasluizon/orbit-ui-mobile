@@ -1,4 +1,5 @@
 import {
+  removeDeletedHabitQueries, restoreDeletedHabitQueries,
   apiKeyKeys,
   calendarKeys,
   gamificationKeys,
@@ -849,6 +850,13 @@ async function finalizeSuccessfulFlush(
   response: unknown,
   touchedScopes: Set<MutationScope>,
 ): Promise<void> {
+  if (mutation.targetEntityId && mutation.entityType === 'habit') {
+    if (mutation.type === 'deleteHabit' && mutation.method === 'DELETE') {
+      await removeDeletedHabitQueries(queryClient, mutation.targetEntityId)
+    } else if (mutation.type === 'restoreHabit') {
+      restoreDeletedHabitQueries(queryClient, mutation.targetEntityId)
+    }
+  }
   addTouchedScope(touchedScopes, mutation)
   applySuccessfulProfileMutation(mutation)
   if (mutation.type === 'setTimeZone') {

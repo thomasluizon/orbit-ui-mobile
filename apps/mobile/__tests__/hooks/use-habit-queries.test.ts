@@ -45,7 +45,7 @@ const TestRenderer = require('react-test-renderer')
 
 interface CapturedQuery {
   queryKey: readonly unknown[]
-  queryFn: () => unknown
+  queryFn: (context?: { signal: AbortSignal }) => unknown
   enabled?: boolean
   refetchInterval?: () => number | false
   refetchOnWindowFocus?: boolean
@@ -60,7 +60,8 @@ const mocks = vi.hoisted(() => {
     setQueryData: vi.fn(),
     isAuthenticated: true,
     useQuery: vi.fn((options: CapturedQuery) => {
-      mocks.captured.push(options)
+      const queryFn = options.queryFn
+      mocks.captured.push({ ...options, queryFn: (context) => queryFn(context ?? { signal: new AbortController().signal }) })
       return { data: undefined, isLoading: false, isSuccess: false, isError: false }
     }),
   }
@@ -68,7 +69,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: mocks.useQuery,
-  useQueryClient: () => ({ setQueryData: mocks.setQueryData }),
+  useQueryClient: () => ({ getQueryData: () => undefined, setQueryData: mocks.setQueryData }),
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -244,7 +245,7 @@ describe('useHabitDetail (mobile)', () => {
     expect(query.enabled).toBe(true)
 
     await expect(query.queryFn()).resolves.toMatchObject({ id: 'h-1', title: 'Exercise' })
-    expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits/h-1')
+    expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits/h-1', { signal: expect.any(AbortSignal) })
   })
 
   it('does not enable the query when id is null', () => {
@@ -266,7 +267,7 @@ describe('useHabitMetrics (mobile)', () => {
 
     renderHookCapture(() => useHabitMetrics('h-1'))
     await expect(lastQuery().queryFn()).resolves.toEqual(validMetrics)
-    expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits/h-1/metrics')
+    expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits/h-1/metrics', { signal: expect.any(AbortSignal) })
   })
 
   it('does not enable the query when id is null', () => {
@@ -281,7 +282,7 @@ describe('useHabitLogs (mobile)', () => {
 
     renderHookCapture(() => useHabitLogs('h-1'))
     await expect(lastQuery().queryFn()).resolves.toEqual(validLogs)
-    expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits/h-1/logs')
+    expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits/h-1/logs', { signal: expect.any(AbortSignal) })
   })
 
   it('does not enable the query when id is null', () => {
@@ -299,7 +300,7 @@ describe('useHabitFullDetail (mobile)', () => {
     expect(query.queryKey).toEqual(habitKeys.fullDetail('h-1'))
 
     await expect(query.queryFn()).resolves.toMatchObject({ habit: { id: 'h-1', title: 'Exercise' }, metrics: validMetrics, logs: validLogs })
-    expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits/h-1/detail')
+    expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits/h-1/detail', { signal: expect.any(AbortSignal) })
   })
 
   it('does not enable the query when id is null', () => {
