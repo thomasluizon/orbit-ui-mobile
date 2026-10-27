@@ -392,6 +392,70 @@ describe('weekday negation', () => {
 
 
 describe('weekday qualifiers', () => {
+  it.each([
+    ['en', 'Read every other Friday and every Monday', 'at 8'],
+    ['en', 'Read every Monday and every other Friday', 'at 8'],
+    ['en', 'Read every other Friday and each Monday', 'at 8'],
+    ['en', 'Read every other Friday and every Friday', 'at 8'],
+    ['pt-BR', 'Ler sexta sim, sexta não e toda segunda', 'às 8'],
+    ['pt-BR', 'Ler toda segunda e sexta sim, sexta não', 'às 8'],
+    ['pt-BR', 'Ler sexta sim, sexta não e toda sexta', 'às 8'],
+    ['pt-BR', 'Ler na sexta semana sim, semana não e toda segunda', 'às 8'],
+    ['pt-BR', 'Ler toda segunda e semana sim, semana não na sexta', 'às 8'],
+  ] as const)('leaves mixed weekly and alternating weekdays unresolved across consumers: %s %s', (locale, phrase, clock) => {
+    const sentences = [`${phrase} ${clock}`, `${clock} ${phrase}`, phrase.replace(/ (and|e) /u, ` $1 ${clock} `)]
+    for (const input of sentences.flatMap((sentence) => [sentence, sentence.toUpperCase(), sentence.normalize('NFD'), sentence.replaceAll(' ', '\t  ')])) {
+      const read = readHabitPhrase(input, locale)
+      expect(read).toMatchObject({ cadence: null, days: [], intervalWeeks: null, frequencyQuantity: null, dueTime: '08:00' })
+      expect(read.consumed.map((token) => token.kind)).toEqual(['time'])
+      expect(buildOnboardingScheduleFromPhrase(input, locale)).toEqual({
+        frequencyUnit: null, frequencyQuantity: null, intervalWeeks: 1,
+        days: [], isGeneral: true, isFlexible: false, dueTime: '08:00',
+      })
+      expect(readTypedHabitPhrase(input, locale, 'habit', false)).toEqual(read)
+      const title = getHabitPhraseTitle(input, locale)
+      expect(title.toLowerCase().normalize('NFC')).toBe(phrase.toLowerCase())
+      expect(getHabitPhraseTitle(input, locale, { cadence: false, dueTime: false })).toBe(input)
+    }
+  })
+
+  it.each([
+    ['pt-BR', 'Limpar o quarto toda sexta às 8', 'Friday', 'Limpar o quarto'],
+    ['pt-BR', 'Limpar o quarto na sexta às 8', 'Friday', 'Limpar o quarto'],
+    ['pt-BR', 'Ler no quarto na segunda às 8', 'Monday', 'Ler no quarto'],
+    ['pt-BR', 'Limpar o quarto todas as sextas às 8', 'Friday', 'Limpar o quarto'],
+    ['pt-BR', 'Ler sexta em quarto separado às 8', 'Friday', 'Ler em quarto separado'],
+    ['en', 'Clean the fourth room every Friday at 8', 'Friday', 'Clean the fourth room'],
+    ['en', 'Clean the fourth room on Friday at 8', 'Friday', 'Clean the fourth room'],
+    ['en', 'Read Friday in the last room at 8', 'Friday', 'Read in the last room'],
+    ['en', 'Read Friday for the first class at 8', 'Friday', 'Read for the first class'],
+  ] as const)('keeps activity words outside the weekday construction across consumers: %s %s', (locale, sentence, day, title) => {
+    for (const input of [sentence, sentence.toUpperCase(), sentence.normalize('NFD'), sentence.replaceAll(' ', '\t  ')]) {
+      const read = readHabitPhrase(input, locale)
+      expect(read).toMatchObject({ cadence: 'fixed', days: [day], intervalWeeks: null, dueTime: '08:00' })
+      expect(read.consumed.map((token) => token.kind)).toEqual(['weekday', 'time'])
+      expect(buildOnboardingScheduleFromPhrase(input, locale)).toEqual({
+        frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 1,
+        days: [day], isGeneral: false, isFlexible: false, dueTime: '08:00',
+      })
+      expect(readTypedHabitPhrase(input, locale, 'habit', false)).toEqual(read)
+      expect(getHabitPhraseTitle(input, locale).toLowerCase().normalize('NFC')).toBe(title.toLowerCase())
+    }
+  })
+
+  it.each([
+    ['en', 'Read every other Friday and every other Monday at 8', ['Friday', 'Monday']],
+    ['en', 'Read every other Friday and Monday at 8', ['Friday', 'Monday']],
+    ['pt-BR', 'Ler sexta sim, sexta não e segunda sim, segunda não às 8', ['Friday', 'Monday']],
+    ['pt-BR', 'Ler semana sim, semana não na sexta e segunda às 8', ['Friday', 'Monday']],
+    ['pt-BR', 'Ler na sexta e segunda semana sim, semana não às 8', ['Friday', 'Monday']],
+  ] as const)('keeps alternation when it governs every named weekday: %s %s', (locale, input, days) => {
+    const read = readHabitPhrase(input, locale)
+    expect(read).toMatchObject({ cadence: 'fixed', days, intervalWeeks: 2, dueTime: '08:00' })
+    expect(buildOnboardingScheduleFromPhrase(input, locale)).toMatchObject({ days, intervalWeeks: 2, dueTime: '08:00', isGeneral: false })
+    expect(getHabitPhraseTitle(input, locale)).toBe(locale === 'en' ? 'Read' : 'Ler')
+  })
+
   const unresolved: Array<[PhraseCase['locale'], string]> = [
     ['pt-BR', 'Ligar para minha mãe no primeiro domingo de cada mês'],
     ['en', 'Call mom on the first Sunday of every month'],

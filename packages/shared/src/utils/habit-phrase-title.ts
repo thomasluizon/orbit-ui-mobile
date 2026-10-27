@@ -32,7 +32,8 @@ function removeOrphanedGlue(
       const end = start + match[0].length
       if (protectedCharacters.slice(start, end).some(Boolean)) continue
       if (removed.slice(start, end).every(Boolean)) continue
-      if (touchesRemoved(start - 1, -1) || touchesRemoved(end, 1)) {
+      const trailing = characters.slice(end).every((character) => /[\s,;]/u.test(character))
+      if (touchesRemoved(end, 1) || (trailing && touchesRemoved(start - 1, -1))) {
         characters.fill(' ', start, end)
         removed.fill(true, start, end)
         changed = true
@@ -63,7 +64,9 @@ export function getHabitPhraseTitle(
     characters.fill(' ', token.start, token.end)
     removed.fill(true, token.start, token.end)
   }
-  removeOrphanedGlue(sentence, locale, characters, removed, protectedCharacters)
-  const title = characters.join('').replaceAll(/[\s,;]+/gu, ' ').trim()
+  if (consumed.some((token) => token.kind !== 'time')) {
+    removeOrphanedGlue(sentence, locale, characters, removed, protectedCharacters)
+  }
+  const title = characters.join('').replaceAll(/\s+/gu, ' ').trim().replaceAll(/^[,;\s]+|[,;\s]+$/gu, '')
   return title || sentence.trim()
 }
