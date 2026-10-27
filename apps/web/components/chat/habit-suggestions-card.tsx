@@ -28,6 +28,9 @@ function SuggestionRow({ draft, view, isOnline }: Readonly<{ draft: HabitSuggest
   const disabled = view.disabled || !view.available(draft.id)
   const error = view.state.errors[draft.id]
   const revision = view.state.revisions[draft.id] ?? 0
+  let currentSchedule = t('common.loading')
+  if (current.data) currentSchedule = habitSuggestionSchedule(current.data, locale, t, displayTime)
+  else if (current.isError) currentSchedule = t('chat.habitSuggestions.scheduleError')
   return <div className="flex min-w-0 flex-col gap-2" data-suggestion-id={draft.id} aria-busy={view.state.busy === draft.id}>
     <div key={revision} className={revision ? 'habit-suggestion-swap' : undefined}>
       <Proposed proposed scope="block" inset label={t('chat.habitSuggestions.proposed')}>
@@ -37,7 +40,7 @@ function SuggestionRow({ draft, view, isOnline }: Readonly<{ draft: HabitSuggest
     {draft.existingHabitId ? <div className="flex flex-col gap-2 text-xs text-[var(--fg-3)]">
       <span>{t('chat.habitSuggestions.existing')}</span>
       <div className="flex flex-wrap gap-3">
-        <div className="min-w-0 flex-1"><span className="text-[var(--fg-2)]">{t('chat.habitSuggestions.current')}</span><p>{current.data ? habitSuggestionSchedule(current.data, locale, t, displayTime) : current.isError ? t('chat.habitSuggestions.scheduleError') : t('common.loading')}</p></div>
+        <div className="min-w-0 flex-1"><span className="text-[var(--fg-2)]">{t('chat.habitSuggestions.current')}</span><p>{currentSchedule}</p></div>
         <div className="min-w-0 flex-1"><span className="text-[var(--fg-2)]">{t('chat.habitSuggestions.proposed')}</span><p>{habitSuggestionSchedule(draft, locale, t, displayTime)}</p></div>
       </div>
       {current.isError ? <IconButton label={t('common.retry')} disabled={!isOnline} onClick={() => void current.refetch()}><RefreshCw size={20} /></IconButton> : null}

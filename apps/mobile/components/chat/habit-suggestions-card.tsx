@@ -32,6 +32,9 @@ function SuggestionRow({ draft, view, isOnline }: Readonly<{ draft: HabitSuggest
   const disabled = view.disabled || !view.available(draft.id)
   const error = view.state.errors[draft.id]
   const revision = view.state.revisions[draft.id] ?? 0
+  let currentSchedule = t('common.loading')
+  if (current.data) currentSchedule = habitSuggestionSchedule(current.data, i18n.language, t, displayTime)
+  else if (current.isError) currentSchedule = t('chat.habitSuggestions.scheduleError')
   const opacity = useMemo(() => new Animated.Value(1), [])
   const reducedMotion = usePrefersReducedMotion()
   useEffect(() => {
@@ -50,7 +53,7 @@ function SuggestionRow({ draft, view, isOnline }: Readonly<{ draft: HabitSuggest
     {draft.existingHabitId ? <View style={{ gap: 8 }}>
       <Text style={{ fontSize: 12, color: tokens.fg3 }}>{t('chat.habitSuggestions.existing')}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-        <View style={{ flex: 1, minWidth: 0 }}><Text style={{ fontSize: 12, color: tokens.fg2 }}>{t('chat.habitSuggestions.current')}</Text><Text style={{ fontSize: 12, color: tokens.fg3 }}>{current.data ? habitSuggestionSchedule(current.data, i18n.language, t, displayTime) : current.isError ? t('chat.habitSuggestions.scheduleError') : t('common.loading')}</Text></View>
+        <View style={{ flex: 1, minWidth: 0 }}><Text style={{ fontSize: 12, color: tokens.fg2 }}>{t('chat.habitSuggestions.current')}</Text><Text style={{ fontSize: 12, color: tokens.fg3 }}>{currentSchedule}</Text></View>
         <View style={{ flex: 1, minWidth: 0 }}><Text style={{ fontSize: 12, color: tokens.fg2 }}>{t('chat.habitSuggestions.proposed')}</Text><Text style={{ fontSize: 12, color: tokens.fg3 }}>{habitSuggestionSchedule(draft, i18n.language, t, displayTime)}</Text></View>
       </View>
       {current.isError ? <IconButton label={t('common.retry')} disabled={!isOnline} onPress={() => void current.refetch()}><RefreshCw size={20} color={tokens.fg2} /></IconButton> : null}

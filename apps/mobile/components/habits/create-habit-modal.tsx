@@ -307,6 +307,7 @@ export function CreateHabitModal({
       replaceSubHabits([])
       setReminderTimes([0, 15])
 
+      let initialReminderTimes = [0, 15]
       let prefill: ReturnType<typeof buildParentHabitFormState> | null = null
 
       if (parentHabit) {
@@ -315,11 +316,13 @@ export function CreateHabitModal({
         applyHabitFormMode(prefill.mode, formHelpers)
         tags.resetTags(prefill.selectedTagIds)
         setSelectedGoalIds(prefill.selectedGoalIds)
-        setReminderTimes(prefill.reminderTimes)
+        initialReminderTimes = prefill.reminderTimes
+        setReminderTimes(initialReminderTimes)
       } else if (initialSuggestion) {
         formHelpers.form.reset(habitSuggestionCreateValues(initialSuggestion))
         applyHabitFormMode(initialSuggestion.type === 'Task' ? 'oneTime' : 'recurring', formHelpers)
-        setReminderTimes(initialSuggestion.reminderMinutesBefore === null ? [] : [initialSuggestion.reminderMinutesBefore])
+        initialReminderTimes = initialSuggestion.reminderMinutesBefore === null ? [] : [initialSuggestion.reminderMinutesBefore]
+        setReminderTimes(initialReminderTimes)
         setReminderWasManuallyToggled(true)
       } else if (activeView === 'general') {
         formHelpers.setGeneral()
@@ -342,7 +345,7 @@ export function CreateHabitModal({
       )
       setInitialSubHabitsSnapshot(JSON.stringify([]))
       setInitialReminderTimesSnapshot(
-        JSON.stringify(prefill?.reminderTimes ?? (initialSuggestion ? initialSuggestion.reminderMinutesBefore === null ? [] : [initialSuggestion.reminderMinutesBefore] : [0, 15])),
+        JSON.stringify(initialReminderTimes),
       )
     })
     // react-doctor-disable-next-line exhaustive-deps -- reset-on-open must run once per open transition only, never re-fire on formHelpers/tags/parentHabit reference churn while already open; latest values are read from resetOnOpenRef, updated every render https://github.com/thomasluizon/orbit-ui-mobile/issues/243

@@ -1,4 +1,5 @@
 import React from 'react'
+import { View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactTestRenderer } from 'react-test-renderer'
 import { habitSuggestionDraftFixture as draft, makeHabitSuggestionMessage, makeHabitSuggestionPreview, makeHabitSuggestionBatchPreview } from '@orbit/shared/test-support/chat-fixtures'
@@ -7,35 +8,37 @@ import { useChatStore } from '@/stores/chat-store'
 import { chatMessageSchema } from '@orbit/shared/types/chat'
 import { getMessageBubbleOperations } from '@orbit/shared/chat'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
-import { HabitSuggestionsCard } from '@/components/chat/habit-suggestions-card'
+import { ChatBlock } from '@/components/chat/block-registry'
 import { i18n } from '@/lib/i18n'
 import { controlName } from '../../support/react-test-renderer'
 import en from '@orbit/shared/i18n/en.json'
 
 vi.unmock('react-i18next')
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('@/hooks/use-habits', () => ({ useHabits: vi.fn(), useLogHabit: vi.fn(), useHabitMetrics: vi.fn() }))
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
-const mocks = vi.hoisted(() => ({ refine: vi.fn(), preview: vi.fn(), confirm: vi.fn(), revise: vi.fn(), relationshipsLoaded: true, create: vi.fn(), edit: vi.fn() }))
+const mocks = vi.hoisted(() => ({ refine: vi.fn(), preview: vi.fn(), confirm: vi.fn(), revise: vi.fn(), relationshipsLoaded: true, scheduleLoaded: true, scheduleError: false, refetch: vi.fn(), create: vi.fn(), edit: vi.fn() }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (time: string) => time }) }))
 vi.mock('@/hooks/use-habit-suggestion-actions', () => ({ useHabitSuggestionActions: (id: string) => ({
   refine: mocks.refine, preview: mocks.preview, isCurrent: () => true,
   transition: (update: Parameters<ReturnType<typeof useChatStore.getState>['transitionMessage']>[1]) => useChatStore.getState().transitionMessage(id, update),
 }) }))
-vi.mock('@/hooks/use-habit-queries', () => ({ useHabitDetail: () => ({ data: { ...createMockHabit({ id: 'existing', dueTime: '06:00:00', dueEndTime: '06:15:00' }), children: [], ...(!mocks.relationshipsLoaded ? { linkedGoals: undefined, slipAlertEnabled: undefined } : {}) }, isError: false }) }))
-vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: (props: unknown) => { mocks.create(props); return null } }))
+vi.mock('@/hooks/use-habit-queries', () => ({ useHabitDetail: () => ({ data: mocks.scheduleLoaded ? { ...createMockHabit({ id: 'existing', dueTime: '06:00:00', dueEndTime: '06:15:00' }), children: [], ...(!mocks.relationshipsLoaded ? { linkedGoals: undefined, slipAlertEnabled: undefined } : {}) } : undefined, isError: mocks.scheduleError, refetch: mocks.refetch }) }))
+vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: (props: unknown) => { mocks.create(props); return <View testID="suggestion-editor" /> } }))
 vi.mock('@/components/habits/edit-habit-modal', () => ({ EditHabitModal: (props: unknown) => { mocks.edit(props); return null } }))
 let tree: ReactTestRenderer & { toJSON: () => unknown; unmount: () => void }
-function Harness() {
+function Harness({ isOnline = true }: { isOnline?: boolean }) {
   const message = useChatStore(state => state.messages[0]!)
   const part = message.parts?.[0]
   const operations = getMessageBubbleOperations({ message, onPendingOperationConfirmExecute: mocks.confirm, onPendingOperationRevise: mocks.revise, onPendingOperationPrepareStepUp: () => Promise.resolve({ ok: false as const }), onPendingOperationVerifyStepUp: () => Promise.resolve({ ok: false as const }) }, useChatStore.getState().transitionMessage)
-  return part?.type === 'block' && part.kind === 'habitSuggestions' ? <>{operations.pendingOperations.map(({ key, ...operation }) => <PendingOperationCard key={key} {...operation} />)}<HabitSuggestionsCard card={part.block} message={message} /></> : null
+  return part?.type === 'block' && part.kind === 'habitSuggestions' ? <>{operations.pendingOperations.map(({ key, ...operation }) => <PendingOperationCard key={key} {...operation} />)}<ChatBlock part={part} message={message} interaction={{ isOnline, isSending: false, atMessageLimit: false, allowance: 10, send: () => Promise.resolve({ ok: true }) }} onActionChipClick={undefined} /></> : null
 }
-async function mount() { await renderer.act(() => { tree = renderer.create(<Harness />) as typeof tree }) }
+async function mount(isOnline = true) { await renderer.act(() => { tree = renderer.create(<Harness isOnline={isOnline} />) as typeof tree }) }
 const content = () => JSON.stringify(tree.toJSON())
 const buttons = (name: string) => tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && (node.props.accessibilityLabel === name || controlName(node) === name))
 async function press(name: string, index = 0) { await renderer.act(async () => { (buttons(name)[index]!.props.onPress as () => void)(); await Promise.resolve() }) }
 beforeEach(async () => {
-  vi.clearAllMocks(); mocks.relationshipsLoaded = true; useChatStore.setState({ messages: [makeHabitSuggestionMessage()] })
+  vi.clearAllMocks(); mocks.relationshipsLoaded = true; mocks.scheduleLoaded = true; mocks.scheduleError = false; useChatStore.setState({ messages: [makeHabitSuggestionMessage()] })
   mocks.refine.mockReset().mockResolvedValue({ ...draft, title: 'Read one page' })
   mocks.preview.mockReset().mockResolvedValue({ response: makeHabitSuggestionPreview() })
   mocks.confirm.mockReset().mockResolvedValue({ ok: true, response: { operation: { ...makeHabitSuggestionPreview().operation, status: 'Succeeded' } } })
@@ -103,6 +106,37 @@ describe('habit suggestion actions on Android', () => {
     await mount(); await press('Edit')
     await renderer.act(async () => { await import('@/components/chat/habit-suggestion-editor') })
     expect(mocks.create.mock.lastCall?.[0]).toMatchObject({ open: true, initialSuggestion: draft })
+  })
+  it('removes a saved draft and closes its editor through the form callbacks', async () => {
+    await mount(); await press('Edit')
+    await renderer.act(async () => { await import('@/components/chat/habit-suggestion-editor') })
+    const callbacks = mocks.create.mock.lastCall![0] as { onCreated: () => void; onClose: () => void }
+    await renderer.act(() => { callbacks.onCreated(); callbacks.onClose() })
+    expect(buttons('Read')).toHaveLength(0)
+    expect(buttons('Stretch')).toHaveLength(1)
+    expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'suggestion-editor')).toHaveLength(0)
+  })
+  it('disables suggestion actions and explains offline state through the block registry', async () => {
+    await mount(false)
+    for (const name of ['Add', 'Edit', 'Tweak', 'Swap', 'Add all']) {
+      for (const button of buttons(name)) expect(button.props.accessibilityState).toMatchObject({ disabled: true })
+    }
+    expect(content()).toContain(en.chat.habitSuggestions.offline)
+  })
+  it('omits suggestions when their owning message is absent', async () => {
+    const part = makeHabitSuggestionMessage().parts![0]!
+    if (part.type !== 'block' || part.kind !== 'habitSuggestions') throw new Error('Expected suggestions')
+    await renderer.act(() => { tree = renderer.create(<ChatBlock part={part} onActionChipClick={undefined} />) as typeof tree })
+    expect(tree.toJSON()).toBeNull()
+  })
+  it.each([false, true])('shows the existing schedule loading or failure state with isError=%s', async isError => {
+    mocks.scheduleLoaded = false; mocks.scheduleError = isError
+    const message = makeHabitSuggestionMessage()
+    message.parts = [{ type: 'block', kind: 'habitSuggestions', block: { language: 'en', drafts: [{ ...draft, existingHabitId: '33333333-3333-4333-8333-333333333333' }] } }]
+    useChatStore.setState({ messages: [message] }); await mount()
+    expect(content()).toContain(isError ? en.chat.habitSuggestions.scheduleError : en.common.loading)
+    expect(buttons('Edit')[0]?.props.accessibilityState).toMatchObject({ disabled: true })
+    if (isError) { await press('Retry'); expect(mocks.refetch).toHaveBeenCalledOnce() }
   })
   it('Tweak sends the inline instruction and replaces only that card', async () => {
     await mount(); const other = buttons('Stretch')[0]

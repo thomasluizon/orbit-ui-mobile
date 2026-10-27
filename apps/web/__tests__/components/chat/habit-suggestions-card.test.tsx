@@ -8,29 +8,29 @@ import { useChatStore } from '@/stores/chat-store'
 import { chatMessageSchema } from '@orbit/shared/types/chat'
 import { getMessageBubbleOperations } from '@orbit/shared/chat'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
-import { HabitSuggestionsCard } from '@/components/chat/habit-suggestions-card'
+import { ChatBlock } from '@/components/chat/block-registry'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 
-const mocks = vi.hoisted(() => ({ refine: vi.fn(), preview: vi.fn(), confirm: vi.fn(), revise: vi.fn(), relationshipsLoaded: true, create: vi.fn(), edit: vi.fn() }))
+const mocks = vi.hoisted(() => ({ refine: vi.fn(), preview: vi.fn(), confirm: vi.fn(), revise: vi.fn(), relationshipsLoaded: true, scheduleLoaded: true, scheduleError: false, refetch: vi.fn(), create: vi.fn(), edit: vi.fn() }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (time: string) => time }) }))
 vi.mock('@/hooks/use-habit-suggestion-actions', () => ({ useHabitSuggestionActions: (id: string) => ({
   refine: mocks.refine, preview: mocks.preview, isCurrent: () => true,
   transition: (update: Parameters<ReturnType<typeof useChatStore.getState>['transitionMessage']>[1]) => useChatStore.getState().transitionMessage(id, update),
 }) }))
-vi.mock('@/hooks/use-habit-queries', () => ({ useHabitDetail: () => ({ data: { ...createMockHabit({ id: 'existing', dueTime: '06:00:00', dueEndTime: '06:15:00' }), children: [], ...(!mocks.relationshipsLoaded ? { linkedGoals: undefined, slipAlertEnabled: undefined } : {}) }, isError: false }) }))
+vi.mock('@/hooks/use-habit-queries', () => ({ useHabitDetail: () => ({ data: mocks.scheduleLoaded ? { ...createMockHabit({ id: 'existing', dueTime: '06:00:00', dueEndTime: '06:15:00' }), children: [], ...(!mocks.relationshipsLoaded ? { linkedGoals: undefined, slipAlertEnabled: undefined } : {}) } : undefined, isError: mocks.scheduleError, refetch: mocks.refetch }) }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: (props: unknown) => { mocks.create(props); return <div role="dialog">Create form</div> } }))
 vi.mock('@/components/habits/edit-habit-modal', () => ({ EditHabitModal: (props: unknown) => { mocks.edit(props); return <div role="dialog">Edit form</div> } }))
 
-function Harness() {
+function Harness({ isOnline = true }: { isOnline?: boolean }) {
   const message = useChatStore(state => state.messages[0]!)
   const part = message.parts?.[0]
   const operations = getMessageBubbleOperations({ message, onPendingOperationConfirmExecute: mocks.confirm, onPendingOperationRevise: mocks.revise, onPendingOperationPrepareStepUp: () => Promise.resolve({ ok: false as const }), onPendingOperationVerifyStepUp: () => Promise.resolve({ ok: false as const }) }, useChatStore.getState().transitionMessage)
-  return part?.type === 'block' && part.kind === 'habitSuggestions' ? <>{operations.pendingOperations.map(({ key, ...operation }) => <PendingOperationCard key={key} {...operation} />)}<HabitSuggestionsCard card={part.block} message={message} /></> : null
+  return part?.type === 'block' && part.kind === 'habitSuggestions' ? <>{operations.pendingOperations.map(({ key, ...operation }) => <PendingOperationCard key={key} {...operation} />)}<ChatBlock part={part} message={message} interaction={{ isOnline, isSending: false, atMessageLimit: false, allowance: 10, send: () => Promise.resolve({ ok: true }) }} onActionChipClick={undefined} /></> : null
 }
-function mount(locale = 'en') { return render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><Harness /></NextIntlClientProvider>) }
+function mount(locale = 'en', isOnline = true) { return render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><Harness isOnline={isOnline} /></NextIntlClientProvider>) }
 const click = async (name: string, index = 0) => { await act(async () => { fireEvent.click(screen.getAllByRole('button', { name })[index]!) }) }
 beforeEach(() => {
-  vi.clearAllMocks(); mocks.relationshipsLoaded = true; useChatStore.setState({ messages: [makeHabitSuggestionMessage()] })
+  vi.clearAllMocks(); mocks.relationshipsLoaded = true; mocks.scheduleLoaded = true; mocks.scheduleError = false; useChatStore.setState({ messages: [makeHabitSuggestionMessage()] })
   mocks.refine.mockReset().mockResolvedValue({ ...draft, title: 'Read one page' })
   mocks.preview.mockReset().mockResolvedValue({ response: makeHabitSuggestionPreview() })
   mocks.confirm.mockReset().mockResolvedValue({ ok: true, response: { operation: { ...makeHabitSuggestionPreview().operation, status: 'Succeeded' } } })
@@ -96,6 +96,37 @@ describe('habit suggestion actions on web', () => {
     mount(); await click('Edit')
     expect(await screen.findByRole('dialog')).toHaveTextContent('Create form')
     expect(mocks.create.mock.lastCall?.[0]).toMatchObject({ open: true, initialSuggestion: draft })
+  })
+  it('removes a saved draft and closes its editor through the form callbacks', async () => {
+    mount(); await click('Edit')
+    await screen.findByRole('dialog')
+    const callbacks = mocks.create.mock.lastCall![0] as { onCreated: () => void; onOpenChange: (open: boolean) => void }
+    await act(async () => { callbacks.onCreated(); callbacks.onOpenChange(false) })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Read' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Stretch' })).toBeInTheDocument()
+  })
+  it('disables suggestion actions and explains offline state through the block registry', () => {
+    mount('en', false)
+    for (const name of ['Add', 'Edit', 'Tweak', 'Swap', 'Add all']) {
+      for (const button of screen.getAllByRole('button', { name })) expect(button).toBeDisabled()
+    }
+    expect(screen.getByText(en.chat.habitSuggestions.offline)).toBeVisible()
+  })
+  it('omits suggestions when their owning message is absent', () => {
+    const part = makeHabitSuggestionMessage().parts![0]!
+    if (part.type !== 'block' || part.kind !== 'habitSuggestions') throw new Error('Expected suggestions')
+    const mounted = render(<ChatBlock part={part} onActionChipClick={undefined} />)
+    expect(mounted.container).toBeEmptyDOMElement()
+  })
+  it.each([false, true])('shows the existing schedule loading or failure state with isError=%s', async isError => {
+    mocks.scheduleLoaded = false; mocks.scheduleError = isError
+    const message = makeHabitSuggestionMessage()
+    message.parts = [{ type: 'block', kind: 'habitSuggestions', block: { language: 'en', drafts: [{ ...draft, existingHabitId: '33333333-3333-4333-8333-333333333333' }] } }]
+    useChatStore.setState({ messages: [message] }); mount()
+    expect(screen.getByText(isError ? en.chat.habitSuggestions.scheduleError : en.common.loading)).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeDisabled()
+    if (isError) { await click('Retry'); expect(mocks.refetch).toHaveBeenCalledOnce() }
   })
   it('Tweak sends the draft and inline instruction and replaces only that card', async () => {
     mount(); const other = screen.getByRole('button', { name: 'Stretch' })
