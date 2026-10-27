@@ -118,6 +118,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { captureHabitLogged } from '@/lib/posthog'
+import { apiClient } from '@/lib/api-client'
 import { getAccountId } from '@/lib/account-scope'
 import { getAccountGeneration } from '@/lib/session-epoch'
 
@@ -815,7 +816,7 @@ export function useRestoreHabit() {
   })
 }
 
-export function useDeleteHabit() {
+export function useDeleteHabit({ requiresConnection = false }: { requiresConnection?: boolean } = {}) {
   const queryClient = useQueryClient()
   const { t } = useTranslation()
   const restoreHabit = useRestoreHabit()
@@ -829,7 +830,7 @@ export function useDeleteHabit() {
   >({
     mutationFn: (habitId) =>
       performQueuedApiMutation<void>({
-        type: 'deleteHabit',
+        type: requiresConnection ? 'bulkCascadeDeleteHabits' : 'deleteHabit',
         scope: 'habits',
         endpoint: API.habits.delete(habitId),
         method: 'DELETE',
@@ -1274,9 +1275,12 @@ export function useBulkDeleteHabits() {
             scope: 'habits',
             endpoint: API.habits.delete(habitId),
             method: 'DELETE',
-            payload: null,
+            payload: requiresConnection ? null : { queuedAsChildless: true },
             entityType: 'habit',
             targetEntityId: habitId,
+            execute: (mutation) => apiClient<void>(mutation.endpoint, {
+              method: 'DELETE', idempotencyKey: mutation.id,
+            }),
           }),
         ))
         outcomes.forEach((outcome, itemIndex) => {

@@ -28,7 +28,7 @@ import {
   updateTimezoneRequestSchema,
   type Profile,
 } from '@orbit/shared/types/profile'
-import { bulkLogItemRequestSchema, bulkLogResultSchema, bulkSkipItemRequestSchema, bulkSkipResultSchema, reorderHabitsRequestSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
+import { bulkLogItemRequestSchema, bulkLogResultSchema, bulkSkipItemRequestSchema, bulkSkipResultSchema, habitDetailSchema, reorderHabitsRequestSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
 import { z } from 'zod'
 import { ApiClientError, extractBackendErrorCode, findHabitInList } from '@orbit/shared/utils'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -93,6 +93,13 @@ const AUTOMATIC_REPLAY_BLOCKED_TYPES = new Set<string>([
 
 export function isAutomaticReplayBlocked(type: string): boolean {
   return AUTOMATIC_REPLAY_BLOCKED_TYPES.has(type)
+}
+
+export function wasHabitDeleteQueuedAsChildless(mutation: PersistedQueuedMutation): boolean {
+  const payload = mutation.payload
+  return mutation.type === 'deleteHabit' && mutation.method === 'DELETE' &&
+    typeof payload === 'object' && payload !== null &&
+    'queuedAsChildless' in payload && payload.queuedAsChildless === true
 }
 
 export interface DroppedMutation {
@@ -1021,6 +1028,47 @@ async function prepareQueuedMutationFlush(
   return { mutation }
 }
 
+async function refuseQueuedCascadeDelete(
+  mutation: PersistedQueuedMutation,
+  touchedScopes: Set<MutationScope>,
+): Promise<DroppedMutation | null> {
+  const habit = await apiClient(mutation.endpoint, { method: 'GET' }, habitDetailSchema)
+  if (habit.children.length === 0) return null
+
+  await clearDeletedOfflineEntity(mutation)
+  const dropped = await dropQueuedMutation(
+    mutation,
+    'Deferred childless deletion refused because the habit has sub-habits',
+    touchedScopes,
+  )
+  return { ...dropped, itemName: habit.title }
+}
+
+async function deliverQueuedMutation(
+  mutation: PersistedQueuedMutation,
+  touchedScopes: Set<MutationScope>,
+  accountId: string | null,
+): Promise<FlushStepResult> {
+  validateResolvedHabitReferences(mutation.type, mutation.payload)
+  if (wasHabitDeleteQueuedAsChildless(mutation)) {
+    const dropped = await refuseQueuedCascadeDelete(mutation, touchedScopes)
+    if (dropped) return { failedDelta: 1, stopReason: null, succeededDelta: 0, dropped }
+  }
+  const response = mutation.type === 'undoSkipHabit' ? await executeSkipUndo(mutation) : await apiClient<unknown>(
+    mutation.endpoint,
+    {
+      method: mutation.method,
+      body: wasHabitDeleteQueuedAsChildless(mutation) ? undefined : serializeMutationPayload(mutation.payload),
+      idempotencyKey: mutation.id,
+    },
+    getMutationResponseSchema(mutation.type),
+  )
+
+  await reportBulkReplaySuccess(mutation, response, accountId)
+  await finalizeSuccessfulFlush(mutation, response, touchedScopes)
+  return { failedDelta: 0, stopReason: null, succeededDelta: 1, dropped: null }
+}
+
 async function processQueuedMutationFlush(
   originalMutation: PersistedQueuedMutation,
   touchedScopes: Set<MutationScope>,
@@ -1060,20 +1108,7 @@ async function processQueuedMutationFlush(
   await markMutationSyncing(mutation)
 
   try {
-    validateResolvedHabitReferences(mutation.type, mutation.payload)
-    const response = mutation.type === 'undoSkipHabit' ? await executeSkipUndo(mutation) : await apiClient<unknown>(
-      mutation.endpoint,
-      {
-        method: mutation.method,
-        body: serializeMutationPayload(mutation.payload),
-        idempotencyKey: mutation.id,
-      },
-      getMutationResponseSchema(mutation.type),
-    )
-
-    await reportBulkReplaySuccess(mutation, response, accountId)
-    await finalizeSuccessfulFlush(mutation, response, touchedScopes)
-    return { failedDelta: 0, stopReason: null, succeededDelta: 1, dropped: null }
+    return await deliverQueuedMutation(mutation, touchedScopes, accountId)
   } catch (error: unknown) {
     if (
       mutation.type === 'deleteHabit' && mutation.method === 'DELETE' &&

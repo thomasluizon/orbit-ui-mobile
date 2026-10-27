@@ -2,11 +2,14 @@ import React from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SQLInputValue } from 'node:sqlite'
-import { QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider, QueryObserver } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
-import type { HabitScheduleItem } from '@orbit/shared/types/habit'
+import { habitDetailSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
+import { OfflineNotice } from '@/components/offline-notice'
+import { Toast } from '@/components/ui/app-toast'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { useBulkDeleteHabits } from '@/hooks/use-habits'
 import { cancelScheduledFlush, flushQueuedMutations, getReplayState } from '@/lib/offline-mutations'
 import { clear, getAll } from '@/lib/offline-queue'
@@ -40,6 +43,7 @@ vi.mock('expo-sqlite', () => ({
   }),
 }))
 vi.mock('expo-crypto', () => ({ randomUUID: () => '11111111-1111-4111-8111-111111111111' }))
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: { getState: () => ({ isAuthenticated: true, user: { userId: 'account-a' } }) },
   getSessionGeneration: () => ({ epoch: 0, credentialVersion: 0 }),
@@ -56,6 +60,12 @@ vi.mock('@/lib/query-client', async () => {
   }
 })
 vi.mock('@/lib/orbit-widget', () => ({ syncWidgetData: async () => {} }))
+vi.mock('@/hooks/use-offline', () => ({
+  useOffline: () => ({ isOnline: mocks.online, pendingCount: 0, isFlushing: false, hasFailed: false }),
+}))
+vi.mock('@/components/ui/confirm-sheet', () => ({
+  ConfirmSheet: (props: Record<string, unknown>) => React.createElement('ConfirmSheet', props),
+}))
 vi.mock('@/lib/posthog', () => ({ captureHabitLogged: vi.fn() }))
 vi.mock('@/lib/sentry', () => ({ captureError: mocks.captureError }))
 vi.mock('@/hooks/use-undo-toast', () => ({ useUndoToast: () => mocks.showUndoToast }))
@@ -78,7 +88,7 @@ function BulkDeleteOwner() {
 async function mount(habits = habitIds.map((id) => createMockHabitScheduleItem({ id }))) {
   queryClient.setQueryData(habitKeys.list({}), habits)
   await act(() => {
-    renderer = create(<QueryClientProvider client={queryClient}><BulkDeleteOwner /></QueryClientProvider>)
+    renderer = create(<QueryClientProvider client={queryClient}><BulkDeleteOwner /><OfflineNotice /></QueryClientProvider>)
   })
 }
 
@@ -97,6 +107,11 @@ function serveDeletes(serverHabits: Set<string>, loseAcknowledgement = false) {
   mocks.fetch.mockImplementation((input, options) => {
     const url = input instanceof Request ? input.url : input.toString()
     const habitId = url.split('/').at(-1)!
+    if (options?.method === 'GET') {
+      return Promise.resolve(serverHabits.has(habitId)
+        ? Response.json(habitDetailSchema.parse(createMockHabitScheduleItem({ id: habitId })))
+        : Response.json({ error: 'Habit not found.', errorCode: 'HABIT_NOT_FOUND' }, { status: 404 }))
+    }
     expect(options?.method).toBe('DELETE')
     if (!serverHabits.delete(habitId)) {
       return Promise.resolve(Response.json({ error: 'Habit not found.', errorCode: 'HABIT_NOT_FOUND' }, { status: 404 }))
@@ -130,6 +145,77 @@ afterEach(async () => {
 })
 
 describe('offline bulk delete through the native queue', () => {
+  it('refuses replay of a General parent with a retained completed one-time child and restores its row', async () => {
+    const generalParent = createMockHabitScheduleItem({
+      id: habitIds[0], schedule: 'General', isGeneral: true, frequencyUnit: null,
+      frequencyQuantity: null, children: [], hasSubHabits: false,
+    })
+    await mount([generalParent])
+    const observer = new QueryObserver(queryClient, {
+      queryKey: habitKeys.list({}), queryFn: () => Promise.resolve([generalParent]), staleTime: Infinity,
+    })
+    const unsubscribe = observer.subscribe(() => {})
+    try {
+      await deleteSelected([generalParent.id])
+      expect(getAll()).toHaveLength(1)
+      expect(cachedIds()).toEqual([])
+      const child = createMockHabitScheduleChild({
+        schedule: 'OneTime', isCompleted: true, frequencyUnit: null, frequencyQuantity: null,
+      })
+      const detail = habitDetailSchema.parse({ ...generalParent, children: [child] })
+      mocks.fetch.mockResolvedValue(Response.json(detail))
+      mocks.online = true
+      let result: Awaited<ReturnType<typeof flushQueuedMutations>> | undefined
+      await act(async () => { result = await flushQueuedMutations() })
+      expect(mocks.fetch.mock.calls.map(([, options]) => options?.method)).toEqual(['GET'])
+      expect(result).toMatchObject({ succeeded: 0, failed: 1, remaining: 0 })
+      expect(cachedIds()).toEqual([generalParent.id])
+      expect(useOfflineSyncStore.getState().drops).toHaveLength(1)
+      const notice = renderer.root.findAll((node) => node.type === Toast)[0]!
+      expect(notice.props.message).toBe('habits.detail.deleteError')
+      expect(notice.props.actionLabel).toBe('common.syncRetryAction')
+      await act(() => { (notice.props.onAction as () => void)() })
+      const confirmation = renderer.root.findAll((node) => node.type === ConfirmSheet)[0]!
+      expect(confirmation.props).toMatchObject({ open: true, message: 'habits.deleteConfirmMessage', destructive: true })
+      expect(mocks.fetch).toHaveBeenCalledOnce()
+      mocks.fetch.mockResolvedValue(new Response(null, { status: 204 }))
+      await act(async () => { (confirmation.props.onConfirm as () => void)(); await vi.advanceTimersByTimeAsync(0) })
+      expect(mocks.fetch.mock.calls.map(([, options]) => options?.method)).toEqual(['GET', 'DELETE'])
+      expect(useOfflineSyncStore.getState().drops).toEqual([])
+      expect(mocks.showUndoToast).toHaveBeenCalledTimes(2)
+    } finally {
+      unsubscribe()
+    }
+  })
+
+  it('settles a replay hierarchy read answered HABIT_NOT_FOUND without sending a delete', async () => {
+    await mount()
+    await deleteSelected([habitIds[0]!])
+    mocks.fetch.mockResolvedValue(Response.json({ error: 'Habit not found.', errorCode: 'HABIT_NOT_FOUND' }, { status: 404 }))
+    mocks.online = true
+    expect(await flushQueuedMutations()).toMatchObject({ succeeded: 1, failed: 0, remaining: 0 })
+    expect(mocks.fetch.mock.calls.map(([, options]) => options?.method)).toEqual(['GET'])
+    expect(useOfflineSyncStore.getState().drops).toEqual([])
+    expect(mocks.captureError).not.toHaveBeenCalled()
+  })
+
+  it('keeps a failed hierarchy read queued and checks it again on timed replay', async () => {
+    await mount()
+    await deleteSelected([habitIds[0]!])
+    const queued = getAll()[0]!
+    mocks.fetch.mockRejectedValue(new TypeError('Network request failed'))
+    mocks.online = true
+    expect(await flushQueuedMutations()).toMatchObject({ succeeded: 0, failed: 0, remaining: 1, replayState: 'waiting-on-backoff' })
+    expect(mocks.fetch.mock.calls.map(([, options]) => options?.method)).toEqual(['GET'])
+    expect(getAll()).toMatchObject([{ id: queued.id, status: 'failed' }])
+    expect(useOfflineSyncStore.getState().drops).toEqual([])
+    serveDeletes(new Set([habitIds[0]!]))
+    await vi.advanceTimersByTimeAsync(2_000)
+    expect(mocks.fetch.mock.calls.map(([, options]) => options?.method)).toEqual(['GET', 'GET', 'DELETE'])
+    expect(getAll()).toEqual([])
+    expect(mocks.captureError).not.toHaveBeenCalled()
+  })
+
   it('defers two childless deletes, keeps them removed, and replays each once with its own key', async () => {
     await mount()
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
@@ -140,6 +226,7 @@ describe('offline bulk delete through the native queue', () => {
     expect(queued.map((item) => [item.type, item.endpoint])).toEqual(
       habitIds.map((id) => ['deleteHabit', API.habits.delete(id)]),
     )
+    expect(queued.map((item) => item.payload)).toEqual(habitIds.map(() => ({ queuedAsChildless: true })))
     expect(cachedIds()).toEqual([])
     expect(invalidate).not.toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(mocks.showUndoToast).toHaveBeenCalledOnce()
@@ -150,9 +237,11 @@ describe('offline bulk delete through the native queue', () => {
     mocks.online = true
     expect(await flushQueuedMutations()).toMatchObject({ succeeded: 2, failed: 0, remaining: 0 })
     await flushQueuedMutations()
-    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(mocks.fetch).toHaveBeenCalledTimes(4)
+    expect(mocks.fetch.mock.calls.map(([, options]) => options?.method)).toEqual(['GET', 'DELETE', 'GET', 'DELETE'])
     for (const item of queued) {
       expect(mocks.fetch).toHaveBeenCalledWith(expect.stringContaining(item.endpoint), expect.objectContaining({
+        method: 'DELETE', body: undefined,
         headers: expect.objectContaining({ 'Idempotency-Key': item.id }),
       }))
     }
@@ -186,9 +275,8 @@ describe('offline bulk delete through the native queue', () => {
       const attempts = mocks.fetch.mock.calls.filter(([url]) =>
         (url instanceof Request ? url.url : url.toString()).endsWith(item.endpoint),
       )
-      expect(attempts).toHaveLength(2)
-      expect(attempts.map(([, options]) => options?.headers)).toEqual([
-        expect.objectContaining({ 'Idempotency-Key': item.id }),
+      expect(attempts.map(([, options]) => options?.method)).toEqual(initiallyOnline ? ['DELETE', 'GET'] : ['GET', 'DELETE', 'GET'])
+      expect(attempts.filter(([, options]) => options?.method === 'DELETE').map(([, options]) => options?.headers)).toEqual([
         expect.objectContaining({ 'Idempotency-Key': item.id }),
       ])
     }
@@ -205,13 +293,14 @@ describe('offline bulk delete through the native queue', () => {
     const serverHabits = new Set(habitIds)
     const deletions = serveDeletes(serverHabits)
     let acknowledge: (() => void) | undefined
+    mocks.fetch.mockResolvedValueOnce(Response.json(habitDetailSchema.parse(createMockHabitScheduleItem({ id: habitIds[0] }))))
     mocks.fetch.mockImplementationOnce(() => {
       serverHabits.delete(habitIds[0]!)
       return new Promise((resolve) => { acknowledge = () => resolve(new Response(null, { status: 204 })) })
     })
     mocks.online = true
     const interruptedFlush = flushQueuedMutations()
-    await vi.waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+    await vi.waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(2))
     expect(getAll()[0]?.status).toBe('syncing')
     try {
       await act(() => renderer.update(<></>))
@@ -221,11 +310,11 @@ describe('offline bulk delete through the native queue', () => {
       expect(getAll()).toEqual([])
       expect(serverHabits.size).toBe(0)
       expect(deletions.get(habitIds[1]!)).toBe(1)
-      expect(mocks.fetch).toHaveBeenCalledTimes(3)
-      const firstAttempts = mocks.fetch.mock.calls.slice(0, 2)
-      expect(firstAttempts.map(([, options]) => options?.headers)).toEqual([
+      expect(mocks.fetch).toHaveBeenCalledTimes(5)
+      expect(mocks.fetch.mock.calls.map(([, options]) => options?.method)).toEqual(['GET', 'DELETE', 'GET', 'GET', 'DELETE'])
+      expect(mocks.fetch.mock.calls.filter(([, options]) => options?.method === 'DELETE').map(([, options]) => options?.headers)).toEqual([
         expect.objectContaining({ 'Idempotency-Key': queued[0]!.id }),
-        expect.objectContaining({ 'Idempotency-Key': queued[0]!.id }),
+        expect.objectContaining({ 'Idempotency-Key': queued[1]!.id }),
       ])
       expect(cachedIds()).toEqual([])
       expect(mocks.captureError).not.toHaveBeenCalled()
