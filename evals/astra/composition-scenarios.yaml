@@ -1990,6 +1990,64 @@
                 frequency_unit: OneTime
                 due_date: '{accountYear}-10-30'
                 due_end_time: 13:30
+          argumentsAnyOf:
+            - habits:
+                - title:
+                    textContains: cholesterol
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-26"
+                  due_time: 15:50
+                - title:
+                    textContains: blood
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_time: 13:30
+                - title:
+                    textContains: Don't take multivitamins
+                  frequency_unit: Day
+                  due_date: "{accountYear}-10-27"
+                  end_date: "{accountYear}-10-30"
+                  is_bad_habit: false
+                - title:
+                    textContains: Don't go to Muay Thai
+                  frequency_unit: Day
+                  due_date: "{accountYear}-10-29"
+                  end_date: "{accountYear}-10-30"
+                  is_bad_habit: false
+                - title:
+                    textContains: fast
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_end_time: 13:30
+            - habits:
+                - title:
+                    textContains: cholesterol
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-26"
+                  due_time: 15:50
+                - title:
+                    textContains: blood
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_time: 13:30
+                  sub_habits:
+                    - title:
+                        textContains: Don't take multivitamins
+                      frequency_unit: Day
+                      due_date: "{accountYear}-10-27"
+                      end_date: "{accountYear}-10-30"
+                      is_bad_habit: false
+                    - title:
+                        textContains: Don't go to Muay Thai
+                      frequency_unit: Day
+                      due_date: "{accountYear}-10-29"
+                      end_date: "{accountYear}-10-30"
+                      is_bad_habit: false
+                    - title:
+                        textContains: fast
+                      frequency_unit: OneTime
+                      due_date: "{accountYear}-10-30"
+                      due_end_time: 13:30
       allowed:
         - query_habits
         - bulk_create_habits
@@ -2108,6 +2166,29 @@
                 parent_habit_id: "{secondHabitId}"
                 frequency_unit: Day
                 frequency_quantity: 1
+          argumentsAnyOf:
+            - habits:
+                - &a1
+                  title:
+                    textContains: vitamin D
+                  parent_habit_id: "{habitId}"
+                  frequency_unit: Week
+                  frequency_quantity: 1
+                - &a2
+                  title:
+                    textContains: rosuvastatin
+                  parent_habit_id: "{secondHabitId}"
+                  frequency_unit: Day
+                  frequency_quantity: 1
+            - habits:
+                - title: Post Lunch
+                  habit_id: "{habitId}"
+                  sub_habits:
+                    - *a1
+                - title: Before Bed
+                  habit_id: "{secondHabitId}"
+                  sub_habits:
+                    - *a2
       allowed:
         - query_habits
         - bulk_create_habits
@@ -2170,6 +2251,64 @@
                 frequency_unit: OneTime
                 due_date: '{accountYear}-10-30'
                 due_end_time: 13:30
+          argumentsAnyOf:
+            - habits:
+                - title:
+                    textContains: colesterol
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-26"
+                  due_time: 15:50
+                - title:
+                    textContains: sangue
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_time: 13:30
+                - title:
+                    textContains: Não tomar multivitamínico
+                  frequency_unit: Day
+                  due_date: "{accountYear}-10-27"
+                  end_date: "{accountYear}-10-30"
+                  is_bad_habit: false
+                - title:
+                    textContains: Não ir ao Muay Thai
+                  frequency_unit: Day
+                  due_date: "{accountYear}-10-29"
+                  end_date: "{accountYear}-10-30"
+                  is_bad_habit: false
+                - title:
+                    textContains: jejum
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_end_time: 13:30
+            - habits:
+                - title:
+                    textContains: colesterol
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-26"
+                  due_time: 15:50
+                - title:
+                    textContains: sangue
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_time: 13:30
+                  sub_habits:
+                    - title:
+                        textContains: Não tomar multivitamínico
+                      frequency_unit: Day
+                      due_date: "{accountYear}-10-27"
+                      end_date: "{accountYear}-10-30"
+                      is_bad_habit: false
+                    - title:
+                        textContains: Não ir ao Muay Thai
+                      frequency_unit: Day
+                      due_date: "{accountYear}-10-29"
+                      end_date: "{accountYear}-10-30"
+                      is_bad_habit: false
+                    - title:
+                        textContains: jejum
+                      frequency_unit: OneTime
+                      due_date: "{accountYear}-10-30"
+                      due_end_time: 13:30
       allowed:
         - query_habits
         - bulk_create_habits
@@ -2289,6 +2428,29 @@
                 parent_habit_id: "{secondHabitId}"
                 frequency_unit: Day
                 frequency_quantity: 1
+          argumentsAnyOf:
+            - habits:
+                - &a1
+                  title:
+                    textContains: vitamina D
+                  parent_habit_id: "{habitId}"
+                  frequency_unit: Week
+                  frequency_quantity: 1
+                - &a2
+                  title:
+                    textContains: rosuvastatina
+                  parent_habit_id: "{secondHabitId}"
+                  frequency_unit: Day
+                  frequency_quantity: 1
+            - habits:
+                - title: Depois do almoço
+                  habit_id: "{habitId}"
+                  sub_habits:
+                    - *a1
+                - title: Antes de dormir
+                  habit_id: "{secondHabitId}"
+                  sub_habits:
+                    - *a2
       allowed:
         - query_habits
         - bulk_create_habits

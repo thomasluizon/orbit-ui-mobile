@@ -12,8 +12,9 @@ function habitList(card, { t }) {
   const items = card.items.slice(0, 3)
   return { title: t(card.read ? 'nav.habits' : card.scope === 'all' ? 'chat.habitList.allTitle' : 'chat.habitList.title'),
     count: items.length ? t('chat.habitList.count', { shown: items.length, total: card.totalCount ?? card.items.length }) : undefined,
-    items: items.map((item) => ({ title: item.title, emoji: item.emoji,
-      status: localStatus(shared.habitListSnapshotStatusKey(item, Boolean(card.read)), t) })),
+    items: items.map((item) => ({ title: item.title, emoji: item.emoji, isSkippedOnDate: item.isSkippedOnDate ?? false,
+      status: item.isSkippedOnDate ? t('habits.statusDot.skip')
+        : localStatus(shared.habitListSnapshotStatusKey(item, Boolean(card.read)), t) })),
     empty: items.length ? undefined : t(card.read || card.scope === 'all' ? 'chat.habitList.allEmpty' : 'chat.habitList.todayEmpty'),
   }
 }
