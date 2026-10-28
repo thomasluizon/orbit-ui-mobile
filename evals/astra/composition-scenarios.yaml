@@ -2566,6 +2566,434 @@
       allowed: []
     rubric: Answer in Brazilian Portuguese. Only the first draft changes to weekdays at 22:30. Keep its
       meaning, identity and language. The other draft remains exactly as supplied. No saved claim.
+- description: one-small-step in en
+  metadata:
+    id: composition-one-small-step-en
+    category: composition
+    family: one-small-step
+    locale: en
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - oneSmallStep
+    input: I can't get myself to start studying.
+    composition:
+      mode: one-small-step
+    expectations:
+      required:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: en
+          resultStatus: Succeeded
+      allowed:
+        - suggest_breakdown
+      counts:
+        suggest_breakdown: 1
+    rubric: Answer in English. Return exactly one concrete, immediately doable starting action for the
+      activity. No plan, framing prose, saved claim or unsolicited question. Show one oneSmallStep
+      block with the three server action labels.
+- description: one-small-step-smaller in en
+  metadata:
+    id: composition-one-small-step-smaller-en
+    category: composition
+    family: one-small-step-smaller
+    locale: en
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - oneSmallStep
+    input: ""
+    composition:
+      mode: one-small-step
+    expectations:
+      required:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: en
+          resultStatus: Succeeded
+      allowed:
+        - suggest_breakdown
+      counts:
+        suggest_breakdown: 1
+    rubric: Answer in English. Return exactly one concrete, immediately doable starting action for the
+      activity. No plan, framing prose, saved claim or unsolicited question. Show one oneSmallStep
+      block with the three server action labels. Compare with the previous starting step supplied as
+      baseline context. Keep the same activity and return an action that is meaningfully easier and
+      requires less effort. A paraphrase or an equally hard or harder step fails.
+    startingStepAction: smaller
+    setup:
+      input: I can't get myself to start studying.
+      composition:
+        mode: one-small-step
+      expectations:
+        required:
+          - name: suggest_breakdown
+            arguments:
+              one_small_step: true
+              language: en
+            resultStatus: Succeeded
+        allowed:
+          - suggest_breakdown
+        counts:
+          suggest_breakdown: 1
+- description: one-small-step-save-task in en
+  metadata:
+    id: composition-one-small-step-save-task-en
+    category: composition
+    family: one-small-step-save-task
+    locale: en
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - oneSmallStep
+    input: ""
+    composition:
+      mode: preview
+    expectations:
+      required:
+        - name: create_habit
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - create_habit
+      counts:
+        create_habit: 1
+    rubric: Answer in English. The held approval preview is the entire answer. Do not claim a saved
+      change before approval. Exactly one create_habit preview proposes the previous starting step
+      verbatim as the title of a one-time task, without recurrence or additional creations.
+    startingStepAction: saveTask
+    setup:
+      input: I can't get myself to start studying.
+      composition:
+        mode: one-small-step
+      expectations:
+        required:
+          - name: suggest_breakdown
+            arguments:
+              one_small_step: true
+              language: en
+            resultStatus: Succeeded
+        allowed:
+          - suggest_breakdown
+        counts:
+          suggest_breakdown: 1
+- description: one-small-step-save-checklist in en
+  metadata:
+    id: composition-one-small-step-save-checklist-en
+    category: composition
+    family: one-small-step-save-checklist
+    locale: en
+    fixture: starting-step-checklist
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - oneSmallStep
+    input: ""
+    composition:
+      mode: preview
+    expectations:
+      required:
+        - name: update_checklist
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - update_checklist
+      counts:
+        update_checklist: 1
+    rubric: Answer in English. The held approval preview is the entire answer. Do not claim a saved
+      change before approval. Exactly one update_checklist preview targets the named existing habit
+      and preserves every existing checklist item and checked state in order, appending the previous
+      starting step once as an unchecked item.
+    startingStepAction: saveChecklistItem
+    setup:
+      input: I can't get myself to drink water.
+      composition:
+        mode: one-small-step
+      expectations:
+        required:
+          - name: suggest_breakdown
+            arguments:
+              one_small_step: true
+              language: en
+            resultStatus: Succeeded
+        allowed:
+          - suggest_breakdown
+        counts:
+          suggest_breakdown: 1
+    checklistHabitId: "{habitId}"
+- description: one-small-step-legacy in en
+  metadata:
+    id: composition-one-small-step-legacy-en
+    category: composition
+    family: one-small-step-legacy
+    locale: en
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      supportsParts: true
+      partKinds: []
+    input: I can't get myself to start studying.
+    composition:
+      mode: one-small-step-legacy
+    expectations:
+      required:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: en
+          resultStatus: Succeeded
+      allowed:
+        - suggest_breakdown
+      counts:
+        suggest_breakdown: 1
+    rubric: Answer in English. Return exactly one concrete, immediately doable starting action for the
+      activity. No plan, framing prose, saved claim or unsolicited question. The legacy client sees
+      only the readable step text, without a block, action labels or action request messages.
+- description: one-small-step in pt-BR
+  metadata:
+    id: composition-one-small-step-pt-BR
+    category: composition
+    family: one-small-step
+    locale: pt-BR
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - oneSmallStep
+    input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
+    composition:
+      mode: one-small-step
+    expectations:
+      required:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: pt-BR
+          resultStatus: Succeeded
+      allowed:
+        - suggest_breakdown
+      counts:
+        suggest_breakdown: 1
+    rubric: Answer in Brazilian Portuguese. Return exactly one concrete, immediately doable starting
+      action for the activity. No plan, framing prose, saved claim or unsolicited question. Show one
+      oneSmallStep block with the three server action labels.
+- description: one-small-step-smaller in pt-BR
+  metadata:
+    id: composition-one-small-step-smaller-pt-BR
+    category: composition
+    family: one-small-step-smaller
+    locale: pt-BR
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - oneSmallStep
+    input: ""
+    composition:
+      mode: one-small-step
+    expectations:
+      required:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: pt-BR
+          resultStatus: Succeeded
+      allowed:
+        - suggest_breakdown
+      counts:
+        suggest_breakdown: 1
+    rubric: Answer in Brazilian Portuguese. Return exactly one concrete, immediately doable starting
+      action for the activity. No plan, framing prose, saved claim or unsolicited question. Show one
+      oneSmallStep block with the three server action labels. Compare with the previous starting
+      step supplied as baseline context. Keep the same activity and return an action that is
+      meaningfully easier and requires less effort. A paraphrase or an equally hard or harder step
+      fails.
+    startingStepAction: smaller
+    setup:
+      input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
+      composition:
+        mode: one-small-step
+      expectations:
+        required:
+          - name: suggest_breakdown
+            arguments:
+              one_small_step: true
+              language: pt-BR
+            resultStatus: Succeeded
+        allowed:
+          - suggest_breakdown
+        counts:
+          suggest_breakdown: 1
+- description: one-small-step-save-task in pt-BR
+  metadata:
+    id: composition-one-small-step-save-task-pt-BR
+    category: composition
+    family: one-small-step-save-task
+    locale: pt-BR
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - oneSmallStep
+    input: ""
+    composition:
+      mode: preview
+    expectations:
+      required:
+        - name: create_habit
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - create_habit
+      counts:
+        create_habit: 1
+    rubric: Answer in Brazilian Portuguese. The held approval preview is the entire answer. Do not claim
+      a saved change before approval. Exactly one create_habit preview proposes the previous
+      starting step verbatim as the title of a one-time task, without recurrence or additional
+      creations.
+    startingStepAction: saveTask
+    setup:
+      input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
+      composition:
+        mode: one-small-step
+      expectations:
+        required:
+          - name: suggest_breakdown
+            arguments:
+              one_small_step: true
+              language: pt-BR
+            resultStatus: Succeeded
+        allowed:
+          - suggest_breakdown
+        counts:
+          suggest_breakdown: 1
+- description: one-small-step-save-checklist in pt-BR
+  metadata:
+    id: composition-one-small-step-save-checklist-pt-BR
+    category: composition
+    family: one-small-step-save-checklist
+    locale: pt-BR
+    fixture: starting-step-checklist
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - oneSmallStep
+    input: ""
+    composition:
+      mode: preview
+    expectations:
+      required:
+        - name: update_checklist
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - update_checklist
+      counts:
+        update_checklist: 1
+    rubric: Answer in Brazilian Portuguese. The held approval preview is the entire answer. Do not claim
+      a saved change before approval. Exactly one update_checklist preview targets the named
+      existing habit and preserves every existing checklist item and checked state in order,
+      appending the previous starting step once as an unchecked item.
+    startingStepAction: saveChecklistItem
+    setup:
+      input: Tô travado até pra beber água. Me ajuda a começar?
+      composition:
+        mode: one-small-step
+      expectations:
+        required:
+          - name: suggest_breakdown
+            arguments:
+              one_small_step: true
+              language: pt-BR
+            resultStatus: Succeeded
+        allowed:
+          - suggest_breakdown
+        counts:
+          suggest_breakdown: 1
+    checklistHabitId: "{habitId}"
+- description: one-small-step-legacy in pt-BR
+  metadata:
+    id: composition-one-small-step-legacy-pt-BR
+    category: composition
+    family: one-small-step-legacy
+    locale: pt-BR
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      supportsParts: true
+      partKinds: []
+    input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
+    composition:
+      mode: one-small-step-legacy
+    expectations:
+      required:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: pt-BR
+          resultStatus: Succeeded
+      allowed:
+        - suggest_breakdown
+      counts:
+        suggest_breakdown: 1
+    rubric: Answer in Brazilian Portuguese. Return exactly one concrete, immediately doable starting
+      action for the activity. No plan, framing prose, saved claim or unsolicited question. The
+      legacy client sees only the readable step text, without a block, action labels or action
+      request messages.
+
 
 - description: Brain dump mixed in en
   metadata: { id: brain-dump-mixed-en, category: composition, family: brain-dump-mixed, locale: en, platform: web, fixture: pro }

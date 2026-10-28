@@ -79,6 +79,7 @@ export function fixtureFetch(getState) {
       const habit = habits.find((entry) => entry.id === id)
       if (!habit) throw new Error('Unknown habit at the HTTP boundary.')
       if (operation === 'restore') habit.deleted = false
+      else if (operation === 'checklist' && method === 'PUT') habit.checklistItems = structuredClone(body.checklistItems)
       else if (operation === 'log') {
         const existing = habit.logs.findIndex((log) => log.date === body.date && log.value > 0)
         const today = new Date().toISOString().slice(0, 10)
@@ -103,6 +104,7 @@ export function fixtureFetch(getState) {
         } else if (!body.startDate) habit.dueDate = body.dueDate ?? habit.dueDate
         habit.frequencyUnit = body.frequencyUnit
         habit.frequencyQuantity = body.frequencyQuantity
+        if (body.checklistItems) habit.checklistItems = structuredClone(body.checklistItems)
       }
       else if (method === 'DELETE') habit.deleted = true
       else throw new Error('Unexpected habit request.')

@@ -105,7 +105,6 @@ describe('real promptfoo CLI with an offline provider', () => {
       }
       expect(evidence.answer).toBeTruthy()
       expect(evidence.graderRationale).toBe('Offline final-answer boundary check.')
-      expect(attempt.assertions.length).toBe(responseMode === 'missing-composition' ? 3 : 4)
       expect(attempt.assertions.map(({ metric }) => metric)).toEqual(assertions.map(({ metric }) => metric))
       for (const assertion of attempt.assertions) {
         expect(typeof assertion.metric).toBe('string')
