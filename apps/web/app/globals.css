@@ -881,6 +881,7 @@ select[aria-hidden="true"] {
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --dur-3: 280ms;
   --dur-fast: 160ms;
+  --dur-press: 150ms;
   --dur-base: var(--dur-2);
   --dur-slow: var(--dur-3);
   --dur-hover-control: 240ms;
@@ -2624,6 +2625,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 .orbit-day-target:focus-visible {
   outline: none;
   --day-focus-ring: inset 0 0 0 2px var(--primary);
+  --day-selection-ring: none;
 }
 
 @media (forced-colors: active) {
@@ -2921,4 +2923,38 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   [data-conversation-block],
   [data-composer-input-row],
   [data-toast-motion] { transform: none !important; }
+}
+
+@layer components {
+  .habit-check-motion {
+    transition: background-color var(--dur-press) var(--ease-standard);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(button, a, [role="button"], [role="radio"], [role="tab"]):active {
+    scale: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-list-motion] { transform: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-selection-motion] { transform: none !important; }
+}
+
+@keyframes content-crossfade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.content-fade { animation: content-crossfade var(--dur-press) var(--ease-standard); }
+
+.habit-row-group[hidden] { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-motion-disclosure] > div { height: auto !important; opacity: 1 !important; }
+  [data-motion-disclosure][aria-hidden="true"] { display: none !important; }
 }

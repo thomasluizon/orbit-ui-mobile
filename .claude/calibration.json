@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-10-25",
+  "calibratedAt": "2026-10-28",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -227,8 +227,8 @@
     ".claude/skills/ios-generate/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "4443150f795f225f",
-      "calibratedAt": "2026-10-25",
+      "digest": "380c3a57302bae43",
+      "calibratedAt": "2026-10-28",
       "verdict": "undeclared, inherits the session: invokes the local staging simulator build and reports installed metadata and process liveness; it declares no model or effort override."
     },
     ".claude/skills/ios-release/SKILL.md": {
@@ -283,8 +283,8 @@
     ".claude/skills/release/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "260e29af90101f6b",
-      "calibratedAt": "2026-10-24",
+      "digest": "90313e52d29d7ea9",
+      "calibratedAt": "2026-10-28",
       "verdict": "current: sequences production and staging releases across services, checks live deployment evidence, and stops on ambiguous runs; high effort is right for decisions that control outward dispatch."
     },
     ".claude/skills/second-opinion/SKILL.md": {

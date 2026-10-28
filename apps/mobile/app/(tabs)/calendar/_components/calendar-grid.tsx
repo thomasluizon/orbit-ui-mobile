@@ -200,6 +200,7 @@ export function CalendarGrid({
         style={styles.gridCard}
       >
         <MonthGrid
+          selectionIndex={gridDays.findIndex((cell) => cell.isCurrentMonth && cell.dateStr === selectedDay)}
           weekdayLabels={weekdayHeaders.map((weekday) => weekday.label)}
           gap={gridGap}
         >

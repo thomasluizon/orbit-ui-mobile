@@ -1,3 +1,4 @@
+import { ContentFade } from '@/components/motion/content-fade'
 import { IconButton } from '@/components/ui/icon-button'
 import { useState, type ReactElement, type ReactNode, type RefObject } from 'react'
 import {
@@ -88,13 +89,13 @@ export function HabitDrill({
   const [clamped, setClamped] = useState(false)
   const renderItem: ListRenderItem<NormalizedHabit> = ({ item: child }) => {
     const nestedChildren = drill.getDrillChildren(child.id)
-    return renderHabitCard(
+    return <ContentFade>{renderHabitCard(
       child,
       0,
       nestedChildren.length > 0,
       child.hasSubHabits || nestedChildren.length > 0,
       { isDrillCard: true },
-    ) as ReactElement
+    )}</ContentFade> as ReactElement
   }
 
   const header = (

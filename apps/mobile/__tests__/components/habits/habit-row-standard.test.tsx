@@ -20,7 +20,10 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => {
   return key === 'habits.rowTypeTask' ? messages.habits.rowTypeTask : key === 'habits.form.typeTask' ? messages.habits.form.typeTask : key === 'habits.form.typeHabit' ? messages.habits.form.typeHabit : key
 }, i18n: { language: rowLocale.value } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
-vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => motion.reduced }))
+vi.mock('@/lib/motion', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/motion')>(),
+  usePrefersReducedMotion: () => motion.reduced,
+}))
 
 afterEach(() => { __resetTestHostConfig(); theme.mode = 'dark'; rowLocale.value = 'en'; motion.reduced = true })
 
@@ -379,7 +382,7 @@ it.each((['en', 'pt-BR'] as const).flatMap((locale) => [320, 412, 1352].flatMap(
       TestRenderer.act(() => control.props.onHoverIn())
       const paints = measure().filter((part) => part.style.backgroundColor === tokens.bgHover)
       expect(paints).toHaveLength(1)
-      expect(['Pressable', 'View']).toContain(paints[0]!.host.type)
+      expect(['Pressable', 'View', 'AnimatedView']).toContain(paints[0]!.host.type)
       expect(paints[0]!.style.transform ?? []).not.toContainEqual({ scale: 0.96 })
       expect(StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-row' }).props.style).backgroundColor).toBe(selected ? tokens.selectionBg : tokens.bgCard)
       TestRenderer.act(() => control.props.onHoverOut())

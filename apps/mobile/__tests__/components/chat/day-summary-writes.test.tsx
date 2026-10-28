@@ -55,7 +55,7 @@ it('writes the retained displayed day after account midnight while it is still d
   expect(formatAPIDateInTimeZone(new Date(), 'Asia/Tokyo')).toBe('2026-10-18')
   const date = formatAPIDate(new Date())
   const { client, key, view } = await mountDay(createMockHabitScheduleItem({ id: 'habit-1', title: 'Habit 1', dueDate: date }), date)
-  const check = view.root.findAll(node => String(node.type) === 'View' && node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'chat.habitList.pending')[0]!
+  const check = view.root.findAll(node => String(node.type) === 'AnimatedView' && node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'chat.habitList.pending')[0]!
   expect(StyleSheet.flatten(check.props.style)).toMatchObject({ width: 28, height: 28, borderRadius: 12, borderWidth: 1 })
   const control = view.root.findAll(node => node.type === Pressable && node.props.accessibilityLabel === 'chat.habitList.log:{"name":"Habit 1"}')[0]!
   await act(async () => { (control.props.onPress as () => void)(); await new Promise(resolve => setTimeout(resolve, 10)) })

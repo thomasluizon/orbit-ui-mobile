@@ -90,7 +90,8 @@ vi.mock('@/hooks/use-notifications', () => ({
 vi.mock('@/hooks/use-proactive-item', () => ({
   useProactiveItem: () => ({ item: mocks.proactiveItem, openItem: vi.fn() }),
 }))
-vi.mock('motion/react', async () => {
+vi.mock('motion/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('motion/react')>()
   const React = await import('react')
   const MotionDiv = ({
     children,
@@ -103,9 +104,10 @@ vi.mock('motion/react', async () => {
   }) => <div {...props}>{children}</div>
 
   return {
+    ...actual,
     animate: mocks.animate,
     m: { div: MotionDiv },
-    motion: { div: MotionDiv },
+    motion: { div: MotionDiv, span: actual.motion.span },
     useMotionValue: (initial: number) => {
       return React.useMemo(() => {
         let value = initial

@@ -1,8 +1,9 @@
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native'
 import type { SegmentedControlOption, SegmentedControlProps } from '@orbit/shared/contracts/navigation'
 import * as Primitive from '@rn-primitives/radio-group'
+import { SelectionIndicator, type SelectionBounds } from './selection-indicator'
 import { useState } from 'react'
 import * as Menu from './dropdown-menu'
 import { ChevronDown } from './icons'
@@ -18,6 +19,8 @@ function SegmentOption<TValue extends string>({
   selected,
   fontScale,
   minimumWidth,
+  onLayout,
+  hasIndicator,
   tokens,
 }: Readonly<{
   controlDisabled: boolean
@@ -26,6 +29,8 @@ function SegmentOption<TValue extends string>({
   selected: boolean
   fontScale: number
   minimumWidth: number
+  hasIndicator: boolean
+  onLayout: (event: LayoutChangeEvent) => void
   tokens: ReturnType<typeof createTokensV2>
 }>) {
   const disabled = controlDisabled || Boolean(option.disabled)
@@ -39,6 +44,7 @@ function SegmentOption<TValue extends string>({
   })
   return (
     <Primitive.Item value={option.value} disabled={disabled} asChild><Pressable focusInset selectionRingWidth={2}
+      onLayout={onLayout}
       onFocus={onFocus} focusable={focusable}
       ref={elementRef}
       accessibilityRole="radio"
@@ -48,9 +54,7 @@ function SegmentOption<TValue extends string>({
       style={({ pressed }) => [
         styles.option,
         { minWidth: minimumWidth },
-        selected
-          ? { backgroundColor: tokens.bgHover }
-          : styles.unselected,
+        selected && !hasIndicator ? { backgroundColor: tokens.bgHover } : styles.unselected,
         disabled ? styles.disabled : null,
         pressed ? [styles.pressed, { backgroundColor: tokens.bgHover }] : null,
       ]}
@@ -69,6 +73,7 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
   const signature = JSON.stringify([fontScale, props.options.map((option) => option.label)])
   const [measurement, setMeasurement] = useState<{ signature: string; words: Record<string, number> }>({ signature, words: {} })
   if (measurement.signature !== signature) setMeasurement({ signature, words: {} })
+  const [segmentBounds, setSegmentBounds] = useState<Record<string, SelectionBounds>>({})
   const [availableWidth, setAvailableWidth] = useState(0)
   const words = props.options.map((option) => fontScale > 1.3 ? option.label.split(/\s+/) : [option.label])
   const measuredWords = measurement.signature === signature ? measurement.words : {}
@@ -108,6 +113,7 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
         { backgroundColor: tokens.bgWell },
       ]}
     >
+      <SelectionIndicator bounds={segmentBounds[props.value]} color={tokens.bgHover} />
       {props.options.map((option, index) => (
         <SegmentOption
           key={option.value}
@@ -117,7 +123,9 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
           selected={option.value === props.value}
           fontScale={fontScale}
           minimumWidth={minimumWidths[index]!}
+          onLayout={(event) => { const bounds = event.nativeEvent.layout; setSegmentBounds((previous) => JSON.stringify(previous[option.value]) === JSON.stringify(bounds) ? previous : { ...previous, [option.value]: bounds }) }}
           tokens={tokens}
+          hasIndicator={Boolean(segmentBounds[props.value])}
         />
       ))}
     </Primitive.Root></SelectionFocusProvider>}

@@ -1,3 +1,4 @@
+import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { createRef } from 'react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -142,6 +143,7 @@ describe('full-screen header safe rectangles', () => {
     await act(async () => {})
     const page = await mount(view.baseElement.innerHTML, viewport)
     try {
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
       const geometry = await page.evaluate(() => {
         const bounds = (element: Element) => {
           const box = element.getBoundingClientRect()

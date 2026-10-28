@@ -1,3 +1,4 @@
+import { SelectionIndicator, type SelectionBounds } from '@/components/ui/selection-indicator'
 import { INTERACTION_FILL_CLEARANCE, SPACING, SHELL_CONTENT_MAX_WIDTH, TAB_BAR_MIN_HEIGHT } from '@orbit/shared/theme'
 import { TAB_BAR_LABEL_MAX_FONT_SCALE, type TabBarProps } from '@orbit/shared/contracts/navigation'
 import { useId, useState } from 'react'
@@ -18,14 +19,18 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<TabB
   const [previewId, setPreviewId] = useState<string | null>(null)
   const visiblePreviewId = previewId ?? (fontScale > TAB_BAR_LABEL_MAX_FONT_SCALE ? focusedId : null)
   const preview = items.find((item) => item.id === visiblePreviewId)
+  const [tabBounds, setTabBounds] = useState<Record<string, SelectionBounds>>({})
+  const activeBounds = tabBounds[activeId]
+  const indicatorBounds = activeBounds ? { x: activeBounds.x + (activeBounds.width - 56) / 2, y: SPACING.s12, width: 56, height: 32 } : undefined
   const activeIndex = items.findIndex((item) => item.id === activeId)
   return (<>
     <View testID="bottom-tab-destinations" accessibilityRole="tablist" accessibilityLabel={label} style={[styles.container, { backgroundColor: tokens.bg, borderTopColor: tokens.hairline }]}>
       <View testID="bottom-tab-items" style={[styles.items, contentStyle]}>
+      <SelectionIndicator bounds={indicatorBounds} color={tokens.bgHover} radius={999} />
       {items.map((item, index) => {
         const active = index === activeIndex
         return (
-          <Pressable key={item.id} accessibilityRole="tab" accessibilityLabel={item.label}
+          <Pressable onLayout={(event) => { const bounds = event.nativeEvent.layout; setTabBounds((previous) => JSON.stringify(previous[item.id]) === JSON.stringify(bounds) ? previous : { ...previous, [item.id]: bounds }) }} key={item.id} accessibilityRole="tab" accessibilityLabel={item.label}
             accessibilityState={{ selected: active }} testID={`tab-${item.id}-${active ? 'current' : 'inactive'}`}
             onHoverIn={() => setHoveredId(item.id)} onHoverOut={() => setHoveredId(null)}
             onLongPress={fontScale > TAB_BAR_LABEL_MAX_FONT_SCALE ? () => setPreviewId(item.id) : undefined}

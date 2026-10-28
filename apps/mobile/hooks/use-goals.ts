@@ -37,8 +37,10 @@ import { useUIStore } from '@/stores/ui-store'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
+import { prepareListLayoutMotion } from '@/lib/list-motion'
 
 const pendingCreateGoalIds = new WeakMap<CreateGoalRequest, string>()
+const prepareGoalLayoutMotion = () => prepareListLayoutMotion('goals')
 export {
   type NormalizedGoalsData,
   useGoalDetail,
@@ -80,6 +82,7 @@ export function useCreateGoal() {
       pendingCreateGoalIds.set(data, tempId)
       const nextGoal = { ...buildTempGoal(data, tempId, 999999), linkedHabits: findLinkedHabits(queryClient, data.habitIds ?? []) }
 
+      prepareGoalLayoutMotion()
       queryClient.setQueriesData<Goal[]>(
         { queryKey: goalKeys.lists() },
         (old) => {
@@ -97,7 +100,7 @@ export function useCreateGoal() {
         pendingCreateGoalIds.delete(context.request)
       }
       if (context?.previousLists) {
-        restoreGoalLists(queryClient, context.previousLists)
+        restoreGoalLists(queryClient, context.previousLists, prepareGoalLayoutMotion)
       }
     },
 
@@ -106,6 +109,7 @@ export function useCreateGoal() {
       if (isQueuedResult(result)) return
       if (!context.tempId) return
 
+      prepareGoalLayoutMotion()
       queryClient.setQueriesData<Goal[]>(
         { queryKey: goalKeys.lists() },
         (old) => {
@@ -137,9 +141,9 @@ export function useUpdateGoal() {
   return useMutation({
     mutationFn: ({ goalId, data }: { goalId: string; data: UpdateGoalRequest }) => writeQueuedGoalChange('updateGoal', goalId, data),
 
-    onMutate: ({ goalId, data }) => updateGoalCache(queryClient, goalId, { type: 'update', request: data }),
+    onMutate: ({ goalId, data }) => updateGoalCache(queryClient, goalId, { type: 'update', request: data }, false, prepareGoalLayoutMotion),
 
-    onError: goalDetailRollback(queryClient),
+    onError: goalDetailRollback(queryClient, prepareGoalLayoutMotion),
 
     onSettled: (data, _err, { goalId }) => {
       if (isQueuedResult(data)) return
@@ -222,7 +226,7 @@ export function useDeleteGoal() {
         if (isQueuedResult(data)) {
           void cancelQueuedDeleteForUndo(data.queuedMutationId).then((outcome) => {
             if (outcome !== 'replayed') {
-              restoreGoalLists(queryClient, context.previousLists)
+              restoreGoalLists(queryClient, context.previousLists, prepareGoalLayoutMotion)
               void invalidateGoalQueries(queryClient)
             }
             if (outcome === 'replayed' || outcome === 'uncertain') restoreGoal.mutate(goalId)
@@ -233,9 +237,9 @@ export function useDeleteGoal() {
       }, isQueuedResult(data) ? data.queuedMutationId : undefined)
     },
 
-    onMutate: (goalId) => removeGoalFromCache(queryClient, goalId),
+    onMutate: (goalId) => removeGoalFromCache(queryClient, goalId, prepareGoalLayoutMotion),
 
-    onError: goalListRollback(queryClient),
+    onError: goalListRollback(queryClient, prepareGoalLayoutMotion),
 
     onSettled: (data) => {
       if (isQueuedResult(data)) return
@@ -257,9 +261,9 @@ export function useUpdateGoalProgress() {
       if (celebration) setGoalCompletedCelebration(celebration)
     },
 
-    onMutate: ({ goalId, data }) => updateGoalCache(queryClient, goalId, { type: 'progress', currentValue: data.currentValue }),
+    onMutate: ({ goalId, data }) => updateGoalCache(queryClient, goalId, { type: 'progress', currentValue: data.currentValue }, false, prepareGoalLayoutMotion),
 
-    onError: goalDetailRollback(queryClient),
+    onError: goalDetailRollback(queryClient, prepareGoalLayoutMotion),
 
     onSettled: goalDetailSettled(queryClient, isQueuedResult),
   })
@@ -278,9 +282,9 @@ export function useUpdateGoalStatus() {
       if (celebration) setGoalCompletedCelebration(celebration)
     },
 
-    onMutate: ({ goalId, data }) => updateGoalCache(queryClient, goalId, { type: 'status', status: data.status }),
+    onMutate: ({ goalId, data }) => updateGoalCache(queryClient, goalId, { type: 'status', status: data.status }, false, prepareGoalLayoutMotion),
 
-    onError: goalDetailRollback(queryClient),
+    onError: goalDetailRollback(queryClient, prepareGoalLayoutMotion),
 
     onSettled: goalDetailSettled(queryClient, isQueuedResult),
   })
@@ -310,9 +314,9 @@ export function useReorderGoals() {
       })
     },
 
-    onMutate: (positions) => reorderGoalCache(queryClient, positions),
+    onMutate: (positions) => reorderGoalCache(queryClient, positions, prepareGoalLayoutMotion),
 
-    onError: goalListRollback(queryClient),
+    onError: goalListRollback(queryClient, prepareGoalLayoutMotion),
 
     onSettled: (data) => {
       if (isQueuedResult(data)) return

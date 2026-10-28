@@ -1,3 +1,4 @@
+import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { act, render } from '@testing-library/react'
 import postcss from 'postcss'
@@ -47,6 +48,7 @@ describe('Update notice geometry', () => {
       const session = await page.context().newCDPSession(page)
       await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 0, bottom: 0, left: 28, right: 64 } })
       await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
       const geometry = await page.locator('[data-update-banner]').evaluate(host => {
         const style = getComputedStyle(host)
         const panel = host.closest('[role="dialog"]')!.getBoundingClientRect()

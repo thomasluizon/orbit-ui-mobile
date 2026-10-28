@@ -1,3 +1,4 @@
+import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
@@ -71,6 +72,7 @@ describe('DateField sheet geometry in Chromium', () => {
       const session = await page.context().newCDPSession(page)
       await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 0, bottom: 0, left, right } })
       await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
       const geometry = await page.evaluate(() => {
         const body = document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
         const style = getComputedStyle(body)
@@ -108,6 +110,7 @@ describe('DateField sheet geometry in Chromium', () => {
       await page.evaluate(() => new Promise<void>((resolve) => {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
       }))
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
       const measured = await page.evaluate(() => {
         const body = document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
         const bounds = body.getBoundingClientRect()
@@ -155,6 +158,7 @@ describe('DateField sheet geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
       await loadAppFonts(page)
       const years = buildYearRange(2025)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
       const measured = await page.evaluate((years) => {
         const body = document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
         const owners = [body, ...body.querySelectorAll<HTMLElement>('*')].filter((element) =>
@@ -195,6 +199,7 @@ describe('DateField sheet geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
       await loadAppFonts(page)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
       expect(await page.evaluate(() => getComputedStyle(document.querySelector('[data-slot="sheet-body"]')!).paddingLeft)).toBe('24px')
     } finally { await page.close() }
   })

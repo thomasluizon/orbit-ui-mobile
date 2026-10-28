@@ -1,3 +1,4 @@
+import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -57,6 +58,7 @@ describe('Share progress sheet geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style><div class="orbit-sheet-viewport">${dialog.outerHTML}</div>`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
       const emptyFeedbackHeights = await page.locator('[data-slot="sheet-body"] p[role="alert"], [data-slot="sheet-body"] p[role="status"]').evaluateAll((messages) => messages.map((message) => message.getBoundingClientRect().height))
       expect(emptyFeedbackHeights).toEqual([0, 0])
       const trailingSpace = await page.locator('[data-slot="sheet-body"]').evaluate((body) => {
