@@ -15,6 +15,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
+import { settleAnimations } from './settle-animations'
 
 const selectedDate = '2026-09-04'
 const children = [0, 1].map((position) => makeHabitScheduleItem({
@@ -466,17 +467,18 @@ for (const width of [412, 1352]) for (const reducedMotion of ['no-preference', '
     })
     const rest = await paint()
     const [arrival] = await Promise.all([samples(), body.hover({ position: { x: 12, y: 12 } })])
+    await row.evaluate(settleAnimations)
     const hover = await paint()
     expect(hover.fill).not.toBe(rest.fill)
     expect(hover.outline).not.toBe(rest.outline)
     const [exit] = await Promise.all([samples(), page.mouse.move(0, 0)])
-    expect(await paint()).toEqual(rest)
+    await expect.poll(paint).toEqual(rest)
     for (const property of ['fill', 'outline'] as const) for (const sequence of [arrival, exit]) {
       expect(sequence.some((frame) => frame[property] !== rest[property] && frame[property] !== hover[property])).toBe(reducedMotion === 'no-preference')
     }
     await body.hover({ position: { x: 12, y: 12 } })
     await page.mouse.down()
-    expect(await paint()).toEqual(hover)
+    await expect.poll(paint).toEqual(hover)
     await page.mouse.move(0, 0)
     await page.mouse.up()
     await expect.poll(paint).toEqual(rest)
