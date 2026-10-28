@@ -7,8 +7,8 @@ export const AUTH_PAGE_PANEL_STYLES = `
 `
 
 export function AuthPagePanel({ children }: Readonly<{ children: ReactNode }>) {
-  return <>
+  return <div data-field-surface="responsive-card" className="orbit-auth-panel">
     <style>{AUTH_PAGE_PANEL_STYLES}</style>
-    <div data-field-surface="responsive-card" className="orbit-auth-panel">{children}</div>
-  </>
+    {children}
+  </div>
 }
