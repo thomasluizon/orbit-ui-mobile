@@ -1,7 +1,7 @@
 import { apiOrigin } from '../credentials.mjs'
 
 export function publicApi(credentialKey) {
-  return async (method, path, body, accepted = []) => {
+  return async (method, path, body, accepted = [], acceptedStatuses = []) => {
     const token = process.env[credentialKey]
     if (!token) throw new Error('Fixture requires a refreshed credential.')
     const multipart = body instanceof FormData
@@ -18,7 +18,7 @@ export function publicApi(credentialKey) {
     } catch {
       throw new Error('Fixture API transport or JSON response failed.')
     }
-    if (!response.ok && !accepted.includes(payload?.errorCode)) throw new Error(`Fixture API ${method} failed with HTTP ${response.status}.`)
+    if (!response.ok && !acceptedStatuses.includes(response.status) && !accepted.includes(payload?.errorCode)) throw new Error(`Fixture API ${method} failed with HTTP ${response.status}.`)
     return { status: response.status, payload }
   }
 }

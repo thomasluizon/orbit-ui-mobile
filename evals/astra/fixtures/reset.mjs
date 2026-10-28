@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
-import { readCredentials, refreshCredential, safeFailureMessage, updateCredentials } from '../credentials.mjs'
+import { apiOrigin, readCredentials, refreshCredential, safeFailureMessage, updateCredentials } from '../credentials.mjs'
 import { publicApi, requireEvalAccess } from './api.mjs'
 import { fixtureNames } from './names.mjs'
 import { exhaustAllowance } from './allowance.mjs'
@@ -13,6 +13,25 @@ const fixtures = new Set(['pro', 'duplicate-titles', 'malicious-title', 'zero-hi
   'free-at-limit', 'budget-exhausted', 'composition', 'composition-partial', 'composition-stale', 'composition-error',
   'composition-offline', 'composition-logged', 'medical', 'existing-parents'])
 export const disposableStagingOrigin = 'https://orbit-api-staging-uqu2.onrender.com'
+export function requireStagingOrigin() {
+  if (apiOrigin() !== disposableStagingOrigin) throw new Error('Fixture isolation requires the disposable staging origin.')
+}
+
+async function clearPendingOperations(api) {
+  for (const [method, field] of [['DELETE', 'cancelledCount'], ['GET', 'pendingCount']]) {
+    let response
+    for (let attempt = 0; attempt < 3; attempt++) {
+      response = await api(method, 'eval/pending-operations', undefined, [], [409])
+      if (response.status !== 409) break
+    }
+    if (response.status !== 200) throw new Error(`Pending isolation ${method} failed with HTTP ${response.status}.`)
+    const count = response.payload?.[field]
+    if (!Number.isInteger(count) || count < 0 || (method === 'GET' && count !== 0)) {
+      throw new Error(`Pending isolation ${method} requires ${field} ${method === 'GET' ? 'equal to zero' : 'as a nonnegative integer'}.`)
+    }
+  }
+}
+
 export const dateOffset = (today, offset) => new Date(Date.parse(`${today}T12:00:00Z`) + offset * 86400000).toISOString().slice(0, 10)
 
 function dailyHabit(title, dueDate) {
@@ -144,14 +163,17 @@ async function verifyFixture(api, account, fixture, today, labels) {
 
 export async function resetFixture(test, today = new Date().toISOString().slice(0, 10), unmetered = false,
   requireFreshFreeWindow = test.vars.preconditions?.freshFreeDailyWindow === true) {
+  requireStagingOrigin()
   const fixture = test.metadata.fixture
   const names = fixtureNames(test.metadata.locale)
   if (!fixtures.has(fixture)) throw new Error('Unknown fixture.')
   const key = test.vars.credentialKey
   const api = publicApi(key)
+  try { await clearPendingOperations(api) } catch (error) {
+    throw new Error(`Pending isolation unavailable. ${safeFailureMessage(error)}`)
+  }
   const { payload: profile } = await api('GET', 'profile')
-  if (process.env.ORBIT_EVAL_BASE_URL !== disposableStagingOrigin
-    || typeof profile?.email !== 'string' || !/^thomaslrgregorio\+orbit-eval-[a-z0-9-]+@gmail\.com$/.test(profile.email)) {
+  if (typeof profile?.email !== 'string' || !/^thomaslrgregorio\+orbit-eval-[a-z0-9-]+@gmail\.com$/.test(profile.email)) {
     throw new Error('Fixture reset requires the staging origin and a disposable eval account.')
   }
   if (typeof profile?.hasProAccess !== 'boolean' || !Number.isInteger(profile.aiMessagesUsed) || !Number.isInteger(profile.aiMessagesLimit)) throw new Error('Fixture profile lacks access or allowance evidence.')
@@ -205,6 +227,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
 export async function runReset(caseId) {
   const test = corpus.find((entry) => entry.metadata.id === caseId)
   if (!test) throw new Error('Unknown corpus case ID.')
+  requireStagingOrigin()
   await refreshCredential(test.vars.credentialKey)
   const unmetered = await requireEvalAccess(test.vars.credentialKey)
   await resetFixture(test, undefined, unmetered)
