@@ -13,12 +13,13 @@ import { PickerRow } from '@/components/ui/picker-row'
 import { Proposed } from '@/components/ui/proposed'
 
 interface TagSuggestionsProps {
+  translateError: Parameters<typeof getFriendlyErrorMessage>[1]
   suggestions: ReturnType<typeof useTagSuggestions>
   atLimit: boolean
   disabled: boolean
 }
 
-export function TagSuggestions({ suggestions, atLimit, disabled }: Readonly<TagSuggestionsProps>) {
+export function TagSuggestions({ suggestions, atLimit, disabled, translateError }: Readonly<TagSuggestionsProps>) {
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   const styles = useMemo(() => createStyles(tokens), [tokens])
@@ -28,7 +29,7 @@ export function TagSuggestions({ suggestions, atLimit, disabled }: Readonly<TagS
   return <View style={styles.container}>
     <View style={styles.action}><PillButton minimumHeight={48} borderless hint={suggestions.pending === 'suggest' ? t('habits.form.suggestingTags') : suggestions.needsTitle ? t('habits.form.titleRequired') : atLimit ? t('habits.form.tagLimit') : undefined} iconOnly label={t('habits.form.suggestTags')} variant="ghost" disabled={!suggestions.canSuggest} loading={suggestions.pending === 'suggest'} onClick={() => void suggestions.suggest()}><AstraGlyph size={20} /></PillButton></View>
     <Text accessibilityLiveRegion="polite" style={[styles.hint, !statusKey ? { position: 'absolute', width: 0, height: 0 } : null]}>{statusKey ? t(statusKey) : null}</Text>
-    {failure ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.error}>{getFriendlyErrorMessage(failure.cause, t, failure.operation === 'suggest' ? 'habits.form.suggestTagsError' : 'toast.errors.validation', failure.operation === 'suggest' ? 'generic' : 'tag')}</Text> : null}
+    {failure ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.error}>{getFriendlyErrorMessage(failure.cause, translateError, failure.operation === 'suggest' ? 'habits.form.suggestTagsError' : 'toast.errors.validation', failure.operation === 'suggest' ? 'generic' : 'tag')}</Text> : null}
     {suggestions.suggestions.length > 0 ? <Proposed proposed scope="field" label={t('habits.form.suggestedTagsLabel')}><View accessibilityState={{ busy: suggestions.pending === 'accept' }} style={styles.proposals}>
       {suggestions.suggestions.map((suggestion) => <PickerRow proposed key={suggestion.name} name={suggestion.name} selected={false} disabled={disabled || atLimit || pending} onToggle={() => void suggestions.acceptSuggestion(suggestion)} value="" valueHidden valueStyle={styles.hint} />)}
     </View></Proposed> : null}

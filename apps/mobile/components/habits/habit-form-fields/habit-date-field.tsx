@@ -2,7 +2,7 @@ import type { HabitRecurrence } from '@orbit/shared/utils'
 import { useHabitFormInteraction } from './habit-form-interaction'
 import { useWatch } from 'react-hook-form'
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react'
-import { HabitDateEditor, isPayGateError, extractBackendErrorCode, getAccountDay, getFriendlyErrorMessage, isHabitAstraLimitReached, resolveHabitFormMode } from '@orbit/shared/utils'
+import { createAstraAllowanceTranslator, HabitDateEditor, isPayGateError, extractBackendErrorCode, getAccountDay, getFriendlyErrorMessage, isHabitAstraLimitReached, resolveHabitFormMode } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
 import { useDateInterpretation } from '@/hooks/use-date-interpretation'
@@ -42,6 +42,7 @@ function DatedHabitField({ formHelpers, onRecurrence, generalLocked }: Readonly<
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { profile } = useProfile()
+  const allowanceText = createAstraAllowanceTranslator(t, profile, locale)
   const { isOnline } = useOffline()
   const interpretation = useDateInterpretation()
   const { form, registerDateValidation } = formHelpers
@@ -69,7 +70,7 @@ function DatedHabitField({ formHelpers, onRecurrence, generalLocked }: Readonly<
       form.clearErrors('datePhrase')
     },
     request: (input: { phrase: string; language: string }, signal: AbortSignal) => interpretation.mutateAsync({ ...input, signal }),
-    failure: (error: unknown) => extractBackendErrorCode(error) === 'AI_DAILY_BUDGET_EXCEEDED' ? t('habits.form.dateBudgetReached') : getFriendlyErrorMessage(error, t, 'habits.form.aiSuggestError', 'habit'),
+    failure: (error: unknown) => extractBackendErrorCode(error) === 'AI_DAILY_BUDGET_EXCEEDED' ? t('habits.form.dateBudgetReached') : getFriendlyErrorMessage(error, allowanceText, 'habits.form.aiSuggestError', 'habit'),
     isCapacity: isDateCapacity,
   }
   const [editor] = useState(() => new HabitDateEditor(adapter))
