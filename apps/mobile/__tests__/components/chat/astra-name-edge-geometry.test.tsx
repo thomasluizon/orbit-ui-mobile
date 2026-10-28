@@ -22,6 +22,7 @@ vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 const bulkCreate = vi.fn()
 vi.mock('@/hooks/use-habits', () => ({
   useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }), useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 afterEach(__resetTestHostConfig)
 

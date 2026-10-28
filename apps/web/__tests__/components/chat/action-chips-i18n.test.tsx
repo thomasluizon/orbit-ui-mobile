@@ -12,6 +12,7 @@ import { ActionChips } from '@/components/chat/action-chips'
 
 const resolveClarification = vi.hoisted(() => vi.fn(() => new Promise(() => {})))
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: resolveClarification, isPending: false }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 

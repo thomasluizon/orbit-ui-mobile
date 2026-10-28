@@ -18,6 +18,7 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 import { readControlHitArea } from '@/test-support/control-hit-area'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({ data: { habitsById: new Map() }, isPending: false, isError: false, isRefetchError: false }),

@@ -1458,6 +1458,23 @@ describe('restart plan preview', () => {
   })
   afterEach(() => { vi.useRealTimers(); visibleLocale.actual = false; visibleLocale.language = 'en' })
 
+  it.each(['en', 'pt-BR'])('keeps a single unchanged date visible and rejects the complete restart in %s', async locale => {
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const operation = makeRestartPlanPreview()
+    const onRevise = vi.fn().mockResolvedValue({ ok: true, result: { cancelled: true, preview: null } })
+    const onConfirmExecute = vi.fn()
+    const single = render(<PendingOperationCard pendingOperation={{ ...operation, items: operation.items!.slice(0, 1), changes: [], changeTargetCount: 1 }} onRevise={onRevise} onConfirmExecute={onConfirmExecute} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(single.container.querySelector('[data-preview-item-meta]')).toHaveTextContent(messages.dates.today)
+    single.unmount()
+    const { container } = render(<PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={onConfirmExecute} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: messages.chat.operation.reject }))
+    await waitFor(() => expect(onRevise).toHaveBeenCalledExactlyOnceWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [] }))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(translateVisible('chat.operation.rejected', { count: 5 })))
+    expect(container.querySelectorAll('[data-preview-item-meta]')).toHaveLength(0)
+    expect(onConfirmExecute).not.toHaveBeenCalled()
+  })
+
   it.each(['en', 'pt-BR'])('renders each proposed date and preserves the batch when editing in %s', async locale => {
     visibleLocale.language = locale
     const messages = locale === 'en' ? en : ptBR

@@ -1519,6 +1519,22 @@ describe('restart plan preview', () => {
   })
   afterEach(() => { vi.useRealTimers(); visibleLocale.actual = false; visibleLocale.language = 'en' })
 
+  it.each(['en', 'pt-BR'])('keeps a single unchanged date visible and rejects the complete restart in %s', async locale => {
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const operation = makeRestartPlanPreview()
+    const onRevise = vi.fn().mockResolvedValue({ ok: true, result: { cancelled: true, preview: null } })
+    const single = renderCard({ ...operation, items: operation.items!.slice(0, 1), changes: [], changeTargetCount: 1 }, onRevise)
+    expect(renderedText(single.tree.toJSON())).toContain(messages.dates.today)
+    TestRenderer.act(() => single.tree.unmount())
+    const { tree, handlers } = renderCard(operation, onRevise)
+    await TestRenderer.act(async () => { press(tree, messages.chat.operation.reject).props.onPress(); await Promise.resolve() })
+    expect(onRevise).toHaveBeenCalledExactlyOnceWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [] })
+    expect(renderedText(tree.toJSON())).toContain(translateVisible('chat.operation.rejected', { count: 5 }))
+    for (const item of operation.items!) expect(renderedText(tree.toJSON())).not.toContain(item.entityName)
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+  })
+
   it.each(['en', 'pt-BR'])('renders each proposed date and preserves the batch when editing in %s', async locale => {
     visibleLocale.language = locale
     const messages = locale === 'en' ? en : ptBR
