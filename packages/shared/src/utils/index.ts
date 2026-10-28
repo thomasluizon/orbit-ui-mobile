@@ -840,3 +840,5 @@ export { TODAY_LAUNCH_SPAN_NAME, sampleTodayLaunch, startTodayLaunchTiming, isTo
 export { readHabitRecurrencePhrase, type HabitRecurrence, type HabitRecurrencePhrase } from './habit-recurrence-phrase'
 
 export { getPendingAuthProvider, getAuthCallbackErrorKey } from './auth-login'
+
+export { createAstraAllowanceTranslator, type AstraAllowance } from './astra-allowance'

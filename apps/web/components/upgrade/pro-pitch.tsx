@@ -1,7 +1,10 @@
+import { createAstraAllowanceTranslator, type AstraAllowance } from '@orbit/shared/utils'
+import { useLocale } from 'next-intl'
 import { useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
-export function ProPitch({ profile, trialDaysLeft, t, focusOnMount = false, titleKey, bodyKey, headingId, dateHint }: Readonly<{ profile: { isTrialActive?: boolean } | null; trialDaysLeft: number | null; t: ReturnType<typeof useTranslations>; focusOnMount?: boolean; titleKey?: string; bodyKey?: string; headingId?: string; dateHint?: string }>) {
+export function ProPitch({ profile, trialDaysLeft, t, focusOnMount = false, titleKey, bodyKey, headingId, dateHint }: Readonly<{ profile: ({ isTrialActive?: boolean } & AstraAllowance) | null; trialDaysLeft: number | null; t: ReturnType<typeof useTranslations>; focusOnMount?: boolean; titleKey?: string; bodyKey?: string; headingId?: string; dateHint?: string }>) {
+  const allowanceText = createAstraAllowanceTranslator(t, profile, useLocale())
   const headingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     if (focusOnMount) headingRef.current?.focus()
@@ -43,11 +46,12 @@ export function ProPitch({ profile, trialDaysLeft, t, focusOnMount = false, titl
         <div className="grid grid-cols-[1fr_1px_1fr] gap-4 rounded-[var(--r-card)] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)] sm:p-6">
           <Allowance amount={t('upgrade.convert.freeAllowance')} label={t('upgrade.free')} perDay={t('upgrade.convert.perDay')} />
           <span aria-hidden="true" className="h-full w-px bg-[var(--hairline)]" />
-          <Allowance amount={t('upgrade.convert.proAllowance')} label="Pro" perDay={t('upgrade.convert.perDay')} />
+          <Allowance amount={t('upgrade.convert.proAllowance')} label="Pro" perDay={t('upgrade.convert.perWeek')} />
         </div>
         <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
           {t('upgrade.convert.allowanceNote')}
         </p>
+        {profile?.aiMessagesPeriod === 'week' ? <p className="text-sm text-[var(--fg-3)]">{allowanceText('shell.composer.limit.renewal')}</p> : null}
       </section>
 
 

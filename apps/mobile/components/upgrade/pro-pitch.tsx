@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+import { createAstraAllowanceTranslator, type AstraAllowance } from '@orbit/shared/utils'
 import { SPACING } from '@orbit/shared/theme'
 import { useEffect, useRef } from 'react'
 import { AccessibilityInfo, Text, View, useWindowDimensions } from 'react-native'
@@ -5,7 +7,9 @@ import { responsiveTypeStyle } from '@/lib/theme'
 import { plural } from '@/lib/plural'
 import { styles } from './styles'
 import type { Tokens, UpgradeTextFn } from './types'
-export function ProPitch({ inset = true, profile, trialDaysLeft, t, focusOnMount = false, titleKey, bodyKey, headingId, dateHint, tokens }: Readonly<{ inset?: boolean; profile: { isTrialActive?: boolean } | null; trialDaysLeft: number | null; t: UpgradeTextFn; tokens: Tokens; focusOnMount?: boolean; titleKey?: string; bodyKey?: string; headingId?: string; dateHint?: string }>) {
+export function ProPitch({ inset = true, profile, trialDaysLeft, t, focusOnMount = false, titleKey, bodyKey, headingId, dateHint, tokens }: Readonly<{ inset?: boolean; profile: ({ isTrialActive?: boolean } & AstraAllowance) | null; trialDaysLeft: number | null; t: UpgradeTextFn; tokens: Tokens; focusOnMount?: boolean; titleKey?: string; bodyKey?: string; headingId?: string; dateHint?: string }>) {
+  const { i18n } = useTranslation()
+  const allowanceText = createAstraAllowanceTranslator(t, profile, i18n.language)
   const headingRef = useRef<Text>(null)
   useEffect(() => {
     if (focusOnMount && headingRef.current) {
@@ -43,9 +47,10 @@ export function ProPitch({ inset = true, profile, trialDaysLeft, t, focusOnMount
         >
           <Allowance amount={t('upgrade.convert.freeAllowance')} label={t('upgrade.free')} perDay={t('upgrade.convert.perDay')} color={tokens.fg1} mutedColor={tokens.fg3} />
           <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.allowanceDivider, { backgroundColor: tokens.hairline }]} />
-          <Allowance amount={t('upgrade.convert.proAllowance')} label="Pro" perDay={t('upgrade.convert.perDay')} color={tokens.fg1} mutedColor={tokens.fg3} />
+          <Allowance amount={t('upgrade.convert.proAllowance')} label="Pro" perDay={t('upgrade.convert.perWeek')} color={tokens.fg1} mutedColor={tokens.fg3} />
         </View>
         <Text style={[styles.allowanceNote, { color: tokens.fg3 }]}>{t('upgrade.convert.allowanceNote')}</Text>
+        {profile?.aiMessagesPeriod === 'week' ? <Text style={[styles.allowanceNote, { color: tokens.fg3 }]}>{allowanceText('shell.composer.limit.renewal')}</Text> : null}
       </View>
 
 

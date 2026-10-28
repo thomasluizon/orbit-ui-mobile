@@ -1,3 +1,4 @@
+import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { type ComponentType, useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
@@ -144,12 +145,10 @@ export function CreateHabitModal({
   recoveryMessage,
 }: Readonly<CreateHabitModalProps>) {
   const { t, i18n } = useTranslation()
+  const allowanceText = useAstraAllowanceCopy()
   const router = useRouter()
   const isFocused = useIsFocused()
-  const translate = useCallback(
-    (key: string, values?: Record<string, unknown>) => t(key, values),
-    [t],
-  )
+  const translate = allowanceText
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createStyles(tokens), [tokens])
@@ -501,7 +500,7 @@ export function CreateHabitModal({
     } catch (error: unknown) {
       if (!isCurrent()) return null
       const atLimit = extractBackendErrorCode(error) === 'PAY_GATE'
-      const message = atLimit ? t('habits.form.aiSuggestLimitReached') : t('habits.form.aiSuggestError')
+      const message = atLimit ? allowanceText('habits.form.aiSuggestLimitReached') : t('habits.form.aiSuggestError')
       setEmojiFailure({ title: currentTitle, message, atLimit })
       showError(message)
       return EMPTY_HABIT_FORM_PROPOSAL
@@ -509,7 +508,7 @@ export function CreateHabitModal({
       suggestionRequests.finish()
       setIsEmojiSuggesting(false)
     }
-  }, [formHelpers, i18n.language, suggestionSessionId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
+  }, [allowanceText, formHelpers, i18n.language, suggestionSessionId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
   const handleSuggest = useCallback(async () => {
     flushBufferedInputsRef.current()
@@ -574,14 +573,14 @@ export function CreateHabitModal({
       )) return null
       showError(
         extractBackendErrorCode(error) === 'PAY_GATE'
-          ? t('habits.form.aiSuggestLimitReached')
+          ? allowanceText('habits.form.aiSuggestLimitReached')
           : t('habits.form.aiSuggestError'),
       )
       return EMPTY_HABIT_FORM_PROPOSAL
     } finally {
       suggestionRequests.finish()
     }
-  }, [formHelpers, i18n.language, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, suggestionSessionId, t])
+  }, [allowanceText, formHelpers, i18n.language, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, suggestionSessionId, t])
 
 
   const isPending = createHabit.isPending || createSubHabit.isPending

@@ -3185,4 +3185,12 @@ describe('web useChatComposer streaming send', () => {
       queryKey: habitKeys.lists(),
     })
   })
+  it('uses the weekly allowance and the server reset in the account timezone', () => {
+    mocks.state.profile = createMockProfile({ hasProAccess: true, aiMessagesUsed: 250, aiMessagesLimit: 250,
+      aiMessagesPeriod: 'week', aiMessagesResetsAt: '2026-11-09T02:00:00Z', timeZone: 'America/Sao_Paulo' })
+    const { result } = renderHook(() => useChatComposer())
+    expect(result.current.composerProps.limitReason).toBe('shell.composer.limit.reasonWeekly:{"allowance":250}')
+    expect(result.current.composerProps.renewalHint).toBe('shell.composer.limit.renewalWeekly:{"day":"Sunday"}')
+  })
+
 })

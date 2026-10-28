@@ -1,3 +1,4 @@
+import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -110,10 +111,8 @@ function EditHabitDraft({
   parentIsGeneral = null,
 }: Readonly<EditHabitModalProps>) {
   const { t, i18n } = useTranslation()
-  const translate = useCallback(
-    (key: string, values?: Record<string, unknown>) => t(key, values),
-    [t],
-  )
+  const allowanceText = useAstraAllowanceCopy()
+  const translate = allowanceText
   const styles = useMemo(() => createStyles(), [])
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -454,7 +453,7 @@ function EditHabitDraft({
     } catch (error: unknown) {
       if (!isCurrent()) return null
       const atLimit = extractBackendErrorCode(error) === 'PAY_GATE'
-      const message = atLimit ? t('habits.form.aiSuggestLimitReached') : t('habits.form.aiSuggestError')
+      const message = atLimit ? allowanceText('habits.form.aiSuggestLimitReached') : t('habits.form.aiSuggestError')
       setEmojiFailure({ title: currentTitle, message, atLimit, habitId: sessionHabitId })
       showError(message)
       return EMPTY_HABIT_FORM_PROPOSAL
@@ -462,7 +461,7 @@ function EditHabitDraft({
       suggestionRequests.finish()
       setIsEmojiSuggesting(false)
     }
-  }, [formHelpers, i18n.language, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
+  }, [allowanceText, formHelpers, i18n.language, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
   const handleSuggest = useCallback(async () => {
     if (submittingRef.current) return null
@@ -511,14 +510,14 @@ function EditHabitDraft({
       )) return null
       showError(
         extractBackendErrorCode(error) === 'PAY_GATE'
-          ? t('habits.form.aiSuggestLimitReached')
+          ? allowanceText('habits.form.aiSuggestLimitReached')
           : t('habits.form.aiSuggestError'),
       )
       return EMPTY_HABIT_FORM_PROPOSAL
     } finally {
       suggestionRequests.finish()
     }
-  }, [formHelpers, i18n.language, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
+  }, [allowanceText, formHelpers, i18n.language, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
   const visibleFailure = visibleEmojiFailure(emojiFailure, sessionHabitId, watchedTitle)
 

@@ -18,7 +18,7 @@ export function QuestionBlock(props: QuestionBlockProps) {
   const root = useRef<HTMLDivElement>(null)
   const words: QuestionWords = { yes: t('common.yes'), no: t('common.no'), answered: options => t('chat.choice.answered', { options }),
     closed: t('chat.choice.closed'), alreadyAnswered: t('chat.choice.alreadyAnswered'), invalid: t('chat.choice.invalid'), error: t('chat.choice.error'),
-    offline: t('chat.choice.offline'), limit: t('chat.choice.limit', { allowance: props.interaction?.allowance ?? 0 }), acting: t('chat.choice.acting') }
+    offline: t('chat.choice.offline'), limit: props.interaction?.limitReason ?? t('chat.choice.limit', { allowance: props.interaction?.allowance ?? 0 }), acting: t('chat.choice.acting') }
   const view = questionBlockStatus(props, state, words)
   const pending = !view.closed && (state.acting || Object.keys(state.answers).length > 0)
   useEffect(() => { if (pending) return blockDesktopWebReload() }, [pending])

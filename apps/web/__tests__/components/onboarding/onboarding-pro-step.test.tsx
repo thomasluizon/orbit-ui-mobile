@@ -98,7 +98,7 @@ describe('Onboarding final Pro step', () => {
     expect(screen.getByText(plural(translate('upgrade.convert.trialDaysLeft', { days: getTrialDaysLeft(profile) }), getTrialDaysLeft(profile)!))).toBeInTheDocument()
     const date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(end))
     expect(screen.getByText(translate('upgrade.billing.plan.trialHint', { date }))).toBeInTheDocument()
-    expect(screen.getByText('5')).toBeInTheDocument(); expect(screen.getByText('50')).toBeInTheDocument()
+    expect(screen.getByText('5')).toBeInTheDocument(); expect(screen.getByText('250')).toBeInTheDocument()
     expect(screen.queryAllByRole('list', { name: translate('upgrade.outcomes.label') })).toHaveLength(0)
     expect(screen.getAllByRole('button')).toHaveLength(1)
     expect(view.container.querySelector('[data-tier-content]')).toBeNull()

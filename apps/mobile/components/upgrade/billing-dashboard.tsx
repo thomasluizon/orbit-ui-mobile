@@ -1,8 +1,8 @@
+import { createAstraAllowanceTranslator, type AstraAllowance, type SubscriptionScreenState } from '@orbit/shared/utils'
 import { ProBenefits } from './pro-benefits'
 import { useState } from 'react'
 import { Linking, Text, View } from 'react-native'
 import { formatLocaleDate, subscriptionSummary } from '@orbit/shared/utils'
-import type { SubscriptionScreenState } from '@orbit/shared/utils'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import type {
   BillingDetails,
@@ -60,7 +60,7 @@ function planPrice(data: BillingDetails | null, t: UpgradeTextFn, tokens: Tokens
 
 function PlanDetails({ status, data, locale, t, tokens }: Readonly<{
   state: SubscriptionScreenState
-  status: SubscriptionStatus
+  status: SubscriptionStatus & AstraAllowance
   data: BillingDetails | null
   locale: string
   t: UpgradeTextFn
@@ -70,7 +70,7 @@ function PlanDetails({ status, data, locale, t, tokens }: Readonly<{
   const price = status.isLifetimePro ? null : planPrice(data, t, tokens)
   const renewal = summary.renewal ? t(summary.renewalKey, { date: formatBillingDate(summary.renewal, locale) }) : null
   return <PlanSummaryCard planLabel={t(summary.nameKey)}
-    body={t(summary.bodyKey, { limit: status.aiMessagesLimit })}
+    body={createAstraAllowanceTranslator(t, status, locale)(summary.bodyKey, { limit: status.aiMessagesLimit })}
     facts={[price, renewal]}
     badges={summary.badgeKey ? <Badge>{t(summary.badgeKey)}</Badge> : null}
     tokens={tokens} />
@@ -177,8 +177,8 @@ export function BillingDashboard({
   isOnline: boolean
   locale: string
   usagePercent: number
-  usageProfile: { aiMessagesUsed: number; aiMessagesLimit: number } | null
-  status: SubscriptionStatus | null
+  usageProfile: ({ aiMessagesUsed: number; aiMessagesLimit: number } & AstraAllowance) | null
+  status: SubscriptionStatus & AstraAllowance | null
   onPortal: () => void
   onRetryPortal: () => void
   t: UpgradeTextFn
@@ -194,6 +194,7 @@ export function BillingDashboard({
       <UsageCard
         usagePercent={usagePercent}
         profile={usageProfile}
+        locale={locale}
         t={t}
         tokens={tokens}
       />

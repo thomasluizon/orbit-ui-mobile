@@ -1,5 +1,7 @@
 'use client'
 
+import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
+
 import * as Sentry from '@sentry/nextjs'
 
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -313,6 +315,7 @@ export function HabitFormFields({
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const t = useTranslations()
+  const allowanceText = useAstraAllowanceCopy()
   const language = useLocale()
   const locale = resolveSupportedLocale(language)
   const translate = useCallback(
@@ -386,8 +389,8 @@ export function HabitFormFields({
   const atMessageLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, allowance)
   const understandingLabels = useMemo(() => buildHabitUnderstandingLabels(translate), [translate])
   const astraFallbackCopy = useMemo(
-    () => buildHabitAstraFallbackCopy(translate, allowance),
-    [allowance, translate],
+    () => buildHabitAstraFallbackCopy(allowanceText, allowance),
+    [allowance, allowanceText],
   )
 
   const emojiAvailability = buildHabitEmojiSuggestionAvailability(title, atMessageLimit || emojiSuggestionLimitReached, {

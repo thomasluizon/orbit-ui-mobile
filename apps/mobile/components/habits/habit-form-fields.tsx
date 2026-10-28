@@ -1,3 +1,4 @@
+import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 import { captureError } from '@/lib/sentry'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useHabitFormInteraction } from './habit-form-fields/habit-form-interaction'
@@ -338,6 +339,7 @@ export function HabitFormFields({
 }: Readonly<HabitFormFieldsProps>) {
   const { disabled, guard, isDisabled } = useHabitFormInteraction()
   const { t, i18n } = useTranslation()
+  const allowanceText = useAstraAllowanceCopy()
   const locale = resolveSupportedLocale(i18n.language)
   const translate = useCallback((key: string, values?: Record<string, unknown>) => t(key, values), [t])
   const { currentScheme, currentTheme } = useAppTheme()
@@ -417,8 +419,8 @@ export function HabitFormFields({
   const allowance = profile?.aiMessagesLimit ?? 5
   const atMessageLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, allowance)
   const astraFallbackCopy = useMemo(
-    () => buildHabitAstraFallbackCopy(translate, allowance),
-    [allowance, translate],
+    () => buildHabitAstraFallbackCopy(allowanceText, allowance),
+    [allowance, allowanceText],
   )
   const understandingLabels = useMemo(() => buildHabitUnderstandingLabels(translate), [translate])
 

@@ -1,3 +1,4 @@
+import { useProfile } from '@/hooks/use-profile'
 import { ShellContent } from '@/components/shell/shell-content'
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
@@ -120,11 +121,14 @@ export default function UpgradeScreen() {
   const { showSuccess } = useAppToast()
   const locale = i18n.language
   const {
-    status,
+    status: subscriptionStatus,
     isLoading: isStatusLoading,
     isError: isStatusError,
     refetch: refetchStatus,
   } = useSubscriptionStatus()
+
+  const { profile: accountProfile } = useProfile()
+  const status = useMemo(() => subscriptionStatus ? { ...subscriptionStatus, timeZone: accountProfile?.timeZone } : null, [subscriptionStatus, accountProfile?.timeZone])
   const trialDaysLeft = getTrialDaysLeft(status)
   const {
     plans,
@@ -166,11 +170,6 @@ export default function UpgradeScreen() {
   }, [status])
 
   const usageProfile = status
-    ? {
-        aiMessagesUsed: status.aiMessagesUsed,
-        aiMessagesLimit: status.aiMessagesLimit,
-      }
-    : null
 
   const model = resolveSubscriptionScreen({
     status,

@@ -1,5 +1,7 @@
 'use client'
 
+import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
+
 import { useState, useCallback, useEffect, useId, useLayoutEffect, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
@@ -133,11 +135,8 @@ export function CreateHabitModal({
     setOpenedAccountGeneration(accountGeneration)
   }
   const t = useTranslations()
-  const translate = useCallback(
-    (key: string, values?: Record<string, string | number | Date>) =>
-      t(key, values),
-    [t],
-  )
+  const allowanceText = useAstraAllowanceCopy()
+  const translate = allowanceText
   const locale = useLocale()
   const createHabit = useCreateHabit()
   const createSubHabit = useCreateSubHabit()
@@ -417,7 +416,7 @@ export function CreateHabitModal({
     } catch (error: unknown) {
       if (!isCurrent()) return null
       const atLimit = extractBackendErrorCode(error) === 'PAY_GATE'
-      const message = atLimit ? t('habits.form.aiSuggestLimitReached') : t('habits.form.aiSuggestError')
+      const message = atLimit ? allowanceText('habits.form.aiSuggestLimitReached') : t('habits.form.aiSuggestError')
       setEmojiFailure({ title: currentTitle, message, atLimit })
       showError(message)
       return EMPTY_HABIT_FORM_PROPOSAL
@@ -425,7 +424,7 @@ export function CreateHabitModal({
       suggestionRequests.finish()
       setIsEmojiSuggesting(false)
     }
-  }, [formHelpers, locale, suggestionSessionId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
+  }, [allowanceText, formHelpers, locale, suggestionSessionId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
   const handleSuggest = useCallback(
     async () => {
@@ -489,7 +488,7 @@ export function CreateHabitModal({
         )) return null
         showError(
           extractBackendErrorCode(error) === 'PAY_GATE'
-            ? t('habits.form.aiSuggestLimitReached')
+            ? allowanceText('habits.form.aiSuggestLimitReached')
             : t('habits.form.aiSuggestError'),
         )
         return EMPTY_HABIT_FORM_PROPOSAL
@@ -497,7 +496,7 @@ export function CreateHabitModal({
         suggestionRequests.finish()
       }
     },
-    [formHelpers, locale, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, suggestionSessionId, t],
+    [allowanceText, formHelpers, locale, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, suggestionSessionId, t],
   )
 
 

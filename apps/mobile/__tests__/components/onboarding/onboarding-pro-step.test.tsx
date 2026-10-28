@@ -155,7 +155,7 @@ describe('Android final Pro step', () => {
     expect(text(tree.root)).toContain(plural(translate('upgrade.convert.trialDaysLeft', { days: getTrialDaysLeft(mocks.profile) }), getTrialDaysLeft(mocks.profile)!))
     const date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(mocks.profile.trialEndsAt!))
     expect(text(tree.root)).toContain(translate('upgrade.billing.plan.trialHint', { date }))
-    expect(text(tree.root)).toContain('5'); expect(text(tree.root)).toContain('50')
+    expect(text(tree.root)).toContain('5'); expect(text(tree.root)).toContain('250')
     expect(all(tree.root, 'PillButton')).toHaveLength(1)
     await act(() => callback(action(tree.root, translate('onboarding.flow.done.seeDay')), 'onClick')())
     expect(finish).toHaveBeenCalledOnce()

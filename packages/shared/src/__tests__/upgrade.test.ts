@@ -66,23 +66,23 @@ describe('upgrade utils', () => {
   it('keeps the D70 plan breakdown on the rendered upgrade screen in both locales', () => {
     expect(en.upgrade.convert).toMatchObject({
       promise: 'The plan changes what Astra can do, never your habits and logs.',
-      freeHeading: 'Ten times more Astra.',
-      trialHeading: '50 a day or back to 5.',
+      freeHeading: '250 Astra messages a week.',
+      trialHeading: 'Keep 250 messages a week.',
       freeAllowance: '5',
-      proAllowance: '50',
+      proAllowance: '250',
       perDay: 'messages/day',
     })
     expect(ptBR.upgrade.convert).toMatchObject({
       promise: 'O plano muda a Astra, nunca os seus hábitos e registros.',
-      freeHeading: 'Dez vezes mais Astra.',
-      trialHeading: '50 por dia ou só 5.',
+      freeHeading: '250 mensagens por semana com a Astra.',
+      trialHeading: 'Continue com 250 mensagens por semana.',
       freeAllowance: '5',
-      proAllowance: '50',
+      proAllowance: '250',
       perDay: 'mensagens/dia',
     })
     for (const messages of [en, ptBR]) {
       expect(Object.keys(messages.upgrade.outcomes)).toEqual(['label', 'astra', 'calendar', 'retrospective', 'noticing'])
-      expect(messages.upgrade.outcomes.astra).toContain('50')
+      expect(messages.upgrade.outcomes.astra).toContain('250')
       expect(messages.upgrade.outcomes.calendar).toContain(messages === en ? 'Google Calendar' : 'Google Agenda')
       expect(messages.upgrade.outcomes.noticing).toContain('Astra')
     }

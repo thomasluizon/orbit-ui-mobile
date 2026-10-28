@@ -15,6 +15,7 @@ export interface BlockAnswerInteraction {
   isSending: boolean
   dailyBudgetReached?: boolean
   atMessageLimit: boolean
+  limitReason?: string
   allowance: number
   send: (request: BlockAnswerRequest) => Promise<BlockAnswerResult>
 }
