@@ -1,6 +1,9 @@
 import { suggestionAnswer } from './suggestions.mjs'
 import { loadApiProvider } from 'promptfoo'
 import { visibleAnswer } from './visible-answer.mjs'
+import { structural, behavior } from './assertions.mjs'
+import { brainDumpPreview } from './brain-dumps.mjs'
+import { approveBrainDump, brainDumpBaseline } from './brain-dump-approval.mjs'
 
 export default class AstraHttpProvider {
   constructor(options) {
@@ -29,6 +32,23 @@ export default class AstraHttpProvider {
   }
 
   async callApi(prompt, context, options) {
+    if (!context.vars.brainDump || context.vars.preconditionFailure) return this.chat(prompt, context, options)
+    const baseline = await brainDumpBaseline(context.vars)
+    const response = await this.chat(prompt, context, options)
+    let verdict = { pass: false, score: 0, reason: response.error ?? 'Missing brain dump response.' }
+    if (response.output?.composition && !response.error) {
+      for (const grade of [structural, behavior, brainDumpPreview]) {
+        verdict = await (grade === brainDumpPreview ? grade(response.output, context.vars)
+          : grade(response.output, { vars: context.vars, test: context.test ?? { vars: context.vars } }))
+        if (!verdict.pass) break
+      }
+    }
+    response.output ??= {}
+    response.output.brainDumpReadback = await approveBrainDump(response.output, context.vars, baseline, verdict)
+    return response
+  }
+
+  async chat(prompt, context, options) {
     if (context.vars.preconditionFailure) return {
       error: `Precondition unavailable: ${context.vars.preconditionFailure}`,
       metadata: { astraPreconditionFailure: true, astraPreconditionReason: context.vars.preconditionFailure },
