@@ -228,6 +228,7 @@
   metadata: { id: edge-free-limit-en, category: edge, family: edge, locale: en, platform: mobile, fixture: free-at-limit }
   vars:
     credentialKey: ORBIT_EVAL_FREE_TOKEN
+    preconditions: { freshFreeDailyWindow: true }
     input: Create a new daily habit called Stretch.
     composition: { mode: outcome }
     expectations:

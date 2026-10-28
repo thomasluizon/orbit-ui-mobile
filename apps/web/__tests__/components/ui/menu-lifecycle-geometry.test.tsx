@@ -1,3 +1,4 @@
+import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -194,6 +195,7 @@ describe('mounted headless menu lifecycle in Chromium', () => {
       await page.mouse.down()
       await expect.poll(() => overlays.count()).toBeGreaterThan(0)
       await page.mouse.move(0, 0)
+      await trigger.evaluate(settleAnimations)
       expect(await trigger.evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgba(250, 250, 250, 0.13)')
       await page.mouse.up()
       await expect.poll(() => overlays.count()).toBeGreaterThan(0)
@@ -252,6 +254,7 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     await page.mouse.down()
     const menu = page.getByRole('menu', { name: en.shell.composer.actions, exact: true })
     await menu.waitFor({ state: 'visible' })
+    await page.getByRole('dialog').evaluate(settleAnimations)
     await expect.poll(() => page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('[role="menuitem"]') != null, point)).toBe(true)
     await page.mouse.up()
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
@@ -299,11 +302,14 @@ describe('mounted headless menu lifecycle in Chromium', () => {
       }, { inline: inlineInset, bottom: bottomInset })
       await page.getByRole('button', { name: en.habits.listOptions }).click()
       const options = page.getByRole('dialog', { name: en.habits.listOptions, exact: true }).getByRole('menuitem')
+      await page.getByRole('dialog', { name: en.habits.listOptions, exact: true }).evaluate(settleAnimations)
       expect(await options.count()).toBe(5)
       for (const option of await options.all()) await option.scrollIntoViewIfNeeded()
       await page.getByRole('menuitem', { name: en.habits.frequencyFilter }).click()
       const frequency = page.getByRole('dialog', { name: en.habits.frequencyFilter })
       await frequency.waitFor({ state: 'visible' })
+      await frequency.evaluate(settleAnimations)
+      expect(await frequency.evaluate((element) => new DOMMatrixReadOnly(getComputedStyle(element).transform).m42)).toBe(0)
       const panel = (await frequency.boundingBox())!
       expect(panel.height).toBeLessThanOrEqual(390 * 0.85)
       expect(panel.y).toBeGreaterThanOrEqual(24)
@@ -326,6 +332,7 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     await page.getByRole('menuitem', { name: en.habits.frequencyFilter }).click()
     const choices = page.getByRole('menuitemcheckbox')
     await expect.poll(() => choices.count()).toBe(6)
+    await page.getByRole('dialog', { name: en.habits.frequencyFilter }).evaluate(settleAnimations)
     await choices.first().focus()
     await expect.poll(() => choices.first().evaluate((element) => element === document.activeElement)).toBe(true)
     const last = choices.last()

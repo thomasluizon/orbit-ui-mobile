@@ -101,6 +101,7 @@ async function seedStaleRetrospective(api, today, locale) {
     || !Object.values(narrative).some((section) => typeof section === 'string' && section.trim())) {
     throw new Error('Stale fixture could not verify a cached month retrospective narrative for the account dates.')
   }
+  return payload
 }
 async function fillCapacity(api, today) {
   let batchSize = 100
@@ -141,7 +142,8 @@ async function verifyFixture(api, account, fixture, today, labels) {
   }
 }
 
-export async function resetFixture(test, today = new Date().toISOString().slice(0, 10), unmetered = false) {
+export async function resetFixture(test, today = new Date().toISOString().slice(0, 10), unmetered = false,
+  requireFreshFreeWindow = test.vars.preconditions?.freshFreeDailyWindow === true) {
   const fixture = test.metadata.fixture
   const names = fixtureNames(test.metadata.locale)
   if (!fixtures.has(fixture)) throw new Error('Unknown fixture.')
@@ -153,6 +155,9 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
     throw new Error('Fixture reset requires the staging origin and a disposable eval account.')
   }
   if (typeof profile?.hasProAccess !== 'boolean' || !Number.isInteger(profile.aiMessagesUsed) || !Number.isInteger(profile.aiMessagesLimit)) throw new Error('Fixture profile lacks access or allowance evidence.')
+  if (requireFreshFreeWindow && (profile.hasProAccess || profile.aiMessagesUsed !== 0)) {
+    throw new Error('Fixture needs a fresh Free daily window with zero Astra messages used.')
+  }
   await api('PUT', 'profile/timezone', { timeZone: 'UTC' })
   await api('PUT', 'profile/language', { language: test.metadata.locale ?? 'en' })
   if (fixture === 'budget-exhausted') {
@@ -160,7 +165,11 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
     return
   }
   if ((fixture === 'free-at-limit') === profile.hasProAccess) throw new Error('Fixture account has the wrong plan access.')
-  if (!unmetered && profile.aiMessagesUsed >= profile.aiMessagesLimit) throw new Error('Fixture daily allowance is exhausted; resume in another daily window.')
+  if (!unmetered && profile.aiMessagesUsed >= profile.aiMessagesLimit) {
+    throw new Error(test.vars.preconditions?.freshFreeDailyWindow
+      ? 'Fixture needs a fresh Free daily window; its Astra allowance is exhausted.'
+      : 'Fixture daily allowance is exhausted; resume in another daily window.')
+  }
   if (fixture.startsWith('composition') && profile.hasGoogleConnection !== false) throw new Error('Composition fixtures require a disconnected disposable calendar account.')
   if (fixture === 'overdue') {
     const overdue = process.env.ORBIT_EVAL_OVERDUE_DATE ?? dateOffset(today, -1)
@@ -190,7 +199,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   }
   if (fixture === 'free-at-limit') await fillCapacity(api, today)
   await verifyFixture(api, account, fixture, today, names)
-  if (fixture === 'composition-stale') await seedStaleRetrospective(api, today, test.metadata.locale ?? 'en')
+  if (fixture === 'composition-stale') return seedStaleRetrospective(api, today, test.metadata.locale ?? 'en')
 }
 
 export async function runReset(caseId) {

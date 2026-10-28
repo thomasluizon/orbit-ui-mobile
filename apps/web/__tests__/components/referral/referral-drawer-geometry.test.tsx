@@ -1,3 +1,4 @@
+import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -45,6 +46,7 @@ describe('Referral drawer sheet insets in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
       await loadAppFonts(page)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
       const measured = await page.evaluate(() => {
         const body = document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
         const text = (key: string) => [...body.querySelectorAll<HTMLElement>('*')].find((element) => element.textContent === key && element.children.length === 0)!
@@ -99,6 +101,7 @@ describe('Referral drawer sheet insets in Chromium', () => {
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
       const measured = await page.evaluate(() => {
         const body = document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
         const bounds = body.getBoundingClientRect()

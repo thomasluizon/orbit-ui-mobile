@@ -1,4 +1,5 @@
 import { randomUUID } from 'expo-crypto'
+import { prepareListLayoutMotion } from '@/lib/list-motion'
 import type { HabitDetailSnapshots, HabitDetailUpdates, HabitListSnapshots } from '@orbit/shared/query'
 import {
   useMutation,
@@ -356,6 +357,7 @@ export function useLogHabit() {
     },
 
     onError: (error, variables, context) => {
+      prepareListLayoutMotion('habits')
       if (context?.previousLists && !variables.date) {
         for (const [key, data] of context.previousLists) {
           if (data) {
@@ -550,6 +552,7 @@ function useUndoSkipHabit() {
     onSuccess: (_result, input) => {
       if (input.account && !input.account.stillCurrent()) return
       input.onUndo?.()
+      prepareListLayoutMotion('habits')
       restoreCachedHabitSkip(queryClient, input.previousLists, input.habitId, input.occurrence)
     },
     onError: (error, input) => {
@@ -597,6 +600,7 @@ export function useSkipHabit() {
       const previous = previousLists.flatMap(([, items]) => items ? [findHabitInList(items, habitId)] : [])
         .find((habit) => habit !== null)
       const skippedDate = date ?? getAccountDay(new Date())
+      prepareListLayoutMotion('habits')
       applyCachedHabitSkip(queryClient, habitId, skippedDate)
       return { previousLists, skippedDate, postponed: previous?.frequencyUnit === null, account }
     },
@@ -1344,6 +1348,7 @@ export function useBulkDeleteHabits() {
       )
       for (const habitId of result.offlineFailureIds) failedIds.add(habitId)
       if (failedIds.size > 0) {
+        prepareListLayoutMotion('habits')
         for (const [key, snapshot] of context.previousLists) {
           if (!snapshot) continue
           queryClient.setQueryData<HabitScheduleItem[]>(key, (current) =>
@@ -1375,6 +1380,7 @@ export function useBulkDeleteHabits() {
             }
             if (outcome === 'replayed' || outcome === 'uncertain') serverRestoreIds.add(item.habitId)
           }))
+          if (locallyRestored.size > 0) prepareListLayoutMotion('habits')
           for (const [key, snapshot] of context.previousLists) {
             if (!snapshot || locallyRestored.size === 0) continue
             queryClient.setQueryData<HabitScheduleItem[]>(key, (current) =>

@@ -1,3 +1,5 @@
+import { ContentFade } from '@/components/motion/content-fade'
+import { createListCellMotion, prepareListLayoutMotion, useListLayoutMotion } from '@/lib/list-motion'
 import { TodayLaunchContent } from '@/components/today/today-launch-content'
 import { getFriendlyErrorMessage, isTodayLaunchCache } from '@orbit/shared/utils'
 import { getMoveParentInventory } from '@orbit/shared/utils/move-parent'
@@ -522,6 +524,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
     const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
 
+    const [isDraggingList, setIsDraggingList] = useState(false)
+    const reducedListMotion = useListLayoutMotion('habits', isDraggingList)
     const [collapsedIds, setCollapsedIds] = useState(new Set<string>())
     const [recentlyCompletedDates, setRecentlyCompletedDates] = useState(
       new Map<string, Set<string>>(),
@@ -626,6 +630,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }, [])
 
     const markRecentlyCompleted = useCallback((habitId: string, date = selectedDateStr) => {
+      prepareListLayoutMotion('habits')
       setRecentlyCompletedDates((previous) => addRecentCompletion(previous, habitId, date))
       const timers = recentlyCompletedTimersRef.current
       const timerKey = `${habitId}:${date}`
@@ -635,6 +640,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         timerKey,
         setTimeout(() => {
           timers.delete(timerKey)
+          prepareListLayoutMotion('habits')
           setRecentlyCompletedDates((previous) => removeRecentCompletion(previous, habitId, date))
         }, 1400),
       )
@@ -648,6 +654,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         clearTimeout(existing)
         timers.delete(timerKey)
       }
+      prepareListLayoutMotion('habits')
       setRecentlyCompletedDates((previous) => removeRecentCompletion(previous, habitId, date))
     }, [selectedDateStr])
 
@@ -715,14 +722,17 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }, [allLoadedIds, onAllLoadedIdsChange])
 
     const collapseAll = useCallback(() => {
+      prepareListLayoutMotion('habits')
       setCollapsedIds(new Set(expandableIds))
     }, [expandableIds, setCollapsedIds])
 
     const expandAll = useCallback(() => {
+      prepareListLayoutMotion('habits')
       setCollapsedIds(new Set())
     }, [setCollapsedIds])
 
     const toggleExpand = useCallback((habitId: string) => {
+      prepareListLayoutMotion('habits')
       setCollapsedIds((prev) => {
         const next = new Set(prev)
         if (next.has(habitId)) {
@@ -734,7 +744,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       })
     }, [setCollapsedIds])
 
-    const [isDraggingList, setIsDraggingList] = useState(false)
     const [dragOverrideItems, setDragOverrideItems] = useState<
       DragItem[] | null
     >(null)
@@ -769,6 +778,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const activeDragItems = dragOverrideItems ?? flatItems
+    const cellMotion = useMemo(() => createListCellMotion(reducedListMotion), [reducedListMotion])
     const activeDragItemsRef = useRef(activeDragItems)
     useEffect(() => {
       activeDragItemsRef.current = activeDragItems
@@ -1511,9 +1521,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       ],
     )
 
-    /* No Reanimated entering animation here: a layout animation nested inside a
-       react-native-draggable-flatlist cell fights the cell's own translateY transform
-       and mis-positions rows. https://github.com/thomasluizon/orbit-ui-mobile/pull/486 */
     const renderItem = useCallback(
       ({ item, drag, getIndex }: RenderItemParams<DragItem>) => {
         const index = getIndex() ?? 0
@@ -1678,7 +1685,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     if (isLoading) {
       return (
         <>
-          <FlatList
+          <ContentFade key="loading" fill><FlatList
             ref={stateListRef}
             onFocus={revealListFocus}
             onScroll={handleListScroll}
@@ -1696,7 +1703,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             onScrollBeginDrag={onScrollBeginDrag}
             accessibilityState={{ busy: true }}
             showsVerticalScrollIndicator={false}
-          />
+          /></ContentFade>
           {commonOverlays}
         </>
       )
@@ -1752,7 +1759,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }
 
     if (view === 'all') return <>
-      <FlatList
+      <ContentFade key="all" fill><FlatList
         ref={allListRef}
         onFocus={revealListFocus}
         testID="habit-list-all"
@@ -1773,13 +1780,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         scrollEventThrottle={16}
         onScrollBeginDrag={onScrollBeginDrag}
         showsVerticalScrollIndicator={false}
-      />
+      /></ContentFade>
       {commonOverlays}
     </>
 
     return (
       <>
-        <DraggableFlatList
+        <ContentFade key="habits" fill><DraggableFlatList
+          {...cellMotion}
           ref={scrollContainerRef}
           onLayout={measureList}
           onFocus={revealListFocus}
@@ -1804,7 +1812,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           initialNumToRender={10}
           maxToRenderPerBatch={8}
           windowSize={11}
-        />
+        /></ContentFade>
         {commonOverlays}
       </>
     )

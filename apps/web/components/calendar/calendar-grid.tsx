@@ -235,6 +235,7 @@ export function CalendarGrid({
           weekdayLabels={weekdayLabels}
           gap="var(--calendar-grid-gap)"
           label={displayMonthYear(currentMonth)}
+          selectionIndex={gridDays.findIndex((cell) => cell.isCurrentMonth && cell.dateStr === selectedDateStr)}
         >
           {gridDays.map((cell) => {
             const future = cell.dateStr > todayKey

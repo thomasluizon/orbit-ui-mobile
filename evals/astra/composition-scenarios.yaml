@@ -458,6 +458,7 @@
         - name: get_calendar_overview
           arguments: {}
       allowed:
+        - get_profile
         - query_habits
         - get_calendar_overview
     rubric: Answer in English. Use only the requested scope and current fixture
@@ -479,6 +480,7 @@
     expectations:
       required: *a21
       allowed:
+        - get_profile
         - query_habits
         - get_calendar_overview
     rubric: Answer in Brazilian Portuguese. Use only the requested scope and current
@@ -1230,12 +1232,12 @@
     expectations:
       required: &a51
         - name: get_retrospective
-          arguments:
-            period: month
-            language: en
-            generate_narrative: { optional: true }
-            date_from: { optional: '{retrospectiveFrom}' }
-            date_to: { optional: '{accountDate}' }
+          result:
+            payload:
+              fromCache: true
+              period: month
+              dateFrom: '{retrospectiveFrom}'
+              dateTo: '{accountDate}'
       allowed:
         - query_habits
         - get_retrospective
@@ -1258,12 +1260,12 @@
     expectations:
       required:
         - name: get_retrospective
-          arguments:
-            period: month
-            language: pt-BR
-            generate_narrative: { optional: true }
-            date_from: { optional: '{retrospectiveFrom}' }
-            date_to: { optional: '{accountDate}' }
+          result:
+            payload:
+              fromCache: true
+              period: month
+              dateFrom: '{retrospectiveFrom}'
+              dateTo: '{accountDate}'
       allowed:
         - query_habits
         - get_retrospective
@@ -1446,6 +1448,7 @@
             - { feature_key: schedule-math }
             - { feature_key: frequencies }
       allowed:
+        - get_profile
         - query_habits
         - describe_feature
     rubric: Answer in English. Use only the requested scope and current fixture
@@ -1467,6 +1470,7 @@
     expectations:
       required: *a59
       allowed:
+        - get_profile
         - query_habits
         - describe_feature
     rubric: Answer in Brazilian Portuguese. Use only the requested scope and current
@@ -1954,29 +1958,29 @@
               - title:
                   textContains: cholesterol
                 frequency_unit: OneTime
-                due_date: 2026-10-26
+                due_date: '{accountYear}-10-26'
                 due_time: 15:50
               - title:
                   textContains: blood
                 frequency_unit: OneTime
-                due_date: 2026-10-30
+                due_date: '{accountYear}-10-30'
                 due_time: 13:30
               - title:
                   textContains: Don't take multivitamins
                 frequency_unit: Day
-                due_date: 2026-10-27
-                end_date: 2026-10-30
+                due_date: '{accountYear}-10-27'
+                end_date: '{accountYear}-10-30'
                 is_bad_habit: false
               - title:
                   textContains: Don't go to Muay Thai
                 frequency_unit: Day
-                due_date: 2026-10-29
-                end_date: 2026-10-30
+                due_date: '{accountYear}-10-29'
+                end_date: '{accountYear}-10-30'
                 is_bad_habit: false
               - title:
                   textContains: fast
                 frequency_unit: OneTime
-                due_date: 2026-10-30
+                due_date: '{accountYear}-10-30'
                 due_end_time: 13:30
       allowed:
         - query_habits
@@ -1985,7 +1989,8 @@
         bulk_create_habits: 1
       forbidden:
         - create_habit
-    rubric: Answer in English. One batch preview contains both one-time tasks at
+    rubric: The account date is {accountDate}. The requested cholesterol exam date is
+      {accountYear}-10-26, even when it is before today. Answer in English. One batch preview contains both one-time tasks at
       15:50 and 13:30 and all preparation commitments bounded to their dates.
       Temporary abstinence is a positive commitment with is_bad_habit=false, named
       Don't take multivitamins and Don't go to Muay Thai. These negated titles name
@@ -2029,6 +2034,7 @@
       typed fields are transport values; visible prose must use locale dates.
       Rendered date formatting is checked separately.
     setup:
+      caseId: composition-medical-batch-en
       input: "On 10/26, cholesterol exam at 15:50, at home. On 10/30, other blood
         tests at 13:30, at home. FOR THE EXAM ON 10/30: 3 days before, stop
         multivitamins; 24 hours before, don't go to Muay Thai; fast until the
@@ -2132,29 +2138,29 @@
               - title:
                   textContains: colesterol
                 frequency_unit: OneTime
-                due_date: 2026-10-26
+                due_date: '{accountYear}-10-26'
                 due_time: 15:50
               - title:
                   textContains: sangue
                 frequency_unit: OneTime
-                due_date: 2026-10-30
+                due_date: '{accountYear}-10-30'
                 due_time: 13:30
               - title:
                   textContains: Não tomar multivitamínico
                 frequency_unit: Day
-                due_date: 2026-10-27
-                end_date: 2026-10-30
+                due_date: '{accountYear}-10-27'
+                end_date: '{accountYear}-10-30'
                 is_bad_habit: false
               - title:
                   textContains: Não ir ao Muay Thai
                 frequency_unit: Day
-                due_date: 2026-10-29
-                end_date: 2026-10-30
+                due_date: '{accountYear}-10-29'
+                end_date: '{accountYear}-10-30'
                 is_bad_habit: false
               - title:
                   textContains: jejum
                 frequency_unit: OneTime
-                due_date: 2026-10-30
+                due_date: '{accountYear}-10-30'
                 due_end_time: 13:30
       allowed:
         - query_habits
@@ -2163,7 +2169,8 @@
         bulk_create_habits: 1
       forbidden:
         - create_habit
-    rubric: Answer in Brazilian Portuguese. One batch preview contains both one-time
+    rubric: The account date is {accountDate}. The requested cholesterol exam date is
+      {accountYear}-10-26, even when it is before today. Answer in Brazilian Portuguese. One batch preview contains both one-time
       tasks at 15:50 and 13:30 and all preparation commitments bounded to their
       dates. Temporary abstinence is a positive commitment with is_bad_habit=false, named
       Não tomar multivitamínico and Não ir ao Muay Thai. These negated titles name
@@ -2208,6 +2215,7 @@
       dates inside typed fields are transport values; visible prose must use
       locale dates. Rendered date formatting is checked separately.
     setup:
+      caseId: composition-medical-batch-pt-BR
       input: "dia 26/10, exame de colesterol as 15h50, domiciliar dia 30/10, outros
         exames de sangue as 13h30, domiciliar PRO EXAME DO DIA 30: 3 dias antes,
         parar com multivitaminico 24 horas antes, nao ir pro muay thay ficar em

@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from 'react'
+import { createChatBlockRegistry } from '@orbit/shared/chat'
 import type { AnswerBlockProps, ChatBlockKind, MessageBubbleProps } from '@orbit/shared/chat'
 import type { ChatBlockPart, ChatMessage, ReadBlockSnapshot } from '@orbit/shared/types/chat'
 import { HabitSuggestionsCard } from './habit-suggestions-card'
@@ -25,7 +26,7 @@ import { QuestionBlock } from './question-block'
 type BlockContent = { [Kind in ChatBlockKind]: Extract<ChatBlockPart, { kind: Kind }>['block'] }
 type OpenAction = MessageBubbleProps['onActionChipClick']
 
-const blockRegistry: { [Kind in ChatBlockKind]: (block: BlockContent[Kind], onOpen: OpenAction, answerProps: Omit<AnswerBlockProps, 'definition'> & { message?: ChatMessage }) => ReactNode } = {
+const blockRenderers: { [Kind in ChatBlockKind]: (block: BlockContent[Kind], onOpen: OpenAction, answerProps: Omit<AnswerBlockProps, 'definition'> & { message?: ChatMessage }) => ReactNode } = {
   habitSuggestions: (block, _onOpen, props) => props.message ? <HabitSuggestionsCard card={block} message={props.message} isOnline={props.interaction?.isOnline} /> : null,
   habitRanking: (block, _onOpen, props) => <HabitRankingCard habitRanking={block} isOnline={props.interaction?.isOnline} />,
   habitList: block => <HabitListCard habitList={block} />,
@@ -45,6 +46,8 @@ const blockRegistry: { [Kind in ChatBlockKind]: (block: BlockContent[Kind], onOp
   pickList: (block, _onOpen, props) => <PickListBlock key={block.blockId} block={block} {...props} />,
   question: (block, _onOpen, props) => <QuestionBlock key={block.blockId} block={block} {...props} />,
 }
+
+const blockRegistry = createChatBlockRegistry(blockRenderers)
 
 export function ChatBlock<Kind extends ChatBlockKind>({ part, onActionChipClick, interaction, expired, savedAnswers, message }: Readonly<{
   part: { kind: Kind; block: BlockContent[Kind] }

@@ -8,6 +8,7 @@ import * as assertions from '../assertions.mjs'
 import parseResponse from '../response.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { chatResponse, toolCall, preview } from './fixtures/producer.mjs'
+import { habitMonthFixture } from '../../../packages/shared/src/test-support/habit-month-fixture.ts'
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -39,6 +40,14 @@ async function gate(produced, vars = {}) {
 }
 
 describe('production composition gate', () => {
+  it('accepts the registered month block through the complete configured gate', async () => {
+    const clientContext = buildChatClientContext({ platform: 'web', locale: 'en' })
+    const vars = { clientContext, composition: { mode: 'data', kinds: ['habitMonth'] } }
+    const part = { type: 'block', kind: 'habitMonth', block: habitMonthFixture }
+    expect((await gate(response([part], ''), vars)).pass).toBe(true)
+    expect((await gate(response([{ ...part, block: { ...part.block, calendar: {} } }], ''), vars)).pass).toBe(false)
+    expect((await gate(response([part], ''), { ...vars, clientContext: { ...clientContext, partKinds: [] } })).pass).toBe(false)
+  })
   it.each([
     ['periodInsight', 'stale', 'refresh', { period: 'month', narrative: {}, totalCompletions: 7, topHabits: [], needsAttention: [] }],
     ['calendar', 'partial', 'reconnect', { events: [], surfaceId: 'calendar' }],

@@ -8,7 +8,9 @@ import type { GoalPositionItem, UpdateGoalRequest, GoalStatus } from '../types/g
 export function restoreGoalLists(
   queryClient: QueryClient,
   previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[],
+  beforeChange?: () => void,
 ): void {
+  beforeChange?.()
   for (const [key, value] of previousLists) {
     if (value) queryClient.setQueryData(key, value)
   }
@@ -66,17 +68,19 @@ export async function invalidateGoalQueries(
   }
 }
 
-export async function removeGoalFromCache(queryClient: QueryClient, goalId: string): Promise<GoalListSnapshot> {
+export async function removeGoalFromCache(queryClient: QueryClient, goalId: string, beforeChange?: () => void): Promise<GoalListSnapshot> {
   await queryClient.cancelQueries({ queryKey: goalKeys.lists() })
   const previousLists = queryClient.getQueriesData<Goal[]>({ queryKey: goalKeys.lists() })
+  beforeChange?.()
   queryClient.setQueriesData<Goal[]>({ queryKey: goalKeys.lists() }, (goals) => goals?.filter((goal) => goal.id !== goalId))
   return { previousLists }
 }
 
-export async function reorderGoalCache(queryClient: QueryClient, positions: GoalPositionItem[]): Promise<GoalListSnapshot> {
+export async function reorderGoalCache(queryClient: QueryClient, positions: GoalPositionItem[], beforeChange?: () => void): Promise<GoalListSnapshot> {
   await queryClient.cancelQueries({ queryKey: goalKeys.lists() })
   const previousLists = queryClient.getQueriesData<Goal[]>({ queryKey: goalKeys.lists() })
   const byId = new Map(positions.map(({ id, position }) => [id, position]))
+  beforeChange?.()
   queryClient.setQueriesData<Goal[]>({ queryKey: goalKeys.lists() }, (goals) => goals?.map((goal) => {
     const position = byId.get(goal.id)
     return position === undefined ? goal : { ...goal, position }
@@ -86,11 +90,12 @@ export async function reorderGoalCache(queryClient: QueryClient, positions: Goal
 
 type GoalCacheChange = { type: 'update'; request: UpdateGoalRequest } | { type: 'progress'; currentValue: number } | { type: 'status'; status: GoalStatus }
 
-export async function updateGoalCache(queryClient: QueryClient, goalId: string, change: GoalCacheChange, cancelDetail = false): Promise<GoalListSnapshot & { previousDetail: GoalDetailWithMetrics | undefined }> {
+export async function updateGoalCache(queryClient: QueryClient, goalId: string, change: GoalCacheChange, cancelDetail = false, beforeChange?: () => void): Promise<GoalListSnapshot & { previousDetail: GoalDetailWithMetrics | undefined }> {
   await queryClient.cancelQueries({ queryKey: goalKeys.lists() })
   if (cancelDetail) await queryClient.cancelQueries({ queryKey: goalKeys.detail(goalId) })
   const previousLists = queryClient.getQueriesData<Goal[]>({ queryKey: goalKeys.lists() })
   const previousDetail = queryClient.getQueryData<GoalDetailWithMetrics>(goalKeys.detail(goalId))
+  beforeChange?.()
   queryClient.setQueriesData<Goal[]>({ queryKey: goalKeys.lists() }, (goals) => goals?.map((goal) => {
     if (goal.id !== goalId) return goal
     if (change.type === 'progress') return updateGoalProgressItem(goal, change.currentValue)
@@ -107,15 +112,15 @@ export async function updateGoalCache(queryClient: QueryClient, goalId: string, 
 
 type GoalListSnapshot = { previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[] }
 
-export function goalListRollback(queryClient: QueryClient) {
+export function goalListRollback(queryClient: QueryClient, beforeChange?: () => void) {
   return (_error: unknown, _variables: unknown, context: GoalListSnapshot | undefined): void => {
-    if (context) restoreGoalLists(queryClient, context.previousLists)
+    if (context) restoreGoalLists(queryClient, context.previousLists, beforeChange)
   }
 }
 
-export function goalDetailRollback(queryClient: QueryClient) {
+export function goalDetailRollback(queryClient: QueryClient, beforeChange?: () => void) {
   return (_error: unknown, variables: { goalId: string }, context: (GoalListSnapshot & { previousDetail: GoalDetailWithMetrics | undefined }) | undefined): void => {
-    if (context) restoreGoalLists(queryClient, context.previousLists)
+    if (context) restoreGoalLists(queryClient, context.previousLists, beforeChange)
     restoreGoalDetail(queryClient, variables.goalId, context?.previousDetail)
   }
 }

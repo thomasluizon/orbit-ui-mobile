@@ -541,9 +541,9 @@ describe('mobile ProgressContent', () => {
     const tokens = createTokensV2('purple', theme.mode)
 
     let card = findCard()
-    const resting = StyleSheet.flatten(card.props.style as ViewStyle) as ViewStyle & { transition?: string }
+    const resting = StyleSheet.flatten(card.props.style as ViewStyle) as ViewStyle & { transition?: string; transitionDuration?: number }
     expect(resting).toMatchObject({ backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost, transform: [{ scale: 1 }] })
-    expect(resting.transition).toContain('transform 150ms cubic-bezier(0.16, 1, 0.3, 1)')
+    expect(resting.transitionDuration).toBe(150)
     await TestRenderer.act(() => (card.props.onPressIn as (event: unknown) => void)({}))
     card = findCard()
     expect(StyleSheet.flatten(card.props.style as ViewStyle)).toMatchObject({ backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] })
@@ -1807,7 +1807,7 @@ describe('mobile ProgressContent', () => {
     expect(mocks.reorder.mutate).toHaveBeenCalledWith([
       { id: 'goal-2', position: 0 },
       { id: 'goal-1', position: 1 },
-    ])
+    ], { onSettled: expect.any(Function) })
   })
 
   it('announces accessibility moves, boundaries and preserves errors and filtered state', async () => {

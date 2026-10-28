@@ -307,7 +307,8 @@ describe('CalendarGrid', () => {
 
     const selectedSlot = container.querySelector('[data-calendar-date="2025-06-15"]')
     expect(selectedSlot?.querySelector('[data-day-circle]')).toHaveClass('orbit-day-selected')
-    expect(selectedSlot?.querySelector('[data-day-position-ring]')).toHaveStyle({ boxShadow: 'var(--day-focus-ring, inset 0 0 0 2px var(--primary))' })
+    expect(selectedSlot?.querySelector('[data-day-circle] [data-selection-motion]')).toHaveStyle({ backgroundColor: 'rgba(0, 0, 0, 0)' })
+    expect(selectedSlot?.querySelector('[data-selection-motion]')).toHaveStyle({ boxShadow: 'var(--day-selection-ring, inset 0 0 0 2px var(--primary))' })
     expect(selectedSlot?.getAttribute('style')).not.toContain('background')
     expect(selectedSlot?.querySelector('[data-selected]')).not.toBeInTheDocument()
     const futureSlot = container.querySelector('[data-calendar-date="2025-06-20"]')

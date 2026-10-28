@@ -6,7 +6,7 @@ import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, type TextInput, View } from 'react-native'
+import { Text, type TextInput, View } from 'react-native'
 import { API } from '@orbit/shared/api'
 import { recordListCardSchema, type RecordListCard as RecordListCardData } from '@orbit/shared/types/chat'
 import { formatReadWindow } from '@orbit/shared/chat/read-block-core'
@@ -105,7 +105,7 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
       wrapLabel: true,
       meta: details.join(' · '),
       wrapMeta: true,
-      control: unread ? <Pressable accessibilityRole="button" accessibilityLabel={t('notifications.markRead', { title: item.title })} onPress={() => void markNotification(item.id)} style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' }}><Check size={20} strokeWidth={1.8} color={tokens.fg2} /></Pressable> : undefined,
+      control: unread ? <IconButton label={t('notifications.markRead', { title: item.title })} onClick={() => void markNotification(item.id)}><Check size={20} strokeWidth={1.8} color={tokens.fg2} /></IconButton> : undefined,
     }
   })
   return <View style={{ width: '100%' }}>
