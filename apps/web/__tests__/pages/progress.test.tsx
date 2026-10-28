@@ -17,7 +17,7 @@ import { createMockAchievement, createMockGoal } from '@orbit/shared/__tests__/f
 import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { createTranslator } from 'next-intl'
+import { createTranslator, type NamespaceKeys, type NestedKeyOf } from 'next-intl'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -140,9 +140,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('next-intl', async (importOriginal) => ({
   ...(await importOriginal<typeof import('next-intl')>()),
   useLocale: () => mocks.usePortugueseCatalog ? 'pt-BR' : 'en',
-  useTranslations: () => mocks.usePortugueseCatalog
-    ? createTranslator({ locale: 'pt-BR', messages: ptBR })
-    : mocks.useEnglishCatalog ? createTranslator({ locale: 'en', messages: en }) : (key: string, values?: Record<string, unknown>) =>
+  useTranslations: (namespace?: NamespaceKeys<typeof en, NestedKeyOf<typeof en>>) => mocks.usePortugueseCatalog
+    ? createTranslator({ locale: 'pt-BR', messages: ptBR, namespace })
+    : mocks.useEnglishCatalog ? createTranslator({ locale: 'en', messages: en, namespace }) : (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${JSON.stringify(values)}` : key,
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => mocks.router, usePathname: () => '/progress' }))
@@ -471,10 +471,11 @@ describe('ProgressContent', () => {
 
   it.each([1352, 1100, 840, 412].flatMap((width) => [false, true].map((panelOpen) => ({ width, panelOpen }))))(
     'keeps the content gutter at $width with conversation open=$panelOpen', async ({ width, panelOpen }) => {
-      const matchMedia = window.matchMedia.bind(window)
-      const media = vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
-        ...matchMedia(query), matches: width >= 1024,
-      }))
+      const matchMedia = window.matchMedia
+      window.matchMedia = query => {
+        const result = matchMedia(query)
+        return { ...result, matches: query === '(min-width: 1024px)' ? width >= 1024 : result.matches }
+      }
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         const { container } = render(
@@ -503,7 +504,7 @@ describe('ProgressContent', () => {
           topInset: width < 1024 ? 88 : 16, headerHeight: width < 1024 ? 72 : 0,
           trailingInset: width < 1024 ? gutter : null })
       } finally {
-        media.mockRestore()
+        window.matchMedia = matchMedia
         await page.close()
       }
     },

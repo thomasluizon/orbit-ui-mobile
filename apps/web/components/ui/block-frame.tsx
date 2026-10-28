@@ -1,5 +1,8 @@
 'use client'
 
+import { motion } from 'motion/react'
+import { ConversationChange } from '@/components/chat/conversation-motion'
+import { useConversationMotion } from '@/hooks/use-conversation-motion'
 import { IconButton } from '@/components/ui/icon-button'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 
@@ -169,6 +172,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem }: Read
 }
 
 export function BlockFrame(props: Readonly<BlockFrameProps>) {
+  const configuration = useConversationMotion()
   const [clamped, setClamped] = useState(false)
   const titleRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
@@ -181,7 +185,8 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
 
 
   return (
-    <section
+    <motion.section data-conversation-block="" layout={configuration.changeDuration > 0 ? "size" : false}
+      transition={{ duration: configuration.changeDuration / 1000, ease: configuration.easing }}
       className="flex max-h-full min-h-0 flex-col gap-3 bg-[var(--bg-card)] text-[var(--fg-1)]"
       data-state={props.state}
       aria-busy={props.state === 'acting' || undefined}
@@ -201,7 +206,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
           {props.titleMode === 'typed' ? <PersonalTextDetails iconOnly clamped={clamped}>{props.title}</PersonalTextDetails> : null}
         </div>
       </header>
-      <FrameStaleMessage frameProps={props} />
+      <ConversationChange changeKey={`${props.state}:${props.title}`} className="flex min-h-0 flex-col gap-3"><FrameStaleMessage frameProps={props} />
       {props.state === 'loading' ? (
         <LoadingBody rows={props.items.length} hasActions={canRenderActions && props.actions != null} />
       ) : (
@@ -215,7 +220,8 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
           />
         </>
       )}
-    </section>
+      </ConversationChange>
+    </motion.section>
   )
 }
 

@@ -1,3 +1,4 @@
+import { ConversationComposerMotionProvider } from './conversation-composer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Keyboard, ScrollView, StyleSheet, View, useWindowDimensions, type HostInstance } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -307,7 +308,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
   )
 
   return (
-    <ShellFocusTargetContext.Provider value={focusHost}>
+    <ConversationComposerMotionProvider><ShellFocusTargetContext.Provider value={focusHost}>
     <ShellHeaderSlotProvider value={registeredHeader.value}>
       <ShellNoticeSlotProvider value={registeredNotice.value}>
         <ShellComposerSlotProvider value={registeredComposer.value}>
@@ -323,7 +324,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
         </ShellComposerSlotProvider>
       </ShellNoticeSlotProvider>
     </ShellHeaderSlotProvider>
-    </ShellFocusTargetContext.Provider>
+    </ShellFocusTargetContext.Provider></ConversationComposerMotionProvider>
   )
 }
 

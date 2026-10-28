@@ -1456,16 +1456,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   animation: check-item-pop 200ms var(--ease-out);
 }
 
-/* Chat message rise-in */
-@keyframes msg-rise-in {
-  0% { opacity: 0; transform: translateY(8px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-
-.animate-msg-in {
-  animation: msg-rise-in var(--dur-base) var(--ease-out) backwards;
-}
-
 /* Tag selection pop */
 @keyframes tag-pop {
   0% { transform: scale(0.96); }
@@ -2906,5 +2896,8 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 @media (prefers-reduced-motion: reduce) {
   [data-route-motion],
+  [data-conversation-reveal],
+  [data-conversation-block],
+  [data-composer-input-row],
   [data-toast-motion] { transform: none !important; }
 }

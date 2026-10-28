@@ -204,7 +204,7 @@ it.each(['following', 'before keyboard', 'while queued'])('keeps following reply
 
 it('keeps the completed trace after its own reply blocks and request', async () => {
   await act(() => { tree = create(<CardConversation operations={['revise']} />) as unknown as TestTree })
-  const nodes = tree.root.findAll(node => ((node.type as unknown) === 'View' && ['thinking-trace-completed', 'block-frame-resting'].includes(String(node.props.testID)))
+  const nodes = tree.root.findAll(node => (typeof node.type === 'string' && ['thinking-trace-completed', 'block-frame-resting'].includes(String(node.props.testID)))
     || ((node.type as unknown) === 'Markdown' && node.props.children === 'My request'))
   expect(nodes.map(node => node.props.testID ?? 'request')).toEqual(['request', 'block-frame-resting', 'thinking-trace-completed'])
 })
