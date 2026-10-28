@@ -2566,3 +2566,165 @@
       allowed: []
     rubric: Answer in Brazilian Portuguese. Only the first draft changes to weekdays at 22:30. Keep its
       meaning, identity and language. The other draft remains exactly as supplied. No saved claim.
+
+- description: Brain dump mixed in en
+  metadata: { id: brain-dump-mixed-en, category: composition, family: brain-dump-mixed, locale: en, platform: web, fixture: pro }
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext: { platform: web, locale: en, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
+    input: "My head is all over the place. Need to call the dentist tomorrow, and I want to stretch every morning at eight starting today. Can you organize this?"
+    composition: { mode: preview }
+    brainDump:
+      items:
+        - { titleContains: dentist, habitType: Task, frequency_unit: OneTime, due_date: '{tomorrowDate}' }
+        - { titleContains: stretch, habitType: Habit, frequency_unit: Day, frequency_quantity: 1, due_date: '{accountDate}', due_time: '08:00' }
+    expectations:
+      required:
+        - { name: bulk_create_habits, resultStatus: PendingConfirmation }
+      counts: { bulk_create_habits: 1 }
+      allowed: [query_habits, bulk_create_habits]
+    rubric: >-
+      Respond in English. Organize the messy message into one held preview containing
+      the dentist task tomorrow and daily stretching at eight in the morning starting today.
+      Keep the existing account habits unchanged.
+      Do not add unrequested activities or grouping habits.
+      At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
+      schedules, dates, times or other facts from the preview, including spelled-out figures.
+      Distinguish the held proposal from a saved change. The later approval readback is harness evidence,
+      not part of the answer being graded. Stored titles stay verbatim.
+
+- description: Brain dump mixed in pt-BR
+  metadata: { id: brain-dump-mixed-pt-BR, category: composition, family: brain-dump-mixed, locale: pt-BR, platform: mobile, fixture: pro }
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext: { platform: mobile, locale: pt-BR, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
+    input: "Minha cabeça tá uma bagunça. Amanhã preciso ligar para o dentista, e quero alongar todo dia de manhã, às oito, começando hoje. Organiza isso pra mim?"
+    composition: { mode: preview }
+    brainDump:
+      items:
+        - { titleContains: dentista, habitType: Task, frequency_unit: OneTime, due_date: '{tomorrowDate}' }
+        - { titleContains: along, habitType: Habit, frequency_unit: Day, frequency_quantity: 1, due_date: '{accountDate}', due_time: '08:00' }
+    expectations:
+      required:
+        - { name: bulk_create_habits, resultStatus: PendingConfirmation }
+      counts: { bulk_create_habits: 1 }
+      allowed: [query_habits, bulk_create_habits]
+    rubric: >-
+      Respond in native Brazilian Portuguese. Organize the messy message into one held preview containing
+      the dentist task tomorrow and daily stretching at eight in the morning starting today.
+      Keep the existing account habits unchanged.
+      Do not add unrequested activities or grouping habits.
+      At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
+      schedules, dates, times or other facts from the preview, including spelled-out figures.
+      Distinguish the held proposal from a saved change. The later approval readback is harness evidence,
+      not part of the answer being graded. Stored titles stay verbatim.
+
+- description: Brain dump reuse in en
+  metadata: { id: brain-dump-reuse-en, category: composition, family: brain-dump-reuse, locale: en, platform: web, fixture: pro }
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext: { platform: web, locale: en, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
+    input: "My head is all over the place. Need to call the dentist tomorrow, and I want to stretch every morning at eight starting today. Can you organize this? Oh, and put Water on there every day too. That habit is already in my list, use that one."
+    composition: { mode: preview }
+    brainDump:
+      items:
+        - { titleContains: dentist, habitType: Task, frequency_unit: OneTime, due_date: '{tomorrowDate}' }
+        - { titleContains: stretch, habitType: Habit, frequency_unit: Day, frequency_quantity: 1, due_date: '{accountDate}', due_time: '08:00' }
+        - { titleContains: Water, habitType: Habit, habit_id: '{habitId}' }
+    expectations:
+      required:
+        - { name: bulk_create_habits, resultStatus: PendingConfirmation }
+      counts: { bulk_create_habits: 1 }
+      allowed: [query_habits, bulk_create_habits]
+    rubric: >-
+      Respond in English. Organize the messy message into one held preview containing
+      the dentist task tomorrow and daily stretching at eight in the morning starting today.
+      Reuse the stored Water habit by identity without creating a duplicate.
+      Do not add unrequested activities or grouping habits.
+      At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
+      schedules, dates, times or other facts from the preview, including spelled-out figures.
+      Distinguish the held proposal from a saved change. The later approval readback is harness evidence,
+      not part of the answer being graded. Stored titles stay verbatim.
+
+- description: Brain dump reuse in pt-BR
+  metadata: { id: brain-dump-reuse-pt-BR, category: composition, family: brain-dump-reuse, locale: pt-BR, platform: mobile, fixture: pro }
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext: { platform: mobile, locale: pt-BR, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
+    input: "Minha cabeça tá uma bagunça. Amanhã preciso ligar para o dentista, e quero alongar todo dia de manhã, às oito, começando hoje. Organiza isso pra mim? Ah, e coloca Beber água todo dia também. Esse hábito já está na minha lista, aproveita ele."
+    composition: { mode: preview }
+    brainDump:
+      items:
+        - { titleContains: dentista, habitType: Task, frequency_unit: OneTime, due_date: '{tomorrowDate}' }
+        - { titleContains: along, habitType: Habit, frequency_unit: Day, frequency_quantity: 1, due_date: '{accountDate}', due_time: '08:00' }
+        - { titleContains: Beber água, habitType: Habit, habit_id: '{habitId}' }
+    expectations:
+      required:
+        - { name: bulk_create_habits, resultStatus: PendingConfirmation }
+      counts: { bulk_create_habits: 1 }
+      allowed: [query_habits, bulk_create_habits]
+    rubric: >-
+      Respond in native Brazilian Portuguese. Organize the messy message into one held preview containing
+      the dentist task tomorrow and daily stretching at eight in the morning starting today.
+      Reuse the stored Beber água habit by identity without creating a duplicate.
+      Do not add unrequested activities or grouping habits.
+      At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
+      schedules, dates, times or other facts from the preview, including spelled-out figures.
+      Distinguish the held proposal from a saved change. The later approval readback is harness evidence,
+      not part of the answer being graded. Stored titles stay verbatim.
+
+- description: Brain dump ideas in en
+  metadata: { id: brain-dump-ideas-en, category: composition, family: brain-dump-ideas, locale: en, platform: web, fixture: pro }
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext: { platform: web, locale: en, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
+    input: "My head is all over the place. Need to call the dentist tomorrow, and I want to stretch every morning at eight starting today. Can you organize this? Also suggest one simple daily habit idea and put everything together for me to approve."
+    composition: { mode: preview }
+    brainDump:
+      items:
+        - { titleContains: dentist, habitType: Task, frequency_unit: OneTime, due_date: '{tomorrowDate}' }
+        - { titleContains: stretch, habitType: Habit, frequency_unit: Day, frequency_quantity: 1, due_date: '{accountDate}', due_time: '08:00' }
+      additionalIdeas: 1
+    expectations:
+      required:
+        - { name: bulk_create_habits, resultStatus: PendingConfirmation }
+        - { name: suggest_habits, arguments: { language: en, count: 1 } }
+      counts: { bulk_create_habits: 1 }
+      allowed: [query_habits, bulk_create_habits, suggest_habits]
+    rubric: >-
+      Respond in English. Organize the messy message into one held preview containing
+      the dentist task tomorrow and daily stretching at eight in the morning starting today.
+      Keep the existing account habits unchanged.
+      Include one additional simple daily habit idea in that same preview, without a separate suggestion card.
+      At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
+      schedules, dates, times or other facts from the preview, including spelled-out figures.
+      Distinguish the held proposal from a saved change. The later approval readback is harness evidence,
+      not part of the answer being graded. Stored titles stay verbatim.
+
+- description: Brain dump ideas in pt-BR
+  metadata: { id: brain-dump-ideas-pt-BR, category: composition, family: brain-dump-ideas, locale: pt-BR, platform: mobile, fixture: pro }
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext: { platform: mobile, locale: pt-BR, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
+    input: "Minha cabeça tá uma bagunça. Amanhã preciso ligar para o dentista, e quero alongar todo dia de manhã, às oito, começando hoje. Organiza isso pra mim? Me dá também uma ideia simples de hábito diário e coloca tudo junto pra eu aprovar."
+    composition: { mode: preview }
+    brainDump:
+      items:
+        - { titleContains: dentista, habitType: Task, frequency_unit: OneTime, due_date: '{tomorrowDate}' }
+        - { titleContains: along, habitType: Habit, frequency_unit: Day, frequency_quantity: 1, due_date: '{accountDate}', due_time: '08:00' }
+      additionalIdeas: 1
+    expectations:
+      required:
+        - { name: bulk_create_habits, resultStatus: PendingConfirmation }
+        - { name: suggest_habits, arguments: { language: pt-BR, count: 1 } }
+      counts: { bulk_create_habits: 1 }
+      allowed: [query_habits, bulk_create_habits, suggest_habits]
+    rubric: >-
+      Respond in native Brazilian Portuguese. Organize the messy message into one held preview containing
+      the dentist task tomorrow and daily stretching at eight in the morning starting today.
+      Keep the existing account habits unchanged.
+      Include one additional simple daily habit idea in that same preview, without a separate suggestion card.
+      At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
+      schedules, dates, times or other facts from the preview, including spelled-out figures.
+      Distinguish the held proposal from a saved change. The later approval readback is harness evidence,
+      not part of the answer being graded. Stored titles stay verbatim.
