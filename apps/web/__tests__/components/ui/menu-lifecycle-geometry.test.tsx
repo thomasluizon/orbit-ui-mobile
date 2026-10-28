@@ -195,6 +195,7 @@ describe('mounted headless menu lifecycle in Chromium', () => {
       await page.mouse.down()
       await expect.poll(() => overlays.count()).toBeGreaterThan(0)
       await page.mouse.move(0, 0)
+      await trigger.evaluate(settleAnimations)
       expect(await trigger.evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgba(250, 250, 250, 0.13)')
       await page.mouse.up()
       await expect.poll(() => overlays.count()).toBeGreaterThan(0)
