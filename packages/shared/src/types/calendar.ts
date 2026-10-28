@@ -5,6 +5,8 @@ export const habitLogSchema = z.object({
   date: z.string(),
   value: z.number(),
   createdAtUtc: z.string(),
+  takenAtUtc: z.string().nullish(),
+  reminderAtUtc: z.string().nullish(),
 })
 
 export type HabitLog = z.infer<typeof habitLogSchema>

@@ -581,3 +581,17 @@ describe('buildRescheduleUpdateRequest', () => {
     expect(request.dueEndTime).toBe('07:00:00')
   })
 })
+
+
+describe('repeat reminder requests', () => {
+  const repeatReminder = { intervalMinutes: 480, activeStart: '20:00', activeEnd: '06:00', startAtUtc: '2026-10-28T20:00:00Z' }
+  it.each([false, true])('replaces other reminder stores, including General=%s', (isGeneral) => {
+    const form = { ...makeFormData({ isGeneral, frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '09:00', reminderEnabled: true, scheduledReminders: [{ when: 'same_day', time: '10:00' }] }), repeatReminder }
+    for (const request of [buildCreateHabitRequest(form, [15], [], [], []), buildUpdateHabitRequest(form, false, '', [15], [])]) {
+      expect(request).toMatchObject({ repeatReminder, reminderEnabled: true, reminderTimes: [], scheduledReminders: [], relativeReminders: [] })
+    }
+  })
+  it('explicitly clears repeat when switching back to other reminders', () => {
+    expect(buildUpdateHabitRequest({ ...makeFormData(), repeatReminder: null }, true, '', [], [])).toMatchObject({ clearRepeatReminder: true })
+  })
+})
