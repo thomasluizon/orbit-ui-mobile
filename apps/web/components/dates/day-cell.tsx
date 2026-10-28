@@ -3,7 +3,7 @@
 import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useContext, type CSSProperties } from 'react'
-import { MovingDaySelection } from './month-selection'
+import { DayColumnPosition, MovingDaySelection } from './month-selection'
 import { SelectionIndicator } from '@/components/ui/selection-indicator'
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared/utils'
@@ -15,7 +15,7 @@ function ringStyle(outcome: DayOutcome): CSSProperties {
   return {}
 }
 
-/** The translucent hover layer covers the round hit area below the day's foreground. */
+/** Feedback stays on the day disc inside its transparent target. */
 function PressFill({ selected = false }: Readonly<{ selected?: boolean }>) {
   if (selected) return null
   return (
@@ -101,6 +101,7 @@ function HabitHistoryContents({ props, outcome, size }: Readonly<{ props: DayCel
 
 export function DayCell(props: Readonly<DayCellProps>) {
   const selectionId = useContext(MovingDaySelection)
+  const columnPosition = useContext(DayColumnPosition)
   const outcome = resolveDayCellOutcome(props)
   const size = props.size ?? MONTH_GRID_TARGET_MIN
   const statusSize = 34
@@ -118,7 +119,7 @@ export function DayCell(props: Readonly<DayCellProps>) {
   const circle = <span
     data-day-circle=""
     className={'orbit-day-circle isolate relative inline-flex items-center justify-center ' + (props.selected ? 'orbit-day-selected' : props.loggable || props.raised ? 'orbit-day-well' : '')}
-    style={{ width: '100%', maxWidth: size, aspectRatio: 1, borderRadius: size / 2 }}
+    style={{ width: statusSize, height: statusSize, flexShrink: 0, borderRadius: statusSize / 2 }}
   >
     {props.selected && selectionId ? <SelectionIndicator id={selectionId} calendar /> : null}
     <PressFill selected={props.selected} />
@@ -126,14 +127,15 @@ export function DayCell(props: Readonly<DayCellProps>) {
     <span aria-hidden="true" data-day-position-ring="" className="pointer-events-none absolute inset-0"
       style={{ borderRadius: 'inherit', boxShadow: `var(--day-focus-ring, ${showPositionRing ? 'inset 0 0 0 2px var(--primary)' : 'none'})` }} />
   </span>
+  const alignedCircle = <span className="inline-flex w-full items-center"><span style={{ flex: columnPosition }} />{circle}<span style={{ flex: 1 - columnPosition }} /></span>
 
   if (interactive) {
     return <button {...commonProps} type="button" onClick={props.onPress}
       aria-pressed={props.selected}
       className="orbit-day-target group relative inline-flex shrink-0 items-center justify-center border-0 bg-transparent p-0 cursor-pointer">
-      {circle}
+      {alignedCircle}
     </button>
   }
   return <span {...commonProps} role="img" aria-hidden={props.outsideMonth ? true : undefined}
-    className="inline-flex shrink-0 items-center justify-center">{circle}</span>
+    className="inline-flex shrink-0 items-center justify-center">{alignedCircle}</span>
 }

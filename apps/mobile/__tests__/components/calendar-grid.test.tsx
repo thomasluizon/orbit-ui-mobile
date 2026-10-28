@@ -103,8 +103,13 @@ describe('CalendarGrid (mobile)', () => {
         expect(placeholder.width).toBeLessThanOrEqual(placeholder.columnWidth + 0.5)
       }
       for (const circle of geometry.circles) {
+        expect(circle.right - circle.left).toBeCloseTo(34, 1)
         expect(circle.left, 'leading column containment').toBeGreaterThanOrEqual(circle.column.left - 0.1)
         expect(circle.right, 'trailing column containment').toBeLessThanOrEqual(circle.column.right + 0.1)
+      }
+      for (const [index, circle] of geometry.circles.entries()) {
+        const previous = geometry.circles[index - 1]
+        if (previous && circle.column.left > previous.column.left) expect(circle.left - previous.right).toBeGreaterThanOrEqual(8 - 0.01)
       }
       for (const disc of geometry.discs) {
         expect(disc.width).toBeLessThanOrEqual(disc.columnWidth + 0.5)

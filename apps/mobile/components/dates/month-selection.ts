@@ -1,18 +1,18 @@
 import { createContext, useState } from 'react'
-import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 import type { LayoutChangeEvent } from 'react-native'
 import type { SelectionBounds } from '@/components/ui/selection-indicator'
 
 export const MovingDaySelection = createContext(false)
+export const DayColumnPosition = createContext(0.5)
 
 export function useMonthSelection(selectedIndex?: number) {
   const [rows, setRows] = useState<Record<number, number>>({})
   const [cells, setCells] = useState<Record<number, SelectionBounds>>({})
   const row = selectedIndex === undefined ? undefined : rows[Math.floor(selectedIndex / 7)]
   const cell = selectedIndex === undefined ? undefined : cells[selectedIndex]
-  const size = cell ? Math.min(MONTH_GRID_TARGET_MIN, cell.width) : 0
+  const size = cell ? Math.min(34, cell.width) : 0
   const bounds = cell && row !== undefined ? {
-    x: cell.x + (cell.width - size) / 2,
+    x: cell.x + (cell.width - size) * (selectedIndex! % 7) / 6,
     y: row + (cell.height - size) / 2,
     width: size,
     height: size,
