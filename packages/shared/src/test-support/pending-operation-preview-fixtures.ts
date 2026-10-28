@@ -2,6 +2,11 @@ import { agentExecuteOperationResponseSchema, pendingAgentOperationSchema, type 
 
 const emptyId = '00000000-0000-0000-0000-000000000000'
 
+export function makeTypedHabitsPreview(types: readonly (string | null | undefined)[] = ['General', 'Habit', 'Task', 'Habit', 'Task']): PendingAgentOperation {
+  const operation = makeCreateHabitsPreview(types.length)
+  return pendingAgentOperationSchema.parse({ ...operation, items: operation.items!.map((item, index) => ({ ...item, habitType: types[index] })) })
+}
+
 export function makeExistingHabitPreview(entityEmoji?: string | null, actionKey = 'updateHabit', changesOnly = false): PendingAgentOperation {
   const entityId = '00000000-0000-4000-8000-000000000006'
   const entityName = 'Dentista'

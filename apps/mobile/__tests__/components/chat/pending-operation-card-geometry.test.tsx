@@ -1,4 +1,4 @@
-import { makeExistingHabitPreview, makeParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeTypedHabitsPreview, makeExistingHabitPreview, makeParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle, type TextStyle } from 'react-native'
@@ -80,6 +80,23 @@ function expectTrailingLines(bounds: ReturnType<ReturnType<typeof Yoga.Node.crea
 afterEach(async () => { __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }); await i18n.changeLanguage('en'); vi.clearAllMocks() })
 
 describe('Pending preview geometry on Android', () => {
+  it.each([320, 1352].flatMap(width => locales.flatMap(locale => [1, 2].map(scale => ({ width, locale, scale })))))('fits typed preview groups at $width in $locale with text scale $scale', async ({ width, locale, scale }) => {
+    __setWindowDimensions({ width, height: 1800, scale: 1, fontScale: scale })
+    await i18n.changeLanguage(locale)
+    const tree = render(<PendingOperationCard pendingOperation={makeTypedHabitsPreview()} {...handlers} />)
+    try {
+      const measured = measureProfileRow(tree.toJSON(), Math.min(width, 740) - 32, scale)
+      const labels = ['Task', 'Habit', 'General'].map(habitType => i18n.t(`chat.preview.itemGroup.${habitType}`))
+      const headings = measured.texts.filter(text => labels.includes(text.label))
+      expect(headings).toHaveLength(3)
+      for (const heading of headings) {
+        expect(heading.clipped).toBe(false)
+        expect(heading.left).toBeGreaterThanOrEqual(16)
+        expect(heading.right).toBeLessThanOrEqual(Math.min(width, 740) - 32 - 16)
+      }
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
   it.each([320, 390, 412, 480, 840, 1280].flatMap(width => locales.flatMap(locale => [1, 2].map(scale => ({ width, locale, scale })))))('fits the date change at $width in $locale with text scale $scale', async ({ width, locale, scale }) => {
     __setWindowDimensions({ width, height: 1800, scale: 1, fontScale: scale })
     await i18n.changeLanguage(locale)

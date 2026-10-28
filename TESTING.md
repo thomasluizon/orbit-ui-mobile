@@ -214,7 +214,8 @@ The Action has only `workflow_dispatch`; it never runs on a schedule, push, or p
 Runs record real message usage and incur endpoint and rubric-grader charges. The main account's
 flag exempts its daily message, model-call and spend ceilings; the refusal accounts remain metered.
 Use disposable eval accounts. Write scenarios require held previews; correction scenarios create
-a verified setup turn first. The corpus does not approve them or prove persisted changes.
+a verified setup turn first. Most cases leave previews held. Brain dump cases explicitly approve
+their verified preview and require independent persisted readback.
 
 The standalone eval package declares the ICU translator and its React peer at the versions locked
 for the clients; the shared-only install does not install peer dependencies.
@@ -244,6 +245,18 @@ this covers the API capability independently of the shared client block schema. 
 gate requires complete distinct drafts and accepts only the producer's short introduction before
 the block. Duplicate cases reuse the localized `pro` fixture and require its registered habit ID
 as `existingHabitId`, rejecting a second draft for the same habit.
+
+Brain dump cases cover mixed tasks and habits, existing activity reuse and requested ideas in
+en and pt-BR. Each attempt uses the isolated fixture reset, snapshots stored habits before chat,
+including full habit details omitted from exports, and checks one `bulk_create_habits` preview
+with `Task` and `Habit` item types. The harness refuses
+approval unless tool structure, mutation scope and preview checks pass. It verifies unchanged
+storage before confirmation, executes through the existing approval gateway, and independently
+reads every saved item's schedule and time. Existing fixture habits must remain unchanged and
+appear only once. Requested ideas must retain the actual suggestion draft fields in that same
+preview. Pending operations are cancelled and their empty readback verified after each attempt.
+Private attempt evidence includes the approval verdict and persisted schedules, while the final
+answer grader still sees only the original held preview. Offline tests do not replace the live gate.
 
 Refine cases first verify a real suggestion setup turn with the tool and composition gates, then
 send one of those drafts, the instruction and language as JSON to
