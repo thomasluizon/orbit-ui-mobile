@@ -1,10 +1,11 @@
 import { refineResult } from './suggestions.mjs'
+import { restartProposal, restartReadback } from './restart.mjs'
 import { composition } from './composition.mjs'
 export { composition }
 import { approveStartingStep } from './step-persistence.mjs'
 import { safeFailureMessage } from './credentials.mjs'
 import { assertions } from 'promptfoo'
-import { isDeepStrictEqual } from 'node:util'
+import { matchesArguments, matchesOperation } from './operation-matcher.mjs'
 import { tools, legacyTools, toolSensitiveFields, observableSchema } from './trace-policy.mjs'
 
 const toolWrites = new Map(tools.map((tool) => [tool.function.name, tool.writes]))
@@ -17,7 +18,6 @@ const legacyCatalog = traceCatalog(legacyTools)
 
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
 const decode = (output) => typeof output === 'string' ? JSON.parse(output) : output
-const normalizeText = (text) => text.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase().replace(/\s+/g, ' ').trim()
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 const statuses = new Set(['Succeeded', 'Failed', 'PendingConfirmation', 'Denied', 'UnsupportedByPolicy', 'NotExecuted'])
@@ -89,39 +89,6 @@ export async function structural(output, context) {
   })
 }
 
-function matchesArguments(actual, expected, orderedArrays = false) {
-  if (actual === '[redacted]') return false
-  if (Array.isArray(expected)) {
-    if (!Array.isArray(actual) || actual.length !== expected.length) return false
-    if (orderedArrays) return expected.every((value, index) => matchesArguments(actual[index], value, true))
-    const unmatched = [...actual]
-    return expected.every((value) => {
-      const index = unmatched.findIndex((candidate) => matchesArguments(candidate, value))
-      if (index < 0) return false
-      unmatched.splice(index, 1)
-      return true
-    })
-  }
-  if (expected && typeof expected === 'object') {
-    if ('allOf' in expected) return expected.allOf.every((value) => matchesArguments(actual, value, orderedArrays))
-    if ('optional' in expected) return actual == null || matchesArguments(actual, expected.optional, orderedArrays)
-    if ('textContains' in expected) {
-      return typeof actual === 'string' && normalizeText(actual).includes(normalizeText(expected.textContains))
-    }
-    return actual && typeof actual === 'object'
-      && Object.entries(expected).every(([key, value]) => matchesArguments(actual[key], value, orderedArrays))
-  }
-  return actual === expected
-}
-
-function matchesOperation(call, expected) {
-  if (expected.anyOf) return expected.anyOf.some((alternative) => matchesOperation(call, alternative))
-  return call.name === expected.name
-    && (expected.argumentsAnyOf ?? [expected.arguments ?? {}])
-      .some((arguments_) => expected.exactArguments === true
-        ? isDeepStrictEqual(call.arguments, arguments_) : matchesArguments(call.arguments, arguments_))
-}
-
 function checkMutationScope(calls, expectations) {
   const scope = [...expectations.required ?? [], ...expectations.permittedMutations ?? []]
   for (const call of calls) {
@@ -171,6 +138,10 @@ export function behavior(output, context) {
   }
   for (const [name, count] of Object.entries(expectations.counts ?? {})) {
     if (trace.calls.filter((call) => call.name === name).length !== count) return result(false, `Wrong call count: ${name}`)
+  }
+  if (context.vars.restart) {
+    const proposal = restartProposal(decode(output), context.vars)
+    return proposal.pass ? restartReadback(decode(output), context.vars) : proposal
   }
   return result(true, 'Required tools, arguments and results matched.')
 }

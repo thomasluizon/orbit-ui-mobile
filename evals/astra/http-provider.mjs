@@ -2,6 +2,7 @@ import { withLegacyProfileLanguage } from './fixtures/language.mjs'
 import { suggestionAnswer } from './suggestions.mjs'
 import { loadApiProvider } from 'promptfoo'
 import { visibleAnswer } from './visible-answer.mjs'
+import { completeRestart } from './restart-lifecycle.mjs'
 import { structural, behavior } from './assertions.mjs'
 import { brainDumpPreview } from './brain-dumps.mjs'
 import { approveBrainDump, brainDumpBaseline } from './brain-dump-approval.mjs'
@@ -81,6 +82,11 @@ export default class AstraHttpProvider {
           error: `Astra returned an unrenderable visible answer (${renderError.blockKind ?? 'composition'}): ${renderError.message}`,
           output: { ...response.output, answer: null, renderError },
         }
+      }
+    }
+    if (context.vars.restart && response.output?.composition && !response.error) {
+      try { response.output = await completeRestart(response.output, context.vars) } catch {
+        return { ...response, error: 'Restart approval or independent persisted readback failed.' }
       }
     }
     return response

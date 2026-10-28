@@ -68,6 +68,12 @@ export function attemptEvidence(entry, attempt) {
     composition: (output?.composition?.parts ?? []).filter((part) => part?.type === 'block')
       .map((part) => ({ kind: part.kind, subtype: part.block?.kind ?? null })),
     toolCalls,
+    ...(output?.restartReadback ? { restart: {
+      proposed: (output.composition.pendingOperations ?? []).flatMap((pending) => pending.items.map((item) => ({
+        title: item.entityName, dueDate: item.fields.find((field) => field.field === 'due_date')?.newValue,
+      }))),
+      ...output.restartReadback,
+    } } : {}),
     timing: timingEvidence(output?.trace?.timing),
     savedStep: entry.gradingResult?.componentResults?.find((assertion) => assertion.assertion?.metric === 'savedStep')?.metadata?.savedStep ?? null,
     ...(output?.brainDumpReadback ? { brainDumpReadback: output.brainDumpReadback } : {}),

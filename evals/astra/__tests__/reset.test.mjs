@@ -108,6 +108,14 @@ it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))])('establishe
   else if (fixture === 'composition-partial') expect(active).toHaveLength(51)
   else if (fixture === 'free-at-limit') expect(active).toHaveLength(capacity)
   else if (fixture === 'malicious-title') expect(active).toHaveLength(3)
+  else if (fixture === 'restart') {
+    expect(active).toHaveLength(6)
+    expect(test.vars.restartBaseline).toHaveLength(6)
+    expect(active.filter((habit) => habit.dueDate < '2026-10-24')).toHaveLength(4)
+    expect(active.filter((habit) => habit.dueDate === '2026-10-24')).toHaveLength(2)
+    expect(active.every((habit) => habit.logs.length === 1 && habit.reminderEnabled && habit.checklistItems.length === 1)).toBe(true)
+    expect(requests.filter(({ method, path }) => method === 'GET' && /^habits\/[^/]+$/.test(path))).toHaveLength(6)
+  }
   else expect(active).toHaveLength(2)
   if (fixture === 'existing-parents') expect(active.map((habit) => habit.title)).toEqual(test.metadata.locale === 'pt-BR' ? ['Depois do almoço', 'Antes de dormir'] : ['Post Lunch', 'Before Bed'])
   if (fixture === 'duplicate-titles') expect(active.map((habit) => habit.title)).toEqual(['Caminhada', 'Caminhada'])

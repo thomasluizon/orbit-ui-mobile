@@ -185,3 +185,20 @@ it('retains diagnostic calls from a mismatched trace without accepting it as gra
   expect(evidence.toolCalls).toMatchObject([{ name: 'query_habits', arguments: { date: 'today' } }])
   expect(evidence.timing).toEqual(traceTiming)
 })
+
+it('retains sanitized restart proposals and independent persisted readbacks', () => {
+  const output = outputFor()
+  const id = '11111111-1111-4111-8111-111111111111'
+  output.composition.pendingOperations = [{ items: [{ entityId: id, entityName: 'Water', fields: [
+    { field: 'due_date', newValue: '2026-10-29' },
+  ] }] }]
+  output.restartReadback = { held: [{ habit: { id, title: 'Water', dueDate: '2026-10-28' }, logs: [] }],
+    after: [{ habit: { id, title: 'Water', dueDate: '2026-10-29' }, logs: [] }] }
+  const { evidence, text } = persist(output)
+  expect(evidence.restart).toEqual({
+    proposed: [{ title: 'Water', dueDate: '2026-10-29' }],
+    held: [{ habit: { id: '[redacted]', title: 'Water', dueDate: '2026-10-28' }, logs: [] }],
+    after: [{ habit: { id: '[redacted]', title: 'Water', dueDate: '2026-10-29' }, logs: [] }],
+  })
+  expect(text).not.toContain(id)
+})

@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import * as grades from '../assertions.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
+import { visibleBlock } from '../visible-blocks.mjs'
 import { chatResponse, toolCall } from './fixtures/producer.mjs'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
@@ -50,6 +51,7 @@ it.each(['en', 'pt-BR'])('grades and projects the contract block in %s', async (
   const projected = JSON.parse(visibleAnswer(response, vars.clientContext))
   expect(projected.parts[0].block).toEqual({ step: response.parts[0].block.suggestion.step,
     actions: response.parts[0].block.actions.map(({ label }) => label) })
+  expect(visibleBlock(response.parts[0], { locale })).toEqual(projected.parts[0].block)
   expect(JSON.stringify(projected)).not.toContain('Give me an even smaller')
 })
 
