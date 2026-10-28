@@ -2,6 +2,8 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { beforeEach } from '../hooks.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, preview, toolCall } from './fixtures/producer.mjs'
+import AstraHttpProvider from '../http-provider.mjs'
+import { summarize } from '../report.mjs'
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 it.each([false, true])('verifies the real setup turn before a correction; wrongRequest=%s', async (wrongRequest) => {
   offlineCredentials()
@@ -22,11 +24,19 @@ it.each([false, true])('verifies the real setup turn before a correction; wrongR
     return Response.json(response, { headers: { 'x-orbit-request-id': wrongRequest ? 'wrong' : setupRequestId } })
   })
   const test = { metadata: { id: 'correction' }, vars: { credentialKey: 'ORBIT_EVAL_TOKEN',
-    clientContext: { supportsParts: true, partKinds: [] }, setup: { input: 'Original exam request',
+    clientContext: { supportsParts: true, partKinds: [] }, setup: { caseId: 'composition-medical-batch-en', input: 'Original exam request',
       composition: { mode: 'preview' }, expectations: { required: [{ name: 'create_habit', arguments: { title: 'Cholesterol exam' } }] } },
   } }
-  if (wrongRequest) expect((await beforeEach({ test })).test.vars.preconditionFailure).toContain('Correction setup failed')
-  else {
+  if (wrongRequest) {
+    const prepared = (await beforeEach({ test })).test
+    expect(prepared.vars.preconditionFailure).toContain('composition-medical-batch-en')
+    expect(prepared.vars.preconditionFailure).toContain('Trace is missing, malformed, or belongs to another request.')
+    const response = await new AstraHttpProvider({ config: { url: 'https://astra.invalid/api/chat' } })
+      .callApi('Change the exam time.', { vars: prepared.vars })
+    expect(response.metadata.astraPreconditionFailure).toBe(true)
+    expect(summarize([{ testCase: prepared, response, error: response.error, success: false }], [prepared.metadata]).cases[0])
+      .toMatchObject({ unavailable: 1, pass3: 'incomplete' })
+  } else {
     const prepared = await beforeEach({ test })
     expect(prepared.test.vars.evalRequestId).not.toBe(setupRequestId)
     expect(prepared.test.vars.baselinePreview).toEqual([preview()])

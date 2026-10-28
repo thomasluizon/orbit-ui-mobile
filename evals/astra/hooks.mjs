@@ -15,6 +15,7 @@ const { buildChatClientContext } = await tsImport('../../packages/shared/src/cha
 let completedResults = []
 let selectedCases = []
 const accountAccess = new Map()
+const freshFreeWindows = new Set()
 
 function persistResults(results, expectedCases) {
   writeResults(results)
@@ -28,6 +29,7 @@ export async function beforeAll({ suite }) {
   completedResults = []
   selectedCases = suite.tests.map(describeCase)
   accountAccess.clear()
+  freshFreeWindows.clear()
   persistResults(completedResults, selectedCases)
   const required = ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_CREDENTIALS_FILE']
   for (const key of new Set(required)) {
@@ -65,10 +67,15 @@ async function prepareAttempt(test) {
   const today = new Date().toISOString().slice(0, 10)
   test.vars.accountDate = today
   process.env.ORBIT_EVAL_OVERDUE_DATE ??= dateOffset(today, -1)
-  await resetFixture(test, today, accountAccess.get(test.vars.credentialKey) === true)
+  const windowKey = `${test.vars.credentialKey}:${test.metadata.id}:${today}`
+  const needsFreshWindow = test.vars.preconditions?.freshFreeDailyWindow === true
+  const retrospective = await resetFixture(test, today, accountAccess.get(test.vars.credentialKey) === true,
+    needsFreshWindow && !freshFreeWindows.has(windowKey))
+  if (needsFreshWindow) freshFreeWindows.add(windowKey)
   const account = readCredentials()[test.vars.credentialKey]
   const substitutions = {
     accountDate: today,
+    accountYear: today.slice(0, 4),
     retrospectiveFrom: dateOffset(today, -29),
     habitId: account.habitId ?? process.env.ORBIT_EVAL_HABIT_ID,
     secondHabitId: account.secondHabitId ?? process.env.ORBIT_EVAL_SECOND_HABIT_ID,
@@ -79,7 +86,7 @@ async function prepareAttempt(test) {
     substitutions[`${key}Localized`] = new Intl.DateTimeFormat(test.metadata.locale ?? 'en', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${substitutions[key]}T12:00:00Z`))
   }
   const substitute = (value) => {
-    if (typeof value === 'string') return value.replace(/\{(accountDate|retrospectiveFrom|habitId|secondHabitId|overdueDate|historyFrom|historyTo|comparisonFrom|comparisonTo|historyFromLocalized|historyToLocalized|comparisonFromLocalized|comparisonToLocalized)\}/g, (_, key) => {
+    if (typeof value === 'string') return value.replace(/\{(accountDate|accountYear|retrospectiveFrom|habitId|secondHabitId|overdueDate|historyFrom|historyTo|comparisonFrom|comparisonTo|historyFromLocalized|historyToLocalized|comparisonFromLocalized|comparisonToLocalized)\}/g, (_, key) => {
       if (!substitutions[key]) throw new Error(`Missing fixture substitution: ${key}`)
       return substitutions[key]
     })
@@ -88,6 +95,9 @@ async function prepareAttempt(test) {
     return value
   }
   test.vars = substitute(test.vars)
+  if (test.metadata.fixture === 'composition-stale') {
+    test.vars.expectations.required[0].result = { payload: retrospective }
+  }
   test.vars.clientContext ??= buildChatClientContext({ platform: test.metadata.platform ?? 'web', locale: test.metadata.locale ?? 'en' })
   if (test.vars.clientContext.supportsParts === true && test.vars.clientContext.partKinds === undefined) {
     test.vars.clientContext.partKinds = buildChatClientContext(test.vars.clientContext).partKinds
