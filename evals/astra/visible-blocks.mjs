@@ -1,4 +1,5 @@
 import { tsImport } from 'tsx/esm/api'
+import { startingStepAnswer } from './one-small-step.mjs'
 import { suggestionAnswer } from './suggestions.mjs'
 
 const shared = Object.assign({}, ...await Promise.all([
@@ -12,8 +13,9 @@ function habitList(card, { t }) {
   const items = card.items.slice(0, 3)
   return { title: t(card.read ? 'nav.habits' : card.scope === 'all' ? 'chat.habitList.allTitle' : 'chat.habitList.title'),
     count: items.length ? t('chat.habitList.count', { shown: items.length, total: card.totalCount ?? card.items.length }) : undefined,
-    items: items.map((item) => ({ title: item.title, emoji: item.emoji,
-      status: localStatus(shared.habitListSnapshotStatusKey(item, Boolean(card.read)), t) })),
+    items: items.map((item) => ({ title: item.title, emoji: item.emoji, isSkippedOnDate: item.isSkippedOnDate ?? false,
+      status: item.isSkippedOnDate ? t('habits.statusDot.skip')
+        : localStatus(shared.habitListSnapshotStatusKey(item, Boolean(card.read)), t) })),
     empty: items.length ? undefined : t(card.read || card.scope === 'all' ? 'chat.habitList.allEmpty' : 'chat.habitList.todayEmpty'),
   }
 }
@@ -200,6 +202,7 @@ const renderers = shared.createChatBlockRegistry({ habitList, goalList, metrics,
   gamification, calendar, habitMonth, recordList, accountRows, habitRanking, choice: (card, options) => answerBlock(card, options, 'choice'),
   pickList: (card, options) => answerBlock(card, options, 'pickList'), question: questionBlock,
   habitSuggestions: (block, { locale }) => JSON.parse(suggestionAnswer([{ type: 'block', kind: 'habitSuggestions', block }], locale)).parts[0].block,
+  oneSmallStep: (block, { locale }) => JSON.parse(startingStepAnswer([{ type: 'block', kind: 'oneSmallStep', block }], locale)).parts[0].block,
 })
 
 function projectBlock(part, options) {

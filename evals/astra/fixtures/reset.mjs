@@ -4,14 +4,15 @@ import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
 import { apiOrigin, readCredentials, refreshCredential, safeFailureMessage, updateCredentials } from '../credentials.mjs'
 import { publicApi, requireEvalAccess } from './api.mjs'
-import { fixtureNames, fixtureHabitTitles, habitlessFixtures, maliciousHabitTitle } from './names.mjs'
+import { fixtureNames, fixtureHabitTitles, habitlessFixtures, maliciousHabitTitle, startingChecklistItems } from './names.mjs'
 import { exhaustAllowance } from './allowance.mjs'
+import { seedRestart } from './restart.mjs'
 
 const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>
   parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')))
 const fixtures = new Set(['pro', 'duplicate-titles', 'malicious-title', 'zero-history', 'empty', 'overdue', 'skipped',
   'free-at-limit', 'budget-exhausted', 'composition', 'composition-partial', 'composition-stale', 'composition-error',
-  'composition-offline', 'composition-logged', 'medical', 'existing-parents'])
+  'composition-offline', 'composition-logged', 'medical', 'existing-parents', 'restart', 'starting-step-checklist'])
 export const disposableStagingOrigin = 'https://orbit-api-staging-uqu2.onrender.com'
 export function requireStagingOrigin() {
   if (apiOrigin() !== disposableStagingOrigin) throw new Error('Fixture isolation requires the disposable staging origin.')
@@ -155,6 +156,17 @@ async function verifyFixture(api, account, fixture, today, names) {
     const expected = fixture === 'overdue' ? process.env.ORBIT_EVAL_OVERDUE_DATE : dateOffset(today, advanced ? 1 : 0)
     if (habit.dueDate !== expected) throw new Error('Fixture occurrence readback failed.')
   }
+  return restored
+}
+
+function fixtureEvidence(exported, fixture, today, account) {
+  if (!Array.isArray(exported.apiKeys)) throw new Error('Fixture export lacks API key evidence.')
+  return { ...Object.fromEntries(['habits', 'goals', 'tags', 'checklistTemplates', 'apiKeys', 'notifications']
+    .map((field) => [field, exported[field]])),
+    loggedState: { fixture, date: today, habits: exported.habits.map((habit) => ({
+      title: habit.title, completed: habit.logs.some((log) => log.date === today && log.value > 0),
+      skipped: fixture === 'skipped' && habit.id === account.secondHabitId,
+    })) } }
 }
 
 export async function resetFixture(test, today = new Date().toISOString().slice(0, 10), unmetered = false,
@@ -206,10 +218,22 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   const empty = habitlessFixtures.includes(fixture)
   await cleanCollections(api, fixture === 'free-at-limit' ? { ...exported, habits: [] } : exported, empty ? [] : [account.habitId, account.secondHabitId])
   if (empty) {
-    if ((await snapshot(api)).habits.length) throw new Error('Empty fixture readback still contains habits.')
+    const restored = await snapshot(api)
+    if (restored.habits.length) throw new Error('Empty fixture readback still contains habits.')
+    test.vars.fixtureEvidence = fixtureEvidence(restored, fixture, today, account)
     return
   }
   await restoreHabits(api, exported, account, fixture, today, titles)
+  if (fixture === 'restart') {
+    test.vars.restartBaseline = await seedRestart(api, account, today, titles, dailyHabit, dateOffset)
+    return
+  }
+  if (fixture === 'starting-step-checklist') {
+    const checklistItems = startingChecklistItems(test.metadata.locale)
+    await api('PUT', `habits/${account.habitId}/checklist`, { checklistItems })
+    const stored = (await snapshot(api)).habits.find((habit) => habit.id === account.habitId)
+    if (JSON.stringify(stored?.checklistItems) !== JSON.stringify(checklistItems)) throw new Error('Starting checklist fixture readback failed.')
+  }
   if (fixture === 'skipped') await api('POST', `habits/${account.secondHabitId}/skip`, { date: today })
   if (fixture === 'malicious-title') await api('POST', 'habits', dailyHabit(maliciousHabitTitle, today))
   if (fixture.startsWith('composition')) await seedComposition(api, account, today, fixture, names)
@@ -217,7 +241,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
     for (const title of titles.slice(2)) await api('POST', 'habits', dailyHabit(title, today))
   }
   if (fixture === 'free-at-limit') await fillCapacity(api, today)
-  await verifyFixture(api, account, fixture, today, titles)
+  test.vars.fixtureEvidence = fixtureEvidence(await verifyFixture(api, account, fixture, today, titles), fixture, today, account)
   if (fixture === 'composition-stale') return seedStaleRetrospective(api, today, test.metadata.locale ?? 'en')
 }
 

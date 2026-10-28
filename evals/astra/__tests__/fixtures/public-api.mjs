@@ -6,7 +6,9 @@ const { apiCommit } = parse(readFileSync(new URL('../../catalog.yaml', import.me
 
 const exportedHabit = (body) => ({ id: randomUUID(), title: body.title, description: body.description, emoji: null,
   isBadHabit: false, isGeneral: false, dueDate: body.startDate ? new Date().toISOString().slice(0, 10) : body.dueDate, startDate: body.startDate ?? body.dueDate, endDate: null, frequencyUnit: 'Day', frequencyQuantity: 1,
-  days: [], checklistItems: [], createdAtUtc: '2026-10-01T00:00:00Z', logs: [], intervalWeeks: null })
+  days: [], checklistItems: [], createdAtUtc: '2026-10-01T00:00:00Z', logs: [], intervalWeeks: null,
+  dueTime: null, dueEndTime: null, reminderEnabled: false, reminderTimes: [], scheduledReminders: [],
+  relativeReminders: [], slipAlertEnabled: false, isFlexible: false })
 
 // Producer: GetRetrospectiveQueryHandler and RetrospectivePeriodRange.Resolve.
 export function retrospectiveResponse(fromCache) {
@@ -70,7 +72,8 @@ export function fixtureFetch(getState) {
       return Response.json({ results, applied_count: results.length, total_matched: results.length, skipped_count: 0, partial: false }, { status: 201 })
     }
     if (['goals', 'tags', 'checklist-templates'].includes(path) && method === 'POST') {
-      const item = { id: randomUUID(), ...body }
+      const item = { id: randomUUID(), ...body, ...(path === 'goals' ? { currentValue: 0, status: 'Active',
+        deadline: null, createdAtUtc: new Date().toISOString(), completedAtUtc: null, progressLogs: [] } : {}) }
       ;({ goals, tags, 'checklist-templates': templates })[path].push(item)
       return Response.json({ id: item.id }, { status: 201 })
     }
@@ -79,6 +82,7 @@ export function fixtureFetch(getState) {
       const habit = habits.find((entry) => entry.id === id)
       if (!habit) throw new Error('Unknown habit at the HTTP boundary.')
       if (operation === 'restore') habit.deleted = false
+      else if (operation === 'checklist' && method === 'PUT') habit.checklistItems = structuredClone(body.checklistItems)
       else if (operation === 'log') {
         const existing = habit.logs.findIndex((log) => log.date === body.date && log.value > 0)
         const today = new Date().toISOString().slice(0, 10)
@@ -95,7 +99,8 @@ export function fixtureFetch(getState) {
       } else if (operation === 'skip') {
         if (habit.dueDate > body.date) return Response.json({ error: 'Habit not yet due.' }, { status: 400 })
         habit.dueDate = new Date(Date.parse(`${body.date}T12:00:00Z`) + 86400000).toISOString().slice(0, 10)
-      } else if (method === 'PUT') {
+      } else if (method === 'GET') return Response.json(habit)
+      else if (method === 'PUT') {
         habit.title = body.title
         if (body.startDate && (body.startDate !== habit.startDate || body.frequencyUnit !== habit.frequencyUnit || body.frequencyQuantity !== habit.frequencyQuantity)) {
           habit.startDate = body.startDate
@@ -103,6 +108,10 @@ export function fixtureFetch(getState) {
         } else if (!body.startDate) habit.dueDate = body.dueDate ?? habit.dueDate
         habit.frequencyUnit = body.frequencyUnit
         habit.frequencyQuantity = body.frequencyQuantity
+        for (const field of ['dueTime', 'dueEndTime', 'reminderEnabled', 'reminderTimes', 'scheduledReminders',
+          'relativeReminders', 'slipAlertEnabled', 'checklistItems', 'isFlexible']) {
+          if (Object.hasOwn(body, field)) habit[field] = structuredClone(body[field])
+        }
       }
       else if (method === 'DELETE') habit.deleted = true
       else throw new Error('Unexpected habit request.')

@@ -1,14 +1,14 @@
 # Generated through the API request builder, StrictToolSchema and eval trace sensitivity collector.
 # Regenerate with node evals/astra/generate-catalog.mjs <api-checkout>.
-apiCommit: 3b3d9069988d4766166565e458ba045cb4745ab3
+apiCommit: c90d1d61298bcdc86cc771a85939bbd097cf9ac6
 tools:
   - type: function
     writes: false
     sensitiveFields: []
     function:
       name: ask
-      description: Ask a choice question or offer a pick list for a bulk preview. Ends the reply. Never request approval or
-        repeat a preview question.
+      description: Ask for missing input with a question block, a choice, or a pick list for a bulk preview. Read account data
+        first. Ends the reply. Never request approval or repeat a preview question.
       strict: true
       parameters:
         type: object
@@ -18,6 +18,7 @@ tools:
             enum:
               - choice
               - pickList
+              - question
           question:
             type:
               - string
@@ -35,6 +36,120 @@ tools:
             type:
               - boolean
               - "null"
+          intro:
+            type:
+              - string
+              - "null"
+            description: Introduction for form question only. Omit for choice and pickList.
+          progress:
+            type:
+              - object
+              - "null"
+            properties:
+              current:
+                type: integer
+                minimum: 0
+              total:
+                type: integer
+                minimum: 1
+            required:
+              - current
+              - total
+            additionalProperties: false
+          questions:
+            type:
+              - array
+              - "null"
+            minItems: 1
+            maxItems: 10
+            items:
+              type: object
+              properties:
+                id:
+                  type: string
+                type:
+                  type: string
+                  enum:
+                    - singleChoice
+                    - multipleChoice
+                    - scale
+                    - slider
+                    - yesNo
+                prompt:
+                  type: string
+                options:
+                  type:
+                    - array
+                    - "null"
+                  minItems: 2
+                  maxItems: 10
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      label:
+                        type: string
+                      recommended:
+                        type:
+                          - boolean
+                          - "null"
+                        description: At most one recommended option, only for singleChoice.
+                    required:
+                      - id
+                      - label
+                      - recommended
+                    additionalProperties: false
+                allowFreeText:
+                  type:
+                    - boolean
+                    - "null"
+                  description: Allow a custom answer for singleChoice, multipleChoice, or yesNo.
+                lowLabel:
+                  type:
+                    - string
+                    - "null"
+                  description: Required label for 1 on a scale.
+                highLabel:
+                  type:
+                    - string
+                    - "null"
+                  description: Required label for 5 on a scale.
+                min:
+                  type:
+                    - number
+                    - "null"
+                  minimum: -1000000000
+                  maximum: 1000000000
+                max:
+                  type:
+                    - number
+                    - "null"
+                  minimum: -1000000000
+                  maximum: 1000000000
+                step:
+                  type:
+                    - number
+                    - "null"
+                  description: Positive slider step dividing max minus min exactly.
+                unit:
+                  type:
+                    - string
+                    - "null"
+                  description: Required slider unit in the person's language.
+              required:
+                - id
+                - type
+                - prompt
+                - options
+                - allowFreeText
+                - lowLabel
+                - highLabel
+                - min
+                - max
+                - step
+                - unit
+              additionalProperties: false
           options:
             type:
               - array
@@ -1353,6 +1468,9 @@ tools:
           - title
           - multiSelect
           - allowFreeText
+          - intro
+          - progress
+          - questions
           - options
           - action
           - items
@@ -1394,18 +1512,35 @@ tools:
             description: Existing tag IDs; empty clears all tags.
             items:
               type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - habit_ids
           - tag_names
           - tag_ids
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
     sensitiveFields: []
     function:
       name: bulk_create_habits
-      description: Create multiple habits with inline sub-habits.
+      description: >-
+        Create or change account records only when the person requests that action. Coaching alone does not authorize a
+        write. For a requested adjustment to an activity already tracked, use its existing habit ID instead of creating
+        a duplicate of its purpose. Create multiple habits with inline sub-habits. Organize an unstructured message into
+        one combined approval preview of tasks and habits. Include every proposed item in habits; reuse an existing
+        activity with habit_id and only its requested changes. The preview groups items by habitType. Nothing is saved
+        before approval.
+
+        Preserve a title the person quoted or named verbatim, including its language, spelling, accents, casing and
+        dates. Never translate or rephrase that title, even when it differs from the request language. For titles you
+        compose, use the request language supplied for this turn. Apply this to create and update arguments, bulk items
+        and nested sub-habits before preparing the approval preview. English examples and existing account titles are
+        not language templates. Never rename an existing habit unless the person requested it.
       strict: true
       parameters:
         type: object
@@ -2656,9 +2791,14 @@ tools:
                 - parent_habit_id
                 - sub_habits
               additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - parent_habit_id
           - habits
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -2744,9 +2884,14 @@ tools:
             description: Habit IDs to delete instead of filter.
             items:
               type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - filter
           - habit_ids
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -2845,24 +2990,41 @@ tools:
               type: string
             maxItems: 100
             description: At most 100 requested dates in YYYY-MM-DD format. Use one call for a date range, omitting excluded dates.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - filter
           - habit_ids
           - date
           - dates
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
     sensitiveFields: []
     function:
       name: bulk_reschedule_habits
-      description: Reschedule the complete matching habit set in one call.
+      description: Propose rescheduling in one editable approval preview. Use filter and due_date for a shared date, or
+        revised_items for individual dates, omitting filter and due_date. When the person asks for help restarting after
+        missed habits, read the remaining habits due today with query_habits, including overdue entries. Read further
+        pages when needed before proposing the complete plan. Use the returned habits and the person's preferences to
+        propose a smaller set for today and later dates for the rest. Call bulk_reschedule_habits once with
+        revised_items containing every selected habit and its proposed due_date, including today's choices. Preserve
+        titles, cadence, times, reminders, checklists and past records. Never mark missed habits done or skipped. Use
+        the existing preview for approval, editing or rejection; nothing changes before approval. Set
+        orbit_read_complete to false while gathering the plan and orbit_write_complete to true when the complete plan is
+        ready. Return the preview alone, with no extra read blocks or repeated facts. Advice without a request to change
+        the plan remains coaching.
       strict: true
       parameters:
         type: object
         properties:
           filter:
-            type: object
+            type:
+              - object
+              - "null"
             description: Select all matches or use predicates.
             properties:
               all:
@@ -2927,11 +3089,43 @@ tools:
               - frequency
             additionalProperties: false
           due_date:
-            type: string
+            type:
+              - string
+              - "null"
             description: New due date in YYYY-MM-DD format.
+          revised_items:
+            type:
+              - array
+              - "null"
+            description: Complete plan with one entry per habit, including habits kept today. Overrides the shared filter and date.
+            minItems: 1
+            items:
+              type: object
+              properties:
+                habit_id:
+                  type: string
+                updates:
+                  type: object
+                  properties:
+                    due_date:
+                      type: string
+                      description: Proposed date in YYYY-MM-DD format.
+                  required:
+                    - due_date
+                  additionalProperties: false
+              required:
+                - habit_id
+                - updates
+              additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - filter
           - due_date
+          - revised_items
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -3022,10 +3216,15 @@ tools:
               - string
               - "null"
             description: Date to skip in YYYY-MM-DD format. Defaults to today.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - filter
           - habit_ids
           - date
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -3144,6 +3343,10 @@ tools:
               - boolean
               - "null"
             description: Legacy selection option. Include completed habits when filter is omitted. Defaults to false.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - emoji_mode
           - replace_existing
@@ -3152,6 +3355,7 @@ tools:
           - emoji
           - infer_from_title
           - include_completed
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -3161,20 +3365,32 @@ tools:
       description: >-
         Update the complete matching habit set in one call. Null keeps values; use clear_fields to clear them.
 
+        For advice about making an activity easier, give one to three short practical lines without a preview or draft.
+        A date or a possible checklist is context, not a request to change records. Create or change account records
+        only when the person requests that action. Coaching alone does not authorize a write. For a requested adjustment
+        to an activity already tracked, use its existing habit ID instead of creating a duplicate of its purpose.
+
+
         A Task is one-time: frequency_unit=OneTime in create tools, stored as null, with due_date and requested
         due_time. A dated event or single dated instruction is a Task unless repetition was requested. A Habit has Day,
         Week, Month or Year and a positive frequency_quantity. Daily weekdays require Day/1; is_flexible tracks a
         quantity within a window and cannot have weekdays. General items have no schedule, recurrence or avoid type.
-        end_date is inclusive and only recurring items use it. A temporary instruction for N days before an event uses
-        one Task per day or a recurring Habit with end_date equal to the event date. Never leave temporary preparation
-        recurring indefinitely.
+        end_date is inclusive and only recurring items use it. A preparation that starts N days or hours before an event
+        and continues until it is a Day/1 Habit: set due_date to the first local date and inclusive end_date to the
+        event date. start_date is only the recurrence anchor and never replaces due_date. Keep a single dated action as
+        a Task. For an activity lasting until a collection or other deadline, put its ending clock time in due_end_time,
+        not due_time; omit due_time when its start was not specified. Never leave temporary preparation recurring
+        indefinitely.
 
 
         Use is_bad_habit=true only for ongoing reduction or slip tracking, named for the behaviour itself: Fumar, Tomar
         multivitamínico, Smoking, Drinking soda. For quero parar de fumar or I want to drink less soda, choose that
         avoid form. A temporary or dated abstinence is a positive commitment, is_bad_habit=false, named Não tomar
-        multivitamínico or Don't take multivitamins, once or within its explicit date range. Never combine an avoid type
-        with a negated name: não, sem, parar de, evitar, don't, stop, avoid.
+        multivitamínico or Don't take multivitamins, once or within its explicit date range. Keep the requested action
+        and negation in temporary commitment titles: don't go to Muay Thai becomes Don't go to Muay Thai, and não ir ao
+        Muay Thai becomes Não ir ao Muay Thai. Never replace these with Skip Muay Thai, Pular Muay Thai or a generic
+        preparation label. Never combine an avoid type with a negated name: não, sem, parar de, evitar, don't, stop,
+        avoid.
 
 
         A correction is a patch: send only fields the person requested changing. Preserve every other field, including
@@ -3182,14 +3398,34 @@ tools:
         changes recurrence. Revise a pending preview instead of creating a duplicate.
 
 
-        Use ISO YYYY-MM-DD only in machine date fields. Dates inside titles and descriptions use the person's locale,
-        DD/MM/YYYY in pt-BR and MM/DD/YYYY in en-US. Do not repeat the same date in ISO and local form.
+        Preserve a title the person quoted or named verbatim, including its language, spelling, accents, casing and
+        dates. Never translate or rephrase that title, even when it differs from the request language. For titles you
+        compose, use the request language supplied for this turn. Apply this to create and update arguments, bulk items
+        and nested sub-habits before preparing the approval preview. English examples and existing account titles are
+        not language templates. Never rename an existing habit unless the person requested it.
+
+
+        Use ISO YYYY-MM-DD only in machine date fields. Dates inside composed titles and descriptions use the person's
+        locale, DD/MM/YYYY in pt-BR and MM/DD/YYYY in en-US. Preserve dates in titles the person supplied verbatim. Do
+        not repeat the same date in ISO and local form.
 
 
         For several creates in one request, call bulk_create_habits once with the entire set, including dated events and
         independent preparation commitments. Use its existing batch preview. Preparation on different dates needs
         separate trackable items, rather than only the exam description. A failed item keeps its name and reason and
         remains editable and retryable.
+
+
+        When the person asks to organize one unstructured message into tasks and habits, prepare one combined approval
+        preview with bulk_create_habits. Keep every actionable item from the message, with one-time tasks and recurring
+        habits distinct. Resolve existing activities from the account index or query_habits, and pass habit_id on reused
+        items rather than creating duplicates. Preserve existing fields unless a change was requested. Do not create
+        task or habit group headings as account records. Reuse suggest_habits when additional habit ideas are requested;
+        its editable drafts can supply the proposed habit fields, and existingHabitId becomes habit_id in the combined
+        preview. Keep explicit tasks alongside those suggestions. A request to organize is permission to prepare a
+        preview only. The person can approve, edit or reject the entire preview; nothing is saved before approval. Use
+        at most one short sentence without figures, then the combined preview. All figures belong in the preview. Apply
+        this equally to typed and transcribed messages in the current message's language.
 
 
         Recommend routine structure from the destination's checklist and sub-habits, then the account's structure
@@ -3473,9 +3709,14 @@ tools:
               - checklist_items
               - scheduled_reminders
             additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - filter
           - updates
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -3493,9 +3734,14 @@ tools:
             type: array
             items:
               type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - name
           - items
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -3545,6 +3791,10 @@ tools:
             description: Optional IDs of habits to link to the new goal
             items:
               type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - title
           - description
@@ -3553,17 +3803,27 @@ tools:
           - deadline
           - goal_type
           - habit_ids
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
     sensitiveFields: []
     function:
       name: create_habit
-      description: "Use frequency_unit: OneTime for one-time tasks; null leaves recurrence unspecified and may require
-        clarification. Create habits or dated tasks with tags, goals, checklists and children inline. Single dated
-        events are one-time, even when a weekday is named. Separate dated extras from recurring classes. Dated children
-        inherit parent frequency without its weekdays; use OneTime for a one-time child. Preserve requested weekdays.
-        Use checklist_items for steps done together and sub_habits for independent tracking."
+      description: >-
+        Create or change account records only when the person requests that action. Coaching alone does not authorize a
+        write. For a requested adjustment to an activity already tracked, use its existing habit ID instead of creating
+        a duplicate of its purpose. Use frequency_unit: OneTime for one-time tasks; null leaves recurrence unspecified
+        and may require clarification. Create habits or dated tasks with tags, goals, checklists and children inline.
+        Single dated events are one-time, even when a weekday is named. Separate dated extras from recurring classes.
+        Dated children inherit parent frequency without its weekdays; use OneTime for a one-time child. Preserve
+        requested weekdays. Use checklist_items for steps done together and sub_habits for independent tracking.
+
+        Preserve a title the person quoted or named verbatim, including its language, spelling, accents, casing and
+        dates. Never translate or rephrase that title, even when it differs from the request language. For titles you
+        compose, use the request language supplied for this turn. Apply this to create and update arguments, bulk items
+        and nested sub-habits before preparing the approval preview. English examples and existing account titles are
+        not language templates. Never rename an existing habit unless the person requested it.
       strict: true
       parameters:
         type: object
@@ -4771,6 +5031,10 @@ tools:
                 - parent_habit_id
                 - sub_habits
               additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - title
           - description
@@ -4800,14 +5064,22 @@ tools:
           - goal_ids
           - parent_habit_id
           - sub_habits
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
     sensitiveFields: []
     function:
       name: create_sub_habit
-      description: "Create a sub-habit under an existing parent with the complete habit fields, checklist, tags, goals and
-        nested children. "
+      description: >-
+        Create a sub-habit under an existing parent with the complete habit fields, checklist, tags, goals and nested
+        children. 
+
+        Preserve a title the person quoted or named verbatim, including its language, spelling, accents, casing and
+        dates. Never translate or rephrase that title, even when it differs from the request language. For titles you
+        compose, use the request language supplied for this turn. Apply this to create and update arguments, bulk items
+        and nested sub-habits before preparing the approval preview. English examples and existing account titles are
+        not language templates. Never rename an existing habit unless the person requested it.
       strict: true
       parameters:
         type: object
@@ -5763,6 +6035,10 @@ tools:
                 - parent_habit_id
                 - sub_habits
               additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - title
           - description
@@ -5792,6 +6068,7 @@ tools:
           - goal_ids
           - parent_habit_id
           - sub_habits
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -5808,9 +6085,14 @@ tools:
           color:
             type: string
             description: "Hex color code, e.g. #FF5733"
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - name
           - color
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -5824,8 +6106,13 @@ tools:
         properties:
           template_id:
             type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - template_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -5839,8 +6126,13 @@ tools:
         properties:
           goal_id:
             type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - goal_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -5855,8 +6147,13 @@ tools:
         properties:
           habit_id:
             type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -5884,10 +6181,15 @@ tools:
               - "null"
             items:
               type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - action
           - notification_id
           - notification_ids
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -5901,8 +6203,13 @@ tools:
         properties:
           tag_id:
             type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - tag_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: false
@@ -5946,8 +6253,13 @@ tools:
         properties:
           habit_id:
             type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: false
@@ -6090,7 +6402,8 @@ tools:
     sensitiveFields: []
     function:
       name: get_daily_summary
-      description: Generate an AI habit summary for a date range, defaulting to today.
+      description: "Read a habit summary for a date range, defaulting to today. Pass generate_narrative: true to include its
+        saved narrative when available."
       strict: true
       parameters:
         type: object
@@ -6123,7 +6436,9 @@ tools:
             type:
               - boolean
               - "null"
-            description: Generate optional narrative. Exact refresh sets false.
+            description: Pass true when the person asks for a summary with its narrative. Returns the saved narrative when
+              available, otherwise generates one. Omission defaults to true for multi-day ranges and false for a single
+              day. False reads facts only, without the saved narrative; use false for exact refresh.
           date_from:
             type:
               - string
@@ -6203,7 +6518,8 @@ tools:
     function:
       name: get_habit_history
       description: Read actual dated habit logs for a relative period or explicit dates. Values indicate completion records,
-        never measured amounts.
+        never measured amounts. For whether a habit is done or skipped on a day, use query_habits with date and
+        is_completed null; an empty completion history does not establish its skip state.
       strict: true
       parameters:
         type: object
@@ -6708,8 +7024,13 @@ tools:
       strict: true
       parameters:
         type: object
-        properties: {}
-        required: []
+        properties:
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
+        required:
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: false
@@ -6733,7 +7054,7 @@ tools:
     sensitiveFields: []
     function:
       name: get_retrospective
-      description: Generate an AI retrospective, defaulting to week.
+      description: Read a retrospective with its narrative, defaulting to week. Returns the saved narrative when available.
       strict: true
       parameters:
         type: object
@@ -6766,7 +7087,9 @@ tools:
             type:
               - boolean
               - "null"
-            description: Generate optional narrative. Exact refresh sets false.
+            description: Omit or pass true for a review, retrospective or its narrative. Returns the saved narrative when available,
+              otherwise generates one. Cached narratives are marked stale with refresh recovery because records may have
+              changed. False reads facts only, without the saved narrative; use false for exact refresh.
           period:
             type:
               - string
@@ -6859,9 +7182,14 @@ tools:
             description: IDs of goals to link to the habit. Replaces all existing links.
             items:
               type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - goal_ids
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -6880,9 +7208,14 @@ tools:
             description: IDs of habits to link to the goal. Replaces all existing links.
             items:
               type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - goal_id
           - habit_ids
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: false
@@ -6920,9 +7253,14 @@ tools:
               - string
               - "null"
             description: ISO date (YYYY-MM-DD) to log for a specific date, e.g. an overdue instance. Defaults to today.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - date
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -6945,9 +7283,14 @@ tools:
             type:
               - string
               - "null"
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - action
           - code
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -7030,6 +7373,10 @@ tools:
               - string
               - "null"
             description: ISO-8601 UTC timestamp.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - action
           - key_id
@@ -7037,6 +7384,7 @@ tools:
           - scopes
           - is_read_only
           - expires_at_utc
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -7071,11 +7419,16 @@ tools:
             type:
               - string
               - "null"
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - action
           - calendar_ids
           - enabled
           - suggestion_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -7100,9 +7453,14 @@ tools:
               - monthly
               - yearly
               - null
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - action
           - interval
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -7120,9 +7478,14 @@ tools:
             type:
               - string
               - "null"
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - new_parent_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -7140,9 +7503,14 @@ tools:
             type:
               - string
               - "null"
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - parent_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: false
@@ -7215,7 +7583,8 @@ tools:
     function:
       name: query_habits
       description: Read habits, schedules, metrics and checklists. Call before answering habit questions; indexes do not
-        ground replies.
+        ground replies. For a habit's completion or skip state on a day, use date with is_completed null to include
+        done, remaining and skipped entries.
       strict: true
       parameters:
         type: object
@@ -7294,7 +7663,10 @@ tools:
             type:
               - integer
               - "null"
-            description: "Maximum results to return. Default: 50"
+            minimum: 1
+            maximum: 200
+            description: Page size. Use 50 unless the user requests a different page size. Asking for all habits keeps the default
+              page size; use the returned nextCursor for further pages.
           orbit_read_complete:
             type: boolean
             description: True only when all reads in this round fully answer the request; false for prerequisite lookups or any
@@ -7340,8 +7712,13 @@ tools:
                 - goal_id
                 - position
               additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - positions
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -7368,8 +7745,13 @@ tools:
                 - habit_id
                 - position
               additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - positions
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: false
@@ -7418,6 +7800,7 @@ tools:
               properties:
                 item_id:
                   type: string
+                  description: Exact item_id from the pending preview for the entity being edited. It may differ from entity_id.
                 edits_json:
                   type: string
                   description: JSON object containing only the requested changes, using the operation schema field names and types.
@@ -7432,6 +7815,9 @@ tools:
               - "null"
             items:
               type: string
+            description: Exact item_ids to discard from this preview. Never list an item that should remain. Skipping a habit
+              occurrence keeps its skip preview item; it does not remove it. Omit when no preview items should be
+              discarded.
           orbit_read_complete:
             type: boolean
             description: True only when all reads in this round fully answer the request; false for prerequisite lookups or any
@@ -7461,11 +7847,16 @@ tools:
             type: string
           message:
             type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - name
           - email
           - subject
           - message
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -7479,8 +7870,13 @@ tools:
         properties:
           enabled:
             type: boolean
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - enabled
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -7495,8 +7891,13 @@ tools:
         properties:
           enabled:
             type: boolean
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - enabled
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -7517,20 +7918,45 @@ tools:
               - string
               - "null"
             description: ISO date (YYYY-MM-DD) to skip a specific instance. Defaults to today.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - date
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
     sensitiveFields: []
     function:
       name: suggest_breakdown
-      description: Suggest sub-habits for a vague request, without creating them.
+      description: Suggest sub-habits without creating them. When the person is stuck starting an activity, set
+        one_small_step=true, language to en or pt-BR matching their message, title to the activity and
+        suggested_sub_habits to exactly one concrete starting action. For a request to make a step smaller, return an
+        easier action requiring less effort than the previous step, keeping the same activity. The server returns
+        oneSmallStep with smaller and save actions. Emit no prose or lists alongside it. Suggestions never save
+        anything. Only an explicit save request uses create_habit for a Task or update_checklist, preserving existing
+        checklist items and resolving the owned habit first. Both require the existing approval preview.
       strict: true
       parameters:
         type: object
         properties:
+          one_small_step:
+            type:
+              - boolean
+              - "null"
+            description: Return exactly one starting step, or a smaller refinement, as a oneSmallStep block. Default false.
+          language:
+            type:
+              - string
+              - "null"
+            enum:
+              - en
+              - pt-BR
+              - null
+            description: Required with one_small_step=true; the person's message language.
           title:
             type: string
             description: The broad habit title to break down
@@ -7581,19 +8007,28 @@ tools:
                 - frequency_quantity
                 - days
               additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
+          - one_small_step
+          - language
           - title
           - suggested_sub_habits
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: false
     sensitiveFields: []
     function:
       name: suggest_habits
-      description: Suggest personal, editable habit drafts from current habits, goals and free schedule time. Use for suggest,
-        ideas, what habits should I, recommend, sugira, sugestões, ideias, quais hábitos, recomende. Return
-        habitSuggestions instead of a plain list. Pass the person's request and its language. This never creates habits.
-        The person edits a draft and requests its approval preview before saving.
+      description: Suggest personal, editable habit drafts from current habits, goals and free schedule time. Use when the
+        person asks for habit ideas or editable habit drafts. Help starting an activity uses suggest_breakdown with
+        one_small_step=true instead. Return habitSuggestions instead of a plain list. Pass the person's request and its
+        language. This never creates habits. The person edits a draft and requests its approval preview before saving.
+        For an unstructured message that also requests habit ideas, keep its explicit tasks and put the chosen draft
+        fields in one bulk_create_habits approval preview; map existingHabitId to habit_id to reuse the habit.
       strict: true
       parameters:
         type: object
@@ -7638,9 +8073,14 @@ tools:
           skip_id:
             type: string
             description: Skip ID returned by skip_habit
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - skip_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -7661,16 +8101,22 @@ tools:
               - string
               - "null"
             description: ISO date (YYYY-MM-DD) of the completion to undo. Defaults to today.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - date
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
     sensitiveFields: []
     function:
       name: update_checklist
-      description: Replace a habit checklist with the full desired list.
+      description: Replace a habit checklist with the full desired list. When adding an item, include every existing item in
+        the full list you send.
       strict: true
       parameters:
         type: object
@@ -7694,9 +8140,14 @@ tools:
                 - text
                 - is_checked
               additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - checklist_items
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -7720,10 +8171,15 @@ tools:
               - "null"
             items:
               type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - template_id
           - name
           - items
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -7769,6 +8225,10 @@ tools:
               - string
               - "null"
             description: YYYY-MM-DD deadline; clear via clear_fields.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - clear_fields
           - goal_id
@@ -7777,6 +8237,7 @@ tools:
           - target_value
           - unit
           - deadline
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -7805,11 +8266,16 @@ tools:
               - string
               - "null"
             description: Optional note about this progress update
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - goal_id
           - goal_name
           - current_value
           - note
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -7830,9 +8296,14 @@ tools:
               - Active
               - Completed
               - Abandoned
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - goal_id
           - status
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -7843,20 +8314,32 @@ tools:
         Update habit fields. Null keeps values; clear_fields removes them (frequency_unit makes a one-time task). Use
         is_flexible for windows and bulk tools for multiple habits.
 
+        For advice about making an activity easier, give one to three short practical lines without a preview or draft.
+        A date or a possible checklist is context, not a request to change records. Create or change account records
+        only when the person requests that action. Coaching alone does not authorize a write. For a requested adjustment
+        to an activity already tracked, use its existing habit ID instead of creating a duplicate of its purpose.
+
+
         A Task is one-time: frequency_unit=OneTime in create tools, stored as null, with due_date and requested
         due_time. A dated event or single dated instruction is a Task unless repetition was requested. A Habit has Day,
         Week, Month or Year and a positive frequency_quantity. Daily weekdays require Day/1; is_flexible tracks a
         quantity within a window and cannot have weekdays. General items have no schedule, recurrence or avoid type.
-        end_date is inclusive and only recurring items use it. A temporary instruction for N days before an event uses
-        one Task per day or a recurring Habit with end_date equal to the event date. Never leave temporary preparation
-        recurring indefinitely.
+        end_date is inclusive and only recurring items use it. A preparation that starts N days or hours before an event
+        and continues until it is a Day/1 Habit: set due_date to the first local date and inclusive end_date to the
+        event date. start_date is only the recurrence anchor and never replaces due_date. Keep a single dated action as
+        a Task. For an activity lasting until a collection or other deadline, put its ending clock time in due_end_time,
+        not due_time; omit due_time when its start was not specified. Never leave temporary preparation recurring
+        indefinitely.
 
 
         Use is_bad_habit=true only for ongoing reduction or slip tracking, named for the behaviour itself: Fumar, Tomar
         multivitamínico, Smoking, Drinking soda. For quero parar de fumar or I want to drink less soda, choose that
         avoid form. A temporary or dated abstinence is a positive commitment, is_bad_habit=false, named Não tomar
-        multivitamínico or Don't take multivitamins, once or within its explicit date range. Never combine an avoid type
-        with a negated name: não, sem, parar de, evitar, don't, stop, avoid.
+        multivitamínico or Don't take multivitamins, once or within its explicit date range. Keep the requested action
+        and negation in temporary commitment titles: don't go to Muay Thai becomes Don't go to Muay Thai, and não ir ao
+        Muay Thai becomes Não ir ao Muay Thai. Never replace these with Skip Muay Thai, Pular Muay Thai or a generic
+        preparation label. Never combine an avoid type with a negated name: não, sem, parar de, evitar, don't, stop,
+        avoid.
 
 
         A correction is a patch: send only fields the person requested changing. Preserve every other field, including
@@ -7864,14 +8347,34 @@ tools:
         changes recurrence. Revise a pending preview instead of creating a duplicate.
 
 
-        Use ISO YYYY-MM-DD only in machine date fields. Dates inside titles and descriptions use the person's locale,
-        DD/MM/YYYY in pt-BR and MM/DD/YYYY in en-US. Do not repeat the same date in ISO and local form.
+        Preserve a title the person quoted or named verbatim, including its language, spelling, accents, casing and
+        dates. Never translate or rephrase that title, even when it differs from the request language. For titles you
+        compose, use the request language supplied for this turn. Apply this to create and update arguments, bulk items
+        and nested sub-habits before preparing the approval preview. English examples and existing account titles are
+        not language templates. Never rename an existing habit unless the person requested it.
+
+
+        Use ISO YYYY-MM-DD only in machine date fields. Dates inside composed titles and descriptions use the person's
+        locale, DD/MM/YYYY in pt-BR and MM/DD/YYYY in en-US. Preserve dates in titles the person supplied verbatim. Do
+        not repeat the same date in ISO and local form.
 
 
         For several creates in one request, call bulk_create_habits once with the entire set, including dated events and
         independent preparation commitments. Use its existing batch preview. Preparation on different dates needs
         separate trackable items, rather than only the exam description. A failed item keeps its name and reason and
         remains editable and retryable.
+
+
+        When the person asks to organize one unstructured message into tasks and habits, prepare one combined approval
+        preview with bulk_create_habits. Keep every actionable item from the message, with one-time tasks and recurring
+        habits distinct. Resolve existing activities from the account index or query_habits, and pass habit_id on reused
+        items rather than creating duplicates. Preserve existing fields unless a change was requested. Do not create
+        task or habit group headings as account records. Reuse suggest_habits when additional habit ideas are requested;
+        its editable drafts can supply the proposed habit fields, and existingHabitId becomes habit_id in the combined
+        preview. Keep explicit tasks alongside those suggestions. A request to organize is permission to prepare a
+        preview only. The person can approve, edit or reject the entire preview; nothing is saved before approval. Use
+        at most one short sentence without figures, then the combined preview. All figures belong in the preview. Apply
+        this equally to typed and transcribed messages in the current message's language.
 
 
         Recommend routine structure from the destination's checklist and sub-habits, then the account's structure
@@ -8046,8 +8549,11 @@ tools:
             description: "Use is_bad_habit=true only for ongoing reduction or slip tracking, named for the behaviour itself: Fumar,
               Tomar multivitamínico, Smoking, Drinking soda. For quero parar de fumar or I want to drink less soda,
               choose that avoid form. A temporary or dated abstinence is a positive commitment, is_bad_habit=false,
-              named Não tomar multivitamínico or Don't take multivitamins, once or within its explicit date range. Never
-              combine an avoid type with a negated name: não, sem, parar de, evitar, don't, stop, avoid."
+              named Não tomar multivitamínico or Don't take multivitamins, once or within its explicit date range. Keep
+              the requested action and negation in temporary commitment titles: don't go to Muay Thai becomes Don't go
+              to Muay Thai, and não ir ao Muay Thai becomes Não ir ao Muay Thai. Never replace these with Skip Muay
+              Thai, Pular Muay Thai or a generic preparation label. Never combine an avoid type with a negated name:
+              não, sem, parar de, evitar, don't, stop, avoid."
           is_flexible:
             type:
               - boolean
@@ -8105,6 +8611,10 @@ tools:
                 - when
                 - time
               additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - clear_fields
           - habit_id
@@ -8133,6 +8643,7 @@ tools:
           - reminder_times
           - checklist_items
           - scheduled_reminders
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -8177,6 +8688,10 @@ tools:
               - "null"
             description: Opt in to removing a previous account's device registration using its credentials. Omit for ordinary
               sign-out.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - action
           - notification_id
@@ -8184,6 +8699,7 @@ tools:
           - p256dh
           - auth
           - release_other_account
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -8245,6 +8761,10 @@ tools:
               - light
               - system
               - null
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - action
           - name
@@ -8253,6 +8773,7 @@ tools:
           - week_start_day
           - uses_24_hour_clock
           - theme_preference
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -8272,10 +8793,15 @@ tools:
           color:
             type: string
             description: "New hex color code, e.g. #FF5733"
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - tag_id
           - name
           - color
+          - orbit_write_complete
         additionalProperties: false
 legacyTools:
   - type: function
@@ -8283,8 +8809,8 @@ legacyTools:
     sensitiveFields: []
     function:
       name: ask
-      description: Ask a choice question or offer a pick list for a bulk preview. Ends the reply. Never request approval or
-        repeat a preview question.
+      description: Ask for missing input with a question block, a choice, or a pick list for a bulk preview. Read account data
+        first. Ends the reply. Never request approval or repeat a preview question.
       strict: true
       parameters:
         type: object
@@ -8294,6 +8820,7 @@ legacyTools:
             enum:
               - choice
               - pickList
+              - question
           question:
             type:
               - string
@@ -8311,6 +8838,120 @@ legacyTools:
             type:
               - boolean
               - "null"
+          intro:
+            type:
+              - string
+              - "null"
+            description: Introduction for form question only. Omit for choice and pickList.
+          progress:
+            type:
+              - object
+              - "null"
+            properties:
+              current:
+                type: integer
+                minimum: 0
+              total:
+                type: integer
+                minimum: 1
+            required:
+              - current
+              - total
+            additionalProperties: false
+          questions:
+            type:
+              - array
+              - "null"
+            minItems: 1
+            maxItems: 10
+            items:
+              type: object
+              properties:
+                id:
+                  type: string
+                type:
+                  type: string
+                  enum:
+                    - singleChoice
+                    - multipleChoice
+                    - scale
+                    - slider
+                    - yesNo
+                prompt:
+                  type: string
+                options:
+                  type:
+                    - array
+                    - "null"
+                  minItems: 2
+                  maxItems: 10
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      label:
+                        type: string
+                      recommended:
+                        type:
+                          - boolean
+                          - "null"
+                        description: At most one recommended option, only for singleChoice.
+                    required:
+                      - id
+                      - label
+                      - recommended
+                    additionalProperties: false
+                allowFreeText:
+                  type:
+                    - boolean
+                    - "null"
+                  description: Allow a custom answer for singleChoice, multipleChoice, or yesNo.
+                lowLabel:
+                  type:
+                    - string
+                    - "null"
+                  description: Required label for 1 on a scale.
+                highLabel:
+                  type:
+                    - string
+                    - "null"
+                  description: Required label for 5 on a scale.
+                min:
+                  type:
+                    - number
+                    - "null"
+                  minimum: -1000000000
+                  maximum: 1000000000
+                max:
+                  type:
+                    - number
+                    - "null"
+                  minimum: -1000000000
+                  maximum: 1000000000
+                step:
+                  type:
+                    - number
+                    - "null"
+                  description: Positive slider step dividing max minus min exactly.
+                unit:
+                  type:
+                    - string
+                    - "null"
+                  description: Required slider unit in the person's language.
+              required:
+                - id
+                - type
+                - prompt
+                - options
+                - allowFreeText
+                - lowLabel
+                - highLabel
+                - min
+                - max
+                - step
+                - unit
+              additionalProperties: false
           options:
             type:
               - array
@@ -9625,6 +10266,9 @@ legacyTools:
           - title
           - multiSelect
           - allowFreeText
+          - intro
+          - progress
+          - questions
           - options
           - action
           - items
@@ -9665,18 +10309,35 @@ legacyTools:
             description: Existing tag IDs; empty clears all tags.
             items:
               type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - habit_ids
           - tag_names
           - tag_ids
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
     sensitiveFields: []
     function:
       name: bulk_create_habits
-      description: Create multiple habits with inline sub-habits.
+      description: >-
+        Create or change account records only when the person requests that action. Coaching alone does not authorize a
+        write. For a requested adjustment to an activity already tracked, use its existing habit ID instead of creating
+        a duplicate of its purpose. Create multiple habits with inline sub-habits. Organize an unstructured message into
+        one combined approval preview of tasks and habits. Include every proposed item in habits; reuse an existing
+        activity with habit_id and only its requested changes. The preview groups items by habitType. Nothing is saved
+        before approval.
+
+        Preserve a title the person quoted or named verbatim, including its language, spelling, accents, casing and
+        dates. Never translate or rephrase that title, even when it differs from the request language. For titles you
+        compose, use the request language supplied for this turn. Apply this to create and update arguments, bulk items
+        and nested sub-habits before preparing the approval preview. English examples and existing account titles are
+        not language templates. Never rename an existing habit unless the person requested it.
       strict: true
       parameters:
         type: object
@@ -10927,9 +11588,14 @@ legacyTools:
                 - parent_habit_id
                 - sub_habits
               additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - parent_habit_id
           - habits
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -11015,9 +11681,14 @@ legacyTools:
             description: Habit IDs to delete instead of filter.
             items:
               type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - filter
           - habit_ids
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -11116,24 +11787,41 @@ legacyTools:
               type: string
             maxItems: 100
             description: At most 100 requested dates in YYYY-MM-DD format. Use one call for a date range, omitting excluded dates.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - filter
           - habit_ids
           - date
           - dates
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
     sensitiveFields: []
     function:
       name: bulk_reschedule_habits
-      description: Reschedule the complete matching habit set in one call.
+      description: Propose rescheduling in one editable approval preview. Use filter and due_date for a shared date, or
+        revised_items for individual dates, omitting filter and due_date. When the person asks for help restarting after
+        missed habits, read the remaining habits due today with query_habits, including overdue entries. Read further
+        pages when needed before proposing the complete plan. Use the returned habits and the person's preferences to
+        propose a smaller set for today and later dates for the rest. Call bulk_reschedule_habits once with
+        revised_items containing every selected habit and its proposed due_date, including today's choices. Preserve
+        titles, cadence, times, reminders, checklists and past records. Never mark missed habits done or skipped. Use
+        the existing preview for approval, editing or rejection; nothing changes before approval. Set
+        orbit_read_complete to false while gathering the plan and orbit_write_complete to true when the complete plan is
+        ready. Return the preview alone, with no extra read blocks or repeated facts. Advice without a request to change
+        the plan remains coaching.
       strict: true
       parameters:
         type: object
         properties:
           filter:
-            type: object
+            type:
+              - object
+              - "null"
             description: Select all matches or use predicates.
             properties:
               all:
@@ -11198,11 +11886,43 @@ legacyTools:
               - frequency
             additionalProperties: false
           due_date:
-            type: string
+            type:
+              - string
+              - "null"
             description: New due date in YYYY-MM-DD format.
+          revised_items:
+            type:
+              - array
+              - "null"
+            description: Complete plan with one entry per habit, including habits kept today. Overrides the shared filter and date.
+            minItems: 1
+            items:
+              type: object
+              properties:
+                habit_id:
+                  type: string
+                updates:
+                  type: object
+                  properties:
+                    due_date:
+                      type: string
+                      description: Proposed date in YYYY-MM-DD format.
+                  required:
+                    - due_date
+                  additionalProperties: false
+              required:
+                - habit_id
+                - updates
+              additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - filter
           - due_date
+          - revised_items
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -11293,10 +12013,15 @@ legacyTools:
               - string
               - "null"
             description: Date to skip in YYYY-MM-DD format. Defaults to today.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - filter
           - habit_ids
           - date
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -11415,6 +12140,10 @@ legacyTools:
               - boolean
               - "null"
             description: Legacy selection option. Include completed habits when filter is omitted. Defaults to false.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - emoji_mode
           - replace_existing
@@ -11423,6 +12152,7 @@ legacyTools:
           - emoji
           - infer_from_title
           - include_completed
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -11432,20 +12162,32 @@ legacyTools:
       description: >-
         Update the complete matching habit set in one call. Null keeps values; use clear_fields to clear them.
 
+        For advice about making an activity easier, give one to three short practical lines without a preview or draft.
+        A date or a possible checklist is context, not a request to change records. Create or change account records
+        only when the person requests that action. Coaching alone does not authorize a write. For a requested adjustment
+        to an activity already tracked, use its existing habit ID instead of creating a duplicate of its purpose.
+
+
         A Task is one-time: frequency_unit=OneTime in create tools, stored as null, with due_date and requested
         due_time. A dated event or single dated instruction is a Task unless repetition was requested. A Habit has Day,
         Week, Month or Year and a positive frequency_quantity. Daily weekdays require Day/1; is_flexible tracks a
         quantity within a window and cannot have weekdays. General items have no schedule, recurrence or avoid type.
-        end_date is inclusive and only recurring items use it. A temporary instruction for N days before an event uses
-        one Task per day or a recurring Habit with end_date equal to the event date. Never leave temporary preparation
-        recurring indefinitely.
+        end_date is inclusive and only recurring items use it. A preparation that starts N days or hours before an event
+        and continues until it is a Day/1 Habit: set due_date to the first local date and inclusive end_date to the
+        event date. start_date is only the recurrence anchor and never replaces due_date. Keep a single dated action as
+        a Task. For an activity lasting until a collection or other deadline, put its ending clock time in due_end_time,
+        not due_time; omit due_time when its start was not specified. Never leave temporary preparation recurring
+        indefinitely.
 
 
         Use is_bad_habit=true only for ongoing reduction or slip tracking, named for the behaviour itself: Fumar, Tomar
         multivitamínico, Smoking, Drinking soda. For quero parar de fumar or I want to drink less soda, choose that
         avoid form. A temporary or dated abstinence is a positive commitment, is_bad_habit=false, named Não tomar
-        multivitamínico or Don't take multivitamins, once or within its explicit date range. Never combine an avoid type
-        with a negated name: não, sem, parar de, evitar, don't, stop, avoid.
+        multivitamínico or Don't take multivitamins, once or within its explicit date range. Keep the requested action
+        and negation in temporary commitment titles: don't go to Muay Thai becomes Don't go to Muay Thai, and não ir ao
+        Muay Thai becomes Não ir ao Muay Thai. Never replace these with Skip Muay Thai, Pular Muay Thai or a generic
+        preparation label. Never combine an avoid type with a negated name: não, sem, parar de, evitar, don't, stop,
+        avoid.
 
 
         A correction is a patch: send only fields the person requested changing. Preserve every other field, including
@@ -11453,14 +12195,34 @@ legacyTools:
         changes recurrence. Revise a pending preview instead of creating a duplicate.
 
 
-        Use ISO YYYY-MM-DD only in machine date fields. Dates inside titles and descriptions use the person's locale,
-        DD/MM/YYYY in pt-BR and MM/DD/YYYY in en-US. Do not repeat the same date in ISO and local form.
+        Preserve a title the person quoted or named verbatim, including its language, spelling, accents, casing and
+        dates. Never translate or rephrase that title, even when it differs from the request language. For titles you
+        compose, use the request language supplied for this turn. Apply this to create and update arguments, bulk items
+        and nested sub-habits before preparing the approval preview. English examples and existing account titles are
+        not language templates. Never rename an existing habit unless the person requested it.
+
+
+        Use ISO YYYY-MM-DD only in machine date fields. Dates inside composed titles and descriptions use the person's
+        locale, DD/MM/YYYY in pt-BR and MM/DD/YYYY in en-US. Preserve dates in titles the person supplied verbatim. Do
+        not repeat the same date in ISO and local form.
 
 
         For several creates in one request, call bulk_create_habits once with the entire set, including dated events and
         independent preparation commitments. Use its existing batch preview. Preparation on different dates needs
         separate trackable items, rather than only the exam description. A failed item keeps its name and reason and
         remains editable and retryable.
+
+
+        When the person asks to organize one unstructured message into tasks and habits, prepare one combined approval
+        preview with bulk_create_habits. Keep every actionable item from the message, with one-time tasks and recurring
+        habits distinct. Resolve existing activities from the account index or query_habits, and pass habit_id on reused
+        items rather than creating duplicates. Preserve existing fields unless a change was requested. Do not create
+        task or habit group headings as account records. Reuse suggest_habits when additional habit ideas are requested;
+        its editable drafts can supply the proposed habit fields, and existingHabitId becomes habit_id in the combined
+        preview. Keep explicit tasks alongside those suggestions. A request to organize is permission to prepare a
+        preview only. The person can approve, edit or reject the entire preview; nothing is saved before approval. Use
+        at most one short sentence without figures, then the combined preview. All figures belong in the preview. Apply
+        this equally to typed and transcribed messages in the current message's language.
 
 
         Recommend routine structure from the destination's checklist and sub-habits, then the account's structure
@@ -11744,9 +12506,14 @@ legacyTools:
               - checklist_items
               - scheduled_reminders
             additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - filter
           - updates
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -11764,9 +12531,14 @@ legacyTools:
             type: array
             items:
               type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - name
           - items
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -11816,6 +12588,10 @@ legacyTools:
             description: Optional IDs of habits to link to the new goal
             items:
               type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - title
           - description
@@ -11824,17 +12600,27 @@ legacyTools:
           - deadline
           - goal_type
           - habit_ids
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
     sensitiveFields: []
     function:
       name: create_habit
-      description: "Use frequency_unit: OneTime for one-time tasks; null leaves recurrence unspecified and may require
-        clarification. Create habits or dated tasks with tags, goals, checklists and children inline. Single dated
-        events are one-time, even when a weekday is named. Separate dated extras from recurring classes. Dated children
-        inherit parent frequency without its weekdays; use OneTime for a one-time child. Preserve requested weekdays.
-        Use checklist_items for steps done together and sub_habits for independent tracking."
+      description: >-
+        Create or change account records only when the person requests that action. Coaching alone does not authorize a
+        write. For a requested adjustment to an activity already tracked, use its existing habit ID instead of creating
+        a duplicate of its purpose. Use frequency_unit: OneTime for one-time tasks; null leaves recurrence unspecified
+        and may require clarification. Create habits or dated tasks with tags, goals, checklists and children inline.
+        Single dated events are one-time, even when a weekday is named. Separate dated extras from recurring classes.
+        Dated children inherit parent frequency without its weekdays; use OneTime for a one-time child. Preserve
+        requested weekdays. Use checklist_items for steps done together and sub_habits for independent tracking.
+
+        Preserve a title the person quoted or named verbatim, including its language, spelling, accents, casing and
+        dates. Never translate or rephrase that title, even when it differs from the request language. For titles you
+        compose, use the request language supplied for this turn. Apply this to create and update arguments, bulk items
+        and nested sub-habits before preparing the approval preview. English examples and existing account titles are
+        not language templates. Never rename an existing habit unless the person requested it.
       strict: true
       parameters:
         type: object
@@ -13042,6 +13828,10 @@ legacyTools:
                 - parent_habit_id
                 - sub_habits
               additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - title
           - description
@@ -13071,14 +13861,22 @@ legacyTools:
           - goal_ids
           - parent_habit_id
           - sub_habits
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
     sensitiveFields: []
     function:
       name: create_sub_habit
-      description: "Create a sub-habit under an existing parent with the complete habit fields, checklist, tags, goals and
-        nested children. "
+      description: >-
+        Create a sub-habit under an existing parent with the complete habit fields, checklist, tags, goals and nested
+        children. 
+
+        Preserve a title the person quoted or named verbatim, including its language, spelling, accents, casing and
+        dates. Never translate or rephrase that title, even when it differs from the request language. For titles you
+        compose, use the request language supplied for this turn. Apply this to create and update arguments, bulk items
+        and nested sub-habits before preparing the approval preview. English examples and existing account titles are
+        not language templates. Never rename an existing habit unless the person requested it.
       strict: true
       parameters:
         type: object
@@ -14034,6 +14832,10 @@ legacyTools:
                 - parent_habit_id
                 - sub_habits
               additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - title
           - description
@@ -14063,6 +14865,7 @@ legacyTools:
           - goal_ids
           - parent_habit_id
           - sub_habits
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -14079,9 +14882,14 @@ legacyTools:
           color:
             type: string
             description: "Hex color code, e.g. #FF5733"
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - name
           - color
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -14095,8 +14903,13 @@ legacyTools:
         properties:
           template_id:
             type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - template_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -14110,8 +14923,13 @@ legacyTools:
         properties:
           goal_id:
             type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - goal_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -14126,8 +14944,13 @@ legacyTools:
         properties:
           habit_id:
             type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -14155,10 +14978,15 @@ legacyTools:
               - "null"
             items:
               type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - action
           - notification_id
           - notification_ids
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -14172,8 +15000,13 @@ legacyTools:
         properties:
           tag_id:
             type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - tag_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: false
@@ -14212,8 +15045,13 @@ legacyTools:
         properties:
           habit_id:
             type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: false
@@ -14341,7 +15179,8 @@ legacyTools:
     sensitiveFields: []
     function:
       name: get_daily_summary
-      description: Generate an AI habit summary for a date range, defaulting to today.
+      description: "Read a habit summary for a date range, defaulting to today. Pass generate_narrative: true to include its
+        saved narrative when available."
       strict: true
       parameters:
         type: object
@@ -14374,7 +15213,9 @@ legacyTools:
             type:
               - boolean
               - "null"
-            description: Generate optional narrative. Exact refresh sets false.
+            description: Pass true when the person asks for a summary with its narrative. Returns the saved narrative when
+              available, otherwise generates one. Omission defaults to true for multi-day ranges and false for a single
+              day. False reads facts only, without the saved narrative; use false for exact refresh.
           date_from:
             type:
               - string
@@ -14444,7 +15285,8 @@ legacyTools:
     function:
       name: get_habit_history
       description: Read actual dated habit logs for a relative period or explicit dates. Values indicate completion records,
-        never measured amounts.
+        never measured amounts. For whether a habit is done or skipped on a day, use query_habits with date and
+        is_completed null; an empty completion history does not establish its skip state.
       strict: true
       parameters:
         type: object
@@ -14909,8 +15751,13 @@ legacyTools:
       strict: true
       parameters:
         type: object
-        properties: {}
-        required: []
+        properties:
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
+        required:
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: false
@@ -14929,7 +15776,7 @@ legacyTools:
     sensitiveFields: []
     function:
       name: get_retrospective
-      description: Generate an AI retrospective, defaulting to week.
+      description: Read a retrospective with its narrative, defaulting to week. Returns the saved narrative when available.
       strict: true
       parameters:
         type: object
@@ -14962,7 +15809,9 @@ legacyTools:
             type:
               - boolean
               - "null"
-            description: Generate optional narrative. Exact refresh sets false.
+            description: Omit or pass true for a review, retrospective or its narrative. Returns the saved narrative when available,
+              otherwise generates one. Cached narratives are marked stale with refresh recovery because records may have
+              changed. False reads facts only, without the saved narrative; use false for exact refresh.
           period:
             type:
               - string
@@ -15045,9 +15894,14 @@ legacyTools:
             description: IDs of goals to link to the habit. Replaces all existing links.
             items:
               type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - goal_ids
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -15066,9 +15920,14 @@ legacyTools:
             description: IDs of habits to link to the goal. Replaces all existing links.
             items:
               type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - goal_id
           - habit_ids
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: false
@@ -15101,9 +15960,14 @@ legacyTools:
               - string
               - "null"
             description: ISO date (YYYY-MM-DD) to log for a specific date, e.g. an overdue instance. Defaults to today.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - date
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -15126,9 +15990,14 @@ legacyTools:
             type:
               - string
               - "null"
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - action
           - code
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -15211,6 +16080,10 @@ legacyTools:
               - string
               - "null"
             description: ISO-8601 UTC timestamp.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - action
           - key_id
@@ -15218,6 +16091,7 @@ legacyTools:
           - scopes
           - is_read_only
           - expires_at_utc
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -15252,11 +16126,16 @@ legacyTools:
             type:
               - string
               - "null"
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - action
           - calendar_ids
           - enabled
           - suggestion_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -15281,9 +16160,14 @@ legacyTools:
               - monthly
               - yearly
               - null
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - action
           - interval
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -15301,9 +16185,14 @@ legacyTools:
             type:
               - string
               - "null"
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - new_parent_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -15321,9 +16210,14 @@ legacyTools:
             type:
               - string
               - "null"
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - parent_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: false
@@ -15391,7 +16285,8 @@ legacyTools:
     function:
       name: query_habits
       description: Read habits, schedules, metrics and checklists. Call before answering habit questions; indexes do not
-        ground replies.
+        ground replies. For a habit's completion or skip state on a day, use date with is_completed null to include
+        done, remaining and skipped entries.
       strict: true
       parameters:
         type: object
@@ -15470,7 +16365,10 @@ legacyTools:
             type:
               - integer
               - "null"
-            description: "Maximum results to return. Default: 50"
+            minimum: 1
+            maximum: 200
+            description: Page size. Use 50 unless the user requests a different page size. Asking for all habits keeps the default
+              page size; use the returned nextCursor for further pages.
         required:
           - relative_period
           - search
@@ -15511,8 +16409,13 @@ legacyTools:
                 - goal_id
                 - position
               additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - positions
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -15539,8 +16442,13 @@ legacyTools:
                 - habit_id
                 - position
               additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - positions
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: false
@@ -15584,6 +16492,7 @@ legacyTools:
               properties:
                 item_id:
                   type: string
+                  description: Exact item_id from the pending preview for the entity being edited. It may differ from entity_id.
                 edits_json:
                   type: string
                   description: JSON object containing only the requested changes, using the operation schema field names and types.
@@ -15598,6 +16507,9 @@ legacyTools:
               - "null"
             items:
               type: string
+            description: Exact item_ids to discard from this preview. Never list an item that should remain. Skipping a habit
+              occurrence keeps its skip preview item; it does not remove it. Omit when no preview items should be
+              discarded.
         required:
           - pending_operation_id
           - answer_question
@@ -15622,11 +16534,16 @@ legacyTools:
             type: string
           message:
             type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - name
           - email
           - subject
           - message
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -15640,8 +16557,13 @@ legacyTools:
         properties:
           enabled:
             type: boolean
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - enabled
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -15656,8 +16578,13 @@ legacyTools:
         properties:
           enabled:
             type: boolean
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - enabled
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -15678,20 +16605,45 @@ legacyTools:
               - string
               - "null"
             description: ISO date (YYYY-MM-DD) to skip a specific instance. Defaults to today.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - date
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
     sensitiveFields: []
     function:
       name: suggest_breakdown
-      description: Suggest sub-habits for a vague request, without creating them.
+      description: Suggest sub-habits without creating them. When the person is stuck starting an activity, set
+        one_small_step=true, language to en or pt-BR matching their message, title to the activity and
+        suggested_sub_habits to exactly one concrete starting action. For a request to make a step smaller, return an
+        easier action requiring less effort than the previous step, keeping the same activity. The server returns
+        oneSmallStep with smaller and save actions. Emit no prose or lists alongside it. Suggestions never save
+        anything. Only an explicit save request uses create_habit for a Task or update_checklist, preserving existing
+        checklist items and resolving the owned habit first. Both require the existing approval preview.
       strict: true
       parameters:
         type: object
         properties:
+          one_small_step:
+            type:
+              - boolean
+              - "null"
+            description: Return exactly one starting step, or a smaller refinement, as a oneSmallStep block. Default false.
+          language:
+            type:
+              - string
+              - "null"
+            enum:
+              - en
+              - pt-BR
+              - null
+            description: Required with one_small_step=true; the person's message language.
           title:
             type: string
             description: The broad habit title to break down
@@ -15742,19 +16694,28 @@ legacyTools:
                 - frequency_quantity
                 - days
               additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
+          - one_small_step
+          - language
           - title
           - suggested_sub_habits
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: false
     sensitiveFields: []
     function:
       name: suggest_habits
-      description: Suggest personal, editable habit drafts from current habits, goals and free schedule time. Use for suggest,
-        ideas, what habits should I, recommend, sugira, sugestões, ideias, quais hábitos, recomende. Return
-        habitSuggestions instead of a plain list. Pass the person's request and its language. This never creates habits.
-        The person edits a draft and requests its approval preview before saving.
+      description: Suggest personal, editable habit drafts from current habits, goals and free schedule time. Use when the
+        person asks for habit ideas or editable habit drafts. Help starting an activity uses suggest_breakdown with
+        one_small_step=true instead. Return habitSuggestions instead of a plain list. Pass the person's request and its
+        language. This never creates habits. The person edits a draft and requests its approval preview before saving.
+        For an unstructured message that also requests habit ideas, keep its explicit tasks and put the chosen draft
+        fields in one bulk_create_habits approval preview; map existingHabitId to habit_id to reuse the habit.
       strict: true
       parameters:
         type: object
@@ -15794,9 +16755,14 @@ legacyTools:
           skip_id:
             type: string
             description: Skip ID returned by skip_habit
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - skip_id
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -15817,16 +16783,22 @@ legacyTools:
               - string
               - "null"
             description: ISO date (YYYY-MM-DD) of the completion to undo. Defaults to today.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - date
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
     sensitiveFields: []
     function:
       name: update_checklist
-      description: Replace a habit checklist with the full desired list.
+      description: Replace a habit checklist with the full desired list. When adding an item, include every existing item in
+        the full list you send.
       strict: true
       parameters:
         type: object
@@ -15850,9 +16822,14 @@ legacyTools:
                 - text
                 - is_checked
               additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - habit_id
           - checklist_items
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -15876,10 +16853,15 @@ legacyTools:
               - "null"
             items:
               type: string
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - template_id
           - name
           - items
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -15925,6 +16907,10 @@ legacyTools:
               - string
               - "null"
             description: YYYY-MM-DD deadline; clear via clear_fields.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - clear_fields
           - goal_id
@@ -15933,6 +16919,7 @@ legacyTools:
           - target_value
           - unit
           - deadline
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -15961,11 +16948,16 @@ legacyTools:
               - string
               - "null"
             description: Optional note about this progress update
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - goal_id
           - goal_name
           - current_value
           - note
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -15986,9 +16978,14 @@ legacyTools:
               - Active
               - Completed
               - Abandoned
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - goal_id
           - status
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -15999,20 +16996,32 @@ legacyTools:
         Update habit fields. Null keeps values; clear_fields removes them (frequency_unit makes a one-time task). Use
         is_flexible for windows and bulk tools for multiple habits.
 
+        For advice about making an activity easier, give one to three short practical lines without a preview or draft.
+        A date or a possible checklist is context, not a request to change records. Create or change account records
+        only when the person requests that action. Coaching alone does not authorize a write. For a requested adjustment
+        to an activity already tracked, use its existing habit ID instead of creating a duplicate of its purpose.
+
+
         A Task is one-time: frequency_unit=OneTime in create tools, stored as null, with due_date and requested
         due_time. A dated event or single dated instruction is a Task unless repetition was requested. A Habit has Day,
         Week, Month or Year and a positive frequency_quantity. Daily weekdays require Day/1; is_flexible tracks a
         quantity within a window and cannot have weekdays. General items have no schedule, recurrence or avoid type.
-        end_date is inclusive and only recurring items use it. A temporary instruction for N days before an event uses
-        one Task per day or a recurring Habit with end_date equal to the event date. Never leave temporary preparation
-        recurring indefinitely.
+        end_date is inclusive and only recurring items use it. A preparation that starts N days or hours before an event
+        and continues until it is a Day/1 Habit: set due_date to the first local date and inclusive end_date to the
+        event date. start_date is only the recurrence anchor and never replaces due_date. Keep a single dated action as
+        a Task. For an activity lasting until a collection or other deadline, put its ending clock time in due_end_time,
+        not due_time; omit due_time when its start was not specified. Never leave temporary preparation recurring
+        indefinitely.
 
 
         Use is_bad_habit=true only for ongoing reduction or slip tracking, named for the behaviour itself: Fumar, Tomar
         multivitamínico, Smoking, Drinking soda. For quero parar de fumar or I want to drink less soda, choose that
         avoid form. A temporary or dated abstinence is a positive commitment, is_bad_habit=false, named Não tomar
-        multivitamínico or Don't take multivitamins, once or within its explicit date range. Never combine an avoid type
-        with a negated name: não, sem, parar de, evitar, don't, stop, avoid.
+        multivitamínico or Don't take multivitamins, once or within its explicit date range. Keep the requested action
+        and negation in temporary commitment titles: don't go to Muay Thai becomes Don't go to Muay Thai, and não ir ao
+        Muay Thai becomes Não ir ao Muay Thai. Never replace these with Skip Muay Thai, Pular Muay Thai or a generic
+        preparation label. Never combine an avoid type with a negated name: não, sem, parar de, evitar, don't, stop,
+        avoid.
 
 
         A correction is a patch: send only fields the person requested changing. Preserve every other field, including
@@ -16020,14 +17029,34 @@ legacyTools:
         changes recurrence. Revise a pending preview instead of creating a duplicate.
 
 
-        Use ISO YYYY-MM-DD only in machine date fields. Dates inside titles and descriptions use the person's locale,
-        DD/MM/YYYY in pt-BR and MM/DD/YYYY in en-US. Do not repeat the same date in ISO and local form.
+        Preserve a title the person quoted or named verbatim, including its language, spelling, accents, casing and
+        dates. Never translate or rephrase that title, even when it differs from the request language. For titles you
+        compose, use the request language supplied for this turn. Apply this to create and update arguments, bulk items
+        and nested sub-habits before preparing the approval preview. English examples and existing account titles are
+        not language templates. Never rename an existing habit unless the person requested it.
+
+
+        Use ISO YYYY-MM-DD only in machine date fields. Dates inside composed titles and descriptions use the person's
+        locale, DD/MM/YYYY in pt-BR and MM/DD/YYYY in en-US. Preserve dates in titles the person supplied verbatim. Do
+        not repeat the same date in ISO and local form.
 
 
         For several creates in one request, call bulk_create_habits once with the entire set, including dated events and
         independent preparation commitments. Use its existing batch preview. Preparation on different dates needs
         separate trackable items, rather than only the exam description. A failed item keeps its name and reason and
         remains editable and retryable.
+
+
+        When the person asks to organize one unstructured message into tasks and habits, prepare one combined approval
+        preview with bulk_create_habits. Keep every actionable item from the message, with one-time tasks and recurring
+        habits distinct. Resolve existing activities from the account index or query_habits, and pass habit_id on reused
+        items rather than creating duplicates. Preserve existing fields unless a change was requested. Do not create
+        task or habit group headings as account records. Reuse suggest_habits when additional habit ideas are requested;
+        its editable drafts can supply the proposed habit fields, and existingHabitId becomes habit_id in the combined
+        preview. Keep explicit tasks alongside those suggestions. A request to organize is permission to prepare a
+        preview only. The person can approve, edit or reject the entire preview; nothing is saved before approval. Use
+        at most one short sentence without figures, then the combined preview. All figures belong in the preview. Apply
+        this equally to typed and transcribed messages in the current message's language.
 
 
         Recommend routine structure from the destination's checklist and sub-habits, then the account's structure
@@ -16202,8 +17231,11 @@ legacyTools:
             description: "Use is_bad_habit=true only for ongoing reduction or slip tracking, named for the behaviour itself: Fumar,
               Tomar multivitamínico, Smoking, Drinking soda. For quero parar de fumar or I want to drink less soda,
               choose that avoid form. A temporary or dated abstinence is a positive commitment, is_bad_habit=false,
-              named Não tomar multivitamínico or Don't take multivitamins, once or within its explicit date range. Never
-              combine an avoid type with a negated name: não, sem, parar de, evitar, don't, stop, avoid."
+              named Não tomar multivitamínico or Don't take multivitamins, once or within its explicit date range. Keep
+              the requested action and negation in temporary commitment titles: don't go to Muay Thai becomes Don't go
+              to Muay Thai, and não ir ao Muay Thai becomes Não ir ao Muay Thai. Never replace these with Skip Muay
+              Thai, Pular Muay Thai or a generic preparation label. Never combine an avoid type with a negated name:
+              não, sem, parar de, evitar, don't, stop, avoid."
           is_flexible:
             type:
               - boolean
@@ -16261,6 +17293,10 @@ legacyTools:
                 - when
                 - time
               additionalProperties: false
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - clear_fields
           - habit_id
@@ -16289,6 +17325,7 @@ legacyTools:
           - reminder_times
           - checklist_items
           - scheduled_reminders
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -16333,6 +17370,10 @@ legacyTools:
               - "null"
             description: Opt in to removing a previous account's device registration using its credentials. Omit for ordinary
               sign-out.
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - action
           - notification_id
@@ -16340,6 +17381,7 @@ legacyTools:
           - p256dh
           - auth
           - release_other_account
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -16401,6 +17443,10 @@ legacyTools:
               - light
               - system
               - null
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - action
           - name
@@ -16409,6 +17455,7 @@ legacyTools:
           - week_start_day
           - uses_24_hour_clock
           - theme_preference
+          - orbit_write_complete
         additionalProperties: false
   - type: function
     writes: true
@@ -16428,8 +17475,13 @@ legacyTools:
           color:
             type: string
             description: "New hex color code, e.g. #FF5733"
+          orbit_write_complete:
+            type: boolean
+            description: True when all writes in this round cover the entire request; false when a lookup or dependent action is
+              still needed.
         required:
           - tag_id
           - name
           - color
+          - orbit_write_complete
         additionalProperties: false

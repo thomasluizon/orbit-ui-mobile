@@ -2751,7 +2751,8 @@ export const PostApiChatHabitMonthRefreshResponse = zod.object({
   "activeStart": zod.iso.time({}).nullish(),
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
-})]).optional()
+})]).optional(),
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })),
   "hasSubHabits": zod.boolean(),
   "flexibleTarget": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitMonthRefreshResponseBlockCalendarHabitsItemFlexibleTargetRegExpTwo)]).nullable(),
@@ -2782,7 +2783,8 @@ export const PostApiChatHabitMonthRefreshResponse = zod.object({
   "activeStart": zod.iso.time({}).nullish(),
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
-})]).optional()
+})]).optional(),
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })),
   "logs": zod.record(zod.string(), zod.array(zod.object({
   "id": zod.uuid(),
@@ -3952,7 +3954,8 @@ export const GetApiHabitsResponse = zod.object({
   "activeStart": zod.iso.time({}).nullish(),
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
-})]).optional()
+})]).optional(),
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })),
   "hasSubHabits": zod.boolean(),
   "flexibleTarget": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponseItemsItemFlexibleTargetRegExpTwo)]).nullable(),
@@ -3983,7 +3986,8 @@ export const GetApiHabitsResponse = zod.object({
   "activeStart": zod.iso.time({}).nullish(),
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
-})]).optional()
+})]).optional(),
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })),
   "page": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponsePageRegExpTwo)]),
   "pageSize": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponsePageSizeRegExpTwo)]),
@@ -4233,7 +4237,8 @@ export const GetApiHabitsCalendarMonthResponse = zod.object({
   "activeStart": zod.iso.time({}).nullish(),
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
-})]).optional()
+})]).optional(),
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })),
   "hasSubHabits": zod.boolean(),
   "flexibleTarget": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsCalendarMonthResponseHabitsItemFlexibleTargetRegExpTwo)]).nullable(),
@@ -4264,7 +4269,8 @@ export const GetApiHabitsCalendarMonthResponse = zod.object({
   "activeStart": zod.iso.time({}).nullish(),
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
-})]).optional()
+})]).optional(),
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })),
   "logs": zod.record(zod.string(), zod.array(zod.object({
   "id": zod.uuid(),
@@ -4443,7 +4449,8 @@ export const GetApiHabitsIdResponse = zod.object({
   "activeStart": zod.iso.time({}).nullish(),
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
-})]).optional()
+})]).optional(),
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })),
   "emoji": zod.string().nullish(),
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdResponseIntervalWeeksRegExpTwo)]).nullish(),
@@ -4474,7 +4481,8 @@ export const GetApiHabitsIdResponse = zod.object({
   "activeStart": zod.iso.time({}).nullish(),
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
-})]).optional()
+})]).optional(),
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })
 
 
@@ -4714,7 +4722,8 @@ export const GetApiHabitsIdDetailResponse = zod.object({
   "activeStart": zod.iso.time({}).nullish(),
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
-})]).optional()
+})]).optional(),
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })),
   "emoji": zod.string().nullish(),
   "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseHabitIntervalWeeksRegExpTwo)]).nullish(),
@@ -4745,7 +4754,8 @@ export const GetApiHabitsIdDetailResponse = zod.object({
   "activeStart": zod.iso.time({}).nullish(),
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
-})]).optional()
+})]).optional(),
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
 }),
   "metrics": zod.object({
   "currentStreak": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsIdDetailResponseMetricsCurrentStreakRegExpTwo)]),

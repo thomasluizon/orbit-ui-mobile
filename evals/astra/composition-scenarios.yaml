@@ -1067,7 +1067,8 @@
       required: &a45
         - name: query_habits
           argumentsAnyOf: &todayHabitArguments
-            - { relative_period: today }
+            - { relative_period: today, date: { optional: '{accountDate}' } }
+            - { relative_period: today, date: today }
             - { date: today, relative_period: { optional: null } }
             - { date: '{accountDate}', relative_period: { optional: null } }
       allowed:
@@ -1990,6 +1991,64 @@
                 frequency_unit: OneTime
                 due_date: '{accountYear}-10-30'
                 due_end_time: 13:30
+          argumentsAnyOf:
+            - habits:
+                - title:
+                    textContains: cholesterol
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-26"
+                  due_time: 15:50
+                - title:
+                    textContains: blood
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_time: 13:30
+                - title:
+                    textContains: Don't take multivitamins
+                  frequency_unit: Day
+                  due_date: "{accountYear}-10-27"
+                  end_date: "{accountYear}-10-30"
+                  is_bad_habit: false
+                - title:
+                    textContains: Don't go to Muay Thai
+                  frequency_unit: Day
+                  due_date: "{accountYear}-10-29"
+                  end_date: "{accountYear}-10-30"
+                  is_bad_habit: false
+                - title:
+                    textContains: fast
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_end_time: 13:30
+            - habits:
+                - title:
+                    textContains: cholesterol
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-26"
+                  due_time: 15:50
+                - title:
+                    textContains: blood
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_time: 13:30
+                  sub_habits:
+                    - title:
+                        textContains: Don't take multivitamins
+                      frequency_unit: Day
+                      due_date: "{accountYear}-10-27"
+                      end_date: "{accountYear}-10-30"
+                      is_bad_habit: false
+                    - title:
+                        textContains: Don't go to Muay Thai
+                      frequency_unit: Day
+                      due_date: "{accountYear}-10-29"
+                      end_date: "{accountYear}-10-30"
+                      is_bad_habit: false
+                    - title:
+                        textContains: fast
+                      frequency_unit: OneTime
+                      due_date: "{accountYear}-10-30"
+                      due_end_time: 13:30
       allowed:
         - query_habits
         - bulk_create_habits
@@ -2075,7 +2134,9 @@
         create_habit: 1
     rubric: "Answer in English. One avoid habit is named for the behavior itself:
       Fumar or Smoking. Never a negated title. Preview only, no saved claim or
-      follow-up question. Canonical dates inside typed fields are transport
+      follow-up question. An ongoing avoid habit needs a recurring cadence, so
+      a daily cadence when none was stated is the required default, not an
+      invented schedule. Canonical dates inside typed fields are transport
       values; visible prose must use locale dates. Rendered date formatting is
       checked separately."
 - description: existing-parents in en
@@ -2108,6 +2169,58 @@
                 parent_habit_id: "{secondHabitId}"
                 frequency_unit: Day
                 frequency_quantity: 1
+          argumentsAnyOf:
+            - habits:
+                - &a1
+                  title:
+                    textContains: vitamin D
+                  parent_habit_id: "{habitId}"
+                  frequency_unit: Week
+                  frequency_quantity: 1
+                - &a2
+                  title:
+                    textContains: rosuvastatin
+                  parent_habit_id: "{secondHabitId}"
+                  frequency_unit: Day
+                  frequency_quantity: 1
+            - habits:
+                - allOf:
+                    - title: Post Lunch
+                      habit_id: "{habitId}"
+                      sub_habits:
+                        - *a1
+                    - &unchangedParentEn
+                      description: { optional: null }
+                      emoji: { optional: null }
+                      frequency_unit: { optional: Day }
+                      frequency_quantity: { optional: 1 }
+                      interval_weeks: { optional: null }
+                      days: { optional: [] }
+                      due_date: { optional: null }
+                      end_date: { optional: null }
+                      due_time: { optional: null }
+                      due_end_time: { optional: null }
+                      is_bad_habit: { optional: false }
+                      is_general: { optional: false }
+                      is_flexible: { optional: false }
+                      checklist_items: { optional: [] }
+                      start_date: { optional: null }
+                      placement: { optional: null }
+                      reminder_enabled: { optional: false }
+                      reminder_times: { optional: [] }
+                      scheduled_reminders: { optional: [] }
+                      relative_reminders: { optional: [] }
+                      slip_alert_enabled: { optional: false }
+                      tag_names: { optional: [] }
+                      tag_ids: { optional: [] }
+                      goal_ids: { optional: [] }
+                      parent_habit_id: { optional: null }
+                - allOf:
+                    - title: Before Bed
+                      habit_id: "{secondHabitId}"
+                      sub_habits:
+                        - *a2
+                    - *unchangedParentEn
       allowed:
         - query_habits
         - bulk_create_habits
@@ -2170,6 +2283,64 @@
                 frequency_unit: OneTime
                 due_date: '{accountYear}-10-30'
                 due_end_time: 13:30
+          argumentsAnyOf:
+            - habits:
+                - title:
+                    textContains: colesterol
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-26"
+                  due_time: 15:50
+                - title:
+                    textContains: sangue
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_time: 13:30
+                - title:
+                    textContains: Não tomar multivitamínico
+                  frequency_unit: Day
+                  due_date: "{accountYear}-10-27"
+                  end_date: "{accountYear}-10-30"
+                  is_bad_habit: false
+                - title:
+                    textContains: Não ir ao Muay Thai
+                  frequency_unit: Day
+                  due_date: "{accountYear}-10-29"
+                  end_date: "{accountYear}-10-30"
+                  is_bad_habit: false
+                - title:
+                    textContains: jejum
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_end_time: 13:30
+            - habits:
+                - title:
+                    textContains: colesterol
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-26"
+                  due_time: 15:50
+                - title:
+                    textContains: sangue
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_time: 13:30
+                  sub_habits:
+                    - title:
+                        textContains: Não tomar multivitamínico
+                      frequency_unit: Day
+                      due_date: "{accountYear}-10-27"
+                      end_date: "{accountYear}-10-30"
+                      is_bad_habit: false
+                    - title:
+                        textContains: Não ir ao Muay Thai
+                      frequency_unit: Day
+                      due_date: "{accountYear}-10-29"
+                      end_date: "{accountYear}-10-30"
+                      is_bad_habit: false
+                    - title:
+                        textContains: jejum
+                      frequency_unit: OneTime
+                      due_date: "{accountYear}-10-30"
+                      due_end_time: 13:30
       allowed:
         - query_habits
         - bulk_create_habits
@@ -2256,7 +2427,9 @@
         create_habit: 1
     rubric: "Answer in Brazilian Portuguese. One avoid habit is named for the
       behavior itself: Fumar or Smoking. Never a negated title. Preview only, no
-      saved claim or follow-up question. Canonical dates inside typed fields are
+      saved claim or follow-up question. An ongoing avoid habit needs a
+      recurring cadence, so a daily cadence when none was stated is the required
+      default, not an invented schedule. Canonical dates inside typed fields are
       transport values; visible prose must use locale dates. Rendered date
       formatting is checked separately."
 - description: existing-parents in pt-BR
@@ -2289,6 +2462,58 @@
                 parent_habit_id: "{secondHabitId}"
                 frequency_unit: Day
                 frequency_quantity: 1
+          argumentsAnyOf:
+            - habits:
+                - &a1
+                  title:
+                    textContains: vitamina D
+                  parent_habit_id: "{habitId}"
+                  frequency_unit: Week
+                  frequency_quantity: 1
+                - &a2
+                  title:
+                    textContains: rosuvastatina
+                  parent_habit_id: "{secondHabitId}"
+                  frequency_unit: Day
+                  frequency_quantity: 1
+            - habits:
+                - allOf:
+                    - title: Depois do almoço
+                      habit_id: "{habitId}"
+                      sub_habits:
+                        - *a1
+                    - &unchangedParentPt
+                      description: { optional: null }
+                      emoji: { optional: null }
+                      frequency_unit: { optional: Day }
+                      frequency_quantity: { optional: 1 }
+                      interval_weeks: { optional: null }
+                      days: { optional: [] }
+                      due_date: { optional: null }
+                      end_date: { optional: null }
+                      due_time: { optional: null }
+                      due_end_time: { optional: null }
+                      is_bad_habit: { optional: false }
+                      is_general: { optional: false }
+                      is_flexible: { optional: false }
+                      checklist_items: { optional: [] }
+                      start_date: { optional: null }
+                      placement: { optional: null }
+                      reminder_enabled: { optional: false }
+                      reminder_times: { optional: [] }
+                      scheduled_reminders: { optional: [] }
+                      relative_reminders: { optional: [] }
+                      slip_alert_enabled: { optional: false }
+                      tag_names: { optional: [] }
+                      tag_ids: { optional: [] }
+                      goal_ids: { optional: [] }
+                      parent_habit_id: { optional: null }
+                - allOf:
+                    - title: Antes de dormir
+                      habit_id: "{secondHabitId}"
+                      sub_habits:
+                        - *a2
+                    - *unchangedParentPt
       allowed:
         - query_habits
         - bulk_create_habits
@@ -2566,6 +2791,434 @@
       allowed: []
     rubric: Answer in Brazilian Portuguese. Only the first draft changes to weekdays at 22:30. Keep its
       meaning, identity and language. The other draft remains exactly as supplied. No saved claim.
+- description: one-small-step in en
+  metadata:
+    id: composition-one-small-step-en
+    category: composition
+    family: one-small-step
+    locale: en
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - oneSmallStep
+    input: I can't get myself to start studying.
+    composition:
+      mode: one-small-step
+    expectations:
+      required:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: en
+          resultStatus: Succeeded
+      allowed:
+        - suggest_breakdown
+      counts:
+        suggest_breakdown: 1
+    rubric: Answer in English. Return exactly one concrete, immediately doable starting action for the
+      activity. No plan, framing prose, saved claim or unsolicited question. Show one oneSmallStep
+      block with the three server action labels.
+- description: one-small-step-smaller in en
+  metadata:
+    id: composition-one-small-step-smaller-en
+    category: composition
+    family: one-small-step-smaller
+    locale: en
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - oneSmallStep
+    input: ""
+    composition:
+      mode: one-small-step
+    expectations:
+      required:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: en
+          resultStatus: Succeeded
+      allowed:
+        - suggest_breakdown
+      counts:
+        suggest_breakdown: 1
+    rubric: Answer in English. Return exactly one concrete, immediately doable starting action for the
+      activity. No plan, framing prose, saved claim or unsolicited question. Show one oneSmallStep
+      block with the three server action labels. Compare with the previous starting step supplied as
+      baseline context. Keep the same activity and return an action that is meaningfully easier and
+      requires less effort. A paraphrase or an equally hard or harder step fails.
+    startingStepAction: smaller
+    setup:
+      input: I can't get myself to start studying.
+      composition:
+        mode: one-small-step
+      expectations:
+        required:
+          - name: suggest_breakdown
+            arguments:
+              one_small_step: true
+              language: en
+            resultStatus: Succeeded
+        allowed:
+          - suggest_breakdown
+        counts:
+          suggest_breakdown: 1
+- description: one-small-step-save-task in en
+  metadata:
+    id: composition-one-small-step-save-task-en
+    category: composition
+    family: one-small-step-save-task
+    locale: en
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - oneSmallStep
+    input: ""
+    composition:
+      mode: preview
+    expectations:
+      required:
+        - name: create_habit
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - create_habit
+      counts:
+        create_habit: 1
+    rubric: Answer in English. The held approval preview is the entire answer. Do not claim a saved
+      change before approval. Exactly one create_habit preview proposes the previous starting step
+      verbatim as the title of a one-time task, without recurrence or additional creations.
+    startingStepAction: saveTask
+    setup:
+      input: I can't get myself to start studying.
+      composition:
+        mode: one-small-step
+      expectations:
+        required:
+          - name: suggest_breakdown
+            arguments:
+              one_small_step: true
+              language: en
+            resultStatus: Succeeded
+        allowed:
+          - suggest_breakdown
+        counts:
+          suggest_breakdown: 1
+- description: one-small-step-save-checklist in en
+  metadata:
+    id: composition-one-small-step-save-checklist-en
+    category: composition
+    family: one-small-step-save-checklist
+    locale: en
+    fixture: starting-step-checklist
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - oneSmallStep
+    input: ""
+    composition:
+      mode: preview
+    expectations:
+      required:
+        - name: update_checklist
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - update_checklist
+      counts:
+        update_checklist: 1
+    rubric: Answer in English. The held approval preview is the entire answer. Do not claim a saved
+      change before approval. Exactly one update_checklist preview targets the named existing habit
+      and preserves every existing checklist item and checked state in order, appending the previous
+      starting step once as an unchecked item.
+    startingStepAction: saveChecklistItem
+    setup:
+      input: I can't get myself to drink water.
+      composition:
+        mode: one-small-step
+      expectations:
+        required:
+          - name: suggest_breakdown
+            arguments:
+              one_small_step: true
+              language: en
+            resultStatus: Succeeded
+        allowed:
+          - suggest_breakdown
+        counts:
+          suggest_breakdown: 1
+    checklistHabitId: "{habitId}"
+- description: one-small-step-legacy in en
+  metadata:
+    id: composition-one-small-step-legacy-en
+    category: composition
+    family: one-small-step-legacy
+    locale: en
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      supportsParts: true
+      partKinds: []
+    input: I can't get myself to start studying.
+    composition:
+      mode: one-small-step-legacy
+    expectations:
+      required:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: en
+          resultStatus: Succeeded
+      allowed:
+        - suggest_breakdown
+      counts:
+        suggest_breakdown: 1
+    rubric: Answer in English. Return exactly one concrete, immediately doable starting action for the
+      activity. No plan, framing prose, saved claim or unsolicited question. The legacy client sees
+      only the readable step text, without a block, action labels or action request messages.
+- description: one-small-step in pt-BR
+  metadata:
+    id: composition-one-small-step-pt-BR
+    category: composition
+    family: one-small-step
+    locale: pt-BR
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - oneSmallStep
+    input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
+    composition:
+      mode: one-small-step
+    expectations:
+      required:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: pt-BR
+          resultStatus: Succeeded
+      allowed:
+        - suggest_breakdown
+      counts:
+        suggest_breakdown: 1
+    rubric: Answer in Brazilian Portuguese. Return exactly one concrete, immediately doable starting
+      action for the activity. No plan, framing prose, saved claim or unsolicited question. Show one
+      oneSmallStep block with the three server action labels.
+- description: one-small-step-smaller in pt-BR
+  metadata:
+    id: composition-one-small-step-smaller-pt-BR
+    category: composition
+    family: one-small-step-smaller
+    locale: pt-BR
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - oneSmallStep
+    input: ""
+    composition:
+      mode: one-small-step
+    expectations:
+      required:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: pt-BR
+          resultStatus: Succeeded
+      allowed:
+        - suggest_breakdown
+      counts:
+        suggest_breakdown: 1
+    rubric: Answer in Brazilian Portuguese. Return exactly one concrete, immediately doable starting
+      action for the activity. No plan, framing prose, saved claim or unsolicited question. Show one
+      oneSmallStep block with the three server action labels. Compare with the previous starting
+      step supplied as baseline context. Keep the same activity and return an action that is
+      meaningfully easier and requires less effort. A paraphrase or an equally hard or harder step
+      fails.
+    startingStepAction: smaller
+    setup:
+      input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
+      composition:
+        mode: one-small-step
+      expectations:
+        required:
+          - name: suggest_breakdown
+            arguments:
+              one_small_step: true
+              language: pt-BR
+            resultStatus: Succeeded
+        allowed:
+          - suggest_breakdown
+        counts:
+          suggest_breakdown: 1
+- description: one-small-step-save-task in pt-BR
+  metadata:
+    id: composition-one-small-step-save-task-pt-BR
+    category: composition
+    family: one-small-step-save-task
+    locale: pt-BR
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - oneSmallStep
+    input: ""
+    composition:
+      mode: preview
+    expectations:
+      required:
+        - name: create_habit
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - create_habit
+      counts:
+        create_habit: 1
+    rubric: Answer in Brazilian Portuguese. The held approval preview is the entire answer. Do not claim
+      a saved change before approval. Exactly one create_habit preview proposes the previous
+      starting step verbatim as the title of a one-time task, without recurrence or additional
+      creations.
+    startingStepAction: saveTask
+    setup:
+      input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
+      composition:
+        mode: one-small-step
+      expectations:
+        required:
+          - name: suggest_breakdown
+            arguments:
+              one_small_step: true
+              language: pt-BR
+            resultStatus: Succeeded
+        allowed:
+          - suggest_breakdown
+        counts:
+          suggest_breakdown: 1
+- description: one-small-step-save-checklist in pt-BR
+  metadata:
+    id: composition-one-small-step-save-checklist-pt-BR
+    category: composition
+    family: one-small-step-save-checklist
+    locale: pt-BR
+    fixture: starting-step-checklist
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      supportsParts: true
+      partKinds:
+        - oneSmallStep
+    input: ""
+    composition:
+      mode: preview
+    expectations:
+      required:
+        - name: update_checklist
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - update_checklist
+      counts:
+        update_checklist: 1
+    rubric: Answer in Brazilian Portuguese. The held approval preview is the entire answer. Do not claim
+      a saved change before approval. Exactly one update_checklist preview targets the named
+      existing habit and preserves every existing checklist item and checked state in order,
+      appending the previous starting step once as an unchecked item.
+    startingStepAction: saveChecklistItem
+    setup:
+      input: Tô travado até pra beber água. Me ajuda a começar?
+      composition:
+        mode: one-small-step
+      expectations:
+        required:
+          - name: suggest_breakdown
+            arguments:
+              one_small_step: true
+              language: pt-BR
+            resultStatus: Succeeded
+        allowed:
+          - suggest_breakdown
+        counts:
+          suggest_breakdown: 1
+    checklistHabitId: "{habitId}"
+- description: one-small-step-legacy in pt-BR
+  metadata:
+    id: composition-one-small-step-legacy-pt-BR
+    category: composition
+    family: one-small-step-legacy
+    locale: pt-BR
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      supportsParts: true
+      partKinds: []
+    input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
+    composition:
+      mode: one-small-step-legacy
+    expectations:
+      required:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: pt-BR
+          resultStatus: Succeeded
+      allowed:
+        - suggest_breakdown
+      counts:
+        suggest_breakdown: 1
+    rubric: Answer in Brazilian Portuguese. Return exactly one concrete, immediately doable starting
+      action for the activity. No plan, framing prose, saved claim or unsolicited question. The
+      legacy client sees only the readable step text, without a block, action labels or action
+      request messages.
+
 
 - description: Brain dump mixed in en
   metadata: { id: brain-dump-mixed-en, category: composition, family: brain-dump-mixed, locale: en, platform: web, fixture: pro }
@@ -2728,3 +3381,437 @@
       schedules, dates, times or other facts from the preview, including spelled-out figures.
       Distinguish the held proposal from a saved change. The later approval readback is harness evidence,
       not part of the answer being graded. Stored titles stay verbatim.
+- description: restart-preview in en
+  metadata:
+    id: composition-restart-preview-en
+    category: composition
+    family: restart-preview
+    locale: en
+    fixture: restart
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: I fell behind on my habits. Help me restart.
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      currentAppArea: habits
+      supportsParts: true
+      supportsHabitListCard: true
+      supportsHabitListDoneStatus: true
+      supportsDatedHabitListCard: true
+      supportsHabitHistoryCard: true
+      supportsGoalListCard: true
+      supportsMetricsCard: true
+      supportsPeriodInsightCard: true
+      supportsDaySummaryCard: true
+      supportsStreakCard: true
+      supportsCalendarCard: true
+      supportsRecordListCard: true
+      supportsAccountRowsCard: true
+      supportsPendingOperationChanges: true
+      supportsFollowUps: true
+      supportsFollowUpContext: true
+    composition:
+      mode: preview
+      previews: 1
+    restart:
+      decision: preview
+      windowDays: 7
+    expectations:
+      required:
+        - name: query_habits
+          argumentsAnyOf: *todayHabitArguments
+        - name: bulk_reschedule_habits
+          arguments:
+            orbit_write_complete: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_reschedule_habits
+      counts:
+        bulk_reschedule_habits: 1
+    rubric: Answer in English. Return the complete held restart preview alone. Keep a smaller set today
+      and defer the rest within the next week. All dates and figures belong in the preview. Do not
+      repeat prerequisite reads or claim the proposal was saved. Stored habit titles remain
+      verbatim.
+- description: restart-approve in en
+  metadata:
+    id: composition-restart-approve-en
+    category: composition
+    family: restart-approve
+    locale: en
+    fixture: restart
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: I fell behind on my habits. Help me restart.
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      currentAppArea: habits
+      supportsParts: true
+      supportsHabitListCard: true
+      supportsHabitListDoneStatus: true
+      supportsDatedHabitListCard: true
+      supportsHabitHistoryCard: true
+      supportsGoalListCard: true
+      supportsMetricsCard: true
+      supportsPeriodInsightCard: true
+      supportsDaySummaryCard: true
+      supportsStreakCard: true
+      supportsCalendarCard: true
+      supportsRecordListCard: true
+      supportsAccountRowsCard: true
+      supportsPendingOperationChanges: true
+      supportsFollowUps: true
+      supportsFollowUpContext: true
+    composition:
+      mode: preview
+      previews: 1
+    restart:
+      decision: approve
+      windowDays: 7
+    expectations:
+      required:
+        - name: query_habits
+          argumentsAnyOf: *todayHabitArguments
+        - name: bulk_reschedule_habits
+          arguments:
+            orbit_write_complete: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_reschedule_habits
+      counts:
+        bulk_reschedule_habits: 1
+    rubric: Answer in English. Return the complete held restart preview alone. Keep a smaller set today
+      and defer the rest within the next week. All dates and figures belong in the preview. Do not
+      repeat prerequisite reads or claim the proposal was saved. Stored habit titles remain
+      verbatim.
+- description: restart-reject in en
+  metadata:
+    id: composition-restart-reject-en
+    category: composition
+    family: restart-reject
+    locale: en
+    fixture: restart
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: I fell behind on my habits. Help me restart.
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      currentAppArea: habits
+      supportsParts: true
+      supportsHabitListCard: true
+      supportsHabitListDoneStatus: true
+      supportsDatedHabitListCard: true
+      supportsHabitHistoryCard: true
+      supportsGoalListCard: true
+      supportsMetricsCard: true
+      supportsPeriodInsightCard: true
+      supportsDaySummaryCard: true
+      supportsStreakCard: true
+      supportsCalendarCard: true
+      supportsRecordListCard: true
+      supportsAccountRowsCard: true
+      supportsPendingOperationChanges: true
+      supportsFollowUps: true
+      supportsFollowUpContext: true
+    composition:
+      mode: preview
+      previews: 1
+    restart:
+      decision: reject
+      windowDays: 7
+    expectations:
+      required:
+        - name: query_habits
+          argumentsAnyOf: *todayHabitArguments
+        - name: bulk_reschedule_habits
+          arguments:
+            orbit_write_complete: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_reschedule_habits
+      counts:
+        bulk_reschedule_habits: 1
+    rubric: Answer in English. Return the complete held restart preview alone. Keep a smaller set today
+      and defer the rest within the next week. All dates and figures belong in the preview. Do not
+      repeat prerequisite reads or claim the proposal was saved. Stored habit titles remain
+      verbatim.
+- description: restart-preference in en
+  metadata:
+    id: composition-restart-preference-en
+    category: composition
+    family: restart-preference
+    locale: en
+    fixture: restart
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: I fell behind on my habits. Help me restart, with only two things today.
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      currentAppArea: habits
+      supportsParts: true
+      supportsHabitListCard: true
+      supportsHabitListDoneStatus: true
+      supportsDatedHabitListCard: true
+      supportsHabitHistoryCard: true
+      supportsGoalListCard: true
+      supportsMetricsCard: true
+      supportsPeriodInsightCard: true
+      supportsDaySummaryCard: true
+      supportsStreakCard: true
+      supportsCalendarCard: true
+      supportsRecordListCard: true
+      supportsAccountRowsCard: true
+      supportsPendingOperationChanges: true
+      supportsFollowUps: true
+      supportsFollowUpContext: true
+    composition:
+      mode: preview
+      previews: 1
+    restart:
+      decision: preview
+      windowDays: 7
+      todayCount: 2
+    expectations:
+      required:
+        - name: query_habits
+          argumentsAnyOf: *todayHabitArguments
+        - name: bulk_reschedule_habits
+          arguments:
+            orbit_write_complete: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_reschedule_habits
+      counts:
+        bulk_reschedule_habits: 1
+    rubric: Answer in English. Return the complete held restart preview alone. Keep a smaller set today,
+      exactly two habits and defer the rest within the next week. All dates and figures belong in
+      the preview. Do not repeat prerequisite reads or claim the proposal was saved. Stored habit
+      titles remain verbatim.
+- description: restart-preview in pt-BR
+  metadata:
+    id: composition-restart-preview-pt-BR
+    category: composition
+    family: restart-preview
+    locale: pt-BR
+    fixture: restart
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: Fiquei para trás nos meus hábitos. Me ajude a recomeçar.
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      currentAppArea: habits
+      supportsParts: true
+      supportsHabitListCard: true
+      supportsHabitListDoneStatus: true
+      supportsDatedHabitListCard: true
+      supportsHabitHistoryCard: true
+      supportsGoalListCard: true
+      supportsMetricsCard: true
+      supportsPeriodInsightCard: true
+      supportsDaySummaryCard: true
+      supportsStreakCard: true
+      supportsCalendarCard: true
+      supportsRecordListCard: true
+      supportsAccountRowsCard: true
+      supportsPendingOperationChanges: true
+      supportsFollowUps: true
+      supportsFollowUpContext: true
+    composition:
+      mode: preview
+      previews: 1
+    restart:
+      decision: preview
+      windowDays: 7
+    expectations:
+      required:
+        - name: query_habits
+          argumentsAnyOf: *todayHabitArguments
+        - name: bulk_reschedule_habits
+          arguments:
+            orbit_write_complete: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_reschedule_habits
+      counts:
+        bulk_reschedule_habits: 1
+    rubric: Answer in Brazilian Portuguese. Return the complete held restart preview alone. Keep a
+      smaller set today and defer the rest within the next week. All dates and figures belong in the
+      preview. Do not repeat prerequisite reads or claim the proposal was saved. Stored habit titles
+      remain verbatim.
+- description: restart-approve in pt-BR
+  metadata:
+    id: composition-restart-approve-pt-BR
+    category: composition
+    family: restart-approve
+    locale: pt-BR
+    fixture: restart
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: Fiquei para trás nos meus hábitos. Me ajude a recomeçar.
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      currentAppArea: habits
+      supportsParts: true
+      supportsHabitListCard: true
+      supportsHabitListDoneStatus: true
+      supportsDatedHabitListCard: true
+      supportsHabitHistoryCard: true
+      supportsGoalListCard: true
+      supportsMetricsCard: true
+      supportsPeriodInsightCard: true
+      supportsDaySummaryCard: true
+      supportsStreakCard: true
+      supportsCalendarCard: true
+      supportsRecordListCard: true
+      supportsAccountRowsCard: true
+      supportsPendingOperationChanges: true
+      supportsFollowUps: true
+      supportsFollowUpContext: true
+    composition:
+      mode: preview
+      previews: 1
+    restart:
+      decision: approve
+      windowDays: 7
+    expectations:
+      required:
+        - name: query_habits
+          argumentsAnyOf: *todayHabitArguments
+        - name: bulk_reschedule_habits
+          arguments:
+            orbit_write_complete: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_reschedule_habits
+      counts:
+        bulk_reschedule_habits: 1
+    rubric: Answer in Brazilian Portuguese. Return the complete held restart preview alone. Keep a
+      smaller set today and defer the rest within the next week. All dates and figures belong in the
+      preview. Do not repeat prerequisite reads or claim the proposal was saved. Stored habit titles
+      remain verbatim.
+- description: restart-reject in pt-BR
+  metadata:
+    id: composition-restart-reject-pt-BR
+    category: composition
+    family: restart-reject
+    locale: pt-BR
+    fixture: restart
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: Fiquei para trás nos meus hábitos. Me ajude a recomeçar.
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      currentAppArea: habits
+      supportsParts: true
+      supportsHabitListCard: true
+      supportsHabitListDoneStatus: true
+      supportsDatedHabitListCard: true
+      supportsHabitHistoryCard: true
+      supportsGoalListCard: true
+      supportsMetricsCard: true
+      supportsPeriodInsightCard: true
+      supportsDaySummaryCard: true
+      supportsStreakCard: true
+      supportsCalendarCard: true
+      supportsRecordListCard: true
+      supportsAccountRowsCard: true
+      supportsPendingOperationChanges: true
+      supportsFollowUps: true
+      supportsFollowUpContext: true
+    composition:
+      mode: preview
+      previews: 1
+    restart:
+      decision: reject
+      windowDays: 7
+    expectations:
+      required:
+        - name: query_habits
+          argumentsAnyOf: *todayHabitArguments
+        - name: bulk_reschedule_habits
+          arguments:
+            orbit_write_complete: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_reschedule_habits
+      counts:
+        bulk_reschedule_habits: 1
+    rubric: Answer in Brazilian Portuguese. Return the complete held restart preview alone. Keep a
+      smaller set today and defer the rest within the next week. All dates and figures belong in the
+      preview. Do not repeat prerequisite reads or claim the proposal was saved. Stored habit titles
+      remain verbatim.
+- description: restart-preference in pt-BR
+  metadata:
+    id: composition-restart-preference-pt-BR
+    category: composition
+    family: restart-preference
+    locale: pt-BR
+    fixture: restart
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: Fiquei para trás nos meus hábitos. Me ajude a recomeçar, com só duas coisas hoje.
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      currentAppArea: habits
+      supportsParts: true
+      supportsHabitListCard: true
+      supportsHabitListDoneStatus: true
+      supportsDatedHabitListCard: true
+      supportsHabitHistoryCard: true
+      supportsGoalListCard: true
+      supportsMetricsCard: true
+      supportsPeriodInsightCard: true
+      supportsDaySummaryCard: true
+      supportsStreakCard: true
+      supportsCalendarCard: true
+      supportsRecordListCard: true
+      supportsAccountRowsCard: true
+      supportsPendingOperationChanges: true
+      supportsFollowUps: true
+      supportsFollowUpContext: true
+    composition:
+      mode: preview
+      previews: 1
+    restart:
+      decision: preview
+      windowDays: 7
+      todayCount: 2
+    expectations:
+      required:
+        - name: query_habits
+          argumentsAnyOf: *todayHabitArguments
+        - name: bulk_reschedule_habits
+          arguments:
+            orbit_write_complete: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_reschedule_habits
+      counts:
+        bulk_reschedule_habits: 1
+    rubric: Answer in Brazilian Portuguese. Return the complete held restart preview alone. Keep a
+      smaller set today, exactly two habits and defer the rest within the next week. All dates and
+      figures belong in the preview. Do not repeat prerequisite reads or claim the proposal was
+      saved. Stored habit titles remain verbatim.

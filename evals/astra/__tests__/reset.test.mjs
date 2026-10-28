@@ -27,6 +27,18 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const scenario = (fixture) => structuredClone(corpus.find((entry) => entry.metadata.fixture === fixture))
+it.each(['en', 'pt-BR'])('seeds and reads back existing checked checklist items in %s', async (locale) => {
+  const test = scenario('pro')
+  test.metadata.fixture = 'starting-step-checklist'
+  test.metadata.locale = locale
+  await resetFixture(test)
+  const active = habits.filter((habit) => !habit.deleted)
+  expect(active[0].checklistItems).toEqual([
+    { text: locale === 'en' ? 'Get a glass' : 'Pegar um copo', isChecked: true },
+    { text: locale === 'en' ? 'Fill the glass' : 'Encher o copo', isChecked: false },
+  ])
+  expect(requests.at(-1).path).toBe('profile/export')
+})
 it.each(['en', 'pt-BR'])('seeds and independently verifies a cached retrospective before the stale %s attempt', async (locale) => {
   const source = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-stale-${locale}`))
   const { test } = await prepareAttempt({ test: source })
@@ -64,7 +76,7 @@ it.each(['uncached', 'missing-flag', 'empty-narrative', 'wrong-period', 'wrong-f
     expect(requests.some(({ path }) => path === 'chat')).toBe(false)
   },
 )
-it('negotiates every composition context from client-supported block kinds', async () => {
+it('negotiates client-supported kinds and explicit starting-step API contract cases', async () => {
   const contexts = [...new Map(corpus.filter((entry) => entry.metadata.category === 'composition')
     .map((entry) => [JSON.stringify(entry.vars.clientContext), entry])).values()]
   for (const entry of contexts) {
@@ -81,7 +93,8 @@ it('negotiates every composition context from client-supported block kinds', asy
       expect(client.partKinds).toEqual(entry.vars.clientContext.partKinds)
     }
     expect(client.locale).toBe(entry.vars.clientContext.locale)
-    expect(client.currentAppArea).toBe(entry.vars.clientContext.currentAppArea)
+    expect(client.currentAppArea).toBe(entry.vars.clientContext.currentAppArea ?? (entry.vars.clientContext.supportsParts ? 'chat' : undefined))
+    if (client.supportsParts) expect(client.supportsSkippedHabitRows).toBe(true)
   }
 })
 it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))])('establishes %s exclusively through intercepted public routes', async (fixture) => {
@@ -95,6 +108,14 @@ it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))])('establishe
   else if (fixture === 'composition-partial') expect(active).toHaveLength(51)
   else if (fixture === 'free-at-limit') expect(active).toHaveLength(capacity)
   else if (fixture === 'malicious-title') expect(active).toHaveLength(3)
+  else if (fixture === 'restart') {
+    expect(active).toHaveLength(6)
+    expect(test.vars.restartBaseline).toHaveLength(6)
+    expect(active.filter((habit) => habit.dueDate < '2026-10-24')).toHaveLength(4)
+    expect(active.filter((habit) => habit.dueDate === '2026-10-24')).toHaveLength(2)
+    expect(active.every((habit) => habit.logs.length === 1 && habit.reminderEnabled && habit.checklistItems.length === 1)).toBe(true)
+    expect(requests.filter(({ method, path }) => method === 'GET' && /^habits\/[^/]+$/.test(path))).toHaveLength(6)
+  }
   else expect(active).toHaveLength(2)
   if (fixture === 'existing-parents') expect(active.map((habit) => habit.title)).toEqual(test.metadata.locale === 'pt-BR' ? ['Depois do almoço', 'Antes de dormir'] : ['Post Lunch', 'Before Bed'])
   if (fixture === 'duplicate-titles') expect(active.map((habit) => habit.title)).toEqual(['Caminhada', 'Caminhada'])
@@ -560,3 +581,18 @@ it.each(['https://api.useorbit.org', 'https://orbit-api-staging-uqu2.onrender.co
     expect(request).not.toHaveBeenCalled()
   },
 )
+
+it('grounds the skipped identity independently of export order', async () => {
+  const intercepted = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => {
+    const response = await intercepted(url, options)
+    if (new URL(url).pathname !== '/api/profile/export') return response
+    const exported = await response.json()
+    exported.habits.reverse()
+    return Response.json(exported)
+  })
+  const test = scenario('skipped')
+  await resetFixture(test)
+  expect(test.vars.fixtureEvidence.loggedState.habits.filter((habit) => habit.skipped).map((habit) => habit.title))
+    .toEqual(['Caminhada'])
+})

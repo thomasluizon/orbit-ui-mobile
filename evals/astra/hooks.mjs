@@ -57,6 +57,8 @@ async function requireAccountPolicies(tests) {
 
 export async function beforeEach({ test }) {
   delete test.vars.preconditionFailure
+  delete test.vars.fixtureEvidence
+  delete test.vars.legacyProfileLanguage
   try { return await prepareAttempt(test) } catch (error) {
     test.vars.preconditionFailure = safeFailureMessage(error)
     process.stderr.write(`Astra precondition unavailable for ${test.metadata.id}: ${test.vars.preconditionFailure}\n`)
@@ -104,9 +106,11 @@ async function prepareAttempt(test) {
     test.vars.expectations.required[0].result = { payload: retrospective }
   }
   test.vars.clientContext ??= buildChatClientContext({ platform: test.metadata.platform ?? 'web', locale: test.metadata.locale ?? 'en' })
-  if (test.vars.clientContext.supportsParts === true && test.vars.clientContext.partKinds === undefined) {
-    test.vars.clientContext.partKinds = buildChatClientContext(test.vars.clientContext).partKinds
+  if (test.vars.clientContext.supportsParts === true) {
+    test.vars.clientContext = { ...buildChatClientContext({ platform: test.metadata.platform ?? 'web',
+      locale: test.metadata.locale ?? 'en' }), ...test.vars.clientContext }
   }
+  if (!test.vars.clientContext.locale && test.metadata.locale === 'pt-BR') test.vars.legacyProfileLanguage = 'pt-BR'
   test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
   test.vars.historyJson = JSON.stringify(test.vars.history ?? [])
   test.vars.evalRequestId = randomUUID()

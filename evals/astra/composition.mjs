@@ -1,4 +1,5 @@
 import { suggestionComposition, refineResult } from './suggestions.mjs'
+import { startingStepComposition } from './one-small-step.mjs'
 import { brainDumpPreview } from './brain-dumps.mjs'
 import { isDeepStrictEqual } from 'node:util'
 import { getRelatedSurfaces } from '../../packages/shared/src/chat/related-surfaces.ts'
@@ -108,6 +109,8 @@ export function composition(output, context) {
   const response = parsed?.composition
   const expected = context.vars.composition
   if (!expected || !response) return result(false, 'Missing composition evidence or scenario policy.', { unavailable: true })
+  if (['one-small-step', 'one-small-step-legacy'].includes(expected.mode)) return validOperations(response)
+    ? startingStepComposition(parsed, context.vars) : result(false, 'Malformed operation or action surfaces.')
   if (!['suggestions', 'data', 'text', 'clarification', 'fallback', 'preview', 'outcome'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
   if (!validOperations(response)) return result(false, 'Malformed operation or action surfaces.')
   if (context.vars.brainDump) {

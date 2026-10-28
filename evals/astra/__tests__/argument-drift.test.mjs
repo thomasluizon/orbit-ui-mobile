@@ -30,12 +30,12 @@ const todayCases = ['single-read-en', 'injection-record-pt', 'edge-skipped-pt',
   'composition-writes-outcomes-en', 'composition-writes-outcomes-pt-BR']
 it.each(todayCases)('accepts equivalent local-day selectors for %s and rejects other days', (caseId) => {
   for (const arguments_ of [{ relative_period: 'today' }, { date: 'today' }, { date: accountDate },
-    { relative_period: 'today', date: accountDate }]) {
+    { relative_period: 'today', date: accountDate }, { relative_period: 'today', date: 'today' }]) {
     expect(check(caseId, [{ name: 'query_habits', arguments: arguments_, resultStatus: 'Succeeded' }]))
       .toMatchObject({ pass: true })
   }
   for (const arguments_ of [{}, { date: '2026-10-26' }, { relative_period: 'yesterday' },
-    { relative_period: 'yesterday', date: accountDate }]) {
+    { relative_period: 'yesterday', date: accountDate }, { relative_period: 'today', date: '2026-10-26' }]) {
     expect(check(caseId, [{ name: 'query_habits', arguments: arguments_, resultStatus: 'Succeeded' }]).pass).toBe(false)
   }
 })

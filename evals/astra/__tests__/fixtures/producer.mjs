@@ -12,6 +12,7 @@ function strictArguments(schema, supplied) {
     .filter(([, property]) => Array.isArray(property.type) && property.type.includes('null'))
     .map(([name]) => [name, null]))
   if (schema?.properties?.orbit_read_complete) defaults.orbit_read_complete = false
+  if (schema?.properties?.orbit_write_complete) defaults.orbit_write_complete = false
   return { ...defaults, ...Object.fromEntries(Object.entries(supplied)
     .map(([name, value]) => [name, strictArguments(schema?.properties?.[name], value)])) }
 }
