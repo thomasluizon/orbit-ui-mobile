@@ -12,6 +12,7 @@ import { attachClarificationPreview, updatePendingOperationMessage, type Pending
 import { pendingOperationExecutionPatch } from './pending-operation-message-state'
 
 export interface MessageBubbleProps {
+  onSendMessage?: (message: string) => Promise<void>
   blockAnswerInteraction?: BlockAnswerInteraction
   earlierMessages?: readonly ChatMessage[]
   laterMessages?: readonly ChatMessage[]

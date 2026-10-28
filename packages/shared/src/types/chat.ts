@@ -1,3 +1,4 @@
+import { oneSmallStepCardSchema } from '../contracts/blocks/one-small-step'
 import { questionAnswerSchema, questionBlockSchema } from './question-block'
 import { z } from 'zod'
 import { habitSuggestionsCardSchema } from './habit-suggestions'
@@ -520,6 +521,7 @@ export type PickListBlock = z.infer<typeof pickListBlockSchema>
 export type BlockAnswer = z.infer<typeof blockAnswerSchema>
 
 const chatBlockSchemas = {
+  oneSmallStep: oneSmallStepCardSchema,
   habitSuggestions: habitSuggestionsCardSchema,
   habitRanking: habitRankingCardSchema,
   habitList: habitListCardSchema,
@@ -547,6 +549,7 @@ function blockPartSchema<Kind extends ChatBlockKind>(kind: Kind) {
 export const chatPartSchema = z.union([
   z.object({ type: z.literal('text'), text: z.string() }),
   z.discriminatedUnion('kind', [
+    blockPartSchema('oneSmallStep'),
     blockPartSchema('habitSuggestions'),
     blockPartSchema('habitRanking'),
     blockPartSchema('habitList'),
@@ -587,7 +590,7 @@ export const readBlockResponseSchema = z.discriminatedUnion('kind', [
 
 export type ReadBlockResponse = z.infer<typeof readBlockResponseSchema>
 export type ReadBlockSnapshot = ReadBlockResponse | HabitMonthReadBlockResponse | GamificationReadBlockResponse
-export type ReadBlockPart = Exclude<ChatBlockPart, { kind: 'choice' | 'pickList' | 'question' | 'habitSuggestions' }>
+export type ReadBlockPart = Exclude<ChatBlockPart, { kind: 'choice' | 'pickList' | 'question' | 'habitSuggestions' | 'oneSmallStep' }>
 
 export const chatFollowUpSchema = z.object({
   label: z.string().trim().check(utf16Length('min', 1)).check(utf16Length('max', 40)).regex(/^[^\r\n]+$/),
