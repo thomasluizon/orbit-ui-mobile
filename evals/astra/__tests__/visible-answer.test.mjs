@@ -123,6 +123,36 @@ it.each(['en', 'pt-BR'])('projects the client month grid counts and localized da
   expect(output.answer).not.toContain('signed-month')
   expect(output.answer).not.toContain('habit-one')
 })
+it.each(['en', 'pt-BR'])('projects past, today and future month days as the clients show them in %s', async (locale) => {
+  const project = async (today) => {
+    const { output, error } = await receive({ parts: [{ type: 'block', kind: 'habitMonth',
+      block: { ...habitMonthFixture, today } }] }, locale)
+    expect(error).toBeUndefined()
+    return { answer: output.answer, days: JSON.parse(output.answer).parts[0].block.months[0].days }
+  }
+  const later = await project('2026-09-11')
+  const earlier = await project('2026-09-01')
+  expect(later.answer).not.toBe(earlier.answer)
+  expect(later.days[1]).toEqual({
+    date: locale === 'en' ? 'September 2, 2026' : '2 de setembro de 2026', completed: 0, scheduled: 1,
+  })
+  expect(later.days[10]).toEqual({
+    date: locale === 'en' ? 'September 11, 2026' : '11 de setembro de 2026',
+    today: locale === 'en' ? 'today' : 'hoje', completed: 0, scheduled: 1,
+  })
+  expect(later.days[11]).toEqual({
+    date: locale === 'en' ? 'September 12, 2026' : '12 de setembro de 2026',
+    future: locale === 'en' ? 'not yet' : 'ainda não chegou',
+  })
+  expect(earlier.days[0]).toEqual({
+    date: locale === 'en' ? 'September 1, 2026' : '1 de setembro de 2026',
+    today: locale === 'en' ? 'today' : 'hoje', completed: 1, scheduled: 1,
+  })
+  expect(earlier.days[1]).toEqual({
+    date: locale === 'en' ? 'September 2, 2026' : '2 de setembro de 2026',
+    future: locale === 'en' ? 'not yet' : 'ainda não chegou',
+  })
+})
 const typedBlocks = [...fixtures.blocks, ...[
   ['periodTotal', focused.focusedPeriodTotalFixture], ['periodComparison', focused.focusedPeriodComparisonFixture],
   ['habitRanking', focused.habitRankingCardFixture], ['habitMonth', habitMonthFixture],

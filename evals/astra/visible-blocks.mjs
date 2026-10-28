@@ -188,9 +188,12 @@ function habitMonth(card, { t, locale }) {
   return { title: t('chat.habitMonth.title'), months: months.map((month) => ({
     title: monthLabel.format(month),
     days: shared.buildCalendarMonthModel(month, dayMap, card.weekStartDay, card.today, range).gridDays
-      .filter((day) => day.isCurrentMonth).map((day) => ({
-        date: dayLabel.format(day.date), completed: day.completedCount, scheduled: day.totalCount,
-      })),
+      .filter((day) => day.isCurrentMonth).map((day) => {
+        const date = dayLabel.format(day.date)
+        if (day.dateStr > card.today) return { date, future: t('calendar.dayCell.future') }
+        return { date, today: day.isToday ? t('calendar.dayCell.today') : undefined,
+          completed: day.completedCount, scheduled: day.totalCount }
+      }),
   })) }
 }
 const renderers = shared.createChatBlockRegistry({ habitList, goalList, metrics, periodTotal, periodComparison, periodInsight, daySummary, streak,
