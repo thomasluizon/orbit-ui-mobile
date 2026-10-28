@@ -17,6 +17,7 @@ import { habitMonthFixture } from '@orbit/shared/test-support/habit-month-fixtur
 import { apiClient } from '@/lib/api-client'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { API } from '@orbit/shared/api'
+import { motionDurations } from '@orbit/shared/theme'
 import { chatPartSchema, habitMonthCardSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
 const state = vi.hoisted(() => ({ isError: false, locale: 'en', actualCopy: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
@@ -178,6 +179,43 @@ describe('focused Android read compositions', () => {
     await act(() => { resolve({ kind: 'periodTotal', block: { ...focusedPeriodTotalFixture, value: 99 }, read: focusedReadMetadataFixture }) })
     expect(renderedText(tree.toJSON())).not.toContain('99')
     await act(() => tree.unmount())
+  })
+
+  it('keeps refresh recovery after paging detects staleness and refresh fails', async () => {
+    state.actualCopy = true
+    const next = readBlockResponseSchema.parse({ kind: 'recordList', block: {
+      ...focusedHistoryFixture, items: [{ id: 'replacement', title: '2026-09-02', logDate: '2026-09-02', value: -1 }],
+    }, read: { ...focusedHistoryFixture.read, revision: 'recovered' } })
+    vi.mocked(apiClient).mockRejectedValueOnce(Object.assign(new Error('stale'), { code: 'READ_QUERY_STALE' }))
+      .mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(next)
+    const tree = await mount({ kind: 'recordList', block: focusedHistoryFixture })
+    const buttons = (label: string) => tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.accessibilityLabel === label)
+    await press(tree, en.chat.recordList.more)
+    expect(renderedText(tree.toJSON())).toContain(en.chat.readBlock.stale)
+    expect(buttons(en.chat.recordList.more)).toHaveLength(0)
+    await press(tree, en.blockFrame.refresh)
+    expect(renderedText(tree.toJSON())).toContain(en.chat.readBlock.error)
+    expect(buttons(en.blockFrame.refresh)).toHaveLength(1)
+    expect(buttons(en.blockFrame.refresh)[0]!.props.accessibilityState).toMatchObject({ disabled: false })
+    expect(buttons(en.chat.recordList.more)).toHaveLength(0)
+    expect(renderedText(tree.toJSON())).toContain('Sep 1, 2026')
+    vi.useFakeTimers()
+    try {
+      await press(tree, en.blockFrame.refresh)
+      await act(() => { vi.advanceTimersByTime(motionDurations.micro) })
+      const text = renderedText(tree.toJSON())
+      expect(text).toContain('Sep 2, 2026')
+      expect(tree.root.findAll(node => node.props.testID === 'block-frame-item-log-one-pending')).toHaveLength(0)
+      expect(text).not.toContain(en.chat.readBlock.error)
+      expect(buttons(en.blockFrame.refresh)).toHaveLength(0)
+      expect(buttons(en.chat.recordList.more)).toHaveLength(1)
+      expect(buttons(en.chat.recordList.more)[0]!.props.accessibilityState).toMatchObject({ disabled: false })
+      expect(vi.mocked(apiClient).mock.calls.map(call => JSON.parse(call[1]!.body as string))).toEqual([
+        { token: 'signed-page', page: true, clientContext: expect.anything() },
+        { token: 'signed-query', page: false, clientContext: expect.anything() },
+        { token: 'signed-query', page: false, clientContext: expect.anything() },
+      ])
+    } finally { await act(() => tree.unmount()); vi.useRealTimers() }
   })
 })
 

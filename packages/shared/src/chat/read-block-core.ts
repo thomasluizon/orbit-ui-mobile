@@ -45,9 +45,9 @@ export function readBlockWindow(scope: Record<string, unknown>): { from: string;
   return window.success ? window.data : null
 }
 
-export function readBlockPresentation(snapshot: ReadBlockSnapshot, localState: import('../contracts/blocks').BlockFrameState, pending: boolean, failure: string | null): { state: import('../contracts/blocks').BlockFrameState; message: string | null; window: { from: string; to: string } | null; canPage: boolean } {
+export function readBlockPresentation(snapshot: ReadBlockSnapshot, localState: import('../contracts/blocks').BlockFrameState, pending: boolean, failure: string | null, queryStale = false): { state: import('../contracts/blocks').BlockFrameState; message: string | null; window: { from: string; to: string } | null; canPage: boolean } {
   const read = snapshot.read
-  const stale = failure === 'chat.readBlock.stale' || read.completeness === 'stale'
+  const stale = queryStale || failure === 'chat.readBlock.stale' || read.completeness === 'stale'
   let state = localState
   if (localState === 'loading' || localState === 'stale') state = 'resting'
   if (failure || read.recovery) state = 'partiallyFailed'
@@ -58,7 +58,7 @@ export function readBlockPresentation(snapshot: ReadBlockSnapshot, localState: i
   if (!message && read.completeness === 'partial' && (read.recovery || !read.nextCursor)) message = 'chat.readBlock.partial'
   if (!message && localState === 'stale') message = 'chat.readBlock.actionsUnavailable'
   const window = ['periodTotal', 'periodComparison', 'periodInsight', 'habitMonth'].includes(snapshot.kind) ? null : readBlockWindow(read.scope)
-  return { state, message, window, canPage: Boolean(read.nextCursor) && state !== 'stale' }
+  return { state, message, window, canPage: Boolean(read.nextCursor) && state !== 'stale' && !queryStale }
 }
 
 export function readBlockFrameProps(props: BlockFrameProps, state: BlockFrameState, message: string | null, refresh: () => void, translate: (key: string) => string, actions: BlockFrameProps['actions']): BlockFrameProps {

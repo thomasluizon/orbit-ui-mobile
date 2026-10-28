@@ -154,6 +154,35 @@ describe('focused read compositions', () => {
     await act(async () => { resolve({ ok: true, data: { kind: 'recordList', block: { ...focusedHistoryFixture, items: [{ id: 'late', title: 'Other account' }] }, read: focusedHistoryFixture.read } }) })
     expect(screen.queryByText('Other account')).not.toBeInTheDocument()
   })
+
+  it('keeps refresh recovery after paging detects staleness and refresh fails', async () => {
+    const next = readBlockResponseSchema.parse({ kind: 'recordList', block: {
+      ...focusedHistoryFixture, items: [{ id: 'replacement', title: '2026-09-02', logDate: '2026-09-02', value: -1 }],
+    }, read: { ...focusedHistoryFixture.read, revision: 'recovered' } })
+    vi.mocked(refreshReadBlock)
+      .mockResolvedValueOnce({ ok: false, error: 'stale', code: 'READ_QUERY_STALE', status: 409, sessionRefreshFailed: false })
+      .mockResolvedValueOnce({ ok: false, error: 'offline', code: 'offline', status: 0, sessionRefreshFailed: false })
+      .mockResolvedValueOnce({ ok: true, data: next })
+    const view = mount({ kind: 'recordList', block: focusedHistoryFixture })
+    fireEvent.click(screen.getByRole('button', { name: en.chat.recordList.more }))
+    await screen.findByText(en.chat.readBlock.stale)
+    expect(screen.queryByRole('button', { name: en.chat.recordList.more })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: en.blockFrame.refresh }))
+    await screen.findByText(en.chat.readBlock.error)
+    expect(screen.getByRole('button', { name: en.blockFrame.refresh })).toBeEnabled()
+    expect(view.container.querySelector('section')).toHaveAttribute('data-state', 'stale')
+    expect(screen.queryByRole('button', { name: en.chat.recordList.more })).not.toBeInTheDocument()
+    expect(screen.getByText(personalText('Sep 1, 2026'))).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: en.blockFrame.refresh }))
+    await screen.findByText(personalText('Sep 2, 2026'))
+    await waitFor(() => expect(screen.queryByText(personalText('Sep 1, 2026'))).not.toBeInTheDocument())
+    expect(screen.queryByText(en.chat.readBlock.error)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: en.blockFrame.refresh })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.chat.recordList.more })).toBeEnabled()
+    expect(refreshReadBlock).toHaveBeenNthCalledWith(1, 'signed-page', expect.anything(), true, null)
+    expect(refreshReadBlock).toHaveBeenNthCalledWith(2, 'signed-query', expect.anything(), false, null)
+    expect(refreshReadBlock).toHaveBeenNthCalledWith(3, 'signed-query', expect.anything(), false, null)
+  })
 })
 
 it('shows a saved metric window only once through the owning read composition', () => {

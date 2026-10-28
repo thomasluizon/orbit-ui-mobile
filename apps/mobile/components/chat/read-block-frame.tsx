@@ -57,8 +57,8 @@ function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; 
   const locale = i18n.language
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { snapshot, pending, failure, run } = context
-  const { state, message, window, canPage } = readBlockPresentation(snapshot, props.state, pending, failure)
+  const { snapshot, pending, failure, stale, run } = context
+  const { state, message, window, canPage } = readBlockPresentation(snapshot, props.state, pending, failure, stale)
   const actions = <>
     {snapshot.kind === 'gamification' ? <IconButton label={t('blockFrame.refresh')} disabled={pending} onClick={() => { void run(false) }}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
     {canPage && snapshot.kind !== 'gamification' ? <IconButton label={t('chat.recordList.more')} disabled={pending} onClick={() => { void run(true) }}><ChevronDown size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}

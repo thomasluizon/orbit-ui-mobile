@@ -89,6 +89,37 @@ describe('shared read block session', () => {
     expect(session.render().pending).toBe(false)
   })
 
+  it.each(['web', 'mobile'] as const)('keeps detected staleness through failed refreshes until exact recovery on %s', async platform => {
+    const session = setup(history, platform)
+    const page = session.render().run(true)
+    session.reject(new Error('READ_QUERY_STALE'))
+    await page
+    expect(session.render().failure).toBe('chat.readBlock.stale')
+    const refresh = session.render().run(false)
+    session.reject(new Error('offline'))
+    await refresh
+    const failed = session.render()
+    expect(failed).toMatchObject({ snapshot: history, pending: false, failure: 'chat.readBlock.error', stale: true })
+    await failed.run(true)
+    expect(session.requests).toHaveLength(2)
+    const mismatch = session.render().run(false)
+    session.resolve({ ...history, read: { ...history.read, queryId: 'other' } })
+    await mismatch
+    expect(session.render()).toMatchObject({ snapshot: history, failure: 'chat.readBlock.error', stale: true })
+    const retry = session.render().run(false)
+    const updated = { ...history, read: { ...history.read, revision: 'two' } }
+    session.resolve(updated)
+    await retry
+    expect(session.render()).toMatchObject({ snapshot: updated, failure: null, pending: false, stale: false })
+    const nextPage = session.render().run(true)
+    expect(session.requests.map(request => [request.token, request.page])).toEqual([
+      ['signed-page', true], ['signed-query', false], ['signed-query', false], ['signed-query', false], ['signed-page', true],
+    ])
+    session.resolve({ ...updated, read: { ...updated.read, nextCursor: null } })
+    await nextPage
+    expect(session.render().failure).toBeNull()
+  })
+
   it.each(['account', 'unmount'] as const)('discards both success and failure after %s invalidates the session', async invalidation => {
     for (const fails of [false, true]) {
       const session = setup()
