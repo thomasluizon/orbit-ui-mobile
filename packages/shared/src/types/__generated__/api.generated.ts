@@ -1380,7 +1380,9 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockNineReadTwoTotalCountRegExpTwo)]).nullish(),
   "recovery": zod.string().nullish()
-})]).optional()
+})]).optional(),
+  "aiMessagesPeriod": zod.string().nullish(),
+  "aiMessagesResetsAt": zod.iso.datetime({"offset":true}).nullish()
 }),zod.object({
   "metric": zod.string(),
   "unit": zod.string(),
@@ -2276,7 +2278,9 @@ export const PostApiChatResponse = zod.object({
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseAccountRowsTwoReadTwoTotalCountRegExpTwo)]).nullish(),
   "recovery": zod.string().nullish()
-})]).optional()
+})]).optional(),
+  "aiMessagesPeriod": zod.string().nullish(),
+  "aiMessagesResetsAt": zod.iso.datetime({"offset":true}).nullish()
 })]).optional(),
   "followUps": zod.array(zod.string()).nullish(),
   "parts": zod.array(zod.union([zod.object({
@@ -5688,7 +5692,9 @@ export const GetApiProfileResponse = zod.object({
   "marketingEmailConsent": zod.boolean().nullish(),
   "lastCompletionDate": zod.iso.date().nullish(),
   "activeApiKeyCount": zod.union([zod.int(),zod.stringFormat('int32', getApiProfileResponseActiveApiKeyCountRegExpTwo)]).nullish(),
-  "billingProvider": zod.string().nullish()
+  "billingProvider": zod.string().nullish(),
+  "aiMessagesPeriod": zod.string().nullish(),
+  "aiMessagesResetsAt": zod.iso.datetime({"offset":true}).nullish()
 })
 
 
@@ -5976,6 +5982,30 @@ export const GetApiReferralsDashboardResponse = zod.object({
 })
 
 
+export const GetApiEvalPendingOperationsHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const getApiEvalPendingOperationsResponsePendingCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const GetApiEvalPendingOperationsResponse = zod.object({
+  "pendingCount": zod.union([zod.int(),zod.stringFormat('int32', getApiEvalPendingOperationsResponsePendingCountRegExpTwo)])
+})
+
+
+export const DeleteApiEvalPendingOperationsHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const deleteApiEvalPendingOperationsResponseCancelledCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const DeleteApiEvalPendingOperationsResponse = zod.object({
+  "cancelledCount": zod.union([zod.int(),zod.stringFormat('int32', deleteApiEvalPendingOperationsResponseCancelledCountRegExpTwo)])
+})
+
+
 export const PostApiGamificationStreakRepairGapHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -6060,7 +6090,9 @@ export const GetApiSubscriptionsStatusResponse = zod.object({
   "source": zod.string().nullable(),
   "lapseReason": zod.string().nullish(),
   "subscriptionEndedAtUtc": zod.iso.datetime({"offset":true}).nullish(),
-  "billingProvider": zod.string().nullish()
+  "billingProvider": zod.string().nullish(),
+  "aiMessagesPeriod": zod.string().nullish(),
+  "aiMessagesResetsAt": zod.iso.datetime({"offset":true}).nullish()
 })
 
 
