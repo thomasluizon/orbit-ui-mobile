@@ -23,6 +23,23 @@ const graphicSites = [
   'apps/web/components/ui/list-row.tsx',
 ] as const
 
+const interactionSites = [
+  'apps/web/components/chat/habit-block-row.tsx',
+  'apps/mobile/components/chat/habit-block-row.tsx',
+  'apps/web/components/chat/preview-item-title.tsx',
+  'apps/mobile/components/chat/preview-item-title.tsx',
+  'apps/web/components/shell/composer.tsx',
+  'apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx',
+  'apps/mobile/components/habits/habit-form-fields/habit-emoji-selector.tsx',
+  'apps/web/components/chat/habit-suggestions-card.tsx',
+  'apps/mobile/components/chat/habit-suggestions-card.tsx',
+  'apps/web/components/habits/habit-check.tsx',
+  'apps/mobile/components/habits/habit-check.tsx',
+  'apps/web/components/today/setup-checklist-card.tsx',
+  'apps/mobile/components/today/setup-checklist-card.tsx',
+] as const
+const sourceSites = [...new Set([...graphicSites, ...interactionSites])]
+
 const graphicNames: Record<(typeof graphicSites)[number], string> = {
   'apps/mobile/app/support.tsx': 'WifiOff',
   'apps/mobile/components/auth/login-sections.tsx': 'WifiOff',
@@ -44,7 +61,7 @@ function scanSources() {
   return spawnSync(process.execPath, ['tools/check-surface-scope.mjs', '--files-stdin'], {
     cwd: repositoryRoot,
     encoding: 'utf8',
-    input: JSON.stringify(graphicSites),
+    input: JSON.stringify(sourceSites),
     timeout: scannerTimeout,
     killSignal: 'SIGKILL',
   })
@@ -62,7 +79,13 @@ describe('raised-surface graphic contrast', () => {
   it('checks only the named graphic sites without a scanner error', () => {
     expect(result.error, `Surface contrast scanner must finish within ${scannerTimeout}ms`).toBeUndefined()
     expect([0, 1], result.stderr).toContain(result.status)
-    expect(result.stdout).toMatch(new RegExp(`^Surface scope guard (?:passed|failed)\\. ${graphicSites.length} source files checked\\.$`, 'm'))
+    expect(result.stdout).toMatch(new RegExp(`^Surface scope guard (?:passed|failed)\\. ${sourceSites.length} source files checked\\.$`, 'm'))
+  })
+
+  it('keeps interaction text above its floor and token uses within their declared roles', () => {
+    expect(result.stderr).toBe('')
+    expect(result.stdout).not.toContain('UNDECLARED')
+    expect(result.status).toBe(0)
   })
 
   it.each(graphicSites)('%s resolves its graphic role above the floor', (site) => {

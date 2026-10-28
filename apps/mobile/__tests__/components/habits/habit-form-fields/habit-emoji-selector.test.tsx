@@ -1,6 +1,6 @@
 import { expectPressFill } from '../../../support/press-feedback'
 import React from "react";
-import { StyleSheet, type ViewStyle } from "react-native";
+import { StyleSheet, type TextStyle, type ViewStyle } from "react-native";
 import Yoga from "yoga-layout";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HabitUnderstanding } from "@/components/habits/habit-form-fields/habit-understanding";
@@ -110,6 +110,8 @@ describe("HabitEmojiSelector mobile", () => {
     const action = tree.root.findAll(node => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.suggestEmoji')[0]!;
     const paint = tree.root.findAll(node => node.type === 'View' && node.props.testID === 'habit-emoji-well')[0]!;
     expect(StyleSheet.flatten(paint.props.style as ViewStyle).borderWidth ?? 0).toBe(proposed ? 1 : 0);
+    const glyph = paint.findAll(node => node.type === 'Text' && node.props.children === '🏃')[0]!;
+    expect(StyleSheet.flatten(glyph.props.style as TextStyle).color).toBe(proposed ? createTokensV2('orange', 'light').fg3 : undefined);
     const well = button(tree, 'habits.form.emojiOpenPicker');
     expect(well.props.accessibilityHint).toBe(proposed ? 'habits.form.proposedByAstra' : undefined);
     expect(tree.root.findAll(node => node.type === 'Text' && node.props.children === 'habits.form.proposedByAstra')).toHaveLength(0);
