@@ -81,6 +81,8 @@ test("parity checks reject removed exemptions and require a specific justificati
   const justified = "## Parity\n\nPlatform adapter: BFF cookie handling.\n\n## Test evidence\nChecked."
   check(justified, ["parity:exempt"], web, 0)
   check(justified, [], web, 1)
+  check("## Parity\n\nPlatform adapter: Radix Primitives on web.", ["parity:exempt"], web, 0)
+  check("## Parity\n\nPlatform adapter: rn-primitives on Android.", ["parity:exempt"], web, 0)
 })
 
 test("a workflow-only PR can carry a label at creation without a UI exemption", () => {
