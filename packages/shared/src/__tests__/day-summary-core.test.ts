@@ -64,3 +64,16 @@ it('retains the server row status independently of live completion', () => {
   expect(habitReadStatusKey('overdue', false)).toBe('chat.habitList.overdue')
   expect(habitReadStatusKey('none', false)).toBeNull()
 })
+
+it.each([
+  [false, false, false, 'empty', 'chat.habitList.pending', 'chat.habitList.log', false],
+  [true, false, false, 'overdue', 'chat.habitList.overdue', 'chat.habitList.log', false],
+  [true, false, true, 'overdue', 'chat.habitList.overdue', 'chat.habitList.log', false],
+  [false, true, false, 'done', 'chat.habitList.logged', 'chat.habitList.unlog', false],
+  [true, true, false, 'done', 'chat.habitList.logged', 'chat.habitList.unlog', false],
+  [false, true, true, 'bad', 'habits.statusDot.bad', 'chat.habitList.unlog', true],
+  [true, true, true, 'bad', 'habits.statusDot.bad', 'chat.habitList.unlog', true],
+] as const)('names overdue=%s logged=%s bad=%s without changing actions', (overdue, logged, isBadHabit, status, statusKey, actionKey, undoUnavailable) => {
+  const habit = createMockHabit({ isLoggedInRange: logged, isBadHabit })
+  expect(daySummaryLogControl(habit, overdue)).toEqual({ logged, status, statusKey, actionKey, undoUnavailable, writeAllowed: true })
+})
