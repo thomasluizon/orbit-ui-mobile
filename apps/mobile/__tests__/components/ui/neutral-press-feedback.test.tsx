@@ -13,7 +13,7 @@ import { createTokensV2 } from '@/lib/theme'
 const state = vi.hoisted((): { mode: 'dark' | 'light'; reducedMotion: boolean } => ({ mode: 'dark', reducedMotion: false }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: state.mode }) }))
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => state.reducedMotion }))
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 const noop = () => {}

@@ -247,6 +247,7 @@
       "collapse": "Collapse message composer",
       "expand": "Expand message composer",
       "usage": "Messages today: {used} of {limit}",
+      "usageWeekly": "Messages this week: {used} of {limit}",
       "placeholder": "What would you like to do?",
       "send": "Send",
       "clear": "Clear message",
@@ -268,9 +269,14 @@
       },
       "limit": {
         "renewal": "Messages return at midnight, your time.",
+        "renewalWeeklyUnknown": "Reset date unavailable.",
+        "renewalWeekly": "Resets {day}.",
         "exhausted": "Today's Astra messages are used.",
+        "exhaustedWeekly": "This week's Astra messages are used.",
         "placeholder": "No messages today",
-        "reason": "{allowance, plural, one {Today's allowance of # Astra message is used.} other {Today's allowance of # Astra messages is used.}}"
+        "placeholderWeekly": "No messages left this week",
+        "reason": "{allowance, plural, one {Today's allowance of # Astra message is used.} other {Today's allowance of # Astra messages is used.}}",
+        "reasonWeekly": "{allowance, plural, one {This week's allowance of # Astra message is used.} other {This week's allowance of # Astra messages is used.}}"
       },
       "busy": {
         "reason": "Astra is still answering. Wait for this response before sending another message."
@@ -725,6 +731,7 @@
       "aiSuggestError": "Couldn't generate a suggestion. Please try again.",
       "aiSuggestEmpty": "No suggestion for this one. Add the details yourself.",
       "aiSuggestLimitReached": "You've used today's Astra messages. More arrive at midnight, your time.",
+      "aiSuggestLimitReachedWeekly": "You've used this week's Astra messages.",
       "title": "Title",
       "newHabit": "New habit",
       "fromConversation": "Came from your conversation with Astra.",
@@ -735,8 +742,10 @@
       "unresolved": "Orbit did not find how often in this phrase. Pick the days or a number of times a week.",
       "askAstra": "Suggest frequency",
       "askAstraCost": "{allowance, plural, one {Uses today's only message.} other {Uses 1 of today's # messages.}}",
+      "askAstraCostWeekly": "{allowance, plural, one {Uses this week's only message.} other {Uses 1 of this week's # messages.}}",
       "astraReading": "Astra is reading the phrase",
       "localReadLimit": "{allowance, plural, one {Today's # Astra message is used. Orbit reads the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.} other {Today's # Astra messages are used. Orbit reads the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.}}",
+      "localReadLimitWeekly": "{allowance, plural, one {This week's # Astra message is used. Orbit reads the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.} other {This week's # Astra messages are used. Orbit reads the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.}}",
       "understoodIntervalDays": "{count, plural, one {every {days}, every # week} other {every {days}, every # weeks}}",
       "understoodIntervalDaysAt": "{count, plural, one {every {days} at {time}, every # week} other {every {days} at {time}, every # weeks}}",
       "understoodRepeatWeeks": "{count, plural, one {{schedule}, every # week} other {{schedule}, every # weeks}}",
@@ -1386,6 +1395,7 @@
       "error": "Could not send your answer. Try again.",
       "offline": "You're offline. Your selection is kept.",
       "limit": "{allowance, plural, one {You've used your # message for today.} other {You've used your # messages for today.}}",
+      "limitWeekly": "{allowance, plural, one {You've used your # message for this week.} other {You've used your # messages for this week.}}",
       "acting": "Sending your answer",
       "reviewing": "Preparing the preview",
       "proposed": "Suggested by Astra",
@@ -1638,6 +1648,7 @@
     "timeoutError": "The request timed out. Please try again.",
     "dailyBudgetReached": "Astra has reached today's limit. You can use Astra again tomorrow.",
     "limitReachedError": "You've used today's Astra messages. More arrive at midnight, your time.",
+    "limitReachedErrorWeekly": "You've used this week's Astra messages.",
     "aiError": "Sorry, something went wrong. Please try again.",
     "operationDone": "Done.",
     "operationFailed": "That didn't work. Try again.",
@@ -1714,6 +1725,7 @@
     },
     "attachmentPreview": "User uploaded attachment",
     "messagesUsed": "messages used today",
+    "messagesUsedWeekly": "messages used this week",
     "senderYou": "You",
     "senderOrbit": "Astra",
     "astraAvatarLabel": "Astra avatar",
@@ -2519,8 +2531,10 @@
     },
     "allowance": {
       "title": "Today's messages",
+      "titleWeekly": "This week's messages",
       "usage": "{used, plural, one {# of {limit} used} other {# of {limit} used}}",
       "spent": "Today's messages are used. They return at midnight, your time.",
+      "spentWeekly": "This week's messages are used.",
       "plan": "Plan",
       "free": "Free",
       "pro": "Pro",
@@ -2959,7 +2973,7 @@
       "heading": "Your Pro trial ended",
       "paused": "Paused",
       "subtitleQuiet": "These Pro features will pause unless you subscribe.",
-      "astraCeiling": "50 Astra messages per day",
+      "astraCeiling": "250 Astra messages a week",
       "calendarSync": "Calendar sync",
       "retrospective": "Periodic retrospective",
       "proactiveAstra": "Proactive Astra",
@@ -3044,6 +3058,7 @@
         "timeLabel": "Time",
         "timeHint": "Leave empty for any time of day",
         "limit": "{allowance, plural, one {Today''s # message has been used. Reading the phrase draws on the same allowance.} other {Today''s # messages have been used. Reading the phrase draws on the same allowance.}}",
+        "limitWeekly": "{allowance, plural, one {This week's # message has been used. Reading the phrase draws on the same allowance.} other {This week's # messages have been used. Reading the phrase draws on the same allowance.}}",
         "days": {
           "sunday": "Sun", "monday": "Mon", "tuesday": "Tue", "wednesday": "Wed", "thursday": "Thu", "friday": "Fri", "saturday": "Sat"
         },
@@ -3215,7 +3230,7 @@
         "canDoTitle": "Create & Log",
         "canDoDesc": "Tell Astra what habits you want and it creates them. Say 'I ran today' to log one. You can also ask for a habit on a single day, like 'buy eggs tomorrow'.",
         "toolsBreadthTitle": "63 Built-In Tools",
-        "toolsBreadthDesc": "Astra does more than chat. It can act. It has 63 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 5 AI messages a day; Pro raises it to 50.",
+        "toolsBreadthDesc": "Astra does more than chat. It can act. It has 63 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 5 AI messages a day; Pro includes 250 a week.",
         "manageTitle": "Update & Delete",
         "manageDesc": "Ask Astra to modify habits: 'move my gym to tomorrow', 'rename running to jogging', 'change meditation to weekly', or 'delete my reading habit'. It can handle bulk operations too.",
         "insightsTitle": "Progress & Analysis",
@@ -3316,24 +3331,25 @@
       "trialEyebrow": "Your Pro trial is active",
       "trialDaysLeft": "{days, plural, one {# trial day left} other {# trial days left}}",
       "trialLastDay": "Last day of the trial",
-      "trialHeading": "50 a day or back to 5.",
+      "trialHeading": "250 a week.",
       "trialCta": "Keep Pro",
       "freeEyebrow": "You are on the free plan",
-      "freeHeading": "Ten times more Astra.",
+      "freeHeading": "7 times more Astra.",
       "freeCta": "Get Pro",
       "trustLine": "No lock-in, and no card is ever stored in Orbit.",
       "cancelAnytime": "Cancel whenever you like.",
       "handOff": "Payment happens with our provider. Orbit never holds your card details.",
       "stayFree": "Stay on the free plan",
-      "allowanceLabel": "Daily Astra allowance",
+      "allowanceLabel": "Astra allowance",
       "freeAllowance": "5",
-      "proAllowance": "50",
+      "proAllowance": "250",
       "perDay": "messages/day",
-      "allowanceNote": "The free 5 cover logging the day and asking for one change. The 50 cover rearranging the week as often as you need to."
+      "perWeek": "messages/week",
+      "allowanceNote": "The free plan includes 5 messages a day. Pro includes 250 a week to rearrange your routine."
     },
     "outcomes": {
       "label": "What changes with Pro",
-      "astra": "Rearrange your routine with 50 Astra messages a day",
+      "astra": "Rearrange your routine with 250 Astra messages a week",
       "calendar": "See Google Calendar commitments beside your habits",
       "retrospective": "See what happened and what to change each week and month",
       "noticing": "Astra notices, without you asking, when something slips"
@@ -3386,6 +3402,7 @@
         "yearlyCharge": "{price}/year",
         "planReference": "Plan: {price}",
         "proBody": "{limit, plural, one {The # message a day is on, along with the calendar, the retrospective and Astra noticing things.} other {The # messages a day are on, along with the calendar, the retrospective and Astra noticing things.}}",
+        "proBodyWeekly": "{limit, plural, one {Your # message a week is on, along with the calendar, the retrospective and Astra noticing things.} other {Your # messages a week are on, along with the calendar, the retrospective and Astra noticing things.}}",
         "canceledBody": "The subscription is canceled and will not renew. Everything in Pro stays on until the period ends.",
         "pastDueBody": "The last charge did not go through. Everything in Pro stays on while the provider retries; updating the card in the portal fixes it.",
         "lifetimeBadge": "Lifetime"
@@ -3399,8 +3416,10 @@
       "usage": {
         "title": "Astra messages",
         "aiMessages": "Today",
+        "aiMessagesWeekly": "This week",
         "aiMessagesOf": "{used} of {limit}",
-        "nearLimit": "You are close to today's Astra limit"
+        "nearLimit": "You are close to today's Astra limit",
+        "nearLimitWeekly": "You are close to this week's Astra limit"
       },
       "invoices": {
         "title": "Invoice history",
@@ -3476,6 +3495,7 @@
       "habitLimit": "{limit, plural, one {You can have up to # active habit. Sub-habits don't count. Delete a habit to add another.} other {You can have up to # active habits. Sub-habits don't count. Delete a habit to add another.}}",
       "calendarPro": "Calendar sync needs Orbit Pro. Open Upgrade to turn it on.",
       "astraLimit": "You've used today's Astra messages. More arrive at midnight, your time.",
+      "astraLimitWeekly": "You've used this week's Astra messages.",
       "payGate": "This feature needs Orbit Pro. Open Upgrade to see your options.",
       "reload": "Reload",
       "noPermission": "You don't have permission to do that.",

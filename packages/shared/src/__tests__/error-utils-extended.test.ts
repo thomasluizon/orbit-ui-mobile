@@ -1,3 +1,4 @@
+import allowanceRefusals from '../test-support/astra-allowance-refusals.fixture.json'
 import { describe, it, expect, vi } from 'vitest'
 import { z } from 'zod'
 import {
@@ -275,6 +276,10 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
   ])('classifies status %i and code %s', (status, code, expected) => {
     const error = new ApiClientError(status, 'Failed with status ' + status, { code })
     expect(getFriendlyErrorKey(error, 'errors.createHabit', 'habit')).toBe(expected)
+  })
+
+  it.each(allowanceRefusals)('names the producer $period refusal in $locale as the Astra allowance', ({ body }) => {
+    expect(getFriendlyErrorKey(createApiClientError(403, body, 'fallback'), 'errors.createHabit')).toBe('errors.api.astraLimit')
   })
 
   it.each([

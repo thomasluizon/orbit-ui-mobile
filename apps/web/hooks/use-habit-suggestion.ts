@@ -1,5 +1,7 @@
 'use client'
 
+import { getFriendlyErrorKey } from '@orbit/shared/utils'
+
 import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys, subscriptionKeys } from '@orbit/shared/query'
 import {
@@ -21,6 +23,12 @@ export function useHabitSuggestion() {
   return useAccountScopedMutation<HabitSetupSuggestion, Error, HabitSetupSuggestionRequest>({
     mutationFn: async (data, intendedAccountId) =>
       habitSetupSuggestionSchema.parse(await suggestHabitSetup(data, intendedAccountId)),
+    onError: (error) => {
+      if (getFriendlyErrorKey(error, 'habits.form.aiSuggestError') === 'errors.api.astraLimit') {
+        void queryClient.invalidateQueries({ queryKey: profileKeys.detail() })
+        void queryClient.invalidateQueries({ queryKey: subscriptionKeys.status() })
+      }
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: subscriptionKeys.status() })
       void queryClient.invalidateQueries({ queryKey: profileKeys.detail() })

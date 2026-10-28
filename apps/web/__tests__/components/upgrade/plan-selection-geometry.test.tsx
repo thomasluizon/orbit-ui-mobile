@@ -117,7 +117,7 @@ describe('Pro tier geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
-      const captions = page.getByText(messages.upgrade.convert.perDay, { exact: true })
+      const captions = page.getByText(new RegExp(`^(${messages.upgrade.convert.perDay}|${messages.upgrade.convert.perWeek})$`))
       expect(await captions.count()).toBe(2)
       const geometry = await captions.evaluateAll((elements) => elements.map((element) => {
         const bounds = element.getBoundingClientRect()

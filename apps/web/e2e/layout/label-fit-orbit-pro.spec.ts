@@ -43,7 +43,9 @@ for (const width of [320, 360, 384, 412]) {
           await expect(screen.getByRole('progressbar')).toHaveCount(0)
           await page.evaluate(() => document.fonts.ready)
           const allowance = screen.getByRole('region', { name: words.upgrade.convert.allowanceLabel, exact: true })
-          const captions = allowance.getByText(words.upgrade.convert.perDay, { exact: true })
+          const captions = allowance.getByText(new RegExp('^(' + words.upgrade.convert.perDay + '|' + words.upgrade.convert.perWeek + ')$'))
+          await expect(allowance.getByText(words.upgrade.convert.perDay, { exact: true })).toHaveCount(1)
+          await expect(allowance.getByText(words.upgrade.convert.perWeek, { exact: true })).toHaveCount(1)
           await expect(captions).toHaveCount(2)
           for (const label of [words.upgrade.free, 'Pro', words.upgrade.convert.freeAllowance, words.upgrade.convert.proAllowance]) {
             await markRequiredLabels(allowance.getByText(label, { exact: true }))

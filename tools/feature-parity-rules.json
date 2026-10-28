@@ -1464,6 +1464,15 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:display:onboarding.flow.when.limit": {
+      "targets": [
+        "mobile:content:onboarding.flow.when.limit"
+      ],
+      "owners": [
+        "apps/mobile/components/onboarding/onboarding-create-habit.tsx"
+      ],
+      "reason": "OnboardingCreateHabit renders the daily limit through translate, with onboarding.flow.when.limitWeekly selected for a weekly profile."
+    },
     "mobile:display:orbitMcp.createHeading": {
       "targets": [
         "mobile:control:profile.apiKeys.create"
@@ -1487,6 +1496,15 @@
         "mobile:content:orbitMcp.webNoApiKey"
       ],
       "reason": "The connection guide renders the retained label in its sheet title or instructions, reached through the connection instructions action."
+    },
+    "mobile:display:profile.allowance.title": {
+      "targets": [
+        "mobile:content:profile.allowance.title"
+      ],
+      "owners": [
+        "apps/mobile/components/profile/astra-allowance-panel.tsx"
+      ],
+      "reason": "AstraAllowancePanel retains its heading and progress label through translate, with profile.allowance.titleWeekly selected for a weekly profile."
     },
     "mobile:display:profile.deleteAccount.deactivated": {
       "targets": [
@@ -1616,7 +1634,10 @@
       "targets": [
         "mobile:content:upgrade.billing.plan.lifetimeHint"
       ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
+      "owners": [
+        "apps/mobile/components/upgrade/plan-summary-card.tsx"
+      ],
+      "reason": "The lifetime description flows from subscriptionSummary.bodyKey through translate into the rendered plan summary."
     },
     "mobile:display:upgrade.billing.plan.monthly": {
       "targets": [
@@ -1636,11 +1657,23 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
+    "mobile:display:upgrade.billing.usage.aiMessages": {
+      "targets": [
+        "mobile:content:upgrade.billing.usage.aiMessages"
+      ],
+      "owners": [
+        "apps/mobile/components/upgrade/usage-card.tsx"
+      ],
+      "reason": "The usage counter retains its rendered label through translate, with upgrade.billing.usage.aiMessagesWeekly selected for a weekly profile."
+    },
     "mobile:display:upgrade.manageHint": {
       "targets": [
         "mobile:content:upgrade.billing.plan.lifetimeHint"
       ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+      "owners": [
+        "apps/mobile/components/upgrade/plan-summary-card.tsx"
+      ],
+      "reason": "The lifetime plan summary retains the existing description that there is nothing to renew or cancel, selected through subscriptionSummary.bodyKey."
     },
     "mobile:display:versionUpdate.readyTitle": {
       "targets": [
@@ -3335,6 +3368,15 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "web:display:onboarding.flow.when.limit": {
+      "targets": [
+        "web:content:onboarding.flow.when.limit"
+      ],
+      "owners": [
+        "apps/web/components/onboarding/onboarding-create-habit.tsx"
+      ],
+      "reason": "OnboardingCreateHabit renders the daily limit through translate, with onboarding.flow.when.limitWeekly selected for a weekly profile."
+    },
     "web:display:orbitMcp.created": {
       "targets": [
         "web:content:orbitMcp.created"
@@ -3346,6 +3388,15 @@
         "web:content:orbitMcp.lastUsed"
       ],
       "reason": "The restored label reaches rendered output through its component or bound control."
+    },
+    "web:display:profile.allowance.title": {
+      "targets": [
+        "web:content:profile.allowance.title"
+      ],
+      "owners": [
+        "apps/web/components/profile/astra-allowance-panel.tsx"
+      ],
+      "reason": "AstraAllowancePanel retains its heading and progress label through translate, with profile.allowance.titleWeekly selected for a weekly profile."
     },
     "web:display:profile.deleteAccount.deactivated": {
       "targets": [
@@ -3487,7 +3538,10 @@
       "targets": [
         "web:content:upgrade.billing.plan.lifetimeHint"
       ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
+      "owners": [
+        "apps/web/components/upgrade/billing-dashboard.tsx"
+      ],
+      "reason": "The lifetime description flows from subscriptionSummary.bodyKey through translate into the rendered plan summary."
     },
     "web:display:upgrade.billing.plan.monthly": {
       "targets": [
@@ -3507,11 +3561,23 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
+    "web:display:upgrade.billing.usage.aiMessages": {
+      "targets": [
+        "web:content:upgrade.billing.usage.aiMessages"
+      ],
+      "owners": [
+        "apps/web/components/upgrade/usage-stats.tsx"
+      ],
+      "reason": "The usage counter retains its rendered label through translate, with upgrade.billing.usage.aiMessagesWeekly selected for a weekly profile."
+    },
     "web:display:upgrade.manageHint": {
       "targets": [
         "web:content:upgrade.billing.plan.lifetimeHint"
       ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+      "owners": [
+        "apps/web/components/upgrade/billing-dashboard.tsx"
+      ],
+      "reason": "The lifetime plan summary retains the existing description that there is nothing to renew or cancel, selected through subscriptionSummary.bodyKey."
     },
     "web:display:upgrade.plans.monthly.period": {
       "targets": [

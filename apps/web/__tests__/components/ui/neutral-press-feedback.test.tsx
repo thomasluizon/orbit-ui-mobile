@@ -15,7 +15,11 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next-intl', async (importOriginal) => ({
+  ...await importOriginal<typeof import('next-intl')>(),
+  useTranslations: () => (key: string) => key,
+  useLocale: () => 'en',
+}))
 
 const noop = () => {}
 

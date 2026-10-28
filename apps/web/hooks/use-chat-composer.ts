@@ -1,5 +1,7 @@
 'use client'
 
+import { createAstraAllowanceTranslator } from '@orbit/shared/utils'
+
 import { mediaQueryMatches } from '@/lib/media-query'
 
 import { useThrottleStore } from '@/stores/throttle-store'
@@ -152,6 +154,8 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   const locale = useLocale()
   const queryClient = useQueryClient()
   const { profile } = useProfile()
+  const allowanceText = useMemo(() => createAstraAllowanceTranslator(t, profile, locale), [t, profile, locale])
+
   const contextualSuggestion = useChatStore((state) => state.contextualSuggestion)
   const calendarHasError = useUIStore((state) => state.calendarHasError)
   const today = options.today ?? formatAPIDateInTimeZone(new Date(), profile?.timeZone)
@@ -319,6 +323,23 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     if (draftMessageId) useChatStore.setState(state => ({ messages: state.messages.filter(message => message.id !== draftMessageId) }))
   }, [restoreImage, restoreTextFile, today, setDailyBudgetDate, setSendError, setLastFailedSend])
 
+  const handleAllowanceExceeded = useCallback((draftMessageId: string | null) => {
+    setSendError(null)
+    setLastFailedSend(null)
+    const limitReason = allowanceText('chat.limitReachedError')
+    if (draftMessageId) {
+      updateMessage(draftMessageId, { content: limitReason })
+    } else {
+      addMessage({
+        id: crypto.randomUUID(),
+        role: 'ai',
+        content: limitReason,
+        timestamp: new Date(),
+      })
+    }
+    scrollToBottom()
+  }, [addMessage, allowanceText, scrollToBottom, setSendError, setLastFailedSend, updateMessage])
+
   const handleFailedSend = useCallback((
     failureInput: StreamSendFailure,
     attempted: AttemptedSend,
@@ -361,19 +382,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       setSendError(t('chat.timeoutError'))
       setLastFailedSend(failedAttempt)
     } else if (failure.kind === 'limit') {
-      setSendError(null)
-      const limitReason = t('chat.limitReachedError')
-      if (draftMessageId) {
-        updateMessage(draftMessageId, { content: limitReason })
-      } else {
-        addMessage({
-          id: crypto.randomUUID(),
-          role: 'ai',
-          content: limitReason,
-          timestamp: new Date(),
-        })
-      }
-      scrollToBottom()
+      handleAllowanceExceeded(draftMessageId)
       return
     } else {
       setSendError(t('chat.sendError'))
@@ -391,7 +400,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       })
     }
     scrollToBottom()
-  }, [addMessage, handleDailyBudgetExceeded, scrollToBottom, setInput, setIsTyping, t, updateMessage, setSendError, setLastFailedSend, setActiveSteps])
+  }, [addMessage, handleAllowanceExceeded, handleDailyBudgetExceeded, scrollToBottom, setInput, setIsTyping, t, updateMessage, setSendError, setLastFailedSend, setActiveSteps])
 
   const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[], firstReveal: Promise<void>, messageCost: 0 | 1, reply: ChatReplyLifecycle) => {
     if (!reply.isHidden() && draftMessageId && response.parts?.some(part => part?.type === 'block')) {
@@ -562,7 +571,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       if (isHidden()) return { kind: 'cancelled' }
       return { kind: 'failed', failure: {
           status: isAbortError(error) ? 408 : null,
-          error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'),
+          error: getFriendlyErrorMessage(error, allowanceText, 'chat.sendError', 'generic'),
           code: null,
         }, draftMessageId }
     } finally {
@@ -570,7 +579,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       if (stopReply.current === stop) stopReply.current = null
       reply.finish(finalReceived)
     }
-  }, [
+  }, [allowanceText,
     addMessage,
     appendToMessageContent,
     applyFinalResponse,
@@ -604,14 +613,14 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
 
   const sendBlockAnswer = useCallback((request: BlockAnswerRequest): Promise<BlockAnswerResult> =>
     blockSubmission.send(request, {
-      isOnline, atMessageLimit, dailyBudgetReached, onDailyBudgetExceeded: handleDailyBudgetExceeded, locale, intendedAccountId: getHeldAccountId(),
+      isOnline, atMessageLimit, dailyBudgetReached, onAllowanceExceeded: handleAllowanceExceeded, onDailyBudgetExceeded: handleDailyBudgetExceeded, locale, intendedAccountId: getHeldAccountId(),
       getChat: useChatStore.getState, createMessageId: () => crypto.randomUUID(),
       conversation: useUIStore.getState(), beginSend, run: runStreamingSend,
       refreshProfile: () => queryClient.invalidateQueries({ queryKey: profileKeys.all }),
       words: { answered: content => t('chat.choice.answered', { options: content }),
         closed: t('chat.choice.closed'), alreadyAnswered: t('chat.choice.alreadyAnswered') },
-    }), [atMessageLimit, beginSend, blockSubmission, dailyBudgetReached, handleDailyBudgetExceeded, isOnline, locale, queryClient, runStreamingSend, t])
-  const blockAnswerInteraction = { isOnline, isSending, atMessageLimit, dailyBudgetReached, allowance: aiMessagesLimit, send: sendBlockAnswer }
+    }), [atMessageLimit, beginSend, blockSubmission, dailyBudgetReached, handleAllowanceExceeded, handleDailyBudgetExceeded, isOnline, locale, queryClient, runStreamingSend, t])
+  const blockAnswerInteraction = { isOnline, isSending, atMessageLimit, dailyBudgetReached, allowance: aiMessagesLimit, limitReason: allowanceText('chat.choice.limit', { allowance: aiMessagesLimit }), send: sendBlockAnswer }
 
   const queueAttempt = useCallback((attempted: AttemptedSend, sendsComposerDraft: boolean) => {
     const accepted = enqueueChatPrompt(useChatStore.getState(), crypto.randomUUID(), attempted, performSend)
@@ -646,7 +655,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
         addMessage({
           id: crypto.randomUUID(),
           role: 'ai',
-          content: t('chat.limitReachedError'),
+          content: allowanceText('chat.limitReachedError'),
           timestamp: new Date(),
         })
         scrollToBottom()
@@ -680,7 +689,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
 
       await performSend(attempted, false)
     },
-    [
+    [allowanceText,
       queueAttempt, setSendError,
       clearImage,
       attachments,
@@ -757,13 +766,14 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
 
   const remainingMessages = aiMessagesLimit - aiMessagesUsed
   const nearMessageLimit = remainingMessages <= AI_MESSAGE_COUNTER_THRESHOLD
-  const renewalHint = nearMessageLimit && !dailyBudgetReached ? t('shell.composer.limit.renewal') : undefined
-  const allowanceReason = nearMessageLimit && !dailyBudgetReached ? t('shell.composer.limit.reason', { allowance: aiMessagesLimit }) : undefined
+  const renewalHint = nearMessageLimit && !dailyBudgetReached ? allowanceText('shell.composer.limit.renewal') : undefined
+  const allowanceReason = nearMessageLimit && !dailyBudgetReached ? allowanceText('shell.composer.limit.reason', { allowance: aiMessagesLimit }) : undefined
 
   const usageMessage = nearMessageLimit && !dailyBudgetReached && remainingMessages > 0
-    ? t('shell.composer.usage', { used: aiMessagesUsed, limit: aiMessagesLimit }) : undefined
+    ? allowanceText('shell.composer.usage', { used: aiMessagesUsed, limit: aiMessagesLimit }) : undefined
 
-  const messageLimitReason = dailyBudgetReached ? t('chat.dailyBudgetReached') : t('shell.composer.limit.reason', { allowance: aiMessagesLimit })
+  const messageLimitReason = dailyBudgetReached ? t('chat.dailyBudgetReached') : allowanceText('shell.composer.limit.reason', { allowance: aiMessagesLimit })
+  const messageLimitPlaceholder = dailyBudgetReached ? t('shell.composer.limit.placeholder') : allowanceText('shell.composer.limit.placeholder')
 
   const queue = useMemo(() => ({
     label: t('shell.composer.queue.label'),
@@ -835,7 +845,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     }
 
     if (atMessageLimit) {
-      const limitWords = { ...words, placeholder: t('shell.composer.limit.placeholder') }
+      const limitWords = { ...words, placeholder: messageLimitPlaceholder }
       const limitReason = messageLimitReason
       return speechSupported
         ? { ...common, words: limitWords, suggestions: [] as const, state: 'atLimit', limitReason, onVoice: toggleRecording, voiceWords }
@@ -854,6 +864,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     attachments,
     atMessageLimit,
     messageLimitReason,
+    messageLimitPlaceholder,
     canRetryLastSend,
     composerSuggestions,
     input,
@@ -910,6 +921,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     hasGoogleConnection: profile?.hasGoogleConnection ?? false,
     aiMessagesUsed,
     aiMessagesLimit,
+    allowanceReason: allowanceText('shell.composer.limit.reason', { allowance: aiMessagesLimit }),
     atMessageLimit,
     dailyBudgetReached,
     canSend,

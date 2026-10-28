@@ -432,7 +432,7 @@ export const ERROR_CODE_TO_KEY: Record<string, string> = {
 
 function getPayGateErrorKey(normalizedMessage: string): string {
   if (normalizedMessage.includes('calendar')) return 'errors.api.calendarPro'
-  if (normalizedMessage.includes('ai message')) return 'errors.api.astraLimit'
+  if (normalizedMessage.includes('ai message') || normalizedMessage.includes('mensagens de ia')) return 'errors.api.astraLimit'
   return 'errors.api.payGate'
 }
 
