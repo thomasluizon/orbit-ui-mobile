@@ -1,4 +1,5 @@
 import { suggestionAnswer } from './suggestions.mjs'
+import { startingStepAnswer } from './one-small-step.mjs'
 import { tsImport } from 'tsx/esm/api'
 import { catalogTranslator } from './catalog-translator.mjs'
 import { visibleBlock } from './visible-blocks.mjs'
@@ -37,6 +38,12 @@ function projectionCannotWrite() { throw new Error('Visible answer projection ca
 export function visibleAnswer(composition, clientContext, accountDate) {
   if (clientContext?.supportsParts !== true) return composition.aiMessage
   const locale = clientContext.locale ?? 'en'
+  if (composition.parts?.some((part) => part.kind === 'oneSmallStep')) {
+    try { return startingStepAnswer(composition.parts, locale) } catch (error) {
+      error.blockKind = 'oneSmallStep'
+      throw error
+    }
+  }
   if (composition.parts?.some((part) => part.kind === 'habitSuggestions')) {
     try { return suggestionAnswer(composition.parts, locale) } catch (error) {
       error.blockKind = 'habitSuggestions'

@@ -24,7 +24,10 @@ export function summarizePendingOperationItem(
   formatTime: (value: string) => string,
   locale: string,
   actionKey?: string | null,
+  today?: string,
 ): string {
+  const reschedule = actionKey === 'rescheduleHabits' ? summarizeReschedule(fields, translate, locale, today) : undefined
+  if (reschedule) return reschedule
   const changed = fields.filter(field => field.oldValue !== field.newValue && !['habit_id', 'title', 'emoji'].includes(field.field))
   if (['updateHabit', 'updateHabits'].includes(actionKey ?? '') && changed.length) {
     return summarizeHabitUpdate(fields, changed, translate, formatTime, locale)
@@ -42,6 +45,16 @@ export function summarizePendingOperationItem(
   return summary || (actionKey && PREVIEW_ACTION_KEYS.includes(actionKey) ? translate(`chat.operation.source.${actionKey}`) : '')
 }
 
+function summarizeReschedule(fields: readonly PendingOperationChange[], translate: PreviewTranslation, locale: string, today?: string): string | undefined {
+  const date = fields.find(field => field.field === 'due_date')
+  if (!date?.newValue) return undefined
+  if (date.oldValue !== date.newValue) {
+    const change = compactDateChange([date], translate, locale, today)
+    if (change) return change
+  }
+  return date.newValue === today ? translate('dates.today') : formatLocaleDate(parseAPIDate(date.newValue), locale, { dateStyle: 'medium' })
+}
+
 function summarizeHabitUpdate(
   fields: readonly PendingOperationChange[], changed: readonly PendingOperationChange[],
   translate: PreviewTranslation, formatTime: (value: string) => string, locale: string,
@@ -55,14 +68,14 @@ function summarizeHabitUpdate(
   return before === after ? after : translate('chat.preview.beforeAfter', { before, after })
 }
 
-function compactDateChange(fields: readonly PendingOperationChange[], translate: PreviewTranslation, locale: string): string | undefined {
+function compactDateChange(fields: readonly PendingOperationChange[], translate: PreviewTranslation, locale: string, today?: string): string | undefined {
   const field = fields[0]
   if (fields.length !== 1 || !field || !['due_date', 'date'].includes(field.field)
     || !field.oldValue || !field.newValue || !/^\d{4}-\d{2}-\d{2}$/.test(field.oldValue) || !/^\d{4}-\d{2}-\d{2}$/.test(field.newValue)) return undefined
   const sameYear = field.oldValue.slice(0, 4) === field.newValue.slice(0, 4)
   return translate('chat.preview.beforeAfter', {
-    before: formatLocaleDate(parseAPIDate(field.oldValue), locale, { day: 'numeric', month: 'numeric', ...(!sameYear ? { year: '2-digit' } as const : {}) }),
-    after: formatLocaleDate(parseAPIDate(field.newValue), locale, { day: 'numeric', month: 'numeric', year: '2-digit' }),
+    before: field.oldValue === today ? translate('dates.today') : formatLocaleDate(parseAPIDate(field.oldValue), locale, { day: 'numeric', month: 'numeric', ...(!sameYear ? { year: '2-digit' } as const : {}) }),
+    after: field.newValue === today ? translate('dates.today') : formatLocaleDate(parseAPIDate(field.newValue), locale, { day: 'numeric', month: 'numeric', year: '2-digit' }),
   })
 }
 

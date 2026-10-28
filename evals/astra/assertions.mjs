@@ -1,5 +1,8 @@
 import { refineResult } from './suggestions.mjs'
-export { composition } from './composition.mjs'
+import { composition } from './composition.mjs'
+export { composition }
+import { approveStartingStep } from './step-persistence.mjs'
+import { safeFailureMessage } from './credentials.mjs'
 import { assertions } from 'promptfoo'
 import { isDeepStrictEqual } from 'node:util'
 import { tools, legacyTools, toolSensitiveFields, observableSchema } from './trace-policy.mjs'
@@ -18,6 +21,17 @@ const normalizeText = (text) => text.normalize('NFD').replace(/\p{M}/gu, '').toL
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 const statuses = new Set(['Succeeded', 'Failed', 'PendingConfirmation', 'Denied', 'UnsupportedByPolicy', 'NotExecuted'])
+
+export async function savedStep(output, context) {
+  if (!['saveTask', 'saveChecklistItem'].includes(context.vars.startingStepAction)) return result(true, 'No saved-step approval requested.')
+  try {
+    for (const grade of [structural, behavior, composition]) {
+      const check = await grade(output, context)
+      if (check.pass !== true || check.metadata?.unavailable) return result(false, `Saved-step approval blocked: ${check.reason}`)
+    }
+    return await approveStartingStep(decode(output), context.vars)
+  } catch (error) { return result(false, `Saved-step approval or readback failed: ${safeFailureMessage(error)}`) }
+}
 
 function traceBoundary(output, context) {
   const { trace } = decode(output)

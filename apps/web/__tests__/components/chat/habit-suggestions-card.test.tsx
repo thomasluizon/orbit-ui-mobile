@@ -12,6 +12,7 @@ import { ChatBlock } from '@/components/chat/block-registry'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 
 const mocks = vi.hoisted(() => ({ refine: vi.fn(), preview: vi.fn(), confirm: vi.fn(), revise: vi.fn(), relationshipsLoaded: true, scheduleLoaded: true, scheduleError: false, refetch: vi.fn(), create: vi.fn(), edit: vi.fn() }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (time: string) => time }) }))
 vi.mock('@/hooks/use-habit-suggestion-actions', () => ({ useHabitSuggestionActions: (id: string) => ({
   refine: mocks.refine, preview: mocks.preview, isCurrent: () => true,

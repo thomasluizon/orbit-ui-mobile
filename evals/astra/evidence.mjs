@@ -69,6 +69,7 @@ export function attemptEvidence(entry, attempt) {
       .map((part) => ({ kind: part.kind, subtype: part.block?.kind ?? null })),
     toolCalls,
     timing: timingEvidence(output?.trace?.timing),
+    savedStep: entry.gradingResult?.componentResults?.find((assertion) => assertion.assertion?.metric === 'savedStep')?.metadata?.savedStep ?? null,
     ...(output?.brainDumpReadback ? { brainDumpReadback: output.brainDumpReadback } : {}),
     renderError: output?.renderError ?? null,
     graderRationale: attempt.assertions.filter((assertion) => assertion.metric === 'finalAnswer')

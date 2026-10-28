@@ -119,7 +119,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
         {showOperationUpdate ? <Text style={{ fontSize: 14, color: tokens.fg2 }}>{t('chat.operationUpdated')}</Text> : null}
         {showUnreadableReply ? <Text style={{ fontSize: 14, color: tokens.fg2 }}>{t('chat.unreadableReply')}</Text> : null}
         {parts.map(part => {
-          if (part.type === 'block') return <ConversationReveal key={part.key} animate={animateEntry} index={proseOffset + part.key}><ChatBlock part={part.part} message={message} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={part.expired} onActionChipClick={onActionChipClick} /></ConversationReveal>
+          if (part.type === 'block') return <ConversationReveal key={part.key} animate={animateEntry} index={proseOffset + part.key}><ChatBlock part={part.part} message={message} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} onSendMessage={props.onSendMessage} expired={part.expired} onActionChipClick={onActionChipClick} /></ConversationReveal>
           const prose = <MessageProse key={part.key} message={message}
             sourceText={part.text}
             styles={styles} showImage={part.showImage} />;

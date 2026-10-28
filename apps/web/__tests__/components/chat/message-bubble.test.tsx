@@ -15,6 +15,7 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en-US',
 }))
 
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (value: string) => value }),
 }))

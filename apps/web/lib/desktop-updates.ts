@@ -9,6 +9,7 @@ const nativeSnapshotSchema = z.object({
   phase: z.enum(['idle', 'available', 'downloading', 'downloaded', 'installing', 'failed']),
   shellVersion: z.string().nullable(), webCommit: z.string().nullable(), deferred: z.boolean(),
   restartRequested: z.boolean(), checking: z.boolean(), checkFailed: z.boolean(),
+  promptPending: z.boolean().optional().default(false),
 })
 type NativeSnapshot = z.infer<typeof nativeSnapshotSchema>
 type WebRelease = z.infer<typeof desktopWebReleaseSchema>
@@ -39,6 +40,8 @@ class DesktopUpdateController {
 
   isStopped() { return this.stopped }
 
+  shellInstallationPaused() { return this.native?.promptPending || this.native?.deferred }
+
   offerKey() { return JSON.stringify([this.native?.shellVersion, this.web?.commit, this.web?.minimumShellVersion]) }
 
   publish() {
@@ -49,7 +52,7 @@ class DesktopUpdateController {
       : this.native?.phase === 'installing' ? 'installing'
       : this.applying || this.native?.phase === 'downloading' ? 'downloading' : 'available'
     const safe = canReloadDesktopWeb()
-    const notice: DesktopUpdateNotice | null = kind && !hidden && (safe || phase === 'downloading' || phase === 'installing') ? { kind, phase } : null
+    const notice: DesktopUpdateNotice | null = kind && !hidden && !this.native?.promptPending && (safe || phase === 'downloading' || phase === 'installing') ? { kind, phase } : null
     const previous = useDesktopUpdateStore.getState().notice
     if (previous?.kind !== notice?.kind || previous?.phase !== notice?.phase) useDesktopUpdateStore.setState({ notice })
   }
@@ -71,17 +74,21 @@ class DesktopUpdateController {
     }
   }
 
+  async downloadShell() {
+    this.publish()
+    this.native = await invoke('download', { reservation: this.reservation })
+    if (this.isStopped()) return false
+    if (this.native.phase === 'failed' || this.shellInstallationPaused()) { this.requested = false; return false }
+    return true
+  }
+
   async apply() {
     if (this.stopped || this.applying || !this.requested || !canReloadDesktopWeb()) return
+    if (this.shellInstallationPaused()) { this.requested = false; return }
     this.applying = true
     this.failed = false
     try {
-      if (this.native?.shellVersion) {
-        this.publish()
-        this.native = await invoke('download', { reservation: this.reservation })
-        if (this.isStopped()) return
-        if (this.native.phase === 'failed') { this.requested = false; return }
-      }
+      if (this.native?.shellVersion && !await this.downloadShell()) return
       if (!canReloadDesktopWeb() || this.isStopped()) return
       await reloadDesktopWeb(() => this.finish(), Boolean(this.native?.shellVersion))
     } catch (error) {

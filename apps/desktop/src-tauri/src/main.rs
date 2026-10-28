@@ -36,6 +36,7 @@ fn main() {
             }
         }))
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(
@@ -94,6 +95,11 @@ fn main() {
         .build(context)
         .expect("desktop application failed")
         .run(|_app, _event| {
+            if let tauri::RunEvent::ExitRequested { code, api, .. } = &_event {
+                if *code != Some(tauri::RESTART_EXIT_CODE) && updates::request_quit(_app) {
+                    api.prevent_exit();
+                }
+            }
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen { .. } = _event {
                 if let Err(error) = lifecycle::show_main(_app) {

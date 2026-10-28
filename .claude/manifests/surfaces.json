@@ -4439,6 +4439,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "block-chat-one-small-step-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/one-small-step-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/one-small-step-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-one-small-step-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/one-small-step-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/one-small-step-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-one-small-step-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/one-small-step-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/one-small-step-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-one-small-step-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/one-small-step-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/one-small-step-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "block-chat-operation-outcomes",
       "platform": "web",
       "kind": "block",
@@ -13349,6 +13405,62 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/metrics-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-one-small-step-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/one-small-step-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/one-small-step-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-one-small-step-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/one-small-step-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/one-small-step-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-one-small-step-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/one-small-step-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/one-small-step-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-one-small-step-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/one-small-step-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/one-small-step-card.tsx"
       ],
       "state": "default",
       "theme": "dark",

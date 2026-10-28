@@ -32,6 +32,15 @@ function outputFor(calls = []) {
   } })
 }
 
+it('preserves independent saved-step readback in the private attempt artifact', () => {
+  const savedStep = { approved: true, unchangedBeforeApproval: true, action: 'saveTask', title: 'Open the book',
+    frequencyUnit: null, frequencyQuantity: null, checklistItems: [] }
+  const { evidence } = persist(outputFor(), { gradingResult: { componentResults: [
+    { assertion: { metric: 'savedStep' }, pass: true, metadata: { savedStep } },
+  ] } })
+  expect(evidence.savedStep).toEqual(savedStep)
+})
+
 it('retains sanitized brain dump approval and persisted schedule evidence', () => {
   const output = outputFor()
   output.brainDumpReadback = { pass: true, score: 1, reason: 'Persisted schedules verified.',

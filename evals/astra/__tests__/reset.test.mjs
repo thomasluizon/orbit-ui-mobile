@@ -27,6 +27,18 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const scenario = (fixture) => structuredClone(corpus.find((entry) => entry.metadata.fixture === fixture))
+it.each(['en', 'pt-BR'])('seeds and reads back existing checked checklist items in %s', async (locale) => {
+  const test = scenario('pro')
+  test.metadata.fixture = 'starting-step-checklist'
+  test.metadata.locale = locale
+  await resetFixture(test)
+  const active = habits.filter((habit) => !habit.deleted)
+  expect(active[0].checklistItems).toEqual([
+    { text: locale === 'en' ? 'Get a glass' : 'Pegar um copo', isChecked: true },
+    { text: locale === 'en' ? 'Fill the glass' : 'Encher o copo', isChecked: false },
+  ])
+  expect(requests.at(-1).path).toBe('profile/export')
+})
 it.each(['en', 'pt-BR'])('seeds and independently verifies a cached retrospective before the stale %s attempt', async (locale) => {
   const source = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-stale-${locale}`))
   const { test } = await prepareAttempt({ test: source })
@@ -64,7 +76,7 @@ it.each(['uncached', 'missing-flag', 'empty-narrative', 'wrong-period', 'wrong-f
     expect(requests.some(({ path }) => path === 'chat')).toBe(false)
   },
 )
-it('negotiates every composition context from client-supported block kinds', async () => {
+it('negotiates client-supported kinds and explicit starting-step API contract cases', async () => {
   const contexts = [...new Map(corpus.filter((entry) => entry.metadata.category === 'composition')
     .map((entry) => [JSON.stringify(entry.vars.clientContext), entry])).values()]
   for (const entry of contexts) {
@@ -74,7 +86,8 @@ it('negotiates every composition context from client-supported block kinds', asy
     const { test } = await prepareAttempt({ test: source })
     expect(test.vars).not.toHaveProperty('preconditionFailure')
     const client = JSON.parse(test.vars.clientContextJson)
-    expect(client.partKinds.filter((kind) => !CHAT_BLOCK_KINDS.includes(kind))).toEqual([])
+    expect(client.partKinds.filter((kind) => !CHAT_BLOCK_KINDS.includes(kind)))
+      .toEqual(entry.metadata.family.startsWith('one-small-step') && entry.vars.clientContext.partKinds.includes('oneSmallStep') ? ['oneSmallStep'] : [])
     if (entry.vars.clientContext.supportsParts && !entry.vars.clientContext.partKinds) {
       expect(client.partKinds).toEqual([...CHAT_BLOCK_KINDS])
     } else {
