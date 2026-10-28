@@ -58,7 +58,9 @@ fn quit(host: &impl DesktopHost) {
 }
 
 pub fn show_main(app: &AppHandle) -> tauri::Result<()> {
-    restore(app)
+    restore(app)?;
+    crate::updates::show_prompt(app);
+    Ok(())
 }
 
 pub fn quit_app(app: &AppHandle) {
@@ -73,6 +75,7 @@ pub fn on_window_event(window: &tauri::Window, event: &WindowEvent) {
     if window.label() == "main" {
         if let WindowEvent::Focused(true) = event {
             crate::updates::check(window.app_handle());
+            crate::updates::show_prompt(window.app_handle());
         }
         if let WindowEvent::CloseRequested { api, .. } = event {
             api.prevent_close();
