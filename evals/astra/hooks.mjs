@@ -66,9 +66,6 @@ async function prepareAttempt(test) {
   test.vars.accountDate = today
   process.env.ORBIT_EVAL_OVERDUE_DATE ??= dateOffset(today, -1)
   const retrospective = await resetFixture(test, today, accountAccess.get(test.vars.credentialKey) === true)
-  if (test.metadata.fixture === 'composition-stale') {
-    test.vars.expectations.required[0].result = { payload: retrospective }
-  }
   const account = readCredentials()[test.vars.credentialKey]
   const substitutions = {
     accountDate: today,
@@ -92,6 +89,9 @@ async function prepareAttempt(test) {
     return value
   }
   test.vars = substitute(test.vars)
+  if (test.metadata.fixture === 'composition-stale') {
+    test.vars.expectations.required[0].result = { payload: retrospective }
+  }
   test.vars.clientContext ??= buildChatClientContext({ platform: test.metadata.platform ?? 'web', locale: test.metadata.locale ?? 'en' })
   if (test.vars.clientContext.supportsParts === true && test.vars.clientContext.partKinds === undefined) {
     test.vars.clientContext.partKinds = buildChatClientContext(test.vars.clientContext).partKinds

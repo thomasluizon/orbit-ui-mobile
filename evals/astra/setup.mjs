@@ -17,8 +17,9 @@ export async function prepareCorrection(test) {
   if (response.error || !response.output) throw new Error(`Correction setup${setup.caseId ? ` dependency ${setup.caseId}` : ''} returned no verifiable answer.`)
   const context = { vars, test }
   const checks = await Promise.all([structural(response.output, context), behavior(response.output, context), composition(response.output, context)])
-  if (checks.some((check) => check.pass !== true || check.metadata?.skipped || check.metadata?.unavailable)) {
-    throw new Error(`Correction setup failed${setup.caseId ? ` dependency ${setup.caseId}` : ''}: ${checks.filter((check) => !check.pass || check.metadata?.skipped || check.metadata?.unavailable).map((check) => check.reason).join('; ')}`)
+  const failures = checks.filter((check) => check.pass !== true || check.metadata?.skipped || check.metadata?.unavailable)
+  if (failures.length) {
+    throw new Error(`Correction setup failed${setup.caseId ? ` dependency ${setup.caseId}` : ''}: ${failures.map((check) => check.reason).join('; ')}`)
   }
   if (test.vars.refine) {
     const drafts = response.output.composition.parts.find((part) => part.kind === 'habitSuggestions').block.drafts

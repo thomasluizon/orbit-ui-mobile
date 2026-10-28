@@ -402,3 +402,14 @@ it('marks the Free capacity case incomplete before chat when its daily window is
     .toMatchObject({ pass3: 'incomplete', unavailable: 1 })
   expect(requests.some(({ path }) => path === 'chat')).toBe(false)
 })
+
+it.each(['en', 'pt-BR'])('keeps the stated medical date before account today in a later year in %s', async (locale) => {
+  vi.setSystemTime(new Date('2031-10-27T12:00:00Z'))
+  const source = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-medical-batch-${locale}`))
+  const { test } = await prepareAttempt({ test: source })
+  expect(test.vars).not.toHaveProperty('preconditionFailure')
+  expect(test.vars.accountDate).toBe('2031-10-27')
+  expect(test.vars.expectations.required[0].arguments.habits[0].due_date).toBe('2031-10-26')
+  expect(test.vars.rubric).toContain('2031-10-26, even when it is before today')
+  expect(test.vars.rubric).toContain('The account date is 2031-10-27')
+})
