@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
 import { apiOrigin, readCredentials, refreshCredential, safeFailureMessage, updateCredentials } from '../credentials.mjs'
 import { publicApi, requireEvalAccess } from './api.mjs'
-import { fixtureNames, fixtureHabitTitles, maliciousHabitTitle } from './names.mjs'
+import { fixtureNames, fixtureHabitTitles, habitlessFixtures, maliciousHabitTitle } from './names.mjs'
 import { exhaustAllowance } from './allowance.mjs'
 
 const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>
@@ -203,7 +203,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   let exported = await snapshot(api)
   const account = await stableHabits(api, key, exported, today, names)
   exported = await snapshot(api)
-  const empty = ['empty', 'medical'].includes(fixture)
+  const empty = habitlessFixtures.includes(fixture)
   await cleanCollections(api, fixture === 'free-at-limit' ? { ...exported, habits: [] } : exported, empty ? [] : [account.habitId, account.secondHabitId])
   if (empty) {
     if ((await snapshot(api)).habits.length) throw new Error('Empty fixture readback still contains habits.')

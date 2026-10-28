@@ -102,6 +102,22 @@ it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))])('establishe
   if (fixture === 'composition-logged') expect(active[0].logs.some((log) => log.date === '2026-10-24')).toBe(true)
   expect(requests.find(({ path }) => path === 'profile/language').body.language).toBe(test.metadata.locale)
 })
+it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))].flatMap((fixture) => ['en', 'pt-BR'].map((locale) => [fixture, locale])))(
+  'advertises only habit titles the %s reset leaves in the %s account', async (fixture, locale) => {
+    const source = scenario(fixture)
+    source.metadata.locale = locale
+    pro = fixture !== 'free-at-limit'
+    exhausted = fixture === 'budget-exhausted'
+    const { test } = await prepareAttempt({ test: source })
+    const stored = habits.filter((habit) => !habit.deleted).map((habit) => habit.title)
+    const unmatched = [...stored]
+    for (const title of test.vars.fixtureHabitTitles) {
+      expect(unmatched).toContain(title)
+      unmatched.splice(unmatched.indexOf(title), 1)
+    }
+    if (['empty', 'medical', 'budget-exhausted'].includes(fixture)) expect(test.vars.fixtureHabitTitles).toEqual([])
+  },
+)
 it('preserves registered IDs across completion, skip, empty and restoration resets', async () => {
   await runReset('composition-writes-outcomes-en')
   expect(requests.slice(0, 2).map(({ path }) => path)).toEqual(['health', 'auth/refresh'])
