@@ -435,7 +435,7 @@ it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as con
     state.actualCopy = true
     const tree = await mount(parsed)
     const rows = tree.root.findAll(node => String(node.type) === 'View' && node.props.testID === 'habit-block-row')
-    const names = [messages.habits.statusDot.skip, messages.chat.habitList.logged, occurrences === 'live' ? messages.chat.habitList.pending : messages.chat.habitList.overdue, messages.chat.habitList.pending, messages.habits.statusDot.bad]
+    const names = [messages.habits.statusDot.skip, messages.chat.habitList.logged, messages.chat.habitList.overdue, messages.chat.habitList.pending, messages.habits.statusDot.bad]
     expect(rows).toHaveLength(5)
     rows.forEach((row, index) => {
       const check = row.findAll(node => String(node.type) === 'AnimatedView' && node.props.testID === 'habit-check')[0]!

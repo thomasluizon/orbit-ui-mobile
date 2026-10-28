@@ -384,7 +384,7 @@ it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as con
     const messages = locale === 'en' ? en : pt
     const view = mount(parsed, locale)
     const rows = [...view.container.querySelectorAll('[data-habit-block-row]')]
-    const names = [messages.habits.statusDot.skip, messages.chat.habitList.logged, occurrences === 'live' ? messages.chat.habitList.pending : messages.chat.habitList.overdue, messages.chat.habitList.pending, messages.habits.statusDot.bad]
+    const names = [messages.habits.statusDot.skip, messages.chat.habitList.logged, messages.chat.habitList.overdue, messages.chat.habitList.pending, messages.habits.statusDot.bad]
     expect(rows).toHaveLength(5)
     rows.forEach((row, index) => {
       expect(within(row as HTMLElement).getByRole('img', { name: names[index] })).toHaveAttribute('data-status', ['empty', 'done', 'overdue', 'empty', 'bad'][index])
