@@ -101,7 +101,7 @@ it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))])('establishe
   if (fixture === 'duplicate-titles') expect(active.map((habit) => habit.title)).toEqual(['Caminhada', 'Caminhada'])
   if (fixture.startsWith('composition')) { expect(goals).toHaveLength(1); expect(tags).toHaveLength(1); expect(templates).toHaveLength(1) }
   if (fixture === 'composition-logged') expect(active[0].logs.some((log) => log.date === '2026-10-24')).toBe(true)
-  expect(requests.some(({ path }) => path === 'profile/language')).toBe(false)
+  expect(requests.find(({ path }) => path === 'profile/language').body.language).toBe(test.metadata.locale)
 })
 it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))].flatMap((fixture) => ['en', 'pt-BR'].map((locale) => [fixture, locale])))(
   'advertises only habit titles the %s reset leaves in the %s account', async (fixture, locale) => {
@@ -142,7 +142,7 @@ it('does not cycle capacity roots or reset counters on repeated free attempts', 
 })
 it('rejects budget setup beyond five ordinary requests without spending a chat message', async () => {
   await expect(resetFixture(scenario('budget-exhausted'))).rejects.toThrow('more than five')
-  expect(requests.map(({ path }) => path)).toEqual(['eval/pending-operations', 'eval/pending-operations', 'profile', 'profile/timezone'])
+  expect(requests.map(({ path }) => path)).toEqual(['eval/pending-operations', 'eval/pending-operations', 'profile', 'profile/timezone', 'profile/language'])
 })
 it('keeps old positive history and IDs intact when public undo cannot restore zero history', async () => {
   await resetFixture(scenario('pro'))
@@ -310,10 +310,10 @@ it.each(['en', 'pt-BR'])('clears the other locale notification history before se
   const test = scenario('composition')
   test.metadata.locale = locale
   await resetFixture(test)
-  const timezone = requests.findIndex(({ path }) => path === 'profile/timezone')
+  const language = requests.findIndex(({ path }) => path === 'profile/language')
   const cleared = requests.findIndex(({ path, method }) => path === 'notifications/all' && method === 'DELETE')
   const seeded = requests.findIndex(({ path }) => path.endsWith('/log'))
-  expect(cleared).toBeGreaterThan(timezone)
+  expect(cleared).toBeGreaterThan(language)
   expect(cleared).toBeLessThan(seeded)
 })
 it('establishes allowance exhaustion through ordinary bounded requests and independently reads it back', async () => {

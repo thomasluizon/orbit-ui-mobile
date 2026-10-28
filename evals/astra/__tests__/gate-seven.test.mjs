@@ -38,7 +38,7 @@ it('replays the valid nested medical bulk call with strict dates and cadence', (
   const invalid = recorded.find(({ caseId }) => caseId === 'composition-medical-batch-en')
   expect(grade(test, [toolCall('bulk_create_habits', invalid.toolCalls[0].arguments, 'PendingConfirmation')]).pass).toBe(false)
 })
-it.each(['en', 'pt-BR'])('accepts existing parent wrappers only for the seeded identities in %s', (locale) => {
+it.each(['en', 'pt-BR'])('accepts existing parent wrappers only for the unchanged seeded parents in %s', (locale) => {
   const test = scenario(`composition-existing-parents-${locale}`)
   const args = structuredClone(recorded.find(({ caseId }) => caseId === 'composition-existing-parents-en').toolCalls[1].arguments)
   const parentTitles = locale === 'en' ? ['Post Lunch', 'Before Bed'] : ['Depois do almoço', 'Antes de dormir']
@@ -49,6 +49,11 @@ it.each(['en', 'pt-BR'])('accepts existing parent wrappers only for the seeded i
     if (locale === 'pt-BR') parent.sub_habits[0].title = index ? 'Tomar rosuvastatina' : 'Tomar vitamina D'
   })
   expect(grade(test, [toolCall('bulk_create_habits', args, 'PendingConfirmation')]).pass).toBe(true)
+  for (const [field, value] of [['frequency_unit', 'Year'], ['emoji', '💊'], ['reminder_enabled', true]]) {
+    const edited = structuredClone(args)
+    edited.habits[field === 'emoji' ? 1 : 0][field] = value
+    expect(grade(test, [toolCall('bulk_create_habits', edited, 'PendingConfirmation')]).pass).toBe(false)
+  }
   args.habits[0].habit_id = 'wrong-parent'
   expect(grade(test, [toolCall('bulk_create_habits', args, 'PendingConfirmation')]).pass).toBe(false)
 })
@@ -61,7 +66,7 @@ it('projects the skipped row state parsed by the shared client schema', () => {
   expect(answer.parts[0].block.items[0]).toMatchObject({ isSkippedOnDate: true, status: 'Pulado' })
 })
 it.each(['legacy-create-pt', 'legacy-moderation-pt', 'single-create-pt', 'composition-compound-pt-BR'])(
-  'isolates and restores the profile locale only when required by %s', async (id) => {
+  'runs %s on a pt-BR profile and verifies it before a legacy chat', async (id) => {
     offlineCredentials()
     const state = { habits: [], goals: [], tags: [], templates: [], requests: [], pro: true,
       exhausted: false, capacity: 100, email: 'thomaslrgregorio+orbit-eval-pro@gmail.com' }
@@ -92,9 +97,9 @@ it.each(['legacy-create-pt', 'legacy-moderation-pt', 'single-create-pt', 'compos
     const response = await provider.callApi(test.vars.input, { vars: test.vars })
     expect(response.error).toBeUndefined()
     const legacy = id.startsWith('legacy-')
-    expect(chatLanguage).toBe(legacy ? 'pt-BR' : 'en')
-    expect(language).toBe('en')
-    expect(writes).toEqual(legacy ? ['pt-BR', 'en'] : [])
+    expect(chatLanguage).toBe('pt-BR')
+    expect(language).toBe('pt-BR')
+    expect(writes).toEqual(legacy ? ['pt-BR', 'pt-BR', 'pt-BR'] : ['pt-BR'])
     if (test.vars.clientContext.supportsParts) expect(test.vars.clientContext.supportsSkippedHabitRows).toBe(true)
   },
 )
