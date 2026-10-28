@@ -1,5 +1,5 @@
 import { getRouteMetadata } from '@/lib/route-metadata'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { getAccountDay } from '@orbit/shared/utils'
 import { API } from '@orbit/shared/api'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { serverAuthFetch } from '@/lib/server-fetch'
@@ -25,11 +25,9 @@ async function loadTodayInitialProfile() {
 export default async function TodayPage({ searchParams }: Readonly<TodayPageProps>) {
   const { date } = await searchParams
   const requestedDate = Array.isArray(date) ? date[0] : date
-  const initialToday = formatAPIDate(new Date())
-  const [initialHabits, initialProfile] = await Promise.all([
-    loadTodayInitialHabits(requestedDate, initialToday),
-    loadTodayInitialProfile(),
-  ])
+  const initialProfile = await loadTodayInitialProfile()
+  const initialToday = getAccountDay(new Date(), initialProfile?.timeZone ?? null)
+  const initialHabits = await loadTodayInitialHabits(requestedDate, initialToday)
 
   return <TodayPageClient initialToday={initialToday} initialHabits={initialHabits} initialProfile={initialProfile} />
 }

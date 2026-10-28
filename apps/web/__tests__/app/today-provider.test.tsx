@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { renderToString } from 'react-dom/server'
+import { hydrateRoot } from 'react-dom/client'
+import { AccountClock } from '@/lib/account-clock'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { act, render, screen } from '@testing-library/react'
 
 const invalidateQueriesMock = vi.fn()
+const profileState = vi.hoisted(() => ({ timeZone: 'Pacific/Kiritimati' as string | null | undefined }))
 
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: invalidateQueriesMock }),
@@ -12,7 +17,7 @@ vi.mock('@orbit/shared/query', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { timeZone: 'Pacific/Kiritimati' } }),
+  useProfile: () => ({ profile: profileState.timeZone === undefined ? undefined : { timeZone: profileState.timeZone } }),
 }))
 
 import { TodayProvider, useToday } from '@/app/(app)/today-provider'
@@ -23,8 +28,8 @@ function TodayProbe() {
   return <span data-testid="today">{useToday()}</span>
 }
 
-function DeviceTodayProbe() {
-  return <span data-testid="device-today">{useToday()}</span>
+function DefaultAccountTodayProbe() {
+  return <span data-testid="default-today">{useToday()}</span>
 }
 
 function AccountTodayProbe() {
@@ -46,6 +51,7 @@ function renderProvider() {
 describe('TodayProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    profileState.timeZone = 'Pacific/Kiritimati'
     vi.useRealTimers()
     process.env.TZ = 'America/Sao_Paulo'
   })
@@ -56,9 +62,9 @@ describe('TodayProvider', () => {
     else process.env.TZ = originalTimeZone
   })
 
-  it('provides the current local day to consumers', () => {
+  it('provides the account day to consumers by default', () => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-04-07T10:00:00'))
+    vi.setSystemTime(new Date('2026-04-07T09:00:00Z'))
 
     renderProvider()
 
@@ -86,27 +92,27 @@ describe('TodayProvider', () => {
   it('advances at account midnight while the device remains on the previous day', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-11T09:59:59.000Z'))
-    render(<TodayProvider><AccountTodayProbe /><DeviceTodayProbe /></TodayProvider>)
+    render(<TodayProvider><AccountTodayProbe /><DefaultAccountTodayProbe /></TodayProvider>)
     expect(screen.getByTestId('today')).toHaveTextContent('2026-09-11')
-    expect(screen.getByTestId('device-today')).toHaveTextContent('2026-09-11')
+    expect(screen.getByTestId('default-today')).toHaveTextContent('2026-09-11')
 
     act(() => {
       vi.advanceTimersByTime(2_000)
     })
 
     expect(screen.getByTestId('today')).toHaveTextContent('2026-09-12')
-    expect(screen.getByTestId('device-today')).toHaveTextContent('2026-09-11')
+    expect(screen.getByTestId('default-today')).toHaveTextContent('2026-09-12')
     expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: ['gamification'] })
   })
 
   it('advances the day and refreshes gamification when the tab regains visibility on a new day', () => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-04-07T10:00:00'))
+    vi.setSystemTime(new Date('2026-04-07T09:00:00Z'))
 
     renderProvider()
     expect(screen.getByTestId('today')).toHaveTextContent('2026-04-07')
 
-    vi.setSystemTime(new Date('2026-04-08T09:00:00'))
+    vi.setSystemTime(new Date('2026-04-08T09:00:00Z'))
     act(() => {
       document.dispatchEvent(new Event('visibilitychange'))
     })
@@ -115,12 +121,12 @@ describe('TodayProvider', () => {
     expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: ['gamification'] })
   })
 
-  it('advances the local day without refreshing gamification before account midnight', () => {
+  it('keeps the account day when only the device crosses midnight', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-04-07T23:59:55'))
 
     renderProvider()
-    expect(screen.getByTestId('today')).toHaveTextContent('2026-04-07')
+    expect(screen.getByTestId('today')).toHaveTextContent('2026-04-08')
 
     act(() => {
       vi.advanceTimersByTime(6_000)
@@ -132,7 +138,7 @@ describe('TodayProvider', () => {
 
   it('does not refresh gamification when a focus event fires on the same day', () => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-04-07T10:00:00'))
+    vi.setSystemTime(new Date('2026-04-07T09:00:00Z'))
 
     renderProvider()
     invalidateQueriesMock.mockClear()
@@ -143,6 +149,41 @@ describe('TodayProvider', () => {
 
     expect(screen.getByTestId('today')).toHaveTextContent('2026-04-07')
     expect(invalidateQueriesMock).not.toHaveBeenCalled()
+  })
+
+  it('hydrates the seeded account day before catching up across account midnight', async () => {
+    vi.useFakeTimers()
+    const now = new Date('2026-09-11T09:59:59Z').getTime()
+    vi.setSystemTime(now)
+    const tree = <AccountClock now={now} timeZone="Pacific/Kiritimati"><TodayProvider><TodayProbe /></TodayProvider></AccountClock>
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(tree)
+    expect(container).toHaveTextContent('2026-09-11')
+    document.body.append(container)
+    vi.setSystemTime(new Date('2026-09-11T10:00:01Z'))
+    const recoverableError = vi.fn()
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    try {
+      await act(async () => { root = hydrateRoot(container, tree, { onRecoverableError: recoverableError }) })
+      expect(recoverableError).not.toHaveBeenCalled()
+      expect(container).toHaveTextContent('2026-09-11')
+      await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+      expect(container).toHaveTextContent('2026-09-12')
+      expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: ['gamification'] })
+    } finally {
+      await act(async () => root?.unmount())
+      container.remove()
+    }
+  })
+
+  it('uses the server account zone during profile loading and drops it after an account change', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-28T01:30:00Z'))
+    profileState.timeZone = undefined
+    render(<AccountClock now={Date.now()} timeZone="America/Sao_Paulo"><TodayProvider><TodayProbe /></TodayProvider></AccountClock>)
+    expect(screen.getByTestId('today')).toHaveTextContent('2026-10-27')
+    act(() => { advanceAccountGeneration() })
+    expect(screen.getByTestId('today')).toHaveTextContent('2026-10-28')
   })
 
   it('throws when useToday is read without a provider', () => {
