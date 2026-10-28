@@ -67,7 +67,7 @@ export default function UpgradePage() {
     refetch: refetchStatus,
   } = useSubscriptionStatus()
 
-  const { profile: accountProfile } = useProfile()
+  const { profile: accountProfile } = useProfile({ enabled: subscriptionStatus?.aiMessagesPeriod === 'week' })
   const status = useMemo(() => subscriptionStatus ? { ...subscriptionStatus, timeZone: accountProfile?.timeZone } : null, [subscriptionStatus, accountProfile?.timeZone])
   const trialDaysLeft = getTrialDaysLeft(status)
   const {

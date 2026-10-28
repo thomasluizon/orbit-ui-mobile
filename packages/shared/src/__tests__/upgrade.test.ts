@@ -66,16 +66,16 @@ describe('upgrade utils', () => {
   it('keeps the D70 plan breakdown on the rendered upgrade screen in both locales', () => {
     expect(en.upgrade.convert).toMatchObject({
       promise: 'The plan changes what Astra can do, never your habits and logs.',
-      freeHeading: '250 Astra messages a week.',
-      trialHeading: 'Keep 250 messages a week.',
+      freeHeading: '250 a week.',
+      trialHeading: '250 a week.',
       freeAllowance: '5',
       proAllowance: '250',
       perDay: 'messages/day',
     })
     expect(ptBR.upgrade.convert).toMatchObject({
       promise: 'O plano muda a Astra, nunca os seus hábitos e registros.',
-      freeHeading: '250 mensagens por semana com a Astra.',
-      trialHeading: 'Continue com 250 mensagens por semana.',
+      freeHeading: '250 por semana.',
+      trialHeading: '250 por semana.',
       freeAllowance: '5',
       proAllowance: '250',
       perDay: 'mensagens/dia',
