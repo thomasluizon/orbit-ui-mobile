@@ -18,6 +18,7 @@ import { GestureDetector, type PanGesture } from 'react-native-gesture-handler'
 import type { AppTokensV2 } from '@/lib/theme'
 import { DayCell } from '@/components/dates/day-cell'
 import { MonthGrid } from '@/components/dates/month-grid'
+import { DayColumnContent } from '@/components/dates/day-column-content'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export type GridDay = CalendarMonthDay
@@ -143,7 +144,7 @@ function CalendarGridLoading({ gridDays, gap, label, weekdayLabels }: Readonly<{
       <MonthGrid weekdayLabels={weekdayLabels} gap={gap} loadingLabel={label}>
         {gridDays.map((cell) => (
           <View key={cell.dateStr} style={styles.loadingSlot}>
-            <View style={styles.loadingCell}><Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped /></View>
+            <DayColumnContent><View style={styles.loadingCell}><Skeleton variant="grid" circular rows={1} cols={1} cell={34} gap={0} grouped /></View></DayColumnContent>
           </View>
         ))}
       </MonthGrid>
@@ -243,7 +244,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   loadingSlot: { width: '100%', minHeight: MONTH_GRID_TARGET_MIN, alignItems: 'center' },
-  loadingCell: { width: '100%', maxWidth: MONTH_GRID_TARGET_MIN },
+  loadingCell: { width: 34 },
   daySlot: {
     position: 'relative',
     width: '100%',

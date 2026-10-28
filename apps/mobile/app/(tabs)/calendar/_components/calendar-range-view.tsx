@@ -7,6 +7,7 @@ import type { TFunction } from 'i18next'
 import { CALENDAR_GRID_GAP_CONTENT_BREAKPOINT, CALENDAR_MONTH_GRID_GEOMETRY, type CalendarRangeModel } from '@orbit/shared/utils'
 import { DayCell } from '@/components/dates/day-cell'
 import { MonthGrid } from '@/components/dates/month-grid'
+import { DayColumnContent } from '@/components/dates/day-column-content'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CalendarStats, type CalendarStat } from './calendar-stats'
 
@@ -57,11 +58,11 @@ export function CalendarRangeView({
           <View style={styles.grid}><MonthGrid weekdayLabels={[...weekdayLabels]} gap={gridGap} label={rangeLabel}>
             {Array.from({ length: gridCellCount }, (_, index) => (
               <View key={index} style={styles.daySlot}>
-                <View style={styles.loadingCell}>{index === 0 ? (
-                  <Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} label={loadingLabel} />
+                <DayColumnContent><View style={styles.loadingCell}>{index === 0 ? (
+                  <Skeleton variant="grid" circular rows={1} cols={1} cell={34} gap={0} label={loadingLabel} />
                 ) : (
-                  <Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped />
-                )}</View>
+                  <Skeleton variant="grid" circular rows={1} cols={1} cell={34} gap={0} grouped />
+                )}</View></DayColumnContent>
               </View>
             ))}
           </MonthGrid></View>
@@ -97,5 +98,5 @@ const styles = StyleSheet.create({
   container: { gap: 16 },
   grid: { width: '100%', alignSelf: 'center', paddingHorizontal: CALENDAR_MONTH_GRID_GEOMETRY.inlineInset },
   daySlot: { width: '100%', minHeight: MONTH_GRID_TARGET_MIN, alignItems: 'center' },
-  loadingCell: { width: '100%', maxWidth: MONTH_GRID_TARGET_MIN },
+  loadingCell: { width: 34 },
 })

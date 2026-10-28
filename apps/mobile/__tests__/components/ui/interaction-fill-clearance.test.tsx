@@ -12,6 +12,9 @@ import { Chip } from '@/components/ui/chip'
 import { ActionRow } from '@/components/ui/action-row'
 import { SettingsGroup } from '@/components/ui/settings-group'
 import { CheckRow } from '@/components/ui/check-row'
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
+import { NotificationBellDisplay } from '@/components/navigation/notification-bell'
 import { CalendarHeader } from '@/app/(tabs)/calendar/_components/calendar-shell'
 import { Composer } from '@/components/shell/composer'
 import { Shell412 } from '@/components/shell/shell-412'
@@ -68,6 +71,24 @@ function fillBox(parts: Box[], control: Box) {
   }
 }
 
+async function triggerIconState(owner: { props: Record<string, unknown> }, event: string) {
+  if (typeof owner.props[event] === 'function') await act(() => (owner.props[event] as (event: unknown) => void)({ target: 1, currentTarget: 1, nativeEvent: { target: 1 } }))
+}
+
+function assertDiscoveredIconCentre(parts: Box[], label: unknown) {
+  const control = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === label)
+  if (!control) return false
+  const descendants = parts.filter(part => part.ancestors.includes(control.slot))
+  const glyphs = descendants.filter(part => part.host.type === 'Svg')
+  const text = descendants.filter(part => part.host.type === 'Text' && part.host.props.accessible !== false)
+  const paint = parts.filter(part => (part.slot === control.slot || part.ancestors.includes(control.slot)) && hasPaint(part.style)).sort((left, right) => right.width * right.height - left.width * left.height)[0]
+  if (glyphs.length !== 1 || text.length > 0 || !paint) return false
+  const glyph = glyphs[0]!
+  expect(Math.abs(glyph.left + glyph.right - paint.left - paint.right) / 2, String(label)).toBeLessThanOrEqual(0.5)
+  expect(Math.abs(glyph.top + glyph.bottom - paint.top - paint.bottom) / 2, String(label)).toBeLessThanOrEqual(0.5)
+  return true
+}
+
 async function setInteraction(tree: GeometryTree, label: string, state: 'pressed' | 'focused') {
   const control = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === label)[0]!
   expect(control).toBeDefined()
@@ -75,6 +96,29 @@ async function setInteraction(tree: GeometryTree, label: string, state: 'pressed
 }
 
 describe('Android interaction fill clearance', () => {
+  it.each([320, 480, 840, 1100, 1440].flatMap(width => (['hovered', 'pressed', 'focused'] as const).map(state => ({ width, state }))))('centres every discovered icon within its paint at $width while $state', async ({ width, state }) => {
+    let tree!: GeometryTree
+    await act(() => { tree = create(<View style={{ gap: 16, padding: 16 }}>
+      <NotificationBellDisplay count={1} onPress={vi.fn()} />
+      <IconButton label="Refresh" onClick={vi.fn()}><RefreshCw size={20} /></IconButton>
+      <CalendarHeader currentMonth={new Date(2026, 8, 1)} todayKey="2026-09-12" tokens={createTokensV2('orange', 'dark')} previousMonthLabel="Previous" nextMonthLabel="Next" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} />
+      <ListRow title="Row" onClick={vi.fn()} action={{ icon: 'trash', label: 'Remove', onPress: vi.fn() }} />
+      <Composer state="idle" value="Message" suggestions={[]} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} onAttachFile={vi.fn()} attachWords={{ ...en.shell.composer.attach, remove: name => name }} />
+    </View>) as GeometryTree })
+    try {
+      const owners = tree.root.findAll(node => String(node.type) === 'Pressable')
+      let inspected = 0
+      for (const owner of owners) {
+        const event = state === 'hovered' ? 'onHoverIn' : state === 'focused' ? 'onFocus' : 'onPressIn'
+        await triggerIconState(owner, event)
+        const parts = measureInteractionFills(tree.toJSON(), width, state === 'pressed')
+        inspected += assertDiscoveredIconCentre(parts, owner.props.accessibilityLabel) ? 1 : 0
+        const release = state === 'hovered' ? 'onHoverOut' : state === 'focused' ? 'onBlur' : 'onPressOut'
+        await triggerIconState(owner, release)
+      }
+      expect(inspected).toBeGreaterThanOrEqual(4)
+    } finally { await act(() => tree.unmount()) }
+  })
   it.each([320, 412, 600, 1024, 1352].flatMap(width => [en, ptBR].flatMap(messages =>
     (['pressed', 'focused'] as const).flatMap(state => ['', 'Oi'].map(value => ({ width, messages, state, value }))))))(
     'clears the composer text control fill at $width while $state with text $value', async ({ width, messages, state, value }) => {

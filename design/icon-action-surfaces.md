@@ -254,3 +254,9 @@ weekday-picker, composer, calendar header, profile preference and bar-chart owne
 `interaction-fill-surfaces.md`, plus web `ui/pill-action-style` and `shell/shell-wide`.
 Pill focus stays inside its paint. Collapsed sidebar search, navigation and Astra glyphs share
 the centre of their feedback. Badges belong to their own control and do not move its fill centre.
+
+Every interactive notification bell placement uses IconButton on both platforms. The count sits
+at its corner and belongs to the same control; it does not shift the glyph or the feedback centre.
+
+The paired `navigation/root-notification-header.tsx` owners retain the existing 48px content row
+and 24px bottom inset around the bell's 44px paint and transparent 48px target.

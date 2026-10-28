@@ -40,12 +40,9 @@ export function NotificationBellDisplay({ count, onClick, countPlacement = 'inli
   const layout = corner ? 'grid w-[48px] place-items-center rounded-[12px] text-[var(--fg-3)]' : 'inline-flex rounded-full text-[var(--fg-2)] min-w-[48px] items-center justify-center gap-[4px] px-2 py-1'
   const content = <>
       <Bell size={corner ? 20 : 24} strokeWidth={corner ? 2 : 1.8} aria-hidden="true" />
-      <NotificationBellCount count={count} corner={corner} />
+      <NotificationBellCount count={count} corner={corner || Boolean(onClick)} />
   </>
-  if (corner && onClick) return <IconButton label={label} onClick={onClick}><span className="contents">{content}</span></IconButton>
-  return onClick ? <button type="button" aria-label={label}
-    className={`orbit-hover-text transition-[background-color,color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] relative min-h-[48px] shrink-0 cursor-pointer touch-manipulation border-0 bg-transparent hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] ${layout}`}
-    onClick={onClick}>{content}</button>
-    : <span role="img" aria-label={label}
+  if (onClick) return <IconButton label={label} onClick={onClick}><span className="contents">{content}</span></IconButton>
+  return <span role="img" aria-label={label}
       className={`relative min-h-[48px] shrink-0 ${layout}`}>{content}</span>
 }

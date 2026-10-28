@@ -8,11 +8,6 @@ export function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       minWidth: 48, minHeight: 48, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4,
       flexDirection: 'row', gap: 4, alignItems: 'center', justifyContent: 'center',
     },
-    bellButton: {
-      backgroundColor: 'transparent', minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden',
-      paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, flexDirection: 'row', gap: 4,
-      alignItems: 'center', justifyContent: 'center',
-    },
     countMarker: { flexShrink: 0 },
     bellCount: {
       minWidth: 20, minHeight: 20, paddingHorizontal: SPACING.s4, borderRadius: 8,

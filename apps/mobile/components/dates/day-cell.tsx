@@ -1,4 +1,5 @@
-import { DayColumnPosition, MovingDaySelection } from './month-selection'
+import { MovingDaySelection } from './month-selection'
+import { DayColumnContent } from './day-column-content'
 import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 import { useContext, useState } from 'react'
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
@@ -72,7 +73,6 @@ type MobileDayCellProps = DayCellProps & {
 
 function DayCellCircle({ props, size, tokens, pressed, focused }: Readonly<{ props: DayCellProps; size: number; tokens: Tokens; pressed: boolean; focused: boolean }>) {
   const moving = useContext(MovingDaySelection)
-  const columnPosition = useContext(DayColumnPosition)
   const outcome = resolveDayCellOutcome(props)
   const contents = props.future
     ? <Text testID="day-future-numeral" style={[styles.numeral, { color: tokens.fg2 }]}>{props.day}</Text>
@@ -84,11 +84,11 @@ function DayCellCircle({ props, size, tokens, pressed, focused }: Readonly<{ pro
   const ring = (props.today || props.selected || focused || props.focused) && !(props.selected && moving)
     ? <View pointerEvents="none" testID={props.today ? 'day-today-ring' : 'day-selection-ring'} style={[styles.pressFill, { borderRadius: size / 2, borderColor: tokens.primary, borderWidth: 2 }]} />
     : null
-  return <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: columnPosition }} /><View testID="day-circle" style={[styles.container, { width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor }]}>
+  return <DayColumnContent><View testID="day-circle" style={[styles.container, { width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor }]}>
     {pressed && !props.selected ? <PressFill size={size} tokens={tokens} /> : null}
     {contents}
     {ring}
-  </View><View style={{ flex: 1 - columnPosition }} /></View>
+  </View></DayColumnContent>
 }
 
 export function DayCell(props: Readonly<MobileDayCellProps>) {

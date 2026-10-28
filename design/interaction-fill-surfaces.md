@@ -18,7 +18,7 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 | Daily summary and proactive Astra line | `components/today/today-astra-line.tsx`, `app/globals.css` | `components/today/today-astra-line.tsx` | The full-line action contains its hover and pressed overlay and uses an inset focus indicator |
 | Compact focus groups | Weekday pills, segmented controls, profile theme choices and explicit control focus utilities | Existing inset focus pressables on the corresponding surfaces | Explicit outward focus offsets become inset where adjacent controls can have an 8px gap |
 | Chips | `components/ui/chip.tsx`, `app/globals.css` | `components/ui/chip.tsx` | Existing internal fills and inset focus indicators |
-| Month and range day grids | `components/calendar/calendar-grid.tsx`, `components/calendar/calendar-range-view.tsx`, `components/dates/month-grid.tsx`, `components/dates/month-selection.ts`, `components/dates/day-cell.tsx` | `app/(tabs)/calendar/_components/calendar-grid.tsx`, `app/(tabs)/calendar/_components/calendar-range-view.tsx`, `components/dates/month-grid.tsx`, `components/dates/month-selection.ts`, `components/dates/day-cell.tsx` | Full-column targets stay transparent; hover, press, focus and position rings paint on the existing 34px discs. Disc centres distribute across each row to retain at least 8px between marks at 320px without changing target widths |
+| Month and range day grids | `components/calendar/calendar-grid.tsx`, `components/calendar/calendar-range-view.tsx`, `components/dates/month-grid.tsx`, `components/dates/month-selection.ts`, `components/dates/day-cell.tsx` | `app/(tabs)/calendar/_components/calendar-grid.tsx`, `app/(tabs)/calendar/_components/calendar-range-view.tsx`, `components/dates/month-grid.tsx`, `components/dates/month-selection.ts`, `components/dates/day-cell.tsx` | Full-column targets stay transparent; hover, press, focus and position rings paint on the existing 34px discs. Disc centres distribute within the existing 44px allocation. Seven 34px discs require at least 286px for 8px gaps; a narrower rendered grid requires an approved layout amendment, without changing target widths |
 | Calendar day detail | `components/calendar/calendar-day-detail.tsx` | `app/(tabs)/calendar/_components/calendar-day-detail.tsx` | Touching rows retain their drawn layout and 16px inline label insets; paint sits 8px inside the block edges and checkbox target; the card retains 24px padding |
 | Calendar month navigation | `app/(app)/calendar/_components/calendar-shell.tsx` | `app/(tabs)/calendar/_components/calendar-shell.tsx` | Month targets keep their gapless layout; chevron and picker paint sits 8px inside each target, which remains at least 48px |
 | Composer trailing actions | `components/shell/composer.tsx` | `components/shell/composer.tsx` | Paste or Clear, Add or Stop and Send share an 8px gap inside the field; the first slot shows Paste with empty text when clipboard reading is available and Clear with typed text while idle; each target remains 48px, with one inset primary focus indicator and an opaque canvas separator on accent fills |
@@ -155,3 +155,15 @@ The clearance amendment also touches the paired `ui/pill-button`, web `ui/pill-a
 calendar header owners and profile preference content. Focus feedback stays within pill paint;
 composer content reserves the shared clearance at its field edges. Wide sidebar search and
 collapsed navigation centre their glyphs, with 8px between row fills.
+
+Loading month and range grids use the paired `dates/day-column-content.tsx` allocation, matching
+the loaded disc size and centre without changing transparent columns. The paired notification
+bell owners use the shared IconButton for every interactive placement, with a centred glyph and
+an independent corner count. Web `interaction-surface-sweep.test.tsx` mounts all four destinations
+and discovers their controls and opened sheets from the rendered DOM; it rejects adjoining cells
+that fail clearance instead of exempting contained paint. Native style cases discover glyphs in
+the mounted bell, icon primitive, calendar header, row actions and composer alongside the fill
+owners above. These checks prove rendered web geometry and resolved native styles, not device paint.
+
+The paired `navigation/root-notification-header.tsx` owners retain a 48px content allocation above
+the existing 24px bottom inset when the bell paint becomes 44px; its transparent reach remains 48px.

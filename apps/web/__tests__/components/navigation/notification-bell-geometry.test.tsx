@@ -53,7 +53,7 @@ describe('root bell count geometry in Chromium', () => {
       const bell = page.getByRole('button', { name: 'Avisos não lidos: 15', exact: true })
       await expect.poll(() => bell.locator('[data-notification-count]').textContent()).toBe('9+')
       const bounds = await bell.boundingBox()
-      expect(bounds!.width).toBeGreaterThan(48)
+      expect(bounds!.width).toBe(44)
       const sibling = await page.locator('[data-sibling]').boundingBox()
       expect(sibling!.x + sibling!.width).toBeCloseTo(bounds!.x, 1)
     } finally { await page.close() }
@@ -79,19 +79,20 @@ describe('root bell count geometry in Chromium', () => {
         const count = button.querySelector('[data-notification-count]')!
         return { control: box(button), icon: box(button.querySelector('svg')!), count: box(count), row: box(document.querySelector('[data-row]')!), text: count.textContent.trim(), radius: getComputedStyle(count).borderRadius }
       })
-      expect(Math.abs(geometry.count.centerY - geometry.icon.centerY)).toBeLessThanOrEqual(1)
-      expect(geometry.count.top - geometry.row.top).toBeGreaterThanOrEqual(4)
-      expect(geometry.count.left - geometry.icon.right).toBe(4)
+      expect(Math.abs(geometry.icon.left + geometry.icon.width / 2 - geometry.control.left - geometry.control.width / 2)).toBeLessThanOrEqual(0.5)
+      expect(Math.abs(geometry.icon.centerY - geometry.control.centerY)).toBeLessThanOrEqual(0.5)
+      expect(geometry.count.right).toBe(geometry.control.right)
+      expect(geometry.count.top).toBe(geometry.control.top)
       expect(geometry.control.right).toBe(width - 16)
-      expect(geometry.control.width).toBeGreaterThan(48)
-      expect(geometry.control.height).toBeGreaterThanOrEqual(48)
+      expect(geometry.control.width).toBe(44)
+      expect(geometry.control.height).toBe(44)
       expect(geometry.text).toBe(count > 9 ? '9+' : String(count))
       expect(geometry.radius).toBe('8px')
       for (const content of [geometry.icon, geometry.count]) {
-        expect(content.left - geometry.control.left).toBeGreaterThanOrEqual(8)
-        expect(geometry.control.right - content.right).toBeGreaterThanOrEqual(8)
-        expect(content.top - geometry.control.top).toBeGreaterThanOrEqual(4)
-        expect(geometry.control.bottom - content.bottom).toBeGreaterThanOrEqual(4)
+        expect(content.left).toBeGreaterThanOrEqual(geometry.control.left)
+        expect(content.right).toBeLessThanOrEqual(geometry.control.right)
+        expect(content.top).toBeGreaterThanOrEqual(geometry.control.top)
+        expect(content.bottom).toBeLessThanOrEqual(geometry.control.bottom)
       }
       const button = page.getByRole('button')
       for (const state of ['hover', 'press'] as const) {
@@ -125,7 +126,7 @@ describe('root bell count geometry in Chromium', () => {
         const style = getComputedStyle(element)
         return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth, outlineColor: style.outlineColor, outlineOffset: style.outlineOffset, boxShadow: style.boxShadow, borderRadius: style.borderRadius, height: element.getBoundingClientRect().height }
       })
-      expect(focus).toMatchObject({ outlineStyle: 'solid', outlineWidth: '2px', outlineOffset: '2px', boxShadow: 'none' })
+      expect(focus).toMatchObject({ outlineStyle: 'solid', outlineWidth: '2px', outlineOffset: '-2px', boxShadow: 'none' })
       expect(focus.outlineColor).not.toBe('rgba(0, 0, 0, 0)')
       expect(parseFloat(focus.borderRadius)).toBeGreaterThanOrEqual(focus.height / 2)
     } finally { await page.close() }

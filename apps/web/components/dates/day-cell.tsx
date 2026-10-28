@@ -3,7 +3,8 @@
 import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useContext, type CSSProperties } from 'react'
-import { DayColumnPosition, MovingDaySelection } from './month-selection'
+import { MovingDaySelection } from './month-selection'
+import { DayColumnContent } from './day-column-content'
 import { SelectionIndicator } from '@/components/ui/selection-indicator'
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared/utils'
@@ -101,7 +102,6 @@ function HabitHistoryContents({ props, outcome, size }: Readonly<{ props: DayCel
 
 export function DayCell(props: Readonly<DayCellProps>) {
   const selectionId = useContext(MovingDaySelection)
-  const columnPosition = useContext(DayColumnPosition)
   const outcome = resolveDayCellOutcome(props)
   const size = props.size ?? MONTH_GRID_TARGET_MIN
   const statusSize = 34
@@ -127,7 +127,7 @@ export function DayCell(props: Readonly<DayCellProps>) {
     <span aria-hidden="true" data-day-position-ring="" className="pointer-events-none absolute inset-0"
       style={{ borderRadius: 'inherit', boxShadow: `var(--day-focus-ring, ${showPositionRing ? 'inset 0 0 0 2px var(--primary)' : 'none'})` }} />
   </span>
-  const alignedCircle = <span className="inline-flex w-full items-center"><span style={{ flex: columnPosition }} />{circle}<span style={{ flex: 1 - columnPosition }} /></span>
+  const alignedCircle = <DayColumnContent>{circle}</DayColumnContent>
 
   if (interactive) {
     return <button {...commonProps} type="button" onClick={props.onPress}

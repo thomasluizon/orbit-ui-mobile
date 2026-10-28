@@ -45,6 +45,7 @@ interface Host {
     accessibilityRole?: string
     testID?: string
     size?: number
+    hitSlop?: number
   }
   children: (Host | string)[] | null
 }
@@ -107,6 +108,8 @@ function bounds(node: YogaNode) {
 }
 
 function measureBell(host: Host, width: number, fontScale: number, pressed = false) {
+  const hitExtensions = new Map<YogaNode, number>()
+  const targetBounds = (node: YogaNode) => ({ ...bounds(node), targetWidth: node.getComputedWidth() + 2 * (hitExtensions.get(node) ?? 0), targetHeight: node.getComputedHeight() + 2 * (hitExtensions.get(node) ?? 0) })
   const bells: YogaNode[] = []
   const rows: YogaNode[] = []
   const glyphs: YogaNode[] = []
@@ -115,6 +118,7 @@ function measureBell(host: Host, width: number, fontScale: number, pressed = fal
   const summaries: YogaNode[] = []
   function build(host: Host, inHeader = false): YogaNode {
     const node = Yoga.Node.create()
+    if (typeof host.props.hitSlop === 'number') hitExtensions.set(node, host.props.hitSlop)
     const declared = host.props.style
     const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed }) : declared ?? {})
     applyStyle(node, style)
@@ -153,7 +157,7 @@ function measureBell(host: Host, width: number, fontScale: number, pressed = fal
     layout.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
     expect(bells).toHaveLength(1)
     expect(rows).toHaveLength(1)
-    return { summary: summaries[0] ? bounds(summaries[0]) : undefined, bell: bounds(bells[0]!), row: bounds(rows[0]!), controls: controls.map(bounds), glyph: glyphs[0] ? bounds(glyphs[0]) : undefined, count: counts[0] ? bounds(counts[0]) : undefined }
+    return { summary: summaries[0] ? bounds(summaries[0]) : undefined, bell: targetBounds(bells[0]!), row: bounds(rows[0]!), controls: controls.map(targetBounds), glyph: glyphs[0] ? bounds(glyphs[0]) : undefined, count: counts[0] ? bounds(counts[0]) : undefined }
   } finally { layout.freeRecursive() }
 }
 
@@ -181,8 +185,8 @@ it.each([412, 1352])('keeps the pressed header fills clear of the Astra summary 
     const geometry = measureBell(tree.toJSON(), width, 1, true)
     expect(geometry.summary).toBeDefined()
     for (const control of geometry.controls.slice().reverse()) {
-      expect(control.width).toBeGreaterThanOrEqual(48)
-      expect(control.height).toBeGreaterThanOrEqual(48)
+      expect(control.targetWidth).toBeGreaterThanOrEqual(48)
+      expect(control.targetHeight).toBeGreaterThanOrEqual(48)
       expect(geometry.summary!.top - control.bottom).toBeGreaterThanOrEqual(24)
     }
     const bell = tree.root.find((node) => typeof node.type === 'string' && node.props.accessibilityLabel?.startsWith('notifications.bell') === true)
@@ -215,7 +219,7 @@ it('paints every root bell from the restored notification cache before a delayed
     try {
       const first = measureBell(tree.toJSON(), 600, 1)
       expect(first.count).toBeDefined()
-      expect(first.bell.width).toBeGreaterThan(48)
+      expect(first.bell.width).toBe(44)
       await renderer.act(async () => { await Promise.resolve() })
       expect(measureBell(tree.toJSON(), 600, 1)).toEqual(first)
     } finally { await renderer.act(() => tree.unmount()) }
@@ -254,8 +258,8 @@ it.each([320, 360, 384, 412, 840].flatMap((width) => [1, 2].map((fontScale) => (
         reference ??= geometry
         expect(Math.abs(geometry.bell.right - reference.bell.right), `${name} trailing edge`).toBeLessThanOrEqual(1)
         if (fontScale === 1) expect.soft(Math.abs(geometry.bell.centerY - reference.bell.centerY), `${name} vertical centre`).toBeLessThanOrEqual(1)
-        expect(geometry.bell.width).toBeGreaterThanOrEqual(48)
-        expect(geometry.bell.height).toBeGreaterThanOrEqual(48)
+        expect(geometry.bell.targetWidth).toBeGreaterThanOrEqual(48)
+        expect(geometry.bell.targetHeight).toBeGreaterThanOrEqual(48)
         expect(geometry.row.height).toBeGreaterThanOrEqual(48)
         expect(Math.abs(geometry.bell.centerY - (geometry.row.centerY - 12)), `${name} row centre`).toBeLessThanOrEqual(1)
         if (name === 'Hoje') {
@@ -295,17 +299,19 @@ it.each([320, 600, 840].flatMap((width) => [1, 2].flatMap((fontScale) => [5, 12]
         const { bell, row, glyph, count: marker } = geometry
         expect(glyph).toBeDefined()
         expect(marker).toBeDefined()
-        expect(Math.abs(marker!.centerY - glyph!.centerY)).toBeLessThanOrEqual(1)
-        expect(marker!.top - row.top).toBeGreaterThanOrEqual(4)
-        expect(marker!.left - glyph!.right).toBe(4)
+        expect(Math.abs(glyph!.left + glyph!.width / 2 - bell.left - bell.width / 2)).toBeLessThanOrEqual(0.5)
+        expect(Math.abs(glyph!.centerY - bell.centerY)).toBeLessThanOrEqual(0.5)
+        expect(marker!.top).toBe(bell.top)
+        expect(marker!.right).toBe(bell.right)
         for (const content of [glyph!, marker!]) {
-          expect(content.left - bell.left).toBeGreaterThanOrEqual(8)
-          expect(bell.right - content.right).toBeGreaterThanOrEqual(8)
-          expect(content.top - bell.top).toBeGreaterThanOrEqual(4)
-          expect(bell.bottom - content.bottom).toBeGreaterThanOrEqual(4)
+          expect(content.left).toBeGreaterThanOrEqual(bell.left)
+          expect(content.right).toBeLessThanOrEqual(bell.right)
+          expect(content.top).toBeGreaterThanOrEqual(bell.top)
+          expect(content.bottom).toBeLessThanOrEqual(bell.bottom)
         }
-        expect(bell.width).toBeGreaterThan(48)
-        expect(bell.height).toBeGreaterThanOrEqual(48)
+        expect(bell.width).toBe(44)
+        expect(bell.targetWidth).toBeGreaterThanOrEqual(48)
+        expect(bell.targetHeight).toBeGreaterThanOrEqual(48)
         trailingEdge ??= bell.right
         expect(bell.right).toBe(trailingEdge)
         expect(bell.right).toBe(row.right - 16)

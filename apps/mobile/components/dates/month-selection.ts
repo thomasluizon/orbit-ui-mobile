@@ -12,7 +12,7 @@ export function useMonthSelection(selectedIndex?: number) {
   const cell = selectedIndex === undefined ? undefined : cells[selectedIndex]
   const size = cell ? Math.min(34, cell.width) : 0
   const bounds = cell && row !== undefined ? {
-    x: cell.x + (cell.width - size) * (selectedIndex! % 7) / 6,
+    x: cell.x + (cell.width - Math.min(44, cell.width)) / 2 + (Math.min(44, cell.width) - size) * (selectedIndex! % 7) / 6,
     y: row + (cell.height - size) / 2,
     width: size,
     height: size,

@@ -5,7 +5,7 @@ import { act, type ReactTestRenderer } from 'react-test-renderer'
 
 interface HostRow {
   type: string
-  props: { style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityLabel?: string; 'data-slot'?: string; contentContainerStyle?: ViewStyle; testID?: string }
+  props: { accessible?: boolean; style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityLabel?: string; 'data-slot'?: string; contentContainerStyle?: ViewStyle; testID?: string }
   children: (HostRow | string)[] | null
 }
 

@@ -32,7 +32,7 @@ import { revealFocusedControl } from '@/lib/focus-scroll'
 import { measureSplitSegmentWords, mountMeasuredSegmentedControls } from '@/__tests__/support/segmented-control-geometry'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
-import { expectDayCircle, expectDayCircleHover } from '@/e2e/layout/calendar-day-circle-helpers'
+import { expectDayCircle, expectDayCircleHover } from '@/__tests__/support/calendar-day-circle'
 import { readControlPaint } from '@/e2e/layout/control-paint'
 
 vi.mock('@/hooks/use-goals', () => ({ useCreateGoal: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }) }))
