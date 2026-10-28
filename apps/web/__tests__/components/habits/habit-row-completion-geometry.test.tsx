@@ -5,6 +5,7 @@ import { HabitRow } from '@/components/habits/habit-row'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { settleAnimations } from '@/e2e/layout/settle-animations'
 
 describe('habit row standard in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -140,6 +141,7 @@ describe('habit row standard in Chromium', () => {
       })
       expect(transition).toEqual({ properties: 'background-color, box-shadow', duration: '0.38s, 0.38s', easing: 'cubic-bezier(0.2, 0, 0, 1), cubic-bezier(0.2, 0, 0, 1)' })
       const [arrival] = await Promise.all([sampleRowPaint(row), hoverBody()])
+      await row.evaluate(settleAnimations)
       const hover = await rowPaint(row)
       expect(hover.fill).not.toBe(rest.fill)
       expect(hover.outline).not.toBe(rest.outline)
