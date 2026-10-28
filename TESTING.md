@@ -214,8 +214,9 @@ The Action has only `workflow_dispatch`; it never runs on a schedule, push, or p
 Runs record real message usage and incur endpoint and rubric-grader charges. The main account's
 flag exempts its daily message, model-call and spend ceilings; the refusal accounts remain metered.
 Use disposable eval accounts. Write scenarios require held previews; correction scenarios create
-a verified setup turn first. Starting-step save cases then approve through the existing confirmation
-gateway and prove persistence through an independent profile export. Other write cases stop at the preview.
+a verified setup turn first. Most cases leave previews held. Starting-step save and brain dump
+cases approve their verified previews through the existing confirmation gateway and require
+independent persisted readback.
 
 The standalone eval package declares the ICU translator and its React peer at the versions locked
 for the clients; the shared-only install does not install peer dependencies.
@@ -247,7 +248,7 @@ the block. Duplicate cases reuse the localized `pro` fixture and require its reg
 as `existingHabitId`, rejecting a second draft for the same habit.
 
 Starting-step cases negotiate the API's `oneSmallStep` contract explicitly, independently of the
-shipped client schema. This does not add a capability to either app before the paired UI delivery.
+shipped client schema.
 Each locale covers an initial stuck prompt, a smaller action, task approval, checklist approval and
 a client whose `partKinds` omits `oneSmallStep`. The legacy answer must equal the tool's step text
 without action prompts. The typed answer has one block, the three server labels and no framing prose.
@@ -262,6 +263,18 @@ Checklist readback requires every existing item and checked state in order, with
 once as unchecked and no other habit changes. Private attempt artifacts retain the sanitized `savedStep`
 readback from assertion metadata. Confirmation tokens and execution response bodies are never evidence.
 These offline tests do not replace the next capability gate on the matching staging API commit.
+
+Brain dump cases cover mixed tasks and habits, existing activity reuse and requested ideas in
+en and pt-BR. Each attempt uses the isolated fixture reset, snapshots stored habits before chat,
+including full habit details omitted from exports, and checks one `bulk_create_habits` preview
+with `Task` and `Habit` item types. The harness refuses
+approval unless tool structure, mutation scope and preview checks pass. It verifies unchanged
+storage before confirmation, executes through the existing approval gateway, and independently
+reads every saved item's schedule and time. Existing fixture habits must remain unchanged and
+appear only once. Requested ideas must retain the actual suggestion draft fields in that same
+preview. Pending operations are cancelled and their empty readback verified after each attempt.
+Private attempt evidence includes the approval verdict and persisted schedules, while the final
+answer grader still sees only the original held preview. Offline tests do not replace the live gate.
 
 Refine cases first verify a real suggestion setup turn with the tool and composition gates, then
 send one of those drafts, the instruction and language as JSON to

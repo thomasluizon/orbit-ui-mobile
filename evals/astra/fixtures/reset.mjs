@@ -17,7 +17,7 @@ export function requireStagingOrigin() {
   if (apiOrigin() !== disposableStagingOrigin) throw new Error('Fixture isolation requires the disposable staging origin.')
 }
 
-async function clearPendingOperations(api) {
+export async function clearPendingOperations(api) {
   for (const [method, field] of [['DELETE', 'cancelledCount'], ['GET', 'pendingCount']]) {
     let response
     for (let attempt = 0; attempt < 3; attempt++) {

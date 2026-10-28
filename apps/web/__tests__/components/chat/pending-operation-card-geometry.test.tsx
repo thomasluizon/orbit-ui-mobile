@@ -1,6 +1,6 @@
 import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import type { Page } from '@playwright/test'
-import { makeExistingHabitPreview, makePlacementPreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeTypedHabitsPreview, makeExistingHabitPreview, makePlacementPreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -108,6 +108,32 @@ describe('Pending preview geometry in Chromium', () => {
   })
   afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 1352].flatMap(width => locales.flatMap(locale => [1, 2].map(textScale => ({ width, locale, textScale })))))('fits typed preview groups at $width in $locale at text scale $textScale', async ({ width, locale, textScale }) => {
+    setViewport(width)
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt} timeZone="UTC"><div style={{ width: Math.min(width, 740), padding: 16 }}>
+      <PendingOperationCard pendingOperation={makeTypedHabitsPreview()} onRevise={vi.fn()} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
+    </div></NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 1800 } })
+    try {
+      await page.setContent(`<style>${stylesheet} html { font-size: ${16 * textScale}px; }</style>${container.innerHTML}`)
+      await page.evaluate(() => document.fonts.ready)
+      const headings = await page.locator('h4').evaluateAll(nodes => nodes.map(node => {
+        const heading = node.getBoundingClientRect()
+        const row = node.nextElementSibling!.getBoundingClientRect()
+        return { left: heading.left, right: heading.right, bottom: heading.bottom, rowTop: row.top, rowRight: row.right, rowLeft: row.left }
+      }))
+      expect(headings).toHaveLength(3)
+      for (const heading of headings) {
+        expect(heading.left).toBeGreaterThanOrEqual(16)
+        expect(heading.right).toBeLessThanOrEqual(width - 16)
+        expect(heading.bottom).toBeLessThanOrEqual(heading.rowTop)
+        expect(heading.rowLeft).toBeGreaterThanOrEqual(16)
+        expect(heading.rowRight).toBeLessThanOrEqual(width - 16)
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+    } finally { await page.close() }
+  })
 
   it.each([320, 390, 412, 480, 840, 1280].flatMap(width => locales.flatMap(locale => [1, 2].map(textScale => ({ width, locale, textScale })))))('fits the date change at $width in $locale at text scale $textScale', async ({ width, locale, textScale }) => {
     setViewport(width)

@@ -14,6 +14,7 @@ type Assert<T extends true> = T
 type Fields<T> = { [TKey in keyof T]: T[TKey] }
 type ExpectedBlockFrameItem = {
   readonly id: string
+  readonly groupHeading?: string
   readonly label: React.ReactNode
   readonly wrapLabel?: boolean
   readonly indented?: boolean

@@ -5,6 +5,9 @@ import { googleCodeAuthResponseSchema } from '@orbit/shared/types/auth'
 import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { buildBffForwardingHeaders } from '@/app/api/_utils/bff-forwarding'
 import { desktopAttemptSchema, desktopRedirectUri } from '@/lib/desktop-auth'
+import { desktopAuthPage } from '@/lib/desktop-auth-page'
+import { resolveRequestLanguage } from '@/lib/resolve-request-language'
+import { normalizeThemeMode } from '@/lib/theme-dom'
 import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
 
 const pendingSchema = z.object({
@@ -63,7 +66,10 @@ export async function GET(request: NextRequest) {
   } finally {
     if (browserRefreshToken) await revokeBrowserSession(browserRefreshToken, request)
   }
-  const response = NextResponse.redirect(destination, { status: 303, headers })
+  const page = await desktopAuthPage(destination,
+    resolveRequestLanguage(request.cookies.get('i18n_locale')?.value, request.headers.get('accept-language')),
+    normalizeThemeMode(request.cookies.get('orbit_theme_mode')?.value), request.headers.get('x-nonce'))
+  const response = new NextResponse(page.body, { status: 200, headers: { ...headers, ...page.headers } })
   response.cookies.delete(GOOGLE_OAUTH_COOKIE)
   return response
 }

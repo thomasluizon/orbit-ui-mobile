@@ -1,5 +1,6 @@
 import { suggestionComposition, refineResult } from './suggestions.mjs'
 import { startingStepComposition } from './one-small-step.mjs'
+import { brainDumpPreview } from './brain-dumps.mjs'
 import { isDeepStrictEqual } from 'node:util'
 import { getRelatedSurfaces } from '../../packages/shared/src/chat/related-surfaces.ts'
 import { tsImport } from 'tsx/esm/api'
@@ -112,6 +113,11 @@ export function composition(output, context) {
     ? startingStepComposition(parsed, context.vars) : result(false, 'Malformed operation or action surfaces.')
   if (!['suggestions', 'data', 'text', 'clarification', 'fallback', 'preview', 'outcome'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
   if (!validOperations(response)) return result(false, 'Malformed operation or action surfaces.')
+  if (context.vars.brainDump) {
+    const preview = brainDumpPreview(parsed, context.vars)
+    return !preview.pass ? preview : parsed.brainDumpReadback?.pass === true
+      ? parsed.brainDumpReadback : result(false, parsed.brainDumpReadback?.reason ?? 'Missing brain dump approval readback.')
+  }
   if (expected.mode === 'suggestions') return suggestionComposition(response, context.vars)
   if ((response.followUps?.length ?? 0) > 2 || (response.followUpContext?.length ?? 0) > 2
     || !(response.followUps ?? []).every(text)) return result(false, 'Malformed or excessive follow-ups.')
