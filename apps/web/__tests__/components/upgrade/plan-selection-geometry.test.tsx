@@ -13,7 +13,7 @@ import { ProPitch } from '@/components/upgrade/pro-pitch'
 import { OnboardingProStep } from '@/components/onboarding/onboarding-pro-step'
 import { measureOnboardingProStep } from '../../../e2e/layout/onboarding-pro-step-geometry'
 import { subscriptionPlansFixtures } from '@/test-support/hermetic/mock-api/fixtures/subscription-plans'
-import { measureSplitSegmentWords, mountMeasuredSegmentedControls, settleSegmentMeasurements } from '@/__tests__/support/segmented-control-geometry'
+import { measureSplitSegmentWords, mountMeasuredSegmentedControls } from '@/__tests__/support/segmented-control-geometry'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -74,37 +74,38 @@ describe('Pro tier geometry in Chromium', () => {
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
       await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
-      await settleSegmentMeasurements(page)
+      await vi.waitFor(async () => {
         expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
-      const geometry = await page.locator('[data-segmented-control]').evaluate((group) => {
-        const bounds = group.getBoundingClientRect()
-        const column = group.parentElement!.getBoundingClientRect()
-        const segments = [...group.querySelectorAll('[role="radio"], [data-menu-trigger]')].map((segment) => {
-          const box = segment.getBoundingClientRect()
-          const range = document.createRange()
-          range.selectNodeContents(segment.querySelector('span')!)
-          const label = segment.querySelector('span')!
-          const labelBox = label.getBoundingClientRect()
-          return { folded: segment.hasAttribute('data-menu-trigger'), width: box.width, labelWidth: range.getBoundingClientRect().width, top: box.top, height: box.height,
-            lines: new Set([...range.getClientRects()].map((fragment) => Math.round(fragment.top))).size, fits: range.getBoundingClientRect().width <= labelBox.width + 1, overflow: label.scrollWidth > label.clientWidth, ellipsis: getComputedStyle(label).textOverflow === 'ellipsis', contained: box.left >= bounds.left && box.right <= bounds.right }
+        const geometry = await page.locator('[data-segmented-control]').evaluate((group) => {
+          const bounds = group.getBoundingClientRect()
+          const column = group.parentElement!.getBoundingClientRect()
+          const segments = [...group.querySelectorAll('[role="radio"], [data-menu-trigger]')].map((segment) => {
+            const box = segment.getBoundingClientRect()
+            const range = document.createRange()
+            range.selectNodeContents(segment.querySelector('span')!)
+            const label = segment.querySelector('span')!
+            const labelBox = label.getBoundingClientRect()
+            return { folded: segment.hasAttribute('data-menu-trigger'), width: box.width, labelWidth: range.getBoundingClientRect().width, top: box.top, height: box.height,
+              lines: new Set([...range.getClientRects()].map((fragment) => Math.round(fragment.top))).size, fits: range.getBoundingClientRect().width <= labelBox.width + 1, overflow: label.scrollWidth > label.clientWidth, ellipsis: getComputedStyle(label).textOverflow === 'ellipsis', contained: box.left >= bounds.left && box.right <= bounds.right }
+          })
+          return { folded: group.querySelector('[data-menu-trigger]') !== null, width: bounds.width, columnWidth: column.width, segments }
         })
-        return { folded: group.querySelector('[data-menu-trigger]') !== null, width: bounds.width, columnWidth: column.width, segments }
-      })
-      expect(geometry.segments).toHaveLength(geometry.folded ? 1 : 2)
-      if (scale === 1) expect(geometry.folded).toBe(false)
-      expect(geometry.width).toBeCloseTo(width >= 1024 ? 320 : width - 32, 0)
-      expect(geometry.width).toBeCloseTo(geometry.columnWidth, 0)
-      expect(new Set(geometry.segments.map((segment) => segment.top)).size).toBe(1)
-      const remaining = geometry.segments.map((segment) => segment.width - segment.labelWidth)
-      expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
-      for (const segment of geometry.segments) {
-        expect(segment.height).toBeGreaterThanOrEqual(48)
-        expect(segment.lines).toBe(1)
-        expect(segment.fits).toBe(true)
-        expect(segment.overflow).toBe(false)
-        expect(segment.ellipsis).toBe(false)
-        expect(segment.contained).toBe(true)
-      }
+        expect(geometry.segments).toHaveLength(geometry.folded ? 1 : 2)
+        if (scale === 1) expect(geometry.folded).toBe(false)
+        expect(geometry.width).toBeCloseTo(width >= 1024 ? 320 : width - 32, 0)
+        expect(geometry.width).toBeCloseTo(geometry.columnWidth, 0)
+        expect(new Set(geometry.segments.map((segment) => segment.top)).size).toBe(1)
+        const remaining = geometry.segments.map((segment) => segment.width - segment.labelWidth)
+        expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
+        for (const segment of geometry.segments) {
+          expect(segment.height).toBeGreaterThanOrEqual(48)
+          expect(segment.lines).toBe(1)
+          expect(segment.fits).toBe(true)
+          expect(segment.overflow).toBe(false)
+          expect(segment.ellipsis).toBe(false)
+          expect(segment.contained).toBe(true)
+        }
+      }, { timeout: 2000 })
     } finally { await page.close() }
   })
 

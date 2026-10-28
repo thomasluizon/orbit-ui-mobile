@@ -58,6 +58,6 @@ export async function mountMeasuredSegmentedControls(page: import('@playwright/t
   await settleSegmentMeasurements(page)
 }
 
-export async function settleSegmentMeasurements(page: import('@playwright/test').Page) {
+async function settleSegmentMeasurements(page: import('@playwright/test').Page) {
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
 }
