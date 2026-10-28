@@ -28,7 +28,7 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { useUIStore } from '@/stores/ui-store'
 import { useShellStore } from '@/stores/shell-store'
-import { measureSplitSegmentWords, mountMeasuredSegmentedControls, settleSegmentMeasurements } from '@/__tests__/support/segmented-control-geometry'
+import { measureSplitSegmentWords, mountMeasuredSegmentedControls } from '@/__tests__/support/segmented-control-geometry'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -268,28 +268,29 @@ describe('Hoje header geometry', () => {
         await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
-        await settleSegmentMeasurements(page)
-        expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
-        const geometry = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('[data-habit-view-switch] [role="radio"], [data-habit-view-switch] [data-menu-trigger]')).map((radio) => {
-          const span = radio.querySelector('span')!
-          const range = document.createRange()
-          range.selectNodeContents(span)
-          const bounds = radio.getBoundingClientRect()
-          const label = range.getBoundingClientRect()
-          return { folded: radio.hasAttribute('data-menu-trigger'), top: bounds.top, width: bounds.width, height: bounds.height, left: bounds.left, right: bounds.right, labelLeft: label.left, labelRight: label.right, lines: new Set(Array.from(range.getClientRects()).map((rect) => rect.top)).size }
-        }))
-        expect(geometry).toHaveLength(geometry[0]?.folded ? 1 : 3)
-        if (scale === 1) expect(geometry[0]?.folded).toBe(false)
-        expect(new Set(geometry.map((radio) => radio.top)).size).toBe(1)
-        for (const radio of geometry) {
-          expect(radio.width).toBeGreaterThanOrEqual(48)
-          expect(radio.height).toBeGreaterThanOrEqual(48)
-          expect(radio.lines).toBe(1)
-          expect(radio.labelLeft - radio.left).toBeGreaterThanOrEqual(8)
-          expect(radio.right - radio.labelRight).toBeGreaterThanOrEqual(8)
-          expect(radio.left).toBeGreaterThanOrEqual(16)
-          expect(radio.right).toBeLessThanOrEqual(width - 16)
-        }
+        await vi.waitFor(async () => {
+          expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+          const geometry = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('[data-habit-view-switch] [role="radio"], [data-habit-view-switch] [data-menu-trigger]')).map((radio) => {
+            const span = radio.querySelector('span')!
+            const range = document.createRange()
+            range.selectNodeContents(span)
+            const bounds = radio.getBoundingClientRect()
+            const label = range.getBoundingClientRect()
+            return { folded: radio.hasAttribute('data-menu-trigger'), top: bounds.top, width: bounds.width, height: bounds.height, left: bounds.left, right: bounds.right, labelLeft: label.left, labelRight: label.right, lines: new Set(Array.from(range.getClientRects()).map((rect) => rect.top)).size }
+          }))
+          expect(geometry).toHaveLength(geometry[0]?.folded ? 1 : 3)
+          if (scale === 1) expect(geometry[0]?.folded).toBe(false)
+          expect(new Set(geometry.map((radio) => radio.top)).size).toBe(1)
+          for (const radio of geometry) {
+            expect(radio.width).toBeGreaterThanOrEqual(48)
+            expect(radio.height).toBeGreaterThanOrEqual(48)
+            expect(radio.lines).toBe(1)
+            expect(radio.labelLeft - radio.left).toBeGreaterThanOrEqual(8)
+            expect(radio.right - radio.labelRight).toBeGreaterThanOrEqual(8)
+            expect(radio.left).toBeGreaterThanOrEqual(16)
+            expect(radio.right).toBeLessThanOrEqual(width - 16)
+          }
+        }, { timeout: 2000 })
       } finally { await page.close() }
     },
   )

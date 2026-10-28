@@ -13,7 +13,7 @@ import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/_
 import { referralKeys } from '@orbit/shared/query'
 import { referralDashboardSchema } from '@orbit/shared/types/referral'
 import { ShareCardSheet } from '@/components/share/share-card-sheet'
-import { measureSplitSegmentWords, mountMeasuredSegmentedControls, settleSegmentMeasurements } from '@/__tests__/support/segmented-control-geometry'
+import { measureSplitSegmentWords, mountMeasuredSegmentedControls } from '@/__tests__/support/segmented-control-geometry'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -67,51 +67,52 @@ describe('Share progress sheet geometry in Chromium', () => {
       })
       expect(trailingSpace).toBeCloseTo(0)
       await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
-      await settleSegmentMeasurements(page)
+      await vi.waitFor(async () => {
         expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
-      const geometry = await page.locator('[data-segmented-control]').evaluate((group) => {
-        const bounds = group.getBoundingClientRect()
-        const column = group.parentElement!.getBoundingClientRect()
-        const segments = [...group.querySelectorAll('[role="radio"], [data-menu-trigger]')].map((segment) => {
-          const box = segment.getBoundingClientRect()
-          const label = segment.querySelector('span')!
+        const geometry = await page.locator('[data-segmented-control]').evaluate((group) => {
+          const bounds = group.getBoundingClientRect()
+          const column = group.parentElement!.getBoundingClientRect()
+          const segments = [...group.querySelectorAll('[role="radio"], [data-menu-trigger]')].map((segment) => {
+            const box = segment.getBoundingClientRect()
+            const label = segment.querySelector('span')!
+            const range = document.createRange()
+            range.selectNodeContents(label)
+            return {
+              width: box.width, height: box.height, top: box.top,
+              lines: new Set([...range.getClientRects()].map((fragment) => Math.round(fragment.top))).size,
+              fits: range.getBoundingClientRect().width <= label.getBoundingClientRect().width + 1,
+              contained: box.left >= bounds.left && box.right <= bounds.right,
+              ellipsis: getComputedStyle(label).textOverflow === 'ellipsis',
+            }
+          })
+          return { folded: group.querySelector('[data-menu-trigger]') !== null, width: bounds.width, columnWidth: column.width, segments }
+        })
+        expect(geometry.width).toBeGreaterThan(0)
+        expect(geometry.width).toBeCloseTo(geometry.columnWidth, 0)
+        expect(geometry.segments).toHaveLength(geometry.folded ? 1 : 3)
+        if (scale === 1) expect(geometry.folded).toBe(false)
+        expect(new Set(geometry.segments.map((segment) => segment.top)).size).toBe(1)
+        for (const segment of geometry.segments) {
+          expect(segment.width).toBeGreaterThanOrEqual(48)
+          expect(segment.height).toBeGreaterThanOrEqual(48)
+          expect(segment.lines).toBe(1)
+          expect(segment.fits).toBe(true)
+          expect(segment.contained).toBe(true)
+          expect(segment.ellipsis).toBe(false)
+        }
+        const figure = await page.locator('[data-testid="share-card-figure"]').first().evaluate((element) => {
           const range = document.createRange()
-          range.selectNodeContents(label)
+          range.selectNodeContents(element)
+          const bounds = element.getBoundingClientRect()
           return {
-            width: box.width, height: box.height, top: box.top,
+            value: element.textContent,
+            fontSize: getComputedStyle(element).fontSize,
             lines: new Set([...range.getClientRects()].map((fragment) => Math.round(fragment.top))).size,
-            fits: range.getBoundingClientRect().width <= label.getBoundingClientRect().width + 1,
-            contained: box.left >= bounds.left && box.right <= bounds.right,
-            ellipsis: getComputedStyle(label).textOverflow === 'ellipsis',
+            fits: range.getBoundingClientRect().left >= bounds.left && range.getBoundingClientRect().right <= bounds.right,
           }
         })
-        return { folded: group.querySelector('[data-menu-trigger]') !== null, width: bounds.width, columnWidth: column.width, segments }
-      })
-      expect(geometry.width).toBeGreaterThan(0)
-      expect(geometry.width).toBeCloseTo(geometry.columnWidth, 0)
-      expect(geometry.segments).toHaveLength(geometry.folded ? 1 : 3)
-      if (scale === 1) expect(geometry.folded).toBe(false)
-      expect(new Set(geometry.segments.map((segment) => segment.top)).size).toBe(1)
-      for (const segment of geometry.segments) {
-        expect(segment.width).toBeGreaterThanOrEqual(48)
-        expect(segment.height).toBeGreaterThanOrEqual(48)
-        expect(segment.lines).toBe(1)
-        expect(segment.fits).toBe(true)
-        expect(segment.contained).toBe(true)
-        expect(segment.ellipsis).toBe(false)
-      }
-      const figure = await page.locator('[data-testid="share-card-figure"]').first().evaluate((element) => {
-        const range = document.createRange()
-        range.selectNodeContents(element)
-        const bounds = element.getBoundingClientRect()
-        return {
-          value: element.textContent,
-          fontSize: getComputedStyle(element).fontSize,
-          lines: new Set([...range.getClientRects()].map((fragment) => Math.round(fragment.top))).size,
-          fits: range.getBoundingClientRect().left >= bounds.left && range.getBoundingClientRect().right <= bounds.right,
-        }
-      })
-      expect(figure).toEqual({ value: '100%', fontSize: '88px', lines: 1, fits: true })
+        expect(figure).toEqual({ value: '100%', fontSize: '88px', lines: 1, fits: true })
+      }, { timeout: 2000 })
     } finally { await page.close() }
   })
 })
