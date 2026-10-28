@@ -18,16 +18,25 @@ function requestedItem(habit, expected) {
 function chosenIdea(output, habits, vars) {
   const drafts = output.trace?.calls?.filter((call) => call.name === 'suggest_habits')
     .flatMap((call) => call.result?.payload?.drafts ?? []) ?? []
-  return drafts.length === vars.brainDump.additionalIdeas && drafts.every((draft) => validDraft(draft, vars.accountDate)
-    && draft.type === 'Habit' && draft.frequencyUnit === 'Day' && draft.frequencyQuantity === 1
-    && habits.some((habit) => habit.title === draft.title && (habit.habit_id ?? null) === (draft.existingHabitId ?? null)
-      && habit.frequency_unit === draft.frequencyUnit && habit.frequency_quantity === draft.frequencyQuantity
-      && habit.due_date === draft.dueDate && sameTime(habit.due_time, draft.dueTime)
-      && sameTime(habit.due_end_time, draft.dueEndTime)
-      && isDeepStrictEqual(habit.days ?? [], draft.days)
-      && habit.emoji === draft.emoji && habit.reminder_enabled === (draft.reminderMinutesBefore !== null)
-      && isDeepStrictEqual(habit.reminder_times ?? [], draft.reminderMinutesBefore === null ? [] : [draft.reminderMinutesBefore])
-      && isDeepStrictEqual(habit.checklist_items ?? [], draft.checklistItems.map((text) => ({ text, is_checked: false })))))
+  return drafts.length === vars.brainDump.additionalIdeas && drafts.every((draft) => {
+    if (!validDraft(draft, vars.accountDate) || draft.type !== 'Habit'
+      || draft.frequencyUnit !== 'Day' || draft.frequencyQuantity !== 1) return false
+    const proposed = { title: draft.title, frequency_unit: draft.frequencyUnit,
+      frequency_quantity: draft.frequencyQuantity, due_date: draft.dueDate,
+      due_time: draft.dueTime, due_end_time: draft.dueEndTime, days: draft.days, emoji: draft.emoji,
+      reminder_enabled: draft.reminderMinutesBefore !== null,
+      reminder_times: draft.reminderMinutesBefore === null ? [] : [draft.reminderMinutesBefore],
+      checklist_items: draft.checklistItems.map((text) => ({ text, is_checked: false })) }
+    return habits.some((habit) => {
+      const item = output.composition.pendingOperations[0].items.find((item) => item.entityName === habit.title)
+      return item && (habit.habit_id ?? null) === (draft.existingHabitId ?? null)
+        && (item.entityId ?? null) === (draft.existingHabitId ?? null)
+        && Object.entries(proposed).every(([name, value]) => {
+          const matches = name === 'due_time' || name === 'due_end_time' ? sameTime : isDeepStrictEqual
+          return matches(habit[name], value) && matches(field(item, name), value)
+        })
+    })
+  })
 }
 
 export function brainDumpPreview(output, vars) {

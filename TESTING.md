@@ -257,9 +257,6 @@ appear only once. Requested ideas must retain the actual suggestion draft fields
 preview. Pending operations are cancelled and their empty readback verified after each attempt.
 Private attempt evidence includes the approval verdict and persisted schedules, while the final
 answer grader still sees only the original held preview. Offline tests do not replace the live gate.
-Run these cases in the next capability gate tracked by thomasluizon/orbit-tickets#26 after staging
-serves API main containing orbit-api#981, regenerating the catalog from that evaluated commit.
-Post the live pass^3 result on thomasluizon/orbit-tickets#1856.
 
 Refine cases first verify a real suggestion setup turn with the tool and composition gates, then
 send one of those drafts, the instruction and language as JSON to

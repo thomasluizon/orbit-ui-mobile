@@ -66,3 +66,32 @@ it('requires the actual suggested draft to join the bulk preview', () => {
     expect(brainDumpPreview(output, test.vars).pass).toBe(false)
   }
 })
+
+it.each([
+  ['title', 'Different idea'],
+  ['frequency_unit', 'Week'],
+  ['frequency_quantity', 2],
+  ['due_date', '2026-10-29'],
+  ['due_time', '22:00'],
+  ['due_end_time', '22:10'],
+  ['days', ['Monday']],
+  ['emoji', '🌱'],
+  ['reminder_enabled', false],
+  ['reminder_times', [15]],
+  ['checklist_items', [{ text: 'Different checklist item', is_checked: true }]],
+].flatMap(([name, altered]) => ['omitted', 'altered'].map((mutation) => ({ name, altered, mutation }))))(
+  'rejects an $mutation suggested $name in the pending preview', async ({ name, altered, mutation }) => {
+    for (const source of brainDumpCases.filter((entry) => entry.metadata.family === 'brain-dump-ideas')) {
+      const { test, output } = brainDumpAttempt(source)
+      expect(brainDumpPreview(output, test.vars).pass).toBe(true)
+      const item = output.composition.pendingOperations[0].items[2]
+      if (mutation === 'omitted') item.fields = item.fields.filter((change) => change.field !== name)
+      else item.fields.find((change) => change.field === name).proposedValue = altered
+      for (const grade of [structural, behavior]) {
+        const verdict = await grade(output, { vars: test.vars, test })
+        expect(verdict.pass, verdict.reason).toBe(true)
+      }
+      expect(brainDumpPreview(output, test.vars).pass).toBe(false)
+    }
+  },
+)
