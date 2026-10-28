@@ -70,6 +70,7 @@ impl<T> UpdateState<T> {
             || self.install_reservation.is_some()
             || self.prompt_pending()
             || self.quit_requested
+            || self.install_on_quit
         {
             return false;
         }
@@ -84,6 +85,7 @@ impl<T> UpdateState<T> {
             || self.install_reservation.is_some()
             || self.prompt_pending()
             || self.quit_requested
+            || self.install_on_quit
         {
             return;
         }
@@ -300,7 +302,7 @@ mod tests {
                 assert_eq!(state.take_prompt(true).as_deref(), Some(version));
                 assert_eq!(state.take_prompt(true), None);
                 assert!(state.snapshot().prompt_pending);
-                state.answer_prompt(version, false);
+                state.answer_prompt(version, true);
                 assert_eq!(state.take_prompt(true), None);
             }
             state.release_install(RESERVATION);
@@ -382,6 +384,22 @@ mod tests {
     }
 
     #[test]
+    fn later_keeps_the_verified_package_when_a_newer_check_finishes() {
+        let mut state = UpdateState::new(true);
+        state.checked(Ok(Some(("0.2.0".into(), "verified package"))));
+        assert!(state.begin_check());
+        let package = state.begin_download(RESERVATION).unwrap();
+        state.downloaded(package, true);
+        let version = state.take_prompt(true).unwrap();
+        state.answer_prompt(&version, false);
+        state.checked(Ok(Some(("0.3.0".into(), "unverified package"))));
+        assert_eq!(state.version.as_deref(), Some("0.2.0"));
+        assert_eq!(state.package, Some("verified package"));
+        assert!(!state.begin_check());
+        assert!(state.request_quit());
+    }
+
+    #[test]
     fn launch_focus_and_timer_checks_do_not_download_or_install() {
         let mut state = UpdateState::new(true);
         assert!(state.begin_check());
@@ -460,7 +478,7 @@ mod tests {
     }
 
     #[test]
-    fn later_or_cancel_releases_a_downloaded_candidate_for_newer_offers() {
+    fn later_pins_the_quit_package_while_cancel_allows_newer_offers() {
         for defer in [true, false] {
             let mut state = UpdateState::new(true);
             state.checked(Ok(Some(("0.2.0".into(), "package"))));
@@ -470,13 +488,17 @@ mod tests {
             if defer {
                 state.defer();
                 assert!(state.snapshot().deferred);
+                assert!(!state.begin_check());
             } else {
                 state.release_install(RESERVATION);
+                assert!(state.begin_check());
             }
-            assert!(state.begin_check());
             state.checked(Ok(Some(("0.3.0".into(), "newer package"))));
-            assert!(!state.snapshot().deferred);
-            assert_eq!(state.version.as_deref(), Some("0.3.0"));
+            assert_eq!(state.snapshot().deferred, defer);
+            assert_eq!(
+                state.version.as_deref(),
+                Some(if defer { "0.2.0" } else { "0.3.0" })
+            );
         }
     }
 
