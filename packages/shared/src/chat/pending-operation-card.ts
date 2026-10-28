@@ -219,7 +219,6 @@ export function buildPendingOperationCardLabels(
   }
 }
 
-
 export function formatPreviewMeta(meta: string): string {
   return meta.split(' · ').map(token => token.replace(/ /g, '\u00a0')).join(' · ')
 }

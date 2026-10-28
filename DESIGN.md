@@ -103,7 +103,7 @@ Conquistas related action. Its nullable source sections keep level-only, achieve
 combined answers focused. A requested streak reuses the Progresso streak figure, DayStrip and
 read-only FreezeBank from the saved snapshot and resolved date. A streak-only answer uses its
 own heading; a combined answer labels the streak section separately. No absent source adds figures.
-This signed control remains available even while the answer is current.
+Like every other signed read, it shows that control only while the answer is stale.
 
 **Conversation participants:** the first message in each consecutive run of Astra messages starts
 with a 24px `AstraGlyph` in `--fg-1` on its own row at the thread's 16px inset. An 8px gap

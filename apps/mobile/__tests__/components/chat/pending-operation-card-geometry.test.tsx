@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle, type TextS
 import Yoga from 'yoga-layout'
 import { Resvg } from '@resvg/resvg-js'
 import { makeHeldHabitMessage, habitListCardFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { formatPreviewMeta } from '@orbit/shared/chat'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { HabitListCard } from '@/components/chat/habit-list-card'
 import { Button } from '@/components/ui/pill-button'
@@ -124,7 +125,7 @@ describe('Pending preview geometry on Android', () => {
     const labels = buttons.map((button: { props: { label?: string; children: string } }) => button.props.label ?? button.props.children)
     expect(labels).toEqual([i18n.t('chat.operation.reject'), i18n.t('chat.operation.edit'), counted === 'createHabits' ? i18n.t('chat.operation.create') : counted ? i18n.t(['createHabits', 'rescheduleHabits', 'updateHabitEmojis'].includes(counted) ? `chat.operation.approveCount.${counted}` : `chat.operation.approveAction.${counted}`, { count: 12 }) : i18n.t('chat.operation.approve')])
     expect(buttons[2].props.variant).toBe('primary')
-    if (!counted) expect(renderedText(tree.toJSON())).toContain(i18n.t('habits.frequency.everyDay'))
+    if (!counted) expect(renderedText(tree.toJSON())).toContain(formatPreviewMeta(i18n.t('habits.frequency.everyDay')))
     expect(renderedText(tree.toJSON())).not.toContain('frequency_unit')
     expect(tree.root.findAllByType(Text).filter((node: { props: { label?: string; children?: unknown; importantForAccessibility?: string } }) => node.props.children === (counted ? 'Habit 1' : 'Beber água') && node.props.importantForAccessibility !== 'no-hide-descendants')).toHaveLength(1)
     const rowStyle = StyleSheet.flatten(row.props.style)
