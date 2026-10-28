@@ -383,3 +383,17 @@ it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as con
     expect(state.mutate).not.toHaveBeenCalled()
     view.unmount()
 })
+
+it.each(['en', 'pt-BR'] as const)('lets a live completion supersede the saved skipped status in %s', (locale) => {
+  for (const item of skippedDatedHabitListFixture.items) {
+    state.habits.set(item.id, createMockHabit({ id: item.id, isBadHabit: item.isBadHabit, isLoggedInRange: item.id === 'skipped' || item.status === 'done' }))
+  }
+  const parsed = chatPartSchema.parse({ type: 'block', kind: 'habitList', block: skippedDatedHabitListFixture })
+  if (!parsed || !('kind' in parsed) || parsed.kind !== 'habitList') throw new Error('Skipped habit block did not parse')
+  const messages = locale === 'en' ? en : pt
+  const view = mount(parsed, locale)
+  const row = view.container.querySelector('[data-habit-block-row]') as HTMLElement
+  expect(within(row).getByRole('img', { name: messages.chat.habitList.logged })).toHaveAttribute('data-status', 'done')
+  expect(row.querySelector('[data-habit-block-meta]')).toBeNull()
+  view.unmount()
+})

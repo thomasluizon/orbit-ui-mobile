@@ -434,3 +434,21 @@ it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as con
     expect(state.mutate).not.toHaveBeenCalled()
     await act(() => tree.unmount())
 })
+
+it.each(['en', 'pt-BR'] as const)('lets a live completion supersede the saved skipped status in %s', async (locale) => {
+  for (const item of skippedDatedHabitListFixture.items) {
+    state.habits.set(item.id, createMockHabit({ id: item.id, isBadHabit: item.isBadHabit, isLoggedInRange: item.id === 'skipped' || item.status === 'done' }))
+  }
+  const parsed = chatPartSchema.parse({ type: 'block', kind: 'habitList', block: skippedDatedHabitListFixture })
+  if (!parsed || !('kind' in parsed) || parsed.kind !== 'habitList') throw new Error('Skipped habit block did not parse')
+  const messages = locale === 'en' ? en : pt
+  state.locale = locale
+  state.actualCopy = true
+  const tree = await mount(parsed)
+  const rows = tree.root.findAll(node => String(node.type) === 'View' && node.props.testID === 'habit-block-row')
+  const [skippedCheck, loggedCheck] = rows.slice(0, 2).map(row => row.findAll(node => String(node.type) === 'AnimatedView' && node.props.testID === 'habit-check')[0]!)
+  expect(skippedCheck!.props.accessibilityLabel).toBe(messages.chat.habitList.logged)
+  expect(skippedCheck!.props.style).toEqual(loggedCheck!.props.style)
+  expect(rows[0]!.findAll(node => String(node.type) === 'Text' && node.props.children === messages.habits.statusDot.skip)).toHaveLength(0)
+  await act(() => tree.unmount())
+})
