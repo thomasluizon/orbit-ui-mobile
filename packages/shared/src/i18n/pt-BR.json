@@ -2294,7 +2294,6 @@
       "assignedTags": "{hasEntityName, select, yes {Tags de {entityName} atualizadas} other {Tags atualizadas}}",
       "billingPortalCreated": "Gerenciamento da assinatura aberto",
       "bulkOperationFailed": "Não consegui aplicar as alterações. Nada mudou.",
-      "bulkReplayExpired": "Nada mais mudou. Confira seus hábitos e envie o pedido de novo.",
       "calendarAutoSync": {
         "disabled": "Sincronização automática do calendário desativada",
         "enabled": "Sincronização automática do calendário ativada"
