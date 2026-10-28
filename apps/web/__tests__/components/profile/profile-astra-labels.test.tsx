@@ -15,7 +15,7 @@ const settings = vi.hoisted(() => ({ locale: 'pt-BR' as 'en' | 'pt-BR' }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), useSearchParams: () => new URLSearchParams() }))
 vi.mock('next-intl', async (importOriginal) => {
   const actual = await importOriginal<typeof import('next-intl')>()
-  return { ...actual, useTranslations: () => actual.createTranslator({ locale: settings.locale, messages: settings.locale === 'en' ? en : ptBR }) }
+  return { ...actual, useLocale: () => settings.locale, useTranslations: () => actual.createTranslator({ locale: settings.locale, messages: settings.locale === 'en' ? en : ptBR }) }
 })
 vi.mock('@/hooks/use-stripe-checkout-return', () => ({ useStripeCheckoutReturn: () => ({ hasReturnError: false, isSettling: false }) }))
 vi.mock('@/hooks/use-session-reset', () => ({ useAccountScopedState: () => [false] }))

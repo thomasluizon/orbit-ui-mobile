@@ -104,3 +104,24 @@ it('renders the profile when the time zone is unsupported', () => {
   render(<AccountRowsCard accountRows={{ kind: 'profile', surfaceId: 'profile', rows: [{ key: 'timeZone', value: 'Unsupported/Zone', valueType: 'text' }] }} />)
   expect(screen.getByText('Unsupported/Zone')).toBeInTheDocument()
 })
+
+  it.each(['plan', 'profile', 'referral'] as const)('filters missing values only for the %s card', (kind) => {
+    render(<AccountRowsCard accountRows={{ kind, surfaceId: 'profile', rows: [
+      { key: 'plan', value: 'Pro', valueType: 'enum' },
+      { key: 'trialEnd', value: '2026-11-01T12:00:00Z', valueType: 'date' },
+      { key: 'planExpiry', value: null, valueType: 'date' },
+      { key: 'interval', value: '', valueType: 'enum' },
+      { key: 'source', value: null, valueType: 'enum' },
+      { key: 'lifetime', value: 'false', valueType: 'boolean' },
+      { key: 'astraAllowance', value: '78/250', valueType: 'count' },
+    ] }} />)
+    const output = document.body.textContent!
+    expect(output).toContain('chat.account.value.plan.Pro')
+    expect(output).toContain('chat.account.row.trialEnd')
+    expect(output).toContain('78 / 250')
+    for (const key of ['planExpiry', 'interval', 'source', 'lifetime']) {
+      expect(output.includes(`chat.account.row.${key}`)).toBe(kind !== 'plan')
+    }
+    expect(output.includes('chat.account.notSet')).toBe(kind !== 'plan')
+    expect(output.includes('chat.account.no')).toBe(kind !== 'plan')
+  })

@@ -1,7 +1,7 @@
+import { createAstraAllowanceTranslator, type AstraAllowance, type SubscriptionPortalState } from '@orbit/shared/utils'
 import { ProBenefits } from './pro-benefits'
 import { Platform, Text, View } from 'react-native'
 import { subscriptionSummary } from '@orbit/shared/utils'
-import type { SubscriptionPortalState } from '@orbit/shared/utils'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import { Badge } from '@/components/ui/badge'
 import { ProviderHandoff } from './provider-handoff'
@@ -32,11 +32,11 @@ export function PlayBillingDashboard({
   tokens,
 }: Readonly<{
   provider?: 'stripe' | 'play' | 'app_store' | null
-  status: SubscriptionStatus | null
+  status: SubscriptionStatus & AstraAllowance | null
   displayPrice?: string
   locale: string
   usagePercent: number
-  usageProfile: { aiMessagesUsed: number; aiMessagesLimit: number } | null
+  usageProfile: ({ aiMessagesUsed: number; aiMessagesLimit: number } & AstraAllowance) | null
   portalState: SubscriptionPortalState
   isOnline: boolean
   onManagePlay: () => void
@@ -59,7 +59,7 @@ export function PlayBillingDashboard({
     <View style={styles.billingStack}>
       <PlanSummaryCard
         planLabel={t(summary.nameKey)}
-        body={t(summary.bodyKey, { limit: status.aiMessagesLimit })}
+        body={createAstraAllowanceTranslator(t, status, locale)(summary.bodyKey, { limit: status.aiMessagesLimit })}
         badges={summary.badgeKey ? <Badge>{t(summary.badgeKey)}</Badge> : null}
         facts={[
           priceLine,
@@ -76,6 +76,7 @@ export function PlayBillingDashboard({
       <UsageCard
         usagePercent={usagePercent}
         profile={usageProfile}
+        locale={locale}
         t={t}
         tokens={tokens}
       />

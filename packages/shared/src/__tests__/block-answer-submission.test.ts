@@ -3,6 +3,7 @@ import { BlockAnswerSubmission, type ChatStreamResult } from '../chat/block-answ
 import { createChatStoreState, type ChatStoreState } from '../stores/chat-store'
 import { choiceBlockFixture, pickListBlockFixture } from '../test-support/choice-fixtures'
 import type { BlockAnswerRequest } from '../chat/block-answer'
+import allowanceRefusals from '../test-support/astra-allowance-refusals.fixture.json'
 
 function submissionContext() {
   let chat: ChatStoreState = createChatStoreState(patch => {
@@ -12,7 +13,7 @@ function submissionContext() {
     isOnline: true, atMessageLimit: false, locale: 'en',
     getChat: () => chat, createMessageId: () => 'answer-message',
     conversation: { astraConversationOpen: true, setAstraConversationOpen: vi.fn() },
-    onDailyBudgetExceeded: vi.fn(),
+    onDailyBudgetExceeded: vi.fn(), onAllowanceExceeded: vi.fn(),
     beginSend: vi.fn(), refreshProfile: vi.fn(async () => {}),
     run: vi.fn(async (_request: unknown, accepted: () => void): Promise<ChatStreamResult> => { accepted(); return { kind: 'final' } }),
     words: { answered: (content: string) => `You chose ${content}`, closed: 'closed', alreadyAnswered: 'already answered' },
@@ -24,6 +25,17 @@ const choice: BlockAnswerRequest = {
 }
 
 describe('shared block answer submission', () => {
+  it.each(allowanceRefusals)('does not recover an answer refused by the $period allowance in $locale', async ({ body }) => {
+    const context = submissionContext()
+    context.run.mockResolvedValueOnce({ kind: 'failed', failure: { status: 403, error: body.error, code: body.errorCode }, draftMessageId: 'partial-reply' })
+    const submission = new BlockAnswerSubmission()
+    expect(await submission.send(choice, context)).toEqual({ ok: false, status: 403, allowanceReached: true })
+    expect(context.onAllowanceExceeded).toHaveBeenCalledWith('partial-reply')
+    expect(context.refreshProfile).toHaveBeenCalledOnce()
+    expect(await submission.send(choice, { ...context, atMessageLimit: true })).toEqual({ ok: false, status: null })
+    expect(context.run).toHaveBeenCalledOnce()
+  })
+
   it.each(['choice', 'pickList'] as const)('does not recover a %s refused by the daily ceiling', async kind => {
     const context = submissionContext()
     context.run.mockResolvedValueOnce({ kind: 'failed', failure: { status: 400, error: 'Daily budget reached', code: 'AI_DAILY_BUDGET_EXCEEDED' }, draftMessageId: 'partial-reply' })

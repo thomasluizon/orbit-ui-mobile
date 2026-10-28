@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { NextIntlClientProvider } from 'next-intl'
+import { createTranslator, NextIntlClientProvider } from 'next-intl'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -207,9 +207,11 @@ it.each([320, 480, 800].flatMap(width => [en, ptBR].flatMap(messages =>
 it.each([en, ptBR].flatMap(messages => [false, true].map(pending => ({ messages, pending }))))(
   'shows one form suggestion mark at rest or one spinner while pending=$pending in 48px targets', async ({ messages, pending }) => {
     const onSuggest = vi.fn()
+    const translator = createTranslator({ locale: messages === en ? 'en' : 'pt-BR', messages })
+    const t = (key: string, values?: Record<string, string | number | Date>) => translator(key as Parameters<typeof translator>[0], values)
     const view = render(<NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}>
       <HabitEmojiSelector onSuggest={onSuggest} canSuggest isSuggesting={pending} selectedEmoji="" onSelect={vi.fn()} />
-      <TagSuggestions atLimit={false} disabled={false} suggestions={{ ...createTagSuggestionState(), pending: pending ? 'suggest' : null,
+      <TagSuggestions translateError={t} atLimit={false} disabled={false} suggestions={{ ...createTagSuggestionState(), pending: pending ? 'suggest' : null,
         canSuggest: !pending, needsTitle: false, suggest: vi.fn().mockResolvedValue(undefined), acceptSuggestion: vi.fn().mockResolvedValue(undefined) }} />
     </NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width: 480, height: 640 } })

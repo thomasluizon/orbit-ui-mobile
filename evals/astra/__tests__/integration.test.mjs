@@ -253,7 +253,7 @@ describe('corpus and execution constraints', () => {
     offlineCredentials()
     for (const key of ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_HABIT_ID',
       'ORBIT_EVAL_SECOND_HABIT_ID', 'ORBIT_EVAL_OVERDUE_DATE', 'ORBIT_EVAL_TOKEN', 'ORBIT_EVAL_FREE_TOKEN', 'ORBIT_EVAL_BUDGET_TOKEN']) {
-      vi.stubEnv(key, key === 'ORBIT_EVAL_BASE_URL' ? 'https://astra.invalid' : key === 'ORBIT_EVAL_OVERDUE_DATE' ? '2026-01-01' : 'offline')
+      vi.stubEnv(key, key === 'ORBIT_EVAL_BASE_URL' ? 'https://orbit-api-staging-uqu2.onrender.com' : key === 'ORBIT_EVAL_OVERDUE_DATE' ? '2026-01-01' : 'offline')
     }
     let configReads = 0
     vi.stubGlobal('fetch', async (url) => {
@@ -265,7 +265,7 @@ describe('corpus and execution constraints', () => {
     await expect(beforeAll({ suite: { tests: scenarios } })).resolves.toBeUndefined()
     vi.stubEnv('ORBIT_EVAL_BASE_URL', 'http://astra.invalid')
     await expect(beforeAll({ suite: { tests: scenarios } })).rejects.toThrow('HTTPS')
-    vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
+    vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
     writeFileSync(process.env.ORBIT_EVAL_CREDENTIALS_FILE, '{}')
     await expect(beforeAll({ suite: { tests: scenarios } })).rejects.toThrow('Missing refresh token.')
   })

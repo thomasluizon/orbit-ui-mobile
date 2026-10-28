@@ -1,5 +1,7 @@
 'use client'
 
+import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
+
 import { useState, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -95,11 +97,8 @@ function EditHabitDraft({
   lockedGeneral = null,
 }: Readonly<EditHabitModalProps>) {
   const t = useTranslations()
-  const translate = useCallback(
-    (key: string, values?: Record<string, string | number | Date>) =>
-      t(key, values),
-    [t],
-  )
+  const allowanceText = useAstraAllowanceCopy()
+  const translate = allowanceText
   const locale = useLocale()
   const { isOnline } = useOffline()
   const updateHabit = useUpdateHabit()
@@ -419,7 +418,7 @@ function EditHabitDraft({
     } catch (error: unknown) {
       if (!isCurrent()) return null
       const atLimit = extractBackendErrorCode(error) === 'PAY_GATE'
-      const message = atLimit ? t('habits.form.aiSuggestLimitReached') : t('habits.form.aiSuggestError')
+      const message = atLimit ? allowanceText('habits.form.aiSuggestLimitReached') : t('habits.form.aiSuggestError')
       setEmojiFailure({ title: currentTitle, message, atLimit, habitId: sessionHabitId })
       showError(message)
       return EMPTY_HABIT_FORM_PROPOSAL
@@ -427,7 +426,7 @@ function EditHabitDraft({
       suggestionRequests.finish()
       setIsEmojiSuggesting(false)
     }
-  }, [formHelpers, locale, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
+  }, [allowanceText, formHelpers, locale, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
   const handleSuggest = useCallback(async () => {
     if (submittingRef.current) return null
@@ -474,14 +473,14 @@ function EditHabitDraft({
       )) return null
       showError(
         extractBackendErrorCode(error) === 'PAY_GATE'
-          ? t('habits.form.aiSuggestLimitReached')
+          ? allowanceText('habits.form.aiSuggestLimitReached')
           : t('habits.form.aiSuggestError'),
       )
       return EMPTY_HABIT_FORM_PROPOSAL
     } finally {
       suggestionRequests.finish()
     }
-  }, [formHelpers, locale, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
+  }, [allowanceText, formHelpers, locale, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
   function renderEditSheet() {
     if (!open) return null

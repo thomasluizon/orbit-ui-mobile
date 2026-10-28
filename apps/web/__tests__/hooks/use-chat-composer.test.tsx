@@ -1,3 +1,4 @@
+import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusals.fixture.json'
 import type { InvalidateQueryFilters } from '@tanstack/react-query'
 import { questionBlockFixture, questionAnswersFixture, choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { describe, expect, it, vi, beforeEach, afterEach, onTestFinished } from 'vitest'
@@ -278,6 +279,28 @@ function ComposerConversationHarness({ conversationReady = true }: { conversatio
 }
 
 describe('web useChatComposer streaming send', () => {
+
+  it.each(allowanceRefusals.flatMap(refusal => ['http', 'sse'].flatMap(transport => ['message', 'choice', 'question'].map(submission => ({ ...refusal, transport, submission })))))('shows the $period allowance refusal in $locale over $transport for $submission without retry', async ({ period, locale, limit, body, transport, submission }) => {
+    mocks.locale = locale
+    mocks.translate = createTranslator({ locale, messages: locale === 'en' ? en : ptBR })
+    mocks.state.profile = createMockProfile({ hasProAccess: period === 'week', isTrialActive: false, aiMessagesUsed: 0, aiMessagesLimit: limit, aiMessagesPeriod: period === 'week' ? 'week' : 'day' })
+    mocks.fetch.mockResolvedValue(transport === 'http' ? Response.json(body, { status: 403 }) : sseResponse(
+      frame('{"type":"started"}'), frame('{"type":"delta","text":"Checking"}'),
+      frame(JSON.stringify({ type: 'error', status: 403, error: body.error, code: body.errorCode })),
+    ))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => {
+      if (submission === 'message') await result.current.sendMessage('Plan my morning')
+      else await result.current.blockAnswerInteraction.send({ kind: submission === 'choice' ? 'choice' : 'question', answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['morning'] }, labels: ['Morning'] })
+    })
+    expect(useChatStore.getState().messages.at(-1)).toMatchObject({ role: 'ai', content: mocks.translate(`chat.limitReachedError${period === 'week' ? 'Weekly' : ''}`) })
+    expect(result.current.sendError).toBeNull()
+    expect(result.current.canRetryLastSend).toBe(false)
+    await act(async () => { await result.current.retryLastSend() })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    expect(mocks.routerPush).not.toHaveBeenCalled()
+  })
+
   it('keeps desktop reloads blocked through a real streamed send and voice input', async () => {
     useUIStore.setState({ showCreateModal: false, openOverlayIds: [], selectedHabitIds: new Set() })
     const stream = controlledSseResponse()
@@ -3185,4 +3208,12 @@ describe('web useChatComposer streaming send', () => {
       queryKey: habitKeys.lists(),
     })
   })
+  it('uses the weekly allowance and the server reset in the account timezone', () => {
+    mocks.state.profile = createMockProfile({ hasProAccess: true, aiMessagesUsed: 250, aiMessagesLimit: 250,
+      aiMessagesPeriod: 'week', aiMessagesResetsAt: '2026-11-09T02:00:00Z', timeZone: 'America/Sao_Paulo' })
+    const { result } = renderHook(() => useChatComposer())
+    expect(result.current.composerProps.limitReason).toBe('shell.composer.limit.reasonWeekly:{"allowance":250}')
+    expect(result.current.composerProps.renewalHint).toBe('shell.composer.limit.renewalWeekly:{"day":"Sunday"}')
+  })
+
 })

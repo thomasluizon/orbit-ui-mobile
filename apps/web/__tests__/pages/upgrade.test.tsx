@@ -426,8 +426,8 @@ describe('UpgradePage', () => {
   })
 
   describe.each([
-    { locale: 'en', messages: en, trialHeading: '50 a day or back to 5.' },
-    { locale: 'pt-BR', messages: ptBR, trialHeading: '50 por dia ou só 5.' },
+    { locale: 'en', messages: en, trialHeading: '250 a week.' },
+    { locale: 'pt-BR', messages: ptBR, trialHeading: '250 por semana.' },
   ] as const)('paywall composition in $locale', ({ locale, messages, trialHeading }) => {
     it('returns a directly linked Astra upgrade to its originating sub-screen', () => {
       mockLocale.value = locale

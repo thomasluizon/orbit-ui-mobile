@@ -1,3 +1,4 @@
+import { createAstraAllowanceTranslator, type AstraAllowance } from '@orbit/shared/utils'
 import { ProBenefits } from './pro-benefits'
 import type { useTranslations } from 'next-intl'
 import type { SubscriptionScreenState } from '@orbit/shared/utils'
@@ -21,7 +22,7 @@ export function PlayBillingDashboard({
 }: Readonly<{
   provider?: 'play' | 'app_store'
   state: SubscriptionScreenState
-  status: SubscriptionStatus | null
+  status: SubscriptionStatus & AstraAllowance | null
   locale: string
   usagePercent: number
   onManagePlay: () => void
@@ -37,12 +38,12 @@ export function PlayBillingDashboard({
           <h2 className="min-w-0 t-display-heading text-balance">{t(summary.nameKey)}</h2>
           {summary.badgeKey ? <Badge>{t(summary.badgeKey)}</Badge> : null}
         </div>
-        <p className="t-body text-pretty" style={{ color: 'var(--fg-2)' }}>{t(summary.bodyKey, { limit: status.aiMessagesLimit })}</p>
+        <p className="t-body text-pretty" style={{ color: 'var(--fg-2)' }}>{createAstraAllowanceTranslator(t, status, locale)(summary.bodyKey, { limit: status.aiMessagesLimit })}</p>
         {summary.renewal ? <p className="font-mono text-xs text-[var(--fg-2)]">{t(summary.renewalKey, { date: formatBillingDate(summary.renewal, locale) })}</p> : null}
       </section>
       {provider === 'app_store' ? <p className="t-secondary text-pretty text-[var(--fg-2)]">{t('upgrade.appStore.manageOnIphone')}</p> : <ProviderHandoff provider="play" state={state} onManage={onManagePlay} t={t} />}
       <ProBenefits heading t={t} />
-      <UsageStats usagePercent={usagePercent} profile={status} t={t} />
+      <UsageStats usagePercent={usagePercent} profile={status} locale={locale} t={t} />
       <p className="t-secondary text-pretty text-[var(--fg-3)]">{t('upgrade.billing.actions.providerNote')}</p>
     </div>
   )

@@ -112,7 +112,7 @@ export class QuestionBlockController {
     try {
       const result = await props.interaction!.send({ kind: 'question', answer, labels })
       if (result.ok) this.update({ settled: { text: words.answered(formatBlockAnswer(labels, undefined, locale)), answered: true } })
-      else if (result.dailyBudgetReached) this.update({ error: null, uncertainAnswer: null })
+      else if (result.dailyBudgetReached || result.allowanceReached) this.update({ error: null, uncertainAnswer: null })
       else {
         const key = blockAnswerErrorKey(result.status)
         this.update(key === 'closed' || key === 'alreadyAnswered' ? { settled: { text: words[key], answered: false } } : { error: words[key] })

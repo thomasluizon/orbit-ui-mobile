@@ -1,5 +1,7 @@
 'use client'
 
+import { useProfile } from '@/hooks/use-profile'
+
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
@@ -59,11 +61,14 @@ export default function UpgradePage() {
   const { isOnline } = useOffline()
   const heldAccountId = useHeldAccountId()
   const {
-    status,
+    status: subscriptionStatus,
     isLoading: isStatusLoading,
     isError: isStatusError,
     refetch: refetchStatus,
   } = useSubscriptionStatus()
+
+  const { profile: accountProfile } = useProfile({ enabled: subscriptionStatus?.aiMessagesPeriod === 'week' })
+  const status = useMemo(() => subscriptionStatus ? { ...subscriptionStatus, timeZone: accountProfile?.timeZone } : null, [subscriptionStatus, accountProfile?.timeZone])
   const trialDaysLeft = getTrialDaysLeft(status)
   const {
     plans,

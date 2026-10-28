@@ -524,7 +524,7 @@ describe('counted message grammar', () => {
       'celebration.goal.line', 'celebration.goal.lineWithoutUnit',
     ],
     invariantQuantifiers: [
-      'notifications.bellWithCount', 'shell.composer.usage',
+      'notifications.bellWithCount', 'shell.composer.usage', 'shell.composer.usageWeekly',
       'habits.form.moreSelected', 'calendar.timeGrid.moreLabel',
       'chat.preview.more', 'goals.detail.showAllHistory',
     ],

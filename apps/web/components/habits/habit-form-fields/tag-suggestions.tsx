@@ -11,12 +11,13 @@ import { PickerRow } from '@/components/ui/picker-row'
 import { Proposed } from '@/components/ui/proposed'
 
 interface TagSuggestionsProps {
+  translateError: Parameters<typeof getFriendlyErrorMessage>[1]
   suggestions: ReturnType<typeof useTagSuggestions>
   atLimit: boolean
   disabled: boolean
 }
 
-export function TagSuggestions({ suggestions, atLimit, disabled }: Readonly<TagSuggestionsProps>) {
+export function TagSuggestions({ suggestions, atLimit, disabled, translateError }: Readonly<TagSuggestionsProps>) {
   const t = useTranslations()
   const pending = suggestions.pending !== null
   const failure = suggestions.error
@@ -24,7 +25,7 @@ export function TagSuggestions({ suggestions, atLimit, disabled }: Readonly<TagS
   return <div className="flex flex-col gap-4 pt-4">
     <div className="self-start"><PillButton minimumHeight={48} borderless hint={suggestions.pending === 'suggest' ? t('habits.form.suggestingTags') : suggestions.needsTitle ? t('habits.form.titleRequired') : atLimit ? t('habits.form.tagLimit') : undefined} iconOnly label={t('habits.form.suggestTags')} variant="ghost" disabled={!suggestions.canSuggest} loading={suggestions.pending === 'suggest'} onClick={() => void suggestions.suggest()}><AstraGlyph size={20} /></PillButton></div>
     <div role="status" aria-label={t('habits.form.suggestTags')} className="empty:absolute text-sm text-[var(--fg-3)]">{statusKey ? t(statusKey) : null}</div>
-    {failure ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{getFriendlyErrorMessage(failure.cause, t, failure.operation === 'suggest' ? 'habits.form.suggestTagsError' : 'toast.errors.validation', failure.operation === 'suggest' ? 'generic' : 'tag')}</p> : null}
+    {failure ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{getFriendlyErrorMessage(failure.cause, translateError, failure.operation === 'suggest' ? 'habits.form.suggestTagsError' : 'toast.errors.validation', failure.operation === 'suggest' ? 'generic' : 'tag')}</p> : null}
     {suggestions.suggestions.length > 0 ? <Proposed proposed scope="field" label={t('habits.form.suggestedTagsLabel')}><div aria-busy={suggestions.pending === 'accept'} className="flex flex-col gap-2 p-2">
       {suggestions.suggestions.map((suggestion) => <PickerRow proposed key={suggestion.name} name={suggestion.name} selected={false} disabled={disabled || atLimit || pending} onToggle={() => void suggestions.acceptSuggestion(suggestion)} value="" valueHidden valueClassName="flex-1" actionsClassName="flex items-center justify-end" controlClassName="habit-control-motion flex min-h-12 w-full min-w-0 items-center rounded-[12px] px-2 py-1 text-left enabled:hover:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96] disabled:opacity-40" />)}
     </div></Proposed> : null}

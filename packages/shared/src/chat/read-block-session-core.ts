@@ -17,6 +17,7 @@ export interface ReadBlockState {
   actionScope: ReadActionScope
   pending: boolean
   failure: string | null
+  stale: boolean
   run: (page: boolean) => Promise<void>
 }
 
@@ -37,12 +38,13 @@ export function createUseReadBlockSession(adapters: ReadBlockSessionAdapters): (
     const [snapshot, setSnapshot] = useState(initial)
     const [pending, setPending] = useState(false)
     const [failure, setFailure] = useState<string | null>(null)
+    const [stale, setStale] = useState(initial.read.completeness === 'stale')
     const active = useRef(true)
     const inFlight = useRef(false)
     useEffect(() => { active.current = true; return () => { active.current = false } }, [])
     async function run(page: boolean) {
       const token = page ? snapshot.read.nextCursor : snapshot.read.refreshToken
-      if (!token || inFlight.current) return
+      if (!token || inFlight.current || (page && stale)) return
       const generation = getAccountGeneration()
       const isCurrent = () => active.current && generation === getAccountGeneration()
       inFlight.current = true
@@ -51,13 +53,21 @@ export function createUseReadBlockSession(adapters: ReadBlockSessionAdapters): (
       try {
         const clientContext = buildChatClientContext({ platform: adapters.platform, locale })
         const response = await adapters.refresh(token, clientContext, page, isCurrent, snapshot.kind)
-        if (isCurrent()) setSnapshot(acceptReadBlockResponse(snapshot, response, page))
+        if (isCurrent()) {
+          const accepted = acceptReadBlockResponse(snapshot, response, page)
+          setSnapshot(accepted)
+          setStale(accepted.read.completeness === 'stale')
+        }
       } catch (error) {
-        if (isCurrent()) setFailure(readBlockFailureKey(error))
+        if (isCurrent()) {
+          const failureKey = readBlockFailureKey(error)
+          setFailure(failureKey)
+          if (failureKey === 'chat.readBlock.stale') setStale(true)
+        }
       } finally {
         if (isCurrent()) { setPending(false); inFlight.current = false }
       }
     }
-    return { snapshot, actionScope: { ...actionScope, ready: actionScope.ready && !pending }, pending, failure, run }
+    return { snapshot, actionScope: { ...actionScope, ready: actionScope.ready && !pending }, pending, failure, stale, run }
   }
 }

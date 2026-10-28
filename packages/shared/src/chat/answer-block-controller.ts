@@ -65,7 +65,7 @@ export class AnswerBlockController {
     try {
       const result = await interaction.send({ kind: definition.kind, labels, answer })
       if (result.ok) this.update({ settled: { text: t('answered', { options: formatBlockAnswer(labels, freeText, locale) }), answered: true } })
-      else if (result.dailyBudgetReached) this.update({ error: null, uncertainAnswer: null })
+      else if (result.dailyBudgetReached || result.allowanceReached) this.update({ error: null, uncertainAnswer: null })
       else {
         const key = blockAnswerErrorKey(result.status)
         if (key === 'closed' || key === 'alreadyAnswered') this.update({ settled: { text: t(key), answered: false } })
@@ -84,7 +84,7 @@ function getAnswerStatus(props: AnswerBlockProps, state: AnswerBlockState, t: An
   if (interaction?.dailyBudgetReached) return { text: '', error: false, blocked: true }
   if (state.acting) return { text: t(definition.kind === 'choice' ? 'acting' : 'reviewing'), error: false, blocked: true }
   if (interaction && !interaction.isOnline) return { text: t('offline'), error: false, blocked: true }
-  if (definition.kind === 'choice' && interaction?.atMessageLimit && !isSameBlockAnswer(answerSnapshot(props, state), state.uncertainAnswer)) return { text: t('limit', { allowance: interaction.allowance }), error: false, blocked: true }
+  if (definition.kind === 'choice' && interaction?.atMessageLimit && !isSameBlockAnswer(answerSnapshot(props, state), state.uncertainAnswer)) return { text: interaction.limitReason ?? t('limit', { allowance: interaction.allowance }), error: false, blocked: true }
   return { text: state.error ?? '', error: Boolean(state.error), blocked: false }
 }
 

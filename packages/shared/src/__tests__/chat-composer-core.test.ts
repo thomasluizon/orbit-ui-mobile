@@ -1,3 +1,4 @@
+import allowanceRefusals from '../test-support/astra-allowance-refusals.fixture.json'
 import { describe, expect, it } from 'vitest'
 import { QueryClient } from '@tanstack/query-core'
 import type {
@@ -26,6 +27,10 @@ function makeAction(overrides: Partial<ActionResult> = {}): ActionResult {
 }
 
 describe('classifySendFailure', () => {
+  it.each(allowanceRefusals)('classifies the producer $period refusal in $locale as a limit', ({ body }) => {
+    expect(classifySendFailure({ status: 403, code: body.errorCode, reason: body.error }).kind).toBe('limit')
+  })
+
   it('classifies a daily ceiling independently of the message allowance', () => {
     expect(classifySendFailure({ status: 400, code: 'AI_DAILY_BUDGET_EXCEEDED', reason: 'Daily budget reached' }).kind).toBe('dailyBudget')
   })

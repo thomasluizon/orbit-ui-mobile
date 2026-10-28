@@ -1,3 +1,4 @@
+import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusals.fixture.json'
 import type { InvalidateQueryFilters } from '@tanstack/react-query'
 import { questionBlockFixture, questionAnswersFixture, choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import React from 'react'
@@ -552,6 +553,29 @@ describe('mobile useChatComposer', () => {
     }
     expect(composer.current.input).toBe('')
     expect(composer.current.composerProps.attachments).toHaveLength(0)
+  })
+
+
+  it.each(allowanceRefusals.flatMap(refusal => ['http', 'sse'].flatMap(transport => ['message', 'choice', 'question'].map(submission => ({ ...refusal, transport, submission })))))('shows the $period allowance refusal in $locale over $transport for $submission without retry', async ({ period, locale, limit, body, transport, submission }) => {
+    mocks.locale = locale
+    await i18n.changeLanguage(locale)
+    mocks.translate = i18n.t.bind(i18n)
+    mocks.state.profile = createMockProfile({ hasProAccess: period === 'week', isTrialActive: false, aiMessagesUsed: 0, aiMessagesLimit: limit, aiMessagesPeriod: period === 'week' ? 'week' : 'day' })
+    mocks.openChatStream.mockResolvedValue(transport === 'http' ? Response.json(body, { status: 403 }) : sseStreamResponse(
+      frame('{"type":"started"}'), frame('{"type":"delta","text":"Checking"}'),
+      frame(JSON.stringify({ type: 'error', status: 403, error: body.error, code: body.errorCode })),
+    ))
+    const composer = await renderComposer()
+    await TestRenderer.act(async () => {
+      if (submission === 'message') await composer.current.sendMessage('Plan my morning')
+      else await composer.current.blockAnswerInteraction.send({ kind: submission === 'choice' ? 'choice' : 'question', answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['morning'] }, labels: ['Morning'] })
+    })
+    expect(useChatStore.getState().messages.at(-1)).toMatchObject({ role: 'ai', content: mocks.translate(`chat.limitReachedError${period === 'week' ? 'Weekly' : ''}`) })
+    expect(composer.current.sendError).toBeNull()
+    expect(composer.current.canRetryLastSend).toBe(false)
+    await TestRenderer.act(async () => { await composer.current.retryLastSend() })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
+    expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
   it('releases the daily ceiling on the next local date', async () => {
@@ -3410,4 +3434,12 @@ describe('mobile useChatComposer', () => {
 
     expect(setItem).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY, 'log water')
   })
+  it('uses the weekly allowance and the server reset in the account timezone', async () => {
+    mocks.state.profile = createMockProfile({ hasProAccess: true, aiMessagesUsed: 250, aiMessagesLimit: 250,
+      aiMessagesPeriod: 'week', aiMessagesResetsAt: '2026-11-09T02:00:00Z', timeZone: 'America/Sao_Paulo' })
+    const composer = await renderComposer()
+    expect(composer.current.composerProps.limitReason).toBe('shell.composer.limit.reasonWeekly:{"allowance":250}')
+    expect(composer.current.composerProps.renewalHint).toBe('shell.composer.limit.renewalWeekly:{"day":"Sunday"}')
+  })
+
 })
