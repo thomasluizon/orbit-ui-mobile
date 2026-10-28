@@ -2294,7 +2294,6 @@
       "assignedTags": "{hasEntityName, select, yes {Tags updated for {entityName}} other {Tags updated}}",
       "billingPortalCreated": "Subscription management opened",
       "bulkOperationFailed": "I could not apply the changes. Nothing changed.",
-      "bulkReplayExpired": "Nothing else changed. Check your habits and send the request again.",
       "calendarAutoSync": {
         "disabled": "Automatic calendar sync turned off",
         "enabled": "Automatic calendar sync turned on"

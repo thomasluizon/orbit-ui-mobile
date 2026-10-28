@@ -15,7 +15,6 @@ export const apiToolResultKeys = [
   "assignedTags",
   "billingPortalCreated",
   "bulkOperationFailed",
-  "bulkReplayExpired",
   "calendarAutoSync.disabled",
   "calendarAutoSync.enabled",
   "calendarImportDismissed",
