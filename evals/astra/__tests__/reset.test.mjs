@@ -375,13 +375,17 @@ it('adopts roots in the other locale before registering stable IDs', async () =>
 it.each(['en', 'pt-BR'])('grades only the independently verified stale retrospective result in %s', async (locale) => {
   const source = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-stale-${locale}`))
   const { test } = await prepareAttempt({ test: source })
-  const grade = (payload) => {
-    const { status, ...call } = toolCall('get_retrospective', { period: 'month', language: locale })
+  const supplied = { period: 'month', date_from: test.vars.expectations.required[0].result.payload.dateFrom,
+    date_to: test.vars.accountDate, language: locale }
+  const grade = (payload, argumentsOverride = {}) => {
+    const { status, ...call } = toolCall('get_retrospective', { ...supplied, ...argumentsOverride })
     call.result.payload = payload
     return behavior({ trace: { state: 'available', requestId: test.vars.evalRequestId,
       responseRequestId: test.vars.evalRequestId, calls: [{ ...call, resultStatus: status }] } }, { vars: test.vars })
   }
   expect(grade(retrospectiveResponse(true)).pass).toBe(true)
+  expect(grade(retrospectiveResponse(true), { date_from: '2026-01-01' }).pass).toBe(false)
+  expect(grade(retrospectiveResponse(true), { date_to: '2026-01-31' }).pass).toBe(false)
   for (const patch of [{ fromCache: false }, { dateFrom: '2026-01-01' }, { dateTo: '2026-01-31' },
     { narrative: { highlights: 'Invented narrative', missed: '', trends: '', suggestion: '' } }]) {
     expect(grade({ ...retrospectiveResponse(true), ...patch }).pass).toBe(false)
@@ -423,7 +427,7 @@ it('preserves weekday positions when comparing the seeded cached metrics', async
   vi.stubGlobal('fetch', async (url, options) => new URL(url).pathname === '/api/habits/retrospective'
     ? Response.json(saved) : intercepted(url, options))
   const { test } = await prepareAttempt({ test: scenario('composition-stale') })
-  const { status, ...call } = toolCall('get_retrospective', { period: 'month' })
+  const { status, ...call } = toolCall('get_retrospective', { period: 'month', date_from: saved.dateFrom, date_to: saved.dateTo })
   call.result.payload = structuredClone(saved)
   const output = { trace: { state: 'available', requestId: test.vars.evalRequestId,
     responseRequestId: test.vars.evalRequestId, calls: [{ ...call, resultStatus: status }] } }

@@ -59,3 +59,12 @@ it.each(['calendar-sync', 'error', 'offline'])('asks about Google Agenda in the 
   expect(test.vars.input).not.toContain('meu calendário')
   expect(test.vars.expectations.required[0].name).toBe('get_calendar_overview')
 })
+
+it.each(['en', 'pt-BR'])('requests the seeded month dates and saved narrative in %s', (locale) => {
+  const test = scenario('stale', locale)
+  expect(test.vars.input).toContain('{retrospectiveFrom}')
+  expect(test.vars.input).toContain('{accountDate}')
+  expect(test.vars.expectations.required[0]).toMatchObject({ name: 'get_retrospective',
+    arguments: { period: 'month', date_from: '{retrospectiveFrom}', date_to: '{accountDate}' } })
+  expect(test.vars.composition.blocks).toEqual([{ kind: 'periodInsight', completeness: 'stale', recovery: 'refresh' }])
+})
