@@ -315,6 +315,21 @@ export function Screen(){return <button className="${promotion} bg-[var(--bg)] h
   check("check-surface-scope.mjs", "rejects text when its shipped CSS promotion is removed", ["--root", promoted], {
     status: 1, stderr: /--fg-3 on hover, light ratio 4\.161, TEXT floor 4\.50/,
   })
+  const proposedRowPath = "apps/web/components/chat/habit-block-row.tsx"
+  for (const [label, before, after, status] of [
+    ["paired", undefined, undefined, 0],
+    ["missing-hover", "group-hover/habit-block:text-[var(--fg-2)]", "", 1],
+    ["missing-press", "group-active/habit-block:text-[var(--fg-2)]", "", 1],
+    ["wrong-group", "group/habit-block flex", "group/other flex", 1],
+  ]) {
+    const repository = stageProducerRepository(`proposed-row-${label}`, [proposedRowPath],
+      before ? { path: proposedRowPath, before, after } : undefined)
+    check("check-surface-scope.mjs", `pairs proposed row foreground with named group interactions: ${label}`, ["--root", repository], {
+      status,
+      ...(status === 0 ? { stdout: /Surface scope guard passed/ }
+        : { stderr: /--fg-3 on card \+ hover, dark ratio 4\.029, TEXT floor 4\.50/ }),
+    })
+  }
   const interactionOwners = [
     { path: "apps/web/components/navigation/bottom-tab-bar.tsx", before: "group rounded-full", after: "group rounded-full hover:bg-[var(--bg-hover)]" },
     { path: "apps/web/components/shell/shell-wide.tsx", owner: "SidebarItem", before: "? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'", after: "? 'text-[var(--primary-soft)]'" },
