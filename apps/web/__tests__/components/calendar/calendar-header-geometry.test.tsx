@@ -1,3 +1,4 @@
+import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
@@ -321,6 +322,7 @@ describe('Calendar header geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
       await page.evaluate(`document.querySelector('[data-focus-inset]').addEventListener('focusin', (${revealFocusedControl.toString()}))`)
       const containment = await page.evaluate(() => {
         const body = document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
@@ -376,6 +378,7 @@ describe('Calendar header geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
         await settleSegmentMeasurements(page)
@@ -451,6 +454,7 @@ describe('Calendar header geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
         await settleSegmentMeasurements(page)
@@ -494,6 +498,7 @@ describe('Calendar header geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
       if (width === 1280) await page.evaluate(() => { const rows = document.querySelector('.orbit-menu-items')!; document.body.append(rows); document.querySelector('.orbit-sheet-portal')!.remove() })
       const row = page.getByRole('menuitem')
       expect(await row.evaluate((element) => element.getBoundingClientRect().height)).toBe(height)
@@ -514,6 +519,7 @@ describe('Calendar header geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
       for (const textScale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, textScale)
         await settleSegmentMeasurements(page)
@@ -830,6 +836,7 @@ describe('Calendar header geometry in Chromium', () => {
       await trigger.click()
       const menu = page.getByRole('menu')
       await menu.waitFor({ state: 'visible' })
+      for (const panel of await page.locator('.orbit-menu-panel, .orbit-sheet-panel').all()) await panel.evaluate(settleAnimations)
       expect(await menu.getByRole('menuitemcheckbox', { checked: true }).count()).toBe(1)
       expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
       const last = menu.getByRole('menuitemcheckbox').last()
